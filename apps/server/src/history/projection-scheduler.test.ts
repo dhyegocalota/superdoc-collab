@@ -7,7 +7,7 @@ import { HISTORY_DATABASE_FILE, READ_MODEL_DATABASE_FILE } from '../database/con
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { startTestServer } from '../testing/test-server';
-import { IMPORT_FAILED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionRequestKind } from './projection-messages';
+import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionRequestKind } from './projection-messages';
 import { MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
@@ -117,6 +117,10 @@ test('exceeding the restart budget stops respawning and logs one line', async ()
   server.services.scheduler.schedule(randomUUID());
   await server.services.scheduler.forget(randomUUID());
   expect(server.services.scheduler.currentWorker).toBe(lastWorker);
+  const skippedId = randomUUID();
+  server.services.scheduler.importRevisions({ documentId: skippedId, filePath: 'unused.docx' });
+  expect(consoleError).toHaveBeenCalledTimes(2);
+  expect(consoleError).toHaveBeenLastCalledWith(`${IMPORT_SKIPPED_MESSAGE} ${skippedId}`);
   consoleError.mockRestore();
   await server.stop();
 });

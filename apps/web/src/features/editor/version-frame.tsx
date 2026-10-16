@@ -1,9 +1,8 @@
 import { versionViewPagePath, type EditRunView, type VersionSummary } from '@superdoc-history/types';
 import { useEffect, useRef, useState } from 'react';
+import { VERSION_FRAME_TITLE } from '@/features/timeline/timeline-copy';
 import { cn } from '@/lib/utils';
 import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
-
-export const VERSION_FRAME_TITLE = 'Document version';
 
 type Frame = { version: VersionSummary; isReady: boolean };
 

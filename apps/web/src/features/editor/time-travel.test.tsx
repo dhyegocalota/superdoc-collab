@@ -24,13 +24,12 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ViewerMessageKind } from '@/features/editor/viewer-messages';
 import { formatTimestamp } from '@/features/timeline/timeline-tooltip';
 import { SCRUB_DEBOUNCE_MS } from '@/features/timeline/use-time-travel';
-import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, STREAMGRAPH_TITLE } from '@/features/timeline/timeline-copy';
+import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, STREAMGRAPH_TITLE, VERSION_FRAME_TITLE } from '@/features/timeline/timeline-copy';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
 import { BLANK_DOCX_PATH } from './editor-api';
 import { DocumentPage } from './document-page';
-import { VERSION_FRAME_TITLE } from './version-frame';
 
 type VersionReply = { status: HttpStatus; body?: VersionSummary; headers?: Record<string, string> };
 

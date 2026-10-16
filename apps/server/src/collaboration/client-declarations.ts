@@ -9,9 +9,12 @@ export function createClientDeclarer(log: UpdateLog) {
   return {
     declare(document: Document): void {
       const states = document.awareness.getStates() as Map<number, PresenceState>;
-      const declarations = [...document.connections.values()].flatMap(({ clients, connection }) => {
+      const writable = [...document.connections.values()].filter(({ connection }) => !connection.readOnly);
+      const holders = [...document.connections.values()].flatMap(({ clients }) => [...clients] as number[]);
+      const declarations = writable.flatMap(({ clients, connection }) => {
         const { userId, documentId } = connection.context as CollaborationContext;
-        return [...clients].filter((clientId: number) => states.get(clientId)?.userId === userId).map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId }));
+        const isContested = (clientId: number) => holders.filter((holder) => holder === clientId).length > 1;
+        return [...clients].filter((clientId: number) => states.get(clientId)?.userId === userId && !isContested(clientId)).map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId }));
       });
       const signature = JSON.stringify(declarations.map(({ yjsClientId, userId }) => `${yjsClientId}:${userId}`).sort());
       if (lastDeclared.get(document.name) === signature) return;

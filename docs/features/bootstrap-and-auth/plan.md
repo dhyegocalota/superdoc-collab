@@ -870,10 +870,10 @@ _Done — evidence: commits 1e125dc, 375d1f6, 96a5199; fix round 1 re-review cle
 ### Z. Prove and ship
 
 - [x] **Z1:** Developer A hands over `tester-briefing.md`; the orchestrator dispatches the `tester` sub-agent with `test-plan.md` only.
-- [ ] **Z2:** Tester executes `test-plan.md`, ticks with evidence, files defects; defects go back to the owning group.
-- [ ] **Z3:** `reviewer` sub-agent on `git diff main...HEAD`; findings fixed; verdict recorded in the PR body.
-- [ ] **Z4:** `/check-ui http://localhost:3100/sign-in bootstrap-and-auth --video` by the `recorder`; assets on the `pr-media-bootstrap-and-auth` pre-release.
-- [ ] **Z5:** Learnings sweep; ADR check (0004 addendum already recorded); `/open-pr bootstrap-and-auth`.
+- [x] **Z2:** Tester executes `test-plan.md`, ticks with evidence, files defects; defects go back to the owning group.
+- [x] **Z3:** `reviewer` sub-agent on `git diff main...HEAD`; findings fixed; verdict recorded in the PR body.
+- [x] **Z4:** `/check-ui http://localhost:3100/sign-in bootstrap-and-auth --video` by the `recorder`; assets on the `pr-media-bootstrap-and-auth` pre-release.
+- [x] **Z5:** Learnings sweep; ADR check (0004 addendum already recorded); `/open-pr bootstrap-and-auth`.
 
 ## Failure modes
 

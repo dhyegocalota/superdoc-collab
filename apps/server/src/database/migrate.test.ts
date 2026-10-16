@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { MigrationsFolderNotFoundError, findMigrationsFolder } from './migrate';
+import { MigrationSet } from '@superdoc-history/history';
+import { openSqliteFile } from './connection';
+import { MigrationsFolderNotFoundError, findMigrationsFolder, runHistoryMigrations } from './migrate';
 
 function temporaryDirectory(): string {
   return mkdtempSync(join(tmpdir(), 'superdoc-history-'));
@@ -23,5 +25,15 @@ describe('findMigrationsFolder', () => {
     const root = temporaryDirectory();
     const bundle = pathToFileURL(join(root, 'main.js')).href;
     expect(() => findMigrationsFolder({ startUrl: bundle, relativePath: 'drizzle' })).toThrow(MigrationsFolderNotFoundError);
+  });
+});
+
+describe('runHistoryMigrations', () => {
+  test('creates the update log tables for the history set', () => {
+    const sqlite = openSqliteFile({ directory: temporaryDirectory(), fileName: 'history.sqlite' });
+    runHistoryMigrations({ sqlite, set: MigrationSet.History });
+    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[];
+    expect(tables.map((table) => table.name)).toEqual(expect.arrayContaining(['updates', 'snapshots', 'client_identities']));
+    sqlite.close();
   });
 });

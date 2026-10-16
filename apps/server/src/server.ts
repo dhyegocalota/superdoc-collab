@@ -7,14 +7,20 @@ import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationServer } from './collaboration/collaboration-server';
 import type { Environment } from './config/environment';
-import { AUTH_DATABASE_FILE, openDatabase, type AuthDatabase } from './database/connection';
+import { join } from 'node:path';
+import { AUTH_DATABASE_FILE, DOCUMENT_FILES_DIRECTORY, openDatabase, type AuthDatabase } from './database/connection';
 import { runMigrations } from './database/migrate';
+import { DocumentsRepository } from './documents/documents-repository';
+import type { DocumentFileStorage } from './documents/file-storage';
+import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
 import { createApp } from './http/app';
 import { mountStaticWeb } from './http/static-web';
 
 const NOT_FOUND_MESSAGE = 'Not found';
 
-export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; stop: () => Promise<void> };
+export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage };
+
+export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; services: ServerServices; stop: () => Promise<void> };
 
 export function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
   if (!('closeAllConnections' in httpServer)) return;
@@ -34,6 +40,10 @@ function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType>
 export async function startServer({ environment, webDistDirectory }: { environment: Environment; webDistDirectory: string | null }): Promise<RunningServer> {
   const database = openDatabase({ directory: environment.databaseDirectory, fileName: AUTH_DATABASE_FILE });
   runMigrations(database);
+  const services: ServerServices = {
+    documents: new DocumentsRepository(database),
+    storage: createLocalDiskFileStorage(join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY)),
+  };
   const auth = createAuth({ database, environment });
   const app = createApp({ auth, environment });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
@@ -47,6 +57,7 @@ export async function startServer({ environment, webDistDirectory }: { environme
     port,
     auth,
     database,
+    services,
     stop: async () => {
       await hocuspocus.destroy();
       sockets.clients.forEach((client) => client.terminate());

@@ -7,5 +7,5 @@ export default defineConfig({
   platform: 'node',
   clean: true,
   external: ['better-sqlite3'],
-  noExternal: ['@superdoc-history/types'],
+  noExternal: ['@superdoc-history/types', '@superdoc-history/history'],
 });

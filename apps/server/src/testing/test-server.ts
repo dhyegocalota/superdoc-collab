@@ -8,6 +8,7 @@ import type { Environment } from '../config/environment';
 import { AUTH_DATABASE_FILE, openDatabase, type AuthDatabase } from '../database/connection';
 import { runMigrations } from '../database/migrate';
 import { createApp } from '../http/app';
+import { closeAllConnectionsWhenSupported, closeServer } from '../server';
 
 const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 const LOOPBACK_HOST = '127.0.0.1';
@@ -22,13 +23,8 @@ async function reserveFreePort(): Promise<number> {
   return port;
 }
 
-function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
-  if (!('closeAllConnections' in httpServer)) return;
-  httpServer.closeAllConnections();
-}
-
-function closeServer(httpServer: ServerType): Promise<void> {
-  return new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
+export function testEnvironment({ databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')) }: { databaseDirectory?: string } = {}): Environment {
+  return { port: 0, appOrigin: `http://${LOOPBACK_HOST}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy: true };
 }
 
 export async function startTestServer({ trustProxy = true }: { trustProxy?: boolean } = {}): Promise<TestServer> {

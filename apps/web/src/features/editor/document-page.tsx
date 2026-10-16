@@ -5,16 +5,18 @@ import { Link } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
+import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { DocumentUnavailableError, documentFileQueryKey, fetchDocumentFile, fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
 import { SuperDocEditor } from './superdoc-editor';
-import { TimelinePanelPlaceholder } from './timeline-panel-placeholder';
 import { useEditorSetup } from './use-editor-setup';
 import { useOpenedDocument } from './use-opened-document';
 
 const NO_MEMBERS: DocumentMember[] = [];
+
+function ignoreTravel(): void {}
 
 function useDocumentFile({ documentId, roomMode }: { documentId: string; roomMode: RoomMode | undefined }) {
   return useQuery({
@@ -75,11 +77,11 @@ export function DocumentPage() {
     <div className="flex h-dvh flex-col">
       <EditorHeader opened={opened} members={members} onDownload={setup ? downloadLiveDocument : null} />
       {hasExportFailed && <p role="alert" className="px-4 py-2 text-sm text-destructive">{EXPORT_FAILED_MESSAGE}</p>}
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {setup && <SuperDocEditor superdocRef={superdocRef} documentId={documentId} roomMode={setup.roomMode} role={setup.role} user={setup.user} file={setup.file} />}
         {!setup && !fileError && <p role="status" className="flex-1 p-4 text-sm text-muted-foreground">{LOADING_DOCUMENT_MESSAGE}</p>}
         {fileError && <p role="alert" className="flex-1 p-4 text-sm text-destructive">{DOCUMENT_LOAD_ERROR_MESSAGE}</p>}
-        <TimelinePanelPlaceholder />
+        <TimelinePanel documentId={documentId} role={opened.role} onTravel={ignoreTravel} />
       </div>
     </div>
   );

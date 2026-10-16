@@ -1,16 +1,6 @@
 import type { DocumentMember } from '@superdoc-history/types';
+import { initialsOf } from '@/lib/initials';
 import { ONLINE_LABEL } from './editor-copy';
-
-const INITIALS_LIMIT = 2;
-
-function initialsOf(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part.charAt(0))
-    .slice(0, INITIALS_LIMIT)
-    .join('')
-    .toUpperCase();
-}
 
 export function Members({ members }: { members: DocumentMember[] }) {
   return (

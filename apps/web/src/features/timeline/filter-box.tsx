@@ -1,0 +1,52 @@
+import { TimelineFilterKind, TimelineSearchParam } from '@superdoc-history/types';
+import { X } from 'lucide-react';
+import { useState, type KeyboardEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { CLEAR_FILTERS_LABEL, FILTER_LABEL, FILTER_PLACEHOLDER, removeFilterLabel } from './timeline-copy';
+import { parseFilterInput, useTimelineSearch } from './use-timeline-search';
+
+const PARAM_BY_KIND: Record<TimelineFilterKind, TimelineSearchParam> = {
+  [TimelineFilterKind.Term]: TimelineSearchParam.Term,
+  [TimelineFilterKind.Author]: TimelineSearchParam.Author,
+};
+
+export function FilterBox() {
+  const { search, update } = useTimelineSearch();
+  const [draft, setDraft] = useState('');
+  const chips = [
+    { param: TimelineSearchParam.Term, value: search.filter.term },
+    { param: TimelineSearchParam.Author, value: search.filter.author },
+  ].filter((chip) => chip.value !== null);
+
+  function commit(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key !== 'Enter') return;
+    const parsed = parseFilterInput(draft);
+    if (!parsed) return;
+    update({ changes: { [PARAM_BY_KIND[parsed.kind]]: parsed.value }, replace: true });
+    setDraft('');
+  }
+
+  function clearFilters(): void {
+    update({ changes: { [TimelineSearchParam.Term]: null, [TimelineSearchParam.Author]: null }, replace: true });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Input aria-label={FILTER_LABEL} placeholder={FILTER_PLACEHOLDER} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={commit} />
+      {chips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {chips.map((chip) => (
+            <Button key={chip.param} type="button" variant="secondary" size="sm" aria-label={removeFilterLabel(chip.value!)} onClick={() => update({ changes: { [chip.param]: null }, replace: true })}>
+              {chip.value}
+              <X />
+            </Button>
+          ))}
+          <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+            {CLEAR_FILTERS_LABEL}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}

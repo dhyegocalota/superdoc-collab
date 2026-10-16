@@ -26,3 +26,15 @@ export function bandAriaLabel({ name, volume }: { name: string; volume: number }
 export function streamgraphDescription({ bandCount, from, to }: { bandCount: number; from: string; to: string }): string {
   return `${bandCount} bands, from ${from} to ${to}`;
 }
+
+export function removeFilterLabel(value: string): string {
+  return `${REMOVE_FILTER_LABEL} ${value}`;
+}
+
+export function wordsDeltaLabel({ inserted, deleted }: { inserted: number; deleted: number }): string {
+  return `+${inserted} words −${deleted} words`;
+}
+
+export function lagBehindLabel(seconds: number): string {
+  return `${seconds} s behind`;
+}

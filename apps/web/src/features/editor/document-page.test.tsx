@@ -18,6 +18,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
+import { timelineWith } from '@/test/timeline-fixtures';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_FAILED_MESSAGE, EXPORT_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
@@ -37,6 +38,9 @@ vi.mock('superdoc/style.css', () => ({}));
 const DOCUMENT_PATH = documentApiPath({ documentId: DOCUMENT_ID });
 const DOWNLOAD_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Download });
 const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members });
+const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
+const SUMMARIES_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries });
+const EMPTY_TIMELINE = timelineWith({ volumes: [], names: [] });
 const RENAMED_TITLE = 'Renamed';
 
 function mockDocumentApi({
@@ -59,6 +63,8 @@ function mockDocumentApi({
     if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
     if (input === MEMBERS_PATH) return new Response(JSON.stringify({ members: [] }), { status: currentMembersStatus() });
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
+    if (input === TIMELINE_PATH) return new Response(JSON.stringify(EMPTY_TIMELINE));
+    if (input === SUMMARIES_PATH) return new Response(JSON.stringify({ summaries: [] }));
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     if (input === DOCUMENT_PATH && init?.method === HttpMethod.Patch && renamedTitle) {
       current = { ...current, document: { ...current.document, title: renamedTitle } };

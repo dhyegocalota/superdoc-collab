@@ -33,6 +33,7 @@ const BYTES_PER_MEGABYTE = 1024 * 1024;
 const TWELVE_MEGABYTES = 12 * BYTES_PER_MEGABYTE;
 const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
+const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE, fileName = 'Plan.docx' }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string; fileName?: string }): Promise<Response> {
@@ -165,6 +166,14 @@ test('a blank or whitespace title is refused', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const statuses = await Promise.all(['', '   '].map(async (title) => (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title } })).status));
   expect(statuses).toEqual([HttpStatus.BadRequest, HttpStatus.BadRequest]);
+  expect(server.services.documents.summary({ documentId, userId: owner.id }).title).toBe('Shared plan');
+  await server.stop();
+});
+
+test('a rename body over the limit is 413', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const response = await request({ server, cookie: owner.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title: 'x'.repeat(RENAME_BODY_OVER_LIMIT_CHARACTERS) } });
+  expect(response.status).toBe(HttpStatus.PayloadTooLarge);
   expect(server.services.documents.summary({ documentId, userId: owner.id }).title).toBe('Shared plan');
   await server.stop();
 });

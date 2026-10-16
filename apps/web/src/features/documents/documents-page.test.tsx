@@ -45,6 +45,20 @@ test('clicking a row opens the document', async () => {
   expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
 });
 
+test('a row title is a link reachable and activated by keyboard', async () => {
+  mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
+  const { router } = renderWithProviders(<DocumentsPage />);
+  const link = await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
+  expect(link).toHaveAttribute('href', documentPagePath(OWNED_DOCUMENT.id));
+  await userEvent.tab();
+  await userEvent.tab();
+  await userEvent.tab();
+  await userEvent.tab();
+  expect(link).toHaveFocus();
+  await userEvent.keyboard('{Enter}');
+  expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
+});
+
 test('new document posts the untitled title, refreshes the list and opens it', async () => {
   const fetchSpy = mockApi({ mine: [], shared: [] });
   const { queryClient, router } = renderWithProviders(<DocumentsPage />);

@@ -1,5 +1,5 @@
 import { documentPagePath, type DocumentSummary } from '@superdoc-history/types';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -35,7 +35,11 @@ export function DocumentTable({ documents, emptyMessage }: DocumentTableProps) {
           )}
           {documents.map((document) => (
             <TableRow key={document.id} className="cursor-pointer" onClick={() => navigate(documentPagePath(document.id))}>
-              <TableCell className="font-medium">{document.title}</TableCell>
+              <TableCell className="font-medium">
+                <Link to={documentPagePath(document.id)} className="hover:underline">
+                  {document.title}
+                </Link>
+              </TableCell>
               <TableCell>{document.owner.name}</TableCell>
               <TableCell>{UPDATED_AT_FORMAT.format(document.updatedAt)}</TableCell>
               <TableCell>

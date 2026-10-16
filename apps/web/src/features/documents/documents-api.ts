@@ -10,6 +10,7 @@ import {
   type DocumentSummary,
 } from '@superdoc-history/types';
 import { ApiRequestError, apiSend } from '@/lib/api';
+import { CREATE_FAILED_MESSAGE, UPLOAD_FAILED_MESSAGE } from './documents-copy';
 
 export const DOCUMENTS_QUERY_KEY = ['documents'];
 
@@ -25,12 +26,12 @@ export async function uploadDocument(file: File): Promise<DocumentSummary> {
   const response = await apiSend({ path: ApiPath.Documents, method: HttpMethod.Post, body: form });
   if (response.status === HttpStatus.PayloadTooLarge) throw new ApiRequestError(UPLOAD_TOO_LARGE_MESSAGE);
   if (response.status === HttpStatus.UnsupportedMediaType) throw new ApiRequestError(NOT_A_DOCX_MESSAGE);
-  if (!response.ok) throw new ApiRequestError(`Upload failed with status ${response.status}`);
+  if (!response.ok) throw new ApiRequestError(`${UPLOAD_FAILED_MESSAGE} ${response.status}`);
   return response.json();
 }
 
 export async function createBlankDocument(title: string): Promise<DocumentSummary> {
   const response = await apiSend({ path: ApiPath.Documents, method: HttpMethod.Post, body: JSON.stringify({ title }) });
-  if (!response.ok) throw new ApiRequestError(`Create failed with status ${response.status}`);
+  if (!response.ok) throw new ApiRequestError(`${CREATE_FAILED_MESSAGE} ${response.status}`);
   return response.json();
 }

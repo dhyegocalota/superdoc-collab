@@ -35,6 +35,7 @@ export function UploadDialog() {
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.item(0);
+    event.target.value = '';
     if (!file) return;
     reset();
     const invalidMessage = validateUpload(file);

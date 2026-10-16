@@ -2,7 +2,7 @@ import { documentApiPath, DocumentResource, HttpMethod, HttpStatus, TOPICS_REFRE
 import { afterEach, expect, test, vi } from 'vitest';
 import { ApiRequestError } from '@/lib/api';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { fetchTimeline, fetchVersion, refreshTopics, VersionLoadKind } from './timeline-api';
+import { fetchTimeline, fetchVersion, MIN_RETRY_AFTER_MS, refreshTopics, VersionLoadKind } from './timeline-api';
 
 const DOCUMENT_ID = 'doc-1';
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
@@ -42,6 +42,15 @@ test('fetchVersion maps 202, 200 and 503 and throws on 404', async () => {
   expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Failed });
   respondWith(new Response(null, { status: HttpStatus.NotFound }));
   await expect(fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).rejects.toBeInstanceOf(DocumentUnavailableError);
+});
+
+test('fetchVersion never retries faster than the minimum delay', async () => {
+  respondWith(new Response(null, { status: HttpStatus.Accepted }));
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: MIN_RETRY_AFTER_MS });
+  respondWith(new Response(null, { status: HttpStatus.Accepted, headers: { [RETRY_AFTER_HEADER]: 'soon' } }));
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: MIN_RETRY_AFTER_MS });
+  respondWith(new Response(null, { status: HttpStatus.Accepted, headers: { [RETRY_AFTER_HEADER]: '0' } }));
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: MIN_RETRY_AFTER_MS });
 });
 
 test('refreshTopics returns the status on 202 and explains a 429', async () => {

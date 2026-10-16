@@ -20,6 +20,7 @@ export class ProjectionScheduler {
   currentWorker: Worker;
   private readonly databaseDirectory: string;
   private readonly inFlight = new Set<string>();
+  private readonly pendingImports = new Map<string, string>();
   private readonly rerun = new Set<string>();
   private readonly forgetting = new Map<string, (() => void)[]>();
   private readonly restartTimes: number[] = [];
@@ -46,11 +47,13 @@ export class ProjectionScheduler {
 
   importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): void {
     if (this.degraded) return console.error(`${IMPORT_SKIPPED_MESSAGE} ${documentId}`);
+    this.pendingImports.set(documentId, filePath);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath });
   }
 
   forget(documentId: string): Promise<void> {
     if (this.degraded) return Promise.resolve();
+    this.pendingImports.delete(documentId);
     return new Promise((resolve) => {
       this.forgetting.set(documentId, [...this.waitingForgets(documentId), resolve]);
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId });
@@ -93,6 +96,7 @@ export class ProjectionScheduler {
 
   private settleDone({ kind, documentId, importError }: ProjectionDoneReply): void {
     if (kind === ProjectionRequestKind.Forget) return this.settleForget(documentId);
+    if (kind === ProjectionRequestKind.Import) this.pendingImports.delete(documentId);
     if (importError !== null) return this.reportImportFailure({ documentId, importError });
     if (kind !== ProjectionRequestKind.Project) return;
     this.inFlight.delete(documentId);
@@ -125,6 +129,7 @@ export class ProjectionScheduler {
     const pending = [...this.inFlight];
     this.inFlight.clear();
     pending.forEach((documentId) => this.schedule(documentId));
+    this.pendingImports.forEach((filePath, documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }));
     [...this.forgetting.keys()].forEach((documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId }));
   }
 
@@ -141,6 +146,7 @@ export class ProjectionScheduler {
     console.error(WORKER_DEGRADED_MESSAGE);
     [...this.forgetting.keys()].forEach((documentId) => this.settleForget(documentId));
     this.inFlight.clear();
+    this.pendingImports.clear();
     this.rerun.clear();
   }
 }

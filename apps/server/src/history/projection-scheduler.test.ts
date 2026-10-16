@@ -1,13 +1,15 @@
+import { buildSeedDocx, TrackedChangeKind } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
 import Database from 'better-sqlite3';
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
-import { startTestServer } from '../testing/test-server';
-import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionRequestKind } from './projection-messages';
+import { signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
+import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, IMPORT_TIMEOUT_MS, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestKind } from './projection-messages';
 import { MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
@@ -160,4 +162,120 @@ test('startup projects a document with unprojected updates', async () => {
   const restarted = await startTestServer({ databaseDirectory: server.databaseDirectory });
   await expect.poll(() => restarted.services.readModel.read({ documentName: documentId, afterSequence: null }).map((event) => event.inserted).join(''), { timeout: PROJECTION_TIMEOUT_MS }).toBe('late');
   await restarted.stop();
+});
+
+const UNKNOWN_SEQUENCE = 999_999;
+const REBUILD_TEST_TIMEOUT_MS = 60_000;
+
+type SchedulerInternals = { inFlight: Set<string>; rerun: Set<string>; settle: (reply: unknown) => void };
+
+async function projectedDocument() {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: ['Hello'] });
+  commitBootstrap(client.document);
+  await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(0);
+  return { server, documentId, owner, client, sequence: server.services.readModel.marks(documentId)[0]!.sequence };
+}
+
+function inFlightWithRerun({ server, documentId }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string }): SchedulerInternals {
+  vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  server.services.scheduler.schedule(documentId);
+  server.services.scheduler.schedule(documentId);
+  return server.services.scheduler as unknown as SchedulerInternals;
+}
+
+test('a hanging import does not delay the projection of another document', { timeout: IMPORT_TIMEOUT_MS }, async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const fifo = join(server.databaseDirectory, 'never-written.docx');
+  execFileSync('mkfifo', [fifo]);
+  server.services.scheduler.importRevisions({ documentId: randomUUID(), filePath: fifo });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: ['a'] });
+  commitBootstrap(client.document);
+  writeStory({ document: client.document, texts: ['ab'] });
+  await expect.poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted).join(''), { timeout: IMPORT_TIMEOUT_MS / 3 }).toBe('b');
+  client.close();
+  await server.stop();
+});
+
+test('a document projected before marks existed is rebuilt at startup', { timeout: REBUILD_TEST_TIMEOUT_MS }, async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const bytes = await buildSeedDocx([{ text: 'Preamble by', trackedChanges: [{ kind: TrackedChangeKind.Insert, author: 'Chris Crawford', date: '2026-02-12T09:01:00Z', text: ' developers' }] }]);
+  await server.services.storage.put({ documentId, bytes });
+  server.services.runtime.importRevisions(documentId);
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: [''] });
+  commitBootstrap(client.document);
+  writeStory({ document: client.document, texts: ['a'] });
+  writeStory({ document: client.document, texts: ['ab'] });
+  const importedAndInserted = async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => [event.imported, event.inserted]);
+  const expected = [[true, ' developers'], [false, 'a'], [false, 'b']];
+  await expect.poll(importedAndInserted, { timeout: REBUILD_TEST_TIMEOUT_MS / 2 }).toEqual(expected);
+  client.close();
+  await server.stop();
+  const readModelSqlite = new Database(join(server.databaseDirectory, READ_MODEL_DATABASE_FILE));
+  readModelSqlite.exec('DELETE FROM version_marks');
+  readModelSqlite.close();
+  const restarted = await startTestServer({ databaseDirectory: server.databaseDirectory });
+  expect(restarted.services.scheduler.isRebuilding(documentId)).toBe(true);
+  await expect.poll(() => restarted.services.scheduler.isRebuilding(documentId), { timeout: REBUILD_TEST_TIMEOUT_MS / 2 }).toBe(false);
+  expect(restarted.services.readModel.marks(documentId).some((mark) => mark.isBootstrap)).toBe(true);
+  const restartedCookie = await signInExisting({ server: restarted, email: owner.email, password: TEST_USER_PASSWORD });
+  expect((await readEvents({ server: restarted, cookie: restartedCookie, documentId })).map((event) => [event.imported, event.inserted])).toEqual(expected);
+  await restarted.stop();
+});
+
+test('a failed version never touches the projection bookkeeping', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const internals = inFlightWithRerun({ server, documentId });
+  const version = server.services.scheduler.version({ documentId, sequence: UNKNOWN_SEQUENCE });
+  internals.settle({ kind: ProjectionReplyKind.Failed, documentId, message: 'boom', requestKind: ProjectionRequestKind.Version, sequence: UNKNOWN_SEQUENCE });
+  await expect(version).rejects.toThrow('boom');
+  expect([internals.inFlight.has(documentId), internals.rerun.has(documentId)]).toEqual([true, true]);
+  expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining(PROJECTION_FAILED_MESSAGE));
+  consoleError.mockRestore();
+  await server.stop();
+});
+
+test('version requests for the same mark share one worker round trip', async () => {
+  const { server, documentId, client, sequence } = await projectedDocument();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage');
+  const [first, second] = await Promise.all([server.services.scheduler.version({ documentId, sequence }), server.services.scheduler.version({ documentId, sequence })]);
+  expect(postMessage.mock.calls.filter(([message]) => (message as { kind: ProjectionRequestKind }).kind === ProjectionRequestKind.Version)).toHaveLength(1);
+  expect(first.text).toBe(second.text);
+  client.close();
+  await server.stop();
+});
+
+test('a version of an unknown mark rejects naming the error', async () => {
+  const { server, documentId } = await documentWithOwner();
+  await expect(server.services.scheduler.version({ documentId, sequence: UNKNOWN_SEQUENCE })).rejects.toThrow(/MissingVersionMarkError/);
+  await server.stop();
+});
+
+test('blocks returns the story at the projection cursor', async () => {
+  const { server, documentId, client } = await projectedDocument();
+  const reply = await server.services.scheduler.blocks(documentId);
+  expect(reply.blocks[0]?.text).toBe('Hello');
+  client.close();
+  await server.stop();
+});
+
+test('a degraded scheduler rejects versions at once', async () => {
+  const { server, documentId } = await documentWithOwner();
+  server.services.scheduler.degraded = true;
+  await expect(server.services.scheduler.version({ documentId, sequence: UNKNOWN_SEQUENCE })).rejects.toBeInstanceOf(ProjectionDegradedError);
+  server.services.scheduler.degraded = false;
+  await server.stop();
+});
+
+test('a terminated worker re-posts a waiting version', async () => {
+  const { server, documentId, client, sequence } = await projectedDocument();
+  const version = server.services.scheduler.version({ documentId, sequence });
+  await server.services.scheduler.currentWorker.terminate();
+  expect((await version).sequence).toBe(sequence);
+  client.close();
+  await server.stop();
 });

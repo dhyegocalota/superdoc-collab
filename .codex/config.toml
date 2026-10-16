@@ -1,0 +1,24 @@
+# Project-scoped Codex configuration. Loaded only for trusted projects.
+# Skills: .agents/skills (read natively). Instructions: AGENTS.md. Roles: .codex/agents/*.toml
+
+[features]
+multi_agent = true
+
+[agents.researcher]
+config_file = ".codex/agents/researcher.toml"
+[agents.developer]
+config_file = ".codex/agents/developer.toml"
+[agents.tester]
+config_file = ".codex/agents/tester.toml"
+[agents.reviewer]
+config_file = ".codex/agents/reviewer.toml"
+[agents.recorder]
+config_file = ".codex/agents/recorder.toml"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--browser", "chromium"]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@latest"]

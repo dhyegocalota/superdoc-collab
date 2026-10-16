@@ -16,6 +16,7 @@ export function renderWithProviders(element: ReactElement, { route = AppRoute.Do
     [
       { path: AppRoute.Document, element },
       { path: AppRoute.Share, element },
+      { path: AppRoute.VersionView, element },
       { path: ANY_PATH, element },
     ],
     { initialEntries: [route] },

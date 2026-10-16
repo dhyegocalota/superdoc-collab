@@ -22,7 +22,7 @@ async function reserveFreePort(): Promise<number> {
   return port;
 }
 
-function closeIdleConnections(httpServer: ServerType): void {
+function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
   if (!('closeAllConnections' in httpServer)) return;
   httpServer.closeAllConnections();
 }
@@ -31,13 +31,14 @@ function closeServer(httpServer: ServerType): Promise<void> {
   return new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
 }
 
-export async function startTestServer(): Promise<TestServer> {
-  const database = openDatabase({ directory: mkdtempSync(join(tmpdir(), 'superdoc-history-')), fileName: AUTH_DATABASE_FILE });
+export async function startTestServer({ trustProxy = true }: { trustProxy?: boolean } = {}): Promise<TestServer> {
+  const databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-'));
+  const database = openDatabase({ directory: databaseDirectory, fileName: AUTH_DATABASE_FILE });
   runMigrations(database);
   const port = await reserveFreePort();
-  const environment: Environment = { port, appOrigin: `http://${LOOPBACK_HOST}:${port}`, authSecret: TEST_AUTH_SECRET, databaseDirectory: '' };
+  const environment: Environment = { port, appOrigin: `http://${LOOPBACK_HOST}:${port}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy };
   const auth = createAuth({ database, environment });
-  const app = createApp({ auth });
+  const app = createApp({ auth, environment });
   const httpServer = await new Promise<ServerType>((resolve) => {
     const started = serve({ fetch: app.fetch, port, hostname: LOOPBACK_HOST }, () => resolve(started));
   });
@@ -46,7 +47,7 @@ export async function startTestServer(): Promise<TestServer> {
     auth,
     database,
     stop: async () => {
-      closeIdleConnections(httpServer);
+      closeAllConnectionsWhenSupported(httpServer);
       await closeServer(httpServer);
       database.sqlite.close();
     },

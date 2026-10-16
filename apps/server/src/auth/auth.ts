@@ -5,6 +5,7 @@ import { createAuthMiddleware } from 'better-auth/api';
 import type { Environment } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
+import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
 
 const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_MAX_REQUESTS = 100;
@@ -24,6 +25,14 @@ const normalizeCredentials = createAuthMiddleware(async (context) => {
   return { context: { ...context, body: { ...context.body, ...parsed.data } } };
 });
 
+const omitSessionToken = createAuthMiddleware(async (context) => {
+  if (!(context.path in credentialSchemas)) return;
+  const returned = context.context.returned;
+  if (!returned || typeof returned !== 'object' || !('token' in returned)) return;
+  const { token: _token, ...body } = returned;
+  return context.json(body);
+});
+
 export function createAuth({ database, environment }: { database: AuthDatabase; environment: Environment }) {
   return betterAuth({
     secret: environment.authSecret,
@@ -31,7 +40,8 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
     trustedOrigins: [environment.appOrigin],
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),
     emailAndPassword: { enabled: true },
-    hooks: { before: normalizeCredentials },
+    hooks: { before: normalizeCredentials, after: omitSessionToken },
+    advanced: { ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
     rateLimit: { enabled: true, window: RATE_LIMIT_WINDOW_SECONDS, max: RATE_LIMIT_MAX_REQUESTS },
   });
 }

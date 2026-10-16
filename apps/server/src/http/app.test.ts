@@ -8,12 +8,15 @@ afterAll(async () => { await server.stop(); });
 
 const credentials = { name: 'Ana', email: 'ana@example.com', password: 'superdoc-demo' };
 
-async function signUp(body: typeof credentials): Promise<Response> {
-  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-}
 let nextClientAddress = 0;
-async function signIn(body: { email: string; password: string }, clientAddress = `10.0.0.${nextClientAddress++}`): Promise<Response> {
-  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress }, body: JSON.stringify(body) });
+function freshClientAddress(): string {
+  return `10.0.0.${nextClientAddress++}`;
+}
+async function signUp(body: typeof credentials): Promise<Response> {
+  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress() }, body: JSON.stringify(body) });
+}
+async function signIn({ body, clientAddress = freshClientAddress(), target = server }: { body: { email: string; password: string }; clientAddress?: string; target?: TestServer }): Promise<Response> {
+  return fetch(`${target.baseUrl}${ApiPath.Auth}/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress }, body: JSON.stringify(body) });
 }
 function cookieOf(response: Response): string {
   return response.headers.getSetCookie().map((cookie) => cookie.split(';')[0]).join('; ');
@@ -29,7 +32,7 @@ describe('health', () => {
 describe('sign-up, sign-in and me', () => {
   test('a new user signs up, signs in and reads itself', async () => {
     expect((await signUp(credentials)).status).toBe(200);
-    const signedIn = await signIn({ email: credentials.email, password: credentials.password });
+    const signedIn = await signIn({ body: { email: credentials.email, password: credentials.password } });
     expect(signedIn.status).toBe(200);
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: cookieOf(signedIn) } });
     expect(await me.json()).toEqual({ user: { id: expect.any(String), name: 'Ana', email: 'ana@example.com' } });
@@ -38,12 +41,12 @@ describe('sign-up, sign-in and me', () => {
     expect((await fetch(`${server.baseUrl}${ApiPath.Me}`)).status).toBe(401);
   });
   test('normalizes email case and whitespace', async () => {
-    const response = await signIn({ email: '  ANA@example.com ', password: credentials.password });
+    const response = await signIn({ body: { email: '  ANA@example.com ', password: credentials.password } });
     expect(response.status).toBe(200);
   });
   test('wrong password and unknown email return the same status and body', async () => {
-    const wrongPassword = await signIn({ email: credentials.email, password: 'definitely-wrong' });
-    const unknownEmail = await signIn({ email: 'nobody@example.com', password: 'definitely-wrong' });
+    const wrongPassword = await signIn({ body: { email: credentials.email, password: 'definitely-wrong' } });
+    const unknownEmail = await signIn({ body: { email: 'nobody@example.com', password: 'definitely-wrong' } });
     expect(wrongPassword.status).toBe(401);
     expect(wrongPassword.status).toBe(unknownEmail.status);
     expect(await wrongPassword.text()).toBe(await unknownEmail.text());
@@ -55,9 +58,23 @@ describe('sign-up, sign-in and me', () => {
     expect(count.total).toBe(1);
   });
   test('the fourth sign-in within ten seconds is rate limited', async () => {
-    const attempts = await Promise.all(Array.from({ length: 4 }, () => signIn({ email: 'caio@example.com', password: 'definitely-wrong' }, '10.1.0.1')));
+    const attempts = await Promise.all(Array.from({ length: 4 }, () => signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: '10.1.0.1' })));
     expect(attempts.map((response) => response.status)).toContain(429);
     const limited = attempts.find((response) => response.status === 429)!;
     expect(limited.headers.get('x-retry-after')).toMatch(/^\d+$/);
+  });
+  test('rotating x-forwarded-for does not bypass the limit when the proxy is not trusted', async () => {
+    const untrusted = await startTestServer({ trustProxy: false });
+    const attempts = await Promise.all(Array.from({ length: 4 }, (_, index) => signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: `10.2.0.${index}`, target: untrusted })));
+    await untrusted.stop();
+    expect(attempts.map((response) => response.status)).toContain(429);
+  });
+  test('sign-in and sign-up bodies carry no token while the session cookie is httpOnly', async () => {
+    const body = { name: 'Dani', email: 'dani@example.com', password: 'superdoc-demo' };
+    const signedUp = await signUp(body);
+    const signedIn = await signIn({ body: { email: body.email, password: body.password } });
+    expect(await signedUp.json()).not.toHaveProperty('token');
+    expect(await signedIn.json()).not.toHaveProperty('token');
+    expect(signedIn.headers.getSetCookie().join(';')).toContain('HttpOnly');
   });
 });

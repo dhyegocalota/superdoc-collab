@@ -50,8 +50,11 @@ export async function fetchDocumentFile({ documentId, roomMode }: { documentId: 
   return response.blob();
 }
 
+export class DocumentUnavailableError extends ApiRequestError {}
+
 export async function fetchMembers(documentId: string): Promise<DocumentMembers> {
   const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Members }));
+  if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
   if (!response.ok) throw new ApiRequestError(`Members request failed with status ${response.status}`);
   return response.json();
 }

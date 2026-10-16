@@ -1,4 +1,4 @@
-import { AppRoute, DocumentResource, DocumentRole, documentApiPath, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-history/types';
+import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-history/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +86,7 @@ function DeleteDocumentDialog({ documentId }: DocumentIdentity) {
   );
 }
 
-export function EditorHeader({ opened, members }: { opened: OpenedDocument; members: DocumentMember[] }) {
+export function EditorHeader({ opened, members, onDownload }: { opened: OpenedDocument; members: DocumentMember[]; onDownload: (() => void) | null }) {
   const { document, role } = opened;
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;
@@ -97,10 +97,8 @@ export function EditorHeader({ opened, members }: { opened: OpenedDocument; memb
       {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <Members members={members} />
-        <Button variant="outline" asChild>
-          <a href={documentApiPath({ documentId: document.id, resource: DocumentResource.Download })} download>
-            {DOWNLOAD_LABEL}
-          </a>
+        <Button variant="outline" disabled={!onDownload} onClick={onDownload === null ? undefined : onDownload}>
+          {DOWNLOAD_LABEL}
         </Button>
         {isOwner && <ShareDialog documentId={document.id} />}
         {isOwner && <DeleteDocumentDialog documentId={document.id} />}

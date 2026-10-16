@@ -159,7 +159,7 @@ test('a cached create followed by a fresh join from the server builds the join s
 
 test('a members 404 after the editor mounted shows the unavailable message, destroys the editor and stops polling', async () => {
   let membersStatus = HttpStatus.Ok;
-  const fetchSpy = mockDocumentApi({ opened: openedAs(DocumentRole.Editor), currentMembersStatus: () => membersStatus });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Editor), currentMembersStatus: () => membersStatus });
   const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   membersStatus = HttpStatus.NotFound;
@@ -167,10 +167,10 @@ test('a members 404 after the editor mounted shows the unavailable message, dest
   expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
   expect(superDocDestroy).toHaveBeenCalledTimes(1);
-  const membersRequests = () => fetchSpy.mock.calls.filter(([input]) => input === MEMBERS_PATH).length;
-  const requestsAfterFailure = membersRequests();
-  await act(() => queryClient.refetchQueries({ queryKey: membersQueryKey(DOCUMENT_ID), type: 'active' }));
-  expect(membersRequests()).toBe(requestsAfterFailure);
+  const membersQuery = queryClient.getQueryCache().find({ queryKey: membersQueryKey(DOCUMENT_ID) });
+  const refetchInterval = membersQuery?.observers[0]?.options.refetchInterval;
+  if (typeof refetchInterval !== 'function' || !membersQuery) throw new Error('members polling is not a function of the query state');
+  expect(refetchInterval(membersQuery)).toBe(false);
 });
 
 test('the header download exports the live document and a reader can use it', async () => {

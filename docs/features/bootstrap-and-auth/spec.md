@@ -1,6 +1,6 @@
 # Bootstrap and auth
 
-**Status:** Approved
+**Status:** Shipped 2026-10-16
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-16
 **ADRs:** [0004](../../adr/0004-stack.md) stack · [0005](../../adr/0005-authentication-with-better-auth.md) auth · [0008](../../adr/0008-vertical-slices.md) slices · [0009](../../adr/0009-design-system.md) design system

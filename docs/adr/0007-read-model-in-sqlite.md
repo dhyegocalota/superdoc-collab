@@ -1,6 +1,6 @@
 # 0007. Serve reads from a SQLite read model
 
-- Status: Proposed (to confirm at spec review)
+- Status: Accepted (confirmed by the owner on 2026-10-16 for slice 2)
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: [0001](0001-event-sourcing-over-yjs.md), [0003](0003-time-travel-with-native-yjs-snapshots.md)

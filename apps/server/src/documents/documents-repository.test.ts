@@ -69,3 +69,9 @@ test('rename and touch update the summary', async () => {
   expect(documents.userNames([ana])).toEqual(new Map([[ana, 'Ana']]));
   await server.stop();
 });
+
+test('userNames of an empty list is an empty map', async () => {
+  const { server } = await twoUsers();
+  expect(server.services.documents.userNames([])).toEqual(new Map());
+  await server.stop();
+});

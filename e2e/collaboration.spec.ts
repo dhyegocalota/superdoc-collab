@@ -48,9 +48,9 @@ test('identities are declared from awareness', async ({ browser }) => {
     .toBeGreaterThan(0);
   const history = new Database(join(process.env.E2E_DATABASE_DIR!, HISTORY_DATABASE_FILE), { readonly: true });
   const rows = history
-    .prepare('SELECT user_id, source FROM client_identities WHERE document_name LIKE ? AND user_id IN (?, ?)')
-    .all(`%${documentId}`, ana.userId, bruno.userId) as { user_id: string; source: string }[];
+    .prepare('SELECT user_id, source FROM client_identities WHERE document_name = ? AND user_id IN (?, ?)')
+    .all(documentId, ana.userId, bruno.userId) as { user_id: string; source: string }[];
   history.close();
-  expect(rows.length).toBeGreaterThan(0);
+  expect(new Set(rows.map((row) => row.user_id))).toEqual(new Set([ana.userId, bruno.userId]));
   expect(rows.every((row) => row.source === DECLARED_SOURCE)).toBe(true);
 });

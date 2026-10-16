@@ -6,6 +6,7 @@ import {
   DOCUMENT_NOT_READY_MESSAGE,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   DocumentRole,
+  HttpMethod,
   INVALID_SHARE_LINK_MESSAGE,
   READ_ONLY_BADGE_LABEL,
   ShareLinkRole,
@@ -104,8 +105,9 @@ test('rename persists after reload', async ({ browser }) => {
   const renamed = titleOf(uniqueFileName('renamed'));
   const titleInput = ana.page.getByLabel(TITLE_LABEL, { exact: true });
   await titleInput.fill(renamed);
+  const renameResponse = ana.page.waitForResponse((response) => response.request().method() === HttpMethod.Patch);
   await titleInput.press('Enter');
-  await expect(ana.page.getByRole('alert')).toHaveCount(0);
+  expect((await renameResponse).ok()).toBe(true);
   await ana.page.reload();
   await expect(ana.page.getByLabel(TITLE_LABEL, { exact: true })).toHaveValue(renamed);
 });

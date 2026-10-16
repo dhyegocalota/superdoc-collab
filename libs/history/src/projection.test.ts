@@ -54,7 +54,7 @@ test('a rewound cursor re-projects without duplicates', () => {
   writeStory({ document: ana, texts: ['ab'] });
   writeStory({ document: ana, texts: ['abc'] });
   projectPending({ log, readModel, documentName: DOCUMENT });
-  readModel.commit({ documentName: DOCUMENT, events: [], lastSequence: events()[0]!.sequence - 1 });
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: events()[0]!.sequence - 1 });
   projectPending({ log, readModel, documentName: DOCUMENT });
   expect(events()).toHaveLength(2);
 });
@@ -84,7 +84,7 @@ test('imported revisions are stored once, with sequence 0 and the revision autho
 });
 
 test('forgetting a document clears its events and cursor', () => {
-  readModel.commit({ documentName: DOCUMENT, events: [], lastSequence: 3 });
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: 3 });
   readModel.forget(DOCUMENT);
   expect(readModel.cursor(DOCUMENT)).toBeNull();
 });

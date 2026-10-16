@@ -8,13 +8,14 @@ import type { Auth } from '../auth/auth';
 import type { Environment, LlmSettings } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collaboration/version-rooms';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../insights/insights-worker';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type ServerServices } from '../server';
 
 const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 const LOOPBACK_HOST = '127.0.0.1';
 const UNIQUE_EMAIL_SUFFIX_LENGTH = 8;
-const NO_LLM_SETTINGS: LlmSettings = { model: null, apiKey: null, baseUrl: null };
+const NO_LLM_SETTINGS: LlmSettings = { model: null, apiKey: null, baseUrl: null, maxConcurrentJobs: LLM_MAX_CONCURRENT_JOBS, maxCallsPerHour: LLM_MAX_CALLS_PER_HOUR };
 const OWNER_NAME = 'Ana';
 export const TEST_USER_PASSWORD = 'superdoc-demo';
 

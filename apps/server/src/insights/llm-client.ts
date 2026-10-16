@@ -22,7 +22,7 @@ function providerSettings({ apiKey, baseUrl }: { apiKey: string; baseUrl: string
   return { apiKey, baseURL: baseUrl };
 }
 
-export function chooseLanguageModel({ model, apiKey, baseUrl }: LlmSettings): LanguageModelChoice {
+export function chooseLanguageModel({ model, apiKey, baseUrl }: Pick<LlmSettings, 'model' | 'apiKey' | 'baseUrl'>): LanguageModelChoice {
   if (!model) return { availability: LanguageModelAvailability.Unavailable, reason: LLM_MODEL_MISSING_MESSAGE };
   if (!apiKey) return { availability: LanguageModelAvailability.Unavailable, reason: LLM_KEY_MISSING_MESSAGE };
   return { availability: LanguageModelAvailability.Ready, model: createOpenRouter(providerSettings({ apiKey, baseUrl })).chat(model) };

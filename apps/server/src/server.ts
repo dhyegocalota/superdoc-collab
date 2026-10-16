@@ -85,7 +85,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
   findDocumentsWithoutMarks(readModelSqlite).forEach((documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }));
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines, versions, versionRooms });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
-  const insightsWorker = new InsightsWorker();
+  const insightsWorker = new InsightsWorker({ maxConcurrentJobs: environment.llm.maxConcurrentJobs, maxCallsPerHour: environment.llm.maxCallsPerHour });
   const insights: InsightsServices = {
     worker: insightsWorker,
     topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, worker: insightsWorker }),

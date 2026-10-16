@@ -16,14 +16,18 @@ export class InsightsWorker {
   private readonly running = new Map<string, Promise<void>>();
   private readonly startedAt: number[] = [];
   private readonly now: () => number;
+  private readonly maxConcurrentJobs: number;
+  private readonly maxCallsPerHour: number;
 
-  constructor({ now = () => Date.now() }: { now?: () => number } = {}) {
+  constructor({ now = () => Date.now(), maxConcurrentJobs = LLM_MAX_CONCURRENT_JOBS, maxCallsPerHour = LLM_MAX_CALLS_PER_HOUR }: { now?: () => number; maxConcurrentJobs?: number; maxCallsPerHour?: number } = {}) {
     this.now = now;
+    this.maxConcurrentJobs = maxConcurrentJobs;
+    this.maxCallsPerHour = maxCallsPerHour;
   }
 
   run({ key, job }: { key: string; job: () => Promise<void> }): JobOutcome {
     if (this.running.has(key)) return JobOutcome.AlreadyRunning;
-    if (this.running.size >= LLM_MAX_CONCURRENT_JOBS) return JobOutcome.Busy;
+    if (this.running.size >= this.maxConcurrentJobs) return JobOutcome.Busy;
     const started = job()
       .catch((error) => console.error(`${INSIGHTS_JOB_FAILED_MESSAGE} ${key}: ${describeError(error)}`))
       .finally(() => this.running.delete(key));
@@ -32,7 +36,7 @@ export class InsightsWorker {
   }
 
   consumeCall(): boolean {
-    if (this.callsInWindow() >= LLM_MAX_CALLS_PER_HOUR) return false;
+    if (this.callsInWindow() >= this.maxCallsPerHour) return false;
     this.startedAt.push(this.now());
     return true;
   }

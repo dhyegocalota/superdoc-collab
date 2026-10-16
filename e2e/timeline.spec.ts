@@ -9,6 +9,7 @@ const ANA = DEMO_USERS[0]!.name;
 const BRUNO = DEMO_USERS[1]!.name;
 const BUDGET = 'Budget';
 const HIRING = 'Hiring';
+const RENAMED_PREFIX = 'Staff ';
 const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
 const HIRING_PARAGRAPH = 'Hiring: we add two people.';
 const FAILING_PARAGRAPH = 'FAIL-TOPICS: the plan costs 10.';
@@ -20,7 +21,7 @@ const NARROW_VIEWPORT = { width: 375, height: 812 };
 const VERSION_REQUEST_PATTERN = /\/versions\/\d+$/;
 const FILTER_TIMEOUT_MS = 30_000;
 
-async function twoAuthorsType({ browser, paragraphs }: { browser: Browser; paragraphs: string[] }) {
+async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: Browser; paragraphs: string[] }) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs });
@@ -30,12 +31,6 @@ async function twoAuthorsType({ browser, paragraphs }: { browser: Browser; parag
     typeInParagraph({ page: bruno.page, paragraphText: paragraphs[1]!.slice(0, 7), text: BRUNO_TEXT }),
   ]);
   return { ana, bruno, documentId };
-}
-
-async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: Browser; paragraphs: string[] }) {
-  const session = await twoAuthorsType({ browser, paragraphs });
-  await session.ana.page.getByRole('button', { name: REFRESH_TOPICS_LABEL }).click();
-  return session;
 }
 
 async function filterBy({ page, text }: { page: Parameters<typeof waitForBands>[0]['page']; text: string }): Promise<void> {
@@ -52,6 +47,18 @@ test('two authors type in two topics and the bands appear', async ({ browser }) 
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await expect(topEdits(ana.page).filter({ hasText: BUDGET })).toContainText(`Edits about ${BUDGET}.`, { timeout: BANDS_TIMEOUT_MS });
   await expect(topEdits(ana.page).filter({ hasText: HIRING }).getByTitle(BRUNO)).toBeVisible();
+});
+
+test('Refresh topics recomputes the names from the current text', async ({ browser }) => {
+  const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  const volumeBefore = await bandVolume({ page: ana.page, name: HIRING });
+  await typeInParagraph({ page: ana.page, paragraphText: HIRING, text: '' });
+  await ana.page.keyboard.press('Home');
+  await ana.page.keyboard.type(RENAMED_PREFIX);
+  await expect.poll(() => bandVolume({ page: ana.page, name: HIRING }), { timeout: BANDS_TIMEOUT_MS }).toBeGreaterThan(volumeBefore);
+  await ana.page.getByRole('button', { name: REFRESH_TOPICS_LABEL }).click();
+  await waitForBands({ page: ana.page, names: [`${RENAMED_PREFIX}${HIRING}`] });
 });
 
 test('filter by username hides the other author', async ({ browser }) => {

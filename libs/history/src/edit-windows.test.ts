@@ -34,9 +34,9 @@ describe('groupIntoWindows', () => {
       event({ sequence: 3, serverTime: 200, authorId: 'ana' }),
     ];
     const [window] = groupIntoWindows({ events, rules: RULES });
-    expect(window.coEdited).toBe(true);
-    expect(window.authorIds).toEqual(['ana', 'bruno']);
-    expect(window.insertedCharacters).toBe(3);
+    expect(window?.coEdited).toBe(true);
+    expect(window?.authorIds).toEqual(['ana', 'bruno']);
+    expect(window?.insertedCharacters).toBe(3);
   });
 
   test('is deterministic', () => {

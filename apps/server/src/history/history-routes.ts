@@ -8,7 +8,7 @@ import type { SignedIn } from '../http/require-user';
 
 const INVALID_AFTER_SEQUENCE_MESSAGE = 'afterSequence must be a non-negative integer';
 const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
-const afterSequenceSchema = z.string().regex(/^\d+$/).transform(Number).optional();
+const afterSequenceSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number).optional();
 
 export class IncompleteEditEventError extends Error {
   constructor(eventId: number) {

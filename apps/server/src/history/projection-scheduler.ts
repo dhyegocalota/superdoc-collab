@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { IMPORT_FAILED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionReplyKind, ProjectionRequestKind, type ProjectionDoneReply, type ProjectionReply } from './projection-messages';
+import { describeError, IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionReplyKind, ProjectionRequestKind, type ProjectionDoneReply, type ProjectionReply } from './projection-messages';
 
 const SOURCE_EXTENSION = '.ts';
 const TSX_REGISTER_SPECIFIER = 'tsx/esm/api';
@@ -45,13 +45,14 @@ export class ProjectionScheduler {
   }
 
   importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): void {
+    if (this.degraded) return console.error(`${IMPORT_SKIPPED_MESSAGE} ${documentId}`);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath });
   }
 
   forget(documentId: string): Promise<void> {
     if (this.degraded) return Promise.resolve();
     return new Promise((resolve) => {
-      this.forgetting.set(documentId, [...(this.forgetting.get(documentId) || []), resolve]);
+      this.forgetting.set(documentId, [...this.waitingForgets(documentId), resolve]);
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId });
     });
   }
@@ -68,7 +69,7 @@ export class ProjectionScheduler {
     const worker = createWorker(this.databaseDirectory);
     this.alive = true;
     worker.on('message', (reply: ProjectionReply) => this.settle(reply));
-    worker.on('error', (error) => console.error(`${WORKER_ERROR_MESSAGE}: ${String(error).replaceAll('\n', ' ')}`));
+    worker.on('error', (error) => console.error(`${WORKER_ERROR_MESSAGE}: ${describeError(error)}`));
     worker.on('exit', () => {
       this.alive = false;
       this.restart();
@@ -103,6 +104,12 @@ export class ProjectionScheduler {
     if (this.loggedImportFailures.has(documentId)) return;
     this.loggedImportFailures.add(documentId);
     console.error(`${IMPORT_FAILED_MESSAGE} ${documentId}: ${importError}`);
+  }
+
+  private waitingForgets(documentId: string): (() => void)[] {
+    const resolvers = this.forgetting.get(documentId);
+    if (!resolvers) return [];
+    return resolvers;
   }
 
   private settleForget(documentId: string): void {

@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
-import { IMPORT_TIMEOUT_MS, ImportTimeoutError, ProjectionRequestKind, ProjectionWorkerContextError, ProjectionReplyKind, type ProjectionDoneReply, type ProjectionReply, type ProjectionRequest, type ProjectionWorkerData } from './projection-messages';
+import { describeError, IMPORT_TIMEOUT_MS, ImportTimeoutError, ProjectionRequestKind, ProjectionWorkerContextError, ProjectionReplyKind, type ProjectionDoneReply, type ProjectionReply, type ProjectionRequest, type ProjectionWorkerData } from './projection-messages';
 
 const port = parentPort;
 if (!port) throw new ProjectionWorkerContextError();
@@ -55,7 +55,7 @@ async function importRevisions({ documentId, filePath }: { documentId: string; f
     readModel.commitImported({ documentName: documentId, revisions: toImportedRevisions(items) });
     return null;
   } catch (error) {
-    return String(error).replaceAll('\n', ' ');
+    return describeError(error);
   }
 }
 
@@ -71,7 +71,7 @@ async function answer(request: Exclude<ProjectionRequest, { kind: ProjectionRequ
   try {
     return await handle(request);
   } catch (error) {
-    return { kind: ProjectionReplyKind.Failed, documentId: request.documentId, message: String(error).replaceAll('\n', ' ') };
+    return { kind: ProjectionReplyKind.Failed, documentId: request.documentId, message: describeError(error) };
   }
 }
 

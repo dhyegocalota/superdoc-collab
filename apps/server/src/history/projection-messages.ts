@@ -1,5 +1,6 @@
 export const IMPORT_TIMEOUT_MS = 30_000;
 export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document';
+export const IMPORT_SKIPPED_MESSAGE = 'Skipped importing Word revisions, projection is disabled, for document';
 export const PROJECTION_FAILED_MESSAGE = 'Projecting edit events failed for document';
 
 export enum ProjectionRequestKind {
@@ -35,4 +36,8 @@ export class ImportTimeoutError extends Error {
   constructor(milliseconds: number) {
     super(`The import took longer than ${milliseconds} ms.`);
   }
+}
+
+export function describeError(error: unknown): string {
+  return String(error).replaceAll('\n', ' ');
 }

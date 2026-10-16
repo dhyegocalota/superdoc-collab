@@ -172,3 +172,15 @@ test('deleting the runtime document forgets its cached pipeline', async () => {
   expect(forget).toHaveBeenCalledWith(documentId);
   await server.stop();
 });
+
+test('the pipeline cache evicts the least recently read document', () => {
+  const cache = new TimelinePipelineCache({ maxEntries: 2 });
+  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [] };
+  const read = (documentId: string) => cache.get({ documentId, key: 'k', build: () => pipeline });
+  ['d1', 'd2', 'd1', 'd3'].forEach(read);
+  expect(cache.builds).toBe(3);
+  read('d1');
+  expect(cache.builds).toBe(3);
+  read('d2');
+  expect(cache.builds).toBe(4);
+});

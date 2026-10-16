@@ -6,7 +6,8 @@ import { memberWithRole } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { modelAnswering, modelAnsweringWith, readyModel } from '../testing/language-model';
 import { readSummaries, storyWithBlocks } from '../testing/timeline-client';
-import { SUMMARY_MIN_INTERVAL_MS } from './summaries-service';
+import { LLM_MAX_CONCURRENT_JOBS } from './insights-worker';
+import { SUMMARIES_BUSY_MESSAGE, SUMMARY_MIN_INTERVAL_MS } from './summaries-service';
 
 const POLL_TIMEOUT_MS = 15_000;
 
@@ -78,6 +79,26 @@ test('a new edit inside the minimum interval waits', async () => {
   await server.services.insights.worker.idle();
   expect(model.doGenerateCalls).toHaveLength(2);
   vi.useRealTimers();
+  client.close();
+  await server.stop();
+});
+
+test('summaries are skipped and logged when the process-wide LLM cap is full', async () => {
+  const warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { server, documentId, owner, client, model } = await twoTopicDocument();
+  let open: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) => server.services.insights.worker.run({ key: `held-${index}`, job: () => held }));
+  await readSummaries({ server, documentId, cookie: owner.cookie });
+  expect(model.doGenerateCalls).toHaveLength(0);
+  expect(warnings.mock.calls.filter(([line]) => String(line).startsWith(SUMMARIES_BUSY_MESSAGE))).toHaveLength(1);
+  open();
+  await server.services.insights.worker.idle();
+  await readSummaries({ server, documentId, cookie: owner.cookie });
+  await server.services.insights.worker.idle();
+  expect(model.doGenerateCalls).toHaveLength(1);
   client.close();
   await server.stop();
 });

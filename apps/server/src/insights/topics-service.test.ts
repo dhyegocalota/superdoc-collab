@@ -10,8 +10,8 @@ import { readEvents } from '../testing/events-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
 import { readTimeline, readTopics, storyWithBlocks } from '../testing/timeline-client';
 import { currentUserId, signInAndGetCookie, startTestServer, TEST_USER_PASSWORD, type TestServer, type TestUser } from '../testing/test-server';
-import { chooseLanguageModel, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
-import { INSIGHTS_JOB_FAILED_MESSAGE } from './insights-worker';
+import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
+import { INSIGHTS_JOB_FAILED_MESSAGE, JobOutcome, LLM_MAX_CONCURRENT_JOBS } from './insights-worker';
 import { SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import { TOPIC_RECOMPUTE_MIN_INTERVAL_MS, UNKNOWN_TOPIC_BLOCKS_MESSAGE } from './topics-service';
 
@@ -302,5 +302,22 @@ test('a timeline read before the projection never stores ready with no topics', 
   expect(timeline.topics).toEqual({ state: TopicState.Pending, failure: null, computedAtSequence: null });
   expect(server.services.insightsRepository.status(documentId)).toBeNull();
   expect(model.doGenerateCalls).toHaveLength(0);
+  await server.stop();
+});
+
+test('topics fail visibly when the process-wide LLM cap is full', async () => {
+  const model = modelAnswering(topicsAnswer({ blockIds: ['b0'] }));
+  const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
+  let open: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  const outcomes = Array.from({ length: LLM_MAX_CONCURRENT_JOBS }, (_, index) => server.services.insights.worker.run({ key: `held-${index}`, job: () => held }));
+  expect(outcomes).toEqual(outcomes.map(() => JobOutcome.Started));
+  expect((await readTopics({ server, documentId, cookie: owner.cookie })).status).toMatchObject({ state: TopicState.Failed, failure: LLM_BUSY_MESSAGE });
+  expect(model.doGenerateCalls).toHaveLength(0);
+  open();
+  await server.services.insights.worker.idle();
+  client.close();
   await server.stop();
 });

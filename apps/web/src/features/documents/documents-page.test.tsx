@@ -7,7 +7,6 @@ import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import { MINE_EMPTY_MESSAGE, NEW_DOCUMENT_LABEL, SHARED_EMPTY_MESSAGE } from './documents-copy';
 import { DocumentsPage } from './documents-page';
 
-const DOCUMENTS_PATH = '/documents';
 const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
 const OWNED_DOCUMENT: DocumentSummary = { id: 'doc-1', title: 'Quarterly plan', owner: { id: 'user-1', name: 'Ada' }, updatedAt: Date.UTC(2026, 9, 16, 12, 0), role: DocumentRole.Owner };
 const CREATED_DOCUMENT: DocumentSummary = { ...OWNED_DOCUMENT, id: 'doc-2', title: UNTITLED_DOCUMENT_TITLE };
@@ -40,23 +39,23 @@ test('a row shows the title, owner, formatted date and role', async () => {
   expect(within(row).getByText(DocumentRole.Owner)).toBeInTheDocument();
 });
 
-test('clicking a row opens the document', async () => {
+test('clicking the title opens the document', async () => {
   mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   const { router } = renderWithProviders(<DocumentsPage />);
   await userEvent.click(await screen.findByText(OWNED_DOCUMENT.title));
   expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
 });
 
-test('a row title is a link reachable and activated by keyboard', async () => {
+test('the title link opens the document from the keyboard with a single navigation', async () => {
   mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   const { router } = renderWithProviders(<DocumentsPage />);
   const link = await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
   expect(link).toHaveAttribute('href', documentPagePath(OWNED_DOCUMENT.id));
+  const navigateSpy = vi.spyOn(router, 'navigate');
   link.focus();
   await userEvent.keyboard('{Enter}');
   expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
-  await router.navigate(-1);
-  expect(router.state.location.pathname).toBe(DOCUMENTS_PATH);
+  expect(navigateSpy).toHaveBeenCalledTimes(1);
 });
 
 test('new document posts the untitled title, refreshes the list and opens it', async () => {

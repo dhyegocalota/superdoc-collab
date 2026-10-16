@@ -17,6 +17,7 @@ import { DocumentsRepository } from './documents/documents-repository';
 import type { DocumentFileStorage } from './documents/file-storage';
 import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
 import { createApp } from './http/app';
+import { findDocumentsToProject } from './history/pending-documents';
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { mountStaticWeb } from './http/static-web';
 
@@ -56,6 +57,7 @@ export async function startServer({ environment, webDistDirectory }: { environme
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory });
   const auth = createAuth({ database, environment });
+  findDocumentsToProject({ historySqlite, readModelSqlite }).forEach((documentId) => scheduler.schedule(documentId));
   const hocuspocus = createCollaborationServer({ auth, documents, log, onStored: (documentId) => {
       documents.touch(documentId);
       scheduler.schedule(documentId);

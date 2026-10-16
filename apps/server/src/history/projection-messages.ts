@@ -1,5 +1,6 @@
 export const IMPORT_TIMEOUT_MS = 30_000;
 export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document';
+export const PROJECTION_FAILED_MESSAGE = 'Projecting edit events failed for document';
 
 export enum ProjectionRequestKind {
   Project = 'project',
@@ -14,7 +15,13 @@ export type ProjectionRequest =
   | { kind: ProjectionRequestKind.Forget; documentId: string }
   | { kind: ProjectionRequestKind.Stop };
 
-export type ProjectionReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null; importError: string | null };
+export enum ProjectionReplyKind {
+  Failed = 'failed',
+}
+
+export type ProjectionDoneReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null; importError: string | null };
+export type ProjectionFailedReply = { kind: ProjectionReplyKind.Failed; documentId: string; message: string };
+export type ProjectionReply = ProjectionDoneReply | ProjectionFailedReply;
 
 export type ProjectionWorkerData = { databaseDirectory: string };
 

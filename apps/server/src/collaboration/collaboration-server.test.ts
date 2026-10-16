@@ -1,6 +1,7 @@
 import { expect, test, describe } from 'vitest';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
+import { MAX_STORE_DEBOUNCE_MS } from './collaboration-server';
 
 describe('collaboration authentication', () => {
   test('accepts a valid session cookie', async () => {
@@ -21,4 +22,10 @@ describe('collaboration authentication', () => {
     await expect(connectToDocument({ server, cookie: member.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
     await server.stop();
   });
+});
+
+test('storing is forced after a bounded delay under continuous typing', async () => {
+  const { server } = await documentWithOwner();
+  expect(server.services.hocuspocus.configuration.maxDebounce).toBe(MAX_STORE_DEBOUNCE_MS);
+  await server.stop();
 });

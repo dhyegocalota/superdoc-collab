@@ -2,7 +2,7 @@ import { OTHER_BAND_ID } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import { assignBlocks, matchPreviousTopics, normalizeTopics, topicBandId } from './topic-assignment';
 
-const KNOWN_BLOCKS = 200;
+const KNOWN_BLOCKS = 300;
 const KNOWN = new Set(Array.from({ length: KNOWN_BLOCKS }, (_, index) => `b${index}`));
 
 function topic({ name, count, offset }: { name: string; count: number; offset: number }) {

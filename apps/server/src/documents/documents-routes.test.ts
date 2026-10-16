@@ -38,7 +38,7 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE, fileName = 'Plan.docx' }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string; fileName?: string }): Promise<Response> {
   const form = new FormData();
   form.set(UPLOAD_FIELD, new File([new Uint8Array(bytes)], fileName, { type }));
-  return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie }, body: form });
+  return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie, origin: server.baseUrl }, body: form });
 }
 
 async function listOf({ server, cookie }: { server: TestServer; cookie: string }): Promise<DocumentsList> {
@@ -289,7 +289,7 @@ test('a failing file write leaves no document row', async () => {
 
 test('a malformed multipart body is 400', async () => {
   const { server, owner } = await signedInOwner();
-  const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie: owner.cookie, 'content-type': 'multipart/form-data; boundary=missing' }, body: 'not multipart at all' });
+  const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie: owner.cookie, origin: server.baseUrl, 'content-type': 'multipart/form-data; boundary=missing' }, body: 'not multipart at all' });
   expect(response.status).toBe(HttpStatus.BadRequest);
   await server.stop();
 });
@@ -305,7 +305,7 @@ test('a chunked upload over the limit is 413 while streaming', async () => {
   });
   const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, {
     method: HttpMethod.Post,
-    headers: { cookie: owner.cookie, 'content-type': 'multipart/form-data; boundary=chunked' },
+    headers: { cookie: owner.cookie, origin: server.baseUrl, 'content-type': 'multipart/form-data; boundary=chunked' },
     body,
     duplex: 'half',
   } as RequestInit);

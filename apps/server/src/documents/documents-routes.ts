@@ -45,7 +45,7 @@ function contentDisposition(fileName: string): string {
   return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }
 
-export function createDocumentsRoutes(services: AppServices): Hono<SignedIn> {
+export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const { documents, storage, runtime } = services;
   const routes = new Hono<SignedIn>();
 

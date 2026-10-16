@@ -40,6 +40,7 @@ function authorsOf({ event, authorIds, names }: { event: StoredEditEvent; author
 
 function readDocumentEvents({ services, documentId, afterSequence }: { services: AppServices; documentId: string; afterSequence: number | null }): DocumentEditEvents {
   const identities = services.log.clientIdentities(documentId);
+  const cursor = services.readModel.cursor(documentId);
   const stored = services.readModel.read({ documentName: documentId, afterSequence });
   const resolved = stored.map((event) => ({ event, authorIds: authorIdsOf({ event, identities }) }));
   const names = services.documents.userNames([...new Set(resolved.flatMap(({ authorIds }) => authorIds))]);
@@ -54,7 +55,7 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
     imported: event.imported,
     authors: authorsOf({ event, authorIds, names }),
   }));
-  return { events, cursor: services.readModel.cursor(documentId) };
+  return { events, cursor };
 }
 
 export function createHistoryRoutes({ services }: { services: AppServices }): Hono<SignedIn> {

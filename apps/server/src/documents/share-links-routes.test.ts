@@ -35,12 +35,12 @@ async function shareLinksOf({ server, cookie, documentId }: { server: TestServer
 }
 
 function rotate({ server, cookie, documentId, role }: { server: TestServer; cookie: string; documentId: string; role: string }): Promise<Response> {
-  return fetch(`${server.baseUrl}${shareLinksPath(documentId)}/${role}/rotate`, { method: HttpMethod.Post, headers: { cookie } });
+  return fetch(`${server.baseUrl}${shareLinksPath(documentId)}/${role}/rotate`, { method: HttpMethod.Post, headers: { cookie, origin: server.baseUrl } });
 }
 
 function accept({ server, cookie, url }: { server: TestServer; cookie: string; url: string }): Promise<Response> {
   const token = new URL(url).pathname.split('/').at(-1) as string;
-  return fetch(`${server.baseUrl}${shareLinkAcceptPath(token)}`, { method: HttpMethod.Post, headers: { cookie } });
+  return fetch(`${server.baseUrl}${shareLinkAcceptPath(token)}`, { method: HttpMethod.Post, headers: { cookie, origin: server.baseUrl } });
 }
 
 test('rotation invalidates the link but keeps recorded roles', async () => {
@@ -60,7 +60,7 @@ test('a token for a deleted document is no longer valid', async () => {
   const { server, documentId, owner } = await blankDocumentWithOwner();
   const bruno = await signedInUser({ server, name: 'Bruno' });
   const links = await shareLinksOf({ server, cookie: owner.cookie, documentId });
-  await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie } });
+  await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie, origin: server.baseUrl } });
   const response = await accept({ server, cookie: bruno.cookie, url: links[ShareLinkRole.Read] });
   expect([response.status, await response.json()]).toEqual([HttpStatus.NotFound, { error: INVALID_SHARE_LINK_MESSAGE }]);
   await server.stop();

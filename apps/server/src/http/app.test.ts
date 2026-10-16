@@ -112,7 +112,7 @@ describe('cross-site request forgery', () => {
   });
   test('a form post to a share link from a foreign origin is forbidden', async () => {
     const { cookie } = await signedInUser({ server, name: 'Eva' });
-    const response = await fetch(`${server.baseUrl}${ApiPath.ShareLinks}/anything`, { method: 'POST', headers: { cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' }, body: 'role=editor' });
+    const response = await fetch(`${server.baseUrl}${ApiPath.ShareLinks}/anything/accept`, { method: 'POST', headers: { cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' }, body: 'role=editor' });
     expect(response.status).toBe(HttpStatus.Forbidden);
   });
 });

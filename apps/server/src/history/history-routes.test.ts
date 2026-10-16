@@ -55,7 +55,8 @@ test('afterSequence returns only later events and a non-member gets 404', async 
   const eventsPath = `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`;
   const later = (await (await fetch(`${eventsPath}?afterSequence=${events[0]?.sequence}`, { headers: { cookie: owner.cookie } })).json()) as DocumentEditEvents;
   expect(later.events).toEqual(events.slice(1));
-  expect((await fetch(`${eventsPath}?afterSequence=-1`, { headers: { cookie: owner.cookie } })).status).toBe(HttpStatus.BadRequest);
+  const invalidStatuses = await Promise.all(['-1', '', 'abc', '1.5'].map(async (value) => (await fetch(`${eventsPath}?afterSequence=${value}`, { headers: { cookie: owner.cookie } })).status));
+  expect(invalidStatuses).toEqual([HttpStatus.BadRequest, HttpStatus.BadRequest, HttpStatus.BadRequest, HttpStatus.BadRequest]);
   const stranger = await signedInUser({ server, name: 'Stranger' });
   const strangerResponse = await fetch(eventsPath, { headers: { cookie: stranger.cookie } });
   const missingResponse = await fetch(`${server.baseUrl}${documentApiPath({ documentId: randomUUID(), resource: DocumentResource.Events })}`, { headers: { cookie: stranger.cookie } });

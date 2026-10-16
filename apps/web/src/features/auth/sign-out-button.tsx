@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { authClient } from './auth-client';
+import { SIGN_OUT_LABEL } from './auth-copy';
 import { SESSION_QUERY_KEY } from './use-session';
 
 export function SignOutButton() {
@@ -17,7 +18,7 @@ export function SignOutButton() {
 
   return (
     <Button variant="outline" onClick={signOut}>
-      Sign out
+      {SIGN_OUT_LABEL}
     </Button>
   );
 }

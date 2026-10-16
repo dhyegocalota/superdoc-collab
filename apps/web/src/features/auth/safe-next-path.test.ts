@@ -8,4 +8,8 @@ test.each([
   ['//evil.example', '/documents'],
   ['https://evil.example/x', '/documents'],
   ['documents', '/documents'],
-])('ignores an absolute next parameter: %s → %s', (raw, expected) => expect(safeNextPath(raw)).toBe(expected));
+  ['/\\evil.example', '/documents'],
+  ['/\t/evil.example', '/documents'],
+  ['/\n/evil.example', '/documents'],
+  ['/%5Cevil.example', '/%5Cevil.example'],
+])('keeps the next parameter on this origin: %j → %s', (raw, expected) => expect(safeNextPath(raw)).toBe(expected));

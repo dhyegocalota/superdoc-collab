@@ -1,4 +1,4 @@
-import { AUTH_ERROR_MESSAGE } from '@superdoc-history/types';
+import { AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE } from '@superdoc-history/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -35,7 +35,7 @@ beforeEach(() => signInEmail.mockReset());
 test('shows the validation message for an invalid email and does not call the server', async () => {
   const user = renderSignInPage();
   await submitCredentials({ user, email: 'not-an-email', password: 'long-enough-password' });
-  expect(await screen.findByText(/invalid email/i)).toBeInTheDocument();
+  expect(await screen.findByText(EMAIL_INVALID_MESSAGE)).toBeInTheDocument();
   expect(signInEmail).not.toHaveBeenCalled();
 });
 

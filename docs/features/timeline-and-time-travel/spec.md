@@ -45,27 +45,31 @@ apps/web/src/features/editor/   version-banner, version-viewer (second read-only
 e2e/                timeline.spec.ts, time-travel.spec.ts
 ```
 
-### Data flow
+### Data flow (as built — amended by Z5, 2026-10-16)
 
 ```
-edit_events ─► GET /api/documents/:id/timeline?term&author&binMs ─► { bins: [{ start, byTopic: { topicId: { inserted, deleted, words } } }], topics, contributorsByTopic }
-                 (SQL GROUP BY bin × topic, join topic_blocks; bin size chosen server-side from the span: 1 min … 1 h, 60–120 bins)
-topics      ─► insights.worker: text of the document (blocks) → generateObject(schema: { topics: [{ name, blockIds[] }] }) → document_topics + topic_blocks (computed_at_sequence)
-summaries   ─► insights.worker: per topic with new edits since last summary: generateObject({ summaries: [{ topicId, sentence }] }) in ONE call → topic_summaries
-versions    ─► GET /api/documents/:id/versions/:sequence → state bytes (gc:false Y.Doc in memory per document, Y.createDocFromSnapshot at the nearest version mark, LRU of N versions, cold ones in the projection worker)
-viewer      ─► second SuperDoc (read-only, documentMode viewing) opened from the version bytes in an ephemeral room `sd2/v2.1/<documentId>@<sequence>` (server loads the state, no log, no membership writes) — or directly from a DOCX export of the version if the spike shows SuperDoc cannot open from state
-live        ─► onChange throttle (PROJECTION_THROTTLE_MS 1500) → scheduler.request → projection → web polls /timeline every 3 s while the panel is open (or on a lightweight SSE `/api/documents/:id/history-stream`; decided in the spike by cost)
+edit_events ─► read into one cached TimelinePipeline per document (key: read-model cursor × identities × topic set updatedAt)
+             ─► GET /api/documents/:id/timeline?term&author[&binMs test-only] ─► in-memory runs (keystrokes grouped per author × block × bin) → bands per topic (or per author without topics) → { bins: [{ start, versionSequence, byBand }], bands, contributorsByBand, topics, projection: { isBehind, lagMs } }
+             ─► GET /api/documents/:id/timeline/edits?binStart&term&author ─► the runs of one bin (snippets, authors, topic chip)
+                 (bin size chosen server-side from the span by BIN_LADDER_MS, never more than MAX_BINS = 120)
+topics      ─► insights.worker: block text (≤ 400 blocks × 500 chars, XML-escaped, marked as data) → generateText + Output.object({ topics: [{ id?, name, blockIds[] }] }) → document_topics + topic_blocks (computed_at_sequence); ids reused only within the document; empty block list never persists ready
+summaries   ─► insights.worker: topics with edits since their last sentence → one call → topic_summaries
+versions    ─► version_marks (one per minute, committed with the projection) → GET /api/documents/:id/versions/:sequence → 202 pending | 200 { collaborationPath } | 503 + Retry-After (worker: Y.createDocFromSnapshot over a gc:false replay, LRU by entries and bytes, failures negatively cached)
+viewer      ─► same-origin iframe running a read-only SuperDoc (documentMode viewing) joined to the per-version endpoint `/collaboration/versions/<documentId>/<sequence>` (member authenticated before any room exists; readOnly; no log, no identities, no awareness); highlights are local comments scoped to the run's block; postMessage both ways checks origin and source
+live        ─► onChange throttle (PROJECTION_THROTTLE_MS 1500, store as the final flush) → projection in the worker → web polls /timeline every 3 s while the panel is open (SSE rejected in the spike by cost)
 ```
 
-### Interfaces
+### Interfaces (as built)
 
-- `GET /api/documents/:id/timeline?term&author&binMs` (member) → bins, topics (`{ id, name, color: { hue, onsetSequence }, volume }`), contributors per topic (`{ user, inserted, deleted, words }`).
-- `GET /api/documents/:id/events?afterSequence&limit` (paginated now; `limit` ≤ `EVENTS_PAGE_SIZE`).
-- `GET /api/documents/:id/topics` · `POST /api/documents/:id/topics/refresh` (owner or editor; rate-limited to one in-flight per document) → 202 while computing, state `pending | ready | failed`.
+- `GET /api/documents/:id/timeline?term&author` (member) → bins with `versionSequence` resolved at minute granularity from the bin's last instant, bands (`{ id, kind: topic | author | other, name, hue, onsetSequence, volume }`), contributors per band, topics state, projection status.
+- `GET /api/documents/:id/timeline/edits?binStart&term&author` (member) → the bin's runs; `GET /api/documents/:id/events?afterSequence&limit` (paged; `limit` in `1..EVENTS_PAGE_SIZE`, else 400).
+- `GET /api/documents/:id/topics` · `POST /api/documents/:id/topics/refresh` (owner or editor; one in flight per document, 30 s cooldown per document → 429 + `Retry-After`) → state `pending | ready | failed`.
 - `GET /api/documents/:id/summaries` → `{ topicId, sentence, computedAtSequence }[]`.
-- `GET /api/documents/:id/versions?around=<sequence>` → the version marks near a moment; `GET …/versions/:sequence` → version state; `GET …/versions/:sequence/edits?binMs` → the events of that bin (for highlights and the panel).
-- Enums in `libs/types`: `TopicState { Pending, Ready, Failed }`, `TimelineFilterKind { Term, Author }`, `VersionViewerState { Live, Viewing }`.
-- Environment: `OPENROUTER_API_KEY` (required when `LLM_MODEL` is set; without it topics are `Failed` with a visible message and the chart falls back to one band per author — explicit fallback shown in the UI, never silent), `LLM_MODEL` (default-free: documented in `.env.example` as `openai/gpt-6-luna`).
+- `GET /api/documents/:id/versions?around=<sequence>` (required) → marks near a moment; `GET …/versions/:sequence` → 202 | 200 `{ sequence, serverTime, collaborationPath }` | 503; `GET …/versions/:sequence/text` → the plain text (409 without marks, 503 on a cached failure). Highlights come from `/timeline/edits`, not from a per-version edits route.
+- WebSocket `/collaboration/versions/<documentId>/<sequence>` → read-only room of that exact mark; Origin check, cookie session and membership before allocation; anything else is refused.
+- URL state in the web: `term`, `author`, `topic` (band id), `at` (bin start ms); the viewer pins the sequence resolved when `at` changed.
+- Enums in `libs/types`: `TopicState { Pending, Ready, Failed }`, `TimelineBandKind`, `TimelineSearchParam`, `VersionLookupKind { Ready, Pending, Failed }`, `ViewerMessageKind`.
+- Environment: `OPENROUTER_API_KEY` (without it topics are `Failed` with a visible message and the chart shows one band per author), `LLM_MODEL` (`openai/gpt-6-luna` in `.env.example`), optional `OPENROUTER_BASE_URL` (the E2E suite points it at a fake).
 
 ### Streamgraph rules (Byron & Wattenberg, applied)
 
@@ -131,8 +135,9 @@ Rulings made during execution, recorded here so the spec stays the authority ([l
 - The selected bin is derived from the URL `at`; the panel mirrors it locally only for instant scrub feedback, and any URL change (Back, external link) overrides the local value and cancels a pending scrub.
 - Projection is scheduled on a 1.5 s throttle from `onChange`; the store is the final flush; compaction runs in the worker; imports run on their own lane; `stopWorker` caps SDK dispose at 1 s.
 - Refresh is rate-limited per document (not per user) with `Retry-After` always present; a recompute is triggered only by five blocks first seen after the last run; an empty block list never persists `ready`.
-- `/events?limit` outside `1..EVENTS_PAGE_SIZE` is 400; `GET /versions` requires `?around`; a cached version failure answers 503 with `Retry-After` on every path, including `/text` and the version room.
+- `/events?limit` outside `1..EVENTS_PAGE_SIZE` is 400; `GET /versions` requires `?around`; a cached version failure answers 503 with `Retry-After` on `/versions/:sequence` and `/text`, and the version room refuses the load.
 - A version viewer with no version yet shows the loading state with the requested bin's end; it never shows an empty banner over the inert editor.
 - SuperDoc 2.23.0 has no local-only comment flag: highlight privacy rests on the read-only version room. Highlights match once per block (`within`), case-sensitive, with one bounded retry on `editor-update`.
 - Version room eviction is LRU at `VERSION_ROOMS_LIMIT`, which can close another user's viewer; accepted for this slice.
 - The 150 ms timeline latency budget is a local benchmark; CI asserts one pipeline build per cursor.
+- Versions resolve at minute granularity: a bin maps to the latest mark of the minute that contains its last instant, so closed minutes are stable (shared `?at=` links open the same version). An open viewer pins the sequence resolved when `at` changed and never re-resolves on a poll; a fresh open of the current minute resolves its latest mark.

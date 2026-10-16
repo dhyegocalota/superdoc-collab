@@ -54,3 +54,10 @@ Spike required before accepting: `Y.createDocFromSnapshot` over SuperDoc's `Y.Do
 
 - The spike fails.
 - Documents exceed what one in-memory doc per room allows.
+
+## Addendum (2026-10-16, slice 3)
+
+- Versions are isolated by endpoint (`/collaboration/versions/<documentId>/<sequence>`), not by a room-name suffix: SuperDoc derives the room from the document id and cannot be renamed into a synthetic room, so each version gets its own read-only Hocuspocus instance behind the same upgrade handler.
+- The viewer is a same-origin iframe running a second SuperDoc in viewing mode; the live editor stays mounted and `inert`.
+- Marks are per minute and resolved at minute granularity from a bin's last instant; an open viewer pins the sequence it resolved.
+- Memory bound: version cache by entries and bytes, replay cache of two gc:false documents in the worker, version rooms evicted LRU at a fixed count.

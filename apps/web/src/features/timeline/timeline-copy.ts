@@ -18,3 +18,11 @@ export const RESIZE_PANEL_LABEL = 'Resize timeline panel';
 export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
   return `${subject} failed with status ${status}`;
 }
+
+export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
+  return `${name}, ${volume} characters`;
+}
+
+export function streamgraphDescription({ bandCount, from, to }: { bandCount: number; from: string; to: string }): string {
+  return `${bandCount} bands, from ${from} to ${to}`;
+}

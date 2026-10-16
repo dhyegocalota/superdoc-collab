@@ -1,4 +1,4 @@
-import { DocumentRole, TimelineSearchParam } from '@superdoc-history/types';
+import { DocumentRole } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ enum ResizeKey {
 
 const PRIMARY_BUTTON_PRESSED = 1;
 
-type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void };
+type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
 function ResizeHandle({ width, resizeTo, resizeBy }: { width: number; resizeTo: (next: number) => void; resizeBy: (delta: number) => void }) {
   function handlePointerDown(event: PointerEvent<HTMLDivElement>): void {
@@ -57,12 +57,12 @@ function ResizeHandle({ width, resizeTo, resizeBy }: { width: number; resizeTo: 
   );
 }
 
-export function TimelinePanel({ documentId, role, onTravel }: TimelinePanelProps) {
+export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: TimelinePanelProps) {
   const [isOpen, setIsOpen] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
   const chartWidth = useElementWidth(chartRef);
   const { width, resizeTo, resizeBy } = usePanelWidth();
-  const { search, update } = useTimelineSearch();
+  const { search } = useTimelineSearch();
   const [selectedTime, setSelectedTime] = useState<number | null>(search.at);
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen });
   const { data: summaries } = useSummaries({ documentId, isOpen });
@@ -85,7 +85,7 @@ export function TimelinePanel({ documentId, role, onTravel }: TimelinePanelProps
 
   function clearSelection(): void {
     setSelectedTime(null);
-    if (search.at !== null) update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
+    onBackToLive();
   }
 
   return (

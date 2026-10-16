@@ -1,4 +1,4 @@
-import { DocumentResource, VersionViewerState, type EditRunView, type TimelineBin, type TimelineFilter, type VersionSummary, type DocumentTimeline } from '@superdoc-history/types';
+import { DocumentResource, TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type TimelineFilter, type VersionSummary, type DocumentTimeline } from '@superdoc-history/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
@@ -8,11 +8,13 @@ import { useTimelineSearch } from './use-timeline-search';
 
 export const SCRUB_DEBOUNCE_MS = 300;
 const NO_RUNS: EditRunView[] = [];
-const NO_BIN_EDITS_KEY = [DocumentResource.Timeline, 'no-bin'];
+const NO_BIN_SEGMENT = 'no-bin';
+const NO_BIN_EDITS_KEY = [DocumentResource.Timeline, NO_BIN_SEGMENT];
 
 export type TimeTravel = {
   state: VersionViewerState;
   requestedBinStart: number | null;
+  requestedBinEnd: number | null;
   requestedSequence: number | null;
   shown: VersionSummary | null;
   isLoading: boolean;
@@ -20,6 +22,7 @@ export type TimeTravel = {
   runs: EditRunView[];
   travelTo: (binStart: number) => void;
   backToLive: () => void;
+  reportFailure: (sequence: number) => void;
 };
 
 function binContaining({ timeline, time }: { timeline: DocumentTimeline | undefined; time: number | null }): TimelineBin | undefined {
@@ -48,6 +51,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   const { search, update } = useTimelineSearch();
   const [pendingBinStart, setPendingBinStart] = useState<number | null>(null);
   const [shownVersion, setShownVersion] = useState<VersionSummary | null>(null);
+  const [failedFrameSequence, setFailedFrameSequence] = useState<number | null>(null);
   const state = search.at === null ? VersionViewerState.Live : VersionViewerState.Viewing;
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isEnabled && search.at !== null });
   const bin = binContaining({ timeline, time: search.at });
@@ -64,43 +68,57 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     },
     retry: false,
   });
-  const hasFailed = version?.kind === VersionLoadKind.Failed || isError;
+  const hasFailedFrame = requestedSequence !== null && failedFrameSequence === requestedSequence;
+  const hasFailed = version?.kind === VersionLoadKind.Failed || isError || hasFailedFrame;
 
   useEffect(() => {
     if (version?.kind === VersionLoadKind.Ready) setShownVersion(version.version);
   }, [version]);
 
   useEffect(() => {
-    if (search.at === null) setShownVersion(null);
-  }, [search.at]);
+    if (requestedSequence === null) setShownVersion(null);
+  }, [requestedSequence]);
 
-  const commit = useDebouncedCallback({
+  const { schedule, cancel } = useDebouncedCallback({
     callback: (binStart: number) => {
-      update({ changes: { at: String(binStart) }, replace: state === VersionViewerState.Viewing });
+      update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
       setPendingBinStart(null);
     },
     delayMs: SCRUB_DEBOUNCE_MS,
   });
 
+  useEffect(() => {
+    cancel();
+    setPendingBinStart(null);
+    setFailedFrameSequence(null);
+  }, [search.at, cancel]);
+
   function travelTo(binStart: number): void {
     setPendingBinStart(binStart);
-    commit(binStart);
+    schedule(binStart);
   }
 
   function backToLive(): void {
+    cancel();
     setPendingBinStart(null);
-    update({ changes: { at: null }, replace: false });
+    if (search.at === null) return;
+    update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
   }
+
+  const requestedBinStart = pendingBinStart !== null ? pendingBinStart : search.at;
+  const isShownFailed = shownVersion !== null && shownVersion.sequence === failedFrameSequence;
 
   return {
     state,
-    requestedBinStart: pendingBinStart !== null ? pendingBinStart : search.at,
+    requestedBinStart,
+    requestedBinEnd: requestedBinStart !== null && timeline ? requestedBinStart + timeline.binMs : null,
     requestedSequence,
-    shown: search.at === null ? null : shownVersion,
-    isLoading: requestedSequence !== null && !hasFailed && version?.kind !== VersionLoadKind.Ready,
+    shown: search.at === null || isShownFailed ? null : shownVersion,
+    isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,
     hasFailed,
     runs,
     travelTo,
     backToLive,
+    reportFailure: setFailedFrameSequence,
   };
 }

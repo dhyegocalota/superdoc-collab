@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
-export function useDebouncedCallback<Args extends unknown[]>({ callback, delayMs }: { callback: (...args: Args) => void; delayMs: number }): (...args: Args) => void {
+export function useDebouncedCallback<Args extends unknown[]>({ callback, delayMs }: { callback: (...args: Args) => void; delayMs: number }): { schedule: (...args: Args) => void; cancel: () => void } {
   const callbackRef = useRef(callback);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -10,11 +10,16 @@ export function useDebouncedCallback<Args extends unknown[]>({ callback, delayMs
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  return useCallback(
-    (...args: Args) => {
+  return useMemo(() => {
+    function cancel(): void {
       clearTimeout(timerRef.current);
+    }
+
+    function schedule(...args: Args): void {
+      cancel();
       timerRef.current = setTimeout(() => callbackRef.current(...args), delayMs);
-    },
-    [delayMs],
-  );
+    }
+
+    return { schedule, cancel };
+  }, [delayMs]);
 }

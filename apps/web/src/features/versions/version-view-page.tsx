@@ -17,6 +17,7 @@ function postToParent(kind: ViewerMessageKind.Ready | ViewerMessageKind.Failed):
 export function VersionViewPage() {
   const documentId = useRequiredParam('documentId');
   const sequence = Number(useRequiredParam('sequence'));
+  const isSequenceValid = Number.isInteger(sequence);
   const { user } = useSession();
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [runs, setRuns] = useState<EditRunView[]>(NO_RUNS);
@@ -38,6 +39,11 @@ export function VersionViewPage() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  useEffect(() => {
+    if (!isSequenceValid) postToParent(ViewerMessageKind.Failed);
+  }, [isSequenceValid]);
+
+  if (!isSequenceValid) return null;
   if (!user) return <SessionSkeleton />;
   return <VersionViewer documentId={documentId} sequence={sequence} user={user} onReady={handleReady} onFailed={handleFailed} />;
 }

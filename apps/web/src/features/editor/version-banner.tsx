@@ -12,11 +12,15 @@ function formatMoment(time: number): string {
   return (isToday ? MOMENT_FORMAT : DATED_MOMENT_FORMAT).format(time);
 }
 
-function bannerMessage(timeTravel: TimeTravel): string | null {
+function loadingMessage(timeTravel: TimeTravel): string {
+  if (timeTravel.requestedBinEnd === null) return LOADING_VERSION_MESSAGE;
+  return `${LOADING_VERSION_MESSAGE} ${formatTimestamp(timeTravel.requestedBinEnd)}`;
+}
+
+function bannerMessage(timeTravel: TimeTravel): string {
   if (timeTravel.hasFailed) return VERSION_FAILED_MESSAGE;
-  if (timeTravel.isLoading) return `${LOADING_VERSION_MESSAGE} ${formatTimestamp(timeTravel.requestedBinStart!)}`;
-  if (timeTravel.shown) return versionAtLabel(formatMoment(timeTravel.shown.serverTime));
-  return null;
+  if (timeTravel.isLoading || !timeTravel.shown) return loadingMessage(timeTravel);
+  return versionAtLabel(formatMoment(timeTravel.shown.serverTime));
 }
 
 export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {

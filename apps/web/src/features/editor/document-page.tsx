@@ -86,10 +86,10 @@ export function DocumentPage() {
             {setup && <SuperDocEditor superdocRef={superdocRef} documentId={documentId} roomMode={setup.roomMode} role={setup.role} user={setup.user} file={setup.file} isInert={timeTravel.state === VersionViewerState.Viewing} />}
             {!setup && !fileError && <p role="status" className="flex-1 p-4 text-sm text-muted-foreground">{LOADING_DOCUMENT_MESSAGE}</p>}
             {fileError && <p role="alert" className="flex-1 p-4 text-sm text-destructive">{DOCUMENT_LOAD_ERROR_MESSAGE}</p>}
-            <VersionFrame documentId={documentId} version={timeTravel.shown} runs={timeTravel.runs} />
+            <VersionFrame documentId={documentId} version={timeTravel.shown} requestedSequence={timeTravel.requestedSequence} runs={timeTravel.runs} onFailed={timeTravel.reportFailure} />
           </div>
         </div>
-        <TimelinePanel documentId={documentId} role={opened.role} onTravel={timeTravel.travelTo} />
+        <TimelinePanel documentId={documentId} role={opened.role} onTravel={timeTravel.travelTo} onBackToLive={timeTravel.backToLive} />
       </div>
     </div>
   );

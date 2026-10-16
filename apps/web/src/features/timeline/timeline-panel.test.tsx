@@ -65,7 +65,7 @@ function timelineRequests(fetchSpy: ReturnType<typeof mockTimelineApi>): number 
 }
 
 function renderPanel({ role = DocumentRole.Editor, route = ROUTE }: { role?: DocumentRole; route?: string } = {}) {
-  return renderWithProviders(<TimelinePanel documentId={DOCUMENT_ID} role={role} onTravel={vi.fn()} />, { route });
+  return renderWithProviders(<TimelinePanel documentId={DOCUMENT_ID} role={role} onTravel={vi.fn()} onBackToLive={vi.fn()} />, { route });
 }
 
 const failedTimeline: DocumentTimeline = { ...baseTimeline, topics: { state: TopicState.Failed, failure: FAILURE_TEXT, computedAtSequence: null } };

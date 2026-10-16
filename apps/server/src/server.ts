@@ -42,14 +42,16 @@ export async function startServer({ environment, webDistDirectory }: { environme
   const httpServer = await listen({ app, port: environment.port });
   const { port } = httpServer.address() as AddressInfo;
   const hocuspocus = createCollaborationServer({ auth });
-  attachCollaboration({ httpServer: httpServer as Server, hocuspocus, path: ApiPath.Collaboration });
+  const sockets = attachCollaboration({ httpServer: httpServer as Server, hocuspocus, path: ApiPath.Collaboration, allowedOrigin: environment.appOrigin });
   return {
     httpServer,
     port,
     auth,
     database,
     stop: async () => {
-      hocuspocus.destroy();
+      await hocuspocus.destroy();
+      sockets.clients.forEach((client) => client.terminate());
+      sockets.close();
       closeAllConnectionsWhenSupported(httpServer);
       await closeServer(httpServer);
       database.sqlite.close();

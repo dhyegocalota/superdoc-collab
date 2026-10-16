@@ -40,8 +40,18 @@ async function postCredentials({ server, path, body }: { server: TestServer; pat
   return fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress }, body: JSON.stringify(body) });
 }
 
+export class TestSignInFailedError extends Error {
+  constructor({ step, status }: { step: string; status: number }) {
+    super(`Test sign-in failed at ${step} with status ${status}.`);
+  }
+}
+
 export async function signInAndGetCookie({ server, credentials }: { server: TestServer; credentials: { name: string; email: string; password: string } }): Promise<string> {
-  await postCredentials({ server, path: '/sign-up/email', body: credentials });
+  const signedUp = await postCredentials({ server, path: '/sign-up/email', body: credentials });
+  if (!signedUp.ok) throw new TestSignInFailedError({ step: 'sign-up', status: signedUp.status });
   const signedIn = await postCredentials({ server, path: '/sign-in/email', body: { email: credentials.email, password: credentials.password } });
-  return signedIn.headers.getSetCookie().map((cookie) => cookie.split(';')[0]).join('; ');
+  if (!signedIn.ok) throw new TestSignInFailedError({ step: 'sign-in', status: signedIn.status });
+  const cookie = signedIn.headers.getSetCookie().map((setCookie) => setCookie.split(';')[0]).join('; ');
+  if (!cookie) throw new TestSignInFailedError({ step: 'cookie', status: signedIn.status });
+  return cookie;
 }

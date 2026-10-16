@@ -1,4 +1,4 @@
-import { assignBlocks, authorKey, binStartsCovering, buildBands, buildBins, chooseBinMs, contributorsByBand, filterRuns, groupIntoRuns, IdentitySource, topicBandId, versionSequenceAt, type BandIdentity, type EditRun, type TimelineEvent } from '@superdoc-history/history';
+import { ALL_SEQUENCES, assignBlocks, authorKey, binStartsCovering, buildBands, buildBins, chooseBinMs, contributorsByBand, filterRuns, groupIntoRuns, IdentitySource, topicBandId, versionSequenceAt, type BandIdentity, type EditRun, type TimelineEvent } from '@superdoc-history/history';
 import { BlockChangeKind, OTHER_BAND_ID, OTHER_BAND_NAME, TimelineBandKind, type BinEdits, type DocumentEditEvent, type DocumentTimeline, type EventAuthor, type ProjectionStatus, type TimelineFilter } from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
 import { resolveEvents } from './resolved-events';
@@ -84,11 +84,9 @@ function lastTimeOf(events: TimelineEvent[]): number {
   return events.reduce((latest, event) => Math.max(latest, event.serverTime), Number.NEGATIVE_INFINITY);
 }
 
-const BEFORE_FIRST_SEQUENCE = 0;
-
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
   const cursor = services.readModel.cursor(documentId);
-  const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? BEFORE_FIRST_SEQUENCE : cursor, limit: 1 });
+  const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? ALL_SEQUENCES : cursor, limit: 1 });
   const isDegraded = services.scheduler.degraded;
   if (!next) return { isBehind: false, lagMs: null, isDegraded };
   return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded };

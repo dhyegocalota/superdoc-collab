@@ -4,7 +4,7 @@ import type { ProjectedEdit } from './edit-events';
 import type { VersionMark, VersionMarkSummary } from './version-marks';
 
 const IMPORTED_SEQUENCE = 0;
-const ALL_SEQUENCES = IMPORTED_SEQUENCE - 1;
+export const ALL_SEQUENCES = IMPORTED_SEQUENCE - 1;
 const IMPORTED_KEY_PREFIX = 'imported';
 const READ_MODEL_TABLES = ['edit_events', 'projection_cursor', 'version_marks'];
 const INSERT_EVENT = `INSERT OR IGNORE INTO edit_events (document_name, event_key, sequence, server_time, yjs_client_ids, connection_user_id, author_name, block_id, kind, inserted, deleted, imported)

@@ -141,3 +141,4 @@ Rulings made during execution, recorded here so the spec stays the authority ([l
 - Version room eviction is LRU at `VERSION_ROOMS_LIMIT`, which can close another user's viewer; accepted for this slice.
 - The 150 ms timeline latency budget is a local benchmark; CI asserts one pipeline build per cursor.
 - Versions resolve at minute granularity: a bin maps to the latest mark of the minute that contains its last instant, so closed minutes are stable (shared `?at=` links open the same version). An open viewer pins the sequence resolved when `at` changed and never re-resolves on a poll; a fresh open of the current minute resolves its latest mark.
+- Language-model spend is capped process-wide (ADR 0011): two concurrent jobs and sixty model calls per sliding hour by default, configurable through `LLM_MAX_CONCURRENT_JOBS` and `LLM_MAX_CALLS_PER_HOUR`; over a cap the topics state is `failed` with a busy message and Retry works after the window.

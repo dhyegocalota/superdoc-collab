@@ -28,7 +28,7 @@ Topics are named on a document's first open and on every Refresh, and per-topic 
 ## Consequences
 
 - A burst of first opens across many documents shows "busy" instead of spending; the 61st call in an hour waits for the window.
-- The numbers are constants in `apps/server/src/insights/insights-worker.ts`; the owner tunes them before PR 5 deploys.
+- The numbers are defaults in `libs/types`/`apps/server` and can be raised or lowered through `LLM_MAX_CONCURRENT_JOBS` and `LLM_MAX_CALLS_PER_HOUR` (documented in `.env.example`); the E2E suite raises the hourly cap because one run names topics for dozens of documents; the owner tunes the deploy values before PR 5.
 - Multi-instance servers would need a shared counter (out of scope: single instance, ADR 0004).
 
 ## Evidence

@@ -22,8 +22,9 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ViewerMessageKind } from '@/features/editor/viewer-messages';
+import { formatTimestamp } from '@/features/timeline/timeline-tooltip';
 import { SCRUB_DEBOUNCE_MS } from '@/features/timeline/use-time-travel';
-import { BACK_TO_LIVE_LABEL, STREAMGRAPH_TITLE } from '@/features/timeline/timeline-copy';
+import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, STREAMGRAPH_TITLE } from '@/features/timeline/timeline-copy';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
@@ -69,14 +70,19 @@ function mockDocumentApi({
   openedStatus = HttpStatus.Ok,
   versions = {},
   edits = { binStart: 0, binMs: 0, runs: [], authors: {} },
-}: { opened?: OpenedDocument; openedStatus?: HttpStatus; versions?: Record<number, VersionReply[]>; edits?: BinEdits } = {}) {
+  timeline = versionedTimeline,
+  holdTimeline = false,
+}: { opened?: OpenedDocument; openedStatus?: HttpStatus; versions?: Record<number, VersionReply[]>; edits?: BinEdits; timeline?: DocumentTimeline; holdTimeline?: boolean } = {}) {
   const queues = new Map(Object.entries(versions).map(([sequence, replies]) => [versionApiPath({ documentId: DOCUMENT_ID, sequence: Number(sequence) }), [...replies]]));
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const path = String(input).split('?')[0]!;
     if (path === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
     if (path === documentApiPath({ documentId: DOCUMENT_ID })) return new Response(JSON.stringify(opened), { status: openedStatus });
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members })) return new Response(JSON.stringify({ members: [] }));
-    if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline })) return new Response(JSON.stringify(versionedTimeline));
+    if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline })) {
+      if (holdTimeline) return new Promise<Response>(() => undefined);
+      return new Response(JSON.stringify(timeline));
+    }
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries })) return new Response(JSON.stringify({ summaries: [] }));
     if (path === timelineEditsApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(edits));
     if (path === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
@@ -185,13 +191,14 @@ test('scrubbing commits one URL change per pause, pushing once and then replacin
   await act(async () => undefined);
   expect(router.state.historyAction).toBe('PUSH');
   const locations: string[] = [];
-  router.subscribe((state) => locations.push(state.location.search));
+  const unsubscribe = router.subscribe((state) => locations.push(state.location.search));
   const band = screen.getByLabelText(/^Budget,/);
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   expect(router.state.location.search).toBe(`?at=${BIN_STARTS[0]}`);
   await waitFor(() => expect(router.state.location.search).toBe(`?at=${BIN_STARTS[3]}`), { timeout: SCRUB_DEBOUNCE_MS * 5 });
+  unsubscribe();
   expect(locations).toEqual([`?at=${BIN_STARTS[3]}`]);
   expect(router.state.historyAction).toBe('REPLACE');
 });
@@ -211,4 +218,72 @@ test('the live editor stays mounted and inert while viewing', async () => {
   await screen.findByTitle(VERSION_FRAME_TITLE);
   expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
   expect(superDocDestroy).not.toHaveBeenCalled();
+});
+
+test('Escape before the pause cancels the pending scrub', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  const band = screen.getByLabelText(/^Budget,/);
+  fireEvent.keyDown(band, { key: 'ArrowRight' });
+  fireEvent.keyDown(band, { key: 'Escape' });
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
+  expect(router.state.location.search).toBe('');
+});
+
+test('a URL change during the pause is not overwritten by the pending scrub', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockDocumentApi({ versions: { 42: [readyReply(42)], 41: [readyReply(41)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowRight' });
+  await act(async () => router.navigate(`${PAGE_ROUTE}?at=${BIN_STARTS[0]}`));
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[0]}`);
+});
+
+test('a moment still loading its timeline shows progress instead of an empty banner', async () => {
+  mockDocumentApi({ holdTimeline: true });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  expect(await screen.findByTestId('version-banner')).toHaveTextContent(LOADING_VERSION_MESSAGE);
+});
+
+test('a moment without a version yet shows progress up to the end of its period', async () => {
+  const withoutVersion: DocumentTimeline = { ...versionedTimeline, bins: versionedTimeline.bins.map((bin, index) => ({ ...bin, versionSequence: index === 1 ? null : bin.versionSequence })) };
+  mockDocumentApi({ timeline: withoutVersion });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const endOfPeriod = formatTimestamp(BIN_STARTS[1]! + versionedTimeline.binMs);
+  await waitFor(() => expect(screen.getByTestId('version-banner')).toHaveTextContent(endOfPeriod));
+  expect(screen.getByTestId('version-banner')).toHaveTextContent(LOADING_VERSION_MESSAGE);
+  expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
+});
+
+test('a frame that reports a failure replaces the version with the failure message', async () => {
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const frame = (await screen.findByTitle(VERSION_FRAME_TITLE)) as HTMLIFrameElement;
+  sendFromFrame({ frame, kind: ViewerMessageKind.Failed });
+  expect(await screen.findByText(VERSION_FAILED_MESSAGE)).toBeVisible();
+  expect(screen.getByTestId('version-banner')).not.toHaveAttribute('data-sequence');
+  expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
+});
+
+test('runs reach only the frame of the requested version', async () => {
+  mockDocumentApi({
+    versions: { 42: [readyReply(42)], 50: [readyReply(50)] },
+    edits: { binStart: BIN_STARTS[2]!, binMs: versionedTimeline.binMs, runs: RUNS, authors: { ana: { id: '1', name: 'Ana' } } },
+  });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const frameA = (await screen.findByTitle(VERSION_FRAME_TITLE)) as HTMLIFrameElement;
+  sendFromFrame({ frame: frameA });
+  const postToA = vi.spyOn(frameA.contentWindow!, 'postMessage');
+  pressChartAt(2);
+  await waitFor(() => expect(screen.getAllByTitle(VERSION_FRAME_TITLE)).toHaveLength(2), SLOW_WAIT);
+  await act(async () => undefined);
+  expect(postToA).not.toHaveBeenCalledWith({ kind: ViewerMessageKind.Highlight, runs: RUNS }, window.location.origin);
+  const frameB = frameFor(50);
+  const postToB = vi.spyOn(frameB.contentWindow!, 'postMessage');
+  sendFromFrame({ frame: frameB });
+  await waitFor(() => expect(postToB).toHaveBeenCalledWith({ kind: ViewerMessageKind.Highlight, runs: RUNS }, window.location.origin));
 });

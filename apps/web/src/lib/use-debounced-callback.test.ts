@@ -10,11 +10,11 @@ afterEach(() => vi.useRealTimers());
 test('calls within the delay collapse into the last one', () => {
   const callback = vi.fn();
   const { result } = renderHook(() => useDebouncedCallback({ callback, delayMs: DELAY_MS }));
-  result.current(1);
+  result.current.schedule(1);
   vi.advanceTimersByTime(DELAY_MS - 1);
-  result.current(2);
+  result.current.schedule(2);
   vi.advanceTimersByTime(DELAY_MS - 1);
-  result.current(3);
+  result.current.schedule(3);
   vi.advanceTimersByTime(DELAY_MS - 1);
   expect(callback).not.toHaveBeenCalled();
   vi.advanceTimersByTime(1);
@@ -25,8 +25,17 @@ test('calls within the delay collapse into the last one', () => {
 test('unmounting cancels a pending call', () => {
   const callback = vi.fn();
   const { result, unmount } = renderHook(() => useDebouncedCallback({ callback, delayMs: DELAY_MS }));
-  result.current(1);
+  result.current.schedule(1);
   unmount();
+  vi.advanceTimersByTime(DELAY_MS * 2);
+  expect(callback).not.toHaveBeenCalled();
+});
+
+test('cancel drops a pending call', () => {
+  const callback = vi.fn();
+  const { result } = renderHook(() => useDebouncedCallback({ callback, delayMs: DELAY_MS }));
+  result.current.schedule(1);
+  result.current.cancel();
   vi.advanceTimersByTime(DELAY_MS * 2);
   expect(callback).not.toHaveBeenCalled();
 });

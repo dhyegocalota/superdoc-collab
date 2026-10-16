@@ -83,3 +83,10 @@ test('a highlight from another origin is ignored', async () => {
   messageFrom({ data: { kind: ViewerMessageKind.Highlight, runs: RUNS }, origin: EVIL_ORIGIN });
   expect(vi.mocked(useRunHighlights)).not.toHaveBeenCalledWith(expect.objectContaining({ runs: RUNS }));
 });
+
+test('a sequence that is not a number reports a failure and never opens a viewer', async () => {
+  const postToParent = vi.spyOn(window.parent, 'postMessage');
+  renderWithProviders(<VersionViewPage />, { route: versionViewPagePath({ documentId: DOCUMENT_ID, sequence: Number.NaN }) });
+  await waitFor(() => expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Failed }, window.location.origin));
+  expect(SuperDoc).not.toHaveBeenCalled();
+});

@@ -121,3 +121,18 @@ Every new route checks membership (reader allowed to read everything in this sli
 - E2E: two authors type in two topics → bands appear within ~5 s; filter by username hides the other author; filter by term; click a bin → version banner shows the time and the viewer text equals the text at that sequence (asserted through `/versions/:sequence/text`); back to live; keyboard navigation of the chart; narrow viewport stacks the panel.
 - Playwright MCP walk (tester): the whole flow with three users, topics refresh, LLM failure state (key removed), scrubbing, 375 px; console and network clean.
 - Spike report in `spike.md`.
+
+## Execution amendments (2026-10-16)
+
+Rulings made during execution, recorded here so the spec stays the authority ([ledger](../../../.superpowers/sdd/plan/progress.md) is scratch):
+
+- `MAX_BINS` (120) wins over the bin ladder: a 30-day span uses 12 h bins.
+- Topic id stability: an id is reused when at least half of the new topic's blocks came from the old topic; a reused id must belong to the same document, otherwise it is a new topic.
+- The selected bin is derived from the URL `at`; the panel mirrors it locally only for instant scrub feedback, and any URL change (Back, external link) overrides the local value and cancels a pending scrub.
+- Projection is scheduled on a 1.5 s throttle from `onChange`; the store is the final flush; compaction runs in the worker; imports run on their own lane; `stopWorker` caps SDK dispose at 1 s.
+- Refresh is rate-limited per document (not per user) with `Retry-After` always present; a recompute is triggered only by five blocks first seen after the last run; an empty block list never persists `ready`.
+- `/events?limit` outside `1..EVENTS_PAGE_SIZE` is 400; `GET /versions` requires `?around`; a cached version failure answers 503 with `Retry-After` on every path, including `/text` and the version room.
+- A version viewer with no version yet shows the loading state with the requested bin's end; it never shows an empty banner over the inert editor.
+- SuperDoc 2.23.0 has no local-only comment flag: highlight privacy rests on the read-only version room. Highlights match once per block (`within`), case-sensitive, with one bounded retry on `editor-update`.
+- Version room eviction is LRU at `VERSION_ROOMS_LIMIT`, which can close another user's viewer; accepted for this slice.
+- The 150 ms timeline latency budget is a local benchmark; CI asserts one pipeline build per cursor.

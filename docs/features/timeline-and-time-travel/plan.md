@@ -88,8 +88,8 @@ Then Z.
 **Interfaces:**
 - Produces: from `constants.ts` `SECOND_MS`, `MINUTE_MS`, `VERSION_MARK_MS`, `VERSION_ROOM_IDLE_MS`, `VERSION_ROOMS_LIMIT`, `VERSION_CACHE_SIZE`, `VERSION_CACHE_MAX_BYTES`, `VERSION_FAILURE_TTL_MS`; `AppRoute.VersionView`, `versionViewPagePath({ documentId, sequence })`; `HttpStatus.ServiceUnavailable`; `VERSION_FAILED_ERROR`, `VERSION_FAILED_MESSAGE`, `TOPICS_INTERRUPTED_MESSAGE`; constants `TOPIC_RECOMPUTE_NEW_BLOCKS`, `EVENTS_PAGE_SIZE`, `OTHER_BAND_ID`, `OTHER_BAND_NAME`, `FILTER_MAX_LENGTH`, `TOPICS_UNAVAILABLE_MESSAGE`, `TOPICS_PENDING_MESSAGE`, `TOPICS_FAILED_MESSAGE`, `TOPICS_REFRESH_TOO_SOON_MESSAGE`, `HISTORY_CATCHING_UP_MESSAGE`, `NO_MATCHING_EDITS_MESSAGE`, `VERSION_NOT_READY_ERROR`; enums `TopicState`, `TimelineFilterKind`, `VersionViewerState`, `TimelineBandKind`, `TimelineSearchParam`, `TimelineQueryParam`, `VersionResource`; types `TimelineFilter`, `TimelineCell`, `TimelineBin`, `TimelineBand`, `TimelineContributor`, `TopicStatus`, `ProjectionStatus`, `DocumentTimeline`, `DocumentTopic`, `DocumentTopics`, `TopicSummary`, `TopicSummaries`, `EditRunView`, `BinEdits`, `VersionSummary`, `VersionText`, `VersionMarks`; `DocumentEditEvents.nextAfterSequence`; `HttpStatus.Accepted`; `DocumentResource.{Timeline, Topics, Summaries, Versions}`; `topicsRefreshApiPath(documentId)`, `timelineEditsApiPath(documentId)`, `versionApiPath({ documentId, sequence, resource? })`, `versionCollaborationPath({ documentId, sequence })`; package subpath `@superdoc-history/history/timeline`.
 
-- [ ] **Step 0: Dependencies, one install** — write, all exact: `apps/server/package.json` dependencies `ai 7.0.142`, `@openrouter/ai-sdk-provider 3.1.0`; `apps/web/package.json` dependencies `d3-shape 3.2.0`, `d3-scale 4.0.2`, `@superdoc-history/history workspace:*`, devDependencies `@types/d3-shape 3.2.0`, `@types/d3-scale 4.0.9`; `libs/history/package.json` dependency `zod 4.6.7` and `"exports"` gains `"./timeline": "./src/timeline/index.ts"`. Add the line `OPENROUTER_BASE_URL=` under `LLM_MODEL` in `.env.example` (owner-approved; `.env` is never opened). Run `pnpm install` once. Check `ls node_modules/.pnpm | grep -E '^ai@7.0.142|openrouter\+ai-sdk-provider@3.1.0'` prints both. Then read the `MockLanguageModelV4` constructor and `LanguageModelV4GenerateResult` in `node_modules/ai/dist/test/index.d.ts` and `@ai-sdk/provider`: if the result shape differs from the literal in Task 8 (`content: [{ type: 'text', text }]`, `finishReason: { unified, raw }`, `usage: { inputTokens: { total, noCache, cacheRead, cacheWrite }, outputTokens: { total, text, reasoning } }`, `warnings`), correct Task 8's `testing/language-model.ts` in this plan before Task 8 starts.
-- [ ] **Step 1: Failing test** — `libs/types/src/timeline.test.ts`
+- [x] **Step 0: Dependencies, one install** — write, all exact: `apps/server/package.json` dependencies `ai 7.0.142`, `@openrouter/ai-sdk-provider 3.1.0`; `apps/web/package.json` dependencies `d3-shape 3.2.0`, `d3-scale 4.0.2`, `@superdoc-history/history workspace:*`, devDependencies `@types/d3-shape 3.2.0`, `@types/d3-scale 4.0.9`; `libs/history/package.json` dependency `zod 4.6.7` and `"exports"` gains `"./timeline": "./src/timeline/index.ts"`. Add the line `OPENROUTER_BASE_URL=` under `LLM_MODEL` in `.env.example` (owner-approved; `.env` is never opened). Run `pnpm install` once. Check `ls node_modules/.pnpm | grep -E '^ai@7.0.142|openrouter\+ai-sdk-provider@3.1.0'` prints both. Then read the `MockLanguageModelV4` constructor and `LanguageModelV4GenerateResult` in `node_modules/ai/dist/test/index.d.ts` and `@ai-sdk/provider`: if the result shape differs from the literal in Task 8 (`content: [{ type: 'text', text }]`, `finishReason: { unified, raw }`, `usage: { inputTokens: { total, noCache, cacheRead, cacheWrite }, outputTokens: { total, text, reasoning } }`, `warnings`), correct Task 8's `testing/language-model.ts` in this plan before Task 8 starts.
+- [x] **Step 1: Failing test** — `libs/types/src/timeline.test.ts`
 ```ts
 describe('timeline contracts', () => {
   test('builds version and topics paths with encoded ids', () => {
@@ -106,8 +106,8 @@ describe('timeline contracts', () => {
   });
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./timeline` / `versionApiPath` is not exported. Commit the test alone: `test(types): pin the timeline and version contracts`; `git show --stat` lists only the test.
-- [ ] **Step 3: Implement** — `timeline.ts`
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./timeline` / `versionApiPath` is not exported. Commit the test alone: `test(types): pin the timeline and version contracts`; `git show --stat` lists only the test.
+- [x] **Step 3: Implement** — `timeline.ts`
 ```ts
 import type { EventAuthor } from './history';
 
@@ -165,10 +165,12 @@ export const VERSION_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 export const VERSION_FAILURE_TTL_MS = 30 * SECOND_MS;
 ```
 `index.ts` re-exports `./timeline` and `./constants`.
-- [ ] **Step 4: Run, expect pass** — types suite green; `pnpm typecheck` reports only `nextAfterSequence` missing in `apps/server/src/history/history-routes.ts` (fixed by Task 7); record the exact error line.
-- [ ] **Step 5: Commit** — `chore(deps): add the AI SDK, OpenRouter and d3 for the timeline slice` (Step 0) and `feat(types): add timeline, topics and version contracts`
+- [x] **Step 4: Run, expect pass** — types suite green; `pnpm typecheck` reports only `nextAfterSequence` missing in `apps/server/src/history/history-routes.ts` (fixed by Task 7); record the exact error line.
+- [x] **Step 5: Commit** — `chore(deps): add the AI SDK, OpenRouter and d3 for the timeline slice` (Step 0) and `feat(types): add timeline, topics and version contracts`
 
 ---
+
+_Done — evidence: commits cf18e5a (tests), 3daec3d (deps), af6e792; task review approved_
 
 ### Task 2: Version marks, paged events and version state (G1)
 
@@ -181,7 +183,7 @@ export const VERSION_FAILURE_TTL_MS = 30 * SECOND_MS;
 - Consumes: `UpdateLog`, `materialize`, `findBootstrapSequence`, `readMainStoryText`.
 - Produces (with `VERSION_MARK_MS` imported from `@superdoc-history/types`): `VersionMark = { sequence; serverTime; minuteStart; isBootstrap: boolean; snapshot: Uint8Array }`, `VersionMarkSummary = Omit<VersionMark, 'snapshot'>`, `minuteStartOf(serverTime)`, `endsItsMinute({ update, next })`, `markOf({ update, document, isBootstrap })`, `versionSequenceAt({ marks, time }): number | null`, `clampToMark({ marks, sequence }): VersionMarkSummary | null`; `ProjectedBatch = { events: ProjectedEdit[]; marks: VersionMark[] }` returned by `projectEditEvents`; `ReadModel.commit({ documentName, events, marks, lastSequence })`, `ReadModel.marks(documentName): VersionMarkSummary[]`, `ReadModel.mark({ documentName, sequence }): VersionMark | null`, `ReadModel.readPage({ documentName, afterSequence, limit }): { events: StoredEditEvent[]; cursor: number | null; nextAfterSequence: number | null }`; `REPLAY_CACHE_SIZE = 2`, `GcFreeReplays` with `version({ log, documentName, mark }): Y.Doc` and `forget(documentName)`; `MissingBootstrapUpdateError`.
 
-- [ ] **Step 1: Failing tests** — `version-state.test.ts` (the property test: every mark restores exactly what a full replay gives at its sequence; the spike's history was typing only, so the second fixture is delete-heavy on a `Y.Text`)
+- [x] **Step 1: Failing tests** — `version-state.test.ts` (the property test: every mark restores exactly what a full replay gives at its sequence; the spike's history was typing only, so the second fixture is delete-heavy on a `Y.Text`)
 ```ts
 const DOCUMENT = 'version-room';
 const EDITS = 30;
@@ -246,9 +248,9 @@ test('a delete-heavy history restores exactly at every mark', () => {
 `read-model.test.ts` adds:
 - `readPage ends on a sequence boundary`: events at sequences `[1, 1, 2, 3, 3, 3, 4]`, `limit: 4` → page sequences `[1, 1, 2, 3, 3, 3]`, `nextAfterSequence: 3`; next page from 3 → `[4]`, `nextAfterSequence: null`.
 - `forget clears the marks`: commit one mark, `forget` → `marks` is `[]`.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./version-state` and `./version-marks`. Commit the tests alone: `test(history): pin version marks, paged events and exact version state`.
-- [ ] **Step 3: Schema** — `schema/read-model.ts` adds `versionMarks = sqliteTable('version_marks', { documentName: text('document_name').notNull(), sequence: integer('sequence').notNull(), serverTime: integer('server_time').notNull(), minuteStart: integer('minute_start').notNull(), isBootstrap: integer('is_bootstrap', { mode: 'boolean' }).notNull(), snapshot: blob('snapshot').notNull() }, (table) => [primaryKey({ columns: [table.documentName, table.sequence] }), index('version_marks_by_minute').on(table.documentName, table.minuteStart)])`; `pnpm --filter @superdoc-history/history exec drizzle-kit generate --config drizzle.read-model.config.ts` creates `drizzle/read-model/0001_*.sql`; never hand-edit it.
-- [ ] **Step 4: Implement marks and projection** — `version-marks.ts`
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./version-state` and `./version-marks`. Commit the tests alone: `test(history): pin version marks, paged events and exact version state`.
+- [x] **Step 3: Schema** — `schema/read-model.ts` adds `versionMarks = sqliteTable('version_marks', { documentName: text('document_name').notNull(), sequence: integer('sequence').notNull(), serverTime: integer('server_time').notNull(), minuteStart: integer('minute_start').notNull(), isBootstrap: integer('is_bootstrap', { mode: 'boolean' }).notNull(), snapshot: blob('snapshot').notNull() }, (table) => [primaryKey({ columns: [table.documentName, table.sequence] }), index('version_marks_by_minute').on(table.documentName, table.minuteStart)])`; `pnpm --filter @superdoc-history/history exec drizzle-kit generate --config drizzle.read-model.config.ts` creates `drizzle/read-model/0001_*.sql`; never hand-edit it.
+- [x] **Step 4: Implement marks and projection** — `version-marks.ts`
 ```ts
 import { VERSION_MARK_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
@@ -295,7 +297,7 @@ function bootstrapMark({ log, documentName, sequence }: { log: UpdateLog; docume
 }
 ```
 `read-model.ts`: `READ_MODEL_TABLES` gains `'version_marks'`; inside `commit`'s transaction, after the events, `marks.forEach((mark) => { pruneMinute.run(documentName, mark.minuteStart, mark.sequence); insertMark.run({ documentName, ...mark, isBootstrap: mark.isBootstrap ? 1 : 0 }); })` with `PRUNE_MINUTE = 'DELETE FROM version_marks WHERE document_name = ? AND minute_start = ? AND sequence < ? AND is_bootstrap = 0'` and `INSERT OR IGNORE`. `marks` selects everything but `snapshot` ordered by sequence; `mark` selects one row and returns `new Uint8Array(row.snapshot)`. `readPage` runs in one transaction: the boundary is `SELECT sequence … ORDER BY sequence, id LIMIT 1 OFFSET limit - 1`; without a boundary it returns `read(...)` and `nextAfterSequence: null`; with one it returns every event with `sequence <= boundary` and `nextAfterSequence: boundary` when `SELECT 1 … sequence > boundary LIMIT 1` finds a row, else `null`.
-- [ ] **Step 5: Implement version state** — `version-state.ts` (spike §1: restore 1–8 ms, gc:false +0.9% memory)
+- [x] **Step 5: Implement version state** — `version-state.ts` (spike §1: restore 1–8 ms, gc:false +0.9% memory)
 ```ts
 export const REPLAY_CACHE_SIZE = 2;
 
@@ -336,10 +338,12 @@ export class GcFreeReplays {
 }
 ```
 `index.ts` re-exports both new modules.
-- [ ] **Step 6: Run, expect pass** — every `libs/history` suite; `pnpm --filter @superdoc-history/history typecheck` clean.
-- [ ] **Step 7: Commit** — `feat(history): record per-minute version marks and restore exact versions`
+- [x] **Step 6: Run, expect pass** — every `libs/history` suite; `pnpm --filter @superdoc-history/history typecheck` clean.
+- [x] **Step 7: Commit** — `feat(history): record per-minute version marks and restore exact versions`
 
 ---
+
+_Done — evidence: commits through 6f04d47; task review approved (restore == replay at every mark on three fixtures)_
 
 ### Task 3: Timeline library: bins, runs, words, stack rows, bands (G1)
 
@@ -352,7 +356,7 @@ export class GcFreeReplays {
 - Consumes: `TimelineBin`, `TimelineCell`, `TimelineBand`, `TimelineBandKind`, `TimelineContributor`, `EventAuthor`, `OTHER_BAND_ID`.
 - Produces (importable from `@superdoc-history/history/timeline`, which imports nothing but `@superdoc-history/types`; `SECOND_MS` and `MINUTE_MS` come from there): `MAX_BINS = 120`, `BIN_LADDER_MS`, `chooseBinMs(spanMs)`, `binStartOf({ time, binMs })`, `binStartsCovering({ firstTime, lastTime, binMs })`, `buildBins({ runs, binStarts, binMs, versionSequenceAt })`; `TimelineEvent = { sequence; serverTime; blockId; bandId; authorKeys: string[]; inserted; deleted }`, `EditRun = { binStart; blockId; bandId; authorKeys; inserted; deleted; firstServerTime; lastServerTime; lastSequence }`, `authorKey(author: EventAuthor): string`, `groupIntoRuns({ events, binMs })`, `runMatchesTerm({ run, term })`, `filterRuns({ runs, term, authorKeys })`; `countWords(text)`; `TOPIC_HUE_START = 205`, `TOPIC_HUE_END = 25`, `StackRow = { start: number; values: Record<string, number> }`, `toStackRows({ bins, bandIds })`, `huesByOnset(bands)`; `BandIdentity = { id; kind; name }`, `buildBands({ identities, allRuns, matchedRuns })`, `contributorsByBand(runs)`.
 
-- [ ] **Step 1: Failing tests** — `runs.test.ts`
+- [x] **Step 1: Failing tests** — `runs.test.ts`
 ```ts
 const BIN_MS = MINUTE_MS;
 
@@ -375,8 +379,8 @@ Also, each input → expected:
 - `bins.test.ts` — `chooseBinMs` over spans 30 s → 10 s, 2 min → 10 s, 10 min → 10 s, 30 min → 30 s, 3 h → 2 min, 5 h → 5 min, 30 days → 6 h, 3 years → a whole number of weeks; in every case `Math.ceil(span / binMs) + 1 <= MAX_BINS`. `a single edit yields three bins, the middle one filled`: one run at 10:00:30, `binStartsCovering` → `[09:59, 10:00, 10:01]` and only the middle bin has a cell. `bins between edits stay empty and carry the version before their end`: runs at 10:00 and 10:03 with `versionSequenceAt` returning `start + binMs` → six bins (two padding), bins 10:01 and 10:02 have `byBand: {}` and a non-null `versionSequence`.
 - `words.test.ts` — `countWords('  plan the  budget ')` is 3; `''` and `'   '` are 0; the run `'Hello w'` built from seven keystrokes counts 2.
 - `bands.test.ts` — `hues follow onset from cool to warm and Other has none`: bands with onsets 30, 10, 20 and one Other → hues by id `{ b10: 205, b20: 115, b30: 25 }`, Other `null`; one band alone → 205. `volume counts matched runs only, onset counts all runs`: a filter that removes the earliest run keeps the onset time of that run and drops its characters from `volume`. `contributors sort by characters`: Ana 10 characters, Bruno 30 → `[bruno, ana]`, with `wordsInserted` from `countWords` per run.
-- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./runs`, `./bins`, `./words`, `./bands`. Commit the tests alone: `test(history): pin timeline bins, runs, words and bands`.
-- [ ] **Step 3: Implement** — `bins.ts`
+- [x] **Step 2: Run, expect failure** — FAIL: cannot find `./runs`, `./bins`, `./words`, `./bands`. Commit the tests alone: `test(history): pin timeline bins, runs, words and bands`.
+- [x] **Step 3: Implement** — `bins.ts`
 ```ts
 export const MAX_BINS = 120;
 const WEEK_MS = 10_080 * MINUTE_MS;
@@ -504,10 +508,12 @@ export function contributorsByBand(runs: EditRun[]): Record<string, TimelineCont
 }
 ```
 `timeline/index.ts` re-exports the five files.
-- [ ] **Step 4: Run, expect pass** — the four suites; `grep -rn "from '\.\./" libs/history/src/timeline` prints nothing (the subpath stays free of SQLite and Yjs).
-- [ ] **Step 5: Commit** — `feat(history): add the timeline aggregation library`
+- [x] **Step 4: Run, expect pass** — the four suites; `grep -rn "from '\.\./" libs/history/src/timeline` prints nothing (the subpath stays free of SQLite and Yjs).
+- [x] **Step 5: Commit** — `feat(history): add the timeline aggregation library`
 
 ---
+
+_Done — evidence: commits bbc9408 (tests), c5a1f44; task review approved (MAX_BINS invariant pinned)_
 
 ### Task 4: Topic schemas and block assignment (G1)
 
@@ -520,7 +526,7 @@ export function contributorsByBand(runs: EditRun[]): Record<string, TimelineCont
 - Consumes: `OTHER_BAND_ID`.
 - Produces: `MIN_TOPICS = 4`, `MAX_TOPICS = 8`, `MAX_TOPICS_ACCEPTED = 20`, `TOPIC_NAME_MAX_LENGTH = 40`, `SUMMARY_SENTENCE_MAX_LENGTH = 200`, `DUPLICATE_TOPIC_NAMES_MESSAGE`, `topicsOutputSchema`, `summariesOutputSchema`, `TopicsOutput`, `SummariesOutput`; `NormalizedTopic = { name: string; blockIds: string[] }`, `normalizeTopics({ output, knownBlockIds }): { topics: NormalizedTopic[]; unknownBlockIds: string[] }`, `assignBlocks(topics: { id: string; blockIds: string[] }[]): Map<string, string>`, `topicBandId({ assignment, blockId }): string`, `IdentifiedTopic = NormalizedTopic & { id: string | null }`, `matchPreviousTopics({ previous, next }: { previous: { id: string; blockIds: string[] }[]; next: NormalizedTopic[] }): IdentifiedTopic[]`.
 
-- [ ] **Step 1: Failing tests** — `topic-assignment.test.ts`
+- [x] **Step 1: Failing tests** — `topic-assignment.test.ts`
 ```ts
 function topic({ name, count, offset }: { name: string; count: number; offset: number }) {
   return { name, blockIds: Array.from({ length: count }, (_, index) => `b${offset + index}`) };
@@ -542,8 +548,8 @@ test('unknown block ids are dropped and reported', () => {
 Also, each input → expected:
 - `topic-assignment.test.ts` — `a recomputed topic keeps the id of the topic it mostly covers`: previous `t1 [b1, b2, b3]`, `t2 [b4]`; next `Costs [b1, b2, b9]`, `Team [b4, b5, b6]`, `New [b7]` → ids `t1`, `null` (one of three blocks is under half), `null`; an id is reused at most once, by the larger overlap. `one topic is kept as is`; `a block claimed twice stays with the first topic`; `assignBlocks` then `topicBandId` → the topic id for `b1`, `OTHER_BAND_ID` for `b99`.
 - `topic-schema.test.ts` — `topicsOutputSchema` rejects `{ topics: [] }`, a topic with `blockIds: []`, two topics named `'Budget'` and `' budget '` (duplicate after trim and case), a 41-character name, and 21 topics; accepts 1 and 12. `summariesOutputSchema` rejects a 201-character sentence and accepts `{ summaries: [] }`.
-- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./topic-assignment`, `./topic-schema`. Commit the tests alone: `test(history): pin topic schemas, clamping and block assignment`.
-- [ ] **Step 3: Implement** — `topic-schema.ts`
+- [x] **Step 2: Run, expect failure** — FAIL: cannot find `./topic-assignment`, `./topic-schema`. Commit the tests alone: `test(history): pin topic schemas, clamping and block assignment`.
+- [x] **Step 3: Implement** — `topic-schema.ts`
 ```ts
 export const MIN_TOPICS = 4;
 export const MAX_TOPICS = 8;
@@ -618,10 +624,12 @@ export function topicBandId({ assignment, blockId }: { assignment: Map<string, s
   return topicId;
 }
 ```
-- [ ] **Step 4: Run, expect pass** — both suites and every earlier `libs/history` suite.
-- [ ] **Step 5: Commit** — `feat(history): add topic schemas, clamping and block assignment`
+- [x] **Step 4: Run, expect pass** — both suites and every earlier `libs/history` suite.
+- [x] **Step 5: Commit** — `feat(history): add topic schemas, clamping and block assignment`
 
 ---
+
+_Done — evidence: commits through f1eebaa; task review approved after the controller ruled the id-stability denominator is the NEW topic (half of the new topic's blocks must come from the old one, so its summary stays relevant)_
 
 ### Task 5: LLM settings, insights schema and repository (G2)
 
@@ -634,7 +642,7 @@ export function topicBandId({ assignment, blockId }: { assignment: Map<string, s
 - Consumes: `TopicState`, `TopicStatus`, `TopicSummary`, `IdentifiedTopic`.
 - Produces: `LlmSettings = { model: string | null; apiKey: string | null; baseUrl: string | null }`, `Environment.llm`; tables `topicSets`, `documentTopics`, `topicBlocks`, `topicSummaries`; `StoredTopic = { id: string; name: string; position: number; blockIds: string[] }`; `InsightsRepository(database: AuthDatabase)`: `status(documentId): TopicStatus | null`, `markPending(documentId)`, `markFailed({ documentId, failure })`, `saveTopics({ documentId, topics: IdentifiedTopic[], computedAtSequence })`, `topics(documentId): StoredTopic[]`, `summaries(documentId): TopicSummary[]`, `saveSummaries({ summaries: { topicId: string; sentence: string }[]; computedAtSequence })`, `failInterrupted(failure)` (every `pending` set becomes `failed`); `services.insightsRepository`, `AppServices.insightsRepository`; `LanguageModelAvailability { Ready, Unavailable }`, `LanguageModelChoice`, `chooseLanguageModel(settings): LanguageModelChoice`, `generateStructured({ model, schema, system, prompt })`, `LLM_MODEL_MISSING_MESSAGE`, `LLM_KEY_MISSING_MESSAGE`; `startServer({ environment, webDistDirectory, languageModel = chooseLanguageModel(environment.llm) })`; `startTestServer({ languageModel? })` (default: `chooseLanguageModel` of the empty test settings, so `Unavailable`) and `documentWithOwner({ languageModel? })` threading it.
 
-- [ ] **Step 1: Failing tests** — `insights-repository.test.ts`
+- [x] **Step 1: Failing tests** — `insights-repository.test.ts`
 ```ts
 test('a recompute keeps reused topic ids with their summaries and drops the rest', async () => {
   const { server, documentId } = await documentWithOwner();
@@ -655,8 +663,8 @@ Also, each input → expected:
 - `markPending keeps the stored topics`: after `saveTopics`, `markPending` → `status.state` is `pending` and `topics` unchanged; `markFailed({ failure: 'x' })` → `{ state: failed, failure: 'x' }`, topics unchanged.
 - `deleting the document cascades every insights row`: `documents.remove(documentId)` → `status` `null`, `topics` `[]`, and `SELECT COUNT(*) FROM topic_blocks` is 0.
 - `environment.test.ts`: without `LLM_MODEL`, `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` → `llm` is `{ model: null, apiKey: null, baseUrl: null }`; empty strings → the same; set values pass through; `OPENROUTER_BASE_URL=not-a-url` throws.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit` → FAIL: `services.insightsRepository` is undefined / cannot find `./insights-repository`. Commit the tests alone: `test(server): pin LLM settings and the insights repository`.
-- [ ] **Step 3: Implement** — `environment.ts`: a second schema `z.object({ LLM_MODEL: z.string().optional(), OPENROUTER_API_KEY: z.string().optional(), OPENROUTER_BASE_URL: z.union([z.literal(''), z.url()]).optional() })` parsed after the required one; `presentOrNull(value)` returns `null` for `undefined` or `''` (an explicit `if (!value) return null`), and `loadLlmSettings(source)` returns `{ model, apiKey, baseUrl }` through it.
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit` → FAIL: `services.insightsRepository` is undefined / cannot find `./insights-repository`. Commit the tests alone: `test(server): pin LLM settings and the insights repository`.
+- [x] **Step 3: Implement** — `environment.ts`: a second schema `z.object({ LLM_MODEL: z.string().optional(), OPENROUTER_API_KEY: z.string().optional(), OPENROUTER_BASE_URL: z.union([z.literal(''), z.url()]).optional() })` parsed after the required one; `presentOrNull(value)` returns `null` for `undefined` or `''` (an explicit `if (!value) return null`), and `loadLlmSettings(source)` returns `{ model, apiKey, baseUrl }` through it.
 `Environment` gains `llm: LlmSettings`, filled by `loadLlmSettings(source)`; the missing-variable check still walks only the required `schema.shape`. 
 `llm-client.ts`
 ```ts
@@ -692,10 +700,12 @@ Imports, pinned by the spike: `import { generateText, Output, type LanguageModel
 - `topic_summaries`: `topic_id` primary key references `document_topics.id` cascade; `sentence` text; `computed_at_sequence` integer; all not null.
 
 `insights-repository.ts` follows `DocumentsRepository` (constructor takes `AuthDatabase`, drizzle queries, one transaction per write). `saveTopics` deletes the document's `document_topics` rows whose id is not reused (cascading their blocks and summaries), updates the name and `position` (its index) of reused ones, inserts the others with `randomUUID()`, replaces the document's `topic_blocks`, then upserts `topic_sets` to `Ready` with `failure: null` and the sequence. `markPending` upserts the state only (an insert creates the row with `computedAtSequence: null`). `topics` orders by `position` and groups blocks per topic. `test-server.ts`: `startTestServer` builds `llm: { model: null, apiKey: null, baseUrl: null }` into its environment; `testEnvironment` too.
-- [ ] **Step 4: Run, expect pass** — the new suites and every slice 1–2 server suite.
-- [ ] **Step 5: Commit** — `feat(server): store topics, summaries and LLM settings`
+- [x] **Step 4: Run, expect pass** — the new suites and every slice 1–2 server suite.
+- [x] **Step 5: Commit** — `feat(server): store topics, summaries and LLM settings`
 
 ---
+
+_Done — evidence: commit 193be43; task review approved_
 
 ### Task 6: Projection worker: throttle from `onChange`, compaction, import lane, versions and blocks (G2)
 
@@ -1102,7 +1112,7 @@ export class VersionRooms {
 - Consumes: Task 1 contracts, `apiGet`, `apiSend`, `ApiRequestError`, `DocumentUnavailableError`, `DOCUMENTS_QUERY_KEY`.
 - Produces: `TIMELINE_POLL_MS = 3000`; query keys `timelineQueryKey({ documentId, filter })`, `summariesQueryKey(documentId)`, `topicsQueryKey(documentId)`, `binEditsQueryKey({ documentId, binStart, binMs, filter })`, `versionQueryKey({ documentId, sequence })`; `fetchTimeline({ documentId, filter })`, `fetchSummaries(documentId)`, `refreshTopics(documentId): Promise<TopicStatus>`, `fetchBinEdits({ documentId, binStart, binMs, filter })`, `VersionLoadKind { Ready, Pending, Failed }`, `VersionLoad`, `fetchVersion({ documentId, sequence }): Promise<VersionLoad>`; `TimelineSearch = { filter: TimelineFilter; at: number | null; topic: string | null }` (`at` is the selected bin's start in ms), `useTimelineSearch(): { search: TimelineSearch; update({ changes, replace }) }`, `parseFilterInput(value): { kind: TimelineFilterKind; value: string } | null`; `useTimeline({ documentId, filter, isOpen })`, `useRefreshTopics(documentId)`, `useSummaries({ documentId, isOpen })`; copy constants in `timeline-copy.ts`.
 
-- [ ] **Step 1: Failing tests** — `use-timeline-search.test.ts`
+- [x] **Step 1: Failing tests** — `use-timeline-search.test.ts`
 ```ts
 test('reads the filter, the moment and the topic from the URL and ignores a malformed at', () => {
   const { result } = renderHookWithRouter(() => useTimelineSearch(), { route: `${documentPagePath(DOCUMENT_ID)}?term=budget&author=ana&at=1792165200000&topic=t1` });
@@ -1120,8 +1130,8 @@ test('an @ prefix filters by person and anything else by text', () => {
 - `fetchTimeline` with `{ term: 'a b', author: null }` requests `/api/documents/doc-1/timeline?term=a+b`; a 404 throws `DocumentUnavailableError`.
 - `fetchVersion` → 202 with `Retry-After: 2` gives `{ kind: VersionLoadKind.Pending, retryAfterMs: 2000 }`; 200 gives `{ kind: VersionLoadKind.Ready, version }`; 503 gives `{ kind: VersionLoadKind.Failed }`; 404 throws `DocumentUnavailableError`.
 - `refreshTopics` → 429 throws `ApiRequestError` with `TOPICS_REFRESH_TOO_SOON_MESSAGE`; 202 returns the status.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/web test:unit` → FAIL: cannot find `./use-timeline-search`. Commit the tests alone: `test(web): pin the timeline URL state and API client`.
-- [ ] **Step 3: Implement** — `use-timeline-search.ts`
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/web test:unit` → FAIL: cannot find `./use-timeline-search`. Commit the tests alone: `test(web): pin the timeline URL state and API client`.
+- [x] **Step 3: Implement** — `use-timeline-search.ts`
 ```ts
 const AUTHOR_PREFIX = '@';
 
@@ -1135,10 +1145,12 @@ export function parseFilterInput(value: string): { kind: TimelineFilterKind; val
 ```
 `useTimelineSearch` reads `useSearchParams()`: `term`, `author` and `topic` through `presentOrNull` (`''` → `null`), `at` through `readBinStart` (`/^\d+$/` or `null`); `update({ changes, replace })` copies the current params, deletes each key whose value is `null` (early return inside the `forEach`), sets the others, and calls `setParams(next, { replace })`.
 `use-timeline.ts`: `useQuery({ queryKey: timelineQueryKey(...), queryFn, enabled: isOpen, refetchInterval: TIMELINE_POLL_MS, placeholderData: keepPreviousData, retry: false })`; `useSummaries` polls the same interval while open; `useRefreshTopics` is a `useMutation(refreshTopics)` whose `onSuccess` runs `queryClient.invalidateQueries` for `timelineQueryKey` (prefix `[...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline]`) and `topicsQueryKey`. Every visible string lives in `timeline-copy.ts` (`TIMELINE_HEADING`, `REFRESH_TOPICS_LABEL`, `RETRY_TOPICS_LABEL`, `FILTER_LABEL`, `FILTER_PLACEHOLDER` = `'Filter by text or @person'`, `CLEAR_FILTERS_LABEL`, `REMOVE_FILTER_LABEL`, `TOP_EDITS_LABEL`, `NO_EDITS_YET_MESSAGE`, `NO_EDITS_IN_BIN_MESSAGE`, `STREAMGRAPH_TITLE`, `BACK_TO_LIVE_LABEL`, `LOADING_VERSION_MESSAGE`, `VERSION_FAILED_MESSAGE`, `RESIZE_PANEL_LABEL`).
-- [ ] **Step 4: Run, expect pass.**
-- [ ] **Step 5: Commit** — `feat(web): add the timeline data hooks and URL state`
+- [x] **Step 4: Run, expect pass.**
+- [x] **Step 5: Commit** — `feat(web): add the timeline data hooks and URL state`
 
 ---
+
+_Done — evidence: commits 8ef7165 (tests), f79936b; task review approved (Retry-After clamp folded into the next web commit)_
 
 ### Task 11: Streamgraph (G3)
 
@@ -1151,7 +1163,7 @@ export function parseFilterInput(value: string): { kind: TimelineFilterKind; val
 - Consumes: `toStackRows` from `@superdoc-history/history/timeline`, `DocumentTimeline`, `TimelineBandKind`.
 - Produces: `CHART_HEIGHT = 240`, `MIN_LABEL_HEIGHT = 16`, `BandShape = { band; path; saturation; label: { x; y } | null }`, `layoutStreamgraph({ timeline, width }): { shapes: BandShape[]; binX(index): number; binAt(x): number }`, `saturationOf({ volume, maxVolume })`; `Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection })`.
 
-- [ ] **Step 1: Failing tests** — `streamgraph-layout.test.ts`
+- [x] **Step 1: Failing tests** — `streamgraph-layout.test.ts`
 ```ts
 test('one filled bin renders a closed band with its label hidden', () => {
   const timeline = timelineWith({ volumes: [[0], [5], [0]], names: ['Budget'] });
@@ -1171,8 +1183,8 @@ test('labels sit inside thick bands and never overlap', () => {
 `timelineWith` (in `src/test/timeline-fixtures.ts`) builds a `DocumentTimeline` with one band per name (`kind: topic`, hues 205 → 25) and one bin per row. Also, each input → expected:
 - `saturationOf` maps volume 0 → `SATURATION_MIN`, the max → `SATURATION_MAX`, linear between.
 - `streamgraph.test.tsx` — the SVG has `<title>` `STREAMGRAPH_TITLE` and a `<desc>` naming the band count and the time range; every band is a `path` with `tabIndex=0` and `aria-label` `"Budget, 340 characters"`; focusing a band and pressing ArrowRight calls `onSelectIndex(selected + 1)`, ArrowLeft at 0 stays at 0, End selects the last bin, Escape calls `onClearSelection`; hovering a bin shows the tooltip with the bin's time range, band name, `+inserted −deleted` and contributor names from `timeline.authors`; a highlighted band keeps full opacity while others get `opacity-40`; the Other band uses class `topic-band-other`, author bands `topic-band`.
-- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./streamgraph-layout`. Commit the tests alone: `test(web): pin the streamgraph layout, labels and keyboard`.
-- [ ] **Step 3: Implement** — `streamgraph-layout.ts`
+- [x] **Step 2: Run, expect failure** — FAIL: cannot find `./streamgraph-layout`. Commit the tests alone: `test(web): pin the streamgraph layout, labels and keyboard`.
+- [x] **Step 3: Implement** — `streamgraph-layout.ts`
 ```ts
 export const CHART_HEIGHT = 240;
 export const MIN_LABEL_HEIGHT = 16;
@@ -1205,10 +1217,12 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
 }
 ```
 `cellValue` returns `row.values[key]` and throws `MissingStackValueError` when it is `undefined` (`toStackRows` writes every band id for every row, so absence is a bug, never a zero). `placeLabel` finds the bin of maximum pixel thickness `y(point[0]) - y(point[1])`; it places nothing when that thickness is below `MIN_LABEL_HEIGHT`, when any bin within half the label width (`name.length * LABEL_CHARACTER_WIDTH / 2`) on either side is thinner than `MIN_LABEL_HEIGHT`, or when the label box intersects one in `placed`; otherwise it pushes the box and returns the midpoint. `streamgraph.tsx` renders `<svg width={width} height={CHART_HEIGHT} aria-labelledby aria-describedby>` with `<title>`/`<desc>`, one focusable `path` per shape (`className` `topic-band` or `topic-band-other`, `style={{ '--topic-hue': String(band.hue), '--topic-saturation': `${shape.saturation}%` } as CSSProperties}`), `BandLabel` text for placed labels, a vertical rule at `binX(selectedIndex)`, pointer handlers on the `svg` (press or drag → `onSelectIndex(binAt(offsetX))`, move without buttons → hovered bin for `TimelineTooltip`). `globals.css` adds to `:root` `--topic-lightness: 62%; --topic-other: oklch(0.87 0 0);`, to `.dark` `--topic-lightness: 48%; --topic-other: oklch(0.4 0 0);`, and `@layer components { .topic-band { fill: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-lightness)); } .topic-band-other { fill: var(--topic-other); } .topic-swatch { background-color: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-lightness)); } .topic-swatch-other { background-color: var(--topic-other); } }`. Avatars stay neutral (`bg-muted` initials), so topics and authors never share a palette. Layout and label placement run on every data change (spike §4: 0.7–0.9 ms median at 120 × 8).
-- [ ] **Step 4: Run, expect pass.**
-- [ ] **Step 5: Commit** — `feat(web): draw the topic streamgraph with labels and keyboard access`
+- [x] **Step 4: Run, expect pass.**
+- [x] **Step 5: Commit** — `feat(web): draw the topic streamgraph with labels and keyboard access`
 
 ---
+
+_Done — evidence: commits d7b64d8 (tests), e26232a; task review approved_
 
 ### Task 12: Timeline panel: filter, top edits, notices, bin edits, resizing (G3)
 

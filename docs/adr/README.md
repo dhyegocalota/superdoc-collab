@@ -22,7 +22,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 |--------|-------|--------|------|
 | [0001](0001-event-sourcing-over-yjs.md) | Capture live history by event-sourcing the Yjs update stream | Accepted | 2026-10-16 |
 | [0002](0002-authorship-observed-vs-declared.md) | Bind Yjs clientIds to users in two tiers | Accepted | 2026-10-16 |
-| [0003](0003-time-travel-with-native-yjs-snapshots.md) | Implement time travel with native Yjs snapshots | Proposed | 2026-10-16 |
+| [0003](0003-time-travel-with-native-yjs-snapshots.md) | Implement time travel with native Yjs snapshots | Accepted | 2026-10-16 |
 | [0004](0004-stack.md) | Technology stack | Accepted | 2026-10-16 |
 | [0005](0005-authentication-with-better-auth.md) | Authenticate with Better Auth | Accepted | 2026-10-16 |
 | [0006](0006-llm-via-vercel-ai-sdk.md) | Call LLMs through the Vercel AI SDK | Accepted | 2026-10-16 |

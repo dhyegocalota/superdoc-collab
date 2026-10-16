@@ -1,6 +1,6 @@
 # 0003. Implement time travel with native Yjs snapshots
 
-- Status: Proposed (pending a spike)
+- Status: Accepted (spike `docs/features/timeline-and-time-travel/spike.md` confirmed all four facts; shipped in slice 3)
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: [POC results](../../poc/RESULTS.md), [0001](0001-event-sourcing-over-yjs.md), benchmark on the T11 history
@@ -48,7 +48,7 @@ Spike required before accepting: `Y.createDocFromSnapshot` over SuperDoc's `Y.Do
 ## Evidence
 
 - Benchmark table above on the T11 history; 100 ms load breakdown above.
-- POC proves snapshot + tail replay equals full replay at every sequence ([RESULTS.md](../../poc/RESULTS.md)); the native-snapshot path itself is not yet proven.
+- POC proves snapshot + tail replay equals full replay at every sequence ([RESULTS.md](../../poc/RESULTS.md)); the native-snapshot path is proven by the slice 3 spike and by `libs/history/src/version-state.test.ts` (every mark restores exactly what a full replay yields, including delete-heavy histories).
 
 ## Revisit when
 

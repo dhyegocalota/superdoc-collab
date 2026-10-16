@@ -52,7 +52,7 @@ e2e/                    documents.spec.ts, collaboration.spec.ts (two authors, a
 ```
 upload .docx ──► POST /api/documents (multipart, ≤10 MB, zip signature + mime checked)
               ──► file-storage.put ─► documents row (owner) ─► imported-revisions worker (sdk trackChanges.list → edit_events imported=true)
-new blank     ──► POST /api/documents { title } ─► documents row, no file
+new blank     ──► POST /api/documents { title } ─► documents row + a generated blank DOCX stored (download and the creator's first open need a file)
 open          ──► GET /api/documents/:id → { document, role, roomMode }   (roomMode decided server-side: 'create' until the log has a committed bootstrap)
               ──► SuperDoc v2Collaboration { providerType: 'hocuspocus', serverUrl: same origin /collaboration, documentId, roomMode, token: placeholder }
 socket        ──► onAuthenticate: cookie → session → membership(documentName) → { userId, role }; reader → connection.readOnly = true

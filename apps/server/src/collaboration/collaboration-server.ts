@@ -11,6 +11,7 @@ import { documentIdFromRoomName } from './room-name';
 const COLLABORATION_SOCKET_TIMEOUT_MS = 10_000;
 const SNAPSHOT_EVERY_UPDATES = 1000;
 const STORE_DEBOUNCE_MS = 2000;
+export const MAX_STORE_DEBOUNCE_MS = 4000;
 
 export const LOADING_ORIGIN = 'update-log-replay';
 
@@ -34,6 +35,7 @@ export function createCollaborationServer({ auth, documents, log, onStored }: { 
     quiet: true,
     timeout: COLLABORATION_SOCKET_TIMEOUT_MS,
     debounce: STORE_DEBOUNCE_MS,
+    maxDebounce: MAX_STORE_DEBOUNCE_MS,
     async onAuthenticate({ requestHeaders, documentName, connection }): Promise<CollaborationContext> {
       const cookie = requestHeaders.cookie;
       if (!cookie) throw new CollaborationAuthenticationError();

@@ -69,7 +69,7 @@ Every "it works" is a hypothesis the tester tries to break.
 
 1. Hypothesis: a reader's keystrokes never reach the log. Break it by: open a read link, type in the editor, try keyboard shortcuts and paste, then read `/events` and the page text of the owner.
 2. Hypothesis: a rotated link stops working but members stay. Break it by: accept a link, rotate it, open it with a third user, then check the first member can still open the document.
-3. Hypothesis: events appear within about 3 s of typing. Break it by: type, poll `/events` and time the first event; type from two users at once.
+3. Hypothesis: events appear within about 5 s of typing. Break it by: type, poll `/events` and time the first event; type from two users at once.
 4. Hypothesis: a non-member gets the same 404 body as a missing document on every document route and is refused on the socket. Break it by: call every route and open the collaboration socket as a user without membership.
 5. Hypothesis: a `.docx` that is a renamed `.zip` without `word/document.xml` is refused with 415 and leaves no file and no row (Review focus 1). Break it by: upload it, then list documents and inspect `DATABASE_DIR/documents`.
 6. Hypothesis: a share token for a deleted document shows "This link is no longer valid", never a 500 (Review focus 2). Break it by: delete, then open the link.
@@ -86,7 +86,7 @@ Every "it works" is a hypothesis the tester tries to break.
 
 - No timeline and no time travel yet; slice 3.
 - A role change needs a reconnect to take effect on an open socket.
-- Imported revisions need the native `@superdoc/sdk` binary; without it the import is skipped and the document shows no imported events.
+- Imported revisions need the native `@superdoc/sdk` binary; without it the import fails and is logged as `IMPORT_FAILED_MESSAGE`, and the document shows no imported events.
 - CSRF protection relies on the `SameSite=Lax` session cookie.
 - In degraded projection mode, deleting a document leaves orphaned read-model rows.
 - Imports share the projection queue with live projection, so a slow import delays the events of other documents until its timeout.

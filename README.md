@@ -4,7 +4,16 @@ A collaborative DOCX editor that records every edit and will turn that record in
 
 ## Status
 
-Slice 1 of 5 is built and under review: workspace, apps, Docker, CI and Better Auth with seeded users. Documents, history, the timeline, LLM insights and the deploy follow. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
+Slice 1 of 5 shipped: workspace, apps, Docker, CI and Better Auth with seeded users. Slice 2 is built and under review: documents, sharing, live collaboration and history capture. The timeline, time travel, LLM insights and the deploy follow. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
+
+## Features
+
+- **Documents.** Upload a `.docx` (up to 10 MB) or create a blank document; the list shows "Mine" and "Shared with me" with the owner, the last update and your role. Rename, download and delete from the editor header (delete is owner only).
+- **Live editing.** Documents open in SuperDoc with several people editing at once; members and who is online show in the header.
+- **Sharing.** The owner gets an edit link and a read-only link, copies them from the Share dialog and can rotate either one. Anyone signed in who opens a link joins with that link's access; a rotation invalidates the link and keeps the members it already admitted. Readers see edits live but cannot type, and a reader can open a document only after the owner has opened it once.
+- **History capture.** Every Yjs update is appended to a log with the connection's user, identities are bound to authors from SuperDoc's awareness, and a projection turns the log into edit events (who inserted or deleted what, in which block, when). `GET /api/documents/:id/events` serves them; tracked changes already in an uploaded file are imported with their original authors. The timeline that draws these events is the next slice.
+
+Data lives under `DATABASE_DIR`: `auth.sqlite` (users, sessions, documents, members, share links), `history.sqlite` (update log, snapshots, identities), `read-model.sqlite` (edit events and the projection cursor) and `documents/<id>.docx`. No environment variable was added for this slice.
 
 ## Quick start
 
@@ -22,6 +31,8 @@ pnpm dev
 
 The server reads its configuration from the shell; there is no dotenv loader. Web runs on <http://localhost:5173> and proxies `/api` and `/collaboration` to the server on port 3000. Agents never edit `.env`.
 
+The editor needs the built bundle: SuperDoc's worker breaks under `vite dev`. To use documents, run `pnpm build`, then start the server with `WEB_DIST_DIR=apps/web/dist` and open the server's own port.
+
 ### Docker
 
 ```bash
@@ -31,7 +42,7 @@ curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -H 'o
 
 The sign-in smoke check must print `200`.
 
-One image serves the SPA and the API on <http://localhost:3000>; the healthcheck calls `/api/health`. Reset all data with `docker compose down -v`.
+One image serves the SPA and the API on <http://localhost:3000>; the healthcheck calls `/api/health`. Reset all data with `docker compose down -v`. The image carries both history migration sets (`libs/history/drizzle`) and `@superdoc/sdk`'s native binary, which imports tracked changes from uploads; the server creates `/data/documents` at boot.
 
 ## Demo users
 
@@ -42,13 +53,13 @@ Ana, Bruno, Caio and Dani: `ana@example.com`, `bruno@example.com`, `caio@example
 | Command | Covers |
 |---|---|
 | `pnpm typecheck` | every package plus the E2E project |
-| `pnpm test:unit` | `libs/types` (3), `apps/server` (45, real HTTP, real SQLite, real WebSocket), `apps/web` (13, Vitest and Testing Library) |
-| `pnpm test:e2e` | 7 Playwright specs in `e2e/auth.spec.ts`: sign-up, sign-in, route protection, sign-out, two users; builds and starts the stack itself, needs Chromium (`pnpm exec playwright install chromium`) |
+| `pnpm test:unit` | `libs/types` (7), `libs/history` (29), `apps/server` (129, real HTTP, real SQLite, real WebSocket), `apps/web` (56, Vitest and Testing Library) |
+| `pnpm test:e2e` | 16 Playwright specs: auth (7), documents and sharing (7), two-author collaboration and attribution (2); builds and starts the stack itself, needs Chromium (`pnpm exec playwright install chromium`) |
 | `pnpm verify` | the three above, in order; the same gate runs in CI ([`verify.yml`](.github/workflows/verify.yml)) |
 
 ## Architecture in brief
 
-One Node process on one port: Hono serves the API and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. The web app is a React and Vite SPA. See [ADR 0004](docs/adr/0004-stack.md), [ADR 0005](docs/adr/0005-authentication-with-better-auth.md) and [ADR 0009](docs/adr/0009-design-system.md).
+One Node process on one port: Hono serves the API and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. `libs/history` holds the update log, the projection and the read model; one worker thread projects the log into edit events. The web app is a React and Vite SPA. See [ADR 0001](docs/adr/0001-event-sourcing-over-yjs.md), [ADR 0004](docs/adr/0004-stack.md), [ADR 0005](docs/adr/0005-authentication-with-better-auth.md) and [ADR 0009](docs/adr/0009-design-system.md).
 
 ## Process
 

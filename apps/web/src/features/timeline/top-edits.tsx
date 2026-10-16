@@ -9,7 +9,7 @@ function sumWords(contributors: TimelineContributor[]): { inserted: number; dele
 
 export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
   const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
-  const rows = timeline.bands.filter((band) => band.volume > 0).sort((left, right) => right.volume - left.volume);
+  const rows = timeline.bands.filter((band) => band.volume > 0).sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">{TOP_EDITS_LABEL}</h3>

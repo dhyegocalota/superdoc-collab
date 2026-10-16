@@ -11,7 +11,6 @@ export const UPLOAD_FIELD = 'file';
 export const UPLOAD_TOO_LARGE_MESSAGE = `Files up to ${MAX_UPLOAD_MEGABYTES} MB can be uploaded.`;
 export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid';
-export const TIMELINE_PLACEHOLDER_MESSAGE = 'The timeline arrives in the next release';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
 export const DOCUMENT_NOT_READY_ERROR = 'NOT_READY';

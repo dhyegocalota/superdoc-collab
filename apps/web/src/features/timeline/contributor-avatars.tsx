@@ -5,7 +5,7 @@ import { authorOf } from './author-of';
 const MAX_AVATARS = 3;
 
 export function ContributorAvatars({ contributors, authors }: { contributors: TimelineContributor[]; authors: Record<string, EventAuthor> }) {
-  const ranked = [...contributors].sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted)).slice(0, MAX_AVATARS);
+  const ranked = [...contributors].sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted) || left.authorKey.localeCompare(right.authorKey)).slice(0, MAX_AVATARS);
   return (
     <ul className="flex items-center gap-1">
       {ranked.map((contributor) => {

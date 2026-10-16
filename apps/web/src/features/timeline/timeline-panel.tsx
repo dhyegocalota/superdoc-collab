@@ -10,7 +10,7 @@ import { REFRESH_TOPICS_LABEL, RESIZE_PANEL_LABEL, TIMELINE_HEADING } from './ti
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useElementWidth } from './use-element-width';
-import { MIN_EDITOR_WIDTH, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP, usePanelWidth } from './use-panel-width';
+import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP, usePanelWidth } from './use-panel-width';
 import { useRefreshTopics } from './use-topics';
 import { useSummaries } from './use-summaries';
 import { useTimeline } from './use-timeline';
@@ -25,7 +25,7 @@ const PRIMARY_BUTTON_PRESSED = 1;
 
 type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
-function ResizeHandle({ width, resizeTo, resizeBy }: { width: number; resizeTo: (next: number) => void; resizeBy: (delta: number) => void }) {
+function ResizeHandle({ width, maxWidth, resizeTo, resizeBy }: { width: number; maxWidth: number; resizeTo: (next: number) => void; resizeBy: (delta: number) => void }) {
   function handlePointerDown(event: PointerEvent<HTMLDivElement>): void {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -47,7 +47,7 @@ function ResizeHandle({ width, resizeTo, resizeBy }: { width: number; resizeTo: 
       aria-label={RESIZE_PANEL_LABEL}
       aria-valuenow={width}
       aria-valuemin={MIN_PANEL_WIDTH}
-      aria-valuemax={window.innerWidth - MIN_EDITOR_WIDTH}
+      aria-valuemax={maxWidth}
       tabIndex={0}
       className="hidden w-1 shrink-0 cursor-col-resize bg-border hover:bg-ring focus-visible:bg-ring lg:block"
       onPointerDown={handlePointerDown}
@@ -61,7 +61,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const [isOpen, setIsOpen] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
   const chartWidth = useElementWidth(chartRef);
-  const { width, resizeTo, resizeBy } = usePanelWidth();
+  const { width, maxWidth, resizeTo, resizeBy } = usePanelWidth();
   const { search } = useTimelineSearch();
   const [selectedTime, setSelectedTime] = useState<number | null>(search.at);
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen });
@@ -90,7 +90,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
 
   return (
     <aside className="flex w-full shrink-0 border-t lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l" style={{ '--panel-width': `${width}px` } as CSSProperties}>
-      <ResizeHandle width={width} resizeTo={resizeTo} resizeBy={resizeBy} />
+      <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-2 p-2">
           <h2 className="px-2 text-sm font-medium">{TIMELINE_HEADING}</h2>

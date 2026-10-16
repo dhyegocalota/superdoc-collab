@@ -19,7 +19,7 @@ test.each([
   [30 * MINUTE_MS, 30 * SECOND_MS],
   [3 * HOUR_MS, 2 * MINUTE_MS],
   [5 * HOUR_MS, 5 * MINUTE_MS],
-  [30 * DAY_MS, 6 * HOUR_MS],
+  [30 * DAY_MS, 12 * HOUR_MS],
 ])('chooses the finest bin that fits for a span of %i ms', (spanMs, expected) => {
   expect(chooseBinMs(spanMs)).toBe(expected);
 });

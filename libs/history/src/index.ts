@@ -12,3 +12,4 @@ export * from './single-flight';
 export * from './update-log';
 export * from './version-marks';
 export * from './version-state';
+export * from './timeline';

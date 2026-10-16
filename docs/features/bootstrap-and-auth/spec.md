@@ -82,7 +82,7 @@ The Hocuspocus provider is created with the same origin as the page, so the brow
 | Session expired while on `/documents` | `['me']` returns `user: null` → redirect to `/sign-in?next=/documents` |
 | Socket without session | upgrade rejected; the provider's `onAuthenticationFailed` fires; no retry storm (provider configured not to reconnect on auth failure) |
 | Credentials that fail the shared schemas | 400 with a generic `Invalid input.` message, no field details |
-| Unauthenticated socket | closed by the server after 10 s (Hocuspocus `timeout`) |
+| Unauthenticated socket | closed by the server after 10 s (Hocuspocus `timeout`, which is also the keepalive interval) |
 | Missing environment variable | process exits with the variable name; Compose healthcheck fails visibly |
 | SQLite directory missing | created at boot when `DATABASE_DIR` exists; otherwise named error |
 | `APP_ORIGIN` not a bare origin | process exits with `InvalidOriginError` naming the variable and value |

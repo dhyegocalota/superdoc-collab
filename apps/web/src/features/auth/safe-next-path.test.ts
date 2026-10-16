@@ -11,5 +11,8 @@ test.each([
   ['/\\evil.example', '/documents'],
   ['/\t/evil.example', '/documents'],
   ['/\n/evil.example', '/documents'],
+  ['/.//evil.example', '/documents'],
+  ['/%2e//evil.example', '/documents'],
+  ['/x/..//evil.example', '/documents'],
   ['/%5Cevil.example', '/%5Cevil.example'],
 ])('keeps the next parameter on this origin: %j → %s', (raw, expected) => expect(safeNextPath(raw)).toBe(expected));

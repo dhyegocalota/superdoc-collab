@@ -32,7 +32,7 @@ const TWELVE_MEGABYTES = 12 * 1024 * 1024;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
-async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string }): Promise<Response> {
+async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE }: { server: TestServer; cookie: string; bytes: Uint8Array<ArrayBuffer>; type?: string }): Promise<Response> {
   const form = new FormData();
   form.set(UPLOAD_FIELD, new File([bytes], 'Plan.docx', { type }));
   return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie }, body: form });
@@ -54,7 +54,7 @@ function pathOf({ documentId, resource }: { documentId: string; resource?: Docum
   return documentApiPath({ documentId, resource });
 }
 
-async function docxBytes(text: string): Promise<Uint8Array> {
+async function docxBytes(text: string): Promise<Buffer> {
   return buildSeedDocx([{ text, trackedChanges: [] }]);
 }
 

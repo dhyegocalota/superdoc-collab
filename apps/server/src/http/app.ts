@@ -4,7 +4,10 @@ import { Hono } from 'hono';
 import type { ReadModel, UpdateLog } from '@superdoc-history/history';
 import type { Auth } from '../auth/auth';
 import type { Environment } from '../config/environment';
+import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
+import { createDocumentsRoutes } from '../documents/documents-routes';
+import type { DocumentFileStorage } from '../documents/file-storage';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
 import { createHistoryRoutes } from '../history/history-routes';
 import { NOT_FOUND_MESSAGE } from '../server';
@@ -16,7 +19,7 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 
-export type AppServices = { documents: DocumentsRepository; log: UpdateLog; readModel: ReadModel };
+export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; log: UpdateLog; readModel: ReadModel };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
   const app = new Hono();
@@ -37,5 +40,6 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   });
   app.get(ApiPath.Me, createMeHandler({ auth }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
+  app.route(ApiPath.Documents, createDocumentsRoutes(services));
   return app;
 }

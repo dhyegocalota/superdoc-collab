@@ -21,7 +21,7 @@ const schema = { ...authSchema, ...documentsSchema };
 
 export type AuthDatabase = { sqlite: Database.Database; drizzle: BetterSQLite3Database<typeof schema> };
 
-function ensureWritableDirectory(directory: string): void {
+export function ensureWritableDirectory(directory: string): void {
   if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
   try {
     accessSync(directory, constants.W_OK);

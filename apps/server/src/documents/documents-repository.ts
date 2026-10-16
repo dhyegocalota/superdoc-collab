@@ -79,6 +79,7 @@ export class DocumentsRepository {
   }
 
   userNames(userIds: string[]): Map<string, string> {
+    if (userIds.length === 0) return new Map();
     const rows = this.database.drizzle.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, userIds)).all();
     return new Map(rows.map((row) => [row.id, row.name]));
   }

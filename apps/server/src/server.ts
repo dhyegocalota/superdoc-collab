@@ -11,7 +11,7 @@ import { createCollaborationRuntime, type DocumentRuntime } from './collaboratio
 import { createCollaborationServer } from './collaboration/collaboration-server';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
-import { AUTH_DATABASE_FILE, DOCUMENT_FILES_DIRECTORY, HISTORY_DATABASE_FILE, openDatabase, openSqliteFile, READ_MODEL_DATABASE_FILE, type AuthDatabase } from './database/connection';
+import { AUTH_DATABASE_FILE, DOCUMENT_FILES_DIRECTORY, ensureWritableDirectory, HISTORY_DATABASE_FILE, openDatabase, openSqliteFile, READ_MODEL_DATABASE_FILE, type AuthDatabase } from './database/connection';
 import { runHistoryMigrations, runMigrations } from './database/migrate';
 import { DocumentsRepository } from './documents/documents-repository';
 import type { DocumentFileStorage } from './documents/file-storage';
@@ -42,6 +42,9 @@ function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType>
 }
 
 export async function startServer({ environment, webDistDirectory }: { environment: Environment; webDistDirectory: string | null }): Promise<RunningServer> {
+  const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
+  ensureWritableDirectory(environment.databaseDirectory);
+  ensureWritableDirectory(documentFilesDirectory);
   const database = openDatabase({ directory: environment.databaseDirectory, fileName: AUTH_DATABASE_FILE });
   runMigrations(database);
   const historySqlite = openSqliteFile({ directory: environment.databaseDirectory, fileName: HISTORY_DATABASE_FILE });
@@ -58,7 +61,7 @@ export async function startServer({ environment, webDistDirectory }: { environme
       scheduler.schedule(documentId);
     },
   });
-  const storage = createLocalDiskFileStorage(join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY));
+  const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
   const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime };
   const app = createApp({ auth, environment, services });

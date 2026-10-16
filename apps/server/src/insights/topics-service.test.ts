@@ -1,14 +1,15 @@
 import { HttpStatus, TOPICS_FAILED_MESSAGE, TOPICS_INTERRUPTED_MESSAGE, TopicState, documentApiPath, DocumentResource, DocumentRole, TOPIC_RECOMPUTE_NEW_BLOCKS, topicsRefreshApiPath, TimelineBandKind } from '@superdoc-history/types';
 import { MAX_TOPICS } from '@superdoc-history/history';
-import { writeStory } from '@superdoc-history/history/testing';
+import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import type { MockLanguageModelV4 } from 'ai/test';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, expect, test, vi } from 'vitest';
-import { connectToDocument } from '../testing/collaboration-client';
+import { connectToDocument, documentWithOwner, type CollaborationClient } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
 import { readTimeline, readTopics, storyWithBlocks } from '../testing/timeline-client';
-import { currentUserId, signInAndGetCookie, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
+import { currentUserId, signInAndGetCookie, startTestServer, TEST_USER_PASSWORD, type TestServer, type TestUser } from '../testing/test-server';
 import { chooseLanguageModel, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
 import { INSIGHTS_JOB_FAILED_MESSAGE } from './insights-worker';
 import { SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
@@ -249,4 +250,47 @@ test('blocks the model leaves out do not retrigger the recompute', async () => {
 
 test('both system prompts treat block and edit content as data', () => {
   [TOPICS_SYSTEM_PROMPT, SUMMARIES_SYSTEM_PROMPT].forEach((prompt) => expect(prompt).toContain(DATA_RULE));
+});
+
+async function emptyDocumentWithModel(): Promise<{ server: TestServer; documentId: string; owner: TestUser; model: MockLanguageModelV4 }> {
+  const model = modelAnswering(topicsAnswer({ blockIds: ['b0'] }), topicsAnswer({ blockIds: ['b0'] }));
+  const { server, documentId, owner } = await documentWithOwner({ languageModel: readyModel(model) });
+  return { server, documentId, owner, model };
+}
+
+async function projectBlocks({ server, documentId, owner }: { server: TestServer; documentId: string; owner: TestUser }): Promise<CollaborationClient> {
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: ['Budget up'] });
+  commitBootstrap(client.document);
+  await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: POLL_TIMEOUT_MS }).toBeGreaterThan(0);
+  return client;
+}
+
+test('a document with no blocks is not computed and the next read computes once blocks exist', async () => {
+  const { server, documentId, owner, model } = await emptyDocumentWithModel();
+  expect((await readTopics({ server, documentId, cookie: owner.cookie })).status.state).toBe(TopicState.Pending);
+  await server.services.insights.worker.idle();
+  expect(server.services.insightsRepository.status(documentId)).toBeNull();
+  expect(model.doGenerateCalls).toHaveLength(0);
+  const client = await projectBlocks({ server, documentId, owner });
+  await readTopics({ server, documentId, cookie: owner.cookie });
+  await expect.poll(async () => (await readTopics({ server, documentId, cookie: owner.cookie })).status.state, { timeout: POLL_TIMEOUT_MS }).toBe(TopicState.Ready);
+  expect(model.doGenerateCalls).toHaveLength(1);
+  client.close();
+  await server.stop();
+});
+
+test('refresh on a document with no blocks returns 202 without consuming the cooldown', async () => {
+  const { server, documentId, owner, model } = await emptyDocumentWithModel();
+  const refresh = () => fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, { method: 'POST', headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  expect((await refresh()).status).toBe(HttpStatus.Accepted);
+  await server.services.insights.worker.idle();
+  expect(server.services.insightsRepository.status(documentId)).toBeNull();
+  const client = await projectBlocks({ server, documentId, owner });
+  expect((await refresh()).status).toBe(HttpStatus.Accepted);
+  await server.services.insights.worker.idle();
+  expect(model.doGenerateCalls).toHaveLength(1);
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
+  client.close();
+  await server.stop();
 });

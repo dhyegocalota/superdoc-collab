@@ -9,22 +9,23 @@
 **Tech stack:** slice 2 stack plus `ai` 7.0.142 and `@openrouter/ai-sdk-provider` 3.1.0 (server), `d3-shape` 3.2.0, `d3-scale` 4.0.2, `@types/d3-shape` 3.2.0, `@types/d3-scale` 4.0.9 (web), `zod` 4.6.7 in `libs/history`.
 **Seam:** `onChange` in `apps/server/src/collaboration/collaboration-server.ts` (throttle trigger) and the upgrade router in `attach-collaboration.ts` (per-version endpoints); the worker's request switch in `projection-worker.ts`; `createApp` mounts three route groups; `document-page.tsx` swaps `TimelinePanelPlaceholder` for `TimelinePanel` and gains the viewer overlay.
 **Assumptions (decided, owner can override):**
-- Aggregation runs in memory over the read model's events, not in SQL `GROUP BY`: authors are resolved at read time (ADR 0002), the term filter needs keystroke events joined into runs, and SQLite `lower()` is ASCII-only. At the T11 scale (about 10k events) one `/timeline` read is a single indexed SELECT plus linear passes. `activity_buckets` stays unbuilt.
+- Aggregation runs in memory over the read model's events, not in SQL `GROUP BY`: authors are resolved at read time (ADR 0002), the term filter needs keystroke events joined into runs, and SQLite `lower()` is ASCII-only. The resolved events of a document are built once per (cursor, identities, topic set) and shared by `/timeline`, `/timeline/edits` and the summaries (`TimelinePipelineCache`); filters and bins run per request over that cached pipeline. An integration test pins 10k events under 150 ms per call. `activity_buckets` stays unbuilt.
 - A **run** is the events of one block by the same author set inside one bin, joined in sequence order. Terms match runs, never single keystroke events; deleted text is also matched reversed, because Backspace emits characters right to left. Words are counted on runs.
-- Bins are aligned to multiples of `binMs` since the epoch; the ladder is 1, 2, 5, 10, 15, 30 min, 1, 3, 6, 12 h, 1 d, 7 d, smallest step with at most `MAX_BINS` (120) data bins, plus one empty bin on each side so a single bin still draws a closed band. The spec says 1 min to 1 h but also tests spans up to 30 days; the ladder covers both. A short history has fewer than 60 bins.
-- Version marks live in the read model (`version_marks`, written only by the projection worker, ADR 0007), not in `apps/server/src/database/schema/insights.ts`. One mark per minute of activity (the last update of that minute) plus the bootstrap mark; every mark stores `Y.encodeSnapshot(Y.snapshot(doc))`. A bin's version is the latest mark before the bin's end, else the bootstrap mark; the URL `at` is that mark's sequence. Documents projected before this slice get marks only from their next projected batch.
+- Bins are aligned to multiples of `binMs` since the epoch; the ladder is 10 s, 30 s, 1, 2, 5, 10, 15, 30 min, 1, 3, 6, 12 h, 1 d, 7 d, smallest step with at most `MAX_BINS` (120) data bins, plus one empty bin on each side so a single bin still draws a closed band. The spec says 1 min to 1 h; the 10 s and 30 s steps make a short demo readable and the long steps cover the spec's 30-day test. Marks stay per minute, so bins under a minute share a version: a 10 s bin opens the latest mark before its end, which can be the end of the previous minute. `binMs` is also accepted as a query parameter, documented as test-only.
+- Version marks live in the read model (`version_marks`, written only by the projection worker, ADR 0007), not in `apps/server/src/database/schema/insights.ts`. One mark per minute of activity (the last update of that minute) plus the bootstrap mark; every mark stores `Y.encodeSnapshot(Y.snapshot(doc))`. A bin's version is the latest mark before the bin's end, else the bootstrap mark. The URL `at` is the selected bin's **start in ms**; the version sequence is derived from the timeline (`versionSequenceAt(binStart + binMs)`, carried as `bin.versionSequence`), so a reload reselects the same bin. Documents projected before this slice (a cursor but no marks) are forgotten and re-projected at startup, imports included; until that finishes `/versions` answers 202.
 - The bands are generic: `TimelineBandKind { Topic, Other, Author }`. With stored topics the bands are topics plus "Other"; without topics (pending first run, failed, or no LLM) they are authors and the panel says so.
 - Topics are clamped, not rejected: the LLM is asked for 4–8; the parser accepts 1–20 (`MAX_TOPICS_ACCEPTED`); more than 8 keep the 8 with the most known blocks, the rest fall into "Other". Zero topics, a topic without blocks or duplicate names reject the output (state `Failed`).
 - Topic tables (`topic_sets`, `document_topics`, `topic_blocks`, `topic_summaries`) live in `auth.sqlite` so documents cascade them; `topic_sets` holds the state machine, which the spec names but does not place.
-- The insights "worker" is an in-process single-flight queue (`InsightsWorker`): LLM calls are network-bound, so a thread buys nothing. Decoding (topic blocks, versions) goes to the projection worker.
+- The insights "worker" is an in-process single-flight queue (`InsightsWorker`): LLM calls are network-bound, so a thread buys nothing. Every job catches and logs its own failure once (a document deleted mid-call fails a foreign key); at boot, a `pending` topic set with no running job is reset to `failed`. Decoding (topic blocks, versions) goes to the projection worker.
 - Summaries are recomputed at most once per `SUMMARY_MIN_INTERVAL_MS` (60 s) per document, so polling while two people type does not call the LLM every 3 s.
 - The edits of a bin are served at `GET /api/documents/:id/timeline/edits?binStart&binMs&term&author`, not under `/versions/:sequence/edits`: an empty bin's version is an earlier mark, so a version does not identify a bin.
-- `GET /versions/:sequence` returns `VersionSummary` JSON (200, carrying the version's `collaborationPath`) or 202 with `Retry-After`; the state bytes never travel over HTTP, the version's Hocuspocus instance loads them server-side.
+- `GET /versions/:sequence` returns `VersionSummary` JSON (200, carrying the version's `collaborationPath`), 202 with `Retry-After` while it loads, or 503 `{ error: VERSION_FAILED_ERROR }` while a recent load failure is cached (`VERSION_FAILURE_TTL_MS`); the state bytes never travel over HTTP, the version's Hocuspocus instance loads them server-side. The cache is bounded by count (`VERSION_CACHE_SIZE` 16) and bytes (`VERSION_CACHE_MAX_BYTES` 256 MB).
+- Two SuperDoc instances on one page are unverified, so the viewer renders in a **same-origin iframe** at `/documents/:id/versions/:sequence/view`: a minimal page holding only the read-only SuperDoc. Cookies flow because it is same-origin; the parent drives highlights and hears readiness through `postMessage`, checking `event.origin`.
 - Spec correction (spike §2): a version cannot live in a room named `<id>@<sequence>`, because SuperDoc keys the room's maps by the document id and builds the room name itself. The viewer keeps the original document id and the version is isolated by endpoint, with one Hocuspocus instance per (document, sequence), because one instance keys rooms by name and two versions of one document would collide.
 - Topic identity is the stored `document_topics.id`, never the name (spike §3: names vary between runs). A recompute reuses the id, and with it the summary, of the previous topic sharing at least half of a new topic's blocks.
 - E2E runs the real OpenRouter provider against a fake OpenAI-compatible server (`e2e/fake-openrouter.ts`) through `OPENROUTER_BASE_URL`, so topics are deterministic and no test calls a real model. The owner allows Task 1 to add an empty `OPENROUTER_BASE_URL=` line to `.env.example`; `.env` is never opened.
 - `generateObject` is deprecated in `ai@7` (`@deprecated Use generateText with an output setting instead`, the spike saw the `AISDK_DEP_GENERATE_OBJECT` warning); the client uses `generateText({ output: Output.object({ schema }) })`. The mock is `MockLanguageModelV4` from `ai/test` (there is no `MockLanguageModelV1` in 7.x).
-- Live updates poll `/timeline` every `TIMELINE_POLL_MS` (3000) while the panel is open; SSE (`/history-stream`) is not built and `useTimeline` isolates the transport. The spike measured a full chart re-render at 0.7–0.9 ms median for 120 bins × 8 bands, so `MAX_BINS` stays 120 and labels are placed on every data change.
+- Live updates poll `/timeline` every `TIMELINE_POLL_MS` (3000) while the panel is open; SSE (`/history-stream`) is not built and `useTimeline` isolates the transport. The server cost of a poll is bounded by the pipeline cache; the spike measured only the chart's re-render (0.7–0.9 ms median for 120 bins × 8 bands), so `MAX_BINS` stays 120 and labels are placed on every data change.
 
 ## Global constraints
 
@@ -34,9 +35,9 @@
 - Streamgraph: `stackOffsetWiggle`, `stackOrderInsideOut`, `curveBasis`; hue by onset order (cool → warm), saturation by the band's volume, both through CSS variables on tokens; labels inside bands when at least `MIN_LABEL_HEIGHT` (16) px tall, never overlapping or leaving their band; the SVG has a title and a description; every band is focusable with `aria-label` naming band and volume; arrow keys move the selected bin.
 - Band value: characters inserted + deleted. The panel reports words.
 - `TOPIC_RECOMPUTE_NEW_BLOCKS` = 5; `PROJECTION_THROTTLE_MS` = 1500; `TIMELINE_POLL_MS` = 3000; `SCRUB_DEBOUNCE_MS` = 300; `EVENTS_PAGE_SIZE` = 500.
-- Every new route checks membership (`requireDocumentRole`, reader minimum except refresh); a non-member gets the slice 2 404 body. `POST /topics/refresh` needs editor, one run in flight per document, one refresh per user per `TOPIC_REFRESH_COOLDOWN_MS` (30 s).
-- LLM prompts carry only the document's own block text and edit runs with author **names**; never emails, never other documents. `OPENROUTER_API_KEY` never leaves the server. Without `LLM_MODEL` or the key, topics are `Failed` with a visible message and the chart shows author bands with "Topics unavailable", never silently.
-- Version endpoints are ephemeral, read-only for everyone, membership-checked like the main socket, and never write updates, identities or membership; viewer highlights are local comments that never reach the server.
+- Every new route checks membership (`requireDocumentRole`, reader minimum except refresh); a non-member gets the slice 2 404 body. `POST /topics/refresh` needs editor, one run in flight per document, one refresh per (user, document) per `TOPIC_REFRESH_COOLDOWN_MS` (30 s).
+- LLM prompts carry only the document's own block text and edit runs with author **names**; never emails, never other documents; block text, author names, topic names and edit text are all XML-escaped. `OPENROUTER_API_KEY` never leaves the server. Without `LLM_MODEL` or the key, topics are `Failed` with a visible message and the chart shows author bands with "Topics unavailable", never silently.
+- Version endpoints are ephemeral, read-only for everyone, authenticated (session, membership, existing mark) **before** an instance is created, and never write updates, identities or membership; viewer highlights are local comments that never reach the server.
 - Agents never read `.env`; anything that needs secrets runs through `scripts/with-env.sh <command>`. Tests mock the model; the only real-LLM test is skipped unless `OPENROUTER_API_KEY` is set.
 - Red first (HARNESS → Build): every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …` commit before the implementation commit, and checks `git show --stat <sha>` lists only test files. Never `git add -A`.
 - `poc/` untouched. One projection worker per process.
@@ -81,13 +82,13 @@ Then Z.
 ### Task 1: Dependencies and shared contracts (G1)
 
 **Files:**
-- Create: `libs/types/src/timeline.ts`, `libs/types/src/timeline.test.ts`
+- Create: `libs/types/src/{timeline,constants}.ts`, `libs/types/src/timeline.test.ts`
 - Modify: `libs/types/src/{history,http,routes,index}.ts`, `libs/history/package.json`, `apps/server/package.json`, `apps/web/package.json`, `pnpm-lock.yaml`, `.env.example`
 
 **Interfaces:**
-- Produces: constants `TOPIC_RECOMPUTE_NEW_BLOCKS`, `EVENTS_PAGE_SIZE`, `OTHER_BAND_ID`, `OTHER_BAND_NAME`, `FILTER_MAX_LENGTH`, `TOPICS_UNAVAILABLE_MESSAGE`, `TOPICS_PENDING_MESSAGE`, `TOPICS_FAILED_MESSAGE`, `TOPICS_REFRESH_TOO_SOON_MESSAGE`, `HISTORY_CATCHING_UP_MESSAGE`, `NO_MATCHING_EDITS_MESSAGE`, `VERSION_NOT_READY_ERROR`; enums `TopicState`, `TimelineFilterKind`, `VersionViewerState`, `TimelineBandKind`, `TimelineSearchParam`, `TimelineQueryParam`, `VersionResource`; types `TimelineFilter`, `TimelineCell`, `TimelineBin`, `TimelineBand`, `TimelineContributor`, `TopicStatus`, `ProjectionStatus`, `DocumentTimeline`, `DocumentTopic`, `DocumentTopics`, `TopicSummary`, `TopicSummaries`, `EditRunView`, `BinEdits`, `VersionSummary`, `VersionText`, `VersionMarks`; `DocumentEditEvents.nextAfterSequence`; `HttpStatus.Accepted`; `DocumentResource.{Timeline, Topics, Summaries, Versions}`; `topicsRefreshApiPath(documentId)`, `timelineEditsApiPath(documentId)`, `versionApiPath({ documentId, sequence, resource? })`, `versionCollaborationPath({ documentId, sequence })`; package subpath `@superdoc-history/history/timeline`.
+- Produces: from `constants.ts` `SECOND_MS`, `MINUTE_MS`, `VERSION_MARK_MS`, `VERSION_ROOM_IDLE_MS`, `VERSION_ROOMS_LIMIT`, `VERSION_CACHE_SIZE`, `VERSION_CACHE_MAX_BYTES`, `VERSION_FAILURE_TTL_MS`; `AppRoute.VersionView`, `versionViewPagePath({ documentId, sequence })`; `HttpStatus.ServiceUnavailable`; `VERSION_FAILED_ERROR`, `VERSION_FAILED_MESSAGE`, `TOPICS_INTERRUPTED_MESSAGE`; constants `TOPIC_RECOMPUTE_NEW_BLOCKS`, `EVENTS_PAGE_SIZE`, `OTHER_BAND_ID`, `OTHER_BAND_NAME`, `FILTER_MAX_LENGTH`, `TOPICS_UNAVAILABLE_MESSAGE`, `TOPICS_PENDING_MESSAGE`, `TOPICS_FAILED_MESSAGE`, `TOPICS_REFRESH_TOO_SOON_MESSAGE`, `HISTORY_CATCHING_UP_MESSAGE`, `NO_MATCHING_EDITS_MESSAGE`, `VERSION_NOT_READY_ERROR`; enums `TopicState`, `TimelineFilterKind`, `VersionViewerState`, `TimelineBandKind`, `TimelineSearchParam`, `TimelineQueryParam`, `VersionResource`; types `TimelineFilter`, `TimelineCell`, `TimelineBin`, `TimelineBand`, `TimelineContributor`, `TopicStatus`, `ProjectionStatus`, `DocumentTimeline`, `DocumentTopic`, `DocumentTopics`, `TopicSummary`, `TopicSummaries`, `EditRunView`, `BinEdits`, `VersionSummary`, `VersionText`, `VersionMarks`; `DocumentEditEvents.nextAfterSequence`; `HttpStatus.Accepted`; `DocumentResource.{Timeline, Topics, Summaries, Versions}`; `topicsRefreshApiPath(documentId)`, `timelineEditsApiPath(documentId)`, `versionApiPath({ documentId, sequence, resource? })`, `versionCollaborationPath({ documentId, sequence })`; package subpath `@superdoc-history/history/timeline`.
 
-- [ ] **Step 0: Dependencies, one install** — write, all exact: `apps/server/package.json` dependencies `ai 7.0.142`, `@openrouter/ai-sdk-provider 3.1.0`; `apps/web/package.json` dependencies `d3-shape 3.2.0`, `d3-scale 4.0.2`, `@superdoc-history/history workspace:*`, devDependencies `@types/d3-shape 3.2.0`, `@types/d3-scale 4.0.9`; `libs/history/package.json` dependency `zod 4.6.7` and `"exports"` gains `"./timeline": "./src/timeline/index.ts"`. Add the line `OPENROUTER_BASE_URL=` under `LLM_MODEL` in `.env.example` (owner-approved; `.env` is never opened). Run `pnpm install` once. Check `ls node_modules/.pnpm | grep -E '^ai@7.0.142|openrouter\+ai-sdk-provider@3.1.0'` prints both.
+- [ ] **Step 0: Dependencies, one install** — write, all exact: `apps/server/package.json` dependencies `ai 7.0.142`, `@openrouter/ai-sdk-provider 3.1.0`; `apps/web/package.json` dependencies `d3-shape 3.2.0`, `d3-scale 4.0.2`, `@superdoc-history/history workspace:*`, devDependencies `@types/d3-shape 3.2.0`, `@types/d3-scale 4.0.9`; `libs/history/package.json` dependency `zod 4.6.7` and `"exports"` gains `"./timeline": "./src/timeline/index.ts"`. Add the line `OPENROUTER_BASE_URL=` under `LLM_MODEL` in `.env.example` (owner-approved; `.env` is never opened). Run `pnpm install` once. Check `ls node_modules/.pnpm | grep -E '^ai@7.0.142|openrouter\+ai-sdk-provider@3.1.0'` prints both. Then read the `MockLanguageModelV4` constructor and `LanguageModelV4GenerateResult` in `node_modules/ai/dist/test/index.d.ts` and `@ai-sdk/provider`: if the result shape differs from the literal in Task 8 (`content: [{ type: 'text', text }]`, `finishReason: { unified, raw }`, `usage: { inputTokens: { total, noCache, cacheRead, cacheWrite }, outputTokens: { total, text, reasoning } }`, `warnings`), correct Task 8's `testing/language-model.ts` in this plan before Task 8 starts.
 - [ ] **Step 1: Failing test** — `libs/types/src/timeline.test.ts`
 ```ts
 describe('timeline contracts', () => {
@@ -96,6 +97,9 @@ describe('timeline contracts', () => {
     expect(versionApiPath({ documentId: 'd1', sequence: 7, resource: VersionResource.Text })).toBe('/api/documents/d1/versions/7/text');
     expect(topicsRefreshApiPath('d1')).toBe('/api/documents/d1/topics/refresh');
     expect(timelineEditsApiPath('d1')).toBe('/api/documents/d1/timeline/edits');
+  });
+  test('builds the iframe page of a version', () => {
+    expect(versionViewPagePath({ documentId: 'd1', sequence: 42 })).toBe('/documents/d1/versions/42/view');
   });
   test('puts each version on its own collaboration endpoint', () => {
     expect(versionCollaborationPath({ documentId: 'a/b', sequence: 42 })).toBe('/collaboration/versions/a%2Fb/42');
@@ -119,6 +123,9 @@ export const TOPICS_FAILED_MESSAGE = 'The topics could not be named. Try again.'
 export const TOPICS_REFRESH_TOO_SOON_MESSAGE = 'Topics were refreshed a moment ago. Try again in a few seconds.';
 export const HISTORY_CATCHING_UP_MESSAGE = 'History is catching up';
 export const NO_MATCHING_EDITS_MESSAGE = 'No edits match';
+export const TOPICS_INTERRUPTED_MESSAGE = 'Naming topics was interrupted. Try again.';
+export const VERSION_FAILED_ERROR = 'VERSION_FAILED';
+export const VERSION_FAILED_MESSAGE = 'This version could not be opened. Try another moment.';
 
 export enum TopicState { Pending = 'pending', Ready = 'ready', Failed = 'failed' }
 export enum TimelineFilterKind { Term = 'term', Author = 'author' }
@@ -146,7 +153,18 @@ export type VersionText = { sequence: number; text: string };
 export type VersionMarks = { marks: { sequence: number; serverTime: number }[] };
 ```
 `routes.ts`: `DocumentResource` adds `Timeline = 'timeline'`, `Topics = 'topics'`, `Summaries = 'summaries'`, `Versions = 'versions'`; add `export enum VersionResource { Text = 'text' }` and four helpers built on `documentApiPath`: `topicsRefreshApiPath(documentId)` appends `/refresh` to the topics path, `timelineEditsApiPath(documentId)` appends `/edits` to the timeline path, `versionApiPath({ documentId, sequence, resource? })` is `<versions path>/<sequence>[/<resource>]` (early return without `resource`), and `versionCollaborationPath({ documentId, sequence })` is `` `${ApiPath.Collaboration}/versions/${encodeURIComponent(documentId)}/${sequence}` ``; the segments are constants at the top of `routes.ts`.
-`history.ts`: `DocumentEditEvents = { events: DocumentEditEvent[]; cursor: number | null; nextAfterSequence: number | null }`. `http.ts`: `Accepted = 202`. `index.ts` re-exports `./timeline`.
+`history.ts`: `DocumentEditEvents = { events: DocumentEditEvent[]; cursor: number | null; nextAfterSequence: number | null }`. `http.ts`: `Accepted = 202`, `ServiceUnavailable = 503`. `routes.ts` also gains `AppRoute.VersionView = '/documents/:documentId/versions/:sequence/view'` and `versionViewPagePath({ documentId, sequence })` (`` `${documentPagePath(documentId)}/versions/${sequence}/view` ``). `constants.ts`, the home of time and policy numbers shared by the server and the libraries:
+```ts
+export const SECOND_MS = 1000;
+export const MINUTE_MS = 60 * SECOND_MS;
+export const VERSION_MARK_MS = MINUTE_MS;
+export const VERSION_ROOM_IDLE_MS = MINUTE_MS;
+export const VERSION_ROOMS_LIMIT = 32;
+export const VERSION_CACHE_SIZE = 16;
+export const VERSION_CACHE_MAX_BYTES = 256 * 1024 * 1024;
+export const VERSION_FAILURE_TTL_MS = 30 * SECOND_MS;
+```
+`index.ts` re-exports `./timeline` and `./constants`.
 - [ ] **Step 4: Run, expect pass** — types suite green; `pnpm typecheck` reports only `nextAfterSequence` missing in `apps/server/src/history/history-routes.ts` (fixed by Task 7); record the exact error line.
 - [ ] **Step 5: Commit** — `chore(deps): add the AI SDK, OpenRouter and d3 for the timeline slice` (Step 0) and `feat(types): add timeline, topics and version contracts`
 
@@ -161,7 +179,7 @@ export type VersionMarks = { marks: { sequence: number; serverTime: number }[] }
 
 **Interfaces:**
 - Consumes: `UpdateLog`, `materialize`, `findBootstrapSequence`, `readMainStoryText`.
-- Produces: `VERSION_MARK_MS = 60_000`, `VersionMark = { sequence; serverTime; minuteStart; isBootstrap: boolean; snapshot: Uint8Array }`, `VersionMarkSummary = Omit<VersionMark, 'snapshot'>`, `minuteStartOf(serverTime)`, `endsItsMinute({ update, next })`, `markOf({ update, document, isBootstrap })`, `versionSequenceAt({ marks, time }): number | null`, `clampToMark({ marks, sequence }): VersionMarkSummary | null`; `ProjectedBatch = { events: ProjectedEdit[]; marks: VersionMark[] }` returned by `projectEditEvents`; `ReadModel.commit({ documentName, events, marks, lastSequence })`, `ReadModel.marks(documentName): VersionMarkSummary[]`, `ReadModel.mark({ documentName, sequence }): VersionMark | null`, `ReadModel.readPage({ documentName, afterSequence, limit }): { events: StoredEditEvent[]; cursor: number | null; nextAfterSequence: number | null }`; `REPLAY_CACHE_SIZE = 2`, `GcFreeReplays` with `version({ log, documentName, mark }): Y.Doc` and `forget(documentName)`; `MissingBootstrapUpdateError`.
+- Produces (with `VERSION_MARK_MS` imported from `@superdoc-history/types`): `VersionMark = { sequence; serverTime; minuteStart; isBootstrap: boolean; snapshot: Uint8Array }`, `VersionMarkSummary = Omit<VersionMark, 'snapshot'>`, `minuteStartOf(serverTime)`, `endsItsMinute({ update, next })`, `markOf({ update, document, isBootstrap })`, `versionSequenceAt({ marks, time }): number | null`, `clampToMark({ marks, sequence }): VersionMarkSummary | null`; `ProjectedBatch = { events: ProjectedEdit[]; marks: VersionMark[] }` returned by `projectEditEvents`; `ReadModel.commit({ documentName, events, marks, lastSequence })`, `ReadModel.marks(documentName): VersionMarkSummary[]`, `ReadModel.mark({ documentName, sequence }): VersionMark | null`, `ReadModel.readPage({ documentName, afterSequence, limit }): { events: StoredEditEvent[]; cursor: number | null; nextAfterSequence: number | null }`; `REPLAY_CACHE_SIZE = 2`, `GcFreeReplays` with `version({ log, documentName, mark }): Y.Doc` and `forget(documentName)`; `MissingBootstrapUpdateError`.
 
 - [ ] **Step 1: Failing tests** — `version-state.test.ts` (the property test: every mark restores exactly what a full replay gives at its sequence; the spike's history was typing only, so the second fixture is delete-heavy on a `Y.Text`)
 ```ts
@@ -232,10 +250,9 @@ test('a delete-heavy history restores exactly at every mark', () => {
 - [ ] **Step 3: Schema** — `schema/read-model.ts` adds `versionMarks = sqliteTable('version_marks', { documentName: text('document_name').notNull(), sequence: integer('sequence').notNull(), serverTime: integer('server_time').notNull(), minuteStart: integer('minute_start').notNull(), isBootstrap: integer('is_bootstrap', { mode: 'boolean' }).notNull(), snapshot: blob('snapshot').notNull() }, (table) => [primaryKey({ columns: [table.documentName, table.sequence] }), index('version_marks_by_minute').on(table.documentName, table.minuteStart)])`; `pnpm --filter @superdoc-history/history exec drizzle-kit generate --config drizzle.read-model.config.ts` creates `drizzle/read-model/0001_*.sql`; never hand-edit it.
 - [ ] **Step 4: Implement marks and projection** — `version-marks.ts`
 ```ts
+import { VERSION_MARK_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import type { LoggedUpdate } from './update-log';
-
-export const VERSION_MARK_MS = 60_000;
 
 export type VersionMark = { sequence: number; serverTime: number; minuteStart: number; isBootstrap: boolean; snapshot: Uint8Array };
 export type VersionMarkSummary = Omit<VersionMark, 'snapshot'>;
@@ -333,11 +350,11 @@ export class GcFreeReplays {
 
 **Interfaces:**
 - Consumes: `TimelineBin`, `TimelineCell`, `TimelineBand`, `TimelineBandKind`, `TimelineContributor`, `EventAuthor`, `OTHER_BAND_ID`.
-- Produces (importable from `@superdoc-history/history/timeline`, which imports nothing but `@superdoc-history/types`): `MINUTE_MS`, `MAX_BINS = 120`, `BIN_LADDER_MS`, `chooseBinMs(spanMs)`, `binStartOf({ time, binMs })`, `binStartsCovering({ firstTime, lastTime, binMs })`, `buildBins({ runs, binStarts, binMs, versionSequenceAt })`; `TimelineEvent = { sequence; serverTime; blockId; bandId; authorKeys: string[]; inserted; deleted }`, `EditRun = { binStart; blockId; bandId; authorKeys; inserted; deleted; firstServerTime; lastServerTime; lastSequence }`, `authorKey(author: EventAuthor): string`, `groupIntoRuns({ events, binMs })`, `runMatchesTerm({ run, term })`, `filterRuns({ runs, term, authorKeys })`; `countWords(text)`; `TOPIC_HUE_START = 205`, `TOPIC_HUE_END = 25`, `StackRow = { start: number; values: Record<string, number> }`, `toStackRows({ bins, bandIds })`, `huesByOnset(bands)`; `BandIdentity = { id; kind; name }`, `buildBands({ identities, allRuns, matchedRuns })`, `contributorsByBand(runs)`.
+- Produces (importable from `@superdoc-history/history/timeline`, which imports nothing but `@superdoc-history/types`; `SECOND_MS` and `MINUTE_MS` come from there): `MAX_BINS = 120`, `BIN_LADDER_MS`, `chooseBinMs(spanMs)`, `binStartOf({ time, binMs })`, `binStartsCovering({ firstTime, lastTime, binMs })`, `buildBins({ runs, binStarts, binMs, versionSequenceAt })`; `TimelineEvent = { sequence; serverTime; blockId; bandId; authorKeys: string[]; inserted; deleted }`, `EditRun = { binStart; blockId; bandId; authorKeys; inserted; deleted; firstServerTime; lastServerTime; lastSequence }`, `authorKey(author: EventAuthor): string`, `groupIntoRuns({ events, binMs })`, `runMatchesTerm({ run, term })`, `filterRuns({ runs, term, authorKeys })`; `countWords(text)`; `TOPIC_HUE_START = 205`, `TOPIC_HUE_END = 25`, `StackRow = { start: number; values: Record<string, number> }`, `toStackRows({ bins, bandIds })`, `huesByOnset(bands)`; `BandIdentity = { id; kind; name }`, `buildBands({ identities, allRuns, matchedRuns })`, `contributorsByBand(runs)`.
 
 - [ ] **Step 1: Failing tests** — `runs.test.ts`
 ```ts
-const BIN_MS = 60_000;
+const BIN_MS = MINUTE_MS;
 
 function typed({ text, author, blockId, startTime }: { text: string; author: string; blockId: string; startTime: number }): TimelineEvent[] {
   return [...text].map((character, index) => ({ sequence: startTime + index, serverTime: startTime + index, blockId, bandId: blockId, authorKeys: [author], inserted: character, deleted: '' }));
@@ -355,17 +372,17 @@ test('a term with regex metacharacters matches literally', () => {
 ```
 Also, each input → expected:
 - `runs.test.ts` — `matching is case-insensitive and finds backspaced deletions`: a run with `deleted: 'tegdub'` (Backspace order) matches `'Budget'`; `filterRuns` with `authorKeys: new Set(['bruno'])` keeps only Bruno's run; `authorKey({ id: null, name: 'Chris Crawford' })` is `'imported:Chris Crawford'`.
-- `bins.test.ts` — `chooseBinMs` over spans 2 min → 1 min, 3 h → 2 min, 5 h → 5 min, 30 days → 6 h, 3 years → a whole number of weeks; in every case `Math.ceil(span / binMs) + 1 <= MAX_BINS`. `a single edit yields three bins, the middle one filled`: one run at 10:00:30, `binStartsCovering` → `[09:59, 10:00, 10:01]` and only the middle bin has a cell. `bins between edits stay empty and carry the version before their end`: runs at 10:00 and 10:03 with `versionSequenceAt` returning `start + binMs` → six bins (two padding), bins 10:01 and 10:02 have `byBand: {}` and a non-null `versionSequence`.
+- `bins.test.ts` — `chooseBinMs` over spans 30 s → 10 s, 2 min → 10 s, 10 min → 10 s, 30 min → 30 s, 3 h → 2 min, 5 h → 5 min, 30 days → 6 h, 3 years → a whole number of weeks; in every case `Math.ceil(span / binMs) + 1 <= MAX_BINS`. `a single edit yields three bins, the middle one filled`: one run at 10:00:30, `binStartsCovering` → `[09:59, 10:00, 10:01]` and only the middle bin has a cell. `bins between edits stay empty and carry the version before their end`: runs at 10:00 and 10:03 with `versionSequenceAt` returning `start + binMs` → six bins (two padding), bins 10:01 and 10:02 have `byBand: {}` and a non-null `versionSequence`.
 - `words.test.ts` — `countWords('  plan the  budget ')` is 3; `''` and `'   '` are 0; the run `'Hello w'` built from seven keystrokes counts 2.
 - `bands.test.ts` — `hues follow onset from cool to warm and Other has none`: bands with onsets 30, 10, 20 and one Other → hues by id `{ b10: 205, b20: 115, b30: 25 }`, Other `null`; one band alone → 205. `volume counts matched runs only, onset counts all runs`: a filter that removes the earliest run keeps the onset time of that run and drops its characters from `volume`. `contributors sort by characters`: Ana 10 characters, Bruno 30 → `[bruno, ana]`, with `wordsInserted` from `countWords` per run.
 - [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./runs`, `./bins`, `./words`, `./bands`. Commit the tests alone: `test(history): pin timeline bins, runs, words and bands`.
 - [ ] **Step 3: Implement** — `bins.ts`
 ```ts
-export const MINUTE_MS = 60_000;
 export const MAX_BINS = 120;
 const WEEK_MS = 10_080 * MINUTE_MS;
+const SUB_MINUTE_BINS_MS = [10 * SECOND_MS, 30 * SECOND_MS];
 const BIN_LADDER_MINUTES = [1, 2, 5, 10, 15, 30, 60, 180, 360, 720, 1440];
-export const BIN_LADDER_MS = [...BIN_LADDER_MINUTES.map((minutes) => minutes * MINUTE_MS), WEEK_MS];
+export const BIN_LADDER_MS = [...SUB_MINUTE_BINS_MS, ...BIN_LADDER_MINUTES.map((minutes) => minutes * MINUTE_MS), WEEK_MS];
 
 export function chooseBinMs(spanMs: number): number {
   const fitting = BIN_LADDER_MS.find((binMs) => Math.ceil(spanMs / binMs) + 1 <= MAX_BINS);
@@ -505,14 +522,14 @@ export function contributorsByBand(runs: EditRun[]): Record<string, TimelineCont
 
 - [ ] **Step 1: Failing tests** — `topic-assignment.test.ts`
 ```ts
-function topic(name: string, count: number, offset = 0) {
+function topic({ name, count, offset }: { name: string; count: number; offset: number }) {
   return { name, blockIds: Array.from({ length: count }, (_, index) => `b${offset + index}`) };
 }
 
 const KNOWN = new Set(Array.from({ length: 200 }, (_, index) => `b${index}`));
 
 test('twelve topics keep the eight largest in the order the model gave', () => {
-  const output = { topics: Array.from({ length: 12 }, (_, index) => topic(`T${index}`, index + 1, index * 20)) };
+  const output = { topics: Array.from({ length: 12 }, (_, index) => topic({ name: `T${index}`, count: index + 1, offset: index * 20 })) };
   const { topics } = normalizeTopics({ output, knownBlockIds: KNOWN });
   expect(topics.map((kept) => kept.name)).toEqual(['T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11']);
 });
@@ -609,13 +626,13 @@ export function topicBandId({ assignment, blockId }: { assignment: Map<string, s
 ### Task 5: LLM settings, insights schema and repository (G2)
 
 **Files:**
-- Create: `apps/server/src/database/schema/insights.ts`, `apps/server/drizzle/0002_*.sql` (generated), `apps/server/src/insights/insights-repository.ts`
-- Modify: `apps/server/src/config/environment.ts`, `apps/server/src/database/connection.ts` (schema spread), `apps/server/src/testing/test-server.ts`, `apps/server/src/server.ts` (`services.insightsRepository`)
-- Test: `apps/server/src/config/environment.test.ts`, `apps/server/src/insights/insights-repository.test.ts`
+- Create: `apps/server/src/database/schema/insights.ts`, `apps/server/drizzle/0002_*.sql` (generated), `apps/server/src/insights/{insights-repository,llm-client}.ts`
+- Modify: `apps/server/src/config/environment.ts`, `apps/server/src/database/connection.ts` (schema spread), `apps/server/src/server.ts` (`services.insightsRepository`, `startServer({ …, languageModel })`), `apps/server/src/http/app.ts` (`AppServices.insightsRepository`), `apps/server/src/testing/{test-server,collaboration-client}.ts` (`startTestServer({ languageModel? })`, `documentWithOwner({ languageModel? })`)
+- Test: `apps/server/src/config/environment.test.ts`, `apps/server/src/insights/{insights-repository,llm-client}.test.ts`
 
 **Interfaces:**
 - Consumes: `TopicState`, `TopicStatus`, `TopicSummary`, `IdentifiedTopic`.
-- Produces: `LlmSettings = { model: string | null; apiKey: string | null; baseUrl: string | null }`, `Environment.llm`; tables `topicSets`, `documentTopics`, `topicBlocks`, `topicSummaries`; `StoredTopic = { id: string; name: string; position: number; blockIds: string[] }`; `InsightsRepository(database: AuthDatabase)`: `status(documentId): TopicStatus | null`, `markPending(documentId)`, `markFailed({ documentId, failure })`, `saveTopics({ documentId, topics: IdentifiedTopic[], computedAtSequence })`, `topics(documentId): StoredTopic[]`, `summaries(documentId): TopicSummary[]`, `saveSummaries({ summaries: { topicId: string; sentence: string }[]; computedAtSequence })`; `services.insightsRepository`.
+- Produces: `LlmSettings = { model: string | null; apiKey: string | null; baseUrl: string | null }`, `Environment.llm`; tables `topicSets`, `documentTopics`, `topicBlocks`, `topicSummaries`; `StoredTopic = { id: string; name: string; position: number; blockIds: string[] }`; `InsightsRepository(database: AuthDatabase)`: `status(documentId): TopicStatus | null`, `markPending(documentId)`, `markFailed({ documentId, failure })`, `saveTopics({ documentId, topics: IdentifiedTopic[], computedAtSequence })`, `topics(documentId): StoredTopic[]`, `summaries(documentId): TopicSummary[]`, `saveSummaries({ summaries: { topicId: string; sentence: string }[]; computedAtSequence })`, `failInterrupted(failure)` (every `pending` set becomes `failed`); `services.insightsRepository`, `AppServices.insightsRepository`; `LanguageModelAvailability { Ready, Unavailable }`, `LanguageModelChoice`, `chooseLanguageModel(settings): LanguageModelChoice`, `generateStructured({ model, schema, system, prompt })`, `LLM_MODEL_MISSING_MESSAGE`, `LLM_KEY_MISSING_MESSAGE`; `startServer({ environment, webDistDirectory, languageModel = chooseLanguageModel(environment.llm) })`; `startTestServer({ languageModel? })` (default: `chooseLanguageModel` of the empty test settings, so `Unavailable`) and `documentWithOwner({ languageModel? })` threading it.
 
 - [ ] **Step 1: Failing tests** — `insights-repository.test.ts`
 ```ts
@@ -633,12 +650,42 @@ test('a recompute keeps reused topic ids with their summaries and drops the rest
 });
 ```
 Also, each input → expected:
+- `failInterrupted turns every pending set into failed`: two documents, one `pending`, one `ready` → only the first becomes `{ state: failed, failure: TOPICS_INTERRUPTED_MESSAGE }`.
+- `llm-client.test.ts`: `chooseLanguageModel({ model: null, … })` → `Unavailable` with `LLM_MODEL_MISSING_MESSAGE`; a model without a key → `LLM_KEY_MISSING_MESSAGE`; both set → `Ready` whose `model.modelId` is the configured id; `providerSettings` passes `baseURL` only when `baseUrl` is set.
 - `markPending keeps the stored topics`: after `saveTopics`, `markPending` → `status.state` is `pending` and `topics` unchanged; `markFailed({ failure: 'x' })` → `{ state: failed, failure: 'x' }`, topics unchanged.
 - `deleting the document cascades every insights row`: `documents.remove(documentId)` → `status` `null`, `topics` `[]`, and `SELECT COUNT(*) FROM topic_blocks` is 0.
 - `environment.test.ts`: without `LLM_MODEL`, `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` → `llm` is `{ model: null, apiKey: null, baseUrl: null }`; empty strings → the same; set values pass through; `OPENROUTER_BASE_URL=not-a-url` throws.
 - [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit` → FAIL: `services.insightsRepository` is undefined / cannot find `./insights-repository`. Commit the tests alone: `test(server): pin LLM settings and the insights repository`.
 - [ ] **Step 3: Implement** — `environment.ts`: a second schema `z.object({ LLM_MODEL: z.string().optional(), OPENROUTER_API_KEY: z.string().optional(), OPENROUTER_BASE_URL: z.union([z.literal(''), z.url()]).optional() })` parsed after the required one; `presentOrNull(value)` returns `null` for `undefined` or `''` (an explicit `if (!value) return null`), and `loadLlmSettings(source)` returns `{ model, apiKey, baseUrl }` through it.
-`Environment` gains `llm: LlmSettings`, filled by `loadLlmSettings(source)`; the missing-variable check still walks only the required `schema.shape`. `schema/insights.ts` (picked up by the `schema/*.ts` glob; `pnpm --filter @superdoc-history/server exec drizzle-kit generate` → `drizzle/0002_*.sql`):
+`Environment` gains `llm: LlmSettings`, filled by `loadLlmSettings(source)`; the missing-variable check still walks only the required `schema.shape`. 
+`llm-client.ts`
+```ts
+export const LLM_MODEL_MISSING_MESSAGE = 'Topics are unavailable: LLM_MODEL is not set on the server.';
+export const LLM_KEY_MISSING_MESSAGE = 'Topics are unavailable: OPENROUTER_API_KEY is not set on the server.';
+const LLM_TIMEOUT_MS = 30 * SECOND_MS;
+const LLM_MAX_RETRIES = 1;
+
+export enum LanguageModelAvailability { Ready = 'ready', Unavailable = 'unavailable' }
+export type LanguageModelChoice = { availability: LanguageModelAvailability.Ready; model: LanguageModel } | { availability: LanguageModelAvailability.Unavailable; reason: string };
+
+function providerSettings({ apiKey, baseUrl }: { apiKey: string; baseUrl: string | null }): OpenRouterProviderSettings {
+  if (!baseUrl) return { apiKey };
+  return { apiKey, baseURL: baseUrl };
+}
+
+export function chooseLanguageModel({ model, apiKey, baseUrl }: LlmSettings): LanguageModelChoice {
+  if (!model) return { availability: LanguageModelAvailability.Unavailable, reason: LLM_MODEL_MISSING_MESSAGE };
+  if (!apiKey) return { availability: LanguageModelAvailability.Unavailable, reason: LLM_KEY_MISSING_MESSAGE };
+  return { availability: LanguageModelAvailability.Ready, model: createOpenRouter(providerSettings({ apiKey, baseUrl })).chat(model) };
+}
+
+export async function generateStructured<Schema extends z.ZodType>({ model, schema, system, prompt }: { model: LanguageModel; schema: Schema; system: string; prompt: string }): Promise<z.infer<Schema>> {
+  const { output } = await generateText({ model, output: Output.object({ schema }), system, prompt, maxRetries: LLM_MAX_RETRIES, abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS) });
+  return output;
+}
+```
+Imports, pinned by the spike: `import { generateText, Output, type LanguageModel } from 'ai';`, `import { createOpenRouter, type OpenRouterProviderSettings } from '@openrouter/ai-sdk-provider';`, and in `testing/language-model.ts` `import { MockLanguageModelV4 } from 'ai/test';` (spike §3: 7 topics in 4–5 s on 50 blocks, summaries in 3–4 s).
+`schema/insights.ts` (picked up by the `schema/*.ts` glob; `pnpm --filter @superdoc-history/server exec drizzle-kit generate` → `drizzle/0002_*.sql`):
 - `topic_sets`: `document_id` text primary key references `documents.id` on delete cascade; `state` `text('state', { enum: [TopicState.Pending, TopicState.Ready, TopicState.Failed] })` not null; `failure` text nullable; `computed_at_sequence` integer nullable; `updated_at` timestamp_ms not null.
 - `document_topics`: `id` text primary key; `document_id` references `documents.id` cascade; `name` text; `position` integer; `index('document_topics_by_document').on(documentId)`.
 - `topic_blocks`: `document_id` references `documents.id` cascade, `block_id` text, `topic_id` references `document_topics.id` cascade; primary key `(document_id, block_id)`.
@@ -654,12 +701,12 @@ Also, each input → expected:
 
 **Files:**
 - Create: `apps/server/src/history/projection-throttle.ts`
-- Modify: `apps/server/src/history/{projection-messages,projection-worker,projection-scheduler}.ts`, `apps/server/src/collaboration/collaboration-server.ts`, `apps/server/src/server.ts`, `apps/server/src/testing/test-server.ts`
+- Modify: `apps/server/src/history/{projection-messages,projection-worker,projection-scheduler,pending-documents}.ts`, `apps/server/src/collaboration/collaboration-server.ts`, `apps/server/src/server.ts`, `apps/server/src/testing/test-server.ts`
 - Test: `apps/server/src/history/{projection-throttle,projection-scheduler}.test.ts`, `apps/server/src/collaboration/collaboration-history.test.ts`
 
 **Interfaces:**
 - Consumes: `GcFreeReplays`, `REPLAY_CACHE_SIZE`, `ReadModel.mark`, `compact`, `materialize`, `readMainStoryBlocks`, `readMainStoryText`, `Block`.
-- Produces: `PROJECTION_THROTTLE_MS = 1500`, `ProjectionThrottle({ intervalMs, run })` with `request(documentId)` and `stop()`; `SNAPSHOT_EVERY_UPDATES` (moved to `projection-messages.ts`); `ProjectionRequestKind.Version | Blocks`; `VersionReply = { kind: Version; documentId; sequence; serverTime; state: Uint8Array; text: string }`, `BlocksReply = { kind: Blocks; documentId; sequence: number; blocks: Block[] }`; `ProjectionFailedReply` gains `requestKind` and `sequence: number | null`; `ProjectionScheduler.version({ documentId, sequence }): Promise<VersionReply>`, `ProjectionScheduler.blocks(documentId): Promise<BlocksReply>`; `ProjectionDegradedError`, `MissingVersionMarkError`; `createCollaborationServer({ …, onLogged })`; `services.throttle`.
+- Produces: `PROJECTION_THROTTLE_MS = 1500`, `ProjectionThrottle({ intervalMs, run })` with `request(documentId)` and `stop()`; `SNAPSHOT_EVERY_UPDATES` (moved to `projection-messages.ts`); `ProjectionRequestKind.Version | Blocks`; `VersionReply = { kind: Version; documentId; sequence; serverTime; state: Uint8Array; text: string }`, `BlocksReply = { kind: Blocks; documentId; sequence: number; blocks: Block[] }`; `ProjectionFailedReply` gains `requestKind` and `sequence: number | null`; `ProjectionReply = ProjectionDoneReply | VersionReply | BlocksReply | ProjectionFailedReply`; `findDocumentsWithoutMarks(readModelSqlite): string[]` (a cursor and no `version_marks` row), `ProjectionScheduler.rebuild({ documentId, filePath })` (forget, re-import, project) and `isRebuilding(documentId): boolean`; `ProjectionScheduler.version({ documentId, sequence }): Promise<VersionReply>`, `ProjectionScheduler.blocks(documentId): Promise<BlocksReply>`; `ProjectionDegradedError`, `MissingVersionMarkError`; `createCollaborationServer({ …, onLogged })`; `services.throttle`.
 
 - [ ] **Step 1: Failing tests** — `projection-throttle.test.ts`
 ```ts
@@ -697,7 +744,7 @@ test('a hanging import does not delay the projection of another document', async
 ```
 Also, each input → expected:
 - `collaboration-history.test.ts` — `every logged update requests a throttled projection`: `vi.spyOn(server.services.throttle, 'request')` → after one insert, the polled spy calls contain `documentId` (the `onLogged` closure looks `request` up at call time, so the spy sees it). `the worker writes the heavy snapshot`: 1001 single-character inserts → polled `log.latestSnapshot({ documentName: documentId, atOrBefore: Number.MAX_SAFE_INTEGER })?.sequence` is defined within 15 s, and `collaboration-server.ts` no longer imports `compact` (checked by the typecheck after the import is removed).
-- `projection-scheduler.test.ts` — `version requests for the same mark share one worker round trip`: spy `currentWorker.postMessage`, two concurrent `version({ documentId, sequence })` → one `Version` message, both promises resolve to the same `text`. `a version of an unknown mark rejects`: sequence 999999 → rejects with a message naming `MissingVersionMarkError`. `blocks returns the story at the projection cursor`: after `'Hello'` is projected → `blocks[0].text` is `'Hello'`. `a degraded scheduler rejects versions at once`: set `degraded = true` → `version(...)` rejects with `ProjectionDegradedError`. `a terminated worker re-posts a waiting version`: terminate `currentWorker` right after `version(...)` → the promise still resolves.
+- `projection-scheduler.test.ts` — `a document projected before marks existed is rebuilt at startup`: project a document with one imported revision and two edits, stop, `DELETE FROM version_marks` on `read-model.sqlite`, restart on the same directory → `isRebuilding(documentId)` is true at first, then polled false; `readModel.marks` holds the bootstrap mark; `/events` returns the same inserted texts and the imported revision once. `a failed version never touches the projection bookkeeping`: a `Version` failure for a document whose `Project` is in flight → the version promise rejects, and the in-flight projection still settles and reruns as before (no `PROJECTION_FAILED_MESSAGE` line). `version requests for the same mark share one worker round trip`: spy `currentWorker.postMessage`, two concurrent `version({ documentId, sequence })` → one `Version` message, both promises resolve to the same `text`. `a version of an unknown mark rejects`: sequence 999999 → rejects with a message naming `MissingVersionMarkError`. `blocks returns the story at the projection cursor`: after `'Hello'` is projected → `blocks[0].text` is `'Hello'`. `a degraded scheduler rejects versions at once`: set `degraded = true` → `version(...)` rejects with `ProjectionDegradedError`. `a terminated worker re-posts a waiting version`: terminate `currentWorker` right after `version(...)` → the promise still resolves.
 - [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./projection-throttle`; `scheduler.version` is not a function. Commit the tests alone: `test(server): pin the projection throttle, the import lane and version requests`.
 - [ ] **Step 3: Implement** — `projection-throttle.ts`: `ProjectionThrottle` keeps a `Map<string, NodeJS.Timeout>`; `request(documentId)` returns when a timer exists for the document, else sets one for `intervalMs` that deletes itself and calls `run(documentId)`; `stop()` clears every timer. The trailing run is enough because the projection always reads everything after its cursor. `collaboration-server.ts`: `onChange` calls `onLogged(documentId)` after `log.append`; `onStoreDocument` keeps only `onStored(documentId)` (the `compact` call and `SNAPSHOT_EVERY_UPDATES` move to the worker). `server.ts`: `const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) })`, `onLogged: (documentId) => throttle.request(documentId)`, `onStored: (documentId) => documents.touch(documentId)`; `stop()` calls `throttle.stop()` before `scheduler.stop()`. Worker (`projection-worker.ts`): the log opens with `openSqliteFile({ directory: databaseDirectory, fileName: HISTORY_DATABASE_FILE })` (read-write for snapshots; `busy_timeout` serializes with the main thread's appends); `const replays = new GcFreeReplays(REPLAY_CACHE_SIZE)`; `handle` gains
 ```ts
@@ -721,25 +768,8 @@ function blocksReply(documentId: string): BlocksReply {
   return { kind: ProjectionRequestKind.Blocks, documentId, sequence: cursor, blocks: readMainStoryBlocks(materialize({ log, documentName: documentId, untilSequence: cursor })) };
 }
 ```
-and the message switch gets an import lane:
-```ts
-port.on('message', (request: ProjectionRequest) => {
-  if (request.kind === ProjectionRequestKind.Stop) {
-    queue = queue.then(stopWorker);
-    return;
-  }
-  if (request.kind === ProjectionRequestKind.Import) {
-    importQueue = importQueue.then(async () => port.postMessage(await answer(request)));
-    return;
-  }
-  if (request.kind === ProjectionRequestKind.Forget) {
-    queue = Promise.all([queue, importQueue]).then(async () => port.postMessage(await answer(request)));
-    return;
-  }
-  queue = queue.then(async () => port.postMessage(await answer(request)));
-});
-```
-`answer`'s failure reply carries `requestKind: request.kind` and `sequence: request.kind === ProjectionRequestKind.Version ? request.sequence : null`. Scheduler: `private readonly waiting = new Map<string, { request: ProjectionRequest; waiters: { resolve: (reply: VersionReply | BlocksReply) => void; reject: (error: Error) => void }[] }>()` keyed `version:<documentId>@<sequence>` or `blocks:<documentId>`; `version` and `blocks` reject with `ProjectionDegradedError` when `degraded`, else add a waiter and post only for the first; `settleDone` resolves the key's waiters for `Version`/`Blocks` replies; `settleFailure` rejects them with `new Error(message)` when `requestKind` is `Version` or `Blocks`; `restart` re-posts every waiting request; `degrade` rejects every waiter. `stopWorker` is unchanged: `Stop` chains on `queue` only, so a hanging import never blocks shutdown, and `process.exit(0)` ends it after the SDK client is disposed.
+and the message switch gets an import lane: `Stop` chains `stopWorker` on `queue`; `Import` chains its answer on a separate `importQueue`; `Forget` chains on `Promise.all([queue, importQueue])`, so a deleted document's import cannot land after its rows are gone; every other request chains on `queue`. Each chained step is `async () => port.postMessage(await answer(request))`.
+`answer`'s failure reply carries `requestKind: request.kind` and `sequence: request.kind === ProjectionRequestKind.Version ? request.sequence : null`. Scheduler: `private readonly waiting = new Map<string, { request: ProjectionRequest; waiters: { resolve: (reply: VersionReply | BlocksReply) => void; reject: (error: Error) => void }[] }>()` keyed `version:<documentId>@<sequence>` or `blocks:<documentId>`; `version` and `blocks` reject with `ProjectionDegradedError` when `degraded`, else add a waiter and post only for the first; `settleDone` resolves the key's waiters for `Version`/`Blocks` replies; `settleFailure` branches on `requestKind` first: a `Version` or `Blocks` failure rejects that key's waiters with `new Error(message)` and returns, never touching `inFlight`, `rerun` or the once-per-document failure log; every other kind keeps the slice 2 path; `restart` re-posts every waiting request; `degrade` rejects every waiter. `rebuild` adds the document to `rebuilding`, awaits `forget`, posts `Import` for `filePath` and `schedule`s it; the `Project` reply removes it from `rebuilding`. `server.ts` calls `findDocumentsWithoutMarks(readModelSqlite).forEach((documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }))` after the scheduler starts. `stopWorker` is unchanged: `Stop` chains on `queue` only, so a hanging import never blocks shutdown, and `process.exit(0)` ends it after the SDK client is disposed.
 - [ ] **Step 4: Run, expect pass** — the new tests plus every slice 2 projection, scheduler and collaboration test.
 - [ ] **Step 5: Commit** — `feat(server): project on a throttle, compact in the worker and serve versions from it`
 
@@ -748,13 +778,13 @@ port.on('message', (request: ProjectionRequest) => {
 ### Task 7: Paged events and the timeline routes (G2)
 
 **Files:**
-- Create: `apps/server/src/history/{resolved-events,timeline-service,timeline-routes}.ts`, `apps/server/src/testing/timeline-client.ts`
-- Modify: `apps/server/src/history/history-routes.ts`, `apps/server/src/documents/documents-repository.ts` (`userContacts`), `apps/server/src/http/app.ts` (`AppServices` gains `scheduler`, `insightsRepository`; mount), `apps/server/src/server.ts`
+- Create: `apps/server/src/history/{resolved-events,timeline-pipeline-cache,timeline-service,timeline-routes}.ts`, `apps/server/src/testing/timeline-client.ts`
+- Modify: `apps/server/src/history/history-routes.ts`, `apps/server/src/documents/documents-repository.ts` (`userContacts`), `apps/server/src/http/app.ts` (`AppServices` gains `scheduler` and `timelinePipelines`; mount), `apps/server/src/server.ts`, `apps/server/src/testing/events-client.ts` (`readEvents` follows `nextAfterSequence` across 500-event pages)
 - Test: `apps/server/src/history/{history-routes,timeline-routes}.test.ts`
 
 **Interfaces:**
 - Consumes: `ReadModel.readPage`, `ReadModel.readWithCursor`, `ReadModel.marks`, `versionSequenceAt`, timeline library (Task 3), `assignBlocks`, `topicBandId`, `InsightsRepository.topics/status`, `UpdateLog.readBatch`, `ProjectionScheduler.degraded`.
-- Produces: `resolveEvents({ services, documentId, stored }): DocumentEditEvent[]`; `/events?afterSequence&limit` → `DocumentEditEvents` with `nextAfterSequence`; `DocumentsRepository.userContacts(userIds): Map<string, { name: string; email: string }>`; `TimelinePipeline = { events: TimelineEvent[]; identities: BandIdentity[]; authors: Record<string, EventAuthor>; hasTopics: boolean; unassignedBlockCount: number }`, `readTimelinePipeline({ services, documentId }): TimelinePipeline`, `buildDocumentTimeline({ services, documentId, filter, binMs }): DocumentTimeline`, `buildBinEdits({ services, documentId, filter, binStart, binMs }): BinEdits`; routes `GET /:id/timeline` and `GET /:id/timeline/edits`; test helpers `readTimeline({ server, documentId, cookie, query? })`, `twoAuthorsInTwoBlocks()`.
+- Produces: `resolveEvents({ services, documentId, stored }): DocumentEditEvent[]`; `/events?afterSequence&limit` → `DocumentEditEvents` with `nextAfterSequence`; `DocumentsRepository.userContacts(userIds): Map<string, { name: string; email: string }>`; `TimelinePipeline = { events: TimelineEvent[]; identities: BandIdentity[]; authors: Record<string, EventAuthor>; hasTopics: boolean; unassignedBlockCount: number }`, `TimelinePipelineCache` with `get({ documentId, key, build })` and a `builds` counter (one entry per document, replaced when the key changes), `pipelineKey({ services, documentId }): string` (read-model cursor, identity count and declared count, topic set `updatedAt`), `readTimelinePipeline({ services, documentId }): TimelinePipeline` (through the cache), `buildDocumentTimeline({ services, documentId, filter, binMs }): DocumentTimeline`, `buildBinEdits({ services, documentId, filter, binStart, binMs }): BinEdits`; routes `GET /:id/timeline` and `GET /:id/timeline/edits`; test helpers `readTimeline({ server, documentId, cookie, query? })`, `twoAuthorsInTwoBlocks()`.
 
 - [ ] **Step 1: Failing tests** — `timeline-routes.test.ts`
 ```ts
@@ -783,7 +813,8 @@ test('term=a.b*( narrows without a 500', async () => {
 - `projection status reports a lag`: stop the scheduler's worker with `degraded = true` and append a write → `projection.isDegraded` true and `isBehind` true.
 - `edits lists the runs of one bin`: `timeline/edits?binStart=<the edit bin>&binMs=60000` → two runs with inserted `' more money'` and `' a designer'`; an empty bin → `runs: []`; a missing `binStart` → 400.
 - `a non-member gets the same 404 on timeline and edits` (body equal to a random uuid's).
-- `history-routes.test.ts` — `events page on a sequence boundary`: `?limit=1` returns every event of the first sequence and `nextAfterSequence` equal to it; following `nextAfterSequence` until `null` returns every event once; `?limit=0` and `?limit=501` are 400.
+- `timeline-routes.test.ts` — `ten thousand events answer in under 150 ms with one pipeline build per cursor`: a separate `ReadModel` handle on the server's `read-model.sqlite` commits 10k single-character events over 600 blocks by one observed client id (`log.observeClientIdentity`) → two `/timeline` calls and one `/timeline/edits` call each take under 150 ms (`performance.now()` around `fetch`), and `timelinePipelines.builds` is 1; one more committed event (cursor moves) → the next call builds once more. `two hours of history choose two-minute bins`: the same handle commits events whose `server_time` spans exactly two hours → `binMs` 120000 and `bins.length <= MAX_BINS + 2`; `?binMs=600000` (test-only, documented in the route and the README) → 600000.
+- `history-routes.test.ts` — `events default to a 500-event page`: 1200 committed events and no `limit` → 500 events plus the rest of the 500th event's sequence, and `nextAfterSequence` set. `events page on a sequence boundary`: `?limit=1` returns every event of the first sequence and `nextAfterSequence` equal to it; following `nextAfterSequence` until `null` returns every event once; `?limit=0` and `?limit=501` are 400.
 - [ ] **Step 2: Run, expect failure** — FAIL: 404 for `/timeline` (no route) and `nextAfterSequence` undefined. Commit the tests alone: `test(server): pin the timeline, bin edits and paged events`.
 - [ ] **Step 3: Implement** — move `authorIdsOf`, `authorsOf` and the mapping of `readDocumentEvents` from `history-routes.ts` into `resolved-events.ts` as `resolveEvents({ services, documentId, stored })`; `/events` parses `limit` with `z.coerce.number().int().min(1).max(EVENTS_PAGE_SIZE).optional()` (400 on failure), uses `EVENTS_PAGE_SIZE` through an explicit `if (parsed.data === undefined)` branch when the parameter is absent, and calls `readModel.readPage`. `timeline-service.ts`
 ```ts
@@ -828,7 +859,7 @@ export function buildDocumentTimeline({ services, documentId, filter, binMs }: {
   };
 }
 ```
-Imported events always carry their author, so `AuthorlessEventError` marks a real inconsistency. `readTimelinePipeline` reads `readModel.readWithCursor` + `resolveEvents`, maps each event to a `TimelineEvent` with `bandId: bandOf(event)` and `authorKeys: event.authors.map(authorKey)`, and counts `unassignedBlockCount` as the distinct `blockId`s of non-`removed` events whose band is `OTHER_BAND_ID`. `matchingAuthorKeys` returns `null` without a filter, else the keys whose name, or email from one `documents.userContacts` call, contains the filter case-insensitively (literal `includes`). `topicStatusOf` returns the stored status, or `{ state: TopicState.Pending, failure: null, computedAtSequence: null }` when none exists (Task 8 starts the run). `projectionStatus`: `cursor = readModel.cursor(documentId)`; the first update after it (`log.readBatch({ afterSequence: cursor, limit: 1 })`) gives `isBehind` and `lagMs = Date.now() - serverTime`; no cursor and no updates → `{ isBehind: false, lagMs: null }`; `isDegraded: services.scheduler.degraded`. `timeline-routes.ts` parses `term` and `author` with `z.string().trim().max(FILTER_MAX_LENGTH).optional().transform((value) => (value ? value : null))` and `binMs` with `z.coerce.number().int().refine((value) => BIN_LADDER_MS.includes(value)).optional()` (400 on failure), behind `requireDocumentRole(Reader)`. `buildBinEdits` keeps the matched runs whose `binStart` equals the parameter and maps them to `EditRunView`.
+Imported events always carry their author, so `AuthorlessEventError` marks a real inconsistency. `readTimelinePipeline` asks `services.timelinePipelines.get({ documentId, key: pipelineKey(...), build })`, where `build` reads `readModel.readWithCursor` + `resolveEvents`, maps each event to a `TimelineEvent` with `bandId: bandOf(event)` and `authorKeys: event.authors.map(authorKey)`, and counts `unassignedBlockCount` as the distinct `blockId`s of non-`removed` events whose band is `OTHER_BAND_ID`. `matchingAuthorKeys` returns `null` without a filter, else the keys whose name, or email from one `documents.userContacts` call, contains the filter case-insensitively (literal `includes`). `topicStatusOf` returns the stored status, or `{ state: TopicState.Pending, failure: null, computedAtSequence: null }` when none exists (Task 8 starts the run). `projectionStatus`: `cursor = readModel.cursor(documentId)`; the first update after it (`log.readBatch({ afterSequence: cursor, limit: 1 })`) gives `isBehind` and `lagMs = Date.now() - serverTime`; no cursor and no updates → `{ isBehind: false, lagMs: null }`; `isDegraded: services.scheduler.degraded`. `timeline-routes.ts` parses `term` and `author` with `z.string().trim().max(FILTER_MAX_LENGTH).optional().transform((value) => (value ? value : null))` and `binMs` with `z.coerce.number().int().refine((value) => BIN_LADDER_MS.includes(value)).optional()` (400 on failure), behind `requireDocumentRole(Reader)`. `buildBinEdits` keeps the matched runs whose `binStart` equals the parameter and maps them to `EditRunView`.
 - [ ] **Step 4: Run, expect pass** — timeline and history suites; `pnpm typecheck` clean.
 - [ ] **Step 5: Commit** — `feat(server): serve the timeline, bin edits and paged events`
 
@@ -837,13 +868,13 @@ Imported events always carry their author, so `AuthorlessEventError` marks a rea
 ### Task 8: LLM client, topics, summaries and their routes (G2)
 
 **Files:**
-- Create: `apps/server/src/insights/{llm-client,prompts,insights-worker,topics-service,summaries-service,insights-routes}.ts`, `apps/server/src/testing/language-model.ts`
-- Modify: `apps/server/src/server.ts` (`startServer({ …, languageModel })`), `apps/server/src/http/app.ts`, `apps/server/src/history/timeline-routes.ts` (trigger), `apps/server/src/testing/test-server.ts` (`startTestServer({ languageModel? })`)
+- Create: `apps/server/src/insights/{prompts,insights-worker,topics-service,summaries-service,insights-routes}.ts`, `apps/server/src/testing/language-model.ts`
+- Modify: `apps/server/src/server.ts` (insights wiring, boot reset), `apps/server/src/http/app.ts`, `apps/server/src/history/timeline-routes.ts` (trigger), `apps/server/src/testing/timeline-client.ts` (`storyWithBlocks`, `readTopics`)
 - Test: `apps/server/src/insights/{topics-service,summaries-service,insights-routes}.test.ts`, `apps/server/src/insights/topics-llm.smoke.test.ts`
 
 **Interfaces:**
-- Consumes: `LlmSettings`, `InsightsRepository`, `ProjectionScheduler.blocks`, `readTimelinePipeline`, `groupIntoRuns`, topic schemas, `normalizeTopics`.
-- Produces: `LanguageModelAvailability { Ready, Unavailable }`, `LanguageModelChoice`, `chooseLanguageModel(settings): LanguageModelChoice`, `generateStructured({ model, schema, system, prompt })`; `TOPICS_SYSTEM_PROMPT`, `SUMMARIES_SYSTEM_PROMPT`, `topicsPrompt(blocks)`, `summariesPrompt(topics)`; `InsightsWorker` with `run({ key, job }): boolean`, `isRunning(key)`, `idle(): Promise<void>`; `TopicsService` with `status(documentId)`, `ensure(documentId)`, `refresh({ documentId, userId }): RefreshOutcome`, `onTimelineRead({ documentId, unassignedBlockCount })`; `RefreshOutcome { Started, AlreadyRunning, TooSoon }`; `SummariesService` with `read(documentId)`, `refreshStale(documentId)`; routes `GET /:id/topics`, `POST /:id/topics/refresh`, `GET /:id/summaries`; `services.insights = { topics, summaries, worker }`; testing `modelAnswering(...answers)`, `failingModel(error)`, `readyModel(model)`.
+- Consumes: `chooseLanguageModel`, `generateStructured`, `LanguageModelChoice` (Task 5), `InsightsRepository`, `ProjectionScheduler.blocks`, `readTimelinePipeline`, `groupIntoRuns`, topic schemas, `normalizeTopics`.
+- Produces: `INSIGHTS_JOB_FAILED_MESSAGE`, `escapeXml(text)`; `TOPICS_SYSTEM_PROMPT`, `SUMMARIES_SYSTEM_PROMPT`, `topicsPrompt(blocks)`, `summariesPrompt(topics)`; `InsightsWorker` with `run({ key, job }): boolean`, `isRunning(key)`, `idle(): Promise<void>`; `TopicsService` with `status(documentId)`, `ensure(documentId)`, `refresh({ documentId, userId }): RefreshOutcome`, `onTimelineRead({ documentId, unassignedBlockCount })`; `RefreshOutcome { Started, AlreadyRunning, TooSoon }`; `SummariesService` with `read(documentId)`, `refreshStale(documentId)`; routes `GET /:id/topics`, `POST /:id/topics/refresh`, `GET /:id/summaries`; `services.insights = { topics, summaries, worker }`; testing `modelAnswering(...answers)`, `failingModel(error)`, `readyModel(model)`.
 
 - [ ] **Step 1: Failing tests** — `testing/language-model.ts`
 ```ts
@@ -880,38 +911,12 @@ test('unknown block ids are logged once and the topics are saved', async () => {
 });
 ```
 `storyWithBlocks` and `readTopics` live in `testing/timeline-client.ts`: `storyWithBlocks` = `documentWithOwner({ languageModel })`, the owner writes `texts`, commits the bootstrap, edits the last block once, and polls `/events` until projected. Also, each input → expected:
-- `topics-service.test.ts` — `a recompute keeps the id of a topic that keeps its blocks`: a first answer `Budget [b0]`, a refresh answering `Costs [b0]` → the same topic id, renamed, and its summary kept. `malformed output fails with the generic message`: `modelAnswering('not json')` → `failed`, `failure` is `TOPICS_FAILED_MESSAGE` (the provider text is logged, never returned). `no LLM fails with the configuration reason`: the default test server → `failed`, `failure` is `LLM_MODEL_MISSING_MESSAGE`; the timeline's bands are `author`. `an empty document is ready with no topics`: blocks all blank → `ready`, `topics: []`. `five new unassigned blocks trigger a recompute once`: topics name `b0`; the owner adds `b1`…`b5`; a `/timeline` read → `model.doGenerateCalls` grows by exactly one, and a second read during the run adds none.
-- `insights-routes.test.ts` — `refresh is 202 for an editor, 403 for a reader, 404 for a stranger`; `a second refresh by the same user within the cooldown is 429 with TOPICS_REFRESH_TOO_SOON_MESSAGE`; `a refresh while a run is in flight returns 202 without a second model call` (`modelAnswering` behind a promise the test resolves).
-- `summaries-service.test.ts` — `one call summarizes every stale topic`: two topics with edits → one `doGenerateCalls` entry whose prompt holds both topic ids, two stored sentences. `a topic without new edits is not resummarized`: a second `GET /summaries` without edits → no new call. `a new edit inside the minimum interval waits`: an edit right after → no call until `SUMMARY_MIN_INTERVAL_MS` passes (fake `Date` only).
+- `topics-service.test.ts` — `a recompute keeps the id of a topic that keeps its blocks`: a first answer `Budget [b0]`, a refresh answering `Costs [b0]` → the same topic id, renamed, and its summary kept. `malformed output fails with the generic message`: `modelAnswering('not json')` → `failed`, `failure` is `TOPICS_FAILED_MESSAGE` (the provider text is logged, never returned). `no LLM fails with the configuration reason`: the default test server → `failed`, `failure` is `LLM_MODEL_MISSING_MESSAGE`; the timeline's bands are `author`. `an empty document is ready with no topics`: blocks all blank → `ready`, `topics: []`. `two concurrent first opens call the model once`: two `GET /topics` at once on a document without topics → both `pending`, then `ready`, and `doGenerateCalls.length` is 1. `refresh without an LLM fails without calling anything`: default test server, `POST /topics/refresh` → 202, then `failed` with `LLM_MODEL_MISSING_MESSAGE`, and a spy on `scheduler.blocks` was never called. `a job whose document is deleted mid-call is logged once`: a model whose answer waits on a promise; `DELETE` the document, then resolve → exactly one `console.error` line starting with `INSIGHTS_JOB_FAILED_MESSAGE`, and a `process.on('unhandledRejection')` spy is never called. `a pending set left by a crash is failed at boot`: `markPending` then `stop()` and restart on the same directory → `failed` with `TOPICS_INTERRUPTED_MESSAGE`. `prompts escape markup and carry no email`: a block `<b>x</b> & y` and an author named `Ana <script>` → the recorded topics and summaries prompts contain `&lt;b&gt;x&lt;/b&gt; &amp; y` and `Ana &lt;script&gt;`, and neither contains `@example.com`. `the key never reaches a log or a response`: `chooseLanguageModel({ model: 'm', apiKey: 'sk-test-secret', baseUrl: <a local server answering 500> })` → after topics, refresh and summaries, no `console.*` call and no response body of those routes contains `sk-test-secret`. `five new unassigned blocks trigger a recompute once`: topics name `b0`; the owner adds `b1`…`b5`; a `/timeline` read → `model.doGenerateCalls` grows by exactly one, and a second read during the run adds none.
+- `insights-routes.test.ts` — `refresh is 202 for an editor, 403 for a reader, 404 for a stranger`; `a second refresh by the same user on the same document within the cooldown is 429 with TOPICS_REFRESH_TOO_SOON_MESSAGE`, while the same user on another document gets 202; `a refresh while a run is in flight returns 202 without a second model call` (`modelAnswering` behind a promise the test resolves).
+- `summaries-service.test.ts` — `a reader before any topic gets an empty list`: `GET /summaries` as a reader on a fresh document → 200 `{ summaries: [] }` and no model call. `one call summarizes every stale topic`: two topics with edits → one `doGenerateCalls` entry whose prompt holds both topic ids, two stored sentences. `a topic without new edits is not resummarized`: a second `GET /summaries` without edits → no new call. `a new edit inside the minimum interval waits`: an edit right after → no call until `SUMMARY_MIN_INTERVAL_MS` passes (fake `Date` only).
 - `topics-llm.smoke.test.ts` — `test.skipIf(!process.env.OPENROUTER_API_KEY)('the real model names the topics of the seed document', …)`: `chooseLanguageModel` from `process.env`, `generateStructured` with `topicsOutputSchema` over 50 seed blocks → parses, at least one topic, every block id known; run only as `scripts/with-env.sh pnpm --filter @superdoc-history/server exec vitest run src/insights/topics-llm.smoke.test.ts`.
-- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `../insights/llm-client` (imported by the test helper, which is committed with the tests) and `/topics` is 404. Commit the tests and `testing/language-model.ts` alone: `test(server): pin topics, summaries and refresh with a mocked model`.
-- [ ] **Step 3: Implement** — `llm-client.ts`
-```ts
-export const LLM_MODEL_MISSING_MESSAGE = 'Topics are unavailable: LLM_MODEL is not set on the server.';
-export const LLM_KEY_MISSING_MESSAGE = 'Topics are unavailable: OPENROUTER_API_KEY is not set on the server.';
-const LLM_TIMEOUT_MS = 30_000;
-const LLM_MAX_RETRIES = 1;
-
-export enum LanguageModelAvailability { Ready = 'ready', Unavailable = 'unavailable' }
-export type LanguageModelChoice = { availability: LanguageModelAvailability.Ready; model: LanguageModel } | { availability: LanguageModelAvailability.Unavailable; reason: string };
-
-function providerSettings({ apiKey, baseUrl }: { apiKey: string; baseUrl: string | null }): OpenRouterProviderSettings {
-  if (!baseUrl) return { apiKey };
-  return { apiKey, baseURL: baseUrl };
-}
-
-export function chooseLanguageModel({ model, apiKey, baseUrl }: LlmSettings): LanguageModelChoice {
-  if (!model) return { availability: LanguageModelAvailability.Unavailable, reason: LLM_MODEL_MISSING_MESSAGE };
-  if (!apiKey) return { availability: LanguageModelAvailability.Unavailable, reason: LLM_KEY_MISSING_MESSAGE };
-  return { availability: LanguageModelAvailability.Ready, model: createOpenRouter(providerSettings({ apiKey, baseUrl })).chat(model) };
-}
-
-export async function generateStructured<Schema extends z.ZodType>({ model, schema, system, prompt }: { model: LanguageModel; schema: Schema; system: string; prompt: string }): Promise<z.infer<Schema>> {
-  const { output } = await generateText({ model, output: Output.object({ schema }), system, prompt, maxRetries: LLM_MAX_RETRIES, abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS) });
-  return output;
-}
-```
-Imports, pinned by the spike: `import { generateText, Output, type LanguageModel } from 'ai';`, `import { createOpenRouter, type OpenRouterProviderSettings } from '@openrouter/ai-sdk-provider';`, and in `testing/language-model.ts` `import { MockLanguageModelV4 } from 'ai/test';` (spike §3: 7 topics in 4–5 s on 50 blocks, summaries in 3–4 s). `prompts.ts` (XML sections, every limit interpolated from a constant, block text escaped with `&lt;`, `&gt;`, `&amp;` and cut at `PROMPT_BLOCK_MAX_CHARACTERS` = 500, at most `PROMPT_MAX_BLOCKS` = 400 non-blank blocks)
+- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `../insights/topics-service` and `/topics` is 404. Commit the tests and `testing/language-model.ts` alone: `test(server): pin topics, summaries and refresh with a mocked model`.
+- [ ] **Step 3: Implement** — `prompts.ts` (XML sections, every limit interpolated from a constant, block text escaped with `&lt;`, `&gt;`, `&amp;` and cut at `PROMPT_BLOCK_MAX_CHARACTERS` = 500, at most `PROMPT_MAX_BLOCKS` = 400 non-blank blocks)
 ```ts
 export const TOPICS_SYSTEM_PROMPT = `<role>You name the topics of one document.</role>
 <task>Group the blocks into ${MIN_TOPICS} to ${MAX_TOPICS} topics; a short document may have fewer. Give each topic a name of at most ${TOPIC_NAME_MAX_LENGTH} characters and the ids of its blocks.</task>
@@ -929,8 +934,8 @@ export function topicsPrompt(blocks: Block[]): string {
   return `<blocks>\n${blocks.slice(0, PROMPT_MAX_BLOCKS).map((block) => `<block id="${escapeXml(block.blockId)}">${escapeXml(block.text.slice(0, PROMPT_BLOCK_MAX_CHARACTERS))}</block>`).join('\n')}\n</blocks>`;
 }
 ```
-`SUMMARIES_SYSTEM_PROMPT` follows the same sections (one sentence of at most `SUMMARY_SENTENCE_MAX_LENGTH` characters per topic id, about what the edits changed, naming people by the names given; output `JSON: {summaries: [{topicId, sentence}]}`), and `summariesPrompt` renders `<topic id="…" name="…">` with one `<edit author="Ana">+inserted −deleted</edit>` per run, newest first, cut at `PROMPT_TOPIC_MAX_CHARACTERS` = 2000. `insights-worker.ts`: `InsightsWorker` holds `Map<string, Promise<void>>`; `run({ key, job })` returns `false` when the key is running, else stores `job().finally(() => delete)` and returns `true`; `isRunning(key)`; `idle()` awaits every running job. `topics-service.ts`: `compute(documentId)` marks pending, throws `LanguageModelUnavailableError(reason)` without a model, takes `scheduler.blocks(documentId)`, saves `[]` when no block has text, else `generateStructured({ schema: topicsOutputSchema, system: TOPICS_SYSTEM_PROMPT, prompt: topicsPrompt(named) })` → `normalizeTopics` → `matchPreviousTopics({ previous: repository.topics(documentId), next: normalized.topics })` (identity by blocks, never by name) → one `console.warn(\`${UNKNOWN_TOPIC_BLOCKS_MESSAGE} ${documentId}: ${count}\`)` when ids were unknown → `saveTopics`; its `catch` logs one line with `describeError` and stores `TOPICS_FAILED_MESSAGE`, or the unavailable reason for `LanguageModelUnavailableError`. `ensure` computes when `status` is `null`; `onTimelineRead` computes when the state is `ready`, `unassignedBlockCount >= TOPIC_RECOMPUTE_NEW_BLOCKS` and the last run is older than `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` (60 s); `refresh` answers `AlreadyRunning` when `worker.isRunning`, `TooSoon` inside `TOPIC_REFRESH_COOLDOWN_MS` (30 s) for that user, else `Started`. `summaries-service.ts`: `refreshStale` reads the pipeline, groups runs per topic band (Other and authors excluded), keeps topics whose `max(lastSequence)` exceeds their stored `computedAtSequence` (or have no summary), skips inside `SUMMARY_MIN_INTERVAL_MS` (60 s) since the document's last run, then one `generateStructured` with `summariesOutputSchema`; sentences for unknown topic ids are dropped; a failure is logged once per run and old sentences stay. Routes: `GET /:id/topics` (Reader) calls `ensure` then returns `DocumentTopics`; `POST /:id/topics/refresh` (Editor) → 202 `TopicStatus` for `Started` and `AlreadyRunning`, 429 `{ error: TOPICS_REFRESH_TOO_SOON_MESSAGE }` for `TooSoon`; `GET /:id/summaries` (Reader) calls `refreshStale` and returns `read`. `timeline-routes.ts` calls `services.insights.topics.ensure(documentId)` and `onTimelineRead({ documentId, unassignedBlockCount })` after building. `startServer({ environment, webDistDirectory, languageModel = chooseLanguageModel(environment.llm) })`; `stop()` awaits `insights.worker.idle()` before the databases close.
-- [ ] **Step 4: Run, expect pass** — insights suites; the smoke test reports `skipped` without the key.
+`SUMMARIES_SYSTEM_PROMPT` follows the same sections (one sentence of at most `SUMMARY_SENTENCE_MAX_LENGTH` characters per topic id, about what the edits changed, naming people by the names given; output `JSON: {summaries: [{topicId, sentence}]}`), and `summariesPrompt` renders `<topic id="…" name="…">` with one `<edit author="Ana">+inserted −deleted</edit>` per run, newest first, cut at `PROMPT_TOPIC_MAX_CHARACTERS` = 2000. `escapeXml` replaces `&`, `<`, `>` and `"` and is applied to block text, author names, topic names and edit text alike. `insights-worker.ts`: `InsightsWorker` holds `Map<string, Promise<void>>`; `run({ key, job })` returns `false` when the key is running, else stores `job().catch((error) => console.error(\`${INSIGHTS_JOB_FAILED_MESSAGE} ${key}: ${describeError(error)}\`)).finally(() => delete)` and returns `true`, so no job can reject unhandled; `isRunning(key)`; `idle()` awaits every running job. `topics-service.ts`: `compute(documentId)` marks pending, throws `LanguageModelUnavailableError(reason)` without a model, takes `scheduler.blocks(documentId)`, saves `[]` when no block has text, else `generateStructured({ schema: topicsOutputSchema, system: TOPICS_SYSTEM_PROMPT, prompt: topicsPrompt(named) })` → `normalizeTopics` → `matchPreviousTopics({ previous: repository.topics(documentId), next: normalized.topics })` (identity by blocks, never by name) → one `console.warn(\`${UNKNOWN_TOPIC_BLOCKS_MESSAGE} ${documentId}: ${count}\`)` when ids were unknown → `saveTopics`; its `catch` logs one line with `describeError` and stores `TOPICS_FAILED_MESSAGE`, or the unavailable reason for `LanguageModelUnavailableError`. `ensure` computes when `status` is `null`; `onTimelineRead` computes when the state is `ready`, `unassignedBlockCount >= TOPIC_RECOMPUTE_NEW_BLOCKS` and the last run is older than `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` (60 s); `refresh` answers `AlreadyRunning` when `worker.isRunning`, `TooSoon` inside `TOPIC_REFRESH_COOLDOWN_MS` (30 s) for that (user, document) pair, else `Started`. `summaries-service.ts`: `refreshStale` reads the pipeline, groups runs per topic band (Other and authors excluded), keeps topics whose `max(lastSequence)` exceeds their stored `computedAtSequence` (or have no summary), skips inside `SUMMARY_MIN_INTERVAL_MS` (60 s) since the document's last run, then one `generateStructured` with `summariesOutputSchema`; sentences for unknown topic ids are dropped; a failure is logged once per run and old sentences stay. Routes: `GET /:id/topics` (Reader) calls `ensure` then returns `DocumentTopics`; `POST /:id/topics/refresh` (Editor) → 202 `TopicStatus` for `Started` and `AlreadyRunning`, 429 `{ error: TOPICS_REFRESH_TOO_SOON_MESSAGE }` for `TooSoon`; `GET /:id/summaries` (Reader) calls `refreshStale` and returns `read`. `timeline-routes.ts` calls `services.insights.topics.ensure(documentId)` and `onTimelineRead({ documentId, unassignedBlockCount })` after building. `startServer` calls `insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE)` before listening; `stop()` awaits `insights.worker.idle()` before the databases close. The schema handed to `Output.object` is `topicsOutputSchema`; if the Step 4 smoke run shows OpenRouter's `json_schema` rejecting `maxItems` or `maxLength`, add `topicsModelSchema` (the same shape without bounds or refinements) for `Output.object` and parse its output with `topicsOutputSchema` right after, and the same for summaries.
+- [ ] **Step 4: Run, expect pass** — insights suites; the smoke test reports `skipped` without the key. Then run it once for real: `scripts/with-env.sh pnpm --filter @superdoc-history/server exec vitest run src/insights/topics-llm.smoke.test.ts`, and record here the topic count, latency and whether the `json_schema` was accepted.
 - [ ] **Step 5: Commit** — `feat(server): name topics and summarize them through the AI SDK and OpenRouter`
 
 ---
@@ -939,16 +944,18 @@ export function topicsPrompt(blocks: Block[]): string {
 
 **Files:**
 - Create: `apps/server/src/history/{versions-service,versions-routes}.ts`, `apps/server/src/collaboration/{version-rooms,authenticate-member}.ts`
-- Modify: `apps/server/src/collaboration/{collaboration-server,attach-collaboration,collaboration-runtime}.ts`, `apps/server/src/http/app.ts`, `apps/server/src/server.ts`, `apps/server/src/testing/{collaboration-client,test-server}.ts`
+- Modify: `apps/server/src/collaboration/{collaboration-server,attach-collaboration,collaboration-runtime,room-name}.ts` (`room-name.ts` exports `DOCUMENT_ID_PATTERN`), `apps/server/src/http/app.ts`, `apps/server/src/server.ts`, `apps/server/src/testing/{collaboration-client,test-server,timeline-client}.ts`
 - Test: `apps/server/src/collaboration/version-rooms.test.ts`, `apps/server/src/history/versions-routes.test.ts`
 
 **Interfaces:**
-- Consumes: `clampToMark`, `ReadModel.marks`, `ProjectionScheduler.version`, `versionCollaborationPath`, `documentIdFromRoomName`, `LOADING_ORIGIN`.
-- Produces: `authenticateMember({ auth, documents, cookie, documentId }): Promise<{ userId: string; role: DocumentRole }>` (throws `CollaborationAuthenticationError`); `VersionEndpoint = { documentId: string; sequence: number }`, `parseVersionPath(pathname): VersionEndpoint | null`; `VersionRoomPolicy = { idleMs: number; limit: number }`, `DEFAULT_VERSION_ROOM_POLICY = { idleMs: 60_000, limit: 32 }`; `VersionRooms({ auth, documents, versions, policy })` with `handle({ endpoint, webSocket, request })`, `size(): number`, `forget(documentId): Promise<void>`, `stop(): Promise<void>`; `attachCollaboration({ httpServer, hocuspocus, versionRooms, path, allowedOrigin })`; `VERSION_CACHE_SIZE = 16`, `VERSION_MARKS_AROUND = 10`, `RETRY_AFTER_SECONDS = 1`; `LoadedVersion = { sequence; serverTime; state: Uint8Array; text: string }`; `VersionsService({ readModel, scheduler })` with `resolve({ documentId, sequence }): VersionMarkSummary | null`, `peek({ documentId, sequence }): LoadedVersion | null` (starts a load on a miss), `load({ documentId, sequence }): Promise<LoadedVersion>` (resolves to a mark first), `forget(documentId)`; routes `GET /:id/versions?around`, `GET /:id/versions/:sequence`, `GET /:id/versions/:sequence/text`; `services.versions`, `services.versionRooms`; `connectToDocument({ …, path? })`; `startServer({ …, versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY })` and `startTestServer({ versionRoomPolicy? })`.
+- Consumes: `clampToMark`, `ReadModel.marks`, `ProjectionScheduler.version`, `ProjectionScheduler.isRebuilding`, `versionCollaborationPath`, `documentIdFromRoomName`, `DOCUMENT_ID_PATTERN`, `LOADING_ORIGIN`, `VERSION_ROOM_IDLE_MS`, `VERSION_ROOMS_LIMIT`, `VERSION_CACHE_SIZE`, `VERSION_CACHE_MAX_BYTES`, `VERSION_FAILURE_TTL_MS`.
+- Produces: `authenticateMember({ auth, documents, cookie, documentId }): Promise<{ userId: string; role: DocumentRole }>` (throws `CollaborationAuthenticationError`); `VersionEndpoint = { documentId: string; sequence: number }`, `parseVersionPath(pathname): VersionEndpoint | null`; `VersionRoomPolicy = { idleMs: number; limit: number }`, `DEFAULT_VERSION_ROOM_POLICY = { idleMs: VERSION_ROOM_IDLE_MS, limit: VERSION_ROOMS_LIMIT }`; `VersionRooms({ auth, documents, versions, policy })` with `authorize({ endpoint, request }): Promise<boolean>`, `handle({ endpoint, webSocket, request })`, `size(): number`, `forget(documentId): Promise<void>`, `stop(): Promise<void>`; `attachCollaboration({ httpServer, hocuspocus, versionRooms, path, allowedOrigin })`; `VERSION_MARKS_AROUND = 10`, `RETRY_AFTER_SECONDS = 1`; `LoadedVersion = { sequence; serverTime; state: Uint8Array; text: string }`; `VersionLookupKind { Ready, Pending, Failed }`, `VersionLookup`; `VersionsService({ readModel, scheduler, maxEntries = VERSION_CACHE_SIZE, maxBytes = VERSION_CACHE_MAX_BYTES })` with `resolve({ documentId, sequence }): VersionMarkSummary | null`, `peek({ documentId, sequence }): VersionLookup` (starts a load on a miss; `Failed` while a failure younger than `VERSION_FAILURE_TTL_MS` is cached), `load({ documentId, sequence }): Promise<LoadedVersion>` (resolves to a mark first), `forget(documentId)`; routes `GET /:id/versions?around`, `GET /:id/versions/:sequence`, `GET /:id/versions/:sequence/text`; `services.versions`, `services.versionRooms`; `connectToDocument({ …, path? })`; `startServer({ …, versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY })` and `startTestServer({ versionRoomPolicy? })`.
 
 - [ ] **Step 1: Failing tests** — `versions-routes.test.ts`
 ```ts
 const MINUTES = 8;
+const PROPERTY_SEED = 20261016;
+const SAMPLED_SEQUENCES = 20;
 
 test('every version served equals a full replay at its mark', async () => {
   vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2026, 9, 16, 9, 0) });
@@ -963,9 +970,13 @@ test('every version served equals a full replay at its mark', async () => {
     await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(minute + 1);
   }, Promise.resolve());
   const { marks } = await readJson<VersionMarks>({ server, cookie: owner.cookie, path: `${documentApiPath({ documentId, resource: DocumentResource.Versions })}?around=${Number.MAX_SAFE_INTEGER}` });
-  await Promise.all(marks.map(async ({ sequence }) => {
-    const { text } = await readJson<VersionText>({ server, cookie: owner.cookie, path: versionApiPath({ documentId, sequence, resource: VersionResource.Text }) });
-    expect(text).toBe(readMainStoryText(replay(server.services.log.read({ documentName: documentId, untilSequence: sequence }))));
+  const lastSequence = marks.at(-1)!.sequence;
+  const random = seededRandom(PROPERTY_SEED);
+  const sampled = Array.from({ length: SAMPLED_SEQUENCES }, () => 1 + Math.floor(random() * lastSequence));
+  await Promise.all([...marks.map((mark) => mark.sequence), ...sampled].map(async (sequence) => {
+    const { sequence: resolved, text } = await readJson<VersionText>({ server, cookie: owner.cookie, path: versionApiPath({ documentId, sequence, resource: VersionResource.Text }) });
+    expect(resolved).toBe(clampToMark({ marks: server.services.readModel.marks(documentId), sequence })!.sequence);
+    expect(text).toBe(readMainStoryText(replay(server.services.log.read({ documentName: documentId, untilSequence: resolved }))));
   }));
   client.close();
   vi.useRealTimers();
@@ -981,21 +992,10 @@ test('a sequence before the bootstrap resolves to the bootstrap version', async 
   await server.stop();
 });
 ```
-`version-rooms.test.ts`
-```ts
-test('two versions of one document load side by side', async () => {
-  const { server, documentId, owner, bootstrapText, editedText } = await editedAfterBootstrap();
-  const [first, last] = [server.services.readModel.marks(documentId)[0]!, server.services.readModel.marks(documentId).at(-1)!];
-  const [early, late] = await Promise.all([first, last].map(({ sequence }) => connectToDocument({ server, cookie: owner.cookie, documentId, path: versionCollaborationPath({ documentId, sequence }) })));
-  expect([readMainStoryText(early!.document), readMainStoryText(late!.document)]).toEqual([bootstrapText, editedText]);
-  expect(server.services.versionRooms.size()).toBe(2);
-  [early!, late!].forEach((viewer) => viewer.close());
-  await server.stop();
-});
-```
-Helpers (`testing/timeline-client.ts`): `readJson`, `editedAfterBootstrap` (bootstrap `['Original']`, then `'Original edited'` projected; returns both texts), `pollVersion` (polls `GET /versions/:sequence` while 202, asserting `Retry-After` is `'1'`, returns the 200 body). Also, each input → expected:
-- `version-rooms.test.ts` — `a version endpoint never writes the log, the identities or the room mode`: the owner connects on `collaborationPath`, inserts text and sets awareness `userId` → `log.readBatch` length, `log.clientIdentities(documentId).size`, `version_marks` count and `GET /documents/:id` `roomMode` unchanged after the provider reports synced twice; the viewer's local text differs from the server's (readOnly dropped it). `an idle version instance is destroyed`: `startTestServer({ versionRoomPolicy: { idleMs: 200, limit: 32 } })`, connect then close → `versionRooms.size()` polls to 0. `the limit evicts the least recently used instance`: `limit: 2`, three versions opened in order → `size()` 2 and the first viewer's provider receives a close. `parseVersionPath` accepts `/collaboration/versions/<uuid>/42` and refuses `…/0`, `…/-1`, `…/1.5`, `…/42/x`, `…/abc`, a non-uuid id; an upgrade on a refused path is destroyed like any unknown path. `a room name other than the document's own is refused`: a provider on the version endpoint of document A naming the room of document B → `CollaborationRefusedError`.
-- `versions-routes.test.ts` — `versions routes and version endpoints refuse a non-member like a missing document`: a stranger → 404 with the random-uuid body on `?around`, `/:sequence` and `/:sequence/text`; `connectToDocument` on the version endpoint rejects with `CollaborationRefusedError`. `a reader may open a version`: reader member → 200 after polling and the viewer syncs. `an unprojected document has no versions`: fresh document → `GET /versions/1` is 409 `{ error: VERSION_NOT_READY_ERROR }`; `/versions/abc` is 400. `deleting the document closes its version instances`: a connected viewer's provider receives a close after `DELETE` and `size()` is 0.
+`version-rooms.test.ts` — `two versions of one document load side by side`: `editedAfterBootstrap()`, then providers on `versionCollaborationPath` of the first and the last mark at once → their texts are the bootstrap text and the edited text, and `versionRooms.size()` is 2.
+Helpers (`testing/timeline-client.ts`): `seededRandom(seed)` (a mulberry32 generator, so a failing sample replays exactly), `readJson`, `editedAfterBootstrap` (bootstrap `['Original']`, then `'Original edited'` projected; returns both texts), `pollVersion` (polls `GET /versions/:sequence` while 202, asserting `Retry-After` is `'1'`, returns the 200 body). Also, each input → expected:
+- `version-rooms.test.ts` — `a refused socket never creates an instance`: a stranger, a member on a sequence that is not a mark, and a socket without a cookie → each refused, and `versionRooms.size()` stays 0. `an instance nobody joins is destroyed`: `authorize` passes but the provider names another document's room → refused in `onAuthenticate`, and `size()` polls back to 0 after `idleMs` (the idle timer starts at creation). `a version endpoint never writes the log, the identities or the room mode`: the owner connects on `collaborationPath`, inserts text and sets awareness `userId` → `log.readBatch` length, `log.clientIdentities(documentId).size`, `version_marks` count and `GET /documents/:id` `roomMode` unchanged after the provider reports synced twice; the viewer's local text differs from the server's (readOnly dropped it). `an idle version instance is destroyed`: `startTestServer({ versionRoomPolicy: { idleMs: 200, limit: 32 } })`, connect then close → `versionRooms.size()` polls to 0. `the limit evicts the least recently used instance`: `limit: 2`, three versions opened in order → `size()` 2 and the first viewer's provider receives a close. `parseVersionPath` accepts `/collaboration/versions/<uuid>/42` and refuses `…/0`, `…/-1`, `…/1.5`, `…/42/x`, `…/abc`, a non-uuid id; an upgrade on a refused path is destroyed like any unknown path. `a room name other than the document's own is refused`: a provider on the version endpoint of document A naming the room of document B → `CollaborationRefusedError`.
+- `versions-routes.test.ts` — `versions routes and version endpoints refuse a non-member like a missing document`: a stranger → 404 with the random-uuid body on `?around`, `/:sequence` and `/:sequence/text`; `connectToDocument` on the version endpoint rejects with `CollaborationRefusedError`. `a reader may open a version`: reader member → 200 after polling and the viewer syncs. `an unprojected document has no versions`: fresh document → `GET /versions/1` is 409 `{ error: VERSION_NOT_READY_ERROR }`; `/versions/abc` is 400. `a rebuilding document answers 202`: with `scheduler.isRebuilding` true and no marks → 202 with `Retry-After`. `a failed load is cached and answered with 503`: `vi.spyOn(server.services.scheduler, 'version').mockRejectedValue(new Error('boom'))` → the first `GET` is 202, polling reaches 503 `{ error: VERSION_FAILED_ERROR }` with one logged line, further polls stay 503 without calling the worker again, and after `VERSION_FAILURE_TTL_MS` (fake `Date`) a `GET` is 202 again. `the cache stays under its byte budget`: `VersionsService` built with a 1 KB budget and versions of about 600 bytes → at most one entry is kept. `deleting the document closes its version instances`: a connected viewer's provider receives a close after `DELETE` and `size()` is 0.
 - [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./version-rooms`, and `/versions` is 404. Commit the tests alone: `test(server): pin exact versions and per-version read-only endpoints`.
 - [ ] **Step 3: Implement** — `authenticate-member.ts` takes the session-and-membership half of `onAuthenticate` out of `collaboration-server.ts`, which now calls it:
 ```ts
@@ -1010,10 +1010,9 @@ export async function authenticateMember({ auth, documents, cookie, documentId }
 ```
 `version-rooms.ts`
 ```ts
-const DOCUMENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SEQUENCE_PATTERN = /^[1-9]\d{0,15}$/;
 const VERSION_PATH_PREFIX = `${ApiPath.Collaboration}/versions/`;
-export const DEFAULT_VERSION_ROOM_POLICY: VersionRoomPolicy = { idleMs: 60_000, limit: 32 };
+export const DEFAULT_VERSION_ROOM_POLICY: VersionRoomPolicy = { idleMs: VERSION_ROOM_IDLE_MS, limit: VERSION_ROOMS_LIMIT };
 
 export type VersionEndpoint = { documentId: string; sequence: number };
 export type VersionRoomPolicy = { idleMs: number; limit: number };
@@ -1041,6 +1040,16 @@ export class VersionRooms {
     this.policy = policy;
   }
 
+  async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<boolean> {
+    try {
+      await authenticateMember({ auth: this.auth, documents: this.documents, cookie: request.headers.cookie, documentId: endpoint.documentId });
+    } catch {
+      return false;
+    }
+    const mark = this.versions.resolve(endpoint);
+    return mark !== null && mark.sequence === endpoint.sequence;
+  }
+
   handle({ endpoint, webSocket, request }: { endpoint: VersionEndpoint; webSocket: WebSocket; request: IncomingMessage }): void {
     this.roomFor(endpoint).hocuspocus.handleConnection(webSocket, request);
   }
@@ -1049,9 +1058,8 @@ export class VersionRooms {
     const key = `${endpoint.documentId}/${endpoint.sequence}`;
     const existing = this.rooms.get(key);
     const room = existing ? existing : this.create({ key, endpoint });
-    if (room.idleTimer) clearTimeout(room.idleTimer);
     this.rooms.delete(key);
-    this.rooms.set(key, { ...room, idleTimer: null });
+    this.rooms.set(key, room);
     [...this.rooms.keys()].slice(0, Math.max(0, this.rooms.size - this.policy.limit)).forEach((evicted) => void this.destroy(evicted));
     return room;
   }
@@ -1070,14 +1078,15 @@ export class VersionRooms {
       async onLoadDocument({ document }) {
         Y.applyUpdate(document, (await versions.load(endpoint)).state, LOADING_ORIGIN);
       },
+      connected: async () => this.cancelIdle(key),
       afterUnloadDocument: async () => this.scheduleIdle(key),
     });
-    return { hocuspocus, idleTimer: null };
+    return { hocuspocus, idleTimer: setTimeout(() => void this.destroy(key), this.policy.idleMs) };
   }
 
 }
 ```
-The other members: `size()` returns `rooms.size`; `scheduleIdle(key)` stores a `setTimeout(() => void this.destroy(key), policy.idleMs)` on the room; `destroy(key)` removes the entry, clears its timer and awaits `hocuspocus.destroy()`; `forget(documentId)` destroys every key starting with `<documentId>/`; `stop()` destroys all. No `onChange`, `onStoreDocument` or `onAwarenessUpdate` is registered, so nothing a viewer sends can reach the log or the identities. `COLLABORATION_SOCKET_TIMEOUT_MS` is exported from `collaboration-server.ts`. `attach-collaboration.ts`: after the origin check, `const endpoint = parseVersionPath(pathname)`; the upgrade is destroyed when `pathname !== path && !endpoint`; inside `handleUpgrade`, `if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });` before the main `hocuspocus.handleConnection`. `versions-service.ts`: `resolve` is `clampToMark({ marks: readModel.marks(documentId), sequence })`; `load` resolves first (throwing `VersionNotReadyError` without marks), then single-flights per `documentId/sequence` through `scheduler.version` and stores `{ sequence, serverTime, state, text }` in a `Map` re-inserted on every hit and trimmed to `VERSION_CACHE_SIZE`; `peek` returns the cached entry or calls `load` with a `.catch` that logs one line and returns `null`; `forget` drops the document's keys. `versions-routes.ts` (Reader): `/:sequence` parses `/^\d+$/` (400), resolves (409 `VERSION_NOT_READY_ERROR` without marks), answers 200 `{ sequence, serverTime, collaborationPath: versionCollaborationPath({ documentId, sequence }) }` on a cache hit, else 202 with header `Retry-After: RETRY_AFTER_SECONDS` and `{ sequence }`; `/:sequence/text` awaits `load`; `?around=N` returns up to `VERSION_MARKS_AROUND` marks on each side of N. `collaboration-runtime.ts`: `forget` also awaits `versionRooms.forget(documentId)` and calls `versions.forget`. `server.ts` builds `VersionsService` after the scheduler and `VersionRooms` after `auth`, passes `versionRooms` to `attachCollaboration`, and `stop()` awaits `versionRooms.stop()` before `hocuspocus.destroy()`. `testing/collaboration-client.ts`: `connectToDocument` gains `path = ApiPath.Collaboration` and builds the socket URL from it.
+`DOCUMENT_ID_PATTERN` is imported from `room-name.ts`. The other members: `size()` returns `rooms.size`; `scheduleIdle(key)` stores a `setTimeout(() => void this.destroy(key), policy.idleMs)` on the room and `cancelIdle(key)` clears it (the `connected` hook runs only after `onAuthenticate` succeeded, so a refused provider leaves the creation timer running); `destroy(key)` removes the entry, clears its timer and awaits `hocuspocus.destroy()`; `forget(documentId)` destroys every key starting with `<documentId>/`; `stop()` destroys all. No `onChange`, `onStoreDocument` or `onAwarenessUpdate` is registered, so nothing a viewer sends can reach the log or the identities. `COLLABORATION_SOCKET_TIMEOUT_MS` is exported from `collaboration-server.ts`. `attach-collaboration.ts`: after the origin check, `const endpoint = parseVersionPath(pathname)`; the upgrade is destroyed when `pathname !== path && !endpoint`; for a version path the upgrade handler first awaits `versionRooms.authorize({ endpoint, request })` and destroys the socket when it is `false`, so a refused client never creates an instance and no frame can arrive before the 101 response; then, inside `handleUpgrade`, `if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });` before the main `hocuspocus.handleConnection`. `versions-service.ts`: `resolve` is `clampToMark({ marks: readModel.marks(documentId), sequence })`; `load` resolves first (throwing `VersionNotReadyError` without marks), then single-flights per `documentId/sequence` through `scheduler.version` and stores `{ sequence, serverTime, state, text }` in a `Map` re-inserted on every hit and trimmed, oldest first, until it holds at most `VERSION_CACHE_SIZE` entries and `VERSION_CACHE_MAX_BYTES` of `state` (both constructor options with those defaults); a rejected load stores `failedAt` per key; `peek` returns `{ kind: Ready, version }` from the cache, `{ kind: Failed }` while `Date.now() - failedAt < VERSION_FAILURE_TTL_MS`, else starts `load` (its `.catch` logs one line and records the failure) and returns `{ kind: Pending }`; `forget` drops the document's keys. `versions-routes.ts` (Reader): `/:sequence` parses `/^\d+$/` (400), resolves (without marks: 202 with `Retry-After` while `scheduler.isRebuilding(documentId)`, else 409 `VERSION_NOT_READY_ERROR`), answers 503 `{ error: VERSION_FAILED_ERROR }` for `Failed`, 200 `{ sequence, serverTime, collaborationPath: versionCollaborationPath({ documentId, sequence }) }` on a cache hit, else 202 with header `Retry-After: RETRY_AFTER_SECONDS` and `{ sequence }`; `/:sequence/text` awaits `load`; `?around=N` returns up to `VERSION_MARKS_AROUND` marks on each side of N. `collaboration-runtime.ts`: `forget` also awaits `versionRooms.forget(documentId)` and calls `versions.forget`. `server.ts` builds `VersionsService` after the scheduler and `VersionRooms` after `auth`, passes `versionRooms` to `attachCollaboration`, and `stop()` awaits `versionRooms.stop()` before `hocuspocus.destroy()`. `testing/collaboration-client.ts`: `connectToDocument` gains `path = ApiPath.Collaboration` and builds the socket URL from it.
 - [ ] **Step 4: Run, expect pass** — versions and version-room suites, every collaboration suite.
 - [ ] **Step 5: Commit** — `feat(server): serve exact versions on per-version read-only endpoints`
 
@@ -1091,13 +1100,13 @@ The other members: `size()` returns `rooms.size`; `scheduleIdle(key)` stores a `
 
 **Interfaces:**
 - Consumes: Task 1 contracts, `apiGet`, `apiSend`, `ApiRequestError`, `DocumentUnavailableError`, `DOCUMENTS_QUERY_KEY`.
-- Produces: `TIMELINE_POLL_MS = 3000`; query keys `timelineQueryKey({ documentId, filter })`, `summariesQueryKey(documentId)`, `topicsQueryKey(documentId)`, `binEditsQueryKey({ documentId, binStart, binMs, filter })`, `versionQueryKey({ documentId, sequence })`; `fetchTimeline({ documentId, filter })`, `fetchSummaries(documentId)`, `refreshTopics(documentId): Promise<TopicStatus>`, `fetchBinEdits({ documentId, binStart, binMs, filter })`, `VersionLoadKind { Ready, Pending }`, `VersionLoad`, `fetchVersion({ documentId, sequence }): Promise<VersionLoad>`; `TimelineSearch = { filter: TimelineFilter; at: number | null; topic: string | null }`, `useTimelineSearch(): { search: TimelineSearch; update({ changes, replace }) }`, `parseFilterInput(value): { kind: TimelineFilterKind; value: string } | null`; `useTimeline({ documentId, filter, isOpen })`, `useRefreshTopics(documentId)`, `useSummaries({ documentId, isOpen })`; copy constants in `timeline-copy.ts`.
+- Produces: `TIMELINE_POLL_MS = 3000`; query keys `timelineQueryKey({ documentId, filter })`, `summariesQueryKey(documentId)`, `topicsQueryKey(documentId)`, `binEditsQueryKey({ documentId, binStart, binMs, filter })`, `versionQueryKey({ documentId, sequence })`; `fetchTimeline({ documentId, filter })`, `fetchSummaries(documentId)`, `refreshTopics(documentId): Promise<TopicStatus>`, `fetchBinEdits({ documentId, binStart, binMs, filter })`, `VersionLoadKind { Ready, Pending, Failed }`, `VersionLoad`, `fetchVersion({ documentId, sequence }): Promise<VersionLoad>`; `TimelineSearch = { filter: TimelineFilter; at: number | null; topic: string | null }` (`at` is the selected bin's start in ms), `useTimelineSearch(): { search: TimelineSearch; update({ changes, replace }) }`, `parseFilterInput(value): { kind: TimelineFilterKind; value: string } | null`; `useTimeline({ documentId, filter, isOpen })`, `useRefreshTopics(documentId)`, `useSummaries({ documentId, isOpen })`; copy constants in `timeline-copy.ts`.
 
 - [ ] **Step 1: Failing tests** — `use-timeline-search.test.ts`
 ```ts
 test('reads the filter, the moment and the topic from the URL and ignores a malformed at', () => {
-  const { result } = renderHookWithRouter(() => useTimelineSearch(), { route: `${documentPagePath(DOCUMENT_ID)}?term=budget&author=ana&at=42&topic=t1` });
-  expect(result.current.search).toEqual({ filter: { term: 'budget', author: 'ana' }, at: 42, topic: 't1' });
+  const { result } = renderHookWithRouter(() => useTimelineSearch(), { route: `${documentPagePath(DOCUMENT_ID)}?term=budget&author=ana&at=1792165200000&topic=t1` });
+  expect(result.current.search).toEqual({ filter: { term: 'budget', author: 'ana' }, at: 1792165200000, topic: 't1' });
   const malformed = renderHookWithRouter(() => useTimelineSearch(), { route: `${documentPagePath(DOCUMENT_ID)}?at=4x2&term=` });
   expect(malformed.result.current.search).toEqual({ filter: { term: null, author: null }, at: null, topic: null });
 });
@@ -1109,7 +1118,7 @@ test('an @ prefix filters by person and anything else by text', () => {
 ```
 `renderHookWithRouter` is added to `src/test/render-with-providers.tsx` (a `renderHook` wrapped in the same memory router and query client). Also, each input → expected (`timeline-api.test.ts`, `fetch` spied):
 - `fetchTimeline` with `{ term: 'a b', author: null }` requests `/api/documents/doc-1/timeline?term=a+b`; a 404 throws `DocumentUnavailableError`.
-- `fetchVersion` → 202 with `Retry-After: 2` gives `{ kind: VersionLoadKind.Pending, retryAfterMs: 2000 }`; 200 gives `{ kind: VersionLoadKind.Ready, version }`; 404 throws `DocumentUnavailableError`.
+- `fetchVersion` → 202 with `Retry-After: 2` gives `{ kind: VersionLoadKind.Pending, retryAfterMs: 2000 }`; 200 gives `{ kind: VersionLoadKind.Ready, version }`; 503 gives `{ kind: VersionLoadKind.Failed }`; 404 throws `DocumentUnavailableError`.
 - `refreshTopics` → 429 throws `ApiRequestError` with `TOPICS_REFRESH_TOO_SOON_MESSAGE`; 202 returns the status.
 - [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/web test:unit` → FAIL: cannot find `./use-timeline-search`. Commit the tests alone: `test(web): pin the timeline URL state and API client`.
 - [ ] **Step 3: Implement** — `use-timeline-search.ts`
@@ -1124,7 +1133,7 @@ export function parseFilterInput(value: string): { kind: TimelineFilterKind; val
   return { kind: isAuthor ? TimelineFilterKind.Author : TimelineFilterKind.Term, value: content };
 }
 ```
-`useTimelineSearch` reads `useSearchParams()`: `term`, `author` and `topic` through `presentOrNull` (`''` → `null`), `at` through `readSequence` (`/^\d+$/` or `null`); `update({ changes, replace })` copies the current params, deletes each key whose value is `null` (early return inside the `forEach`), sets the others, and calls `setParams(next, { replace })`.
+`useTimelineSearch` reads `useSearchParams()`: `term`, `author` and `topic` through `presentOrNull` (`''` → `null`), `at` through `readBinStart` (`/^\d+$/` or `null`); `update({ changes, replace })` copies the current params, deletes each key whose value is `null` (early return inside the `forEach`), sets the others, and calls `setParams(next, { replace })`.
 `use-timeline.ts`: `useQuery({ queryKey: timelineQueryKey(...), queryFn, enabled: isOpen, refetchInterval: TIMELINE_POLL_MS, placeholderData: keepPreviousData, retry: false })`; `useSummaries` polls the same interval while open; `useRefreshTopics` is a `useMutation(refreshTopics)` whose `onSuccess` runs `queryClient.invalidateQueries` for `timelineQueryKey` (prefix `[...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline]`) and `topicsQueryKey`. Every visible string lives in `timeline-copy.ts` (`TIMELINE_HEADING`, `REFRESH_TOPICS_LABEL`, `RETRY_TOPICS_LABEL`, `FILTER_LABEL`, `FILTER_PLACEHOLDER` = `'Filter by text or @person'`, `CLEAR_FILTERS_LABEL`, `REMOVE_FILTER_LABEL`, `TOP_EDITS_LABEL`, `NO_EDITS_YET_MESSAGE`, `NO_EDITS_IN_BIN_MESSAGE`, `STREAMGRAPH_TITLE`, `BACK_TO_LIVE_LABEL`, `LOADING_VERSION_MESSAGE`, `VERSION_FAILED_MESSAGE`, `RESIZE_PANEL_LABEL`).
 - [ ] **Step 4: Run, expect pass.**
 - [ ] **Step 5: Commit** — `feat(web): add the timeline data hooks and URL state`
@@ -1210,74 +1219,80 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
 
 **Interfaces:**
 - Consumes: Tasks 10–11.
-- Produces: `TimelinePanel({ documentId, role, onTravel })` with `onTravel({ sequence, time }: { sequence: number; time: number })`; `MIN_PANEL_WIDTH = 420`, `DEFAULT_PANEL_SHARE = 0.4`, `PANEL_RESIZE_STEP = 24`, `MIN_EDITOR_WIDTH = 360`; `usePanelWidth()`, `useElementWidth(ref)`; `initialsOf(name)` (moved from `members.tsx`).
+- Produces: `TimelinePanel({ documentId, role, onTravel })` with `onTravel(binStart: number)`; `MIN_PANEL_WIDTH = 420`, `DEFAULT_PANEL_SHARE = 0.4`, `PANEL_RESIZE_STEP = 24`, `MIN_EDITOR_WIDTH = 360`; `usePanelWidth()`, `useElementWidth(ref)`; `initialsOf(name)` (moved from `members.tsx`).
 
-- [ ] **Step 1: Failing tests** — `filter-box.test.tsx`
-```tsx
-test('Enter on @bruno filters by person and the chip removes it', async () => {
-  const { router } = renderWithProviders(<FilterBox />, { route: documentPagePath(DOCUMENT_ID) });
-  await userEvent.type(screen.getByLabelText(FILTER_LABEL), '@bruno{Enter}');
-  expect(router.state.location.search).toBe('?author=bruno');
-  await userEvent.click(screen.getByRole('button', { name: `${REMOVE_FILTER_LABEL} bruno` }));
-  expect(router.state.location.search).toBe('');
-});
-```
+- [ ] **Step 1: Failing tests** — `filter-box.test.tsx` — `Enter on @bruno filters by person and the chip removes it`: type `@bruno{Enter}` in the box labelled `FILTER_LABEL` → `router.state.location.search` is `?author=bruno`; click the button named `` `${REMOVE_FILTER_LABEL} bruno` `` → the search is empty.
 Also, each input → expected:
 - `filter-box.test.tsx` — `budget{Enter}` then `@ana{Enter}` → `?term=budget&author=ana`, two chips; Clear filters → empty search; a 300-character entry is cut to `FILTER_MAX_LENGTH`.
 - `top-edits.test.tsx` — bands sorted by volume; each row shows the topic chip (class `topic-swatch` with the band's hue), at most three avatars ordered by contribution, `+12 words −3 words`, and the band's sentence from `TopicSummaries`; bands with volume 0 are not listed; clicking a chip sets `topic=<id>` and clicking again removes it.
 - `timeline-panel.test.tsx` (fetch mocked) — `failed` topics show `TOPICS_UNAVAILABLE_MESSAGE` with the failure text and `RETRY_TOPICS_LABEL` for an editor, no retry for a reader; Retry POSTs `topicsRefreshApiPath` once and invalidates the timeline query (a second timeline request follows); `pending` without topic bands shows `TOPICS_PENDING_MESSAGE`; `projection.isBehind` with `lagMs` 12000 shows `HISTORY_CATCHING_UP_MESSAGE` and `12 s behind`, while 2000 shows nothing (`PROJECTION_LAG_NOTICE_MS` = 10000); an active filter with every volume 0 shows `NO_MATCHING_EDITS_MESSAGE` and Clear filters; no bins shows `NO_EDITS_YET_MESSAGE`; a selected bin lists its runs from `timeline/edits` (author names, topic chip, `+"…"` and `−"…"` snippets cut at `SNIPPET_MAX_CHARACTERS` = 120) and an empty bin shows `NO_EDITS_IN_BIN_MESSAGE`; collapsing the panel stops the polling (no timeline request after `TIMELINE_POLL_MS` with fake timers); the resize separator has `role="separator"`, `aria-valuenow`, and ArrowLeft widens by `PANEL_RESIZE_STEP` without going below `MIN_PANEL_WIDTH`.
 - [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./filter-box`, `./timeline-panel`. Commit the tests alone: `test(web): pin the timeline panel, filter box and top edits`.
 - [ ] **Step 3: Implement** — `use-panel-width.ts`: `MIN_PANEL_WIDTH = 420`, `DEFAULT_PANEL_SHARE = 0.4`, `PANEL_RESIZE_STEP = 24`, `MIN_EDITOR_WIDTH = 360`; `clampWidth(width)` keeps the width between `MIN_PANEL_WIDTH` and `window.innerWidth - MIN_EDITOR_WIDTH`; `usePanelWidth()` starts at `clampWidth(innerWidth * DEFAULT_PANEL_SHARE)` and returns `{ width, resizeTo(next), resizeBy(delta) }`, both clamped.
-`timeline-panel.tsx`: an `aside` that is `w-full border-t lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l` with `style={{ '--panel-width': `${width}px` }}`; a `div role="separator" aria-orientation="vertical" aria-label={RESIZE_PANEL_LABEL}` (only `lg:block`) dragged with pointer capture and moved with arrow keys; header with `TIMELINE_HEADING`, Refresh topics for owner and editor, the slice 2 collapse toggle (`TIMELINE_TOGGLE_LABEL`); `TimelineNotices`; `Streamgraph` at `useElementWidth` of its container; `FilterBox`; `BinEdits` when a bin is selected, else `TopEdits`. The selection is local state `selectedTime` (the selected bin's start), so it survives a `binMs` change; the index is the bin containing it; on load with `at` and no selection it is the first bin whose `versionSequence` equals `at`. Selecting a bin calls `onTravel({ sequence: bin.versionSequence, time: bin.start + timeline.binMs })` when the sequence is not `null`. `document-page.tsx`: the body row becomes `flex min-h-0 flex-1 flex-col lg:flex-row`, `TimelinePanel` replaces `TimelinePanelPlaceholder` (deleted), with `onTravel` a no-op until Task 13. `members.tsx` imports `initialsOf` from `@/lib/initials`.
+`timeline-panel.tsx`: an `aside` that is `w-full border-t lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l` with `style={{ '--panel-width': `${width}px` }}`; a `div role="separator" aria-orientation="vertical" aria-label={RESIZE_PANEL_LABEL}` (only `lg:block`) dragged with pointer capture and moved with arrow keys; header with `TIMELINE_HEADING`, Refresh topics for owner and editor, the slice 2 collapse toggle (`TIMELINE_TOGGLE_LABEL`); `TimelineNotices`; `Streamgraph` at `useElementWidth` of its container; `FilterBox`; `BinEdits` when a bin is selected, else `TopEdits`. The selection is local state `selectedTime` (the selected bin's start), so it survives a `binMs` change; the index is the bin containing it; on load with `at` it is the bin containing `at`, so a reload reselects the same bin. Selecting a bin calls `onTravel(bin.start)` when its `versionSequence` is not `null`. `document-page.tsx`: the body row becomes `flex min-h-0 flex-1 flex-col lg:flex-row`, `TimelinePanel` replaces `TimelinePanelPlaceholder` (deleted), with `onTravel` a no-op until Task 13. `members.tsx` imports `initialsOf` from `@/lib/initials`.
 - [ ] **Step 4: Run, expect pass** — every web suite, including slice 2's `document-page.test.tsx` (the panel's fetches are mocked there with an empty timeline).
 - [ ] **Step 5: Commit** — `feat(web): add the timeline panel with filter, top edits and notices`
 
 ---
 
-### Task 13: Time travel: viewer, banner, scrubbing (G3)
+### Task 13: Time travel: iframe viewer, banner, scrubbing (G3)
+
+Two SuperDoc instances on one page were never verified, so the viewer lives in a same-origin iframe: `/documents/:id/versions/:sequence/view` renders only a read-only SuperDoc on the version's endpoint. Cookies flow because it is same-origin; the parent and the frame talk through `postMessage`, each checking `event.origin === window.location.origin` and the expected `event.source`.
 
 **Files:**
-- Create: `apps/web/src/features/editor/{version-banner,version-viewer}.tsx`, `apps/web/src/features/editor/collaboration-config.ts`, `apps/web/src/features/timeline/use-time-travel.ts`, `apps/web/src/lib/use-debounced-callback.ts`
-- Modify: `apps/web/src/features/editor/{superdoc-editor,document-page}.tsx`, `apps/web/src/features/timeline/timeline-panel.tsx`
-- Test: `apps/web/src/features/editor/time-travel.test.tsx`, `apps/web/src/lib/use-debounced-callback.test.ts`
+- Create: `apps/web/src/features/editor/{version-banner,version-frame,version-viewer}.tsx`, `apps/web/src/features/editor/{collaboration-config,viewer-messages}.ts`, `apps/web/src/features/versions/version-view-page.tsx`, `apps/web/src/features/timeline/use-time-travel.ts`, `apps/web/src/lib/use-debounced-callback.ts`
+- Modify: `apps/web/src/features/editor/{superdoc-editor,document-page}.tsx`, `apps/web/src/features/timeline/timeline-panel.tsx`, `apps/web/src/app/router.tsx` (`AppRoute.VersionView` inside `RequireSession`)
+- Test: `apps/web/src/features/editor/time-travel.test.tsx`, `apps/web/src/features/versions/version-view-page.test.tsx`, `apps/web/src/lib/use-debounced-callback.test.ts`
 
 **Interfaces:**
-- Consumes: `fetchVersion`, `VersionLoadKind`, `useTimelineSearch`, `fetchDocumentFile`, `documentFileQueryKey`, `RoomMode.Join`, `DocumentMode.Viewing`.
-- Produces: `HOCUSPOCUS_PROVIDER`, `collaborationUrl(path: string)` (moved from `superdoc-editor.tsx`, now taking the socket path); `SCRUB_DEBOUNCE_MS = 300`; `useDebouncedCallback({ callback, delayMs })`; `TimeTravel = { state: VersionViewerState; shown: VersionSummary | null; requestedTime: number | null; isLoading: boolean; travelTo({ sequence, time }): void; backToLive(): void }`, `useTimeTravel(documentId)`; `VersionViewer({ documentId, version, user })`; `VersionBanner({ timeTravel })`.
+- Consumes: `fetchVersion`, `VersionLoadKind`, `useTimelineSearch`, `useTimeline`, `fetchDocumentFile`, `documentFileQueryKey`, `RoomMode.Join`, `DocumentMode.Viewing`, `versionViewPagePath`, `versionCollaborationPath`, `VERSION_FAILED_MESSAGE`.
+- Produces: `HOCUSPOCUS_PROVIDER`, `collaborationUrl(path: string)` (moved from `superdoc-editor.tsx`, now taking the socket path); `ViewerMessageKind { Ready, Failed, Highlight, Clear }`, `ViewerMessage` (`{ kind: Ready }`, `{ kind: Failed }`, `{ kind: Highlight; runs: EditRunView[] }`, `{ kind: Clear }`), `readViewerMessage({ event, expectedSource }): ViewerMessage | null`; `SCRUB_DEBOUNCE_MS = 300`; `useDebouncedCallback({ callback, delayMs })`; `TimeTravel = { state: VersionViewerState; requestedBinStart: number | null; requestedSequence: number | null; shown: VersionSummary | null; isLoading: boolean; hasFailed: boolean; travelTo(binStart: number): void; backToLive(): void }`, `useTimeTravel(documentId)`; `VersionViewer({ documentId, sequence, user, onReady, onFailed })`; `VersionViewPage`; `VersionFrame({ documentId, version, runs })`; `VersionBanner({ timeTravel })`; `VERSION_FRAME_TITLE`.
 
-- [ ] **Step 1: Failing tests** — `time-travel.test.tsx` (`vi.mock('superdoc')` as in slice 2's `document-page.test.tsx`)
+- [ ] **Step 1: Failing tests** — `time-travel.test.tsx` (`vi.mock('superdoc')` as in slice 2's `document-page.test.tsx`; the timeline is mocked with one bin `{ start: BIN_START, versionSequence: 42 }`)
 ```tsx
-test('an at link opens a read-only viewer on the version endpoint and Back to live removes it', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join), versions: [{ status: HttpStatus.Accepted }, { status: HttpStatus.Ok, body: { sequence: 42, serverTime: Date.UTC(2026, 9, 16, 14, 2), collaborationPath: versionCollaborationPath({ documentId: DOCUMENT_ID, sequence: 42 }) } }] });
-  const { router } = renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=42` });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
-  const viewerConfig = vi.mocked(SuperDoc).mock.calls[1]![0];
-  expect(viewerConfig.documentMode).toBe(DocumentMode.Viewing);
-  expect(viewerConfig.documents[0].v2Collaboration).toMatchObject({ documentId: DOCUMENT_ID, roomMode: RoomMode.Join, serverUrl: `ws://localhost:3000${versionCollaborationPath({ documentId: DOCUMENT_ID, sequence: 42 })}` });
+test('an at link opens the version in a same-origin frame and Back to live removes it', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join), timeline: timelineWithBin({ start: BIN_START, versionSequence: 42 }), versions: [{ status: HttpStatus.Accepted }, { status: HttpStatus.Ok, body: { sequence: 42, serverTime: Date.UTC(2026, 9, 16, 14, 2), collaborationPath: versionCollaborationPath({ documentId: DOCUMENT_ID, sequence: 42 }) } }] });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=${BIN_START}` });
+  const frame = await screen.findByTitle(VERSION_FRAME_TITLE);
+  expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }));
   expect(await screen.findByText(/Version at/)).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL }));
   expect(router.state.location.search).toBe('');
-  expect(superDocDestroy).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
+  expect(SuperDoc).toHaveBeenCalledTimes(1);
+  expect(superDocDestroy).not.toHaveBeenCalled();
   expect(screen.getByTestId('document-editor')).not.toHaveAttribute('inert');
 });
 test('an inaccessible document never requests a version', async () => {
   const fetchSpy = mockDocumentApi({ openedStatus: HttpStatus.NotFound });
-  renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=42` });
+  renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=${BIN_START}` });
   expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeVisible();
   expect(fetchSpy.mock.calls.map(([path]) => String(path)).filter((path) => path.includes(`/${DocumentResource.Versions}/`))).toEqual([]);
+  expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
 });
 ```
-Also, each input → expected:
-- `while a new version loads the previous viewer stays and the banner says Loading`: `at=42` ready, then a travel to 50 answers 202 → the viewer for 42 is not destroyed and `LOADING_VERSION_MESSAGE` is shown; once 50 is ready the 42 viewer is destroyed and one for 50 is built.
-- `scrubbing commits one URL change per pause`: fake timers; three ArrowRight presses on a band within 100 ms → no URL change before `SCRUB_DEBOUNCE_MS`, then exactly one, with `at` of the third bin; entering viewing pushes a history entry, later scrubs replace it (`router.state.historyAction`).
-- `the live editor stays mounted, hidden and inert while viewing`: the live SuperDoc is never destroyed during the travel; its container has `inert` and `invisible`.
+`version-view-page.test.tsx`
+```tsx
+test('the frame page opens a read-only SuperDoc on the version endpoint and reports readiness to its parent', async () => {
+  const postToParent = vi.spyOn(window.parent, 'postMessage');
+  mockBlankDocx();
+  renderWithProviders(<VersionViewPage />, { route: versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const config = vi.mocked(SuperDoc).mock.calls[0]![0];
+  expect(config.documentMode).toBe(DocumentMode.Viewing);
+  expect(config.documents[0].v2Collaboration).toMatchObject({ documentId: DOCUMENT_ID, roomMode: RoomMode.Join, serverUrl: `ws://localhost:3000${versionCollaborationPath({ documentId: DOCUMENT_ID, sequence: 42 })}` });
+  config.onCollaborationReady();
+  expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Ready }, window.location.origin);
+});
+```
+The jsdom origin of the test setup is `http://localhost:3000`, which the `serverUrl` assertion relies on. Also, each input → expected:
+- `time-travel.test.tsx` — `a failed version shows the message and stops polling`: versions answer 503 → the banner shows `VERSION_FAILED_MESSAGE`, no frame, and no further `/versions` request after `Retry-After` elapses (fake timers). `the previous frame stays until the next one is ready`: travel from bin A (sequence 42, frame ready) to bin B (sequence 50) → two frames, B hidden (`aria-hidden`, `invisible`) until a `MessageEvent` `{ kind: Ready }` from B's `contentWindow` with the page origin; then A is removed. `a message from another origin or another window is ignored`: the same `Ready` with origin `http://evil.example`, or from A's window for B → B stays hidden. `the selected bin's runs are sent to the ready frame`: the frame's `contentWindow.postMessage` receives `{ kind: Highlight, runs }` with the bin edits of the selected bin and the page origin. `scrubbing commits one URL change per pause`: three ArrowRight presses on a band within 100 ms → no URL change before `SCRUB_DEBOUNCE_MS`, then exactly one, with `at` equal to the third bin's start; entering viewing pushes a history entry, later scrubs replace it (`router.state.historyAction`). `a reload reselects the same bin`: `?at=<bin start>` → the streamgraph's selected rule sits on that bin and the frame shows its version. `the live editor stays mounted and inert while viewing`: the live SuperDoc is never destroyed; its container has `inert`.
+- `version-view-page.test.tsx` — `onException` posts `{ kind: Failed }`; a `{ kind: Highlight, runs }` from `window.parent` with the page origin is handed to the highlighter (Task 14), and one from another origin is ignored.
 - `use-debounced-callback.test.ts`: calls within the delay collapse into the last one; unmount cancels a pending call.
-- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./version-viewer`, `useTimeTravel`. Commit the tests alone: `test(web): pin time travel, the viewer and scrubbing`.
+- [ ] **Step 2: Run, expect failure** — FAIL: cannot find `./version-frame`, `../versions/version-view-page`, `useTimeTravel`. Commit the tests alone: `test(web): pin the iframe version viewer, time travel and scrubbing`.
 - [ ] **Step 3: Implement** — `version-viewer.tsx` (spike §2: same document id, version isolated by endpoint, `roomMode: 'join'`, blank DOCX as `data`)
 ```tsx
-export function VersionViewer({ documentId, version, user }: { documentId: string; version: VersionSummary; user: SessionUser }) {
+export function VersionViewer({ documentId, sequence, user, onReady, onFailed }: { documentId: string; sequence: number; user: SessionUser; onReady: (superdoc: SuperDoc) => void; onFailed: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [hasFailed, setHasFailed] = useState(false);
   const { data: blank } = useQuery({ queryKey: documentFileQueryKey({ documentId, roomMode: RoomMode.Join }), queryFn: () => fetchDocumentFile({ documentId, roomMode: RoomMode.Join }), staleTime: Infinity });
 
   useEffect(() => {
@@ -1286,60 +1301,72 @@ export function VersionViewer({ documentId, version, user }: { documentId: strin
     const superdoc = new SuperDoc({
       selector: container,
       documentMode: DocumentMode.Viewing,
-      documents: [{ id: documentId, type: DOCX_MIME_TYPE, data: blank, v2Collaboration: { providerType: HOCUSPOCUS_PROVIDER, documentId, serverUrl: collaborationUrl(version.collaborationPath), roomMode: RoomMode.Join, token: COLLABORATION_TOKEN_PLACEHOLDER } }],
+      documents: [{ id: documentId, type: DOCX_MIME_TYPE, data: blank, v2Collaboration: { providerType: HOCUSPOCUS_PROVIDER, documentId, serverUrl: collaborationUrl(versionCollaborationPath({ documentId, sequence })), roomMode: RoomMode.Join, token: COLLABORATION_TOKEN_PLACEHOLDER } }],
       user: { id: user.id, name: user.name, email: user.email },
-      onException: () => setHasFailed(true),
+      onCollaborationReady: () => onReady(superdoc),
+      onException: onFailed,
     });
     return () => superdoc.destroy();
-  }, [documentId, version.collaborationPath, blank, user]);
+  }, [documentId, sequence, blank, user, onReady, onFailed]);
 
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {hasFailed && <p role="alert" className="p-4 text-sm text-destructive">{VERSION_FAILED_MESSAGE}</p>}
-      <div ref={containerRef} data-testid="version-viewer" className="min-h-0 min-w-0 flex-1 overflow-auto" />
-    </div>
-  );
+  return <div ref={containerRef} data-testid="version-viewer" className="h-dvh min-w-0 overflow-auto" />;
 }
 ```
-`use-time-travel.ts`: reads `at` from `useTimelineSearch`; `useQuery({ queryKey: versionQueryKey(...), queryFn: at === null ? skipToken : () => fetchVersion(...), refetchInterval: (query) => (query.state.data?.kind === VersionLoadKind.Pending ? query.state.data.retryAfterMs : false), retry: false })`; `shown` is state set in an effect when the data is `Ready` and cleared by `backToLive`; `travelTo` stores `requestedTime` and commits `at` through `useDebouncedCallback({ delayMs: SCRUB_DEBOUNCE_MS })` with `replace: state === VersionViewerState.Viewing`; `backToLive` removes `at` with `replace: false`. Browser Back from a version therefore returns to live. `version-banner.tsx`: `role="status"`, "Version at {time}" from `shown.serverTime` (`Intl.DateTimeFormat` with `timeStyle: 'short'`, `dateStyle: 'medium'` when not today), `LOADING_VERSION_MESSAGE` with the requested time while loading, and a `BACK_TO_LIVE_LABEL` button. `document-page.tsx`: the editor area is `relative flex min-h-0 min-w-0 flex-1 flex-col`; the banner sits above; the live `SuperDocEditor` wrapper gets `inert` and `invisible` while viewing (it is never unmounted, because `useEditorSetup` captured `roomMode` once and a remount in `create` would fail); `VersionViewer` is `absolute inset-0 bg-background` over it; `TimelinePanel` receives `onTravel={timeTravel.travelTo}`. `superdoc-editor.tsx` imports `HOCUSPOCUS_PROVIDER` and calls `collaborationUrl(ApiPath.Collaboration)` from `collaboration-config.ts`. The test setup's jsdom origin is `http://localhost:3000`, which the `serverUrl` assertion relies on.
+`version-view-page.tsx` reads `documentId` and `sequence` with `useRequiredParam`, the user with `useSession`, renders `VersionViewer`, posts `{ kind: Ready }` or `{ kind: Failed }` to `window.parent` with `window.location.origin` as target, and listens for `Highlight` and `Clear` through `readViewerMessage({ event, expectedSource: window.parent })`. `viewer-messages.ts`: `readViewerMessage` returns `null` unless `event.origin === window.location.origin`, `event.source === expectedSource` and `event.data.kind` is a `ViewerMessageKind`. `version-frame.tsx` keeps a list of frames (`{ version, isReady }`): a new `shown` version mounts a second `iframe` (`title={VERSION_FRAME_TITLE}`, `src={versionViewPagePath(...)}`, `absolute inset-0 border-0`) hidden until its `Ready` message, then drops the older one; it posts `{ kind: Highlight, runs }` to the ready frame whenever `runs` change and `{ kind: Clear }` before it unmounts. `use-time-travel.ts`: `at` from `useTimelineSearch` is a bin start; the hook reads the same timeline query as the panel (`useTimeline({ …, isOpen: at !== null })`), finds the bin containing `at` and takes its `versionSequence`; `useQuery({ queryKey: versionQueryKey(...), queryFn: sequence === null ? skipToken : () => fetchVersion(...), refetchInterval: (query) => (query.state.data?.kind === VersionLoadKind.Pending ? query.state.data.retryAfterMs : false), retry: false })`; `VersionLoadKind.Failed` (503) stops polling and sets `hasFailed`; `shown` is state set when the data is `Ready` and cleared by `backToLive`; `travelTo(binStart)` stores `requestedBinStart` and commits `at` through `useDebouncedCallback({ delayMs: SCRUB_DEBOUNCE_MS })` with `replace: state === VersionViewerState.Viewing`; `backToLive` removes `at` with `replace: false`, so Browser Back from a version returns to live. `version-banner.tsx`: `role="status"`, `data-testid="version-banner"` and `data-sequence={shown.sequence}`, "Version at {time}" from `shown.serverTime` (`Intl.DateTimeFormat` with `timeStyle: 'short'`, plus `dateStyle: 'medium'` when not today), `LOADING_VERSION_MESSAGE` with the requested bin's end while loading, `VERSION_FAILED_MESSAGE` when failed, and a `BACK_TO_LIVE_LABEL` button. `document-page.tsx`: the editor area is `relative flex min-h-0 min-w-0 flex-1 flex-col`; the banner sits above; the live `SuperDocEditor` wrapper gets `inert` while viewing and is never unmounted (`useEditorSetup` captured `roomMode` once and a remount in `create` would fail); `VersionFrame` covers it; `TimelinePanel` receives `onTravel={timeTravel.travelTo}`. `superdoc-editor.tsx` calls `collaborationUrl(ApiPath.Collaboration)` from `collaboration-config.ts`. `fetchVersion` maps 503 to `{ kind: VersionLoadKind.Failed }` (Task 10's enum gains `Failed`).
 - [ ] **Step 4: Run, expect pass** — every web suite; `pnpm --filter @superdoc-history/web build` succeeds.
-- [ ] **Step 5: Commit** — `feat(web): open any moment of the timeline in a read-only viewer`
+- [ ] **Step 5: Commit** — `feat(web): open any moment of the timeline in a read-only iframe viewer`
 
 ---
 
 ### Task 14: Highlight the selected bin's edits in the viewer (G3)
 
-Spike §2b: `doc.comments.create({ target })` paints a range in `viewing` mode, stays local (a fresh viewer sees none, the server gets nothing) and is removed with `comments.delete`; `format.highlight` is refused in `viewing` and is never used. The bin edits list from Task 12 stays as the degraded path.
+Spike §2b: `doc.comments.create({ target })` paints a range in `viewing` mode, stays local (a fresh viewer sees none, the server gets nothing) and is removed with `comments.delete`; `format.highlight` is refused in `viewing` and is never used. Matching is scoped to each run's block, never the whole document. The bin edits list from Task 12 stays as the degraded path. The highlighter runs inside the frame page, driven by the parent's `Highlight` and `Clear` messages.
 
 **Files:**
 - Create: `apps/web/src/features/editor/highlight-edits.ts`
-- Modify: `apps/web/src/features/editor/{version-viewer,document-page}.tsx`, `apps/web/src/features/editor/editor-copy.ts` (`HIGHLIGHT_COMMENT_TEXT = 'Edited in this period'`)
+- Modify: `apps/web/src/features/versions/version-view-page.tsx`, `apps/web/src/features/editor/editor-copy.ts` (`HIGHLIGHT_COMMENT_TEXT = 'Edited in this period'`)
 - Test: `apps/web/src/features/editor/highlight-edits.test.ts`
 
 **Interfaces:**
-- Consumes: `EditRunView`, `useQuery` of `timelineEditsApiPath` (Task 12's bin edits), `VersionViewer`.
-- Produces: `MIN_HIGHLIGHT_CHARACTERS = 3`, `MAX_HIGHLIGHTS = 50`, `EditorDocument = NonNullable<SuperDoc['activeEditor']>['doc']`, `highlightTargets(runs): string[]`, `highlightEdits({ document, runs }): Promise<string[]>` (the created comment ids), `clearHighlights({ document, commentIds })`; `VersionViewer({ documentId, version, user, runs })`.
+- Consumes: `EditRunView`, `ViewerMessageKind`, `VersionViewer`'s `onReady(superdoc)`.
+- Produces: `MIN_HIGHLIGHT_CHARACTERS = 3`, `MAX_HIGHLIGHTS = 50`, `TEXT_BLOCK_NODE_TYPES = ['paragraph', 'heading', 'listItem']`, `EditorDocument = NonNullable<SuperDoc['activeEditor']>['doc']`, `HighlightTarget = { blockId: string; pattern: string }`, `highlightTargets(runs): HighlightTarget[]`, `highlightEdits({ document, runs }): Promise<string[]>` (the created comment ids), `clearHighlights({ document, commentIds })`.
 
-- [ ] **Step 1: Failing tests** — `highlight-edits.test.ts` uses a stub document whose `query.match` returns, per pattern, a fixed number of `{ matchKind: 'text', target }` items (an unknown pattern throws) and whose `comments.create` records its input and answers `{ success: true, id: 'c<n>' }`. `each inserted run of the period gets one local comment per match`: runs `' a'`, `' a designer'` twice, `'more money'` and a deletion-only run, with one match for `a designer` and two for `more money` → ids `['c1', 'c2', 'c3']`, every comment text `HIGHLIGHT_COMMENT_TEXT`, and `query.match` called exactly with `{ select: { type: 'text', pattern: 'a designer', mode: 'contains' } }` then the same for `more money`.
-`run(inserted, deleted = '')` builds an `EditRunView` in block `b1`. Also: `highlightTargets` keeps inserted texts of at least `MIN_HIGHLIGHT_CHARACTERS` after trimming, deduplicated, longest first, never deleted text; at most `MAX_HIGHLIGHTS` comments are created; `clearHighlights` deletes every id once; in `version-viewer` (mocked SuperDoc), a change of `runs` clears the previous comments before creating new ones, and unmounting clears them.
-- [ ] **Step 2: Run, expect failure;** FAIL: cannot find `./highlight-edits`. Commit alone: `test(web): pin local comment highlights of the selected period`.
+- [ ] **Step 1: Failing tests** — first the API shape, pinned against SuperDoc 2.23.0's typings (`dist/document-api/src`) and spike §2b, so a SuperDoc upgrade fails here before it fails in a browser:
+```ts
+test('the comment and match APIs keep the shape the highlighter relies on', () => {
+  expectTypeOf<Parameters<EditorDocument['query']['match']>[0]>().toMatchTypeOf<{ select: { type: 'text'; pattern: string; mode?: 'contains' | 'regex' }; within?: { kind: 'block'; nodeType: 'paragraph' | 'heading' | 'listItem'; nodeId: string } }>();
+  expectTypeOf<Parameters<EditorDocument['comments']['create']>[0]>().toMatchTypeOf<{ text: string; target?: unknown }>();
+  expectTypeOf<Parameters<EditorDocument['comments']['delete']>[0]>().toEqualTypeOf<{ commentId: string }>();
+});
+```
+Then the behaviour, with a stub document whose `query.match` answers per `(nodeId, nodeType, pattern)` a fixed number of `{ matchKind: 'text', target }` items (an unknown key throws) and whose `comments.create` records its input and answers `{ success: true, id: 'c<n>' }`; `run({ blockId, inserted, deleted })` builds an `EditRunView`. `each inserted run gets one local comment per match inside its own block`: runs `{ b1, ' a' }`, `{ b2, ' a designer' }` twice, `{ b3, 'more money' }` (a heading) and a deletion-only run, with one match for `a designer` in paragraph `b2` and two for `more money` in heading `b3` → ids `['c1', 'c2', 'c3']`, every comment text `HIGHLIGHT_COMMENT_TEXT`, every `query.match` call carrying `within: { kind: 'block', nodeId }` and `mode: 'contains'`, and none without `within`. Also: `highlightTargets` keeps inserted texts of at least `MIN_HIGHLIGHT_CHARACTERS` after trimming, one per (block, text), longest first, never deleted text; at most `MAX_HIGHLIGHTS` comments; `clearHighlights` deletes every id once; in `version-view-page`, a new `Highlight` message clears the previous ids before creating new ones, `Clear` deletes them.
+- [ ] **Step 2: Run, expect failure;** FAIL: cannot find `./highlight-edits`. Commit alone: `test(web): pin block-scoped local comment highlights`.
 - [ ] **Step 3: Implement** — `highlight-edits.ts`
 ```ts
 export const MIN_HIGHLIGHT_CHARACTERS = 3;
 export const MAX_HIGHLIGHTS = 50;
+export const TEXT_BLOCK_NODE_TYPES = ['paragraph', 'heading', 'listItem'] as const;
 const TEXT_MATCH_KIND = 'text';
+const CONTAINS_MODE = 'contains';
+const BLOCK_ADDRESS_KIND = 'block';
 
 export type EditorDocument = NonNullable<SuperDoc['activeEditor']>['doc'];
+export type HighlightTarget = { blockId: string; pattern: string };
 
-export function highlightTargets(runs: EditRunView[]): string[] {
-  const texts = runs.map((run) => run.inserted.trim()).filter((text) => text.length >= MIN_HIGHLIGHT_CHARACTERS);
-  return [...new Set(texts)].sort((left, right) => right.length - left.length);
+export function highlightTargets(runs: EditRunView[]): HighlightTarget[] {
+  const targets = runs.map((run) => ({ blockId: run.blockId, pattern: run.inserted.trim() })).filter((target) => target.pattern.length >= MIN_HIGHLIGHT_CHARACTERS);
+  const unique = new Map(targets.map((target) => [`${target.blockId}|${target.pattern}`, target]));
+  return [...unique.values()].sort((left, right) => right.pattern.length - left.pattern.length);
+}
+
+async function matchInBlock({ document, target }: { document: EditorDocument; target: HighlightTarget }) {
+  const outputs = await Promise.all(TEXT_BLOCK_NODE_TYPES.map((nodeType) => document.query.match({ select: { type: 'text', pattern: target.pattern, mode: CONTAINS_MODE }, within: { kind: BLOCK_ADDRESS_KIND, nodeType, nodeId: target.blockId } })));
+  return outputs.flatMap((output) => output.items.filter((item) => item.matchKind === TEXT_MATCH_KIND).map((item) => item.target));
 }
 
 export async function highlightEdits({ document, runs }: { document: EditorDocument; runs: EditRunView[] }): Promise<string[]> {
-  const outputs = await Promise.all(highlightTargets(runs).map((pattern) => document.query.match({ select: { type: 'text', pattern, mode: 'contains' } })));
-  const targets = outputs.flatMap((output) => output.items.filter((item) => item.matchKind === TEXT_MATCH_KIND).map((item) => item.target)).slice(0, MAX_HIGHLIGHTS);
-  return targets.flatMap((target) => {
+  const matched = await Promise.all(highlightTargets(runs).map((target) => matchInBlock({ document, target })));
+  return matched.flat().slice(0, MAX_HIGHLIGHTS).flatMap((target) => {
     const receipt = document.comments.create({ text: HIGHLIGHT_COMMENT_TEXT, target });
     if (!receipt.success) return [];
     return [receipt.id];
@@ -1350,7 +1377,7 @@ export function clearHighlights({ document, commentIds }: { document: EditorDocu
   commentIds.forEach((commentId) => document.comments.delete({ commentId }));
 }
 ```
-`version-viewer.tsx` keeps the SuperDoc in a ref, waits for `onCollaborationReady`, then runs `highlightEdits` with the `runs` prop in an effect that clears the previous ids first and on cleanup; `document-page.tsx` passes the selected bin's runs (the same `timeline/edits` query the panel uses, shared by key). Comment text is the fixed copy, never user data.
+The projection's `blockId` is the room's block id, the same scheme `trackChanges.list` returns as `navigationTarget.blockId` (rules: collaboration); a block of another node type returns no items for that type. `version-view-page.tsx` keeps the created ids in a ref, clears them on every new `Highlight` and on `Clear`. Comment text is the fixed copy, never user data.
 - [ ] **Step 4: Run, expect pass.**
 - [ ] **Step 5: Commit** — `feat(web): highlight the edits of the selected period in the viewer`
 
@@ -1360,13 +1387,13 @@ export function clearHighlights({ document, commentIds }: { document: EditorDocu
 
 **Files:**
 - Create: `e2e/fake-openrouter.ts`, `e2e/timeline.spec.ts`, `e2e/time-travel.spec.ts`, `e2e/timeline.ts` (helpers)
-- Modify: `playwright.config.ts`
+- Modify: `playwright.config.ts`, `e2e/editor.ts` (`readEvents` follows `nextAfterSequence` across pages)
 
 **Interfaces:**
 - Consumes: every route and screen above; `uploadSeed`, `shareAndAccept`, `typeInParagraph`, `signedInContext`.
-- Produces: `FAKE_OPENROUTER_PORT = 3199`; helpers `bandNamed({ page, name })`, `waitForBands({ page, names })`, `readViewerText(page)` (joins `.superdoc-text-run` inside `[data-testid="version-viewer"]`), `readLiveText(page)` (the same inside `[data-testid="document-editor"]`, because two editors share the page while viewing), `currentAt(page): number`.
+- Produces: `FAKE_OPENROUTER_PORT = 3199`; helpers `bandNamed({ page, name })`, `waitForBands({ page, names })`, `viewerFrame(page)` (`page.frameLocator` of the visible `iframe` titled `VERSION_FRAME_TITLE`), `readViewerText(page)` (joins `.superdoc-text-run` inside that frame), `readLiveText(page)` (the same inside `[data-testid="document-editor"]`), `countViewerHighlights(frame)` (elements carrying SuperDoc's comment highlight class, read once from the built CSS with `grep -o 'comment-highlight[a-z-]*' apps/web/dist/assets/*.css` and kept as a constant), `currentAt(page): number` (the bin start in the URL), `shownVersionSequence(page): number` (the banner's `data-sequence`).
 
-- [ ] **Step 1: Fake provider** — `e2e/fake-openrouter.ts` is self-contained (only `node:http`, erasable TypeScript, run by Node 24 directly): `GET /health` → 200; `POST …/chat/completions` flattens the request's `messages[].content` (string or `[{ text }]`), and answers an OpenAI chat completion `{ id, object: 'chat.completion', created: 0, model, choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify(answer) }, finish_reason: 'stop' }], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }`. With `<topic id="…" name="…">` tags the answer is `{ summaries: [{ topicId, sentence: \`Edits about ${name}.\` }] }`; otherwise it groups `<block id="…">text</block>` by the text before the first `:` (blocks without one go to `General`) and answers `{ topics }`; a prompt containing `FAIL-TOPICS` gets HTTP 500. `playwright.config.ts`: `webServer` becomes an array: the fake (`node e2e/fake-openrouter.ts`, `url: http://127.0.0.1:3199/health`) first, then the app with `LLM_MODEL: 'openai/gpt-6-luna'`, `OPENROUTER_API_KEY: 'e2e-fake-key'`, `OPENROUTER_BASE_URL: 'http://127.0.0.1:3199/api/v1'` added to its env.
+- [ ] **Step 1: Fake provider** — `e2e/fake-openrouter.ts` is self-contained (only `node:http`, erasable TypeScript, run by Node 24 directly): `GET /health` → 200; `POST …/chat/completions` reads only the **user** message's content (string or `[{ text }]`), never the system prompt, whose examples carry block tags too, and answers an OpenAI chat completion `{ id, object: 'chat.completion', created: 0, model, choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify(answer) }, finish_reason: 'stop' }], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }`. With `<topic id="…" name="…">` tags the answer is `{ summaries: [{ topicId, sentence: \`Edits about ${name}.\` }] }`; otherwise it groups `<block id="…">text</block>` by the text before the first `:` (blocks without one go to `General`) and answers `{ topics }`; a prompt containing `FAIL-TOPICS` gets HTTP 500. `playwright.config.ts`: `webServer` becomes an array: the fake (`node e2e/fake-openrouter.ts`, `url: http://127.0.0.1:3199/health`) first, then the app with `LLM_MODEL: 'openai/gpt-6-luna'`, `OPENROUTER_API_KEY: 'e2e-fake-key'`, `OPENROUTER_BASE_URL: 'http://127.0.0.1:3199/api/v1'` added to its env.
 - [ ] **Step 2: Specs** — `timeline.spec.ts`
 ```ts
 test('two authors type in two topics and the bands appear', async ({ browser }) => {
@@ -1384,7 +1411,7 @@ test('two authors type in two topics and the bands appear', async ({ browser }) 
   await expect(topEdits.getByRole('listitem').filter({ hasText: 'Hiring' }).getByTitle('Bruno')).toBeVisible();
 });
 ```
-Same file, each steps → expected: `filter by username hides the other author` (Ana types `@bruno` Enter → URL `author=bruno`; the Budget band's `aria-label` reads 0 characters and Top edits lists only Hiring); `filter by term survives a reload` (`designer` → URL `term=designer`; reload → the chip and the narrowed chart are back); `a band appears while the other author is still typing` (Bruno types 40 characters at 100 ms each; Ana's Hiring band `aria-label` volume increases at least twice before Bruno stops, polled, no reload); `topics unavailable shows author bands` (a seed with `FAIL-TOPICS` → `TOPICS_UNAVAILABLE_MESSAGE`, bands named Ana and Bruno, Retry visible to the owner); `keyboard moves the selected bin` (Tab to the first band, End, ArrowLeft → the vertical rule moves and the URL `at` changes once after the debounce); `narrow viewport stacks the panel` (375×812: the panel's top is below the editor's bottom, `document.documentElement.scrollWidth <= 375`). `time-travel.spec.ts`: `the first bin opens the document as uploaded and Back to live returns` (Ana edits ` More money`; focus the first band, Home → banner "Version at", `readViewerText` equals `GET /versions/<at>/text` and does not contain `More money`; typing in the viewer changes nothing; Back to live → no `at`, the live editor shows ` More money` and accepts typing); `the edit bin shows the edit and lists it` (End then ArrowLeft to the last filled bin → viewer text contains `More money`; the panel lists Ana's run); `a shared at link opens the same version for another member` (Bruno opens Ana's URL → same banner time and viewer text); `a non-member opening an at link sees the document is unavailable` (Caio, never invited → `DOCUMENT_UNAVAILABLE_MESSAGE`; `page.on('request')` saw no `/versions/` request); `Browser Back from a version returns to live`; `highlights stay local to one viewer` (Ana selects the edit bin → the viewer paints ` More money` as a comment highlight; Bruno opens the same `at` URL and his viewer shows no comment until he selects the bin himself; `/events` and `/versions?around` return the same counts before and after); `the live editor is untouched by a viewer of the same document` (Ana views a version, goes back to live and types ` again` → Bruno sees it, and `readEditorText` of Ana's live editor equals Bruno's). Every UI string comes from `libs/types` or the web copy files, never a literal.
+Same file, each steps → expected: `filter by username hides the other author` (Ana types `@bruno` Enter → URL `author=bruno`; the Budget band's `aria-label` reads 0 characters and Top edits lists only Hiring); `filter by term survives a reload` (`designer` → URL `term=designer`; reload → the chip and the narrowed chart are back); `a band appears while the other author is still typing` (Bruno types 40 characters at 100 ms each; Ana's Hiring band `aria-label` volume increases at least twice before Bruno stops, polled, no reload); `topics unavailable shows author bands` (a seed with `FAIL-TOPICS` → `TOPICS_UNAVAILABLE_MESSAGE`, bands named Ana and Bruno, Retry visible to the owner); `keyboard moves the selected bin` (Tab to the first band, End, ArrowLeft → the vertical rule moves and the URL `at` changes once after the debounce); `narrow viewport stacks the panel` (375×812: the panel's top is below the editor's bottom, `document.documentElement.scrollWidth <= 375`). `time-travel.spec.ts`: `the first bin opens the document as uploaded and Back to live returns` (Ana edits ` More money`; focus the first band, Home → banner "Version at", `readViewerText` equals `GET /versions/<shownVersionSequence>/text` and does not contain `More money`; typing in the viewer changes nothing; Back to live → no `at`, the live editor shows ` More money` and accepts typing); `the edit bin shows the edit and lists it` (End then ArrowLeft to the last filled bin → viewer text contains `More money`; the panel lists Ana's run); `a shared at link opens the same version for another member` (Bruno opens Ana's URL → same banner time and viewer text); `a non-member opening an at link sees the document is unavailable` (Dani, a stranger to the document → `DOCUMENT_UNAVAILABLE_MESSAGE`; `page.on('request')` saw no `/versions/` request); `Browser Back from a version returns to live`; `highlights stay local to one viewer` (Ana selects the edit bin → `countViewerHighlights` in her frame is at least 1; Bruno opens the same version's frame page directly at `versionViewPagePath(...)`, where no parent sends highlights → 0; the `updates` count of `/events` paging and `/versions?around` are unchanged before and after); `the live editor keeps working while the viewer is open` (Ana views a version; Bruno types ` live` → Ana's `readLiveText` contains ` live` while her frame still shows the old version; Back to live, Ana types ` again` → Bruno sees it). Every UI string comes from `libs/types` or the web copy files, never a literal.
 - [ ] **Step 3: Run** — `pnpm test:e2e` twice in a row; every spec passes both times with `retries: 0`, slice 1 and 2 specs included.
 - [ ] **Step 4: Commit** — `test(e2e): cover the timeline, filters and time travel against a fake OpenRouter`
 
@@ -1397,8 +1424,8 @@ Same file, each steps → expected: `filter by username hides the other author` 
 - Create: `docs/features/timeline-and-time-travel/tester-briefing.md`
 
 - [ ] **Step 1: README** — the timeline panel, filters (`@person`), Top edits, time travel; LLM use cited: topics and per-topic sentences through the Vercel AI SDK and OpenRouter (`LLM_MODEL`, `OPENROUTER_API_KEY`, optional `OPENROUTER_BASE_URL`), names only in prompts, the fallback without a key; how to run the smoke test with `scripts/with-env.sh`.
-- [ ] **Step 2: Docker** — `scripts/with-env.sh docker compose up --build -d` (compose reads `.env` through `env_file`, so the owner's key reaches the container without anyone opening it); `curl -f localhost:3000/api/health`; sign in, upload a four-section seed, type once, `GET /timeline` until `topics.state` is `ready`; open a version endpoint with a browser and see the viewer; `docker compose down -v`.
-- [ ] **Step 3: Tester briefing** — per the template: what changed per group; how to run (the production-shaped command of `test-plan.md`, with `scripts/with-env.sh` for the LLM walk); red-today/green-after per suite; hypotheses ("a band grows within about 5 s of typing", "no version request leaves a page that cannot open the document", "a version room never writes the log"); known gaps (runs split at bin edges, backspaced text shows reversed in snippets, imported revisions months older than live edits squeeze live edits into one bin, marks start at the next projection for older documents).
+- [ ] **Step 2: Docker** — `scripts/with-env.sh docker compose up --build -d` (compose reads `.env` through `env_file`, so the owner's key reaches the container without anyone opening it); `curl -f localhost:3000/api/health`; sign in, upload a four-section seed, type once, `GET /timeline` until `topics.state` is `ready`; open a version in a browser and see the framed viewer; `docker compose down -v`. Then `ENV_FILE=.env.example scripts/with-env.sh docker compose up --build -d` (no key) → `topics.state` `failed` with `LLM_KEY_MISSING_MESSAGE` and author bands; `docker compose down -v`.
+- [ ] **Step 3: Tester briefing** — per the template: what changed per group; how to run (the production-shaped command of `test-plan.md`, with `scripts/with-env.sh` for the LLM walk); red-today/green-after per suite; hypotheses ("a band grows within about 5 s of typing", "no version request leaves a page that cannot open the document", "a version room never writes the log"); known gaps (runs split at bin edges, backspaced text shows reversed in snippets, imported revisions months older than live edits squeeze live edits into one bin, older documents are rebuilt at startup and their versions answer 202 until then; bins under a minute share a per-minute version).
 - [ ] **Step 4: Commit** — `docs: add the timeline-and-time-travel briefing and README` and `chore(types): drop the timeline placeholder message`
 
 ---
@@ -1409,7 +1436,7 @@ Same file, each steps → expected: `filter by username hides the other author` 
 - [ ] **Z2:** Tester executes `test-plan.md`, ticks with evidence, files defects to the owning group.
 - [ ] **Z3:** `reviewer` on `git diff main...HEAD`; findings fixed; refutations recorded in `test-plan.md`.
 - [ ] **Z4:** `/check-ui http://localhost:3100/documents timeline-and-time-travel --video` by the `recorder`.
-- [ ] **Z5:** ADR 0003 moves to Accepted with an addendum (versions isolated by endpoint, not by room name); the spec's data-flow line for the viewer is corrected the same way; learnings sweep (ai@7 deprecates `generateObject`; keystroke events need runs for search; a SuperDoc version cannot be renamed into its own room, isolate it by endpoint; version endpoints must skip awareness declarations); `/open-pr timeline-and-time-travel`.
+- [ ] **Z5:** ADR 0003 moves to Accepted with an addendum (versions isolated by endpoint, not by room name; the viewer in a same-origin iframe); `spec.md`'s Data flow and Interfaces lines are amended to what was built: in-memory runs over the read model instead of SQL `GROUP BY`, `/timeline/edits?binStart` instead of `/versions/:sequence/edits`, `version_marks` in the read model, `at` as a bin start, the per-version endpoint and the iframe viewer; learnings sweep (ai@7 deprecates `generateObject`; keystroke events need runs for search; a SuperDoc version cannot be renamed into its own room, isolate it by endpoint; version endpoints must skip awareness declarations); `/open-pr timeline-and-time-travel`.
 
 ## Failure modes
 
@@ -1423,22 +1450,22 @@ Same file, each steps → expected: `filter by username hides the other author` 
 | 6.1 | `mkfifo` is missing on the CI image | the hanging-import test errors with `ENOENT mkfifo` | Mark the test `skipIf(process.platform === 'win32')`; Linux and macOS ship `mkfifo` |
 | 6.3 | Dropping `compact` from `onStoreDocument` while the worker is degraded leaves the log without new snapshots | `latestSnapshot` stays behind the 1000-update boundary | A degraded worker already disables projection; the restart restores both |
 | 9.1 | Jumping the faked `Date` by minutes in a server test trips a time-based check (session expiry, a socket timeout) | the property test fails with 401 or a closed provider, not a text mismatch | Fake only `Date` (sockets keep real timers), start the clock at the session's creation and keep the total jump under the session lifetime; if it still trips, move the fake clock into `UpdateLog` through an injected `now` |
-| 7.3 | One `/timeline` read over a large history is slow | the T11 seed's `/timeline` takes > 100 ms in the server log | Cache the resolved events per document keyed by the read-model cursor; the shape of the response does not change |
+| 7.3 | The pipeline key misses a change (a late identity declaration, a topic refresh at the same cursor) | `/timeline` shows the old author or band until the next edit | The key already carries identity counts and the topic set's `updatedAt`; add the missing input to `pipelineKey` and its test |
 | 8.3 | `Output.object` over OpenRouter returns prose instead of JSON on a document unlike the spike's | topics `failed` with `NoOutputGeneratedError` in the server log; the smoke test fails | Refresh retries once by hand; if it repeats, change `LLM_MODEL`; the parser and clamp stay |
 | 8.3 | The model name in `LLM_MODEL` is wrong | `APICallError` 404 in the log, topics `failed` with the generic message | The owner fixes `.env`; nothing else changes |
 | 9.3 | Version instances pile up when viewers never disconnect cleanly | `versionRooms.size()` keeps growing in a long session; memory climbs | `limit` (32) evicts the least recently used instance; lower it in `DEFAULT_VERSION_ROOM_POLICY` |
-| 13.3 | Two SuperDoc instances with the same document id in one page interfere (shared worker or storage keyed by id) | the live editor's text changes or errors when a viewer mounts; `the live editor is untouched by a viewer of the same document` fails | Render the viewer in an `iframe` of a `/documents/:id/versions/:sequence` route so it gets its own realm; the live editor still never unmounts |
 | 14.3 | A SuperDoc update makes `comments.create` write to the room or show a sidebar in `viewing` | `highlights stay local to one viewer` fails, or a comment panel appears | Drop the highlight call; the bin edits list in the panel is the degraded path |
 | 9.3 | The viewer joins before the room finished `onLoadDocument` | blank viewer for one version | Hocuspocus awaits `onLoadDocument` before sync; the route answers 200 only after the cache is warm |
 | 11.3 | `curveBasis` pulls the curve inside the points, so a label at the band's edge looks outside it | screenshot shows a label touching the neighbour band | Add `CHART_LABEL_INSET` px to the thickness threshold |
-| 13.3 | Hiding the live SuperDoc with `invisible` changes its layout measurements | after Back to live the live editor shows zero-width pages | Use `opacity-0 pointer-events-none` instead of `invisible`; never unmount it |
+| 13.3 | The frame posts `Ready` before the parent listens, or a `postMessage` is dropped | the new frame stays hidden and the banner says Loading forever | `VersionFrame` adds its `message` listener in an effect that runs before the `iframe` is rendered; the frame re-posts `Ready` on any `Highlight` it receives while ready |
+| 14.3 | A block of a node type outside `TEXT_BLOCK_NODE_TYPES`, or a block id SuperDoc does not accept as `nodeId` | no highlight for that run in E2E while the panel lists it | The run stays listed in the panel (the degraded path); add the node type to the list when the E2E shows it |
 | 15.1 | The provider sends `response_format` the fake does not expect, or reads a different field | E2E topics `failed` while unit tests pass | Log the fake's request body once, adjust the fake's answer shape; never change product code for the fake |
 
-**Steps with no backout:** none; every step is additive on a feature branch, and the new read-model migration only adds a table.
+**Steps with no backout:** none; every step is additive on a feature branch, the new read-model migration only adds a table, and the startup rebuild only touches documents without marks, whose read model is regenerable from the log and the stored file.
 
 ## Self-review
 
 - Spec coverage: Goal 1 → Tasks 3, 7, 11; Goal 2 → Tasks 4, 5, 8; Goal 3 → Tasks 3, 7, 10, 12; Goal 4 → Tasks 3, 8, 12; Goal 5 → Tasks 2, 6, 9, 13, 14; Goal 6 → Tasks 6, 7, 10; Goal 7 → Task 0. Failure handling: no key → Tasks 5, 8, 12; unknown block ids → Tasks 4, 8; projection behind → Tasks 7, 12; version not cached → Tasks 9, 13; no match → Task 12; scrubbing → Task 13. Security → Tasks 7–9 (membership on every route), Task 8 (names only, refresh limits), Task 9 (rooms). Deferred slice 2 items → Task 6 (throttle, compaction, import lane), Task 7 (pagination).
-- Not turned into tasks: SSE (`/history-stream`; polling measured cheap enough by the spike), `/versions/:sequence/edits` (moved to `/timeline/edits`, see Assumptions), `activity_buckets` (aggregation in memory, see Assumptions).
-- Placeholders: none; every spike fact held and its branch is written as the only path. Spec corrections carried: the version room name (endpoint isolation), topic identity by id.
+- Not turned into tasks: SSE (`/history-stream`; polling is the transport, its server cost bounded by the pipeline cache and pinned by the 10k-event timing test in Task 7, while the spike measured only the chart's render), `/versions/:sequence/edits` (moved to `/timeline/edits`, see Assumptions), `activity_buckets` (aggregation in memory, see Assumptions).
+- Placeholders: none; every spike fact held and its branch is written as the only path. Spec corrections carried: the version room name (endpoint isolation), the iframe viewer, `at` as a bin start, topic identity by id; Z5 writes them into the spec.
 - Types: `TimelineBand`, `EditRun`, `VersionMark`, `LanguageModelChoice`, `VersionLoad` and their fields are named identically in the tasks that produce and consume them.

@@ -11,7 +11,7 @@ scripts/with-env.sh env PORT=3200 APP_ORIGIN=http://127.0.0.1:3200 AUTH_SECRET=s
 scripts/with-env.sh env PORT=3200 APP_ORIGIN=http://127.0.0.1:3200 AUTH_SECRET=slice-three-test-secret-0123456789abcd DATABASE_DIR=$DIR TRUST_PROXY=false DEMO_PASSWORD=superdoc-demo WEB_DIST_DIR=apps/web/dist node apps/server/dist/main.js
 ```
 
-`with-env.sh` supplies `OPENROUTER_API_KEY` and `LLM_MODEL` (real model, owner's key); the `env` overrides keep the walk isolated. For the "LLM failure" boxes restart the same command with `OPENROUTER_API_KEY=` added to the `env` list. Demo users: `ana@`, `bruno@`, `caio@`, `dani@example.com`, password `superdoc-demo`; one browser context per user. Screenshots under `.pr-media/timeline-and-time-travel/`.
+`with-env.sh` supplies `OPENROUTER_API_KEY` and `LLM_MODEL` (real model, owner's key); the `env` overrides keep the walk isolated. For the "LLM failure" boxes restart the same command with `OPENROUTER_API_KEY=` added to the `env` list. Demo users: `ana@` (owner), `bruno@` (editor), `caio@` (reader member), `dani@example.com` (a stranger to every document, everywhere), password `superdoc-demo`; one browser context per user. Screenshots under `.pr-media/timeline-and-time-travel/`.
 
 ## The failing test first
 
@@ -34,7 +34,7 @@ Every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …
 - [ ] `version-marks.test.ts` — input: marks at times 10, 70, 130 (sequences 3, 9, 14); expected: `versionSequenceAt(75)` 9, `(5)` 3, `[]` → `null`; `clampToMark(12)` 9, `(1)` 3, `(99)` 14
 - [ ] `version-marks.test.ts` — input: the same log with `batchSize: 7`; expected: one bootstrap mark at the bootstrap sequence and no two minute marks with the same `minuteStart`
 - [ ] `read-model.test.ts::readPage ends on a sequence boundary` — input: sequences `[1, 1, 2, 3, 3, 3, 4]`, `limit: 4`; expected: `[1, 1, 2, 3, 3, 3]` with `nextAfterSequence: 3`, then `[4]` with `null`
-- [ ] `bins.test.ts` — input: spans 2 min, 3 h, 5 h, 30 days, 3 years; expected: bins of 1 min, 2 min, 5 min, 6 h and whole weeks; never more than 120 data bins
+- [ ] `bins.test.ts` — input: spans 30 s, 10 min, 30 min, 3 h, 5 h, 30 days, 3 years; expected: bins of 10 s, 10 s, 30 s, 2 min, 5 min, 6 h and whole weeks; never more than 120 data bins
 - [ ] Edge: `bins.test.ts::a single edit yields three bins, the middle one filled` — input: one run at 10:00:30; expected: bins 09:59, 10:00, 10:01, only 10:00 filled
 - [ ] Edge: `runs.test.ts::a term with regex metacharacters matches literally` — input: terms `a.b*(` and `[` over runs `cost a.b*( up` and `aXbb`; expected: only the first run for `a.b*(`, nothing for `[`, no exception
 - [ ] `runs.test.ts` — input: deletion run `tegdub` (Backspace order), term `Budget`; expected: match. Input: keystrokes `b,u,d,g,e,t` by Ana in one block and bin; expected: one run `budget`
@@ -45,6 +45,8 @@ Every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …
 - [ ] Edge: `topic-assignment.test.ts::unknown block ids are dropped and reported` — input: `Budget [b1, gone, b2]`, `Ghost [gone]`; expected: `[Budget [b1, b2]]`, `unknownBlockIds: ['gone']`
 - [ ] Edge: `topic-schema.test.ts` — input: no topics, a topic without blocks, `Budget` and ` budget `, a 41-character name, 21 topics; expected: each rejected; 1 and 12 topics accepted
 - [ ] `topic-assignment.test.ts::a recomputed topic keeps the id of the topic it mostly covers` — input: previous `t1 [b1, b2, b3]`, `t2 [b4]`; next `Costs [b1, b2, b9]`, `Team [b4, b5, b6]`, `New [b7]`; expected: ids `t1`, `null`, `null`
+- [ ] `insights-repository.test.ts` — input: a recompute reusing `Budget`'s id as `Costs` and adding `Scope`; expected: the id and summary of Costs kept, Hiring's summary gone; `failInterrupted` turns only `pending` sets into `failed`
+- [ ] `llm-client.test.ts` — expected: no model → `LLM_MODEL_MISSING_MESSAGE`, no key → `LLM_KEY_MISSING_MESSAGE`, both → a ready model with the configured id
 - [ ] Web: `use-timeline-search.test.ts` — input: `?term=budget&author=ana&at=42&topic=t1`; expected: that exact search object; input: `?at=4x2&term=`; expected: `at` and `term` `null`
 - [ ] Web: `parseFilterInput` — input: `@ Ana `, `a.b*(`, `   `, `@`; expected: author `Ana`, term `a.b*(`, `null`, `null`
 - [ ] Web: `streamgraph-layout.test.ts` — input: one filled bin between two empty ones; expected: a closed path (`M…Z`) and no label. Input: two thick bands and one thin; expected: labels only for the thick two, vertically at least 16 px apart
@@ -55,10 +57,14 @@ Every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …
 - [ ] Web: `timeline-panel.test.tsx` — input: Retry clicked by an editor on failed topics; expected: one POST to `/topics/refresh` and a second `/timeline` request (invalidated); a reader sees no Retry
 - [ ] Web: `timeline-panel.test.tsx` — input: the panel collapsed, `TIMELINE_POLL_MS` elapsed (fake timers); expected: no new `/timeline` request
 - [ ] Web: the resize separator — input: ArrowLeft three times from the default width; expected: `aria-valuenow` grows by 72 px; ArrowRight never takes it below 420
-- [ ] Web: `time-travel.test.tsx` — input: `?at=42`, 202 then 200; expected: a second SuperDoc with `documentMode: 'viewing'`, `roomMode: 'join'`, `documentId: 'doc-1'` (the document's own id) and `serverUrl` ending in `/collaboration/versions/doc-1/42`; Back to live clears `at`, destroys only the viewer, and the live editor is no longer `inert`
-- [ ] Edge: `time-travel.test.tsx::an inaccessible document never requests a version` — input: document 404 with `?at=42`; expected: "This document is no longer available" and zero requests containing `/versions/`
-- [ ] Web: scrubbing — input: three ArrowRight presses within 100 ms (fake timers); expected: one URL change after 300 ms; the first travel pushes a history entry, the next ones replace it
-- [ ] Web: `highlight-edits.test.ts` — input: runs `' a'`, `' a designer'` twice, `'more money'`, a deletion-only run; expected: comments `c1`–`c3` with `HIGHLIGHT_COMMENT_TEXT`, `query.match` called once per distinct target, longest first; a change of runs deletes the previous ids before creating new ones; unmount deletes them
+- [ ] Web: `time-travel.test.tsx` — input: `?at=<bin start>` whose bin carries version 42, `/versions/42` 202 then 200; expected: an `iframe` titled `VERSION_FRAME_TITLE` with `src` `/documents/doc-1/versions/42/view`, the banner "Version at"; Back to live clears `at`, removes the frame, the live SuperDoc was built once and never destroyed, and its container is not `inert`
+- [ ] Web: `version-view-page.test.tsx` — input: `/documents/doc-1/versions/42/view`; expected: one SuperDoc with `documentMode: 'viewing'`, `roomMode: 'join'`, `documentId: 'doc-1'` and `serverUrl` `ws://localhost:3000/collaboration/versions/doc-1/42`; ready → `postMessage({ kind: 'ready' }, origin)` to the parent; a `Highlight` from another origin is ignored
+- [ ] Web: frames — input: travel from a ready version to another; expected: the old frame stays visible until the new one posts `Ready` from its own window and the page origin; a `Ready` from another origin or window changes nothing
+- [ ] Web: a 503 from `/versions` — expected: `VERSION_FAILED_MESSAGE` in the banner, no frame, no further `/versions` request
+- [ ] Web: reload on `?at=<bin start>` — expected: the selected rule on that bin and its version in the frame
+- [ ] Edge: `time-travel.test.tsx::an inaccessible document never requests a version` — input: document 404 with `?at=<bin start>`; expected: "This document is no longer available" and zero requests containing `/versions/`
+- [ ] Web: scrubbing — input: three ArrowRight presses within 100 ms (fake timers); expected: one URL change after 300 ms, `at` equal to the third bin's start; the first travel pushes a history entry, the next ones replace it
+- [ ] Web: `highlight-edits.test.ts` — first the type-level check of `query.match`, `comments.create` and `comments.delete` against SuperDoc 2.23.0's typings; then runs in blocks `b1`–`b3` (a deletion-only run included); expected: comments `c1`–`c3` with `HIGHLIGHT_COMMENT_TEXT`, every `query.match` call scoped `within` the run's block, none document-wide, at most 50 comments; a new `Highlight` clears the previous ids first
 
 ## Integration (real HTTP and sockets, Vitest)
 
@@ -70,27 +76,36 @@ Every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …
 - [ ] `/timeline/edits?binStart=<edit bin>&binMs=60000` — expected: runs `' more money'` and `' a designer'`; an empty bin → `runs: []`; no `binStart` → 400
 - [ ] `/events?limit=1` — expected: all events of the first sequence and `nextAfterSequence` equal to it; following the cursor to `null` returns every event exactly once; `limit=0` and `limit=501` → 400
 - [ ] `/events` without `limit` — expected: at most 500 events plus the rest of the last sequence, and `nextAfterSequence` set only when more exist
+- [ ] Timing — input: 10k committed events over 600 blocks; expected: two `/timeline` calls and one `/timeline/edits` call each under 150 ms and one pipeline build; one more event → exactly one more build
+- [ ] Ladder — input: events whose `server_time` spans exactly two hours (seeded through a second `ReadModel` handle); expected: `binMs` 120000 and at most 122 bins; `?binMs=600000` (test-only parameter, documented as such) → 600000
 - [ ] Projection status — input: `scheduler.degraded = true` and one more write; expected: `projection.isDegraded` and `isBehind` true, `lagMs` a positive number
-- [ ] Topics, mocked model answering 12 topics over 12 blocks — expected: `ready`, 8 topics; the recorded prompt contains no `@example.com`
+- [ ] Topics, mocked model answering 12 topics over 12 blocks — expected: `ready`, 8 topics; the recorded topics and summaries prompts contain no `@example.com`, and a block `<b>x</b> & y` and an author `Ana <script>` appear escaped
+- [ ] Secrets — input: `apiKey: 'sk-test-secret'` against a local server answering 500; expected: no `console.*` call and no response body of topics, refresh or summaries contains it
+- [ ] Jobs — input: the document is deleted while a model call is pending; expected: one `console.error` line, no unhandled rejection. Input: a `pending` set and a restart; expected: `failed` with "Naming topics was interrupted. Try again."
 - [ ] Topics, mocked model naming `gone-1`, `gone-2` — expected: `ready` with `Budget`, and exactly one `console.warn` line starting with the unknown-blocks message
 - [ ] Topics, mocked model answering `not json` — expected: `failed` with "The topics could not be named. Try again."; the provider's text appears only in the server log
 - [ ] Topics: five new unassigned blocks after a ready set — expected: one extra model call on the next `/timeline` read, none on a second read during that run
 - [ ] First open — input: two concurrent `GET /topics` on a document without topics; expected: exactly one model call and both answers `pending`, then `ready`
-- [ ] `POST /topics/refresh` — expected: editor 202, reader 403, stranger 404; same user twice within 30 s → 429 "Topics were refreshed a moment ago. Try again in a few seconds."; a refresh during a run → 202 and no second model call
-- [ ] Refresh without an LLM — expected: 202, then `failed` with the configuration reason; the server log has one line, no stack trace
+- [ ] `POST /topics/refresh` — expected: editor 202, reader 403, stranger 404; same user on the same document twice within 30 s → 429 "Topics were refreshed a moment ago. Try again in a few seconds.", the same user on another document → 202; a refresh during a run → 202 and no second model call
+- [ ] Refresh without an LLM — expected: 202, then `failed` with the configuration reason, `scheduler.blocks` never called (no provider request), one log line, no stack trace
 - [ ] `GET /summaries` as a reader → 200 `{ summaries: [] }` before any topic exists; no model call
 - [ ] Summaries — expected: one model call for two stale topics, two sentences stored; a second read without edits → no call; an edit inside 60 s → no call until the interval passes
-- [ ] Versions property test — input: 8 fake minutes of edits; expected: for every mark, `/versions/:sequence/text` equals the text of a full replay at that sequence
+- [ ] Versions property test — input: 8 fake minutes of edits, every mark plus 20 sequences drawn with the fixed seed 20261016; expected: each resolves to `clampToMark` and its `/versions/:sequence/text` equals the text of a full replay at the resolved sequence
 - [ ] Edge: `GET /versions/1` before the bootstrap — expected: 202 with `Retry-After: 1`, then 200 whose `sequence` is the bootstrap mark; a provider on its `collaborationPath` syncs the bootstrap text
 - [ ] A version endpoint — input: the owner connects on `/collaboration/versions/<id>/<seq>`, inserts text and sets awareness `userId`; expected: `updates`, `client_identities` and `version_marks` counts and `roomMode` unchanged
 - [ ] Two versions of one document — input: providers on the first and the last mark at once; expected: the bootstrap text and the edited text respectively, and two live instances
+- [ ] Refused sockets — input: a stranger, a member on a sequence that is not a mark, a socket without a cookie; expected: each refused before an instance exists (`versionRooms.size()` stays 0). Input: a provider passing the upgrade but naming another document's room; expected: refused, and the instance is destroyed after `idleMs`
 - [ ] Version instances — input: policy `{ idleMs: 200, limit: 32 }`, connect then close; expected: the instance count polls to 0. Input: `limit: 2`, three versions opened; expected: 2 instances and the first viewer closed. Input: a provider naming another document's room on the endpoint; expected: refused
 - [ ] Upgrade paths — input: `/collaboration/versions/<uuid>/0`, `/-1`, `/1.5`, `/42/x`, `/abc` and a non-uuid id; expected: the upgrade socket destroyed
 - [ ] Non-member on `/versions?around`, `/versions/:seq`, `/versions/:seq/text`, `/timeline`, `/timeline/edits`, `/topics`, `/summaries` — expected: 404 with a body equal to a random uuid's; the version endpoint socket refused
-- [ ] `GET /versions/1` on a never-projected document → 409 `{ error: "VERSION_NOT_READY" }`; `/versions/abc` → 400
+- [ ] `GET /versions/1` on a never-projected document → 409 `{ error: "VERSION_NOT_READY" }`; `/versions/abc` → 400; while the document is rebuilding → 202
+- [ ] Failed version — input: `scheduler.version` rejects; expected: 202, then 503 `{ error: "VERSION_FAILED" }` on every poll without another worker call, one log line, and 202 again after 30 s (fake `Date`)
+- [ ] Cache budget — input: a 1 KB byte budget and versions of about 600 bytes; expected: one cached entry
+- [ ] Startup rebuild — input: a projected document with one imported revision, `version_marks` deleted, restart; expected: rebuilding, then marks present, the same inserted texts and the imported revision once
 - [ ] Delete with a connected version viewer — expected: 204 and the viewer's provider receives a close
 - [ ] Projection: every logged update reaches `throttle.request`; 1001 inserts produce a heavy snapshot written by the worker within 15 s
 - [ ] Import lane: an import blocked on a FIFO does not delay another document's events (visible within 10 s, before the 30 s import timeout)
+- [ ] A failed version request rejects its waiters without touching the in-flight projection of the same document (no projection failure line)
 - [ ] Version requests for one mark share one worker message; an unknown mark rejects; a degraded scheduler rejects at once; a terminated worker re-posts a waiting version
 
 ## E2E (Playwright specs, `pnpm test:e2e`, fake OpenRouter)
@@ -100,36 +115,40 @@ Every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …
 - [ ] `a band appears while the other author is still typing` — expected: Ana's Hiring volume grows at least twice before Bruno stops typing, without reload
 - [ ] `topics unavailable shows author bands` — expected: "Topics unavailable", bands Ana and Bruno, Retry for the owner
 - [ ] `keyboard moves the selected bin` and `narrow viewport stacks the panel` pass
-- [ ] `the first bin opens the document as uploaded and Back to live returns` — expected: viewer text equals `/versions/<at>/text` and lacks ` More money`; typing in the viewer changes nothing; after Back to live the live editor shows and accepts typing
-- [ ] `highlights stay local to one viewer` — expected: Ana's viewer paints ` More money` as a comment highlight, Bruno's viewer of the same `at` shows none, and `/events` and `/versions?around` counts are unchanged; `the live editor is untouched by a viewer of the same document` passes
+- [ ] `the first bin opens the document as uploaded and Back to live returns` — expected: the frame's text equals `/versions/<banner data-sequence>/text` and lacks ` More money`; typing in the viewer changes nothing; after Back to live the live editor shows and accepts typing
+- [ ] `highlights stay local to one viewer` — expected: Ana's frame shows at least one comment highlight on ` More money`; Bruno's frame page opened directly (no parent) shows none; `/events` and `/versions?around` counts unchanged
+- [ ] `the live editor keeps working while the viewer is open` — expected: Bruno's ` live` appears in Ana's live editor while her frame still shows the old version; after Back to live Ana's ` again` reaches Bruno
+- [ ] The fake OpenRouter reads block ids from the user message only: its request log shows no topic built from the system prompt's example blocks
 - [ ] `the edit bin shows the edit and lists it`, `a shared at link opens the same version for another member`, `a non-member opening an at link sees the document is unavailable`, `Browser Back from a version returns to live` pass
 - [ ] The whole suite passes twice in a row with `retries: 0`, slice 1 and 2 specs included
 
 ## Prove it for real — Playwright MCP
 
-- [ ] Happy path, three users: Ana uploads a document with four headed sections (`Budget:`, `Hiring:`, `Scope:`, `Risks:`), shares edit links with Bruno and Caio; the panel opens on the right at 40% width; within about 30 s the real model names 4–8 topics shown as labelled bands; each author types in a different section and their band grows within about 5 s — `01-panel.png`, `02-three-authors.png`
+- [ ] Happy path, three users: Ana uploads a document with four headed sections (`Budget:`, `Hiring:`, `Scope:`, `Risks:`), shares the edit link with Bruno and the read link with Caio; the panel opens on the right at 40% width; within about 30 s the real model names 4–8 topics shown as labelled bands; Ana and Bruno type in different sections and their bands grow within about 5 s; Caio sees the same chart read-only — `01-panel.png`, `02-two-authors-one-reader.png`
 - [ ] Top edits: every listed topic shows its chip colour matching its band, at most three avatars, `+N words −M words` and one sentence that mentions what changed — `03-top-edits.png`
 - [ ] Refresh topics (owner): the notice says "Naming topics…", then bands are renamed; a second click within 30 s shows the cooldown message
-- [ ] LLM failure: restart with `OPENROUTER_API_KEY=` → "Topics unavailable" with the configuration reason, author bands, Retry visible to Ana and Bruno, not to a reader — `04-topics-unavailable.png`
-- [ ] Filters: `@caio` narrows chart and panel to Caio; `budget` narrows to runs containing it; copy the URL into Dani's context (after Dani accepts a read link) → the same filtered view
+- [ ] LLM failure: restart with `OPENROUTER_API_KEY=` → "Topics unavailable" with the configuration reason, author bands, Retry visible to Ana and Bruno, not to Caio (reader) — `04-topics-unavailable.png`
+- [ ] Filters: `@bruno` narrows chart and panel to Bruno; `budget` narrows to runs containing it; open the copied URL in Caio's context (reader member) → the same filtered view
 - [ ] Rejected input: filter `a.b*(` and `[` → "No edits match" with Clear filters, no console error; a 300-character entry is cut to 200
 - [ ] Empty: a new blank document → "No edits yet", no chart, no console error
 - [ ] Single: one edit → three bins, one closed band, no label overflow — `05-single-edit.png`
-- [ ] Many: two minutes of continuous typing by three authors → the chart re-renders smoothly every 3 s, labels never overlap and never leave their band — `06-many.png`
-- [ ] Time travel: click the earliest bin → banner "Version at HH:MM · Back to live", the viewer shows the document as uploaded, read-only (typing does nothing), the panel lists that bin's edits; select an edit bin → its inserted text is painted in the viewer and no comment sidebar appears; drag across the chart → the banner follows, the previous version stays visible while the next loads — `07-version.png`
+- [ ] Many: two minutes of continuous typing by Ana and Bruno → the chart re-renders smoothly every 3 s, labels never overlap and never leave their band — `06-many.png`
+- [ ] Time travel: click the earliest bin → banner "Version at HH:MM · Back to live", the viewer shows the document as uploaded, read-only (typing does nothing), the panel lists that bin's edits; select an edit bin → its inserted text is painted in the framed viewer and no comment sidebar appears; drag across the chart → the banner follows, the previous version stays visible while the next loads — `07-version.png`
 - [ ] Tooltip: hovering a band shows the bin's time range, the band name, `+inserted −deleted` characters and the contributors' names; it never covers the pointer and disappears on leave
 - [ ] Scrubbing faster than versions load (DevTools CPU 6× slowdown) → never a blank editor area; the final version matches the last bin dragged to
 - [ ] Browser Back mid-flow: from a version press Back → live editor, no `at`; Forward → the same version
 - [ ] Reload mid-flow: reload on `?term=budget&at=<n>` → same filter, same version, banner time unchanged
 - [ ] Two authors in two contexts: while Ana views a version, Bruno keeps typing; Ana's chart keeps growing, her viewer does not change, Back to live shows Bruno's text
 - [ ] Latency / disconnect: Bruno offline (CDP) while typing, then online → his band catches up within 5 s of reconnecting; "History is catching up" never sticks after recovery
-- [ ] Access: Dani (no membership) opens Ana's `?at=` URL → "This document is no longer available", and the network log has no `/versions/` request
+- [ ] Access: Dani (a stranger) opens Ana's `?at=` URL → "This document is no longer available", and the network log has no `/versions/` request
 - [ ] Delete while viewing: Bruno views a version while Ana deletes the document → Bruno's page shows "This document is no longer available" within about 5 s; no error loop in the console
 - [ ] Console and network clean: zero console errors; every `/api/*` call 2xx or 202, except the deliberate 404, 409 and 429; the server log has no error line other than the deliberate LLM failure
 - [ ] Desktop 1440 px: editor and panel side by side, separator drags the panel between 420 px and the editor's minimum; keyboard arrows on the separator resize it — `08-desktop.png`
 - [ ] Keyboard only: Tab reaches the chart's bands, each announced with name and characters; arrows move the rule and the version opens 300 ms after the last arrow; Escape returns to live; the separator and filter chips are reachable — `10-keyboard.png`
-- [ ] Render cost: Performance panel over three polls with 8 bands and about 120 bins (two hours of seeded edits with `?binMs=60000`) → each chart re-render well under 16 ms (the spike measured 0.7–0.9 ms median); record the measured time
-- [ ] Docker: `docker compose up --build -d`, sign in, open a document → panel visible, topics `failed` with the configuration reason (no key in compose), author bands; `docker compose down -v`
+- [ ] Render cost: Performance panel over three polls of a seeded two-hour history (8 bands, about 60 bins) → record each chart re-render time (the spike measured 0.7–0.9 ms median at 120 bins × 8 bands); the server side is pinned by the integration timing box
+- [ ] Docker with the key: `scripts/with-env.sh docker compose up --build -d`, sign in, upload, type → topics `ready` with named bands; a version opens in the framed viewer; `docker compose down -v`
+- [ ] Docker without the key: `ENV_FILE=.env.example scripts/with-env.sh docker compose up --build -d` → topics `failed` with "Topics are unavailable: OPENROUTER_API_KEY is not set on the server.", author bands; `docker compose down -v`
+- [ ] HAR: export the walk's network log and search it for the `OPENROUTER_API_KEY` value's first 8 characters (read through `scripts/with-env.sh` into a shell variable, never printed) → no match
 - [ ] Narrow 375 px: the panel stacks below the editor at full width, chart fits without horizontal page scroll (`scrollWidth <= 375`), filter and Top edits reachable — `09-narrow.png`
 - [ ] Screenshots under `.pr-media/timeline-and-time-travel/`; video by the `recorder`
 
@@ -150,9 +169,11 @@ The `reviewer` refutes the three claims most likely to be wrong:
 - SSE is not built; polling every 3 s is the transport (the hook isolates it).
 - Runs split at bin edges, so a word typed across a bin boundary is not found by a term; backspaced text is matched reversed but shown as stored.
 - Imported revisions months older than live edits stretch the span, so live edits share a few wide bins; a "live only" range is slice 4 polish.
-- Documents projected before this slice have version marks only from their next projected batch.
+- Documents projected before this slice are rebuilt at startup; until the rebuild ends their versions answer 202, and a large backlog delays the first projection of other documents.
 - Viewer highlights are temporary comments (spike §2b); only inserted text of at least three characters is painted, deletions appear in the panel list only.
-- One read-only Hocuspocus instance per open version: memory is bounded by the instance limit (32), not measured under many concurrent viewers.
+- Memory worst case, at the T11 room size (about 4.5 MB of state): version cache 256 MB by budget (16 entries × 4.5 MB ≈ 72 MB in practice), plus 32 version instances × 4.5 MB ≈ 145 MB, plus 2 gc:false replays in the worker (≈ 9 MB); about 400 MB at the limits, not measured under many concurrent viewers.
+- Bins under a minute share the version of the latest per-minute mark before their end, so a 10 s bin can open the state at the end of the previous minute.
+- The viewer runs in a same-origin iframe; two SuperDoc instances in one document were never tested and are avoided by design.
 - Summaries can lag their topic by up to 60 s by design.
 - The real model is exercised only by the smoke test with the owner's key and by the MCP walk; topic quality is judged by eye, never asserted.
 - The fake OpenRouter proves the wire format of one provider version; a provider upgrade can break E2E without breaking unit tests.

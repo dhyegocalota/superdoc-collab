@@ -44,3 +44,13 @@ test('jobs that never reach the model do not consume the hourly budget', async (
   }, Promise.resolve());
   expect(worker.consumeCall()).toBe(true);
 });
+
+test('the worker honours the configured limits', async () => {
+  const worker = new InsightsWorker({ maxConcurrentJobs: 1, maxCallsPerHour: 2 });
+  const held = gate();
+  expect(worker.run({ key: 'first', job: () => held.promise })).toBe(JobOutcome.Started);
+  expect(worker.run({ key: 'second', job: async () => undefined })).toBe(JobOutcome.Busy);
+  held.open();
+  await worker.idle();
+  expect([worker.consumeCall(), worker.consumeCall(), worker.consumeCall()]).toEqual([true, true, false]);
+});

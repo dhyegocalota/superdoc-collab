@@ -342,3 +342,50 @@ test('empty-document jobs never exhaust the hourly model budget', async () => {
   client.close();
   await server.stop();
 });
+
+async function readyDocumentWithFiveNewBlocks(): Promise<Awaited<ReturnType<typeof storyWithBlocks>> & { model: MockLanguageModelV4 }> {
+  const model = modelAnswering(topicsAnswer({ blockIds: ['b0'] }), topicsAnswer({ blockIds: ['b0'] }));
+  const story = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
+  const { server, documentId, owner, client } = story;
+  await readTopics({ server, documentId, cookie: owner.cookie });
+  await server.services.insights.worker.idle();
+  const added = Array.from({ length: TOPIC_RECOMPUTE_NEW_BLOCKS }, (_, index) => `Extra ${index}`);
+  writeStory({ document: client.document, texts: ['Budget up ', ...added] });
+  await expect.poll(async () => (await readTimeline({ server, documentId, cookie: owner.cookie })).bands.length, { timeout: POLL_TIMEOUT_MS }).toBe(2);
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + TOPIC_RECOMPUTE_MIN_INTERVAL_MS + 1);
+  return { ...story, model };
+}
+
+test('a busy automatic recompute keeps the ready topics ready', async () => {
+  const { server, documentId, owner, client, model } = await readyDocumentWithFiveNewBlocks();
+  let open: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) => server.services.insights.worker.run({ key: `held-${index}`, job: () => held }));
+  await readTimeline({ server, documentId, cookie: owner.cookie });
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready, failure: null });
+  open();
+  await server.services.insights.worker.idle();
+  vi.spyOn(server.services.insights.worker, 'consumeCall').mockReturnValue(false);
+  await readTimeline({ server, documentId, cookie: owner.cookie });
+  await server.services.insights.worker.idle();
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready, failure: null });
+  expect(model.doGenerateCalls).toHaveLength(1);
+  vi.useRealTimers();
+  client.close();
+  await server.stop();
+});
+
+test('a busy explicit refresh shows failed with the busy message', async () => {
+  const { server, documentId, owner, client } = await readyDocumentWithFiveNewBlocks();
+  vi.spyOn(server.services.insights.worker, 'consumeCall').mockReturnValue(false);
+  const refreshed = await fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, { method: 'POST', headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  expect(refreshed.status).toBe(HttpStatus.Accepted);
+  await server.services.insights.worker.idle();
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Failed, failure: LLM_BUSY_MESSAGE });
+  vi.useRealTimers();
+  client.close();
+  await server.stop();
+});

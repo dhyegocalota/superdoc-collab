@@ -93,9 +93,12 @@ test('summaries are skipped and logged when the process-wide LLM cap is full', a
   Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) => server.services.insights.worker.run({ key: `held-${index}`, job: () => held }));
   await readSummaries({ server, documentId, cookie: owner.cookie });
   expect(model.doGenerateCalls).toHaveLength(0);
+  await readSummaries({ server, documentId, cookie: owner.cookie });
   expect(warnings.mock.calls.filter(([line]) => String(line).startsWith(SUMMARIES_BUSY_MESSAGE))).toHaveLength(1);
   open();
   await server.services.insights.worker.idle();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + SUMMARY_MIN_INTERVAL_MS + 1);
   await readSummaries({ server, documentId, cookie: owner.cookie });
   await server.services.insights.worker.idle();
   expect(model.doGenerateCalls).toHaveLength(1);

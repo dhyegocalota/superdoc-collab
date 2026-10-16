@@ -9,7 +9,8 @@ import { signedInUser } from '../testing/test-server';
 
 const DAY_BIN_MS = 1440 * MINUTE_MS;
 const LATENCY_BUDGET_MS = 150;
-const CONTINUOUS_INTEGRATION_ENVIRONMENT_KEY = 'CI';
+const CI_ENVIRONMENT_VARIABLE = 'CI';
+const isContinuousIntegration = Boolean(process.env[CI_ENVIRONMENT_VARIABLE]);
 const BULK_EVENTS = 10_000;
 const BULK_BLOCKS = 600;
 const TWO_HOURS_EVENTS = 121;
@@ -128,14 +129,14 @@ async function timed(request: () => Promise<Response>): Promise<number> {
   return performance.now() - start;
 }
 
-test('ten thousand events answer in under 150 ms with one pipeline build per cursor', async () => {
+test('ten thousand events build one pipeline per cursor and answer within the local latency budget', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   commitBulkEvents({ server, documentId, userId: owner.id, count: BULK_EVENTS, blockCount: BULK_BLOCKS });
   const headers = { cookie: owner.cookie };
   const timelineCall = () => timed(() => fetch(timelineUrl({ server, documentId, query: '' }), { headers }));
   const editsCall = () => timed(() => fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=0`, { headers }));
   const durations = [await timelineCall(), await timelineCall(), await editsCall()];
-  if (!process.env[CONTINUOUS_INTEGRATION_ENVIRONMENT_KEY]) durations.forEach((duration) => expect(duration).toBeLessThan(LATENCY_BUDGET_MS));
+  if (!isContinuousIntegration) durations.forEach((duration) => expect(duration).toBeLessThan(LATENCY_BUDGET_MS));
   expect(server.services.timelinePipelines.builds).toBe(1);
   commitBulkEvents({ server, documentId, userId: owner.id, count: 1, startIndex: BULK_EVENTS, blockCount: BULK_BLOCKS });
   await timelineCall();

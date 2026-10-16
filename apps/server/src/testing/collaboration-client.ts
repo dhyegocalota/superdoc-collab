@@ -21,24 +21,35 @@ function socketWithCookie({ cookie, origin }: { cookie: string; origin: string }
   return class extends WebSocket {
     constructor(url: string, protocols?: string | string[]) {
       super(url, protocols, { headers: { cookie }, origin });
+      this.on('error', () => undefined);
     }
   } as unknown as typeof WebSocket;
 }
 
-export function connectToDocument({ server, cookie, documentId, document = new Y.Doc() }: { server: TestServer; cookie: string; documentId: string; document?: Y.Doc }): Promise<CollaborationClient> {
+export function connectToDocument({ server, cookie, documentId, document = new Y.Doc(), origin = server.baseUrl }: { server: TestServer; cookie: string; documentId: string; document?: Y.Doc; origin?: string }): Promise<CollaborationClient> {
   return new Promise((resolve, reject) => {
-    const websocketProvider = new HocuspocusProviderWebsocket({ url: server.baseUrl.replace('http', 'ws') + ApiPath.Collaboration, WebSocketPolyfill: socketWithCookie({ cookie, origin: server.baseUrl }), maxAttempts: 1 });
+    let isSynced = false;
+    const websocketProvider = new HocuspocusProviderWebsocket({ url: server.baseUrl.replace('http', 'ws') + ApiPath.Collaboration, WebSocketPolyfill: socketWithCookie({ cookie, origin }), maxAttempts: 1, connect: false });
     const provider = new HocuspocusProvider({
       websocketProvider,
       document,
       name: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
       token: COLLABORATION_TOKEN_PLACEHOLDER,
-      onSynced: () => resolve({ document, provider, close }),
+      onSynced: () => {
+        isSynced = true;
+        resolve({ document, provider, close });
+      },
       onAuthenticationFailed: () => {
         close();
         reject(new CollaborationRefusedError());
       },
+      onClose: () => {
+        if (isSynced) return;
+        close();
+        reject(new CollaborationRefusedError());
+      },
     });
+    websocketProvider.connect().catch(() => undefined);
     function close(): void {
       provider.destroy();
       websocketProvider.destroy();

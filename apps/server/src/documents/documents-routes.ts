@@ -25,13 +25,15 @@ const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
 const MULTIPART_CONTENT_TYPE = 'multipart/form-data';
 const BLANK_DOCUMENT: SeedParagraph[] = [{ text: '', trackedChanges: [] }];
 const INVALID_TITLE_MESSAGE = 'The title must not be blank';
+const DOCX_EXTENSION_PATTERN = /\.docx$/i;
+const MALFORMED_UPLOAD_MESSAGE = 'The upload could not be read';
 const RFC_5987_RESERVED = /['()*]/g;
 const UNSAFE_IN_QUOTED_FILENAME = /[^\x20-\x7e]|["\\]/g;
 const ASCII_FALLBACK_CHARACTER = '_';
 const HEX_RADIX = 16;
 
 function titleFromFileName(fileName: string): string {
-  const title = basename(fileName, DOCX_EXTENSION).trim();
+  const title = basename(fileName).replace(DOCX_EXTENSION_PATTERN, '').trim();
   if (!title) return UNTITLED_DOCUMENT_TITLE;
   return title;
 }
@@ -49,8 +51,11 @@ export function createDocumentsRoutes(services: AppServices): Hono<SignedIn> {
   async function storeDocument({ context, bytes, title, importRevisions }: { context: Context<SignedIn>; bytes: Uint8Array; title: string; importRevisions: boolean }): Promise<Response> {
     const documentId = randomUUID();
     const userId = context.var.user.id;
-    await storage.put({ documentId, bytes });
     documents.create({ id: documentId, title, ownerUserId: userId });
+    await storage.put({ documentId, bytes }).catch((error: unknown) => {
+      documents.remove(documentId);
+      throw error;
+    });
     if (importRevisions) runtime.importRevisions(documentId);
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
@@ -66,13 +71,17 @@ export function createDocumentsRoutes(services: AppServices): Hono<SignedIn> {
   routes.post('/', bodyLimit({ maxSize: MAX_UPLOAD_BYTES + MULTIPART_ENVELOPE_BYTES, onError: (context) => context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge) }), async (context) => {
     const isUpload = context.req.header('content-type')?.startsWith(MULTIPART_CONTENT_TYPE) === true;
     if (!isUpload) return createBlank(context);
-    const file = (await context.req.parseBody())[UPLOAD_FIELD];
+    const body = await context.req.parseBody().catch(() => null);
+    if (!body) return context.json({ error: MALFORMED_UPLOAD_MESSAGE }, HttpStatus.BadRequest);
+    const file = body[UPLOAD_FIELD];
     if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
     if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
     if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-    return storeDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
+    const title = titleSchema.safeParse({ title: titleFromFileName(file.name) });
+    if (!title.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
+    return storeDocument({ context, bytes, title: title.data.title, importRevisions: true });
   });
 
   routes.get('/:documentId', (context) => {

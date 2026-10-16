@@ -18,12 +18,13 @@ import type { DocumentFileStorage } from './documents/file-storage';
 import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
 import { createApp } from './http/app';
 import { findDocumentsToProject } from './history/pending-documents';
+import { ShareLinksRepository } from './documents/share-links';
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { mountStaticWeb } from './http/static-web';
 
 export const NOT_FOUND_MESSAGE = 'Not found';
 
-export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime };
+export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository };
 
 export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; services: ServerServices; stop: () => Promise<void> };
 
@@ -65,7 +66,8 @@ export async function startServer({ environment, webDistDirectory }: { environme
   });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
-  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime };
+  const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
+  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks };
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
@@ -81,13 +83,13 @@ export async function startServer({ environment, webDistDirectory }: { environme
     stop: async () => {
       await hocuspocus.destroy();
       await scheduler.stop();
-      historySqlite.close();
-      readModelSqlite.close();
       sockets.clients.forEach((client) => client.terminate());
       sockets.close();
       closeAllConnectionsWhenSupported(httpServer);
       await closeServer(httpServer);
       database.sqlite.close();
+      historySqlite.close();
+      readModelSqlite.close();
     },
   };
 }

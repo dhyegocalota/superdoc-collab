@@ -1,10 +1,10 @@
+import type { IdentifiedTopic } from '@superdoc-history/history';
 import { TopicState, type TopicStatus, type TopicSummary } from '@superdoc-history/types';
 import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
 import { documentTopics, topicBlocks, topicSets, topicSummaries } from '../database/schema/insights';
 
-export type IdentifiedTopic = { id: string | null; name: string; blockIds: string[] };
 export type StoredTopic = { id: string; name: string; position: number; blockIds: string[] };
 
 export class InsightsRepository {
@@ -18,6 +18,12 @@ export class InsightsRepository {
     const row = this.database.drizzle.select().from(topicSets).where(eq(topicSets.documentId, documentId)).get();
     if (!row) return null;
     return { state: row.state, failure: row.failure, computedAtSequence: row.computedAtSequence };
+  }
+
+  updatedAt(documentId: string): number | null {
+    const row = this.database.drizzle.select({ updatedAt: topicSets.updatedAt }).from(topicSets).where(eq(topicSets.documentId, documentId)).get();
+    if (!row) return null;
+    return row.updatedAt.getTime();
   }
 
   markPending(documentId: string): void {

@@ -13,8 +13,11 @@ import type { DocumentFileStorage } from '../documents/file-storage';
 import { createShareLinksRoutes } from '../documents/share-links-routes';
 import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
+import type { ProjectionScheduler } from '../history/projection-scheduler';
+import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsRepository } from '../insights/insights-repository';
 import { createHistoryRoutes } from '../history/history-routes';
+import { createTimelineRoutes } from '../history/timeline-routes';
 import { NOT_FOUND_MESSAGE } from '../server';
 import { withClientAddress } from './client-address';
 import { health } from './health';
@@ -24,7 +27,7 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 
-export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository };
+export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
   const app = new Hono();
@@ -50,6 +53,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   });
   app.get(ApiPath.Me, createMeHandler({ auth }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
+  app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createDocumentsRoutes({ services }));
   app.route('/', createShareLinksRoutes({ services }));
   return app;

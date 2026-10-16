@@ -22,12 +22,13 @@ import { ShareLinksRepository } from './documents/share-links';
 import { InsightsRepository } from './insights/insights-repository';
 import { chooseLanguageModel, type LanguageModelChoice } from './insights/llm-client';
 import { ProjectionScheduler } from './history/projection-scheduler';
+import { TimelinePipelineCache } from './history/timeline-pipeline-cache';
 import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
 
 export const NOT_FOUND_MESSAGE = 'Not found';
 
-export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository; throttle: ProjectionThrottle };
+export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository; throttle: ProjectionThrottle; timelinePipelines: TimelinePipelineCache };
 
 export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; services: ServerServices; stop: () => Promise<void> };
 
@@ -72,7 +73,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
   const insightsRepository = new InsightsRepository(database);
-  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle };
+  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle, timelinePipelines: new TimelinePipelineCache() };
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));

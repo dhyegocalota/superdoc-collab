@@ -31,7 +31,8 @@ export async function twoAuthorsInTwoBlocks() {
   writeStory({ document: editorClient.document, texts: ['Budget: more money', 'Hiring: a designer'] });
   const insertedTexts = async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted);
   await expect.poll(insertedTexts, { timeout: PROJECTION_TIMEOUT_MS }).toEqual(expect.arrayContaining([' more money', ' a designer']));
-  return { server, documentId, owner, editor, clients: [ownerClient, editorClient] };
+  [ownerClient, editorClient].forEach((client) => client.close());
+  return { server, documentId, owner, editor };
 }
 
 export function commitBulkEvents({ server, documentId, userId, count, startIndex = 0, eventsPerSequence = 1, blockCount = 1, stepMs = DEFAULT_STEP_MS }: { server: TestServer; documentId: string; userId: string; count: number; startIndex?: number; eventsPerSequence?: number; blockCount?: number; stepMs?: number }): number {

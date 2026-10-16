@@ -84,6 +84,12 @@ export class DocumentsRepository {
     return new Map(rows.map((row) => [row.id, row.name]));
   }
 
+  userContacts(userIds: string[]): Map<string, { name: string; email: string }> {
+    if (userIds.length === 0) return new Map();
+    const rows = this.database.drizzle.select({ id: user.id, name: user.name, email: user.email }).from(user).where(inArray(user.id, userIds)).all();
+    return new Map(rows.map((row) => [row.id, { name: row.name, email: row.email }]));
+  }
+
   private selectSummaries(condition: SQL | undefined): DocumentSummary[] {
     return this.database.drizzle
       .select({ id: documents.id, title: documents.title, updatedAt: documents.updatedAt, role: documentMembers.role, ownerId: user.id, ownerName: user.name })

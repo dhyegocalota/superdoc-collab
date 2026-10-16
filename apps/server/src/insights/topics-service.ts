@@ -1,6 +1,5 @@
 import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@superdoc-history/history';
-import { TOPIC_RECOMPUTE_NEW_BLOCKS, TOPICS_FAILED_MESSAGE, TopicState, type TopicStatus } from '@superdoc-history/types';
-import { MINUTE_MS, SECOND_MS } from '@superdoc-history/types';
+import { MINUTE_MS, SECOND_MS, TOPIC_RECOMPUTE_NEW_BLOCKS, TOPICS_FAILED_MESSAGE, TopicState, type TopicStatus } from '@superdoc-history/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import { describeError } from '../history/projection-messages';
@@ -20,7 +19,7 @@ export enum RefreshOutcome {
   TooSoon = 'too-soon',
 }
 
-export type RefreshResult = { outcome: RefreshOutcome; retryAfterSeconds: number | null };
+export type RefreshResult = { outcome: RefreshOutcome.Started | RefreshOutcome.AlreadyRunning } | { outcome: RefreshOutcome.TooSoon; retryAfterSeconds: number };
 
 function topicsKey(documentId: string): string {
   return `topics:${documentId}`;
@@ -51,23 +50,24 @@ export class TopicsService {
     this.start(documentId);
   }
 
-  refresh({ documentId, userId }: { documentId: string; userId: string }): RefreshResult {
-    if (this.worker.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning, retryAfterSeconds: null };
-    const cooldownKey = `${userId}:${documentId}`;
-    const last = this.refreshedAt.get(cooldownKey);
+  refresh(documentId: string): RefreshResult {
+    if (this.worker.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning };
+    const last = this.refreshedAt.get(documentId);
     const waitedMs = last === undefined ? TOPIC_REFRESH_COOLDOWN_MS : Date.now() - last;
     if (waitedMs < TOPIC_REFRESH_COOLDOWN_MS) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: Math.ceil((TOPIC_REFRESH_COOLDOWN_MS - waitedMs) / SECOND_MS) };
-    this.refreshedAt.set(cooldownKey, Date.now());
+    this.refreshedAt.set(documentId, Date.now());
     this.start(documentId);
-    return { outcome: RefreshOutcome.Started, retryAfterSeconds: null };
+    return { outcome: RefreshOutcome.Started };
   }
 
-  onTimelineRead({ documentId, unassignedBlockCount }: { documentId: string; unassignedBlockCount: number }): void {
+  onTimelineRead({ documentId, unassignedFirstSequences }: { documentId: string; unassignedFirstSequences: number[] }): void {
     const status = this.repository.status(documentId);
     const updatedAt = this.repository.updatedAt(documentId);
     if (!status || updatedAt === null) return;
     if (status.state !== TopicState.Ready) return;
-    if (unassignedBlockCount < TOPIC_RECOMPUTE_NEW_BLOCKS) return;
+    if (status.computedAtSequence === null) return;
+    const computedAtSequence = status.computedAtSequence;
+    if (unassignedFirstSequences.filter((sequence) => sequence > computedAtSequence).length < TOPIC_RECOMPUTE_NEW_BLOCKS) return;
     if (Date.now() - updatedAt < TOPIC_RECOMPUTE_MIN_INTERVAL_MS) return;
     this.start(documentId);
   }

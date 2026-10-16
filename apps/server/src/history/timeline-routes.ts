@@ -28,7 +28,7 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     const { term, author, binMs } = parsed.data;
     services.insights.topics.ensure(documentId);
     const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs });
-    services.insights.topics.onTimelineRead({ documentId, unassignedBlockCount: readTimelinePipeline({ services, documentId }).unassignedBlockCount });
+    services.insights.topics.onTimelineRead({ documentId, unassignedFirstSequences: readTimelinePipeline({ services, documentId }).unassignedFirstSequences });
     return context.json(timeline);
   });
   routes.get(EDITS_PATH, (context) => {

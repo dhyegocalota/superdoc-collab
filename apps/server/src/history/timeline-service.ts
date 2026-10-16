@@ -32,9 +32,21 @@ function buildPipeline({ services, documentId }: { services: AppServices; docume
   const events = resolveEvents({ services, documentId, stored });
   const { identities, bandOf, hasTopics } = bandIdentities({ services, documentId, events });
   const timelineEvents = events.map((event): TimelineEvent => ({ sequence: event.sequence, serverTime: event.serverTime, blockId: event.blockId, bandId: bandOf(event), authorKeys: event.authors.map(authorKey), inserted: event.inserted, deleted: event.deleted }));
-  const unassignedBlocks = new Set(events.filter((event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID)).map((event) => event.blockId));
-  const authors = Object.fromEntries(events.flatMap((event) => event.authors.map((author): [string, EventAuthor] => [authorKey(author), author])));
-  return { events: timelineEvents, identities, authors, hasTopics, unassignedBlockCount: unassignedBlocks.size };
+  const unassignedEvents = events.filter((event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID));
+  return { events: timelineEvents, identities, authors: authorsOf(events), hasTopics, unassignedFirstSequences: firstSequencesOf(unassignedEvents) };
+}
+
+function authorsOf(events: DocumentEditEvent[]): Record<string, EventAuthor> {
+  return Object.fromEntries(events.flatMap((event) => event.authors.map((author): [string, EventAuthor] => [authorKey(author), author])));
+}
+
+function firstSequencesOf(events: DocumentEditEvent[]): number[] {
+  const firstByBlock = events.reduce((byBlock, event) => {
+    const known = byBlock.get(event.blockId);
+    if (known === undefined || event.sequence < known) byBlock.set(event.blockId, event.sequence);
+    return byBlock;
+  }, new Map<string, number>());
+  return [...firstByBlock.values()];
 }
 
 export function pipelineKey({ services, documentId }: { services: AppServices; documentId: string }): string {

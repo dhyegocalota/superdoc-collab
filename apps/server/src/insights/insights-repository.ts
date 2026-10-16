@@ -42,7 +42,7 @@ export class InsightsRepository {
     this.database.drizzle.transaction((transaction) => {
       const ownIds = new Set(transaction.select({ id: documentTopics.id }).from(documentTopics).where(eq(documentTopics.documentId, documentId)).all().map((row) => row.id));
       const resolved = topics.map((topic) => ({ ...topic, id: topic.id !== null && ownIds.has(topic.id) ? topic.id : randomUUID() }));
-      const reusedIds = resolved.filter((topic) => topic.id !== null && ownIds.has(topic.id)).map((topic) => topic.id);
+      const reusedIds = resolved.filter((topic) => ownIds.has(topic.id)).map((topic) => topic.id);
       transaction.delete(documentTopics).where(and(eq(documentTopics.documentId, documentId), notInArray(documentTopics.id, reusedIds))).run();
       transaction.delete(topicBlocks).where(eq(topicBlocks.documentId, documentId)).run();
       resolved.forEach((topic, position) => {

@@ -7,11 +7,13 @@ import {
   HttpStatus,
   INVALID_SHARE_LINK_MESSAGE,
   shareLinkAcceptPath,
+  sharePagePath,
   ShareLinkRole,
   type DocumentSummary,
   type ShareLinks,
 } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
+import { ShareLinksRepository } from './share-links';
 import { memberWithRole } from '../testing/collaboration-client';
 import { signedInOwner, signedInUser, type TestServer } from '../testing/test-server';
 
@@ -129,4 +131,30 @@ test('an unknown token is the generic invalid-link 404', async () => {
   const response = await accept({ server, cookie: owner.cookie, url: `${server.baseUrl}/share/not-a-real-token` });
   expect([response.status, await response.json()]).toEqual([HttpStatus.NotFound, { error: INVALID_SHARE_LINK_MESSAGE }]);
   await server.stop();
+});
+
+test('rotating as an editor is 403', async () => {
+  const { server, documentId, owner } = await blankDocumentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const before = await shareLinksOf({ server, cookie: owner.cookie, documentId });
+  expect((await rotate({ server, cookie: editor.cookie, documentId, role: ShareLinkRole.Edit })).status).toBe(HttpStatus.Forbidden);
+  expect(await shareLinksOf({ server, cookie: owner.cookie, documentId })).toEqual(before);
+  await server.stop();
+});
+
+test('links stored under another secret are regenerated and work', async () => {
+  const { server, documentId } = await blankDocumentWithOwner();
+  const options = { database: server.database, appOrigin: server.baseUrl };
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server' }).links(documentId);
+  const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!' });
+  const newLinks = current.links(documentId);
+  const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
+  expect(newLinks[ShareLinkRole.Edit]).not.toBe(oldLinks[ShareLinkRole.Edit]);
+  expect(current.resolve(tokenOf(newLinks[ShareLinkRole.Edit]))).toEqual({ documentId, role: ShareLinkRole.Edit });
+  expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
+  await server.stop();
+});
+
+test('the share page path is built from the token', () => {
+  expect(sharePagePath('a b')).toBe('/share/a%20b');
 });

@@ -10,6 +10,7 @@ import {
   HttpMethod,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  TITLE_MAX_LENGTH,
   RoomMode,
   UPLOAD_FIELD,
   type DocumentMembers,
@@ -21,14 +22,16 @@ import JSZip from 'jszip';
 import { randomUUID } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { signedInOwner, signedInUser, type TestServer } from '../testing/test-server';
 import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
 
 const IMPORT_TIMEOUT_MS = 30_000;
-const TWELVE_MEGABYTES = 12 * 1024 * 1024;
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+const TWELVE_MEGABYTES = 12 * BYTES_PER_MEGABYTE;
+const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
@@ -266,10 +269,20 @@ test('the title drops the docx extension in any case', async () => {
   await server.stop();
 });
 
-test('a file name longer than a title may be is refused', async () => {
+test('a file name longer than a title may be is truncated', async () => {
   const { server, owner } = await signedInOwner();
-  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Long'), fileName: `${'a'.repeat(300)}.docx` });
-  expect(response.status).toBe(HttpStatus.BadRequest);
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Long'), fileName: `${'a'.repeat(TITLE_MAX_LENGTH + 100)}.docx` });
+  expect(response.status).toBe(HttpStatus.Created);
+  const created: DocumentSummary = await response.json();
+  expect(created.title).toBe('a'.repeat(TITLE_MAX_LENGTH));
+  await server.stop();
+});
+
+test('a failing file write leaves no document row', async () => {
+  const { server, owner } = await signedInOwner();
+  vi.spyOn(server.services.storage, 'put').mockRejectedValue(new Error('disk full'));
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Unsaved') });
+  expect(response.status).toBe(HttpStatus.InternalServerError);
   expect((await listOf({ server, cookie: owner.cookie })).mine).toEqual([]);
   await server.stop();
 });
@@ -283,10 +296,10 @@ test('a malformed multipart body is 400', async () => {
 
 test('a chunked upload over the limit is 413 while streaming', async () => {
   const { server, owner } = await signedInOwner();
-  const chunk = new Uint8Array(1024 * 1024);
+  const chunk = new Uint8Array(BYTES_PER_MEGABYTE);
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
-      Array.from({ length: 12 }).forEach(() => controller.enqueue(chunk));
+      Array.from({ length: STREAMED_CHUNK_COUNT }).forEach(() => controller.enqueue(chunk));
       controller.close();
     },
   });

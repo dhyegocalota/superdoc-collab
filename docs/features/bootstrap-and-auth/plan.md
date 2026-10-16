@@ -858,16 +858,18 @@ _Done — evidence: commit 5394766; task review approved (image inspected: drizz
 - Create: `docs/features/bootstrap-and-auth/tester-briefing.md`
 - Modify: `docs/features/README.md` (status → Building)
 
-- [ ] **Step 1: verify.yml** — on `pull_request` and `push` to `main`: checkout, `pnpm/action-setup@v4`, `actions/setup-node@v4` with `node-version-file: .nvmrc` and pnpm cache, `pnpm install --frozen-lockfile`, `pnpm exec playwright install --with-deps chromium`, `pnpm typecheck`, `pnpm test:unit`, `pnpm test:e2e`, upload `playwright-report` on failure.
-- [ ] **Step 2: README.md** — what the project is, how to run (`cp .env.example .env`, `pnpm install`, `pnpm seed`, `pnpm dev`; Docker path), the demo users, the test commands, a "Process" section linking `AGENTS.md`, `.claude/HARNESS.md`, `docs/adr`, `docs/features`, and the mandatory citation section: LLM use (this codebase is developed with Claude Code and the harness in this repo), starter code (shadcn/ui components copied under `apps/web/src/components/ui`, superpowers skills vendored under `.agents/skills`).
-- [ ] **Step 3: Tester briefing** — per `docs/features/_template/tester-briefing.md`: how to run, the seven E2E specs and unit suites as red-today/green-after, hypotheses ("the fourth attempt is rate limited", "the socket rejects an expired session", "narrow width has no horizontal scroll"), known gaps (no password reset, no dark-mode switch in the UI).
-- [ ] **Step 4: Commit** — `ci: run the verify gate on pull requests` and `docs: add the README and tester briefing`
+- [x] **Step 1: verify.yml** — on `pull_request` and `push` to `main`: checkout, `pnpm/action-setup@v4`, `actions/setup-node@v4` with `node-version-file: .nvmrc` and pnpm cache, `pnpm install --frozen-lockfile`, `pnpm exec playwright install --with-deps chromium`, `pnpm typecheck`, `pnpm test:unit`, `pnpm test:e2e`, upload `playwright-report` on failure.
+- [x] **Step 2: README.md** — what the project is, how to run (`cp .env.example .env`, `pnpm install`, `pnpm seed`, `pnpm dev`; Docker path), the demo users, the test commands, a "Process" section linking `AGENTS.md`, `.claude/HARNESS.md`, `docs/adr`, `docs/features`, and the mandatory citation section: LLM use (this codebase is developed with Claude Code and the harness in this repo), starter code (shadcn/ui components copied under `apps/web/src/components/ui`, superpowers skills vendored under `.agents/skills`).
+- [x] **Step 3: Tester briefing** — per `docs/features/_template/tester-briefing.md`: how to run, the seven E2E specs and unit suites as red-today/green-after, hypotheses ("the fourth attempt is rate limited", "the socket rejects an expired session", "narrow width has no horizontal scroll"), known gaps (no password reset, no dark-mode switch in the UI).
+- [x] **Step 4: Commit** — `ci: run the verify gate on pull requests` and `docs: add the README and tester briefing`
 
 ---
 
+_Done — evidence: commits 1e125dc, 375d1f6, 96a5199; fix round 1 re-review clean_
+
 ### Z. Prove and ship
 
-- [ ] **Z1:** Developer A hands over `tester-briefing.md`; the orchestrator dispatches the `tester` sub-agent with `test-plan.md` only.
+- [x] **Z1:** Developer A hands over `tester-briefing.md`; the orchestrator dispatches the `tester` sub-agent with `test-plan.md` only.
 - [ ] **Z2:** Tester executes `test-plan.md`, ticks with evidence, files defects; defects go back to the owning group.
 - [ ] **Z3:** `reviewer` sub-agent on `git diff main...HEAD`; findings fixed; verdict recorded in the PR body.
 - [ ] **Z4:** `/check-ui http://localhost:3100/sign-in bootstrap-and-auth --video` by the `recorder`; assets on the `pr-media-bootstrap-and-auth` pre-release.

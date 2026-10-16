@@ -10,6 +10,8 @@ services:
       DATABASE_DIR: /data
       WEB_DIST_DIR: /app/web
       PORT: "3000"
+      APP_ORIGIN: ${APP_ORIGIN:?}
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:?}
     volumes:
       - history-data:/data
     healthcheck:

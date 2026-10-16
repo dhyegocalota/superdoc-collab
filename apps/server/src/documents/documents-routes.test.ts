@@ -19,7 +19,7 @@ import {
 } from '@superdoc-history/types';
 import JSZip from 'jszip';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
@@ -32,9 +32,9 @@ const TWELVE_MEGABYTES = 12 * 1024 * 1024;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
-async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string }): Promise<Response> {
+async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE, fileName = 'Plan.docx' }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string; fileName?: string }): Promise<Response> {
   const form = new FormData();
-  form.set(UPLOAD_FIELD, new File([new Uint8Array(bytes)], 'Plan.docx', { type }));
+  form.set(UPLOAD_FIELD, new File([new Uint8Array(bytes)], fileName, { type }));
   return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie }, body: form });
 }
 
@@ -60,7 +60,6 @@ async function docxBytes(text: string): Promise<Buffer> {
 
 test('rejects a zip without word/document.xml', async () => {
   const { server, owner } = await signedInOwner();
-  mkdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY), { recursive: true });
   const zip = new JSZip();
   zip.file('notes.txt', 'renamed zip');
   expect((await upload({ server, cookie: owner.cookie, bytes: await zip.generateAsync({ type: 'uint8array' }) })).status).toBe(HttpStatus.UnsupportedMediaType);
@@ -105,7 +104,6 @@ test('a body over the limit is 413 before parsing', async () => {
   const { server, owner } = await signedInOwner();
   const response = await upload({ server, cookie: owner.cookie, bytes: new Uint8Array(TWELVE_MEGABYTES) });
   expect(response.status).toBe(HttpStatus.PayloadTooLarge);
-  mkdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY), { recursive: true });
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
   await server.stop();
 });
@@ -258,5 +256,47 @@ test('delete removes the row, the file, the log and the events, and closes the r
   expect(server.services.readModel.cursor(created.id)).toBeNull();
   await closed;
   client.close();
+  await server.stop();
+});
+
+test('the title drops the docx extension in any case', async () => {
+  const { server, owner } = await signedInOwner();
+  const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Cased'), fileName: 'REPORT.DOCX' })).json();
+  expect(created.title).toBe('REPORT');
+  await server.stop();
+});
+
+test('a file name longer than a title may be is refused', async () => {
+  const { server, owner } = await signedInOwner();
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Long'), fileName: `${'a'.repeat(300)}.docx` });
+  expect(response.status).toBe(HttpStatus.BadRequest);
+  expect((await listOf({ server, cookie: owner.cookie })).mine).toEqual([]);
+  await server.stop();
+});
+
+test('a malformed multipart body is 400', async () => {
+  const { server, owner } = await signedInOwner();
+  const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie: owner.cookie, 'content-type': 'multipart/form-data; boundary=missing' }, body: 'not multipart at all' });
+  expect(response.status).toBe(HttpStatus.BadRequest);
+  await server.stop();
+});
+
+test('a chunked upload over the limit is 413 while streaming', async () => {
+  const { server, owner } = await signedInOwner();
+  const chunk = new Uint8Array(1024 * 1024);
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      Array.from({ length: 12 }).forEach(() => controller.enqueue(chunk));
+      controller.close();
+    },
+  });
+  const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, {
+    method: HttpMethod.Post,
+    headers: { cookie: owner.cookie, 'content-type': 'multipart/form-data; boundary=chunked' },
+    body,
+    duplex: 'half',
+  } as RequestInit);
+  expect(response.status).toBe(HttpStatus.PayloadTooLarge);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
   await server.stop();
 });

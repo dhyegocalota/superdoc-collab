@@ -1,5 +1,6 @@
 import { DocumentRole } from '@superdoc-history/types';
 import { IdentitySource } from '@superdoc-history/history';
+import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
@@ -14,6 +15,8 @@ test("a reader's update is acknowledged but never logged", async () => {
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
   ownerClient.document.getText('t').insert(0, 'owner');
   await expect.poll(() => server.services.log.hasUpdates(documentId)).toBe(true);
+  await expect.poll(() => readerClient.document.getText('t').toString()).toContain('owner');
+  expect(ownerClient.document.getText('t').toString()).toBe('owner');
   expect(server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId)).not.toContain(reader.id);
   [readerClient, ownerClient].forEach((client) => client.close());
   await server.stop();
@@ -66,5 +69,19 @@ test('an awareness userId of someone else stays observed', async () => {
   client.document.getText('t').insert(0, 'spoofed');
   await expect.poll(() => server.services.log.identitySources(documentId).get(client.document.clientID)).toBe(IdentitySource.Observed);
   client.close();
+  await server.stop();
+});
+
+test('a member of one document is refused on another', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const stranger = await signedInUser({ server, name: 'Elsewhere' });
+  server.services.documents.create({ id: randomUUID(), title: 'Other', ownerUserId: stranger.id });
+  await expect(connectToDocument({ server, cookie: stranger.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  await server.stop();
+});
+
+test('an upgrade the server destroys rejects the connection promptly', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, origin: 'https://evil.example' })).rejects.toBeInstanceOf(CollaborationRefusedError);
   await server.stop();
 });

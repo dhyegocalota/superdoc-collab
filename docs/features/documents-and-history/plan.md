@@ -1616,11 +1616,11 @@ _Done — evidence: commits 3699d6f, 7b046a1; container verified (health, sign-i
 
 ### Z. Prove and ship
 
-- [ ] **Z1:** Developer A hands over `tester-briefing.md`; the orchestrator dispatches the `tester` with `test-plan.md` only.
-- [ ] **Z2:** Tester executes `test-plan.md`, ticks with evidence, files defects to the owning group.
-- [ ] **Z3:** `reviewer` on `git diff main...HEAD`; findings fixed; refutations recorded in `test-plan.md`.
-- [ ] **Z4:** `/check-ui http://localhost:3100/documents documents-and-history --video` by the `recorder`.
-- [ ] **Z5:** Learnings sweep (worker loader under Vitest, SuperDoc room prefix, joiners need a valid DOCX); ADR 0010 addendum for the HMAC-derived share token; `/open-pr documents-and-history`.
+- [x] **Z1:** Developer A hands over `tester-briefing.md`; the orchestrator dispatches the `tester` with `test-plan.md` only.
+- [x] **Z2:** Tester executes `test-plan.md`, ticks with evidence, files defects to the owning group.
+- [x] **Z3:** `reviewer` on `git diff main...HEAD`; findings fixed; refutations recorded in `test-plan.md`.
+- [x] **Z4:** `/check-ui http://localhost:3100/documents documents-and-history --video` by the `recorder`.
+- [x] **Z5:** Learnings sweep (worker loader under Vitest, SuperDoc room prefix, joiners need a valid DOCX); ADR 0010 addendum for the HMAC-derived share token; `/open-pr documents-and-history`.
 
 ## Failure modes
 

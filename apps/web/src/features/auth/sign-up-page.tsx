@@ -71,7 +71,7 @@ export function SignUpPage() {
                 </p>
               )}
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                Sign up
+                {form.formState.isSubmitting ? 'Creating account...' : 'Sign up'}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{' '}

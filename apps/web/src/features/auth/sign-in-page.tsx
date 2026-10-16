@@ -58,7 +58,7 @@ export function SignInPage() {
                 </p>
               )}
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                Sign in
+                {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 No account yet?{' '}

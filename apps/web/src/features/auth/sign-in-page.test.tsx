@@ -53,3 +53,21 @@ test('shows only the generic message on a 401', async () => {
   expect(await screen.findByText(AUTH_ERROR_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
 });
+
+test('disables the button and shows the pending label while the request is in flight', async () => {
+  let finishRequest: (value: never) => void = () => undefined;
+  signInEmail.mockReturnValue(new Promise((resolve) => (finishRequest = resolve)) as never);
+  const user = renderSignInPage();
+  await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
+  expect(await screen.findByRole('button', { name: 'Signing in...' })).toBeDisabled();
+  finishRequest({ data: null, error: null } as never);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+});
+
+test('submits with Enter from the password field', async () => {
+  signInEmail.mockResolvedValue({ data: null, error: null } as never);
+  const user = renderSignInPage();
+  await user.type(screen.getByLabelText('Email'), 'ada@example.com');
+  await user.type(screen.getByLabelText('Password'), 'long-enough-password{Enter}');
+  await waitFor(() => expect(signInEmail).toHaveBeenCalledTimes(1));
+});

@@ -14,8 +14,9 @@ function docxFile({ name, size }: { name: string; size: number }): File {
 }
 
 async function chooseFile(file: File): Promise<void> {
-  await userEvent.click(screen.getByRole('button', { name: UPLOAD_LABEL }));
-  await userEvent.upload(screen.getByLabelText(FILE_INPUT_LABEL), file);
+  const user = userEvent.setup({ applyAccept: false });
+  await user.click(screen.getByRole('button', { name: UPLOAD_LABEL }));
+  await user.upload(screen.getByLabelText(FILE_INPUT_LABEL), file);
 }
 
 afterEach(() => vi.restoreAllMocks());

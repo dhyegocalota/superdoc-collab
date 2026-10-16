@@ -1,0 +1,11 @@
+export const MINE_HEADING = 'Mine';
+export const SHARED_HEADING = 'Shared with me';
+export const MINE_EMPTY_MESSAGE = 'No documents yet';
+export const SHARED_EMPTY_MESSAGE = 'Nothing shared with you yet';
+export const NEW_DOCUMENT_LABEL = 'New document';
+export const UPLOAD_LABEL = 'Upload .docx';
+export const UPLOAD_DIALOG_TITLE = 'Upload a document';
+export const UPLOAD_DIALOG_DESCRIPTION = 'Choose a .docx file up to 10 MB.';
+export const FILE_INPUT_LABEL = 'Document file';
+export const DOCUMENTS_LOAD_ERROR_MESSAGE = 'Documents could not be loaded.';
+export const CREATE_ERROR_MESSAGE = 'The document could not be created.';

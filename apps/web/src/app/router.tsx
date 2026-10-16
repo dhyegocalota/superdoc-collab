@@ -4,7 +4,7 @@ import { RedirectIfSession } from '@/features/auth/redirect-if-session';
 import { RequireSession } from '@/features/auth/require-session';
 import { SignInPage } from '@/features/auth/sign-in-page';
 import { SignUpPage } from '@/features/auth/sign-up-page';
-import { DocumentsPage } from '@/routes/documents-page';
+import { DocumentsPage } from '@/features/documents/documents-page';
 
 const UNKNOWN_PATH = '*';
 

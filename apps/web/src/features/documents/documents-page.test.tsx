@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
-import { MINE_EMPTY_MESSAGE, NEW_DOCUMENT_LABEL, SHARED_EMPTY_MESSAGE } from './documents-copy';
+import { COLUMN_HEADERS, MINE_EMPTY_MESSAGE, NEW_DOCUMENT_LABEL, SHARED_EMPTY_MESSAGE } from './documents-copy';
 import { DocumentsPage } from './documents-page';
 
 const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
@@ -27,6 +27,7 @@ test('empty lists show both empty messages', async () => {
   renderWithProviders(<DocumentsPage />);
   expect(await screen.findByText(MINE_EMPTY_MESSAGE)).toBeInTheDocument();
   expect(screen.getByText(SHARED_EMPTY_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryAllByRole('columnheader')).toHaveLength(0);
 });
 
 test('a row shows the title, owner, formatted date and role', async () => {
@@ -37,6 +38,7 @@ test('a row shows the title, owner, formatted date and role', async () => {
   expect(within(row).getByText(OWNED_DOCUMENT.owner.name)).toBeInTheDocument();
   expect(within(row).getByText(DATE_FORMAT.format(OWNED_DOCUMENT.updatedAt))).toBeInTheDocument();
   expect(within(row).getByText(DocumentRole.Owner)).toBeInTheDocument();
+  expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(COLUMN_HEADERS);
 });
 
 test('clicking the title opens the document', async () => {

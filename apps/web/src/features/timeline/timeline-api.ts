@@ -19,11 +19,13 @@ import {
 import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
+import { requestFailedMessage } from './timeline-copy';
 
 export const TIMELINE_POLL_MS = 3000;
 
 const RETRY_AFTER_HEADER = 'Retry-After';
 const MILLISECONDS_PER_SECOND = 1000;
+export const MIN_RETRY_AFTER_MS = 1000;
 const EDITS_SEGMENT = 'edits';
 
 export enum VersionLoadKind {
@@ -74,18 +76,24 @@ function assertDocumentAvailable(response: Response): void {
   if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
 }
 
+function readRetryAfterMs(response: Response): number {
+  const retryAfterMs = Number(response.headers.get(RETRY_AFTER_HEADER)) * MILLISECONDS_PER_SECOND;
+  if (!Number.isFinite(retryAfterMs)) return MIN_RETRY_AFTER_MS;
+  return Math.max(MIN_RETRY_AFTER_MS, retryAfterMs);
+}
+
 export async function fetchTimeline({ documentId, filter }: { documentId: string; filter: TimelineFilter }): Promise<DocumentTimeline> {
   const path = documentApiPath({ documentId, resource: DocumentResource.Timeline });
   const response = await apiGet(withQuery({ path, params: filterParams(filter) }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(`Timeline request failed with status ${response.status}`);
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Timeline request', status: response.status }));
   return response.json();
 }
 
 export async function fetchSummaries(documentId: string): Promise<TopicSummaries> {
   const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Summaries }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(`Summaries request failed with status ${response.status}`);
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Summaries request', status: response.status }));
   return response.json();
 }
 
@@ -93,7 +101,7 @@ export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   const response = await apiSend({ path: topicsRefreshApiPath(documentId), method: HttpMethod.Post, body: null });
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new ApiRequestError(TOPICS_REFRESH_TOO_SOON_MESSAGE);
-  if (!response.ok) throw new ApiRequestError(`Topics refresh failed with status ${response.status}`);
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Topics refresh', status: response.status }));
   return response.json();
 }
 
@@ -103,14 +111,14 @@ export async function fetchBinEdits({ documentId, binStart, binMs, filter }: { d
   params.set(TimelineQueryParam.BinMs, String(binMs));
   const response = await apiGet(withQuery({ path: timelineEditsApiPath(documentId), params }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(`Bin edits request failed with status ${response.status}`);
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Bin edits request', status: response.status }));
   return response.json();
 }
 
 export async function fetchVersion({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionLoad> {
   const response = await apiGet(versionApiPath({ documentId, sequence }));
   assertDocumentAvailable(response);
-  if (response.status === HttpStatus.Accepted) return { kind: VersionLoadKind.Pending, retryAfterMs: Number(response.headers.get(RETRY_AFTER_HEADER)) * MILLISECONDS_PER_SECOND };
+  if (response.status === HttpStatus.Accepted) return { kind: VersionLoadKind.Pending, retryAfterMs: readRetryAfterMs(response) };
   if (!response.ok) return { kind: VersionLoadKind.Failed };
   return { kind: VersionLoadKind.Ready, version: await response.json() };
 }

@@ -14,3 +14,7 @@ export const STREAMGRAPH_TITLE = 'Edits over time by topic';
 export const BACK_TO_LIVE_LABEL = 'Back to live';
 export const LOADING_VERSION_MESSAGE = 'Loading this version…';
 export const RESIZE_PANEL_LABEL = 'Resize timeline panel';
+
+export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
+  return `${subject} failed with status ${status}`;
+}

@@ -1,6 +1,7 @@
-import { ApiPath, HttpStatus } from '@superdoc-history/types';
+import { ApiPath, DOCX_MIME_TYPE, HttpStatus, UPLOAD_FIELD } from '@superdoc-history/types';
+import { buildSeedDocx } from '@superdoc-history/history';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { startTestServer, type TestServer } from '../testing/test-server';
+import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 
 let server: TestServer;
 beforeAll(async () => { server = await startTestServer(); });
@@ -90,5 +91,28 @@ describe('sign-up, sign-in and me', () => {
     expect(await signedUp.json()).not.toHaveProperty('token');
     expect(await signedIn.json()).not.toHaveProperty('token');
     expect(signedIn.headers.getSetCookie().join(';')).toContain('HttpOnly');
+  });
+});
+
+describe('cross-site request forgery', () => {
+  const FOREIGN_ORIGIN = 'https://evil.example';
+
+  async function uploadFrom({ origin }: { origin: string }): Promise<Response> {
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    const form = new FormData();
+    form.set(UPLOAD_FIELD, new File([new Uint8Array(await buildSeedDocx([{ text: 'Hello', trackedChanges: [] }]))], 'Plan.docx', { type: DOCX_MIME_TYPE }));
+    return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: 'POST', headers: { cookie, origin }, body: form });
+  }
+
+  test('a multipart upload from a foreign origin is forbidden', async () => {
+    expect((await uploadFrom({ origin: FOREIGN_ORIGIN })).status).toBe(HttpStatus.Forbidden);
+  });
+  test('a multipart upload from the application origin is created', async () => {
+    expect((await uploadFrom({ origin: server.baseUrl })).status).toBe(HttpStatus.Created);
+  });
+  test('a form post to a share link from a foreign origin is forbidden', async () => {
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    const response = await fetch(`${server.baseUrl}${ApiPath.ShareLinks}/anything`, { method: 'POST', headers: { cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' }, body: 'role=editor' });
+    expect(response.status).toBe(HttpStatus.Forbidden);
   });
 });

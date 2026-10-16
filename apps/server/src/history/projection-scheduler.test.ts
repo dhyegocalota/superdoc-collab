@@ -61,6 +61,20 @@ test('a failed import is logged once and leaves the document usable', { timeout:
   await server.stop();
 });
 
+test('an import interrupted by a worker restart is posted again and completes', { timeout: IMPORT_TEST_TIMEOUT_MS }, async () => {
+  const { server } = await documentWithOwner();
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const firstWorker = server.services.scheduler.currentWorker;
+  vi.spyOn(firstWorker, 'postMessage').mockImplementation(() => undefined);
+  const documentId = randomUUID();
+  server.services.scheduler.importRevisions({ documentId, filePath: join(server.databaseDirectory, 'missing.docx') });
+  await firstWorker.terminate();
+  await expect.poll(() => consoleError.mock.calls.filter(([message]) => String(message).startsWith(`${IMPORT_FAILED_MESSAGE} ${documentId}: `)).length, { timeout: IMPORT_TEST_TIMEOUT_MS }).toBe(1);
+  expect(server.services.scheduler.currentWorker).not.toBe(firstWorker);
+  consoleError.mockRestore();
+  await server.stop();
+});
+
 test('stop ends the worker cleanly', async () => {
   const { server } = await documentWithOwner();
   const worker = server.services.scheduler.currentWorker;

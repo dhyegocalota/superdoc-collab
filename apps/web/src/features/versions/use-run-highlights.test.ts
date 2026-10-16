@@ -15,7 +15,7 @@ const SECOND_RUNS: EditRunView[] = [{ blockId: 'b2', bandId: 'band-0', authorKey
 beforeEach(() => {
   vi.mocked(highlightEdits).mockReset();
   vi.mocked(clearHighlights).mockReset();
-  vi.mocked(highlightEdits).mockImplementation(async ({ runs }) => ({ commentIds: [`id-${runs[0]!.blockId}`], skippedCount: 0 }));
+  vi.mocked(highlightEdits).mockImplementation(async ({ runs }) => ({ commentIds: runs.map((run) => `id-${run.blockId}`), skippedCount: 0 }));
 });
 
 test('nothing happens before the viewer is ready', () => {

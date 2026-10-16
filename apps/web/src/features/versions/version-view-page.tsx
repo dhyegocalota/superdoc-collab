@@ -1,5 +1,5 @@
 import type { EditRunView } from '@superdoc-history/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
@@ -18,12 +18,12 @@ export function VersionViewPage() {
   const documentId = useRequiredParam('documentId');
   const sequence = Number(useRequiredParam('sequence'));
   const { user } = useSession();
-  const superdocRef = useRef<SuperDoc | null>(null);
+  const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [runs, setRuns] = useState<EditRunView[]>(NO_RUNS);
-  useRunHighlights({ superdocRef, runs });
+  useRunHighlights({ superdoc, runs });
 
-  const handleReady = useCallback((superdoc: SuperDoc) => {
-    superdocRef.current = superdoc;
+  const handleReady = useCallback((readySuperdoc: SuperDoc) => {
+    setSuperdoc(readySuperdoc);
     postToParent(ViewerMessageKind.Ready);
   }, []);
   const handleFailed = useCallback(() => postToParent(ViewerMessageKind.Failed), []);

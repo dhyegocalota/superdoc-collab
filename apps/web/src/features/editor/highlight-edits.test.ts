@@ -24,7 +24,7 @@ function stubDocument(counts: Record<string, MatchCounts[string]>, patternByBloc
       }),
     },
     comments: {
-      create: vi.fn((input: { text: string; target: unknown }) => {
+      create: vi.fn(async (input: { text: string; target: unknown }) => {
         created.push(input);
         return { success: true, id: `c${created.length}` };
       }),
@@ -37,10 +37,10 @@ function stubDocument(counts: Record<string, MatchCounts[string]>, patternByBloc
 }
 
 test('the comment and match APIs keep the shape the highlighter relies on', () => {
-  expectTypeOf<Parameters<EditorDocument['query']['match']>[0]>().toMatchTypeOf<{
-    select: { type: 'text'; pattern: string; mode?: 'contains' | 'regex' };
-    within?: { kind: 'block'; nodeType: 'paragraph' | 'heading' | 'listItem'; nodeId: string };
-  }>();
+  expectTypeOf<{
+    select: { type: 'text'; pattern: string; mode: 'contains' };
+    within: { kind: 'block'; nodeType: 'paragraph' | 'heading' | 'listItem'; nodeId: string };
+  }>().toMatchTypeOf<Parameters<EditorDocument['query']['match']>[0]>();
   expectTypeOf<Parameters<EditorDocument['comments']['create']>[0]>().toMatchTypeOf<{ text: string; target?: unknown }>();
   expectTypeOf<Parameters<EditorDocument['comments']['delete']>[0]>().toEqualTypeOf<{ commentId: string }>();
 });

@@ -1,10 +1,12 @@
 import { ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { BlockChangeKind, DocumentResource, DocumentRole, documentApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries } from '@superdoc-history/types';
+import { BlockChangeKind, DocumentResource, DocumentRole, documentApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
 import { expect } from 'vitest';
 import Database from 'better-sqlite3';
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
+import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
 import { connectToDocument, documentWithOwner, memberWithRole } from './collaboration-client';
 import { readEvents } from './events-client';
@@ -76,4 +78,59 @@ export async function readSummaries({ server, documentId, cookie }: { server: Te
   const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Summaries })}`, { headers: { cookie } });
   expect(response.ok).toBe(true);
   return response.json();
+}
+
+const MULBERRY_INCREMENT = 0x6d2b79f5;
+const MULBERRY_RANGE = 4294967296;
+
+export function seededRandom(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state = (state + MULBERRY_INCREMENT) | 0;
+    let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
+    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / MULBERRY_RANGE;
+  };
+}
+
+export async function readJson<Body>({ server, cookie, path }: { server: TestServer; cookie: string; path: string }): Promise<Body> {
+  const response = await fetch(`${server.baseUrl}${path}`, { headers: { cookie } });
+  expect(response.ok).toBe(true);
+  return response.json();
+}
+
+const VERSION_POLL_INTERVAL_MS = 50;
+const ORIGINAL_TEXT = 'Original';
+const EDITED_TEXT = 'Original edited';
+const RETRY_AFTER_SECONDS_TEXT = '1';
+
+export async function editedAfterBootstrap({ versionRoomPolicy }: { versionRoomPolicy?: VersionRoomPolicy } = {}) {
+  const { server, documentId, owner } = await documentWithOwner({ versionRoomPolicy });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
+  commitBootstrap(client.document);
+  writeStory({ document: client.document, texts: [EDITED_TEXT] });
+  await expect.poll(() => server.services.readModel.marks(documentId).some((mark) => !mark.isBootstrap), { timeout: PROJECTION_TIMEOUT_MS }).toBe(true);
+  return { server, documentId, owner, client, bootstrapText: ORIGINAL_TEXT, editedText: EDITED_TEXT };
+}
+
+export async function bootstrappedDocument({ server, owner }: { server: TestServer; owner: TestUser }): Promise<{ documentId: string; sequence: number }> {
+  const documentId = randomUUID();
+  server.services.documents.create({ id: documentId, title: 'Another', ownerUserId: owner.id });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
+  commitBootstrap(client.document);
+  await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(0);
+  client.close();
+  return { documentId, sequence: server.services.readModel.marks(documentId)[0]!.sequence };
+}
+
+export async function pollVersion({ server, cookie, documentId, sequence }: { server: TestServer; cookie: string; documentId: string; sequence: number }): Promise<VersionSummary> {
+  const response = await fetch(`${server.baseUrl}${versionApiPath({ documentId, sequence })}`, { headers: { cookie } });
+  if (response.ok && response.status === 200) return response.json();
+  expect(response.status).toBe(202);
+  expect(response.headers.get('retry-after')).toBe(RETRY_AFTER_SECONDS_TEXT);
+  await response.arrayBuffer();
+  await new Promise((resolve) => setTimeout(resolve, VERSION_POLL_INTERVAL_MS));
+  return pollVersion({ server, cookie, documentId, sequence });
 }

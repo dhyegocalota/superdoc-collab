@@ -1,20 +1,20 @@
-import { MAX_BINS } from '@superdoc-history/history/timeline';
-import { type BinEdits, DocumentResource, documentApiPath, HttpStatus, timelineEditsApiPath, TimelineBandKind, type DocumentTimeline } from '@superdoc-history/types';
+import { MAX_BINS } from '@superdoc-history/history';
+import { type BinEdits, DocumentResource, MINUTE_MS, documentApiPath, HttpStatus, timelineEditsApiPath, TimelineBandKind, type DocumentTimeline } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
+import { TimelinePipelineCache } from './timeline-pipeline-cache';
 import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
 import { signedInUser } from '../testing/test-server';
 
-const MINUTE_MS = 60_000;
 const DAY_BIN_MS = 1440 * MINUTE_MS;
 const LATENCY_BUDGET_MS = 150;
 const BULK_EVENTS = 10_000;
 const BULK_BLOCKS = 600;
 const TWO_HOURS_EVENTS = 121;
 const OFF_LADDER_BIN_MS = 61_000;
-const TWO_MINUTE_BIN_MS = 120_000;
-const TEN_MINUTE_BIN_MS = 600_000;
+const TWO_MINUTE_BIN_MS = 2 * MINUTE_MS;
+const TEN_MINUTE_BIN_MS = 10 * MINUTE_MS;
 
 function timelineUrl({ server, documentId, query }: { server: { baseUrl: string }; documentId: string; query: string }): string {
   return `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${query}`;
@@ -150,5 +150,23 @@ test('two hours of history choose two-minute bins', async () => {
   expect(timeline.binMs).toBe(TWO_MINUTE_BIN_MS);
   expect(timeline.bins.length).toBeLessThanOrEqual(MAX_BINS + 2);
   expect((await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${TEN_MINUTE_BIN_MS}` })).binMs).toBe(TEN_MINUTE_BIN_MS);
+  await server.stop();
+});
+
+test('forgetting a document drops its cached pipeline', () => {
+  const cache = new TimelinePipelineCache();
+  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedBlockCount: 0 };
+  Array.from({ length: 2 }).forEach(() => cache.get({ documentId: 'd1', key: 'k', build: () => pipeline }));
+  expect(cache.builds).toBe(1);
+  cache.forget('d1');
+  cache.get({ documentId: 'd1', key: 'k', build: () => pipeline });
+  expect(cache.builds).toBe(2);
+});
+
+test('deleting the runtime document forgets its cached pipeline', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const forget = vi.spyOn(server.services.timelinePipelines, 'forget');
+  await server.services.runtime.forget(documentId);
+  expect(forget).toHaveBeenCalledWith(documentId);
   await server.stop();
 });

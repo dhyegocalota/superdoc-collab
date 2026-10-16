@@ -1,5 +1,5 @@
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { DocumentResource, DocumentRole, documentApiPath, HttpStatus, type DocumentEditEvents } from '@superdoc-history/types';
+import { DocumentResource, DocumentRole, documentApiPath, EVENTS_PAGE_SIZE, HttpStatus, type DocumentEditEvents } from '@superdoc-history/types';
 import { ReadModel } from '@superdoc-history/history';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
@@ -110,7 +110,6 @@ test('a batch committed between the cursor and the events read stays out of both
   await server.stop();
 });
 
-const DEFAULT_PAGE_EVENTS = 500;
 const BULK_EVENT_COUNT = 1200;
 
 async function fetchEventsPage({ server, documentId, cookie, query }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string; cookie: string; query: string }): Promise<Response> {
@@ -121,8 +120,8 @@ test('events default to a 500-event page', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   commitBulkEvents({ server, documentId, userId: owner.id, count: BULK_EVENT_COUNT });
   const page = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: '' })).json()) as DocumentEditEvents;
-  expect(page.events).toHaveLength(DEFAULT_PAGE_EVENTS);
-  expect(page.nextAfterSequence).toBe(DEFAULT_PAGE_EVENTS);
+  expect(page.events).toHaveLength(EVENTS_PAGE_SIZE);
+  expect(page.nextAfterSequence).toBe(EVENTS_PAGE_SIZE);
   await server.stop();
 });
 
@@ -143,7 +142,7 @@ test('events page on a sequence boundary', async () => {
   await server.stop();
 });
 
-test.each(['limit=0', 'limit=-1', 'limit=501', 'limit=abc'])('events reject %s', async (query) => {
+test.each(['limit=0', 'limit=-1', `limit=${EVENTS_PAGE_SIZE + 1}`, 'limit=abc'])('events reject %s', async (query) => {
   const { server, documentId, owner } = await documentWithOwner();
   expect((await fetchEventsPage({ server, documentId, cookie: owner.cookie, query })).status).toBe(HttpStatus.BadRequest);
   await server.stop();

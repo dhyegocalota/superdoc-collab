@@ -9,6 +9,10 @@ export class TimelinePipelineCache {
   builds = 0;
   private readonly entries = new Map<string, CacheEntry>();
 
+  forget(documentId: string): void {
+    this.entries.delete(documentId);
+  }
+
   get({ documentId, key, build }: { documentId: string; key: string; build: () => TimelinePipeline }): TimelinePipeline {
     const cached = this.entries.get(documentId);
     if (cached && cached.key === key) return cached.pipeline;

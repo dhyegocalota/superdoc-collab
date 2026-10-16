@@ -72,9 +72,11 @@ function lastTimeOf(events: TimelineEvent[]): number {
   return events.reduce((latest, event) => Math.max(latest, event.serverTime), Number.NEGATIVE_INFINITY);
 }
 
+const BEFORE_FIRST_SEQUENCE = 0;
+
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
   const cursor = services.readModel.cursor(documentId);
-  const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? 0 : cursor, limit: 1 });
+  const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? BEFORE_FIRST_SEQUENCE : cursor, limit: 1 });
   const isDegraded = services.scheduler.degraded;
   if (!next) return { isBehind: false, lagMs: null, isDegraded };
   return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded };

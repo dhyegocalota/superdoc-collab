@@ -75,9 +75,10 @@ export async function startServer({ environment, webDistDirectory, languageModel
       scheduler.schedule(documentId);
     },
   });
+  const timelinePipelines = new TimelinePipelineCache();
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   findDocumentsWithoutMarks(readModelSqlite).forEach((documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }));
-  const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
+  const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
   const insightsWorker = new InsightsWorker();
   const insights: InsightsServices = {
@@ -85,7 +86,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
     topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, worker: insightsWorker }),
     summaries: new SummariesService({ repository: insightsRepository, languageModel, worker: insightsWorker, readPipeline: (documentId) => readTimelinePipeline({ services, documentId }) }),
   };
-  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle, timelinePipelines: new TimelinePipelineCache(), insights };
+  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle, timelinePipelines, insights };
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));

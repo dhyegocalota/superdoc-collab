@@ -8,7 +8,7 @@ import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import type { LanguageModelChoice } from '../insights/llm-client';
 import { connectToDocument, documentWithOwner, memberWithRole } from './collaboration-client';
 import { readEvents } from './events-client';
-import type { TestServer } from './test-server';
+import type { TestServer, TestUser } from './test-server';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
 const BULK_CLIENT_ID = 4242;
@@ -21,22 +21,30 @@ export async function readTimeline({ server, documentId, cookie, query = '' }: {
   return response.json();
 }
 
-export async function twoAuthorsInTwoBlocks() {
+export async function twoAuthorsInTwoBlocks(): Promise<{ server: TestServer; documentId: string; owner: TestUser; editor: TestUser }> {
   const { server, documentId, owner } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
-  writeStory({ document: ownerClient.document, texts: ['Budget:', 'Hiring:'] });
-  commitBootstrap(ownerClient.document);
-  writeStory({ document: ownerClient.document, texts: ['Budget: more money', 'Hiring:'] });
-  const editorClient = await connectToDocument({ server, cookie: editor.cookie, documentId });
-  writeStory({ document: editorClient.document, texts: ['Budget: more money', 'Hiring: a designer'] });
-  const insertedTexts = async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted);
-  await expect.poll(insertedTexts, { timeout: PROJECTION_TIMEOUT_MS }).toEqual(expect.arrayContaining([' more money', ' a designer']));
-  [ownerClient, editorClient].forEach((client) => client.close());
+  const openClients: { close: () => void }[] = [ownerClient];
+  try {
+    writeStory({ document: ownerClient.document, texts: ['Budget:', 'Hiring:'] });
+    commitBootstrap(ownerClient.document);
+    writeStory({ document: ownerClient.document, texts: ['Budget: more money', 'Hiring:'] });
+    const editorClient = await connectToDocument({ server, cookie: editor.cookie, documentId });
+    openClients.push(editorClient);
+    writeStory({ document: editorClient.document, texts: ['Budget: more money', 'Hiring: a designer'] });
+    const insertedTexts = async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted);
+    await expect.poll(insertedTexts, { timeout: PROJECTION_TIMEOUT_MS }).toEqual(expect.arrayContaining([' more money', ' a designer']));
+  } catch (error) {
+    openClients.forEach((client) => client.close());
+    await server.stop();
+    throw error;
+  }
+  openClients.forEach((client) => client.close());
   return { server, documentId, owner, editor };
 }
 
-export function commitBulkEvents({ server, documentId, userId, count, startIndex = 0, eventsPerSequence = 1, blockCount = 1, stepMs = DEFAULT_STEP_MS }: { server: TestServer; documentId: string; userId: string; count: number; startIndex?: number; eventsPerSequence?: number; blockCount?: number; stepMs?: number }): number {
+export function commitBulkEvents({ server, documentId, userId, count, startIndex = 0, eventsPerSequence = 1, blockCount = 1, stepMs = DEFAULT_STEP_MS }: { server: TestServer; documentId: string; userId: string; count: number; startIndex?: number; eventsPerSequence?: number; blockCount?: number; stepMs?: number }): void {
   server.services.log.observeClientIdentity({ documentName: documentId, yjsClientId: BULK_CLIENT_ID, userId });
   const events = Array.from({ length: count }, (_, offset) => {
     const index = startIndex + offset;
@@ -46,7 +54,6 @@ export function commitBulkEvents({ server, documentId, userId, count, startIndex
   const sqlite = new Database(join(server.databaseDirectory, READ_MODEL_DATABASE_FILE));
   new ReadModel(sqlite).commit({ documentName: documentId, events, marks: [], lastSequence });
   sqlite.close();
-  return lastSequence;
 }
 
 export async function storyWithBlocks({ languageModel, texts }: { languageModel?: LanguageModelChoice; texts: string[] }) {

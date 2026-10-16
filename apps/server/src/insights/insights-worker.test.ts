@@ -23,18 +23,24 @@ test('a job over the concurrency cap is rejected while the cap is full and runs 
   await worker.idle();
 });
 
-test('the call after the hourly cap is rejected and the window rolls over', async () => {
+test('the model call after the hourly cap is refused and the window rolls over', () => {
   let now = 0;
   const worker = new InsightsWorker({ now: () => now });
-  await Array.from({ length: LLM_MAX_CALLS_PER_HOUR }).reduce<Promise<void>>(async (previous, _, index) => {
+  const consumed = Array.from({ length: LLM_MAX_CALLS_PER_HOUR }, () => worker.consumeCall());
+  expect(consumed.every(Boolean)).toBe(true);
+  expect(worker.consumeCall()).toBe(false);
+  now += LLM_WINDOW_MS - MINUTE_MS;
+  expect(worker.consumeCall()).toBe(false);
+  now += MINUTE_MS + 1;
+  expect(worker.consumeCall()).toBe(true);
+});
+
+test('jobs that never reach the model do not consume the hourly budget', async () => {
+  const worker = new InsightsWorker();
+  await Array.from({ length: LLM_MAX_CALLS_PER_HOUR * 2 }).reduce<Promise<void>>(async (previous, _, index) => {
     await previous;
-    expect(worker.run({ key: `call-${index}`, job: async () => undefined })).toBe(JobOutcome.Started);
+    expect(worker.run({ key: `idle-${index}`, job: async () => undefined })).toBe(JobOutcome.Started);
     await worker.idle();
   }, Promise.resolve());
-  expect(worker.run({ key: 'over', job: async () => undefined })).toBe(JobOutcome.Busy);
-  now += LLM_WINDOW_MS - MINUTE_MS;
-  expect(worker.run({ key: 'still-over', job: async () => undefined })).toBe(JobOutcome.Busy);
-  now += MINUTE_MS + 1;
-  expect(worker.run({ key: 'rolled', job: async () => undefined })).toBe(JobOutcome.Started);
-  await worker.idle();
+  expect(worker.consumeCall()).toBe(true);
 });

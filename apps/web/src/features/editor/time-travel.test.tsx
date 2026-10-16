@@ -182,6 +182,7 @@ test('scrubbing commits one URL change per pause, pushing once and then replacin
   await screen.findByTitle(STREAMGRAPH_TITLE);
   pressChartAt(0);
   await waitFor(() => expect(router.state.location.search).toBe(`?at=${BIN_STARTS[0]}`), SLOW_WAIT);
+  await act(async () => undefined);
   expect(router.state.historyAction).toBe('PUSH');
   const locations: string[] = [];
   router.subscribe((state) => locations.push(state.location.search));

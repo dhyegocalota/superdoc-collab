@@ -1,6 +1,6 @@
 import { DocumentRole, TimelineSearchParam } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { BinEdits } from './bin-edits';
@@ -63,23 +63,29 @@ export function TimelinePanel({ documentId, role, onTravel }: TimelinePanelProps
   const chartWidth = useElementWidth(chartRef);
   const { width, resizeTo, resizeBy } = usePanelWidth();
   const { search, update } = useTimelineSearch();
+  const [selectedTime, setSelectedTime] = useState<number | null>(search.at);
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen });
   const { data: summaries } = useSummaries({ documentId, isOpen });
   const refresh = useRefreshTopics(documentId);
   const canRefresh = role !== DocumentRole.Reader;
   const ToggleIcon = isOpen ? PanelRightClose : PanelRightOpen;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
-  const selectedIndex = timeline && search.at !== null ? timeline.bins.findIndex((bin) => search.at! >= bin.start && search.at! < bin.start + timeline.binMs) : -1;
+  const selectedIndex = timeline && selectedTime !== null ? timeline.bins.findIndex((bin) => selectedTime >= bin.start && selectedTime < bin.start + timeline.binMs) : -1;
   const selectedBin = timeline && selectedIndex >= 0 ? timeline.bins[selectedIndex] : undefined;
+
+  useEffect(() => {
+    setSelectedTime(search.at);
+  }, [search.at]);
 
   function selectIndex(index: number): void {
     const bin = timeline!.bins[index]!;
-    update({ changes: { [TimelineSearchParam.At]: String(bin.start) }, replace: true });
+    setSelectedTime(bin.start);
     if (bin.versionSequence !== null) onTravel(bin.start);
   }
 
   function clearSelection(): void {
-    update({ changes: { [TimelineSearchParam.At]: null }, replace: true });
+    setSelectedTime(null);
+    if (search.at !== null) update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
   }
 
   return (

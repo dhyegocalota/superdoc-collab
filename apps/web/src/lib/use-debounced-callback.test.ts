@@ -15,6 +15,7 @@ test('calls within the delay collapse into the last one', () => {
   result.current(2);
   vi.advanceTimersByTime(DELAY_MS - 1);
   result.current(3);
+  vi.advanceTimersByTime(DELAY_MS - 1);
   expect(callback).not.toHaveBeenCalled();
   vi.advanceTimersByTime(1);
   expect(callback).toHaveBeenCalledTimes(1);

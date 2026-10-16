@@ -55,7 +55,7 @@ export function binEditsQueryKey({ documentId, binStart, binMs, filter }: { docu
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter];
 }
 
-export function versionQueryKey({ documentId, sequence }: { documentId: string; sequence: number }): unknown[] {
+export function versionQueryKey({ documentId, sequence }: { documentId: string; sequence: number | null }): unknown[] {
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Versions, sequence];
 }
 

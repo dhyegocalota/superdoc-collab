@@ -38,3 +38,7 @@ export function wordsDeltaLabel({ inserted, deleted }: { inserted: number; delet
 export function lagBehindLabel(seconds: number): string {
   return `${seconds} s behind`;
 }
+
+export function versionAtLabel(moment: string): string {
+  return `Version at ${moment}`;
+}

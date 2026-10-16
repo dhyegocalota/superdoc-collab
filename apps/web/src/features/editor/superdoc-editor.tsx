@@ -2,23 +2,17 @@ import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, DocumentRole,
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { EDITOR_FAILED_MESSAGE } from './editor-copy';
-
-const HOCUSPOCUS_PROVIDER = 'hocuspocus';
-const HTTP_SCHEME = /^http/;
 
 export enum DocumentMode {
   Viewing = 'viewing',
   Editing = 'editing',
 }
 
-type SuperDocEditorProps = { superdocRef: RefObject<SuperDoc | null>; documentId: string; roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob };
+type SuperDocEditorProps = { superdocRef: RefObject<SuperDoc | null>; documentId: string; roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob; isInert: boolean };
 
-function collaborationUrl(): string {
-  return `${window.location.origin.replace(HTTP_SCHEME, 'ws')}${ApiPath.Collaboration}`;
-}
-
-export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file }: SuperDocEditorProps) {
+export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
 
@@ -33,7 +27,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
           id: documentId,
           type: DOCX_MIME_TYPE,
           data: file,
-          v2Collaboration: { providerType: HOCUSPOCUS_PROVIDER, documentId, serverUrl: collaborationUrl(), roomMode, token: COLLABORATION_TOKEN_PLACEHOLDER },
+          v2Collaboration: { providerType: HOCUSPOCUS_PROVIDER, documentId, serverUrl: collaborationUrl(ApiPath.Collaboration), roomMode, token: COLLABORATION_TOKEN_PLACEHOLDER },
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
@@ -49,7 +43,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {hasFailed && <p role="alert" className="p-4 text-sm text-destructive">{EDITOR_FAILED_MESSAGE}</p>}
-      <div ref={containerRef} data-testid="document-editor" className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto" />
+      <div ref={containerRef} data-testid="document-editor" inert={isInert} className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto" />
     </div>
   );
 }

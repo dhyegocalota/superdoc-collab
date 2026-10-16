@@ -18,16 +18,17 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
-import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EDITOR_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
+import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
-import { BLANK_DOCX_PATH, openedDocumentQueryKey } from './editor-api';
+import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 type SuperDocConfig = { onException: (payload: { error: Error }) => void };
 
-const { SuperDoc, superDocDestroy } = vi.hoisted(() => {
+const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
-  return { superDocDestroy, SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: superDocDestroy }; }) };
+  const superDocExport = vi.fn();
+  return { superDocDestroy, superDocExport, SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: superDocDestroy, export: superDocExport }; }) };
 });
 
 vi.mock('superdoc', () => ({ SuperDoc }));
@@ -44,17 +45,19 @@ function mockDocumentApi({
   openStatus = HttpStatus.Ok,
   openBody = opened,
   downloadStatus = HttpStatus.Ok,
+  currentMembersStatus = () => HttpStatus.Ok,
 }: {
   opened: OpenedDocument;
   renamedTitle?: string;
   openStatus?: HttpStatus;
   openBody?: unknown;
   downloadStatus?: HttpStatus;
+  currentMembersStatus?: () => HttpStatus;
 }) {
   let current = opened;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
-    if (input === MEMBERS_PATH) return new Response(JSON.stringify({ members: [] }));
+    if (input === MEMBERS_PATH) return new Response(JSON.stringify({ members: [] }), { status: currentMembersStatus() });
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     if (input === DOCUMENT_PATH && init?.method === HttpMethod.Patch && renamedTitle) {
@@ -70,6 +73,7 @@ beforeEach(() => SuperDoc.mockClear());
 afterEach(() => {
   vi.restoreAllMocks();
   superDocDestroy.mockClear();
+  superDocExport.mockClear();
 });
 
 test('a title rename does not re-create the editor', async () => {
@@ -151,4 +155,29 @@ test('a cached create followed by a fresh join from the server builds the join s
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documents: [expect.objectContaining({ v2Collaboration: expect.objectContaining({ roomMode: RoomMode.Join }) })] }));
   expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain(DOWNLOAD_PATH);
+});
+
+test('a members 404 after the editor mounted shows the unavailable message, destroys the editor and stops polling', async () => {
+  let membersStatus = HttpStatus.Ok;
+  const fetchSpy = mockDocumentApi({ opened: openedAs(DocumentRole.Editor), currentMembersStatus: () => membersStatus });
+  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  membersStatus = HttpStatus.NotFound;
+  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
+  expect(superDocDestroy).toHaveBeenCalledTimes(1);
+  const membersRequests = () => fetchSpy.mock.calls.filter(([input]) => input === MEMBERS_PATH).length;
+  const requestsAfterFailure = membersRequests();
+  await act(() => queryClient.refetchQueries({ queryKey: membersQueryKey(DOCUMENT_ID), type: 'active' }));
+  expect(membersRequests()).toBe(requestsAfterFailure);
+});
+
+test('the header download exports the live document and a reader can use it', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Reader, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_LABEL }));
+  expect(superDocExport).toHaveBeenCalledTimes(1);
+  expect(superDocExport).toHaveBeenCalledWith(expect.objectContaining({ triggerDownload: true }));
 });

@@ -1,6 +1,6 @@
 import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
 import { bandAriaLabel, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
-import { DocumentResource, documentApiPath, TimelineSearchParam, VersionResource, versionApiPath, type DocumentTimeline, type VersionMarks, type VersionText } from '../libs/types/src';
+import { DocumentResource, documentApiPath, TimelineQueryParam, TimelineSearchParam, VersionResource, versionApiPath, type DocumentTimeline, type VersionMarks, type VersionText } from '../libs/types/src';
 import { TEXT_RUN_SELECTOR } from './editor';
 
 export const HIGHLIGHT_CLASS = 'superdoc-comment-highlight';
@@ -86,7 +86,9 @@ export async function readTimeline({ page, documentId }: { page: Page; documentI
 }
 
 export async function readVersionMarks({ page, documentId }: { page: Page; documentId: string }): Promise<VersionMarks> {
-  const response = await page.request.get(documentApiPath({ documentId, resource: DocumentResource.Versions }));
+  const path = documentApiPath({ documentId, resource: DocumentResource.Versions });
+  const response = await page.request.get(`${path}?${TimelineQueryParam.Around}=${Number.MAX_SAFE_INTEGER}`);
+  expect(response.ok()).toBe(true);
   return (await response.json()) as VersionMarks;
 }
 

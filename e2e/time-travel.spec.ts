@@ -126,6 +126,7 @@ test('highlights stay local to one viewer', async ({ browser }) => {
   await waitForProjection({ page: ana.page, documentId });
   const eventsBefore = (await readEvents({ page: ana.page, documentId })).length;
   const marksBefore = await readVersionMarks({ page: ana.page, documentId });
+  expect(marksBefore.marks.length).toBeGreaterThan(0);
   await openEditBin({ page: ana.page, documentId });
   await expect.poll(() => countViewerHighlights(viewerFrame(ana.page)), { timeout: VERSION_TIMEOUT_MS }).toBeGreaterThanOrEqual(1);
   const sequence = await shownVersionSequence(ana.page);

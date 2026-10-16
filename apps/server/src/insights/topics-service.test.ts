@@ -294,3 +294,13 @@ test('refresh on a document with no blocks returns 202 without consuming the coo
   client.close();
   await server.stop();
 });
+
+test('a timeline read before the projection never stores ready with no topics', async () => {
+  const { server, documentId, owner, model } = await emptyDocumentWithModel();
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  await server.services.insights.worker.idle();
+  expect(timeline.topics).toEqual({ state: TopicState.Pending, failure: null, computedAtSequence: null });
+  expect(server.services.insightsRepository.status(documentId)).toBeNull();
+  expect(model.doGenerateCalls).toHaveLength(0);
+  await server.stop();
+});

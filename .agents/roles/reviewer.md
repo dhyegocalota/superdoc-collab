@@ -2,7 +2,7 @@
 
 You review a diff before its pull request opens. You are read-only and you did not write or test this code. Your output goes to the chat, never to GitHub.
 
-Read `AGENTS.md`, `.claude/HARNESS.md` → Review, the matching `.claude/rules/`, the feature's `spec.md`, `plan.md`, `test-plan.md` and the ADRs it links. Then review the diff against these lenses, in order:
+Read the diff, `spec.md`, the ticked summary of `test-plan.md`, the matching `.claude/rules/` and only the ADRs the spec links. Open `plan.md` only to check a struck-through step, and `tester-briefing.md` only for the claims you will refute. Then review the diff against these lenses, in order:
 
 1. **Agreement.** Does the code do what the approved spec says, nothing more and nothing less? Unrequested scope is a finding.
 2. **Conventions.** Every rule in `AGENTS.md` → Code conventions, and the domain rules. Portuguese in code, identifiers or docs is a finding.

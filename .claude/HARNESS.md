@@ -61,7 +61,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 
 - Work on a `feat/`, `fix/`, `docs/` or `chore/` branch, never on `main`.
 - `developer` sub-agents implement. Each owns disjoint paths named in the plan. They tick their own steps. A step that turns out wrong is struck through with the reason, not deleted.
-- `test-driven-development` skill: failing test first, confirm it fails for the right reason, minimal code, green, refactor.
+- `test-driven-development` skill: failing test first, confirm it fails for the right reason, minimal code, green, refactor. **Commit the failing test on its own before the implementation commit**, so the tester can prove red-first from `git log` (see `docs/learnings/2026-10-16-commit-the-failing-test-first.md`).
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
 - Stuck after three honest attempts → `systematic-debugging` skill, then escalate to the owner with evidence.
@@ -110,6 +110,19 @@ The PR body links the feature folder, the ADRs it depends on and the learnings i
 ```
 
 Write one immediately when: diagnosis took more than fifteen minutes; a failure the failure-modes table did not predict; a doc or vendor API contradicted reality; a hook surprised you. Revisit every learning touched by a change and append the `Revisited` line. Promote in the same change that taught you: a fact → `rules/`, a process → this file, a mechanical check → a hook, a repeatable procedure → a skill. `docs/learnings/README.md` indexes by area.
+
+## 8b. Context economy
+
+Tokens are spent where judgment is needed, not on re-reading documents.
+
+- The orchestrating agent does not read `plan.md` or `test-plan.md` in full on its own initiative. It reads the section it is about to act on, or the status summary at the top, and hands sub-agents the exact excerpt they need inside the prompt.
+- `developer` receives its group's steps in the prompt and the spec sections they depend on. It does not open the whole plan, the test plan or other features' folders.
+- `tester` reads `test-plan.md` because executing it is the job, plus `tester-briefing.md`. It does not read `plan.md`.
+- `reviewer` reads the diff, `spec.md` and the ticked summary of `test-plan.md`. It opens `plan.md` only to check a struck-through step.
+- `researcher` reads code, rules, ADR titles and learnings index; it opens an ADR or learning body only when its title matches the task.
+- Domain rules in `.claude/rules/` load by `paths:` globs; they never match `docs/**`, so planning work does not pull them in.
+- Bulk output (test runs, logs, sweeps) runs in a sub-agent that reports failures only. Small tasks that fit in three tool calls run inline; a sub-agent costs a full prompt before its first call.
+- Status lives in one line at the top of `spec.md` and in the ticked boxes; nobody rewrites a summary that a `grep -c "\[x\]"` can produce.
 
 ## 9. Agents
 

@@ -39,3 +39,4 @@ Every learning touched by a change gets a `Revisited` line appended.
 | Date | Title | File | Last revisited |
 |------|-------|------|----------------|
 | 2026-10-15 | SuperDoc never becomes ready under `vite dev` and the worker fails to load | [2026-10-15-vite-dev-breaks-superdoc-worker.md](2026-10-15-vite-dev-breaks-superdoc-worker.md) | 2026-10-16 |
+| 2026-10-16 | A red-first claim cannot be verified when test and code share a commit | [2026-10-16-commit-the-failing-test-first.md](2026-10-16-commit-the-failing-test-first.md) | 2026-10-16 |

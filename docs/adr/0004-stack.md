@@ -48,3 +48,7 @@ Spec constraints: no third-party managed services except LLM providers; SuperDoc
 
 - The `node:sqlite` Drizzle driver fails the spike.
 - Deployment must run more than one server instance.
+
+## Addendum 2026-10-16
+
+Drizzle ships no driver for `node:sqlite`. The owner chose better-sqlite3 with Drizzle over `node:sqlite` with raw SQL (typed queries and drizzle-kit migrations outweigh one prebuilt native binary) and over Kysely (no official `node:sqlite` dialect). The POC libraries, written against `node:sqlite`, are rewritten to better-sqlite3 when ported in slice 2. The Hocuspocus server stays on 2.15.3, the version proven with SuperDoc 2.23 in the POC; 4.x changes the API and is a later task.

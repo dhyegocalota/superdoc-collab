@@ -27,3 +27,5 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0005](0005-authentication-with-better-auth.md) | Authenticate with Better Auth | Accepted | 2026-10-16 |
 | [0006](0006-llm-via-vercel-ai-sdk.md) | Call LLMs through the Vercel AI SDK | Accepted | 2026-10-16 |
 | [0007](0007-read-model-in-sqlite.md) | Serve reads from a SQLite read model | Proposed | 2026-10-16 |
+| [0008](0008-vertical-slices.md) | Deliver the product as five vertical slices | Accepted | 2026-10-16 |
+| [0009](0009-design-system.md) | Design system: Tailwind with shadcn/ui, visually coherent with SuperDoc | Accepted | 2026-10-16 |

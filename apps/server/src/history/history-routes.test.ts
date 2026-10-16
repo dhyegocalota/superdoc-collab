@@ -24,6 +24,7 @@ test("events attribute each author's inserted text", async () => {
   writeStory({ document: editorClient.document, texts: ['Hello A B'] });
   await expect.poll(async () => insertedBy({ events: await readEvents({ server, cookie: owner.cookie, documentId }), userId: editor.id }), { timeout: PROJECTION_TIMEOUT_MS }).toBe(' B');
   expect(insertedBy({ events: await readEvents({ server, cookie: owner.cookie, documentId }), userId: owner.id })).toBe(' A');
+  expect((await readEvents({ server, cookie: owner.cookie, documentId })).nextAfterSequence).toBeNull();
   [ownerClient, editorClient].forEach((client) => client.close());
   await server.stop();
 });

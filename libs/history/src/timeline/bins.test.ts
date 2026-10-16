@@ -51,3 +51,9 @@ test('bins between edits stay empty and carry the version before their end', () 
   expect(between.map((bin) => bin.byBand)).toEqual([{}, {}]);
   expect(between.every((bin) => bin.versionSequence !== null)).toBe(true);
 });
+
+test('a bin ending on a minute boundary resolves to the mark of its own minute', () => {
+  const nextMinute = TEN_OCLOCK + MINUTE_MS;
+  const bins = buildBins({ runs: [], binStarts: [TEN_OCLOCK, nextMinute], binMs: MINUTE_MS, versionSequenceAt: (time) => (time >= nextMinute ? 9 : 5) });
+  expect(bins.map((bin) => bin.versionSequence)).toEqual([5, 9]);
+});

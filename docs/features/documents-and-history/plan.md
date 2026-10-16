@@ -78,13 +78,13 @@ Then Z.
 **Interfaces:**
 - Produces: `DocumentRole`, `ShareLinkRole`, `RoomMode`, `BlockChangeKind`, `DOCUMENT_ROLE_RANK`, `SHARE_LINK_GRANTS`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_MEGABYTES`, `DOCX_MIME_TYPE`, `DOCX_EXTENSION`, `UPLOAD_FIELD`, `UPLOAD_TOO_LARGE_MESSAGE`, `NOT_A_DOCX_MESSAGE`, `INVALID_SHARE_LINK_MESSAGE`, `TIMELINE_PLACEHOLDER_MESSAGE`, `UNTITLED_DOCUMENT_TITLE`, `COLLABORATION_TOKEN_PLACEHOLDER`, `DOCUMENT_NOT_READY_ERROR`, `DOCUMENT_NOT_READY_MESSAGE`, `DOCUMENT_UNAVAILABLE_MESSAGE`, `READ_ONLY_BADGE_LABEL`, `LINK_COPIED_MESSAGE`, `titleSchema`; types `UserReference`, `DocumentSummary`, `DocumentsList`, `OpenedDocument`, `DocumentMember`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `EventAuthor`, `DocumentEditEvent`, `DocumentEditEvents`; `AppRoute.Document`, `AppRoute.Share`, `ApiPath.Documents`, `ApiPath.ShareLinks`, `DocumentResource`, `documentPagePath(documentId)`, `documentApiPath({ documentId, resource? })`, `shareLinkAcceptPath(token)`; `HttpStatus.Created | NoContent | Forbidden | Conflict | PayloadTooLarge | UnsupportedMediaType`; `HttpMethod`; the package `@superdoc-history/history` (empty) and every dependency of the slice, installed.
 
-- [ ] **Step 0: Dependencies, one install** — resolve the two floating majors once: `pnpm view diff@^8 version | tail -1` and `pnpm view jszip@^3 version | tail -1`, and pin what they print, exactly. Then write, all exact:
+- [x] **Step 0: Dependencies, one install** — resolve the two floating majors once: `pnpm view diff@^8 version | tail -1` and `pnpm view jszip@^3 version | tail -1`, and pin what they print, exactly. Then write, all exact:
   - `libs/history/package.json`: name `@superdoc-history/history`, `"type": "module"`, `"exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, `generate: drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts`; dependencies `@superdoc-history/types workspace:*`, `better-sqlite3 13.0.3`, `drizzle-orm 0.45.4`, `yjs 13.6.33`, `diff <resolved 8.x>`, `jszip <resolved 3.x>`; devDependencies `@types/better-sqlite3 9.6.0`, `drizzle-kit 0.31.11`, `tsx 4.23.15`, `vitest 5.0.5` (`diff` 8 ships its own types, so no `@types/diff`; add it only if `tsc` reports a missing declaration). `tsconfig.json` and `vitest.config.ts` copy `libs/types`'s.
   - `apps/server/package.json` dependencies: `@superdoc-history/history workspace:*`, `@superdoc/sdk 2.20.0`; devDependencies: `jszip <resolved 3.x>`.
   - `apps/web/package.json` dependencies: `superdoc 2.23.0`, `@hocuspocus/provider 2.15.3`, `yjs 13.6.33`.
   - root `package.json` devDependencies: `better-sqlite3 13.0.3`, `@types/better-sqlite3 9.6.0` (the E2E identity check reads `history.sqlite`).
   Run `pnpm install` once; `pnpm-lock.yaml` changes in this task only.
-- [ ] **Step 1: Failing test** — `libs/types/src/documents.test.ts`
+- [x] **Step 1: Failing test** — `libs/types/src/documents.test.ts`
 ```ts
 describe('documents contracts', () => {
   test('ranks owner above editor above reader and maps links to roles', () => {
@@ -101,8 +101,8 @@ describe('documents contracts', () => {
   });
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./documents`. Commit the failing tests alone: `test(types): pin the documents and history contracts`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — `documents.ts`
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./documents`. Commit the failing tests alone: `test(types): pin the documents and history contracts`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — `documents.ts`
 ```ts
 import { z } from 'zod';
 
@@ -169,10 +169,12 @@ export function shareLinkAcceptPath(token: string): string {
 }
 ```
 `http.ts`: add `Created = 201`, `NoContent = 204`, `Forbidden = 403`, `Conflict = 409`, `PayloadTooLarge = 413`, `UnsupportedMediaType = 415`, and `export enum HttpMethod { Get = 'GET', Post = 'POST', Patch = 'PATCH', Delete = 'DELETE' }`. `index.ts` re-exports `./documents` and `./history`.
-- [ ] **Step 4: Run, expect pass** — 8 passed; `pnpm typecheck` clean.
-- [ ] **Step 5: Commit** — `chore(deps): add the slice dependencies and the history package` (Step 0) and `feat(types): add documents, sharing and history contracts`
+- [x] **Step 4: Run, expect pass** — 8 passed; `pnpm typecheck` clean.
+- [x] **Step 5: Commit** — `chore(deps): add the slice dependencies and the history package` (Step 0) and `feat(types): add documents, sharing and history contracts`
 
 ---
+
+_Done — evidence: commits fd9fdc2 (tests), eefc59b (deps), 6b25147; task review approved_
 
 ### Task 2: `libs/history` package and the pure POC modules (G1)
 
@@ -185,9 +187,9 @@ export function shareLinkAcceptPath(token: string): string {
 - Consumes: `BlockChangeKind`.
 - Produces: `readMainStoryBlocks(document: Y.Doc): Block[]`, `readMainStoryText(document)`, `groupIntoWindows({ events, rules }): EditWindow[]`, `SingleFlight<Value>`, `EditEvent = { sequence; serverTime; authorIds: string[]; blockId; kind: BlockChangeKind; inserted; deleted }` (resolved, for windows), `ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` (raw, for storage), `projectEditEvents({ baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedEdit[]`, `resolveAuthorIds({ update, identities }: { update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>; identities: Map<number, string> }): string[]`, `findBootstrapSequence(updates: LoggedUpdate[]): number | null`, `TrackedChangeKind { Insert, Delete }`, `SeedParagraph`, `buildSeedDocx(paragraphs): Promise<Buffer>`, `isDocx(bytes: Uint8Array): Promise<boolean>`.
 
-- [ ] **Step 1: Package** — `libs/history` and its dependencies exist from Task 1; this task runs no `pnpm add`.
-- [ ] **Step 2: Lift unchanged** — `cp poc/lib/{document-content,edit-windows,single-flight}.ts libs/history/src/` and `cp poc/tests/node/{edit-windows,single-flight}.test.ts libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-history/types`.
-- [ ] **Step 3: Failing test** — `docx-signature.test.ts`
+- [x] **Step 1: Package** — `libs/history` and its dependencies exist from Task 1; this task runs no `pnpm add`.
+- [x] **Step 2: Lift unchanged** — `cp poc/lib/{document-content,edit-windows,single-flight}.ts libs/history/src/` and `cp poc/tests/node/{edit-windows,single-flight}.test.ts libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-history/types`.
+- [x] **Step 3: Failing test** — `docx-signature.test.ts`
 ```ts
 async function zipWith(entry: string): Promise<Uint8Array> {
   const zip = new JSZip();
@@ -202,8 +204,8 @@ test.each([
   ['a truncated zip', async () => (await zipWith('word/document.xml')).slice(0, 40), false],
 ])('isDocx: %s → %s', async (_, bytes, expected) => expect(await isDocx(await bytes())).toBe(expected));
 ```
-- [ ] **Step 4: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./docx-signature`. Commit the failing tests alone: `test(history): pin docx detection and the lifted POC suites`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 5: Implement** — `docx-signature.ts`
+- [x] **Step 4: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./docx-signature`. Commit the failing tests alone: `test(history): pin docx detection and the lifted POC suites`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 5: Implement** — `docx-signature.ts`
 ```ts
 import JSZip from 'jszip';
 
@@ -244,10 +246,12 @@ export function projectEditEvents({ baselineState, updates }: { baselineState: U
   return committed.sequence;
 ```
 `index.ts` re-exports every module of Tasks 2–4.
-- [ ] **Step 6: Run, expect pass** once Task 3's `update-log.ts` exists (typecheck needs `LoggedUpdate`): developer A runs Tasks 2 and 3 back to back.
-- [ ] **Step 7: Commit** — `feat(history): lift the pure POC history modules into libs/history`
+- [x] **Step 6: Run, expect pass** once Task 3's `update-log.ts` exists (typecheck needs `LoggedUpdate`): developer A runs Tasks 2 and 3 back to back.
+- [x] **Step 7: Commit** — `feat(history): lift the pure POC history modules into libs/history`
 
 ---
+
+_Done — evidence: commits 53e0cfe (tests), 889b883; task review approved_
 
 ### Task 3: Update log on better-sqlite3 with drizzle migrations (G1)
 
@@ -259,7 +263,7 @@ export function projectEditEvents({ baselineState, updates }: { baselineState: U
 **Interfaces:**
 - Produces: `MigrationSet { History = 'history', ReadModel = 'read-model' }`, `HISTORY_MIGRATIONS_PATH = join('libs', 'history', 'drizzle')`, `runMigrationSet({ sqlite, migrationsFolder })`; `UpdateLog` constructed with `Database.Database`: `append`, `observeClientIdentity`, `declareClientIdentity`, `identitySources`, `clientIdentities`, `read`, `readRange` (POC signatures), plus `readBatch({ documentName, afterSequence, limit }): LoggedUpdate[]`, `hasUpdates(documentName): boolean`, `forget(documentName): void`; `materialize`, `compact`, `replay`, `extractStructClientIds`, `IdentitySource`, `LoggedUpdate`; from `@superdoc-history/history/testing`: `openTestDatabase({ set, path? }): Database.Database`, `temporaryDatabasePath(set): string`, `writeStory({ document, texts })`, `commitBootstrap(document)`.
 
-- [ ] **Step 1: Schema and migration** — `schema/history.ts` declares, with `sqliteTable` and the POC's exact columns:
+- [x] **Step 1: Schema and migration** — `schema/history.ts` declares, with `sqliteTable` and the POC's exact columns:
   - `updates`: `sequence` integer primary key autoincrement, `document_name` text, `connection_user_id` text, `yjs_client_ids` text, `server_time` integer, `update_bytes` blob, all not null; `index('updates_by_document').on(documentName, sequence)`.
   - `snapshots`: `document_name` text, `sequence` integer, `state` blob, not null; primary key `(document_name, sequence)`.
   - `client_identities`: `document_name` text, `yjs_client_id` integer, `user_id` text, `source` text, not null; primary key `(document_name, yjs_client_id)`.
@@ -292,7 +296,7 @@ export function commitBootstrap(document: Y.Doc): void {
 }
 ```
 `testing/index.ts` re-exports both files.
-- [ ] **Step 2: Port the POC suites and add the new cases** — copy `poc/tests/node/relay-attribution.test.ts` and `snapshots.test.ts`; replace `new UpdateLog(path)` with `new UpdateLog(openTestDatabase({ set: MigrationSet.History, path }))` and `log.close()` with closing that handle. `update-log.test.ts`
+- [x] **Step 2: Port the POC suites and add the new cases** — copy `poc/tests/node/relay-attribution.test.ts` and `snapshots.test.ts`; replace `new UpdateLog(path)` with `new UpdateLog(openTestDatabase({ set: MigrationSet.History, path }))` and `log.close()` with closing that handle. `update-log.test.ts`
 ```ts
 const DOCUMENT = 'document-1';
 
@@ -325,8 +329,8 @@ test('compaction reads only the tail after the latest snapshot', () => {
 });
 ```
 Also: `logWith(5).readBatch({ afterSequence: 1, limit: 2 })` returns sequences `[2, 3]`; after `forget(DOCUMENT)` on a log that also holds `'other'`, `hasUpdates(DOCUMENT)` is false, `clientIdentities(DOCUMENT).size` is 0 and `hasUpdates('other')` is true.
-- [ ] **Step 3: Run, expect failure** — FAIL: cannot find `./update-log`. Commit the failing tests alone: `test(history): pin the update log on better-sqlite3`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 4: Implement** — copy `poc/lib/update-log.ts`; delete the `node:sqlite` import, the constructor's `exec` block and `close()`; `import type Database from 'better-sqlite3'`, field `private readonly database: Database.Database`, `constructor(database: Database.Database) { this.database = database; }`. Bind the `Uint8Array` as is (spike fact 4). Extract the row mapping of `readRange` into `function toLoggedUpdate(row: UpdateRow): LoggedUpdate` (keeps `new Uint8Array(row.update_bytes)`). Add:
+- [x] **Step 3: Run, expect failure** — FAIL: cannot find `./update-log`. Commit the failing tests alone: `test(history): pin the update log on better-sqlite3`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 4: Implement** — copy `poc/lib/update-log.ts`; delete the `node:sqlite` import, the constructor's `exec` block and `close()`; `import type Database from 'better-sqlite3'`, field `private readonly database: Database.Database`, `constructor(database: Database.Database) { this.database = database; }`. Bind the `Uint8Array` as is (spike fact 4). Extract the row mapping of `readRange` into `function toLoggedUpdate(row: UpdateRow): LoggedUpdate` (keeps `new Uint8Array(row.update_bytes)`). Add:
 ```ts
   readBatch({ documentName, afterSequence, limit }: { documentName: string; afterSequence: number; limit: number }): LoggedUpdate[] {
     const rows = this.database.prepare('SELECT * FROM updates WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT ?').all(documentName, afterSequence, limit) as UpdateRow[];
@@ -352,10 +356,12 @@ export function compact({ log, documentName, everyUpdates }: { log: UpdateLog; d
   return boundaries;
 }
 ```
-- [ ] **Step 5: Run, expect pass** — relay (4), snapshots (2), update-log (4) and Task 2's suites; `pnpm typecheck` clean.
-- [ ] **Step 6: Commit** — `feat(history): port the update log to better-sqlite3 with drizzle migrations`
+- [x] **Step 5: Run, expect pass** — relay (4), snapshots (2), update-log (4) and Task 2's suites; `pnpm typecheck` clean.
+- [x] **Step 6: Commit** — `feat(history): port the update log to better-sqlite3 with drizzle migrations`
 
 ---
+
+_Done — evidence: commits ea27dbc (tests), 95ce6d3; task review approved (compact bounded to the tail, proven by test)_
 
 ### Task 4: Read model, projection cursor and imported revisions mapping (G1)
 
@@ -368,10 +374,10 @@ export function compact({ log, documentName, everyUpdates }: { log: UpdateLog; d
 - Consumes: `UpdateLog`, `materialize`, `projectEditEvents`, `findBootstrapSequence`.
 - Produces: `ReadModel` (constructed with `Database.Database`): `cursor(documentName): number | null`, `commit({ documentName, events: ProjectedEdit[], lastSequence }): void`, `commitImported({ documentName, revisions: ImportedRevision[] }): void`, `read({ documentName, afterSequence: number | null }): StoredEditEvent[]`, `forget(documentName): void`; `StoredEditEvent = Omit<ProjectedEdit, 'yjsClientIds' | 'connectionUserId'> & { id: number; imported: boolean; yjsClientIds: number[] | null; connectionUserId: string | null; authorName: string | null }`; `ImportedRevision = { revisionId; authorName; serverTime: number; blockId; inserted; deleted }`; `PROJECTION_BATCH_SIZE = 2000`; `projectPending({ log, readModel, documentName, batchSize? }): number | null`; `TrackedChangeType`, `ListedTrackedChange`, `toImportedRevisions(items): ImportedRevision[]`, `MissingTrackedChangeTextError`.
 
-- [ ] **Step 1: Schema** — `schema/read-model.ts`, generated with `drizzle.read-model.config.ts` (`out: './drizzle/read-model'`):
+- [x] **Step 1: Schema** — `schema/read-model.ts`, generated with `drizzle.read-model.config.ts` (`out: './drizzle/read-model'`):
   - `edit_events`: `id` integer primary key autoincrement; not null `document_name`, `event_key`, `block_id`, `kind`, `inserted`, `deleted` (text) and `sequence`, `server_time` (integer), `imported` (integer, `mode: 'boolean'`); nullable `yjs_client_ids` (JSON text), `connection_user_id` and `author_name` (text): live rows fill the first two, imported rows only the last; `index('edit_events_by_document').on(documentName, sequence)` and `uniqueIndex('edit_events_by_key').on(documentName, eventKey)`.
   - `projection_cursor`: `document_name` text primary key, `last_sequence` integer not null.
-- [ ] **Step 2: Failing tests** — `projection.test.ts`
+- [x] **Step 2: Failing tests** — `projection.test.ts`
 ```ts
 const DOCUMENT = 'document-1';
 let log: UpdateLog;
@@ -422,8 +428,8 @@ Also in `projection.test.ts`, each input → expected:
 - `forgetting a document clears its events and cursor`: `commit({ lastSequence: 3 })` then `forget` → `cursor` is `null`.
 
 `imported-revisions.test.ts`: the T10 item `{ id: 'r1', type: TrackedChangeType.Insertion, author: 'Ana Souza', date: '2026-03-01T18:30:00Z', insertedText: ' GDPR clause', deletedText: null, imported: true, navigationTarget: { blockId: '00000002' } }` maps to `{ revisionId: 'r1', authorName: 'Ana Souza', serverTime: Date.parse('2026-03-01T18:30:00Z'), blockId: '00000002', inserted: ' GDPR clause', deleted: '' }`; a deletion whose `deletedText` is `null` throws `MissingTrackedChangeTextError`.
-- [ ] **Step 3: Run, expect failure** — cannot find `./projection`, `./read-model`, `./imported-revisions`. Commit the failing tests alone: `test(history): pin the projection cursor and the read model`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 4: Implement** — `read-model.ts`
+- [x] **Step 3: Run, expect failure** — cannot find `./projection`, `./read-model`, `./imported-revisions`. Commit the failing tests alone: `test(history): pin the projection cursor and the read model`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 4: Implement** — `read-model.ts`
 ```ts
 import type Database from 'better-sqlite3';
 import { BlockChangeKind } from '@superdoc-history/types';
@@ -523,10 +529,12 @@ export function toImportedRevisions(items: ListedTrackedChange[]): ImportedRevis
   });
 }
 ```
-- [ ] **Step 5: Run, expect pass** — projection (6), imported revisions (2) and all earlier suites.
-- [ ] **Step 6: Commit** — `feat(history): add the read model, the projection cursor and imported revisions`
+- [x] **Step 5: Run, expect pass** — projection (6), imported revisions (2) and all earlier suites.
+- [x] **Step 6: Commit** — `feat(history): add the read model, the projection cursor and imported revisions`
 
 ---
+
+_Done — evidence: commits 8d92f2a (tests), 20779b9; task review approved (two-layer idempotence: transactional cursor + unique event key)_
 
 ### Task 5: Server databases, documents schema, repository, guards and file storage (G2)
 
@@ -539,7 +547,7 @@ export function toImportedRevisions(items: ListedTrackedChange[]): ImportedRevis
 - Consumes: `MigrationSet`, `HISTORY_MIGRATIONS_PATH`, `runMigrationSet`, Task 1 contracts.
 - Produces: `openSqliteFile({ directory, fileName }): Database.Database`; `HISTORY_DATABASE_FILE = 'history.sqlite'`, `READ_MODEL_DATABASE_FILE = 'read-model.sqlite'`, `DOCUMENT_FILES_DIRECTORY = 'documents'`; `findMigrationsFolder({ startUrl, relativePath })`; `runMigrations(database: AuthDatabase)` (unchanged behaviour); `runHistoryMigrations({ sqlite, set })`; tables `documents`, `documentMembers`, `documentShareLinks`; `DocumentsRepository(database: AuthDatabase)`: `create({ id, title, ownerUserId })`, `findRole({ documentId, userId }): DocumentRole | null`, `list(userId): DocumentsList`, `summary({ documentId, userId }): DocumentSummary`, `rename({ documentId, title })`, `touch(documentId)`, `remove(documentId)`, `members(documentId): { user: UserReference; role: DocumentRole }[]`, `grant({ documentId, userId, role })`, `userNames(userIds: string[]): Map<string, string>`; `requireDocumentRole({ documents, documentId, userId, minimumRole }): DocumentRole`, `DocumentNotFoundError`, `DocumentRoleTooLowError`; `requireUser({ auth })` with `SignedIn = { Variables: { user: SessionUser } }`; `DocumentFileStorage = { put({ documentId, bytes }): Promise<void>; read(documentId): Promise<Uint8Array>; remove(documentId): Promise<void>; pathOf(documentId): string }`, `createLocalDiskFileStorage(directory)`, `InvalidDocumentIdError`; `RunningServer.services = { documents, storage }` (Tasks 6, 7, 9 add `log`, `hocuspocus`, `readModel`, `scheduler`, `runtime`, `shareLinks`); `startTestServer({ databaseDirectory? })`; `TestServer` exposes `services` and `databaseDirectory`; `signInExisting({ server, email, password }): Promise<string>`; `currentUserId({ server, cookie }): Promise<string>`; `TestUser = { id: string; email: string; cookie: string }`; `signedInUser({ server, name }): Promise<TestUser>` (signs up `${name.toLowerCase()}-<8 uuid chars>@example.com`); `signedInOwner(): Promise<{ server: TestServer; owner: TestUser }>`; `TEST_USER_PASSWORD = 'superdoc-demo'`.
 
-- [ ] **Step 1: Failing tests** — `documents-repository.test.ts`
+- [x] **Step 1: Failing tests** — `documents-repository.test.ts`
 ```ts
 async function twoUsers() {
   const { server, owner } = await signedInOwner();
@@ -565,8 +573,8 @@ Also in `documents-repository.test.ts`, each input → expected:
 - `removing a document cascades its members`: `remove(documentId)` → `findRole` is `null` for both users.
 
 `local-disk-file-storage.test.ts`: put then read returns identical bytes; `remove` of a missing id resolves; `pathOf('../auth')` throws `InvalidDocumentIdError`. `connection.test.ts`: the migrated auth file lists `documents`, `document_members`, `document_share_links`; `PRAGMA synchronous` returns `1` and `PRAGMA foreign_keys` returns `1` on an `openSqliteFile` handle. `migrate.test.ts` calls become `findMigrationsFolder({ startUrl: bundle, relativePath: 'drizzle' })`.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit`. Commit the failing tests alone: `test(server): pin documents membership and file storage`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — `connection.ts`
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit`. Commit the failing tests alone: `test(server): pin documents membership and file storage`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — `connection.ts`
 ```ts
 const BUSY_TIMEOUT_MS = 5000;
 export const HISTORY_DATABASE_FILE = 'history.sqlite';
@@ -674,10 +682,12 @@ export function createLocalDiskFileStorage(directory: string): DocumentFileStora
 }
 ```
 `pathOf` is on the interface because `@superdoc/sdk`'s `open({ doc })` takes a path. `server.ts` creates `DocumentsRepository` and `createLocalDiskFileStorage(join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY))` and returns them as `services`. `test-server.ts`: `startTestServer({ trustProxy = true, databaseDirectory = mkdtempSync(...) })`; `signInExisting` is the sign-in half of `signInAndGetCookie` (which now calls it); `currentUserId` GETs `ApiPath.Me`; `signedInUser` runs `signInAndGetCookie` with the name and a unique email, then `currentUserId`; `signedInOwner` starts a test server and returns `signedInUser({ server, name: 'Ana' })` as `owner`.
-- [ ] **Step 4: Run, expect pass** — the new suites and every slice 1 suite.
-- [ ] **Step 5: Commit** — `feat(server): add documents, membership and file storage`
+- [x] **Step 4: Run, expect pass** — the new suites and every slice 1 suite.
+- [x] **Step 5: Commit** — `feat(server): add documents, membership and file storage`
 
 ---
+
+_Done — evidence: commits 3423e26 (tests), 5f8ab41; task review approved_
 
 ### Task 6: Collaboration hooks with membership, read-only and the update log (G2)
 
@@ -690,7 +700,7 @@ export function createLocalDiskFileStorage(directory: string): DocumentFileStora
 - Consumes: `DocumentsRepository.findRole`, `UpdateLog`, `materialize`, `compact`, `openSqliteFile`, `runHistoryMigrations`, `COLLABORATION_TOKEN_PLACEHOLDER` (now imported from `@superdoc-history/types`; delete the server constant).
 - Produces: `SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/'`, `documentIdFromRoomName(roomName): string | null`; `createCollaborationServer({ auth, documents, log, onStored }: { auth: Auth; documents: DocumentsRepository; log: UpdateLog; onStored: (documentId: string) => void }): Hocuspocus`; `CollaborationContext = { userId: string; documentId: string }`; `LOADING_ORIGIN`; `createClientDeclarer(log)`; `services.log`, `services.hocuspocus`; test helpers `connectToDocument({ server, cookie, documentId, document? }): Promise<CollaborationClient>` (`{ document: Y.Doc; provider: HocuspocusProvider; close(): void }`, rejects with `CollaborationRefusedError`), `documentWithOwner(): Promise<{ server: TestServer; documentId: string; owner: TestUser }>`, `memberWithRole({ server, documentId, role }): Promise<TestUser>` (both built on Task 5's `signedInOwner` and `signedInUser`).
 
-- [ ] **Step 1: Failing tests** — `room-name.test.ts` pins the room format observed in the POC and the spike (`sd2/v2.1/awareness`), so a SuperDoc change fails here:
+- [x] **Step 1: Failing tests** — `room-name.test.ts` pins the room format observed in the POC and the spike (`sd2/v2.1/awareness`), so a SuperDoc change fails here:
 ```ts
 const DOCUMENT_ID = '0b5c2f9e-6a1d-4c3b-9e8f-1a2b3c4d5e6f';
 
@@ -763,8 +773,8 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
 }
 ```
 `documentWithOwner` starts a test server, signs up a unique owner, creates the document through `services.documents.create`; `memberWithRole` signs up a unique user and calls `services.documents.grant`. The three slice 1 tests in `collaboration-server.test.ts` now connect through `connectToDocument` to a real document (`probe` is no longer a valid room).
-- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin socket membership, read-only and the log`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — `room-name.ts` (the only place that knows SuperDoc's prefix; a strict shape stops a member from opening `other/<id>`, a second room that would append to the same log)
+- [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin socket membership, read-only and the log`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — `room-name.ts` (the only place that knows SuperDoc's prefix; a strict shape stops a member from opening `other/<id>`, a second room that would append to the same log)
 ```ts
 export const SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/';
 const DOCUMENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -855,10 +865,12 @@ export function createCollaborationServer({ auth, documents, log, onStored }: { 
 }
 ```
 `server.ts`: `const historySqlite = openSqliteFile({ directory, fileName: HISTORY_DATABASE_FILE }); runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History }); const log = new UpdateLog(historySqlite);` before the collaboration server; `onStored: (documentId) => documents.touch(documentId)` until Task 7; `stop()` closes `historySqlite` after `hocuspocus.destroy()`.
-- [ ] **Step 4: Run, expect pass** — room name (1), collaboration history (5), slice 1 collaboration and attach suites.
-- [ ] **Step 5: Commit** — `feat(server): check membership on the socket and log every update`
+- [x] **Step 4: Run, expect pass** — room name (1), collaboration history (5), slice 1 collaboration and attach suites.
+- [x] **Step 5: Commit** — `feat(server): check membership on the socket and log every update`
 
 ---
+
+_Done — evidence: commits 2322ca5 (tests), 2adef5d; security review approved (room id parsed once and used for both membership and the log)_
 
 ### Task 7: Projection worker, scheduler, runtime and the events route (G2)
 
@@ -872,7 +884,7 @@ export function createCollaborationServer({ auth, documents, log, onStored }: { 
 - Consumes: `projectPending`, `findBootstrapSequence`, `ReadModel`, `UpdateLog.clientIdentities`, `resolveAuthorIds`, `StoredEditEvent`, `toImportedRevisions`, `ListedTrackedChange`, `DocumentFileStorage.pathOf`, `requireUser`, `requireDocumentRole`, `DocumentsRepository.userNames`.
 - Produces: `ProjectionRequestKind { Project, Import, Forget, Stop }`, `ProjectionRequest` (discriminated union), `ProjectionReply = { kind; documentId; cursor: number | null; importError: string | null }`, `IMPORT_TIMEOUT_MS = 30_000`, `IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document'`; `ProjectionScheduler({ databaseDirectory })`: `schedule(documentId)`, `importRevisions({ documentId, filePath })`, `forget(documentId): Promise<void>`, `stop(): Promise<void>`, `currentWorker: Worker`; `DocumentRuntime = { roomMode(documentId): RoomMode; onlineUserIds(documentId): Set<string>; importRevisions(documentId): void; forget(documentId): Promise<void> }` and `createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage })`; `createApp({ auth, environment, services })` with `AppServices`, `requireUser` mounted on `/api/documents`, `/api/documents/*` and `/api/share-links/*` only; `NOT_FOUND_MESSAGE` exported from `server.ts`; `GET /api/documents/:id/events?afterSequence=N` → `DocumentEditEvents`; `services.readModel`, `services.scheduler`, `services.runtime`; test helpers in `testing/events-client.ts`: `readEvents({ server, documentId, cookie }): Promise<DocumentEditEvent[]>` (the unwrapped `events` array) and `insertedBy({ events, userId }): string`.
 
-- [ ] **Step 1: Failing tests** — `history-routes.test.ts`
+- [x] **Step 1: Failing tests** — `history-routes.test.ts`
 ```ts
 test("events attribute each author's inserted text", async () => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -945,8 +957,8 @@ export function insertedBy({ events, userId }: { events: DocumentEditEvent[]; us
   return events.filter((event) => event.authors.length === 1 && event.authors[0]?.id === userId).map((event) => event.inserted).join('');
 }
 ```
-- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin the projection worker and read-time authors`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — `projection-messages.ts`
+- [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin the projection worker and read-time authors`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — `projection-messages.ts`
 ```ts
 export const IMPORT_TIMEOUT_MS = 30_000;
 export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document';
@@ -1176,10 +1188,12 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
 }
 ```
 `IncompleteEditEventError` and `UnknownAuthorError` are declared in the same file (users cascade their documents, so an unknown name is a real inconsistency). `app.ts`: `createApp({ auth, environment, services })`; `const signedIn = requireUser({ auth })` is mounted with `app.use(ApiPath.Documents, signedIn)`, ``app.use(`${ApiPath.Documents}/*`, signedIn)`` and ``app.use(`${ApiPath.ShareLinks}/*`, signedIn)`` only, so `/api/health`, `/api/me` and `/api/auth/*` keep their slice 1 behaviour; `app.onError` maps `DocumentNotFoundError` → 404 `{ error: NOT_FOUND_MESSAGE }` (now exported from `server.ts`, the body slice 1's `notFound` uses), `DocumentRoleTooLowError` → 403, and rethrows anything else. `server.ts` order: open and migrate the three files; `UpdateLog`; `ReadModel` on the main-thread read-model handle (reads only; the worker is the only writer); `ProjectionScheduler`; collaboration server with `onStored: (documentId) => { documents.touch(documentId); scheduler.schedule(documentId); }`; runtime (`createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage })`); app; `listen`; `attachCollaboration`; `stop()` adds `await scheduler.stop()` and closes the two history handles. `tsup.config.ts`: `entry: { main: 'src/main.ts', seed: 'src/seed.ts', 'projection-worker': 'src/history/projection-worker.ts' }`, `external: ['better-sqlite3', '@superdoc/sdk']`, `noExternal: ['@superdoc-history/types', '@superdoc-history/history']`.
-- [ ] **Step 4: Run, expect pass** — then `pnpm --filter @superdoc-history/server build && test -f apps/server/dist/projection-worker.js`.
-- [ ] **Step 5: Commit** — `feat(server): project edit events in a worker and serve them`
+- [x] **Step 4: Run, expect pass** — then `pnpm --filter @superdoc-history/server build && test -f apps/server/dist/projection-worker.js`.
+- [x] **Step 5: Commit** — `feat(server): project edit events in a worker and serve them`
 
 ---
+
+_Done — evidence: commits 2f9036c (tests), 68e674c, ef1b1f8, 591bc59; fix round 1 re-review clean (worker failures isolated, restart budget)_
 
 ### Task 8: Document routes: list, create, upload, open, rename, delete, download, members (G2)
 
@@ -1192,7 +1206,7 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
 - Consumes: `DocumentsRepository`, `DocumentFileStorage`, `DocumentRuntime`, `requireUser`, `requireDocumentRole`, `isDocx`, `buildSeedDocx`.
 - Produces: `createDocumentsRoutes(services: AppServices): Hono<SignedIn>` serving the spec's interfaces at `ApiPath.Documents`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 ```ts
 async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string }): Promise<Response> {
   const form = new FormData();
@@ -1243,8 +1257,8 @@ The rejection test creates the `documents` directory first (`mkdirSync`, recursi
 - `download names the file with an ASCII fallback and an RFC 5987 filename*`: title `Q3 "final" (draft)'s plan*` → `content-disposition` is exactly `attachment; filename="Q3 _final_ (draft)'s plan*.docx"; filename*=UTF-8''Q3%20%22final%22%20%28draft%29%27s%20plan%2A.docx`.
 - `members marks the connected owner online`; `signed-out requests get 401`; `a blank document downloads a valid docx` (`isDocx` true).
 - `delete removes the row, the file, the log and the events, and closes the room`: the owner connects through `connectToDocument`, writes, waits for `log.hasUpdates`, DELETEs (204) → `GET` 404, `storage.read` rejects, `log.hasUpdates` false, `readModel.cursor` null, the provider's `close` fires.
-- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin upload, download, rename and delete`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — the create route; every other route is `requireDocumentRole` then one repository, storage or runtime call:
+- [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin upload, download, rename and delete`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — the create route; every other route is `requireDocumentRole` then one repository, storage or runtime call:
 ```ts
 const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
 const MULTIPART_CONTENT_TYPE = 'multipart/form-data';
@@ -1300,10 +1314,12 @@ routes.get('/:documentId', (context) => {
 });
 ```
 Only the owner and editors may create a room; a reader waits for the first editing open. Remaining routes: `GET /` → `documents.list`; `PATCH /:documentId` (Editor) → `titleSchema` → `rename` → summary; `DELETE /:documentId` (Owner) → `await runtime.forget(id)`, `await storage.remove(id)`, `documents.remove(id)`, 204; `GET /:documentId/download` (Reader) → `new Response(await storage.read(id), { headers: { 'content-type': DOCX_MIME_TYPE, 'content-disposition': contentDisposition(title + DOCX_EXTENSION) } })`; `GET /:documentId/members` (Reader) → `{ members: documents.members(id).map((member) => ({ ...member, online: online.has(member.user.id) })) }` with `online = runtime.onlineUserIds(id)`. Mount with `app.route(ApiPath.Documents, createDocumentsRoutes(services))`; `requireUser` already guards the prefix (Task 7).
-- [ ] **Step 4: Run, expect pass.**
-- [ ] **Step 5: Commit** — `feat(server): add document upload, download, rename and delete`
+- [x] **Step 4: Run, expect pass.**
+- [x] **Step 5: Commit** — `feat(server): add document upload, download, rename and delete`
 
 ---
+
+_Done — evidence: commits 97d11dc (tests), b067603, ed54313; security review approved_
 
 ### Task 9: Share links and accept (G2)
 
@@ -1316,7 +1332,7 @@ Only the owner and editors may create a room; a reader waits for the first editi
 - Consumes: `DocumentsRepository.grant`, `SHARE_LINK_GRANTS`, `environment.authSecret`, `environment.appOrigin`.
 - Produces: `deriveShareToken({ secret, nonce }): string`, `hashShareToken(token): string`; `ShareLinksRepository({ database, secret, appOrigin })`: `links(documentId): ShareLinks`, `rotate({ documentId, role }): ShareLinks`, `resolve(token): { documentId: string; role: ShareLinkRole } | null`; routes `GET /api/documents/:id/share-links` (Owner), `POST /api/documents/:id/share-links/:role/rotate` (Owner), `POST /api/share-links/:token/accept` → `AcceptedShareLink` or 404 `{ error: INVALID_SHARE_LINK_MESSAGE }`; `services.shareLinks`.
 
-- [ ] **Step 1: Failing tests** — `share-links-routes.test.ts`
+- [x] **Step 1: Failing tests** — `share-links-routes.test.ts`
 ```ts
 test('rotation invalidates the link but keeps recorded roles', async () => {
   const { server, documentId, owner } = await blankDocumentWithOwner();
@@ -1347,8 +1363,8 @@ Helpers in the file: `blankDocumentWithOwner` (POST JSON `{ title }`), `shareLin
 - `rotating the edit link leaves the read URL unchanged`: rotate edit → a new edit URL, the read URL byte-identical to before.
 - `rotating with role owner is 400`: `POST …/share-links/owner/rotate` → 400, both links unchanged.
 - `share-links is 404 for a non-member and 403 for an editor`; `accept without a session is 401`. `share-links.test.ts`: one nonce and secret derive the same token twice; two nonces derive different tokens; `hashShareToken` is 64 hex characters and differs from the token.
-- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin share links, rotation and accept`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — `share-links.ts`
+- [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin share links, rotation and accept`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — `share-links.ts`
 ```ts
 const NONCE_BYTES = 32;
 const TOKEN_DIGEST = 'sha256';
@@ -1395,10 +1411,12 @@ export class ShareLinksRepository {
 }
 ```
 The constructor takes `{ database, secret, appOrigin }` into three `private readonly` fields, the `DocumentsRepository` way. `share-links-routes.ts`: the two owner routes are mounted on the documents prefix behind `requireDocumentRole(Owner)`; `:role` is parsed with `z.enum(ShareLinkRole)` (400 otherwise). The accept route is `POST /api/share-links/:token/accept`, guarded by the `requireUser` mount on `/api/share-links/*` (Task 7): `resolve(token)`; `null` → 404 `{ error: INVALID_SHARE_LINK_MESSAGE }`; else `documents.grant({ documentId, userId, role: SHARE_LINK_GRANTS[role] })` and `{ documentId }`. A deleted document cascades its link rows, so its tokens resolve to `null`. No route logs a token.
-- [ ] **Step 4: Run, expect pass** — then the whole server suite.
-- [ ] **Step 5: Commit** — `feat(server): add rotatable edit and read share links`
+- [x] **Step 4: Run, expect pass** — then the whole server suite.
+- [x] **Step 5: Commit** — `feat(server): add rotatable edit and read share links`
 
 ---
+
+_Done — evidence: commits 8f1c31c (tests), eb1c22c, 5622c07, 444032d, ef4d5eb, 4606a7b; fix round 1 re-review clean_
 
 ### Task 10: Documents list, upload and new document (G3)
 
@@ -1411,7 +1429,7 @@ The constructor takes `{ database, secret, appOrigin }` into three `private read
 - Consumes: Task 1 contracts.
 - Produces: `apiGet(path: string)`, `apiSend({ path, method, body }: { path: string; method: HttpMethod; body: BodyInit | null }): Promise<Response>`, `ApiRequestError`; `DOCUMENTS_QUERY_KEY = ['documents']`; `useDocuments()`; `uploadDocument(file): Promise<DocumentSummary>`; `createBlankDocument(title): Promise<DocumentSummary>`; `validateUpload(file): string | null`.
 
-- [ ] **Step 1: Failing tests** — `upload-dialog.test.tsx`
+- [x] **Step 1: Failing tests** — `upload-dialog.test.tsx`
 ```tsx
 test('a file over 10 MB shows the limit and sends nothing', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -1423,8 +1441,8 @@ test('a file over 10 MB shows the limit and sends nothing', async () => {
 });
 ```
 Same file: a `.pdf` shows `NOT_A_DOCX_MESSAGE` and sends nothing; a 415 response shows `NOT_A_DOCX_MESSAGE`; a 201 closes the dialog and navigates to `documentPagePath(id)`. `documents-page.test.tsx`: `{ mine: [], shared: [] }` shows "No documents yet" and "Nothing shared with you yet"; one `mine` row shows title, owner name, formatted date and role; a row click navigates to `documentPagePath(id)`; "New document" POSTs `{ title: UNTITLED_DOCUMENT_TITLE }`, invalidates `DOCUMENTS_QUERY_KEY` and navigates.
-- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the documents list and the upload dialog`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — `documents-api.ts`
+- [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the documents list and the upload dialog`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — `documents-api.ts`
 ```ts
 export const DOCUMENTS_QUERY_KEY = ['documents'];
 
@@ -1445,10 +1463,12 @@ export async function uploadDocument(file: File): Promise<DocumentSummary> {
 }
 ```
 `api.ts`: `apiGet` widens to `string`; `apiSend` calls `fetch(path, { method, body, credentials: 'same-origin' })` and adds `content-type: application/json` only when `body` is a string. `upload-dialog.tsx`: shadcn `Dialog` with a labelled file input (`accept=".docx"`), `validateUpload` on change, `useMutation(uploadDocument)` whose `onSuccess` runs `queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY })` then navigates; errors render in `role="alert"`. `document-table.tsx`: shadcn `Table` (Title, Owner, Updated via `Intl.DateTimeFormat` with `dateStyle: 'medium', timeStyle: 'short'`, My role), an empty row with the given empty message, the table wrapped in `overflow-x-auto` for 375 px. `documents-page.tsx` keeps the slice 1 header (name + sign-out) and renders "Mine" and "Shared with me" with the two buttons. `router.tsx` imports it from `@/features/documents/documents-page`. Tokens only (ADR 0009), no raw colours.
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/web test:unit`.
-- [ ] **Step 5: Commit** — `feat(web): add the documents list with upload and new document`
+- [x] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/web test:unit`.
+- [x] **Step 5: Commit** — `feat(web): add the documents list with upload and new document`
 
 ---
+
+_Done — evidence: commits dbdaeb9 (tests), d9d6b12, 5eb465a, fa08ffe, 822a4e7; three fix rounds (keyboard access, single navigation, discriminating test); re-review clean_
 
 ### Task 11: Editor page, sharing dialog and share landing (G3)
 
@@ -1461,7 +1481,7 @@ export async function uploadDocument(file: File): Promise<DocumentSummary> {
 - Consumes: `OpenedDocument`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `COLLABORATION_TOKEN_PLACEHOLDER`, `RoomMode`, `DocumentRole`, `READ_ONLY_BADGE_LABEL`, `LINK_COPIED_MESSAGE`, `DOCUMENT_UNAVAILABLE_MESSAGE`, `DOCUMENT_NOT_READY_ERROR`, `DOCUMENT_NOT_READY_MESSAGE`.
 - Produces: routes `AppRoute.Document` and `AppRoute.Share` inside `RequireSession`; `SuperDocEditor({ documentId, roomMode, role, user, file })`; `useOpenedDocument(documentId)` with query key `['documents', documentId]`; `useEditorSetup({ opened, user, file }): EditorSetup | null` with `EditorSetup = { roomMode; role; user; file }`, captured once per page load; `BLANK_DOCX_PATH = '/blank.docx'`.
 
-- [ ] **Step 1: Failing tests** — `editor-header.test.tsx`
+- [x] **Step 1: Failing tests** — `editor-header.test.tsx`
 ```tsx
 test('a reader sees the read-only badge and neither Delete nor Share', () => {
   renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} />);
@@ -1486,8 +1506,8 @@ test('a title rename does not re-create the editor', async () => {
 });
 ```
 Same file: a 409 `{ error: DOCUMENT_NOT_READY_ERROR }` shows `DOCUMENT_NOT_READY_MESSAGE` and never constructs `SuperDoc`; a 404 shows `DOCUMENT_UNAVAILABLE_MESSAGE` with a link to `/documents`; `roomMode: 'join'` fetches `BLANK_DOCX_PATH`, never the download URL.
-- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the editor header, sharing and the share landing`; `git show` of that commit plus this failing run is the red evidence.
-- [ ] **Step 3: Implement** — generate the joiners' blank once: `pnpm --filter @superdoc-history/history exec tsx -e "import('./src/seed-docx.ts').then(async ({ buildSeedDocx }) => (await import('node:fs')).writeFileSync('../../apps/web/public/blank.docx', await buildSeedDocx([{ text: '', trackedChanges: [] }])))"` and commit the file. `superdoc-editor.tsx`
+- [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the editor header, sharing and the share landing`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 3: Implement** — generate the joiners' blank once: `pnpm --filter @superdoc-history/history exec tsx -e "import('./src/seed-docx.ts').then(async ({ buildSeedDocx }) => (await import('node:fs')).writeFileSync('../../apps/web/public/blank.docx', await buildSeedDocx([{ text: '', trackedChanges: [] }])))"` and commit the file. `superdoc-editor.tsx`
 ```tsx
 const HOCUSPOCUS_PROVIDER = 'hocuspocus';
 const READER_DOCUMENT_MODE = 'viewing';
@@ -1529,10 +1549,12 @@ export function useEditorSetup({ opened, user, file }: { opened: OpenedDocument 
 }
 ```
 `document-page.tsx`: `useOpenedDocument` (404 → `DOCUMENT_UNAVAILABLE_MESSAGE` with a link to `/documents`; 409 `DOCUMENT_NOT_READY_ERROR` → `DOCUMENT_NOT_READY_MESSAGE`), `useSession`, the file query keyed by `[documentId, roomMode]` and enabled once the first `roomMode` is known, `useEditorSetup`, and `SuperDocEditor` rendered from the captured setup only, members `useQuery` with `refetchInterval: MEMBERS_REFRESH_MS` (5000), layout `flex h-dvh flex-col` → `EditorHeader` → `flex min-h-0 flex-1` holding `SuperDocEditor` and `TimelinePanelPlaceholder` (a collapsible `aside` showing `TIMELINE_PLACEHOLDER_MESSAGE`, collapsed below `md`). `editor-header.tsx`: the title is an input for owner and editor (PATCH on Enter or blur when changed, then `invalidateQueries` for `DOCUMENTS_QUERY_KEY`), a heading for readers; `Members` (initials and an online dot); `Badge` `READ_ONLY_BADGE_LABEL` for readers; Share (owner) opens `ShareDialog`; "Download .docx" is `<a href={documentApiPath({ documentId, resource: DocumentResource.Download })} download>`; Delete (owner) confirms in a `Dialog`, DELETEs, invalidates, navigates to `AppRoute.Documents`. `share-landing-page.tsx` POSTs `shareLinkAcceptPath(token)` once (a ref guards StrictMode's double effect). `vite.config.ts`: `build: { outDir: 'dist', target: 'esnext' }`, `optimizeDeps: { esbuildOptions: { target: 'esnext' } }`.
-- [ ] **Step 4: Run, expect pass** — unit tests; `pnpm --filter @superdoc-history/web build` succeeds and `dist/blank.docx` exists.
-- [ ] **Step 5: Commit** — `feat(web): add the collaborative editor page and sharing`
+- [x] **Step 4: Run, expect pass** — unit tests; `pnpm --filter @superdoc-history/web build` succeeds and `dist/blank.docx` exists.
+- [x] **Step 5: Commit** — `feat(web): add the collaborative editor page and sharing`
 
 ---
+
+_Done — evidence: commits 94167ee (tests), cb61991, 5844ecc; fix round 1 re-review clean_
 
 ### Task 12: End-to-end specs (G4)
 
@@ -1544,7 +1566,7 @@ export function useEditorSetup({ opened, user, file }: { opened: OpenedDocument 
 - Consumes: seeded `DEMO_USERS`, `buildSeedDocx` (`../libs/history/src`), every route above.
 - Produces: `signedInContext({ browser, user }): Promise<{ context; page; userId }>` (own `x-forwarded-for`, signs in, reads the id from `/api/me`); `uploadSeed({ page, paragraphs }): Promise<string>` (through the dialog, returns the id from the URL); `shareAndAccept({ owner, member, documentId, role })`; `typeInParagraph({ page, paragraphText, text })` (focus-verified port of the POC helper); `readEditorText(page)` (joins `.superdoc-text-run` texts); `readEvents({ page, documentId })`; `insertedBy({ events, userId })`; `expectEveryCharacterAccounted({ events, initialLength, finalLength })`.
 
-- [ ] **Step 1: Specs** — `collaboration.spec.ts`
+- [x] **Step 1: Specs** — `collaboration.spec.ts`
 ```ts
 test('two authors converge and each marker is attributed to its author', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -1570,10 +1592,12 @@ test('two authors converge and each marker is attributed to its author', async (
 });
 ```
 Same file: `identities are declared from awareness` opens `E2E_DATABASE_DIR/history.sqlite` with better-sqlite3 (`new Database(path, { readonly: true })`, root devDependency from Task 1) after the typing above and expects every `client_identities` row of the document whose `user_id` is Ana's or Bruno's to have `source = 'declared'` (the spike's regression test for fact 1). `documents.spec.ts`: `upload, open, type and the events attribute the text to me` (`setInputFiles({ name: 'Plan.docx', mimeType: DOCX_MIME_TYPE, buffer })`, type `' <MINE>'`, poll until `insertedBy(me) === ' <MINE>'`); `a reader cannot type but sees live edits` (the reader clicks a paragraph and types `READER`; then the owner types `' <AFTER>'`; the reader's page shows `<AFTER>` live, without reload, which proves the reader still receives edits; at that point neither page contains `READER`, `/events` holds no event by the reader, and `READ_ONLY_BADGE_LABEL` is visible; spike fact 3); `a reader waits until the room exists` (the owner creates a blank document with `page.request.post` and never opens it; the reader accepts the read link and sees `DOCUMENT_NOT_READY_MESSAGE` with no editor; the owner opens the document and the editor becomes ready; the reader reloads and gets the editor with `READ_ONLY_BADGE_LABEL`); `a share link adds the document to Shared with me` (accept through `/share/<token>` lands on `/documents/<id>`, the list shows it with role editor); `an invalid share link says so` (`/share/nope` → `INVALID_SHARE_LINK_MESSAGE`); `rename persists after reload`; `delete removes the document for everyone` (the member has it open; after the owner deletes, the member's reload shows `DOCUMENT_UNAVAILABLE_MESSAGE` and the list no longer lists it). Every UI string the specs assert comes from `libs/types`, never a literal.
-- [ ] **Step 2: Run** — `pnpm test:e2e` twice in a row; every spec passes both times with `retries: 0`.
-- [ ] **Step 3: Commit** — `test(e2e): cover documents, sharing, read-only and two-author attribution`
+- [x] **Step 2: Run** — `pnpm test:e2e` twice in a row; every spec passes both times with `retries: 0`.
+- [x] **Step 3: Commit** — `test(e2e): cover documents, sharing, read-only and two-author attribution`
 
 ---
+
+_Done — evidence: commit 62d1fad; 16/16 E2E twice with the real SuperDoc; task review approved_
 
 ### Task 13: Docker, README and tester briefing (G4)
 
@@ -1581,12 +1605,14 @@ Same file: `identities are declared from awareness` opens `E2E_DATABASE_DIR/hist
 - Modify: `docker/Dockerfile`, `README.md`, `docs/features/README.md` (status → Building)
 - Create: `docs/features/documents-and-history/tester-briefing.md`
 
-- [ ] **Step 1: Dockerfile** — the runtime stage adds `COPY --from=build /workspace/libs/history/drizzle ./libs/history/drizzle` (found by `findMigrationsFolder` walking up from `/app/dist`). Verify: `docker compose up --build -d`; `curl -f localhost:3000/api/health`; sign in with curl; POST a blank document → 201; `docker compose exec app ls /data/documents` lists one `.docx`; `docker compose down -v`.
-- [ ] **Step 2: README** — the documents and sharing flow; where data lives (`DATABASE_DIR/{auth,history,read-model}.sqlite`, `DATABASE_DIR/documents/<id>.docx`); the editor needs `pnpm build` plus the server (SuperDoc's worker breaks under `vite dev`); the image carries `@superdoc/sdk`'s native binary.
-- [ ] **Step 3: Tester briefing** — per the template: what changed per group; how to run (the production-shaped command in `test-plan.md`); suites red-today/green-after; hypotheses ("a reader's keystrokes never reach the log", "a rotated link stops working but members stay", "events appear within about 3 s of typing"); known gaps (no timeline, no time travel, a role change needs a reconnect, imported revisions need the native SDK).
-- [ ] **Step 4: Commit** — `chore(docker): ship history migrations in the image` and `docs: add the documents-and-history briefing`
+- [x] **Step 1: Dockerfile** — the runtime stage adds `COPY --from=build /workspace/libs/history/drizzle ./libs/history/drizzle` (found by `findMigrationsFolder` walking up from `/app/dist`). Verify: `docker compose up --build -d`; `curl -f localhost:3000/api/health`; sign in with curl; POST a blank document → 201; `docker compose exec app ls /data/documents` lists one `.docx`; `docker compose down -v`.
+- [x] **Step 2: README** — the documents and sharing flow; where data lives (`DATABASE_DIR/{auth,history,read-model}.sqlite`, `DATABASE_DIR/documents/<id>.docx`); the editor needs `pnpm build` plus the server (SuperDoc's worker breaks under `vite dev`); the image carries `@superdoc/sdk`'s native binary.
+- [x] **Step 3: Tester briefing** — per the template: what changed per group; how to run (the production-shaped command in `test-plan.md`); suites red-today/green-after; hypotheses ("a reader's keystrokes never reach the log", "a rotated link stops working but members stay", "events appear within about 3 s of typing"); known gaps (no timeline, no time travel, a role change needs a reconnect, imported revisions need the native SDK).
+- [x] **Step 4: Commit** — `chore(docker): ship history migrations in the image` and `docs: add the documents-and-history briefing`
 
 ---
+
+_Done — evidence: commits 3699d6f, 7b046a1; container verified (health, sign-in, upload, imported event via the SDK binary); review pending_
 
 ### Z. Prove and ship
 

@@ -9,6 +9,7 @@ import {
   NO_MATCHING_EDITS_MESSAGE,
   timelineEditsApiPath,
   TOPICS_PENDING_MESSAGE,
+  TOPICS_REFRESH_TOO_SOON_MESSAGE,
   TOPICS_UNAVAILABLE_MESSAGE,
   topicsRefreshApiPath,
   TimelineBandKind,
@@ -27,7 +28,7 @@ import { NO_EDITS_IN_BIN_MESSAGE, NO_EDITS_YET_MESSAGE, REFRESH_TOPICS_LABEL, RE
 import { TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
-import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
+import { MIN_EDITOR_WIDTH, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
@@ -37,6 +38,8 @@ const ROUTE = documentPagePath(DOCUMENT_ID);
 const FAILURE_TEXT = 'The model refused';
 const LAG_MS = 12_000;
 const SMALL_LAG_MS = 2000;
+const DRAGGED_WIDTH = 500;
+const SHRUNK_WINDOW_WIDTH = 800;
 const REFRESH_STATUS = { state: TopicState.Pending, failure: null, computedAtSequence: null };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
 
@@ -49,13 +52,13 @@ function json(body: unknown, status = HttpStatus.Ok): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
-function mockTimelineApi({ timeline = baseTimeline, edits }: { timeline?: DocumentTimeline; edits?: BinEdits } = {}) {
+function mockTimelineApi({ timeline = baseTimeline, edits, refreshStatus = HttpStatus.Accepted }: { timeline?: DocumentTimeline; edits?: BinEdits; refreshStatus?: HttpStatus } = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const path = String(input).split('?')[0];
     if (path === TIMELINE_PATH) return json(timeline);
     if (path === SUMMARIES_PATH) return json({ summaries: [] });
     if (path === EDITS_PATH) return json(edits);
-    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) return json(REFRESH_STATUS, HttpStatus.Accepted);
+    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) return json(REFRESH_STATUS, refreshStatus);
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -170,4 +173,40 @@ test('the separator resizes with the arrow keys and never below the minimum', as
   fireEvent.keyDown(separator, { key: 'ArrowRight' });
   fireEvent.keyDown(separator, { key: 'ArrowRight' });
   expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_WIDTH));
+});
+
+test('a refresh that is too soon explains why', async () => {
+  mockTimelineApi({ refreshStatus: HttpStatus.TooManyRequests });
+  renderPanel();
+  await userEvent.click(await screen.findByRole('button', { name: REFRESH_TOPICS_LABEL }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+});
+
+test('dragging the separator resizes within the limits', async () => {
+  mockTimelineApi();
+  renderPanel();
+  const separator = await screen.findByRole('separator', { name: RESIZE_PANEL_LABEL });
+  separator.setPointerCapture = vi.fn();
+  fireEvent.pointerDown(separator, { pointerId: 1 });
+  fireEvent.pointerMove(separator, { buttons: 1, clientX: window.innerWidth - DRAGGED_WIDTH });
+  expect(separator).toHaveAttribute('aria-valuenow', String(DRAGGED_WIDTH));
+  fireEvent.pointerMove(separator, { buttons: 1, clientX: 0 });
+  expect(separator).toHaveAttribute('aria-valuenow', String(window.innerWidth - MIN_EDITOR_WIDTH));
+  fireEvent.pointerMove(separator, { buttons: 1, clientX: window.innerWidth });
+  expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_WIDTH));
+  fireEvent.pointerMove(separator, { buttons: 0, clientX: window.innerWidth - DRAGGED_WIDTH });
+  expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_WIDTH));
+});
+
+test('shrinking the window re-clamps the panel and its maximum', async () => {
+  mockTimelineApi();
+  renderPanel();
+  const separator = await screen.findByRole('separator', { name: RESIZE_PANEL_LABEL });
+  fireEvent.pointerMove(separator, { buttons: 1, clientX: 0 });
+  const originalWidth = window.innerWidth;
+  window.innerWidth = SHRUNK_WINDOW_WIDTH;
+  fireEvent(window, new Event('resize'));
+  window.innerWidth = originalWidth;
+  expect(separator).toHaveAttribute('aria-valuemax', String(SHRUNK_WINDOW_WIDTH - MIN_EDITOR_WIDTH));
+  expect(separator).toHaveAttribute('aria-valuenow', String(SHRUNK_WINDOW_WIDTH - MIN_EDITOR_WIDTH));
 });

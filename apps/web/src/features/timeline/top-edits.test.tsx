@@ -44,3 +44,24 @@ test('clicking a chip sets the topic and clicking again removes it', async () =>
   await user.click(screen.getByRole('button', { name: 'Budget' }));
   expect(router.state.location.search).toBe('');
 });
+
+test('equal volumes and equal contributions are ordered by id', () => {
+  const tied = timelineWith({ volumes: [[50, 50]], names: ['Zed', 'Alpha'] });
+  const [zed, alpha] = tied.bands;
+  const reversed = {
+    ...tied,
+    bands: [{ ...zed!, id: 'b-topic' }, { ...alpha!, id: 'a-topic' }],
+    authors: timeline.authors,
+    contributorsByBand: {
+      'b-topic': [
+        { authorKey: 'carla', inserted: 5, deleted: 0, wordsInserted: 1, wordsDeleted: 0 },
+        { authorKey: 'ana', inserted: 5, deleted: 0, wordsInserted: 1, wordsDeleted: 0 },
+        { authorKey: 'bruno', inserted: 5, deleted: 0, wordsInserted: 1, wordsDeleted: 0 },
+      ],
+    },
+  };
+  renderWithProviders(<TopEdits timeline={reversed} summaries={undefined} />, { route: ROUTE });
+  expect(screen.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Alpha', 'Zed']);
+  const row = screen.getByRole('button', { name: 'Zed' }).closest('li')!;
+  expect(within(row).getAllByTitle(/.+/).map((avatar) => avatar.getAttribute('title'))).toEqual(['Ana Souza', 'Bruno Lima', 'Carla Dias']);
+});

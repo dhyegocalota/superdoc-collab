@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { authClient } from './auth-client';
+import { SIGN_UP_LABEL, SIGN_UP_PENDING_LABEL } from './auth-copy';
 import { useAuthSubmit } from './use-auth-submit';
 
 export function SignUpPage() {
@@ -71,7 +72,7 @@ export function SignUpPage() {
                 </p>
               )}
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Creating account...' : 'Sign up'}
+                {form.formState.isSubmitting ? SIGN_UP_PENDING_LABEL : SIGN_UP_LABEL}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{' '}

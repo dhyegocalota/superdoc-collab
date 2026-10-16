@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { authClient } from './auth-client';
+import { SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL } from './auth-copy';
 import { useAuthSubmit } from './use-auth-submit';
 
 export function SignInPage() {
@@ -58,7 +59,7 @@ export function SignInPage() {
                 </p>
               )}
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
+                {form.formState.isSubmitting ? SIGN_IN_PENDING_LABEL : SIGN_IN_LABEL}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 No account yet?{' '}

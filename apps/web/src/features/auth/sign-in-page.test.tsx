@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from './auth-client';
+import { SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL } from './auth-copy';
 import { SignInPage } from './sign-in-page';
 
 vi.mock('./auth-client', () => ({ authClient: { signIn: { email: vi.fn() } } }));
@@ -26,7 +27,7 @@ function renderSignInPage() {
 async function submitCredentials({ user, email, password }: { user: ReturnType<typeof userEvent.setup>; email: string; password: string }) {
   await user.type(screen.getByLabelText('Email'), email);
   await user.type(screen.getByLabelText('Password'), password);
-  await user.click(screen.getByRole('button', { name: 'Sign in' }));
+  await user.click(screen.getByRole('button', { name: SIGN_IN_LABEL }));
 }
 
 beforeEach(() => signInEmail.mockReset());
@@ -59,9 +60,9 @@ test('disables the button and shows the pending label while the request is in fl
   signInEmail.mockReturnValue(new Promise((resolve) => (finishRequest = resolve)) as never);
   const user = renderSignInPage();
   await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
-  expect(await screen.findByRole('button', { name: 'Signing in...' })).toBeDisabled();
+  expect(await screen.findByRole('button', { name: SIGN_IN_PENDING_LABEL })).toBeDisabled();
   finishRequest({ data: null, error: null } as never);
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole('button', { name: SIGN_IN_LABEL })).toBeEnabled());
 });
 
 test('submits with Enter from the password field', async () => {

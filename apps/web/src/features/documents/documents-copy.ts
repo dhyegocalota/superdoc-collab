@@ -13,3 +13,4 @@ export const DOCUMENTS_LOAD_ERROR_MESSAGE = 'Documents could not be loaded.';
 export const UPLOAD_FAILED_MESSAGE = 'Upload failed with status';
 export const CREATE_FAILED_MESSAGE = 'Create failed with status';
 export const CREATE_ERROR_MESSAGE = 'The document could not be created.';
+export const COLUMN_HEADERS = ['Title', 'Owner', 'Updated', 'My role'];

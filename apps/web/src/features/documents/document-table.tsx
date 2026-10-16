@@ -2,35 +2,28 @@ import { documentPagePath, type DocumentSummary } from '@superdoc-history/types'
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { COLUMN_HEADERS } from './documents-copy';
 
 const UPDATED_AT_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-const COLUMN_COUNT = 4;
 
-interface DocumentTableProps {
+type DocumentTableProps = {
   documents: DocumentSummary[];
   emptyMessage: string;
-}
+};
 
 export function DocumentTable({ documents, emptyMessage }: DocumentTableProps) {
+  if (documents.length === 0) return <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">{emptyMessage}</p>;
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Title</TableHead>
-            <TableHead>Owner</TableHead>
-            <TableHead>Updated</TableHead>
-            <TableHead>My role</TableHead>
+            {COLUMN_HEADERS.map((header) => (
+              <TableHead key={header}>{header}</TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {documents.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={COLUMN_COUNT} className="text-center text-muted-foreground">
-                {emptyMessage}
-              </TableCell>
-            </TableRow>
-          )}
           {documents.map((document) => (
             <TableRow key={document.id}>
               <TableCell className="font-medium">

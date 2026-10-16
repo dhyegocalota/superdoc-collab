@@ -16,7 +16,7 @@ import {
 } from '../libs/types/src';
 import { acceptShareLink, editorText, readEditorText, readEvents, readShareLinks, shareAndAccept, typeInParagraph, uploadSeed, insertedBy } from './editor';
 import { SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
-import { DELETE_CONFIRM_LABEL, DELETE_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
+import { DELETE_CONFIRM_LABEL, DELETE_LABEL, DOWNLOAD_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { expect, signedInContext, test } from './fixtures';
 
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
@@ -27,6 +27,8 @@ const READER_TEXT = 'READER';
 const EVENTS_TIMEOUT_MS = 30_000;
 const LIVE_TIMEOUT_MS = 30_000;
 const EDITOR_TEST_ID = 'document-editor';
+const NARROW_VIEWPORT = { width: 375, height: 812 };
+const UNAVAILABLE_TIMEOUT_MS = 20_000;
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
@@ -121,8 +123,25 @@ test('delete removes the document for everyone', async ({ browser }) => {
   await ana.page.getByRole('button', { name: DELETE_LABEL, exact: true }).click();
   await ana.page.getByRole('button', { name: DELETE_CONFIRM_LABEL }).click();
   await expect(ana.page).toHaveURL(AppRoute.Documents);
+  await expect(dani.page.getByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: UNAVAILABLE_TIMEOUT_MS });
   await dani.page.reload();
   await expect(dani.page.getByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeVisible();
   await dani.page.goto(AppRoute.Documents);
   await expect(dani.page.getByText(titleOf(fileName))).toHaveCount(0);
+});
+
+test('the editor page never scrolls horizontally on a narrow viewport', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
+  await ana.page.setViewportSize(NARROW_VIEWPORT);
+  await expect.poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+});
+
+test('the header download exports the live document', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const fileName = uniqueFileName('export');
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
+  const download = ana.page.waitForEvent('download');
+  await ana.page.getByRole('button', { name: DOWNLOAD_LABEL }).click();
+  expect((await download).suggestedFilename()).toBe(fileName);
 });

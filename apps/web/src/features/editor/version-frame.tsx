@@ -15,6 +15,7 @@ function framesAfterShowing({ frames, version }: { frames: Frame[]; version: Ver
 
 function framesAfterReady({ frames, sequence }: { frames: Frame[]; sequence: number }): Frame[] {
   const readyIndex = frames.findIndex((frame) => frame.version.sequence === sequence);
+  if (readyIndex < 0) return frames;
   return frames.slice(readyIndex).map((frame) => ({ ...frame, isReady: frame.isReady || frame.version.sequence === sequence }));
 }
 
@@ -23,6 +24,7 @@ type VersionFrameProps = { documentId: string; version: VersionSummary | null; r
 export function VersionFrame({ documentId, version, requestedSequence, runs, onFailed }: VersionFrameProps) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const elements = useRef(new Map<number, HTMLIFrameElement>());
+  const onFailedRef = useRef(onFailed);
   const isRequestedReady = frames.some((frame) => frame.isReady && frame.version.sequence === requestedSequence);
 
   useEffect(() => {
@@ -30,18 +32,20 @@ export function VersionFrame({ documentId, version, requestedSequence, runs, onF
   }, [version]);
 
   useEffect(() => {
+    onFailedRef.current = onFailed;
+  }, [onFailed]);
+
+  useEffect(() => {
     function handleMessage(event: MessageEvent): void {
-      frames.forEach((frame) => {
-        const frameWindow = elements.current.get(frame.version.sequence)?.contentWindow;
-        if (!frameWindow) return;
-        const message = readViewerMessage({ event, expectedSource: frameWindow });
-        if (message?.kind === ViewerMessageKind.Ready) setFrames((current) => framesAfterReady({ frames: current, sequence: frame.version.sequence }));
-        if (message?.kind === ViewerMessageKind.Failed) onFailed(frame.version.sequence);
+      elements.current.forEach((element, sequence) => {
+        const message = readViewerMessage({ event, expectedSource: element.contentWindow });
+        if (message?.kind === ViewerMessageKind.Ready) setFrames((current) => framesAfterReady({ frames: current, sequence }));
+        if (message?.kind === ViewerMessageKind.Failed) onFailedRef.current(sequence);
       });
     }
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [frames, onFailed]);
+  }, []);
 
   useEffect(() => {
     if (!isRequestedReady || requestedSequence === null) return;

@@ -47,7 +47,7 @@ export class TopicsService {
 
   ensure(documentId: string): void {
     if (this.repository.status(documentId) !== null) return;
-    this.start(documentId);
+    this.start({ documentId, isRefresh: false });
   }
 
   refresh(documentId: string): RefreshResult {
@@ -55,8 +55,7 @@ export class TopicsService {
     const last = this.refreshedAt.get(documentId);
     const waitedMs = last === undefined ? TOPIC_REFRESH_COOLDOWN_MS : Date.now() - last;
     if (waitedMs < TOPIC_REFRESH_COOLDOWN_MS) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: Math.ceil((TOPIC_REFRESH_COOLDOWN_MS - waitedMs) / SECOND_MS) };
-    this.refreshedAt.set(documentId, Date.now());
-    this.start(documentId);
+    this.start({ documentId, isRefresh: true });
     return { outcome: RefreshOutcome.Started };
   }
 
@@ -69,27 +68,37 @@ export class TopicsService {
     const computedAtSequence = status.computedAtSequence;
     if (unassignedFirstSequences.filter((sequence) => sequence > computedAtSequence).length < TOPIC_RECOMPUTE_NEW_BLOCKS) return;
     if (Date.now() - updatedAt < TOPIC_RECOMPUTE_MIN_INTERVAL_MS) return;
-    this.start(documentId);
+    this.start({ documentId, isRefresh: false });
   }
 
-  private start(documentId: string): void {
-    this.worker.run({ key: topicsKey(documentId), job: () => this.compute(documentId) });
+  private start({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
+    this.worker.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
   }
 
-  private async compute(documentId: string): Promise<void> {
+  private consumeCooldown({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
+    if (isRefresh) this.refreshedAt.set(documentId, Date.now());
+  }
+
+  private async compute({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): Promise<void> {
     const choice = this.languageModel;
-    if (choice.availability === LanguageModelAvailability.Unavailable) return this.repository.markFailed({ documentId, failure: choice.reason });
+    if (choice.availability === LanguageModelAvailability.Unavailable) {
+      this.consumeCooldown({ documentId, isRefresh });
+      return this.repository.markFailed({ documentId, failure: choice.reason });
+    }
+    const previous = this.repository.status(documentId);
     this.repository.markPending(documentId);
     try {
-      await this.recompute({ documentId, model: choice.model });
+      await this.recompute({ documentId, model: choice.model, previous, isRefresh });
     } catch (error) {
       console.error(`${TOPICS_COMPUTE_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
       this.repository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
     }
   }
 
-  private async recompute({ documentId, model }: { documentId: string; model: LanguageModel }): Promise<void> {
+  private async recompute({ documentId, model, previous, isRefresh }: { documentId: string; model: LanguageModel; previous: TopicStatus | null; isRefresh: boolean }): Promise<void> {
     const { blocks, sequence } = await this.scheduler.blocks(documentId);
+    if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
+    this.consumeCooldown({ documentId, isRefresh });
     const named = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
     if (named.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
     const output = await generateStructured({ model, schema: topicsOutputSchema, system: TOPICS_SYSTEM_PROMPT, prompt: topicsPrompt(named) });

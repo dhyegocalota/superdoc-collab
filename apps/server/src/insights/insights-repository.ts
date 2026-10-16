@@ -34,6 +34,14 @@ export class InsightsRepository {
     this.upsertState({ documentId, state: TopicState.Failed, failure });
   }
 
+  restoreStatus({ documentId, previous }: { documentId: string; previous: TopicStatus | null }): void {
+    if (previous === null) {
+      this.database.drizzle.delete(topicSets).where(eq(topicSets.documentId, documentId)).run();
+      return;
+    }
+    this.database.drizzle.update(topicSets).set({ state: previous.state, failure: previous.failure, computedAtSequence: previous.computedAtSequence }).where(eq(topicSets.documentId, documentId)).run();
+  }
+
   failInterrupted(failure: string): void {
     this.database.drizzle.update(topicSets).set({ state: TopicState.Failed, failure, updatedAt: new Date() }).where(eq(topicSets.state, TopicState.Pending)).run();
   }

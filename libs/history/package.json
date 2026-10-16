@@ -2,7 +2,7 @@
   "name": "@superdoc-history/history",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" },
+  "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts", "./timeline": "./src/timeline/index.ts" },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
@@ -14,7 +14,8 @@
     "diff": "8.0.4",
     "drizzle-orm": "0.45.4",
     "jszip": "3.10.2",
-    "yjs": "13.6.33"
+    "yjs": "13.6.33",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",

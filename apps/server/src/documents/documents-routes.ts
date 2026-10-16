@@ -22,9 +22,11 @@ import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { requireDocumentRole } from './require-document-role';
 
+const RENAME_BODY_MAX_BYTES = 4 * 1024;
 const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
 const MULTIPART_CONTENT_TYPE = 'multipart/form-data';
 const BLANK_DOCUMENT: SeedParagraph[] = [{ text: '', trackedChanges: [] }];
+const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const INVALID_TITLE_MESSAGE = 'The title must not be blank';
 const DOCX_EXTENSION_PATTERN = /\.docx$/i;
 const MALFORMED_UPLOAD_MESSAGE = 'The upload could not be read';
@@ -93,7 +95,7 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     return context.json({ document: documents.summary({ documentId, userId }), role, roomMode });
   });
 
-  routes.patch('/:documentId', async (context) => {
+  routes.patch('/:documentId', bodyLimit({ maxSize: RENAME_BODY_MAX_BYTES, onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge) }), async (context) => {
     const documentId = context.req.param('documentId');
     const userId = context.var.user.id;
     requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Editor });

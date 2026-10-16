@@ -28,6 +28,7 @@ import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, STREAMGRAPH_TITLE, VERSION
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
+import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from './editor-api';
 import { DocumentPage } from './document-page';
 
@@ -69,9 +70,11 @@ function mockDocumentApi({
   openedStatus = HttpStatus.Ok,
   versions = {},
   edits = { binStart: 0, binMs: 0, runs: [], authors: {} },
-  timeline = versionedTimeline,
+  timelines = [versionedTimeline],
   holdTimeline = false,
-}: { opened?: OpenedDocument; openedStatus?: HttpStatus; versions?: Record<number, VersionReply[]>; edits?: BinEdits; timeline?: DocumentTimeline; holdTimeline?: boolean } = {}) {
+  timelineGate = Promise.resolve(),
+}: { opened?: OpenedDocument; openedStatus?: HttpStatus; versions?: Record<number, VersionReply[]>; edits?: BinEdits; timelines?: DocumentTimeline[]; holdTimeline?: boolean; timelineGate?: Promise<void> } = {}) {
+  const timelineQueue = [...timelines];
   const queues = new Map(Object.entries(versions).map(([sequence, replies]) => [versionApiPath({ documentId: DOCUMENT_ID, sequence: Number(sequence) }), [...replies]]));
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const path = String(input).split('?')[0]!;
@@ -80,7 +83,8 @@ function mockDocumentApi({
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members })) return new Response(JSON.stringify({ members: [] }));
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline })) {
       if (holdTimeline) return new Promise<Response>(() => undefined);
-      return new Response(JSON.stringify(timeline));
+      await timelineGate;
+      return new Response(JSON.stringify(timelineQueue.length > 1 ? timelineQueue.shift() : timelineQueue[0]));
     }
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries })) return new Response(JSON.stringify({ summaries: [] }));
     if (path === timelineEditsApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(edits));
@@ -250,7 +254,7 @@ test('a moment still loading its timeline shows progress instead of an empty ban
 
 test('a moment without a version yet shows progress up to the end of its period', async () => {
   const withoutVersion: DocumentTimeline = { ...versionedTimeline, bins: versionedTimeline.bins.map((bin, index) => ({ ...bin, versionSequence: index === 1 ? null : bin.versionSequence })) };
-  mockDocumentApi({ timeline: withoutVersion });
+  mockDocumentApi({ timelines: [withoutVersion] });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const endOfPeriod = formatTimestamp(BIN_STARTS[1]! + versionedTimeline.binMs);
   await waitFor(() => expect(screen.getByTestId('version-banner')).toHaveTextContent(endOfPeriod));
@@ -285,4 +289,49 @@ test('runs reach only the frame of the requested version', async () => {
   const postToB = vi.spyOn(frameB.contentWindow!, 'postMessage');
   sendFromFrame({ frame: frameB });
   await waitFor(() => expect(postToB).toHaveBeenCalledWith({ kind: ViewerMessageKind.Highlight, runs: RUNS }, window.location.origin));
+});
+
+function withSequence({ binIndex, sequence }: { binIndex: number; sequence: number }): DocumentTimeline {
+  return { ...versionedTimeline, bins: versionedTimeline.bins.map((bin, index) => ({ ...bin, versionSequence: index === binIndex ? sequence : bin.versionSequence })) };
+}
+
+function timelineRequestCount(fetchSpy: ReturnType<typeof mockDocumentApi>): number {
+  return fetchSpy.mock.calls.filter(([path]) => String(path).split('?')[0] === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline })).length;
+}
+
+test('a poll that reports a newer version for the viewed period does not move the viewer', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const fetchSpy = mockDocumentApi({ versions: { 42: [readyReply(42)], 43: [readyReply(43)] }, timelines: [versionedTimeline, withSequence({ binIndex: 1, sequence: 43 })] });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 2);
+  expect(timelineRequestCount(fetchSpy)).toBeGreaterThan(1);
+  expect(versionRequests(fetchSpy).some((path) => path.endsWith('/43'))).toBe(false);
+  expect(screen.getAllByTitle(VERSION_FRAME_TITLE)).toHaveLength(1);
+  expect(screen.getByTestId('version-banner')).toHaveAttribute('data-sequence', '42');
+});
+
+test('moving to another period resolves its version again', async () => {
+  const fetchSpy = mockDocumentApi({ versions: { 42: [readyReply(42)], 50: [readyReply(50)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  await act(async () => router.navigate(`${PAGE_ROUTE}?at=${BIN_STARTS[2]}`));
+  await waitFor(() => expect(screen.getAllByTitle(VERSION_FRAME_TITLE)).toHaveLength(2));
+  expect(frameFor(50)).toBeInTheDocument();
+  expect(versionRequests(fetchSpy).some((path) => path.endsWith('/50'))).toBe(true);
+});
+
+test('an at set before the timeline arrives resolves its version once when it does', async () => {
+  let openGate!: () => void;
+  const timelineGate = new Promise<void>((resolve) => {
+    openGate = resolve;
+  });
+  const fetchSpy = mockDocumentApi({ versions: { 42: [readyReply(42)] }, timelineGate });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  expect(await screen.findByTestId('version-banner')).toHaveTextContent(LOADING_VERSION_MESSAGE);
+  expect(versionRequests(fetchSpy)).toEqual([]);
+  openGate();
+  const frame = await screen.findByTitle(VERSION_FRAME_TITLE);
+  expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }));
+  expect(versionRequests(fetchSpy)).toHaveLength(1);
 });

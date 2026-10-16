@@ -1,0 +1,54 @@
+import { chromium } from '@playwright/test';
+import { rmSync } from 'node:fs';
+import * as Y from 'yjs';
+import { startCollaborationServer } from '../server/collaboration-server';
+import { replay } from '../lib/update-log';
+
+const databasePath = '/tmp/poc-explore.sqlite';
+rmSync(databasePath, { force: true });
+const running = await startCollaborationServer({ port: 1234, databasePath });
+const browser = await chromium.launch();
+const open = async (user: string, mode: string) => {
+  const page = await browser.newPage();
+  page.on('pageerror', (error) => console.log('[pageerror]', user, String(error)));
+  page.on('console', (message) => message.type() === 'error' && console.log('[console]', user, message.text().slice(0, 300)));
+  await page.goto(`http://127.0.0.1:5199/?user=${user}&mode=${mode}&server=ws://127.0.0.1:1234&document=explore`);
+  await page.waitForFunction(() => (window as any).poc?.ready === true, null, { timeout: 120_000 });
+  return page;
+};
+const ana = await open('ana', 'create');
+const bruno = await open('bruno', 'join');
+await ana.locator('.superdoc-text-run', { hasText: 'owned by ana' }).first().click();
+await ana.keyboard.press('End');
+await ana.keyboard.type(' ANA_MARK');
+await bruno.locator('.superdoc-text-run', { hasText: 'owned by bruno' }).first().click();
+await bruno.keyboard.press('End');
+await bruno.keyboard.type(' BRUNO_MARK');
+await bruno.waitForFunction(async () => (await (window as any).poc.getText()).includes('ANA_MARK'), null, { timeout: 30_000 });
+await new Promise((resolve) => setTimeout(resolve, 1500));
+console.log('ana text:', JSON.stringify(await ana.evaluate(() => (window as any).poc.getText())));
+const names = [...running.server.documents.keys()];
+console.log('rooms:', names);
+const live = running.server.documents.get(names[0])!;
+const { writeFileSync } = await import('node:fs');
+const dump: Record<string, unknown> = {};
+const allLogged = running.log.read({ documentName: names[0], untilSequence: Number.MAX_SAFE_INTEGER });
+for (const [name, type] of live.share) {
+  const abstract = type as any;
+  const kind = abstract._map.size > 0 ? 'map' : (abstract._start?.content?.constructor?.name ?? 'empty');
+  const fresh = replay(allLogged);
+  const typed = kind === 'map' ? fresh.getMap(name) : kind === 'ContentString' ? fresh.getText(name) : kind === 'ContentType' ? fresh.getXmlFragment(name) : fresh.getArray(name);
+  dump[name] = { kind, value: typed.toJSON() };
+}
+writeFileSync('/tmp/poc-ydoc-dump.json', JSON.stringify(dump, (key, value) => value instanceof Uint8Array ? `<bytes ${value.byteLength}>` : value, 2));
+console.log('dumped');
+const updates = running.log.read({ documentName: names[0], untilSequence: Number.MAX_SAFE_INTEGER });
+console.log('updates:', updates.length, 'users:', [...new Set(updates.map((u) => u.connectionUserId))], 'bytes:', updates.reduce((s, u) => s + u.update.byteLength, 0));
+console.log('per update sample:', updates.slice(-6).map((u) => ({ seq: u.sequence, user: u.connectionUserId, clients: u.yjsClientIds, bytes: u.update.byteLength })));
+const allUpdates = running.log.read({ documentName: names[0], untilSequence: Number.MAX_SAFE_INTEGER });
+console.log('client ids by user:', JSON.stringify(Object.groupBy(allUpdates.flatMap((u) => u.yjsClientIds.map((c) => `${u.connectionUserId}:${c}`)), (k) => k.split(':')[0])));
+console.log('identities:', [...running.log.clientIdentities(names[0])]);
+const replayed = replay(updates);
+console.log('replay state vector equal:', Buffer.from(Y.encodeStateVector(replayed)).equals(Buffer.from(Y.encodeStateVector(live))));
+await browser.close();
+await running.stop();

@@ -1,10 +1,11 @@
 import { ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { BlockChangeKind, DocumentResource, DocumentRole, documentApiPath, type DocumentTimeline } from '@superdoc-history/types';
+import { BlockChangeKind, DocumentResource, DocumentRole, documentApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries } from '@superdoc-history/types';
 import { expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
+import type { LanguageModelChoice } from '../insights/llm-client';
 import { connectToDocument, documentWithOwner, memberWithRole } from './collaboration-client';
 import { readEvents } from './events-client';
 import type { TestServer } from './test-server';
@@ -46,4 +47,26 @@ export function commitBulkEvents({ server, documentId, userId, count, startIndex
   new ReadModel(sqlite).commit({ documentName: documentId, events, marks: [], lastSequence });
   sqlite.close();
   return lastSequence;
+}
+
+export async function storyWithBlocks({ languageModel, texts }: { languageModel?: LanguageModelChoice; texts: string[] }) {
+  const { server, documentId, owner } = await documentWithOwner({ languageModel });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts });
+  commitBootstrap(client.document);
+  writeStory({ document: client.document, texts: texts.map((text, index) => (index === texts.length - 1 ? `${text} ` : text)) });
+  await expect.poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).length, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(0);
+  return { server, documentId, owner, client };
+}
+
+export async function readTopics({ server, documentId, cookie }: { server: TestServer; documentId: string; cookie: string }): Promise<DocumentTopics> {
+  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Topics })}`, { headers: { cookie } });
+  expect(response.ok).toBe(true);
+  return response.json();
+}
+
+export async function readSummaries({ server, documentId, cookie }: { server: TestServer; documentId: string; cookie: string }): Promise<TopicSummaries> {
+  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Summaries })}`, { headers: { cookie } });
+  expect(response.ok).toBe(true);
+  return response.json();
 }

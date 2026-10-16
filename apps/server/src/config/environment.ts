@@ -42,7 +42,7 @@ function presentOrNull(value: string | undefined): string | null {
   return value;
 }
 
-function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
+export function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
   const parsed = llmSchema.parse(source);
   return { model: presentOrNull(parsed.LLM_MODEL), apiKey: presentOrNull(parsed.OPENROUTER_API_KEY), baseUrl: presentOrNull(parsed.OPENROUTER_BASE_URL) };
 }

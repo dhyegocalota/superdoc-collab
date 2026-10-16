@@ -65,3 +65,16 @@ test('deleting the document cascades every insights row', async () => {
   expect(server.database.sqlite.prepare('SELECT COUNT(*) AS total FROM topic_blocks').get()).toEqual({ total: 0 });
   await server.stop();
 });
+
+test('a topic id from another document is saved as a new topic and leaves the other untouched', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const insights = server.services.insightsRepository;
+  const otherDocumentId = randomUUID();
+  server.services.documents.create({ id: otherDocumentId, title: 'Other', ownerUserId: owner.id });
+  insights.saveTopics({ documentId: otherDocumentId, topics: [{ id: null, name: 'Hiring', blockIds: ['b9'] }], computedAtSequence: 1 });
+  const [foreign] = insights.topics(otherDocumentId);
+  insights.saveTopics({ documentId, topics: [{ id: foreign!.id, name: 'Budget', blockIds: ['b1'] }], computedAtSequence: 2 });
+  expect(insights.topics(documentId).map((topic) => [topic.id === foreign!.id, topic.name])).toEqual([[false, 'Budget']]);
+  expect(insights.topics(otherDocumentId).map((topic) => [topic.id, topic.name, topic.blockIds])).toEqual([[foreign!.id, 'Hiring', ['b9']]]);
+  await server.stop();
+});

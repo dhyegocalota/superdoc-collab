@@ -19,12 +19,14 @@ import { createLocalDiskFileStorage } from './documents/local-disk-file-storage'
 import { createApp } from './http/app';
 import { findDocumentsToProject } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
+import { InsightsRepository } from './insights/insights-repository';
+import { chooseLanguageModel, type LanguageModelChoice } from './insights/llm-client';
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { mountStaticWeb } from './http/static-web';
 
 export const NOT_FOUND_MESSAGE = 'Not found';
 
-export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository };
+export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository };
 
 export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; services: ServerServices; stop: () => Promise<void> };
 
@@ -43,7 +45,7 @@ function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType>
   });
 }
 
-export async function startServer({ environment, webDistDirectory }: { environment: Environment; webDistDirectory: string | null }): Promise<RunningServer> {
+export async function startServer({ environment, webDistDirectory, languageModel = chooseLanguageModel(environment.llm) }: { environment: Environment; webDistDirectory: string | null; languageModel?: LanguageModelChoice }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
   ensureWritableDirectory(environment.databaseDirectory);
   ensureWritableDirectory(documentFilesDirectory);
@@ -67,7 +69,8 @@ export async function startServer({ environment, webDistDirectory }: { environme
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
-  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks };
+  const insightsRepository = new InsightsRepository(database);
+  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository };
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));

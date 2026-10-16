@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { type BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
 import * as authSchema from './schema/auth';
 import * as documentsSchema from './schema/documents';
+import * as insightsSchema from './schema/insights';
 
 const BUSY_TIMEOUT_MS = 5000;
 export const AUTH_DATABASE_FILE = 'auth.sqlite';
@@ -17,7 +18,7 @@ export class DatabaseDirectoryNotWritableError extends Error {
   }
 }
 
-const schema = { ...authSchema, ...documentsSchema };
+const schema = { ...authSchema, ...documentsSchema, ...insightsSchema };
 
 export type AuthDatabase = { sqlite: Database.Database; drizzle: BetterSQLite3Database<typeof schema> };
 

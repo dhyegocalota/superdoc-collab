@@ -3,6 +3,7 @@ import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, type DocumentRole } from '@su
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
+import type { LanguageModelChoice } from '../insights/llm-client';
 import { SUPERDOC_ROOM_PREFIX } from '../collaboration/room-name';
 import { signedInOwner, signedInUser, type TestServer, type TestUser } from './test-server';
 
@@ -57,8 +58,8 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
   });
 }
 
-export async function documentWithOwner(): Promise<{ server: TestServer; documentId: string; owner: TestUser }> {
-  const { server, owner } = await signedInOwner();
+export async function documentWithOwner({ languageModel }: { languageModel?: LanguageModelChoice } = {}): Promise<{ server: TestServer; documentId: string; owner: TestUser }> {
+  const { server, owner } = await signedInOwner({ languageModel });
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: DOCUMENT_TITLE, ownerUserId: owner.id });
   return { server, documentId, owner };

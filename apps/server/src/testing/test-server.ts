@@ -5,13 +5,15 @@ import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Auth } from '../auth/auth';
-import type { Environment } from '../config/environment';
+import type { Environment, LlmSettings } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
+import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type ServerServices } from '../server';
 
 const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 const LOOPBACK_HOST = '127.0.0.1';
 const UNIQUE_EMAIL_SUFFIX_LENGTH = 8;
+const NO_LLM_SETTINGS: LlmSettings = { model: null, apiKey: null, baseUrl: null };
 const OWNER_NAME = 'Ana';
 export const TEST_USER_PASSWORD = 'superdoc-demo';
 
@@ -26,13 +28,13 @@ async function reserveFreePort(): Promise<number> {
 }
 
 export function testEnvironment({ databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')) }: { databaseDirectory?: string } = {}): Environment {
-  return { port: 0, appOrigin: `http://${LOOPBACK_HOST}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy: true };
+  return { port: 0, appOrigin: `http://${LOOPBACK_HOST}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy: true, llm: NO_LLM_SETTINGS };
 }
 
-export async function startTestServer({ trustProxy = true, databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')) }: { trustProxy?: boolean; databaseDirectory?: string } = {}): Promise<TestServer> {
+export async function startTestServer({ trustProxy = true, databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')), languageModel = chooseLanguageModel(NO_LLM_SETTINGS) }: { trustProxy?: boolean; databaseDirectory?: string; languageModel?: LanguageModelChoice } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
-  const environment: Environment = { port, appOrigin: `http://${LOOPBACK_HOST}:${port}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy };
-  const running = await startServer({ environment, webDistDirectory: null });
+  const environment: Environment = { port, appOrigin: `http://${LOOPBACK_HOST}:${port}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy, llm: NO_LLM_SETTINGS };
+  const running = await startServer({ environment, webDistDirectory: null, languageModel });
   return { baseUrl: environment.appOrigin, auth: running.auth, database: running.database, services: running.services, databaseDirectory, stop: running.stop };
 }
 
@@ -78,7 +80,7 @@ export async function signedInUser({ server, name }: { server: TestServer; name:
   return { id: await currentUserId({ server, cookie }), email, cookie };
 }
 
-export async function signedInOwner(): Promise<{ server: TestServer; owner: TestUser }> {
-  const server = await startTestServer();
+export async function signedInOwner({ languageModel }: { languageModel?: LanguageModelChoice } = {}): Promise<{ server: TestServer; owner: TestUser }> {
+  const server = await startTestServer({ languageModel });
   return { server, owner: await signedInUser({ server, name: OWNER_NAME }) };
 }

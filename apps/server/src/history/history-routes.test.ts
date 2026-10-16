@@ -24,7 +24,8 @@ test("events attribute each author's inserted text", async () => {
   writeStory({ document: editorClient.document, texts: ['Hello A B'] });
   await expect.poll(async () => insertedBy({ events: await readEvents({ server, cookie: owner.cookie, documentId }), userId: editor.id }), { timeout: PROJECTION_TIMEOUT_MS }).toBe(' B');
   expect(insertedBy({ events: await readEvents({ server, cookie: owner.cookie, documentId }), userId: owner.id })).toBe(' A');
-  expect((await readEvents({ server, cookie: owner.cookie, documentId })).nextAfterSequence).toBeNull();
+  const body = (await (await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie: owner.cookie } })).json()) as DocumentEditEvents;
+  expect(body.nextAfterSequence).toBeNull();
   [ownerClient, editorClient].forEach((client) => client.close());
   await server.stop();
 });
@@ -95,12 +96,12 @@ test('a batch committed between the cursor and the events read stays out of both
   const { server, documentId, owner } = await documentWithOwner();
   const { readModel } = server.services;
   const SETTLED_SEQUENCE = 3;
-  readModel.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE });
+  readModel.commit({ documentName: documentId, events: [], marks: [], lastSequence: SETTLED_SEQUENCE });
   const writer = new ReadModel(new Database(join(server.databaseDirectory, READ_MODEL_DATABASE_FILE)));
   const originalCursor = readModel.cursor.bind(readModel);
   vi.spyOn(readModel, 'cursor').mockImplementation((documentName) => {
     const cursor = originalCursor(documentName);
-    writer.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE + 1 });
+    writer.commit({ documentName: documentId, events: [], marks: [], lastSequence: SETTLED_SEQUENCE + 1 });
     return cursor;
   });
   const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie: owner.cookie } });

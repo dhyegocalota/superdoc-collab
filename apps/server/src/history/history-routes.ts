@@ -54,7 +54,7 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
     imported: event.imported,
     authors: authorsOf({ event, authorIds, names }),
   }));
-  return { events, cursor };
+  return { events, cursor, nextAfterSequence: null };
 }
 
 export function createHistoryRoutes({ services }: { services: AppServices }): Hono<SignedIn> {

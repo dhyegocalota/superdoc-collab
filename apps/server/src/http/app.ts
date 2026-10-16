@@ -13,6 +13,7 @@ import type { DocumentFileStorage } from '../documents/file-storage';
 import { createShareLinksRoutes } from '../documents/share-links-routes';
 import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
+import type { InsightsRepository } from '../insights/insights-repository';
 import { createHistoryRoutes } from '../history/history-routes';
 import { NOT_FOUND_MESSAGE } from '../server';
 import { withClientAddress } from './client-address';
@@ -23,7 +24,7 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 
-export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel };
+export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
   const app = new Hono();

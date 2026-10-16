@@ -3,5 +3,7 @@ export * from './document-history';
 export * from './docx-signature';
 export * from './edit-events';
 export * from './edit-windows';
+export * from './migrations';
 export * from './seed-docx';
 export * from './single-flight';
+export * from './update-log';

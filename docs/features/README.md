@@ -24,7 +24,7 @@ Five vertical slices, in build order ([ADR 0008](../adr/0008-vertical-slices.md)
 
 | # | Slice | Delivers | Status |
 |---|-------|----------|--------|
-| 1 | [`bootstrap-and-auth`](bootstrap-and-auth/) | workspace, apps, Docker, `/verify` green, Better Auth with seeded users | Draft |
+| 1 | [`bootstrap-and-auth`](bootstrap-and-auth/) | workspace, apps, Docker, `/verify` green, Better Auth with seeded users | Building |
 | 2 | `documents-and-history` | upload and list DOCX, SuperDoc with live collaboration, history capture and read model | Not started |
 | 3 | `timeline-and-time-travel` | streamgraph, filters, top edits, time-travel viewer (spike first) | Not started |
 | 4 | `llm-insights` | topic clustering in batch, "Summarize edits" on demand | Not started |

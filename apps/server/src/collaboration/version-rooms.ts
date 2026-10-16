@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
-import type { VersionsService } from '../history/versions-service';
+import { versionKeyOf, versionKeyPrefixOf, type VersionEndpoint, type VersionsService } from '../history/versions-service';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { COLLABORATION_SOCKET_TIMEOUT_MS, LOADING_ORIGIN } from './collaboration-server';
 import { DOCUMENT_ID_PATTERN, documentIdFromRoomName } from './room-name';
@@ -14,8 +14,9 @@ const SEQUENCE_PATTERN = /^[1-9]\d{0,15}$/;
 const VERSION_PATH_PREFIX = `${ApiPath.Collaboration}/versions/`;
 const PATH_SEPARATOR = '/';
 const STOP_TIMEOUT_MS = 5000;
+const ROOM_DESTROY_FAILED_MESSAGE = 'Destroying a version instance failed for';
 
-export type VersionEndpoint = { documentId: string; sequence: number };
+export type { VersionEndpoint };
 export type VersionRoomPolicy = { idleMs: number; limit: number };
 type VersionRoom = { hocuspocus: Hocuspocus; idleTimer: NodeJS.Timeout | null };
 
@@ -27,10 +28,6 @@ export function parseVersionPath(pathname: string): VersionEndpoint | null {
   const isVersionPath = rest.length === 0 && documentId !== undefined && DOCUMENT_ID_PATTERN.test(documentId) && sequenceText !== undefined && SEQUENCE_PATTERN.test(sequenceText);
   if (!isVersionPath) return null;
   return { documentId, sequence: Number(sequenceText) };
-}
-
-function keyOf({ documentId, sequence }: VersionEndpoint): string {
-  return `${documentId}${PATH_SEPARATOR}${sequence}`;
 }
 
 export class VersionRooms {
@@ -66,23 +63,27 @@ export class VersionRooms {
   }
 
   async forget(documentId: string): Promise<void> {
-    const prefix = `${documentId}${PATH_SEPARATOR}`;
+    const prefix = versionKeyPrefixOf(documentId);
     await Promise.all([...this.rooms.keys()].filter((key) => key.startsWith(prefix)).map((key) => this.destroy(key)));
   }
 
   async stop(): Promise<void> {
     const destroyed = Promise.all([...this.rooms.keys()].map((key) => this.destroy(key)));
-    const timeout = new Promise<void>((resolve) => setTimeout(resolve, STOP_TIMEOUT_MS).unref());
+    const timer: { handle: NodeJS.Timeout | null } = { handle: null };
+    const timeout = new Promise<void>((resolve) => {
+      timer.handle = setTimeout(resolve, STOP_TIMEOUT_MS);
+    });
     await Promise.race([destroyed, timeout]);
+    if (timer.handle) clearTimeout(timer.handle);
   }
 
   private roomFor(endpoint: VersionEndpoint): VersionRoom {
-    const key = keyOf(endpoint);
+    const key = versionKeyOf(endpoint);
     const existing = this.rooms.get(key);
     const room = existing ? existing : this.create({ key, endpoint });
     this.rooms.delete(key);
     this.rooms.set(key, room);
-    [...this.rooms.keys()].slice(0, Math.max(0, this.rooms.size - this.policy.limit)).forEach((evicted) => void this.destroy(evicted));
+    [...this.rooms.keys()].slice(0, Math.max(0, this.rooms.size - this.policy.limit)).forEach((evicted) => this.destroyInBackground(evicted));
     return room;
   }
 
@@ -103,7 +104,7 @@ export class VersionRooms {
       connected: async () => this.cancelIdle(key),
       afterUnloadDocument: async () => this.scheduleIdle(key),
     });
-    return { hocuspocus, idleTimer: setTimeout(() => void this.destroy(key), this.policy.idleMs) };
+    return { hocuspocus, idleTimer: setTimeout(() => this.destroyInBackground(key), this.policy.idleMs) };
   }
 
   private cancelIdle(key: string): void {
@@ -117,7 +118,11 @@ export class VersionRooms {
     const room = this.rooms.get(key);
     if (!room) return;
     this.cancelIdle(key);
-    room.idleTimer = setTimeout(() => void this.destroy(key), this.policy.idleMs);
+    room.idleTimer = setTimeout(() => this.destroyInBackground(key), this.policy.idleMs);
+  }
+
+  private destroyInBackground(key: string): void {
+    this.destroy(key).catch((error) => console.error(`${ROOM_DESTROY_FAILED_MESSAGE} ${key}: ${String(error)}`));
   }
 
   private async destroy(key: string): Promise<void> {

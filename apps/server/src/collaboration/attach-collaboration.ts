@@ -10,6 +10,10 @@ function terminateOnError(this: WebSocket): void {
   this.terminate();
 }
 
+function destroyOnSocketError(this: Duplex): void {
+  this.destroy();
+}
+
 export function attachCollaboration({ httpServer, hocuspocus, versionRooms, path, allowedOrigin }: { httpServer: Server; hocuspocus: Hocuspocus; versionRooms: VersionRooms; path: string; allowedOrigin: string }): WebSocketServer {
   const sockets = new WebSocketServer({ noServer: true });
   function upgrade({ request, socket, head, endpoint }: { request: IncomingMessage; socket: Duplex; head: Buffer; endpoint: VersionEndpoint | null }): void {
@@ -19,17 +23,28 @@ export function attachCollaboration({ httpServer, hocuspocus, versionRooms, path
       hocuspocus.handleConnection(webSocket, request);
     });
   }
+  function upgradeVersion({ request, socket, head, endpoint }: { request: IncomingMessage; socket: Duplex; head: Buffer; endpoint: VersionEndpoint }): void {
+    socket.on('error', destroyOnSocketError);
+    versionRooms.authorize({ endpoint, request }).then(
+      (isAllowed) => {
+        socket.removeListener('error', destroyOnSocketError);
+        if (!isAllowed) return socket.destroy();
+        upgrade({ request, socket, head, endpoint });
+      },
+      () => {
+        socket.removeListener('error', destroyOnSocketError);
+        socket.destroy();
+      },
+    );
+  }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
     const { pathname } = new URL(request.url, PARSE_BASE_URL);
     const endpoint = parseVersionPath(pathname);
-    if (pathname !== path && !endpoint) return socket.destroy();
-    if (!endpoint) return upgrade({ request, socket, head, endpoint });
-    versionRooms.authorize({ endpoint, request }).then((isAllowed) => {
-      if (!isAllowed) return socket.destroy();
-      upgrade({ request, socket, head, endpoint });
-    }, () => socket.destroy());
+    if (endpoint) return upgradeVersion({ request, socket, head, endpoint });
+    if (pathname !== path) return socket.destroy();
+    upgrade({ request, socket, head, endpoint: null });
   });
   return sockets;
 }

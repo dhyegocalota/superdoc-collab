@@ -11,7 +11,7 @@ export const RETRY_AFTER_SECONDS = 1;
 const RETRY_AFTER_HEADER = 'Retry-After';
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
-const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number).optional();
+const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 
 export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
@@ -22,7 +22,7 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
     const parsed = aroundSchema.safeParse(context.req.query('around'));
     if (!parsed.success) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
-    const around = parsed.data === undefined ? Number.MAX_SAFE_INTEGER : parsed.data;
+    const around = parsed.data;
     const marks = services.readModel.marks(documentId);
     const index = marks.findLastIndex((mark) => mark.sequence <= around);
     const centre = index === -1 ? 0 : index;
@@ -51,9 +51,13 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     const sequenceText = context.req.param('sequence');
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     if (!services.versions.resolve({ documentId, sequence: Number(sequenceText) })) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
-    const { sequence, text } = await services.versions.load({ documentId, sequence: Number(sequenceText) });
-    const body: VersionText = { sequence, text };
-    return context.json(body);
+    try {
+      const { sequence, text } = await services.versions.load({ documentId, sequence: Number(sequenceText) });
+      const body: VersionText = { sequence, text };
+      return context.json(body);
+    } catch {
+      return context.json({ error: VERSION_FAILED_ERROR }, HttpStatus.ServiceUnavailable, retryHeaders);
+    }
   });
 
   return routes;

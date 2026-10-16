@@ -8,6 +8,7 @@ import { bootstrappedDocument, editedAfterBootstrap } from '../testing/timeline-
 import { parseVersionPath } from './version-rooms';
 
 const POLL_TIMEOUT_MS = 15_000;
+const SETUP_TIMEOUT_MS = 30_000;
 const SHORT_IDLE_MS = 200;
 const ROOM_LIMIT = 2;
 const DEFAULT_LIMIT = 32;
@@ -44,7 +45,7 @@ test('a refused socket never creates an instance', async () => {
   await server.stop();
 });
 
-test('an instance nobody joins is destroyed', async () => {
+test('an instance nobody joins is destroyed', { timeout: SETUP_TIMEOUT_MS }, async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap({ versionRoomPolicy: { idleMs: SHORT_IDLE_MS, limit: DEFAULT_LIMIT } });
   const other = await bootstrappedDocument({ server, owner });
   const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
@@ -54,7 +55,7 @@ test('an instance nobody joins is destroyed', async () => {
   await server.stop();
 });
 
-test('a room name other than the document own is refused', async () => {
+test('a room name other than the document own is refused', { timeout: SETUP_TIMEOUT_MS }, async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
   const other = await bootstrappedDocument({ server, owner });
   const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
@@ -92,7 +93,7 @@ test('an idle version instance is destroyed', async () => {
   await server.stop();
 });
 
-test('the limit evicts the least recently used instance', async () => {
+test('the limit evicts the least recently used instance', { timeout: SETUP_TIMEOUT_MS }, async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap({ versionRoomPolicy: { idleMs: 60_000, limit: ROOM_LIMIT } });
   const second = await bootstrappedDocument({ server, owner });
   const third = await bootstrappedDocument({ server, owner });

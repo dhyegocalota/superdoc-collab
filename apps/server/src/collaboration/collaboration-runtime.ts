@@ -4,6 +4,8 @@ import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc
 import { RoomMode } from '@superdoc-history/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
+import type { VersionsService } from '../history/versions-service';
+import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { CollaborationContext } from './collaboration-server';
 import { documentIdFromRoomName } from './room-name';
@@ -17,7 +19,7 @@ export type DocumentRuntime = {
   forget: (documentId: string) => Promise<void>;
 };
 
-export function createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines }: { hocuspocus: Hocuspocus; log: UpdateLog; readModel: ReadModel; scheduler: ProjectionScheduler; storage: DocumentFileStorage; timelinePipelines: TimelinePipelineCache }): DocumentRuntime {
+export function createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines, versions, versionRooms }: { hocuspocus: Hocuspocus; log: UpdateLog; readModel: ReadModel; scheduler: ProjectionScheduler; storage: DocumentFileStorage; timelinePipelines: TimelinePipelineCache; versions: VersionsService; versionRooms: VersionRooms }): DocumentRuntime {
   const bootstrapped = new Set<string>();
   function roomsOf(documentId: string): Document[] {
     return [...hocuspocus.documents.values()].filter((room) => documentIdFromRoomName(room.name) === documentId);
@@ -46,6 +48,8 @@ export function createCollaborationRuntime({ hocuspocus, log, readModel, schedul
       log.forget(documentId);
       bootstrapped.delete(documentId);
       timelinePipelines.forget(documentId);
+      versions.forget(documentId);
+      await versionRooms.forget(documentId);
       await scheduler.forget(documentId);
     },
   };

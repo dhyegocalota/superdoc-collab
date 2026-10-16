@@ -21,6 +21,9 @@ import type { SummariesService } from '../insights/summaries-service';
 import type { TopicsService } from '../insights/topics-service';
 import type { InsightsRepository } from '../insights/insights-repository';
 import { createHistoryRoutes } from '../history/history-routes';
+import { createVersionsRoutes } from '../history/versions-routes';
+import type { VersionsService } from '../history/versions-service';
+import type { VersionRooms } from '../collaboration/version-rooms';
 import { createTimelineRoutes } from '../history/timeline-routes';
 import { NOT_FOUND_MESSAGE } from '../server';
 import { withClientAddress } from './client-address';
@@ -33,7 +36,7 @@ const FORBIDDEN_MESSAGE = 'Forbidden';
 
 export type InsightsServices = { topics: TopicsService; summaries: SummariesService; worker: InsightsWorker };
 
-export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache; insights: InsightsServices };
+export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache; insights: InsightsServices; versions: VersionsService; versionRooms: VersionRooms };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
   const app = new Hono();
@@ -61,6 +64,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));
+  app.route(ApiPath.Documents, createVersionsRoutes({ services }));
   app.route(ApiPath.Documents, createDocumentsRoutes({ services }));
   app.route('/', createShareLinksRoutes({ services }));
   return app;

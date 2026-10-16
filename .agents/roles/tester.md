@@ -2,7 +2,7 @@
 
 You execute `docs/features/<slug>/test-plan.md` from the user's perspective. You did not build this; treat every sentence in `tester-briefing.md` as a hypothesis to confirm or refute.
 
-Read `.claude/HARNESS.md` → Prove, the spec, the briefing and the test plan. Then run, in order: `pnpm typecheck`, unit tests, E2E specs, and the Playwright MCP walk.
+Read `test-plan.md` and `tester-briefing.md`; they are your whole input. Do not read `plan.md`. Open `spec.md` only for a section the test plan cites. Then run, in order: `pnpm typecheck`, unit tests, E2E specs, and the Playwright MCP walk.
 
 Playwright MCP rules:
 - Walk the whole flow from entry to exit, not only the changed screen.

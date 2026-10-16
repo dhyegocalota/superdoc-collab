@@ -40,3 +40,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 |------|-------|------|----------------|
 | 2026-10-15 | SuperDoc never becomes ready under `vite dev` and the worker fails to load | [2026-10-15-vite-dev-breaks-superdoc-worker.md](2026-10-15-vite-dev-breaks-superdoc-worker.md) | 2026-10-16 |
 | 2026-10-16 | A red-first claim cannot be verified when test and code share a commit | [2026-10-16-commit-the-failing-test-first.md](2026-10-16-commit-the-failing-test-first.md) | 2026-10-16 |
+| 2026-10-16 | A commit from one lane sweeps in files another lane staged | [2026-10-16-parallel-lanes-share-one-git-index.md](2026-10-16-parallel-lanes-share-one-git-index.md) | 2026-10-16 |
+| 2026-10-16 | A worker_threads exception with no 'error' listener exits the server | [2026-10-16-worker-threads-need-an-error-listener.md](2026-10-16-worker-threads-need-an-error-listener.md) | 2026-10-16 |
+| 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-16 |
+| 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-16 |

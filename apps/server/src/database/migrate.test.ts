@@ -17,11 +17,11 @@ describe('findMigrationsFolder', () => {
     mkdirSync(join(root, 'dist'));
     const bundle = join(root, 'dist', 'main.js');
     writeFileSync(bundle, '');
-    expect(findMigrationsFolder(pathToFileURL(bundle).href)).toBe(join(root, 'drizzle'));
+    expect(findMigrationsFolder({ startUrl: pathToFileURL(bundle).href, relativePath: 'drizzle' })).toBe(join(root, 'drizzle'));
   });
   test('throws a named error when no drizzle folder exists above the start', () => {
     const root = temporaryDirectory();
     const bundle = pathToFileURL(join(root, 'main.js')).href;
-    expect(() => findMigrationsFolder(bundle)).toThrow(MigrationsFolderNotFoundError);
+    expect(() => findMigrationsFolder({ startUrl: bundle, relativePath: 'drizzle' })).toThrow(MigrationsFolderNotFoundError);
   });
 });

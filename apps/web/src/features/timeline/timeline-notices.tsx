@@ -2,7 +2,7 @@ import { HISTORY_CATCHING_UP_MESSAGE, NO_MATCHING_EDITS_MESSAGE, SECOND_MS, Time
 import { Button } from '@/components/ui/button';
 import { lagBehindLabel, NO_EDITS_YET_MESSAGE, RETRY_TOPICS_LABEL } from './timeline-copy';
 
-export const PROJECTION_LAG_NOTICE_MS = 10_000;
+export const PROJECTION_LAG_NOTICE_MS = 10 * SECOND_MS;
 
 type TimelineNoticesProps = { timeline: DocumentTimeline; hasFilter: boolean; canRefresh: boolean; onRetry: () => void };
 

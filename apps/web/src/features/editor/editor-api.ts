@@ -7,6 +7,7 @@ import {
   HttpMethod,
   HttpStatus,
   RoomMode,
+  SECOND_MS,
   type DocumentMembers,
   type OpenedDocument,
   type ShareLinkRole,
@@ -17,7 +18,7 @@ import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export const BLANK_DOCX_PATH = '/blank.docx';
-export const MEMBERS_REFRESH_MS = 5000;
+export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 
 export function openedDocumentQueryKey(documentId: string): string[] {
   return [...DOCUMENTS_QUERY_KEY, documentId];

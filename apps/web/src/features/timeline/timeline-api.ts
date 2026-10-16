@@ -4,6 +4,7 @@ import {
   DocumentResource,
   HttpMethod,
   HttpStatus,
+  SECOND_MS,
   TimelineQueryParam,
   timelineEditsApiPath,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
@@ -21,11 +22,10 @@ import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
 import { requestFailedMessage } from './timeline-copy';
 
-export const TIMELINE_POLL_MS = 3000;
+export const TIMELINE_POLL_MS = 3 * SECOND_MS;
 
 const RETRY_AFTER_HEADER = 'Retry-After';
-const MILLISECONDS_PER_SECOND = 1000;
-export const MIN_RETRY_AFTER_MS = 1000;
+export const MIN_RETRY_AFTER_MS = SECOND_MS;
 const EDITS_SEGMENT = 'edits';
 
 export enum VersionLoadKind {
@@ -77,7 +77,7 @@ function assertDocumentAvailable(response: Response): void {
 }
 
 function readRetryAfterMs(response: Response): number {
-  const retryAfterMs = Number(response.headers.get(RETRY_AFTER_HEADER)) * MILLISECONDS_PER_SECOND;
+  const retryAfterMs = Number(response.headers.get(RETRY_AFTER_HEADER)) * SECOND_MS;
   if (!Number.isFinite(retryAfterMs)) return MIN_RETRY_AFTER_MS;
   return Math.max(MIN_RETRY_AFTER_MS, retryAfterMs);
 }

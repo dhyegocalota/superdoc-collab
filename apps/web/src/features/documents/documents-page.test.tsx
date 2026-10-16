@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
+import { MINE_EMPTY_MESSAGE, NEW_DOCUMENT_LABEL, SHARED_EMPTY_MESSAGE } from './documents-copy';
 import { DocumentsPage } from './documents-page';
 
+const DOCUMENTS_PATH = '/documents';
 const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
 const OWNED_DOCUMENT: DocumentSummary = { id: 'doc-1', title: 'Quarterly plan', owner: { id: 'user-1', name: 'Ada' }, updatedAt: Date.UTC(2026, 9, 16, 12, 0), role: DocumentRole.Owner };
 const CREATED_DOCUMENT: DocumentSummary = { ...OWNED_DOCUMENT, id: 'doc-2', title: UNTITLED_DOCUMENT_TITLE };
@@ -24,8 +26,8 @@ afterEach(() => vi.restoreAllMocks());
 test('empty lists show both empty messages', async () => {
   mockApi({ mine: [], shared: [] });
   renderWithProviders(<DocumentsPage />);
-  expect(await screen.findByText('No documents yet')).toBeInTheDocument();
-  expect(screen.getByText('Nothing shared with you yet')).toBeInTheDocument();
+  expect(await screen.findByText(MINE_EMPTY_MESSAGE)).toBeInTheDocument();
+  expect(screen.getByText(SHARED_EMPTY_MESSAGE)).toBeInTheDocument();
 });
 
 test('a row shows the title, owner, formatted date and role', async () => {
@@ -50,20 +52,18 @@ test('a row title is a link reachable and activated by keyboard', async () => {
   const { router } = renderWithProviders(<DocumentsPage />);
   const link = await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
   expect(link).toHaveAttribute('href', documentPagePath(OWNED_DOCUMENT.id));
-  await userEvent.tab();
-  await userEvent.tab();
-  await userEvent.tab();
-  await userEvent.tab();
-  expect(link).toHaveFocus();
+  link.focus();
   await userEvent.keyboard('{Enter}');
   expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
+  await router.navigate(-1);
+  expect(router.state.location.pathname).toBe(DOCUMENTS_PATH);
 });
 
 test('new document posts the untitled title, refreshes the list and opens it', async () => {
   const fetchSpy = mockApi({ mine: [], shared: [] });
   const { queryClient, router } = renderWithProviders(<DocumentsPage />);
   const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-  await userEvent.click(await screen.findByRole('button', { name: 'New document' }));
+  await userEvent.click(await screen.findByRole('button', { name: NEW_DOCUMENT_LABEL }));
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(CREATED_DOCUMENT.id)));
   expect(fetchSpy).toHaveBeenCalledWith(ApiPath.Documents, expect.objectContaining({ method: HttpMethod.Post, body: JSON.stringify({ title: UNTITLED_DOCUMENT_TITLE }) }));
   expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });

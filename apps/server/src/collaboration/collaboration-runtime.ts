@@ -1,4 +1,5 @@
 import type { Document, Hocuspocus } from '@hocuspocus/server';
+import * as Y from 'yjs';
 import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc-history/history';
 import { RoomMode } from '@superdoc-history/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
@@ -20,10 +21,18 @@ export function createCollaborationRuntime({ hocuspocus, log, readModel, schedul
   function roomsOf(documentId: string): Document[] {
     return [...hocuspocus.documents.values()].filter((room) => documentIdFromRoomName(room.name) === documentId);
   }
+  function findCommittedBootstrap({ documentId, afterSequence, document }: { documentId: string; afterSequence: number; document: Y.Doc }): number | null {
+    const page = log.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
+    const last = page.at(-1);
+    if (!last) return null;
+    const found = findBootstrapSequence(page, document);
+    if (found !== null) return found;
+    return findCommittedBootstrap({ documentId, afterSequence: last.sequence, document });
+  }
   function hasCommittedBootstrap(documentId: string): boolean {
     if (bootstrapped.has(documentId)) return true;
     const isProjected = readModel.cursor(documentId) !== null;
-    const committed = isProjected || findBootstrapSequence(log.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER })) !== null;
+    const committed = isProjected || findCommittedBootstrap({ documentId, afterSequence: 0, document: new Y.Doc() }) !== null;
     if (committed) bootstrapped.add(documentId);
     return committed;
   }

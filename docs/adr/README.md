@@ -30,3 +30,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0008](0008-vertical-slices.md) | Deliver the product as five vertical slices | Accepted | 2026-10-16 |
 | [0009](0009-design-system.md) | Design system: Tailwind with shadcn/ui, visually coherent with SuperDoc | Accepted | 2026-10-16 |
 | [0010](0010-documents-ownership-and-share-links.md) | Documents: owner, two share links, files on the data volume | Accepted | 2026-10-16 |
+| [0011](0011-process-wide-llm-cost-caps.md) | Process-wide caps on language-model spend | Accepted (owner to confirm the numbers) | 2026-10-16 |

@@ -16,6 +16,12 @@ const SUMMARIES: VersionMarkSummary[] = [
   { sequence: 9, serverTime: 70, minuteStart: 60, isBootstrap: false },
   { sequence: 14, serverTime: 130, minuteStart: 120, isBootstrap: false },
 ];
+const SECOND = 1000;
+const MINUTES: VersionMarkSummary[] = [
+  { sequence: 3, serverTime: 10 * SECOND, minuteStart: 0, isBootstrap: true },
+  { sequence: 9, serverTime: 70 * SECOND, minuteStart: VERSION_MARK_MS, isBootstrap: false },
+  { sequence: 14, serverTime: 130 * SECOND, minuteStart: 2 * VERSION_MARK_MS, isBootstrap: false },
+];
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2026, 9, 16, 9, 0) }));
 afterEach(() => vi.useRealTimers());
@@ -38,10 +44,21 @@ test('keeps the bootstrap mark and one mark per minute', () => {
   expect(new Set(minutes).size).toBe(minutes.length);
 });
 
-test('versionSequenceAt picks the latest mark before the time, else the first', () => {
-  expect(versionSequenceAt({ marks: SUMMARIES, time: 75 })).toBe(9);
-  expect(versionSequenceAt({ marks: SUMMARIES, time: 5 })).toBe(3);
-  expect(versionSequenceAt({ marks: [], time: 5 })).toBeNull();
+test('versionSequenceAt picks the latest mark of the time minute or before, else the first', () => {
+  expect(versionSequenceAt({ marks: MINUTES, time: 75 * SECOND })).toBe(9);
+  expect(versionSequenceAt({ marks: MINUTES, time: 5 * SECOND })).toBe(3);
+  expect(versionSequenceAt({ marks: [], time: 5 * SECOND })).toBeNull();
+});
+
+test('a mark replaced later in the same minute still resolves for an earlier time in that minute', () => {
+  const replaced = [MINUTES[0]!, { sequence: 12, serverTime: 110 * SECOND, minuteStart: VERSION_MARK_MS, isBootstrap: false }];
+  expect(versionSequenceAt({ marks: replaced, time: 65 * SECOND })).toBe(12);
+  expect(versionSequenceAt({ marks: replaced, time: 119 * SECOND })).toBe(12);
+});
+
+test('a time in a later minute with no mark resolves to the previous minute mark', () => {
+  expect(versionSequenceAt({ marks: MINUTES, time: 10 * VERSION_MARK_MS })).toBe(14);
+  expect(versionSequenceAt({ marks: MINUTES.slice(0, 2), time: 2 * VERSION_MARK_MS + 30 * SECOND })).toBe(9);
 });
 
 test('clampToMark snaps down and lifts a sequence before the first mark', () => {

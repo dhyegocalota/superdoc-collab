@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const PORT = 3100;
+const FAKE_OPENROUTER_PORT = 3199;
+const FAKE_OPENROUTER_ORIGIN = `http://127.0.0.1:${FAKE_OPENROUTER_PORT}`;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;
@@ -26,19 +28,30 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: ORIGIN, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    command: BUILD_AND_START_COMMAND,
-    url: `${ORIGIN}/api/health`,
-    reuseExistingServer: false,
-    timeout: SERVER_START_TIMEOUT_MS,
-    env: {
-      PORT: String(PORT),
-      APP_ORIGIN: ORIGIN,
-      AUTH_SECRET: TEST_AUTH_SECRET,
-      DATABASE_DIR,
-      TRUST_PROXY: 'true',
-      DEMO_PASSWORD: 'superdoc-demo',
-      WEB_DIST_DIR: 'apps/web/dist',
+  webServer: [
+    {
+      command: 'node e2e/fake-openrouter.ts',
+      url: `${FAKE_OPENROUTER_ORIGIN}/health`,
+      reuseExistingServer: false,
+      env: { FAKE_OPENROUTER_PORT: String(FAKE_OPENROUTER_PORT) },
     },
-  },
+    {
+      command: BUILD_AND_START_COMMAND,
+      url: `${ORIGIN}/api/health`,
+      reuseExistingServer: false,
+      timeout: SERVER_START_TIMEOUT_MS,
+      env: {
+        PORT: String(PORT),
+        APP_ORIGIN: ORIGIN,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        DATABASE_DIR,
+        TRUST_PROXY: 'true',
+        DEMO_PASSWORD: 'superdoc-demo',
+        WEB_DIST_DIR: 'apps/web/dist',
+        LLM_MODEL: 'openai/gpt-6-luna',
+        OPENROUTER_API_KEY: 'e2e-fake-key',
+        OPENROUTER_BASE_URL: `${FAKE_OPENROUTER_ORIGIN}/api/v1`,
+      },
+    },
+  ],
 });

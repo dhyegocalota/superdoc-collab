@@ -49,7 +49,7 @@ docker/           Dockerfile, compose, entrypoint
 ```
 browser ──POST /api/auth/sign-in/email──► Hono ──► Better Auth ──► SQLite (auth.sqlite)
         ◄── Set-Cookie: session (httpOnly, SameSite=Lax, Secure in prod) ──┘
-browser ──GET /api/me──► Hono: session from cookie → {id, name, email}  |  401 when absent
+browser ──GET /api/me──► Hono: session from cookie → {id, name, email}  |  user: null when absent
 browser ──WS /collaboration (cookie sent on upgrade)──► Hocuspocus.onAuthenticate
             → Better Auth getSession(headers) → context {userId}  |  reject when absent
 ```
@@ -78,16 +78,26 @@ The Hocuspocus provider is created with the same origin as the page, so the brow
 | Failure | Behaviour |
 |---|---|
 | Wrong email or password | Same 401 body for both; form shows one generic message |
-| Rate limit hit | 429 with `Retry-After`; form shows "try again in N seconds" |
-| Session expired while on `/documents` | `['me']` returns 401 → redirect to `/sign-in?next=/documents` |
+| Rate limit hit | 429 with `X-Retry-After`; form shows "try again in N seconds" |
+| Session expired while on `/documents` | `['me']` returns `user: null` → redirect to `/sign-in?next=/documents` |
 | Socket without session | upgrade rejected; the provider's `onAuthenticationFailed` fires; no retry storm (provider configured not to reconnect on auth failure) |
+| Credentials that fail the shared schemas | 400 with a generic `Invalid input.` message, no field details |
+| Unauthenticated socket | closed by the server after 10 s (Hocuspocus `timeout`) |
 | Missing environment variable | process exits with the variable name; Compose healthcheck fails visibly |
 | SQLite directory missing | created at boot when `DATABASE_DIR` exists; otherwise named error |
+| `APP_ORIGIN` not a bare origin | process exits with `InvalidOriginError` naming the variable and value |
+
+### Accepted deviations
+
+- `/get-session` and `/list-sessions` return the session token in their bodies; the cookie is HMAC-signed with `AUTH_SECRET`, there is no bearer plugin and the web app uses `/api/me` only.
+- Sign-up with an existing email returns 422, so enumeration is accepted: there is no email verification by design and sign-up is rate limited to 3 per 10 seconds.
+- `TRUST_PROXY=true` takes the first `X-Forwarded-For` entry and is safe only behind a proxy that overwrites the header (Traefik default); settled in the deploy slice.
+- `/api/me` returns 200 with `user: null` when signed out, so a first load does not log a console error.
 
 ### Interfaces
 
 - `GET /api/health` → `{status: 'ok'}` (used by Compose healthcheck and CI).
-- `GET /api/me` → `{user: {id, name, email}}` or 401.
+- `GET /api/me` → `{user: {id, name, email}}`, or `{user: null}` with status 200 when signed out.
 - Better Auth routes under `/api/auth/*`.
 - WebSocket `/collaboration` (Hocuspocus protocol), authenticated by cookie.
 - `pnpm seed` → creates or updates the four demo users; prints their emails.

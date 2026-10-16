@@ -67,7 +67,8 @@ export async function startServer({ environment, webDistDirectory, languageModel
   const hocuspocus = createCollaborationServer({ auth, documents, log, onLogged: (documentId) => throttle.request(documentId), onStored: (documentId) => {
       documents.touch(documentId);
       scheduler.schedule(documentId);
-    } });
+    },
+  });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   findDocumentsWithoutMarks(readModelSqlite).forEach((documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }));
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });

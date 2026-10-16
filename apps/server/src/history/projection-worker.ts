@@ -3,7 +3,7 @@ import { compact, GcFreeReplays, materialize, projectPending, ReadModel, readMai
 import * as Y from 'yjs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
-import { describeError, IMPORT_TIMEOUT_MS, ImportTimeoutError, MissingVersionMarkError, ProjectionRequestKind, ProjectionWorkerContextError, ProjectionReplyKind, SNAPSHOT_EVERY_UPDATES, type BlocksReply, type ProjectionDoneReply, type ProjectionReply, type ProjectionRequest, type ProjectionWorkerData, type VersionReply } from './projection-messages';
+import { describeError, IMPORT_TIMEOUT_MS, ImportTimeoutError, MissingVersionMarkError, ProjectionRequestKind, ProjectionWorkerContextError, ProjectionReplyKind, SNAPSHOT_EVERY_UPDATES, type BlocksReply, type ProjectionDoneReply, type ProjectionFailedReply, type ProjectionReply, type ProjectionRequest, type ProjectionWorkerData, type VersionReply } from './projection-messages';
 
 const STOP_DISPOSE_TIMEOUT_MS = 1000;
 
@@ -89,11 +89,17 @@ async function handle(request: AnsweredRequest): Promise<ProjectionDoneReply | V
   return { kind, documentId, cursor: readModel.cursor(documentId), importError: null };
 }
 
+function failureOf({ request, message }: { request: AnsweredRequest; message: string }): ProjectionFailedReply {
+  const base = { kind: ProjectionReplyKind.Failed, documentId: request.documentId, message } as const;
+  if (request.kind === ProjectionRequestKind.Version) return { ...base, requestKind: request.kind, sequence: request.sequence };
+  return { ...base, requestKind: request.kind, sequence: null };
+}
+
 async function answer(request: AnsweredRequest): Promise<ProjectionReply> {
   try {
     return await handle(request);
   } catch (error) {
-    return { kind: ProjectionReplyKind.Failed, documentId: request.documentId, message: describeError(error), requestKind: request.kind, sequence: request.kind === ProjectionRequestKind.Version ? request.sequence : null };
+    return failureOf({ request, message: describeError(error) });
   }
 }
 

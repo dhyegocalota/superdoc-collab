@@ -9,7 +9,7 @@ import { HISTORY_DATABASE_FILE, READ_MODEL_DATABASE_FILE } from '../database/con
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
-import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, IMPORT_TIMEOUT_MS, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestKind } from './projection-messages';
+import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, IMPORT_TIMEOUT_MS, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
 import { MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
@@ -274,9 +274,55 @@ test('a degraded scheduler rejects versions at once', async () => {
 
 test('a terminated worker re-posts a waiting version', async () => {
   const { server, documentId, client, sequence } = await projectedDocument();
+  const firstWorker = server.services.scheduler.currentWorker;
+  const postMessage = vi.spyOn(firstWorker, 'postMessage').mockImplementation(() => undefined);
   const version = server.services.scheduler.version({ documentId, sequence });
-  await server.services.scheduler.currentWorker.terminate();
+  await firstWorker.terminate();
+  postMessage.mockRestore();
   expect((await version).sequence).toBe(sequence);
   client.close();
+  await server.stop();
+});
+
+function doneReply({ kind, documentId }: { kind: ProjectionRequestKind; documentId: string }) {
+  return { kind, documentId, cursor: null, importError: null };
+}
+
+test('a stale projection reply does not end a rebuild before the import is back', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const { internals, restore } = inFlightWithRerun({ server, documentId });
+  const { scheduler } = server.services;
+  const rebuilt = scheduler.rebuild({ documentId, filePath: 'unused.docx' });
+  internals.settle(doneReply({ kind: ProjectionRequestKind.Project, documentId }));
+  expect(scheduler.isRebuilding(documentId)).toBe(true);
+  internals.settle(doneReply({ kind: ProjectionRequestKind.Forget, documentId }));
+  await rebuilt;
+  internals.settle(doneReply({ kind: ProjectionRequestKind.Project, documentId }));
+  expect(scheduler.isRebuilding(documentId)).toBe(true);
+  internals.settle(doneReply({ kind: ProjectionRequestKind.Import, documentId }));
+  internals.settle(doneReply({ kind: ProjectionRequestKind.Project, documentId }));
+  expect(scheduler.isRebuilding(documentId)).toBe(false);
+  restore();
+  await server.stop();
+});
+
+test('stopping rejects waiting versions', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const version = server.services.scheduler.version({ documentId, sequence: UNKNOWN_SEQUENCE });
+  const stopped = server.services.scheduler.stop();
+  await expect(version).rejects.toBeInstanceOf(ProjectionStoppedError);
+  postMessage.mockRestore();
+  server.services.scheduler.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
+  await stopped;
+  await server.stop();
+});
+
+test('rebuilding a degraded scheduler leaves nothing rebuilding', async () => {
+  const { server, documentId } = await documentWithOwner();
+  server.services.scheduler.degraded = true;
+  await server.services.scheduler.rebuild({ documentId, filePath: 'unused.docx' });
+  expect(server.services.scheduler.isRebuilding(documentId)).toBe(false);
+  server.services.scheduler.degraded = false;
   await server.stop();
 });

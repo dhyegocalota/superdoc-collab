@@ -1,0 +1,8 @@
+export const SECOND_MS = 1000;
+export const MINUTE_MS = 60 * SECOND_MS;
+export const VERSION_MARK_MS = MINUTE_MS;
+export const VERSION_ROOM_IDLE_MS = MINUTE_MS;
+export const VERSION_ROOMS_LIMIT = 32;
+export const VERSION_CACHE_SIZE = 16;
+export const VERSION_CACHE_MAX_BYTES = 256 * 1024 * 1024;
+export const VERSION_FAILURE_TTL_MS = 30 * SECOND_MS;

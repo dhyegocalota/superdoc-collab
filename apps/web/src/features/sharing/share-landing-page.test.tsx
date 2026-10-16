@@ -1,0 +1,40 @@
+import { AppRoute, documentPagePath, HttpMethod, HttpStatus, INVALID_SHARE_LINK_MESSAGE, shareLinkAcceptPath } from '@superdoc-history/types';
+import { screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
+import { afterEach, expect, test, vi } from 'vitest';
+import { renderWithProviders } from '@/test/render-with-providers';
+import { BACK_TO_DOCUMENTS_LABEL } from '@/features/editor/editor-copy';
+import { ShareLandingPage } from './share-landing-page';
+
+const TOKEN = 'token-1';
+const SHARED_DOCUMENT_ID = 'doc-9';
+const SHARE_ROUTE = `/share/${TOKEN}`;
+
+afterEach(() => vi.restoreAllMocks());
+
+test('a 200 accept opens the document replacing the share entry', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ documentId: SHARED_DOCUMENT_ID })));
+  const { router } = renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
+  await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(SHARED_DOCUMENT_ID)));
+  expect(router.state.historyAction).toBe('REPLACE');
+});
+
+test('a 404 shows the invalid link message and a way back', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ error: INVALID_SHARE_LINK_MESSAGE }), { status: HttpStatus.NotFound }));
+  renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
+  expect(await screen.findByText(INVALID_SHARE_LINK_MESSAGE)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', AppRoute.Documents);
+});
+
+test('the accept is posted once under StrictMode', async () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ documentId: SHARED_DOCUMENT_ID })));
+  const { router } = renderWithProviders(
+    <StrictMode>
+      <ShareLandingPage />
+    </StrictMode>,
+    { route: SHARE_ROUTE },
+  );
+  await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(SHARED_DOCUMENT_ID)));
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  expect(fetchSpy).toHaveBeenCalledWith(shareLinkAcceptPath(TOKEN), expect.objectContaining({ method: HttpMethod.Post }));
+});

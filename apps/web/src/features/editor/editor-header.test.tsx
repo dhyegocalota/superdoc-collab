@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
-import { DELETE_CONFIRM_LABEL, DELETE_LABEL, ONLINE_LABEL, SHARE_LABEL, TITLE_LABEL } from './editor-copy';
+import { DELETE_CONFIRM_LABEL, DELETE_FAILED_MESSAGE, DELETE_LABEL, ONLINE_LABEL, RENAME_FAILED_MESSAGE, SHARE_LABEL, TITLE_LABEL } from './editor-copy';
 import { EditorHeader } from './editor-header';
 
 const RENAMED_TITLE = 'Renamed';
@@ -66,4 +66,22 @@ test('an online member renders a dot and an offline member does not', () => {
   ];
   renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={members} />);
   expect(screen.getAllByLabelText(ONLINE_LABEL)).toHaveLength(1);
+});
+
+test('a failed rename shows an alert', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.BadRequest }));
+  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} />);
+  const title = screen.getByRole('textbox', { name: TITLE_LABEL });
+  await userEvent.clear(title);
+  await userEvent.type(title, `${RENAMED_TITLE}{Enter}`);
+  expect(await screen.findByRole('alert')).toHaveTextContent(RENAME_FAILED_MESSAGE);
+});
+
+test('a failed delete shows an alert and stays on the page', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
+  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} />, { route: documentPagePath(DOCUMENT_ID) });
+  await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
+  await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(DELETE_FAILED_MESSAGE);
+  expect(router.state.location.pathname).toBe(documentPagePath(DOCUMENT_ID));
 });

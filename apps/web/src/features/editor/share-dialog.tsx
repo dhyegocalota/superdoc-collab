@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { fetchShareLinks, rotateShareLink, shareLinksQueryKey } from './editor-api';
-import { COPY_LABEL, ROTATE_LABEL, SHARE_DIALOG_DESCRIPTION, SHARE_DIALOG_TITLE, SHARE_LABEL, SHARE_LINK_LABELS } from './editor-copy';
+import { COPY_LABEL, ROTATE_FAILED_MESSAGE, ROTATE_LABEL, SHARE_DIALOG_DESCRIPTION, SHARE_DIALOG_TITLE, SHARE_LABEL, SHARE_LINK_LABELS } from './editor-copy';
 
 const SHARE_ROLES = Object.values(ShareLinkRole);
 
@@ -15,7 +15,7 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
   const queryClient = useQueryClient();
   const [isCopied, setIsCopied] = useState(false);
   const label = SHARE_LINK_LABELS[role];
-  const { mutate: rotate, isPending } = useMutation({
+  const { mutate: rotate, isPending, isError } = useMutation({
     mutationFn: () => rotateShareLink({ documentId, role }),
     onSuccess: (links: ShareLinks) => {
       setIsCopied(false);
@@ -40,6 +40,7 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
           {ROTATE_LABEL}
         </Button>
       </div>
+      {isError && <p role="alert" className="text-sm text-destructive">{ROTATE_FAILED_MESSAGE}</p>}
       {isCopied && <p role="status" className="text-sm text-muted-foreground">{LINK_COPIED_MESSAGE}</p>}
     </div>
   );

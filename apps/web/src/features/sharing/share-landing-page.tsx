@@ -2,7 +2,7 @@ import { AppRoute, documentPagePath } from '@superdoc-history/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { BACK_TO_DOCUMENTS_LABEL } from '@/features/editor/editor-copy';
+import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { acceptShareLink } from './share-api';
@@ -25,7 +25,7 @@ export function ShareLandingPage() {
       .catch((error: Error) => setFailureMessage(error.message));
   }, [token, queryClient, navigate]);
 
-  if (!failureMessage) return null;
+  if (!failureMessage) return <p role="status" className="p-6 text-sm text-muted-foreground">{SHARE_OPENING_MESSAGE}</p>;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">

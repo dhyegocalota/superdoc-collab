@@ -7,7 +7,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { deleteDocument, renameDocument } from './editor-api';
-import { DELETE_CONFIRM_LABEL, DELETE_DIALOG_DESCRIPTION, DELETE_DIALOG_TITLE, DELETE_LABEL, DOWNLOAD_LABEL, TITLE_LABEL } from './editor-copy';
+import {
+  DELETE_CONFIRM_LABEL,
+  DELETE_DIALOG_DESCRIPTION,
+  DELETE_DIALOG_TITLE,
+  DELETE_FAILED_MESSAGE,
+  DELETE_LABEL,
+  DOWNLOAD_LABEL,
+  RENAME_FAILED_MESSAGE,
+  TITLE_LABEL,
+} from './editor-copy';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
 
@@ -15,7 +24,7 @@ type DocumentIdentity = { documentId: string };
 
 function TitleInput({ documentId, title }: DocumentIdentity & { title: string }) {
   const queryClient = useQueryClient();
-  const { mutate } = useMutation({
+  const { mutate, isError } = useMutation({
     mutationFn: renameDocument,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY }),
   });
@@ -31,21 +40,24 @@ function TitleInput({ documentId, title }: DocumentIdentity & { title: string })
   }
 
   return (
-    <Input
-      key={title}
-      aria-label={TITLE_LABEL}
-      defaultValue={title}
-      className="max-w-sm font-medium"
-      onBlur={(event) => commit(event.currentTarget)}
-      onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
-    />
+    <>
+      <Input
+        key={title}
+        aria-label={TITLE_LABEL}
+        defaultValue={title}
+        className="max-w-sm font-medium"
+        onBlur={(event) => commit(event.currentTarget)}
+        onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
+      />
+      {isError && <p role="alert" className="text-sm text-destructive">{RENAME_FAILED_MESSAGE}</p>}
+    </>
   );
 }
 
 function DeleteDocumentDialog({ documentId }: DocumentIdentity) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { mutate, isPending } = useMutation({
+  const { mutate, isPending, isError } = useMutation({
     mutationFn: () => deleteDocument(documentId),
     onSuccess: async () => {
       await navigate(AppRoute.Documents);
@@ -63,6 +75,7 @@ function DeleteDocumentDialog({ documentId }: DocumentIdentity) {
           <DialogTitle>{DELETE_DIALOG_TITLE}</DialogTitle>
           <DialogDescription>{DELETE_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
+        {isError && <p role="alert" className="text-sm text-destructive">{DELETE_FAILED_MESSAGE}</p>}
         <DialogFooter>
           <Button variant="destructive" disabled={isPending} onClick={() => mutate()}>
             {DELETE_CONFIRM_LABEL}

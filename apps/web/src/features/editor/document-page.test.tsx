@@ -12,18 +12,22 @@ import {
   RoomMode,
   type OpenedDocument,
 } from '@superdoc-history/types';
-import { screen, waitFor } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
-import { BACK_TO_DOCUMENTS_LABEL, TITLE_LABEL } from './editor-copy';
+import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EDITOR_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
-import { BLANK_DOCX_PATH } from './editor-api';
+import { DocumentMode } from './superdoc-editor';
+import { BLANK_DOCX_PATH, openedDocumentQueryKey } from './editor-api';
+
+type SuperDocConfig = { onException: (payload: { error: Error }) => void };
 
 const { SuperDoc, superDocDestroy } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
-  return { superDocDestroy, SuperDoc: vi.fn(function SuperDocStub() { return { destroy: superDocDestroy }; }) };
+  return { superDocDestroy, SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: superDocDestroy }; }) };
 });
 
 vi.mock('superdoc', () => ({ SuperDoc }));
@@ -34,12 +38,25 @@ const DOWNLOAD_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: Docum
 const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members });
 const RENAMED_TITLE = 'Renamed';
 
-function mockDocumentApi({ opened, renamedTitle, openStatus = HttpStatus.Ok, openBody = opened }: { opened: OpenedDocument; renamedTitle?: string; openStatus?: HttpStatus; openBody?: unknown }) {
+function mockDocumentApi({
+  opened,
+  renamedTitle,
+  openStatus = HttpStatus.Ok,
+  openBody = opened,
+  downloadStatus = HttpStatus.Ok,
+}: {
+  opened: OpenedDocument;
+  renamedTitle?: string;
+  openStatus?: HttpStatus;
+  openBody?: unknown;
+  downloadStatus?: HttpStatus;
+}) {
   let current = opened;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
     if (input === MEMBERS_PATH) return new Response(JSON.stringify({ members: [] }));
-    if (input === DOWNLOAD_PATH || input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
+    if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
+    if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     if (input === DOCUMENT_PATH && init?.method === HttpMethod.Patch && renamedTitle) {
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
@@ -98,5 +115,40 @@ test('creating fetches the stored download and a reader gets the viewing mode', 
   const requestedPaths = fetchSpy.mock.calls.map(([input]) => input);
   expect(requestedPaths).toContain(DOWNLOAD_PATH);
   expect(requestedPaths).not.toContain(BLANK_DOCX_PATH);
-  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documentMode: 'viewing', user: SESSION_USER }));
+  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documentMode: DocumentMode.Viewing, user: SESSION_USER }));
+});
+
+test('a rejected file fetch shows the load error instead of an empty pane', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner), downloadStatus: HttpStatus.NotFound });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_LOAD_ERROR_MESSAGE);
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('an editor exception shows the editor failure', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const firstCall = SuperDoc.mock.calls.at(0);
+  if (!firstCall) throw new Error('SuperDoc was not constructed');
+  act(() => firstCall[0].onException({ error: new Error('boom') }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(EDITOR_FAILED_MESSAGE);
+});
+
+test('the editor is destroyed when the page unmounts', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  cleanup();
+  expect(superDocDestroy).toHaveBeenCalledTimes(1);
+});
+
+test('a cached create followed by a fresh join from the server builds the join setup', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient.setQueryData(openedDocumentQueryKey(DOCUMENT_ID), openedAs(DocumentRole.Editor, RoomMode.Create));
+  const fetchSpy = mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID), queryClient });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documents: [expect.objectContaining({ v2Collaboration: expect.objectContaining({ roomMode: RoomMode.Join }) })] }));
+  expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain(DOWNLOAD_PATH);
 });

@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/test/render-with-providers';
-import { BACK_TO_DOCUMENTS_LABEL } from '@/features/editor/editor-copy';
+import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { ShareLandingPage } from './share-landing-page';
 
 const TOKEN = 'token-1';
@@ -37,4 +37,10 @@ test('the accept is posted once under StrictMode', async () => {
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(SHARED_DOCUMENT_ID)));
   expect(fetchSpy).toHaveBeenCalledTimes(1);
   expect(fetchSpy).toHaveBeenCalledWith(shareLinkAcceptPath(TOKEN), expect.objectContaining({ method: HttpMethod.Post }));
+});
+
+test('while the accept is in flight the page says it is opening', () => {
+  vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => undefined));
+  renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
+  expect(screen.getByText(SHARE_OPENING_MESSAGE)).toBeInTheDocument();
 });

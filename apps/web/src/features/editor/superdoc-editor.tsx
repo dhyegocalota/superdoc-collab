@@ -1,12 +1,16 @@
 import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-history/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { EDITOR_FAILED_MESSAGE } from './editor-copy';
 
 const HOCUSPOCUS_PROVIDER = 'hocuspocus';
-const READER_DOCUMENT_MODE = 'viewing';
-const EDITOR_DOCUMENT_MODE = 'editing';
 const HTTP_SCHEME = /^http/;
+
+export enum DocumentMode {
+  Viewing = 'viewing',
+  Editing = 'editing',
+}
 
 type SuperDocEditorProps = { documentId: string; roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob };
 
@@ -16,13 +20,14 @@ function collaborationUrl(): string {
 
 export function SuperDocEditor({ documentId, roomMode, role, user, file }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [hasFailed, setHasFailed] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const superdoc = new SuperDoc({
       selector: container,
-      documentMode: role === DocumentRole.Reader ? READER_DOCUMENT_MODE : EDITOR_DOCUMENT_MODE,
+      documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
       documents: [
         {
           id: documentId,
@@ -32,9 +37,15 @@ export function SuperDocEditor({ documentId, roomMode, role, user, file }: Super
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
+      onException: () => setHasFailed(true),
     });
     return () => superdoc.destroy();
   }, [documentId, roomMode, role, user, file]);
 
-  return <div ref={containerRef} data-testid="document-editor" className="min-h-0 flex-1 overflow-auto" />;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {hasFailed && <p role="alert" className="p-4 text-sm text-destructive">{EDITOR_FAILED_MESSAGE}</p>}
+      <div ref={containerRef} data-testid="document-editor" className="min-h-0 flex-1 overflow-auto" />
+    </div>
+  );
 }

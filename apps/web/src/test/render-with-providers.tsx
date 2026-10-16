@@ -6,8 +6,11 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 
 const ANY_PATH = '*';
 
-export function renderWithProviders(element: ReactElement, { route = AppRoute.Documents }: { route?: string } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function createTestQueryClient(): QueryClient {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+export function renderWithProviders(element: ReactElement, { route = AppRoute.Documents, queryClient = createTestQueryClient() }: { route?: string; queryClient?: QueryClient } = {}) {
   const router = createMemoryRouter(
     [
       { path: AppRoute.Document, element },

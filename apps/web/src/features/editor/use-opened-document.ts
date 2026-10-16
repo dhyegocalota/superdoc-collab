@@ -1,7 +1,6 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import type { OpenedDocument } from '@superdoc-history/types';
+import { useQuery } from '@tanstack/react-query';
 import { openDocument, openedDocumentQueryKey } from './editor-api';
 
-export function useOpenedDocument(documentId: string): UseQueryResult<OpenedDocument> {
-  return useQuery({ queryKey: openedDocumentQueryKey(documentId), queryFn: () => openDocument(documentId), retry: false });
+export function useOpenedDocument(documentId: string) {
+  return useQuery({ queryKey: openedDocumentQueryKey(documentId), queryFn: () => openDocument(documentId), retry: false, gcTime: 0 });
 }

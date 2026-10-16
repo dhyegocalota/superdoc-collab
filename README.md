@@ -4,7 +4,7 @@ A collaborative DOCX editor that records every edit and will turn that record in
 
 ## Status
 
-Slice 1 of 5 is shipped for review: workspace, apps, Docker, CI and Better Auth with seeded users. Documents, history, the timeline, LLM insights and the deploy follow. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
+Slice 1 of 5 is built and under review: workspace, apps, Docker, CI and Better Auth with seeded users. Documents, history, the timeline, LLM insights and the deploy follow. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
 
 ## Quick start
 

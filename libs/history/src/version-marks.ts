@@ -21,7 +21,7 @@ export function markOf({ update, document, isBootstrap }: { update: LoggedUpdate
 export function versionSequenceAt({ marks, time }: { marks: VersionMarkSummary[]; time: number }): number | null {
   const first = marks[0];
   if (!first) return null;
-  const before = marks.filter((mark) => mark.serverTime < time).at(-1);
+  const before = marks.filter((mark) => mark.minuteStart <= minuteStartOf(time)).at(-1);
   if (!before) return first.sequence;
   return before.sequence;
 }

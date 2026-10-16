@@ -27,6 +27,7 @@ import { connectToDocument, documentWithOwner, memberWithRole } from '../testing
 import { readEvents } from '../testing/events-client';
 import { signedInOwner, signedInUser, type TestServer } from '../testing/test-server';
 import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
+import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtime';
 
 const IMPORT_TIMEOUT_MS = 30_000;
 const BYTES_PER_MEGABYTE = 1024 * 1024;
@@ -34,6 +35,7 @@ const TWELVE_MEGABYTES = 12 * BYTES_PER_MEGABYTE;
 const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
+const LONG_LOG_EXTRA_UPDATES = 20;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE, fileName = 'Plan.docx' }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string; fileName?: string }): Promise<Response> {
@@ -187,6 +189,23 @@ test('roomMode stays create until the bootstrap commits', async () => {
   expect(await roomModeOf()).toBe(RoomMode.Create);
   commitBootstrap(client.document);
   await expect.poll(roomModeOf).toBe(RoomMode.Join);
+  client.close();
+  await server.stop();
+});
+
+test('roomMode scans a long log in pages until the first committed bootstrap', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) => writeStory({ document: client.document, texts: ['x'.repeat(index + 1)] }));
+  commitBootstrap(client.document);
+  const batchSize = ROOM_MODE_SCAN_BATCH_SIZE;
+  await expect.poll(() => server.services.log.readBatch({ documentName: documentId, afterSequence: batchSize, limit: 1 }).length).toBe(1);
+  const readAll = vi.spyOn(server.services.log, 'read');
+  const readBatch = vi.spyOn(server.services.log, 'readBatch');
+  const roomMode = ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
+  expect(roomMode).toBe(RoomMode.Join);
+  expect(readAll).not.toHaveBeenCalled();
+  expect(readBatch.mock.calls.length).toBeGreaterThan(1);
   client.close();
   await server.stop();
 });

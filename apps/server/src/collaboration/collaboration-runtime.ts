@@ -6,6 +6,8 @@ import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { CollaborationContext } from './collaboration-server';
 import { documentIdFromRoomName } from './room-name';
 
+export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
+
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   onlineUserIds: (documentId: string) => Set<string>;

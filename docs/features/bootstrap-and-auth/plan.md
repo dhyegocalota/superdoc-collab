@@ -528,7 +528,7 @@ If swapping the request listener proves awkward, start the server **after** crea
 - Test: `apps/server/src/server.test.ts`
 
 **Interfaces:**
-- Produces: `startServer({ environment }): Promise<RunningServer>` with `{ httpServer, port, auth, database, stop() }`; `WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR'` (optional; when set, the server serves that directory with SPA fallback to `index.html` for non-`/api` paths).
+- Produces: `startServer({ environment }): Promise<RunningServer>` with `{ httpServer, port, auth, database, stop() }`; `testEnvironment(): Environment` in `testing/test-server.ts` (port 0, temporary `DATABASE_DIR`, 32-character secret); `WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR'` (optional; when set, the server serves that directory with SPA fallback to `index.html` for non-`/api` paths).
 
 - [ ] **Step 1: Failing test**
 
@@ -619,7 +619,7 @@ function connect({ url, cookie }: { url: string; cookie: string }): Promise<'aut
 describe('collaboration authentication', () => {
   test('accepts a valid session cookie', async () => {
     const server = await startTestServer();
-    const cookie = await signInAndGetCookie(server, { name: 'Ana', email: 'ana@example.com', password: 'superdoc-demo' });
+    const cookie = await signInAndGetCookie({ server, credentials: { name: 'Ana', email: 'ana@example.com', password: 'superdoc-demo' } });
     expect(await connect({ url: server.baseUrl.replace('http', 'ws') + ApiPath.Collaboration, cookie })).toBe('authenticated');
     await server.stop();
   });
@@ -630,14 +630,14 @@ describe('collaboration authentication', () => {
   });
   test('rejects an expired session cookie', async () => {
     const server = await startTestServer();
-    const cookie = await signInAndGetCookie(server, { name: 'Bruno', email: 'bruno@example.com', password: 'superdoc-demo' });
+    const cookie = await signInAndGetCookie({ server, credentials: { name: 'Bruno', email: 'bruno@example.com', password: 'superdoc-demo' } });
     server.database.sqlite.prepare('DELETE FROM session').run();
     expect(await connect({ url: server.baseUrl.replace('http', 'ws') + ApiPath.Collaboration, cookie })).toBe('failed');
     await server.stop();
   });
 });
 ```
-Add `signInAndGetCookie(server, credentials)` to `testing/test-server.ts` (sign-up then sign-in, return the cookie pair string). `startTestServer` now also attaches the collaboration server.
+Add `signInAndGetCookie({ server, credentials })` to `testing/test-server.ts` (sign-up then sign-in, return the cookie pair string). `startTestServer` now also attaches the collaboration server.
 
 - [ ] **Step 2: Run, expect failure.**
 
@@ -714,7 +714,13 @@ test('creates the four demo users once and reports them as existing afterwards',
   expect(second).toEqual({ created: [], existing: DEMO_USERS.map((user) => user.email) });
   await server.stop();
 });
-test('a seeded user can sign in with the demo password', async () => { /* sign in through fetch as in Task 3, expect 200 */ });
+test('a seeded user can sign in with the demo password', async () => {
+  const server = await startTestServer();
+  await seedDemoUsers({ auth: server.auth, database: server.database, password: 'superdoc-demo' });
+  const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ana@example.com', password: 'superdoc-demo' }) });
+  expect(response.status).toBe(200);
+  await server.stop();
+});
 ```
 - [ ] **Step 2: Run, expect failure.**
 - [ ] **Step 3: Implement**: look up each email in `user` through Drizzle (`eq(authSchema.user.email, email)`); when absent call `auth.api.signUpEmail({ body: { name, email, password } })`. `seed.ts` loads the environment, reads `DEMO_PASSWORD` (throw `MissingDemoPasswordError` when absent), opens and migrates the database, runs the seed, prints the two lists and exits 0.

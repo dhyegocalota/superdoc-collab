@@ -3,7 +3,7 @@ import { AppRoute, DocumentResource, documentApiPath, DOCX_MIME_TYPE, TimelineQu
 import { buildSeedDocx } from '../libs/history/src';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
 
-const TEXT_RUN_SELECTOR = '.superdoc-text-run';
+export const TEXT_RUN_SELECTOR = '.superdoc-text-run';
 const EDITOR_INPUT_SELECTOR = 'textarea';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';

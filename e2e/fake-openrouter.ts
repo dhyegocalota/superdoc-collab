@@ -5,6 +5,7 @@ const CHAT_COMPLETIONS_SUFFIX = '/chat/completions';
 const GENERAL_TOPIC = 'General';
 const FAIL_MARKER = 'FAIL-TOPICS';
 const OK = 200;
+const BAD_REQUEST = 400;
 const NOT_FOUND = 404;
 const SERVER_ERROR = 500;
 const BLOCK_PATTERN = /<block id="([^"]+)">([\s\S]*?)<\/block>/g;
@@ -85,7 +86,7 @@ async function handleChat({ request, response }: { request: IncomingMessage; res
 createServer((request, response) => {
   if (request.method === 'GET' && request.url === HEALTH_PATH) return send({ response, status: OK, body: {} });
   if (request.method === 'POST' && request.url?.endsWith(CHAT_COMPLETIONS_SUFFIX)) {
-    handleChat({ request, response }).catch(() => send({ response, status: SERVER_ERROR, body: {} }));
+    handleChat({ request, response }).catch((error: unknown) => send({ response, status: BAD_REQUEST, body: { error: { message: String(error) } } }));
     return;
   }
   send({ response, status: NOT_FOUND, body: {} });

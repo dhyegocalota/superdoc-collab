@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+neverBuiltDependencies:
+  - better-sqlite3
+
 importers:
 
   .:
@@ -2265,7 +2268,6 @@ packages:
   /better-sqlite3@12.11.1:
     resolution: {integrity: sha512-dq9AtApgg5PGFtBzPFSBl3HZQjHok5gaQCM6zh2Yk0aSmDCs1CbnVI8/HgASQkNKsWFpseIO9beg5xxpYhbIfA==}
     engines: {node: 20.x || 22.x || 23.x || 24.x || 25.x || 26.x}
-    requiresBuild: true
     dependencies:
       bindings: 1.5.0
       prebuild-install: 7.1.3
@@ -2274,7 +2276,6 @@ packages:
   /better-sqlite3@13.0.3:
     resolution: {integrity: sha512-RbOBxmLBG8uvFUc15X9+9SFemKcQ0WBuISBVkpuiaUB2qblC8UWlHEjdWVoZ8AdhSwmoEgsiXKfopX0CQxaACQ==}
     engines: {node: '>=22'}
-    requiresBuild: true
     dependencies:
       node-addon-api: 8.9.2
     dev: false

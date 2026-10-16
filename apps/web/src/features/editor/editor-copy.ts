@@ -16,6 +16,7 @@ export const SHARE_DIALOG_DESCRIPTION = 'Anyone signed in with a link joins with
 export const TIMELINE_TOGGLE_LABEL = 'Toggle timeline';
 export const DOCUMENT_LOAD_ERROR_MESSAGE = 'The document could not be loaded.';
 export const LOADING_DOCUMENT_MESSAGE = 'Loading document...';
+export const EXPORT_FAILED_MESSAGE = 'The document could not be exported.';
 export const EDITOR_FAILED_MESSAGE = 'The editor stopped working. Reload the page to continue.';
 export const SHARE_OPENING_MESSAGE = 'Opening...';
 export const RENAME_FAILED_MESSAGE = 'The title could not be saved.';

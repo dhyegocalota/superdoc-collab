@@ -61,7 +61,7 @@ Each task committed its failing tests alone before the implementation; `git log 
 | `libs/history/src/{projection,imported-revisions}.test.ts` | `./projection` and `./imported-revisions` did not exist | read model, cursor and mapping implemented |
 | `e2e/documents.spec.ts`, `e2e/collaboration.spec.ts` | no documents, sharing or history in the product | the slice is built; both specs pass twice in a row |
 
-Counts today: types 7, history 29, web 56, server 129 unit tests; 16 E2E specs (7 auth, 2 collaboration, 7 documents).
+Counts today: types 7, history 30, web 61, server 140 unit tests; 18 E2E specs (7 auth, 2 collaboration, 9 documents).
 
 ## Hypotheses to attack
 
@@ -87,7 +87,7 @@ Every "it works" is a hypothesis the tester tries to break.
 - No timeline and no time travel yet; slice 3.
 - A role change needs a reconnect to take effect on an open socket.
 - Imported revisions need the native `@superdoc/sdk` binary; without it the import fails and is logged as `IMPORT_FAILED_MESSAGE`, and the document shows no imported events.
-- CSRF protection relies on the `SameSite=Lax` session cookie.
+- CSRF: Origin check on `/api/documents/*` and `/api/share-links/*` (hono/csrf); JSON mutations are additionally protected by the CORS preflight.
 - In degraded projection mode, deleting a document leaves orphaned read-model rows.
 - Imports share the projection queue with live projection, so a slow import delays the events of other documents until its timeout.
 - `TRUST_PROXY=true` is only safe behind a proxy that overwrites `X-Forwarded-For`; the E2E stack sets it on purpose.

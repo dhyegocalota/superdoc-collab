@@ -23,7 +23,7 @@ export function projectPending({ log, readModel, documentName, batchSize = PROJE
   const projection = { log, readModel, documentName, batchSize };
   const cursor = readModel.cursor(documentName);
   if (cursor !== null) return continueProjection({ projection, cursor });
-  const bootstrapSequence = findBootstrapSequence(log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }));
+  const bootstrapSequence = findBootstrapSequence({ updates: log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }) });
   if (bootstrapSequence === null) return null;
   readModel.commit({ documentName, events: [], lastSequence: bootstrapSequence });
   return continueProjection({ projection, cursor: bootstrapSequence });

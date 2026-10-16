@@ -25,7 +25,7 @@ export function createCollaborationRuntime({ hocuspocus, log, readModel, schedul
     const page = log.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
     const last = page.at(-1);
     if (!last) return null;
-    const found = findBootstrapSequence(page, document);
+    const found = findBootstrapSequence({ updates: page, document });
     if (found !== null) return found;
     return findCommittedBootstrap({ documentId, afterSequence: last.sequence, document });
   }

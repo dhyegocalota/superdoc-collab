@@ -5,7 +5,7 @@ const META_MAP = 'meta';
 const BOOTSTRAP_STATE_KEY = 'bootstrapState';
 const BOOTSTRAP_COMMITTED = 'committed';
 
-export function findBootstrapSequence(updates: LoggedUpdate[], document = new Y.Doc()): number | null {
+export function findBootstrapSequence({ updates, document = new Y.Doc() }: { updates: LoggedUpdate[]; document?: Y.Doc }): number | null {
   const committed = updates.find((update) => {
     Y.applyUpdate(document, update.update);
     return document.getMap(META_MAP).get(BOOTSTRAP_STATE_KEY) === BOOTSTRAP_COMMITTED;

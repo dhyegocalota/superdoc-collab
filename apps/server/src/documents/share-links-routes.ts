@@ -9,7 +9,7 @@ const INVALID_SHARE_LINK_ROLE_MESSAGE = 'The share link role must be edit or rea
 const roleSchema = z.enum(ShareLinkRole);
 const DOCUMENT_SHARE_LINKS_PATH = `${ApiPath.Documents}/:documentId/${DocumentResource.ShareLinks}`;
 
-export function createShareLinksRoutes(services: AppServices): Hono<SignedIn> {
+export function createShareLinksRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const { documents, shareLinks } = services;
   const routes = new Hono<SignedIn>();
 

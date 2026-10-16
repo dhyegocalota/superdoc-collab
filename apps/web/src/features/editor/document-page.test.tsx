@@ -18,7 +18,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
-import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
+import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_FAILED_MESSAGE, EXPORT_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
@@ -27,7 +27,7 @@ type SuperDocConfig = { onException: (payload: { error: Error }) => void };
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
-  const superDocExport = vi.fn();
+  const superDocExport = vi.fn(() => Promise.resolve(new Blob()));
   return { superDocDestroy, superDocExport, SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: superDocDestroy, export: superDocExport }; }) };
 });
 
@@ -180,4 +180,13 @@ test('the header download exports the live document and a reader can use it', as
   await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_LABEL }));
   expect(superDocExport).toHaveBeenCalledTimes(1);
   expect(superDocExport).toHaveBeenCalledWith(expect.objectContaining({ triggerDownload: true }));
+});
+
+test('a failed export shows an alert instead of an unhandled rejection', async () => {
+  superDocExport.mockRejectedValueOnce(new Error('export boom'));
+  mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_LABEL }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(EXPORT_FAILED_MESSAGE);
 });

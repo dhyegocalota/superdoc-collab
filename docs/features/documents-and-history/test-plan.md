@@ -97,7 +97,7 @@ Every task from 1 to 11 commits its failing tests alone in a `test(<scope>): …
 - [x] Two authors at once: Ana and Bruno type in different paragraphs; both see each other's text live; each sees the other's online dot in the header — `04-two-authors.png` — evidence: .pr-media/documents-and-history/04-two-authors.png; both texts present on Ana, Bruno and Caio pages; header shows A, B, C with online dots (Dani absent)
 - [x] Reader: Caio opens the read URL → "Read only" badge, no Share, no Delete; typing changes nothing on Caio's page or Ana's, while Ana's next sentence appears on Caio's page live — `05-reader.png` — evidence: .pr-media/documents-and-history/05-reader.png; "Read only" badge, no Share/Delete; READER, Ctrl+A, Delete, Backspace, Ctrl+V, Ctrl+Z, Ctrl+B and Enter changed nothing on any page; Ana's later text appeared live on Caio's page; history.sqlite has no Caio update
 - [x] Events: in Ana's context `fetch('/api/documents/<id>/events')` lists Ana's and Bruno's inserted text with their names; Caio has none — evidence: /events listed Ana's " ANAONE" and Bruno's "BRUNOONE" with names; no Caio author
-- [ ] Empty: a user with no documents and no shares → both empty states, no table header row, the two buttons visible — evidence: observed on Ana's fresh account (.pr-media/documents-and-history/01-empty-list.png): both empty messages and both buttons are present but BOTH tables render their header row (Title, Owner, Updated, My role); the box says "no table header row"; plan and UI disagree, see defect D1
+- [x] Empty: a user with no documents and no shares → both empty states, no table header row, the two buttons visible — evidence (re-run after the fix wave, 24989a4): Dani, no documents: both empty messages, both buttons, `thead`/`th` count 0 (.pr-media/documents-and-history/01-empty-list.png); supersedes the earlier D1 failure
 - [x] Single: one uploaded document → one row in Mine, Shared with me still empty — evidence: Ana's list with one document: one row in Mine ("Renamed Plan ... owner"), Shared with me "Nothing shared with you yet"
 - [x] Many: 12 documents (uploads and blanks) across Ana and Bruno → Mine ordered by last update, newest first; editing one moves it to the top after reload — evidence: 14 documents (Ana 9, Bruno 5); Mine newest first; editing the oldest ("Renamed Plan") moved it to the top after reload
 - [x] Rejected input: a `.pdf` and an 11 MB `.docx` in the upload dialog → the exact messages "Only .docx files can be uploaded." and "Files up to 10 MB can be uploaded."; the list is unchanged; no request for the 11 MB file in the network log — evidence: .pdf -> "Only .docx files can be uploaded."; 11 MB docx -> "Files up to 10 MB can be uploaded."; zero POSTs observed; list unchanged
@@ -131,11 +131,22 @@ The tester adds one checkbox per new case (input, exact expected outcome) and as
 
 ## Defects
 
-- D1 (minor, plan versus UI): empty states render the table header row (Title, Owner, Updated, My role) above "No documents yet" and "Nothing shared with you yet" on `/documents`, while the Empty box says no header row. Repro: sign in as a user with no documents, open `/documents`. Expected per plan: no header row; observed: header row in both tables. Evidence: .pr-media/documents-and-history/01-empty-list.png. Either the plan or the UI is wrong; owner to decide, then a regression assertion in `documents-page.test.tsx` (`empty lists show both empty messages`).
-- D2 (minor, UX): deleting a document gives connected members no notice; see edge case above. Regression test requested from the developer: a deleted document's open editor shows "This document is no longer available" (or the socket close is surfaced).
-- D3 (informational): download omits live edits (by spec).
-- D4 (minor): editor not usable at 375 px width without horizontal scroll.
+- D1 (FIXED, re-verified): (minor, plan versus UI): empty states render the table header row (Title, Owner, Updated, My role) above "No documents yet" and "Nothing shared with you yet" on `/documents`, while the Empty box says no header row. Repro: sign in as a user with no documents, open `/documents`. Expected per plan: no header row; observed: header row in both tables. Evidence: .pr-media/documents-and-history/01-empty-list.png. Either the plan or the UI is wrong; owner to decide, then a regression assertion in `documents-page.test.tsx` (`empty lists show both empty messages`).
+- D2 (FIXED, re-verified): (minor, UX): deleting a document gives connected members no notice; see edge case above. Regression test requested from the developer: a deleted document's open editor shows "This document is no longer available" (or the socket close is surfaced).
+- D3 (FIXED, re-verified): (informational): download omits live edits (by spec).
+- D4 (FIXED, re-verified): (minor): editor not usable at 375 px width without horizontal scroll.
 - D5 (process, minor): the Task 6 red commit does not demonstrate the stated failure.
+
+## Fix-wave re-verification (24989a4)
+
+- [x] `pnpm build` exit 0; `pnpm test:e2e` 18 passed (retries 0), log scratchpad `e2e3.log`
+- [x] D1 fixed: empty sections show the message without a header row (.pr-media/documents-and-history/01-empty-list.png)
+- [x] D2 fixed: Ana deleted (204) with Bruno (editor) and Caio (reader) connected; "This document is no longer available" appeared after 3.6 s on Bruno and 4.4 s on Caio without reload (.pr-media/documents-and-history/09-deleted.png); one 404 console error each at detection, 0 further errors and 0 further `/members` requests over the next 12 s
+- [x] D3 fixed: header "Download .docx" exported "Quarterly Plan.docx" containing the live text ("Paragraph owned by ana. LIVEEDIT ..."); the API download still returns the original (unchanged route, covered by `documents-routes.test.ts`)
+- [x] D4 fixed: `/documents/<id>` at 375x812 `scrollWidth` 375 (.pr-media/documents-and-history/07-narrow-editor.png)
+- [x] Cross-origin POST to `/api/documents` with `Origin: http://evil.example`: multipart 403, urlencoded form 403; the app's own UI upload (Ana, via the dialog) works; a request without `Origin` still 201 (non-browser clients)
+- [x] Events under continuous two-author typing (60 characters each at 100 ms): first events visible about 5 s after typing began, then at most 3 s behind the last write; final counts Ana 60, Bruno 60 attributed correctly. Borderline against "about 5 s": no event is visible for the first ~4 s (2 s store debounce plus projection)
+- [x] A reader gets no declared identity: `client_identities` for the document holds only Ana and Bruno (declared); Caio connected as reader and has no row, and no `updates` row for Caio
 
 ## Adversarial review
 

@@ -30,6 +30,10 @@ export class ReadModel {
     return row.last_sequence;
   }
 
+  readWithCursor({ documentName, afterSequence }: { documentName: string; afterSequence: number | null }): { events: StoredEditEvent[]; cursor: number | null } {
+    return this.database.transaction(() => ({ cursor: this.cursor(documentName), events: this.read({ documentName, afterSequence }) }))();
+  }
+
   commit({ documentName, events, lastSequence }: { documentName: string; events: ProjectedEdit[]; lastSequence: number }): void {
     const insert = this.database.prepare(INSERT_EVENT);
     const advance = this.database.prepare('INSERT INTO projection_cursor (document_name, last_sequence) VALUES (?, ?) ON CONFLICT (document_name) DO UPDATE SET last_sequence = excluded.last_sequence');

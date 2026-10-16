@@ -50,6 +50,6 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.get(ApiPath.Me, createMeHandler({ auth }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createDocumentsRoutes({ services }));
-  app.route('/', createShareLinksRoutes(services));
+  app.route('/', createShareLinksRoutes({ services }));
   return app;
 }

@@ -1,8 +1,12 @@
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
 import { DocumentResource, DocumentRole, documentApiPath, HttpStatus, type DocumentEditEvents } from '@superdoc-history/types';
+import { ReadModel } from '@superdoc-history/history';
+import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
+import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { insertedBy, readEvents } from '../testing/events-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
@@ -86,16 +90,17 @@ test('events survive a server restart', async () => {
   await restarted.stop();
 });
 
-test('the cursor never passes the returned events when a batch lands between the reads', async () => {
+test('a batch committed between the cursor and the events read stays out of both', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const { readModel } = server.services;
   const SETTLED_SEQUENCE = 3;
   readModel.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE });
-  const originalRead = readModel.read.bind(readModel);
-  vi.spyOn(readModel, 'read').mockImplementation((query) => {
-    const events = originalRead(query);
-    readModel.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE + 1 });
-    return events;
+  const writer = new ReadModel(new Database(join(server.databaseDirectory, READ_MODEL_DATABASE_FILE)));
+  const originalCursor = readModel.cursor.bind(readModel);
+  vi.spyOn(readModel, 'cursor').mockImplementation((documentName) => {
+    const cursor = originalCursor(documentName);
+    writer.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE + 1 });
+    return cursor;
   });
   const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie: owner.cookie } });
   expect(((await response.json()) as DocumentEditEvents).cursor).toBe(SETTLED_SEQUENCE);

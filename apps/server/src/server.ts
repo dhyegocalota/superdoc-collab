@@ -1,7 +1,11 @@
 import { serve, type ServerType } from '@hono/node-server';
 import type { Hono } from 'hono';
+import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { ApiPath } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
+import { attachCollaboration } from './collaboration/attach-collaboration';
+import { createCollaborationServer } from './collaboration/collaboration-server';
 import type { Environment } from './config/environment';
 import { AUTH_DATABASE_FILE, openDatabase, type AuthDatabase } from './database/connection';
 import { runMigrations } from './database/migrate';
@@ -37,12 +41,15 @@ export async function startServer({ environment, webDistDirectory }: { environme
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, NOT_FOUND_STATUS));
   const httpServer = await listen({ app, port: environment.port });
   const { port } = httpServer.address() as AddressInfo;
+  const hocuspocus = createCollaborationServer({ auth });
+  attachCollaboration({ httpServer: httpServer as Server, hocuspocus, path: ApiPath.Collaboration });
   return {
     httpServer,
     port,
     auth,
     database,
     stop: async () => {
+      hocuspocus.destroy();
       closeAllConnectionsWhenSupported(httpServer);
       await closeServer(httpServer);
       database.sqlite.close();

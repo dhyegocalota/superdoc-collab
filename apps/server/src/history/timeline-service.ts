@@ -1,5 +1,5 @@
 import { assignBlocks, authorKey, binStartsCovering, buildBands, buildBins, chooseBinMs, contributorsByBand, filterRuns, groupIntoRuns, IdentitySource, topicBandId, versionSequenceAt, type BandIdentity, type EditRun, type TimelineEvent } from '@superdoc-history/history';
-import { BlockChangeKind, OTHER_BAND_ID, OTHER_BAND_NAME, TimelineBandKind, TopicState, type BinEdits, type DocumentEditEvent, type DocumentTimeline, type EventAuthor, type ProjectionStatus, type TimelineFilter, type TopicStatus } from '@superdoc-history/types';
+import { BlockChangeKind, OTHER_BAND_ID, OTHER_BAND_NAME, TimelineBandKind, type BinEdits, type DocumentEditEvent, type DocumentTimeline, type EventAuthor, type ProjectionStatus, type TimelineFilter } from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
 import { resolveEvents } from './resolved-events';
 import type { TimelinePipeline } from './timeline-pipeline-cache';
@@ -32,7 +32,7 @@ function buildPipeline({ services, documentId }: { services: AppServices; docume
   const events = resolveEvents({ services, documentId, stored });
   const { identities, bandOf, hasTopics } = bandIdentities({ services, documentId, events });
   const timelineEvents = events.map((event): TimelineEvent => ({ sequence: event.sequence, serverTime: event.serverTime, blockId: event.blockId, bandId: bandOf(event), authorKeys: event.authors.map(authorKey), inserted: event.inserted, deleted: event.deleted }));
-  const unassignedBlocks = new Set(events.filter((event, index) => event.kind !== BlockChangeKind.Removed && timelineEvents[index]!.bandId === OTHER_BAND_ID).map((event) => event.blockId));
+  const unassignedBlocks = new Set(events.filter((event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID)).map((event) => event.blockId));
   const authors = Object.fromEntries(events.flatMap((event) => event.authors.map((author): [string, EventAuthor] => [authorKey(author), author])));
   return { events: timelineEvents, identities, authors, hasTopics, unassignedBlockCount: unassignedBlocks.size };
 }
@@ -72,12 +72,6 @@ function lastTimeOf(events: TimelineEvent[]): number {
   return events.reduce((latest, event) => Math.max(latest, event.serverTime), Number.NEGATIVE_INFINITY);
 }
 
-function topicStatusOf({ services, documentId }: { services: AppServices; documentId: string }): TopicStatus {
-  const stored = services.insightsRepository.status(documentId);
-  if (stored) return stored;
-  return { state: TopicState.Pending, failure: null, computedAtSequence: null };
-}
-
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
   const cursor = services.readModel.cursor(documentId);
   const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? 0 : cursor, limit: 1 });
@@ -108,7 +102,7 @@ export function buildDocumentTimeline({ services, documentId, filter, binMs }: {
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
     authors: pipeline.authors,
-    topics: topicStatusOf({ services, documentId }),
+    topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
   };
 }

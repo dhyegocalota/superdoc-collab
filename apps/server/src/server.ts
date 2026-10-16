@@ -4,7 +4,7 @@ import type { Hono } from 'hono';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
-import { ApiPath, HttpStatus } from '@superdoc-history/types';
+import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime, type DocumentRuntime } from './collaboration/collaboration-runtime';
@@ -16,9 +16,13 @@ import { runHistoryMigrations, runMigrations } from './database/migrate';
 import { DocumentsRepository } from './documents/documents-repository';
 import type { DocumentFileStorage } from './documents/file-storage';
 import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
-import { createApp } from './http/app';
+import { createApp, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
+import { InsightsWorker } from './insights/insights-worker';
+import { SummariesService } from './insights/summaries-service';
+import { TopicsService } from './insights/topics-service';
+import { readTimelinePipeline } from './history/timeline-service';
 import { InsightsRepository } from './insights/insights-repository';
 import { chooseLanguageModel, type LanguageModelChoice } from './insights/llm-client';
 import { ProjectionScheduler } from './history/projection-scheduler';
@@ -28,7 +32,7 @@ import { mountStaticWeb } from './http/static-web';
 
 export const NOT_FOUND_MESSAGE = 'Not found';
 
-export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository; throttle: ProjectionThrottle; timelinePipelines: TimelinePipelineCache };
+export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository; throttle: ProjectionThrottle; timelinePipelines: TimelinePipelineCache; insights: InsightsServices };
 
 export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; services: ServerServices; stop: () => Promise<void> };
 
@@ -58,6 +62,8 @@ export async function startServer({ environment, webDistDirectory, languageModel
   const readModelSqlite = openSqliteFile({ directory: environment.databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
   runHistoryMigrations({ sqlite: readModelSqlite, set: MigrationSet.ReadModel });
   const documents = new DocumentsRepository(database);
+  const insightsRepository = new InsightsRepository(database);
+  insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
   const log = new UpdateLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory });
@@ -73,8 +79,13 @@ export async function startServer({ environment, webDistDirectory, languageModel
   findDocumentsWithoutMarks(readModelSqlite).forEach((documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }));
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
-  const insightsRepository = new InsightsRepository(database);
-  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle, timelinePipelines: new TimelinePipelineCache() };
+  const insightsWorker = new InsightsWorker();
+  const insights: InsightsServices = {
+    worker: insightsWorker,
+    topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, worker: insightsWorker }),
+    summaries: new SummariesService({ repository: insightsRepository, languageModel, worker: insightsWorker, readPipeline: (documentId) => readTimelinePipeline({ services, documentId }) }),
+  };
+  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle, timelinePipelines: new TimelinePipelineCache(), insights };
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
@@ -91,6 +102,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
       await hocuspocus.destroy();
       throttle.stop();
       await scheduler.stop();
+      await insightsWorker.idle();
       sockets.clients.forEach((client) => client.terminate());
       sockets.close();
       closeAllConnectionsWhenSupported(httpServer);

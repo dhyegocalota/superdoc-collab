@@ -15,6 +15,10 @@ import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
+import { createInsightsRoutes } from '../insights/insights-routes';
+import type { InsightsWorker } from '../insights/insights-worker';
+import type { SummariesService } from '../insights/summaries-service';
+import type { TopicsService } from '../insights/topics-service';
 import type { InsightsRepository } from '../insights/insights-repository';
 import { createHistoryRoutes } from '../history/history-routes';
 import { createTimelineRoutes } from '../history/timeline-routes';
@@ -27,7 +31,9 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 
-export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache };
+export type InsightsServices = { topics: TopicsService; summaries: SummariesService; worker: InsightsWorker };
+
+export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache; insights: InsightsServices };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
   const app = new Hono();
@@ -54,6 +60,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.get(ApiPath.Me, createMeHandler({ auth }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
+  app.route(ApiPath.Documents, createInsightsRoutes({ services }));
   app.route(ApiPath.Documents, createDocumentsRoutes({ services }));
   app.route('/', createShareLinksRoutes({ services }));
   return app;

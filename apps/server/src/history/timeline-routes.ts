@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
-import { buildBinEdits, buildDocumentTimeline } from './timeline-service';
+import { buildBinEdits, buildDocumentTimeline, readTimelinePipeline } from './timeline-service';
 
 const INVALID_TIMELINE_QUERY_MESSAGE = 'The timeline query is invalid';
 const EDITS_PATH = '/:documentId/timeline/edits';
@@ -26,7 +26,10 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     const parsed = timelineQuerySchema.safeParse(queryOf({ read: (name) => context.req.query(name), names: Object.keys(timelineQuerySchema.shape) }));
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const { term, author, binMs } = parsed.data;
-    return context.json(buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs }));
+    services.insights.topics.ensure(documentId);
+    const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs });
+    services.insights.topics.onTimelineRead({ documentId, unassignedBlockCount: readTimelinePipeline({ services, documentId }).unassignedBlockCount });
+    return context.json(timeline);
   });
   routes.get(EDITS_PATH, (context) => {
     const documentId = context.req.param('documentId');

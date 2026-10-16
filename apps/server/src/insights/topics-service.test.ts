@@ -8,7 +8,7 @@ import { connectToDocument } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
 import { readTimeline, readTopics, storyWithBlocks } from '../testing/timeline-client';
-import { signedInUser, startTestServer } from '../testing/test-server';
+import { currentUserId, signInAndGetCookie, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 import { chooseLanguageModel, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
 import { INSIGHTS_JOB_FAILED_MESSAGE } from './insights-worker';
 import { TOPIC_RECOMPUTE_MIN_INTERVAL_MS, UNKNOWN_TOPIC_BLOCKS_MESSAGE } from './topics-service';
@@ -160,7 +160,9 @@ test('a pending set left by a crash is failed at boot', async () => {
 test('prompts escape markup and carry no email', async () => {
   const model = modelAnswering(topicsAnswer(['b0']), { summaries: [] });
   const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['<b>x</b> & y'] });
-  const editor = await signedInUser({ server, name: 'Ana <script>' });
+  const credentials = { name: 'Ana <script>', email: 'ana-script@example.com', password: TEST_USER_PASSWORD };
+  const editorCookie = await signInAndGetCookie({ server, credentials });
+  const editor = { id: await currentUserId({ server, cookie: editorCookie }), cookie: editorCookie };
   server.services.documents.grant({ documentId, userId: editor.id, role: DocumentRole.Editor });
   const editorClient = await connectToDocument({ server, cookie: editor.cookie, documentId });
   writeStory({ document: editorClient.document, texts: ['<b>x</b> & y <i>z'] });

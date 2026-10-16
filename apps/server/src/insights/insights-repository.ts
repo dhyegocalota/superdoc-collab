@@ -39,12 +39,14 @@ export class InsightsRepository {
   }
 
   saveTopics({ documentId, topics, computedAtSequence }: { documentId: string; topics: IdentifiedTopic[]; computedAtSequence: number }): void {
-    const reusedIds = topics.flatMap((topic) => (topic.id === null ? [] : [topic.id]));
     this.database.drizzle.transaction((transaction) => {
+      const ownIds = new Set(transaction.select({ id: documentTopics.id }).from(documentTopics).where(eq(documentTopics.documentId, documentId)).all().map((row) => row.id));
+      const resolved = topics.map((topic) => ({ ...topic, id: topic.id !== null && ownIds.has(topic.id) ? topic.id : randomUUID() }));
+      const reusedIds = resolved.filter((topic) => topic.id !== null && ownIds.has(topic.id)).map((topic) => topic.id);
       transaction.delete(documentTopics).where(and(eq(documentTopics.documentId, documentId), notInArray(documentTopics.id, reusedIds))).run();
       transaction.delete(topicBlocks).where(eq(topicBlocks.documentId, documentId)).run();
-      topics.forEach((topic, position) => {
-        const id = topic.id === null ? randomUUID() : topic.id;
+      resolved.forEach((topic, position) => {
+        const { id } = topic;
         transaction.insert(documentTopics).values({ id, documentId, name: topic.name, position }).onConflictDoUpdate({ target: documentTopics.id, set: { name: topic.name, position } }).run();
         topic.blockIds.forEach((blockId) => transaction.insert(topicBlocks).values({ documentId, blockId, topicId: id }).run());
       });

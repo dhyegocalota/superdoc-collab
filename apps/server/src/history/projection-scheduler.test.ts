@@ -178,14 +178,14 @@ async function projectedDocument() {
   return { server, documentId, owner, client, sequence: server.services.readModel.marks(documentId)[0]!.sequence };
 }
 
-function inFlightWithRerun({ server, documentId }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string }): SchedulerInternals {
-  vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+function inFlightWithRerun({ server, documentId }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string }): { internals: SchedulerInternals; restore: () => void } {
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
   server.services.scheduler.schedule(documentId);
   server.services.scheduler.schedule(documentId);
-  return server.services.scheduler as unknown as SchedulerInternals;
+  return { internals: server.services.scheduler as unknown as SchedulerInternals, restore: () => postMessage.mockRestore() };
 }
 
-test('a hanging import does not delay the projection of another document', { timeout: IMPORT_TIMEOUT_MS }, async () => {
+test('a hanging import does not delay the projection of another document', { timeout: IMPORT_TIMEOUT_MS / 2 }, async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const fifo = join(server.databaseDirectory, 'never-written.docx');
   execFileSync('mkfifo', [fifo]);
@@ -229,13 +229,14 @@ test('a document projected before marks existed is rebuilt at startup', { timeou
 test('a failed version never touches the projection bookkeeping', async () => {
   const { server, documentId } = await documentWithOwner();
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  const internals = inFlightWithRerun({ server, documentId });
+  const { internals, restore } = inFlightWithRerun({ server, documentId });
   const version = server.services.scheduler.version({ documentId, sequence: UNKNOWN_SEQUENCE });
   internals.settle({ kind: ProjectionReplyKind.Failed, documentId, message: 'boom', requestKind: ProjectionRequestKind.Version, sequence: UNKNOWN_SEQUENCE });
   await expect(version).rejects.toThrow('boom');
   expect([internals.inFlight.has(documentId), internals.rerun.has(documentId)]).toEqual([true, true]);
   expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining(PROJECTION_FAILED_MESSAGE));
   consoleError.mockRestore();
+  restore();
   await server.stop();
 });
 

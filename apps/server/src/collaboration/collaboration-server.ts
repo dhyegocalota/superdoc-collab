@@ -1,5 +1,5 @@
 import { Hocuspocus } from '@hocuspocus/server';
-import { compact, materialize, type UpdateLog } from '@superdoc-history/history';
+import { materialize, type UpdateLog } from '@superdoc-history/history';
 import { DocumentRole } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
@@ -9,7 +9,6 @@ import { createClientDeclarer } from './client-declarations';
 import { documentIdFromRoomName } from './room-name';
 
 const COLLABORATION_SOCKET_TIMEOUT_MS = 10_000;
-const SNAPSHOT_EVERY_UPDATES = 1000;
 const STORE_DEBOUNCE_MS = 2000;
 export const MAX_STORE_DEBOUNCE_MS = 4000;
 
@@ -29,7 +28,7 @@ function requireDocumentId(roomName: string): string {
   return documentId;
 }
 
-export function createCollaborationServer({ auth, documents, log, onStored }: { auth: Auth; documents: DocumentsRepository; log: UpdateLog; onStored: (documentId: string) => void }): Hocuspocus {
+export function createCollaborationServer({ auth, documents, log, onLogged, onStored }: { auth: Auth; documents: DocumentsRepository; log: UpdateLog; onLogged: (documentId: string) => void; onStored: (documentId: string) => void }): Hocuspocus {
   const declarer = createClientDeclarer(log);
   return new Hocuspocus({
     quiet: true,
@@ -55,11 +54,10 @@ export function createCollaborationServer({ auth, documents, log, onStored }: { 
       if (transactionOrigin === LOADING_ORIGIN) return;
       const { userId, documentId } = context as CollaborationContext;
       log.append({ documentName: documentId, connectionUserId: userId, update });
+      onLogged(documentId);
     },
     async onStoreDocument({ documentName }) {
-      const documentId = requireDocumentId(documentName);
-      compact({ log, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
-      onStored(documentId);
+      onStored(requireDocumentId(documentName));
     },
     async onAwarenessUpdate({ document }) {
       declarer.declare(document);

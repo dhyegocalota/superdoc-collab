@@ -17,16 +17,17 @@ import { DocumentsRepository } from './documents/documents-repository';
 import type { DocumentFileStorage } from './documents/file-storage';
 import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
 import { createApp } from './http/app';
-import { findDocumentsToProject } from './history/pending-documents';
+import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
 import { InsightsRepository } from './insights/insights-repository';
 import { chooseLanguageModel, type LanguageModelChoice } from './insights/llm-client';
 import { ProjectionScheduler } from './history/projection-scheduler';
+import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
 
 export const NOT_FOUND_MESSAGE = 'Not found';
 
-export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository };
+export type ServerServices = { documents: DocumentsRepository; storage: DocumentFileStorage; log: UpdateLog; hocuspocus: Hocuspocus; readModel: ReadModel; scheduler: ProjectionScheduler; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; insightsRepository: InsightsRepository; throttle: ProjectionThrottle };
 
 export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; services: ServerServices; stop: () => Promise<void> };
 
@@ -61,16 +62,17 @@ export async function startServer({ environment, webDistDirectory, languageModel
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory });
   const auth = createAuth({ database, environment });
   findDocumentsToProject({ historySqlite, readModelSqlite }).forEach((documentId) => scheduler.schedule(documentId));
-  const hocuspocus = createCollaborationServer({ auth, documents, log, onStored: (documentId) => {
+  const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
+  const hocuspocus = createCollaborationServer({ auth, documents, log, onLogged: (documentId) => throttle.request(documentId), onStored: (documentId) => {
       documents.touch(documentId);
       scheduler.schedule(documentId);
-    },
-  });
+    } });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
+  findDocumentsWithoutMarks(readModelSqlite).forEach((documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }));
   const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
   const insightsRepository = new InsightsRepository(database);
-  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository };
+  const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle };
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
@@ -85,6 +87,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
     services,
     stop: async () => {
       await hocuspocus.destroy();
+      throttle.stop();
       await scheduler.stop();
       sockets.clients.forEach((client) => client.terminate());
       sockets.close();

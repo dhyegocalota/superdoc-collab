@@ -80,6 +80,11 @@ export class SummariesService {
   private async summarize({ documentId, stale, pipeline, computedAtSequence }: { documentId: string; stale: StaleTopic[]; pipeline: TimelinePipeline; computedAtSequence: number }): Promise<void> {
     const choice = this.languageModel;
     if (choice.availability === LanguageModelAvailability.Unavailable) return;
+    if (!this.worker.consumeCall()) {
+      this.lastRuns.delete(documentId);
+      console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
+      return;
+    }
     try {
       const output = await generateStructured({ model: choice.model, schema: summariesOutputSchema, system: SUMMARIES_SYSTEM_PROMPT, prompt: summariesPrompt(this.promptTopics({ stale, pipeline })) });
       const knownIds = new Set(stale.map(({ topic }) => topic.id));

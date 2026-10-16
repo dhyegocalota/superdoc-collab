@@ -13,6 +13,8 @@ export const TOPICS_COMPUTE_FAILED_MESSAGE = 'Naming topics failed for document'
 export const TOPIC_RECOMPUTE_MIN_INTERVAL_MS = MINUTE_MS;
 export const TOPIC_REFRESH_COOLDOWN_MS = 30 * SECOND_MS;
 
+class LanguageModelBusyError extends Error {}
+
 export enum RefreshOutcome {
   Started = 'started',
   AlreadyRunning = 'already-running',
@@ -91,6 +93,7 @@ export class TopicsService {
     try {
       await this.recompute({ documentId, model: choice.model, previous, isRefresh });
     } catch (error) {
+      if (error instanceof LanguageModelBusyError) return this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
       console.error(`${TOPICS_COMPUTE_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
       this.repository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
     }
@@ -99,9 +102,10 @@ export class TopicsService {
   private async recompute({ documentId, model, previous, isRefresh }: { documentId: string; model: LanguageModel; previous: TopicStatus | null; isRefresh: boolean }): Promise<void> {
     const { blocks, sequence } = await this.scheduler.blocks(documentId);
     if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
-    this.consumeCooldown({ documentId, isRefresh });
     const named = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
     if (named.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
+    this.consumeCooldown({ documentId, isRefresh });
+    if (!this.worker.consumeCall()) throw new LanguageModelBusyError();
     const output = await generateStructured({ model, schema: topicsOutputSchema, system: TOPICS_SYSTEM_PROMPT, prompt: topicsPrompt(named) });
     const normalized = normalizeTopics({ output, knownBlockIds: new Set(named.map((block) => block.blockId)) });
     if (normalized.unknownBlockIds.length > 0) console.warn(`${UNKNOWN_TOPIC_BLOCKS_MESSAGE} ${documentId}: ${normalized.unknownBlockIds.length}`);

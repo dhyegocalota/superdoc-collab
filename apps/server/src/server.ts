@@ -48,8 +48,9 @@ export function closeServer(httpServer: ServerType): Promise<void> {
 }
 
 function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const started = serve({ fetch: app.fetch, port }, () => resolve(started));
+    started.once('error', reject);
   });
 }
 
@@ -94,7 +95,23 @@ export async function startServer({ environment, webDistDirectory, languageModel
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
-  const httpServer = await listen({ app, port: environment.port });
+  async function closeCollaboration(): Promise<void> {
+    await versionRooms.stop();
+    await hocuspocus.destroy();
+    throttle.stop();
+    await scheduler.stop();
+    await insightsWorker.idle();
+  }
+  function closeDatabases(): void {
+    database.sqlite.close();
+    historySqlite.close();
+    readModelSqlite.close();
+  }
+  const httpServer = await listen({ app, port: environment.port }).catch(async (error) => {
+    await closeCollaboration();
+    closeDatabases();
+    throw error;
+  });
   const { port } = httpServer.address() as AddressInfo;
   const sockets = attachCollaboration({ httpServer: httpServer as Server, hocuspocus, versionRooms, path: ApiPath.Collaboration, allowedOrigin: environment.appOrigin });
   return {
@@ -104,18 +121,12 @@ export async function startServer({ environment, webDistDirectory, languageModel
     database,
     services,
     stop: async () => {
-      await versionRooms.stop();
-      await hocuspocus.destroy();
-      throttle.stop();
-      await scheduler.stop();
-      await insightsWorker.idle();
+      await closeCollaboration();
       sockets.clients.forEach((client) => client.terminate());
       sockets.close();
       closeAllConnectionsWhenSupported(httpServer);
       await closeServer(httpServer);
-      database.sqlite.close();
-      historySqlite.close();
-      readModelSqlite.close();
+      closeDatabases();
     },
   };
 }

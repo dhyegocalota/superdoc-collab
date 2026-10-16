@@ -32,11 +32,23 @@ export function testEnvironment({ databaseDirectory = mkdtempSync(join(tmpdir(),
   return { port: 0, appOrigin: `http://${LOOPBACK_HOST}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy: true, llm: NO_LLM_SETTINGS };
 }
 
-export async function startTestServer({ trustProxy = true, databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')), languageModel = chooseLanguageModel(NO_LLM_SETTINGS), versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY }: { trustProxy?: boolean; databaseDirectory?: string; languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<TestServer> {
+const ADDRESS_IN_USE_CODE = 'EADDRINUSE';
+const START_ATTEMPTS = 5;
+
+function isAddressInUse(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === ADDRESS_IN_USE_CODE;
+}
+
+export async function startTestServer({ trustProxy = true, databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')), languageModel = chooseLanguageModel(NO_LLM_SETTINGS), versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY, attemptsLeft = START_ATTEMPTS }: { trustProxy?: boolean; databaseDirectory?: string; languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy; attemptsLeft?: number } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = { port, appOrigin: `http://${LOOPBACK_HOST}:${port}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy, llm: NO_LLM_SETTINGS };
-  const running = await startServer({ environment, webDistDirectory: null, languageModel, versionRoomPolicy });
-  return { baseUrl: environment.appOrigin, auth: running.auth, database: running.database, services: running.services, databaseDirectory, stop: running.stop };
+  try {
+    const running = await startServer({ environment, webDistDirectory: null, languageModel, versionRoomPolicy });
+    return { baseUrl: environment.appOrigin, auth: running.auth, database: running.database, services: running.services, databaseDirectory, stop: running.stop };
+  } catch (error) {
+    if (!isAddressInUse(error) || attemptsLeft <= 1) throw error;
+    return startTestServer({ trustProxy, databaseDirectory, languageModel, versionRoomPolicy, attemptsLeft: attemptsLeft - 1 });
+  }
 }
 
 let nextClientAddress = 0;

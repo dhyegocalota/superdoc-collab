@@ -1,4 +1,5 @@
 import { ApiPath, AppRoute } from '@superdoc-history/types';
+import { createServer, type AddressInfo } from 'node:net';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -79,4 +80,12 @@ describe('startServer', () => {
     chmodSync(documentsDirectory, 0o500);
     await expect(startServer({ environment, webDistDirectory: null })).rejects.toThrow(DatabaseDirectoryNotWritableError);
   });
+});
+
+test('startServer rejects instead of hanging when the port is taken', async () => {
+  const blocker = createServer();
+  await new Promise<void>((resolve) => blocker.listen(0, resolve));
+  const { port } = blocker.address() as AddressInfo;
+  await expect(startServer({ environment: { ...testEnvironment(), port }, webDistDirectory: null })).rejects.toMatchObject({ code: 'EADDRINUSE' });
+  await new Promise((resolve) => blocker.close(resolve));
 });

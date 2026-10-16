@@ -1,7 +1,7 @@
 import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
+import { VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
 import { DocumentResource, documentApiPath, TimelineSearchParam, VersionResource, versionApiPath, type VersionText } from '../libs/types/src';
 
-export const VERSION_FRAME_TITLE = 'Document version';
 export const HIGHLIGHT_CLASS = 'superdoc-comment-highlight';
 export const BANDS_TIMEOUT_MS = 60_000;
 export const VERSION_TIMEOUT_MS = 60_000;

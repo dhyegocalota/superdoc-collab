@@ -61,7 +61,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 
 - Work on a `feat/`, `fix/`, `docs/` or `chore/` branch, never on `main`.
 - `developer` sub-agents implement. Each owns disjoint paths named in the plan. They tick their own steps. A step that turns out wrong is struck through with the reason, not deleted.
-- `test-driven-development` skill: failing test first, confirm it fails for the right reason, minimal code, green, refactor.
+- `test-driven-development` skill: failing test first, confirm it fails for the right reason, minimal code, green, refactor. **Commit the failing test on its own before the implementation commit**, so the tester can prove red-first from `git log` (see `docs/learnings/2026-10-16-commit-the-failing-test-first.md`).
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
 - Stuck after three honest attempts → `systematic-debugging` skill, then escalate to the owner with evidence.

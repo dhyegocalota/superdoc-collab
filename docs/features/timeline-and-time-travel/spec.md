@@ -61,7 +61,7 @@ live        ─► onChange throttle (PROJECTION_THROTTLE_MS 1500, store as the 
 
 ### Interfaces (as built)
 
-- `GET /api/documents/:id/timeline?term&author` (member) → bins with `versionSequence` resolved at minute granularity from the bin's last instant, bands (`{ id, kind: topic | author | other, name, hue, onsetSequence, volume }`), contributors per band, topics state, projection status.
+- `GET /api/documents/:id/timeline?term&author` (member) → bins with `versionSequence` resolved at minute granularity from the bin's last instant, bands (`{ id, kind: topic | author | other, name, hue, onsetTime, volume }`), contributors per band, topics state, projection status.
 - `GET /api/documents/:id/timeline/edits?binStart&term&author` (member) → the bin's runs; `GET /api/documents/:id/events?afterSequence&limit` (paged; `limit` in `1..EVENTS_PAGE_SIZE`, else 400).
 - `GET /api/documents/:id/topics` · `POST /api/documents/:id/topics/refresh` (owner or editor; one in flight per document, 30 s cooldown per document → 429 + `Retry-After`) → state `pending | ready | failed`.
 - `GET /api/documents/:id/summaries` → `{ topicId, sentence, computedAtSequence }[]`.

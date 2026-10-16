@@ -35,7 +35,7 @@ export function useAuthSubmit<TValues extends FieldValues>({ form, request }: Us
       form.setError('root', { message: authFailureMessage({ status: error.status, retryAfterSeconds: captured.retryAfterSeconds }) });
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+    await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY, refetchType: 'all' });
     await navigate(safeNextPath(searchParams.get('next')));
   };
 }

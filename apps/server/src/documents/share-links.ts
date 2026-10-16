@@ -1,4 +1,4 @@
-import { ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
+import { sharePagePath, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
 import { eq } from 'drizzle-orm';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
@@ -6,7 +6,6 @@ import { documentShareLinks } from '../database/schema/documents';
 
 const NONCE_BYTES = 32;
 const TOKEN_DIGEST = 'sha256';
-const SHARE_PATH_PREFIX = '/share/';
 
 export function deriveShareToken({ secret, nonce }: { secret: string; nonce: string }): string {
   return createHmac(TOKEN_DIGEST, secret).update(nonce).digest('base64url');
@@ -29,12 +28,12 @@ export class ShareLinksRepository {
 
   links(documentId: string): ShareLinks {
     const existing = this.database.drizzle.select().from(documentShareLinks).where(eq(documentShareLinks.documentId, documentId)).all();
-    const missing = Object.values(ShareLinkRole).filter((role) => !existing.some((row) => row.role === role));
+    const missing = Object.values(ShareLinkRole).filter((role) => !existing.some((row) => row.role === role && this.isIssuedBySecret(row)));
     if (missing.length > 0) {
       missing.forEach((role) => this.writeNonce({ documentId, role }));
       return this.links(documentId);
     }
-    return Object.fromEntries(existing.map((row) => [row.role, `${this.appOrigin}${SHARE_PATH_PREFIX}${deriveShareToken({ secret: this.secret, nonce: row.nonce })}`])) as ShareLinks;
+    return Object.fromEntries(existing.map((row) => [row.role, `${this.appOrigin}${sharePagePath(deriveShareToken({ secret: this.secret, nonce: row.nonce }))}`])) as ShareLinks;
   }
 
   rotate({ documentId, role }: { documentId: string; role: ShareLinkRole }): ShareLinks {
@@ -48,6 +47,10 @@ export class ShareLinksRepository {
     if (!row) return null;
     if (!timingSafeEqual(Buffer.from(row.tokenHash), Buffer.from(tokenHash))) return null;
     return { documentId: row.documentId, role: row.role };
+  }
+
+  private isIssuedBySecret({ nonce, tokenHash }: { nonce: string; tokenHash: string }): boolean {
+    return hashShareToken(deriveShareToken({ secret: this.secret, nonce })) === tokenHash;
   }
 
   private writeNonce({ documentId, role }: { documentId: string; role: ShareLinkRole }): void {

@@ -32,6 +32,10 @@ export function documentApiPath({ documentId, resource }: { documentId: string; 
   return `${base}/${resource}`;
 }
 
+export function sharePagePath(token: string): string {
+  return `${AppRoute.Share.replace(':token', encodeURIComponent(token))}`;
+}
+
 export function shareLinkAcceptPath(token: string): string {
   return `${ApiPath.ShareLinks}/${encodeURIComponent(token)}/accept`;
 }

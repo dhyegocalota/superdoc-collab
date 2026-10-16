@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
-const TITLE_MAX_LENGTH = 200;
+export const TITLE_MAX_LENGTH = 200;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;

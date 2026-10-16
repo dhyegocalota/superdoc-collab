@@ -8,6 +8,7 @@ import {
   MAX_UPLOAD_BYTES,
   NOT_A_DOCX_MESSAGE,
   RoomMode,
+  TITLE_MAX_LENGTH,
   titleSchema,
   UNTITLED_DOCUMENT_TITLE,
   UPLOAD_FIELD,
@@ -33,7 +34,7 @@ const ASCII_FALLBACK_CHARACTER = '_';
 const HEX_RADIX = 16;
 
 function titleFromFileName(fileName: string): string {
-  const title = basename(fileName).replace(DOCX_EXTENSION_PATTERN, '').trim();
+  const title = basename(fileName).replace(DOCX_EXTENSION_PATTERN, '').trim().slice(0, TITLE_MAX_LENGTH).trim();
   if (!title) return UNTITLED_DOCUMENT_TITLE;
   return title;
 }
@@ -79,9 +80,7 @@ export function createDocumentsRoutes(services: AppServices): Hono<SignedIn> {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
     if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-    const title = titleSchema.safeParse({ title: titleFromFileName(file.name) });
-    if (!title.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
-    return storeDocument({ context, bytes, title: title.data.title, importRevisions: true });
+    return storeDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
   });
 
   routes.get('/:documentId', (context) => {

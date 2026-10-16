@@ -75,7 +75,18 @@ export class TopicsService {
 
   private start({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
     const outcome = this.worker.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
-    if (outcome === JobOutcome.Busy) this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
+    if (outcome !== JobOutcome.Busy) return;
+    if (this.keepsReadyTopics({ previous: this.repository.status(documentId), isRefresh })) return;
+    this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
+  }
+
+  private keepsReadyTopics({ previous, isRefresh }: { previous: TopicStatus | null; isRefresh: boolean }): boolean {
+    return !isRefresh && previous !== null && previous.state === TopicState.Ready;
+  }
+
+  private settleBusy({ documentId, previous, isRefresh }: { documentId: string; previous: TopicStatus | null; isRefresh: boolean }): void {
+    if (this.keepsReadyTopics({ previous, isRefresh })) return this.repository.restoreStatus({ documentId, previous });
+    this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
   }
 
   private consumeCooldown({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
@@ -93,7 +104,7 @@ export class TopicsService {
     try {
       await this.recompute({ documentId, model: choice.model, previous, isRefresh });
     } catch (error) {
-      if (error instanceof LanguageModelBusyError) return this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
+      if (error instanceof LanguageModelBusyError) return this.settleBusy({ documentId, previous, isRefresh });
       console.error(`${TOPICS_COMPUTE_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
       this.repository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
     }

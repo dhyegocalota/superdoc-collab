@@ -50,7 +50,6 @@ export class SummariesService {
     this.lastRuns.set(documentId, Date.now());
     const outcome = this.worker.run({ key: summariesKey(documentId), job: () => this.summarize({ documentId, stale, pipeline, computedAtSequence }) });
     if (outcome !== JobOutcome.Busy) return;
-    this.lastRuns.delete(documentId);
     console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
   }
 
@@ -81,7 +80,6 @@ export class SummariesService {
     const choice = this.languageModel;
     if (choice.availability === LanguageModelAvailability.Unavailable) return;
     if (!this.worker.consumeCall()) {
-      this.lastRuns.delete(documentId);
       console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
       return;
     }

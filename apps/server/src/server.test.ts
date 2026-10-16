@@ -6,6 +6,8 @@ import { describe, expect, test } from 'vitest';
 import { startServer } from './server';
 import { testEnvironment } from './testing/test-server';
 
+const RESTART_CREDENTIALS = { name: 'Eva', email: 'eva@example.com', password: 'superdoc-demo' };
+
 function createWebDistDirectory(): string {
   const webDistDirectory = mkdtempSync(join(tmpdir(), 'web-dist-'));
   writeFileSync(join(webDistDirectory, 'index.html'), '<html><body>app</body></html>');
@@ -54,5 +56,19 @@ describe('startServer', () => {
     const response = await fetch(urlOf({ port: running.port, path: ApiPath.Health }));
     expect(await response.json()).toEqual({ status: 'ok' });
     await running.stop();
+  });
+
+  test('a session cookie survives a restart on the same database directory', async () => {
+    const environment = testEnvironment();
+    const first = await startServer({ environment, webDistDirectory: null });
+    const headers = { 'content-type': 'application/json' };
+    await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-up/email` }), { method: 'POST', headers, body: JSON.stringify(RESTART_CREDENTIALS) });
+    const signedIn = await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-in/email` }), { method: 'POST', headers, body: JSON.stringify({ email: RESTART_CREDENTIALS.email, password: RESTART_CREDENTIALS.password }) });
+    const cookie = signedIn.headers.getSetCookie().map((setCookie) => setCookie.split(';')[0]).join('; ');
+    await first.stop();
+    const second = await startServer({ environment, webDistDirectory: null });
+    const me = await fetch(urlOf({ port: second.port, path: ApiPath.Me }), { headers: { cookie } });
+    await second.stop();
+    expect(await me.json()).toEqual({ user: { id: expect.any(String), name: RESTART_CREDENTIALS.name, email: RESTART_CREDENTIALS.email } });
   });
 });

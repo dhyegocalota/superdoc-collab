@@ -2,6 +2,8 @@ import { Hocuspocus } from '@hocuspocus/server';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 
+const UNAUTHENTICATED_SOCKET_TIMEOUT_MS = 10_000;
+
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
 
 export type CollaborationContext = { userId: string };
@@ -15,6 +17,7 @@ export class CollaborationAuthenticationError extends Error {
 export function createCollaborationServer({ auth }: { auth: Auth }): Hocuspocus {
   return new Hocuspocus({
     quiet: true,
+    timeout: UNAUTHENTICATED_SOCKET_TIMEOUT_MS,
     async onAuthenticate({ requestHeaders }): Promise<CollaborationContext> {
       const cookie = requestHeaders.cookie;
       if (!cookie) throw new CollaborationAuthenticationError();

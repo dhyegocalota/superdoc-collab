@@ -1,4 +1,4 @@
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath, HttpStatus } from '@superdoc-history/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { startTestServer, type TestServer } from '../testing/test-server';
 
@@ -37,8 +37,22 @@ describe('sign-up, sign-in and me', () => {
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: cookieOf(signedIn) } });
     expect(await me.json()).toEqual({ user: { id: expect.any(String), name: 'Ana', email: 'ana@example.com' } });
   });
-  test('me without a session is 401', async () => {
-    expect((await fetch(`${server.baseUrl}${ApiPath.Me}`)).status).toBe(401);
+  test('me without a session returns a null user', async () => {
+    const response = await fetch(`${server.baseUrl}${ApiPath.Me}`);
+    expect(response.status).toBe(HttpStatus.Ok);
+    expect(await response.json()).toEqual({ user: null });
+  });
+  test.each([
+    ['a one-character name', { name: 'A', email: 'short@example.com', password: 'superdoc-demo' }],
+    ['a blank name', { name: '   ', email: 'blank@example.com', password: 'superdoc-demo' }],
+  ])('sign-up with %s is a bad request', async (_label, body) => {
+    const response = await signUp(body);
+    expect(response.status).toBe(HttpStatus.BadRequest);
+    expect(await response.text()).not.toContain('name');
+  });
+  test('sign-in with a seven-character password is a bad request', async () => {
+    const response = await signIn({ body: { email: credentials.email, password: '1234567' } });
+    expect(response.status).toBe(HttpStatus.BadRequest);
   });
   test('normalizes email case and whitespace', async () => {
     const response = await signIn({ body: { email: '  ANA@example.com ', password: credentials.password } });
@@ -47,7 +61,7 @@ describe('sign-up, sign-in and me', () => {
   test('wrong password and unknown email return the same status and body', async () => {
     const wrongPassword = await signIn({ body: { email: credentials.email, password: 'definitely-wrong' } });
     const unknownEmail = await signIn({ body: { email: 'nobody@example.com', password: 'definitely-wrong' } });
-    expect(wrongPassword.status).toBe(401);
+    expect(wrongPassword.status).toBe(HttpStatus.Unauthorized);
     expect(wrongPassword.status).toBe(unknownEmail.status);
     expect(await wrongPassword.text()).toBe(await unknownEmail.text());
   });

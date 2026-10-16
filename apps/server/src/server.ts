@@ -2,7 +2,7 @@ import { serve, type ServerType } from '@hono/node-server';
 import type { Hono } from 'hono';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath, HttpStatus } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationServer } from './collaboration/collaboration-server';
@@ -13,7 +13,6 @@ import { createApp } from './http/app';
 import { mountStaticWeb } from './http/static-web';
 
 const NOT_FOUND_MESSAGE = 'Not found';
-const NOT_FOUND_STATUS = 404;
 
 export type RunningServer = { httpServer: ServerType; port: number; auth: Auth; database: AuthDatabase; stop: () => Promise<void> };
 
@@ -38,7 +37,7 @@ export async function startServer({ environment, webDistDirectory }: { environme
   const auth = createAuth({ database, environment });
   const app = createApp({ auth, environment });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
-  app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, NOT_FOUND_STATUS));
+  app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
   const httpServer = await listen({ app, port: environment.port });
   const { port } = httpServer.address() as AddressInfo;
   const hocuspocus = createCollaborationServer({ auth });

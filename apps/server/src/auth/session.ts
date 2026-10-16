@@ -1,6 +1,5 @@
+import type { SessionUser } from '@superdoc-history/types';
 import type { Auth } from './auth';
-
-export type SessionUser = { id: string; name: string; email: string };
 
 export async function readSession({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionUser | null> {
   const session = await auth.api.getSession({ headers });

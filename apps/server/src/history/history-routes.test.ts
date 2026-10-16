@@ -9,6 +9,7 @@ import * as Y from 'yjs';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { insertedBy, readEvents } from '../testing/events-client';
+import { commitBulkEvents } from '../testing/timeline-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
@@ -106,5 +107,44 @@ test('a batch committed between the cursor and the events read stays out of both
   });
   const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie: owner.cookie } });
   expect(((await response.json()) as DocumentEditEvents).cursor).toBe(SETTLED_SEQUENCE);
+  await server.stop();
+});
+
+const DEFAULT_PAGE_EVENTS = 500;
+const BULK_EVENT_COUNT = 1200;
+
+async function fetchEventsPage({ server, documentId, cookie, query }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string; cookie: string; query: string }): Promise<Response> {
+  return fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}?${query}`, { headers: { cookie } });
+}
+
+test('events default to a 500-event page', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: BULK_EVENT_COUNT });
+  const page = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: '' })).json()) as DocumentEditEvents;
+  expect(page.events).toHaveLength(DEFAULT_PAGE_EVENTS);
+  expect(page.nextAfterSequence).toBe(DEFAULT_PAGE_EVENTS);
+  await server.stop();
+});
+
+async function sequencesFollowing({ server, documentId, cookie, afterSequence }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string; cookie: string; afterSequence: number }): Promise<number[]> {
+  const page = (await (await fetchEventsPage({ server, documentId, cookie, query: `limit=1&afterSequence=${afterSequence}` })).json()) as DocumentEditEvents;
+  const sequences = page.events.map((event) => event.sequence);
+  if (page.nextAfterSequence === null) return sequences;
+  return [...sequences, ...(await sequencesFollowing({ server, documentId, cookie, afterSequence: page.nextAfterSequence }))];
+}
+
+test('events page on a sequence boundary', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: 6, eventsPerSequence: 2, blockCount: 6 });
+  const first = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: 'limit=1' })).json()) as DocumentEditEvents;
+  expect(first.events.map((event) => event.sequence)).toEqual([1, 1]);
+  expect(first.nextAfterSequence).toBe(1);
+  expect(await sequencesFollowing({ server, documentId, cookie: owner.cookie, afterSequence: 0 })).toEqual([1, 1, 2, 2, 3, 3]);
+  await server.stop();
+});
+
+test.each(['limit=0', 'limit=-1', 'limit=501', 'limit=abc'])('events reject %s', async (query) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  expect((await fetchEventsPage({ server, documentId, cookie: owner.cookie, query })).status).toBe(HttpStatus.BadRequest);
   await server.stop();
 });

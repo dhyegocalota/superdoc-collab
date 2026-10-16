@@ -155,7 +155,7 @@ test('two hours of history choose two-minute bins', async () => {
 
 test('forgetting a document drops its cached pipeline', () => {
   const cache = new TimelinePipelineCache();
-  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedBlockCount: 0 };
+  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [] };
   Array.from({ length: 2 }).forEach(() => cache.get({ documentId: 'd1', key: 'k', build: () => pipeline }));
   expect(cache.builds).toBe(1);
   cache.forget('d1');

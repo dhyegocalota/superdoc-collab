@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
-import { connectToDocument, documentWithOwner, memberWithRole } from './collaboration-client';
+import { connectToDocument, documentWithOwner, memberWithRole, type CollaborationClient } from './collaboration-client';
 import { readEvents } from './events-client';
 import type { TestServer, TestUser } from './test-server';
 
@@ -58,7 +58,7 @@ export function commitBulkEvents({ server, documentId, userId, count, startIndex
   sqlite.close();
 }
 
-export async function storyWithBlocks({ languageModel, texts }: { languageModel?: LanguageModelChoice; texts: string[] }) {
+export async function storyWithBlocks({ languageModel, texts }: { languageModel?: LanguageModelChoice; texts: string[] }): Promise<{ server: TestServer; documentId: string; owner: TestUser; client: CollaborationClient }> {
   const { server, documentId, owner } = await documentWithOwner({ languageModel });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts });

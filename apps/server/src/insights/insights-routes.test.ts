@@ -55,3 +55,31 @@ test('a refresh while a run is in flight returns 202 without a second model call
   client.close();
   await server.stop();
 });
+
+test('a second editor on the same document inside the cooldown is 429 with Retry-After', async () => {
+  const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
+  await server.services.insights.worker.idle();
+  const second = await refresh({ server, documentId, cookie: editor.cookie });
+  expect(second.status).toBe(HttpStatus.TooManyRequests);
+  expect(Number(second.headers.get('retry-after'))).toBeGreaterThan(0);
+  client.close();
+  await server.stop();
+});
+
+test('the same user refreshing again while the run is in flight gets 202, then 429 once it ends', async () => {
+  let open: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  const model = gatedModel({ gate, answer: { topics: [{ name: 'Budget', blockIds: ['b0'] }] } });
+  const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
+  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
+  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
+  open();
+  await server.services.insights.worker.idle();
+  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.TooManyRequests);
+  client.close();
+  await server.stop();
+});

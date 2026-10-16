@@ -1,5 +1,6 @@
 import { DocumentRole, type TopicSummary } from '@superdoc-history/types';
 import { writeStory } from '@superdoc-history/history/testing';
+import type { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, expect, test, vi } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
@@ -13,7 +14,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function twoTopicDocument() {
+async function twoTopicDocument(): Promise<Awaited<ReturnType<typeof storyWithBlocks>> & { model: MockLanguageModelV4 }> {
   const stored: { topicId: string; sentence: string }[] = [];
   const model = modelAnsweringWith(() => ({ summaries: stored }));
   const story = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget', 'Hiring'] });

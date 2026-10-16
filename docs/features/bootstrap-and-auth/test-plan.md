@@ -35,6 +35,7 @@ Environment for the Playwright MCP walk: `pnpm build && WEB_DIST_DIR=apps/web/di
 - [ ] WebSocket `/collaboration` with a valid session cookie → provider `onAuthenticated`
 - [ ] WebSocket `/collaboration` without cookie → provider `onAuthenticationFailed`, socket closed, no reconnect storm (at most one attempt in the test log)
 - [ ] WebSocket `/collaboration` with a cookie whose session row was deleted → `onAuthenticationFailed`
+- [ ] Static serving cannot escape the dist directory: `GET /../package.json`, `GET /%2e%2e/package.json` and `GET /static/../../.env` → 404 or `index.html`, never file contents from outside `WEB_DIST_DIR`; a deep route `GET /documents/abc` → `index.html`
 - [ ] WebSocket upgrade on any other path (`/ws`, `/api/auth`) → socket destroyed, server keeps serving HTTP afterwards
 
 ## E2E (Playwright specs, `pnpm test:e2e`)

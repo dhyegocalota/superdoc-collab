@@ -55,7 +55,7 @@ G1 first (Tasks 1). Then G2 (Tasks 2–6) ∥ G3 (Tasks 7–8), both importing `
 **Interfaces:**
 - Produces: package `@superdoc-history/types` exporting `AppRoute`, `ApiPath`, `signInSchema`, `signUpSchema`, `SignInInput`, `SignUpInput`, `DEMO_USERS`, `PASSWORD_MIN_LENGTH`, `AUTH_ERROR_MESSAGE`.
 
-- [ ] **Step 1: Root files**
+- [x] **Step 1: Root files**
 
 `package.json`
 ```json
@@ -87,7 +87,7 @@ DATABASE_DIR=./data
 DEMO_PASSWORD=superdoc-demo
 ```
 
-- [ ] **Step 2: Failing test for the shared schemas**
+- [x] **Step 2: Failing test for the shared schemas**
 
 `libs/types/src/auth.test.ts`
 ```ts
@@ -111,9 +111,9 @@ describe('signUpSchema', () => {
 });
 ```
 
-- [ ] **Step 3: Run it, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./auth`.
+- [x] **Step 3: Run it, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./auth`.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `libs/types/src/routes.ts`
 ```ts
@@ -160,11 +160,13 @@ export const DEMO_USERS: readonly DemoUser[] = [
 ```
 `libs/types/src/index.ts` re-exports the three files. `libs/types/package.json`: name `@superdoc-history/types`, `"type": "module"`, `"exports": { ".": "./src/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, dependencies `zod 4.6.7`, devDependencies `vitest 5.0.5`.
 
-- [ ] **Step 5: Run it, expect pass** — same command → 3 passed. `pnpm typecheck` clean.
+- [x] **Step 5: Run it, expect pass** — same command → 3 passed. `pnpm typecheck` clean.
 
-- [ ] **Step 6: Commit** — `git add package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json .nvmrc .npmrc .env.example libs/types` · `chore(workspace): add the pnpm workspace and shared types`
+- [x] **Step 6: Commit** — `git add package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json .nvmrc .npmrc .env.example libs/types` · `chore(workspace): add the pnpm workspace and shared types`
 
 ---
+
+_Done — evidence: commit 8ce70b3; task review clean_
 
 ### Task 2: Server configuration and database (G2)
 
@@ -176,7 +178,7 @@ export const DEMO_USERS: readonly DemoUser[] = [
 **Interfaces:**
 - Produces: `loadEnvironment(source: NodeJS.ProcessEnv): Environment` with `Environment = { port: number; appOrigin: string; authSecret: string; databaseDirectory: string }`; `MissingEnvironmentVariableError`; `openDatabase({ directory, fileName }): AuthDatabase` where `AuthDatabase = { sqlite: Database; drizzle: BetterSQLite3Database<typeof authSchema> }`; `runMigrations(database: AuthDatabase): void`; `DatabaseDirectoryNotWritableError`; `AUTH_DATABASE_FILE = 'auth.sqlite'`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `environment.test.ts`
 ```ts
@@ -233,9 +235,9 @@ describe('openDatabase', () => {
 });
 ```
 
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit` → FAIL: modules not found.
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit` → FAIL: modules not found.
 
-- [ ] **Step 3: Implement configuration**
+- [x] **Step 3: Implement configuration**
 
 `environment.ts`
 ```ts
@@ -266,11 +268,11 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
 }
 ```
 
-- [ ] **Step 4: Generate the Better Auth schema for Drizzle, then the migration**
+- [x] **Step 4: Generate the Better Auth schema for Drizzle, then the migration**
 
 Create a minimal `apps/server/src/auth/auth.ts` placeholder is **not** allowed; instead run the CLI against a config file: `apps/server/better-auth.config.ts` exporting `betterAuth({ database: drizzleAdapter(drizzle(new Database(':memory:')), { provider: 'sqlite' }), emailAndPassword: { enabled: true } })`, then `pnpm --filter @superdoc-history/server exec better-auth generate --config better-auth.config.ts --output src/database/schema/auth.ts` (package `@better-auth/cli@1.4.21` as a devDependency). Commit the generated `schema/auth.ts` as is. `drizzle.config.ts`: `{ dialect: 'sqlite', schema: './src/database/schema/*.ts', out: './drizzle' }`. Run `pnpm --filter @superdoc-history/server exec drizzle-kit generate` and commit `drizzle/0000_*.sql` and `drizzle/meta/`.
 
-- [ ] **Step 5: Implement connection and migrations**
+- [x] **Step 5: Implement connection and migrations**
 
 `connection.ts`
 ```ts
@@ -320,11 +322,13 @@ export function runMigrations(database: AuthDatabase): void {
 ```
 `apps/server/package.json`: name `@superdoc-history/server`, `"type": "module"`, scripts `dev: tsx watch src/main.ts`, `build: tsc -p tsconfig.build.json`, `start: node dist/main.js`, `typecheck: tsc --noEmit`, `test:unit: vitest run`, `seed: tsx src/seed.ts`; dependencies `hono 4.13.13`, `@hono/node-server 2.1.5`, `better-auth 1.7.10`, `drizzle-orm 0.45.4`, `better-sqlite3 13.0.3`, `@hocuspocus/server 2.15.3`, `yjs 13.6.33`, `ws 8.22.0`, `zod 4.6.7`, `@superdoc-history/types workspace:*`; devDependencies `drizzle-kit 0.31.11`, `@better-auth/cli 1.4.21`, `@types/better-sqlite3 9.6.0`, `@types/ws 8.18.2`, `@types/node`, `tsx 4.23.15`, `vitest 5.0.5`, `@hocuspocus/provider 2.15.3` (tests only).
 
-- [ ] **Step 6: Run, expect pass** — 7 tests pass. `pnpm typecheck` clean.
+- [x] **Step 6: Run, expect pass** — 7 tests pass. `pnpm typecheck` clean.
 
-- [ ] **Step 7: Commit** — `feat(server): add validated configuration and the auth database with migrations`
+- [x] **Step 7: Commit** — `feat(server): add validated configuration and the auth database with migrations`
 
 ---
+
+_Done — evidence: commits 890dbb4, 8566a7f, 29da170, 57a1be3; fix round 1 re-review clean_
 
 ### Task 3: Better Auth and the HTTP app (G2)
 
@@ -337,7 +341,7 @@ export function runMigrations(database: AuthDatabase): void {
 - Consumes: `loadEnvironment`, `openDatabase`, `runMigrations`, `signInSchema`, `signUpSchema`, `AUTH_ERROR_MESSAGE`, `ApiPath`.
 - Produces: `createAuth({ database, environment }): Auth` (Better Auth instance); `readSession({ auth, headers }): Promise<SessionUser | null>` with `SessionUser = { id: string; name: string; email: string }`; `createApp({ auth }): Hono`; `startTestServer(): Promise<TestServer>` with `{ baseUrl, auth, database, stop() }` on port 0.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `app.test.ts` (real HTTP, `fetch`, cookie jar by hand)
 ```ts
@@ -423,9 +427,9 @@ describe('readSession', () => {
 });
 ```
 
-- [ ] **Step 2: Run, expect failure** — modules not found.
+- [x] **Step 2: Run, expect failure** — modules not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `auth.ts`
 ```ts
@@ -515,11 +519,13 @@ export async function startTestServer(): Promise<TestServer> {
 ```
 If swapping the request listener proves awkward, start the server **after** creating `auth` with a port chosen by binding a throwaway `net` server first; the test contract (random port, same origin for `baseURL`) is what matters, not the trick.
 
-- [ ] **Step 4: Run, expect pass** — 9 tests pass.
+- [x] **Step 4: Run, expect pass** — 9 tests pass.
 
-- [ ] **Step 5: Commit** — `feat(server): add Better Auth with rate limiting, health and me endpoints`
+- [x] **Step 5: Commit** — `feat(server): add Better Auth with rate limiting, health and me endpoints`
 
 ---
+
+_Done — evidence: commits 42a0495, db6fe44, c6fedd2; fix round 1 re-review clean_
 
 ### Task 4: Server entry point and static web serving (G2)
 
@@ -530,7 +536,7 @@ If swapping the request listener proves awkward, start the server **after** crea
 **Interfaces:**
 - Produces: `startServer({ environment, webDistDirectory }): Promise<RunningServer>` with `{ httpServer, port, auth, database, stop() }`; `testEnvironment(): Environment` in `testing/test-server.ts` (port 0, temporary `DATABASE_DIR`, 32-character secret); `WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR'` (optional; when set, the server serves that directory with SPA fallback to `index.html` for non-`/api` paths).
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 test('serves the SPA fallback for an app route when WEB_DIST_DIR is set', async () => {
@@ -551,9 +557,9 @@ test('api 404 is json, not the SPA', async () => {
 });
 ```
 
-- [ ] **Step 2: Run, expect failure.**
+- [x] **Step 2: Run, expect failure.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `static-web.ts`: `serveStatic` from `@hono/node-server/serve-static` with `root: webDistDirectory`, then a final `app.get('*')` that returns `index.html` for paths not starting with `/api`; `app.notFound` returns `{ error: 'Not found' }` JSON for `/api/*`. `server.ts`:
 ```ts
@@ -570,9 +576,11 @@ export async function startServer({ environment, webDistDirectory }: { environme
 ```
 `main.ts`: `loadEnvironment(process.env)`, `webDistDirectory = process.env[WEB_DIST_ENVIRONMENT_VARIABLE] ?? null` is **not** allowed by the conventions; write `readOptionalWebDistDirectory(source)` that returns `string | null` explicitly with an `if`. Log one line `listening on :<port>`. Handle `SIGTERM` → `stop()`.
 
-- [ ] **Step 4: Run, expect pass.** — [ ] **Step 5: Commit** — `feat(server): add the entry point with SPA serving`
+- [x] **Step 4: Run, expect pass.** — [ ] **Step 5: Commit** — `feat(server): add the entry point with SPA serving`
 
 ---
+
+_Done — evidence: commit 526ef7d; task review approved_
 
 ### Task 5: Collaboration socket authenticated by the session cookie (G2)
 
@@ -585,7 +593,7 @@ export async function startServer({ environment, webDistDirectory }: { environme
 - Consumes: `readSession`, `ApiPath.Collaboration`.
 - Produces: `createCollaborationServer({ auth }): Hocuspocus` with `onAuthenticate` resolving `{ userId }` from the upgrade request's `cookie` header; `attachCollaboration({ httpServer, hocuspocus, path })` using a `ws` `WebSocketServer({ noServer: true })` and the HTTP `upgrade` event, calling `hocuspocus.handleConnection(socket, request)`. `CollaborationContext = { userId: string }`. Constant `COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie'` (Hocuspocus 2 runs `onAuthenticate` only when the client sends a non-empty token; the real credential is the cookie).
 
-- [ ] **Step 1: Failing test** (provider from `@hocuspocus/provider` 2.15.3 in Node with a `ws` polyfill that injects the cookie)
+- [x] **Step 1: Failing test** (provider from `@hocuspocus/provider` 2.15.3 in Node with a `ws` polyfill that injects the cookie)
 
 ```ts
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -639,9 +647,9 @@ describe('collaboration authentication', () => {
 ```
 Add `signInAndGetCookie({ server, credentials })` to `testing/test-server.ts` (sign-up then sign-in, return the cookie pair string). `startTestServer` now also attaches the collaboration server.
 
-- [ ] **Step 2: Run, expect failure.**
+- [x] **Step 2: Run, expect failure.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `collaboration-server.ts`
 ```ts
@@ -688,11 +696,13 @@ export function attachCollaboration({ httpServer, hocuspocus, path }: { httpServ
 ```
 `request.url ?? '/'` is the one allowed boundary use: Node types it optional, and the URL is required for routing; keep it, the reviewer knows why. Hocuspocus 2.15.3 exposes `requestHeaders` as Node `IncomingHttpHeaders`; the `cookie` field is a string or undefined.
 
-- [ ] **Step 4: Run, expect pass** (three tests). The "rejects a missing cookie" case must finish within the provider's first attempt; configure the test provider with `maxAttempts: 1` if it retries.
+- [x] **Step 4: Run, expect pass** (three tests). The "rejects a missing cookie" case must finish within the provider's first attempt; configure the test provider with `maxAttempts: 1` if it retries.
 
-- [ ] **Step 5: Commit** — `feat(server): authenticate the collaboration socket with the session cookie`
+- [x] **Step 5: Commit** — `feat(server): authenticate the collaboration socket with the session cookie`
 
 ---
+
+_Done — evidence: commits 9615dce, 8796758; fix round 1 re-review clean (Critical ws error crash fixed, Origin check added)_
 
 ### Task 6: Seed script (G2)
 
@@ -704,7 +714,7 @@ export function attachCollaboration({ httpServer, hocuspocus, path }: { httpServ
 - Consumes: `DEMO_USERS`, `createAuth`.
 - Produces: `seedDemoUsers({ auth, database, password }): Promise<SeedResult>` with `{ created: string[]; existing: string[] }`; `MissingDemoPasswordError`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 ```ts
 test('creates the four demo users once and reports them as existing afterwards', async () => {
   const server = await startTestServer();
@@ -722,11 +732,13 @@ test('a seeded user can sign in with the demo password', async () => {
   await server.stop();
 });
 ```
-- [ ] **Step 2: Run, expect failure.**
-- [ ] **Step 3: Implement**: look up each email in `user` through Drizzle (`eq(authSchema.user.email, email)`); when absent call `auth.api.signUpEmail({ body: { name, email, password } })`. `seed.ts` loads the environment, reads `DEMO_PASSWORD` (throw `MissingDemoPasswordError` when absent), opens and migrates the database, runs the seed, prints the two lists and exits 0.
-- [ ] **Step 4: Run, expect pass.** — [ ] **Step 5: Commit** — `feat(server): add the idempotent demo user seed`
+- [x] **Step 2: Run, expect failure.**
+- [x] **Step 3: Implement**: look up each email in `user` through Drizzle (`eq(authSchema.user.email, email)`); when absent call `auth.api.signUpEmail({ body: { name, email, password } })`. `seed.ts` loads the environment, reads `DEMO_PASSWORD` (throw `MissingDemoPasswordError` when absent), opens and migrates the database, runs the seed, prints the two lists and exits 0.
+- [x] **Step 4: Run, expect pass.** — [ ] **Step 5: Commit** — `feat(server): add the idempotent demo user seed`
 
 ---
+
+_Done — evidence: commit eed192c; task review approved; CLI verified end to end_
 
 ### Task 7: Web app scaffold, design tokens and auth flow (G3)
 
@@ -741,11 +753,11 @@ test('a seeded user can sign in with the demo password', async () => {
 - Consumes: `AppRoute`, `ApiPath`, `signInSchema`, `signUpSchema`, `AUTH_ERROR_MESSAGE`.
 - Produces: `useSession(): { user: SessionUser | null; isLoading: boolean }` (query key `['me']`); `RequireSession` route wrapper; `safeNextPath(raw: string | null): string`; `authClient` from `better-auth/react` `createAuthClient({ baseURL: window.location.origin })`.
 
-- [ ] **Step 1: Scaffold** — `pnpm create vite apps/web --template react-ts` adjusted to the base tsconfig; add `@tailwindcss/vite`, `tailwindcss 4.3.3`, `react-router 8.4.0`, `@tanstack/react-query 5.104.3`, `react-hook-form 7.90.0`, `@hookform/resolvers 5.9.1`, `better-auth 1.7.10` (client), `@superdoc-history/types workspace:*`; devDependencies `vitest 5.0.5`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`. `vite.config.ts` proxies `/api` and `/collaboration` (with `ws: true`) to `http://localhost:3000`. `components.json` for shadcn with `tailwind.css: src/styles/globals.css`, style `new-york`, base colour `neutral`.
+- [x] **Step 1: Scaffold** — `pnpm create vite apps/web --template react-ts` adjusted to the base tsconfig; add `@tailwindcss/vite`, `tailwindcss 4.3.3`, `react-router 8.4.0`, `@tanstack/react-query 5.104.3`, `react-hook-form 7.90.0`, `@hookform/resolvers 5.9.1`, `better-auth 1.7.10` (client), `@superdoc-history/types workspace:*`; devDependencies `vitest 5.0.5`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`. `vite.config.ts` proxies `/api` and `/collaboration` (with `ws: true`) to `http://localhost:3000`. `components.json` for shadcn with `tailwind.css: src/styles/globals.css`, style `new-york`, base colour `neutral`.
 
-- [ ] **Step 2: Design tokens (ADR 0009)** in `globals.css`: shadcn's default neutral token set with the accent (`--primary`) set to a blue close to the SuperDoc editor's, `font-family: Inter, system-ui, sans-serif` loaded from a self-hosted `@fontsource-variable/inter` (no Google Fonts CDN: no third-party services), `.dark` block present with the inverted neutrals. No component sets a raw colour.
+- [x] **Step 2: Design tokens (ADR 0009)** in `globals.css`: shadcn's default neutral token set with the accent (`--primary`) set to a blue close to the SuperDoc editor's, `font-family: Inter, system-ui, sans-serif` loaded from a self-hosted `@fontsource-variable/inter` (no Google Fonts CDN: no third-party services), `.dark` block present with the inverted neutrals. No component sets a raw colour.
 
-- [ ] **Step 3: Failing tests**
+- [x] **Step 3: Failing tests**
 
 `safe-next-path.test.ts`
 ```ts
@@ -760,9 +772,9 @@ test.each([
 ```
 `sign-in-page.test.tsx`: renders `SignInPage` inside a `MemoryRouter` and `QueryClientProvider`; typing an invalid email and submitting shows the zod message; submitting valid credentials calls a mocked `authClient.signIn.email` once with the trimmed lowercase email; a 401 response shows `AUTH_ERROR_MESSAGE` and nothing more specific.
 
-- [ ] **Step 4: Run, expect failure.**
+- [x] **Step 4: Run, expect failure.**
 
-- [ ] **Step 5: Implement**
+- [x] **Step 5: Implement**
 
 `safe-next-path.ts`
 ```ts
@@ -777,22 +789,26 @@ export function safeNextPath(raw: string | null): string {
 ```
 `use-session.ts`: `useQuery({ queryKey: ['me'], queryFn: fetchMe, retry: false })` where `fetchMe` returns `null` on 401 and the user on 200. `require-session.tsx`: renders children when `user`, a skeleton while loading, `<Navigate to={AppRoute.SignIn + '?next=' + encodeURIComponent(location.pathname + location.search)} replace />` otherwise. `sign-in-page.tsx` and `sign-up-page.tsx`: `react-hook-form` + `zodResolver(signInSchema)`; on success `queryClient.invalidateQueries({ queryKey: ['me'] })` then `navigate(safeNextPath(searchParams.get('next')))`; on 401 set a form-level error `AUTH_ERROR_MESSAGE`; on 429 show `Too many attempts. Try again in ${retryAfter} seconds.` from the `X-Retry-After` header. `sign-out-button.tsx`: `authClient.signOut()` then invalidate `['me']` and navigate to `AppRoute.SignIn`. `documents-page.tsx`: header with the user's name and the sign-out button, an empty state card "No documents yet" (slice 2 fills it). `router.tsx`: `createBrowserRouter` with `/` → redirect to `AppRoute.Documents`, the two auth routes, and `AppRoute.Documents` wrapped in `RequireSession`.
 
-- [ ] **Step 6: Run, expect pass** — unit tests green; `pnpm --filter @superdoc-history/web build` produces `dist/`.
+- [x] **Step 6: Run, expect pass** — unit tests green; `pnpm --filter @superdoc-history/web build` produces `dist/`.
 
-- [ ] **Step 7: Commit** — `feat(web): add the app shell, design tokens and the sign-in flow`
+- [x] **Step 7: Commit** — `feat(web): add the app shell, design tokens and the sign-in flow`
 
 ---
+
+_Done — evidence: commit f046a51; task review approved_
 
 ### Task 8: Narrow-width and empty-state polish (G3)
 
 **Files:**
 - Modify: `apps/web/src/features/auth/sign-in-page.tsx`, `sign-up-page.tsx`, `apps/web/src/routes/documents-page.tsx`
 
-- [ ] **Step 1:** Forms centred in a `max-w-sm` card on desktop, full width with 16 px gutters under 640 px; focus rings visible; the submit button shows a pending state and is disabled while the request is in flight; `Enter` submits.
-- [ ] **Step 2:** Verify with `pnpm --filter @superdoc-history/web dev` at 1280 px and 375 px (developer visual check; the tester proves it with Playwright MCP).
-- [ ] **Step 3: Commit** — `feat(web): make the auth screens responsive`
+- [x] **Step 1:** Forms centred in a `max-w-sm` card on desktop, full width with 16 px gutters under 640 px; focus rings visible; the submit button shows a pending state and is disabled while the request is in flight; `Enter` submits.
+- [x] **Step 2:** Verify with `pnpm --filter @superdoc-history/web dev` at 1280 px and 375 px (developer visual check; the tester proves it with Playwright MCP).
+- [x] **Step 3: Commit** — `feat(web): make the auth screens responsive`
 
 ---
+
+_Done — evidence: commits 03a713a, 9f24463; fix round 1 re-review clean_
 
 ### Task 9: End-to-end specs (G4)
 
@@ -803,7 +819,7 @@ export function safeNextPath(raw: string | null): string {
 - Consumes: the built web served by the server (`WEB_DIST_DIR=apps/web/dist`), `pnpm seed`.
 - Produces: `webServer` config that builds web, starts the server on 3100 with a temporary `DATABASE_DIR`, seeds, and waits for `/api/health`; fixtures `signedInPage(user)`.
 
-- [ ] **Step 1: Specs**
+- [x] **Step 1: Specs**
 ```ts
 test('a new user signs up and lands on documents', async ({ page }) => { /* visit /sign-up, fill, submit, expect heading "No documents yet" and the name in the header */ });
 test('wrong password shows one generic message', async ({ page }) => { /* expect text AUTH_ERROR_MESSAGE, and no "user not found" anywhere */ });
@@ -813,23 +829,27 @@ test('two users in two contexts see their own names', async ({ browser }) => { /
 test('the fourth failed attempt shows the retry message', async ({ page }) => {});
 test('narrow viewport keeps the form usable', async ({ page }) => { /* viewport 375×812, no horizontal scroll, submit visible */ });
 ```
-- [ ] **Step 2: Run** — `pnpm test:e2e` → 7 passed. Keep each spec independent: unique emails per test, seeded users only read.
-- [ ] **Step 3: Commit** — `test(e2e): cover sign-up, sign-in, protection, sign-out and two users`
+- [x] **Step 2: Run** — `pnpm test:e2e` → 7 passed. Keep each spec independent: unique emails per test, seeded users only read.
+- [x] **Step 3: Commit** — `test(e2e): cover sign-up, sign-in, protection, sign-out and two users`
 
 ---
+
+_Done — evidence: commits d34df6f (web fix found by the specs), 3f1e686; 7/7 twice; task review approved_
 
 ### Task 10: Docker image and Compose (G4)
 
 **Files:**
 - Create: `docker/Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml`, `.dockerignore`
 
-- [ ] **Step 1: Dockerfile** — stage `build`: `node:24-bookworm-slim`, corepack pnpm 8.15.9, `pnpm install --frozen-lockfile`, `pnpm build` (web then server); stage `runtime`: same base, copy `apps/server/dist`, `apps/server/drizzle`, `apps/web/dist`, production `node_modules` (`pnpm deploy --prod --filter @superdoc-history/server /app`), `WEB_DIST_DIR=/app/web`, `DATABASE_DIR=/data`, `USER node`, `HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1))"`. better-sqlite3's prebuilt binary matches `node:24` on linux x64 and arm64; the build stage runs `pnpm rebuild better-sqlite3` only when the prebuilt download fails.
-- [ ] **Step 2: entrypoint.sh** — runs the seed when `SEED_DEMO_USERS=true`, then `node dist/main.js`.
-- [ ] **Step 3: docker-compose.yml** — one service `app`, `ports: ["3000:3000"]`, `env_file: .env`, volume `history-data:/data`, `healthcheck` mirroring the Dockerfile.
-- [ ] **Step 4: Verify** — `docker compose up --build -d`, `curl -f localhost:3000/api/health`, `curl -s localhost:3000/sign-in | grep -q '<div id="root">'`, `docker compose down`.
-- [ ] **Step 5: Commit** — `chore(docker): add the single-image build and compose`
+- [x] **Step 1: Dockerfile** — stage `build`: `node:24-bookworm-slim`, corepack pnpm 8.15.9, `pnpm install --frozen-lockfile`, `pnpm build` (web then server); stage `runtime`: same base, copy `apps/server/dist`, `apps/server/drizzle`, `apps/web/dist`, production `node_modules` (`pnpm deploy --prod --filter @superdoc-history/server /app`), `WEB_DIST_DIR=/app/web`, `DATABASE_DIR=/data`, `USER node`, `HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1))"`. better-sqlite3's prebuilt binary matches `node:24` on linux x64 and arm64; the build stage runs `pnpm rebuild better-sqlite3` only when the prebuilt download fails.
+- [x] **Step 2: entrypoint.sh** — runs the seed when `SEED_DEMO_USERS=true`, then `node dist/main.js`.
+- [x] **Step 3: docker-compose.yml** — one service `app`, `ports: ["3000:3000"]`, `env_file: .env`, volume `history-data:/data`, `healthcheck` mirroring the Dockerfile.
+- [x] **Step 4: Verify** — `docker compose up --build -d`, `curl -f localhost:3000/api/health`, `curl -s localhost:3000/sign-in | grep -q '<div id="root">'`, `docker compose down`.
+- [x] **Step 5: Commit** — `chore(docker): add the single-image build and compose`
 
 ---
+
+_Done — evidence: commit 5394766; task review approved (image inspected: drizzle next to dist, prebuilt sqlite, /data owned by node)_
 
 ### Task 11: CI, README and tester briefing (G4)
 

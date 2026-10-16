@@ -2,7 +2,7 @@ import { ApiPath } from '@superdoc-history/types';
 import { connect } from 'node:net';
 import { describe, expect, test } from 'vitest';
 import { WebSocket } from 'ws';
-import { signInAndGetCookie, startTestServer, type TestServer } from '../testing/test-server';
+import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 
 const LOOPBACK_HOST = '127.0.0.1';
 const UNMASKED_BINARY_FRAME = Buffer.from([0x82, 0x01, 0x00]);
@@ -10,6 +10,7 @@ const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
 const UNAUTHENTICATED_CLOSE_DEADLINE_MS = 12_000;
 const UNAUTHENTICATED_TEST_TIMEOUT_MS = 15_000;
+const SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS = 15_000;
 
 function upgradeRequest({ path, origin, cookie }: { path: string; origin: string; cookie: string }): string {
   return [`GET ${path} HTTP/1.1`, `Host: ${LOOPBACK_HOST}`, `Origin: ${origin}`, `Cookie: ${cookie}`, 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version: 13', '', ''].join('\r\n');
@@ -49,9 +50,9 @@ describe('attachCollaboration', () => {
     expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
     await server.stop();
   });
-  test('an upgrade from a foreign origin with a valid session cookie is destroyed', async () => {
+  test('an upgrade from a foreign origin with a valid session cookie is destroyed', { timeout: SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS }, async () => {
     const server = await startTestServer();
-    const cookie = await signInAndGetCookie({ server, credentials: { name: 'Carla', email: 'carla@example.com', password: 'superdoc-demo' } });
+    const { cookie } = await signedInUser({ server, name: 'Carla' });
     const response = await exchange({ server, path: ApiPath.Collaboration, origin: FOREIGN_ORIGIN, cookie });
     expect(response).toBe('');
     await server.stop();

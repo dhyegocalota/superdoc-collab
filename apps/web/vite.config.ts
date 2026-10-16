@@ -14,5 +14,6 @@ export default defineConfig({
       '/collaboration': { target: SERVER_ORIGIN, ws: true },
     },
   },
-  build: { outDir: 'dist' },
+  build: { outDir: 'dist', target: 'esnext' },
+  optimizeDeps: { esbuildOptions: { target: 'esnext' } },
 });

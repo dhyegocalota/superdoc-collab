@@ -1,8 +1,9 @@
 import { ApiPath, AppRoute } from '@superdoc-history/types';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './database/connection';
 import { startServer } from './server';
 import { testEnvironment } from './testing/test-server';
 
@@ -70,5 +71,12 @@ describe('startServer', () => {
     const me = await fetch(urlOf({ port: second.port, path: ApiPath.Me }), { headers: { cookie } });
     await second.stop();
     expect(await me.json()).toEqual({ user: { id: expect.any(String), name: RESTART_CREDENTIALS.name, email: RESTART_CREDENTIALS.email } });
+  });
+  test('fails with a named error when the documents directory is not writable', async () => {
+    const environment = testEnvironment();
+    const documentsDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
+    mkdirSync(documentsDirectory);
+    chmodSync(documentsDirectory, 0o500);
+    await expect(startServer({ environment, webDistDirectory: null })).rejects.toThrow(DatabaseDirectoryNotWritableError);
   });
 });

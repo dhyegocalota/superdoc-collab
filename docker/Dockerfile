@@ -16,6 +16,7 @@ COPY --from=build /workspace/deploy/node_modules ./node_modules
 COPY --from=build /workspace/deploy/package.json ./package.json
 COPY --from=build /workspace/apps/server/dist ./dist
 COPY --from=build /workspace/apps/server/drizzle ./drizzle
+COPY --from=build /workspace/libs/history/drizzle ./libs/history/drizzle
 COPY --from=build /workspace/apps/web/dist ./web
 COPY docker/entrypoint.sh ./entrypoint.sh
 RUN mkdir /data && chown node:node /data && chmod +x entrypoint.sh

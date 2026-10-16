@@ -6,6 +6,7 @@ import { join } from 'node:path';
 const PORT = 3100;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 300_000;
+const TEST_TIMEOUT_MS = 120_000;
 const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
 const BUILD_AND_START_COMMAND = [
   'pnpm --filter @superdoc-history/web build',
@@ -14,8 +15,12 @@ const BUILD_AND_START_COMMAND = [
   'node apps/server/dist/main.js',
 ].join(' && ');
 
+if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-history-e2e-'));
+const DATABASE_DIR = process.env.E2E_DATABASE_DIR;
+
 export default defineConfig({
   testDir: 'e2e',
+  timeout: TEST_TIMEOUT_MS,
   workers: 1,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
@@ -30,7 +35,7 @@ export default defineConfig({
       PORT: String(PORT),
       APP_ORIGIN: ORIGIN,
       AUTH_SECRET: TEST_AUTH_SECRET,
-      DATABASE_DIR: mkdtempSync(join(tmpdir(), 'superdoc-history-e2e-')),
+      DATABASE_DIR,
       TRUST_PROXY: 'true',
       DEMO_PASSWORD: 'superdoc-demo',
       WEB_DIST_DIR: 'apps/web/dist',

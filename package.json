@@ -14,5 +14,11 @@
     "seed": "pnpm --filter @superdoc-history/server seed",
     "verify": "pnpm typecheck && pnpm test:unit && pnpm test:e2e"
   },
-  "devDependencies": { "@playwright/test": "1.64.1", "@types/node": "24.19.2", "typescript": "7.0.2" }
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "24.19.2",
+    "better-sqlite3": "13.0.3",
+    "typescript": "7.0.2"
+  }
 }

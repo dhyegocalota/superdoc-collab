@@ -6,7 +6,7 @@ import { expect, test, vi } from 'vitest';
 import { apiGet } from '@/lib/api';
 import { routes } from './router';
 
-vi.mock('@/lib/api', () => ({ apiGet: vi.fn() }));
+vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 
 test('an unknown path redirects to documents and then to sign-in when signed out', async () => {
   vi.mocked(apiGet).mockResolvedValue(new Response(JSON.stringify({ user: null })));

@@ -1,0 +1,25 @@
+{
+  "name": "@superdoc-history/history",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "generate": "drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts"
+  },
+  "dependencies": {
+    "@superdoc-history/types": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "diff": "8.0.4",
+    "drizzle-orm": "0.45.4",
+    "jszip": "3.10.2",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "vitest": "5.0.5"
+  }
+}

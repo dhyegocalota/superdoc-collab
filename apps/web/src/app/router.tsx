@@ -1,10 +1,12 @@
 import { AppRoute } from '@superdoc-history/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { DocumentPage } from '@/features/editor/document-page';
 import { RedirectIfSession } from '@/features/auth/redirect-if-session';
 import { RequireSession } from '@/features/auth/require-session';
 import { SignInPage } from '@/features/auth/sign-in-page';
 import { SignUpPage } from '@/features/auth/sign-up-page';
-import { DocumentsPage } from '@/routes/documents-page';
+import { DocumentsPage } from '@/features/documents/documents-page';
+import { ShareLandingPage } from '@/features/sharing/share-landing-page';
 
 const UNKNOWN_PATH = '*';
 
@@ -31,6 +33,22 @@ export const routes: RouteObject[] = [
     element: (
       <RequireSession>
         <DocumentsPage />
+      </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.Document,
+    element: (
+      <RequireSession>
+        <DocumentPage />
+      </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.Share,
+    element: (
+      <RequireSession>
+        <ShareLandingPage />
       </RequireSession>
     ),
   },

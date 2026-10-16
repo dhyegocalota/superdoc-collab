@@ -3,11 +3,12 @@ import { MINUTE_MS, type TopicSummaries } from '@superdoc-history/types';
 import { describeError } from '../history/projection-messages';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
-import type { InsightsWorker } from './insights-worker';
+import { JobOutcome, type InsightsWorker } from './insights-worker';
 import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
 import { SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
 
 export const SUMMARY_MIN_INTERVAL_MS = MINUTE_MS;
+export const SUMMARIES_BUSY_MESSAGE = 'Skipped summarizing topics, the language model is busy, for document';
 export const SUMMARIES_FAILED_MESSAGE = 'Summarizing topics failed for document';
 const SUMMARY_RUN_BIN_MS = 60 * MINUTE_MS;
 
@@ -47,7 +48,10 @@ export class SummariesService {
     if (stale.length === 0) return;
     const computedAtSequence = pipeline.events.reduce((latest, event) => Math.max(latest, event.sequence), 0);
     this.lastRuns.set(documentId, Date.now());
-    this.worker.run({ key: summariesKey(documentId), job: () => this.summarize({ documentId, stale, pipeline, computedAtSequence }) });
+    const outcome = this.worker.run({ key: summariesKey(documentId), job: () => this.summarize({ documentId, stale, pipeline, computedAtSequence }) });
+    if (outcome !== JobOutcome.Busy) return;
+    this.lastRuns.delete(documentId);
+    console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
   }
 
   private staleTopics({ documentId, topics, pipeline }: { documentId: string; topics: StoredTopic[]; pipeline: TimelinePipeline }): StaleTopic[] {

@@ -1,4 +1,4 @@
-import { DocumentRole, HttpStatus, VERSION_FAILED_ERROR, VERSION_NOT_READY_ERROR, versionCollaborationPath, type VersionMarks, type VersionSummary, type VersionText } from '@superdoc-history/types';
+import { DocumentRole, HttpStatus, TimelineQueryParam, VERSION_FAILED_ERROR, VERSION_NOT_READY_ERROR, versionCollaborationPath, type VersionMarks, type VersionSummary, type VersionText } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
@@ -20,7 +20,7 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
   routes.get('/:documentId/versions', (context) => {
     const documentId = context.req.param('documentId');
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
-    const parsed = aroundSchema.safeParse(context.req.query('around'));
+    const parsed = aroundSchema.safeParse(context.req.query(TimelineQueryParam.Around));
     if (!parsed.success) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const around = parsed.data;
     const marks = services.readModel.marks(documentId);

@@ -4,8 +4,8 @@ import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import { describeError } from '../history/projection-messages';
 import type { InsightsRepository } from './insights-repository';
-import type { InsightsWorker } from './insights-worker';
-import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
+import { JobOutcome, type InsightsWorker } from './insights-worker';
+import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type LanguageModelChoice } from './llm-client';
 import { TOPICS_SYSTEM_PROMPT, topicsPrompt } from './prompts';
 
 export const UNKNOWN_TOPIC_BLOCKS_MESSAGE = 'The model named block ids that are not in the document, for document';
@@ -72,7 +72,8 @@ export class TopicsService {
   }
 
   private start({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
-    this.worker.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
+    const outcome = this.worker.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
+    if (outcome === JobOutcome.Busy) this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
   }
 
   private consumeCooldown({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {

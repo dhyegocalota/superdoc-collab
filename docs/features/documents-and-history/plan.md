@@ -15,7 +15,7 @@
 - Share URLs must be shown again while only a hash is stored: a link row keeps a 32-byte random `nonce` and `sha256(token)`; the token is `base64url(HMAC-SHA256(AUTH_SECRET, nonce))`. Rotate replaces the nonce.
 - `edit_events` stores raw facts, not authors: `yjs_client_ids` (JSON array) and `connection_user_id` of the update that produced the event. The `/events` route resolves authors at read time with the POC's `resolveAuthorIds` over the current `client_identities`, so a declaration that arrives after projection still corrects the author (ADR 0002). An event can have several authors (a relayed update). Imported rows store null client ids and connection user plus a non-null `author_name`.
 - A membership role is what was recorded at accept time; a stronger link upgrades, never downgrades; rotation only invalidates the link.
-- `roomMode` is `join` as soon as the log holds any update for the document. SuperDoc documents that `'create' never joins an existing room`, so a late creator fails to connect instead of resetting the room.
+- `roomMode` is `join` only once the log holds a committed bootstrap (`findBootstrapSequence` finds `meta.bootstrapState === 'committed'`, spec Data flow), `create` otherwise. Only the owner and editors may create: a reader opening a document whose room was never created gets 409 `{ error: DOCUMENT_NOT_READY_ERROR }` and the page says "The owner has not opened this document yet." SuperDoc documents that `'create' never joins an existing room`, so a late creator fails to connect instead of resetting the room.
 - Online presence comes from the room's authenticated connections (`connection.context.userId`), not from client-declared awareness.
 - File names follow the repo's kebab-case (`documents-repository.ts`), not the spec layout's dotted names.
 
@@ -42,18 +42,21 @@
 
 | Group | Owner | Paths |
 |---|---|---|
-| G1 shared types + history library | developer A | `libs/types/**`, `libs/history/**` |
-| G2 server documents, sharing, storage | developer B | `apps/server/src/{documents,database,http}/**`, `apps/server/drizzle/**`, `apps/server/package.json`, `apps/server/src/server.ts`, `apps/server/src/testing/**` |
-| G3 server collaboration + projection | developer B | `apps/server/src/{collaboration,history}/**`, `apps/server/tsup.config.ts` |
-| G4 web | developer C | `apps/web/**` |
-| G5 e2e + docs | developer A | `e2e/**`, `playwright.config.ts`, `docker/**`, `README.md`, `docs/features/documents-and-history/tester-briefing.md`, `docs/features/README.md` |
+| G1 shared types, history library, dependencies | developer A | `libs/types/**`, `libs/history/**`, root `package.json`, `pnpm-lock.yaml`, and the dependency blocks of `apps/server/package.json` and `apps/web/package.json` (Task 1 only) |
+| G2 server | developer B | `apps/server/**` except the dependency blocks: `src/{documents,database,http,collaboration,history,testing}/**`, `src/server.ts`, `drizzle/**`, `tsup.config.ts`, `drizzle.config.ts` |
+| G3 web | developer C | `apps/web/**` except its dependency block |
+| G4 e2e + docs | developer A | `e2e/**`, `playwright.config.ts`, `docker/**`, `README.md`, `docs/features/documents-and-history/tester-briefing.md`, `docs/features/README.md` |
+
+Every G2 task (5–9) modifies `apps/server/src/server.ts`, `apps/server/src/http/app.ts` and `apps/server/src/testing/test-server.ts`; one developer owns them in order, so there is no shared-file conflict.
 
 ## Sequencing
 
-Task 0 is done: all four spike facts held and the plan is written for them, with no conditional steps. Task 1 first: everyone imports its enums and API types. Then three lanes in parallel:
+Task 0 is done: all four spike facts held and the plan is written for them, with no conditional steps. Task 1 first: it lands every dependency of the slice with one `pnpm install` and the shared contracts; no later task runs `pnpm add`. Then:
 - A: Tasks 2 → 3 → 4, then Task 12 (after B and C) → 13.
-- B: Task 5 → 6 → 7 → 8 → 9, strictly in that order. Task 5 only needs Task 1; Task 6 waits for A's Task 3 (`UpdateLog`); Task 7 waits for Task 4 (`ReadModel`, `projectPending`). G3 sits in the middle of G2 on purpose: the document routes (Task 8) need the runtime that Task 7 builds (room mode, presence, history deletion, imported revisions), and Tasks 5–9 all edit `server.ts`, `test-server.ts` and `createApp`'s services, so a fourth developer on G3 would only add merge conflicts while waiting on the same G1 dependencies.
-- C: Tasks 10 → 11 against the Task 1 contracts.
+- C (web): starts right after Task 1; Tasks 10 → 11 against the Task 1 contracts.
+- B (server): starts after Task 3, because Task 5 needs `MigrationSet`, `HISTORY_MIGRATIONS_PATH` and `runMigrationSet`; then Task 5 → 6 → 7 → 8 → 9, strictly in that order, while A builds Task 4 in parallel. Task 7 waits for Task 4 (`ReadModel`, `projectPending`). The server is one group on one developer: the document routes (Task 8) need the runtime Task 7 builds, and every server task edits `server.ts`, `http/app.ts` and `testing/test-server.ts`.
+
+Red first, per HARNESS → Build: every task from 1 to 11 commits its failing tests alone in a `test(<scope>): …` commit before the implementation commit, so the red state is provable with `git show <sha>`.
 
 Then Z.
 
@@ -61,20 +64,26 @@ Then Z.
 
 ### Task 0: Spike (done)
 
-- [x] **Step 1:** Read `spike.md` (commit 735a927). All four facts held and the plan below is written for them, with no open branches: the web passes `user: { id, name, email }` and the server declares a client when the awareness `userId` equals `context.userId` (Task 6, Task 11); joiners pass a valid blank DOCX, never the real file and never an empty blob, and `create` passes the stored file (Task 11); readers get `connection.readOnly = true` and `documentMode: 'viewing'`, and the read-only badge comes from our `role` (Task 6, Task 11); the update log binds `Uint8Array` as is and reads with `new Uint8Array(row.update_bytes)` (Task 3). Each fact keeps a regression test: Task 3 `binds a Uint8Array…`, Task 6 `an awareness userId equal to the socket user declares the identity`, Task 12 `identities are declared from awareness` and `a reader cannot type but sees live edits`. — evidence: spike.md, commit 735a927
+- [x] **Step 1:** Read `spike.md` (commit 735a927). All four facts held and the plan below is written for them, with no open branches: the web passes `user: { id, name, email }` and the server declares a client when the awareness `userId` equals `context.userId` (Task 6, Task 11); joiners pass a valid blank DOCX, never the real file and never an empty blob, and `create` passes the stored file (Task 11); readers get `connection.readOnly = true` and `documentMode: 'viewing'`, and the read-only badge comes from our `role` (Task 6, Task 11); the update log binds `Uint8Array` as is and reads with `new Uint8Array(row.update_bytes)` (Task 3). Each fact keeps a regression test: Task 3 `binds a Uint8Array as is and stores identical bytes`, Task 6 `an awareness userId equal to the socket user declares the identity`, Task 12 `identities are declared from awareness` and `a reader cannot type but sees live edits`. — evidence: spike.md, commit 735a927
 
 ---
 
 ### Task 1: Shared enums, constants and API types (G1)
 
 **Files:**
-- Create: `libs/types/src/documents.ts`, `libs/types/src/history.ts`
-- Modify: `libs/types/src/routes.ts`, `libs/types/src/http.ts`, `libs/types/src/index.ts`
+- Create: `libs/types/src/documents.ts`, `libs/types/src/history.ts`, `libs/history/{package.json,tsconfig.json,vitest.config.ts}`, `libs/history/src/index.ts` (empty until Task 2)
+- Modify: `libs/types/src/routes.ts`, `libs/types/src/http.ts`, `libs/types/src/index.ts`, `package.json` (root), `apps/server/package.json`, `apps/web/package.json`, `pnpm-lock.yaml`
 - Test: `libs/types/src/documents.test.ts`
 
 **Interfaces:**
-- Produces: `DocumentRole`, `ShareLinkRole`, `RoomMode`, `BlockChangeKind`, `DOCUMENT_ROLE_RANK`, `SHARE_LINK_GRANTS`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_MEGABYTES`, `DOCX_MIME_TYPE`, `DOCX_EXTENSION`, `UPLOAD_FIELD`, `UPLOAD_TOO_LARGE_MESSAGE`, `NOT_A_DOCX_MESSAGE`, `INVALID_SHARE_LINK_MESSAGE`, `TIMELINE_PLACEHOLDER_MESSAGE`, `UNTITLED_DOCUMENT_TITLE`, `COLLABORATION_TOKEN_PLACEHOLDER`, `titleSchema`; types `UserReference`, `DocumentSummary`, `DocumentsList`, `OpenedDocument`, `DocumentMember`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `EventAuthor`, `DocumentEditEvent`, `DocumentEditEvents`; `AppRoute.Document`, `AppRoute.Share`, `ApiPath.Documents`, `ApiPath.ShareLinks`, `DocumentResource`, `documentPagePath(documentId)`, `documentApiPath({ documentId, resource? })`, `shareLinkAcceptPath(token)`; `HttpStatus.Created | NoContent | Forbidden | PayloadTooLarge | UnsupportedMediaType`; `HttpMethod`.
+- Produces: `DocumentRole`, `ShareLinkRole`, `RoomMode`, `BlockChangeKind`, `DOCUMENT_ROLE_RANK`, `SHARE_LINK_GRANTS`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_MEGABYTES`, `DOCX_MIME_TYPE`, `DOCX_EXTENSION`, `UPLOAD_FIELD`, `UPLOAD_TOO_LARGE_MESSAGE`, `NOT_A_DOCX_MESSAGE`, `INVALID_SHARE_LINK_MESSAGE`, `TIMELINE_PLACEHOLDER_MESSAGE`, `UNTITLED_DOCUMENT_TITLE`, `COLLABORATION_TOKEN_PLACEHOLDER`, `DOCUMENT_NOT_READY_ERROR`, `DOCUMENT_NOT_READY_MESSAGE`, `DOCUMENT_UNAVAILABLE_MESSAGE`, `READ_ONLY_BADGE_LABEL`, `LINK_COPIED_MESSAGE`, `titleSchema`; types `UserReference`, `DocumentSummary`, `DocumentsList`, `OpenedDocument`, `DocumentMember`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `EventAuthor`, `DocumentEditEvent`, `DocumentEditEvents`; `AppRoute.Document`, `AppRoute.Share`, `ApiPath.Documents`, `ApiPath.ShareLinks`, `DocumentResource`, `documentPagePath(documentId)`, `documentApiPath({ documentId, resource? })`, `shareLinkAcceptPath(token)`; `HttpStatus.Created | NoContent | Forbidden | Conflict | PayloadTooLarge | UnsupportedMediaType`; `HttpMethod`; the package `@superdoc-history/history` (empty) and every dependency of the slice, installed.
 
+- [ ] **Step 0: Dependencies, one install** — resolve the two floating majors once: `pnpm view diff@^8 version | tail -1` and `pnpm view jszip@^3 version | tail -1`, and pin what they print, exactly. Then write, all exact:
+  - `libs/history/package.json`: name `@superdoc-history/history`, `"type": "module"`, `"exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, `generate: drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts`; dependencies `@superdoc-history/types workspace:*`, `better-sqlite3 13.0.3`, `drizzle-orm 0.45.4`, `yjs 13.6.33`, `diff <resolved 8.x>`, `jszip <resolved 3.x>`; devDependencies `@types/better-sqlite3 9.6.0`, `drizzle-kit 0.31.11`, `tsx 4.23.15`, `vitest 5.0.5` (`diff` 8 ships its own types, so no `@types/diff`; add it only if `tsc` reports a missing declaration). `tsconfig.json` and `vitest.config.ts` copy `libs/types`'s.
+  - `apps/server/package.json` dependencies: `@superdoc-history/history workspace:*`, `@superdoc/sdk 2.20.0`; devDependencies: `jszip <resolved 3.x>`.
+  - `apps/web/package.json` dependencies: `superdoc 2.23.0`, `@hocuspocus/provider 2.15.3`, `yjs 13.6.33`.
+  - root `package.json` devDependencies: `better-sqlite3 13.0.3`, `@types/better-sqlite3 9.6.0` (the E2E identity check reads `history.sqlite`).
+  Run `pnpm install` once; `pnpm-lock.yaml` changes in this task only.
 - [ ] **Step 1: Failing test** — `libs/types/src/documents.test.ts`
 ```ts
 describe('documents contracts', () => {
@@ -92,7 +101,7 @@ describe('documents contracts', () => {
   });
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./documents`.
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./documents`. Commit the failing tests alone: `test(types): pin the documents and history contracts`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — `documents.ts`
 ```ts
 import { z } from 'zod';
@@ -111,6 +120,11 @@ export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid';
 export const TIMELINE_PLACEHOLDER_MESSAGE = 'The timeline arrives in the next release';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
+export const DOCUMENT_NOT_READY_ERROR = 'NOT_READY';
+export const DOCUMENT_NOT_READY_MESSAGE = 'The owner has not opened this document yet.';
+export const DOCUMENT_UNAVAILABLE_MESSAGE = 'This document is no longer available';
+export const READ_ONLY_BADGE_LABEL = 'Read only';
+export const LINK_COPIED_MESSAGE = 'Link copied';
 
 export enum DocumentRole { Owner = 'owner', Editor = 'editor', Reader = 'reader' }
 export enum ShareLinkRole { Edit = 'edit', Read = 'read' }
@@ -154,16 +168,16 @@ export function shareLinkAcceptPath(token: string): string {
   return `${ApiPath.ShareLinks}/${encodeURIComponent(token)}/accept`;
 }
 ```
-`http.ts`: add `Created = 201`, `NoContent = 204`, `Forbidden = 403`, `PayloadTooLarge = 413`, `UnsupportedMediaType = 415`, and `export enum HttpMethod { Get = 'GET', Post = 'POST', Patch = 'PATCH', Delete = 'DELETE' }`. `index.ts` re-exports `./documents` and `./history`.
+`http.ts`: add `Created = 201`, `NoContent = 204`, `Forbidden = 403`, `Conflict = 409`, `PayloadTooLarge = 413`, `UnsupportedMediaType = 415`, and `export enum HttpMethod { Get = 'GET', Post = 'POST', Patch = 'PATCH', Delete = 'DELETE' }`. `index.ts` re-exports `./documents` and `./history`.
 - [ ] **Step 4: Run, expect pass** — 8 passed; `pnpm typecheck` clean.
-- [ ] **Step 5: Commit** — `feat(types): add documents, sharing and history contracts`
+- [ ] **Step 5: Commit** — `chore(deps): add the slice dependencies and the history package` (Step 0) and `feat(types): add documents, sharing and history contracts`
 
 ---
 
 ### Task 2: `libs/history` package and the pure POC modules (G1)
 
 **Files:**
-- Create: `libs/history/{package.json,tsconfig.json,vitest.config.ts}`, `libs/history/src/index.ts`
+- Modify: `libs/history/src/index.ts`
 - Create (lifted): `libs/history/src/{document-content,edit-windows,single-flight,edit-events,document-history,seed-docx,docx-signature}.ts`
 - Test: `libs/history/src/{edit-windows,single-flight,docx-signature}.test.ts`
 
@@ -171,7 +185,7 @@ export function shareLinkAcceptPath(token: string): string {
 - Consumes: `BlockChangeKind`.
 - Produces: `readMainStoryBlocks(document: Y.Doc): Block[]`, `readMainStoryText(document)`, `groupIntoWindows({ events, rules }): EditWindow[]`, `SingleFlight<Value>`, `EditEvent = { sequence; serverTime; authorIds: string[]; blockId; kind: BlockChangeKind; inserted; deleted }` (resolved, for windows), `ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` (raw, for storage), `projectEditEvents({ baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedEdit[]`, `resolveAuthorIds({ update, identities }: { update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>; identities: Map<number, string> }): string[]`, `findBootstrapSequence(updates: LoggedUpdate[]): number | null`, `TrackedChangeKind { Insert, Delete }`, `SeedParagraph`, `buildSeedDocx(paragraphs): Promise<Buffer>`, `isDocx(bytes: Uint8Array): Promise<boolean>`.
 
-- [ ] **Step 1: Scaffold** — `package.json`: name `@superdoc-history/history`, `"type": "module"`, `"exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, `generate: drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts`; dependencies `@superdoc-history/types workspace:*`, `better-sqlite3 13.0.3`, `drizzle-orm 0.45.4`, `yjs 13.6.33`; devDependencies `@types/better-sqlite3 9.6.0`, `drizzle-kit 0.31.11`, `vitest 5.0.5`. Then `pnpm --filter @superdoc-history/history add diff@^8 jszip@^3 --save-exact`. `tsconfig.json` and `vitest.config.ts` copy `libs/types`'s.
+- [ ] **Step 1: Package** — `libs/history` and its dependencies exist from Task 1; this task runs no `pnpm add`.
 - [ ] **Step 2: Lift unchanged** — `cp poc/lib/{document-content,edit-windows,single-flight}.ts libs/history/src/` and `cp poc/tests/node/{edit-windows,single-flight}.test.ts libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-history/types`.
 - [ ] **Step 3: Failing test** — `docx-signature.test.ts`
 ```ts
@@ -188,7 +202,7 @@ test.each([
   ['a truncated zip', async () => (await zipWith('word/document.xml')).slice(0, 40), false],
 ])('isDocx: %s → %s', async (_, bytes, expected) => expect(await isDocx(await bytes())).toBe(expected));
 ```
-- [ ] **Step 4: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./docx-signature`.
+- [ ] **Step 4: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./docx-signature`. Commit the failing tests alone: `test(history): pin docx detection and the lifted POC suites`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 5: Implement** — `docx-signature.ts`
 ```ts
 import JSZip from 'jszip';
@@ -238,6 +252,7 @@ export function projectEditEvents({ baselineState, updates }: { baselineState: U
 ### Task 3: Update log on better-sqlite3 with drizzle migrations (G1)
 
 **Files:**
+- Modify: `libs/history/src/index.ts`
 - Create: `libs/history/src/schema/history.ts`, `libs/history/src/migrations.ts`, `libs/history/src/update-log.ts`, `libs/history/src/testing/{index,test-database,room-fixtures}.ts`, `libs/history/drizzle.history.config.ts`, `libs/history/drizzle/history/` (generated)
 - Test: `libs/history/src/{relay-attribution,snapshots,update-log}.test.ts`
 
@@ -295,9 +310,12 @@ function logWith(count: number): UpdateLog {
   return log;
 }
 
-test('binds a Uint8Array and reads back a plain identical Uint8Array', () => {
-  const [stored] = logWith(1).read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER });
-  expect(stored!.update.constructor).toBe(Uint8Array);
+test('binds a Uint8Array as is and stores identical bytes', () => {
+  const sqlite = openTestDatabase({ set: MigrationSet.History });
+  const [input] = typedUpdates(1);
+  new UpdateLog(sqlite).append({ documentName: DOCUMENT, connectionUserId: 'ana', update: input! });
+  const row = sqlite.prepare('SELECT update_bytes FROM updates').get() as { update_bytes: Uint8Array };
+  expect(new Uint8Array(row.update_bytes)).toEqual(input);
 });
 test('compaction reads only the tail after the latest snapshot', () => {
   const log = logWith(25);
@@ -307,7 +325,7 @@ test('compaction reads only the tail after the latest snapshot', () => {
 });
 ```
 Also: `logWith(5).readBatch({ afterSequence: 1, limit: 2 })` returns sequences `[2, 3]`; after `forget(DOCUMENT)` on a log that also holds `'other'`, `hasUpdates(DOCUMENT)` is false, `clientIdentities(DOCUMENT).size` is 0 and `hasUpdates('other')` is true.
-- [ ] **Step 3: Run, expect failure** — FAIL: cannot find `./update-log`.
+- [ ] **Step 3: Run, expect failure** — FAIL: cannot find `./update-log`. Commit the failing tests alone: `test(history): pin the update log on better-sqlite3`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 4: Implement** — copy `poc/lib/update-log.ts`; delete the `node:sqlite` import, the constructor's `exec` block and `close()`; `import type Database from 'better-sqlite3'`, field `private readonly database: Database.Database`, `constructor(database: Database.Database) { this.database = database; }`. Bind the `Uint8Array` as is (spike fact 4). Extract the row mapping of `readRange` into `function toLoggedUpdate(row: UpdateRow): LoggedUpdate` (keeps `new Uint8Array(row.update_bytes)`). Add:
 ```ts
   readBatch({ documentName, afterSequence, limit }: { documentName: string; afterSequence: number; limit: number }): LoggedUpdate[] {
@@ -342,6 +360,7 @@ export function compact({ log, documentName, everyUpdates }: { log: UpdateLog; d
 ### Task 4: Read model, projection cursor and imported revisions mapping (G1)
 
 **Files:**
+- Modify: `libs/history/src/index.ts`
 - Create: `libs/history/src/schema/read-model.ts`, `libs/history/drizzle.read-model.config.ts`, `libs/history/drizzle/read-model/` (generated), `libs/history/src/{read-model,projection,imported-revisions}.ts`
 - Test: `libs/history/src/{projection,imported-revisions}.test.ts`
 
@@ -403,7 +422,7 @@ Also in `projection.test.ts`, each input → expected:
 - `forgetting a document clears its events and cursor`: `commit({ lastSequence: 3 })` then `forget` → `cursor` is `null`.
 
 `imported-revisions.test.ts`: the T10 item `{ id: 'r1', type: TrackedChangeType.Insertion, author: 'Ana Souza', date: '2026-03-01T18:30:00Z', insertedText: ' GDPR clause', deletedText: null, imported: true, navigationTarget: { blockId: '00000002' } }` maps to `{ revisionId: 'r1', authorName: 'Ana Souza', serverTime: Date.parse('2026-03-01T18:30:00Z'), blockId: '00000002', inserted: ' GDPR clause', deleted: '' }`; a deletion whose `deletedText` is `null` throws `MissingTrackedChangeTextError`.
-- [ ] **Step 3: Run, expect failure** — cannot find `./projection`, `./read-model`, `./imported-revisions`.
+- [ ] **Step 3: Run, expect failure** — cannot find `./projection`, `./read-model`, `./imported-revisions`. Commit the failing tests alone: `test(history): pin the projection cursor and the read model`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 4: Implement** — `read-model.ts`
 ```ts
 import type Database from 'better-sqlite3';
@@ -512,7 +531,7 @@ export function toImportedRevisions(items: ListedTrackedChange[]): ImportedRevis
 ### Task 5: Server databases, documents schema, repository, guards and file storage (G2)
 
 **Files:**
-- Modify: `apps/server/src/database/{connection,migrate,migrate.test,connection.test}.ts`, `apps/server/package.json` (`@superdoc-history/history workspace:*`, `@superdoc/sdk 2.20.0`, devDependency `jszip` at the same exact version as `libs/history`), `apps/server/src/server.ts`, `apps/server/src/testing/test-server.ts`
+- Modify: `apps/server/src/database/{connection,migrate,migrate.test,connection.test}.ts`, `apps/server/src/http/app.ts`, `apps/server/src/server.ts`, `apps/server/src/testing/test-server.ts`
 - Create: `apps/server/src/database/schema/documents.ts`, `apps/server/drizzle/0001_*.sql` (generated), `apps/server/src/documents/{documents-repository,require-document-role,file-storage,local-disk-file-storage}.ts`, `apps/server/src/http/require-user.ts`
 - Test: `apps/server/src/documents/{documents-repository,local-disk-file-storage}.test.ts`
 
@@ -546,7 +565,7 @@ Also in `documents-repository.test.ts`, each input → expected:
 - `removing a document cascades its members`: `remove(documentId)` → `findRole` is `null` for both users.
 
 `local-disk-file-storage.test.ts`: put then read returns identical bytes; `remove` of a missing id resolves; `pathOf('../auth')` throws `InvalidDocumentIdError`. `connection.test.ts`: the migrated auth file lists `documents`, `document_members`, `document_share_links`; `PRAGMA synchronous` returns `1` and `PRAGMA foreign_keys` returns `1` on an `openSqliteFile` handle. `migrate.test.ts` calls become `findMigrationsFolder({ startUrl: bundle, relativePath: 'drizzle' })`.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit`.
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit`. Commit the failing tests alone: `test(server): pin documents membership and file storage`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — `connection.ts`
 ```ts
 const BUSY_TIMEOUT_MS = 5000;
@@ -660,11 +679,11 @@ export function createLocalDiskFileStorage(directory: string): DocumentFileStora
 
 ---
 
-### Task 6: Collaboration hooks with membership, read-only and the update log (G3)
+### Task 6: Collaboration hooks with membership, read-only and the update log (G2)
 
 **Files:**
 - Create: `apps/server/src/collaboration/{room-name,client-declarations}.ts`, `apps/server/src/testing/collaboration-client.ts`
-- Modify: `apps/server/src/collaboration/collaboration-server.ts`, `apps/server/src/collaboration/collaboration-server.test.ts`, `apps/server/src/server.ts`
+- Modify: `apps/server/src/collaboration/collaboration-server.ts`, `apps/server/src/collaboration/collaboration-server.test.ts`, `apps/server/src/server.ts`, `apps/server/src/http/app.ts` (no route change; `services` gains `log`), `apps/server/src/testing/test-server.ts`
 - Test: `apps/server/src/collaboration/{room-name,collaboration-history}.test.ts`
 
 **Interfaces:**
@@ -684,7 +703,7 @@ test('reads the document id from the SuperDoc v2.1 room name and refuses any oth
 ```ts
 const ALL = Number.MAX_SAFE_INTEGER;
 
-test('a reader's update is acknowledged but never logged', async () => {
+test("a reader's update is acknowledged but never logged", async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const readerClient = await connectToDocument({ server, cookie: reader.cookie, documentId });
@@ -744,7 +763,7 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
 }
 ```
 `documentWithOwner` starts a test server, signs up a unique owner, creates the document through `services.documents.create`; `memberWithRole` signs up a unique user and calls `services.documents.grant`. The three slice 1 tests in `collaboration-server.test.ts` now connect through `connectToDocument` to a real document (`probe` is no longer a valid room).
-- [ ] **Step 2: Run, expect failure.**
+- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin socket membership, read-only and the log`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — `room-name.ts` (the only place that knows SuperDoc's prefix; a strict shape stops a member from opening `other/<id>`, a second room that would append to the same log)
 ```ts
 export const SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/';
@@ -841,20 +860,21 @@ export function createCollaborationServer({ auth, documents, log, onStored }: { 
 
 ---
 
-### Task 7: Projection worker, scheduler, runtime and the events route (G3)
+### Task 7: Projection worker, scheduler, runtime and the events route (G2)
 
 **Files:**
 - Create: `apps/server/src/history/{projection-messages,projection-worker,projection-scheduler,history-routes}.ts`, `apps/server/src/collaboration/collaboration-runtime.ts`
+- Create: `apps/server/src/testing/events-client.ts`
 - Modify: `apps/server/src/server.ts`, `apps/server/src/http/app.ts`, `apps/server/src/testing/test-server.ts`, `apps/server/tsup.config.ts`
 - Test: `apps/server/src/history/{projection-scheduler,history-routes}.test.ts`
 
 **Interfaces:**
-- Consumes: `projectPending`, `ReadModel`, `UpdateLog.clientIdentities`, `resolveAuthorIds`, `StoredEditEvent`, `toImportedRevisions`, `ListedTrackedChange`, `DocumentFileStorage.pathOf`, `requireUser`, `requireDocumentRole`, `DocumentsRepository.userNames`.
-- Produces: `ProjectionRequestKind { Project, Import, Forget }`, `ProjectionRequest` (discriminated union), `ProjectionReply = { kind; documentId; cursor: number | null }`; `ProjectionScheduler({ databaseDirectory })`: `schedule(documentId)`, `importRevisions({ documentId, filePath })`, `forget(documentId): Promise<void>`, `stop(): Promise<void>`, `currentWorker: Worker`; `DocumentRuntime = { roomMode(documentId): RoomMode; onlineUserIds(documentId): Set<string>; importRevisions(documentId): void; forget(documentId): Promise<void> }` and `createCollaborationRuntime({ hocuspocus, log, scheduler, storage })`; `createApp({ auth, environment, services })` with `AppServices`; `GET /api/documents/:id/events?afterSequence=N` → `DocumentEditEvents`; `services.readModel`, `services.scheduler`, `services.runtime`; test helpers `readEvents({ server, cookie, documentId })`, `insertedBy({ events, userId })`.
+- Consumes: `projectPending`, `findBootstrapSequence`, `ReadModel`, `UpdateLog.clientIdentities`, `resolveAuthorIds`, `StoredEditEvent`, `toImportedRevisions`, `ListedTrackedChange`, `DocumentFileStorage.pathOf`, `requireUser`, `requireDocumentRole`, `DocumentsRepository.userNames`.
+- Produces: `ProjectionRequestKind { Project, Import, Forget, Stop }`, `ProjectionRequest` (discriminated union), `ProjectionReply = { kind; documentId; cursor: number | null; importError: string | null }`, `IMPORT_TIMEOUT_MS = 30_000`, `IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document'`; `ProjectionScheduler({ databaseDirectory })`: `schedule(documentId)`, `importRevisions({ documentId, filePath })`, `forget(documentId): Promise<void>`, `stop(): Promise<void>`, `currentWorker: Worker`; `DocumentRuntime = { roomMode(documentId): RoomMode; onlineUserIds(documentId): Set<string>; importRevisions(documentId): void; forget(documentId): Promise<void> }` and `createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage })`; `createApp({ auth, environment, services })` with `AppServices`, `requireUser` mounted on `/api/documents`, `/api/documents/*` and `/api/share-links/*` only; `NOT_FOUND_MESSAGE` exported from `server.ts`; `GET /api/documents/:id/events?afterSequence=N` → `DocumentEditEvents`; `services.readModel`, `services.scheduler`, `services.runtime`; test helpers in `testing/events-client.ts`: `readEvents({ server, documentId, cookie }): Promise<DocumentEditEvent[]>` (the unwrapped `events` array) and `insertedBy({ events, userId }): string`.
 
 - [ ] **Step 1: Failing tests** — `history-routes.test.ts`
 ```ts
-test('events attribute each author's inserted text', async () => {
+test("events attribute each author's inserted text", async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
@@ -906,26 +926,49 @@ test('a terminated worker is restarted and completes without duplicates', async 
   await server.stop();
 });
 ```
-Also `scheduling a busy document coalesces into one rerun`: it spies `currentWorker.postMessage`, calls `schedule` five times before the first reply, and expects exactly two `Project` messages once the reply arrives.
-- [ ] **Step 2: Run, expect failure.**
+Also, each input → expected:
+- `scheduling a busy document coalesces into one rerun`: spy `currentWorker.postMessage`, call `schedule` five times before the first reply → exactly two `Project` messages once the reply arrives.
+- `a failed import is logged once and leaves the document usable`: spy `console.error`; `services.runtime.importRevisions(documentId)` twice for a document whose file was never stored, then `await services.scheduler.forget(randomUUID())` (the worker answers in order, so both import replies are settled) → exactly one `console.error` call, one string, single line, starting with `` `${IMPORT_FAILED_MESSAGE} ${documentId}: ` ``; `connectToDocument` still syncs; `readEvents` is `[]`.
+- `events survive a server restart`: after the two-author test's events exist, `stop()` and `startTestServer({ databaseDirectory })` → `readEvents` returns the same events with the same ids, and a new edit appears once, after them.
+- `stop ends the worker cleanly`: `await services.scheduler.stop()` → the worker's `exit` code is `0` and `currentWorker` is not respawned.
+
+`testing/events-client.ts`
+```ts
+export async function readEvents({ server, documentId, cookie }: { server: TestServer; documentId: string; cookie: string }): Promise<DocumentEditEvent[]> {
+  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie } });
+  if (!response.ok) throw new TestRequestFailedError({ path: DocumentResource.Events, status: response.status });
+  const body: DocumentEditEvents = await response.json();
+  return body.events;
+}
+
+export function insertedBy({ events, userId }: { events: DocumentEditEvent[]; userId: string }): string {
+  return events.filter((event) => event.authors.length === 1 && event.authors[0]?.id === userId).map((event) => event.inserted).join('');
+}
+```
+- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin the projection worker and read-time authors`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — `projection-messages.ts`
 ```ts
-export enum ProjectionRequestKind { Project = 'project', Import = 'import', Forget = 'forget' }
+export const IMPORT_TIMEOUT_MS = 30_000;
+export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document';
+
+export enum ProjectionRequestKind { Project = 'project', Import = 'import', Forget = 'forget', Stop = 'stop' }
 export type ProjectionRequest =
   | { kind: ProjectionRequestKind.Project; documentId: string }
   | { kind: ProjectionRequestKind.Import; documentId: string; filePath: string }
-  | { kind: ProjectionRequestKind.Forget; documentId: string };
-export type ProjectionReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null };
+  | { kind: ProjectionRequestKind.Forget; documentId: string }
+  | { kind: ProjectionRequestKind.Stop };
+export type ProjectionReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null; importError: string | null };
 export type ProjectionWorkerData = { databaseDirectory: string };
 ```
-`projection-worker.ts` (opens its own connections: read-only on the log, read-write on the read model; requests run strictly in order on one promise chain, which is the per-document single flight inside the thread)
+`projection-worker.ts` (opens its own connections: read-only on the log, read-write on the read model; requests run strictly in order on one promise chain, which is the per-document single flight inside the thread; the worker never logs, it reports import errors to the main thread)
 ```ts
 const port = parentPort;
 if (!port) throw new ProjectionWorkerContextError();
 const { databaseDirectory } = workerData as ProjectionWorkerData;
-const log = new UpdateLog(new Database(join(databaseDirectory, HISTORY_DATABASE_FILE), { readonly: true }));
-const readModel = new ReadModel(openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE }));
-const failedImports = new Set<string>();
+const historySqlite = new Database(join(databaseDirectory, HISTORY_DATABASE_FILE), { readonly: true });
+const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
+const log = new UpdateLog(historySqlite);
+const readModel = new ReadModel(readModelSqlite);
 let sdkConnection: Promise<SuperDocClient> | null = null;
 let queue = Promise.resolve();
 
@@ -940,32 +983,54 @@ function connectedSdk(): Promise<SuperDocClient> {
   return sdkConnection;
 }
 
-async function importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): Promise<void> {
+function withTimeout<Value>({ work, milliseconds }: { work: Promise<Value>; milliseconds: number }): Promise<Value> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new ImportTimeoutError(milliseconds)), milliseconds);
+    work.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
+async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
+  const opened = await (await connectedSdk()).open({ doc: filePath });
+  const listed = (await opened.trackChanges.list({})) as unknown as { items: ListedTrackedChange[] };
+  await opened.close({ discard: true });
+  return listed.items;
+}
+
+async function importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): Promise<string | null> {
   try {
-    const opened = await (await connectedSdk()).open({ doc: filePath });
-    const listed = (await opened.trackChanges.list({})) as unknown as { items: ListedTrackedChange[] };
-    await opened.close({ discard: true });
-    readModel.commitImported({ documentName: documentId, revisions: toImportedRevisions(listed.items) });
+    const items = await withTimeout({ work: listRevisions(filePath), milliseconds: IMPORT_TIMEOUT_MS });
+    readModel.commitImported({ documentName: documentId, revisions: toImportedRevisions(items) });
+    return null;
   } catch (error) {
-    if (failedImports.has(documentId)) return;
-    failedImports.add(documentId);
-    console.error(`Importing Word revisions failed for document ${documentId}`, error);
+    return String(error).replaceAll('\n', ' ');
   }
 }
 
-async function handle(request: ProjectionRequest): Promise<ProjectionReply> {
+async function handle(request: Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>): Promise<ProjectionReply> {
   const { kind, documentId } = request;
-  if (request.kind === ProjectionRequestKind.Import) await importRevisions(request);
+  if (request.kind === ProjectionRequestKind.Import) return { kind, documentId, cursor: readModel.cursor(documentId), importError: await importRevisions(request) };
   if (kind === ProjectionRequestKind.Forget) readModel.forget(documentId);
-  if (kind === ProjectionRequestKind.Project) return { kind, documentId, cursor: projectPending({ log, readModel, documentName: documentId }) };
-  return { kind, documentId, cursor: readModel.cursor(documentId) };
+  if (kind === ProjectionRequestKind.Project) return { kind, documentId, cursor: projectPending({ log, readModel, documentName: documentId }), importError: null };
+  return { kind, documentId, cursor: readModel.cursor(documentId), importError: null };
+}
+
+async function stopWorker(): Promise<void> {
+  if (sdkConnection) await sdkConnection.then((client) => client.dispose(), () => undefined);
+  historySqlite.close();
+  readModelSqlite.close();
+  process.exit(0);
 }
 
 port.on('message', (request: ProjectionRequest) => {
+  if (request.kind === ProjectionRequestKind.Stop) {
+    queue = queue.then(stopWorker);
+    return;
+  }
   queue = queue.then(async () => port.postMessage(await handle(request)));
 });
 ```
-`ProjectionWorkerContextError` is declared in `projection-messages.ts` (`super('The projection worker must run in a worker thread.')`).
+`ProjectionWorkerContextError` (`'The projection worker must run in a worker thread.'`) and `ImportTimeoutError` (`` `The import took longer than ${milliseconds} ms.` ``) are declared in `projection-messages.ts`. A timed-out SDK call keeps running in the background, but the queue moves on; the next `Stop` disposes the client.
 `projection-scheduler.ts` (main-thread single flight: one in-flight request per document, later requests coalesce into one rerun; a dead worker is replaced and its in-flight work re-posted)
 ```ts
 const SOURCE_EXTENSION = '.ts';
@@ -982,6 +1047,7 @@ export class ProjectionScheduler {
   private readonly inFlight = new Set<string>();
   private readonly rerun = new Set<string>();
   private readonly forgetting = new Map<string, () => void>();
+  private readonly loggedImportFailures = new Set<string>();
   private stopping = false;
 
   constructor({ databaseDirectory }: { databaseDirectory: string }) {
@@ -1007,7 +1073,9 @@ export class ProjectionScheduler {
 
   async stop(): Promise<void> {
     this.stopping = true;
-    await this.currentWorker.terminate();
+    const exited = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
+    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
+    await exited;
   }
 
   private spawn(): Worker {
@@ -1018,12 +1086,19 @@ export class ProjectionScheduler {
     return worker;
   }
 
-  private settle({ kind, documentId }: ProjectionReply): void {
+  private settle({ kind, documentId, importError }: ProjectionReply): void {
     if (kind === ProjectionRequestKind.Forget) return this.settleForget(documentId);
+    if (importError !== null) return this.reportImportFailure({ documentId, importError });
     if (kind !== ProjectionRequestKind.Project) return;
     this.inFlight.delete(documentId);
     if (!this.rerun.delete(documentId)) return;
     this.schedule(documentId);
+  }
+
+  private reportImportFailure({ documentId, importError }: { documentId: string; importError: string }): void {
+    if (this.loggedImportFailures.has(documentId)) return;
+    this.loggedImportFailures.add(documentId);
+    console.error(`${IMPORT_FAILED_MESSAGE} ${documentId}: ${importError}`);
   }
 
   private settleForget(documentId: string): void {
@@ -1047,22 +1122,32 @@ export class ProjectionScheduler {
 ```ts
 export type DocumentRuntime = { roomMode(documentId: string): RoomMode; onlineUserIds(documentId: string): Set<string>; importRevisions(documentId: string): void; forget(documentId: string): Promise<void> };
 
-export function createCollaborationRuntime({ hocuspocus, log, scheduler, storage }: { hocuspocus: Hocuspocus; log: UpdateLog; scheduler: ProjectionScheduler; storage: DocumentFileStorage }): DocumentRuntime {
+export function createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage }: { hocuspocus: Hocuspocus; log: UpdateLog; readModel: ReadModel; scheduler: ProjectionScheduler; storage: DocumentFileStorage }): DocumentRuntime {
+  const bootstrapped = new Set<string>();
   function roomsOf(documentId: string): Document[] {
     return [...hocuspocus.documents.values()].filter((room) => documentIdFromRoomName(room.name) === documentId);
   }
+  function hasCommittedBootstrap(documentId: string): boolean {
+    if (bootstrapped.has(documentId)) return true;
+    const isProjected = readModel.cursor(documentId) !== null;
+    const committed = isProjected || findBootstrapSequence(log.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER })) !== null;
+    if (committed) bootstrapped.add(documentId);
+    return committed;
+  }
   return {
-    roomMode: (documentId) => (log.hasUpdates(documentId) ? RoomMode.Join : RoomMode.Create),
+    roomMode: (documentId) => (hasCommittedBootstrap(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) => new Set(roomsOf(documentId).flatMap((room) => [...room.connections.values()].map(({ connection }) => (connection.context as CollaborationContext).userId))),
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));
       log.forget(documentId);
+      bootstrapped.delete(documentId);
       await scheduler.forget(documentId);
     },
   };
 }
 ```
+The bootstrap check is cached per process once true; the projection cursor answers it without decoding for any document already projected, so the full-log decode runs at most once per document per process, and only until its bootstrap commits.
 `history-routes.ts`: `GET /:documentId/events` behind `requireUser` → `requireDocumentRole(Reader)`; `afterSequence` parsed with `z.coerce.number().int().nonnegative().optional()` (400 when invalid, `null` when absent); authors are resolved at read time from the raw facts and the current identities (one `client_identities` query per request, then an in-memory map), names from one `documents.userNames` call:
 ```ts
 function authorIdsOf({ event, identities }: { event: StoredEditEvent; identities: Map<number, string> }): string[] {
@@ -1090,7 +1175,7 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
   return { events, cursor: services.readModel.cursor(documentId) };
 }
 ```
-`IncompleteEditEventError` and `UnknownAuthorError` are declared in the same file (users cascade their documents, so an unknown name is a real inconsistency). `app.ts`: `createApp({ auth, environment, services })`; `app.onError` maps `DocumentNotFoundError` → 404 `{ error: 'Not found' }` (the body `server.ts` already uses), `DocumentRoleTooLowError` → 403, and rethrows anything else. `server.ts` order: open and migrate the three files; `UpdateLog`; `ReadModel` on the main-thread read-model handle (reads only; the worker is the only writer); `ProjectionScheduler`; collaboration server with `onStored: (documentId) => { documents.touch(documentId); scheduler.schedule(documentId); }`; runtime; app; `listen`; `attachCollaboration`; `stop()` adds `await scheduler.stop()` and closes the two history handles. `tsup.config.ts`: `entry: { main: 'src/main.ts', seed: 'src/seed.ts', 'projection-worker': 'src/history/projection-worker.ts' }`, `external: ['better-sqlite3', '@superdoc/sdk']`, `noExternal: ['@superdoc-history/types', '@superdoc-history/history']`.
+`IncompleteEditEventError` and `UnknownAuthorError` are declared in the same file (users cascade their documents, so an unknown name is a real inconsistency). `app.ts`: `createApp({ auth, environment, services })`; `const signedIn = requireUser({ auth })` is mounted with `app.use(ApiPath.Documents, signedIn)`, ``app.use(`${ApiPath.Documents}/*`, signedIn)`` and ``app.use(`${ApiPath.ShareLinks}/*`, signedIn)`` only, so `/api/health`, `/api/me` and `/api/auth/*` keep their slice 1 behaviour; `app.onError` maps `DocumentNotFoundError` → 404 `{ error: NOT_FOUND_MESSAGE }` (now exported from `server.ts`, the body slice 1's `notFound` uses), `DocumentRoleTooLowError` → 403, and rethrows anything else. `server.ts` order: open and migrate the three files; `UpdateLog`; `ReadModel` on the main-thread read-model handle (reads only; the worker is the only writer); `ProjectionScheduler`; collaboration server with `onStored: (documentId) => { documents.touch(documentId); scheduler.schedule(documentId); }`; runtime (`createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage })`); app; `listen`; `attachCollaboration`; `stop()` adds `await scheduler.stop()` and closes the two history handles. `tsup.config.ts`: `entry: { main: 'src/main.ts', seed: 'src/seed.ts', 'projection-worker': 'src/history/projection-worker.ts' }`, `external: ['better-sqlite3', '@superdoc/sdk']`, `noExternal: ['@superdoc-history/types', '@superdoc-history/history']`.
 - [ ] **Step 4: Run, expect pass** — then `pnpm --filter @superdoc-history/server build && test -f apps/server/dist/projection-worker.js`.
 - [ ] **Step 5: Commit** — `feat(server): project edit events in a worker and serve them`
 
@@ -1100,7 +1185,7 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
 
 **Files:**
 - Create: `apps/server/src/documents/documents-routes.ts`
-- Modify: `apps/server/src/http/app.ts` (mount)
+- Modify: `apps/server/src/http/app.ts` (mount), `apps/server/src/server.ts`, `apps/server/src/testing/test-server.ts`
 - Test: `apps/server/src/documents/documents-routes.test.ts`
 
 **Interfaces:**
@@ -1146,8 +1231,19 @@ test('imported Word revisions appear in the events with the revision author', as
   await server.stop();
 });
 ```
-The rejection test creates the `documents` directory first (`mkdirSync`, recursive) so `readdirSync` counts zero files. Also in this file, each a short test: `an uploaded document is listed as mine and downloads the original bytes` (title "Plan" from `Plan.docx`, `mine` holds its id, the download equals the uploaded bytes); `a body over the limit is 413 before parsing` (12 MB body: status 413, and `services.storage` holds nothing); `a file of exactly 10 MB is not refused for its size` (zeros → 415, not 413); `a file without the DOCX mime is 415`; `a non-member gets the same 404 as a missing document` (status and body equal for a foreign id and a random uuid on GET, PATCH, DELETE, download, members, events); `rename by an editor works and a reader gets 403`; `GET /:id returns roomMode create, then join once the log has an update`; `members marks the connected owner online`; `signed-out requests get 401`; `a blank document downloads a valid docx` (`isDocx` true). The delete test connects the owner through `connectToDocument`, writes, waits for `log.hasUpdates`, DELETEs (204), then expects `GET` 404, `storage.read` to reject, `log.hasUpdates` false, `readModel.cursor` null, and the client's provider to receive a close (`provider.on('close')` fires).
-- [ ] **Step 2: Run, expect failure.**
+The rejection test creates the `documents` directory first (`mkdirSync`, recursive) so `readdirSync` counts zero files. Also in this file, each input → expected:
+- `an uploaded document is listed as mine and downloads the original bytes`: `Plan.docx` → title "Plan", `mine` holds its id, the download equals the uploaded bytes.
+- `a body over the limit is 413 before parsing`: a 12 MB body → 413, `services.storage` holds nothing.
+- `a file of exactly 10 MB is not refused for its size`: 10 MB of zeros → 415, not 413. `a file without the DOCX mime is 415`: a valid docx sent as `text/plain` → 415.
+- `a non-member gets the same 404 as a missing document`: status and body equal for a foreign id and a random uuid on GET, PATCH, DELETE, download, members and events.
+- `rename by an editor works and a reader gets 403`: editor `PATCH { title: '  New  ' }` → 200 and the stored title is `New`; reader → 403.
+- `a blank or whitespace title is refused`: `PATCH { title: '' }` and `{ title: '   ' }` → 400, the stored title unchanged.
+- `roomMode stays create until the bootstrap commits`: an owner client writes `writeStory` only (the log has updates, no `meta.bootstrapState === 'committed'`) → `GET /:id` says `create`; after `commitBootstrap` and `log.hasUpdates` → `join`.
+- `a reader opening a never-created room gets 409 NOT_READY`: fresh document, reader member → 409 `{ error: DOCUMENT_NOT_READY_ERROR }`; an editor on the same document → 200 with `roomMode: 'create'`; after the bootstrap commits, the reader → 200 with `join`.
+- `download names the file with an ASCII fallback and an RFC 5987 filename*`: title `Q3 "final" (draft)'s plan*` → `content-disposition` is exactly `attachment; filename="Q3 _final_ (draft)'s plan*.docx"; filename*=UTF-8''Q3%20%22final%22%20%28draft%29%27s%20plan%2A.docx`.
+- `members marks the connected owner online`; `signed-out requests get 401`; `a blank document downloads a valid docx` (`isDocx` true).
+- `delete removes the row, the file, the log and the events, and closes the room`: the owner connects through `connectToDocument`, writes, waits for `log.hasUpdates`, DELETEs (204) → `GET` 404, `storage.read` rejects, `log.hasUpdates` false, `readModel.cursor` null, the provider's `close` fires.
+- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin upload, download, rename and delete`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — the create route; every other route is `requireDocumentRole` then one repository, storage or runtime call:
 ```ts
 const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
@@ -1181,7 +1277,29 @@ async function storeDocument({ context, bytes, title, importRevisions }: { conte
   return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
 }
 ```
-`createBlank` parses `titleSchema` (400 when invalid) and calls `storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title, importRevisions: false })`. `bodyLimit` (from `hono/body-limit`) checks `Content-Length` and counts streamed bytes before `parseBody` buffers; the envelope allowance covers multipart boundaries and the post-parse `file.size` check keeps the limit exact. Remaining routes: `GET /` → `documents.list`; `GET /:documentId` (Reader) → `{ document: documents.summary(...), role, roomMode: runtime.roomMode(id) }`; `PATCH /:documentId` (Editor) → `titleSchema` → `rename` → summary; `DELETE /:documentId` (Owner) → `await runtime.forget(id)`, `await storage.remove(id)`, `documents.remove(id)`, 204; `GET /:documentId/download` (Reader) → `new Response(await storage.read(id), { headers: { 'content-type': DOCX_MIME_TYPE, 'content-disposition': \`attachment; filename*=UTF-8''${encodeURIComponent(title + DOCX_EXTENSION)}\` } })`; `GET /:documentId/members` (Reader) → `{ members: documents.members(id).map((member) => ({ ...member, online: online.has(member.user.id) })) }` with `online = runtime.onlineUserIds(id)`. Mount with `app.route(ApiPath.Documents, createDocumentsRoutes(services))` after `routes.use('*', requireUser({ auth }))`.
+`createBlank` parses `titleSchema` (400 when invalid) and calls `storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title, importRevisions: false })`. `bodyLimit` (from `hono/body-limit`) checks `Content-Length` and counts streamed bytes before `parseBody` buffers; the envelope allowance covers multipart boundaries and the post-parse `file.size` check keeps the limit exact. Opening and downloading:
+```ts
+const RFC_5987_RESERVED = /['()*]/g;
+const UNSAFE_IN_QUOTED_FILENAME = /[^\x20-\x7e]|["\\]/g;
+const ASCII_FALLBACK_CHARACTER = '_';
+
+function contentDisposition(fileName: string): string {
+  const asciiFallback = fileName.replace(UNSAFE_IN_QUOTED_FILENAME, ASCII_FALLBACK_CHARACTER);
+  const encoded = encodeURIComponent(fileName).replace(RFC_5987_RESERVED, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+}
+
+routes.get('/:documentId', (context) => {
+  const documentId = context.req.param('documentId');
+  const userId = context.var.user.id;
+  const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
+  const roomMode = runtime.roomMode(documentId);
+  const mustWaitForCreator = roomMode === RoomMode.Create && role === DocumentRole.Reader;
+  if (mustWaitForCreator) return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
+  return context.json({ document: documents.summary({ documentId, userId }), role, roomMode });
+});
+```
+Only the owner and editors may create a room; a reader waits for the first editing open. Remaining routes: `GET /` → `documents.list`; `PATCH /:documentId` (Editor) → `titleSchema` → `rename` → summary; `DELETE /:documentId` (Owner) → `await runtime.forget(id)`, `await storage.remove(id)`, `documents.remove(id)`, 204; `GET /:documentId/download` (Reader) → `new Response(await storage.read(id), { headers: { 'content-type': DOCX_MIME_TYPE, 'content-disposition': contentDisposition(title + DOCX_EXTENSION) } })`; `GET /:documentId/members` (Reader) → `{ members: documents.members(id).map((member) => ({ ...member, online: online.has(member.user.id) })) }` with `online = runtime.onlineUserIds(id)`. Mount with `app.route(ApiPath.Documents, createDocumentsRoutes(services))`; `requireUser` already guards the prefix (Task 7).
 - [ ] **Step 4: Run, expect pass.**
 - [ ] **Step 5: Commit** — `feat(server): add document upload, download, rename and delete`
 
@@ -1191,7 +1309,7 @@ async function storeDocument({ context, bytes, title, importRevisions }: { conte
 
 **Files:**
 - Create: `apps/server/src/documents/{share-links,share-links-routes}.ts`
-- Modify: `apps/server/src/http/app.ts`, `apps/server/src/server.ts`
+- Modify: `apps/server/src/http/app.ts`, `apps/server/src/server.ts`, `apps/server/src/testing/test-server.ts`
 - Test: `apps/server/src/documents/{share-links,share-links-routes}.test.ts`
 
 **Interfaces:**
@@ -1222,8 +1340,14 @@ test('a token for a deleted document is no longer valid', async () => {
   await server.stop();
 });
 ```
-Helpers in the file: `blankDocumentWithOwner` (POST JSON `{ title }`), `shareLinksOf` (GET), `rotate` (POST), `accept` (token = `new URL(url).pathname.split('/').at(-1)`, POST `shareLinkAcceptPath(token)`). Also: `a reader who accepts the edit link becomes an editor`; `the same links come back on every GET until rotated`; `share-links is 404 for a non-member and 403 for an editor`; `accept without a session is 401`. `share-links.test.ts`: one nonce and secret derive the same token twice; two nonces derive different tokens; `hashShareToken` is 64 hex characters and differs from the token.
-- [ ] **Step 2: Run, expect failure.**
+Helpers in the file: `blankDocumentWithOwner` (POST JSON `{ title }`), `shareLinksOf` (GET), `rotate` (POST), `accept` (token = `new URL(url).pathname.split('/').at(-1)`, POST `shareLinkAcceptPath(token)`). Also, each input → expected:
+- `a reader who accepts the edit link becomes an editor`: `findRole` → editor.
+- `the owner accepting their own link stays owner`: the owner POSTs accept for both URLs → 200 each, `findRole` → owner.
+- `the same links come back on every GET until rotated`: two GETs → identical `{ edit, read }`.
+- `rotating the edit link leaves the read URL unchanged`: rotate edit → a new edit URL, the read URL byte-identical to before.
+- `rotating with role owner is 400`: `POST …/share-links/owner/rotate` → 400, both links unchanged.
+- `share-links is 404 for a non-member and 403 for an editor`; `accept without a session is 401`. `share-links.test.ts`: one nonce and secret derive the same token twice; two nonces derive different tokens; `hashShareToken` is 64 hex characters and differs from the token.
+- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(server): pin share links, rotation and accept`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — `share-links.ts`
 ```ts
 const NONCE_BYTES = 32;
@@ -1270,13 +1394,13 @@ export class ShareLinksRepository {
   }
 }
 ```
-The constructor takes `{ database, secret, appOrigin }` into three `private readonly` fields, the `DocumentsRepository` way. `share-links-routes.ts`: the two owner routes are mounted on the documents prefix behind `requireDocumentRole(Owner)`; `:role` is parsed with `z.enum(ShareLinkRole)` (400 otherwise). The accept route is `POST /api/share-links/:token/accept` behind `requireUser`: `resolve(token)`; `null` → 404 `{ error: INVALID_SHARE_LINK_MESSAGE }`; else `documents.grant({ documentId, userId, role: SHARE_LINK_GRANTS[role] })` and `{ documentId }`. A deleted document cascades its link rows, so its tokens resolve to `null`. No route logs a token.
+The constructor takes `{ database, secret, appOrigin }` into three `private readonly` fields, the `DocumentsRepository` way. `share-links-routes.ts`: the two owner routes are mounted on the documents prefix behind `requireDocumentRole(Owner)`; `:role` is parsed with `z.enum(ShareLinkRole)` (400 otherwise). The accept route is `POST /api/share-links/:token/accept`, guarded by the `requireUser` mount on `/api/share-links/*` (Task 7): `resolve(token)`; `null` → 404 `{ error: INVALID_SHARE_LINK_MESSAGE }`; else `documents.grant({ documentId, userId, role: SHARE_LINK_GRANTS[role] })` and `{ documentId }`. A deleted document cascades its link rows, so its tokens resolve to `null`. No route logs a token.
 - [ ] **Step 4: Run, expect pass** — then the whole server suite.
 - [ ] **Step 5: Commit** — `feat(server): add rotatable edit and read share links`
 
 ---
 
-### Task 10: Documents list, upload and new document (G4)
+### Task 10: Documents list, upload and new document (G3)
 
 **Files:**
 - Create: `apps/web/src/features/documents/{documents-page,document-table,upload-dialog,new-document-button}.tsx`, `apps/web/src/features/documents/{documents-api,use-documents}.ts`, `apps/web/src/components/ui/{table,dialog,badge}.tsx` (`pnpm dlx shadcn@4.21.5 add table dialog badge`)
@@ -1299,7 +1423,7 @@ test('a file over 10 MB shows the limit and sends nothing', async () => {
 });
 ```
 Same file: a `.pdf` shows `NOT_A_DOCX_MESSAGE` and sends nothing; a 415 response shows `NOT_A_DOCX_MESSAGE`; a 201 closes the dialog and navigates to `documentPagePath(id)`. `documents-page.test.tsx`: `{ mine: [], shared: [] }` shows "No documents yet" and "Nothing shared with you yet"; one `mine` row shows title, owner name, formatted date and role; a row click navigates to `documentPagePath(id)`; "New document" POSTs `{ title: UNTITLED_DOCUMENT_TITLE }`, invalidates `DOCUMENTS_QUERY_KEY` and navigates.
-- [ ] **Step 2: Run, expect failure.**
+- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the documents list and the upload dialog`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — `documents-api.ts`
 ```ts
 export const DOCUMENTS_QUERY_KEY = ['documents'];
@@ -1326,29 +1450,43 @@ export async function uploadDocument(file: File): Promise<DocumentSummary> {
 
 ---
 
-### Task 11: Editor page, sharing dialog and share landing (G4)
+### Task 11: Editor page, sharing dialog and share landing (G3)
 
 **Files:**
-- Modify: `apps/web/package.json` (`superdoc 2.23.0`, `@hocuspocus/provider 2.15.3`, `yjs 13.6.33`), `apps/web/vite.config.ts`, `apps/web/src/app/router.tsx`
-- Create: `apps/web/src/features/editor/{document-page,superdoc-editor,editor-header,members,share-dialog,timeline-panel-placeholder}.tsx`, `apps/web/src/features/editor/use-opened-document.ts`, `apps/web/src/features/sharing/share-landing-page.tsx`, `apps/web/public/blank.docx`
-- Test: `apps/web/src/features/editor/{editor-header,share-dialog}.test.tsx`, `apps/web/src/features/sharing/share-landing-page.test.tsx`
+- Modify: `apps/web/vite.config.ts`, `apps/web/src/app/router.tsx` (dependencies already installed by Task 1)
+- Create: `apps/web/src/features/editor/{document-page,superdoc-editor,editor-header,members,share-dialog,timeline-panel-placeholder}.tsx`, `apps/web/src/features/editor/{use-opened-document,use-editor-setup}.ts`, `apps/web/src/features/sharing/share-landing-page.tsx`, `apps/web/public/blank.docx`
+- Test: `apps/web/src/features/editor/{editor-header,share-dialog,document-page}.test.tsx`, `apps/web/src/features/sharing/share-landing-page.test.tsx`
 
 **Interfaces:**
-- Consumes: `OpenedDocument`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `COLLABORATION_TOKEN_PLACEHOLDER`, `RoomMode`, `DocumentRole`.
-- Produces: routes `AppRoute.Document` and `AppRoute.Share` inside `RequireSession`; `SuperDocEditor({ documentId, roomMode, role, user, file })`; `useOpenedDocument(documentId)` with query key `['documents', documentId]`; `BLANK_DOCX_PATH = '/blank.docx'`.
+- Consumes: `OpenedDocument`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `COLLABORATION_TOKEN_PLACEHOLDER`, `RoomMode`, `DocumentRole`, `READ_ONLY_BADGE_LABEL`, `LINK_COPIED_MESSAGE`, `DOCUMENT_UNAVAILABLE_MESSAGE`, `DOCUMENT_NOT_READY_ERROR`, `DOCUMENT_NOT_READY_MESSAGE`.
+- Produces: routes `AppRoute.Document` and `AppRoute.Share` inside `RequireSession`; `SuperDocEditor({ documentId, roomMode, role, user, file })`; `useOpenedDocument(documentId)` with query key `['documents', documentId]`; `useEditorSetup({ opened, user, file }): EditorSetup | null` with `EditorSetup = { roomMode; role; user; file }`, captured once per page load; `BLANK_DOCX_PATH = '/blank.docx'`.
 
 - [ ] **Step 1: Failing tests** — `editor-header.test.tsx`
 ```tsx
 test('a reader sees the read-only badge and neither Delete nor Share', () => {
   renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} />);
-  expect(screen.getByText('Read only')).toBeVisible();
+  expect(screen.getByText(READ_ONLY_BADGE_LABEL)).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   expect(screen.getByRole('heading', { name: 'Plan' })).toBeVisible();
 });
 ```
-Same file: an editor renames on Enter and exactly one PATCH carries `{ title }`; the owner deletes after confirming, DELETE is sent and the page navigates to `/documents`; an online member renders a dot with `aria-label="online"`. `share-dialog.test.tsx`: opening GETs the links and shows both URLs; Copy writes the URL to `navigator.clipboard` and shows "Link copied"; Rotate on the edit row POSTs `…/share-links/edit/rotate` and shows the new URL. `share-landing-page.test.tsx`: a 200 accept navigates to `documentPagePath(documentId)` with `replace`; a 404 shows `INVALID_SHARE_LINK_MESSAGE` and a link to `/documents`; the accept POST is sent once under `StrictMode`.
-- [ ] **Step 2: Run, expect failure.**
+Same file: an editor renames on Enter and exactly one PATCH carries `{ title }`; the owner deletes after confirming, DELETE is sent and the page navigates to `/documents`; an online member renders a dot with `aria-label="online"`. `share-dialog.test.tsx`: opening GETs the links and shows both URLs; Copy writes the URL to `navigator.clipboard` and shows `LINK_COPIED_MESSAGE`; Rotate on the edit row POSTs `…/share-links/edit/rotate` and shows the new URL. `share-landing-page.test.tsx`: a 200 accept navigates to `documentPagePath(documentId)` with `replace`; a 404 shows `INVALID_SHARE_LINK_MESSAGE` and a link to `/documents`; the accept POST is sent once under `StrictMode`. `document-page.test.tsx` (with `vi.mock('superdoc')` exposing a spied `SuperDoc` constructor and `destroy`):
+```tsx
+test('a title rename does not re-create the editor', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner), renamedTitle: 'Renamed' });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const title = screen.getByRole('textbox', { name: 'Title' });
+  await userEvent.clear(title);
+  await userEvent.type(title, 'Renamed{Enter}');
+  await screen.findByDisplayValue('Renamed');
+  expect(SuperDoc).toHaveBeenCalledTimes(1);
+  expect(superDocDestroy).not.toHaveBeenCalled();
+});
+```
+Same file: a 409 `{ error: DOCUMENT_NOT_READY_ERROR }` shows `DOCUMENT_NOT_READY_MESSAGE` and never constructs `SuperDoc`; a 404 shows `DOCUMENT_UNAVAILABLE_MESSAGE` with a link to `/documents`; `roomMode: 'join'` fetches `BLANK_DOCX_PATH`, never the download URL.
+- [ ] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the editor header, sharing and the share landing`; `git show` of that commit plus this failing run is the red evidence.
 - [ ] **Step 3: Implement** — generate the joiners' blank once: `pnpm --filter @superdoc-history/history exec tsx -e "import('./src/seed-docx.ts').then(async ({ buildSeedDocx }) => (await import('node:fs')).writeFileSync('../../apps/web/public/blank.docx', await buildSeedDocx([{ text: '', trackedChanges: [] }])))"` and commit the file. `superdoc-editor.tsx`
 ```tsx
 const HOCUSPOCUS_PROVIDER = 'hocuspocus';
@@ -1378,13 +1516,25 @@ export function SuperDocEditor({ documentId, roomMode, role, user, file }: Super
   return <div ref={containerRef} data-testid="document-editor" className="min-h-0 flex-1 overflow-auto" />;
 }
 ```
-From the spike: `user.id` is always passed, or SuperDoc falls back to the email as awareness `userId` (fact 1); readers always get `documentMode: 'viewing'`, because the server's refusal alone leaves a silently diverging local editor, and the "Read only" badge comes from `opened.role`, since SuperDoc emits no read-only signal (fact 3); `file` is the stored file from the download endpoint only for `RoomMode.Create` (an upload's original, or the stored blank of a new document), and `fetch(BLANK_DOCX_PATH)` for `RoomMode.Join`, never the real file and never an empty blob (fact 2). `document-page.tsx`: `useOpenedDocument` (404 → "This document is no longer available" with a link to `/documents`), `useSession`, the file query keyed by `[documentId, roomMode]`, members `useQuery` with `refetchInterval: MEMBERS_REFRESH_MS` (5000), layout `flex h-dvh flex-col` → `EditorHeader` → `flex min-h-0 flex-1` holding `SuperDocEditor` and `TimelinePanelPlaceholder` (a collapsible `aside` showing `TIMELINE_PLACEHOLDER_MESSAGE`, collapsed below `md`). `editor-header.tsx`: the title is an input for owner and editor (PATCH on Enter or blur when changed, then `invalidateQueries` for `DOCUMENTS_QUERY_KEY`), a heading for readers; `Members` (initials and an online dot); `Badge` "Read only" for readers; Share (owner) opens `ShareDialog`; "Download .docx" is `<a href={documentApiPath({ documentId, resource: DocumentResource.Download })} download>`; Delete (owner) confirms in a `Dialog`, DELETEs, invalidates, navigates to `AppRoute.Documents`. `share-landing-page.tsx` POSTs `shareLinkAcceptPath(token)` once (a ref guards StrictMode's double effect). `vite.config.ts`: `build: { outDir: 'dist', target: 'esnext' }`, `optimizeDeps: { esbuildOptions: { target: 'esnext' } }`.
+From the spike: `user.id` is always passed, or SuperDoc falls back to the email as awareness `userId` (fact 1); readers always get `documentMode: 'viewing'`, because the server's refusal alone leaves a silently diverging local editor, and the `READ_ONLY_BADGE_LABEL` badge comes from `opened.role`, since SuperDoc emits no read-only signal (fact 3); `file` is the stored file from the download endpoint only for `RoomMode.Create` (an upload's original, or the stored blank of a new document), and `fetch(BLANK_DOCX_PATH)` for `RoomMode.Join`, never the real file and never an empty blob (fact 2). `use-editor-setup.ts` captures what SuperDoc is built from once per page load, so refetches and invalidations (a rename, a members poll) never re-create the editor; a role change needs a reload (spike fact 3):
+```ts
+export function useEditorSetup({ opened, user, file }: { opened: OpenedDocument | undefined; user: SessionUser | null; file: Blob | undefined }): EditorSetup | null {
+  const [setup, setSetup] = useState<EditorSetup | null>(null);
+  useEffect(() => {
+    const canCapture = setup === null && opened !== undefined && user !== null && file !== undefined;
+    if (!canCapture) return;
+    setSetup({ roomMode: opened.roomMode, role: opened.role, user, file });
+  }, [setup, opened, user, file]);
+  return setup;
+}
+```
+`document-page.tsx`: `useOpenedDocument` (404 → `DOCUMENT_UNAVAILABLE_MESSAGE` with a link to `/documents`; 409 `DOCUMENT_NOT_READY_ERROR` → `DOCUMENT_NOT_READY_MESSAGE`), `useSession`, the file query keyed by `[documentId, roomMode]` and enabled once the first `roomMode` is known, `useEditorSetup`, and `SuperDocEditor` rendered from the captured setup only, members `useQuery` with `refetchInterval: MEMBERS_REFRESH_MS` (5000), layout `flex h-dvh flex-col` → `EditorHeader` → `flex min-h-0 flex-1` holding `SuperDocEditor` and `TimelinePanelPlaceholder` (a collapsible `aside` showing `TIMELINE_PLACEHOLDER_MESSAGE`, collapsed below `md`). `editor-header.tsx`: the title is an input for owner and editor (PATCH on Enter or blur when changed, then `invalidateQueries` for `DOCUMENTS_QUERY_KEY`), a heading for readers; `Members` (initials and an online dot); `Badge` `READ_ONLY_BADGE_LABEL` for readers; Share (owner) opens `ShareDialog`; "Download .docx" is `<a href={documentApiPath({ documentId, resource: DocumentResource.Download })} download>`; Delete (owner) confirms in a `Dialog`, DELETEs, invalidates, navigates to `AppRoute.Documents`. `share-landing-page.tsx` POSTs `shareLinkAcceptPath(token)` once (a ref guards StrictMode's double effect). `vite.config.ts`: `build: { outDir: 'dist', target: 'esnext' }`, `optimizeDeps: { esbuildOptions: { target: 'esnext' } }`.
 - [ ] **Step 4: Run, expect pass** — unit tests; `pnpm --filter @superdoc-history/web build` succeeds and `dist/blank.docx` exists.
 - [ ] **Step 5: Commit** — `feat(web): add the collaborative editor page and sharing`
 
 ---
 
-### Task 12: End-to-end specs (G5)
+### Task 12: End-to-end specs (G4)
 
 **Files:**
 - Create: `e2e/documents.spec.ts`, `e2e/collaboration.spec.ts`, `e2e/editor.ts`
@@ -1419,13 +1569,13 @@ test('two authors converge and each marker is attributed to its author', async (
   expectEveryCharacterAccounted({ events: (await readEvents({ page: ana.page, documentId })).filter((event) => !event.imported), initialLength, finalLength });
 });
 ```
-Same file: `identities are declared from awareness` opens `E2E_DATABASE_DIR/history.sqlite` read-only with `node:sqlite` after the typing above and expects every `client_identities` row of the document whose `user_id` is Ana's or Bruno's to have `source = 'declared'` (the spike's regression test for fact 1). `documents.spec.ts`: `upload, open, type and the events attribute the text to me` (`setInputFiles({ name: 'Plan.docx', mimeType: DOCX_MIME_TYPE, buffer })`, type `' <MINE>'`, poll until `insertedBy(me) === ' <MINE>'`); `a reader cannot type but sees live edits` (the reader clicks a paragraph and types `READER`; then the owner types `' <AFTER>'`; the reader's page shows `<AFTER>` live, without reload, which proves the reader still receives edits; at that point neither page contains `READER`, `/events` holds no event by the reader, and "Read only" is visible; spike fact 3); `a share link adds the document to Shared with me` (accept through `/share/<token>` lands on `/documents/<id>`, the list shows it with role editor); `an invalid share link says so` (`/share/nope` → `INVALID_SHARE_LINK_MESSAGE`); `rename persists after reload`; `delete removes the document for everyone` (the member has it open; after the owner deletes, the member's reload shows "This document is no longer available" and the list no longer lists it).
+Same file: `identities are declared from awareness` opens `E2E_DATABASE_DIR/history.sqlite` with better-sqlite3 (`new Database(path, { readonly: true })`, root devDependency from Task 1) after the typing above and expects every `client_identities` row of the document whose `user_id` is Ana's or Bruno's to have `source = 'declared'` (the spike's regression test for fact 1). `documents.spec.ts`: `upload, open, type and the events attribute the text to me` (`setInputFiles({ name: 'Plan.docx', mimeType: DOCX_MIME_TYPE, buffer })`, type `' <MINE>'`, poll until `insertedBy(me) === ' <MINE>'`); `a reader cannot type but sees live edits` (the reader clicks a paragraph and types `READER`; then the owner types `' <AFTER>'`; the reader's page shows `<AFTER>` live, without reload, which proves the reader still receives edits; at that point neither page contains `READER`, `/events` holds no event by the reader, and `READ_ONLY_BADGE_LABEL` is visible; spike fact 3); `a reader waits until the room exists` (the owner creates a blank document with `page.request.post` and never opens it; the reader accepts the read link and sees `DOCUMENT_NOT_READY_MESSAGE` with no editor; the owner opens the document and the editor becomes ready; the reader reloads and gets the editor with `READ_ONLY_BADGE_LABEL`); `a share link adds the document to Shared with me` (accept through `/share/<token>` lands on `/documents/<id>`, the list shows it with role editor); `an invalid share link says so` (`/share/nope` → `INVALID_SHARE_LINK_MESSAGE`); `rename persists after reload`; `delete removes the document for everyone` (the member has it open; after the owner deletes, the member's reload shows `DOCUMENT_UNAVAILABLE_MESSAGE` and the list no longer lists it). Every UI string the specs assert comes from `libs/types`, never a literal.
 - [ ] **Step 2: Run** — `pnpm test:e2e` twice in a row; every spec passes both times with `retries: 0`.
 - [ ] **Step 3: Commit** — `test(e2e): cover documents, sharing, read-only and two-author attribution`
 
 ---
 
-### Task 13: Docker, README and tester briefing (G5)
+### Task 13: Docker, README and tester briefing (G4)
 
 **Files:**
 - Modify: `docker/Dockerfile`, `README.md`, `docs/features/README.md` (status → Building)
@@ -1457,11 +1607,12 @@ Same file: `identities are declared from awareness` opens `E2E_DATABASE_DIR/hist
 | 7.3 | The worker cannot load TypeScript under Vitest | `ERR_UNKNOWN_FILE_EXTENSION ".ts"` from the worker | `execArgv: ['--import', 'tsx']` in source mode; `tsx` is already a server devDependency |
 | 7.3 | `@superdoc/sdk` gets bundled by tsup | build error on a native `.node` file, or `Cannot find module` for the binary at runtime | Keep it in `external`; it resolves from `node_modules` |
 | 7.3 | The worker's read-only handle opens before the main thread created the WAL files | `SQLITE_CANTOPEN` in the worker | Spawn the scheduler after migrations, as ordered in `server.ts` |
-| 7.3 | The SDK's native process outlives a terminated worker | after `pnpm test:unit`, `pgrep -f superdoc` lists processes | Post a `Stop` request that awaits `client.dispose()` before `terminate()` in `ProjectionScheduler.stop()` |
-| 7.3 | The SDK import hangs and blocks the worker's queue | events of other documents stop appearing | Wrap the import in `AbortSignal.timeout(IMPORT_TIMEOUT_MS)` and log it like any import failure |
+| 7.3 | The SDK's native process outlives the worker | after `pnpm test:unit`, `pgrep -f superdoc` lists processes | `ProjectionScheduler.stop()` posts `Stop`, which disposes the client before `process.exit(0)`; if a crash skipped it, the restart path leaves an orphan: record it and kill it in the test teardown |
+| 7.3 | The SDK import hangs and blocks the worker's queue | events of other documents stop appearing | `withTimeout({ milliseconds: IMPORT_TIMEOUT_MS })` frees the queue and reports `ImportTimeoutError` like any import failure |
 | 8.3 | `bodyLimit` counts the multipart envelope and refuses a 10 MB file | `a file of exactly 10 MB is not refused for its size` gets 413 | Raise `MULTIPART_ENVELOPE_BYTES`; the post-parse size check keeps the exact limit |
 | 8.3 | Hono's sub-app does not forward thrown `DocumentNotFoundError` to the root handler | non-member test gets 500 | Keep the mapping on the root `app.onError`, as written |
 | 11.3 | Vite 8 rejects `optimizeDeps.esbuildOptions` | build warning or error naming the option | Use the replacement the message names (`optimizeDeps.rolldownOptions`); only `build.target` matters for the production build |
+| 8.3 | A reader opens a document no editor has opened yet | the reader's page would sit in `create` and fail; instead `GET /:id` answers 409 `NOT_READY` | The page shows `DOCUMENT_NOT_READY_MESSAGE`; the reader reloads after the owner opens it; `a reader waits until the room exists` pins it |
 | 12.1 | Two `create` openers race on a brand-new document | one page never becomes ready (`'create' never joins an existing room`) | The specs open the owner first and wait for the editor before the member joins; the race is a documented limitation |
 | 12.1 | Typing under concurrency lands characters out of order | marker check on the editor text fails while lengths match | Judge completion by length and attribution by `insertedBy`, as written; never by marker position |
 

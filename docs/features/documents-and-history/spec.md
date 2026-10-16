@@ -72,7 +72,7 @@ share         ──► POST /api/documents/:id/share-links/:role/rotate ; GET /
 - `GET /api/documents/:id/share-links` (owner) → `{ edit: url, read: url }` · `POST …/share-links/:role/rotate` (owner)
 - `GET /share/:token` (web route; calls `POST /api/share-links/:token/accept`) → membership with the link's role, then redirect
 - `GET /api/documents/:id/events?afterSequence=N` → `{ events: EditEvent[], cursor }` (member)
-- `GET /api/documents/:id/members` → `{ members: { user, role, online }[] }` (online from the room's awareness states)
+- `GET /api/documents/:id/members` → `{ members: { user, role, online }[] }` (online from the room's authenticated connections, `connection.context.userId`; awareness is client-declared, so it is not trusted for presence)
 - Enums in `libs/types`: `DocumentRole { Owner, Editor, Reader }`, `RoomMode { Create, Join }`, `BlockChangeKind` (from the POC), `ShareLinkRole { Edit, Read }`.
 
 ### Spike (task 0) — facts to confirm before building
@@ -99,7 +99,7 @@ share         ──► POST /api/documents/:id/share-links/:role/rotate ; GET /
 
 ### Security
 
-Every document route checks membership through one `requireDocumentRole({ documentId, userId, minimumRole })`. Share tokens are 32 random bytes, stored as SHA-256, compared in constant time, never logged. Downloads send the stored file by document id, never a client-supplied path. The `Origin` check and the cookie flow from slice 1 stay; `onAuthenticate` now receives `documentName` and refuses rooms the user is not a member of with the same generic error.
+Every document route checks membership through one `requireDocumentRole({ documentId, userId, minimumRole })`. Share tokens are `base64url(HMAC-SHA256(AUTH_SECRET, nonce))` over a stored 32-byte random nonce; only the nonce and `sha256(token)` are stored, the hash is compared in constant time, and tokens are never logged. The owner's links are recomputed from the nonce, so they can be shown again; rotating a link replaces its nonce; rotating `AUTH_SECRET` invalidates every share link (and every session anyway). Downloads send the stored file by document id, never a client-supplied path. The `Origin` check and the cookie flow from slice 1 stay; `onAuthenticate` now receives `documentName` and refuses rooms the user is not a member of with the same generic error.
 
 ## Open questions → answers
 

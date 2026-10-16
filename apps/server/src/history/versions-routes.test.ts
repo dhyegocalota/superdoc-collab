@@ -1,13 +1,13 @@
 import { clampToMark, readMainStoryText, type ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { DocumentResource, DocumentRole, HttpStatus, VERSION_FAILED_ERROR, VERSION_FAILURE_TTL_MS, VERSION_MARK_MS, VERSION_NOT_READY_ERROR, VersionResource, documentApiPath, versionApiPath, type VersionMarks, type VersionText } from '@superdoc-history/types';
+import { DocumentResource, DocumentRole, HttpStatus, VERSION_FAILED_ERROR, VERSION_FAILURE_TTL_MS, VERSION_MARK_MS, VERSION_NOT_READY_ERROR, VersionResource, documentApiPath, versionApiPath, versionCollaborationPath, type VersionMarks, type VersionText } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import { editedAfterBootstrap, pollVersion, readJson, seededRandom } from '../testing/timeline-client';
-import { ProjectionRequestKind } from './projection-messages';
+import { ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService } from './versions-service';
 
@@ -74,7 +74,7 @@ test('versions routes and version endpoints refuse a non-member like a missing d
   const unknown = await Promise.all(paths(randomUUID()).map((path) => fetch(`${server.baseUrl}${path}`, { headers: { cookie: stranger.cookie } })));
   expect(known.map((response) => response.status)).toEqual([HttpStatus.NotFound, HttpStatus.NotFound, HttpStatus.NotFound]);
   expect(await Promise.all(known.map((response) => response.json()))).toEqual(await Promise.all(unknown.map((response) => response.json())));
-  await expect(connectToDocument({ server, cookie: stranger.cookie, documentId, path: `/collaboration/versions/${documentId}/${sequence}` })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  await expect(connectToDocument({ server, cookie: stranger.cookie, documentId, path: versionCollaborationPath({ documentId, sequence }) })).rejects.toBeInstanceOf(CollaborationRefusedError);
   client.close();
   await server.stop();
 });
@@ -155,4 +155,78 @@ test('deleting the document closes its version instances', async () => {
   expect(server.services.versionRooms.size()).toBe(0);
   viewer.close();
   await server.stop();
+});
+
+test('a cached failure answers text with 503 and refuses the version instance without rerunning the worker', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const version = vi.spyOn(server.services.scheduler, 'version').mockRejectedValue(new Error('boom'));
+  const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
+  const get = (path: string) => fetch(`${server.baseUrl}${path}`, { headers: { cookie: owner.cookie } });
+  await get(versionApiPath({ documentId, sequence }));
+  await expect.poll(async () => (await get(versionApiPath({ documentId, sequence }))).status, { timeout: PROJECTION_TIMEOUT_MS }).toBe(HttpStatus.ServiceUnavailable);
+  const text = await get(versionApiPath({ documentId, sequence, resource: VersionResource.Text }));
+  expect(text.status).toBe(HttpStatus.ServiceUnavailable);
+  expect(text.headers.get('retry-after')).toBe('1');
+  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, path: versionCollaborationPath({ documentId, sequence }) })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  expect(version).toHaveBeenCalledTimes(1);
+  client.close();
+  await server.stop();
+});
+
+test('a fresh load rejection answers text with 503', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  vi.spyOn(server.services.scheduler, 'version').mockRejectedValue(new Error('boom'));
+  const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
+  const text = await fetch(`${server.baseUrl}${versionApiPath({ documentId, sequence, resource: VersionResource.Text })}`, { headers: { cookie: owner.cookie } });
+  expect(text.status).toBe(HttpStatus.ServiceUnavailable);
+  expect(text.headers.get('retry-after')).toBe('1');
+  client.close();
+  await server.stop();
+});
+
+test('versions without around is 400', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Versions })}`, { headers: { cookie: owner.cookie } });
+  expect(response.status).toBe(HttpStatus.BadRequest);
+  await server.stop();
+});
+
+function stubbedVersions(version: (request: { documentId: string; sequence: number }) => Promise<unknown>): { versions: VersionsService; documentId: string } {
+  const documentId = randomUUID();
+  const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
+  return { versions: new VersionsService({ readModel, scheduler: { version } as unknown as ProjectionScheduler }), documentId };
+}
+
+test('peeks that land while a load is in flight log one line when it fails', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  let fail: (error: Error) => void = () => undefined;
+  const { versions, documentId } = stubbedVersions(() => new Promise((_, reject) => {
+    fail = reject;
+  }));
+  Array.from({ length: 3 }).forEach(() => versions.peek({ documentId, sequence: 1 }));
+  fail(new Error('boom'));
+  await expect.poll(() => versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Failed);
+  expect(errors).toHaveBeenCalledTimes(1);
+});
+
+test('a stopped projection is not logged as a failed load', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { versions, documentId } = stubbedVersions(() => Promise.reject(new ProjectionStoppedError()));
+  versions.peek({ documentId, sequence: 1 });
+  await expect.poll(() => versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Failed);
+  expect(errors).not.toHaveBeenCalled();
+});
+
+test('a load that completes after forget does not refill the cache', async () => {
+  let finish: (reply: unknown) => void = () => undefined;
+  const { versions, documentId } = stubbedVersions(() => new Promise((resolve) => {
+    finish = resolve;
+  }));
+  const loading = versions.load({ documentId, sequence: 1 });
+  versions.forget(documentId);
+  finish({ kind: ProjectionRequestKind.Version, documentId, sequence: 1, serverTime: 1, state: new Uint8Array(1), text: '' });
+  await loading;
+  expect(versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Pending);
 });

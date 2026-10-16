@@ -1,5 +1,5 @@
 import { readMainStoryText } from '@superdoc-history/history';
-import { ApiPath, documentApiPath, versionCollaborationPath } from '@superdoc-history/types';
+import { ApiPath, documentApiPath, MINUTE_MS, versionCollaborationPath, type OpenedDocument, type RoomMode } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument } from '../testing/collaboration-client';
@@ -10,6 +10,8 @@ import { parseVersionPath } from './version-rooms';
 const POLL_TIMEOUT_MS = 15_000;
 const SETUP_TIMEOUT_MS = 30_000;
 const SHORT_IDLE_MS = 200;
+const LONG_IDLE_MS = MINUTE_MS;
+const FOREIGN_ORIGIN = 'https://evil.example';
 const ROOM_LIMIT = 2;
 const DEFAULT_LIMIT = 32;
 
@@ -45,7 +47,22 @@ test('a refused socket never creates an instance', async () => {
   await server.stop();
 });
 
-test('an instance nobody joins is destroyed', { timeout: SETUP_TIMEOUT_MS }, async () => {
+test('a refused upgrade never reaches the worker or the version cache', async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const stranger = await signedInUser({ server, name: 'Stranger' });
+  const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
+  const worker = vi.spyOn(server.services.scheduler, 'version');
+  const peek = vi.spyOn(server.services.versions, 'peek');
+  const authorize = vi.spyOn(server.services.versionRooms, 'authorize');
+  const path = endpointOf({ documentId, sequence });
+  await expect(connectToDocument({ server, cookie: stranger.cookie, documentId, path })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, path, origin: FOREIGN_ORIGIN })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  expect([worker.mock.calls.length, peek.mock.calls.length, authorize.mock.calls.length]).toEqual([0, 0, 1]);
+  client.close();
+  await server.stop();
+});
+
+test('a room name other than the document own is refused and its idle instance is destroyed', { timeout: SETUP_TIMEOUT_MS }, async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap({ versionRoomPolicy: { idleMs: SHORT_IDLE_MS, limit: DEFAULT_LIMIT } });
   const other = await bootstrappedDocument({ server, owner });
   const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
@@ -55,19 +72,10 @@ test('an instance nobody joins is destroyed', { timeout: SETUP_TIMEOUT_MS }, asy
   await server.stop();
 });
 
-test('a room name other than the document own is refused', { timeout: SETUP_TIMEOUT_MS }, async () => {
-  const { server, documentId, owner, client } = await editedAfterBootstrap();
-  const other = await bootstrappedDocument({ server, owner });
-  const sequence = server.services.readModel.marks(documentId)[0]!.sequence;
-  await expect(connectToDocument({ server, cookie: owner.cookie, documentId: other.documentId, path: endpointOf({ documentId, sequence }) })).rejects.toBeInstanceOf(CollaborationRefusedError);
-  client.close();
-  await server.stop();
-});
-
 test('a version endpoint never writes the log, the identities or the room mode', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
   const sequence = server.services.readModel.marks(documentId).at(-1)!.sequence;
-  const roomModeOf = async () => ((await (await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { headers: { cookie: owner.cookie } })).json()) as { roomMode: string }).roomMode;
+  const roomModeOf = async (): Promise<RoomMode> => ((await (await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { headers: { cookie: owner.cookie } })).json()) as OpenedDocument).roomMode;
   const before = { updates: server.services.log.readBatch({ documentName: documentId, afterSequence: 0, limit: 1000 }).length, identities: server.services.log.clientIdentities(documentId).size, marks: server.services.readModel.marks(documentId).length, roomMode: await roomModeOf() };
   const path = endpointOf({ documentId, sequence });
   const writer = await connectToDocument({ server, cookie: owner.cookie, documentId, path });
@@ -94,7 +102,7 @@ test('an idle version instance is destroyed', async () => {
 });
 
 test('the limit evicts the least recently used instance', { timeout: SETUP_TIMEOUT_MS }, async () => {
-  const { server, documentId, owner, client } = await editedAfterBootstrap({ versionRoomPolicy: { idleMs: 60_000, limit: ROOM_LIMIT } });
+  const { server, documentId, owner, client } = await editedAfterBootstrap({ versionRoomPolicy: { idleMs: LONG_IDLE_MS, limit: ROOM_LIMIT } });
   const second = await bootstrappedDocument({ server, owner });
   const third = await bootstrappedDocument({ server, owner });
   const first = { documentId, sequence: server.services.readModel.marks(documentId)[0]!.sequence };
@@ -119,7 +127,7 @@ test('parseVersionPath accepts a version endpoint and refuses everything else', 
 
 test('an upgrade on a refused version path is destroyed like an unknown path', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
-  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, path: `${ApiPath.Collaboration}/versions/${documentId}/0` })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, path: endpointOf({ documentId, sequence: 0 }) })).rejects.toBeInstanceOf(CollaborationRefusedError);
   client.close();
   await server.stop();
 });

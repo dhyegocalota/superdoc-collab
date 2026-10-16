@@ -1,6 +1,6 @@
 import { ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { BlockChangeKind, DocumentResource, DocumentRole, documentApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
+import { BlockChangeKind, DocumentResource, HttpStatus, DocumentRole, documentApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
 import { expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
@@ -99,12 +99,12 @@ export async function readJson<Body>({ server, cookie, path }: { server: TestSer
   return response.json();
 }
 
-const VERSION_POLL_INTERVAL_MS = 50;
+const ANOTHER_DOCUMENT_TITLE = 'Another';
 const ORIGINAL_TEXT = 'Original';
 const EDITED_TEXT = 'Original edited';
 const RETRY_AFTER_SECONDS_TEXT = '1';
 
-export async function editedAfterBootstrap({ versionRoomPolicy }: { versionRoomPolicy?: VersionRoomPolicy } = {}) {
+export async function editedAfterBootstrap({ versionRoomPolicy }: { versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{ server: TestServer; documentId: string; owner: TestUser; client: CollaborationClient; bootstrapText: string; editedText: string }> {
   const { server, documentId, owner } = await documentWithOwner({ versionRoomPolicy });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
@@ -116,7 +116,7 @@ export async function editedAfterBootstrap({ versionRoomPolicy }: { versionRoomP
 
 export async function bootstrappedDocument({ server, owner }: { server: TestServer; owner: TestUser }): Promise<{ documentId: string; sequence: number }> {
   const documentId = randomUUID();
-  server.services.documents.create({ id: documentId, title: 'Another', ownerUserId: owner.id });
+  server.services.documents.create({ id: documentId, title: ANOTHER_DOCUMENT_TITLE, ownerUserId: owner.id });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
   commitBootstrap(client.document);
@@ -126,11 +126,16 @@ export async function bootstrappedDocument({ server, owner }: { server: TestServ
 }
 
 export async function pollVersion({ server, cookie, documentId, sequence }: { server: TestServer; cookie: string; documentId: string; sequence: number }): Promise<VersionSummary> {
-  const response = await fetch(`${server.baseUrl}${versionApiPath({ documentId, sequence })}`, { headers: { cookie } });
-  if (response.ok && response.status === 200) return response.json();
-  expect(response.status).toBe(202);
-  expect(response.headers.get('retry-after')).toBe(RETRY_AFTER_SECONDS_TEXT);
-  await response.arrayBuffer();
-  await new Promise((resolve) => setTimeout(resolve, VERSION_POLL_INTERVAL_MS));
-  return pollVersion({ server, cookie, documentId, sequence });
+  const request = () => fetch(`${server.baseUrl}${versionApiPath({ documentId, sequence })}`, { headers: { cookie } });
+  await expect
+    .poll(
+      async () => {
+        const response = await request();
+        if (response.status === HttpStatus.Accepted) expect(response.headers.get('retry-after')).toBe(RETRY_AFTER_SECONDS_TEXT);
+        return response.status;
+      },
+      { timeout: PROJECTION_TIMEOUT_MS },
+    )
+    .toBe(HttpStatus.Ok);
+  return (await request()).json();
 }

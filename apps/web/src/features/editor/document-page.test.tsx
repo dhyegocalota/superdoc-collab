@@ -19,7 +19,7 @@ import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
-import { BLANK_DOCX_PATH } from './use-editor-setup';
+import { BLANK_DOCX_PATH } from './editor-api';
 
 const { SuperDoc, superDocDestroy } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();

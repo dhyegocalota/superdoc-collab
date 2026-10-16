@@ -36,10 +36,11 @@ test('opening loads both links', async () => {
 
 test('Copy writes the url to the clipboard and confirms', async () => {
   mockShareApi();
+  const user = userEvent.setup();
   const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
   await openDialog();
   const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
-  await userEvent.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
+  await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
   expect(writeText).toHaveBeenCalledWith(LINKS[ShareLinkRole.Read]);
   expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
 });

@@ -9,6 +9,8 @@ export const VERSION_TIMEOUT_MS = 60_000;
 const LIVE_EDITOR_SELECTOR = '[data-testid="document-editor"]';
 const BANNER_SELECTOR = '[data-testid="version-banner"]';
 const SEQUENCE_ATTRIBUTE = 'data-sequence';
+export const DETACHED_VIEWER_TEXT = '<viewer frame detached>';
+const DETACHED_FRAME_MESSAGE = 'Frame was detached';
 const VOLUME_PLACEHOLDER = 987654321;
 const VOLUME_PATTERN = '\\d+';
 const STABLE_SAMPLE_MS = 500;
@@ -42,7 +44,12 @@ export function versionBanner(page: Page): Locator {
 }
 
 export async function readViewerText(page: Page): Promise<string> {
-  return (await viewerFrame(page).locator(TEXT_RUN_SELECTOR).allTextContents()).join('');
+  try {
+    return (await viewerFrame(page).locator(TEXT_RUN_SELECTOR).allTextContents()).join('');
+  } catch (error) {
+    if (!String(error).includes(DETACHED_FRAME_MESSAGE)) throw error;
+    return DETACHED_VIEWER_TEXT;
+  }
 }
 
 export async function readLiveText(page: Page): Promise<string> {

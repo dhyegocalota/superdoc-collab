@@ -55,7 +55,9 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   const state = search.at === null ? VersionViewerState.Live : VersionViewerState.Viewing;
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isEnabled && search.at !== null });
   const bin = binContaining({ timeline, time: search.at });
-  const requestedSequence = sequenceOf(bin);
+  const binSequence = sequenceOf(bin);
+  const [pinned, setPinned] = useState<{ at: number; sequence: number } | null>(null);
+  const requestedSequence = pinned !== null && pinned.at === search.at ? pinned.sequence : null;
   const runs = useBinRuns({ documentId, timeline, bin, filter: search.filter });
   const { data: version, isError } = useQuery({
     queryKey: versionQueryKey({ documentId, sequence: requestedSequence }),
@@ -76,8 +78,18 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   }, [version]);
 
   useEffect(() => {
-    if (requestedSequence === null) setShownVersion(null);
-  }, [requestedSequence]);
+    if (search.at === null) {
+      setPinned(null);
+      setShownVersion(null);
+      return;
+    }
+    if (pinned !== null && pinned.at === search.at) return;
+    if (binSequence === null) {
+      if (bin) setShownVersion(null);
+      return;
+    }
+    setPinned({ at: search.at, sequence: binSequence });
+  }, [search.at, bin, binSequence, pinned]);
 
   const { schedule, cancel } = useDebouncedCallback({
     callback: (binStart: number) => {

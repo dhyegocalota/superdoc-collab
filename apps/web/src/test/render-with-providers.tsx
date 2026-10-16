@@ -4,6 +4,7 @@ import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 
+
 const ANY_PATH = '*';
 
 function createTestQueryClient(): QueryClient {
@@ -25,4 +26,14 @@ export function renderWithProviders(element: ReactElement, { route = AppRoute.Do
     </QueryClientProvider>,
   );
   return { queryClient, router };
+}
+
+export function renderHookWithRouter<Result>(hook: () => Result, { route = AppRoute.Documents, queryClient = createTestQueryClient() }: { route?: string; queryClient?: QueryClient } = {}) {
+  const result = {} as { current: Result };
+  function HookProbe(): null {
+    result.current = hook();
+    return null;
+  }
+  const { router } = renderWithProviders(<HookProbe />, { route, queryClient });
+  return { result, queryClient, router };
 }

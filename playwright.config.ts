@@ -9,6 +9,8 @@ const FAKE_OPENROUTER_ORIGIN = `http://127.0.0.1:${FAKE_OPENROUTER_PORT}`;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;
+const LLM_MAX_CONCURRENT_JOBS = 2;
+const LLM_MAX_CALLS_PER_HOUR = 10_000;
 const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
 const BUILD_AND_START_COMMAND = [
   'pnpm --filter @superdoc-history/web build',
@@ -51,6 +53,8 @@ export default defineConfig({
         LLM_MODEL: 'openai/gpt-6-luna',
         OPENROUTER_API_KEY: 'e2e-fake-key',
         OPENROUTER_BASE_URL: `${FAKE_OPENROUTER_ORIGIN}/api/v1`,
+        LLM_MAX_CONCURRENT_JOBS: String(LLM_MAX_CONCURRENT_JOBS),
+        LLM_MAX_CALLS_PER_HOUR: String(LLM_MAX_CALLS_PER_HOUR),
       },
     },
   ],

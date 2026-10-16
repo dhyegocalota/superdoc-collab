@@ -31,7 +31,7 @@ function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun
 export function buildBins({ runs, binStarts, binMs, versionSequenceAt }: { runs: EditRun[]; binStarts: number[]; binMs: number; versionSequenceAt: (time: number) => number | null }): TimelineBin[] {
   return binStarts.map((start) => ({
     start,
-    versionSequence: versionSequenceAt(start + binMs),
+    versionSequence: versionSequenceAt(start + binMs - 1),
     byBand: runs.filter((run) => run.binStart === start).reduce<Record<string, TimelineCell>>((cells, run) => ({ ...cells, [run.bandId]: mergeCell({ cell: cells[run.bandId], run }) }), {}),
   }));
 }

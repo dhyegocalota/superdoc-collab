@@ -528,7 +528,7 @@ If swapping the request listener proves awkward, start the server **after** crea
 - Test: `apps/server/src/server.test.ts`
 
 **Interfaces:**
-- Produces: `startServer({ environment }): Promise<RunningServer>` with `{ httpServer, port, auth, database, stop() }`; `testEnvironment(): Environment` in `testing/test-server.ts` (port 0, temporary `DATABASE_DIR`, 32-character secret); `WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR'` (optional; when set, the server serves that directory with SPA fallback to `index.html` for non-`/api` paths).
+- Produces: `startServer({ environment, webDistDirectory }): Promise<RunningServer>` with `{ httpServer, port, auth, database, stop() }`; `testEnvironment(): Environment` in `testing/test-server.ts` (port 0, temporary `DATABASE_DIR`, 32-character secret); `WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR'` (optional; when set, the server serves that directory with SPA fallback to `index.html` for non-`/api` paths).
 
 - [ ] **Step 1: Failing test**
 

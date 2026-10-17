@@ -1,21 +1,14 @@
+import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SUMMARIZE_EDITS_LABEL } from './timeline-copy';
+import { SUMMARIZE_EDITS_LABEL, SUMMARIZING_LABEL } from './timeline-copy';
 
-type SummarizeEditsButtonProps = { disabledReason: string | null; reasonId: string; onSummarize: () => void };
+type SummarizeEditsButtonProps = { isRunning: boolean; onSummarize: () => void };
 
-export function SummarizeEditsButton({ disabledReason, reasonId, onSummarize }: SummarizeEditsButtonProps) {
-  const isDisabled = disabledReason !== null;
+export function SummarizeEditsButton({ isRunning, onSummarize }: SummarizeEditsButtonProps) {
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={isDisabled}
-      title={isDisabled ? disabledReason : undefined}
-      aria-describedby={isDisabled ? reasonId : undefined}
-      onClick={onSummarize}
-    >
-      {SUMMARIZE_EDITS_LABEL}
+    <Button type="button" variant="default" size="sm" aria-busy={isRunning} onClick={onSummarize}>
+      <Sparkles aria-hidden />
+      {isRunning ? SUMMARIZING_LABEL : SUMMARIZE_EDITS_LABEL}
     </Button>
   );
 }

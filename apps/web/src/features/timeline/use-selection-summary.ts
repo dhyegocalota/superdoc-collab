@@ -1,12 +1,15 @@
-import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
+import { SelectionSummaryState, SummarizeStep, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
-function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
-  if (query.state.data?.state !== SelectionSummaryState.Running) return false;
+function pollWhileSummarizing(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
+  const view = query.state.data;
+  if (view === undefined) return false;
+  const isSummarizing = view.state === SelectionSummaryState.Running || view.step !== SummarizeStep.Idle;
+  if (!isSummarizing) return false;
   return pollWhileAvailable(TIMELINE_POLL_MS)(query);
 }
 
@@ -31,7 +34,7 @@ export function useSelectionSummary({
     queryKey: selectionSummaryQueryKey({ documentId, selection, timeZone }),
     queryFn: () => fetchSelectionSummary({ documentId, selection, binMs, timeZone }),
     enabled: isOpen,
-    refetchInterval: pollWhileRunning,
+    refetchInterval: pollWhileSummarizing,
     retry: false,
   });
 

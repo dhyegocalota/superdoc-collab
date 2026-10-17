@@ -6,7 +6,7 @@ import {
   MIN_RETRY_AFTER_MS,
   RETRY_AFTER_HEADER,
   SECOND_MS,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SUMMARIZE_BUSY_MESSAGE,
   selectionSummaryApiPath,
   TimelineQueryParam,
   timelineEditsApiPath,
@@ -41,7 +41,7 @@ export class TopicsRefreshTooSoonError extends RetryLaterError {
 
 export class SummaryTooSoonError extends RetryLaterError {
   constructor(retryAfterMs: number) {
-    super({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterMs });
+    super({ message: SUMMARIZE_BUSY_MESSAGE, retryAfterMs });
   }
 }
 

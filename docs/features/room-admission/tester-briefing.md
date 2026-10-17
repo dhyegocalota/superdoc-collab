@@ -271,3 +271,7 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 - **Fence cost:** a creator update on an uncommitted room makes no `readBatch` or `latestSnapshot` call (test with spies). The earlier line that said `isCommitted` was reached only for a committed live room was wrong and is replaced above.
 - **Connect hook:** no longer touches the reservation; the touch lives in `reserveCreator`.
 - **Scan cache:** the entry of a document is dropped once a snapshot answers for it.
+
+### G3 open-route rate limit
+
+- The open route counts, per user, every open of a document whose room is not committed (readers and refused editors included) in a one-minute window; the 61st answers 429 with `Retry-After` and logs the document id. Committed rooms are not counted. Hypothesis: an editor can open a committed room at any rate while 60 uncommitted opens in a minute exhaust the budget; another user is unaffected. The windows live in the route's memory and are never pruned per user.

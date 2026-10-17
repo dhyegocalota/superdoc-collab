@@ -42,6 +42,8 @@ The E2E suite already boots the whole stack (build, seed, fake model, server) on
 
 ## Revisit when
 
+- The server accepts a `HOST` to bind: today Hono's `serve()` gets no hostname, so a scenario stack (like the E2E stack before it) listens on every interface with the public demo credentials for the length of the walk. Binding the test stacks to 127.0.0.1 is a product change with its own fix feature.
+
 - A scenario needs three or more authors at once.
 - Playwright MCP exposes several contexts as first-class tools in one server.
 - Scenario runs become stable enough to run on a schedule rather than on suggestion.

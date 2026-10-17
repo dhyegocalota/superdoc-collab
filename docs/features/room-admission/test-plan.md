@@ -48,7 +48,7 @@ Fence, authentication and limits:
 - [ ] Two tabs — input: the holder opens two sockets and closes one; expected: the reservation stays and another editor still gets 409; closing the last releases it.
 - [ ] Post-commit fence — input: a socket with attempt 1 after attempt 2 committed; expected: closed 4403. A socket with no attempt is accepted, and so is the committing attempt in this epoch.
 - [ ] Logs carry the document id — input: an `onAuthenticate` refusal, a 409 and a takeover close; expected: each logs the document id and no payload.
-- [ ] Committed room accepts any attempt — input: a commit, then an update with attempt 1 after takeover; expected: row appended.
+- [ ] Committed room accepts a Join socket and the committing attempt only — input: a commit by attempt 2, then an update from a socket with no attempt and one from attempt 1; expected: the attempt-less row is appended and the attempt-1 socket is closed with 4403 (post-commit fence). Was: 'accepts any attempt … row appended.
 - [ ] Member on uncommitted room, no attempt — input: session cookie, no open; expected: `CollaborationRefusedError`.
 - [ ] Agent on uncommitted room, no attempt — input: a valid room token, no open; expected: `CollaborationRefusedError`.
 - [ ] 120th message in one second — input: 120 messages at `now`; expected: none breached.

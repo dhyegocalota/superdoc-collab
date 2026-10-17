@@ -23,7 +23,7 @@ Projection alone does not stop duplicated content. Partial updates from an aband
 | Expiry | A reservation expires after `CREATOR_RESERVATION_MS` of silence: every appended update from the latest attempt refreshes it. The next editor who opens takes over with attempt + 1. |
 | Commit | A commit clears the reservation and writes a snapshot, so later loads start from the committed state. Commit detection answers from the latest snapshot that satisfies `isBootstrapCommitted`, and scans the paged log only when no snapshot exists. |
 | Limits | Socket `maxPayload` is `MAX_SOCKET_MESSAGE_BYTES`. A connection may send `MAX_SOCKET_MESSAGES_PER_SECOND` messages in a rolling second. A breach closes with a reason. |
-| Logging | Every refusal, 409, takeover close and breach is logged with the document id, except a frame over the cap, which never reaches a document. The payload is never logged. |
+| Logging | Every refusal, 409, takeover close and breach is logged with the document id, except a frame over the cap and a rate breach, which the ws layer closes before any document name is known and which never reaches a document. The payload is never logged. |
 | R | The waiting page stays smooth from 320 to 2560 px: no horizontal scroll, no clipped control, no layout jump. Final-visuals tests the page. This feature's E2E re-checks 375 and 1280. |
 
 ## Non-goals
@@ -105,10 +105,11 @@ export type CreatorReservation = { documentId: string; userId: string; attempt: 
 export type CreatorTicket = { attempt: number; epoch: string };
 export class CreatorReservations {
   reserve({ documentId, userId }: { documentId: string; userId: string }): CreatorTicket | null;
-  attemptOf({ documentId, userId }: { documentId: string; userId: string }): CreatorTicket | null;
-  mayWrite({ documentId, attempt, epoch, committed }: { documentId: string; attempt: number | null; epoch: string | null; committed: boolean }): boolean;
+  attemptOf({ documentId, userId }: { documentId: string; userId: string }): number | null;
+  mayWrite({ documentId, attempt, epoch, isCommitted }: { documentId: string; attempt: number | null; epoch: string | null; isCommitted: boolean }): boolean;
   touch({ documentId, attempt }: { documentId: string; attempt: number }): void;
-  markCommitted({ documentId, attempt }: { documentId: string; attempt: number }): void;
+  commit({ documentId, attempt }: { documentId: string; attempt: number }): void;
+  touch({ documentId, attempt }: { documentId: string; attempt: number }): void;
   release({ documentId, attempt }: { documentId: string; attempt: number }): void;
   forget(documentId: string): void;
 }
@@ -118,7 +119,7 @@ export class CreatorReservations {
 
 **`apps/server/src/collaboration/bootstrap-state.ts`** (new)
 
-`createBootstrapState({ updateLog, readModel })` returns `isCommitted(documentId)`, `markCommitted({ documentId, sequence, document })` and `forget(documentId)`. It moves `findCommittedBootstrap` and `hasCommittedBootstrap` out of `collaboration-runtime.ts` and keeps the cache. `isCommitted` is snapshot-first, as described under Commit detection.
+`createBootstrapState({ updateLog, readModel })` returns `isCommitted(documentId)`, `commit({ documentId, connectionUserId, connectionActor, update, document })` (the append and the snapshot in one transaction; it replaced `markCommitted({ documentId, sequence, document })` and `forget(documentId)`. It moves `findCommittedBootstrap` and `hasCommittedBootstrap` out of `collaboration-runtime.ts` and keeps the cache. `isCommitted` is snapshot-first, as described under Commit detection.
 
 **`apps/server/src/collaboration/collaboration-runtime.ts`**
 

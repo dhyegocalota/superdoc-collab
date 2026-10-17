@@ -1,10 +1,11 @@
 import { TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
 import { useId, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { formatTimestamp } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { BandLabel } from './band-label';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
 import { bandAriaLabel, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
-import { formatTimestamp, TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
+import { TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
 
 const PRIMARY_BUTTON_PRESSED = 1;
 

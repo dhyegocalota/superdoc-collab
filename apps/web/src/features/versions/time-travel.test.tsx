@@ -25,7 +25,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ViewerMessageKind } from './viewer-messages';
-import { formatTimestamp } from '@/features/timeline/timeline-tooltip';
+import { formatTimestamp } from '@/lib/format-date-time';
 import { SCRUB_DEBOUNCE_MS } from '@/features/timeline/use-time-travel';
 import {
   BACK_TO_LIVE_LABEL,

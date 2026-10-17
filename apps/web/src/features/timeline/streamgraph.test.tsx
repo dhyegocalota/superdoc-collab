@@ -2,16 +2,10 @@ import { TimelineBandKind } from '@superdoc-history/types';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
+import { formatBinRange } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';
-import {
-  formatBinRange,
-  TooltipAlignment,
-  tooltipAlignment,
-  tooltipAnchorLeft,
-  TOOLTIP_POINTER_OFFSET,
-  TOOLTIP_WIDTH,
-} from './timeline-tooltip';
+import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
 const timeline = timelineWith({
@@ -48,7 +42,9 @@ test('the svg is titled and described with the band count and the time range', (
   expect(container.querySelector('title')!.textContent).toBe(STREAMGRAPH_TITLE);
   const description = container.querySelector('desc')!.textContent!;
   expect(description).toContain('3 bands');
-  expect(description).toContain(formatBinRange({ start: timeline.bins[0]!.start, binMs: timeline.binMs }).split(' – ')[0]!);
+  expect(description).toContain(
+    formatBinRange({ start: timeline.bins[0]!.start, end: timeline.bins[0]!.start + timeline.binMs }).split(' – ')[0]!,
+  );
 });
 
 test('every band is a focusable path labelled with its size', () => {
@@ -87,7 +83,7 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  expect(tooltip).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, end: timeline.bins[1]!.start + timeline.binMs }));
   expect(tooltip).toHaveTextContent('Budget');
   expect(tooltip).toHaveTextContent('+120 −0');
   expect(tooltip).toHaveTextContent(FIXTURE_AUTHOR_NAME);
@@ -119,7 +115,9 @@ function budgetBand(): Element {
 test('focusing a band shows the tooltip of the selected bin and blurring hides it', () => {
   renderGraph({ selectedIndex: 1 });
   fireEvent.focus(budgetBand());
-  expect(screen.getByRole('tooltip')).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    formatBinRange({ start: timeline.bins[1]!.start, end: timeline.bins[1]!.start + timeline.binMs }),
+  );
   fireEvent.blur(budgetBand());
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

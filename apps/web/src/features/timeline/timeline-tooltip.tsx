@@ -1,11 +1,10 @@
 import type { DocumentTimeline } from '@superdoc-history/types';
+import { formatBinRange } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { authorOf } from './author-of';
 
-const TIMESTAMP_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 export const TOOLTIP_WIDTH = 256;
 export const TOOLTIP_POINTER_OFFSET = 12;
-const RANGE_SEPARATOR = ' – ';
 const TOOLTIP_EDGE_FRACTION = 1 / 3;
 
 export enum TooltipAlignment {
@@ -42,14 +41,6 @@ export function tooltipAnchorLeft({ left, chartWidth }: { left: number; chartWid
   return Math.min(Math.max(left, reach), chartWidth - tooltipWidth + reach);
 }
 
-export function formatTimestamp(time: number): string {
-  return TIMESTAMP_FORMAT.format(time);
-}
-
-export function formatBinRange({ start, binMs }: { start: number; binMs: number }): string {
-  return `${formatTimestamp(start)}${RANGE_SEPARATOR}${formatTimestamp(start + binMs)}`;
-}
-
 export function TimelineTooltip({
   id,
   timeline,
@@ -81,7 +72,7 @@ export function TimelineTooltip({
         ALIGNMENT_CLASS[alignment],
       )}
     >
-      <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>
+      <p className="font-medium">{formatBinRange({ start: bin.start, end: bin.start + timeline.binMs })}</p>
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
           {band.name} +{cell!.inserted} −{cell!.deleted} ·{' '}

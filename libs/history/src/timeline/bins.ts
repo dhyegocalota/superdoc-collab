@@ -1,7 +1,7 @@
 import { MINUTE_MS, SECOND_MS, type TimelineBin, type TimelineCell } from '@superdoc-history/types';
 import type { EditRun } from './runs';
 
-// NB ADR 0015: at most 120 bins keep the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
+// NB ADR 0015: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
 export const MAX_BINS = 120;
 const EDGE_BINS = 1;
 const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 1;

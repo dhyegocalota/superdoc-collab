@@ -12,7 +12,7 @@ A share token is derived from the server's signing secret and a per-link nonce; 
 ## Decision
 
 - When a document's links are read, any link whose stored token hash was not derived from the current secret and its nonce is reissued with a fresh nonce before the links are returned.
-- Links derived from an old secret therefore stop resolving the moment the secret changes, and the owner sees new links on the next open; members already admitted keep their membership, exactly as on an owner rotation.
+- `resolve` refuses a token whose stored hash was not derived from the current secret, so links from an old secret stop resolving the moment the secret changes, before any owner opens the document; the owner sees new links on the next open, and members already admitted keep their membership, exactly as on an owner rotation.
 - Reissue happens lazily on read, not in a migration, so a secret change needs no maintenance step.
 
 ## Alternatives considered
@@ -26,11 +26,11 @@ A share token is derived from the server's signing secret and a per-link nonce; 
 ## Consequences
 
 - Rotating `AUTH_SECRET` is a supported way to invalidate every share link of every document at once.
-- `ShareLinksRepository.links` carries an `NB ADR 0016` pointer; `isIssuedBySecret` is the check.
+- `ShareLinksRepository.links` carries an `NB ADR 0016` pointer; `isIssuedBySecret` is the check, used by `links` to reissue and by `resolve` to refuse.
 
 ## Evidence
 
-- `apps/server/src/documents/share-links-routes.test.ts::links stored under another secret are regenerated and work` pins that a link stored under another secret is replaced on read and that the previous token no longer resolves.
+- `apps/server/src/documents/share-links-routes.test.ts::links stored under another secret are regenerated and work` pins the reissue on read; `::a token issued under another secret stops resolving before any read reissues it` pins the refusal in `resolve` (added after the review of 2026-10-17 found that `resolve` matched the stored hash alone).
 
 ## Revisit when
 

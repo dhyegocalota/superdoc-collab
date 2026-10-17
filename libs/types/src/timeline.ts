@@ -1,7 +1,7 @@
 import { SECOND_MS } from './constants';
 import type { EventAuthor } from './history';
 
-// NB ADR 0014: topics are recomputed automatically only once five new blocks sit outside every topic, so single edits spend no model call.
+// NB ADR 0014: topics are recomputed automatically only once this many new blocks sit outside every topic, so single edits spend no model call.
 export const TOPIC_RECOMPUTE_NEW_BLOCKS = 5;
 export const EVENTS_PAGE_SIZE = 500;
 export const FILTER_MAX_LENGTH = 200;
@@ -10,7 +10,7 @@ export const OTHER_BAND_NAME = 'Other';
 export const SELECTION_SUMMARY_MAX_CHARACTERS = 400;
 export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
-// NB ADR 0012: one model call per document every 30 s, consumed only when the call starts; a cached summary costs nothing.
+// NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
 export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';

@@ -34,7 +34,7 @@
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** `tester-briefing.md` written.
-- [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md`.
-- [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
+- [x] **Tester briefing:** `tester-briefing.md` written.
+- [x] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md`: 12 of 12 boxes green, five observations folded in.
+- [x] **Reviewer:** a fresh `reviewer` sub-agent returned "fix first" with ten findings; all addressed (one in code: `resolve` refuses tokens from another secret).
 - [ ] **/open-pr:** typecheck and unit tests green, PR opened.

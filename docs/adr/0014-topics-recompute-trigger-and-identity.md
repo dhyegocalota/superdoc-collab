@@ -13,7 +13,7 @@ Topics are named by the model, and every recompute costs a model call and can re
 
 - **Trigger.** A document's topics are recomputed automatically only when at least `TOPIC_RECOMPUTE_NEW_BLOCKS = 5` blocks first seen after the last run sit outside every topic, and at most once per `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` (one minute). Single edits never spend a model call; the manual Refresh does, under its own 30 s cooldown.
 - **Identity.** A recomputed topic keeps an earlier topic's id when that earlier topic still holds at least half of the new topic's blocks (`shared * 2 >= needed`); candidates are matched greedily by shared blocks, each earlier id is reused at most once, and anything else is a new topic. Band colours, the highlighted topic in the URL and cached selection summaries keyed by topic therefore survive a recompute when the topic did.
-- **Busy recompute.** When an automatic recompute is refused by a process-wide cap ([0011](0011-process-wide-llm-cost-caps.md)), the document keeps its ready topics and the reader notices nothing. Only a manual Refresh reports `LLM_BUSY_MESSAGE`, because the reader asked for it. This refines the third bullet of ADR 0011, which was written before PR #6.
+- **Busy recompute.** When an automatic recompute is refused by a process-wide cap ([0011](0011-process-wide-llm-cost-caps.md)) and the document has ready topics, it keeps them and the reader notices nothing. A manual Refresh, or a first computation with nothing to keep, reports `LLM_BUSY_MESSAGE`. This refines the third bullet of ADR 0011, which was written before PR #6.
 
 ## Alternatives considered
 
@@ -27,7 +27,7 @@ Topics are named by the model, and every recompute costs a model call and can re
 
 ## Consequences
 
-- `TOPIC_RECOMPUTE_NEW_BLOCKS` lives in `libs/types`; `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` next to the service; both carry an `NB ADR 0014` pointer.
+- `TOPIC_RECOMPUTE_NEW_BLOCKS` lives in `libs/types` and carries an `NB ADR 0014` pointer, as do `keepsReadyTopics` and `matchPreviousTopics`; `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` sits next to the service.
 - A document whose new blocks all land inside existing topics is never recomputed automatically; Refresh is the way to re-cluster it.
 
 ## Evidence

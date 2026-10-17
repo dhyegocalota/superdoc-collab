@@ -6,6 +6,7 @@ import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { versionKeyOf, versionKeyPrefixOf, type VersionEndpoint, type VersionsService } from '../history/versions-service';
+import { describeError } from '../logging/describe-error';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { COLLABORATION_SOCKET_TIMEOUT_MS, LOADING_ORIGIN } from './collaboration-server';
 import { DOCUMENT_ID_PATTERN, documentIdFromRoomName } from './room-name';
@@ -16,7 +17,6 @@ const PATH_SEPARATOR = '/';
 export const STOP_TIMEOUT_MS = 5 * SECOND_MS;
 const ROOM_DESTROY_FAILED_MESSAGE = 'Destroying a version instance failed for';
 
-export type { VersionEndpoint };
 export type VersionRoomPolicy = { idleMs: number; limit: number };
 type VersionRoom = { hocuspocus: Hocuspocus; idleTimer: NodeJS.Timeout | null };
 
@@ -155,7 +155,7 @@ export class VersionRooms {
   }
 
   private destroyInBackground(key: string): void {
-    this.destroy(key).catch((error) => console.error(`${ROOM_DESTROY_FAILED_MESSAGE} ${key}: ${String(error)}`));
+    this.destroy(key).catch((error) => console.error(`${ROOM_DESTROY_FAILED_MESSAGE} ${key}: ${describeError(error)}`));
   }
 
   private async destroy(key: string): Promise<void> {

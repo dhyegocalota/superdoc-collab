@@ -26,7 +26,6 @@ import { createVersionsRoutes } from '../history/versions-routes';
 import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from '../collaboration/version-rooms';
 import { createTimelineRoutes } from '../history/timeline-routes';
-import { NOT_FOUND_MESSAGE } from '../server';
 import { withClientAddress } from './client-address';
 import { health } from './health';
 import { createMeHandler } from './me';
@@ -34,6 +33,7 @@ import { requireUser } from './require-user';
 
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
+export const NOT_FOUND_MESSAGE = 'Not found';
 
 export type InsightsServices = {
   topics: TopicsService;

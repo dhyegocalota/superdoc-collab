@@ -1,9 +1,8 @@
 import { HOUR_MS, MIN_RETRY_AFTER_MS } from '@superdoc-history/types';
-import { describeError } from '../history/projection-messages';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
+import { describeError } from '../logging/describe-error';
 
 export const INSIGHTS_JOB_FAILED_MESSAGE = 'Insights job failed for';
-export const LLM_MAX_CONCURRENT_JOBS = 2;
-export const LLM_MAX_CALLS_PER_HOUR = 60;
 export const LLM_WINDOW_MS = HOUR_MS;
 
 export enum JobOutcome {

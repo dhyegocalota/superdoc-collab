@@ -7,7 +7,7 @@ import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
-import { createCollaborationRuntime, type DocumentRuntime } from './collaboration/collaboration-runtime';
+import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
 import { createCollaborationServer } from './collaboration/collaboration-server';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
@@ -23,11 +23,10 @@ import {
 } from './database/connection';
 import { runHistoryMigrations, runMigrations } from './database/migrate';
 import { DocumentsRepository } from './documents/documents-repository';
-import type { DocumentFileStorage } from './documents/file-storage';
 import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
 import { VersionsService } from './history/versions-service';
 import { DEFAULT_VERSION_ROOM_POLICY, VersionRooms, type VersionRoomPolicy } from './collaboration/version-rooms';
-import { createApp, type InsightsServices } from './http/app';
+import { createApp, NOT_FOUND_MESSAGE, type AppServices, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
 import { InsightsWorker } from './insights/insights-worker';
@@ -42,24 +41,7 @@ import { TimelinePipelineCache } from './history/timeline-pipeline-cache';
 import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
 
-export const NOT_FOUND_MESSAGE = 'Not found';
-
-export type ServerServices = {
-  documents: DocumentsRepository;
-  storage: DocumentFileStorage;
-  log: UpdateLog;
-  hocuspocus: Hocuspocus;
-  readModel: ReadModel;
-  scheduler: ProjectionScheduler;
-  runtime: DocumentRuntime;
-  shareLinks: ShareLinksRepository;
-  insightsRepository: InsightsRepository;
-  throttle: ProjectionThrottle;
-  timelinePipelines: TimelinePipelineCache;
-  insights: InsightsServices;
-  versions: VersionsService;
-  versionRooms: VersionRooms;
-};
+export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
 
 export type RunningServer = {
   httpServer: ServerType;

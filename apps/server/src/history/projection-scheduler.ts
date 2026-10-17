@@ -1,7 +1,7 @@
 import { MINUTE_MS } from '@superdoc-history/types';
 import { Worker } from 'node:worker_threads';
+import { describeError } from '../logging/describe-error';
 import {
-  describeError,
   IMPORT_FAILED_MESSAGE,
   IMPORT_SKIPPED_MESSAGE,
   PROJECTION_FAILED_MESSAGE,

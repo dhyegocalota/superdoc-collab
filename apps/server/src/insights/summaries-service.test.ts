@@ -6,7 +6,7 @@ import { memberWithRole } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { modelAnswering, modelAnsweringWith, readyModel } from '../testing/language-model';
 import { readSummaries, storyWithBlocks } from '../testing/timeline-client';
-import { LLM_MAX_CONCURRENT_JOBS } from './insights-worker';
+import { LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { SUMMARIES_BUSY_MESSAGE, SUMMARY_MIN_INTERVAL_MS } from './summaries-service';
 
 const POLL_TIMEOUT_MS = 15_000;

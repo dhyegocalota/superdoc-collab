@@ -1,6 +1,7 @@
 import { clampToMark, type ReadModel, type VersionMarkSummary } from '@superdoc-history/history';
 import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
-import { describeError, ProjectionStoppedError } from './projection-messages';
+import { describeError } from '../logging/describe-error';
+import { ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 
 export const VERSION_LOAD_FAILED_MESSAGE = 'Loading a version failed for';

@@ -1,6 +1,7 @@
 import { MIN_RETRY_AFTER_MS, MINUTE_MS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { InsightsWorker, JobOutcome, LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS, LLM_WINDOW_MS } from './insights-worker';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
+import { InsightsWorker, JobOutcome, LLM_WINDOW_MS } from './insights-worker';
 
 function gate(): { promise: Promise<void>; open: () => void } {
   let open: () => void = () => undefined;

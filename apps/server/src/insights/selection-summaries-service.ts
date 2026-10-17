@@ -10,7 +10,7 @@ import {
   type SelectionSummaryView,
 } from '@superdoc-history/types';
 import type { LanguageModel } from 'ai';
-import { describeError } from '../history/projection-messages';
+import { describeError } from '../logging/describe-error';
 import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import { JobOutcome, type InsightsWorker } from './insights-worker';

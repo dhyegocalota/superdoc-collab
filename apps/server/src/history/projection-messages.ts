@@ -85,7 +85,3 @@ export class ImportTimeoutError extends Error {
     super(`The import took longer than ${milliseconds} ms.`);
   }
 }
-
-export function describeError(error: unknown): string {
-  return String(error).replaceAll('\n', ' ');
-}

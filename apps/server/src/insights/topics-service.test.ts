@@ -29,7 +29,8 @@ import {
   type TestUser,
 } from '../testing/test-server';
 import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
-import { INSIGHTS_JOB_FAILED_MESSAGE, JobOutcome, LLM_MAX_CONCURRENT_JOBS } from './insights-worker';
+import { LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
+import { INSIGHTS_JOB_FAILED_MESSAGE, JobOutcome } from './insights-worker';
 import { SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import { TOPIC_RECOMPUTE_MIN_INTERVAL_MS, UNKNOWN_TOPIC_BLOCKS_MESSAGE } from './topics-service';
 

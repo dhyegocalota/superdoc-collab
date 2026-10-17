@@ -3,7 +3,8 @@ import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { parseVersionPath, VersionAdmission, type VersionEndpoint, type VersionRooms } from './version-rooms';
+import type { VersionEndpoint } from '../history/versions-service';
+import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
 const PARSE_BASE_URL = 'http://localhost';
 const UNAVAILABLE_UPGRADE_RESPONSE = [

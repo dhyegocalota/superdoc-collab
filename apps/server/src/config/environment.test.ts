@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../insights/insights-worker';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidLlmLimitError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
 
 const complete: Record<string, string> = {

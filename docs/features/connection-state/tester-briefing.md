@@ -252,3 +252,5 @@ Run on the integration branch merged into the lane, ports 3100, 3199 and 3150 fr
 - A 401 on the Reload refetch is a known gap: `refetchQueries` does not throw, so the page ends on the unavailable notice or the old data instead of a sign-in prompt.
 - Review fixes: Reload refetches the open key and the current file key with `exact: true`; the failure reason survives late Lost or Reconnecting reports; a stale Recovered action is ignored unless the reading is Lost or Reconnecting; the members cancel and refetch run inside `reportTransport` for outage reports; the banner shows the reason and the unsynced warning in one paragraph; the Reload button is disabled and reads "Reloading…" while the refetch runs.
 - Review-fix red/green pairs: hook `058ac98`/`0b1027e`, banner `133e011`/`a4a3a58`, page `f3deef0`/`68b73e4`.
+
+- Restart test, renamed `a server restart shows reconnecting, recovered, then clears`: the tester never saw `lost`, because the provider reports lost and reconnecting in the same tick. The test requires `reconnecting` then `recovered` in order, and `lost` only as an optional entry before `reconnecting`. Not rerun after this change.

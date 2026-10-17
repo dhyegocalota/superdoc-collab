@@ -12,18 +12,21 @@ vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeo
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const FORM_TEXT = 'sign-in form';
 const DOCUMENTS_TEXT = 'documents page';
+const ADMIN_TEXT = 'admin page';
+const EXTERNAL_NEXT = 'https://evil.example/steal';
 
 function respondWithUser(user: SessionUser | null): void {
   vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user } }));
 }
 
-function renderSignInRoute() {
+function renderSignInRoute(initialEntry: string = AppRoute.SignIn) {
   const router = createMemoryRouter(
     [
       { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
       { path: AppRoute.Documents, element: DOCUMENTS_TEXT },
+      { path: AppRoute.Admin, element: ADMIN_TEXT },
     ],
-    { initialEntries: [AppRoute.SignIn] },
+    { initialEntries: [initialEntry] },
   );
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -45,4 +48,16 @@ test('renders the form when signed out', async () => {
   respondWithUser(null);
   renderSignInRoute();
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
+});
+
+test('a signed-in user goes to the page named by next', async () => {
+  respondWithUser(ADA);
+  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.Admin)}`);
+  expect(await screen.findByText(ADMIN_TEXT)).toBeInTheDocument();
+});
+
+test('a next pointing at another origin falls back to documents', async () => {
+  respondWithUser(ADA);
+  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(EXTERNAL_NEXT)}`);
+  expect(await screen.findByText(DOCUMENTS_TEXT)).toBeInTheDocument();
 });

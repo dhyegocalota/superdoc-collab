@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import { ApiPath, CREATOR_RESERVATION_MS, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
 import { AdminUsersRepository } from './admin/users';
@@ -17,6 +17,8 @@ import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
 import { createCollaborationServer } from './collaboration/collaboration-server';
+import { createBootstrapState } from './collaboration/bootstrap-state';
+import { CreatorReservations } from './collaboration/creator-reservations';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
 import {
@@ -54,7 +56,7 @@ const AGENT_TOOLKIT_PRESET = 'core';
 const LOOPBACK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1';
 const LOOPBACK_HTTP_ORIGIN = 'http://127.0.0.1';
 
-export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
+export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle; reservations: CreatorReservations };
 
 export type RunningServer = {
   httpServer: ServerType;
@@ -142,6 +144,8 @@ function createServices({
   const versions = new VersionsService({ readModel, updateLog, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
+  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now });
+  const bootstrap = createBootstrapState({ updateLog, readModel });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
@@ -184,13 +188,14 @@ function createServices({
   const runtime = createCollaborationRuntime({
     hocuspocus,
     updateLog,
-    readModel,
     scheduler,
     storage,
     timelinePipelines,
     versions,
     versionRooms,
     insights,
+    reservations,
+    bootstrap,
   });
   const agentSessions = new AgentSessions({
     issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),
@@ -213,6 +218,7 @@ function createServices({
     shareLinks,
     insightsRepository,
     throttle,
+    reservations,
     timelinePipelines,
     insights,
     versions,

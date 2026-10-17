@@ -5,6 +5,8 @@ export const TITLE_MAX_LENGTH = 200;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
+export const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 4;
+export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
@@ -51,7 +53,13 @@ export const titleSchema = z.object({ title: z.string().trim().min(1).max(TITLE_
 export type UserReference = { id: string; name: string };
 export type DocumentSummary = { id: string; title: string; owner: UserReference; updatedAt: number; role: DocumentRole };
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
-export type OpenedDocument = { document: DocumentSummary; role: DocumentRole; roomMode: RoomMode };
+export type OpenedDocument = {
+  document: DocumentSummary;
+  role: DocumentRole;
+  roomMode: RoomMode;
+  creatorAttempt: number | null;
+  creatorEpoch: string | null;
+};
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean };
 export type DocumentMembers = { members: DocumentMember[] };
 export type ShareLinks = Record<ShareLinkRole, string>;

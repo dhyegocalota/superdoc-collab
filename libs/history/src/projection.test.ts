@@ -2,6 +2,7 @@ import { BlockChangeKind, ClientActor } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { beforeEach, expect, test } from 'vitest';
 import { MigrationSet } from './migrations';
+import { findBootstrapSequence } from './document-history';
 import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
@@ -99,4 +100,40 @@ test('forgetting a document clears its events and cursor', () => {
   readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: 3 });
   readModel.forget(DOCUMENT);
   expect(readModel.cursor(DOCUMENT)).toBeNull();
+});
+
+const ABANDONED_CLIENT_ID = 900;
+const WINNER_CLIENT_ID = 100;
+const META_MAP = 'meta';
+const BOOTSTRAP_STATE_KEY = 'bootstrapState';
+
+function loggedChange({ document, userId, change }: { document: Y.Doc; userId: string; change: () => void }): Uint8Array {
+  const captured: Uint8Array[] = [];
+  document.once('update', (update: Uint8Array) => captured.push(update));
+  change();
+  const [update] = captured;
+  log.append({ documentName: DOCUMENT, connectionUserId: userId, connectionActor: ClientActor.Human, update: update! });
+  return update!;
+}
+
+test('a commit snapshot starts the projection although a replay of the whole log never sees the commit', () => {
+  const abandoned = new Y.Doc();
+  abandoned.clientID = ABANDONED_CLIENT_ID;
+  loggedChange({ document: abandoned, userId: 'ana', change: () => abandoned.getMap(META_MAP).set(BOOTSTRAP_STATE_KEY, 'pending') });
+  const winner = new Y.Doc();
+  winner.clientID = WINNER_CLIENT_ID;
+  loggedChange({ document: winner, userId: 'bruno', change: () => winner.getMap(META_MAP).set(BOOTSTRAP_STATE_KEY, 'pending') });
+  const committed: Uint8Array[] = [];
+  winner.once('update', (update: Uint8Array) => committed.push(update));
+  commitBootstrap(winner);
+  const { sequence } = log.appendCommitted({
+    documentName: DOCUMENT,
+    connectionUserId: 'bruno',
+    connectionActor: ClientActor.Human,
+    update: committed[0]!,
+    state: Y.encodeStateAsUpdate(winner),
+  });
+  expect(findBootstrapSequence({ updates: log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }) })).toBeNull();
+  projectPending({ log, readModel, documentName: DOCUMENT });
+  expect(readModel.cursor(DOCUMENT)).toBe(sequence);
 });

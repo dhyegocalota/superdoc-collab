@@ -6,8 +6,10 @@ import { HTTPException } from 'hono/http-exception';
 import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-history/history';
 import type { Auth } from '../auth/auth';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
+import { authorizeAgentRequest, unauthorizedAgentResponse } from '../agent/agent-authorization';
 import type { AgentSessions } from '../agent/agent-sessions';
 import type { AgentToolContext } from '../agent/agent-tool-context';
+import { createMcpRoutes } from '../agent/mcp-route';
 import type { Environment } from '../config/environment';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -82,6 +84,18 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     return auth.handler(withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy }));
   });
   mountOAuthDiscovery({ app, auth });
+  app.route(
+    ApiPath.Mcp,
+    createMcpRoutes({
+      services,
+      authorize: (request) => authorizeAgentRequest({ auth, request }),
+      unauthorized: () => unauthorizedAgentResponse({ appOrigin: environment.appOrigin }),
+      sessions: services.agentSessions,
+      toolkit: services.agentToolkit,
+      recordAction: ({ documentId, userId, kind }) =>
+        services.agentActions.record({ documentName: documentId, userId, kind, createdAt: Date.now() }),
+    }),
+  );
   app.get(ApiPath.Me, createMeHandler({ auth }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));

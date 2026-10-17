@@ -8,6 +8,7 @@ import {
   ApiPath,
   DocumentRole,
   DOCX_MIME_TYPE,
+  HttpStatus,
   ShareLinkRole,
   type DocumentTimeline,
   type ShareLinks,
@@ -24,7 +25,6 @@ const SEED_TEXT = 'Budget is approved.';
 const REPLACEMENT = 'Plan';
 const OWNER_AGENT_NAME = 'Ana · AI';
 const PROJECTION_TIMEOUT_MS = 30_000;
-const UNAUTHORIZED_PATTERN = /401/;
 const BEARER_PREFIX = 'Bearer ';
 
 let server: TestServer;
@@ -49,7 +49,7 @@ async function connectMcpClient(accessToken: string): Promise<Client> {
 
 async function callJson({ name, args }: { name: AgentTool; args: Record<string, unknown> }): Promise<unknown> {
   const result = await client.callTool({ name, arguments: args });
-  expect(result.isError).not.toBe(true);
+  expect([result.isError, JSON.stringify(result.content)]).toEqual([undefined, expect.anything()]);
   const [content] = result.content as TextContent[];
   return JSON.parse(content!.text);
 }
@@ -128,5 +128,5 @@ test('a client without the share scope does not see the share tools', async () =
 
 test('deleting the consent makes the next call fail with 401', async () => {
   await deleteConsent({ server, user: owner, consentId: connected.consentId });
-  await expect(client.callTool({ name: AgentTool.ListDocuments, arguments: {} })).rejects.toThrow(UNAUTHORIZED_PATTERN);
+  await expect(client.callTool({ name: AgentTool.ListDocuments, arguments: {} })).rejects.toMatchObject({ code: HttpStatus.Unauthorized });
 });

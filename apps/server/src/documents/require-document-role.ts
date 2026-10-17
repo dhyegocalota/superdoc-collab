@@ -1,4 +1,6 @@
 import { DOCUMENT_ROLE_RANK, type DocumentRole } from '@superdoc-history/types';
+import type { Context } from 'hono';
+import type { SignedIn } from '../http/require-user';
 import type { DocumentsRepository } from './documents-repository';
 
 export class DocumentNotFoundError extends Error {
@@ -28,4 +30,14 @@ export function requireDocumentRole({
   if (!role) throw new DocumentNotFoundError();
   if (DOCUMENT_ROLE_RANK[role] < DOCUMENT_ROLE_RANK[minimumRole]) throw new DocumentRoleTooLowError();
   return role;
+}
+
+export function authorizedDocumentId({
+  minimumRole,
+}: {
+  context: Context<SignedIn>;
+  documents: DocumentsRepository;
+  minimumRole: DocumentRole;
+}): string {
+  throw new Error(`authorizedDocumentId is not implemented: ${minimumRole}`);
 }

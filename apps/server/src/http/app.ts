@@ -64,6 +64,7 @@ export type AppServices = {
   insights: InsightsServices;
   versions: VersionsService;
   versionRooms: VersionRooms;
+  jwksUrl: () => string;
 };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
@@ -88,7 +89,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     ApiPath.Mcp,
     createMcpRoutes({
       services,
-      authorize: (request) => authorizeAgentRequest({ auth, request }),
+      authorize: (request) => authorizeAgentRequest({ auth, request, jwksUrl: services.jwksUrl() }),
       unauthorized: () => unauthorizedAgentResponse({ appOrigin: environment.appOrigin }),
       sessions: services.agentSessions,
       toolkit: services.agentToolkit,

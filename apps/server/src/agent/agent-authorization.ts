@@ -23,7 +23,20 @@ function isAccessTokenType(request: Request): boolean {
   return typ === ACCESS_TOKEN_TYPE;
 }
 
-export async function authorizeAgentRequest({ auth, request }: { auth: Auth; request: Request }): Promise<AgentPrincipal | null> {
+export class AgentVerificationUnavailableError extends Error {
+  constructor() {
+    super('Agent access tokens cannot be verified right now.');
+  }
+}
+
+export async function authorizeAgentRequest({
+  auth,
+  request,
+}: {
+  auth: Auth;
+  request: Request;
+  jwksUrl: string;
+}): Promise<AgentPrincipal | null> {
   const { adapter, baseURL } = await auth.$context;
   const appOrigin = new URL(baseURL).origin;
   const claims = await verifyAccessTokenRequest(requestToResourceInput(request), {

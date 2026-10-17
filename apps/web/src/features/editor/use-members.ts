@@ -1,7 +1,7 @@
-import type { DocumentMember } from '@superdoc-collab/types';
+import { MEMBERS_REFRESH_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { DocumentUnavailableError, pollWhileAvailable } from '@/lib/api';
-import { fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';
+import { fetchMembers, membersQueryKey } from './editor-api';
 
 const NO_MEMBERS: DocumentMember[] = [];
 

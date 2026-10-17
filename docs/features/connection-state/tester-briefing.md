@@ -247,3 +247,5 @@ Run on the integration branch merged into the lane, ports 3100, 3199 and 3150 fr
 - With the cookie cleared, Failed shows as soon as the server stops, so that test no longer waits for `lost`.
 - The width test is red for a real reason. Lost and Reconnecting fit at all eight widths. Failed at 320 px reads as three paragraphs plus Reload, 168 px of content against 60 px for three lines, and the design asks for three lines at most on phones. Reload sits inside the viewport. 375 px probably fails the same way and was not reached.
 - The banner's vertical padding and borders are excluded from the measured height.
+
+- Width rule, decided by the lead: text lines on the text block only, at most 3 on phones for Lost, Reconnecting and Recovered, at most 5 for Failed; Reload must stay inside the viewport. The test measures every width in both phases and asserts once, so a run lists every failing width. It was not rerun after this change.

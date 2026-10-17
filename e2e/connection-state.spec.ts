@@ -1,5 +1,13 @@
 import type { Browser, Page } from '@playwright/test';
-import { AppRoute, DEMO_USERS, RECOVERED_NOTICE_MS, SECOND_MS, ShareLinkRole } from '../libs/types/src';
+import {
+  AppRoute,
+  ConnectionState,
+  DEMO_USERS,
+  MEMBERS_REFRESH_MS,
+  RECOVERED_NOTICE_MS,
+  SECOND_MS,
+  ShareLinkRole,
+} from '../libs/types/src';
 import { insertInParagraph, readEditorText, readEvents, shareAndAccept, uploadSeed } from './editor';
 import { DEMO_PASSWORD, expect, signedInContext, signIn, test, type SignedInContext } from './fixtures';
 import { ensureServerRunning, startRestartableStack, startServer, stopRestartableStack, stopServer } from './restartable-stack';
@@ -7,7 +15,6 @@ import { SERVER_HEALTH_PATH } from './stack';
 
 const [ana, bruno] = DEMO_USERS;
 const PROVIDER_RETRY_CAP_MS = 30 * SECOND_MS;
-const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 const LOST_TIMEOUT_MS = PROVIDER_RETRY_CAP_MS;
 const RECOVERY_TIMEOUT_MS = PROVIDER_RETRY_CAP_MS + MEMBERS_REFRESH_MS + RECOVERED_NOTICE_MS + 10 * SECOND_MS;
 const FAILED_TIMEOUT_MS = 2 * PROVIDER_RETRY_CAP_MS;
@@ -15,14 +22,15 @@ const CONVERGENCE_TIMEOUT_MS = 2 * PROVIDER_RETRY_CAP_MS;
 const WIDTH_TEST_TIMEOUT_MS = 240 * SECOND_MS;
 const VIEWPORT_HEIGHT = 900;
 const VIEWPORT_WIDTHS = [320, 375, 768, 1024, 1280, 1536, 1920, 2560];
-const MAX_BANNER_LINES = 3;
+const MAX_PHONE_TEXT_LINES = 3;
+const MAX_PHONE_FAILED_TEXT_LINES = 5;
+const PHONE_MAX_WIDTH = 375;
 const BANNER_TEST_ID = 'connection-banner';
 const EDITOR_TEST_ID = 'document-editor';
 const STATE_ATTRIBUTE = 'data-state';
-const ONLINE_STATE = 'online';
-const DISCONNECTED_STATES = /^(lost|reconnecting)$/;
+const DISCONNECTED_STATES = new RegExp(`^(${ConnectionState.Lost}|${ConnectionState.Reconnecting})$`);
 const OBSERVED_STATES_KEY = '__observedBannerStates';
-const EXPECTED_SEQUENCE = ['lost', 'reconnecting', 'recovered'];
+const EXPECTED_SEQUENCE = [ConnectionState.Lost, ConnectionState.Reconnecting, ConnectionState.Recovered];
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
 const ANA_PARAGRAPH = 'owned by ana';
 const OFFLINE_MARKER = ' <ANA-OFFLINE>';
@@ -70,7 +78,7 @@ async function observeBannerStates(page: Page): Promise<void> {
       record();
       new MutationObserver(record).observe(document.body, { subtree: true, childList: true, attributes: true });
     },
-    { bannerTestId: BANNER_TEST_ID, stateAttribute: STATE_ATTRIBUTE, onlineState: ONLINE_STATE, storageKey: OBSERVED_STATES_KEY },
+    { bannerTestId: BANNER_TEST_ID, stateAttribute: STATE_ATTRIBUTE, onlineState: ConnectionState.Online, storageKey: OBSERVED_STATES_KEY },
   );
 }
 
@@ -78,42 +86,45 @@ function readObservedStates(page: Page): Promise<string[]> {
   return page.evaluate((storageKey) => (window as unknown as Record<string, string[]>)[storageKey]!, OBSERVED_STATES_KEY);
 }
 
-async function expectBannerFits(page: Page): Promise<void> {
+async function measureBannerProblems(page: Page): Promise<string[]> {
   const layout = await page.evaluate(
     ({ bannerTestId }) => {
       const element = document.querySelector(`[data-testid="${bannerTestId}"]`)!;
-      const style = getComputedStyle(element);
-      const verticalSpacing = [style.paddingTop, style.paddingBottom, style.borderTopWidth, style.borderBottomWidth]
-        .map(parseFloat)
-        .reduce((sum, value) => sum + value, 0);
+      const textBlock = element.querySelector('div')!;
       const reload = element.querySelector('button');
       const reloadBox = reload ? reload.getBoundingClientRect() : null;
       return {
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
         viewportWidth: window.innerWidth,
-        width: window.innerWidth,
-        bannerHeight: element.getBoundingClientRect().height - verticalSpacing,
-        lineHeight: parseFloat(style.lineHeight),
+        textLines: textBlock.getBoundingClientRect().height / parseFloat(getComputedStyle(textBlock).lineHeight),
         reload: reloadBox ? { left: reloadBox.left, right: reloadBox.right } : null,
       };
     },
     { bannerTestId: BANNER_TEST_ID },
   );
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
-  expect(layout.bannerHeight, `banner content height at ${layout.width}px`).toBeLessThanOrEqual(layout.lineHeight * MAX_BANNER_LINES);
-  const isFailed = (await banner(page).getAttribute(STATE_ATTRIBUTE)) === 'failed';
-  if (!isFailed) return;
-  expect(layout.reload).not.toBeNull();
-  expect(layout.reload!.left).toBeGreaterThanOrEqual(0);
-  expect(layout.reload!.right).toBeLessThanOrEqual(layout.viewportWidth);
+  const state = await banner(page).getAttribute(STATE_ATTRIBUTE);
+  const isFailed = state === ConnectionState.Failed;
+  const isPhone = layout.viewportWidth <= PHONE_MAX_WIDTH;
+  const maxTextLines = isFailed ? MAX_PHONE_FAILED_TEXT_LINES : MAX_PHONE_TEXT_LINES;
+  const isReloadOutside = isFailed && (layout.reload === null || layout.reload.left < 0 || layout.reload.right > layout.viewportWidth);
+  const problems = [
+    layout.scrollWidth > layout.clientWidth && 'the page scrolls horizontally',
+    isPhone && layout.textLines > maxTextLines && `the text takes ${layout.textLines} lines, more than ${maxTextLines}`,
+    isReloadOutside && 'Reload is not fully inside the viewport',
+  ];
+  return problems
+    .filter((problem): problem is string => typeof problem === 'string')
+    .map((problem) => `${state} at ${layout.viewportWidth}px: ${problem}`);
 }
 
-async function expectFitsAtEveryWidth(page: Page): Promise<void> {
+async function measureAtEveryWidth(page: Page): Promise<string[]> {
+  const problems: string[] = [];
   for (const width of VIEWPORT_WIDTHS) {
     await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
-    await expectBannerFits(page);
+    problems.push(...(await measureBannerProblems(page)));
   }
+  return problems;
 }
 
 async function signInAgain({ author }: { author: SignedInContext }): Promise<void> {
@@ -166,7 +177,7 @@ test('the session cookie removed shows failed, an inert editor and a working Rel
   await owner.context.clearCookies();
   await stopServer();
   await startServer();
-  await expect(banner(owner.page)).toHaveAttribute(STATE_ATTRIBUTE, 'failed', { timeout: FAILED_TIMEOUT_MS });
+  await expect(banner(owner.page)).toHaveAttribute(STATE_ATTRIBUTE, ConnectionState.Failed, { timeout: FAILED_TIMEOUT_MS });
   await expect(owner.page.getByRole('alert').filter({ has: owner.page.getByRole('button', { name: 'Reload' }) })).toBeVisible();
   await expect(owner.page.getByTestId(EDITOR_TEST_ID)).toHaveAttribute('inert', '');
   await signInAgain({ author: owner });
@@ -182,9 +193,10 @@ test('the banner reads well at eight widths', async ({ browser }) => {
   const { owner } = await openSharedDocument(browser);
   await stopServer();
   await expect(banner(owner.page)).toBeVisible({ timeout: LOST_TIMEOUT_MS });
-  await expectFitsAtEveryWidth(owner.page);
+  const disconnectedProblems = await measureAtEveryWidth(owner.page);
   await owner.context.clearCookies();
   await startServer();
-  await expect(banner(owner.page)).toHaveAttribute(STATE_ATTRIBUTE, 'failed', { timeout: FAILED_TIMEOUT_MS });
-  await expectFitsAtEveryWidth(owner.page);
+  await expect(banner(owner.page)).toHaveAttribute(STATE_ATTRIBUTE, ConnectionState.Failed, { timeout: FAILED_TIMEOUT_MS });
+  const failedProblems = await measureAtEveryWidth(owner.page);
+  expect([...disconnectedProblems, ...failedProblems]).toEqual([]);
 });

@@ -81,8 +81,8 @@ export function offlineMemberReason(name: string): string {
   return `${name} is offline`;
 }
 
-export function cursorOffScreenReason(_name: string): string {
-  throw new Error('cursorOffScreenReason is not implemented');
+export function cursorOffScreenReason(name: string): string {
+  return `${name}’s cursor is off screen`;
 }
 
 export function moreMembersLabel(count: number): string {

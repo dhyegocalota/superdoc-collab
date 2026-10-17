@@ -1,11 +1,12 @@
 import { AgentScope, HttpStatus } from '@superdoc-history/types';
 import { isAPIError } from 'better-auth/api';
-import { requestToResourceInput, verifyAccessTokenRequest } from 'better-auth/oauth2';
+import { requestToResourceInput, verifyAccessTokenRequest, type ResourceRequestInput } from 'better-auth/oauth2';
 import type { Auth } from '../auth/auth';
 import { mcpResourceOf } from '../auth/auth';
+import { describeError } from '../logging/describe-error';
 
 const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource';
-const JWKS_PATH = '/jwks';
+const VERIFICATION_UNAVAILABLE_LOG = 'Agent token verification unavailable:';
 const CONSENT_MODEL = 'oauthConsent';
 const ACCESS_TOKEN_TYPE = 'at+jwt';
 const SCOPE_SEPARATOR = ' ';
@@ -17,7 +18,8 @@ export type AgentPrincipal = { userId: string; clientId: string; scopes: AgentSc
 
 function isAccessTokenType(request: Request): boolean {
   const token = request.headers.get('authorization')?.trim().split(TOKEN_SEPARATOR).at(-1);
-  const [header] = token?.split(JWT_SEPARATOR) ?? [];
+  if (!token) return false;
+  const [header] = token.split(JWT_SEPARATOR);
   if (!header) return false;
   const { typ } = JSON.parse(Buffer.from(header, 'base64url').toString()) as { typ?: string };
   return typ === ACCESS_TOKEN_TYPE;
@@ -29,9 +31,20 @@ export class AgentVerificationUnavailableError extends Error {
   }
 }
 
+function publicResourceInput({ request, appOrigin }: { request: Request; appOrigin: string }): ResourceRequestInput {
+  const { pathname, search } = new URL(request.url);
+  return { ...requestToResourceInput(request), url: `${appOrigin}${pathname}${search}` };
+}
+
+function rethrowUnavailable(error: unknown): never {
+  console.error(`${VERIFICATION_UNAVAILABLE_LOG} ${describeError(error)}`);
+  throw new AgentVerificationUnavailableError();
+}
+
 export async function authorizeAgentRequest({
   auth,
   request,
+  jwksUrl,
 }: {
   auth: Auth;
   request: Request;
@@ -39,12 +52,12 @@ export async function authorizeAgentRequest({
 }): Promise<AgentPrincipal | null> {
   const { adapter, baseURL } = await auth.$context;
   const appOrigin = new URL(baseURL).origin;
-  const claims = await verifyAccessTokenRequest(requestToResourceInput(request), {
+  const claims = await verifyAccessTokenRequest(publicResourceInput({ request, appOrigin }), {
     verifyOptions: { issuer: appOrigin, audience: mcpResourceOf(appOrigin) },
-    jwksUrl: `${baseURL}${JWKS_PATH}`,
+    jwksUrl,
   }).catch((error: unknown) => {
     if (isAPIError(error)) return null;
-    throw error;
+    return rethrowUnavailable(error);
   });
   if (!claims || !isAccessTokenType(request)) return null;
   const { sub: userId, client_id: clientId, scope } = claims;

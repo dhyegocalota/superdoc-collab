@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
+import css from './globals.css?raw';
 
-const GLOBALS_PATH = fileURLToPath(new URL('./globals.css', import.meta.url));
 const AUTHOR_SLOTS = [1, 2, 3, 4, 5, 6];
 const AUTHOR_HEX_VALUES = ['#2e39b8', '#5a2eb8', '#912eb8', '#b82ea8', '#b82e70', '#b82e39'];
 const SUPERDOC_VARIABLES: Record<string, string> = {
@@ -17,8 +15,6 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
   '--sd-ui-action-hover': 'var(--primary)',
   '--sd-layout-page-bg': 'var(--paper)',
 };
-
-const css = readFileSync(GLOBALS_PATH, 'utf8');
 
 function blockOf(selector: string): string {
   const start = css.indexOf(`${selector} {`);

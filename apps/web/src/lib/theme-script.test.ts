@@ -1,14 +1,10 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { afterEach, expect, test, vi } from 'vitest';
+import html from '../../index.html?raw';
 import { THEME_STORAGE_KEY, ThemePreference } from './use-theme';
 
-const INDEX_HTML_PATH = fileURLToPath(new URL('../../index.html', import.meta.url));
 const MODULE_SCRIPT_TAG = '/src/main.tsx';
 const INLINE_SCRIPT_PATTERN = /<script>([\s\S]*?)<\/script>/;
 const DARK_CLASS = 'dark';
-
-const html = readFileSync(INDEX_HTML_PATH, 'utf8');
 
 function inlineScript(): string {
   const match = INLINE_SCRIPT_PATTERN.exec(html);

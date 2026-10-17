@@ -1,5 +1,5 @@
 import { TimelineBandKind, type TimelineBand, type TimelineContributor } from '@superdoc-history/types';
-import type { EditRun } from './runs';
+import { runVolume, type EditRun } from './runs';
 import { huesByOnset } from './stack';
 import { countWords } from './words';
 
@@ -32,7 +32,7 @@ export function buildBands({
   return present.map((band) => ({
     ...band,
     hue: hueOf({ hues, bandId: band.id }),
-    volume: runsOf({ runs: matchedRuns, bandId: band.id }).reduce((sum, run) => sum + run.inserted.length + run.deleted.length, 0),
+    volume: runsOf({ runs: matchedRuns, bandId: band.id }).reduce((sum, run) => sum + runVolume(run), 0),
   }));
 }
 
@@ -66,16 +66,15 @@ function authorsOfBand({
   return created;
 }
 
+export function byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number {
+  return right.inserted + right.deleted - (left.inserted + left.deleted);
+}
+
 export function contributorsByBand(runs: EditRun[]): Record<string, TimelineContributor[]> {
   const totals = new Map<string, Map<string, TimelineContributor>>();
   runs.forEach((run) => {
     const byAuthor = authorsOfBand({ totals, bandId: run.bandId });
     run.authorKeys.forEach((key) => byAuthor.set(key, addRun({ contributor: contributorOf({ byAuthor, authorKey: key }), run })));
   });
-  return Object.fromEntries(
-    [...totals].map(([bandId, byAuthor]) => [
-      bandId,
-      [...byAuthor.values()].sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted)),
-    ]),
-  );
+  return Object.fromEntries([...totals].map(([bandId, byAuthor]) => [bandId, [...byAuthor.values()].sort(byVolumeDescending)]));
 }

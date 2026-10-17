@@ -63,10 +63,14 @@ export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binM
   return [...runs.values()];
 }
 
+export function runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number {
+  return run.inserted.length + run.deleted.length;
+}
+
 export function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {
-  const needle = term.toLocaleLowerCase();
+  const searchText = term.toLocaleLowerCase();
   const backspacedDeletion = [...run.deleted].reverse().join('');
-  return [run.inserted, run.deleted, backspacedDeletion].some((text) => text.toLocaleLowerCase().includes(needle));
+  return [run.inserted, run.deleted, backspacedDeletion].some((text) => text.toLocaleLowerCase().includes(searchText));
 }
 
 export function filterRuns({

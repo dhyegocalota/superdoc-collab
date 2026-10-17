@@ -37,6 +37,7 @@ import {
   viewerFrame,
   waitForBands,
   waitForProjection,
+  waitForSettledTimeline,
 } from './timeline';
 
 const PARAGRAPHS = ['Budget: the plan costs 10.', 'Hiring: we add two people.'];
@@ -108,14 +109,18 @@ test('the edit bin shows the edit, lists it and Browser Back returns to live', a
 test('a shared at link opens the same version for another member', async ({ browser }) => {
   const { ana, documentId } = await ownerWithEdit(browser);
   await openEditBin({ page: ana.page, documentId });
-  const anaText = await expectViewerMatchesServer({ page: ana.page, documentId });
+  await expectViewerMatchesServer({ page: ana.page, documentId });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  await waitForSettledTimeline({ page: ana.page, documentId });
+  await ana.page.reload();
+  await expect(versionBanner(ana.page)).toHaveAttribute('data-sequence', /\d+/, { timeout: VERSION_TIMEOUT_MS });
+  const settledText = await expectViewerMatchesServer({ page: ana.page, documentId });
   await bruno.page.goto(ana.page.url());
   await expect(versionBanner(bruno.page)).toHaveAttribute('data-sequence', String(await shownVersionSequence(ana.page)), {
     timeout: VERSION_TIMEOUT_MS,
   });
-  await expect.poll(() => readViewerText(bruno.page), { timeout: VERSION_TIMEOUT_MS }).toBe(anaText);
+  await expect.poll(() => readViewerText(bruno.page), { timeout: VERSION_TIMEOUT_MS }).toBe(settledText);
   expect(await versionBanner(bruno.page).textContent()).toBe(await versionBanner(ana.page).textContent());
 });
 

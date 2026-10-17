@@ -1,7 +1,7 @@
 import { MINUTE_MS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import type { EditRun, TimelineEvent } from './runs';
-import { authorKey, filterRuns, groupIntoRuns, narrowRuns } from './runs';
+import { authorKey, filterRuns, groupIntoRuns, narrowRuns, runVolume } from './runs';
 
 const BIN_MS = MINUTE_MS;
 
@@ -94,4 +94,8 @@ test('narrowing by band and bin keeps only the runs of that band in that bin', (
 test('narrowing by a band or a bin nobody edited yields nothing', () => {
   expect(narrowRuns({ runs: PLACED_RUNS, bandId: 'gone', binStart: null })).toEqual([]);
   expect(narrowRuns({ runs: PLACED_RUNS, bandId: null, binStart: 7 * BIN_MS })).toEqual([]);
+});
+
+test('runVolume counts inserted and deleted characters', () => {
+  expect(runVolume({ inserted: 'ab', deleted: 'c' })).toBe(3);
 });

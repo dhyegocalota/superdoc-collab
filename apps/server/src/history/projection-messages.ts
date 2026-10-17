@@ -28,7 +28,12 @@ export enum ProjectionReplyKind {
   Failed = 'failed',
 }
 
-export type ProjectionDoneReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null; importError: string | null };
+export type ProjectionDoneReply = {
+  kind: ProjectionRequestKind.Project | ProjectionRequestKind.Import | ProjectionRequestKind.Forget;
+  documentId: string;
+  cursor: number | null;
+  importError: string | null;
+};
 export type VersionReply = {
   kind: ProjectionRequestKind.Version;
   documentId: string;
@@ -45,6 +50,8 @@ export type ProjectionFailedReply = FailedReplyBase &
     | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
   );
 export type ProjectionReply = ProjectionDoneReply | VersionReply | BlocksReply | ProjectionFailedReply;
+export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>;
+export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply;
 
 export type ProjectionWorkerData = { databaseDirectory: string };
 
@@ -84,8 +91,4 @@ export class ImportTimeoutError extends Error {
   constructor(milliseconds: number) {
     super(`The import took longer than ${milliseconds} ms.`);
   }
-}
-
-export function describeError(error: unknown): string {
-  return String(error).replaceAll('\n', ' ');
 }

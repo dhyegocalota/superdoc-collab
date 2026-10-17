@@ -1,6 +1,6 @@
 import { TimelineBandKind } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { buildBands, contributorsByBand } from './bands';
+import { buildBands, byVolumeDescending, contributorsByBand } from './bands';
 import type { EditRun } from './runs';
 
 function runOf({
@@ -60,4 +60,13 @@ test('contributors sort by characters', () => {
   const contributors = contributorsByBand(runs)['b1']!;
   expect(contributors.map((contributor) => contributor.authorKey)).toEqual(['bruno', 'ana']);
   expect(contributors[1]!.wordsInserted).toBe(2);
+});
+
+test('byVolumeDescending puts the largest contributor first and keeps ties in order', () => {
+  const contributor = (authorKey: string, inserted: number) => ({ authorKey, inserted, deleted: 1, wordsInserted: 0, wordsDeleted: 0 });
+  expect([contributor('a', 1), contributor('b', 5), contributor('c', 1)].sort(byVolumeDescending).map((each) => each.authorKey)).toEqual([
+    'b',
+    'a',
+    'c',
+  ]);
 });

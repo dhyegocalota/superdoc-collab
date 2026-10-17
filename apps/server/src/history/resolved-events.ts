@@ -47,7 +47,7 @@ export function resolveEvents({
   documentId: string;
   stored: StoredEditEvent[];
 }): DocumentEditEvent[] {
-  const identities = services.log.clientIdentities(documentId);
+  const identities = services.updateLog.clientIdentities(documentId);
   const resolved = stored.map((event) => ({ event, authorIds: authorIdsOf({ event, identities }) }));
   const names = services.documents.userNames([...new Set(resolved.flatMap(({ authorIds }) => authorIds))]);
   return resolved.map(({ event, authorIds }) => ({

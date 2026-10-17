@@ -146,4 +146,21 @@ describe('cross-site request forgery', () => {
     });
     expect(response.status).toBe(HttpStatus.Forbidden);
   });
+  test('a foreign form post without a session is refused as forgery before authentication', async () => {
+    const form = new FormData();
+    form.set(UPLOAD_FIELD, new File([new Uint8Array([1])], 'Plan.docx', { type: DOCX_MIME_TYPE }));
+    const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, {
+      method: 'POST',
+      headers: { origin: FOREIGN_ORIGIN },
+      body: form,
+    });
+    expect(response.status).toBe(HttpStatus.Forbidden);
+  });
+  test('a same-origin read without a session is unauthorized on every protected path', async () => {
+    const paths = [ApiPath.Documents, `${ApiPath.Documents}/anything`, `${ApiPath.ShareLinks}/anything/accept`];
+    const statuses = await Promise.all(
+      paths.map(async (path) => (await fetch(`${server.baseUrl}${path}`, { headers: { origin: server.baseUrl } })).status),
+    );
+    expect(statuses).toEqual(paths.map(() => HttpStatus.Unauthorized));
+  });
 });

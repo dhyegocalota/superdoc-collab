@@ -3,11 +3,13 @@ import type { Hocuspocus } from '@hocuspocus/server';
 import type { Hono } from 'hono';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type Database from 'better-sqlite3';
+import type { WebSocketServer } from 'ws';
 import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
-import { createCollaborationRuntime, type DocumentRuntime } from './collaboration/collaboration-runtime';
+import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
 import { createCollaborationServer } from './collaboration/collaboration-server';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
@@ -23,14 +25,13 @@ import {
 } from './database/connection';
 import { runHistoryMigrations, runMigrations } from './database/migrate';
 import { DocumentsRepository } from './documents/documents-repository';
-import type { DocumentFileStorage } from './documents/file-storage';
 import { createLocalDiskFileStorage } from './documents/local-disk-file-storage';
 import { VersionsService } from './history/versions-service';
 import { DEFAULT_VERSION_ROOM_POLICY, VersionRooms, type VersionRoomPolicy } from './collaboration/version-rooms';
-import { createApp, type InsightsServices } from './http/app';
+import { createApp, NOT_FOUND_MESSAGE, type AppServices, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
-import { InsightsWorker } from './insights/insights-worker';
+import { InsightsJobRunner } from './insights/insights-job-runner';
 import { SelectionSummariesService } from './insights/selection-summaries-service';
 import { SummariesService } from './insights/summaries-service';
 import { TopicsService } from './insights/topics-service';
@@ -42,24 +43,7 @@ import { TimelinePipelineCache } from './history/timeline-pipeline-cache';
 import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
 
-export const NOT_FOUND_MESSAGE = 'Not found';
-
-export type ServerServices = {
-  documents: DocumentsRepository;
-  storage: DocumentFileStorage;
-  log: UpdateLog;
-  hocuspocus: Hocuspocus;
-  readModel: ReadModel;
-  scheduler: ProjectionScheduler;
-  runtime: DocumentRuntime;
-  shareLinks: ShareLinksRepository;
-  insightsRepository: InsightsRepository;
-  throttle: ProjectionThrottle;
-  timelinePipelines: TimelinePipelineCache;
-  insights: InsightsServices;
-  versions: VersionsService;
-  versionRooms: VersionRooms;
-};
+export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
 
 export type RunningServer = {
   httpServer: ServerType;
@@ -86,6 +70,163 @@ function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType>
   });
 }
 
+type Databases = { database: AuthDatabase; historySqlite: Database.Database; readModelSqlite: Database.Database };
+
+function openDatabases({
+  databaseDirectory,
+  documentFilesDirectory,
+}: {
+  databaseDirectory: string;
+  documentFilesDirectory: string;
+}): Databases {
+  ensureWritableDirectory(databaseDirectory);
+  ensureWritableDirectory(documentFilesDirectory);
+  const database = openDatabase({ directory: databaseDirectory, fileName: AUTH_DATABASE_FILE });
+  runMigrations(database);
+  const historySqlite = openSqliteFile({ directory: databaseDirectory, fileName: HISTORY_DATABASE_FILE });
+  runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History });
+  const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
+  runHistoryMigrations({ sqlite: readModelSqlite, set: MigrationSet.ReadModel });
+  return { database, historySqlite, readModelSqlite };
+}
+
+function closeDatabases({ database, historySqlite, readModelSqlite }: Databases): void {
+  database.sqlite.close();
+  historySqlite.close();
+  readModelSqlite.close();
+}
+
+function createServices({
+  environment,
+  databases,
+  documentFilesDirectory,
+  languageModel,
+  versionRoomPolicy,
+  projectionWorkerFile,
+}: {
+  environment: Environment;
+  databases: Databases;
+  documentFilesDirectory: string;
+  languageModel: LanguageModelChoice;
+  versionRoomPolicy: VersionRoomPolicy;
+  projectionWorkerFile: URL | null;
+}): { auth: Auth; services: ServerServices } {
+  const { database, historySqlite, readModelSqlite } = databases;
+  const documents = new DocumentsRepository(database);
+  const insightsRepository = new InsightsRepository(database);
+  insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
+  const updateLog = new UpdateLog(historySqlite);
+  const readModel = new ReadModel(readModelSqlite);
+  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
+  const auth = createAuth({ database, environment });
+  const versions = new VersionsService({ readModel, scheduler });
+  const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
+  const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
+  const hocuspocus = createCollaborationServer({
+    auth,
+    documents,
+    updateLog,
+    onLogged: (documentId) => throttle.request(documentId),
+    onStored: (documentId) => {
+      documents.touch(documentId);
+      scheduler.schedule(documentId);
+    },
+  });
+  const timelinePipelines = new TimelinePipelineCache();
+  const storage = createLocalDiskFileStorage(documentFilesDirectory);
+  const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
+  const jobRunner = new InsightsJobRunner({
+    maxConcurrentJobs: environment.llm.maxConcurrentJobs,
+    maxCallsPerHour: environment.llm.maxCallsPerHour,
+  });
+  const insights: InsightsServices = {
+    jobRunner,
+    topics: new TopicsService({
+      repository: insightsRepository,
+      scheduler,
+      languageModel,
+      jobRunner,
+      readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
+    }),
+    summaries: new SummariesService({
+      repository: insightsRepository,
+      languageModel,
+      jobRunner,
+      readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
+    }),
+    selection: new SelectionSummariesService({
+      repository: insightsRepository,
+      languageModel,
+      jobRunner,
+      readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }),
+    }),
+  };
+  const runtime = createCollaborationRuntime({
+    hocuspocus,
+    updateLog,
+    readModel,
+    scheduler,
+    storage,
+    timelinePipelines,
+    versions,
+    versionRooms,
+    insights,
+  });
+  const services: ServerServices = {
+    documents,
+    storage,
+    updateLog,
+    hocuspocus,
+    readModel,
+    scheduler,
+    runtime,
+    shareLinks,
+    insightsRepository,
+    throttle,
+    timelinePipelines,
+    insights,
+    versions,
+    versionRooms,
+  };
+  return { auth, services };
+}
+
+function resumeProjections({ databases, services }: { databases: Databases; services: ServerServices }): void {
+  findDocumentsToProject({ historySqlite: databases.historySqlite, readModelSqlite: databases.readModelSqlite }).forEach((documentId) =>
+    services.scheduler.schedule(documentId),
+  );
+  findDocumentsWithoutMarks(databases.readModelSqlite).forEach(
+    (documentId) => void services.scheduler.rebuild({ documentId, filePath: services.storage.pathOf(documentId) }),
+  );
+}
+
+async function closeCollaboration(services: ServerServices): Promise<void> {
+  await services.versionRooms.stop();
+  await services.hocuspocus.destroy();
+  services.throttle.stop();
+  await services.scheduler.stop();
+  await services.insights.jobRunner.idle();
+}
+
+async function stopServer({
+  services,
+  databases,
+  httpServer,
+  sockets,
+}: {
+  services: ServerServices;
+  databases: Databases;
+  httpServer: ServerType;
+  sockets: WebSocketServer;
+}): Promise<void> {
+  await closeCollaboration(services);
+  sockets.clients.forEach((client) => client.terminate());
+  sockets.close();
+  closeAllConnectionsWhenSupported(httpServer);
+  await closeServer(httpServer);
+  closeDatabases(databases);
+}
+
 export async function startServer({
   environment,
   webDistDirectory,
@@ -100,103 +241,29 @@ export async function startServer({
   projectionWorkerFile?: URL | null;
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
-  ensureWritableDirectory(environment.databaseDirectory);
-  ensureWritableDirectory(documentFilesDirectory);
-  const database = openDatabase({ directory: environment.databaseDirectory, fileName: AUTH_DATABASE_FILE });
-  runMigrations(database);
-  const historySqlite = openSqliteFile({ directory: environment.databaseDirectory, fileName: HISTORY_DATABASE_FILE });
-  runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History });
-  const readModelSqlite = openSqliteFile({ directory: environment.databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
-  runHistoryMigrations({ sqlite: readModelSqlite, set: MigrationSet.ReadModel });
-  const documents = new DocumentsRepository(database);
-  const insightsRepository = new InsightsRepository(database);
-  insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
-  const log = new UpdateLog(historySqlite);
-  const readModel = new ReadModel(readModelSqlite);
-  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
-  const auth = createAuth({ database, environment });
-  const versions = new VersionsService({ readModel, scheduler });
-  const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
-  findDocumentsToProject({ historySqlite, readModelSqlite }).forEach((documentId) => scheduler.schedule(documentId));
-  const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
-  const hocuspocus = createCollaborationServer({
-    auth,
-    documents,
-    log,
-    onLogged: (documentId) => throttle.request(documentId),
-    onStored: (documentId) => {
-      documents.touch(documentId);
-      scheduler.schedule(documentId);
-    },
+  const databases = openDatabases({ databaseDirectory: environment.databaseDirectory, documentFilesDirectory });
+  const { auth, services } = createServices({
+    environment,
+    databases,
+    documentFilesDirectory,
+    languageModel,
+    versionRoomPolicy,
+    projectionWorkerFile,
   });
-  const timelinePipelines = new TimelinePipelineCache();
-  const storage = createLocalDiskFileStorage(documentFilesDirectory);
-  findDocumentsWithoutMarks(readModelSqlite).forEach(
-    (documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }),
-  );
-  const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines, versions, versionRooms });
-  const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
-  const insightsWorker = new InsightsWorker({
-    maxConcurrentJobs: environment.llm.maxConcurrentJobs,
-    maxCallsPerHour: environment.llm.maxCallsPerHour,
-  });
-  const insights: InsightsServices = {
-    worker: insightsWorker,
-    topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, worker: insightsWorker }),
-    summaries: new SummariesService({
-      repository: insightsRepository,
-      languageModel,
-      worker: insightsWorker,
-      readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
-    }),
-    selection: new SelectionSummariesService({
-      repository: insightsRepository,
-      languageModel,
-      worker: insightsWorker,
-      readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }),
-    }),
-  };
-  const services: ServerServices = {
-    documents,
-    storage,
-    log,
-    hocuspocus,
-    readModel,
-    scheduler,
-    runtime,
-    shareLinks,
-    insightsRepository,
-    throttle,
-    timelinePipelines,
-    insights,
-    versions,
-    versionRooms,
-  };
+  resumeProjections({ databases, services });
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
-  async function closeCollaboration(): Promise<void> {
-    await versionRooms.stop();
-    await hocuspocus.destroy();
-    throttle.stop();
-    await scheduler.stop();
-    await insightsWorker.idle();
-  }
-  function closeDatabases(): void {
-    database.sqlite.close();
-    historySqlite.close();
-    readModelSqlite.close();
-  }
   const httpServer = await listen({ app, port: environment.port }).catch(async (error) => {
-    await closeCollaboration();
-    closeDatabases();
+    await closeCollaboration(services);
+    closeDatabases(databases);
     throw error;
   });
   const { port } = httpServer.address() as AddressInfo;
   const sockets = attachCollaboration({
     httpServer: httpServer as Server,
-    hocuspocus,
-    versionRooms,
+    hocuspocus: services.hocuspocus,
+    versionRooms: services.versionRooms,
     path: ApiPath.Collaboration,
     allowedOrigin: environment.appOrigin,
   });
@@ -204,15 +271,8 @@ export async function startServer({
     httpServer,
     port,
     auth,
-    database,
+    database: databases.database,
     services,
-    stop: async () => {
-      await closeCollaboration();
-      sockets.clients.forEach((client) => client.terminate());
-      sockets.close();
-      closeAllConnectionsWhenSupported(httpServer);
-      await closeServer(httpServer);
-      closeDatabases();
-    },
+    stop: () => stopServer({ services, databases, httpServer, sockets }),
   };
 }

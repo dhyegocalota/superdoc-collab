@@ -1,26 +1,22 @@
 import {
   DocumentRole,
   HttpStatus,
-  RETRY_AFTER_HEADER,
+  RETRY_AFTER_SECONDS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   type DocumentTopics,
 } from '@superdoc-history/types';
 import { Hono } from 'hono';
-import { requireDocumentRole } from '../documents/require-document-role';
-import { INVALID_TIMELINE_QUERY_MESSAGE, queryOf, selectionQuerySchema } from '../history/timeline-query';
-import { RETRY_AFTER_SECONDS } from '../history/versions-routes';
+import { authorizedDocumentId } from '../documents/require-document-role';
+import { INVALID_TIMELINE_QUERY_MESSAGE, selectionQuerySchema } from '../history/timeline-query';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
+import { retryLater } from '../http/retry-later';
 import { LLM_BUSY_MESSAGE } from './llm-client';
 import { SelectionRequestOutcome } from './selection-summaries-service';
 import { RefreshOutcome } from './topics-service';
 
 const SELECTION_PATH = '/:documentId/summaries/selection';
-
-function parseSelection(read: (name: string) => string | undefined): ReturnType<typeof selectionQuerySchema.safeParse> {
-  return selectionQuerySchema.safeParse(queryOf({ read, names: Object.keys(selectionQuerySchema.shape) }));
-}
 
 function documentTopics({ services, documentId }: { services: AppServices; documentId: string }): DocumentTopics {
   const topics = services.insightsRepository
@@ -32,50 +28,59 @@ function documentTopics({ services, documentId }: { services: AppServices; docum
 export function createInsightsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
   routes.get('/:documentId/topics', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     services.insights.topics.ensure(documentId);
     return context.json(documentTopics({ services, documentId }));
   });
   routes.post('/:documentId/topics/refresh', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Editor });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Editor });
     const result = services.insights.topics.refresh(documentId);
     if (result.outcome === RefreshOutcome.TooSoon)
-      return context.json({ error: TOPICS_REFRESH_TOO_SOON_MESSAGE }, HttpStatus.TooManyRequests, {
-        [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds),
+      return retryLater({
+        context,
+        body: { error: TOPICS_REFRESH_TOO_SOON_MESSAGE },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: result.retryAfterSeconds,
       });
     return context.json(services.insights.topics.status(documentId), HttpStatus.Accepted);
   });
   routes.get('/:documentId/summaries', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     services.insights.summaries.refreshStale(documentId);
     return context.json(services.insights.summaries.read(documentId));
   });
   routes.get(SELECTION_PATH, (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
-    const parsed = parseSelection((name) => context.req.query(name));
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
+    const parsed = selectionQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     return context.json(services.insights.selection.read({ documentId, selection: parsed.data }));
   });
   routes.post(SELECTION_PATH, (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Editor });
-    const parsed = parseSelection((name) => context.req.query(name));
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Editor });
+    const parsed = selectionQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const selection = parsed.data;
     const result = services.insights.selection.request({ documentId, selection });
     if (result.outcome === SelectionRequestOutcome.TooSoon)
-      return context.json({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }, HttpStatus.TooManyRequests, {
-        [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds),
+      return retryLater({
+        context,
+        body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: result.retryAfterSeconds,
       });
     if (result.outcome === SelectionRequestOutcome.Unavailable)
-      return context.json({ error: result.reason }, HttpStatus.ServiceUnavailable, { [RETRY_AFTER_HEADER]: String(RETRY_AFTER_SECONDS) });
+      return retryLater({
+        context,
+        body: { error: result.reason },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: RETRY_AFTER_SECONDS,
+      });
     if (result.outcome === SelectionRequestOutcome.Busy)
-      return context.json({ error: LLM_BUSY_MESSAGE }, HttpStatus.ServiceUnavailable, {
-        [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds),
+      return retryLater({
+        context,
+        body: { error: LLM_BUSY_MESSAGE },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: result.retryAfterSeconds,
       });
     const view = services.insights.selection.read({ documentId, selection });
     const isRunning = result.outcome === SelectionRequestOutcome.Started || result.outcome === SelectionRequestOutcome.AlreadyRunning;

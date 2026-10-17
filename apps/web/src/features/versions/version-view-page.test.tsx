@@ -24,6 +24,7 @@ import { VersionViewPage } from './version-view-page';
 
 type SuperDocConfig = {
   documentMode: string;
+  telemetry: { enabled: boolean };
   documents: { v2Collaboration: Record<string, unknown> }[];
   onCollaborationReady: () => void;
   onException: (payload: { error: Error }) => void;
@@ -75,6 +76,11 @@ function messageFrom({ data, origin = window.location.origin }: { data: unknown;
     window.dispatchEvent(new MessageEvent('message', { data, origin, source: window.parent }));
   });
 }
+
+test('the frame page opens SuperDoc with its telemetry disabled', async () => {
+  const config = await renderFrame();
+  expect(config.telemetry).toEqual({ enabled: false });
+});
 
 test('the frame page opens a read-only SuperDoc on the version endpoint and reports readiness to its parent', async () => {
   const postToParent = vi.spyOn(window.parent, 'postMessage');

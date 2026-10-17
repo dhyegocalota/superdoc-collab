@@ -75,7 +75,7 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
         path: versionApiPath({ documentId, sequence, resource: VersionResource.Text }),
       });
       expect(resolved).toBe(clampToMark({ marks: server.services.readModel.marks(documentId), sequence })!.sequence);
-      expect(text).toBe(readMainStoryText(replay(server.services.log.read({ documentName: documentId, untilSequence: resolved }))));
+      expect(text).toBe(readMainStoryText(replay(server.services.updateLog.read({ documentName: documentId, untilSequence: resolved }))));
     }),
   );
   client.close();

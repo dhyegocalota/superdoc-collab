@@ -1,12 +1,12 @@
 import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-history/history';
 import { HOUR_MS, MINUTE_MS, type TopicSummaries } from '@superdoc-history/types';
-import { describeError } from '../history/projection-messages';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
+import { describeError } from '../logging/describe-error';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
-import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
-import { JobOutcome, type InsightsWorker } from './insights-worker';
+import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
-import { SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
+import { authorLabel, promptEditsOf, SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
 
 export const SUMMARY_MIN_INTERVAL_MS = MINUTE_MS;
 export const SUMMARIES_BUSY_MESSAGE = 'Skipped summarizing topics, the language model is busy, for document';
@@ -19,27 +19,31 @@ function summariesKey(documentId: string): string {
   return `summaries:${documentId}`;
 }
 
+function lastSequenceOf(sequences: number[]): number {
+  return sequences.reduce((latest, sequence) => Math.max(latest, sequence), 0);
+}
+
 export class SummariesService {
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
-  private readonly worker: InsightsWorker;
+  private readonly jobRunner: InsightsJobRunner;
   private readonly readPipeline: (documentId: string) => TimelinePipeline;
-  readonly cooldown = new DocumentCooldown({ durationMs: SUMMARY_MIN_INTERVAL_MS });
+  readonly cooldown = new KeyedCooldown({ durationMs: SUMMARY_MIN_INTERVAL_MS });
 
   constructor({
     repository,
     languageModel,
-    worker,
+    jobRunner,
     readPipeline,
   }: {
     repository: InsightsRepository;
     languageModel: LanguageModelChoice;
-    worker: InsightsWorker;
+    jobRunner: InsightsJobRunner;
     readPipeline: (documentId: string) => TimelinePipeline;
   }) {
     this.repository = repository;
     this.languageModel = languageModel;
-    this.worker = worker;
+    this.jobRunner = jobRunner;
     this.readPipeline = readPipeline;
   }
 
@@ -49,16 +53,16 @@ export class SummariesService {
 
   refreshStale(documentId: string): void {
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
-    if (this.worker.isRunning(summariesKey(documentId))) return;
+    if (this.jobRunner.isRunning(summariesKey(documentId))) return;
     if (this.cooldown.remainingMs(documentId) > 0) return;
     const topics = this.repository.topics(documentId);
     if (topics.length === 0) return;
     const pipeline = this.readPipeline(documentId);
     const stale = this.staleTopics({ documentId, topics, pipeline });
     if (stale.length === 0) return;
-    const computedAtSequence = pipeline.events.reduce((latest, event) => Math.max(latest, event.sequence), 0);
+    const computedAtSequence = lastSequenceOf(pipeline.events.map((event) => event.sequence));
     this.cooldown.start(documentId);
-    const outcome = this.worker.run({
+    const outcome = this.jobRunner.run({
       key: summariesKey(documentId),
       job: () => this.summarize({ documentId, stale, pipeline, computedAtSequence }),
     });
@@ -87,7 +91,7 @@ export class SummariesService {
       .filter(({ topic, runs: topicRuns }) => {
         if (topicRuns.length === 0) return false;
         const computedAt = summarized.get(topic.id);
-        return computedAt === undefined || topicRuns.reduce((latest, run) => Math.max(latest, run.lastSequence), 0) > computedAt;
+        return computedAt === undefined || lastSequenceOf(topicRuns.map((run) => run.lastSequence)) > computedAt;
       });
   }
 
@@ -95,13 +99,11 @@ export class SummariesService {
     return stale.map(({ topic, runs }) => ({
       id: topic.id,
       name: topic.name,
-      edits: [...runs]
-        .sort((left, right) => right.lastServerTime - left.lastServerTime)
-        .map((run) => ({
-          author: run.authorKeys.map((key) => pipeline.authors[key]!.name).join(', '),
-          inserted: run.inserted,
-          deleted: run.deleted,
-        })),
+      edits: promptEditsOf({ runs, authors: pipeline.authors }).map((edit) => ({
+        author: authorLabel(edit),
+        inserted: edit.inserted,
+        deleted: edit.deleted,
+      })),
     }));
   }
 
@@ -116,15 +118,14 @@ export class SummariesService {
     pipeline: TimelinePipeline;
     computedAtSequence: number;
   }): Promise<void> {
-    const choice = this.languageModel;
-    if (choice.availability === LanguageModelAvailability.Unavailable) return;
-    if (!this.worker.consumeCall()) {
+    if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
+    if (!this.jobRunner.consumeCall()) {
       console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
       return;
     }
     try {
       const output = await generateStructured({
-        model: choice.model,
+        model: this.languageModel.model,
         schema: summariesOutputSchema,
         system: SUMMARIES_SYSTEM_PROMPT,
         prompt: summariesPrompt(this.promptTopics({ stale, pipeline })),

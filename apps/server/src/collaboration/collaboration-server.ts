@@ -25,17 +25,17 @@ function requireDocumentId(roomName: string): string {
 export function createCollaborationServer({
   auth,
   documents,
-  log,
+  updateLog,
   onLogged,
   onStored,
 }: {
   auth: Auth;
   documents: DocumentsRepository;
-  log: UpdateLog;
+  updateLog: UpdateLog;
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
 }): Hocuspocus {
-  const declarer = createClientDeclarer(log);
+  const declarer = createClientDeclarer(updateLog);
   return new Hocuspocus({
     quiet: true,
     timeout: COLLABORATION_SOCKET_TIMEOUT_MS,
@@ -48,13 +48,17 @@ export function createCollaborationServer({
       return { userId, documentId };
     },
     async onLoadDocument({ document, documentName }) {
-      const restored = materialize({ log, documentName: requireDocumentId(documentName), untilSequence: Number.MAX_SAFE_INTEGER });
+      const restored = materialize({
+        log: updateLog,
+        documentName: requireDocumentId(documentName),
+        untilSequence: Number.MAX_SAFE_INTEGER,
+      });
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
     },
     async onChange({ update, context, transactionOrigin }) {
       if (transactionOrigin === LOADING_ORIGIN) return;
       const { userId, documentId } = context as CollaborationContext;
-      log.append({ documentName: documentId, connectionUserId: userId, update });
+      updateLog.append({ documentName: documentId, connectionUserId: userId, update });
       onLogged(documentId);
     },
     async onStoreDocument({ documentName }) {

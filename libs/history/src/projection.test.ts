@@ -1,4 +1,4 @@
-import { BlockChangeKind } from '@superdoc-collab/types';
+import { BlockChangeKind, ClientActor } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { beforeEach, expect, test } from 'vitest';
 import { MigrationSet } from './migrations';
@@ -16,7 +16,9 @@ let readModel: ReadModel;
 
 function author(userId: string): Y.Doc {
   const document = new Y.Doc();
-  document.on('update', (update: Uint8Array) => log.append({ documentName: DOCUMENT, connectionUserId: userId, update }));
+  document.on('update', (update: Uint8Array) =>
+    log.append({ documentName: DOCUMENT, connectionUserId: userId, connectionActor: ClientActor.Human, update }),
+  );
   return document;
 }
 

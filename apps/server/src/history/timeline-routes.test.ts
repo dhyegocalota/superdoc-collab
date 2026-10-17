@@ -1,4 +1,6 @@
 import {
+  AgentActionKind,
+  ClientActor,
   type BinEdits,
   DocumentResource,
   HOUR_MS,
@@ -15,15 +17,17 @@ import {
   UTC_TIME_ZONE,
   type DocumentTimeline,
 } from '@superdoc-collab/types';
-import { chooseBinMs } from '@superdoc-collab/history';
+import { chooseBinMs, MAX_BINS } from '@superdoc-collab/history';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { TimelinePipelineCache } from './timeline-pipeline-cache';
 import { INVALID_TIMELINE_QUERY_MESSAGE } from './timeline-query';
 import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks, zonedQuery } from '../testing/timeline-client';
-import { signedInUser } from '../testing/test-server';
+import { signedInUser, type TestServer } from '../testing/test-server';
 
+const AFTER_LAST_BIN_COUNT = 5;
+const BULK_START = Date.UTC(2026, 0, 1);
 const DAY_BIN_MS = 1440 * MINUTE_MS;
 const LATENCY_BUDGET_MS = 150;
 const CI_ENVIRONMENT_VARIABLE = 'CI';
@@ -251,6 +255,76 @@ test('the pipeline cache evicts the least recently read document', () => {
   expect(cache.builds).toBe(3);
   read('d2');
   expect(cache.builds).toBe(4);
+});
+
+function recordAction({
+  server,
+  documentId,
+  userId,
+  createdAt,
+}: {
+  server: TestServer;
+  documentId: string;
+  userId: string;
+  createdAt: number;
+}) {
+  server.services.agentActions.record({ documentName: documentId, userId, kind: AgentActionKind.DocumentExported, createdAt });
+}
+
+function coversTime({ timeline, time }: { timeline: DocumentTimeline; time: number }): boolean {
+  return timeline.bins.some((bin) => bin.start <= time && time < bin.start + timeline.binMs);
+}
+
+test('an action between the edits comes back with the agent author', async () => {
+  const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
+  const quiet = await readTimeline({ server, documentId, cookie: owner.cookie });
+  expect(quiet.agentActions).toEqual([]);
+  expect(quiet.bins.every((bin) => Object.values(bin.byBand).every((cell) => cell.agentInserted === 0))).toBe(true);
+  const createdAt = quiet.bins[1]!.start;
+  recordAction({ server, documentId, userId: owner.id, createdAt });
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  const agentKey = `${owner.id}#agent`;
+  expect(timeline.agentActions).toEqual([{ authorKey: agentKey, kind: AgentActionKind.DocumentExported, createdAt }]);
+  expect(timeline.authors[agentKey]).toEqual({ id: owner.id, name: 'Ana', actor: ClientActor.Agent });
+  await server.stop();
+});
+
+test('an action after the last edit gets a bin and a mark', async () => {
+  const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
+  const quiet = await readTimeline({ server, documentId, cookie: owner.cookie });
+  const createdAt = quiet.bins.at(-1)!.start + quiet.binMs * AFTER_LAST_BIN_COUNT;
+  recordAction({ server, documentId, userId: owner.id, createdAt });
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  expect(timeline.agentActions.map((action) => action.createdAt)).toEqual([createdAt]);
+  expect(coversTime({ timeline, time: createdAt })).toBe(true);
+  expect(timeline.bins.length).toBeLessThanOrEqual(MAX_BINS);
+  await server.stop();
+});
+
+test('a document with only agent actions shows its marks', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const times = [BULK_START, BULK_START + HOUR_MS];
+  times.forEach((createdAt) => recordAction({ server, documentId, userId: owner.id, createdAt }));
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  expect(timeline.agentActions.map((action) => action.createdAt)).toEqual(times);
+  times.forEach((time) => expect(coversTime({ timeline, time })).toBe(true));
+  await server.stop();
+});
+
+test('the author filter keeps only the marks of the matching authors, a person email matches their AI', async () => {
+  const { server, documentId, owner, editor } = await twoAuthorsInTwoBlocks();
+  const quiet = await readTimeline({ server, documentId, cookie: owner.cookie });
+  recordAction({ server, documentId, userId: owner.id, createdAt: quiet.bins[1]!.start });
+  recordAction({ server, documentId, userId: editor.id, createdAt: quiet.bins[1]!.start + 1 });
+  const byEditorEmail = await readTimeline({
+    server,
+    documentId,
+    cookie: owner.cookie,
+    query: `author=${encodeURIComponent(editor.email.toUpperCase())}`,
+  });
+  expect(byEditorEmail.agentActions.map((action) => action.authorKey)).toEqual([`${editor.id}#agent`]);
+  const byTerm = await readTimeline({ server, documentId, cookie: owner.cookie, query: 'term=nothing-matches-this' });
+  expect(byTerm.agentActions).toHaveLength(2);
 });
 
 test('a Sao Paulo day timeline starts every bin at local midnight and ends where the next starts', async () => {

@@ -2,12 +2,14 @@ import { AppRoute } from '@superdoc-collab/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AdminPage } from '@/features/admin/admin-page';
 import { RequireAdmin } from '@/features/admin/require-admin';
+import { ConnectedAppsPage } from '@/features/connected-apps/connected-apps-page';
 import { DocumentPage } from '@/features/editor/document-page';
 import { RedirectIfSession } from '@/features/auth/redirect-if-session';
 import { RequireSession } from '@/features/auth/require-session';
 import { SignInPage } from '@/features/auth/sign-in-page';
 import { SignUpPage } from '@/features/auth/sign-up-page';
 import { DocumentsPage } from '@/features/documents/documents-page';
+import { OAuthConsentPage } from '@/features/oauth-consent/oauth-consent-page';
 import { SettingsPage } from '@/features/settings/settings-page';
 import { ShareLandingPage } from '@/features/sharing/share-landing-page';
 import { VersionViewPage } from '@/features/versions/version-view-page';
@@ -61,6 +63,22 @@ export const routes: RouteObject[] = [
     element: (
       <RequireSession>
         <VersionViewPage />
+      </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.OAuthConsent,
+    element: (
+      <RequireSession>
+        <OAuthConsentPage />
+      </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.ConnectedApps,
+    element: (
+      <RequireSession>
+        <ConnectedAppsPage />
       </RequireSession>
     ),
   },

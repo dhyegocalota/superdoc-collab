@@ -32,4 +32,5 @@ paths:
 - `onException` reports `code: 'edit-rejected'` once per rejected document-surface event (key, paste, cut, drop, pointer up), for example a keystroke aimed at a paragraph another author deleted; the instance keeps syncing, so the editor shows a status line instead of the fatal message (`isRecoverableException` in superdoc-exceptions.ts). (docs/features/editor-survives-rejected-edits/)
 - `zoom: { mode: 'fit-width' }` in the config, and `setZoomMode`, `setZoom` and `focus()` on the instance, exist. (apps/web/src/features/editor/superdoc-zoom.ts)
 - Inside the same-origin version iframe, `window.matchMedia` measures the frame; pass `window.parent` as the viewport to measure the page. (superdoc-zoom.ts, apps/web/src/features/versions/version-viewer.tsx)
+- `ui: { comments: { layout: 'auto', responsive: { breakpoint } } }` moves the tracked-change and comment cards inline below the breakpoint; the default sidebar layer squeezes the page to a thumbnail at 375 px. (apps/web/src/features/editor/superdoc-options.ts)
 - Comment highlight colours come from `--sd-comment-highlight-internal` and `--sd-comment-highlight-external`. (apps/web/src/styles/globals.css)

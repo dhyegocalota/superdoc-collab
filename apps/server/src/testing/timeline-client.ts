@@ -2,6 +2,7 @@ import { ReadModel } from '@superdoc-collab/history';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   BlockChangeKind,
+  ClientActor,
   DocumentResource,
   HttpStatus,
   DocumentRole,
@@ -109,7 +110,12 @@ export function commitBulkEvents({
   blockCount?: number;
   stepMs?: number;
 }): void {
-  server.services.updateLog.observeClientIdentity({ documentName: documentId, yjsClientId: BULK_CLIENT_ID, userId });
+  server.services.updateLog.observeClientIdentity({
+    documentName: documentId,
+    yjsClientId: BULK_CLIENT_ID,
+    userId,
+    actor: ClientActor.Human,
+  });
   const events = Array.from({ length: count }, (_, offset) => {
     const index = startIndex + offset;
     return {
@@ -117,6 +123,7 @@ export function commitBulkEvents({
       serverTime: BULK_BASE_TIME + index * stepMs,
       yjsClientIds: [BULK_CLIENT_ID],
       connectionUserId: userId,
+      connectionActor: ClientActor.Human,
       blockId: `b${index % blockCount}`,
       kind: BlockChangeKind.Modified,
       inserted: 'x',

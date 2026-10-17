@@ -1,4 +1,4 @@
-import { TopicState } from '@superdoc-collab/types';
+import { TopicState, type SummaryAuthor } from '@superdoc-collab/types';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { documents } from './documents';
 
@@ -55,7 +55,7 @@ export const selectionSummaries = sqliteTable(
       .references(() => documents.id, { onDelete: 'cascade' }),
     filterKey: text('filter_key').notNull(),
     sentence: text('sentence'),
-    authors: text('authors', { mode: 'json' }).$type<string[]>().notNull(),
+    authors: text('authors', { mode: 'json' }).$type<SummaryAuthor[]>().notNull(),
     failure: text('failure'),
     computedAtSequence: integer('computed_at_sequence').notNull(),
     topicsUpdatedAt: integer('topics_updated_at'),

@@ -15,7 +15,15 @@ import { describeError } from '../logging/describe-error';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
-import { fitSelection, mentionedAuthors, namesOf, promptEditsOf, SELECTION_SYSTEM_PROMPT, selectionPrompt } from './prompts';
+import {
+  authorsMentioned,
+  fitSelection,
+  mentionedAuthors,
+  namesOf,
+  promptEditsOf,
+  SELECTION_SYSTEM_PROMPT,
+  selectionPrompt,
+} from './prompts';
 import { selectionKeyOf } from './selection-key';
 
 export const SELECTION_SUMMARY_FAILED_LOG = 'Summarizing a selection failed for document';
@@ -198,7 +206,7 @@ export class SelectionSummariesService {
         system: SELECTION_SYSTEM_PROMPT,
         prompt: selectionPrompt(edits),
       });
-      const authors = mentionedAuthors({ returned: output.authors, names });
+      const authors = authorsMentioned({ edits, mentioned: mentionedAuthors({ returned: output.authors, names }) });
       this.repository.saveSelectionSummary({
         documentId,
         key,

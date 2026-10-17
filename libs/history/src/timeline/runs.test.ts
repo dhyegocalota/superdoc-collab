@@ -1,4 +1,4 @@
-import { DAY_MS, MINUTE_MS } from '@superdoc-collab/types';
+import { ClientActor, DAY_MS, MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import type { EditRun, TimelineEvent } from './runs';
 import { BIN_LADDER_MS } from './bins';
@@ -76,7 +76,7 @@ test('matching is case-insensitive and finds backspaced deletions', () => {
   const runs = [runOf({ author: 'ana', inserted: '', deleted: 'tegdub' }), runOf({ author: 'bruno', inserted: 'budget', deleted: '' })];
   expect(filterRuns({ runs, term: 'Budget', authorKeys: null })).toHaveLength(2);
   expect(filterRuns({ runs, term: 'Budget', authorKeys: new Set(['bruno']) }).map((run) => run.authorKeys)).toEqual([['bruno']]);
-  expect(authorKey({ id: null, name: 'Chris Crawford' })).toBe('imported:Chris Crawford');
+  expect(authorKey({ id: null, name: 'Chris Crawford', actor: ClientActor.Human })).toBe('imported:Chris Crawford');
 });
 
 function placed({ inserted, bandId, binStart }: { inserted: string; bandId: string; binStart: number }): EditRun {
@@ -103,6 +103,14 @@ test('narrowing by a band or a bin nobody edited yields nothing', () => {
 
 test('runVolume counts inserted and deleted characters', () => {
   expect(runVolume({ inserted: 'ab', deleted: 'c' })).toBe(3);
+});
+
+test.each([
+  [{ id: 'ana', name: 'Ana', actor: ClientActor.Human }, 'ana'],
+  [{ id: 'ana', name: 'Ana · AI', actor: ClientActor.Agent }, 'ana#agent'],
+  [{ id: null, name: 'Chris Crawford', actor: ClientActor.Human }, 'imported:Chris Crawford'],
+])('the author key of %o is %s', (author, expected) => {
+  expect(authorKey(author)).toBe(expected);
 });
 
 test('day runs split at the reader local midnight, not at UTC midnight', () => {

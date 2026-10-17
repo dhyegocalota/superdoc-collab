@@ -86,7 +86,7 @@ describe('startServer', () => {
   test('a session cookie survives a restart on the same database directory', async () => {
     const environment = testEnvironment();
     const first = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
-    const headers = { 'content-type': 'application/json' };
+    const headers = { 'content-type': 'application/json', origin: environment.appOrigin };
     await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-up/email` }), {
       method: 'POST',
       headers,

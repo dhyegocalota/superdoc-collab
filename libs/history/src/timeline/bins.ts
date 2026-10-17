@@ -1,6 +1,6 @@
 import { MINUTE_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
 import { MAX_REVISION_YEAR, MIN_REVISION_YEAR } from '../imported-revisions';
-import type { EditRun } from './runs';
+import { isAgentRun, type EditRun } from './runs';
 import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
@@ -64,10 +64,21 @@ export function binStartsCovering({
 }
 
 function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun }): TimelineCell {
-  if (!cell) return { inserted: run.inserted.length, deleted: run.deleted.length, authorKeys: run.authorKeys };
+  const agentShare = isAgentRun(run) ? { inserted: run.inserted.length, deleted: run.deleted.length } : { inserted: 0, deleted: 0 };
+  if (!cell) {
+    return {
+      inserted: run.inserted.length,
+      deleted: run.deleted.length,
+      agentInserted: agentShare.inserted,
+      agentDeleted: agentShare.deleted,
+      authorKeys: run.authorKeys,
+    };
+  }
   return {
     inserted: cell.inserted + run.inserted.length,
     deleted: cell.deleted + run.deleted.length,
+    agentInserted: cell.agentInserted + agentShare.inserted,
+    agentDeleted: cell.agentDeleted + agentShare.deleted,
     authorKeys: [...new Set([...cell.authorKeys, ...run.authorKeys])].sort(),
   };
 }

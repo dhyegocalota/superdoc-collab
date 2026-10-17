@@ -108,4 +108,7 @@
   .topic-swatch-other {
     background-color: var(--topic-other);
   }
+  .agent-swatch {
+    background: repeating-linear-gradient(45deg, currentColor 0 2px, transparent 2px 5px);
+  }
 }

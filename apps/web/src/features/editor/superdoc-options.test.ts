@@ -42,5 +42,6 @@ test('the options open the file in its room as the signed-in user at the viewpor
     user: EDITOR_USER,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: { mode: ZoomMode.Manual },
+    ui: { comments: { layout: 'auto', responsive: { breakpoint: 480 } } },
   });
 });

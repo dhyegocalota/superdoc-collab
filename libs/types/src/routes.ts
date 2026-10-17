@@ -7,6 +7,8 @@ export enum AppRoute {
   Document = '/documents/:documentId',
   Share = '/share/:token',
   VersionView = '/documents/:documentId/versions/:sequence/view',
+  OAuthConsent = '/oauth/consent',
+  ConnectedApps = '/settings/connected-apps',
   Admin = '/admin',
   Settings = '/settings',
 }
@@ -18,6 +20,8 @@ export enum ApiPath {
   Collaboration = '/collaboration',
   Documents = '/api/documents',
   ShareLinks = '/api/share-links',
+  Mcp = '/api/mcp',
+  AgentCollaboration = '/collaboration/agent',
   Setup = '/api/setup',
   Invites = '/api/invites',
   Admin = '/api/admin',

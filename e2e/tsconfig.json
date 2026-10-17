@@ -1,5 +1,11 @@
 {
   "extends": "../tsconfig.base.json",
-  "compilerOptions": { "lib": ["ES2023", "DOM"], "types": ["node"] },
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "paths": {
+      "@modelcontextprotocol/sdk/*": ["../apps/server/node_modules/@modelcontextprotocol/sdk/dist/esm/*"]
+    }
+  },
   "include": ["."]
 }

@@ -18,6 +18,7 @@ import { pageTitle } from '@/lib/use-document-title';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
+import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
@@ -66,6 +67,13 @@ function headersOf(table: HTMLElement): (string | null)[] {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+test('the header links to the connected apps page', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  const link = await screen.findByRole('link', { name: CONNECTED_APPS_HEADING });
+  expect(link).toHaveAttribute('href', AppRoute.ConnectedApps);
+});
 
 test('empty lists show both empty messages', async () => {
   mockApi({ mine: [], shared: [] });

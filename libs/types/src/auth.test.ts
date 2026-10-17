@@ -34,6 +34,17 @@ describe('signUpSchema', () => {
       NAME_TOO_SHORT_MESSAGE,
     );
   });
+  test.each(['Ana · AI', 'Bob • AI', 'Bob . AI', 'Bob · Al'])('accepts the free-form name "%s"', (name) => {
+    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success).toBe(true);
+  });
+  test.each(['Li Ai', 'Tanaka Ai', 'Wang Al'])('accepts the real name "%s" that only ends in a space and two letters', (name) => {
+    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success).toBe(true);
+  });
+  test('accepts a name that merely contains AI', () => {
+    expect(
+      signUpSchema.safeParse({ name: 'Aino Maia', email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success,
+    ).toBe(true);
+  });
 });
 
 const SIGN_UP_BASE = { name: 'Eve', email: 'eve@example.com', password: 'long-enough-password' };
@@ -80,4 +91,12 @@ test.each([
 test('sign-up and update-user parse a time zone to its canonical name', () => {
   expect(signUpSchema.parse({ ...SIGN_UP_BASE, timeZone: 'america/sao_paulo' }).timeZone).toBe('America/Sao_Paulo');
   expect(updateUserSchema.parse({ timeZone: 'US/Eastern' }).timeZone).toBe('America/New_York');
+});
+
+test('update-user accepts a free-form name', () => {
+  expect(updateUserSchema.safeParse({ name: 'Ana · AI' }).success).toBe(true);
+});
+
+test('update-user accepts a time zone alone', () => {
+  expect(updateUserSchema.safeParse({ timeZone: 'UTC' }).success).toBe(true);
 });

@@ -50,13 +50,19 @@ const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);
 const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE);
 
 export const signInSchema = z.object({ email, password });
+
+const personName = z.string().trim().min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE);
+
 export const signUpSchema = signInSchema.extend({
-  name: z.string().trim().min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE),
+  name: personName,
   timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone),
 });
 
 export const updateUserSchema = z
-  .object({ timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone).optional() })
+  .object({
+    name: personName.optional(),
+    timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone).optional(),
+  })
   .passthrough();
 
 export type SignInInput = z.infer<typeof signInSchema>;

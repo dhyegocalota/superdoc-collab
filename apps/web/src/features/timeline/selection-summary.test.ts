@@ -1,4 +1,4 @@
-import { SelectionSummaryState, TopicState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
+import { ClientActor, SelectionSummaryState, TopicState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';
@@ -19,7 +19,13 @@ const timeline = timelineWith({
 const NO_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
 const READY: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
-  summary: { key: 'k', sentence: 'Ana raised the budget.', authors: ['Ana'], computedAtSequence: 3, isStale: false },
+  summary: {
+    key: 'k',
+    sentence: 'Ana raised the budget.',
+    authors: [{ name: 'Ana', actor: ClientActor.Human }],
+    computedAtSequence: 3,
+    isStale: false,
+  },
   failure: null,
   isModelAvailable: true,
 };

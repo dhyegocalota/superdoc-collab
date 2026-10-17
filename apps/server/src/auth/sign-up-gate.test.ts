@@ -30,7 +30,11 @@ function signUp({
   timeZone?: string;
   extra?: Record<string, string>;
 }): Promise<Response> {
-  const headers: Record<string, string> = { 'content-type': 'application/json', 'x-forwarded-for': `10.201.0.${clientAddress++}` };
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'x-forwarded-for': `10.201.0.${clientAddress++}`,
+    origin: server.baseUrl,
+  };
   if (token) headers[INVITE_TOKEN_HEADER] = token;
   const body = { name: 'Eve', email, password: TEST_USER_PASSWORD, timeZone, ...extra };
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers, body: JSON.stringify(body) });

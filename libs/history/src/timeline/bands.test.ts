@@ -70,3 +70,11 @@ test('byVolumeDescending puts the largest contributor first and keeps ties in or
     'c',
   ]);
 });
+
+test('contributors list a person and their AI as two rows', () => {
+  const runs = [
+    runOf({ bandId: 'b1', authorKey: 'ana', inserted: 'human text', firstServerTime: 1 }),
+    runOf({ bandId: 'b1', authorKey: 'ana#agent', inserted: 'ai', firstServerTime: 2 }),
+  ];
+  expect(contributorsByBand(runs).b1!.map((contributor) => contributor.authorKey)).toEqual(['ana', 'ana#agent']);
+});

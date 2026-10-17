@@ -19,35 +19,37 @@ export class CollaborationRefusedError extends Error {
   }
 }
 
-function socketWithCookie({ cookie, origin }: { cookie: string; origin: string }): typeof WebSocket {
+function socketWithHeaders({ headers, origin }: { headers: Record<string, string>; origin: string | undefined }): typeof WebSocket {
   return class extends WebSocket {
     constructor(url: string, protocols?: string | string[]) {
-      super(url, protocols, { headers: { cookie }, origin });
+      super(url, protocols, { headers, origin });
       this.on('error', () => undefined);
     }
   } as unknown as typeof WebSocket;
 }
 
-export function connectToDocument({
+function openProvider({
   server,
-  cookie,
+  headers,
+  origin,
+  token,
   documentId,
-  document = new Y.Doc(),
-  origin = server.baseUrl,
-  path = ApiPath.Collaboration,
+  document,
+  path,
 }: {
   server: TestServer;
-  cookie: string;
+  headers: Record<string, string>;
+  origin: string | undefined;
+  token: string;
   documentId: string;
-  document?: Y.Doc;
-  origin?: string;
-  path?: string;
+  document: Y.Doc;
+  path: string;
 }): Promise<CollaborationClient> {
   return new Promise((resolve, reject) => {
     let isSynced = false;
     const websocketProvider = new HocuspocusProviderWebsocket({
       url: server.baseUrl.replace('http', 'ws') + path,
-      WebSocketPolyfill: socketWithCookie({ cookie, origin }),
+      WebSocketPolyfill: socketWithHeaders({ headers, origin }),
       maxAttempts: 1,
       connect: false,
     });
@@ -55,7 +57,7 @@ export function connectToDocument({
       websocketProvider,
       document,
       name: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
-      token: COLLABORATION_TOKEN_PLACEHOLDER,
+      token,
       onSynced: () => {
         isSynced = true;
         resolve({ document, provider, close });
@@ -78,6 +80,48 @@ export function connectToDocument({
       websocketProvider.destroy();
     }
   });
+}
+
+export function connectToDocument({
+  server,
+  cookie,
+  documentId,
+  document = new Y.Doc(),
+  origin = server.baseUrl,
+  path = ApiPath.Collaboration,
+}: {
+  server: TestServer;
+  cookie: string;
+  documentId: string;
+  document?: Y.Doc;
+  origin?: string;
+  path?: string;
+}): Promise<CollaborationClient> {
+  return openProvider({
+    server,
+    headers: { cookie },
+    origin,
+    token: COLLABORATION_TOKEN_PLACEHOLDER,
+    documentId,
+    document,
+    path,
+  });
+}
+
+export function connectAgentToDocument({
+  server,
+  token,
+  documentId,
+  document = new Y.Doc(),
+  path = ApiPath.AgentCollaboration,
+}: {
+  server: TestServer;
+  token: string;
+  documentId: string;
+  document?: Y.Doc;
+  path?: string;
+}): Promise<CollaborationClient> {
+  return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path });
 }
 
 export async function documentWithOwner({

@@ -1,4 +1,5 @@
 import { SECOND_MS } from './constants';
+import type { AgentActionKind } from './agent';
 import type { EventAuthor } from './history';
 
 // NB ADR 0015: topics are recomputed automatically only once this many new blocks sit outside every topic, so single edits spend no model call.
@@ -70,19 +71,21 @@ export enum TimelineQueryParam {
 
 export type TimelineFilter = { term: string | null; author: string | null };
 export type EditSelection = { term: string | null; author: string | null; topic: string | null; at: number | null };
-export type SelectionSummary = { key: string; sentence: string; authors: string[]; computedAtSequence: number; isStale: boolean };
+export type SummaryAuthor = Pick<EventAuthor, 'name' | 'actor'>;
+export type SelectionSummary = { key: string; sentence: string; authors: SummaryAuthor[]; computedAtSequence: number; isStale: boolean };
 export type SelectionSummaryView = {
   state: SelectionSummaryState;
   summary: SelectionSummary | null;
   failure: string | null;
   isModelAvailable: boolean;
 };
-export type TimelineCell = { inserted: number; deleted: number; authorKeys: string[] };
+export type TimelineCell = { inserted: number; deleted: number; agentInserted: number; agentDeleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };
 export type TimelineBand = { id: string; kind: TimelineBandKind; name: string; hue: number | null; onsetTime: number; volume: number };
 export type TimelineContributor = { authorKey: string; inserted: number; deleted: number; wordsInserted: number; wordsDeleted: number };
 export type TopicStatus = { state: TopicState; failure: string | null; computedAtSequence: number | null };
 export type ProjectionStatus = { isBehind: boolean; lagMs: number | null; isDegraded: boolean; cursor: number | null };
+export type AgentActionView = { authorKey: string; kind: AgentActionKind; createdAt: number };
 export type DocumentTimeline = {
   timeZone: string;
   binMs: number;
@@ -90,6 +93,7 @@ export type DocumentTimeline = {
   bands: TimelineBand[];
   contributorsByBand: Record<string, TimelineContributor[]>;
   authors: Record<string, EventAuthor>;
+  agentActions: AgentActionView[];
   topics: TopicStatus;
   projection: ProjectionStatus;
 };

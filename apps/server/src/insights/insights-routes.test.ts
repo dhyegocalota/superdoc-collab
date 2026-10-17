@@ -35,7 +35,7 @@ const SELECTION_ANSWER = { sentence: 'Member added a designer.', authors: ['Memb
 const COOLDOWN_SECONDS = SELECTION_SUMMARY_COOLDOWN_MS / SECOND_MS;
 const PROVIDER_SECRET = 'sk-test-secret';
 const FOREIGN_ORIGIN = 'https://evil.example';
-const KATHMANDU_TIME_ZONE = 'Asia/Kathmandu';
+const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
 const INVALID_QUERIES = ['at=-5', 'at=abc', 'at=1.5', `at=${'9'.repeat(20)}`, `topic=${'t'.repeat(201)}`];
 
 afterEach(() => {
@@ -257,7 +257,7 @@ test('a selection summarized for one zone is not served for another', async () =
     documentId,
     cookie: editor.cookie,
     query: MEMBER_QUERY,
-    timeZone: KATHMANDU_TIME_ZONE,
+    timeZone: SAO_PAULO_TIME_ZONE,
   });
   expect(sameZone.state).toBe(SelectionSummaryState.Ready);
   expect(otherZone.state).toBe(SelectionSummaryState.None);

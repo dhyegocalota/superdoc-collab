@@ -83,6 +83,8 @@ const SHORT_VIEWPORT = { width: 1280, height: 480 };
 const PHONE_VIEWPORT = { width: 375, height: 812 };
 const VIEWPORT_WIDTHS = [320, 375, 768, 1024, 1280, 1536, 1920, 2560];
 const VIEWPORT_HEIGHT = 800;
+const PAGE_CENTRE_TOLERANCE_PX = 2;
+const PAGE_CENTRED_FROM_WIDTH_PX = 1024;
 const LONG_DOCUMENT_LINES = 40;
 const LAST_LINE_PREFIX = 'Line 40';
 const RENAMED_TITLE = 'Renamed';
@@ -195,6 +197,24 @@ async function ownerOpensDocument({
 
 function panelPositionChoice({ page, position }: { page: Page; position: PanelPosition }) {
   return page.getByRole('group', { name: PANEL_POSITION_LABEL }).getByRole('radio', { name: PANEL_POSITION_LABELS[position] });
+}
+
+async function expectPageFitsEditor({ page, width }: { page: Page; width: number }): Promise<void> {
+  const boxes = await page.evaluate(
+    ({ editorTestId, pageSelector }) => {
+      const editor = document.querySelector(`[data-testid="${editorTestId}"]`)?.getBoundingClientRect();
+      const paper = document.querySelector(pageSelector)?.getBoundingClientRect();
+      if (!editor || !paper) throw new Error('the editor or its page is not rendered');
+      return { editor: { left: editor.left, right: editor.right }, paper: { left: paper.left, right: paper.right } };
+    },
+    { editorTestId: EDITOR_TEST_ID, pageSelector: PAGE_SELECTOR },
+  );
+  expect(boxes.paper.left).toBeGreaterThanOrEqual(boxes.editor.left - PAGE_CENTRE_TOLERANCE_PX);
+  expect(boxes.paper.right).toBeLessThanOrEqual(boxes.editor.right + PAGE_CENTRE_TOLERANCE_PX);
+  if (width < PAGE_CENTRED_FROM_WIDTH_PX) return;
+  const spaceBefore = boxes.paper.left - boxes.editor.left;
+  const spaceAfter = boxes.editor.right - boxes.paper.right;
+  expect(Math.abs(spaceBefore - spaceAfter)).toBeLessThanOrEqual(PAGE_CENTRE_TOLERANCE_PX);
 }
 
 async function expectChromeFits({ page, name }: { page: Page; name: string }): Promise<void> {
@@ -435,6 +455,7 @@ for (const width of VIEWPORT_WIDTHS) {
     await ana.page.reload();
     await expect(ana.page.locator(PAGE_SELECTOR).first()).toBeVisible({ timeout: WAITING_TIMEOUT_MS });
     await expectChromeFits({ page: ana.page, name: anaUser!.name });
+    await expectPageFitsEditor({ page: ana.page, width });
     await chooseTheme({ page: ana.page, name: anaUser!.name, theme: ThemePreference.Dark });
     await expect(ana.page.locator('html')).toHaveClass(DARK_CLASS_PATTERN);
     await expectChromeFits({ page: ana.page, name: anaUser!.name });

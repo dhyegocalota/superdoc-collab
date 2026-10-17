@@ -31,13 +31,13 @@ Reservation state table (`creator-reservations.test.ts`, one `test.each`):
 - [ ] Live holder A, editor B reserves — input: B reserves within the window; expected: `null`.
 - [ ] Holder A reserves again — input: A reserves at `now + 10 s`; expected: `1`, and the expiry is unchanged.
 - [ ] Expired holder A, editor B reserves — input: B reserves at `now + reservationMs`; expected: `2`.
-- [ ] Attempt 1 after takeover — input: `mayWrite` with attempt 1 after the row above; expected: `false`; attempt 2 gives `true`.
+- [ ] Attempt 1 after takeover — input: `mayWrite` with attempt 1 after the step above; expected: `false`; attempt 2 gives `true`.
 - [ ] Release by A, editor B reserves — input: `release({ attempt: 1 })` then B reserves; expected: `2`.
 - [ ] `forget`, then reserve — input: `forget` then `reserve` by A; expected: `1`.
 
 Fence, authentication and limits:
 
-- [ ] Stale attempt in `onChange` — input: superseded attempt context; expected: no log row, one `console.warn` for the connection, and a second write from it logs nothing.
+- [ ] Stale attempt in `onChange` — input: superseded attempt context; expected: no log row, one `console.warn` for the connection, a second write from it logs nothing.
 - [ ] Committed room accepts any attempt — input: a commit, then an update with attempt 1 after takeover; expected: row appended.
 - [ ] Member on uncommitted room, no attempt — input: session cookie, no open; expected: `CollaborationRefusedError`.
 - [ ] Agent on uncommitted room, no attempt — input: a valid room token, no open; expected: `CollaborationRefusedError`.
@@ -70,7 +70,7 @@ Assertions use `data-testid` and HTTP answers, not waiting-page text.
 
 Two authors use the `playwright` and `playwright-second` servers, one browser each (ADR 0023). Every walk checks console and network.
 
-- [ ] Waiting page at 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 px — input: second editor on a fresh document while the first creates; expected: no horizontal scroll, no clipped control, no layout jump; one screenshot per width at `.pr-media/room-admission/waiting-<width>.png`.
+- [ ] Waiting page at 320 px, 375 px, 768 px, 1024 px, 1280 px, 1536 px, 1920 px and 2560 px — input: second editor on a fresh document while the first creates; expected: no horizontal scroll, no clipped control, no layout jump; screenshot per width at `.pr-media/room-admission/waiting-<width>.png`.
 - [ ] Upload path at 375 px and 1280 px — input: the near-10 MB DOCX; expected: the upload finishes and the editor opens with the title.
 - [ ] Failed banner for a superseded creator — input: the first creator is taken over after expiry; expected: the banner shows failed with Reload, and Reload answers 409 until the new creator commits. Screenshot at `.pr-media/room-admission/failed-banner.png`. This needs the connection-state banner.
 - [ ] Console and network clean — expected: zero console errors and zero failed requests during every walk, except the expected 409 answers.
@@ -82,8 +82,8 @@ Empty on purpose. The tester adds one checkbox per new case, with its input, exa
 ## Adversarial review
 
 - [ ] Claim 1: an uncommitted room with no connections is unloaded, so no partial leaks into the next attempt — attack: a creator writes, disconnects, and a second editor opens within the store debounce; result: refuted | held.
-- [ ] Claim 2: `connection.close()` inside `beforeHandleMessage` does not stop the message — attack: call it at the 121st message and check the log; result: refuted | held.
-- [ ] Claim 3: a 1009 frame reaches the client as 1009 — attack: send one frame of cap plus one byte through a real socket; result: refuted | held.
+- [ ] Claim 2: `connection.close()` inside `beforeHandleMessage` stops messages — attack: call it at the 121st message and check the log; result: refuted | held.
+- [ ] Claim 3: a 1009 frame reaches the client as 1009 — attack: send one frame of cap plus one bytes through a real socket; result: refuted | held.
 
 ## Coverage honesty
 

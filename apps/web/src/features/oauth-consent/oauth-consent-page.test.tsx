@@ -65,3 +65,9 @@ test('a request without a client id shows the incomplete message and calls nothi
   expect(publicClient).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: APPROVE_LABEL })).not.toBeInTheDocument();
 });
+
+test('the offline access scope is shown in plain words', async () => {
+  renderConsentPage({ client_id: CLIENT_ID, scope: [AgentScope.HistoryRead, OFFLINE_ACCESS_SCOPE].join(' ') });
+  expect(await screen.findByText(OFFLINE_ACCESS_LABEL)).toBeInTheDocument();
+  expect(screen.queryByText(OFFLINE_ACCESS_SCOPE)).not.toBeInTheDocument();
+});

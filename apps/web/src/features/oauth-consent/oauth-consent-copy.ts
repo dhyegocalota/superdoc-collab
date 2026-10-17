@@ -1,5 +1,7 @@
 import { AgentScope } from '@superdoc-history/types';
 
+export const OFFLINE_ACCESS_SCOPE = 'offline_access';
+export const OFFLINE_ACCESS_LABEL = 'Stay connected until you revoke it';
 export const CONSENT_HEADING = 'Connect an AI client';
 export const APPROVE_LABEL = 'Approve';
 export const DENY_LABEL = 'Deny';

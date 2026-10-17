@@ -14,6 +14,13 @@ import {
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
+const INSTALL_FILE = 'docs/install.md';
+const AGENT_SECTION_HEADING = '## Install with an agent';
+const CONFIGURATION_SECTION_HEADING = '## Configuration';
+const RECOVERY_SECTION_HEADING = '## Recovery';
+const SECTION_PATTERN = /^## /m;
+const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
+const ADMIN_PROMOTE_COMMAND = 'admin-promote';
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
 const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -23,6 +30,14 @@ const SPACE_PATTERN = / /g;
 const EXTERNAL_LINK_PATTERN = /^(https?:|mailto:|#)/;
 const ANCHOR_SEPARATOR = '#';
 const MARKDOWN_EXTENSION = '.md';
+
+function section({ text, heading }: { text: string; heading: string }): string {
+  const start = text.indexOf(`\n${heading}\n`);
+  if (start === -1) throw new Error(`The install guide has no section ${heading}`);
+  const [body] = text.slice(start + heading.length + 2).split(SECTION_PATTERN);
+  if (body === undefined) throw new Error(`The install guide section ${heading} is empty`);
+  return body;
+}
 
 function slugOf(heading: string): string {
   return heading.toLowerCase().replace(SLUG_DISALLOWED_PATTERN, '').replace(SPACE_PATTERN, '-');
@@ -75,5 +90,19 @@ describe('delivery documents', () => {
   test('the runbook sets every variable the compose file reads', () => {
     const runbook = readRepositoryFile(RUNBOOK_FILE);
     expect(composeVariables().filter((name) => !runbook.includes(`\n${name}=`))).toEqual([]);
+  });
+
+  test('the install guide configuration table lists every variable the production compose reads', () => {
+    const configuration = section({ text: readRepositoryFile(INSTALL_FILE), heading: CONFIGURATION_SECTION_HEADING });
+    expect(composeVariables().filter((name) => !configuration.includes(`\`${name}\``))).toEqual([]);
+  });
+
+  test('the agent install prompt carries the variables and the claim instruction', () => {
+    const agent = section({ text: readRepositoryFile(INSTALL_FILE), heading: AGENT_SECTION_HEADING });
+    expect(AGENT_PROMPT_PHRASES.filter((phrase) => !agent.includes(phrase))).toEqual([]);
+  });
+
+  test('the install guide explains how to promote an administrator', () => {
+    expect(section({ text: readRepositoryFile(INSTALL_FILE), heading: RECOVERY_SECTION_HEADING })).toContain(ADMIN_PROMOTE_COMMAND);
   });
 });

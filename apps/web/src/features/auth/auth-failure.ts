@@ -8,7 +8,16 @@ function tooManyAttemptsMessage(retryAfterSeconds: string | null): string {
   return `Too many attempts. Try again in ${retryAfterSeconds} seconds.`;
 }
 
-export function authFailureMessage({ status, retryAfterSeconds }: { status: number; retryAfterSeconds: string | null }): string {
+export function authFailureMessage({
+  status,
+  retryAfterSeconds,
+  serverMessage,
+}: {
+  status: number;
+  retryAfterSeconds: string | null;
+  serverMessage: string | undefined;
+}): string {
+  if (status === HttpStatus.Forbidden && serverMessage) return serverMessage;
   if (status === HttpStatus.Unauthorized) return AUTH_ERROR_MESSAGE;
   if (status === HttpStatus.TooManyRequests) return tooManyAttemptsMessage(retryAfterSeconds);
   return GENERIC_AUTH_FAILURE_MESSAGE;

@@ -1,8 +1,9 @@
-import { DocumentRole, RoomMode, type DocumentSummary, type OpenedDocument } from '@superdoc-collab/types';
+import { DocumentRole, RoomMode, UserRole, type DocumentSummary, type OpenedDocument, type SessionUser } from '@superdoc-collab/types';
 
 export const DOCUMENT_ID = 'doc-1';
 export const DOCUMENT_TITLE = 'Plan';
-export const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
+export const EDITOR_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
+export const SESSION_USER: SessionUser = { ...EDITOR_USER, role: UserRole.User, timeZone: 'UTC' };
 
 export function summaryAs(role: DocumentRole): DocumentSummary {
   return { id: DOCUMENT_ID, title: DOCUMENT_TITLE, owner: { id: SESSION_USER.id, name: SESSION_USER.name }, updatedAt: 1, role };

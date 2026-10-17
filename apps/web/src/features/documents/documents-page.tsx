@@ -1,3 +1,6 @@
+import { AppRoute, UserRole } from '@superdoc-collab/types';
+import { Link } from 'react-router';
+import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { SignOutButton } from '@/features/auth/sign-out-button';
 import { useSession } from '@/features/auth/use-session';
 import { APP_NAME } from '@/lib/app-copy';
@@ -32,6 +35,11 @@ export function DocumentsPage() {
         <span className="font-semibold">{APP_NAME}</span>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">{user?.name}</span>
+          {user?.role === UserRole.Admin && (
+            <Link to={AppRoute.Admin} className="text-sm hover:underline">
+              {ADMIN_LINK_LABEL}
+            </Link>
+          )}
           <SignOutButton />
         </div>
       </header>

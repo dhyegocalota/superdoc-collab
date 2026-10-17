@@ -1,6 +1,6 @@
 import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { SESSION_USER } from '@/testing/opened-document';
+import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
@@ -39,7 +39,7 @@ test('the options open the file in its room as the signed-in user at the viewpor
         },
       },
     ],
-    user: SESSION_USER,
+    user: EDITOR_USER,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: { mode: ZoomMode.Manual },
   });

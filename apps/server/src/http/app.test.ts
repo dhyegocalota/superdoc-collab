@@ -1,7 +1,7 @@
-import { ApiPath, DOCX_MIME_TYPE, HttpStatus, UPLOAD_FIELD } from '@superdoc-collab/types';
+import { ApiPath, DOCX_MIME_TYPE, HttpStatus, INVITE_TOKEN_HEADER, UPLOAD_FIELD, UserRole, inviteTokenOf } from '@superdoc-collab/types';
 import { buildSeedDocx } from '@superdoc-collab/history';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
+import { signedInUser, startTestServer, TEST_TIME_ZONE, type TestServer } from '../testing/test-server';
 
 let server: TestServer;
 beforeAll(async () => {
@@ -17,11 +17,15 @@ let nextClientAddress = 0;
 function freshClientAddress(): string {
   return `10.0.0.${nextClientAddress++}`;
 }
+function freshInviteToken(): string {
+  const { url } = server.services.invites.create({ createdBy: server.admin.id });
+  return inviteTokenOf(url);
+}
 async function signUp(body: typeof credentials): Promise<Response> {
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress() },
-    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress(), [INVITE_TOKEN_HEADER]: freshInviteToken() },
+    body: JSON.stringify({ ...body, timeZone: TEST_TIME_ZONE }),
   });
 }
 async function signIn({
@@ -52,7 +56,9 @@ describe('sign-up, sign-in and me', () => {
     const signedIn = await signIn({ body: { email: credentials.email, password: credentials.password } });
     expect(signedIn.status).toBe(200);
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: cookieOf(signedIn) } });
-    expect(await me.json()).toEqual({ user: { id: expect.any(String), name: 'Ana', email: 'ana@example.com' } });
+    expect(await me.json()).toEqual({
+      user: { id: expect.any(String), name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: TEST_TIME_ZONE },
+    });
   });
   test('me without a session returns a null user', async () => {
     const response = await fetch(`${server.baseUrl}${ApiPath.Me}`);

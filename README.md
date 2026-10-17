@@ -2,7 +2,7 @@
 
 A collaborative DOCX editor that records every edit and shows who changed what, and when: a timeline per topic, time travel to any moment, and model-written summaries of the edits you select. Built on SuperDoc for its take-home brief ([`docs/brief/`](docs/brief/superdoc-eng-sample-project.docx)).
 
-**Live demo:** <https://superdoc-collab.up.railway.app>. Sign in as `ana@example.com` with the password from the delivery message, or create an account. Open a second browser as `bruno@example.com` to edit together.
+**Live demo:** <https://superdoc-collab.up.railway.app>. Accounts are by invitation: sign in as `ana@example.com` with the password from the delivery message, and open a second browser as `bruno@example.com` to edit together.
 
 ![The editor beside the timeline panel: one band per topic, and the top edits per topic with who made them and one sentence each](docs/media/readme/timeline.png)
 
@@ -28,6 +28,7 @@ Topics and summaries need `OPENROUTER_API_KEY` in `.env`; without it the app wor
 
 ## Read more
 
+- [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team
 - [Architecture, features and limits](docs/architecture.md)
 - [Decisions](docs/adr/) and [features](docs/features/README.md#roadmap), one folder and one pull request each
 - [How the work is done](.claude/HARNESS.md) with Claude Code, and the [credits](docs/credits.md)

@@ -1,5 +1,7 @@
 # Deploy runbook: Dokploy
 
+Historical: since [ADR 0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md) the demo seed is test-only and the compose file pins `SEED_DEMO_USERS=false`.
+
 How to put SuperDoc History on a VPS that runs Dokploy, check it, seed the demo accounts and roll back. About ten minutes once DNS resolves. The decision behind this shape is [ADR 0013](../../adr/0013-deploy-with-dokploy-compose.md).
 
 Steps marked **(from memory, verify in the UI)** describe Dokploy screens that could not be checked from the machine that wrote this runbook. Labels may differ slightly in your Dokploy version; the intent of each step does not.

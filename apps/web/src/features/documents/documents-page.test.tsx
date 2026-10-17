@@ -1,10 +1,12 @@
 import {
   ApiPath,
+  AppRoute,
   DocumentRole,
   documentPagePath,
   HttpMethod,
   HttpStatus,
   UNTITLED_DOCUMENT_TITLE,
+  UserRole,
   type DocumentsList,
   type DocumentSummary,
 } from '@superdoc-history/types';
@@ -15,6 +17,7 @@ import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
+import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import {
@@ -29,7 +32,7 @@ import {
 } from './documents-copy';
 import { DocumentsPage } from './documents-page';
 
-const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
+const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const OWNED_DOCUMENT: DocumentSummary = {
   id: 'doc-1',
   title: 'Quarterly plan',
@@ -47,9 +50,9 @@ const SHARED_DOCUMENT: DocumentSummary = {
 const CREATED_DOCUMENT: DocumentSummary = { ...OWNED_DOCUMENT, id: 'doc-2', title: UNTITLED_DOCUMENT_TITLE };
 const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-function mockApi(list: DocumentsList) {
+function mockApi(list: DocumentsList, sessionUser = SESSION_USER) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: sessionUser } });
     if (init?.method === HttpMethod.Post) return jsonResponse({ body: CREATED_DOCUMENT, status: HttpStatus.Created });
     return jsonResponse({ body: list });
   });
@@ -151,4 +154,17 @@ test('new document posts the untitled title, refreshes the list and opens it', a
     expect.objectContaining({ method: HttpMethod.Post, body: JSON.stringify({ title: UNTITLED_DOCUMENT_TITLE }) }),
   );
   expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });
+});
+
+test('the header shows the Admin link only for admins', async () => {
+  mockApi({ mine: [], shared: [] }, { ...SESSION_USER, role: UserRole.Admin });
+  renderWithProviders(<DocumentsPage />);
+  expect(await screen.findByRole('link', { name: ADMIN_LINK_LABEL })).toHaveAttribute('href', AppRoute.Admin);
+});
+
+test('the header has no Admin link for a user', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  await screen.findByText(SESSION_USER.name);
+  expect(screen.queryByRole('link', { name: ADMIN_LINK_LABEL })).not.toBeInTheDocument();
 });

@@ -21,7 +21,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
-import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import {
@@ -176,7 +176,7 @@ test('creating fetches the stored download and a reader gets the viewing mode', 
   const requestedPaths = fetchSpy.mock.calls.map(([input]) => input);
   expect(requestedPaths).toContain(DOWNLOAD_PATH);
   expect(requestedPaths).not.toContain(BLANK_DOCX_PATH);
-  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documentMode: DocumentMode.Viewing, user: SESSION_USER }));
+  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documentMode: DocumentMode.Viewing, user: EDITOR_USER }));
 });
 
 test('a rejected file fetch shows the load error instead of an empty pane', async () => {

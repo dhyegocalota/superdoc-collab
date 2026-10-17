@@ -11,13 +11,15 @@ export const SIGN_UP_BY_INVITATION_MESSAGE = 'Sign-up is by invitation. Ask an a
 export const ADMINS_ONLY_MESSAGE = 'Admins only.';
 export const LAST_ADMIN_MESSAGE = 'The last admin cannot be demoted.';
 
+export const UTC_TIME_ZONE = 'UTC';
+
 export enum UserRole {
   Admin = 'admin',
   User = 'user',
 }
 
 export function isSupportedTimeZone(value: string): boolean {
-  return Intl.supportedValuesOf('timeZone').includes(value);
+  return value === UTC_TIME_ZONE || Intl.supportedValuesOf('timeZone').includes(value);
 }
 
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);

@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  AppRoute,
   DocumentRole,
   documentPagePath,
   HttpMethod,
@@ -15,6 +16,7 @@ import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
+import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import {
@@ -62,6 +64,13 @@ function headersOf(table: HTMLElement): (string | null)[] {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+test('the header links to the connected apps page', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  const link = await screen.findByRole('link', { name: CONNECTED_APPS_HEADING });
+  expect(link).toHaveAttribute('href', AppRoute.ConnectedApps);
+});
 
 test('empty lists show both empty messages', async () => {
   mockApi({ mine: [], shared: [] });

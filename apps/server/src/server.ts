@@ -17,6 +17,7 @@ import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
 import { createCollaborationServer } from './collaboration/collaboration-server';
+import { createBootstrapState } from './collaboration/bootstrap-state';
 import { CreatorReservations } from './collaboration/creator-reservations';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
@@ -144,6 +145,7 @@ function createServices({
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now });
+  const bootstrap = createBootstrapState({ updateLog, readModel });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
@@ -186,7 +188,6 @@ function createServices({
   const runtime = createCollaborationRuntime({
     hocuspocus,
     updateLog,
-    readModel,
     scheduler,
     storage,
     timelinePipelines,
@@ -194,6 +195,7 @@ function createServices({
     versionRooms,
     insights,
     reservations,
+    bootstrap,
   });
   const agentSessions = new AgentSessions({
     issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),

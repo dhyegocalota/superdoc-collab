@@ -7,16 +7,15 @@ import { expect, test, vi } from 'vitest';
 import { authClient } from './auth-client';
 import { SIGN_OUT_LABEL } from './auth-copy';
 import { SignOutButton } from './sign-out-button';
-import { SESSION_QUERY_KEY } from './use-session';
+import { SIGNED_OUT_STATE } from './sign-out-state';
 
 const navigate = vi.fn();
 
 vi.mock('react-router', async (importOriginal) => ({ ...(await importOriginal<typeof import('react-router')>()), useNavigate: () => navigate }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
-test('navigates to the bare sign-in route and clears the session', async () => {
+test('navigates to the bare sign-in route marked as signed out', async () => {
   const queryClient = new QueryClient();
-  queryClient.setQueryData(SESSION_QUERY_KEY, { id: 'user-1', name: 'Ada', email: 'ada@example.com' });
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
@@ -25,7 +24,7 @@ test('navigates to the bare sign-in route and clears the session', async () => {
     </QueryClientProvider>,
   );
   await userEvent.setup().click(screen.getByRole('button', { name: SIGN_OUT_LABEL }));
-  await waitFor(() => expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull());
+  await waitFor(() => expect(navigate).toHaveBeenCalled());
   expect(authClient.signOut).toHaveBeenCalledTimes(1);
-  expect(navigate).toHaveBeenCalledWith(AppRoute.SignIn, { replace: true });
+  expect(navigate).toHaveBeenCalledWith(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE });
 });

@@ -85,6 +85,7 @@ async function main(): Promise<void> {
   await waitForHealth(`${origin}${HEALTH_PATH}`);
   console.log(`ORIGIN=${origin}`);
   console.log(`DATABASE_DIR=${databaseDir}`);
+  console.log(`PID=${process.pid}`);
 }
 
 main().catch((error: Error) => {

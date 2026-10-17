@@ -33,7 +33,7 @@ Every feature is proven by its own test plan, and `/check-ui` walks one flow. No
   ├─ read docs/scenarios/<slug>.md (front matter: name, authors, paths; body: setup, tests, edge cases)
   ├─ pnpm scenario:stack                      (background)
   │     e2e/scenario-stack.ts: build web + server, seed demo users into a temp DATABASE_DIR,
-  │     start the fake model on 3299 and the server on 3200, print ORIGIN and DATABASE_DIR
+  │     start the fake model on 3299 and the server on 3200, print ORIGIN, DATABASE_DIR and PID
   ├─ wait for ORIGIN/api/health
   ├─ author A → mcp__playwright__*            author B → mcp__playwright-second__*
   │     sign in through the form, run every test, screenshot each Expect
@@ -49,7 +49,7 @@ Every feature is proven by its own test plan, and `/check-ui` walks one flow. No
 
 - `docs/scenarios/<slug>.md`: front matter `name`, `title`, `authors` (how many MCP servers the run needs), `paths` (globs, same shape as `.claude/rules/`); body with `## Setup`, `## Tests` (each `### Tn <title>` with steps and one `Expect:` line) and `## Edge cases to hunt during the run`. `docs/scenarios/README.md` indexes them.
 - `e2e/stack.ts`: the boot shared by `playwright.config.ts` and the scenario stack: `BUILD_AND_START_COMMAND`, `localOrigin(port)`, `stackEnvironment({ port, databaseDir, fakeOpenRouterOrigin })`, the fixed secrets and limits. `playwright.config.ts` imports it and keeps its ports.
-- `e2e/scenario-stack.ts`: checks that 3200 and 3299 are free, runs `node e2e/fake-openrouter.ts` and the build-and-start command with `stackEnvironment` in detached process groups, waits for both health endpoints, prints `ORIGIN=` and `DATABASE_DIR=`, and kills both groups on SIGINT, SIGTERM or when the server exits. `package.json`: `scenario:stack` = `tsx e2e/scenario-stack.ts` (`tsx` joins the root devDependencies; Node resolves no extension-less import on its own). The scenario creates its document through **New document** and types the fixture paragraphs, so no seed file is needed.
+- `e2e/scenario-stack.ts`: checks that 3200 and 3299 are free, runs `node e2e/fake-openrouter.ts` and the build-and-start command with `stackEnvironment` in detached process groups, waits for both health endpoints, prints `ORIGIN=`, `DATABASE_DIR=` and `PID=`, and kills both groups on SIGINT, SIGTERM or when the server exits. `package.json`: `scenario:stack` = `tsx e2e/scenario-stack.ts` (`tsx` joins the root devDependencies; Node resolves no extension-less import on its own). The scenario creates its document through **New document** and types the fixture paragraphs, so no seed file is needed.
 - `.mcp.json` and `.codex/config.toml`: `playwright` and `playwright-second`, both `@playwright/mcp@latest --browser chromium --isolated`.
 - `.agents/skills/scenario/SKILL.md`: argument `<slug>`; refuses an unknown slug by listing `docs/scenarios/`; boots, waits, runs tests in order, one author per server, screenshots to `.pr-media/scenario-<slug>/`, writes the report, stops the stack, reports pass/fail per test with the evidence paths, edge cases found and defects with reproduction steps. It never edits product code; a defect becomes a learning or a fix feature.
 - `/open-pr` Merge section: step 0 lists the scenarios whose `paths` match the diff and suggests `/scenario <slug>` to the owner; when none matches it says so.

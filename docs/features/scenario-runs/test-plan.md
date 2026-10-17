@@ -21,7 +21,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Prove it for real — the stack and the skill
 
-- [ ] `pnpm scenario:stack` in the background; expected: `ORIGIN=http://127.0.0.1:3200` and `DATABASE_DIR=<path>` printed, `/api/health` answers 200, the fake model's `/health` answers 200 on 3299
+- [ ] `pnpm scenario:stack` in the background; expected: `ORIGIN=http://127.0.0.1:3200`, `DATABASE_DIR=<path>` and `PID=<pid>` printed, `/api/health` answers 200, the fake model's `/health` answers 200 on 3299
 - [ ] A second `pnpm scenario:stack` while the first runs; expected: exits non-zero naming port 3200 or 3299
 - [ ] SIGTERM to the stack; expected: both children gone, `/api/health` unreachable within 5 seconds
 - [ ] `/scenario unknown-slug`; expected: refuses and lists `core-realtime`

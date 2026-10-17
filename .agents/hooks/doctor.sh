@@ -70,7 +70,7 @@ lost_for() {
     gh) echo "/open-pr and the recorder's release upload" ;;
     chromium) echo "pnpm test:e2e, both Playwright MCP servers, /check-ui, /scenario, the tester" ;;
     skills) echo "every Claude Code skill (ADR 0014)" ;;
-    gitleaks) echo "the local secret scan; CI runs it" ;;
+    gitleaks) echo "the secret scan; pnpm verify fails without it" ;;
     ffmpeg) echo "the recorder's mp4 and gif; a PR that touches UI cannot ship" ;;
     docker) echo "README → Quick install with Docker and booting the image locally; every gate runs from source" ;;
   esac

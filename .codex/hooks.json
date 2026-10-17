@@ -22,6 +22,12 @@
             "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/guard-secrets.sh\"",
             "timeout": 10,
             "statusMessage": "Guarding .env files"
+          },
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/guard-verify-records.sh\"",
+            "timeout": 10,
+            "statusMessage": "Guarding the records of green commits"
           }
         ]
       },
@@ -33,6 +39,12 @@
             "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/guard-git-add-all.sh\"",
             "timeout": 10,
             "statusMessage": "Guarding git add and the gates"
+          },
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/guard-verify-records.sh\"",
+            "timeout": 10,
+            "statusMessage": "Guarding the records of green commits"
           }
         ]
       }

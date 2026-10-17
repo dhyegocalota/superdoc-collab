@@ -13,6 +13,7 @@ docs/features/<slug> spec.md + plan.md + test-plan.md for every feature or fix
 docs/adr/            decisions            docs/learnings/   dated traps
 docs/scenarios/      agentic walks of the product core, one file per flow, run with /scenario
 <package>/README.md  apps/*, libs/* and e2e: purpose only (no commands or configuration)
+scripts/verify.sh    the local gate; scripts/verify-gates.tsv maps paths to gates
 ```
 
 The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENTS.md` follow the same phases; only the mechanics of spawning sub-agents differ (see Agents). Every surface has one source under `.agents/` and a thin adapter per tool ([ADR 0014](../docs/adr/0014-one-source-per-agent-surface.md)).
@@ -20,8 +21,8 @@ The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENT
 ## 0. Invariants
 
 1. Nothing is built before the owner and the agent agree on 100% of the design. Agreement is explicit, in writing, in the spec.
-2. Every feature **and every fix** gets `docs/features/<slug>/` with `spec.md`, `plan.md` and `test-plan.md`. Never one without the others. A fix's spec may be ten lines; it still exists.
-3. Executing the test plan is the priority. A plan whose test plan is not run is not done. A behaviour-preserving refactor is the one exception: the reviewer and the full CI run prove it (section 5).
+2. Every feature **and every fix** gets `docs/features/<slug>/` with `spec.md`, `plan.md` and `test-plan.md`. Never one without the others. A fix's spec may be ten lines; it still exists. The docs lane (section 1) is the one exception: `spec.md` alone.
+3. Executing the test plan is the priority. A plan whose test plan is not run is not done. A behaviour-preserving refactor, a tooling change and the docs lane are the exceptions: the reviewer and `pnpm verify` prove them (sections 1 and 5).
 4. The agent that builds never runs the test plan. The tester is a different sub-agent with a fresh context.
 5. Every PR is reviewed by a reviewer sub-agent before it opens. There is always a reviewer.
 6. Every PR that touches UI carries screenshots and a playable video recorded through Playwright MCP, hosted as GitHub Release assets and embedded in the body.
@@ -47,6 +48,8 @@ Classify the change so the depth of the spec matches the risk:
 
 When in doubt, take the heavier tier. Hidden complexity discovered mid-task upgrades the tier: stop, say so, step up.
 
+**Docs lane.** A change whose `pnpm verify --plan` class is `docs`, and that no person or agent follows step by step, may take the docs lane. Install guides, runbooks, the agent install file and `docs/scenarios/` are followed step by step, so they never take it. The lane is one ten-line `spec.md` that says `**Lane:** docs`, no plan, test plan or tester, one reviewer on the mid model, no security reviewer, on the class of the whole branch against `origin/main` ([ADR 0030](../docs/adr/0030-the-local-gate-runs-what-the-diff-can-break.md)). The class is necessary, never sufficient. A one-line change to code or configuration never takes it.
+
 ## 2. Record
 
 A decision with alternatives → `adr` skill → `docs/adr/NNNN-<slug>.md` (template in `docs/adr/_template.md`). Record it before the dependent code exists. Supersede, never rewrite history. Link the ADR from the spec.
@@ -68,7 +71,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - `test-driven-development` skill: failing test first, confirm it fails for the right reason, minimal code, green, refactor. **Commit the failing test on its own before the implementation commit**, so the tester can prove red-first from `git log` (see `docs/learnings/2026-10-16-commit-the-failing-test-first.md`).
 - The red commit may add a stub of the new symbol that throws `<name> is not implemented`, so `pnpm typecheck` stays green and the run reaches the named assertion. The test plan and the tester briefing record the failure text the red run actually printed, not the one expected.
 - A test that is green when it lands is a **pin**, not a red test. Its commit and its briefing row say `pin`; it never stands in for a red-first box.
-- Prettier is enforced in CI (`pnpm format:check`). Run `pnpm exec prettier --write <staged files>` before every commit; Markdown and YAML are ignored by `.prettierignore`.
+- Prettier is enforced by the `format` gate of `pnpm verify`. Run `pnpm exec prettier --write <staged files>` before every commit; Markdown and YAML are ignored by `.prettierignore`.
 - The `Co-Authored-By` trailer names the model that wrote that commit. Mixed trailers across one lane are correct; never rewrite them to match.
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
@@ -92,7 +95,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - A change that folds or deletes tests is proven with **mutation checks**: break the behaviour the dropped test covered, confirm a surviving test goes red, restore. Record each mutation and the test that caught it.
 - Edge cases are hunted during execution, not only listed upfront. New ones found go into `test-plan.md` and get a regression test.
 - Any bug found returns to Build. The tester never fixes product code.
-- A behaviour-preserving refactor lane needs no tester: the reviewer and the full CI run, E2E included, are the proof. A lane that changes anything the user sees always gets one.
+- A behaviour-preserving refactor lane needs no tester: the reviewer and `pnpm verify all`, E2E included, are the proof. A tooling change (class `tooling`) needs none either: the lead ticks the test plan with the gate output and the reviewer refutes it. A lane that changes anything the user sees always gets one.
 - `verification-before-completion` skill before anything is called done: run it, read the output, then claim it.
 
 ## 6. Review
@@ -102,29 +105,27 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - A commit that claims to be formatting only is re-diffed with whitespace and quotes normalised (`git diff -w`, then Prettier on both sides) before "no behaviour change" is trusted.
 - Red-first claims are spot-checked in a throwaway worktree: check out the red commit, run the named test, compare the failure with the text the test plan records.
 - Findings are delivered in chat and fixed before the PR. The reviewer never posts to GitHub.
-- A `security-reviewer` sub-agent, fresh and read-only, then attacks the same diff with the repository's threat model (sessions, per-document authorization, share links, credentials, storage, secrets in prompts and logs, supply chain) and answers `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE` ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)). It runs on every diff except one made only of Markdown under `docs/` and READMEs; a `CRITICAL` or `IMPORTANT` finding goes back to Build.
+- A `security-reviewer` sub-agent, fresh and read-only, then attacks the same diff with the repository's threat model (sessions, per-document authorization, share links, credentials, storage, secrets in prompts and logs, supply chain) and answers `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE` ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)). It runs on every diff except one in the docs lane (section 1); a `CRITICAL` or `IMPORTANT` finding goes back to Build.
 
 ## 7. Ship
 
 `/open-pr` runs the gates in order and stops at the first failure:
 
-1. `/verify`: typecheck → security audit → secret scan → unit → E2E.
-2. `test-plan.md` fully ticked by the tester, with evidence.
+1. `/verify`: `pnpm verify` runs what the diff can break, once per commit (ADR 0030).
+2. `test-plan.md` ticked with evidence by the tester for class `product`, by the lead for class `tooling`; skipped in the docs lane.
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
 3b. Security verdict `CLEAR` or `NOT APPLICABLE`; `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build. The verdict line goes into the PR body under `## Security`.
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
-5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
+5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only origin/main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
-8. **E2E on CI only when it can catch something.** The automatic workflow (`verify.yml`) runs `checks`, `unit`, `docker` and `security` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Suggest the dispatch to the owner only when the diff can change what the suite exercises: product source under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, `.github/workflows/e2e.yml`, `.github/actions/`, `.nvmrc`, dependencies or build configuration. Docs, agent tooling, unit tests and repository-shape tests merge on the green automatic run and the local `/verify`; never suggest the dispatch for them, even when they live under `apps/` or `libs/`. When the owner asks for it, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build.
+8. **The gate is local** (ADR 0030). Hosted runs are not waited for: GitHub Actions does not run for this repository. Before the merge, `git fetch origin` and merge `origin/main` into the branch (never rebase), run `/verify`, post its summary as a PR comment, confirm `origin/main` is still an ancestor of the head after a fresh fetch, and merge on green; a red gate goes back to Build. `.github/workflows/` stay true to the gate through their repository-shape tests for the day hosted runs come back.
 
 9. **Scenarios before the merge.** `/open-pr` matches the diff against the `paths` of every `docs/scenarios/*.md` and names the scenarios to run with `/scenario <slug>`; the owner decides. A scenario boots the whole stack on its own ports with the fake model and walks the product's core with one browser per author, hunting edge cases; a defect it finds goes back to Build with a regression test, never an inline fix (ADR 0023).
 
-**CI runs.** GitHub sometimes creates no `verify` run for a push or a pull request. When the head has no run, dispatch one (`gh workflow run verify.yml --ref <branch>`) instead of pushing an empty commit. Never poll the GitHub API in a loop: tight polling trips the secondary rate limit. Wait with `gh run watch <id> --exit-status`, one call per run, or a scheduled wakeup.
+**Merge on green.** When the owner asks to merge as soon as the gate is green, merge, then land the tester's ticks and evidence in a `docs` follow-up PR.
 
-**Merge on green.** When the owner asks to merge as soon as CI is green, merge, then land the tester's ticks and evidence in a `docs` follow-up PR.
-
-**Image proof without Docker.** When the diff touches `docker/` or `deploy/` and the doctor reports Docker missing, the agent either asks to install it or writes in the PR body that the image was proven by the `docker` job of CI only. Never silently.
+**Image proof.** When the diff touches the image's own files (`docker/`, `deploy/`, `.dockerignore`, `railway.json`, the compose files), the `docker` gate builds the image and fails without a running Docker; the agent asks to install it and never merges around it.
 
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
 
@@ -190,7 +191,7 @@ Routing: bulk reading and sweeps → cheapest model; implementing a decided desi
 | `feature` | skill | scaffolds `docs/features/<slug>/` |
 | `adr` | skill | scaffolds a numbered ADR |
 | `learning` | skill | records or revisits a learning |
-| `/verify` | skill | machine doctor → typecheck → security audit → secret scan → unit → E2E, stop at first failure |
+| `/verify` | skill | `pnpm verify`: what the diff can break, once per commit, stop at first failure |
 | `/check-ui` | skill | Playwright MCP walk, screenshots, video, release upload |
 | `/open-pr` | skill | the Ship gates, then the PR |
 | `/scenario` | skill | boots the stack on 3200/3299 and walks one `docs/scenarios/<slug>.md` with one Playwright MCP server per author |
@@ -209,6 +210,7 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 |---|---|---|
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
+| `guard-verify-records.sh` | PreToolUse Bash, Edit/Write | blocks writing records of green commits by hand; only `scripts/verify.sh` writes them (ADR 0030) |
 | `doctor.sh` | SessionStart; `/verify` gate 0; CI `checks` | prints one line per tool the harness needs (`ok`, `missing` or `skipped`, required or optional, what is lost, the `fix:` for this platform's package manager); exit 1 when a required tool is missing. The session hooks force exit 0 so the report reaches the context |
 | `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
 | `remind-docs.sh` | Stop | names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change, when those documents did not change; each document once until the next commit |
@@ -217,4 +219,4 @@ The scripts live in `.agents/hooks/` and read the tool input from stdin, in the 
 
 Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it names each document once until the next commit, never blocks a stop that is already continuing, and the agent may answer that nothing applies.
 
-CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README. `apps/server/src/repository-shape/readme-run-block.test.ts` fails when the root README's Quick install section or the install guide's Run from source section names a script, package filter, file, environment variable, demo user or port the sources do not have, or when any package or e2e README carries a fenced block, a `pnpm` or `docker` command or an environment variable. `agent-surfaces.test.ts` fails when a role under `.agents/roles/` lacks its Claude Code wrapper, its Codex wrapper or its Codex registration. The `security` job of `verify.yml` audits production dependencies at `high` (`pnpm security:audit`) and scans every commit on every branch and tag plus the checked-out tree with a checksum-pinned gitleaks binary, after `.github/scripts/secret-rules-probe.sh` proves the rules fire on a fresh token and stay silent on a shipped placeholder (`.gitleaks.toml` allowlists the exact placeholder strings, anchored); the repository's Dependabot alerts and automated security fixes are on, so a PR opens only for a vulnerable dependency with a fix ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)).
+`scripts/verify.test.sh`, part of `pnpm test:unit`, pins the map from paths to gates, the unit packages and the records of green commits. CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README. `apps/server/src/repository-shape/readme-run-block.test.ts` fails when the root README's Quick install section or the install guide's Run from source section names a script, package filter, file, environment variable, demo user or port the sources do not have, or when any package or e2e README carries a fenced block, a `pnpm` or `docker` command or an environment variable. `agent-surfaces.test.ts` fails when a role under `.agents/roles/` lacks its Claude Code wrapper, its Codex wrapper or its Codex registration. The `security` job of `verify.yml` audits production dependencies at `high` (`pnpm security:audit`) and scans every commit on every branch and tag plus the checked-out tree with a checksum-pinned gitleaks binary, after `.github/scripts/secret-rules-probe.sh` proves the rules fire on a fresh token and stay silent on a shipped placeholder (`.gitleaks.toml` allowlists the exact placeholder strings, anchored); the repository's Dependabot alerts and automated security fixes are on, so a PR opens only for a vulnerable dependency with a fix ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)).

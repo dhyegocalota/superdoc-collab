@@ -42,6 +42,22 @@ expect_exit "the no-verify flag is blocked" 2 guard-git-add-all.sh "$(bash_call 
 expect_exit "git add by name is allowed" 0 guard-git-add-all.sh "$(bash_call 'git add README.md .agents/hooks')"
 expect_exit "git add of a dotfile is allowed" 0 guard-git-add-all.sh "$(bash_call 'git add .gitignore')"
 
+expect_exit "verify records: a command naming .git/verify is blocked" 2 guard-verify-records.sh "$(bash_call 'echo x > .git/verify/abc')"
+expect_exit "verify records: rm of .git/verify is blocked" 2 guard-verify-records.sh "$(bash_call 'rm -rf .git/verify')"
+expect_exit "verify records: cp into .git/verify is blocked" 2 guard-verify-records.sh "$(bash_call 'cp a .git/verify/b')"
+expect_exit "verify records: ls of .git/verify is allowed" 0 guard-verify-records.sh "$(bash_call 'ls .git/verify')"
+expect_exit "verify records: cat of a record is allowed" 0 guard-verify-records.sh "$(bash_call 'cat .git/verify/x')"
+expect_exit "verify records: a search for git-common-dir is allowed" 0 guard-verify-records.sh "$(bash_call 'rg -n git-common-dir scripts/verify.sh')"
+expect_exit "verify records: git-common-dir beside pnpm verify is allowed" 0 guard-verify-records.sh "$(bash_call 'git rev-parse --git-common-dir && pnpm verify --plan')"
+expect_exit "verify records: a commit message naming .git/verify is allowed" 0 guard-verify-records.sh "$(bash_call 'git commit -m \"mentions .git/verify\"')"
+expect_exit "verify records: a relative Codex patch under .git/verify is blocked" 2 guard-verify-records.sh "$(codex_patch Add .git/verify/abc)"
+expect_exit "verify records: an edit through dot-dot segments is blocked" 2 guard-verify-records.sh "$(claude_edit /repo/.git/worktrees/x/../../verify/abc)"
+expect_exit "verify records: a Claude edit under .git/verify is blocked" 2 guard-verify-records.sh "$(claude_edit /repo/.git/verify/abc)"
+expect_exit "verify records: a Codex patch under .git/verify is blocked" 2 guard-verify-records.sh "$(codex_patch Add /repo/.git/verify/abc)"
+expect_exit "verify records: pnpm verify --plan is allowed" 0 guard-verify-records.sh "$(bash_call 'pnpm verify --plan')"
+expect_exit "verify records: an ordinary edit is allowed" 0 guard-verify-records.sh "$(claude_edit /repo/scripts/verify.sh)"
+expect_stderr "verify records: the block names the script" "records of green commits are written only by scripts/verify.sh" guard-verify-records.sh "$(bash_call 'rm -rf .git/verify')"
+
 scratch=$(mktemp -d)
 printf 'const value = input ?? "fallback";\nif (a) {\n  b();\n} else {\n  c();\n}\n' > "$scratch/else.ts"
 printf 'export function clean(): number {\n  return 1;\n}\n' > "$scratch/clean.ts"

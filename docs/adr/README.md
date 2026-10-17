@@ -48,3 +48,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0027](0027-a-pruned-version-sequence-resolves-to-its-minute.md) | A pruned version sequence resolves to the surviving mark of its minute | Accepted | 2026-10-17 |
 | [0028](0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md) | The actor, not the name, marks an AI in our interface | Accepted | 2026-10-17 |
 | [0029](0029-agent-edits-carry-a-human-or-agent-actor.md) | Agent edits carry an actor next to the user they act for | Accepted | 2026-10-17 |
+| [0030](0030-the-local-gate-runs-what-the-diff-can-break.md) | The local gate runs what the diff can break | Accepted | 2026-10-17 |

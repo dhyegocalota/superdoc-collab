@@ -22,6 +22,8 @@ const CONFIGURATION_SECTION_HEADING = '## Configuration';
 const RECOVERY_SECTION_HEADING = '## Recovery';
 const SECTION_PATTERN = /^## /m;
 const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
+const REPOSITORY_URL = 'https://github.com/dhyegocalota/superdoc-collab';
+const GITHUB_URL_PATTERN = /https:\/\/github\.com\/[^\s`)]+/g;
 const ADMIN_PROMOTE_COMMAND = 'admin-promote';
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
@@ -110,6 +112,17 @@ describe('delivery documents', () => {
       section({ text: readRepositoryFile(INSTALL_FILE), heading: AGENT_SECTION_HEADING }),
     ];
     expect(prompts.filter((prompt) => !prompt.includes(AGENT_INSTALL_FILE))).toEqual([]);
+  });
+
+  test('the install prompts and the agent install file point only at this repository', () => {
+    const followed = [
+      section({ text: readRepositoryFile(README_FILE), heading: QUICK_INSTALL_HEADING }),
+      section({ text: readRepositoryFile(INSTALL_FILE), heading: AGENT_SECTION_HEADING }),
+      readRepositoryFile(AGENT_INSTALL_FILE),
+    ].join('\n');
+    const urls = followed.match(GITHUB_URL_PATTERN);
+    expect(urls).not.toBeNull();
+    expect(urls?.filter((url) => url !== REPOSITORY_URL)).toEqual([]);
   });
 
   test('the install guide explains how to promote an administrator', () => {

@@ -1,6 +1,6 @@
 # 0005. Authenticate with Better Auth
 
-- Status: Accepted
+- Status: Accepted Open sign-up and the seeded demo users are amended by [0020](0020-invite-only-accounts-with-a-first-claim-admin.md).
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: take-home specification, [0002](0002-authorship-observed-vs-declared.md), [0004](0004-stack.md)

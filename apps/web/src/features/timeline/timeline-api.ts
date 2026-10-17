@@ -24,7 +24,7 @@ import {
   type VersionSummary,
 } from '@superdoc-history/types';
 import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
-import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
+import { documentQueryKey } from '@/features/documents/documents-api';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
 import { requestFailedMessage } from './timeline-copy';
 
@@ -63,15 +63,15 @@ export type VersionLoad =
   | { kind: VersionLoadKind.Failed };
 
 export function timelineQueryKey({ documentId, filter }: { documentId: string; filter: TimelineFilter }): unknown[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline, filter];
+  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, filter] });
 }
 
-export function summariesQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Summaries];
+export function summariesQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.Summaries] });
 }
 
-export function topicsQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Topics];
+export function topicsQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.Topics] });
 }
 
 export function binEditsQueryKey({
@@ -85,11 +85,11 @@ export function binEditsQueryKey({
   binMs: number;
   filter: TimelineFilter;
 }): unknown[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter];
+  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter] });
 }
 
 export function versionQueryKey({ documentId, sequence }: { documentId: string; sequence: number | null }): unknown[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Versions, sequence];
+  return documentQueryKey({ documentId, segments: [DocumentResource.Versions, sequence] });
 }
 
 export function selectionSummaryQueryKey({ documentId, selection }: { documentId: string; selection: EditSelection }): unknown[] {

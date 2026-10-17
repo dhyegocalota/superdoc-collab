@@ -14,22 +14,22 @@ import {
   type ShareLinks,
 } from '@superdoc-history/types';
 import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
-import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
+import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export const BLANK_DOCX_PATH = '/blank.docx';
 export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 
-export function openedDocumentQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId];
+export function openedDocumentQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [] });
 }
 
-export function membersQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Members];
+export function membersQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.Members] });
 }
 
-export function shareLinksQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.ShareLinks];
+export function shareLinksQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.ShareLinks] });
 }
 
 export function documentFileQueryKey({
@@ -39,7 +39,7 @@ export function documentFileQueryKey({
   documentId: string;
   roomMode: RoomMode | undefined;
 }): (string | undefined)[] {
-  return ['document-file', documentId, roomMode];
+  return [...DOCUMENT_FILE_QUERY_KEY, documentId, roomMode];
 }
 
 export async function openDocument(documentId: string): Promise<OpenedDocument> {

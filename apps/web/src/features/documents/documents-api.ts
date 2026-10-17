@@ -13,9 +13,10 @@ import { ApiRequestError, apiSend } from '@/lib/api';
 import { CREATE_FAILED_MESSAGE, UPLOAD_FAILED_MESSAGE } from './documents-copy';
 
 export const DOCUMENTS_QUERY_KEY = ['documents'];
+export const DOCUMENT_FILE_QUERY_KEY = ['document-file'];
 
 export function documentQueryKey({ documentId, segments }: { documentId: string; segments: unknown[] }): unknown[] {
-  return [];
+  return [...DOCUMENTS_QUERY_KEY, documentId, ...segments];
 }
 
 export function validateUpload(file: File): string | null {

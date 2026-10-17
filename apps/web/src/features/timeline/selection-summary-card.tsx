@@ -1,10 +1,11 @@
-import { secondsRoundedUp, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
+import { secondsRoundedUp, SelectionSummaryState, type EventAuthor, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useEffect, useId, useRef, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AuthorAvatar } from './contributor-avatars';
 import { SummaryTooSoonError } from './timeline-api';
+import type { SummarizeHandle } from './timeline-panel';
 import {
   EARLIER_STATE_LABEL,
   RETRY_SUMMARY_LABEL,
@@ -15,10 +16,9 @@ import {
 
 type SelectionSummaryCardProps = {
   view: SelectionSummaryView | undefined;
-  error: Error | null;
+  summarize: SummarizeHandle;
   canRequest: boolean;
-  isPending: boolean;
-  onRetry: () => void;
+  authors: Record<string, EventAuthor>;
 };
 
 function errorMessage(error: Error): string {
@@ -45,7 +45,8 @@ function useRevealRun({
   }, [isRunning, summaryKey, targetRef]);
 }
 
-function SummarySection({ view, error, canRequest, isPending, onRetry }: SelectionSummaryCardProps & { view: SelectionSummaryView }) {
+function SummarySection({ view, summarize, canRequest }: SelectionSummaryCardProps & { view: SelectionSummaryView }) {
+  const { error, isRunning: isPending, summarize: onRetry } = summarize;
   const headingId = useId();
   const { summary } = view;
   const isRunning = view.state === SelectionSummaryState.Running;

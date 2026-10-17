@@ -1,4 +1,4 @@
-import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-collab/types';
+import { DocumentRole, type DocumentTimeline, type EditSelection, type SummarizeOutcome } from '@superdoc-collab/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useId, useState, type CSSProperties } from 'react';
 import { ErrorMessage } from '@/components/error-message';
@@ -32,7 +32,29 @@ export enum PanelState {
   Collapsed = 'collapsed',
 }
 
-type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
+export enum PanelColumn {
+  Chart = 'chart',
+  List = 'list',
+}
+
+export type SummarizeHandle = {
+  summarize: () => void;
+  isRunning: boolean;
+  outcome: SummarizeOutcome | null;
+  error: Error | null;
+  retryAfterSeconds: number | null;
+};
+
+type TimelinePanelProps = {
+  documentId: string;
+  role: DocumentRole;
+  position: PanelPosition;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  summarize: SummarizeHandle;
+  onTravel: (binStart: number) => void;
+  onBackToLive: () => void;
+};
 
 function regroupDisabledReason({ timeline, isPending }: { timeline: DocumentTimeline | undefined; isPending: boolean }): string | null {
   if (isPending) return REGROUPING_TOPICS_MESSAGE;
@@ -160,10 +182,15 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
             <FilterBox />
             <SelectionSummaryCard
               view={selectionSummary}
-              error={summaryError}
+              summarize={{
+                summarize: () => summarize.mutate(selection),
+                isRunning: summarize.isPending,
+                outcome: null,
+                error: summaryError,
+                retryAfterSeconds: null,
+              }}
               canRequest={canEdit}
-              isPending={summarize.isPending}
-              onRetry={() => summarize.mutate(selection)}
+              authors={timeline ? timeline.authors : {}}
             />
             {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
             {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}

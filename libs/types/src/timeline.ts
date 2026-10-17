@@ -13,9 +13,11 @@ export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
+export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
 export const SUMMARIZE_BUSY_MESSAGE = 'Summarizing is busy. Try again in a moment.';
 export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
+export const GROUPING_FAILED_MESSAGE = 'The edits could not be grouped into topics. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
 export const TOPICS_UNAVAILABLE_MESSAGE = 'Topics unavailable';
 export const TOPICS_PENDING_MESSAGE = 'Naming topics…';
@@ -31,6 +33,11 @@ export enum TopicState {
   Pending = 'pending',
   Ready = 'ready',
   Failed = 'failed',
+}
+export enum SummarizeOutcome {
+  Started = 'started',
+  Running = 'running',
+  UpToDate = 'up-to-date',
 }
 export enum SummarizeStep {
   Idle = 'idle',
@@ -79,6 +86,7 @@ export type TimelineFilter = { term: string | null; author: string | null };
 export type EditSelection = { term: string | null; author: string | null; topic: string | null; at: number | null };
 export type SummaryAuthor = Pick<EventAuthor, 'name' | 'actor'>;
 export type SelectionSummary = { key: string; sentence: string; authors: SummaryAuthor[]; computedAtSequence: number; isStale: boolean };
+export type SummarizeResponse = SelectionSummaryView & { outcome: SummarizeOutcome };
 export type SelectionSummaryView = {
   state: SelectionSummaryState;
   summary: SelectionSummary | null;

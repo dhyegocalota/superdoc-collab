@@ -11,6 +11,7 @@ import {
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SUMMARIZE_BUSY_MESSAGE,
   SelectionSummaryState,
+  SummarizeOutcome,
   SummarizeStep,
   selectionSummaryApiPath,
   UTC_TIME_ZONE,
@@ -139,7 +140,7 @@ test('a selection with no edits is none and its POST costs nothing', async () =>
   expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: NO_MATCH_QUERY })).toEqual(none);
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: NO_MATCH_QUERY });
   expect(response.status).toBe(HttpStatus.Ok);
-  expect(await response.json()).toEqual(none);
+  expect(await response.json()).toEqual({ ...none, outcome: SummarizeOutcome.UpToDate });
   expect(server.services.insights.selection.cooldown.size()).toBe(0);
   expect(model.doGenerateCalls).toHaveLength(0);
   await server.stop();
@@ -368,7 +369,11 @@ test('POST selection answers 200 and starts no job when nothing is stale', async
   const run = vi.spyOn(server.services.insights.jobRunner, 'run');
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.Ok);
-  expect(await response.json()).toMatchObject({ state: SelectionSummaryState.Ready, step: SummarizeStep.Idle });
+  expect(await response.json()).toMatchObject({
+    state: SelectionSummaryState.Ready,
+    step: SummarizeStep.Idle,
+    outcome: SummarizeOutcome.UpToDate,
+  });
   expect(run).not.toHaveBeenCalled();
   expect(model.doGenerateCalls).toHaveLength(1);
   await server.stop();
@@ -384,8 +389,16 @@ test('POST selection answers 202 with the running step while a job runs, started
   const started = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   const alreadyRunning = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect([started.status, alreadyRunning.status]).toEqual([HttpStatus.Accepted, HttpStatus.Accepted]);
-  expect(await started.json()).toMatchObject({ state: SelectionSummaryState.Running, step: SummarizeStep.Summarizing });
-  expect(await alreadyRunning.json()).toMatchObject({ state: SelectionSummaryState.Running, step: SummarizeStep.Summarizing });
+  expect(await started.json()).toMatchObject({
+    state: SelectionSummaryState.Running,
+    step: SummarizeStep.Summarizing,
+    outcome: SummarizeOutcome.Started,
+  });
+  expect(await alreadyRunning.json()).toMatchObject({
+    state: SelectionSummaryState.Running,
+    step: SummarizeStep.Summarizing,
+    outcome: SummarizeOutcome.Running,
+  });
   open();
   await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);

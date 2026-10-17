@@ -1,6 +1,8 @@
 import { writeStory } from '@superdoc-collab/history/testing';
 import {
+  GROUPING_FAILED_MESSAGE,
   SelectionSummaryState,
+  SummarizeOutcome,
   SUMMARIZE_COOLDOWN_MS,
   SummarizeStep,
   TOPICS_FAILED_MESSAGE,
@@ -14,7 +16,6 @@ import { failingModel, gatedModel, modelAnsweringWith, readyModel } from '../tes
 import { storyWithBlocks } from '../testing/timeline-client';
 import { SELECTION_SYSTEM_PROMPT, SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import type { RequestedSelection } from './selection-summaries-service';
-import { SummarizeOutcome } from './summarize-service';
 
 enum ModelCall {
   Topics = 'topics',
@@ -123,6 +124,11 @@ test('a failed regroup keeps the previous ready topics', async () => {
     state: TopicState.Failed,
     failure: TOPICS_FAILED_MESSAGE,
   });
+  expect(server.services.insights.selection.read({ documentId, selection: SELECTION })).toMatchObject({
+    state: SelectionSummaryState.Failed,
+    failure: GROUPING_FAILED_MESSAGE,
+    step: SummarizeStep.Idle,
+  });
   client.close();
   await server.stop();
 });
@@ -173,7 +179,7 @@ test('a second request while the job runs is already running and spends no secon
     modelFor: () => gatedModel({ gate, answer: COMBINED_ANSWER }),
   });
   summarize.request({ documentId, selection: SELECTION });
-  expect(summarize.request({ documentId, selection: SELECTION }).outcome).toBe(SummarizeOutcome.AlreadyRunning);
+  expect(summarize.request({ documentId, selection: SELECTION }).outcome).toBe(SummarizeOutcome.Running);
   release();
   await server.services.insights.jobRunner.idle();
   expect(modelCallsOf(model).filter((call) => call === ModelCall.Topics)).toHaveLength(1);

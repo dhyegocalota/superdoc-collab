@@ -79,20 +79,21 @@ test('a topic without new edits is not resummarized', async () => {
   await server.stop();
 });
 
-test('a new edit stales only the topic it landed in', async () => {
-  const { server, documentId, owner, client, model } = await twoTopicDocument();
+test('a sentence older than the topic set is stale, and a newer set stales every sentence', async () => {
+  const { server, documentId, client, model } = await twoTopicDocument();
   const { summaries } = server.services.insights;
+  const { insightsRepository } = server.services;
   await summaries.rewriteStale(documentId);
-  writeStory({ document: client.document, texts: ['Budget up again', 'Hiring up'] });
-  await expect
-    .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), {
-      timeout: POLL_TIMEOUT_MS,
-    })
-    .toEqual(expect.arrayContaining([' again']));
+  expect(summaries.isStale(documentId)).toBe(false);
+  insightsRepository.saveTopics({
+    documentId,
+    topics: insightsRepository.topics(documentId).map((topic) => ({ id: topic.id, name: topic.name, blockIds: topic.blockIds })),
+    computedAtSequence: 2,
+  });
   expect(summaries.isStale(documentId)).toBe(true);
   await summaries.rewriteStale(documentId);
+  expect(summaries.isStale(documentId)).toBe(false);
   expect(model.doGenerateCalls).toHaveLength(2);
-  expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).not.toContain('Hiring');
   client.close();
   await server.stop();
 });

@@ -87,7 +87,7 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
       }),
     ],
     hooks: { before: normalizeCredentials, after: omitSessionToken },
-    advanced: { ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
+    advanced: { disableOriginCheck: false, ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
     rateLimit: { enabled: true, window: RATE_LIMIT_WINDOW_SECONDS, max: RATE_LIMIT_MAX_REQUESTS },
   });
 }

@@ -293,7 +293,7 @@ Covers the web call sites of 4.17, 4.18, 4.19 and 4.8.
 - Consumes: `cellVolume(cell: TimelineCell | undefined): number`, `byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number` from `@superdoc-history/history/timeline`; `NON_NEGATIVE_INTEGER_PATTERN`, `presentOrNull` from `@superdoc-history/types` (lane C1 Task 3).
 - Produces: `presentOrNull(value: string | null | undefined): string | null`.
 
-- [ ] **Step 1: Write the failing test.** Append to `libs/types/src/text.test.ts`:
+- [x] **Step 1: Write the failing test.** (fe93133) Append to `libs/types/src/text.test.ts`:
 
 ```ts
 test('presentOrNull reads a missing search parameter as null', () => {
@@ -301,16 +301,16 @@ test('presentOrNull reads a missing search parameter as null', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/types typecheck`. Expected: `TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'`.
+- [x] **Step 2: Run it and see it fail.** (TS2345 seen) `pnpm --filter @superdoc-history/types typecheck`. Expected: `TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'`.
 
-- [ ] **Step 3: Commit the red test.**
+- [x] **Step 3: Commit the red test.** (fe93133)
 
 ```bash
 git add libs/types/src/text.test.ts
 git commit -m "test(types): pin presentOrNull for a missing search parameter"
 ```
 
-- [ ] **Step 4: Implement and adopt.** `libs/types/src/text.ts`: the parameter becomes `value: string | null | undefined`.
+- [x] **Step 4: Implement and adopt.** (d6fdb58) `libs/types/src/text.ts`: the parameter becomes `value: string | null | undefined`.
 
 `use-timeline-search.ts`: delete the local `presentOrNull` and `BIN_START_PATTERN`; import `NON_NEGATIVE_INTEGER_PATTERN, presentOrNull` from `@superdoc-history/types`; `readBinStart` reads `if (!value || !NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;`.
 
@@ -326,9 +326,9 @@ const ranked = [...contributors]
   .slice(0, MAX_AVATARS);
 ```
 
-- [ ] **Step 5: Run the gate.** `pnpm format:check && pnpm typecheck && (cd apps/web && npx vitest run) && pnpm --filter @superdoc-history/types exec vitest run`. Expected: PASS; `selection-summary.test.ts`, `streamgraph.test.tsx` (tooltip rows), `top-edits.test.tsx` (avatars) and `use-timeline-search.test.ts` unchanged.
+- [x] **Step 5: Run the gate.** (web 280 passed, types 11 passed) `pnpm format:check && pnpm typecheck && (cd apps/web && npx vitest run) && pnpm --filter @superdoc-history/types exec vitest run`. Expected: PASS; `selection-summary.test.ts`, `streamgraph.test.tsx` (tooltip rows), `top-edits.test.tsx` (avatars) and `use-timeline-search.test.ts` unchanged.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.** (d6fdb58)
 
 ```bash
 git add libs/types/src/text.ts apps/web/src/features/timeline/selection-summary.ts apps/web/src/features/timeline/timeline-tooltip.tsx apps/web/src/features/timeline/contributor-avatars.tsx apps/web/src/features/timeline/use-timeline-search.ts
@@ -741,7 +741,7 @@ Covers 4.22.
 **Interfaces:**
 - Produces: `documentQueryKey({ documentId, segments }: { documentId: string; segments: unknown[] }): unknown[]`; `DOCUMENT_FILE_QUERY_KEY = ['document-file']`. Every existing builder keeps its name and parameters.
 
-- [ ] **Step 1: Pin today's keys and their scope.** Create `document-query-keys.test.ts`:
+- [x] **Step 1: Pin today's keys and their scope.** (c21f651) Create `document-query-keys.test.ts`:
 
 ```ts
 import { DocumentResource, RoomMode, type EditSelection, type TimelineFilter } from '@superdoc-history/types';
@@ -830,7 +830,7 @@ git add apps/web/src/features/documents/document-query-keys.test.ts
 git commit -m "test(web): pin every document query key and its invalidation scope"
 ```
 
-- [ ] **Step 2: Write the failing test.** Append (import `documentQueryKey` from `./documents-api`):
+- [x] **Step 2: Write the failing test.** (fdbfeca) Append (import `documentQueryKey` from `./documents-api`):
 
 ```ts
 test('a document key nests its segments under the documents key', () => {
@@ -842,16 +842,16 @@ test('a document key nests its segments under the documents key', () => {
 
 Inert stub in `documents-api.ts`: `documentQueryKey` returns `[]`.
 
-- [ ] **Step 3: Run it and see it fail.** Same command. Expected: FAIL on `expected [] to deeply equal [ 'documents', 'doc-1', 'members' ]`.
+- [x] **Step 3: Run it and see it fail.** (expected [] to deeply equal [ documents, doc-1, members ]) Same command. Expected: FAIL on `expected [] to deeply equal [ 'documents', 'doc-1', 'members' ]`.
 
-- [ ] **Step 4: Commit the red test.**
+- [x] **Step 4: Commit the red test.** (fdbfeca)
 
 ```bash
 git add apps/web/src/features/documents/documents-api.ts apps/web/src/features/documents/document-query-keys.test.ts
 git commit -m "test(web): pin one builder for document query keys"
 ```
 
-- [ ] **Step 5: Implement and adopt.** `documents-api.ts`:
+- [x] **Step 5: Implement and adopt.** (5b323e1) `documents-api.ts`:
 
 ```ts
 export const DOCUMENTS_QUERY_KEY = ['documents'];
@@ -870,9 +870,9 @@ export function documentQueryKey({ documentId, segments }: { documentId: string;
 
 Check: `rg -n "\.\.\.DOCUMENTS_QUERY_KEY|'document-file'" apps/web/src --glob '!*.test.*'` prints only `documents-api.ts`.
 
-- [ ] **Step 6: Run the gate.** Expected: PASS, including the two pins from Step 1 unchanged.
+- [x] **Step 6: Run the gate.** (web 283 passed) Expected: PASS, including the two pins from Step 1 unchanged.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.** (5b323e1)
 
 ```bash
 git add apps/web/src/features/documents/documents-api.ts apps/web/src/features/editor/editor-api.ts apps/web/src/features/timeline/timeline-api.ts apps/web/src/features/timeline/use-topics.ts
@@ -964,7 +964,7 @@ Covers 1.17, 4.24 and the web site of 4.6.
 - Consumes: `secondsRoundedUp(milliseconds: number): number` from `@superdoc-history/types` (lane C1).
 - Produces: `RetryLaterError` (`new RetryLaterError({ message, retryAfterMs })`, `readonly retryAfterMs: number`) from `@/lib/api`; `TopicsRefreshTooSoonError` and `SummaryTooSoonError` extend it and keep their one-argument constructors (`retryAfterMs`); `useResetAfterRetry({ error, reset }: { error: Error | null; reset: () => void }): void`.
 
-- [ ] **Step 1: Write the failing tests.** `use-reset-after-retry.test.ts`:
+- [x] **Step 1: Write the failing tests.** (ab16839) `use-reset-after-retry.test.ts`:
 
 ```ts
 import { renderHook } from '@testing-library/react';
@@ -1010,16 +1010,16 @@ In `timeline-api.test.ts`, the two summary assertions switch to milliseconds: th
 
 Inert stubs: `lib/api.ts` exports `RetryLaterError` (extends `ApiRequestError`, stores `retryAfterMs`, final shape); `use-reset-after-retry.ts` exports a `useResetAfterRetry` that does nothing.
 
-- [ ] **Step 2: Run them and see them fail.** `cd apps/web && npx vitest run src/lib/use-reset-after-retry.test.ts src/features/timeline/timeline-api.test.ts`. Expected: FAIL on `expected "spy" to be called 1 times, but got 0 times` and on the missing `retryAfterMs` property (the object still carries `retryAfterSeconds: 12`).
+- [x] **Step 2: Run them and see them fail.** (spy 0 times; retryAfterSeconds still present) `cd apps/web && npx vitest run src/lib/use-reset-after-retry.test.ts src/features/timeline/timeline-api.test.ts`. Expected: FAIL on `expected "spy" to be called 1 times, but got 0 times` and on the missing `retryAfterMs` property (the object still carries `retryAfterSeconds: 12`).
 
-- [ ] **Step 3: Commit the red tests.**
+- [x] **Step 3: Commit the red tests.** (ab16839)
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/lib/use-reset-after-retry.ts apps/web/src/lib/use-reset-after-retry.test.ts apps/web/src/features/timeline/timeline-api.test.ts
 git commit -m "test(web): pin one retry-later error in milliseconds and its reset"
 ```
 
-- [ ] **Step 4: Implement.** `lib/api.ts`:
+- [x] **Step 4: Implement.** (3f032ff) `lib/api.ts`:
 
 ```ts
 export class RetryLaterError extends ApiRequestError {
@@ -1073,9 +1073,9 @@ if (error instanceof SummaryTooSoonError) return `${error.message} ${retryInLabe
 
 importing `secondsRoundedUp` from `@superdoc-history/types`. Check: `rg -n "retryAfterSeconds|\* SECOND_MS\)|/ SECOND_MS" apps/web/src/features/timeline` prints nothing.
 
-- [ ] **Step 5: Run the gate.** Expected: PASS; `timeline-panel.test.tsx` "a refresh that is too soon explains why", "the too-soon notice goes away when the cooldown ends", "a request too soon shows the seconds from Retry-After" and "the summary cooldown message goes away when the cooldown ends" unchanged.
+- [x] **Step 5: Run the gate.** (web 286 passed) Expected: PASS; `timeline-panel.test.tsx` "a refresh that is too soon explains why", "the too-soon notice goes away when the cooldown ends", "a request too soon shows the seconds from Retry-After" and "the summary cooldown message goes away when the cooldown ends" unchanged.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.** (3f032ff)
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/lib/use-reset-after-retry.ts apps/web/src/features/timeline/timeline-api.ts apps/web/src/features/timeline/use-topics.ts apps/web/src/features/timeline/use-selection-summary.ts apps/web/src/features/timeline/selection-summary-card.tsx

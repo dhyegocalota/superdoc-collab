@@ -56,6 +56,23 @@ export class CollaborationSingleDocumentError extends Error {
   }
 }
 
+// NB ADR 0033: only the latest attempt writes while uncommitted, and a committed room accepts the committing attempt or a socket with none.
+function isWriteAllowed({
+  reservations,
+  bootstrap,
+  context,
+  document,
+}: {
+  reservations: CreatorReservations;
+  bootstrap: BootstrapState;
+  context: CollaborationContext;
+  document: Y.Doc;
+}): boolean {
+  const { documentId, creatorAttempt, creatorEpoch } = context;
+  const isRoomCommitted = isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId);
+  return reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: isRoomCommitted });
+}
+
 function warnOncePerConnection({ context, warned }: { context: CollaborationContext; warned: WeakSet<CollaborationContext> }): void {
   if (warned.has(context)) return;
   warned.add(context);
@@ -134,7 +151,8 @@ export function createCollaborationServer({
         console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationAuthenticationError();
       }
-      if (!isCommitted && !(isHolder && mayWrite)) {
+      const isAdmittedCreator = isHolder && mayWrite;
+      if (!isCommitted && !isAdmittedCreator) {
         console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationSupersededError();
       }
@@ -143,8 +161,9 @@ export function createCollaborationServer({
     },
     async connected({ context, connectionInstance }) {
       const { documentId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
-      const isWriteAllowed = reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: true });
-      if (isWriteAllowed) return;
+      const isAdmitted = reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: true });
+      if (isAdmitted && creatorAttempt !== null) return reservations.touch({ documentId, attempt: creatorAttempt });
+      if (isAdmitted) return;
       console.warn(`${SUPERSEDED_CLOSE_LOG} ${documentId}`);
       connectionInstance.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
     },
@@ -157,15 +176,9 @@ export function createCollaborationServer({
     async onChange({ update, context, transactionOrigin, document }) {
       if (transactionOrigin === LOADING_ORIGIN) return;
       const connectionContext = context as CollaborationContext;
-      const { userId, documentId, actor, creatorAttempt, creatorEpoch } = connectionContext;
-      // NB ADR 0033: only the latest attempt writes while uncommitted, and a committed room accepts the committing attempt or a socket with none.
-      const isWriteAllowed = reservations.mayWrite({
-        documentId,
-        attempt: creatorAttempt,
-        epoch: creatorEpoch,
-        isCommitted: isBootstrapCommitted({ document }),
-      });
-      if (!isWriteAllowed) return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
+      const { userId, documentId, actor, creatorAttempt } = connectionContext;
+      if (!isWriteAllowed({ reservations, bootstrap, context: connectionContext, document }))
+        return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
       const isCommittingUpdate = creatorAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });

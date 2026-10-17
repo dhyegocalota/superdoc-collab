@@ -1,8 +1,7 @@
-import { CREATOR_RESERVATION_MAX_MS } from '@superdoc-collab/types';
+import { CREATOR_RESERVATION_MAX_MS, type CreatorTicket } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 
 export type CreatorReservation = { documentId: string; userId: string; attempt: number; reservedAt: number; expiresAt: number };
-export type CreatorTicket = { attempt: number; epoch: string };
 
 const NO_ATTEMPT_ISSUED = 0;
 

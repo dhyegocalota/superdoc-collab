@@ -1,6 +1,6 @@
 import type { Connection, Document, Hocuspocus } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-collab/history';
-import { RoomMode, SUPERSEDED_ATTEMPT_CLOSE_CODE, SUPERSEDED_ATTEMPT_REASON } from '@superdoc-collab/types';
+import { RoomMode, type CreatorTicket, SUPERSEDED_ATTEMPT_CLOSE_CODE, SUPERSEDED_ATTEMPT_REASON } from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';
@@ -9,7 +9,7 @@ import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { CollaborationContext } from './collaboration-context';
 import type { BootstrapState } from './bootstrap-state';
-import type { CreatorReservations, CreatorTicket } from './creator-reservations';
+import type { CreatorReservations } from './creator-reservations';
 import { documentIdFromRoomName } from './room-name';
 
 const TAKEOVER_CLOSE_LOG = 'Closed a socket superseded by a takeover';
@@ -55,6 +55,10 @@ export function createCollaborationRuntime({
   }
   return {
     reserveCreator: ({ documentId, userId }) => {
+      connectionsOf(documentId).forEach((connection) => {
+        const { creatorAttempt } = connection.context as CollaborationContext;
+        if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
+      });
       const ticket = reservations.reserve({ documentId, userId });
       if (ticket === null) return null;
       connectionsOf(documentId)

@@ -1,12 +1,5 @@
 import { commitBootstrap as markBootstrapCommitted, writeStory } from '@superdoc-collab/history/testing';
-import {
-  ApiPath,
-  ClientActor,
-  DocumentRole,
-  RoomMode,
-  SUPERSEDED_ATTEMPT_CLOSE_CODE,
-  SUPERSEDED_ATTEMPT_REASON,
-} from '@superdoc-collab/types';
+import { ApiPath, ClientActor, DocumentRole, RoomMode, SUPERSEDED_ATTEMPT_CLOSE_CODE } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
@@ -130,6 +123,31 @@ describe('collaboration write fence', () => {
   });
 });
 
+test('a connected socket refreshes its reservation', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const touch = vi.spyOn(server.services.reservations, 'touch');
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  expect(touch).toHaveBeenCalledWith({ documentId, attempt: 1 });
+  client.close();
+  await server.stop();
+});
+
+describe('collaboration fence on a committed room', () => {
+  test("a member overwriting the room's bootstrap marker does not stop later Join writes", async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const other = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const flipper = await connectToDocument({ server, cookie: editor.cookie, documentId });
+    flipper.document.getMap('meta').set('bootstrapState', 'pending');
+    const writer = await connectToDocument({ server, cookie: other.cookie, documentId });
+    writer.document.getText('t').insert(0, 'still written');
+    await expect.poll(() => loggedRows({ server, documentId }).map((row) => row.connectionUserId)).toContain(other.id);
+    [flipper, writer].forEach((client) => client.close());
+    await server.stop();
+  });
+});
+
 describe('collaboration takeover and the committed room', () => {
   test('a creator returning after another editor committed is closed with 4403 and writes nothing', async () => {
     const { server, documentId, owner } = await documentWithOwner();
@@ -137,9 +155,10 @@ describe('collaboration takeover and the committed room', () => {
     const { reservations, runtime } = server.services;
     const abandoned = reservations.attemptOf({ documentId, userId: owner.id })!;
     const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
-    reservations.release({ documentId, attempt: abandoned });
+    expect(runtime.reserveCreator({ documentId, userId: editor.id })).toBeNull();
+    creator.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
     const takeover = runtime.reserveCreator({ documentId, userId: editor.id })!;
-    expect(await creator.closed).toEqual({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
     const winner = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket: takeover });
     writeStory({ document: winner.document, texts: ['committed by the winner'] });
     markBootstrapCommitted(winner.document);

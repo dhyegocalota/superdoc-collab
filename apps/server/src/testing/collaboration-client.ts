@@ -4,12 +4,12 @@ import {
   COLLABORATION_TOKEN_PLACEHOLDER,
   CREATOR_ATTEMPT_QUERY_KEY,
   CREATOR_EPOCH_QUERY_KEY,
+  type CreatorTicket,
   type DocumentRole,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
-import type { CreatorTicket } from '../collaboration/creator-reservations';
 import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
 import { SUPERDOC_ROOM_PREFIX } from '../collaboration/room-name';

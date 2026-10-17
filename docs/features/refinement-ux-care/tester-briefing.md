@@ -16,8 +16,8 @@ Branch `chore/refinement-ux-screens`, cut from the lane after Task 1, now holdin
 | P2-7 upload wait | `upload-dialog.tsx`: input disabled and "Uploading…" status while the request runs |
 | P2-8 create error | `documents-page.tsx`: the alert sits under the Mine heading, outside the button row (`use-create-document.ts` holds the mutation) |
 | P2-2 / P3-5 phone header | `editor-header.tsx`: Download and Share are icon buttons below `sm`; Delete moved into a "More actions" menu (owner only) at every width |
-| P2-13 blank document | `superdoc-editor.tsx`: muted backdrop with the page on the background colour; a document made with "New document" gets the caret on ready (router state from `new-document-state.ts`) |
-| P3-11 fit to width | `superdoc-zoom.ts`: below `lg` the live editor and the version viewer start in SuperDoc `fit-width` and follow viewport changes; at `lg` and up they go back to 100% |
+| P2-13 blank document | `superdoc-editor.tsx`: muted backdrop with the page on the background colour; the caret is placed by the user's first click (see the follow-up below) |
+| P3-11 fit to width | `superdoc-zoom.ts`: below `lg` the live editor and the version viewer start in SuperDoc `fit-width` and follow viewport changes; at `lg` and up they go back to 100%; the viewer measures the parent window, and `FITTED_PAGE_CLASS` keeps the scaled page at the left edge |
 | P2-9 delete Cancel | `editor-header.tsx` delete dialog footer |
 | P2-10 share dialog | `share-dialog.tsx`: "Reset link", description about the old link, two skeleton rows while loading, clipboard failure selects the input and says so, "Link copied" clears after 3 s |
 | P2-17 copy | "…" in auth, editor and documents copy; four `libs/types` messages end with a period |
@@ -68,8 +68,8 @@ The server failure is the timeline-routes latency budget: 193 ms against 150 ms,
 - At 375 the Shared table shows only Title and Access and nothing clips.
 - During an upload the file input is disabled and "Uploading…" shows.
 - A failed "New document" shows its alert on its own line under the Mine heading.
-- "New document" opens a page on a muted backdrop with the caret in it; opening an existing document never takes focus.
-- Below `lg` the page fits the width in the live editor and in the version viewer; resizing across `lg` switches both ways.
+- "New document" opens a page on a muted backdrop; nothing takes the focus until the user clicks the page, and typing after that click lands in the document.
+- Below `lg` the page fits the width in the live editor and in the version viewer, starting at the left edge with no sideways scroll; resizing across `lg` switches both ways.
 - Share dialog: "Reset link" buttons; the description says resetting stops the old link; on an insecure origin Copy selects the link and says to copy with the keyboard; "Link copied" disappears after about 3 s.
 - `/share/<token>` shows "Opening…" centred while it resolves.
 
@@ -78,3 +78,37 @@ The server failure is the timeline-routes latency budget: 193 ms against 150 ms,
 - E2E was not run on this branch: port 3100 was held by another agent's server, and `playwright.config.ts` does not reuse an existing server.
 - Pure styling (backdrop, column hiding, icon-only buttons) has no unit assertion by design; screenshots must prove it.
 - `editor-copy.ts` imports `APP_NAME` by relative path, because the E2E typecheck reads copy files without the `@/` alias.
+
+## Follow-up after the screens tester (fix/ux-fit-width)
+
+### Blank document focus (P2-13), plan B
+
+The tester found that a new document crashed on its first key: "The editor stopped working. Reload the page to continue." It reproduced 3 of 3 in a throwaway Playwright spec.
+
+SuperDoc 2.23.0 reports "This edit couldn't be completed. Adjust the selection and try again." A programmatic `focus()` puts the caret in its composition textarea with no document selection, and the first key throws. Focusing from `onCollaborationReady` instead of `onReady` fails the same way.
+
+The automatic focus was removed in ebf9355, together with the router state that only fed it. The backdrop stays. The caret is placed by the user's first click. The unit test now pins that the editor config has no `onReady` focus.
+
+### Fit to width at 375 (P3-11)
+
+The tester found the scaled page drawn 220 px from the left of a 375 px editor, with the right side clipped behind a sideways scroll.
+
+SuperDoc's `.superdoc` root is a flex container. Its layers child kept the page's 816 px minimum width. SuperDoc scales its layout box from the top left and widens it to keep the page centred, so the page sat in the middle of 816 px instead of 375 px. The offset is exactly (816 − 375) / 2.
+
+The fix is `FITTED_PAGE_CLASS` on both SuperDoc hosts, in 21e62d7. The flex children of `.superdoc` may shrink, and the page uses safe centring. When the page is wider than the column, as at 100% on a 1280 screen, it starts at the left edge and scrolls instead of clipping.
+
+Tailwind turns underscores in arbitrary variants into spaces, and escaped underscores were read literally. So the class targets `.superdoc>*` rather than `.superdoc__layers`.
+
+Measured with a throwaway Playwright probe on the built bundle, offsets relative to the editor container:
+
+| Width | Page left | Page width | Container width | Scroll width |
+|-------|-----------|------------|-----------------|--------------|
+| 375 before | 220 | 375 | 375 | 816 |
+| 375 after | 0 | 375 | 375 | 375 |
+| 1280 after | 0 | 816 | 768 | 816 |
+
+The 1280 row is unchanged from before the fix.
+
+Screenshots: `fit-after-375.png` and `fit-after-1280.png` in the session scratchpad, next to the tester's `fit-375-fresh`.
+
+New E2E in `e2e/documents.spec.ts` (634a3f9): "on a narrow viewport the page starts at the left edge and the editor never scrolls sideways". Its red state was shown by the probe on the pre-fix build, not by running the spec itself. It has not been run since the fix; the CI `e2e.yml` run is the proof. The version viewer at 375 was not probed.

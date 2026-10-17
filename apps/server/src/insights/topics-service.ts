@@ -84,6 +84,7 @@ export class TopicsService {
     this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
   }
 
+  // NB ADR 0014: a busy automatic recompute keeps the ready topics; only a manual Refresh reports busy.
   private keepsReadyTopics({ previous, isRefresh }: { previous: TopicStatus | null; isRefresh: boolean }): boolean {
     return !isRefresh && previous !== null && previous.state === TopicState.Ready;
   }

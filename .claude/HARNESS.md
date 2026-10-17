@@ -25,7 +25,7 @@ The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENT
 6. Every PR that touches UI carries screenshots and a playable video recorded through Playwright MCP, hosted as GitHub Release assets and embedded in the body.
 7. Every decision with alternatives becomes an ADR before the code that depends on it.
 8. Everything in the repo is in English.
-9. Tests are mandatory. No `sleep`. No `?? default`. No comments. See `AGENTS.md` → Code conventions.
+9. Tests are mandatory. No `sleep`. No `?? default`. No comments other than `// NB ADR NNNN:` pointers. See `AGENTS.md` → Code conventions.
 
 ## 1. Agree
 
@@ -169,6 +169,6 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 |---|---|---|
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
-| `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, `// ` comments, `else {` in `.ts`/`.tsx` |
+| `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
 
 Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks.

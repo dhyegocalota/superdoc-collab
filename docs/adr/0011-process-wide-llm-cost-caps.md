@@ -1,6 +1,6 @@
 # 0011. Process-wide caps on language-model spend
 
-- Status: Accepted (lead ruling under the owner's overnight authorization of 2026-10-16; the owner confirms or changes the numbers before the deploy slice)
+- Status: Accepted (lead ruling under the owner's overnight authorization of 2026-10-16; the owner confirms or changes the numbers before the deploy slice). The topics bullet of the Decision is refined by [0014](0014-topics-recompute-trigger-and-identity.md): a busy automatic recompute keeps the ready topics.
 - Date: 2026-10-16
 - Deciders: Claude (lead, by delegated authority); Dhyego Calota (owner, to confirm)
 - Inspired by: slice 3 final review ("no overall LLM cost cap; sign-up is open and the deploy uses the owner's key"), [0006](0006-llm-provider.md), [0008](0008-vertical-slices.md)

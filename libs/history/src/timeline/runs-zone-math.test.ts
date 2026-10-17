@@ -28,3 +28,17 @@ test('the zone math runs once per bin, not once per event', () => {
   expect(runs).toHaveLength(BIN_COUNT);
   expect(vi.mocked(zonedBinStartOf).mock.calls.length).toBeLessThanOrEqual(BIN_COUNT + 1);
 });
+
+test('events out of time order land in their own bins with bounded zone math', () => {
+  vi.mocked(zonedBinStartOf).mockClear();
+  const scattered = [5, 0, 3, 3, 9, 1].map((minute, index) => ({
+    ...EVENTS[0]!,
+    sequence: index,
+    serverTime: FIRST_TIME + minute * MINUTE_MS + 1000,
+  }));
+  const runs = groupIntoRuns({ events: scattered, binMs: MINUTE_MS, timeZone: 'America/Sao_Paulo' });
+  expect(runs.map((run) => run.binStart).sort((left, right) => left - right)).toEqual(
+    [0, 1, 3, 5, 9].map((minute) => FIRST_TIME + minute * MINUTE_MS),
+  );
+  expect(vi.mocked(zonedBinStartOf).mock.calls.length).toBeLessThanOrEqual(5);
+});

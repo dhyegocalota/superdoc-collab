@@ -30,23 +30,39 @@ export function authorKey(author: EventAuthor): string {
   return author.id;
 }
 
-function binStartFinder({ binMs, timeZone }: { binMs: number; timeZone: string }): (time: number) => number {
-  let current: { start: number; end: number } | null = null;
-  return (time) => {
-    if (current && current.start <= time && time < current.end) return current.start;
-    const start = zonedBinStartOf({ time, binMs, timeZone });
-    current = { start, end: nextZonedBinStart({ start, binMs, timeZone }) };
-    return start;
-  };
+function occupiedBinStarts({ events, binMs, timeZone }: { events: TimelineEvent[]; binMs: number; timeZone: string }): number[] {
+  const starts: number[] = [];
+  let currentEnd = -Infinity;
+  events
+    .map((event) => event.serverTime)
+    .sort((left, right) => left - right)
+    .forEach((time) => {
+      if (time < currentEnd) return;
+      const start = zonedBinStartOf({ time, binMs, timeZone });
+      starts.push(start);
+      currentEnd = nextZonedBinStart({ start, binMs, timeZone });
+    });
+  return starts;
+}
+
+function binStartContaining({ binStarts, time }: { binStarts: number[]; time: number }): number {
+  let low = 0;
+  let high = binStarts.length - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (binStarts[middle]! <= time) low = middle;
+    else high = middle - 1;
+  }
+  return binStarts[low]!;
 }
 
 export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEvent[]; binMs: number; timeZone: string }): EditRun[] {
   const runs = new Map<string, EditRun>();
-  const binStartOf = binStartFinder({ binMs, timeZone });
+  const binStarts = occupiedBinStarts({ events, binMs, timeZone });
   [...events]
     .sort((left, right) => left.sequence - right.sequence || left.serverTime - right.serverTime)
     .forEach((event) => {
-      const binStart = binStartOf(event.serverTime);
+      const binStart = binStartContaining({ binStarts, time: event.serverTime });
       const key = [binStart, event.blockId, event.authorKeys.join(',')].join(RUN_KEY_SEPARATOR);
       const run = runs.get(key);
       if (!run) {

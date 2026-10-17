@@ -1,5 +1,9 @@
-import type { TimeZoneSource } from '@superdoc-collab/types';
+import { TimeZoneSource } from '@superdoc-collab/types';
+import { useSession } from '@/features/auth/use-session';
+import { browserTimeZone } from './browser-time-zone';
 
 export function useTimeZone(): { timeZone: string; source: TimeZoneSource } {
-  throw new Error('useTimeZone is not implemented');
+  const { user } = useSession();
+  if (user?.timeZone) return { timeZone: user.timeZone, source: TimeZoneSource.Account };
+  return { timeZone: browserTimeZone(), source: TimeZoneSource.Browser };
 }

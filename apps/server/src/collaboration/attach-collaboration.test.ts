@@ -259,6 +259,17 @@ describe('attachCollaboration', () => {
     expect(handleConnection).not.toHaveBeenCalled();
     await server.stop();
   });
+  test('a browser whose session expired is closed with 4401 and never reaches Hocuspocus', async () => {
+    const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    server.database.sqlite.prepare('DELETE FROM session').run();
+    const handleConnection = vi.spyOn(server.services.hocuspocus, 'handleConnection');
+    const { socket, closed } = openFloodSocket({ server, cookie });
+    expect((await closed).code).toBe(UNAUTHORIZED_CLOSE_CODE);
+    expect(handleConnection).not.toHaveBeenCalled();
+    socket.terminate();
+    await server.stop();
+  });
   test('an upgrade on another path is destroyed and the server keeps answering', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: '/other' });

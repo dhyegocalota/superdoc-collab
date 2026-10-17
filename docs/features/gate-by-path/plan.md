@@ -22,10 +22,10 @@ G2's ADR, spec and plans land first. G1 builds red then green. G2's harness and 
 
 ### G1
 
-- [ ] **Step 1:** red: `scripts/verify.test.sh` with every case of `test-plan.md`, `scripts/verify.sh` a stub that prints `verify.sh is not implemented` and exits 1; commit alone.
-- [ ] **Step 2:** `scripts/verify-gates.tsv` and `scripts/verify.sh` until the test is green.
-- [ ] **Step 3:** `package.json` scripts, `verify.yml` `checks` step and its repository-shape pin, the doctor's `gitleaks` line and its hook test.
-- [ ] **Step 4:** tester briefing (the lead ticks the test plan; tooling has no tester, ADR 0028).
+- [x] **Step 1:** red: `scripts/verify.test.sh` with every case of `test-plan.md`, `scripts/verify.sh` a stub that prints `verify.sh is not implemented` and exits 1; commit alone. — evidence: 9564661
+- [x] **Step 2:** `scripts/verify-gates.tsv` and `scripts/verify.sh` until the test is green. — evidence: 593d895
+- [x] **Step 3:** `package.json` scripts, `verify.yml` `checks` step and its repository-shape pin, the doctor's `gitleaks` line and its hook test. — evidence: 410bf1e
+- [x] **Step 4:** tester briefing (the lead ticks the test plan; tooling has no tester, ADR 0028). — evidence: the commit that adds tester-briefing.md
 
 ### G2
 

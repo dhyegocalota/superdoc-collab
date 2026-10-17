@@ -1,29 +1,50 @@
-# Tester briefing: <Feature title>
+# Tester briefing: Gate by path
 
 Written by the developer sub-agent when its steps are done. The developer does not run `test-plan.md` and does not declare the feature works.
 
 ## What changed
 
-- <file or module> — <one line>
+- `scripts/verify.sh` — the gate: picks a base (newest recorded green commit with the same Node version, else the merge base with `main`), classifies the changed paths through the map, derives the unit packages and their dependents, runs the gates in order, writes a record for a clean green `HEAD`.
+- `scripts/verify-gates.tsv` — the map `glob<TAB>class<TAB>gates`; first match wins; no match is `product` with every gate.
+- `scripts/verify.test.sh` — scratch repository with the real script and map, stub `pnpm`, `node`, `gitleaks` and `docker` on `PATH` that log their calls.
+- `package.json` — `verify` runs the script, new `test:verify`, `test:unit` includes it.
+- `.github/workflows/verify.yml` and `apps/server/src/repository-shape/ci-workflow.test.ts` — the `checks` job runs `pnpm test:verify`, pinned.
+- `.agents/hooks/doctor.sh` — the `gitleaks` lost text names the gate.
 
 ## How to run
 
 ```bash
-<commands to start the stack and open the feature>
+bash scripts/verify.test.sh
+pnpm verify --plan
+pnpm verify all --plan
+bash .agents/hooks/hooks.test.sh
 ```
+
+`pnpm verify` without `--plan` runs the real gates and is heavy; the lead runs it.
 
 ## Red today, green after
 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
-| `<path>::<name>` |  |  |
+| `scripts/verify.test.sh` (45 checks) | the stub printed `verify.sh is not implemented` and exited 1; the run ended `verify: 45 check(s) failed` (commit 9564661) | the script and map exist; the run ends `verify: all checks passed` (commit 593d895) |
 
 ## Hypotheses to attack
 
 Every "it works" is a hypothesis the tester tries to break.
 
-1. Hypothesis: <claim>. Break it by: <suggested attack>.
+1. Hypothesis: a docs-only diff never runs typecheck, unit or E2E. Break it by: a `.md` path that matches an earlier row of the map (a README inside `apps/` or `libs/` that is not `README.md`, such as `apps/web/NOTES.md`, matches `apps/*` and runs the product gates, which is the safe direction).
+2. Hypothesis: a record under another Node version is ignored. Break it by: editing `node:` in a record by hand, or running with a different `node` earlier on `PATH`.
+3. Hypothesis: a dirty tree never writes a record. Break it by: an untracked file, a staged-only change, a change that appears only after the gates start.
+4. Hypothesis: the unit packages follow `workspace:` dependencies to a fixed point. Break it by: a dependency declared only in `devDependencies`, a new package, a package whose `name` differs from its folder.
+5. Hypothesis: `--plan` runs and writes nothing. Break it by: `strace`-style comparison of `.git/verify` and `git status` before and after.
+6. Hypothesis: a missing `gitleaks` or Docker fails its gate with the doctor's fix. Break it by: `PATH` without them; Docker installed but the daemon stopped.
+7. Hypothesis: the records are shared by every worktree of the clone. Break it by: a record from one worktree read from another.
 
 ## Known gaps
 
-- <what the developer knows is missing or untested>
+- `pnpm verify` was never run for real by the developer (heavy-command lock); only `--plan` against this branch (`class: product`, every gate except `shape`, all four packages).
+- `pnpm test:unit` and the full repository-shape suite were not run end to end. One repository-shape test, `agent-surfaces.test.ts` "the verify skill opens with the doctor script", fails against the lead's uncommitted edit of `.agents/skills/verify/SKILL.md` in this worktree; it is the lead's file.
+- A path with a newline or unusual characters in its name is not handled (paths are split on whitespace).
+- `shape` is dropped from the gates whenever the server's unit suite runs, on the assumption that `test:unit` of the server includes `src/repository-shape`.
+- A deleted package folder is not handled (the unit step reads its `package.json`).
+- The format gate prints its own `verify: format has no changed file to check` line before `format ok` when no changed file still exists.

@@ -23,6 +23,8 @@ export const SUMMARIZING_EDITS_MESSAGE = 'Summarizing edits…';
 export const NO_EDITS_TO_SUMMARIZE_MESSAGE = 'No edits to summarize';
 export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date';
 export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable';
+export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
+export const LEGEND_LABEL = 'Topics';
 
 const INSERTED_SIGN = '+';
 const DELETED_SIGN = '−';

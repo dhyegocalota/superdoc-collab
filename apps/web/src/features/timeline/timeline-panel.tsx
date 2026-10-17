@@ -27,6 +27,11 @@ enum ResizeKey {
 
 const PRIMARY_BUTTON_PRESSED = 1;
 
+export enum PanelState {
+  Open = 'open',
+  Collapsed = 'collapsed',
+}
+
 type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
 function ResizeHandle({

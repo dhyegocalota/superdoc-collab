@@ -1,10 +1,10 @@
 import { TimelineBandKind } from '@superdoc-history/types';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
-import { formatBinRange, formatTimestamp } from '@/lib/format-date-time';
+import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
-import { STREAMGRAPH_TITLE } from './timeline-copy';
+import { CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
@@ -212,4 +212,64 @@ test.each([343, 300, 256, 600])('the tooltip box stays inside a chart %i px wide
     expect(boxStart).toBeGreaterThanOrEqual(0);
     expect(boxStart + tooltipWidth).toBeLessThanOrEqual(chartWidth);
   });
+});
+
+const LABELLED_TIMELINE = timelineWith({ volumes: Array.from({ length: 60 }, () => [400, 300]), names: ['Budget', 'Hiring'] });
+
+test('the chart shows its first and last moment and how to travel in time', () => {
+  renderGraph();
+  expect(screen.getByText(formatBinMoment({ time: timeline.bins[0]!.start, binMs: timeline.binMs }))).toBeVisible();
+  expect(screen.getByText(formatBinMoment({ time: timeline.bins[2]!.start + timeline.binMs, binMs: timeline.binMs }))).toBeVisible();
+  expect(screen.getByText(CHART_HINT)).toBeVisible();
+});
+
+test('bands without a label are named in a legend', () => {
+  renderGraph();
+  const legend = screen.getByRole('list', { name: LEGEND_LABEL });
+  expect(
+    within(legend)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  ).toEqual(['Budget', 'Hiring', 'Other']);
+});
+
+test('a chart whose bands all carry their label has no legend', () => {
+  render(
+    <Streamgraph
+      timeline={LABELLED_TIMELINE}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole('list', { name: LEGEND_LABEL })).not.toBeInTheDocument();
+});
+
+test('a pointer selection does not pin the tooltip, the next arrow key shows it', () => {
+  const { container } = renderGraph({ selectedIndex: 1 });
+  fireEvent.pointerDown(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 1 });
+  fireEvent.focus(budgetBand());
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  fireEvent.keyDown(budgetBand(), { key: 'ArrowRight' });
+  expect(screen.getByRole('tooltip')).toBeInTheDocument();
+});
+
+test('the chart is one tab stop on the active band', () => {
+  const { container, rerender } = renderGraph();
+  expect(container.querySelectorAll('path[tabindex="0"]')).toHaveLength(1);
+  expect(budgetBand()).toHaveAttribute('tabindex', '0');
+  rerender(
+    <Streamgraph
+      timeline={timeline}
+      width={WIDTH}
+      selectedIndex={1}
+      highlightedBandId={timeline.bands[1]!.id}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText(/^Hiring/)).toHaveAttribute('tabindex', '0');
+  expect(budgetBand()).toHaveAttribute('tabindex', '-1');
 });

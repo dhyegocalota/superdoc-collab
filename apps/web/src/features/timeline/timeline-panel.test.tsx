@@ -48,7 +48,7 @@ import {
   SUMMARIZING_EDITS_MESSAGE,
   SUMMARY_UP_TO_DATE_MESSAGE,
 } from './timeline-copy';
-import { TimelinePanel } from './timeline-panel';
+import { PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import { MIN_EDITOR_WIDTH, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
@@ -567,4 +567,13 @@ test('refreshing the topics reads the summary again', async () => {
   const before = selectionReads(fetchSpy);
   await userEvent.click(screen.getByRole('button', { name: REFRESH_TOPICS_LABEL }));
   await waitFor(() => expect(selectionReads(fetchSpy)).toBe(before + 1));
+});
+
+test('collapsing the panel drops its width and the resize handle', async () => {
+  mockTimelineApi();
+  renderPanel();
+  expect(await screen.findByRole('separator', { name: RESIZE_PANEL_LABEL })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
+  expect(screen.queryByRole('separator', { name: RESIZE_PANEL_LABEL })).not.toBeInTheDocument();
+  expect(screen.getByRole('complementary')).toHaveAttribute('data-state', PanelState.Collapsed);
 });

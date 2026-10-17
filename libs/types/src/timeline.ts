@@ -40,6 +40,11 @@ export enum SelectionSummaryState {
   Failed = 'failed',
   None = 'none',
 }
+export enum SummarizeOutcome {
+  Started = 'started',
+  Running = 'running',
+  UpToDate = 'up-to-date',
+}
 export enum SummarizeStep {
   Idle = 'idle',
   Grouping = 'grouping',
@@ -86,6 +91,7 @@ export type SelectionSummaryView = {
   summary: SelectionSummary | null;
   failure: string | null;
   isModelAvailable: boolean;
+  step?: SummarizeStep;
 };
 export type TimelineCell = { inserted: number; deleted: number; agentInserted: number; agentDeleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };

@@ -47,6 +47,8 @@ export enum VersionResource {
   Text = 'text',
 }
 
+export const TAB_QUERY_KEY = 'tab';
+
 const REFRESH_SEGMENT = 'refresh';
 const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';

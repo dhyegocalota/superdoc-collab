@@ -27,6 +27,12 @@ type OpenedSession = {
 type SessionWork<Result> = { person: AgentPerson; documentId: string; work: (document: SuperDocDocument) => Promise<Result> };
 type SessionTraits = { role: DocumentRole | null; userName: string };
 
+export class AgentSessionBusyError extends AgentToolError {
+  constructor(retryAfterSeconds: number) {
+    super({ message: 'Every document room is in use', details: { retryAfterSeconds } });
+  }
+}
+
 export class AgentSessionOpenTimeoutError extends AgentToolError {
   constructor() {
     super({ message: 'The document did not open in time' });

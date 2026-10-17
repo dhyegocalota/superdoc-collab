@@ -1,7 +1,7 @@
 import { agentAuthorName, DocumentRole, RoomMode } from '@superdoc-history/types';
 import type { SuperDocDocument } from '@superdoc/sdk';
 import { afterEach, expect, test, vi } from 'vitest';
-import { AgentSessionOpenTimeoutError, AgentSessions, type AgentSessionsClient } from './agent-sessions';
+import { AgentSessionBusyError, AgentSessionOpenTimeoutError, AgentSessions, type AgentSessionsClient } from './agent-sessions';
 import type { AgentPerson } from './agent-tool-context';
 
 const COLLABORATION_URL = 'ws://127.0.0.1:1/collaboration/agent';
@@ -276,5 +276,26 @@ test('parallel calls on different documents never hold more rooms than the cap',
   await Promise.all([first, second]);
   expect(client.open).toHaveBeenCalledTimes(2);
   expect(opened.get('first')!.close).toHaveBeenCalledTimes(1);
+  await sessions.close();
+});
+
+test('a call that waits longer than the open timeout for a free room fails busy with a retry hint and never runs later', async () => {
+  const { client, opened } = openedPerDocument();
+  const sessions = sessionsOn({ client, maxSessions: 1, openTimeoutMs: SHORT_MS });
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const holder = sessions.run({ person: ANA, documentId: 'first', work: () => gate });
+  await vi.waitFor(() => expect(opened.has('first')).toBe(true));
+  const work = vi.fn(async () => undefined);
+  const refused = await sessions.run({ person: ANA, documentId: 'second', work }).catch((error: unknown) => error);
+  expect(refused).toBeInstanceOf(AgentSessionBusyError);
+  expect((refused as AgentSessionBusyError).details).toEqual({ retryAfterSeconds: 1 });
+  release();
+  await holder;
+  await sessions.run({ person: ANA, documentId: 'third', work: async () => undefined });
+  expect(work).not.toHaveBeenCalled();
+  expect(client.open).toHaveBeenCalledTimes(2);
   await sessions.close();
 });

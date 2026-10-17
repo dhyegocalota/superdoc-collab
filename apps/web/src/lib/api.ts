@@ -4,6 +4,15 @@ const JSON_CONTENT_TYPE = 'application/json';
 
 export class ApiRequestError extends Error {}
 
+export class RetryLaterError extends ApiRequestError {
+  readonly retryAfterMs: number;
+
+  constructor({ message, retryAfterMs }: { message: string; retryAfterMs: number }) {
+    super(message);
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
 export function apiGet(path: string): Promise<Response> {
   return fetch(path, { credentials: 'same-origin' });
 }

@@ -132,7 +132,7 @@ test('requesting a summary posts the same selection', async () => {
   );
 });
 
-test('a summary requested too soon carries the seconds from Retry-After', async () => {
+test('a summary requested too soon carries the wait from Retry-After', async () => {
   respondWith(
     new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
       status: HttpStatus.TooManyRequests,
@@ -143,14 +143,14 @@ test('a summary requested too soon carries the seconds from Retry-After', async 
     (caught: unknown) => caught,
   );
   expect(error).toBeInstanceOf(SummaryTooSoonError);
-  expect(error).toMatchObject({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterSeconds: 12 });
+  expect(error).toMatchObject({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterMs: 12 * SECOND_MS });
 });
 
 test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async (header) => {
   const headers = header === null ? undefined : { [RETRY_AFTER_HEADER]: header };
   respondWith(new Response('{}', { status: HttpStatus.TooManyRequests, headers }));
   await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toMatchObject({
-    retryAfterSeconds: MIN_RETRY_AFTER_MS / SECOND_MS,
+    retryAfterMs: MIN_RETRY_AFTER_MS,
   });
 });
 

@@ -5,13 +5,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { KeyboardKey } from '@/lib/keyboard';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { deleteDocument, renameDocument } from './editor-api';
 import {
+  CANCEL_LABEL,
   DELETE_CONFIRM_LABEL,
   DELETE_DIALOG_DESCRIPTION,
   DELETE_DIALOG_TITLE,
@@ -92,6 +93,9 @@ function DeleteDocumentDialog({
           </p>
         )}
         <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">{CANCEL_LABEL}</Button>
+          </DialogClose>
           <Button variant="destructive" disabled={isPending} onClick={() => mutate()}>
             {DELETE_CONFIRM_LABEL}
           </Button>

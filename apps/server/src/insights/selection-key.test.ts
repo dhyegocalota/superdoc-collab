@@ -1,4 +1,4 @@
-import { MINUTE_MS, type EditSelection } from '@superdoc-history/types';
+import { MINUTE_MS, type EditSelection } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { selectionKeyOf } from './selection-key';
 

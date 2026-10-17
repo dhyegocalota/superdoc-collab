@@ -6,7 +6,7 @@ import Database from 'better-sqlite3';
 import { MigrationSet, runMigrationSet } from '../migrations';
 
 export function temporaryDatabasePath(set: MigrationSet): string {
-  return join(mkdtempSync(join(tmpdir(), 'superdoc-history-lib-')), `${set}.sqlite`);
+  return join(mkdtempSync(join(tmpdir(), 'superdoc-collab-lib-')), `${set}.sqlite`);
 }
 
 export function openTestDatabase({ set, path = temporaryDatabasePath(set) }: { set: MigrationSet; path?: string }): Database.Database {

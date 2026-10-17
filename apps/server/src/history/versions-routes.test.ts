@@ -1,5 +1,5 @@
-import { clampToMark, readMainStoryText, type ReadModel } from '@superdoc-history/history';
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { clampToMark, readMainStoryText, type ReadModel } from '@superdoc-collab/history';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
   DocumentResource,
@@ -15,7 +15,7 @@ import {
   versionCollaborationPath,
   type VersionMarks,
   type VersionText,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';

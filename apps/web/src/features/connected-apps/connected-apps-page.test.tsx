@@ -1,4 +1,4 @@
-import { AgentScope, ApiPath } from '@superdoc-history/types';
+import { AgentScope, ApiPath } from '@superdoc-collab/types';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';

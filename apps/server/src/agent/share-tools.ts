@@ -1,4 +1,4 @@
-import { AgentActionKind, AgentScope, AgentTool, DocumentRole, ShareLinkRole } from '@superdoc-history/types';
+import { AgentActionKind, AgentScope, AgentTool, DocumentRole, ShareLinkRole } from '@superdoc-collab/types';
 import { z } from 'zod';
 import { defineDocumentTool, type AgentToolDefinition } from './agent-tool-definition';
 import { jsonResult } from './tool-results';

@@ -1,5 +1,5 @@
 import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID, type KeyObject } from 'node:crypto';
-import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-history/types';
+import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 import type { TestServer, TestUser } from './test-server';
 

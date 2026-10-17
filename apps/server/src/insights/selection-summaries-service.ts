@@ -1,4 +1,4 @@
-import { runVolume, selectionSummaryOutputSchema, type EditRun } from '@superdoc-history/history';
+import { runVolume, selectionSummaryOutputSchema, type EditRun } from '@superdoc-collab/history';
 import {
   secondsRoundedUp,
   SELECTION_SUMMARY_COOLDOWN_MS,
@@ -8,7 +8,7 @@ import {
   type EventAuthor,
   type SelectionSummary,
   type SelectionSummaryView,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import type { LanguageModel } from 'ai';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';

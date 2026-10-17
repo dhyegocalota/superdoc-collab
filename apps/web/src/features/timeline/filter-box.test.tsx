@@ -1,4 +1,4 @@
-import { documentPagePath, FILTER_MAX_LENGTH, TimelineSearchParam } from '@superdoc-history/types';
+import { documentPagePath, FILTER_MAX_LENGTH, TimelineSearchParam } from '@superdoc-collab/types';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';

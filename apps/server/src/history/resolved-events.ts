@@ -1,5 +1,5 @@
-import { resolveAuthorIds, type ClientBinding, type StoredEditEvent, type UpdateLog } from '@superdoc-history/history';
-import { agentAuthorName, ClientActor, type DocumentEditEvent, type EventAuthor } from '@superdoc-history/types';
+import { resolveAuthorIds, type ClientBinding, type StoredEditEvent, type UpdateLog } from '@superdoc-collab/history';
+import { agentAuthorName, ClientActor, type DocumentEditEvent, type EventAuthor } from '@superdoc-collab/types';
 import type { DocumentsRepository } from '../documents/documents-repository';
 
 export type ResolvedEventsServices = {

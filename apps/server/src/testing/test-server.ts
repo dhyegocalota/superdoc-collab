@@ -1,4 +1,4 @@
-import { ApiPath, type SessionUser } from '@superdoc-history/types';
+import { ApiPath, DEMO_ADMIN, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type SessionUser, inviteTokenOf } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
@@ -10,7 +10,7 @@ import type { AuthDatabase } from '../database/connection';
 import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collaboration/version-rooms';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
-import { startServer, type ServerServices } from '../server';
+import { startServer, type RunningServer, type ServerServices } from '../server';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
 
 export const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
@@ -25,6 +25,9 @@ const NO_LLM_SETTINGS: LlmSettings = {
 };
 const OWNER_NAME = 'Ana';
 export const TEST_USER_PASSWORD = 'superdoc-demo';
+export const TEST_TIME_ZONE = UTC_TIME_ZONE;
+
+export type TestUser = { id: string; email: string; cookie: string };
 
 export type TestServer = {
   baseUrl: string;
@@ -32,6 +35,8 @@ export type TestServer = {
   database: AuthDatabase;
   services: ServerServices;
   databaseDirectory: string;
+  hasAdmin: boolean;
+  admin: TestUser;
   stop: () => Promise<void>;
 };
 
@@ -44,7 +49,7 @@ async function reserveFreePort(): Promise<number> {
 }
 
 export function testEnvironment({
-  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')),
+  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-collab-')),
 }: { databaseDirectory?: string } = {}): Environment {
   return {
     port: 0,
@@ -71,16 +76,20 @@ function isAddressInUse(error: unknown): boolean {
 
 export async function startTestServer({
   trustProxy = true,
-  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')),
+  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-collab-')),
   languageModel = chooseLanguageModel(NO_LLM_SETTINGS),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   attemptsLeft = START_ATTEMPTS,
+  claim = true,
+  now = Date.now,
 }: {
   trustProxy?: boolean;
   databaseDirectory?: string;
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   attemptsLeft?: number;
+  claim?: boolean;
+  now?: () => number;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -98,19 +107,50 @@ export async function startTestServer({
       languageModel,
       versionRoomPolicy,
       projectionWorkerFile: prebuiltProjectionWorkerFile(),
+      now,
     });
-    return {
-      baseUrl: environment.appOrigin,
-      auth: running.auth,
-      database: running.database,
-      services: running.services,
-      databaseDirectory,
-      stop: running.stop,
-    };
+    const unclaimed = buildTestServer({ running, databaseDirectory, admin: null });
+    if (!claim) return unclaimed;
+    return buildTestServer({ running, databaseDirectory, admin: await claimOrSignInAdmin(unclaimed) });
   } catch (error) {
     if (!isAddressInUse(error) || attemptsLeft <= 1) throw error;
-    return startTestServer({ trustProxy, databaseDirectory, languageModel, versionRoomPolicy, attemptsLeft: attemptsLeft - 1 });
+    return startTestServer({ trustProxy, databaseDirectory, languageModel, versionRoomPolicy, attemptsLeft: attemptsLeft - 1, claim, now });
   }
+}
+
+export class NoTestAdminError extends Error {
+  constructor() {
+    super('startTestServer({ claim: false }) has no admin.');
+  }
+}
+
+function buildTestServer({
+  running,
+  databaseDirectory,
+  admin,
+}: {
+  running: RunningServer;
+  databaseDirectory: string;
+  admin: TestUser | null;
+}): TestServer {
+  return {
+    baseUrl: `http://${LOOPBACK_HOST}:${running.port}`,
+    auth: running.auth,
+    database: running.database,
+    services: running.services,
+    databaseDirectory,
+    hasAdmin: admin !== null,
+    get admin(): TestUser {
+      if (!admin) throw new NoTestAdminError();
+      return admin;
+    },
+    stop: running.stop,
+  };
+}
+
+function inviteHeaders(server: TestServer): Record<string, string> {
+  if (!server.hasAdmin) return {};
+  return { [INVITE_TOKEN_HEADER]: inviteTokenOf(server.services.invites.create({ createdBy: server.admin.id }).url) };
 }
 
 let nextClientAddress = 0;
@@ -119,15 +159,17 @@ async function postCredentials({
   server,
   path,
   body,
+  headers = {},
 }: {
   server: TestServer;
   path: string;
   body: Record<string, string>;
+  headers?: Record<string, string>;
 }): Promise<Response> {
   const clientAddress = `10.200.0.${nextClientAddress++}`;
   return fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: server.baseUrl },
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: server.baseUrl, ...headers },
     body: JSON.stringify(body),
   });
 }
@@ -164,9 +206,24 @@ export async function signInAndGetCookie({
   server: TestServer;
   credentials: { name: string; email: string; password: string };
 }): Promise<string> {
-  const signedUp = await postCredentials({ server, path: '/sign-up/email', body: credentials });
+  const signedUp = await postCredentials({
+    server,
+    path: '/sign-up/email',
+    body: { ...credentials, timeZone: TEST_TIME_ZONE },
+    headers: inviteHeaders(server),
+  });
   if (!signedUp.ok) throw new TestSignInFailedError({ step: 'sign-up', status: signedUp.status });
   return signInExisting({ server, email: credentials.email, password: credentials.password });
+}
+
+async function claimOrSignInAdmin(server: TestServer): Promise<TestUser> {
+  const credentials = { ...DEMO_ADMIN, password: TEST_USER_PASSWORD };
+  if (!server.services.invites.hasAnyUser()) {
+    const signedUp = await postCredentials({ server, path: '/sign-up/email', body: { ...credentials, timeZone: TEST_TIME_ZONE } });
+    if (!signedUp.ok) throw new TestSignInFailedError({ step: 'claim', status: signedUp.status });
+  }
+  const cookie = await signInExisting({ server, email: credentials.email, password: credentials.password });
+  return { id: await currentUserId({ server, cookie }), email: credentials.email, cookie };
 }
 
 export async function currentUserId({ server, cookie }: { server: TestServer; cookie: string }): Promise<string> {
@@ -175,8 +232,6 @@ export async function currentUserId({ server, cookie }: { server: TestServer; co
   if (!user) throw new TestSignInFailedError({ step: 'me', status: response.status });
   return user.id;
 }
-
-export type TestUser = { id: string; email: string; cookie: string };
 
 export async function signedInUser({ server, name }: { server: TestServer; name: string }): Promise<TestUser> {
   const email = `${name.toLowerCase()}-${randomUUID().slice(0, UNIQUE_EMAIL_SUFFIX_LENGTH)}@example.com`;

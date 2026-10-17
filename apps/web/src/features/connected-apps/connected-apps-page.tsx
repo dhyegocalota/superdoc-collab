@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';

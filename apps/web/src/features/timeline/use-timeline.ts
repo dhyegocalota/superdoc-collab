@@ -1,4 +1,4 @@
-import type { DocumentTimeline, TimelineFilter } from '@superdoc-history/types';
+import type { DocumentTimeline, TimelineFilter } from '@superdoc-collab/types';
 import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { fetchTimeline, TIMELINE_POLL_MS, timelineQueryKey } from './timeline-api';

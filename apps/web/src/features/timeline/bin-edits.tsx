@@ -1,4 +1,4 @@
-import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-history/types';
+import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';

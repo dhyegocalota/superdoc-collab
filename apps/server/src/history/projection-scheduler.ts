@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-history/types';
+import { MINUTE_MS } from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';

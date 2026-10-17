@@ -1,4 +1,4 @@
-import { AgentScope, AppRoute, OFFLINE_ACCESS_SCOPE } from '@superdoc-history/types';
+import { AgentScope, AppRoute, OFFLINE_ACCESS_SCOPE } from '@superdoc-collab/types';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';

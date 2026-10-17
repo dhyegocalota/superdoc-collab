@@ -1,4 +1,4 @@
-import { ShareLinkRole } from '@superdoc-history/types';
+import { ShareLinkRole } from '@superdoc-collab/types';
 import { APP_NAME } from '../../lib/app-copy';
 
 export const TITLE_LABEL = 'Title';

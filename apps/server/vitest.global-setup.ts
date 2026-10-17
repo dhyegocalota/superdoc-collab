@@ -7,7 +7,7 @@ import { serverBuildOptions } from './tsup.config';
 
 const PROJECTION_WORKER_ENTRY_NAME = 'projection-worker';
 const PROJECTION_WORKER_SOURCE = 'src/history/projection-worker.ts';
-const BUNDLE_DIRECTORY = join('node_modules', '.cache', 'superdoc-history-vitest');
+const BUNDLE_DIRECTORY = join('node_modules', '.cache', 'superdoc-collab-vitest');
 
 async function buildProjectionWorker(): Promise<void> {
   const outDirectory = join(import.meta.dirname, BUNDLE_DIRECTORY);

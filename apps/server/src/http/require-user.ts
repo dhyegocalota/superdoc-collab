@@ -1,4 +1,4 @@
-import { HttpStatus, type SessionUser } from '@superdoc-history/types';
+import { HttpStatus, type SessionUser } from '@superdoc-collab/types';
 import { createMiddleware } from 'hono/factory';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';

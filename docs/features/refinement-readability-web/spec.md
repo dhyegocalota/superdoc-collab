@@ -52,7 +52,7 @@ The approved scope, each item re-checked on 2026-10-17 against the worktree `sup
 
 ## Base
 
-The branch is cut from `main` after lane A (both UX groups, G1 timeline and G2 screens, merged) and lane C1. Tasks 2 and 9 need lane C1's exports: `libs/types/src/text.ts` (`presentOrNull`), `NON_NEGATIVE_INTEGER_PATTERN` and `secondsRoundedUp` from `@superdoc-history/types`, and `cellVolume` and `byVolumeDescending` from `@superdoc-history/history/timeline`. Without C1 merged those two tasks cannot start.
+The branch is cut from `main` after lane A (both UX groups, G1 timeline and G2 screens, merged) and lane C1. Tasks 2 and 9 need lane C1's exports: `libs/types/src/text.ts` (`presentOrNull`), `NON_NEGATIVE_INTEGER_PATTERN` and `secondsRoundedUp` from `@superdoc-collab/types`, and `cellVolume` and `byVolumeDescending` from `@superdoc-collab/history/timeline`. Without C1 merged those two tasks cannot start.
 
 ## Design
 

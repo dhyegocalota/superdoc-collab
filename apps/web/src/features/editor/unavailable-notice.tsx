@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { Link } from 'react-router';
 import { BACK_TO_DOCUMENTS_LABEL } from './editor-copy';
 

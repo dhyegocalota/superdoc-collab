@@ -1,4 +1,4 @@
-import { ClientActor, MINUTE_MS } from '@superdoc-history/types';
+import { ClientActor, MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import type { EditRun, TimelineEvent } from './runs';
 import { authorKey, filterRuns, groupIntoRuns, narrowRuns, runVolume } from './runs';

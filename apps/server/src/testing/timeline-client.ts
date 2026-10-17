@@ -1,5 +1,5 @@
-import { ReadModel } from '@superdoc-history/history';
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { ReadModel } from '@superdoc-collab/history';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   BlockChangeKind,
   ClientActor,
@@ -17,7 +17,7 @@ import {
   type SelectionSummaryView,
   type TopicSummaries,
   type VersionSummary,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';

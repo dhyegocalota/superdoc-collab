@@ -5,11 +5,21 @@ const WORKFLOW_FILE = '.github/workflows/verify.yml';
 const JOB_LINE_PATTERN = /^ {2}[\w-]+:$/;
 const JOB_INDENT_LENGTH = 2;
 const NEXT_JOB_PATTERN = /\n {2}\S[^\n]*:\n/;
-const EXPECTED_JOBS = ['checks', 'unit', 'docker'];
-const NODE_JOBS = ['checks', 'unit'];
+const EXPECTED_JOBS = ['checks', 'unit', 'docker', 'security'];
+const NODE_JOBS = ['checks', 'unit', 'security'];
 const CHECKS_JOB = 'checks';
 const CHECKS_STEPS = ['run: pnpm format:check', 'run: pnpm typecheck', 'run: pnpm test:hooks'];
 const DOCKER_JOB = 'docker';
+const SECURITY_JOB = 'security';
+const SECURITY_STEPS = [
+  'run: pnpm security:audit',
+  'sha256sum --check --strict',
+  'run: .github/scripts/secret-rules-probe.sh ./gitleaks',
+  'run: ./gitleaks git --no-banner --redact --exit-code 1 .',
+  'run: ./gitleaks dir --no-banner --redact --exit-code 1 .',
+];
+const TREE_SCAN_STEP = 'run: ./gitleaks dir --no-banner --redact --exit-code 1 .';
+const FULL_HISTORY_CHECKOUT = 'fetch-depth: 0';
 const UNIT_JOB = 'unit';
 const INSTALL_ACTION = 'uses: ./.github/actions/install';
 const NEEDS_KEY = 'needs:';
@@ -20,13 +30,14 @@ const JOBS_START = '\njobs:\n';
 const LINE_SEPARATOR = '\n';
 const UNIT_MATRIX_ENTRIES = [
   '{ name: libs, filter: ./libs/* }',
-  '{ name: web, filter: "@superdoc-history/web" }',
-  '{ name: server, filter: "@superdoc-history/server" }',
+  '{ name: web, filter: "@superdoc-collab/web" }',
+  '{ name: server, filter: "@superdoc-collab/server" }',
 ];
 const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";
 const FAIL_FAST_DISABLED = 'fail-fast: false';
 const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.', 'docker restart'];
+const TOKEN_REFERENCE = 'secrets.';
 
 function job(name: string): string {
   const workflow = readRepositoryFile(WORKFLOW_FILE);
@@ -63,13 +74,25 @@ describe('CI workflow', () => {
     expect(workflow.indexOf(WORKFLOW_PERMISSIONS)).toBeLessThan(workflow.indexOf(JOBS_START));
   });
 
-  test('the workflow runs exactly the checks, unit and docker jobs', () => {
+  test('the workflow runs exactly the checks, unit, docker and security jobs', () => {
     expect(jobNames()).toEqual(EXPECTED_JOBS);
   });
 
   test('the checks job checks the formatting, typechecks and tests the hooks', () => {
     const checks = job(CHECKS_JOB);
     expect(CHECKS_STEPS.filter((step) => !checks.includes(step))).toEqual([]);
+  });
+
+  test('the security job audits production dependencies and scans the full history for secrets without a token', () => {
+    const security = job(SECURITY_JOB);
+    expect(SECURITY_STEPS.filter((step) => !security.includes(step))).toEqual([]);
+    expect(security).toContain(FULL_HISTORY_CHECKOUT);
+    expect(security).not.toContain(TOKEN_REFERENCE);
+  });
+
+  test('the security job scans the tree before the dependencies are installed', () => {
+    const security = job(SECURITY_JOB);
+    expect(security.indexOf(TREE_SCAN_STEP)).toBeLessThan(security.indexOf(INSTALL_ACTION));
   });
 
   test('no job waits for another job', () => {

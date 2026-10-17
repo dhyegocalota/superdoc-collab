@@ -8,15 +8,9 @@ const SERVICE_NAME = 'app';
 const CONTAINER_PORT = '3000';
 const DATA_DIRECTORY = '/data';
 const DATA_VOLUME = 'superdoc-data';
-const REQUIRED_VARIABLES = ['APP_ORIGIN', 'AUTH_SECRET', 'SEED_DEMO_USERS'];
-const OPTIONAL_VARIABLES = [
-  'DEMO_PASSWORD',
-  'OPENROUTER_API_KEY',
-  'LLM_MODEL',
-  'OPENROUTER_BASE_URL',
-  'LLM_MAX_CONCURRENT_JOBS',
-  'LLM_MAX_CALLS_PER_HOUR',
-];
+const REQUIRED_VARIABLES = ['APP_ORIGIN', 'AUTH_SECRET'];
+const SEED_DISABLED = 'false';
+const OPTIONAL_VARIABLES = ['OPENROUTER_API_KEY', 'LLM_MODEL', 'OPENROUTER_BASE_URL', 'LLM_MAX_CONCURRENT_JOBS', 'LLM_MAX_CALLS_PER_HOUR'];
 const DOCUMENTED_VARIABLE_PATTERN = /^([A-Z_]+)=/gm;
 const EMPTY_OPENROUTER_KEY_PATTERN = /^OPENROUTER_API_KEY=$/m;
 const OPENROUTER_KEY_PATTERN = 'sk-or-v1-[A-Za-z0-9]{16,}';
@@ -28,12 +22,9 @@ const DOCKER_COMPOSE_REQUIRED_MESSAGE = 'Docker Compose v2 is required in CI';
 const REQUIRED_VALUES: Record<string, string> = {
   APP_ORIGIN: 'https://demo.example.com',
   AUTH_SECRET: 'compose-test-secret-with-at-least-32-characters',
-  SEED_DEMO_USERS: 'false',
 };
 const DOKPLOY_VALUES: Record<string, string> = {
   ...REQUIRED_VALUES,
-  SEED_DEMO_USERS: 'true',
-  DEMO_PASSWORD: 'compose-test-demo-password',
   OPENROUTER_API_KEY: 'compose-test-openrouter-key',
 };
 
@@ -129,6 +120,12 @@ describe.skipIf(!isDockerComposeAvailable)('Dokploy compose file rendered by doc
     expect(renderedService(DOKPLOY_VALUES).environment).toEqual(
       expect.objectContaining({ PORT: CONTAINER_PORT, DATABASE_DIR: DATA_DIRECTORY, WEB_DIST_DIR: '/app/web', TRUST_PROXY: 'true' }),
     );
+  });
+
+  test('never seeds the demo users and never reads the demo password', () => {
+    const environment = renderedService({ ...DOKPLOY_VALUES, SEED_DEMO_USERS: 'true', DEMO_PASSWORD: 'ignored' }).environment;
+    expect(environment.SEED_DEMO_USERS).toBe(SEED_DISABLED);
+    expect(environment).not.toHaveProperty('DEMO_PASSWORD');
   });
 
   test('reads every secret from the Dokploy environment', () => {

@@ -9,7 +9,7 @@ import {
   UPLOAD_TOO_LARGE_MESSAGE,
   type DocumentSummary,
   type DocumentsList,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, apiSend, readJson } from '@/lib/api';
 import { CREATE_SUBJECT, UPLOAD_SUBJECT } from './documents-copy';
 

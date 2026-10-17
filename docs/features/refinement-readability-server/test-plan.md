@@ -2,7 +2,7 @@
 
 Every checkbox states the input and the exact expected outcome. A ticked box carries evidence after ` — evidence: ` (a commit hash, log path, counts or command output).
 
-All server commands run as `pnpm --filter @superdoc-history/server exec vitest run <path>`. Library commands use `--filter @superdoc-history/types` and `--filter @superdoc-history/history`.
+All server commands run as `pnpm --filter @superdoc-collab/server exec vitest run <path>`. Library commands use `--filter @superdoc-collab/types` and `--filter @superdoc-collab/history`.
 
 ## The failing test first
 
@@ -95,7 +95,7 @@ Pinning tests fix today's behaviour before a move. Each is green on the commit b
 
 No UI is touched, so there is no Playwright MCP walk and no `/check-ui`. Instead the tester exercises the HTTP and process surface of a real server built from this branch:
 
-- [ ] Build and start. Input: `pnpm --filter @superdoc-history/server build`, then `node apps/server/dist/main.js` with a scratch `DATABASE_DIR`. Expected: the log line `listening on :<port>`, and `dist/projection-worker.js` exists.
+- [ ] Build and start. Input: `pnpm --filter @superdoc-collab/server build`, then `node apps/server/dist/main.js` with a scratch `DATABASE_DIR`. Expected: the log line `listening on :<port>`, and `dist/projection-worker.js` exists.
 - [ ] Retry-After on a pending version. Input: `GET /api/documents/:id/versions/:sequence` right after the first edit. Expected: `202` with `Retry-After: 1`, then `200` once loaded.
 - [ ] Retry-After on a topics refresh. Input: two `POST /api/documents/:id/topics/refresh` within 30 s as editor. Expected: `202`, then `429` with `Retry-After` between `1` and `30`.
 - [ ] Rejected input. Input: `GET /api/documents/:id/events?limit=0`. Expected: `400` with the existing invalid-events message. `GET …/events` with no query returns at most 50 events.

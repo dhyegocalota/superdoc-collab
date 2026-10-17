@@ -1,4 +1,4 @@
-import { HttpStatus } from '@superdoc-history/types';
+import { HttpStatus } from '@superdoc-collab/types';
 import { ApiRequestError } from '@/lib/api';
 import { authClient } from '@/features/auth/auth-client';
 import { fetchOAuthClientName } from '@/features/oauth-consent/oauth-consent-api';

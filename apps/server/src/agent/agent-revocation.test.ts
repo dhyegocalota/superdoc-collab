@@ -1,4 +1,4 @@
-import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-history/types';
+import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-collab/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { connectAgentClient, deleteConsent, refreshAccessToken, updateConsent, type RequestedScope } from '../testing/oauth-client';
 import { signedInUser, startTestServer, type TestServer, type TestUser } from '../testing/test-server';

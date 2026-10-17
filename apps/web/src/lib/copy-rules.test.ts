@@ -1,4 +1,4 @@
-import * as types from '@superdoc-history/types';
+import * as types from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import * as authCopy from '@/features/auth/auth-copy';
 import * as documentsCopy from '@/features/documents/documents-copy';

@@ -13,7 +13,7 @@ import {
   selectionSummaryApiPath,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   topicsRefreshApiPath,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';

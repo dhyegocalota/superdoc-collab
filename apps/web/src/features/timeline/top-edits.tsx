@@ -1,4 +1,4 @@
-import type { DocumentTimeline, TimelineContributor, TopicSummaries } from '@superdoc-history/types';
+import type { DocumentTimeline, TimelineContributor, TopicSummaries } from '@superdoc-collab/types';
 import { ContributorAvatars } from './contributor-avatars';
 import { maxBandVolume } from './max-band-volume';
 import { editDeltaLabel, EditUnit, TOP_EDITS_LABEL } from './timeline-copy';

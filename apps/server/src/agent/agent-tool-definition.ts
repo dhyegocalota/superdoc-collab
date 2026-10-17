@@ -1,5 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { AgentScope, DocumentRole } from '@superdoc-history/types';
+import { AgentScope, DocumentRole } from '@superdoc-collab/types';
 import { z } from 'zod';
 import type { AgentPerson, AgentToolContext } from './agent-tool-context';
 import { AgentToolError } from './tool-results';

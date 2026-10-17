@@ -1,4 +1,4 @@
-import { AgentScope, HttpStatus } from '@superdoc-history/types';
+import { AgentScope, HttpStatus } from '@superdoc-collab/types';
 import { isAPIError } from 'better-auth/api';
 import { requestToResourceInput, verifyAccessTokenRequest, type ResourceRequestInput } from 'better-auth/oauth2';
 import type { Auth } from '../auth/auth';
@@ -62,7 +62,7 @@ export async function authorizeAgentRequest({
   if (!claims || !isAccessTokenType(request)) return null;
   const { sub: userId, client_id: clientId, scope } = claims;
   if (typeof userId !== 'string' || typeof clientId !== 'string' || typeof scope !== 'string') return null;
-  // NB ADR 0021: delete-consent leaves issued tokens valid, so the consent is checked per request
+  // NB ADR 0025: delete-consent leaves issued tokens valid, so the consent is checked per request
   const consent = await adapter.findOne<{ scopes: string[] }>({
     model: CONSENT_MODEL,
     where: [

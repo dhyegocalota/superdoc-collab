@@ -1,4 +1,4 @@
-import { AGENT_NAME_SUFFIX, ClientActor, type EventAuthor } from '@superdoc-history/types';
+import { AGENT_NAME_SUFFIX, ClientActor, type EventAuthor } from '@superdoc-collab/types';
 
 const NAME_SEPARATOR = ', ';
 

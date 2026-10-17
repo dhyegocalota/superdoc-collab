@@ -1,4 +1,4 @@
-import { AgentScope, ApiPath, HttpStatus } from '@superdoc-history/types';
+import { AgentScope, ApiPath, HttpStatus } from '@superdoc-collab/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 
@@ -51,7 +51,7 @@ describe('oauth discovery', () => {
     expect(response.status).toBe(status);
   });
 
-  test('a signed-in person cannot rename themselves through update-user', async () => {
+  test('a signed-in person cannot take the AI name suffix through update-user', async () => {
     const person = await signedInUser({ server, name: 'Paula' });
     const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
       method: 'POST',
@@ -59,7 +59,7 @@ describe('oauth discovery', () => {
       body: JSON.stringify({ name: 'Paula · AI' }),
     });
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: person.cookie } });
-    expect(response.status).toBe(HttpStatus.NotFound);
+    expect(response.status).toBe(HttpStatus.BadRequest);
     expect(((await me.json()) as { user: { name: string } }).user.name).toBe('Paula');
   });
 

@@ -1,4 +1,4 @@
-import { ApiPath, AppRoute } from '@superdoc-history/types';
+import { ApiPath, AppRoute, UserRole } from '@superdoc-collab/types';
 import Database from 'better-sqlite3';
 import { createServer, type AddressInfo } from 'node:net';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './d
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { JobOutcome } from './insights/insights-job-runner';
 import { startServer } from './server';
-import { prebuiltProjectionWorkerFile, testEnvironment } from './testing/test-server';
+import { prebuiltProjectionWorkerFile, TEST_TIME_ZONE, testEnvironment } from './testing/test-server';
 
 const RESTART_CREDENTIALS = { name: 'Eva', email: 'eva@example.com', password: 'superdoc-demo' };
 
@@ -90,7 +90,7 @@ describe('startServer', () => {
     await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-up/email` }), {
       method: 'POST',
       headers,
-      body: JSON.stringify(RESTART_CREDENTIALS),
+      body: JSON.stringify({ ...RESTART_CREDENTIALS, timeZone: TEST_TIME_ZONE }),
     });
     const signedIn = await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-in/email` }), {
       method: 'POST',
@@ -105,7 +105,15 @@ describe('startServer', () => {
     const second = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
     const me = await fetch(urlOf({ port: second.port, path: ApiPath.Me }), { headers: { cookie } });
     await second.stop();
-    expect(await me.json()).toEqual({ user: { id: expect.any(String), name: RESTART_CREDENTIALS.name, email: RESTART_CREDENTIALS.email } });
+    expect(await me.json()).toEqual({
+      user: {
+        id: expect.any(String),
+        name: RESTART_CREDENTIALS.name,
+        email: RESTART_CREDENTIALS.email,
+        role: UserRole.Admin,
+        timeZone: TEST_TIME_ZONE,
+      },
+    });
   });
   test('fails with a named error when the documents directory is not writable', async () => {
     const environment = testEnvironment();

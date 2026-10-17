@@ -1,4 +1,4 @@
-import type { AgentActionView, EventAuthor } from '@superdoc-history/types';
+import type { AgentActionView, EventAuthor } from '@superdoc-collab/types';
 import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { authorOf } from './author-of';

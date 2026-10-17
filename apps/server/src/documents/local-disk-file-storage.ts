@@ -1,4 +1,4 @@
-import { DOCX_EXTENSION } from '@superdoc-history/types';
+import { DOCX_EXTENSION } from '@superdoc-collab/types';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { InvalidDocumentIdError, type DocumentFileStorage } from './file-storage';

@@ -1,4 +1,4 @@
-import { AgentActionKind } from '@superdoc-history/types';
+import { AgentActionKind } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { AgentActionsLog } from './agent-actions';
 import { MigrationSet } from './migrations';

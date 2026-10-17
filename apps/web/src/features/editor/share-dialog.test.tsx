@@ -6,7 +6,7 @@ import {
   LINK_COPIED_MESSAGE,
   ShareLinkRole,
   type ShareLinks,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';

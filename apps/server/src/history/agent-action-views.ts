@@ -1,5 +1,5 @@
-import { agentAuthorKey } from '@superdoc-history/history';
-import { agentAuthorName, ClientActor, type AgentActionView, type EventAuthor } from '@superdoc-history/types';
+import { agentAuthorKey } from '@superdoc-collab/history';
+import { agentAuthorName, ClientActor, type AgentActionView, type EventAuthor } from '@superdoc-collab/types';
 import type { AppServices } from '../http/app';
 import { UnknownAuthorError } from './resolved-events';
 

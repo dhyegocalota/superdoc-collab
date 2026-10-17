@@ -1,4 +1,4 @@
-import { ClientActor, TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
+import { ClientActor, TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
 import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
 import { KeyboardKey } from '@/lib/keyboard';

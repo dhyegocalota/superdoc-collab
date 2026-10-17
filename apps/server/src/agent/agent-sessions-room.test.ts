@@ -1,4 +1,4 @@
-import { ApiPath, DocumentRole, RoomMode } from '@superdoc-history/types';
+import { ApiPath, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import { AgentSessions } from './agent-sessions';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from './room-tokens';

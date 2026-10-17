@@ -1,4 +1,4 @@
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 import { CopyButton } from './copy-button';
 import {
   CHATGPT_INSTRUCTION,

@@ -1,4 +1,4 @@
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 
 const PARSE_BASE_URL = 'http://localhost';
 

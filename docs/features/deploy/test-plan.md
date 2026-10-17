@@ -23,7 +23,7 @@ Demo users for the walk, password `deploy-walk-password`, one browser context ea
 
 ## The failing test first
 
-Each task committed its failing tests alone before the implementation. Check with `git log --format='%h %s' main..HEAD`, `git show --stat <sha>` (test files and the named stubs only), and by checking out the test commit and running `pnpm --filter @superdoc-history/server exec vitest run src/deploy`.
+Each task committed its failing tests alone before the implementation. Check with `git log --format='%h %s' main..HEAD`, `git show --stat <sha>` (test files and the named stubs only), and by checking out the test commit and running `pnpm --filter @superdoc-collab/server exec vitest run src/deploy`.
 
 - [ ] Task 0 precondition — input: `git log --oneline -1 main` and the first branch commit; expected: `main` is the PR 4 merge; the first commit is `docs(deploy): add the spec, plan, test plan and ADR 0013`, adding only `docs/features/deploy/{spec,plan,test-plan,tester-briefing}.md`, `docs/adr/0013-deploy-with-dokploy-compose.md`, `docs/adr/README.md`, `docs/features/README.md` — DEVIATION (not ticked): main is 1da94ad (PR 4 merge) as expected, and afdd41f adds exactly the seven listed files, but it is the SECOND branch commit; the first is e5a05b8 `docs: cite the green CI run in the slice 4 test plan and mark slice 5 as building` (docs/features/README.md, docs/features/llm-insights/test-plan.md). 9e5a77e
 - [x] Task 1 `test(docker): pin the entrypoint seeding guard and the install layer order` — expected: 5 failed, 4 passed; four entrypoint refusals fail with `AssertionError: expected +0 to be 1`; `installs dependencies from the workspace manifests before copying the sources` fails with `expected [ …(4) ] to not include 'COPY . .'` — evidence: 04430b6 checked out: 5 failed | 4 passed (9); 4x `AssertionError: expected +0 to be 1`; 1x `expected [ …(4) ] to not include 'COPY . .'`
@@ -34,7 +34,7 @@ Each task committed its failing tests alone before the implementation. Check wit
 - [x] Task 6 `test(deploy): pin the secret notes in the example environment` — expected: 3 failed, 7 passed; `expected 'APP_ORIGIN=http://localhost:5173' to match /^# Secret/` and its two siblings — evidence: 93f3e4a checked out: 3 failed | 34 passed; `expected 'APP_ORIGIN=http://localhost:5173' to match /^# Secret/`, `DATABASE_DIR=./data` and a `# NB: LLM access…` sibling
 - [x] Confirmed each fails for the right reason: every failure line is an `AssertionError` naming the missing behaviour, never `Cannot find module`, `ENOENT` or a syntax error — evidence: all six red runs list only AssertionError lines; grep for `Cannot find module|ENOENT|SyntaxError` found none
 
-## Unit (`pnpm --filter @superdoc-history/server exec vitest run src/deploy`, 33 tests)
+## Unit (`pnpm --filter @superdoc-collab/server exec vitest run src/deploy`, 33 tests)
 
 `entrypoint.test.ts` (stub `dist/seed.js` and `dist/main.js` that print a line each; env holds only `PATH` plus the listed variables)
 - [x] `starts the server without seeding or a demo password when seeding is off` — input: `SEED_DEMO_USERS=false`, no `DEMO_PASSWORD`; expected: exit 0, stdout `main ran\n`, stderr empty — evidence: 9e5a77e; `REQUIRE_DOCKER_COMPOSE=true vitest run src/deploy --reporter=verbose` in a clean worktree: test listed as passed, 42 passed (42), 0 skipped
@@ -102,7 +102,7 @@ Each task committed its failing tests alone before the implementation. Check wit
 - [x] `Refuse to seed without a demo password` — expected: the printed `refusal.log` contains `Missing environment variable: DEMO_PASSWORD`, exit status 1, step green — evidence: run 38996114467 job 117289001992: step success; log `Missing environment variable: DEMO_PASSWORD (required when SEED_DEMO_USERS=true)`
 - [x] `Start the image on a named volume` — expected: a container id printed, step green — evidence: run 38996114467 job 117289001992: step success
 - [x] `Health answers 200` — expected: `{"status":"ok"}` in the log within the retry budget — evidence: run 38996114467: log `{"status":"ok"}` at 02:47:02Z
-- [x] `The web app is served` — expected: step green (`<title>SuperDoc History</title>` found) — evidence: run 38996114467: step success (grep -q on the title passed)
+- [x] `The web app is served` — expected: step green (`<title>SuperDoc Collab</title>` found) — evidence: run 38996114467: step success (grep -q on the title passed)
 - [x] `The data volume belongs to the node user` — expected: step green (`stat -c %u /data` is `1000`) — evidence: run 38996114467: step success (`test "$(docker exec app stat -c %u /data)" = "1000"`)
 - [x] `A seeded demo user signs in` — expected: `sign-in status: 200` — evidence: run 38996114467: `sign-in status: 200`
 - [x] `Restart keeps the data and the accounts` — expected: health answers again within `--retry-max-time 120`, `app.log` contains `existing: ana@example.com`, `sign-in after restart status: 200` — evidence: run 38996114467: step success; two `curl: (56) Recv failure` retries, then `{"status":"ok"}sign-in after restart status: 200`; the `grep -q 'existing: ana@example.com' app.log` assertion passed (silent by design, the step ran under bash -e)

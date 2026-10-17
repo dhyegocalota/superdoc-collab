@@ -1,4 +1,4 @@
-import { AgentActionKind, AgentScope, AgentTool, DOCX_MIME_TYPE, DocumentRole, RoomMode } from '@superdoc-history/types';
+import { AgentActionKind, AgentScope, AgentTool, DOCX_MIME_TYPE, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

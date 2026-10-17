@@ -1,4 +1,4 @@
-import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS, secondsRoundedUp } from '@superdoc-history/types';
+import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS, secondsRoundedUp } from '@superdoc-collab/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';

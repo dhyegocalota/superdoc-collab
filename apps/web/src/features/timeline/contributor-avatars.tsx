@@ -1,5 +1,5 @@
-import { byVolumeDescending } from '@superdoc-history/history/timeline';
-import { ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-history/types';
+import { byVolumeDescending } from '@superdoc-collab/history/timeline';
+import { ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-collab/types';
 import { initialsOf } from '@/lib/initials';
 import { authorOf, humanNameOf } from './author-of';
 import { AI_BADGE_LABEL, AI_BADGE_TEXT } from './timeline-copy';

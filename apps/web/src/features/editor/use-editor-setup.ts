@@ -1,4 +1,4 @@
-import type { DocumentRole, OpenedDocument, RoomMode, SessionUser } from '@superdoc-history/types';
+import type { DocumentRole, OpenedDocument, RoomMode, SessionUser } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
 
 export type EditorSetup = { roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob };

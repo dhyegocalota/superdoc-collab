@@ -5,7 +5,7 @@ import {
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   type DocumentsList,
   type DocumentTopics,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
 import { JobOutcome } from '../insights/insights-job-runner';

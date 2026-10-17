@@ -16,7 +16,7 @@ import {
   type BandIdentity,
   type EditRun,
   type TimelineEvent,
-} from '@superdoc-history/history';
+} from '@superdoc-collab/history';
 import {
   BlockChangeKind,
   OTHER_BAND_ID,
@@ -28,7 +28,7 @@ import {
   type EventAuthor,
   type ProjectionStatus,
   type TimelineFilter,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import type { AppServices } from '../http/app';
 import type { RequestedSelection, SelectionSnapshot } from '../insights/selection-summaries-service';
 import { readAgentActions } from './agent-action-views';

@@ -1,4 +1,4 @@
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   DocumentResource,
   DocumentRole,
@@ -6,8 +6,8 @@ import {
   EVENTS_PAGE_SIZE,
   HttpStatus,
   type DocumentEditEvents,
-} from '@superdoc-history/types';
-import { ReadModel } from '@superdoc-history/history';
+} from '@superdoc-collab/types';
+import { ReadModel } from '@superdoc-collab/history';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';

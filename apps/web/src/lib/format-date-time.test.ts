@@ -1,4 +1,4 @@
-import { MINUTE_MS, SECOND_MS } from '@superdoc-history/types';
+import { MINUTE_MS, SECOND_MS } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { formatBinMoment, formatBinRange, formatTimestamp, formatVersionMoment } from './format-date-time';
 

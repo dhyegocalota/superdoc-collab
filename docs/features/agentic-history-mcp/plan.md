@@ -5,7 +5,7 @@
 **Spec:** spec.md
 **Tier:** 🔴
 **Goal:** a remote MCP server inside `apps/server` that any AI client reaches through OAuth as a real person, reads the history, edits the live room in tracked mode, exports and shares, with every AI edit marked "Name · AI".
-**Architecture:** Better Auth becomes the OAuth authorization server and the MCP route the protected resource ([0021](../../adr/0021-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)). One `@superdoc/sdk` host opens one session per person and document over a dedicated agent socket path with a room token. The update log, read model and timeline carry a `ClientActor` next to the user ([0020](../../adr/0020-agent-edits-carry-a-human-or-agent-actor.md)).
+**Architecture:** Better Auth becomes the OAuth authorization server and the MCP route the protected resource ([0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)). One `@superdoc/sdk` host opens one session per person and document over a dedicated agent socket path with a room token. The update log, read model and timeline carry a `ClientActor` next to the user ([0024](../../adr/0024-agent-edits-carry-a-human-or-agent-actor.md)).
 **Tech Stack:** Hono 4.13, Hocuspocus 2.15.3, better-auth 1.7.10 with `@better-auth/oauth-provider` and `@better-auth/mcp` 1.7.10, `@modelcontextprotocol/sdk` 1.32.1, `@superdoc/sdk` 2.21.0, drizzle-kit 0.31.11, Vitest, Playwright, React 19 with TanStack Query.
 **Seam:** `UpdateLog.append` and `CollaborationContext` (identity), `createAuth` (OAuth), the HTTP upgrade handler (agent path), `createApp` (MCP route), the timeline pipeline (actor split and marks), the web router (two pages).
 **Assumptions (decided, owner can override):**
@@ -18,7 +18,7 @@
 - Repository conventions in `AGENTS.md` → Code conventions: no comments except `// NB ADR NNNN:` pointers, flat ifs, no `else`, no `??` fallback, enums, named parameters, array methods, one handler per kind from a record, shared helpers from `apps/server/src/limits/`, copy in `*-copy.ts`.
 - Red-first: the failing test is its own commit before the implementation; a stub throwing `<name> is not implemented` is allowed in the red commit.
 - `pnpm exec prettier --write <staged files>` before every commit; Conventional Commits; never `git add -A`.
-- Migrations are generated with drizzle-kit: `pnpm --filter @superdoc-history/history generate` for the history and read model sets; `pnpm --filter @superdoc-history/server exec drizzle-kit generate --config drizzle.config.ts` for the auth database. A backfill `UPDATE` may be appended to the generated SQL by hand.
+- Migrations are generated with drizzle-kit: `pnpm --filter @superdoc-collab/history generate` for the history and read model sets; `pnpm --filter @superdoc-collab/server exec drizzle-kit generate --config drizzle.config.ts` for the auth database. A backfill `UPDATE` may be appended to the generated SQL by hand.
 - Tracked mode only: the agent never accepts or rejects tracked changes.
 
 ## Review Focus
@@ -65,7 +65,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### C0
 
-- [ ] **Step 0.1:** Add the dependencies at exact versions and run `pnpm install`; `pnpm typecheck` and `pnpm --filter @superdoc-history/server test:unit` stay green on SDK 2.21.0 (the projection worker uses the SDK).
+- [ ] **Step 0.1:** Add the dependencies at exact versions and run `pnpm install`; `pnpm typecheck` and `pnpm --filter @superdoc-collab/server test:unit` stay green on SDK 2.21.0 (the projection worker uses the SDK).
 - [ ] **Step 0.2:** Add `libs/types/src/agent.ts` with the enums and `agentAuthorName`, export it, add the route constants; unit test `agentAuthorName('Ana')` is `'Ana · AI'`.
 
 ### L1 history
@@ -80,7 +80,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 ### L2 auth and collaboration
 
 - [x] **Step 7:** Red: `auth/oauth.test.ts` "discovery documents name the MCP resource" (GET `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` answer with the issuer `APP_ORIGIN` and resource `${APP_ORIGIN}/api/mcp`); then `jwt`, `oauthProvider` (dynamic registration, scopes from `AgentScope`, consent page `AppRoute.OAuthConsent`, login page `AppRoute.SignIn`) and `mcp` plugins in `createAuth`, generated auth migration, schema exported for the drizzle adapter, `.well-known` routes mounted. Evidence: red `3f34ab3`, green `589fa95`, native-client fix `63d5979`; `auth/oauth.test.ts`.
-- [x] **Step 8:** Red: `testing/oauth-client.ts` drives registration, authorize with a signed-in cookie, consent and token exchange; `agent-authorization.test.ts` "a token whose consent was deleted is refused" and "a token for another audience is refused"; then `authorizeAgentRequest` and `unauthorizedAgentResponse` with `// NB ADR 0021` on the consent lookup. Evidence: red `3a86dce`, green `9c281b2`; `agent/agent-authorization.test.ts`, helper `testing/oauth-client.ts`.
+- [x] **Step 8:** Red: `testing/oauth-client.ts` drives registration, authorize with a signed-in cookie, consent and token exchange; `agent-authorization.test.ts` "a token whose consent was deleted is refused" and "a token for another audience is refused"; then `authorizeAgentRequest` and `unauthorizedAgentResponse` with `// NB ADR 0025` on the consent lookup. Evidence: red `3a86dce`, green `9c281b2`; `agent/agent-authorization.test.ts`, helper `testing/oauth-client.ts`.
 - [x] **Step 9:** Red: `room-tokens.test.ts` table: valid, expired, other document, tampered, signed with another secret; then `signRoomToken` and `verifyRoomToken` (HMAC-SHA256 over a base64url JSON payload with the auth secret). Evidence: red `0d6fdbe`, green `8e23e7b`; `agent/room-tokens.test.ts`.
 - [x] **Step 10:** Red: `attach-collaboration.test.ts` "an agent path upgrade without an origin reaches authentication" and "the browser path still refuses a missing origin"; then the second upgrade path `ApiPath.AgentCollaboration` without the origin check. Evidence: red `73a608d`, green `7ff7871`; `collaboration/attach-collaboration.test.ts`.
 - [x] **Step 11:** (after L1 step 1 is merged in) Red: `collaboration-server.test.ts` table "each path accepts only its credential" (cookie on the browser path, room token on the agent path, each refused on the other) and "an agent update is logged with the Agent actor"; then `onAuthenticate` reads the path from `request.url`, `CollaborationContext.actor`, `onChange` passes `context.actor`, `client-declarations.ts` declares with the context actor and never for agent connections. Evidence: red `d7ce49c` and `4f36bba`, green `42053f2`; `collaboration/collaboration-server.test.ts`, `client-declarations.test.ts`.

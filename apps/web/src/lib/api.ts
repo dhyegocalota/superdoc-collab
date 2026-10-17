@@ -1,4 +1,4 @@
-import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus, type HttpMethod } from '@superdoc-history/types';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus, type HttpMethod } from '@superdoc-collab/types';
 
 const JSON_CONTENT_TYPE = 'application/json';
 
@@ -21,6 +21,10 @@ export class RetryLaterError extends ApiRequestError {
 
 export function apiGet(path: string): Promise<Response> {
   return fetch(path, { credentials: 'same-origin' });
+}
+
+export function apiGetWithHeaders({ path, headers }: { path: string; headers: Record<string, string> }): Promise<Response> {
+  return fetch(path, { credentials: 'same-origin', headers });
 }
 
 export function apiSend({ path, method, body }: { path: string; method: HttpMethod; body: BodyInit | null }): Promise<Response> {

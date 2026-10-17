@@ -34,7 +34,7 @@ The timeline, filters, summaries and "text of block at time T" are plain indexed
 
 ## Evidence
 
-- Decode vs read breakdown in 0003; projection costs 0.13-0.17 ms per update ([POC results](../../poc/RESULTS.md)).
+- Decode vs read breakdown in 0003; projection costs 0.13-0.17 ms per update (POC results, removed 2026-10-17).
 
 ## Revisit when
 

@@ -12,8 +12,7 @@ services:
       TRUST_PROXY: "true"
       APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN to https://<your domain> in the Dokploy environment}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in the Dokploy environment}
-      SEED_DEMO_USERS: ${SEED_DEMO_USERS:?Set SEED_DEMO_USERS to true or false in the Dokploy environment}
-      DEMO_PASSWORD: ${DEMO_PASSWORD-}
+      SEED_DEMO_USERS: "false"
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY-}
       LLM_MODEL: ${LLM_MODEL-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL-}

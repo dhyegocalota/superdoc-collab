@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { ClientActor } from '@superdoc-history/types';
+import { ClientActor } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 
 const HISTORY_TABLES = ['updates', 'snapshots', 'client_identities', 'agent_actions'];

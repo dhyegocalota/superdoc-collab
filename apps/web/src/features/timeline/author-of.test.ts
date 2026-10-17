@@ -1,4 +1,4 @@
-import { ClientActor } from '@superdoc-history/types';
+import { ClientActor } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { authorNames } from './author-of';
 

@@ -1,4 +1,4 @@
-import { ClientActor, MINUTE_MS } from '@superdoc-history/types';
+import { ClientActor, MINUTE_MS } from '@superdoc-collab/types';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const ROOM_TOKEN_TTL_MS = 5 * MINUTE_MS;

@@ -1,4 +1,4 @@
-import type { DocumentRole } from '@superdoc-history/types';
+import type { DocumentRole } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 import { verifyRoomToken } from '../agent/room-tokens';
 import type { DocumentsRepository } from '../documents/documents-repository';

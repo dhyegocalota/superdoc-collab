@@ -1,4 +1,4 @@
-import { HttpMethod, HttpStatus, INVALID_SHARE_LINK_MESSAGE, shareLinkAcceptPath, type AcceptedShareLink } from '@superdoc-history/types';
+import { HttpMethod, HttpStatus, INVALID_SHARE_LINK_MESSAGE, shareLinkAcceptPath, type AcceptedShareLink } from '@superdoc-collab/types';
 import { ApiRequestError, apiSend, readJson } from '@/lib/api';
 import { ACCEPT_LINK_SUBJECT } from '@/features/editor/editor-copy';
 

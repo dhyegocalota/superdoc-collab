@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { AgentScope, AgentTool, ApiPath, DocumentRole, HttpMethod, HttpStatus, type DocumentsList } from '@superdoc-history/types';
+import { AgentScope, AgentTool, ApiPath, DocumentRole, HttpMethod, HttpStatus, type DocumentsList } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';

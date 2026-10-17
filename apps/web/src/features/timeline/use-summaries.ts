@@ -1,4 +1,4 @@
-import type { TopicSummaries } from '@superdoc-history/types';
+import type { TopicSummaries } from '@superdoc-collab/types';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { fetchSummaries, summariesQueryKey, TIMELINE_POLL_MS } from './timeline-api';

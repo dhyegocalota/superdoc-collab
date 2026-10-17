@@ -1,4 +1,4 @@
-import type { TimelineBand } from '@superdoc-history/types';
+import type { TimelineBand } from '@superdoc-collab/types';
 import { LEGEND_LABEL } from './timeline-copy';
 import { TopicSwatch } from './topic-swatch';
 

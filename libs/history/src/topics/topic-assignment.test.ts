@@ -1,4 +1,4 @@
-import { OTHER_BAND_ID } from '@superdoc-history/types';
+import { OTHER_BAND_ID } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { assignBlocks, matchPreviousTopics, normalizeTopics, topicBandId } from './topic-assignment';
 

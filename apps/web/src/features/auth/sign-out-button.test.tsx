@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { expect, test, vi } from 'vitest';
+import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu';
 import { authClient } from './auth-client';
 import { SIGN_OUT_LABEL } from './auth-copy';
 import { SignOutButton } from './sign-out-button';
@@ -17,16 +18,20 @@ vi.mock('react-router', async (importOriginal) => ({
 }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
-test('navigates to the bare sign-in route marked as signed out', async () => {
+test('renders as a menu item and still signs out', async () => {
   const queryClient = new QueryClient();
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <SignOutButton />
+        <DropdownMenu open>
+          <DropdownMenuContent>
+            <SignOutButton />
+          </DropdownMenuContent>
+        </DropdownMenu>
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  await userEvent.setup().click(screen.getByRole('button', { name: SIGN_OUT_LABEL }));
+  await userEvent.setup().click(await screen.findByRole('menuitem', { name: SIGN_OUT_LABEL }));
   await waitFor(() => expect(navigate).toHaveBeenCalled());
   expect(authClient.signOut).toHaveBeenCalledTimes(1);
   expect(navigate).toHaveBeenCalledWith(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE });

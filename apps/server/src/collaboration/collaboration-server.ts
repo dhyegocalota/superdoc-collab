@@ -56,7 +56,6 @@ export class CollaborationSingleDocumentError extends Error {
   }
 }
 
-// NB ADR 0033: only the latest attempt writes while uncommitted, and a committed room accepts the committing attempt or a socket with none.
 function isWriteAllowed({
   reservations,
   bootstrap,
@@ -69,8 +68,8 @@ function isWriteAllowed({
   document: Y.Doc;
 }): boolean {
   const { documentId, creatorAttempt, creatorEpoch } = context;
-  const isRoomCommitted = isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId);
-  return reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: isRoomCommitted });
+  if (creatorAttempt === null) return isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId);
+  return reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: false });
 }
 
 function warnOncePerConnection({ context, warned }: { context: CollaborationContext; warned: WeakSet<CollaborationContext> }): void {

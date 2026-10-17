@@ -28,6 +28,10 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `docs/install.md`, `docs/agent-install.md` and `docs/scenarios/*` are class `tooling`.
 - The Docker skip line names the image's own files.
 
+## Time zone run
+
+- The `unit` gate runs the selected `libs/*` packages and the server a second time with `TZ=Asia/Kolkata`, as `main`'s `libs-and-server-in-kolkata` job does; a web-only change skips it. Red before: 3 failing checks (commit 94e1beb).
+
 ## How to run
 
 ```bash

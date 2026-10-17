@@ -12,6 +12,7 @@ readonly ALREADY_GREEN_GATES="secrets audit"
 readonly EVERYTHING_GATES=all
 readonly NO_GATES=-
 readonly SERVER_PACKAGE=@superdoc-collab/server
+readonly TIME_ZONE_PROBE=Asia/Kolkata
 readonly IMAGE_TAG=superdoc-collab:verify
 readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when its own files change (docker/, deploy/, .dockerignore, railway.json, compose files)"
 readonly NO_RECORD_UNFETCHED="verify: no record: origin main could not be fetched"
@@ -150,9 +151,27 @@ gate_hooks() { pnpm test:hooks; }
 gate_shape() { pnpm --filter "$SERVER_PACKAGE" exec vitest run src/repository-shape; }
 gate_e2e() { pnpm test:e2e; }
 
-gate_unit() {
+unit_suites() {
   [[ $run_everything == true ]] && { pnpm test:unit; return; }
   pnpm $(printf -- '--filter %s ' $unit_packages) test:unit
+}
+
+time_zone_packages() {
+  local manifest name
+  for manifest in $manifests; do
+    name=$(jq -r .name "$manifest")
+    has_word "$unit_packages" "$name" || continue
+    [[ $manifest == libs/* || $name == "$SERVER_PACKAGE" ]] && echo "$name"
+  done
+}
+
+gate_unit() {
+  unit_suites || return 1
+  local probed_packages
+  probed_packages=$(time_zone_packages)
+  [[ -n $probed_packages ]] || return 0
+  echo "verify: unit in $TIME_ZONE_PROBE"
+  TZ=$TIME_ZONE_PROBE pnpm $(printf -- '--filter %s ' $probed_packages) test:unit
 }
 
 docker_is_running() { have docker && docker info >/dev/null 2>&1; }

@@ -1,6 +1,6 @@
 # Remove spikes
 
-**Status:** Building
+**Status:** Shipped 2026-10-17
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-17
 **ADRs:** [0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md), [0029](../../adr/0029-agent-edits-carry-a-human-or-agent-actor.md), [0030](../../adr/0030-the-local-gate-runs-what-the-diff-can-break.md)

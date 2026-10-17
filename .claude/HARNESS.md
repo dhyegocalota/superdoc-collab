@@ -46,7 +46,7 @@ Classify the change so the depth of the spec matches the risk:
 | 🟡 medium | new endpoint, new panel, schema change | + data flow, failure modes |
 | 🔴 structural | history pipeline, auth, collaboration, deploy | + ADR, alternatives, rollback, spike if an assumption is unproven |
 
-When in doubt, take the heavier tier. Hidden complexity discovered mid-task upgrades the tier: stop, say so, step up.
+A spike's code is never committed: it runs in a scratch worktree, and its answer lands in the feature folder and the ADR. When in doubt, take the heavier tier. Hidden complexity discovered mid-task upgrades the tier: stop, say so, step up.
 
 **Docs lane.** A change whose `pnpm verify --plan` class is `docs`, and that no person or agent follows step by step, may take the docs lane. Install guides, runbooks, the agent install file and `docs/scenarios/` are followed step by step, so they never take it. The lane is one ten-line `spec.md` that says `**Lane:** docs`, no plan, test plan or tester, one reviewer on the mid model, no security reviewer, on the class of the whole branch against `origin/main` ([ADR 0030](../docs/adr/0030-the-local-gate-runs-what-the-diff-can-break.md)). The class is necessary, never sufficient. A one-line change to code or configuration never takes it.
 

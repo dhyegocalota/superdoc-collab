@@ -1,6 +1,6 @@
 # Spike — SuperDoc SDK inside a live Hocuspocus room
 
-> Throwaway spike, 2026-10-17. Question: can a server-side agent built on
+> Throwaway spike, 2026-10-17. Its code was removed from the tree the same day; read it at commit `c1ada06` (`git show c1ada06:spikes/sdk-room-join/<file>`). Question: can a server-side agent built on
 > `@superdoc/sdk` edit the **live collaborative document** (not a file on disk),
 > in tracked mode, so that every editor sees the change and the history
 > attributes it to the agent? Stack: `@superdoc/sdk` 2.21.0 (embedded CLI

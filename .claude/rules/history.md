@@ -60,3 +60,7 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - SuperDoc's own room state is 4.45 MB; the log adds about 3%. (poc/RESULTS.md, ADR 0001)
 - Full replay about 900 ms; snapshot + tail replay about 95 ms; append about 33k updates/s. (poc/RESULTS.md)
 - Yjs decode (98 ms) dominates a roughly 100 ms load; the SQLite read is 13 ms. (ADR 0003)
+
+## Timeline bins and time zones
+- Bins are aligned to the reader's zone, not to UTC: a bin starts on a multiple of its size in local wall time, a day bin at local midnight, a week bin on local Monday 00:00, and each bin ends where the next starts, so a day across a DST change is 23 or 25 hours. (libs/history/src/timeline/zoned-time.ts, ADR 0024)
+- `timeZone` is a required query parameter on `/timeline`, `/timeline/edits` and `/summaries/selection`; a missing or unknown zone answers 400. Storage stays epoch milliseconds. (ADR 0024)

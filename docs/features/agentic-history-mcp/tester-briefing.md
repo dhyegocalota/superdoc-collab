@@ -289,7 +289,7 @@ The consent page reads `client_id` and `scope` (space separated) from the query 
 | hatched agent layer | `svg path[data-actor="agent"]`, `aria-hidden`, `fill="url(#agent-hatch-<band id>)"`; patterns in `svg defs pattern` |
 | legend row | text "Hatched: edited by AI" |
 | AI badge | element with `aria-label="Edited by AI"` inside the avatar `li` whose `title` is "Name · AI" |
-| action marks | `getByRole('button', { name: '<Name · AI> revealed a share link' })` (also "rotated a share link", "exported the document"); hovering or focusing shows `role="tooltip"` with the same sentence |
+| action marks | `getByRole('img', { name: '<Name · AI> rotated a share link' })` (also "exported the document"; a focusable `role="img"` span); hovering or focusing shows `role="tooltip"` with the same sentence |
 
 ### Red today, green after
 

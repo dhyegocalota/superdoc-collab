@@ -168,6 +168,20 @@ export class UpdateLog {
       .run(documentName, sequence, state);
   }
 
+  appendCommitted(parameters: {
+    documentName: string;
+    connectionUserId: string;
+    connectionActor: ClientActor;
+    update: Uint8Array;
+    state: Uint8Array;
+  }): LoggedUpdate {
+    throw new Error('appendCommitted is not implemented');
+  }
+
+  snapshotAfter({ documentName, afterSequence }: { documentName: string; afterSequence: number }): Snapshot | null {
+    throw new Error('snapshotAfter is not implemented');
+  }
+
   latestSnapshot({ documentName, atOrBefore }: { documentName: string; atOrBefore: number }): Snapshot | null {
     const row = this.database
       .prepare('SELECT sequence, state FROM snapshots WHERE document_name = ? AND sequence <= ? ORDER BY sequence DESC LIMIT 1')

@@ -18,6 +18,7 @@ import { useEditorSetup } from './use-editor-setup';
 import { useOpenedDocument } from './use-opened-document';
 
 const NO_MEMBERS: DocumentMember[] = [];
+const EDITOR_AREA_CLASS = 'relative flex min-h-[60dvh] min-w-0 flex-1 flex-col lg:min-h-0';
 
 function useDocumentFile({ documentId, roomMode }: { documentId: string; roomMode: RoomMode | undefined }) {
   return useQuery({
@@ -60,7 +61,7 @@ export function DocumentPage() {
   const superdocRef = useRef<SuperDoc | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const setup = useEditorSetup({ opened: freshOpened, user, file });
-  const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined });
+  const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
 
   if (error) return <UnavailableNotice message={error.message} />;
   if (isUnavailable) return <UnavailableNotice message={DOCUMENT_UNAVAILABLE_MESSAGE} />;
@@ -79,8 +80,8 @@ export function DocumentPage() {
     <div className="flex h-dvh flex-col">
       <EditorHeader opened={opened} members={members} onDownload={setup ? downloadLiveDocument : null} />
       {hasExportFailed && <p role="alert" className="px-4 py-2 text-sm text-destructive">{EXPORT_FAILED_MESSAGE}</p>}
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
+        <div data-testid="editor-area" className={EDITOR_AREA_CLASS}>
           <VersionBanner timeTravel={timeTravel} />
           <div className="relative flex min-h-0 min-w-0 flex-1">
             {setup && <SuperDocEditor superdocRef={superdocRef} documentId={documentId} roomMode={setup.roomMode} role={setup.role} user={setup.user} file={setup.file} isInert={timeTravel.state === VersionViewerState.Viewing} />}

@@ -28,6 +28,12 @@ const RETRY_AFTER_HEADER = 'Retry-After';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 const EDITS_SEGMENT = 'edits';
 
+export class TopicsRefreshTooSoonError extends ApiRequestError {
+  constructor(readonly retryAfterMs: number) {
+    super(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+  }
+}
+
 export enum VersionLoadKind {
   Ready = 'ready',
   Pending = 'pending',
@@ -57,6 +63,11 @@ export function binEditsQueryKey({ documentId, binStart, binMs, filter }: { docu
 
 export function versionQueryKey({ documentId, sequence }: { documentId: string; sequence: number | null }): unknown[] {
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Versions, sequence];
+}
+
+export function pollWhileAvailable(query: { state: { error: Error | null } }): number | false {
+  if (query.state.error instanceof DocumentUnavailableError) return false;
+  return TIMELINE_POLL_MS;
 }
 
 function withQuery({ path, params }: { path: string; params: URLSearchParams }): string {
@@ -100,7 +111,7 @@ export async function fetchSummaries(documentId: string): Promise<TopicSummaries
 export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   const response = await apiSend({ path: topicsRefreshApiPath(documentId), method: HttpMethod.Post, body: null });
   assertDocumentAvailable(response);
-  if (response.status === HttpStatus.TooManyRequests) throw new ApiRequestError(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+  if (response.status === HttpStatus.TooManyRequests) throw new TopicsRefreshTooSoonError(readRetryAfterMs(response));
   if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Topics refresh', status: response.status }));
   return response.json();
 }

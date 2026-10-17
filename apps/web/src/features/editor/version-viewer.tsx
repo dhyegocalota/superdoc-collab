@@ -7,9 +7,14 @@ import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { documentFileQueryKey, fetchDocumentFile } from './editor-api';
 import { DocumentMode } from './superdoc-editor';
 
-type VersionViewerProps = { documentId: string; sequence: number; user: SessionUser; onReady: (superdoc: SuperDoc) => void; onFailed: () => void };
+enum ConnectionState {
+  Degraded = 'degraded',
+  Failed = 'failed',
+}
 
-export function VersionViewer({ documentId, sequence, user, onReady, onFailed }: VersionViewerProps) {
+type VersionViewerProps = { documentId: string; sequence: number; user: SessionUser; onReady: (superdoc: SuperDoc) => void; onFailed: () => void; onConnectionFailed: () => void };
+
+export function VersionViewer({ documentId, sequence, user, onReady, onFailed, onConnectionFailed }: VersionViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { data: blank } = useQuery({
     queryKey: documentFileQueryKey({ documentId, roomMode: RoomMode.Join }),
@@ -20,6 +25,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed }:
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !blank) return;
+    let isReady = false;
     const superdoc = new SuperDoc({
       selector: container,
       documentMode: DocumentMode.Viewing,
@@ -38,11 +44,18 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed }:
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
-      onCollaborationReady: () => onReady(superdoc),
+      onCollaborationReady: () => {
+        isReady = true;
+        onReady(superdoc);
+      },
+      onCollaborationConnectionChange: ({ state }) => {
+        const isRefused = state === ConnectionState.Failed || (state === ConnectionState.Degraded && !isReady);
+        if (isRefused) onConnectionFailed();
+      },
       onException: onFailed,
     });
     return () => superdoc.destroy();
-  }, [documentId, sequence, blank, user, onReady, onFailed]);
+  }, [documentId, sequence, blank, user, onReady, onFailed, onConnectionFailed]);
 
   return <div ref={containerRef} data-testid="version-viewer" className="h-dvh min-w-0 overflow-auto" />;
 }

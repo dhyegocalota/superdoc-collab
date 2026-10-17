@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { BandLabel } from './band-label';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
 import { bandAriaLabel, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
-import { formatTimestamp, TimelineTooltip } from './timeline-tooltip';
+import { formatTimestamp, TimelineTooltip, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const PRIMARY_BUTTON_PRESSED = 1;
 
@@ -37,6 +37,10 @@ function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedInd
   return null;
 }
 
+function tooltipLeft({ binX, width }: { binX: number; width: number }): number {
+  return Math.min(Math.max(binX, TOOLTIP_WIDTH / 2), width - TOOLTIP_WIDTH / 2);
+}
+
 function bandStyle(band: TimelineBand, saturation: number): CSSProperties | undefined {
   if (band.kind === TimelineBandKind.Other) return undefined;
   if (band.hue === null) throw new MissingBandHueError(band.id);
@@ -46,7 +50,7 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
 export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
   const titleId = useId();
   const descriptionId = useId();
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<{ index: number; y: number } | null>(null);
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
   const lastIndex = timeline.bins.length - 1;
   if (timeline.bins.length === 0) return null;
@@ -61,12 +65,13 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
     const index = layout.binAt(offsetOf(event));
-    setHoveredIndex(index);
+    setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top });
     if (event.buttons === PRIMARY_BUTTON_PRESSED) onSelectIndex(index);
   }
 
   function handleKeyDown(event: KeyboardEvent<SVGPathElement>): void {
     if (event.key === NavigationKey.Clear) {
+      event.stopPropagation();
       onClearSelection();
       return;
     }
@@ -101,7 +106,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         aria-describedby={descriptionId}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerLeave={() => setHoveredIndex(null)}
+        onPointerLeave={() => setHovered(null)}
       >
         <title id={titleId}>{STREAMGRAPH_TITLE}</title>
         <desc id={descriptionId}>{streamgraphDescription({ bandCount: timeline.bands.length, from: formatTimestamp(timeline.bins[0]!.start), to: formatTimestamp(timeline.bins[lastIndex]!.start + timeline.binMs) })}</desc>
@@ -109,7 +114,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         {layout.shapes.filter((shape) => shape.label !== null).map((shape) => <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />)}
         {selectedIndex !== null && <line x1={layout.binX(selectedIndex)} x2={layout.binX(selectedIndex)} y1={0} y2={CHART_HEIGHT} className="pointer-events-none stroke-foreground" />}
       </svg>
-      {hoveredIndex !== null && <TimelineTooltip timeline={timeline} index={hoveredIndex} left={layout.binX(hoveredIndex)} />}
+      {hovered !== null && <TimelineTooltip timeline={timeline} index={hovered.index} left={tooltipLeft({ binX: layout.binX(hovered.index), width })} top={hovered.y + TOOLTIP_POINTER_OFFSET} />}
     </div>
   );
 }

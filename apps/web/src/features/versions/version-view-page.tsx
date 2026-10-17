@@ -5,6 +5,7 @@ import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
 import { readViewerMessage, ViewerMessageKind } from '@/features/editor/viewer-messages';
 import { VersionViewer } from '@/features/editor/version-viewer';
+import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { useRunHighlights } from './use-run-highlights';
 
@@ -20,6 +21,7 @@ export function VersionViewPage() {
   const isSequenceValid = Number.isInteger(sequence);
   const { user } = useSession();
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
+  const [hasConnectionFailed, setHasConnectionFailed] = useState(false);
   const [runs, setRuns] = useState<EditRunView[]>(NO_RUNS);
   useRunHighlights({ superdoc, runs });
 
@@ -28,6 +30,10 @@ export function VersionViewPage() {
     postToParent(ViewerMessageKind.Ready);
   }, []);
   const handleFailed = useCallback(() => postToParent(ViewerMessageKind.Failed), []);
+  const handleConnectionFailed = useCallback(() => {
+    setHasConnectionFailed(true);
+    postToParent(ViewerMessageKind.Failed);
+  }, []);
 
   useEffect(() => {
     function handleMessage(event: MessageEvent): void {
@@ -44,6 +50,7 @@ export function VersionViewPage() {
   }, [isSequenceValid]);
 
   if (!isSequenceValid) return null;
+  if (hasConnectionFailed) return <p role="alert" className="p-4 text-sm text-destructive">{VERSION_FAILED_MESSAGE}</p>;
   if (!user) return <SessionSkeleton />;
-  return <VersionViewer documentId={documentId} sequence={sequence} user={user} onReady={handleReady} onFailed={handleFailed} />;
+  return <VersionViewer documentId={documentId} sequence={sequence} user={user} onReady={handleReady} onFailed={handleFailed} onConnectionFailed={handleConnectionFailed} />;
 }

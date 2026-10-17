@@ -1,8 +1,7 @@
 import { documentApiPath, DocumentResource, HttpMethod, HttpStatus, TOPICS_REFRESH_TOO_SOON_MESSAGE, TopicState, topicsRefreshApiPath, type TopicStatus, type VersionSummary } from '@superdoc-history/types';
 import { afterEach, expect, test, vi } from 'vitest';
-import { ApiRequestError } from '@/lib/api';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { fetchTimeline, fetchVersion, MIN_RETRY_AFTER_MS, refreshTopics, VersionLoadKind } from './timeline-api';
+import { fetchTimeline, fetchVersion, MIN_RETRY_AFTER_MS, refreshTopics, TopicsRefreshTooSoonError, VersionLoadKind } from './timeline-api';
 
 const DOCUMENT_ID = 'doc-1';
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
@@ -57,6 +56,8 @@ test('refreshTopics returns the status on 202 and explains a 429', async () => {
   const fetchSpy = respondWith(new Response(JSON.stringify(STATUS), { status: HttpStatus.Accepted }));
   expect(await refreshTopics(DOCUMENT_ID)).toEqual(STATUS);
   expect(fetchSpy).toHaveBeenCalledWith(topicsRefreshApiPath(DOCUMENT_ID), expect.objectContaining({ method: HttpMethod.Post }));
-  respondWith(new Response(null, { status: HttpStatus.TooManyRequests }));
-  await expect(refreshTopics(DOCUMENT_ID)).rejects.toThrow(new ApiRequestError(TOPICS_REFRESH_TOO_SOON_MESSAGE));
+  respondWith(new Response(null, { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '7' } }));
+  const error = await refreshTopics(DOCUMENT_ID).catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(TopicsRefreshTooSoonError);
+  expect(error).toMatchObject({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs: 7000 });
 });

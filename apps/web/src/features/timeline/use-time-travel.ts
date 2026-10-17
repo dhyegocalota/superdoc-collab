@@ -1,12 +1,14 @@
 import { DocumentResource, TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type TimelineFilter, type VersionSummary, type DocumentTimeline } from '@superdoc-history/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
-import { binEditsQueryKey, fetchBinEdits, fetchVersion, TIMELINE_POLL_MS, versionQueryKey, VersionLoadKind } from './timeline-api';
+import { binEditsQueryKey, fetchBinEdits, fetchVersion, pollWhileAvailable, versionQueryKey, VersionLoadKind } from './timeline-api';
 import { useTimeline } from './use-timeline';
 import { useTimelineSearch } from './use-timeline-search';
 
 export const SCRUB_DEBOUNCE_MS = 300;
+const ESCAPE_KEY = 'Escape';
+const TEXT_ENTRY_SELECTOR = 'input, textarea, select';
 const NO_RUNS: EditRunView[] = [];
 const NO_BIN_SEGMENT = 'no-bin';
 const NO_BIN_EDITS_KEY = [DocumentResource.Timeline, NO_BIN_SEGMENT];
@@ -25,6 +27,11 @@ export type TimeTravel = {
   reportFailure: (sequence: number) => void;
 };
 
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.matches(TEXT_ENTRY_SELECTOR) || target.isContentEditable;
+}
+
 function binContaining({ timeline, time }: { timeline: DocumentTimeline | undefined; time: number | null }): TimelineBin | undefined {
   if (!timeline || time === null) return undefined;
   return timeline.bins.find((bin) => time >= bin.start && time < bin.start + timeline.binMs);
@@ -40,7 +47,7 @@ function useBinRuns({ documentId, timeline, bin, filter }: { documentId: string;
   const { data } = useQuery({
     queryKey: request ? binEditsQueryKey(request) : NO_BIN_EDITS_KEY,
     queryFn: request ? () => fetchBinEdits(request) : skipToken,
-    refetchInterval: TIMELINE_POLL_MS,
+    refetchInterval: pollWhileAvailable,
     retry: false,
   });
   if (!data) return NO_RUNS;
@@ -116,6 +123,22 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     if (search.at === null) return;
     update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
   }
+
+  const backToLiveRef = useRef(backToLive);
+
+  useEffect(() => {
+    backToLiveRef.current = backToLive;
+  });
+
+  useEffect(() => {
+    if (state !== VersionViewerState.Viewing) return;
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key !== ESCAPE_KEY || event.defaultPrevented || isTextEntry(event.target)) return;
+      backToLiveRef.current();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [state]);
 
   const requestedBinStart = pendingBinStart !== null ? pendingBinStart : search.at;
   const isShownFailed = shownVersion !== null && shownVersion.sequence === failedFrameSequence;

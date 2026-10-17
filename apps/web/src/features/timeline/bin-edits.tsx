@@ -1,7 +1,7 @@
 import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
 import { authorOf } from './author-of';
-import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
+import { binEditsQueryKey, fetchBinEdits, pollWhileAvailable } from './timeline-api';
 import { NO_EDITS_IN_BIN_MESSAGE } from './timeline-copy';
 import { formatBinRange } from './timeline-tooltip';
 import { TopicChip } from './topic-chip';
@@ -22,7 +22,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   const { data } = useQuery({
     queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
     queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
-    refetchInterval: TIMELINE_POLL_MS,
+    refetchInterval: pollWhileAvailable,
     retry: false,
   });
   const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));

@@ -128,7 +128,7 @@ stub_all() {
   rm -rf "$doctor_home/Library" "$doctor_home/.cache"
   mkdir -p "$doctor_home/Library/Caches/ms-playwright/chromium-1247" "$doctor_home/.cache/ms-playwright/chromium-1247"
 }
-doctor() { DOCTOR_UNAME="$1" DOCTOR_PATH="$doctor_bin" DOCTOR_HOME="$doctor_home" DOCTOR_SKIP="${2:-}" "$here/doctor.sh" 2>&1; }
+doctor() { PLAYWRIGHT_BROWSERS_PATH= DOCTOR_UNAME="$1" DOCTOR_PATH="$doctor_bin" DOCTOR_HOME="$doctor_home" DOCTOR_SKIP="${2:-}" "$here/doctor.sh" 2>&1; }
 doctor_line() { doctor "$1" "${3:-}" | grep "^$2 "; }
 doctor_exit() { local name=$1 expected=$2 platform=$3; doctor "$platform" >/dev/null; local actual=$?; [[ "$actual" == "$expected" ]] && return; echo "FAIL $name: expected exit $expected, got $actual"; failures=$((failures + 1)); }
 

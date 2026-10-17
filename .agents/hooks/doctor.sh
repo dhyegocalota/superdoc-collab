@@ -5,7 +5,7 @@ platform=${DOCTOR_UNAME:-$(uname -s)}
 lookup_path=${DOCTOR_PATH:-$PATH}
 home=${DOCTOR_HOME:-$HOME}
 skipped=" ${DOCTOR_SKIP:-} "
-wanted_node=$(tr -d '[:space:]' < "$root/.nvmrc")
+wanted_node=$(sed -E 's/^v?([0-9]+).*/\1/' "$root/.nvmrc" | tr -d '[:space:]')
 wanted_pnpm=$(sed -nE 's/.*"packageManager": *"pnpm@([^"]+)".*/\1/p' "$root/package.json")
 
 have() { PATH=$lookup_path command -v "$1" >/dev/null 2>&1; }
@@ -93,7 +93,7 @@ fix_name_for() {
 }
 
 if [[ "${1:-}" == --fix ]]; then
-  fix_for "$(fix_name_for "$2")"
+  fix_for "$(fix_name_for "${2:-}")"
   exit 0
 fi
 

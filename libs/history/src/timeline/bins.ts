@@ -1,11 +1,10 @@
-import { MINUTE_MS, SECOND_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
+import { MINUTE_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
 import type { EditRun } from './runs';
 
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
 export const MAX_BINS = 120;
 const EDGE_BINS = 1;
 const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 1;
-const WEEK_MS = 10_080 * MINUTE_MS;
 const SUB_MINUTE_BINS_MS = [10 * SECOND_MS, 30 * SECOND_MS];
 const BIN_LADDER_MINUTES = [1, 2, 5, 10, 15, 30, 60, 180, 360, 720, 1440];
 export const BIN_LADDER_MS = [...SUB_MINUTE_BINS_MS, ...BIN_LADDER_MINUTES.map((minutes) => minutes * MINUTE_MS), WEEK_MS];
@@ -48,6 +47,7 @@ export function buildBins({
 }): TimelineBin[] {
   return binStarts.map((start) => ({
     start,
+    end: start + binMs,
     versionSequence: versionSequenceAt(start + binMs - 1),
     byBand: runs
       .filter((run) => run.binStart === start)

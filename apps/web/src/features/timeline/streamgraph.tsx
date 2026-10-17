@@ -95,6 +95,15 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
     onSelectIndex(layout.binAt(offsetOf(event)));
   }
 
+  function endPointerPress(): void {
+    isPointerFocus.current = false;
+  }
+
+  function handlePointerLeave(): void {
+    endPointerPress();
+    setHovered(null);
+  }
+
   function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
     const index = layout.binAt(offsetOf(event));
     setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top });
@@ -156,7 +165,8 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         aria-describedby={descriptionId}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerLeave={() => setHovered(null)}
+        onPointerUp={endPointerPress}
+        onPointerLeave={handlePointerLeave}
       >
         <title id={titleId}>{STREAMGRAPH_TITLE}</title>
         <desc id={descriptionId}>

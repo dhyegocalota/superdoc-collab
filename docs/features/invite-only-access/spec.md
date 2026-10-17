@@ -37,8 +37,9 @@ Sign-up is open. Anyone who finds the URL creates an account, uploads documents 
   - unclaimed → allowed; the request is marked as a **claim**;
   - claimed and the body carries `inviteToken` that resolves to a pending, unexpired, unrevoked invite → allowed; the request is marked with the invite id;
   - otherwise → `APIError('FORBIDDEN', { message: SIGN_UP_BY_INVITATION_MESSAGE })`.
-- The `hooks.after` for the same path: on a claim, sets `role = admin` on the created user; on an invite, stamps `acceptedBy` and `acceptedAt`. Both run in the same SQLite connection as the user insert; a failure here throws and the response is 500 with the user row left in place, which the test plan covers (an admin can still promote by hand; see Failure handling).
-- Two claims racing: the gate reads the user count, both pass, both insert. The after hook sets `admin` only when the created user is the **earliest** row by `createdAt` then `id`; the other becomes a plain user. Pinned by a unit test with two concurrent sign-ups.
+- The gate is a local Better Auth plugin (`sign-up-gate`) with `matcher`-based `before` and `after` hooks on `/sign-up/email`; composing the existing `hooks.before`/`hooks.after` is not possible (Better Auth wraps every hook result, so a composed middleware short-circuits every endpoint). The `after` hook decides by data, never by the header: if the created user is the earliest row, it becomes admin; otherwise the pending invite in the header is consumed with a conditional update; if there is no token or the update changes no row, the fresh user is deleted and the response is 403 with the same message. A genuine database error is a 500 with the row left; `admin-promote` recovers an instance claimed without an admin.
+- Two claims racing: the gate reads the user count, both pass, both insert; only the earliest row by `createdAt` then `id` becomes admin. A token sent on an unclaimed instance is ignored: the claim wins by being earliest. Both pinned by unit tests.
+- Better Auth's `admin` plugin ships its own endpoints under `/api/auth/admin/*` (impersonate a user, create a user with any role, set a password, set a role, remove, ban). They would let an admin read other users' documents and bypass the gate and the last-admin rule, so the Hono app answers 404 for that prefix before `auth.handler`, the web never installs `adminClient`, and a test calls each path as the admin and expects 404. `role` is `input: false` on the plugin, so neither the sign-up body nor `/update-user` can set it; both are pinned.
 
 ### Time zone at sign-up
 
@@ -76,7 +77,7 @@ Admin routes answer 401 signed out and 403 for a non-admin; `requireAdmin` middl
 
 - `/sign-in`: a "Claim this instance" link replaces "Create account" while `GET /api/setup` says unclaimed; when claimed there is no sign-up link at all.
 - `/sign-up`: reads `?invite=`. Unclaimed and no token: heading "Claim this instance", copy "The first account becomes the administrator." Claimed with a token: `GET /api/invites/:token` first; `pending` shows the form with the heading "You were invited"; anything else shows "This invite is not valid. Ask an admin for a new link." Claimed without a token: the same message. A 403 from the server (race or a token that died between the check and the submit) shows the server's message on the form.
-- `/admin`: route guarded by `requireSession` plus `role === admin`; non-admins see the documents page with a toast "Admins only". Sections: **Users** (name, email, role, joined; a role toggle per row except the signed-in admin's own) and **Invites** (state, created, expires, created by, accepted by; "Generate invite" creates one and copies the URL to the clipboard with a toast "Invite link copied"; "Revoke" on pending rows). The header shows an "Admin" link for admins.
+- `/admin`: route guarded by `requireSession` plus `role === admin`; non-admins see the documents page with a toast "Admins only". Sections: **Users** (name, email, role, joined; a role toggle per row except the signed-in admin's own) and **Invites** (state, created, expires, created by, accepted by; "Revoke" on pending rows). "Generate invite" creates one and opens a dialog showing the full URL in a read-only field with a "Copy link" button; copying is a convenience, the field is the source of truth, and the dialog is the only time the URL is shown (owner ruling 2026-10-17: the clipboard is unavailable on plain-HTTP LAN installs). The header shows an "Admin" link for admins.
 - `useSession` exposes `role`; `SessionUser` gains `role`.
 
 ### Seeds and environment
@@ -95,7 +96,8 @@ The README is rewritten for a newcomer, in this order: one-paragraph pitch, thre
 |---|---|
 | Sign-up when claimed, no or bad token | 403 with `SIGN_UP_BY_INVITATION_MESSAGE`; nothing written |
 | Token valid at page load, consumed or revoked before submit | 403 from the gate; the form shows the message, nothing written |
-| After hook fails on a claim | the user exists as `user`; the instance is claimed with no admin. Recovery: `pnpm admin:promote <email>` script in `apps/server` (one file, uses the repository), documented under Limits |
+| Invite consumed between the gate and the after hook, or no token on a claimed instance | the fresh user is deleted; 403 with the invitation message; nothing written (owner ruling 2026-10-17) |
+| Database error while writing the role or the invite | 500; the user row stays; `node dist/admin-promote.js <email>` (`railway ssh --` or `docker compose exec app`) recovers; documented under Limits |
 | Two concurrent claims | one admin, one user (earliest row wins) |
 | The last admin is demoted (by themselves or by nobody else, since they are the last) | 409, role unchanged |
 | Revoke an accepted invite | 409 |

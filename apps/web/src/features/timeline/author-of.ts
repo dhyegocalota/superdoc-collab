@@ -7,3 +7,7 @@ export function authorOf({ authors, authorKey }: { authors: Record<string, Event
   if (!author) throw new MissingAuthorError(authorKey);
   return author;
 }
+
+export function authorNames({ authors, authorKeys }: { authors: Record<string, EventAuthor>; authorKeys: string[] }): string {
+  return '';
+}

@@ -86,6 +86,8 @@ The reviewer picks the three claims most likely to be wrong and tries to refute 
 
 ## Coverage honesty
 
+- The walk ran on `a4c7edf`, before the review fixes in `3bd9c52`. The three behaviours those fixes added are pinned by tests, not walked: the 400 for an unknown or oversized zone on `/update-user` (`auth-admin-endpoints.test.ts`, real HTTP), the error shown when `/api/setup` fails (`sign-up-page.test.tsx`), and the setup refresh after a successful submit (`use-auth-submit.test.tsx`).
+
 - A network cut after the create request reaches the server but before its answer reaches the page leaves a pending invite whose link was never shown. It admits nobody (the token exists only in that lost response), is visible as Pending, can be revoked, and expires in seven days. Accepted rather than fixed.
 
 - The claim flow is not in the Playwright suite (the shared stack is seeded and therefore claimed); it is pinned by real-HTTP server tests and by the MCP walk on a fresh stack.

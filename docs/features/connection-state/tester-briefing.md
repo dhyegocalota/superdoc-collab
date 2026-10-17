@@ -254,3 +254,8 @@ Run on the integration branch merged into the lane, ports 3100, 3199 and 3150 fr
 - Review-fix red/green pairs: hook `058ac98`/`0b1027e`, banner `133e011`/`a4a3a58`, page `f3deef0`/`68b73e4`.
 
 - Restart test, renamed `a server restart shows reconnecting, recovered, then clears`: the tester never saw `lost`, because the provider reports lost and reconnecting in the same tick. The test requires `reconnecting` then `recovered` in order, and `lost` only as an optional entry before `reconnecting`. Not rerun after this change.
+### G3b: tester defect fixes
+- Failed copy shortened and pinned by length in `connection-copy.test.ts` (red `fb2be35`, green `d57cf17`).
+- Reload with the server down keeps the page, the Failed banner and an enabled button, and shows `RELOAD_FAILED_MESSAGE` (red `5ef11d9`, green in the commit after it). A failed open refetch no longer replaces a page that already has its data.
+- A 401 raises `AuthenticationError` and `pollWhileAvailable` stops (red `16ce466`, green `de14172`).
+- Not done: a session-ended reason. The repository holds no recorded callback `detail` for a removed cookie, the E2E spec does not record payloads, and the SuperDoc worker code is minified, so nothing distinctive could be read without running the E2E. The reason stays Unknown.

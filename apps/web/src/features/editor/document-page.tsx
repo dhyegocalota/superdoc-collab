@@ -10,6 +10,7 @@ import { useDocumentTitle } from '@/lib/use-document-title';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
+import { RELOAD_FAILED_MESSAGE } from './connection-copy';
 import { documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
@@ -47,13 +48,14 @@ export function DocumentPage() {
   });
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [isReloading, setIsReloading] = useState(false);
+  const [hasReloadFailed, setHasReloadFailed] = useState(false);
   const superdocRef = useRef<SuperDoc | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
 
-  if (error) return <UnavailableNotice message={error.message} />;
+  if (error && !opened) return <UnavailableNotice message={error.message} />;
   if (isUnavailable) return <UnavailableNotice message={DOCUMENT_UNAVAILABLE_MESSAGE} />;
   if (!opened) return <OpeningDocument />;
 
@@ -69,13 +71,16 @@ export function DocumentPage() {
 
   async function reload(): Promise<void> {
     setIsReloading(true);
+    setHasReloadFailed(false);
     try {
       await Promise.all([
-        queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true }),
-        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode }), exact: true }),
+        queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true }, { throwOnError: true }),
+        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode }), exact: true }, { throwOnError: true }),
       ]);
       resetConnection();
       setEditorGeneration((generation) => generation + 1);
+    } catch {
+      setHasReloadFailed(true);
     } finally {
       setIsReloading(false);
     }
@@ -93,6 +98,7 @@ export function DocumentPage() {
       />
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={isReloading} onReload={reload} />
+      {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
         <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>
           <VersionBanner timeTravel={timeTravel} />

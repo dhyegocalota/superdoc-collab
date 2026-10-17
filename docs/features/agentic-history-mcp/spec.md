@@ -15,13 +15,13 @@ A person who works on a document in SuperDoc History cannot ask their own AI cli
 1. Any MCP client (Claude Code, Cursor, ChatGPT and others) connects to the deployed app as a real person, through OAuth, and acts with that person's permissions.
 2. The person sees every connected client and can revoke each one; the next call from a revoked client fails.
 3. Four tool families: read the history, edit the live document in tracked mode, export DOCX, and share with the same rules as the UI.
-4. Every AI edit is visibly the person's AI: "Name · AI" on tracked-change cards, a hatched layer in the streamgraph, an AI badge on authors, and timeline marks for share and export actions.
+4. Every AI edit is visibly the person's AI: "Name · AI" on SuperDoc tracked-change cards, a hatched layer in the streamgraph, an AI icon next to the author's plain name (driven by the actor, [ADR 0027](../../adr/0027-the-actor-not-the-name-marks-an-ai-in-our-interface.md)), and timeline marks for share and export actions.
 
 ### Acceptance walk
 
 1. The reviewer opens the deployed app, goes to Connected apps, and runs one command in Claude Code: `claude mcp add --transport http history <url>`. OAuth opens the app, they approve, and the page lists "Claude Code · connected" with a Revoke button.
 2. In Claude Code they ask "what changed in this document this week and by whom?" and get an answer built from the real history.
-3. They ask "rewrite the second paragraph more formally". In the browser a tracked change signed "Name · AI" appears, the streamgraph gains a hatched layer in that topic's colour, and the author list shows the AI badge.
+3. They ask "rewrite the second paragraph more formally". In the browser a tracked change signed "Name · AI" appears, the streamgraph gains a hatched layer in that topic's colour, and the author list shows the person's name with the AI icon.
 4. They ask for the read link. The AI does not get the link: it points them to the Share dialog of the document, where they copy it themselves. When they ask the AI to rotate the read link, the timeline shows a mark "Name · AI rotated a share link".
 5. They click Revoke. The next tool call in Claude Code fails with 401.
 
@@ -106,7 +106,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 
 - `oauth-consent/`: the consent page on the shared auth card; client name, scopes in plain words, Approve and Deny; `oauth-consent-copy.ts`.
 - `connected-apps/`: list from `get-consents` with client name, connected date and scopes; Revoke calls `delete-consent` and invalidates the list; MCP URL and snippets for Claude Code, Cursor and ChatGPT with copy buttons; `connected-apps-copy.ts`. Reached from the user menu.
-- `timeline/`: hatched agent layer per band, legend row, AI badge on `AuthorAvatar`, "Name · AI" in author names, agent action marks with tooltips.
+- `timeline/`: hatched agent layer per band, legend row, AI icon (from the actor) on `AuthorAvatar` and next to author names, "<Name>'s AI" in action-mark tooltips, agent action marks with tooltips.
 
 ### Failure handling
 
@@ -132,6 +132,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 | How does a client authorize? | personal token · OAuth · token then OAuth | OAuth, with revocable connected apps | 2026-10-17 |
 | Which tool families ship first? | read · edit · export · share | all four | 2026-10-17 |
 | How far does sharing go? | parity with the UI · read link only · list only | parity, every AI share action is a timeline mark | 2026-10-17 |
+| How do we mark an AI in our own UI? | suffix in the name · icon from the actor | icon from the actor; names stay free-form; only the SuperDoc session name keeps " · AI" ([ADR 0027](../../adr/0027-the-actor-not-the-name-marks-an-ai-in-our-interface.md)) | 2026-10-17 |
 | What is the acceptance walk? | — | the five steps above | 2026-10-17 |
 | Which architecture? | monolith module · separate service · edits without the SDK | monolith module in `apps/server` | 2026-10-17 |
 | Does the SDK `open` accept a user per document, avoiding one host per person? | — | yes: `open({ userName, userEmail })` signs tracked changes per session; two sessions on one host kept their own names (probe on the spike stack) | 2026-10-17 |

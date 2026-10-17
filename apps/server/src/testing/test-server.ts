@@ -127,7 +127,7 @@ async function postCredentials({
   const clientAddress = `10.200.0.${nextClientAddress++}`;
   return fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress },
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: server.baseUrl },
     body: JSON.stringify(body),
   });
 }

@@ -1,7 +1,7 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage } from 'node:http';
 import { materialize, type UpdateLog } from '@superdoc-history/history';
-import { ApiPath, ClientActor, DocumentRole, SECOND_MS } from '@superdoc-history/types';
+import { ClientActor, DocumentRole, SECOND_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -9,7 +9,7 @@ import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { createClientDeclarer } from './client-declarations';
 import { documentIdFromRoomName } from './room-name';
-import { upgradePathname } from './upgrade-path';
+import { isAgentUpgrade } from './upgrade-path';
 
 export const COLLABORATION_SOCKET_TIMEOUT_MS = 10 * SECOND_MS;
 const STORE_DEBOUNCE_MS = 2 * SECOND_MS;
@@ -27,7 +27,7 @@ function requireDocumentId(roomName: string): string {
 
 function connectionActorOf(request: IncomingMessage): ClientActor {
   if (!request.url) throw new CollaborationAuthenticationError();
-  return upgradePathname(request.url) === ApiPath.AgentCollaboration ? ClientActor.Agent : ClientActor.Human;
+  return isAgentUpgrade(request.url) ? ClientActor.Agent : ClientActor.Human;
 }
 
 export function createCollaborationServer({

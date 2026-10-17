@@ -1,29 +1,41 @@
 import { AgentScope, HttpStatus } from '@superdoc-history/types';
+import { isAPIError } from 'better-auth/api';
+import { requestToResourceInput, verifyAccessTokenRequest } from 'better-auth/oauth2';
 import type { Auth } from '../auth/auth';
+import { mcpResourceOf } from '../auth/auth';
 
-const BEARER_PREFIX = 'Bearer ';
 const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource';
+const JWKS_PATH = '/jwks';
 const CONSENT_MODEL = 'oauthConsent';
+const ACCESS_TOKEN_TYPE = 'at+jwt';
+const SCOPE_SEPARATOR = ' ';
+const TOKEN_SEPARATOR = ' ';
+const JWT_SEPARATOR = '.';
 const AGENT_SCOPES = new Set<string>(Object.values(AgentScope));
 
 export type AgentPrincipal = { userId: string; clientId: string; scopes: AgentScope[] };
 
-type AccessTokenClaims = { sub?: unknown; client_id?: unknown; scope?: unknown };
-
-function readBearerToken(request: Request): string | null {
-  const header = request.headers.get('authorization');
-  if (!header?.startsWith(BEARER_PREFIX)) return null;
-  return header.slice(BEARER_PREFIX.length);
+function isAccessTokenType(request: Request): boolean {
+  const token = request.headers.get('authorization')?.trim().split(TOKEN_SEPARATOR).at(-1);
+  const [header] = token?.split(JWT_SEPARATOR) ?? [];
+  if (!header) return false;
+  const { typ } = JSON.parse(Buffer.from(header, 'base64url').toString()) as { typ?: string };
+  return typ === ACCESS_TOKEN_TYPE;
 }
 
 export async function authorizeAgentRequest({ auth, request }: { auth: Auth; request: Request }): Promise<AgentPrincipal | null> {
-  const token = readBearerToken(request);
-  if (!token) return null;
-  const { payload } = await auth.api.verifyJWT({ body: { token } });
-  if (!payload) return null;
-  const { sub: userId, client_id: clientId, scope } = payload as AccessTokenClaims;
+  const { adapter, baseURL } = await auth.$context;
+  const appOrigin = new URL(baseURL).origin;
+  const claims = await verifyAccessTokenRequest(requestToResourceInput(request), {
+    verifyOptions: { issuer: appOrigin, audience: mcpResourceOf(appOrigin) },
+    jwksUrl: `${baseURL}${JWKS_PATH}`,
+  }).catch((error: unknown) => {
+    if (isAPIError(error)) return null;
+    throw error;
+  });
+  if (!claims || !isAccessTokenType(request)) return null;
+  const { sub: userId, client_id: clientId, scope } = claims;
   if (typeof userId !== 'string' || typeof clientId !== 'string' || typeof scope !== 'string') return null;
-  const { adapter } = await auth.$context;
   // NB ADR 0021: delete-consent leaves issued tokens valid, so the consent is checked per request
   const consent = await adapter.findOne({
     model: CONSENT_MODEL,
@@ -33,7 +45,7 @@ export async function authorizeAgentRequest({ auth, request }: { auth: Auth; req
     ],
   });
   if (!consent) return null;
-  const scopes = scope.split(' ').filter((granted): granted is AgentScope => AGENT_SCOPES.has(granted));
+  const scopes = scope.split(SCOPE_SEPARATOR).filter((granted): granted is AgentScope => AGENT_SCOPES.has(granted));
   return { userId, clientId, scopes };
 }
 

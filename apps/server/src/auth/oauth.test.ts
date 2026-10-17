@@ -1,8 +1,9 @@
 import { AgentScope, ApiPath, HttpStatus } from '@superdoc-history/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { startTestServer, type TestServer } from '../testing/test-server';
+import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 
 const AUTHORIZATION_SERVER_PATH = '/.well-known/oauth-authorization-server';
+const FOREIGN_ORIGIN = 'https://evil.example';
 const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource';
 
 type AuthorizationServerMetadata = { issuer: string; scopes_supported: string[]; registration_endpoint: string };
@@ -35,5 +36,18 @@ describe('oauth discovery', () => {
     const response = await fetch(`${server.baseUrl}${PROTECTED_RESOURCE_PATH}${ApiPath.Mcp}`);
     expect(response.status).toBe(HttpStatus.Ok);
     expect(((await response.json()) as ProtectedResourceMetadata).resource).toBe(`${server.baseUrl}${ApiPath.Mcp}`);
+  });
+
+  test.each([
+    { name: 'a foreign origin', isForeign: true, status: HttpStatus.Forbidden },
+    { name: 'the app origin', isForeign: false, status: HttpStatus.BadRequest },
+  ])('a consent post from $name answers $status', async ({ isForeign, status }) => {
+    const victim = await signedInUser({ server, name: 'Victor' });
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/consent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: victim.cookie, origin: isForeign ? FOREIGN_ORIGIN : server.baseUrl },
+      body: JSON.stringify({ accept: true }),
+    });
+    expect(response.status).toBe(status);
   });
 });

@@ -1,6 +1,6 @@
 import { mcp } from '@better-auth/mcp';
 import { AgentScope, ApiPath, AppRoute, OFFLINE_ACCESS_SCOPE, signInSchema, signUpSchema } from '@superdoc-history/types';
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthPlugin } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { jwt } from 'better-auth/plugins';
@@ -14,6 +14,8 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
 const SIGN_IN_PATH = '/sign-in/email';
 const SIGN_UP_PATH = '/sign-up/email';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
+const AUTHORIZE_PATH = '/oauth2/authorize';
+const TOKEN_PATH = '/oauth2/token';
 const OAUTH_SCOPES = [...Object.values(AgentScope), OFFLINE_ACCESS_SCOPE];
 
 const credentialSchemas: Record<string, typeof signInSchema> = {
@@ -41,6 +43,28 @@ export function mcpResourceOf(appOrigin: string): string {
   return `${appOrigin}${ApiPath.Mcp}`;
 }
 
+function defaultResourcePlugin(resource: string) {
+  const supplyResource = createAuthMiddleware(async (context) => {
+    if (context.path === AUTHORIZE_PATH && !context.query?.resource) {
+      return { context: { ...context, query: { ...context.query, resource } } };
+    }
+    if (context.path === TOKEN_PATH && !context.body?.resource) {
+      return { context: { ...context, body: { ...context.body, resource } } };
+    }
+  });
+  return {
+    id: 'default-mcp-resource',
+    hooks: {
+      before: [
+        {
+          matcher: (context: { path?: string }) => context.path === AUTHORIZE_PATH || context.path === TOKEN_PATH,
+          handler: supplyResource,
+        },
+      ],
+    },
+  } satisfies BetterAuthPlugin;
+}
+
 export function createAuth({ database, environment }: { database: AuthDatabase; environment: Environment }) {
   return betterAuth({
     secret: environment.authSecret,
@@ -50,6 +74,7 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
     emailAndPassword: { enabled: true },
     plugins: [
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
+      defaultResourcePlugin(mcpResourceOf(environment.appOrigin)),
       mcp({
         loginPage: AppRoute.SignIn,
         consentPage: AppRoute.OAuthConsent,
@@ -61,7 +86,7 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
       }),
     ],
     hooks: { before: normalizeCredentials, after: omitSessionToken },
-    advanced: { ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
+    advanced: { disableOriginCheck: false, ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
     rateLimit: { enabled: true, window: RATE_LIMIT_WINDOW_SECONDS, max: RATE_LIMIT_MAX_REQUESTS },
   });
 }

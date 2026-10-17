@@ -14,6 +14,7 @@ import { connect } from 'node:net';
 import { Duplex } from 'node:stream';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
+import { CollaborationRefusedError, connectAgentToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { attachCollaboration } from './attach-collaboration';
@@ -138,6 +139,11 @@ describe('attachCollaboration', () => {
     const response = await firstChunk({ server, path: ApiPath.AgentCollaboration, cookie: '', origin: '' });
     expect(response.startsWith('HTTP/1.1 101')).toBe(true);
     expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    await server.stop();
+  });
+  test('an agent path connection with an empty token is refused by authentication', async () => {
+    const { server, documentId } = await documentWithOwner();
+    await expect(connectAgentToDocument({ server, token: '', documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
     await server.stop();
   });
   test('an upgrade on a path that only extends the agent path is destroyed', async () => {

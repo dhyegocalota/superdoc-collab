@@ -27,6 +27,7 @@ The streamgraph re-renders on hover, scrub and every projection tick. Its cost g
 ## Consequences
 
 - A span just under a ladder boundary now takes the next coarser step (119 minutes draws 2-minute bins, not 1-minute bins) so that the cap holds.
+- Bin boundaries are aligned to the reader's time zone since [ADR 0024](0024-times-follow-the-readers-zone-storage-stays-epoch.md); the count and the padding rule above are unchanged.
 - `libs/history/src/timeline/bins.test.ts` asserts the real count of `binStartsCovering` across spans and offsets, not the arithmetic of `chooseBinMs` alone.
 
 ## Evidence

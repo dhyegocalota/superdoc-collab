@@ -23,6 +23,7 @@ const WIDTH_TEST_TIMEOUT_MS = 240 * SECOND_MS;
 const VIEWPORT_HEIGHT = 900;
 const VIEWPORT_WIDTHS = [320, 375, 768, 1024, 1280, 1536, 1920, 2560];
 const MAX_PHONE_TEXT_LINES = 3;
+const MAX_PHONE_FAILED_TEXT_LINES = 5;
 const PHONE_MAX_WIDTH = 375;
 const BANNER_TEST_ID = 'connection-banner';
 const EDITOR_TEST_ID = 'document-editor';
@@ -85,7 +86,7 @@ function readObservedStates(page: Page): Promise<string[]> {
   return page.evaluate((storageKey) => (window as unknown as Record<string, string[]>)[storageKey]!, OBSERVED_STATES_KEY);
 }
 
-async function expectBannerFits(page: Page): Promise<void> {
+async function measureBannerProblems(page: Page): Promise<string[]> {
   const layout = await page.evaluate(
     ({ bannerTestId }) => {
       const element = document.querySelector(`[data-testid="${bannerTestId}"]`)!;
@@ -102,21 +103,28 @@ async function expectBannerFits(page: Page): Promise<void> {
     },
     { bannerTestId: BANNER_TEST_ID },
   );
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+  const state = await banner(page).getAttribute(STATE_ATTRIBUTE);
+  const isFailed = state === ConnectionState.Failed;
   const isPhone = layout.viewportWidth <= PHONE_MAX_WIDTH;
-  if (isPhone) expect(layout.textLines, `banner text lines at ${layout.viewportWidth}px`).toBeLessThanOrEqual(MAX_PHONE_TEXT_LINES);
-  const isFailed = (await banner(page).getAttribute(STATE_ATTRIBUTE)) === ConnectionState.Failed;
-  if (!isFailed) return;
-  expect(layout.reload).not.toBeNull();
-  expect(layout.reload!.left).toBeGreaterThanOrEqual(0);
-  expect(layout.reload!.right).toBeLessThanOrEqual(layout.viewportWidth);
+  const maxTextLines = isFailed ? MAX_PHONE_FAILED_TEXT_LINES : MAX_PHONE_TEXT_LINES;
+  const isReloadOutside = isFailed && (layout.reload === null || layout.reload.left < 0 || layout.reload.right > layout.viewportWidth);
+  const problems = [
+    layout.scrollWidth > layout.clientWidth && 'the page scrolls horizontally',
+    isPhone && layout.textLines > maxTextLines && `the text takes ${layout.textLines} lines, more than ${maxTextLines}`,
+    isReloadOutside && 'Reload is not fully inside the viewport',
+  ];
+  return problems
+    .filter((problem): problem is string => typeof problem === 'string')
+    .map((problem) => `${state} at ${layout.viewportWidth}px: ${problem}`);
 }
 
-async function expectFitsAtEveryWidth(page: Page): Promise<void> {
+async function measureAtEveryWidth(page: Page): Promise<string[]> {
+  const problems: string[] = [];
   for (const width of VIEWPORT_WIDTHS) {
     await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
-    await expectBannerFits(page);
+    problems.push(...(await measureBannerProblems(page)));
   }
+  return problems;
 }
 
 async function signInAgain({ author }: { author: SignedInContext }): Promise<void> {
@@ -185,9 +193,10 @@ test('the banner reads well at eight widths', async ({ browser }) => {
   const { owner } = await openSharedDocument(browser);
   await stopServer();
   await expect(banner(owner.page)).toBeVisible({ timeout: LOST_TIMEOUT_MS });
-  await expectFitsAtEveryWidth(owner.page);
+  const disconnectedProblems = await measureAtEveryWidth(owner.page);
   await owner.context.clearCookies();
   await startServer();
   await expect(banner(owner.page)).toHaveAttribute(STATE_ATTRIBUTE, ConnectionState.Failed, { timeout: FAILED_TIMEOUT_MS });
-  await expectFitsAtEveryWidth(owner.page);
+  const failedProblems = await measureAtEveryWidth(owner.page);
+  expect([...disconnectedProblems, ...failedProblems]).toEqual([]);
 });

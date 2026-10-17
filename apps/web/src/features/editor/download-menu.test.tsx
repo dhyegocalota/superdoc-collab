@@ -48,8 +48,8 @@ function DownloadHarness({ superdoc, onDownloadDocx }: { superdoc: SuperDoc | nu
   );
 }
 
-function liveDocument(exportResult: Promise<Blob>) {
-  return { export: vi.fn(() => exportResult) };
+function liveDocument(exportBlob: () => Promise<Blob>) {
+  return { export: vi.fn(exportBlob) };
 }
 
 function printContainer(): HTMLElement | null {
@@ -88,7 +88,7 @@ test('both parts are disabled while the editor is not ready', () => {
 });
 
 test('Download PDF exports the live document to a Blob with triggerDownload false, mounts PrintView off-screen, calls window.print only after the last .superdoc-page has text, and afterprint unmounts it', async () => {
-  const live = liveDocument(Promise.resolve(EXPORTED_BLOB));
+  const live = liveDocument(() => Promise.resolve(EXPORTED_BLOB));
   const onDownloadDocx = vi.fn();
   renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={onDownloadDocx} />);
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
@@ -116,11 +116,14 @@ test('Download PDF exports the live document to a Blob with triggerDownload fals
   });
   expect(printContainer()).toBeNull();
   expect(superdocDestroy).toHaveBeenCalledTimes(1);
-  await waitFor(() => expect(screen.queryByText(PREPARING_PDF_MESSAGE)).toBeNull());
+  await waitFor(() => {
+    act(() => vi.advanceTimersToNextFrame());
+    expect(screen.queryByText(PREPARING_PDF_MESSAGE)).toBeNull();
+  });
 });
 
 test('a failed export shows the PDF failure toast and prints nothing', async () => {
-  const live = liveDocument(Promise.reject(new Error('export failed')));
+  const live = liveDocument(() => Promise.reject(new Error('export failed')));
   renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={vi.fn()} />);
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
@@ -130,7 +133,7 @@ test('a failed export shows the PDF failure toast and prints nothing', async () 
 });
 
 test('the main part hands the DOCX to the page and does not export a PDF', async () => {
-  const live = liveDocument(Promise.resolve(EXPORTED_BLOB));
+  const live = liveDocument(() => Promise.resolve(EXPORTED_BLOB));
   const onDownloadDocx = vi.fn();
   renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={onDownloadDocx} />);
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));

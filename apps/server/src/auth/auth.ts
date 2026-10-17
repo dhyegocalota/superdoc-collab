@@ -1,7 +1,9 @@
-import { signInSchema, signUpSchema } from '@superdoc-history/types';
+import { mcp } from '@better-auth/mcp';
+import { AgentScope, ApiPath, AppRoute, signInSchema, signUpSchema } from '@superdoc-history/types';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { jwt } from 'better-auth/plugins';
 import type { Environment } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
@@ -12,6 +14,8 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
 const SIGN_IN_PATH = '/sign-in/email';
 const SIGN_UP_PATH = '/sign-up/email';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
+const REFRESH_SCOPE = 'offline_access';
+const OAUTH_SCOPES = [...Object.values(AgentScope), REFRESH_SCOPE];
 
 const credentialSchemas: Record<string, typeof signInSchema> = {
   [SIGN_IN_PATH]: signInSchema,
@@ -41,6 +45,17 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
     trustedOrigins: [environment.appOrigin],
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),
     emailAndPassword: { enabled: true },
+    plugins: [
+      jwt({ jwt: { issuer: environment.appOrigin } }),
+      mcp({
+        loginPage: AppRoute.SignIn,
+        consentPage: AppRoute.OAuthConsent,
+        resource: `${environment.appOrigin}${ApiPath.Mcp}`,
+        scopes: OAUTH_SCOPES,
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+      }),
+    ],
     hooks: { before: normalizeCredentials, after: omitSessionToken },
     advanced: { ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
     rateLimit: { enabled: true, window: RATE_LIMIT_WINDOW_SECONDS, max: RATE_LIMIT_MAX_REQUESTS },

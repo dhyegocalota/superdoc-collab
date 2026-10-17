@@ -5,6 +5,7 @@ import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import type { ReadModel, UpdateLog } from '@superdoc-history/history';
 import type { Auth } from '../auth/auth';
+import { mountOAuthDiscovery } from '../auth/oauth-discovery';
 import type { Environment } from '../config/environment';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -75,6 +76,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
     return auth.handler(withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy }));
   });
+  mountOAuthDiscovery({ app, auth });
   app.get(ApiPath.Me, createMeHandler({ auth }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));

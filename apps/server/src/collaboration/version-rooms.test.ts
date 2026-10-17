@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import { bootstrappedDocument, editedAfterBootstrap } from '../testing/timeline-client';
-import { parseVersionPath } from './version-rooms';
+import { parseVersionPath, STOP_TIMEOUT_MS } from './version-rooms';
 
 const POLL_TIMEOUT_MS = 15_000;
 const SETUP_TIMEOUT_MS = 30_000;
@@ -14,6 +14,7 @@ const LONG_IDLE_MS = MINUTE_MS;
 const FOREIGN_ORIGIN = 'https://evil.example';
 const ROOM_LIMIT = 2;
 const DEFAULT_LIMIT = 32;
+const DESTROY_FAILURE = 'destroy failed';
 
 function endpointOf({ documentId, sequence }: { documentId: string; sequence: number }): string {
   return versionCollaborationPath({ documentId, sequence });
@@ -128,6 +129,26 @@ test('parseVersionPath accepts a version endpoint and refuses everything else', 
 test('an upgrade on a refused version path is destroyed like an unknown path', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
   await expect(connectToDocument({ server, cookie: owner.cookie, documentId, path: endpointOf({ documentId, sequence: 0 }) })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  client.close();
+  await server.stop();
+});
+
+test('stop clears its timeout when destroying a room fails', { timeout: SETUP_TIMEOUT_MS }, async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const [mark] = server.services.readModel.marks(documentId);
+  const viewer = await connectToDocument({ server, cookie: owner.cookie, documentId, path: endpointOf({ documentId, sequence: mark!.sequence }) });
+  const rooms = server.services.versionRooms as unknown as { destroy: (key: string) => Promise<void> };
+  const destroy = vi.spyOn(rooms, 'destroy').mockRejectedValue(new Error(DESTROY_FAILURE));
+  const scheduled = vi.spyOn(globalThis, 'setTimeout');
+  const cleared = vi.spyOn(globalThis, 'clearTimeout');
+  await expect(server.services.versionRooms.stop()).rejects.toThrow(DESTROY_FAILURE);
+  const stopIndex = scheduled.mock.calls.findIndex(([, delay]) => delay === STOP_TIMEOUT_MS);
+  expect(stopIndex).toBeGreaterThanOrEqual(0);
+  expect(cleared).toHaveBeenCalledWith(scheduled.mock.results[stopIndex]!.value);
+  scheduled.mockRestore();
+  cleared.mockRestore();
+  destroy.mockRestore();
+  viewer.close();
   client.close();
   await server.stop();
 });

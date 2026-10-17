@@ -18,6 +18,8 @@ function createWorker(databaseDirectory: string): Worker {
 }
 
 type ServedReply = VersionReply | BlocksReply;
+export const MAX_REQUEST_POSTS = 2;
+
 type Waiter = { resolve: (reply: ServedReply) => void; reject: (error: Error) => void };
 type WaitingRequest = { request: ProjectionRequest; waiters: Waiter[] };
 

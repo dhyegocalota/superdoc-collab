@@ -30,6 +30,12 @@ export function parseVersionPath(pathname: string): VersionEndpoint | null {
   return { documentId, sequence: Number(sequenceText) };
 }
 
+export enum VersionAdmission {
+  Allowed = 'allowed',
+  Refused = 'refused',
+  Unavailable = 'unavailable',
+}
+
 export class VersionRooms {
   private readonly rooms = new Map<string, VersionRoom>();
   private readonly auth: Auth;

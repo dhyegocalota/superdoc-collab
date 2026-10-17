@@ -57,6 +57,8 @@ export class ProjectionStoppedError extends Error {
   }
 }
 
+export class ProjectionRequestCrashedError extends Error {}
+
 export class ProjectionDegradedError extends Error {
   constructor() {
     super('Projection is disabled until the server restarts.');

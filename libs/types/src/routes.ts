@@ -49,8 +49,10 @@ export enum VersionResource {
 
 export const TAB_QUERY_KEY = 'tab';
 
+const TAB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function isTabId(value: string): boolean {
-  throw new Error('isTabId is not implemented');
+  return TAB_ID_PATTERN.test(value);
 }
 
 const REFRESH_SEGMENT = 'refresh';

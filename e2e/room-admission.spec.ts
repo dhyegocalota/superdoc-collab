@@ -13,6 +13,7 @@ import {
   MINUTE_MS,
   RoomMode,
   SECOND_MS,
+  SUPERDOC_ROOM_PREFIX,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
   ShareLinkRole,
   UPLOAD_FIELD,
@@ -22,9 +23,7 @@ import {
   type DocumentSummary,
   type OpenedDocument,
 } from '../libs/types/src';
-import { buildSeedDocx, findBootstrapSequence } from '../libs/history/src';
-import type { LoggedUpdate } from '../libs/history/src/update-log';
-import { SUPERDOC_ROOM_PREFIX } from '../apps/server/src/collaboration/room-name';
+import { UpdateLog, buildSeedDocx, findBootstrapSequence } from '../libs/history/src';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
@@ -32,6 +31,7 @@ import { expect, signedInContext, test } from './fixtures';
 const EDITOR_TEST_ID = 'document-editor';
 const CONNECTION_BANNER_TEST_ID = 'connection-banner';
 const CONNECTION_STATE_ATTRIBUTE = 'data-state';
+const SOCKETS_PER_UNINTERRUPTED_CREATE = 2;
 const RECONNECTING_STATE = 'reconnecting';
 const WAITING_VIEWPORTS = [
   { name: '375 px', viewport: { width: 375, height: 812 } },
@@ -106,23 +106,16 @@ function isOpenResponse(documentId: string): (response: Response) => boolean {
 
 function copyUncommittedUpdates({ sourceDocumentId, targetDocumentId }: { sourceDocumentId: string; targetDocumentId: string }): void {
   const history = new Database(join(process.env.E2E_DATABASE_DIR!, HISTORY_DATABASE_FILE));
-  const sourceUpdates = history
-    .prepare('SELECT sequence, update_bytes FROM updates WHERE document_name = ? ORDER BY sequence')
-    .all(sourceDocumentId) as { sequence: number; update_bytes: Buffer }[];
-  const commitSequence = findBootstrapSequence({
-    updates: sourceUpdates.map(({ sequence, update_bytes }) => ({ sequence, update: new Uint8Array(update_bytes) }) as LoggedUpdate),
-  });
+  const updateLog = new UpdateLog(history);
+  const sourceUpdates = updateLog.read({ documentName: sourceDocumentId, untilSequence: Number.MAX_SAFE_INTEGER });
+  const commitSequence = findBootstrapSequence({ updates: sourceUpdates });
   if (commitSequence === null) throw new Error('The source document never committed');
   const abandoned = sourceUpdates.filter(({ sequence }) => sequence < commitSequence);
-  if (!abandoned.some(({ update_bytes }) => update_bytes.includes(SEED_PARAGRAPH)))
+  if (!abandoned.some(({ update }) => Buffer.from(update).includes(SEED_PARAGRAPH)))
     throw new Error('The abandoned updates hold no seed text');
-  history
-    .prepare(
-      `INSERT INTO updates (document_name, connection_user_id, connection_actor, yjs_client_ids, server_time, update_bytes)
-       SELECT ?, connection_user_id, connection_actor, yjs_client_ids, server_time, update_bytes
-       FROM updates WHERE document_name = ? AND sequence < ? ORDER BY sequence`,
-    )
-    .run(targetDocumentId, sourceDocumentId, commitSequence);
+  abandoned.forEach(({ connectionUserId, connectionActor, update }) =>
+    updateLog.append({ documentName: targetDocumentId, connectionUserId, connectionActor, update }),
+  );
   history.close();
 }
 
@@ -256,9 +249,11 @@ test('a 10 MB DOCX commits and reopens as Join', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const documentId = await uploadDocument({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
   const sentFrameBytes: number[] = [];
-  ana.page.on('websocket', (socket) =>
-    socket.on('framesent', ({ payload }) => sentFrameBytes.push(typeof payload === 'string' ? Buffer.byteLength(payload) : payload.length)),
-  );
+  let socketCount = 0;
+  ana.page.on('websocket', (socket) => {
+    socketCount++;
+    socket.on('framesent', ({ payload }) => sentFrameBytes.push(typeof payload === 'string' ? Buffer.byteLength(payload) : payload.length));
+  });
   const banner = ana.page.getByTestId(CONNECTION_BANNER_TEST_ID);
   await ana.page.goto(documentPagePath(documentId));
   await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
@@ -266,6 +261,7 @@ test('a 10 MB DOCX commits and reopens as Join', async ({ browser }) => {
     .poll(() => openDocument({ page: ana.page, documentId }), { timeout: LARGE_COMMIT_TIMEOUT_MS })
     .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
   expect(sentFrameBytes.length).toBeGreaterThan(0);
+  expect(socketCount).toBe(SOCKETS_PER_UNINTERRUPTED_CREATE);
   expect(Math.max(...sentFrameBytes)).toBeLessThan(MAX_SOCKET_MESSAGE_BYTES);
   await expect
     .poll(async () => ((await banner.count()) === 0 ? null : banner.getAttribute(CONNECTION_STATE_ATTRIBUTE)), {

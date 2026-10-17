@@ -25,6 +25,8 @@ docs/media        screenshots the README embeds
 .agents/roles     agent role bodies shared by `.claude/agents` and `.codex/agents`
 ```
 
+Every workspace package and `e2e/` has a `README.md`: purpose, commands, layout. Update it in the same change as the code it describes ([HARNESS → Build](.claude/HARNESS.md#4-build)).
+
 ## Language
 
 Everything in the repo is in English: code, identifiers, comments-free code, docs, ADRs, learnings, commits, PR titles and bodies. Conversation with the owner may be in Portuguese; files never are.

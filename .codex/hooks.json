@@ -37,6 +37,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/remind-docs.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking the docs that describe this change"
+          }
+        ]
+      }
     ]
   }
 }

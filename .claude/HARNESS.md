@@ -11,6 +11,7 @@ AGENTS.md            facts and conventions, pointers to this file          (CLAU
 .agents/hooks/       hook scripts (one source for .claude/settings.json and .codex/hooks.json)
 docs/features/<slug> spec.md + plan.md + test-plan.md for every feature or fix
 docs/adr/            decisions            docs/learnings/   dated traps
+<package>/README.md  apps/*, libs/* and e2e: purpose, commands, layout
 ```
 
 The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENTS.md` follow the same phases; only the mechanics of spawning sub-agents differ (see Agents). Every surface has one source under `.agents/` and a thin adapter per tool ([ADR 0014](../docs/adr/0014-one-source-per-agent-surface.md)).
@@ -66,6 +67,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
 - Stuck after three honest attempts → `systematic-debugging` skill, then escalate to the owner with evidence.
+- **Docs move with the code.** A change that makes a README, a `.claude/rules/` fact or the `AGENTS.md` layout wrong updates it in the same commit. A package README states purpose, commands and layout, never behaviour the code already shows, and links the folders it names so a rename fails CI. The `remind-docs.sh` Stop hook names the documents that describe uncommitted changes; update them or say why none applies.
 
 ## 5. Prove
 
@@ -89,7 +91,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 2. `test-plan.md` fully ticked by the tester, with evidence.
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
-5. Learnings sweep (section 8). "Nothing learned" is a valid answer, stated out loud.
+5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
 8. **E2E on CI before the merge.** The automatic workflow (`verify.yml`) runs `checks`, `unit` and `docker` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Once the PR is ready to merge, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build. Never merge on the local run alone.
@@ -175,7 +177,10 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
 | `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
+| `remind-docs.sh` | Stop | names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change, when those documents did not change; each document once until the next commit |
 
 The scripts live in `.agents/hooks/` and read the tool input from stdin, in the shape both tools send (`tool_input.file_path` from Claude Code, `apply_patch` headers in `tool_input.command` from Codex). Claude Code wires them in `.claude/settings.json`, Codex in `.codex/hooks.json`; `pnpm test:hooks` runs `.agents/hooks/hooks.test.sh` against both shapes and is part of `pnpm test:unit`.
 
-Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks.
+Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it names each document once until the next commit, never blocks a stop that is already continuing, and the agent may answer that nothing applies.
+
+CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README.

@@ -38,3 +38,4 @@ Refinement after the five slices:
 | [`refinement-structure`](refinement-structure/) | Prettier, the version viewer in `features/versions`, one date-time formatter, `repository-shape` and `testing` folder names | Building |
 | [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Shipped 2026-10-17 ([PR #10](https://github.com/dhyegocalota/superdoc-take-home/pull/10)) |
 | [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Building |
+| [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |

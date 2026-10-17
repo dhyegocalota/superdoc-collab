@@ -8,6 +8,7 @@ export const KEPT_AND_DATED_DETAIL = 'Your edits stay in this browser and are da
 export const UNSYNCED_LOST_ON_RELOAD_DETAIL =
   'Edits that have not synced are lost when you reload. Download the document first to keep them.';
 export const RELOAD_LABEL = 'Reload';
+export const RELOADING_LABEL = 'Reloading…';
 
 export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.AccessDenied]: 'Your session ended or your access to this document was removed.',

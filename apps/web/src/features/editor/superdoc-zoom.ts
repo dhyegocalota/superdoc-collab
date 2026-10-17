@@ -8,13 +8,13 @@ export enum ZoomMode {
 export const NARROW_VIEWPORT_QUERY = '(width < 64rem)';
 export const FULL_ZOOM_PERCENT = 100;
 
-export function initialZoomMode(): ZoomMode {
-  if (window.matchMedia(NARROW_VIEWPORT_QUERY).matches) return ZoomMode.FitWidth;
+export function initialZoomMode(viewport: Window): ZoomMode {
+  if (viewport.matchMedia(NARROW_VIEWPORT_QUERY).matches) return ZoomMode.FitWidth;
   return ZoomMode.Manual;
 }
 
-export function followViewportZoom(superdoc: SuperDoc): () => void {
-  const narrowViewport = window.matchMedia(NARROW_VIEWPORT_QUERY);
+export function followViewportZoom({ superdoc, viewport }: { superdoc: SuperDoc; viewport: Window }): () => void {
+  const narrowViewport = viewport.matchMedia(NARROW_VIEWPORT_QUERY);
   function applyZoom(event: MediaQueryListEvent): void {
     if (event.matches) {
       superdoc.setZoomMode(ZoomMode.FitWidth);

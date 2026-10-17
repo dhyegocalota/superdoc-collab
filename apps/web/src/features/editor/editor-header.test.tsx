@@ -194,3 +194,13 @@ test('Cancel closes the delete dialog, sends nothing and leaves the page clickab
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_LABEL }));
   expect(onDownload).toHaveBeenCalledTimes(1);
 });
+
+test('closing the delete dialog returns the focus to More actions', async () => {
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
+  await openDeleteDialog();
+  await userEvent.click(await screen.findByRole('button', { name: CANCEL_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: MORE_ACTIONS_LABEL })).toHaveFocus();
+});

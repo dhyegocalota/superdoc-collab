@@ -26,16 +26,16 @@ afterEach(() => vi.restoreAllMocks());
 
 test('a narrow viewport starts fitted to the width and a wide one at full size', () => {
   const { matchMedia } = viewportDouble(true);
-  expect(initialZoomMode()).toBe(ZoomMode.FitWidth);
+  expect(initialZoomMode(window)).toBe(ZoomMode.FitWidth);
   expect(matchMedia).toHaveBeenCalledWith(NARROW_VIEWPORT_QUERY);
   viewportDouble(false);
-  expect(initialZoomMode()).toBe(ZoomMode.Manual);
+  expect(initialZoomMode(window)).toBe(ZoomMode.Manual);
 });
 
 test('crossing the breakpoint switches the zoom both ways and unsubscribing stops it', () => {
   const viewport = viewportDouble(false);
   const superdoc = superdocDouble();
-  const stop = followViewportZoom(superdoc as unknown as SuperDoc);
+  const stop = followViewportZoom({ superdoc: superdoc as unknown as SuperDoc, viewport: window });
   viewport.change(true);
   expect(superdoc.setZoomMode).toHaveBeenCalledWith(ZoomMode.FitWidth);
   viewport.change(false);

@@ -21,6 +21,7 @@ import {
   SHARE_DIALOG_DESCRIPTION,
   SHARE_LABEL,
   SHARE_LINK_LABELS,
+  SHARE_LINKS_LOAD_ERROR_MESSAGE,
 } from './editor-copy';
 import { COPIED_NOTICE_MS, ShareDialog } from './share-dialog';
 
@@ -136,4 +137,43 @@ test('Link copied clears after a few seconds', async () => {
   act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS));
   expect(within(readRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
   vi.useRealTimers();
+});
+
+test('copying again keeps Link copied for a full period from the second copy', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockShareApi();
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  await openDialog();
+  const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  const copyButton = within(readRow).getByRole('button', { name: COPY_LABEL });
+  await user.click(copyButton);
+  expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
+  await user.click(copyButton);
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
+  expect(within(readRow).getByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
+  expect(within(readRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+test('links that fail to load show an alert instead of placeholders', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
+  await openDialog();
+  expect(await screen.findByRole('alert')).toHaveTextContent(SHARE_LINKS_LOAD_ERROR_MESSAGE);
+  expect(screen.queryByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).not.toBeInTheDocument();
+});
+
+test('copying the other link moves Link copied to that row', async () => {
+  mockShareApi();
+  const user = userEvent.setup();
+  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  await openDialog();
+  const editRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Edit] });
+  const readRow = screen.getByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  await user.click(within(editRow).getByRole('button', { name: COPY_LABEL }));
+  await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
+  expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  expect(within(editRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
 });

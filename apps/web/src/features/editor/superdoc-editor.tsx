@@ -30,10 +30,9 @@ type SuperDocEditorProps = {
   user: SessionUser;
   file: Blob;
   isInert: boolean;
-  focusOnReady: boolean;
 };
 
-export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert, focusOnReady }: SuperDocEditorProps) {
+export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
@@ -60,21 +59,17 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       ],
       user: { id: user.id, name: user.name, email: user.email },
       telemetry: SUPERDOC_TELEMETRY,
-      zoom: { mode: initialZoomMode() },
-      onReady: ({ superdoc: ready }) => {
-        if (!focusOnReady) return;
-        ready.focus();
-      },
+      zoom: { mode: initialZoomMode(window) },
       onException: () => setHasFailed(true),
     });
     superdocRef.current = superdoc;
-    const stopFollowingViewport = followViewportZoom(superdoc);
+    const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window });
     return () => {
       stopFollowingViewport();
       superdocRef.current = null;
       superdoc.destroy();
     };
-  }, [superdocRef, documentId, roomMode, role, user, file, focusOnReady]);
+  }, [superdocRef, documentId, roomMode, role, user, file]);
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;

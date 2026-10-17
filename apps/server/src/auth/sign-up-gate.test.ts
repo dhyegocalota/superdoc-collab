@@ -118,9 +118,10 @@ test('a token used by two concurrent sign-ups admits exactly one', async () => {
 });
 
 test('two concurrent first sign-ups leave exactly one admin and one user, ten rounds', async () => {
+  const server = await startTestServer({ claim: false });
   await Array.from({ length: CONCURRENT_CLAIM_ROUNDS }).reduce<Promise<void>>(async (previous, _value, round) => {
     await previous;
-    const server = await startTestServer({ claim: false });
+    server.database.sqlite.prepare('delete from user').run();
     const [first, second] = await Promise.all([
       signUp({ server, email: `a${round}@example.com` }),
       signUp({ server, email: `b${round}@example.com` }),
@@ -128,8 +129,8 @@ test('two concurrent first sign-ups leave exactly one admin and one user, ten ro
     expect([first.status, second.status].sort()).toEqual([HttpStatus.Ok, HttpStatus.Forbidden]);
     const roles = server.database.sqlite.prepare('select role from user').all() as { role: string }[];
     expect(roles).toEqual([{ role: UserRole.Admin }]);
-    await server.stop();
   }, Promise.resolve());
+  await server.stop();
 });
 
 test('a sign-up with an unknown time zone is refused before the gate and claims nothing', async () => {

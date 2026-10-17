@@ -1,5 +1,6 @@
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-collab/types';
+import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode, TAB_QUERY_KEY } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
+import { tabId } from '@/lib/tab-id';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { DocumentMode, superdocOptions } from './superdoc-options';
@@ -33,7 +34,7 @@ test('the options open the file in its room as the signed-in user at the viewpor
         v2Collaboration: {
           providerType: HOCUSPOCUS_PROVIDER,
           documentId: DOCUMENT_ID,
-          serverUrl: `ws://localhost:3000${COLLABORATION_PATH}`,
+          serverUrl: `ws://localhost:3000${COLLABORATION_PATH}?${TAB_QUERY_KEY}=${tabId()}`,
           roomMode: RoomMode.Join,
           token: COLLABORATION_TOKEN_PLACEHOLDER,
         },

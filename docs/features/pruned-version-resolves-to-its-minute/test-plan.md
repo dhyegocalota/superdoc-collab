@@ -12,11 +12,11 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [x] `version-marks.test.ts::a sequence the log does not know clamps down like before` — input: `serverTime: null`; expected: 9 for 12, 3 for 1, null with no marks — evidence: passes at 1da4000 (7 of 9 pass under the mutation, this case among them)
 - [x] `update-log.test.ts` or a new case: `serverTimeOf` returns the row's time for a logged sequence and null for an unknown one — evidence: `update-log.test.ts::serverTimeOf answers the logged time for a sequence of the document and null otherwise` added at 6c9f287 (after the tester's head): logged → its time, unknown → null, another document's sequence → null; libs/history `update-log.test.ts` + `version-marks.test.ts` 14/14 (lead's run and the reviewer's)
 - [x] `versions-routes.test.ts` property test: every sampled sequence resolves to `resolveMark` with the log's `serverTime`, text equals the replay until the resolved sequence — evidence: `cd apps/server && npx vitest run src/history/` 9 files / 80 tests passed at 1da4000
-- [ ] `pnpm test:unit`; expected: green — pending the lead's local CI run on the PR head (GitHub Actions is unavailable; the owner chose local CI)
+- [x] `pnpm test:unit`; expected: green — evidence: lead's local CI at 72fdd26: unit success (83 s); GitHub Actions unavailable, owner chose local CI
 
 ## E2E (Playwright specs)
 
-- [ ] `pnpm test:e2e e2e/time-travel.spec.ts`; expected: 9 passed — pending the lead's local CI run on the PR head (earlier local run at 1da4000: 9 passed (2.0m))
+- [x] `pnpm test:e2e e2e/time-travel.spec.ts`; expected: 9 passed — evidence: lead's local CI at 72fdd26: full `pnpm test:e2e` success (156 s), time-travel included; docker build success
 - [x] Mutation: make `resolveMark` ignore `serverTime` (scratch), run `version-marks.test.ts`; expected: the pruned-sequence case fails; restore — evidence: inserted an unconditional `return clampToMark(...)` before the `serverTime` branch; 2 failed / 7 passed: `a sequence whose mark was pruned…` (`expected 9 to be 14`) and `a sequence pruned in the bootstrap minute…` (`expected 3 to be 5`); restored with `git checkout -- libs/history/src/version-marks.ts`, `git status` clean
 
 ## Prove it for real — Playwright MCP

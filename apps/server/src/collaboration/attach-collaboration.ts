@@ -11,6 +11,8 @@ import {
   VERSION_FAILURE_TTL_MS,
 } from '@superdoc-collab/types';
 import { WebSocket, WebSocketServer } from 'ws';
+import type { Auth } from '../auth/auth';
+import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
 import { SocketMessageLimit } from './socket-message-limit';
@@ -41,12 +43,14 @@ function destroyOnSocketError(this: Duplex): void {
 
 export function attachCollaboration({
   httpServer,
+  auth,
   hocuspocus,
   versionRooms,
   path,
   allowedOrigin,
 }: {
   httpServer: Server;
+  auth: Auth;
   hocuspocus: Hocuspocus;
   versionRooms: VersionRooms;
   path: string;
@@ -102,6 +106,15 @@ export function attachCollaboration({
     }
     upgrade({ request, socket, head, endpoint });
   }
+  async function upgradeMember({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): Promise<void> {
+    const { cookie } = request.headers;
+    if (!cookie) return void socket.destroy();
+    socket.on('error', destroyOnSocketError);
+    const session = await readSession({ auth, headers: new Headers({ cookie }) }).catch(() => null);
+    socket.removeListener('error', destroyOnSocketError);
+    if (!session) return void socket.destroy();
+    upgrade({ request, socket, head, endpoint: null });
+  }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     const pathname = upgradePathname(request.url);
@@ -111,7 +124,7 @@ export function attachCollaboration({
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });
     if (pathname !== path) return socket.destroy();
-    upgrade({ request, socket, head, endpoint: null });
+    void upgradeMember({ request, socket, head });
   });
   return sockets;
 }

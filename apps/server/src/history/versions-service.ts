@@ -1,5 +1,6 @@
 import { clampToMark, type ReadModel, type VersionMarkSummary } from '@superdoc-history/history';
 import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { LruMap } from '../limits/lru-map';
 import { describeError } from '../logging/describe-error';
 import { ProjectionStoppedError } from './projection-messages';
@@ -11,6 +12,7 @@ export const VERSION_MARKS_AROUND = 10;
 
 export type VersionEndpoint = { documentId: string; sequence: number };
 export type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
+type CachedLookup = { key: string; sequence: number; cached: LoadedVersion | null };
 
 export enum VersionLookupKind {
   Ready = 'ready',
@@ -41,12 +43,17 @@ export function versionKeyPrefixOf(documentId: string): string {
   return `${documentId}${VERSION_KEY_SEPARATOR}`;
 }
 
-export function keysOfDocument({ documentId }: { keys: Iterable<string>; documentId: string }): string[] {
-  throw new Error(`keysOfDocument is not implemented: ${documentId}`);
+export function keysOfDocument({ keys, documentId }: { keys: Iterable<string>; documentId: string }): string[] {
+  const prefix = versionKeyPrefixOf(documentId);
+  return [...keys].filter((key) => key.startsWith(prefix));
 }
 
-export function marksAround({ sequence }: { marks: VersionMarkSummary[]; sequence: number }): VersionMarkSummary[] {
-  throw new Error(`marksAround is not implemented: ${sequence}`);
+export function marksAround({ marks, sequence }: { marks: VersionMarkSummary[]; sequence: number }): VersionMarkSummary[] {
+  const centre = Math.max(
+    0,
+    marks.findLastIndex((mark) => mark.sequence <= sequence),
+  );
+  return marks.slice(Math.max(0, centre - VERSION_MARKS_AROUND), centre + VERSION_MARKS_AROUND + 1);
 }
 
 function isOverVersionBudget({
@@ -68,7 +75,7 @@ export class VersionsService {
   private readonly scheduler: ProjectionScheduler;
   private readonly cache: LruMap<LoadedVersion>;
   private readonly loading = new Map<string, Promise<LoadedVersion>>();
-  private readonly failedAt = new Map<string, number>();
+  private readonly failures = new KeyedCooldown({ durationMs: VERSION_FAILURE_TTL_MS });
   private readonly generations = new Map<string, number>();
 
   constructor({
@@ -92,34 +99,36 @@ export class VersionsService {
   }
 
   peek(endpoint: VersionEndpoint): VersionLookup {
-    const mark = this.resolve(endpoint);
-    if (!mark) throw new VersionNotReadyError(endpoint.documentId);
-    const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
-    const cached = this.cache.get(key);
-    if (cached) return { kind: VersionLookupKind.Ready, version: cached };
-    if (this.isFailedRecently(key)) return { kind: VersionLookupKind.Failed };
+    const lookup = this.cachedLookup(endpoint);
+    if (!lookup) throw new VersionNotReadyError(endpoint.documentId);
+    if (lookup.cached) return { kind: VersionLookupKind.Ready, version: lookup.cached };
+    if (this.isFailedRecently(lookup.key)) return { kind: VersionLookupKind.Failed };
     this.load(endpoint).catch(() => undefined);
     return { kind: VersionLookupKind.Pending };
   }
 
   load(endpoint: VersionEndpoint): Promise<LoadedVersion> {
-    const mark = this.resolve(endpoint);
-    if (!mark) return Promise.reject(new VersionNotReadyError(endpoint.documentId));
-    const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
-    const cached = this.cache.get(key);
-    if (cached) return Promise.resolve(cached);
-    if (this.isFailedRecently(key)) return Promise.reject(new VersionLoadFailedError(key));
-    const inFlight = this.loading.get(key);
+    const lookup = this.cachedLookup(endpoint);
+    if (!lookup) return Promise.reject(new VersionNotReadyError(endpoint.documentId));
+    if (lookup.cached) return Promise.resolve(lookup.cached);
+    if (this.isFailedRecently(lookup.key)) return Promise.reject(new VersionLoadFailedError(lookup.key));
+    const inFlight = this.loading.get(lookup.key);
     if (inFlight) return inFlight;
-    return this.start({ key, documentId: endpoint.documentId, sequence: mark.sequence });
+    return this.start({ key: lookup.key, documentId: endpoint.documentId, sequence: lookup.sequence });
   }
 
   forget(documentId: string): void {
-    const prefix = versionKeyPrefixOf(documentId);
     this.generations.set(documentId, this.generationOf(documentId) + 1);
-    [this.cache, this.failedAt, this.loading].forEach((entries) =>
-      [...entries.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => entries.delete(key)),
-    );
+    keysOfDocument({ keys: this.cache.keys(), documentId }).forEach((key) => this.cache.delete(key));
+    keysOfDocument({ keys: this.failures.keys(), documentId }).forEach((key) => this.failures.forget(key));
+    keysOfDocument({ keys: this.loading.keys(), documentId }).forEach((key) => this.loading.delete(key));
+  }
+
+  private cachedLookup(endpoint: VersionEndpoint): CachedLookup | null {
+    const mark = this.resolve(endpoint);
+    if (!mark) return null;
+    const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
+    return { key, sequence: mark.sequence, cached: this.cache.get(key) };
   }
 
   private start({ key, documentId, sequence }: { key: string; documentId: string; sequence: number }): Promise<LoadedVersion> {
@@ -152,11 +161,7 @@ export class VersionsService {
   }
 
   private isFailedRecently(key: string): boolean {
-    const failedAt = this.failedAt.get(key);
-    if (failedAt === undefined) return false;
-    if (Date.now() - failedAt < VERSION_FAILURE_TTL_MS) return true;
-    this.failedAt.delete(key);
-    return false;
+    return this.failures.remainingMs(key) > 0;
   }
 
   private recordFailure({
@@ -171,7 +176,7 @@ export class VersionsService {
     error: unknown;
   }): void {
     if (generation !== this.generationOf(documentId)) return;
-    this.failedAt.set(key, Date.now());
+    this.failures.start(key);
     if (error instanceof ProjectionStoppedError) return;
     console.error(`${VERSION_LOAD_FAILED_MESSAGE} ${key}: ${describeError(error)}`);
   }
@@ -189,7 +194,7 @@ export class VersionsService {
   }): LoadedVersion {
     if (generation !== this.generationOf(documentId)) return version;
     this.cache.set({ key, value: version });
-    this.failedAt.delete(key);
+    this.failures.forget(key);
     return version;
   }
 }

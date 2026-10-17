@@ -17,7 +17,7 @@ import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater } from '../http/retry-later';
-import { VERSION_MARKS_AROUND, VersionLookupKind } from './versions-service';
+import { marksAround, VersionLookupKind } from './versions-service';
 
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
@@ -29,14 +29,11 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = aroundSchema.safeParse(context.req.query(TimelineQueryParam.Around));
     if (!parsed.success) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
-    const around = parsed.data;
-    const marks = services.readModel.marks(documentId);
-    const index = marks.findLastIndex((mark) => mark.sequence <= around);
-    const centre = index === -1 ? 0 : index;
     const body: VersionMarks = {
-      marks: marks
-        .slice(Math.max(0, centre - VERSION_MARKS_AROUND), centre + VERSION_MARKS_AROUND + 1)
-        .map(({ sequence, serverTime }) => ({ sequence, serverTime })),
+      marks: marksAround({ marks: services.readModel.marks(documentId), sequence: parsed.data }).map(({ sequence, serverTime }) => ({
+        sequence,
+        serverTime,
+      })),
     };
     return context.json(body);
   });

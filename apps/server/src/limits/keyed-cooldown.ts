@@ -26,7 +26,7 @@ export class KeyedCooldown {
   }
 
   keys(): string[] {
-    throw new Error('KeyedCooldown.keys is not implemented');
+    return [...this.startedAt.keys()];
   }
 
   size(): number {

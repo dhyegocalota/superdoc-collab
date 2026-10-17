@@ -1,4 +1,4 @@
-import { DocumentRole, type EditSelection, type SummarizeOutcome } from '@superdoc-collab/types';
+import { DocumentRole, type EditSelection } from '@superdoc-collab/types';
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
 import { type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { TopEdits } from './top-edits';
 import { useBinSelection } from './use-bin-selection';
 import { PanelPosition, usePanelPosition } from './use-panel-position';
 import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, useAreaHeight, useIsCompact, usePanelHeight, usePanelWidth } from './use-panel-width';
+import type { SummarizeControl } from './use-summarize';
 import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
 import { useTimeline } from './use-timeline';
@@ -36,21 +37,13 @@ export enum PanelColumn {
   List = 'list',
 }
 
-export type SummarizeHandle = {
-  summarize: () => void;
-  isRunning: boolean;
-  outcome: SummarizeOutcome | null;
-  error: Error | null;
-  retryAfterSeconds: number | null;
-};
-
 type TimelinePanelProps = {
   documentId: string;
   role: DocumentRole;
   position: PanelPosition;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  summarize: SummarizeHandle;
+  summarize: SummarizeControl;
   onTravel: (binStart: number) => void;
   onBackToLive: () => void;
 };

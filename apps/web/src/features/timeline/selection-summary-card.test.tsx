@@ -27,7 +27,7 @@ import {
   SUMMARY_UP_TO_DATE_MESSAGE,
   TOPICS_GROUPED_LABEL,
 } from './timeline-copy';
-import type { SummarizeHandle } from './timeline-panel';
+import type { SummarizeControl } from './use-summarize';
 
 const AUTHORS: Record<string, EventAuthor> = {
   ana: { id: 'user-1', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human },
@@ -62,7 +62,7 @@ beforeEach(() => {
   scrollIntoView.mockClear();
 });
 
-function idleSummarize(overrides: Partial<SummarizeHandle> = {}): SummarizeHandle {
+function idleSummarize(overrides: Partial<SummarizeControl> = {}): SummarizeControl {
   return { summarize: vi.fn(), isRunning: false, outcome: null, error: null, retryAfterSeconds: null, ...overrides };
 }
 
@@ -72,7 +72,7 @@ function card({
   canRequest = true,
 }: {
   view: SelectionSummaryView;
-  summarize?: SummarizeHandle;
+  summarize?: SummarizeControl;
   canRequest?: boolean;
 }) {
   return <SelectionSummaryCard view={view} summarize={summarize} canRequest={canRequest} authors={AUTHORS} />;

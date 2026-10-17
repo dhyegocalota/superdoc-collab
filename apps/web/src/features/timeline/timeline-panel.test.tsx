@@ -38,7 +38,6 @@ import {
   FILTER_LABEL,
   NO_EDITS_IN_BIN_MESSAGE,
   NO_EDITS_YET_MESSAGE,
-  REGROUP_TOPICS_LABEL,
   RESIZE_PANEL_LABEL,
   RETRY_SUMMARY_LABEL,
   RETRY_TOPICS_LABEL,
@@ -50,9 +49,10 @@ import {
   TIMELINE_HEADING,
   TOP_EDITS_LABEL,
 } from './timeline-copy';
-import { PanelColumn, PanelState, TimelinePanel, type SummarizeHandle } from './timeline-panel';
+import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
+import type { SummarizeControl } from './use-summarize';
 import { PANEL_POSITION_STORAGE_KEY, PanelPosition } from './use-panel-position';
 import { MIN_EDITOR_HEIGHT, MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
@@ -61,6 +61,7 @@ const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: Docum
 const SUMMARIES_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries });
 const EDITS_PATH = timelineEditsApiPath(DOCUMENT_ID);
 const ROUTE = documentPagePath(DOCUMENT_ID);
+const REGROUP_TOPICS_LABEL = 'Regroup topics';
 const FAILURE_TEXT = 'The model refused';
 const LAG_MS = 12_000;
 const SMALL_LAG_MS = 2000;
@@ -153,7 +154,7 @@ function timelineRequests(fetchSpy: ReturnType<typeof mockTimelineApi>): number 
   return fetchSpy.mock.calls.filter(([input]) => String(input).split('?')[0] === TIMELINE_PATH).length;
 }
 
-function idleSummarize(overrides: Partial<SummarizeHandle> = {}): SummarizeHandle {
+function idleSummarize(overrides: Partial<SummarizeControl> = {}): SummarizeControl {
   return { summarize: vi.fn(), isRunning: false, outcome: null, error: null, retryAfterSeconds: null, ...overrides };
 }
 
@@ -162,7 +163,7 @@ type PanelOptions = {
   route?: string;
   position?: PanelPosition;
   isOpen?: boolean;
-  summarize?: SummarizeHandle;
+  summarize?: SummarizeControl;
   onOpenChange?: (isOpen: boolean) => void;
 };
 

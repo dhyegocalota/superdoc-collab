@@ -24,11 +24,11 @@ import {
   SUMMARY_UP_TO_DATE_MESSAGE,
   TOPICS_GROUPED_LABEL,
 } from './timeline-copy';
-import type { SummarizeHandle } from './timeline-panel';
+import type { SummarizeControl } from './use-summarize';
 
 type SelectionSummaryCardProps = {
   view: SelectionSummaryView | undefined;
-  summarize: SummarizeHandle;
+  summarize: SummarizeControl;
   canRequest: boolean;
   authors: Record<string, EventAuthor>;
 };

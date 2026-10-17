@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';
-import { formatBinRange } from './timeline-tooltip';
+import { formatBinRange, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
 const timeline = timelineWith({
@@ -76,4 +76,13 @@ test('a highlighted band keeps full opacity while the others fade', () => {
   renderGraph({ highlightedBandId: timeline.bands[0]!.id });
   expect(screen.getByLabelText('Budget, 340 characters')).not.toHaveClass('opacity-40');
   expect(screen.getByLabelText('Hiring, 90 characters')).toHaveClass('opacity-40');
+});
+
+test('the tooltip follows the pointer and stays inside the chart', () => {
+  const { container } = renderGraph();
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerMove(chart, { clientX: 0, clientY: 100, buttons: 0 });
+  expect(screen.getByRole('tooltip')).toHaveStyle({ left: `${TOOLTIP_WIDTH / 2}px`, top: `${100 + TOOLTIP_POINTER_OFFSET}px` });
+  fireEvent.pointerMove(chart, { clientX: WIDTH, clientY: 100, buttons: 0 });
+  expect(screen.getByRole('tooltip')).toHaveStyle({ left: `${WIDTH - TOOLTIP_WIDTH / 2}px` });
 });

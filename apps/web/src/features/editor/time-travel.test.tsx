@@ -24,10 +24,11 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ViewerMessageKind } from '@/features/editor/viewer-messages';
 import { formatTimestamp } from '@/features/timeline/timeline-tooltip';
 import { SCRUB_DEBOUNCE_MS } from '@/features/timeline/use-time-travel';
-import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, STREAMGRAPH_TITLE, VERSION_FRAME_TITLE } from '@/features/timeline/timeline-copy';
+import { BACK_TO_LIVE_LABEL, FILTER_LABEL, LOADING_VERSION_MESSAGE, STREAMGRAPH_TITLE, VERSION_FRAME_TITLE } from '@/features/timeline/timeline-copy';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
+import { MEMBERS_REFRESH_MS } from './editor-api';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from './editor-api';
 import { DocumentPage } from './document-page';
@@ -73,11 +74,13 @@ function mockDocumentApi({
   timelines = [versionedTimeline],
   holdTimeline = false,
   timelineGate = Promise.resolve(),
-}: { opened?: OpenedDocument; openedStatus?: HttpStatus; versions?: Record<number, VersionReply[]>; edits?: BinEdits; timelines?: DocumentTimeline[]; holdTimeline?: boolean; timelineGate?: Promise<void> } = {}) {
+  isGone = () => false,
+}: { opened?: OpenedDocument; openedStatus?: HttpStatus; versions?: Record<number, VersionReply[]>; edits?: BinEdits; timelines?: DocumentTimeline[]; holdTimeline?: boolean; timelineGate?: Promise<void>; isGone?: () => boolean } = {}) {
   const timelineQueue = [...timelines];
   const queues = new Map(Object.entries(versions).map(([sequence, replies]) => [versionApiPath({ documentId: DOCUMENT_ID, sequence: Number(sequence) }), [...replies]]));
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const path = String(input).split('?')[0]!;
+    if (isGone() && path !== ApiPath.Me && path !== BLANK_DOCX_PATH) return new Response(null, { status: HttpStatus.NotFound });
     if (path === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
     if (path === documentApiPath({ documentId: DOCUMENT_ID })) return new Response(JSON.stringify(opened), { status: openedStatus });
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members })) return new Response(JSON.stringify({ members: [] }));
@@ -334,4 +337,50 @@ test('an at set before the timeline arrives resolves its version once when it do
   const frame = await screen.findByTitle(VERSION_FRAME_TITLE);
   expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }));
   expect(versionRequests(fetchSpy)).toHaveLength(1);
+});
+
+test('below the wide layout the editor keeps a usable height and the panel stacks under it', async () => {
+  mockDocumentApi();
+  renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  const area = await screen.findByTestId('editor-area');
+  expect(area.className).toContain('min-h-[60dvh]');
+  expect(area.className).toContain('lg:min-h-0');
+  expect(screen.getByRole('separator').closest('aside')).toHaveClass('shrink-0');
+});
+
+test('a document that disappears while viewing stops every poll', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  let isGone = false;
+  const fetchSpy = mockDocumentApi({ versions: { 42: [readyReply(42)] }, isGone: () => isGone });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  isGone = true;
+  await vi.advanceTimersByTimeAsync(MEMBERS_REFRESH_MS + TIMELINE_POLL_MS);
+  expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeVisible();
+  const requestsAtGone = fetchSpy.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 10);
+  expect(fetchSpy.mock.calls).toHaveLength(requestsAtGone);
+});
+
+test('Escape leaves the version from anywhere but a text field', async () => {
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  fireEvent.keyDown(screen.getByLabelText(FILTER_LABEL), { key: 'Escape' });
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  await waitFor(() => expect(router.state.location.search).toBe(''));
+  expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
+});
+
+test('Escape on a focused band leaves the version once', async () => {
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  const locations: string[] = [];
+  const unsubscribe = router.subscribe((state) => locations.push(state.location.search));
+  fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'Escape' });
+  await waitFor(() => expect(router.state.location.search).toBe(''));
+  unsubscribe();
+  expect(locations).toEqual(['']);
 });

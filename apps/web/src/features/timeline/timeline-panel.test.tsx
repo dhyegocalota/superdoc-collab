@@ -7,6 +7,7 @@ import {
   HttpMethod,
   HttpStatus,
   NO_MATCHING_EDITS_MESSAGE,
+  SECOND_MS,
   timelineEditsApiPath,
   TOPICS_PENDING_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
@@ -52,13 +53,13 @@ function json(body: unknown, status = HttpStatus.Ok): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
-function mockTimelineApi({ timeline = baseTimeline, edits, refreshStatus = HttpStatus.Accepted }: { timeline?: DocumentTimeline; edits?: BinEdits; refreshStatus?: HttpStatus } = {}) {
+function mockTimelineApi({ timeline = baseTimeline, edits, refreshStatus = HttpStatus.Accepted, refreshHeaders }: { timeline?: DocumentTimeline; edits?: BinEdits; refreshStatus?: HttpStatus; refreshHeaders?: Record<string, string> } = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const path = String(input).split('?')[0];
     if (path === TIMELINE_PATH) return json(timeline);
     if (path === SUMMARIES_PATH) return json({ summaries: [] });
     if (path === EDITS_PATH) return json(edits);
-    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) return json(REFRESH_STATUS, refreshStatus);
+    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) return new Response(JSON.stringify(REFRESH_STATUS), { status: refreshStatus, headers: refreshHeaders });
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -209,4 +210,16 @@ test('shrinking the window re-clamps the panel and its maximum', async () => {
   window.innerWidth = originalWidth;
   expect(separator).toHaveAttribute('aria-valuemax', String(SHRUNK_WINDOW_WIDTH - MIN_EDITOR_WIDTH));
   expect(separator).toHaveAttribute('aria-valuenow', String(SHRUNK_WINDOW_WIDTH - MIN_EDITOR_WIDTH));
+});
+
+test('the too-soon notice goes away when the cooldown ends', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockTimelineApi({ refreshStatus: HttpStatus.TooManyRequests, refreshHeaders: { 'Retry-After': '5' } });
+  renderPanel();
+  fireEvent.click(await screen.findByRole('button', { name: REFRESH_TOPICS_LABEL }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+  await vi.advanceTimersByTimeAsync(4 * SECOND_MS);
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  await vi.advanceTimersByTimeAsync(2 * SECOND_MS);
+  expect(screen.queryByRole('alert')).toBeNull();
 });

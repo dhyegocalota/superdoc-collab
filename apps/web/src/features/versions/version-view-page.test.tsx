@@ -1,11 +1,12 @@
 import { ApiPath, versionCollaborationPath, versionViewPagePath, RoomMode, type EditRunView } from '@superdoc-history/types';
-import { act, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
 import { ViewerMessageKind } from '@/features/editor/viewer-messages';
 import { DOCUMENT_ID, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
+import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useRunHighlights } from './use-run-highlights';
 import { VersionViewPage } from './version-view-page';
 
@@ -14,6 +15,7 @@ type SuperDocConfig = {
   documents: { v2Collaboration: Record<string, unknown> }[];
   onCollaborationReady: () => void;
   onException: (payload: { error: Error }) => void;
+  onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
 };
 
 const { SuperDoc } = vi.hoisted(() => ({ SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: vi.fn() }; }) }));
@@ -89,4 +91,25 @@ test('a sequence that is not a number reports a failure and never opens a viewer
   renderWithProviders(<VersionViewPage />, { route: versionViewPagePath({ documentId: DOCUMENT_ID, sequence: Number.NaN }) });
   await waitFor(() => expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Failed }, window.location.origin));
   expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('a refused connection before the room is ready shows the failure and tells the parent', async () => {
+  const postToParent = vi.spyOn(window.parent, 'postMessage');
+  const config = await renderFrame();
+  act(() => config.onCollaborationConnectionChange({ state: 'failed', kind: 'failed' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(VERSION_FAILED_MESSAGE);
+  expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Failed }, window.location.origin);
+});
+
+test('a connection that degrades before the first sync counts as refused', async () => {
+  const config = await renderFrame();
+  act(() => config.onCollaborationConnectionChange({ state: 'degraded', kind: 'reconnecting' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(VERSION_FAILED_MESSAGE);
+});
+
+test('a connection that drops after the room was ready keeps the viewer', async () => {
+  const config = await renderFrame();
+  act(() => config.onCollaborationReady());
+  act(() => config.onCollaborationConnectionChange({ state: 'degraded', kind: 'lost' }));
+  expect(screen.queryByRole('alert')).toBeNull();
 });

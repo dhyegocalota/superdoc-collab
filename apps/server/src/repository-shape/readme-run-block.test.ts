@@ -45,6 +45,11 @@ const FORBIDDEN_IN_OTHER_READMES = [
   ['environment variable', new RegExp(PROSE_VARIABLE_PATTERN.source)],
 ] as const;
 
+function invocationLabel({ packageName, script }: PnpmInvocation): string {
+  if (!packageName) return `pnpm ${script}`;
+  return `pnpm --filter ${packageName} ${script}`;
+}
+
 const readme = readRepositoryFile(README_FILE);
 const environmentExample = readRepositoryFile(ENVIRONMENT_EXAMPLE_FILE);
 const rootCompose = readRepositoryFile(ROOT_COMPOSE_FILE);
@@ -113,9 +118,12 @@ describe('the README run section', () => {
     expect(pnpmInvocations(runText).length).toBeGreaterThan(0);
   });
 
-  test.each(pnpmInvocations(runText))('pnpm $packageName $script is a script of its package', (invocation) => {
-    expect(isPackageScript(invocation)).toBe(true);
-  });
+  test.each(pnpmInvocations(runText).map((invocation) => [invocationLabel(invocation), invocation] as const))(
+    '%s is a script of its package',
+    (_, invocation) => {
+      expect(isPackageScript(invocation)).toBe(true);
+    },
+  );
 
   test.each(capturedNames({ text: runText, pattern: SCRIPT_PATH_PATTERN }))('%s exists', (path) => {
     expect(existsSync(repositoryPath(path))).toBe(true);

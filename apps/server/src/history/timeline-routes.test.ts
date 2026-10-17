@@ -290,3 +290,13 @@ test('edits of a Sao Paulo bin are found by the bin start the timeline returned'
   expect(((await response.json()) as BinEdits).runs.length).toBeGreaterThan(0);
   await server.stop();
 });
+
+test('a case variant of a zone reads the same bins as its canonical name', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
+  const query = `binMs=${DAY_BIN_MS}`;
+  const canonical = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
+  const variant = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE.toLowerCase() });
+  expect(variant.bins).toEqual(canonical.bins);
+  await server.stop();
+});

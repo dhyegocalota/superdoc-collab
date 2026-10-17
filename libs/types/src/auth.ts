@@ -41,17 +41,21 @@ export function isSupportedTimeZone(value: string): boolean {
   return isResolvableTimeZone(value);
 }
 
+export function canonicalTimeZone(value: string): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone;
+}
+
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);
 const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE);
 
 export const signInSchema = z.object({ email, password });
 export const signUpSchema = signInSchema.extend({
   name: z.string().trim().min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE),
-  timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE),
+  timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone),
 });
 
 export const updateUserSchema = z
-  .object({ timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).optional() })
+  .object({ timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone).optional() })
   .passthrough();
 
 export type SignInInput = z.infer<typeof signInSchema>;

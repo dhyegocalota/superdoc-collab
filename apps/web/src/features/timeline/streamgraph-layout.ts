@@ -32,6 +32,13 @@ export type StreamgraphLayout = {
 class MissingStackValueError extends Error {}
 class MissingBandError extends Error {}
 class EmptyBandPathError extends Error {}
+class NoBinsError extends Error {}
+
+function firstBinStart(timeline: DocumentTimeline): number {
+  const [firstBin] = timeline.bins;
+  if (!firstBin) throw new NoBinsError();
+  return firstBin.start;
+}
 
 function agentFractionOf(cell: TimelineCell | undefined): number {
   const volume = cellVolume(cell);
@@ -163,8 +170,6 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     shapes,
     binX: (index) => x(index),
     binAt: (position) => Math.min(lastIndex, Math.max(0, Math.round(x.invert(position)))),
-    timeX: () => {
-      throw new Error('timeX is not implemented');
-    },
+    timeX: (time) => x(Math.min(lastIndex, Math.max(0, (time - firstBinStart(timeline)) / timeline.binMs))),
   };
 }

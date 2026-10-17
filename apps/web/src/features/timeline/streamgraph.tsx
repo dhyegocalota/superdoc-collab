@@ -4,6 +4,7 @@ import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
 import { KeyboardKey } from '@/lib/keyboard';
 import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { cn } from '@/lib/utils';
+import { AgentActionMarks } from './agent-action-marks';
 import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { AgentLegend } from './agent-legend';
 import { BandLabel } from './band-label';
@@ -223,6 +224,9 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
           />
         )}
       </svg>
+      {timeline.agentActions.length > 0 && (
+        <AgentActionMarks actions={timeline.agentActions} authors={timeline.authors} timeX={layout.timeX} chartWidth={width} />
+      )}
       <div className="flex justify-between text-xs text-muted-foreground">
         <time dateTime={new Date(firstMoment).toISOString()}>{formatBinMoment({ time: firstMoment, binMs: timeline.binMs })}</time>
         <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs })}</time>

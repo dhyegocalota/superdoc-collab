@@ -15,7 +15,7 @@ export enum TooltipAlignment {
   End = 'end',
 }
 
-const ALIGNMENT_CLASS: Record<TooltipAlignment, string> = {
+export const ALIGNMENT_CLASS: Record<TooltipAlignment, string> = {
   [TooltipAlignment.Start]: 'translate-x-0',
   [TooltipAlignment.Center]: '-translate-x-1/2',
   [TooltipAlignment.End]: '-translate-x-full',

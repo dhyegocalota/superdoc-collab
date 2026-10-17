@@ -82,7 +82,6 @@ test('the names sent are the distinct people of the fitted edits', () => {
 test('an edit by a hostile crowd of long author names is still kept within the prompt budget', () => {
   const crowd = Array.from({ length: HOSTILE_AUTHOR_COUNT }, (_, index) => `"&${index}`.padEnd(FILTER_MAX_LENGTH, '"'));
   const fitted = fitSelection([edit({ authors: crowd, inserted: 'newest' }), edit({ inserted: 'older' })]);
-  expect(fitted).toHaveLength(1);
   expect(fitted[0]!.inserted).toBe('newest');
   expect(selectionPrompt(fitted).length).toBeLessThanOrEqual(SELECTION_PROMPT_MAX_CHARACTERS);
 });

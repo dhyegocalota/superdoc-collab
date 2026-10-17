@@ -14,7 +14,7 @@ import { failingModel, gatedModel, modelAnsweringWith, readyModel } from '../tes
 import { storyWithBlocks } from '../testing/timeline-client';
 import { SELECTION_SYSTEM_PROMPT, SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import type { RequestedSelection } from './selection-summaries-service';
-import { SummarizeOutcome, SummarizeService } from './summarize-service';
+import { SummarizeOutcome } from './summarize-service';
 
 enum ModelCall {
   Topics = 'topics',
@@ -66,8 +66,7 @@ async function documentWithTopics({ isFresh, modelFor }: { isFresh: boolean; mod
     topics: TOPICS.map((topic) => ({ id: null, ...topic })),
     computedAtSequence: isFresh ? sequence : 1,
   });
-  const { topics, summaries, selection, jobRunner } = server.services.insights;
-  return { ...story, model, summarize: new SummarizeService({ topics, summaries, selection, jobRunner }) };
+  return { ...story, model, summarize: server.services.insights.summarize };
 }
 
 test('makes no model call when topics, summary and sentences are fresh', async () => {
@@ -96,7 +95,7 @@ test('regroups only when topics failed or are older than the newest edit, then s
   server.services.insightsRepository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
-  expect(modelCallsOf(model).slice(3)).toEqual([ModelCall.Topics, ModelCall.Summary]);
+  expect(modelCallsOf(model).slice(3)).toEqual([ModelCall.Topics]);
   client.close();
   await server.stop();
 });

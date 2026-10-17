@@ -44,8 +44,8 @@ Three model jobs exist today. Topics are computed and refreshed with a 30 s cool
 
 Both tests are added by the final-visuals plan.
 
-- `apps/server/src/insights/summarize-job.test.ts` pins the skip rules, the step order and the longest retry-after.
-- `apps/web/src/features/timeline/use-summarize.test.ts` pins the step display.
+- `apps/server/src/insights/summarize-service.test.ts` pins the skip rules and the step order. `apps/server/src/insights/insights-routes.test.ts` pins the longest retry-after.
+- `apps/web/src/features/timeline/use-selection-summary.test.ts` pins the polling by step.
 
 ## Revisit when
 

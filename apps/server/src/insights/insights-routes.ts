@@ -40,7 +40,6 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
   });
   routes.get('/:documentId/summaries', (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
-    services.insights.summaries.refreshStale(documentId);
     return context.json(services.insights.summaries.read(documentId));
   });
   routes.get(SELECTION_PATH, (context) => {

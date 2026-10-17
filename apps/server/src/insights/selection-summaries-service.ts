@@ -4,6 +4,7 @@ import {
   SELECTION_SUMMARY_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
+  SummarizeStep,
   type EditSelection,
   type EventAuthor,
   type SelectionSummary,
@@ -96,6 +97,7 @@ export class SelectionSummariesService {
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;
   private readonly readSelection: ReadSelection;
+  private readonly steps = new Map<string, SummarizeStep>();
 
   constructor({
     repository,
@@ -116,16 +118,16 @@ export class SelectionSummariesService {
 
   read({ documentId, selection }: { documentId: string; selection: RequestedSelection }): SelectionSummaryView {
     const resolved = this.readNonEmptySelection({ documentId, selection });
-    if (resolved === null) return this.view({ state: SelectionSummaryState.None, summary: null, failure: null });
+    if (resolved === null) return this.view({ documentId, state: SelectionSummaryState.None, summary: null, failure: null });
     const stored = this.repository.selectionSummary({ documentId, key: resolved.key });
     const summary = summaryOf({ stored, stamp: resolved });
-    if (this.jobRunner.isRunning(jobKeyOf({ documentId, key: resolved.key })))
-      return this.view({ state: SelectionSummaryState.Running, summary, failure: null });
+    const isRunning = this.step(documentId) !== SummarizeStep.Idle || this.jobRunner.isRunning(jobKeyOf({ documentId, key: resolved.key }));
+    if (isRunning) return this.view({ documentId, state: SelectionSummaryState.Running, summary, failure: null });
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
-      return this.view({ state: SelectionSummaryState.Failed, summary, failure: this.languageModel.reason });
-    if (stored === null) return this.view({ state: SelectionSummaryState.None, summary: null, failure: null });
-    if (stored.failure !== null) return this.view({ state: SelectionSummaryState.Failed, summary, failure: stored.failure });
-    return this.view({ state: SelectionSummaryState.Ready, summary, failure: null });
+      return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: this.languageModel.reason });
+    if (stored === null) return this.view({ documentId, state: SelectionSummaryState.None, summary: null, failure: null });
+    if (stored.failure !== null) return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: stored.failure });
+    return this.view({ documentId, state: SelectionSummaryState.Ready, summary, failure: null });
   }
 
   request({ documentId, selection }: { documentId: string; selection: RequestedSelection }): SelectionRequestResult {
@@ -146,8 +148,35 @@ export class SelectionSummariesService {
     return { outcome: SelectionRequestOutcome.Started };
   }
 
+  isStale({ documentId, selection }: { documentId: string; selection: RequestedSelection }): boolean {
+    const resolved = this.readNonEmptySelection({ documentId, selection });
+    if (resolved === null) return false;
+    return !isFresh({ stored: this.repository.selectionSummary({ documentId, key: resolved.key }), stamp: resolved });
+  }
+
+  async write({ documentId, selection }: { documentId: string; selection: RequestedSelection }): Promise<void> {
+    const languageModel = this.languageModel;
+    if (languageModel.availability === LanguageModelAvailability.Unavailable) return;
+    const resolved = this.readNonEmptySelection({ documentId, selection });
+    if (resolved === null) return;
+    if (isFresh({ stored: this.repository.selectionSummary({ documentId, key: resolved.key }), stamp: resolved })) return;
+    if (!this.jobRunner.consumeCall()) return;
+    await this.generate({ documentId, resolved, model: languageModel.model });
+  }
+
+  setStep({ documentId, step }: { documentId: string; step: SummarizeStep }): void {
+    this.steps.set(documentId, step);
+  }
+
   forget(documentId: string): void {
     this.cooldown.forget(documentId);
+    this.steps.delete(documentId);
+  }
+
+  private step(documentId: string): SummarizeStep {
+    const step = this.steps.get(documentId);
+    if (step === undefined) return SummarizeStep.Idle;
+    return step;
   }
 
   private busy(): SelectionRequestResult {
@@ -174,15 +203,23 @@ export class SelectionSummariesService {
   }
 
   private view({
+    documentId,
     state,
     summary,
     failure,
   }: {
+    documentId: string;
     state: SelectionSummaryState;
     summary: SelectionSummary | null;
     failure: string | null;
   }): SelectionSummaryView {
-    return { state, summary, failure, isModelAvailable: this.languageModel.availability === LanguageModelAvailability.Ready };
+    return {
+      state,
+      summary,
+      failure,
+      isModelAvailable: this.languageModel.availability === LanguageModelAvailability.Ready,
+      step: this.step(documentId),
+    };
   }
 
   private async summarize({
@@ -194,9 +231,21 @@ export class SelectionSummariesService {
     resolved: ResolvedSelection;
     model: LanguageModel;
   }): Promise<void> {
-    const { key, cursor, topicsUpdatedAt } = resolved;
     if (!this.jobRunner.consumeCall()) return;
     this.cooldown.start(documentId);
+    await this.generate({ documentId, resolved, model });
+  }
+
+  private async generate({
+    documentId,
+    resolved,
+    model,
+  }: {
+    documentId: string;
+    resolved: ResolvedSelection;
+    model: LanguageModel;
+  }): Promise<void> {
+    const { key, cursor, topicsUpdatedAt } = resolved;
     try {
       const edits = fitSelection(promptEditsOf({ runs: resolved.snapshot.runs, authors: resolved.snapshot.authors }));
       const names = namesOf(edits);

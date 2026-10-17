@@ -15,6 +15,7 @@ import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { InsightsRepository } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
+import { lastSequenceOf } from './last-sequence';
 import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type LanguageModelChoice } from './llm-client';
 import { TOPICS_SYSTEM_PROMPT, topicsPrompt } from './prompts';
 
@@ -87,6 +88,18 @@ export class TopicsService {
     if (remainingMs > 0) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: secondsRoundedUp(remainingMs) };
     this.start({ documentId, isRefresh: true });
     return { outcome: RefreshOutcome.Started };
+  }
+
+  isStale(documentId: string): boolean {
+    const status = this.repository.status(documentId);
+    if (status === null || status.state === TopicState.Pending) return false;
+    if (status.state === TopicState.Failed) return true;
+    if (status.computedAtSequence === null) return false;
+    return status.computedAtSequence < lastSequenceOf(this.readPipeline(documentId).events.map((event) => event.sequence));
+  }
+
+  regroup(documentId: string): Promise<void> {
+    return this.compute({ documentId, isRefresh: true });
   }
 
   forget(documentId: string): void {

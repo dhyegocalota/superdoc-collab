@@ -198,10 +198,7 @@ test('prompts escape markup and carry no email', async () => {
     .toBe(true);
   await readTopics({ server, documentId, cookie: owner.cookie });
   await server.services.insights.jobRunner.idle();
-  await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Summaries })}`, {
-    headers: { cookie: owner.cookie },
-  });
-  await server.services.insights.jobRunner.idle();
+  await server.services.insights.summaries.rewriteStale(documentId);
   const [topicsPrompt, summariesPrompt] = model.doGenerateCalls.map((call) => JSON.stringify(call.prompt));
   expect(topicsPrompt).toContain('&lt;b&gt;x&lt;/b&gt; &amp; y');
   expect(summariesPrompt).toContain('Ana &lt;script&gt;');

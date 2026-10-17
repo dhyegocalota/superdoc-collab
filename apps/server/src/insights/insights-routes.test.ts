@@ -10,6 +10,7 @@ import {
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   SelectionSummaryState,
+  SummarizeStep,
   selectionSummaryApiPath,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   topicsRefreshApiPath,
@@ -112,7 +113,6 @@ test('deleting a document forgets its refresh, summary and selection cooldowns',
   const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   await server.services.insights.jobRunner.idle();
-  server.services.insights.summaries.cooldown.start(documentId);
   server.services.insights.selection.cooldown.start(documentId);
   expect(server.services.insights.topics.cooldown.size()).toBe(1);
   const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
@@ -121,7 +121,6 @@ test('deleting a document forgets its refresh, summary and selection cooldowns',
   });
   expect(deleted.status).toBe(HttpStatus.NoContent);
   expect(server.services.insights.topics.cooldown.size()).toBe(0);
-  expect(server.services.insights.summaries.cooldown.size()).toBe(0);
   expect(server.services.insights.selection.cooldown.size()).toBe(0);
   client.close();
   await server.stop();
@@ -181,7 +180,7 @@ test('a second POST with the same filter is 200 from the cache and another filte
 test('a selection with no edits is none and its POST costs nothing', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
-  const none = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+  const none = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step: SummarizeStep.Idle };
   expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: NO_MATCH_QUERY })).toEqual(none);
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: NO_MATCH_QUERY });
   expect(response.status).toBe(HttpStatus.Ok);
@@ -335,6 +334,7 @@ test('without a model the GET is failed with the reason and the POST is 503', as
     summary: null,
     failure: LLM_MODEL_MISSING_MESSAGE,
     isModelAvailable: false,
+    step: SummarizeStep.Idle,
   });
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);

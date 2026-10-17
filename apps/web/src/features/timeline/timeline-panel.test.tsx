@@ -88,6 +88,7 @@ function mockTimelineApi({
   refreshStatus = HttpStatus.Accepted,
   refreshHeaders,
   selectionViews = [NONE_VIEW],
+  timelines = [timeline],
   summarizeResponse = () => json(RUNNING_VIEW, HttpStatus.Accepted),
 }: {
   timeline?: DocumentTimeline;
@@ -95,16 +96,22 @@ function mockTimelineApi({
   refreshStatus?: HttpStatus;
   refreshHeaders?: Record<string, string>;
   selectionViews?: SelectionSummaryView[];
+  timelines?: DocumentTimeline[];
   summarizeResponse?: () => Response | Promise<Response>;
 } = {}) {
   const remainingViews = [...selectionViews];
+  const remainingTimelines = [...timelines];
+  function nextTimeline(): DocumentTimeline {
+    if (remainingTimelines.length > 1) return remainingTimelines.shift()!;
+    return remainingTimelines[0]!;
+  }
   function nextView(): SelectionSummaryView {
     if (remainingViews.length > 1) return remainingViews.shift()!;
     return remainingViews[0]!;
   }
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const path = String(input).split('?')[0];
-    if (path === TIMELINE_PATH) return json(timeline);
+    if (path === TIMELINE_PATH) return json(nextTimeline());
     if (path === SUMMARIES_PATH) return json({ summaries: [] });
     if (path === EDITS_PATH) return json(edits);
     if (path === SELECTION_PATH && init?.method === HttpMethod.Post) return summarizeResponse();
@@ -446,4 +453,22 @@ test('two authors with the same name each get an avatar', async () => {
   renderPanel();
   const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
   expect(within(card).getAllByTitle(FIXTURE_AUTHOR_NAME)).toHaveLength(2);
+});
+
+function selectionReads(fetchSpy: ReturnType<typeof mockTimelineApi>): number {
+  return fetchSpy.mock.calls.filter(([input, init]) => String(input).split('?')[0] === SELECTION_PATH && init?.method !== HttpMethod.Post).length;
+}
+
+test('a timeline that advances reads the summary once and shows it for an earlier state', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const grownTimeline = timelineWith({ volumes: [[10], [25]], names: ['Budget'] });
+  const fetchSpy = mockTimelineApi({ timelines: [baseTimeline, grownTimeline], selectionViews: [READY_VIEW, STALE_VIEW] });
+  renderPanel();
+  expect(await screen.findByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
+  expect(selectionReads(fetchSpy)).toBe(1);
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS);
+  expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeEnabled();
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 3);
+  expect(selectionReads(fetchSpy)).toBe(2);
 });

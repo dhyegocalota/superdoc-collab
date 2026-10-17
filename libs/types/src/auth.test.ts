@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { EMAIL_INVALID_MESSAGE, NAME_TOO_SHORT_MESSAGE, PASSWORD_TOO_SHORT_MESSAGE, signInSchema, signUpSchema } from './auth';
+import {
+  EMAIL_INVALID_MESSAGE,
+  INVALID_TIME_ZONE_MESSAGE,
+  NAME_TOO_SHORT_MESSAGE,
+  PASSWORD_TOO_SHORT_MESSAGE,
+  signInSchema,
+  signUpSchema,
+} from './auth';
 
 function firstMessage(result: { success: boolean; error?: { issues: { message: string }[] } }): string | undefined {
   return result.error?.issues[0]?.message;
@@ -24,4 +31,19 @@ describe('signUpSchema', () => {
       NAME_TOO_SHORT_MESSAGE,
     );
   });
+});
+
+const SIGN_UP_BASE = { name: 'Eve', email: 'eve@example.com', password: 'long-enough-password' };
+
+test('sign-up accepts a known IANA time zone', () => {
+  expect(signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'America/Sao_Paulo' }).success).toBe(true);
+});
+
+test('sign-up rejects an unknown time zone with its message', () => {
+  const rejected = signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'Mars/Olympus' });
+  expect(rejected.error?.issues[0]?.message).toBe(INVALID_TIME_ZONE_MESSAGE);
+});
+
+test('sign-up requires a time zone', () => {
+  expect(signUpSchema.safeParse(SIGN_UP_BASE).success).toBe(false);
 });

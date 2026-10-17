@@ -405,16 +405,20 @@ test('forgetting a document clears its insights cooldowns after the projection f
   expect([topics, summaries, selection].map((service) => service.cooldown.size())).toEqual([0, 0, 0]);
   const order = [projectionForget, ...insightsForgets].map((spy) => spy.mock.invocationCallOrder[0]!);
   expect(order).toEqual([...order].sort((left, right) => left - right));
+  insightsForgets.forEach((spy) => expect(spy).toHaveBeenCalledTimes(1));
   await server.stop();
 });
 
 test('deleting a document forgets it once through the runtime, then removes the file', async () => {
   const { server, owner } = await signedInOwner();
   const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Doomed' })).json();
+  const { topics, summaries, selection } = server.services.insights;
   const forget = vi.spyOn(server.services.runtime, 'forget');
   const remove = vi.spyOn(server.services.storage, 'remove');
+  const insightsForgets = [vi.spyOn(topics, 'forget'), vi.spyOn(summaries, 'forget'), vi.spyOn(selection, 'forget')];
   await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id }), method: HttpMethod.Delete });
   expect(forget).toHaveBeenCalledTimes(1);
+  insightsForgets.forEach((spy) => expect(spy).toHaveBeenCalledTimes(1));
   expect(forget.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]!);
   await server.stop();
 });

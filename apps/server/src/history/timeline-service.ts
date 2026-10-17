@@ -89,8 +89,8 @@ function projectionStatus({ services, documentId }: { services: AppServices; doc
   const cursor = services.readModel.cursor(documentId);
   const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? ALL_SEQUENCES : cursor, limit: 1 });
   const isDegraded = services.scheduler.degraded;
-  if (!next) return { isBehind: false, lagMs: null, isDegraded };
-  return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded };
+  if (!next) return { isBehind: false, lagMs: null, isDegraded, cursor };
+  return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded, cursor };
 }
 
 function binMsOf({ binMs, pipeline }: { binMs: number | null; pipeline: TimelinePipeline }): number {

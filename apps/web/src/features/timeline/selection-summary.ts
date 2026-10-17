@@ -1,8 +1,6 @@
 import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { NO_EDITS_TO_SUMMARIZE_MESSAGE, SUMMARIES_UNAVAILABLE_MESSAGE, SUMMARIZING_EDITS_MESSAGE, SUMMARY_UP_TO_DATE_MESSAGE } from './timeline-copy';
 
-const UNSCOPED_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
-
 export function selectionVolume({ timeline, selection }: { timeline: DocumentTimeline; selection: EditSelection }): number {
   return timeline.bins
     .filter((bin) => selection.at === null || bin.start === selection.at)
@@ -33,6 +31,5 @@ export function errorForSelection({ error, variables, selection }: { error: Erro
 }
 
 export function timelineStamp(timeline: DocumentTimeline): string {
-  const filteredVolume = selectionVolume({ timeline, selection: UNSCOPED_SELECTION });
-  return `${filteredVolume}:${timeline.topics.state}:${timeline.topics.computedAtSequence}`;
+  return `${timeline.projection.cursor}:${timeline.topics.state}:${timeline.topics.computedAtSequence}`;
 }

@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { KeyboardKey } from '@/lib/keyboard';
 import { CLEAR_FILTERS_LABEL, FILTER_LABEL, FILTER_PLACEHOLDER, removeFilterLabel } from './timeline-copy';
 import { parseFilterInput, useTimelineSearch } from './use-timeline-search';
 
@@ -19,8 +20,9 @@ export function FilterBox() {
     { param: TimelineSearchParam.Author, value: search.filter.author },
   ].filter((chip) => chip.value !== null);
 
-  function commit(event: KeyboardEvent<HTMLInputElement>): void {
-    if (event.key !== 'Enter') return;
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === KeyboardKey.Escape) setDraft('');
+    if (event.key !== KeyboardKey.Enter) return;
     const parsed = parseFilterInput(draft);
     if (!parsed) return;
     update({ changes: { [PARAM_BY_KIND[parsed.kind]]: parsed.value }, replace: true });
@@ -33,7 +35,7 @@ export function FilterBox() {
 
   return (
     <div className="flex flex-col gap-2">
-      <Input aria-label={FILTER_LABEL} placeholder={FILTER_PLACEHOLDER} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={commit} />
+      <Input aria-label={FILTER_LABEL} placeholder={FILTER_PLACEHOLDER} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} />
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
           {chips.map((chip) => (

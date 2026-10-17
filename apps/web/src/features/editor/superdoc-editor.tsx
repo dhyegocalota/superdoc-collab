@@ -1,9 +1,12 @@
 import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-history/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { KeyboardKey } from '@/lib/keyboard';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
-import { EDITOR_FAILED_MESSAGE } from './editor-copy';
+import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
+
+const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"]';
 
 export enum DocumentMode {
   Viewing = 'viewing',
@@ -14,6 +17,7 @@ type SuperDocEditorProps = { superdocRef: RefObject<SuperDoc | null>; documentId
 
 export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
 
   useEffect(() => {
@@ -40,10 +44,18 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
     };
   }, [superdocRef, documentId, roomMode, role, user, file]);
 
+  function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== KeyboardKey.Escape) return;
+    if (!(event.target instanceof HTMLElement) || event.target.closest(EDITING_SURFACE_SELECTOR) === null) return;
+    exitRef.current?.focus();
+  }
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface}>
       {hasFailed && <p role="alert" className="p-4 text-sm text-destructive">{EDITOR_FAILED_MESSAGE}</p>}
+      <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div ref={containerRef} data-testid="document-editor" inert={isInert} className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto" />
+      <p ref={exitRef} tabIndex={-1} className="sr-only">{EDITOR_EXIT_LABEL}</p>
     </div>
   );
 }

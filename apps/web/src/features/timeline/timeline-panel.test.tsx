@@ -468,7 +468,7 @@ function selectionReads(fetchSpy: ReturnType<typeof mockTimelineApi>): number {
 
 test('a timeline that advances reads the summary once and shows it for an earlier state', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  const grownTimeline = timelineWith({ volumes: [[10], [25]], names: ['Budget'] });
+  const grownTimeline: DocumentTimeline = { ...timelineWith({ volumes: [[10], [25]], names: ['Budget'] }), projection: { ...baseTimeline.projection, cursor: 2 } };
   const fetchSpy = mockTimelineApi({ timelines: [baseTimeline, grownTimeline], selectionViews: [READY_VIEW, STALE_VIEW] });
   renderPanel();
   expect(await screen.findByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();

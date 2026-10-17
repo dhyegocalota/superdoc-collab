@@ -7,12 +7,13 @@ import { readViewerMessage, ViewerMessageKind } from '@/features/editor/viewer-m
 import { VersionViewer } from '@/features/editor/version-viewer';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
+import { KeyboardKey } from '@/lib/keyboard';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { useRunHighlights } from './use-run-highlights';
 
 const NO_RUNS: EditRunView[] = [];
 
-function postToParent(kind: ViewerMessageKind.Ready | ViewerMessageKind.Failed): void {
+function postToParent(kind: ViewerMessageKind.Ready | ViewerMessageKind.Failed | ViewerMessageKind.Exit): void {
   window.parent.postMessage({ kind }, window.location.origin);
 }
 
@@ -45,6 +46,15 @@ export function VersionViewPage() {
     }
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key !== KeyboardKey.Escape) return;
+      postToParent(ViewerMessageKind.Exit);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const hasOpenFailed = openError !== null;

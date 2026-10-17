@@ -207,9 +207,7 @@ test('Escape inside the editor moves focus past it so Tab can leave', async () =
   mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   const container = await screen.findByTestId('document-editor');
-  const editable = document.createElement('div');
-  editable.setAttribute('contenteditable', 'true');
-  editable.tabIndex = 0;
+  const editable = document.createElement('textarea');
   container.append(editable);
   editable.focus();
   fireEvent.keyDown(editable, { key: 'Escape' });

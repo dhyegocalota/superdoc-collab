@@ -19,12 +19,13 @@ function framesAfterReady({ frames, sequence }: { frames: Frame[]; sequence: num
   return frames.slice(readyIndex).map((frame) => ({ ...frame, isReady: frame.isReady || frame.version.sequence === sequence }));
 }
 
-type VersionFrameProps = { documentId: string; version: VersionSummary | null; requestedSequence: number | null; runs: EditRunView[]; onFailed: (sequence: number) => void };
+type VersionFrameProps = { documentId: string; version: VersionSummary | null; requestedSequence: number | null; runs: EditRunView[]; onFailed: (sequence: number) => void; onExit: () => void };
 
-export function VersionFrame({ documentId, version, requestedSequence, runs, onFailed }: VersionFrameProps) {
+export function VersionFrame({ documentId, version, requestedSequence, runs, onFailed, onExit }: VersionFrameProps) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const elements = useRef(new Map<number, HTMLIFrameElement>());
   const onFailedRef = useRef(onFailed);
+  const onExitRef = useRef(onExit);
   const isRequestedReady = frames.some((frame) => frame.isReady && frame.version.sequence === requestedSequence);
 
   useEffect(() => {
@@ -33,7 +34,8 @@ export function VersionFrame({ documentId, version, requestedSequence, runs, onF
 
   useEffect(() => {
     onFailedRef.current = onFailed;
-  }, [onFailed]);
+    onExitRef.current = onExit;
+  }, [onFailed, onExit]);
 
   useEffect(() => {
     function handleMessage(event: MessageEvent): void {
@@ -41,6 +43,7 @@ export function VersionFrame({ documentId, version, requestedSequence, runs, onF
         const message = readViewerMessage({ event, expectedSource: element.contentWindow });
         if (message?.kind === ViewerMessageKind.Ready) setFrames((current) => framesAfterReady({ frames: current, sequence }));
         if (message?.kind === ViewerMessageKind.Failed) onFailedRef.current(sequence);
+        if (message?.kind === ViewerMessageKind.Exit) onExitRef.current();
       });
     }
     window.addEventListener('message', handleMessage);

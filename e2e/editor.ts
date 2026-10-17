@@ -4,7 +4,7 @@ import { buildSeedDocx } from '../libs/history/src';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
 
 export const TEXT_RUN_SELECTOR = '.superdoc-text-run';
-const EDITOR_INPUT_SELECTOR = 'textarea';
+export const EDITOR_INPUT_SELECTOR = 'textarea';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';
 const FOCUS_TIMEOUT_MS = 30_000;

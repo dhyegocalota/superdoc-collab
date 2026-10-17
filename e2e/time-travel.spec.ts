@@ -2,7 +2,7 @@ import type { Browser, Page } from '@playwright/test';
 import { DEMO_USERS, DOCUMENT_UNAVAILABLE_MESSAGE, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath } from '../libs/types/src';
 import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { BACK_TO_LIVE_LABEL, REFRESH_TOPICS_LABEL, RETRY_TOPICS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
-import { acceptShareLink, editorText, readEvents, shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
+import { acceptShareLink, EDITOR_INPUT_SELECTOR, editorText, readEvents, shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import {
   countViewerHighlights,
@@ -34,7 +34,6 @@ const FAILING_PARAGRAPHS = ['FAIL-TOPICS: the plan costs 10.', 'Hiring: we add t
 const STABLE_WINDOW_MS = 4_500;
 const ANA = DEMO_USERS[0]!.name;
 const READ_ONLY_ATTEMPT = ' reader typed this';
-const EDITABLE_SELECTOR = '[contenteditable="true"]';
 
 async function ownerWithEdit(browser: Browser) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -199,7 +198,7 @@ test('Escape in the live editor moves focus past it and Tab reaches the timeline
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
   await editorText(ana.page).first().click();
-  await expect.poll(() => ana.page.evaluate((selector) => document.activeElement?.closest(selector) !== null, EDITABLE_SELECTOR)).toBe(true);
+  await expect.poll(() => ana.page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR)).toBe(true);
   await ana.page.keyboard.press('Escape');
   await expect.poll(() => ana.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
   await ana.page.keyboard.press('Tab');

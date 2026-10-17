@@ -1,4 +1,4 @@
-import { HISTORY_CATCHING_UP_MESSAGE, NO_MATCHING_EDITS_MESSAGE, SECOND_MS, TimelineBandKind, TOPICS_PENDING_MESSAGE, TOPICS_UNAVAILABLE_MESSAGE, TopicState, type DocumentTimeline } from '@superdoc-history/types';
+import { HISTORY_CATCHING_UP_MESSAGE, NO_MATCHING_EDITS_MESSAGE, SECOND_MS, TOPICS_PENDING_MESSAGE, TOPICS_UNAVAILABLE_MESSAGE, TopicState, type DocumentTimeline } from '@superdoc-history/types';
 import { Button } from '@/components/ui/button';
 import { lagBehindLabel, NO_EDITS_YET_MESSAGE, RETRY_TOPICS_LABEL } from './timeline-copy';
 
@@ -8,7 +8,6 @@ type TimelineNoticesProps = { timeline: DocumentTimeline; hasFilter: boolean; ca
 
 export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: TimelineNoticesProps) {
   const { topics, projection, bins, bands } = timeline;
-  const hasTopicBands = bands.some((band) => band.kind === TimelineBandKind.Topic);
   const isLagging = projection.isBehind && projection.lagMs !== null && projection.lagMs >= PROJECTION_LAG_NOTICE_MS;
   const hasNoMatches = hasFilter && bins.length > 0 && bands.every((band) => band.volume === 0);
   return (
@@ -24,7 +23,7 @@ export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: Ti
           )}
         </div>
       )}
-      {topics.state === TopicState.Pending && !hasTopicBands && <p role="status">{TOPICS_PENDING_MESSAGE}</p>}
+      {topics.state === TopicState.Pending && <p role="status">{TOPICS_PENDING_MESSAGE}</p>}
       {isLagging && (
         <div role="status" className="flex items-center gap-2">
           <p>{HISTORY_CATCHING_UP_MESSAGE}</p>

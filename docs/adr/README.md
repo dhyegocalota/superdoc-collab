@@ -33,3 +33,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0011](0011-process-wide-llm-cost-caps.md) | Process-wide caps on language-model spend | Accepted (owner to confirm the numbers) | 2026-10-16 |
 | [0012](0012-selection-summaries-cached-per-filter-and-cursor.md) | Cache selection summaries per filter, stamped with the cursor | Accepted | 2026-10-16 |
 | [0013](0013-deploy-with-dokploy-compose.md) | Deploy with a Dokploy compose service built from the repository | Accepted (owner to confirm at the first deploy) | 2026-10-16 |
+| [0014](0014-one-source-per-agent-surface.md) | One source per agent surface, a thin adapter per tool | Accepted | 2026-10-17 |

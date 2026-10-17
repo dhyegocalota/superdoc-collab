@@ -1,4 +1,5 @@
 ---
+name: check-ui
 description: Walk a UI flow with Playwright MCP from the user's perspective — snapshot, screenshots, console and network health, optional video — and stage the media for the PR. Validation, not the test of record.
 argument-hint: <url-or-route> <feature-slug> [--video] [--pr <number>]
 allowed-tools: mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_press_key, mcp__playwright__browser_console_messages, mcp__playwright__browser_network_requests, mcp__playwright__browser_run_code_unsafe, mcp__playwright__browser_tabs, Bash(gh:*), Bash(git:*), Bash(ffmpeg:*), Bash(mkdir:*), Bash(ls:*), Read

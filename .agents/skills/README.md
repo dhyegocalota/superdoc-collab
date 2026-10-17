@@ -10,4 +10,11 @@ Vendored from superpowers 6.4.1 (obra/superpowers, MIT). Cross-references are re
 - systematic-debugging — find root cause before proposing any fix
 - verification-before-completion — run verification commands and confirm output before claiming success
 
-This folder is the single source of skills: Claude Code reads it through the `.claude/skills` symlink, and Codex reads `.agents/skills` natively. In-house skills (`feature`, `adr`, `learning`) live alongside these.
+This folder is the single source of skills: Claude Code reads it through the `.claude/skills` symlink, and Codex reads `.agents/skills` natively. In-house skills live alongside these:
+
+- feature, adr, learning — scaffold the feature folder, an ADR, a learning
+- verify — typecheck → unit → E2E, stop at the first failure
+- check-ui — Playwright MCP walk, screenshots, video, release upload
+- open-pr — the Ship gates, then the pull request
+
+Claude Code invokes them as `/<name> <arguments>`; Codex as `$<name>` followed by the arguments. The front matter keys beyond `name` and `description` (`argument-hint`, `allowed-tools`, `metadata`) are read by Claude Code and ignored by Codex.

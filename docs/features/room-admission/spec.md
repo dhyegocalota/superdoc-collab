@@ -94,7 +94,7 @@ The open route is synchronous, and so is reservation. Node's single thread there
 
 **`libs/types/src/documents.ts`**
 
-- `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 4`.
+- `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8`. Raised from 4 on 2026-10-17 after Step 0: a text-dense 9.52 MiB DOCX syncs a 36,593,816-byte frame (3.7× its file size), 87% of a 40 MiB cap; 80 MiB leaves 2.2× over the worst measured frame and stays under the `ws` default of 100 MiB.
 - `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`.
 - `OpenedDocument = { document: DocumentSummary; role: DocumentRole; roomMode: RoomMode; creatorAttempt: number | null; creatorEpoch: string | null }`. The web reads both new fields for the socket URL, and the web fixtures change.
 
@@ -151,7 +151,7 @@ export class CreatorReservations {
 
 ### Failure handling
 
-- **The creator's first sync exceeds the payload cap.** The socket cap is four times the upload cap, which is 40 MB. The POC measured a 204-paragraph room state at 4.45 MB, and the plan measures a room state from a 10 MB DOCX before the cap is trusted. If a sync still exceeds the cap, `ws` closes with 1009 and the provider never reconnects after 1009. The creator sees the failed banner and Reload re-reserves. Step 0 sizes the cap from a measured 10 MB DOCX, so this is the residual risk, and the human checklist covers it. A test uploads a 10 MB DOCX and asserts commit.
+- **The creator's first sync exceeds the payload cap.** The socket cap is eight times the upload cap, which is 80 MB. The POC measured a 204-paragraph room state at 4.45 MB, and the plan measures a room state from a 10 MB DOCX before the cap is trusted. If a sync still exceeds the cap, `ws` closes with 1009 and the provider never reconnects after 1009. The creator sees the failed banner and Reload re-reserves. Step 0 sizes the cap from a measured 10 MB DOCX, so this is the residual risk, and the human checklist covers it. A test uploads a 10 MB DOCX and asserts commit.
 - **The reservation expires while the creator is still syncing a large DOCX.** Expiry means 60 s of silence, so a creator that keeps appending is not expired. The commit wins if it lands before anyone else opens. If someone opens after expiry, the old attempt is fenced and its socket is closed with 4403. The creator's page shows the failed banner with Reload. Reload returns 409 and the page waits for the new creator.
 - **A rate breach during a burst paste.** The socket closes with 1008 and the provider reconnects once. `attemptOf` still answers the holder, so the reconnect is accepted on the uncommitted room, re-syncs missed updates, and the banner goes lost, reconnecting, then recovered. Awareness frames count toward the 120. If the same paste breaches again on reconnect, the human checklist catches it.
 - **The creator goes offline mid-create and another editor commits.** The creator's reservation expired and the other editor took over with attempt + 1. When the creator returns, its socket carries the old attempt on a committed room and is closed with 4403. The document keeps one paragraph set and the room still opens.
@@ -179,7 +179,7 @@ Revert the lane with `git revert`. There is no feature flag, as decided. Reserva
 | Question | Options | Owner's answer | Date |
 |---|---|---|---|
 | Reservation expiry | 30 s, 60 s, 120 s | Recommendation: 60 s (`CREATOR_RESERVATION_MS`). Expiry only matters for takeover, so a longer sync never loses its commit. | Recommendation, 2026-10-17 |
-| Payload cap multiple | 1×, 4×, 16× `MAX_UPLOAD_BYTES` | Recommendation: 4× (`MAX_SOCKET_MESSAGE_BYTES`), after the plan measures a 10 MB DOCX room state. | Recommendation, 2026-10-17 |
+| Payload cap multiple | 1×, 4×, 16× `MAX_UPLOAD_BYTES` | Decided 8× on 2026-10-17 from the Step 0 numbers (36.6 MB worst frame for a text-dense 10 MB DOCX); the recommendation had been 4× (`MAX_SOCKET_MESSAGE_BYTES`), after the plan measures a 10 MB DOCX room state. | Recommendation, 2026-10-17 |
 | Close code on rate breach | 1008, 1013, 4429 | Recommendation: 1008 (policy violation). A payload breach keeps `ws`'s 1009. | Recommendation, 2026-10-17 |
 | Agents create rooms | Yes, no | Recommendation: no. Agents join committed rooms only, and the agent path answers `NOT_READY` while uncommitted. | Recommendation, 2026-10-17 |
 | Commit detection | Replay the log from zero, or read the committed snapshot first | Snapshot-first, with the paged log scan as fallback, for the concurrent client id reason under Commit detection. Decided by the lead on 2026-10-17. | Lead, 2026-10-17 |

@@ -95,7 +95,23 @@ describe('oauth discovery', () => {
         body: { ...validBody, redirect_uris: Array.from({ length: 40 }, (_, index) => `https://example.com/${index}`) },
         status: HttpStatus.BadRequest,
       },
+      ...['logo_uri', 'client_uri', 'policy_uri', 'tos_uri'].map((field) => ({
+        name: `a long ${field}`,
+        body: { ...validBody, [field]: `https://example.com/${'x'.repeat(600)}` },
+        status: HttpStatus.BadRequest,
+      })),
+      {
+        name: 'too many contacts',
+        body: { ...validBody, contacts: ['a@example.com', 'b@example.com', 'c@example.com', 'd@example.com'] },
+        status: HttpStatus.BadRequest,
+      },
+      { name: 'a long contact', body: { ...validBody, contacts: [`${'x'.repeat(300)}@example.com`] }, status: HttpStatus.BadRequest },
       { name: 'a normal registration', body: validBody, status: HttpStatus.Created },
+      {
+        name: 'three kilobytes in an unknown field',
+        body: { ...validBody, padding: 'x'.repeat(3 * 1024) },
+        status: HttpStatus.PayloadTooLarge,
+      },
       {
         name: 'a five megabyte body',
         body: { ...validBody, client_name: 'x'.repeat(5 * 1024 * 1024) },

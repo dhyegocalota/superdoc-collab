@@ -22,6 +22,8 @@ export const DOCUMENT_LOAD_ERROR_MESSAGE = 'The document could not be loaded.';
 export const LOADING_DOCUMENT_MESSAGE = 'Loading document…';
 export const EXPORT_FAILED_MESSAGE = 'The document could not be exported.';
 export const EDITOR_FAILED_MESSAGE = 'The editor stopped working. Reload the page to continue.';
+export const EDIT_REJECTED_MESSAGE =
+  'That edit could not be applied, the text may have changed under you. Click where you want to type and try again.';
 export const EDITOR_ESCAPE_HINT = 'Press Escape to leave the editor.';
 export const EDITOR_EXIT_LABEL = 'End of the editor';
 export const SHARE_OPENING_MESSAGE = 'Opening…';

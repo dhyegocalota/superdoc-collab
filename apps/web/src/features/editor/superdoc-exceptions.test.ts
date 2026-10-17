@@ -1,9 +1,10 @@
+import type { SuperDocExceptionPayload } from 'superdoc';
 import { describe, expect, test } from 'vitest';
 import { isRecoverableException, SuperDocExceptionCode } from './superdoc-exceptions';
 
-const REJECTED_EDIT = { code: SuperDocExceptionCode.EditRejected, error: new Error('This edit could not be completed.') };
-const ACCESS_DENIED = { code: 'collaboration-access-denied', error: new Error('denied') };
-const UNCODED = { error: new Error('boom') };
+const REJECTED_EDIT = { code: SuperDocExceptionCode.EditRejected, error: new Error('rejected') } as SuperDocExceptionPayload;
+const ACCESS_DENIED = { code: 'collaboration-access-denied', error: new Error('denied') } as SuperDocExceptionPayload;
+const UNCODED = { error: new Error('boom') } as SuperDocExceptionPayload;
 
 describe('isRecoverableException', () => {
   test('a rejected keyboard edit is recoverable', () => {

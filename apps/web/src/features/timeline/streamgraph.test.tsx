@@ -262,3 +262,14 @@ test('a press that focuses no band leaves the next keyboard focus its tooltip', 
   fireEvent.focus(budgetBand());
   expect(budgetBand()).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id);
 });
+
+test('a click after arrow keys hands the tooltip back to the pointer', () => {
+  const { container } = renderGraph({ selectedIndex: 1 });
+  const chart = container.querySelector('svg')!;
+  fireEvent.focus(budgetBand());
+  fireEvent.keyDown(budgetBand(), { key: 'ArrowRight' });
+  fireEvent.pointerDown(chart, { clientX: WIDTH / 2, buttons: 1 });
+  fireEvent.pointerUp(chart);
+  fireEvent.pointerLeave(chart);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});

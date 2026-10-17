@@ -92,6 +92,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
 
   function handlePointerDown(event: PointerEvent<SVGSVGElement>): void {
     isPointerFocus.current = true;
+    setHasKeyboardFocus(false);
     onSelectIndex(layout.binAt(offsetOf(event)));
   }
 

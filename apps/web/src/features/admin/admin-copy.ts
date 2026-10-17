@@ -39,3 +39,5 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.Admin]: 'Admin',
   [UserRole.User]: 'User',
 };
+
+export const ADMIN_LOAD_ERROR_MESSAGE = 'The admin data could not be loaded.';

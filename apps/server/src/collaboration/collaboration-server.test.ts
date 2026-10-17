@@ -1,12 +1,5 @@
 import { commitBootstrap as markBootstrapCommitted, writeStory } from '@superdoc-collab/history/testing';
-import {
-  ApiPath,
-  ClientActor,
-  DocumentRole,
-  RoomMode,
-  SUPERSEDED_ATTEMPT_CLOSE_CODE,
-  SUPERSEDED_ATTEMPT_REASON,
-} from '@superdoc-collab/types';
+import { ApiPath, ClientActor, DocumentRole, RoomMode, SUPERSEDED_ATTEMPT_CLOSE_CODE } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
@@ -162,9 +155,10 @@ describe('collaboration takeover and the committed room', () => {
     const { reservations, runtime } = server.services;
     const abandoned = reservations.attemptOf({ documentId, userId: owner.id })!;
     const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
-    reservations.release({ documentId, attempt: abandoned });
+    expect(runtime.reserveCreator({ documentId, userId: editor.id })).toBeNull();
+    creator.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
     const takeover = runtime.reserveCreator({ documentId, userId: editor.id })!;
-    expect(await creator.closed).toEqual({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
     const winner = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket: takeover });
     writeStory({ document: winner.document, texts: ['committed by the winner'] });
     markBootstrapCommitted(winner.document);

@@ -144,6 +144,7 @@ export function createCollaborationServer({
     async connected({ context, connectionInstance }) {
       const { documentId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
       const isWriteAllowed = reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: true });
+      if (isWriteAllowed && creatorAttempt !== null) return reservations.touch({ documentId, attempt: creatorAttempt });
       if (isWriteAllowed) return;
       console.warn(`${SUPERSEDED_CLOSE_LOG} ${documentId}`);
       connectionInstance.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });

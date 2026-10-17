@@ -55,6 +55,10 @@ export function createCollaborationRuntime({
   }
   return {
     reserveCreator: ({ documentId, userId }) => {
+      connectionsOf(documentId).forEach((connection) => {
+        const { creatorAttempt } = connection.context as CollaborationContext;
+        if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
+      });
       const ticket = reservations.reserve({ documentId, userId });
       if (ticket === null) return null;
       connectionsOf(documentId)

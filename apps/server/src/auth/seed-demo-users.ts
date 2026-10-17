@@ -12,10 +12,23 @@ export class MissingDemoPasswordError extends Error {
   }
 }
 
-export async function seedDemoUsers({ auth, database, password }: { auth: Auth; database: AuthDatabase; password: string }): Promise<SeedResult> {
+export async function seedDemoUsers({
+  auth,
+  database,
+  password,
+}: {
+  auth: Auth;
+  database: AuthDatabase;
+  password: string;
+}): Promise<SeedResult> {
   const result: SeedResult = { created: [], existing: [] };
   for (const { name, email } of DEMO_USERS) {
-    const [found] = database.drizzle.select({ id: authSchema.user.id }).from(authSchema.user).where(eq(authSchema.user.email, email)).limit(1).all();
+    const [found] = database.drizzle
+      .select({ id: authSchema.user.id })
+      .from(authSchema.user)
+      .where(eq(authSchema.user.email, email))
+      .limit(1)
+      .all();
     if (found) {
       result.existing.push(email);
       continue;

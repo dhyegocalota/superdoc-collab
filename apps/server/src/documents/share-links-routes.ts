@@ -1,4 +1,12 @@
-import { ApiPath, DocumentResource, DocumentRole, HttpStatus, INVALID_SHARE_LINK_MESSAGE, SHARE_LINK_GRANTS, ShareLinkRole } from '@superdoc-history/types';
+import {
+  ApiPath,
+  DocumentResource,
+  DocumentRole,
+  HttpStatus,
+  INVALID_SHARE_LINK_MESSAGE,
+  SHARE_LINK_GRANTS,
+  ShareLinkRole,
+} from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppServices } from '../http/app';

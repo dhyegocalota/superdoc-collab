@@ -56,7 +56,11 @@ export function UploadDialog() {
         </DialogHeader>
         <Label htmlFor={FILE_INPUT_ID}>{FILE_INPUT_LABEL}</Label>
         <Input id={FILE_INPUT_ID} type="file" accept={DOCX_ACCEPT} onChange={onFileChange} />
-        {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
+        {message && (
+          <p role="alert" className="text-sm text-destructive">
+            {message}
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -17,7 +17,13 @@ export type ViewerMessage =
 
 const VIEWER_MESSAGE_KINDS: string[] = Object.values(ViewerMessageKind);
 
-export function readViewerMessage({ event, expectedSource }: { event: MessageEvent; expectedSource: MessageEventSource | null }): ViewerMessage | null {
+export function readViewerMessage({
+  event,
+  expectedSource,
+}: {
+  event: MessageEvent;
+  expectedSource: MessageEventSource | null;
+}): ViewerMessage | null {
   if (event.origin !== window.location.origin) return null;
   if (event.source !== expectedSource) return null;
   const data: { kind?: unknown } | null = event.data;

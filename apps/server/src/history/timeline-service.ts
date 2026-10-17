@@ -1,5 +1,34 @@
-import { ALL_SEQUENCES, assignBlocks, authorKey, binStartsCovering, buildBands, buildBins, chooseBinMs, contributorsByBand, filterRuns, groupIntoRuns, IdentitySource, narrowRuns, topicBandId, versionSequenceAt, type BandIdentity, type EditRun, type TimelineEvent } from '@superdoc-history/history';
-import { BlockChangeKind, OTHER_BAND_ID, OTHER_BAND_NAME, TimelineBandKind, type BinEdits, type DocumentEditEvent, type DocumentTimeline, type EventAuthor, type ProjectionStatus, type TimelineFilter } from '@superdoc-history/types';
+import {
+  ALL_SEQUENCES,
+  assignBlocks,
+  authorKey,
+  binStartsCovering,
+  buildBands,
+  buildBins,
+  chooseBinMs,
+  contributorsByBand,
+  filterRuns,
+  groupIntoRuns,
+  IdentitySource,
+  narrowRuns,
+  topicBandId,
+  versionSequenceAt,
+  type BandIdentity,
+  type EditRun,
+  type TimelineEvent,
+} from '@superdoc-history/history';
+import {
+  BlockChangeKind,
+  OTHER_BAND_ID,
+  OTHER_BAND_NAME,
+  TimelineBandKind,
+  type BinEdits,
+  type DocumentEditEvent,
+  type DocumentTimeline,
+  type EventAuthor,
+  type ProjectionStatus,
+  type TimelineFilter,
+} from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
 import type { RequestedSelection, SelectionSnapshot } from '../insights/selection-summaries-service';
 import { resolveEvents } from './resolved-events';
@@ -17,14 +46,25 @@ function primaryAuthorKey(event: DocumentEditEvent): string {
   return first;
 }
 
-function bandIdentities({ services, documentId, events }: { services: AppServices; documentId: string; events: DocumentEditEvent[] }): { identities: BandIdentity[]; bandOf: (event: DocumentEditEvent) => string; hasTopics: boolean } {
+function bandIdentities({ services, documentId, events }: { services: AppServices; documentId: string; events: DocumentEditEvent[] }): {
+  identities: BandIdentity[];
+  bandOf: (event: DocumentEditEvent) => string;
+  hasTopics: boolean;
+} {
   const topics = services.insightsRepository.topics(documentId);
   if (topics.length === 0) {
     const authors = new Map(events.flatMap((event) => event.authors.map((author): [string, EventAuthor] => [authorKey(author), author])));
-    return { identities: [...authors].map(([id, author]) => ({ id, kind: TimelineBandKind.Author, name: author.name })), bandOf: primaryAuthorKey, hasTopics: false };
+    return {
+      identities: [...authors].map(([id, author]) => ({ id, kind: TimelineBandKind.Author, name: author.name })),
+      bandOf: primaryAuthorKey,
+      hasTopics: false,
+    };
   }
   const assignment = assignBlocks(topics);
-  const identities = [...topics.map((topic) => ({ id: topic.id, kind: TimelineBandKind.Topic, name: topic.name })), { id: OTHER_BAND_ID, kind: TimelineBandKind.Other, name: OTHER_BAND_NAME }];
+  const identities = [
+    ...topics.map((topic) => ({ id: topic.id, kind: TimelineBandKind.Topic, name: topic.name })),
+    { id: OTHER_BAND_ID, kind: TimelineBandKind.Other, name: OTHER_BAND_NAME },
+  ];
   return { identities, bandOf: (event) => topicBandId({ assignment, blockId: event.blockId }), hasTopics: true };
 }
 
@@ -32,9 +72,26 @@ function buildPipeline({ services, documentId }: { services: AppServices; docume
   const { events: stored, cursor } = services.readModel.readWithCursor({ documentName: documentId, afterSequence: null });
   const events = resolveEvents({ services, documentId, stored });
   const { identities, bandOf, hasTopics } = bandIdentities({ services, documentId, events });
-  const timelineEvents = events.map((event): TimelineEvent => ({ sequence: event.sequence, serverTime: event.serverTime, blockId: event.blockId, bandId: bandOf(event), authorKeys: event.authors.map(authorKey), inserted: event.inserted, deleted: event.deleted }));
-  const unassignedEvents = events.filter((event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID));
-  return { events: timelineEvents, identities, authors: authorsOf(events), hasTopics, unassignedFirstSequences: firstSequencesOf(unassignedEvents), cursor };
+  const timelineEvents = events.map((event): TimelineEvent => ({
+    sequence: event.sequence,
+    serverTime: event.serverTime,
+    blockId: event.blockId,
+    bandId: bandOf(event),
+    authorKeys: event.authors.map(authorKey),
+    inserted: event.inserted,
+    deleted: event.deleted,
+  }));
+  const unassignedEvents = events.filter(
+    (event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID),
+  );
+  return {
+    events: timelineEvents,
+    identities,
+    authors: authorsOf(events),
+    hasTopics,
+    unassignedFirstSequences: firstSequencesOf(unassignedEvents),
+    cursor,
+  };
 }
 
 function authorsOf(events: DocumentEditEvent[]): Record<string, EventAuthor> {
@@ -51,15 +108,34 @@ function firstSequencesOf(events: DocumentEditEvent[]): number[] {
 }
 
 export function pipelineKey({ services, documentId }: { services: AppServices; documentId: string }): string {
-  const declaredCount = [...services.log.identitySources(documentId).values()].filter((source) => source === IdentitySource.Declared).length;
-  return [services.readModel.cursor(documentId), services.log.clientIdentities(documentId).size, declaredCount, services.insightsRepository.updatedAt(documentId)].join(':');
+  const declaredCount = [...services.log.identitySources(documentId).values()].filter(
+    (source) => source === IdentitySource.Declared,
+  ).length;
+  return [
+    services.readModel.cursor(documentId),
+    services.log.clientIdentities(documentId).size,
+    declaredCount,
+    services.insightsRepository.updatedAt(documentId),
+  ].join(':');
 }
 
 export function readTimelinePipeline({ services, documentId }: { services: AppServices; documentId: string }): TimelinePipeline {
-  return services.timelinePipelines.get({ documentId, key: pipelineKey({ services, documentId }), build: () => buildPipeline({ services, documentId }) });
+  return services.timelinePipelines.get({
+    documentId,
+    key: pipelineKey({ services, documentId }),
+    build: () => buildPipeline({ services, documentId }),
+  });
 }
 
-function matchingAuthorKeys({ services, pipeline, author }: { services: AppServices; pipeline: TimelinePipeline; author: string | null }): Set<string> | null {
+function matchingAuthorKeys({
+  services,
+  pipeline,
+  author,
+}: {
+  services: AppServices;
+  pipeline: TimelinePipeline;
+  author: string | null;
+}): Set<string> | null {
   if (author === null) return null;
   const needle = author.toLocaleLowerCase();
   const entries = Object.entries(pipeline.authors);
@@ -98,17 +174,47 @@ function binMsOf({ binMs, pipeline }: { binMs: number | null; pipeline: Timeline
   return binMs;
 }
 
-function matchedRunsOf({ services, pipeline, filter, binMs }: { services: AppServices; pipeline: TimelinePipeline; filter: TimelineFilter; binMs: number }): { allRuns: EditRun[]; matchedRuns: EditRun[] } {
+function matchedRunsOf({
+  services,
+  pipeline,
+  filter,
+  binMs,
+}: {
+  services: AppServices;
+  pipeline: TimelinePipeline;
+  filter: TimelineFilter;
+  binMs: number;
+}): { allRuns: EditRun[]; matchedRuns: EditRun[] } {
   const allRuns = groupIntoRuns({ events: pipeline.events, binMs });
-  return { allRuns, matchedRuns: filterRuns({ runs: allRuns, term: filter.term, authorKeys: matchingAuthorKeys({ services, pipeline, author: filter.author }) }) };
+  return {
+    allRuns,
+    matchedRuns: filterRuns({
+      runs: allRuns,
+      term: filter.term,
+      authorKeys: matchingAuthorKeys({ services, pipeline, author: filter.author }),
+    }),
+  };
 }
 
-export function buildDocumentTimeline({ services, documentId, filter, binMs }: { services: AppServices; documentId: string; filter: TimelineFilter; binMs: number | null }): DocumentTimeline {
+export function buildDocumentTimeline({
+  services,
+  documentId,
+  filter,
+  binMs,
+}: {
+  services: AppServices;
+  documentId: string;
+  filter: TimelineFilter;
+  binMs: number | null;
+}): DocumentTimeline {
   const pipeline = readTimelinePipeline({ services, documentId });
   const chosenBinMs = binMsOf({ binMs, pipeline });
   const { allRuns, matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
   const marks = services.readModel.marks(documentId);
-  const binStarts = pipeline.events.length === 0 ? [] : binStartsCovering({ firstTime: firstTimeOf(pipeline.events), lastTime: lastTimeOf(pipeline.events), binMs: chosenBinMs });
+  const binStarts =
+    pipeline.events.length === 0
+      ? []
+      : binStartsCovering({ firstTime: firstTimeOf(pipeline.events), lastTime: lastTimeOf(pipeline.events), binMs: chosenBinMs });
   return {
     binMs: chosenBinMs,
     bins: buildBins({ runs: matchedRuns, binStarts, binMs: chosenBinMs, versionSequenceAt: (time) => versionSequenceAt({ marks, time }) }),
@@ -120,22 +226,59 @@ export function buildDocumentTimeline({ services, documentId, filter, binMs }: {
   };
 }
 
-export function buildBinEdits({ services, documentId, filter, binStart, binMs }: { services: AppServices; documentId: string; filter: TimelineFilter; binStart: number; binMs: number | null }): BinEdits {
+export function buildBinEdits({
+  services,
+  documentId,
+  filter,
+  binStart,
+  binMs,
+}: {
+  services: AppServices;
+  documentId: string;
+  filter: TimelineFilter;
+  binStart: number;
+  binMs: number | null;
+}): BinEdits {
   const pipeline = readTimelinePipeline({ services, documentId });
   const chosenBinMs = binMsOf({ binMs, pipeline });
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
-  const runs = matchedRuns.filter((run) => run.binStart === binStart).map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }) => ({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }));
+  const runs = matchedRuns
+    .filter((run) => run.binStart === binStart)
+    .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }) => ({
+      blockId,
+      bandId,
+      authorKeys,
+      inserted,
+      deleted,
+      lastServerTime,
+    }));
   const authorKeys = new Set(runs.flatMap((run) => run.authorKeys));
   const authors = Object.fromEntries(Object.entries(pipeline.authors).filter(([key]) => authorKeys.has(key)));
   return { binStart, binMs: chosenBinMs, runs, authors };
 }
 
-function topicStampOf({ services, documentId, selection }: { services: AppServices; documentId: string; selection: RequestedSelection }): number | null {
+function topicStampOf({
+  services,
+  documentId,
+  selection,
+}: {
+  services: AppServices;
+  documentId: string;
+  selection: RequestedSelection;
+}): number | null {
   if (selection.topic === null) return null;
   return services.insightsRepository.updatedAt(documentId);
 }
 
-export function buildSelectionSnapshot({ services, documentId, selection }: { services: AppServices; documentId: string; selection: RequestedSelection }): SelectionSnapshot {
+export function buildSelectionSnapshot({
+  services,
+  documentId,
+  selection,
+}: {
+  services: AppServices;
+  documentId: string;
+  selection: RequestedSelection;
+}): SelectionSnapshot {
   const pipeline = readTimelinePipeline({ services, documentId });
   const binMs = binMsOf({ binMs: selection.binMs, pipeline });
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs });

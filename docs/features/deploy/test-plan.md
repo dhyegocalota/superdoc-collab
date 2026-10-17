@@ -1,5 +1,7 @@
 # Test plan: Deploy
 
+Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
+
 Executed by the `tester` sub-agent after `tester-briefing.md` exists. Every box states the input and the exact expected outcome; a ticked box carries ` — evidence: <commit | log path | count | screenshot path>`. A box that cannot run is marked `BLOCKED: <why>`, never ticked. The tester never reads `.env`.
 
 **The Docker caveat.** This machine's Docker daemon cannot pull images (`node:24-bookworm-slim` times out; slice 3 test plan). Nothing here runs `docker build`, `docker run` or `docker compose up` locally. `docker compose config` is client-side and runs here. Three kinds of boxes follow:

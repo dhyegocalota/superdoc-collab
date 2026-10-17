@@ -25,7 +25,10 @@ function readBinStart(value: string | null): number | null {
   return Number(value);
 }
 
-export function useTimelineSearch(): { search: TimelineSearch; update: (options: { changes: TimelineSearchChanges; replace: boolean }) => void } {
+export function useTimelineSearch(): {
+  search: TimelineSearch;
+  update: (options: { changes: TimelineSearchChanges; replace: boolean }) => void;
+} {
   const [params, setParams] = useSearchParams();
   const search: TimelineSearch = {
     filter: { term: presentOrNull(params.get(TimelineSearchParam.Term)), author: presentOrNull(params.get(TimelineSearchParam.Author)) },

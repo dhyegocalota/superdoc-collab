@@ -21,7 +21,15 @@ function authorIdsOf({ event, identities }: { event: StoredEditEvent; identities
   return resolveAuthorIds({ update: { yjsClientIds, connectionUserId }, identities });
 }
 
-function authorsOf({ event, authorIds, names }: { event: StoredEditEvent; authorIds: string[]; names: Map<string, string> }): EventAuthor[] {
+function authorsOf({
+  event,
+  authorIds,
+  names,
+}: {
+  event: StoredEditEvent;
+  authorIds: string[];
+  names: Map<string, string>;
+}): EventAuthor[] {
   if (event.authorName !== null) return [{ id: null, name: event.authorName }];
   return authorIds.map((id) => {
     const name = names.get(id);
@@ -30,7 +38,15 @@ function authorsOf({ event, authorIds, names }: { event: StoredEditEvent; author
   });
 }
 
-export function resolveEvents({ services, documentId, stored }: { services: AppServices; documentId: string; stored: StoredEditEvent[] }): DocumentEditEvent[] {
+export function resolveEvents({
+  services,
+  documentId,
+  stored,
+}: {
+  services: AppServices;
+  documentId: string;
+  stored: StoredEditEvent[];
+}): DocumentEditEvent[] {
   const identities = services.log.clientIdentities(documentId);
   const resolved = stored.map((event) => ({ event, authorIds: authorIdsOf({ event, identities }) }));
   const names = services.documents.userNames([...new Set(resolved.flatMap(({ authorIds }) => authorIds))]);

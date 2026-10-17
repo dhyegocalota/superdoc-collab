@@ -8,8 +8,12 @@ import { useRunHighlights } from './use-run-highlights';
 vi.mock('@/features/editor/highlight-edits', () => ({ highlightEdits: vi.fn(), clearHighlights: vi.fn() }));
 
 const document = {} as EditorDocument;
-const FIRST_RUNS: EditRunView[] = [{ blockId: 'b1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'first edit', deleted: '', lastServerTime: 1 }];
-const SECOND_RUNS: EditRunView[] = [{ blockId: 'b2', bandId: 'band-0', authorKeys: ['ana'], inserted: 'second edit', deleted: '', lastServerTime: 2 }];
+const FIRST_RUNS: EditRunView[] = [
+  { blockId: 'b1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'first edit', deleted: '', lastServerTime: 1 },
+];
+const SECOND_RUNS: EditRunView[] = [
+  { blockId: 'b2', bandId: 'band-0', authorKeys: ['ana'], inserted: 'second edit', deleted: '', lastServerTime: 2 },
+];
 const ALL_SKIPPED: HighlightResult = { commentIds: [], skippedCount: 1, targetCount: 1 };
 
 function deferred<Value>() {

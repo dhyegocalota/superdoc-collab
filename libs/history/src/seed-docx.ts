@@ -35,9 +35,7 @@ export async function buildSeedDocx(paragraphs: SeedParagraph[]): Promise<Buffer
   let revisionId = 100;
   const body = paragraphs
     .map((paragraph) => {
-      const trackedRuns = paragraph.trackedChanges
-        .map((change) => renderTrackedChange({ change, revisionId: revisionId++ }))
-        .join('');
+      const trackedRuns = paragraph.trackedChanges.map((change) => renderTrackedChange({ change, revisionId: revisionId++ })).join('');
       return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(paragraph.text)}</w:t></w:r>${trackedRuns}</w:p>`;
     })
     .join('');

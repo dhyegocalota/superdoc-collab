@@ -13,7 +13,11 @@ describe('withClientAddress', () => {
     expect(request.headers.get(CLIENT_ADDRESS_HEADER)).toBe(remoteAddress);
   });
   test('takes the first forwarded address when the proxy is trusted', () => {
-    const request = withClientAddress({ request: requestWith({ 'x-forwarded-for': '7.7.7.7, 10.0.0.1' }), remoteAddress, trustProxy: true });
+    const request = withClientAddress({
+      request: requestWith({ 'x-forwarded-for': '7.7.7.7, 10.0.0.1' }),
+      remoteAddress,
+      trustProxy: true,
+    });
     expect(request.headers.get(CLIENT_ADDRESS_HEADER)).toBe('7.7.7.7');
   });
   test('uses the remote address when the proxy is trusted but sent no forwarded header', () => {

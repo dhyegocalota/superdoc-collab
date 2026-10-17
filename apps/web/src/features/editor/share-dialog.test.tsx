@@ -1,15 +1,26 @@
-import { documentApiPath, DocumentResource, HttpMethod, HttpStatus, LINK_COPIED_MESSAGE, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
+import {
+  documentApiPath,
+  DocumentResource,
+  HttpMethod,
+  HttpStatus,
+  LINK_COPIED_MESSAGE,
+  ShareLinkRole,
+  type ShareLinks,
+} from '@superdoc-history/types';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { COPY_LABEL, ROTATE_FAILED_MESSAGE, ROTATE_LABEL, SHARE_LABEL, SHARE_LINK_LABELS } from './editor-copy';
 import { ShareDialog } from './share-dialog';
 
 const SHARE_LINKS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.ShareLinks });
 const ROTATE_EDIT_PATH = `${SHARE_LINKS_PATH}/${ShareLinkRole.Edit}/rotate`;
-const LINKS: ShareLinks = { [ShareLinkRole.Edit]: 'http://localhost/share/edit-token', [ShareLinkRole.Read]: 'http://localhost/share/read-token' };
+const LINKS: ShareLinks = {
+  [ShareLinkRole.Edit]: 'http://localhost/share/edit-token',
+  [ShareLinkRole.Read]: 'http://localhost/share/read-token',
+};
 const ROTATED_LINKS: ShareLinks = { ...LINKS, [ShareLinkRole.Edit]: 'http://localhost/share/rotated-token' };
 
 afterEach(() => vi.restoreAllMocks());

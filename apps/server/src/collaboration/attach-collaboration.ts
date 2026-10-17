@@ -6,7 +6,14 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { parseVersionPath, VersionAdmission, type VersionEndpoint, type VersionRooms } from './version-rooms';
 
 const PARSE_BASE_URL = 'http://localhost';
-const UNAVAILABLE_UPGRADE_RESPONSE = [`HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`, `${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`, 'Connection: close', 'Content-Length: 0', '', ''].join('\r\n');
+const UNAVAILABLE_UPGRADE_RESPONSE = [
+  `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
+  `${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`,
+  'Connection: close',
+  'Content-Length: 0',
+  '',
+  '',
+].join('\r\n');
 
 function terminateOnError(this: WebSocket): void {
   this.terminate();
@@ -16,16 +23,48 @@ function destroyOnSocketError(this: Duplex): void {
   this.destroy();
 }
 
-export function attachCollaboration({ httpServer, hocuspocus, versionRooms, path, allowedOrigin }: { httpServer: Server; hocuspocus: Hocuspocus; versionRooms: VersionRooms; path: string; allowedOrigin: string }): WebSocketServer {
+export function attachCollaboration({
+  httpServer,
+  hocuspocus,
+  versionRooms,
+  path,
+  allowedOrigin,
+}: {
+  httpServer: Server;
+  hocuspocus: Hocuspocus;
+  versionRooms: VersionRooms;
+  path: string;
+  allowedOrigin: string;
+}): WebSocketServer {
   const sockets = new WebSocketServer({ noServer: true });
-  function upgrade({ request, socket, head, endpoint }: { request: IncomingMessage; socket: Duplex; head: Buffer; endpoint: VersionEndpoint | null }): void {
+  function upgrade({
+    request,
+    socket,
+    head,
+    endpoint,
+  }: {
+    request: IncomingMessage;
+    socket: Duplex;
+    head: Buffer;
+    endpoint: VersionEndpoint | null;
+  }): void {
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);
     });
   }
-  function upgradeVersion({ request, socket, head, endpoint }: { request: IncomingMessage; socket: Duplex; head: Buffer; endpoint: VersionEndpoint }): void {
+  function upgradeVersion({
+    request,
+    socket,
+    head,
+    endpoint,
+  }: {
+    request: IncomingMessage;
+    socket: Duplex;
+    head: Buffer;
+    endpoint: VersionEndpoint;
+  }): void {
     socket.on('error', destroyOnSocketError);
     versionRooms.authorize({ endpoint, request }).then(
       (admission) => {

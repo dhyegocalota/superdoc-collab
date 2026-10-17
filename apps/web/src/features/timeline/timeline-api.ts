@@ -74,7 +74,17 @@ export function topicsQueryKey(documentId: string): string[] {
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Topics];
 }
 
-export function binEditsQueryKey({ documentId, binStart, binMs, filter }: { documentId: string; binStart: number; binMs: number; filter: TimelineFilter }): unknown[] {
+export function binEditsQueryKey({
+  documentId,
+  binStart,
+  binMs,
+  filter,
+}: {
+  documentId: string;
+  binStart: number;
+  binMs: number;
+  filter: TimelineFilter;
+}): unknown[] {
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter];
 }
 
@@ -155,15 +165,35 @@ export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   return response.json();
 }
 
-export async function fetchSelectionSummary({ documentId, selection, binMs }: { documentId: string; selection: EditSelection; binMs: number | null }): Promise<SelectionSummaryView> {
+export async function fetchSelectionSummary({
+  documentId,
+  selection,
+  binMs,
+}: {
+  documentId: string;
+  selection: EditSelection;
+  binMs: number | null;
+}): Promise<SelectionSummaryView> {
   const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }));
   assertDocumentAvailable(response);
   if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status: response.status }));
   return response.json();
 }
 
-export async function requestSelectionSummary({ documentId, selection, binMs }: { documentId: string; selection: EditSelection; binMs: number | null }): Promise<SelectionSummaryView> {
-  const response = await apiSend({ path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }), method: HttpMethod.Post, body: null });
+export async function requestSelectionSummary({
+  documentId,
+  selection,
+  binMs,
+}: {
+  documentId: string;
+  selection: EditSelection;
+  binMs: number | null;
+}): Promise<SelectionSummaryView> {
+  const response = await apiSend({
+    path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }),
+    method: HttpMethod.Post,
+    body: null,
+  });
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(Math.ceil(readRetryAfterMs(response) / SECOND_MS));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
@@ -171,7 +201,17 @@ export async function requestSelectionSummary({ documentId, selection, binMs }: 
   return response.json();
 }
 
-export async function fetchBinEdits({ documentId, binStart, binMs, filter }: { documentId: string; binStart: number; binMs: number; filter: TimelineFilter }): Promise<BinEdits> {
+export async function fetchBinEdits({
+  documentId,
+  binStart,
+  binMs,
+  filter,
+}: {
+  documentId: string;
+  binStart: number;
+  binMs: number;
+  filter: TimelineFilter;
+}): Promise<BinEdits> {
   const params = filterParams(filter);
   params.set(TimelineQueryParam.BinStart, String(binStart));
   params.set(TimelineQueryParam.BinMs, String(binMs));

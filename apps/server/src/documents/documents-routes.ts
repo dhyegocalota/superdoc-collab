@@ -43,7 +43,10 @@ function titleFromFileName(fileName: string): string {
 
 function contentDisposition(fileName: string): string {
   const asciiFallback = fileName.replace(UNSAFE_IN_QUOTED_FILENAME, ASCII_FALLBACK_CHARACTER);
-  const encoded = encodeURIComponent(fileName).replace(RFC_5987_RESERVED, (character) => `%${character.charCodeAt(0).toString(HEX_RADIX).toUpperCase()}`);
+  const encoded = encodeURIComponent(fileName).replace(
+    RFC_5987_RESERVED,
+    (character) => `%${character.charCodeAt(0).toString(HEX_RADIX).toUpperCase()}`,
+  );
   return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }
 
@@ -51,7 +54,17 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   const { documents, storage, runtime } = services;
   const routes = new Hono<SignedIn>();
 
-  async function storeDocument({ context, bytes, title, importRevisions }: { context: Context<SignedIn>; bytes: Uint8Array; title: string; importRevisions: boolean }): Promise<Response> {
+  async function storeDocument({
+    context,
+    bytes,
+    title,
+    importRevisions,
+  }: {
+    context: Context<SignedIn>;
+    bytes: Uint8Array;
+    title: string;
+    importRevisions: boolean;
+  }): Promise<Response> {
     const documentId = randomUUID();
     const userId = context.var.user.id;
     documents.create({ id: documentId, title, ownerUserId: userId });
@@ -71,19 +84,26 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
 
   routes.get('/', (context) => context.json(documents.list(context.var.user.id)));
 
-  routes.post('/', bodyLimit({ maxSize: MAX_UPLOAD_BYTES + MULTIPART_ENVELOPE_BYTES, onError: (context) => context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge) }), async (context) => {
-    const isUpload = context.req.header('content-type')?.startsWith(MULTIPART_CONTENT_TYPE) === true;
-    if (!isUpload) return createBlank(context);
-    const body = await context.req.parseBody().catch(() => null);
-    if (!body) return context.json({ error: MALFORMED_UPLOAD_MESSAGE }, HttpStatus.BadRequest);
-    const file = body[UPLOAD_FIELD];
-    if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-    if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
-    if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-    return storeDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
-  });
+  routes.post(
+    '/',
+    bodyLimit({
+      maxSize: MAX_UPLOAD_BYTES + MULTIPART_ENVELOPE_BYTES,
+      onError: (context) => context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
+    }),
+    async (context) => {
+      const isUpload = context.req.header('content-type')?.startsWith(MULTIPART_CONTENT_TYPE) === true;
+      if (!isUpload) return createBlank(context);
+      const body = await context.req.parseBody().catch(() => null);
+      if (!body) return context.json({ error: MALFORMED_UPLOAD_MESSAGE }, HttpStatus.BadRequest);
+      const file = body[UPLOAD_FIELD];
+      if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
+      if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      return storeDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
+    },
+  );
 
   routes.get('/:documentId', (context) => {
     const documentId = context.req.param('documentId');
@@ -95,15 +115,22 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     return context.json({ document: documents.summary({ documentId, userId }), role, roomMode });
   });
 
-  routes.patch('/:documentId', bodyLimit({ maxSize: RENAME_BODY_MAX_BYTES, onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge) }), async (context) => {
-    const documentId = context.req.param('documentId');
-    const userId = context.var.user.id;
-    requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Editor });
-    const parsed = titleSchema.safeParse(await context.req.json().catch(() => null));
-    if (!parsed.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
-    documents.rename({ documentId, title: parsed.data.title });
-    return context.json(documents.summary({ documentId, userId }));
-  });
+  routes.patch(
+    '/:documentId',
+    bodyLimit({
+      maxSize: RENAME_BODY_MAX_BYTES,
+      onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
+    }),
+    async (context) => {
+      const documentId = context.req.param('documentId');
+      const userId = context.var.user.id;
+      requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Editor });
+      const parsed = titleSchema.safeParse(await context.req.json().catch(() => null));
+      if (!parsed.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
+      documents.rename({ documentId, title: parsed.data.title });
+      return context.json(documents.summary({ documentId, userId }));
+    },
+  );
 
   routes.delete('/:documentId', async (context) => {
     const documentId = context.req.param('documentId');
@@ -122,7 +149,9 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const userId = context.var.user.id;
     requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const { title } = documents.summary({ documentId, userId });
-    return new Response(Buffer.from(await storage.read(documentId)), { headers: { 'content-type': DOCX_MIME_TYPE, 'content-disposition': contentDisposition(`${title}${DOCX_EXTENSION}`) } });
+    return new Response(Buffer.from(await storage.read(documentId)), {
+      headers: { 'content-type': DOCX_MIME_TYPE, 'content-disposition': contentDisposition(`${title}${DOCX_EXTENSION}`) },
+    });
   });
 
   routes.get('/:documentId/members', (context) => {

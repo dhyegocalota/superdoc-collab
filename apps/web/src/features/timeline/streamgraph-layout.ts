@@ -41,7 +41,19 @@ function intersects({ first, second }: { first: LabelBox; second: LabelBox }): b
   return first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
 }
 
-function placeLabel({ band, points, x, y, placed }: { band: TimelineBand; points: StackSeries; x: ScaleLinear<number, number>; y: ScaleLinear<number, number>; placed: LabelBox[] }): { x: number; y: number } | null {
+function placeLabel({
+  band,
+  points,
+  x,
+  y,
+  placed,
+}: {
+  band: TimelineBand;
+  points: StackSeries;
+  x: ScaleLinear<number, number>;
+  y: ScaleLinear<number, number>;
+  placed: LabelBox[];
+}): { x: number; y: number } | null {
   const thickness = points.map((point) => y(point[0]) - y(point[1]));
   const halfWidth = (band.name.length * LABEL_CHARACTER_WIDTH) / HALF;
 
@@ -57,7 +69,12 @@ function placeLabel({ band, points, x, y, placed }: { band: TimelineBand; points
   const { index } = candidates.reduce((best, candidate) => (candidate.value > best.value ? candidate : best));
   const centerX = x(index);
   const centerY = (y(points[index]![0]) + y(points[index]![1])) / HALF;
-  const box: LabelBox = { left: centerX - halfWidth, right: centerX + halfWidth, top: centerY - MIN_LABEL_HEIGHT / HALF, bottom: centerY + MIN_LABEL_HEIGHT / HALF };
+  const box: LabelBox = {
+    left: centerX - halfWidth,
+    right: centerX + halfWidth,
+    top: centerY - MIN_LABEL_HEIGHT / HALF,
+    bottom: centerY + MIN_LABEL_HEIGHT / HALF,
+  };
   if (placed.some((other) => intersects({ first: box, second: other }))) return null;
   placed.push(box);
   return { x: centerX, y: centerY };
@@ -65,13 +82,25 @@ function placeLabel({ band, points, x, y, placed }: { band: TimelineBand; points
 
 export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimeline; width: number }): StreamgraphLayout {
   const bandIds = timeline.bands.map((band) => band.id);
-  const series = stack<StackRow, string>().keys(bandIds).value((row, key) => cellValue({ row, key })).order(stackOrderInsideOut).offset(stackOffsetWiggle)(toStackRows({ bins: timeline.bins, bandIds }));
+  const series = stack<StackRow, string>()
+    .keys(bandIds)
+    .value((row, key) => cellValue({ row, key }))
+    .order(stackOrderInsideOut)
+    .offset(stackOffsetWiggle)(toStackRows({ bins: timeline.bins, bandIds }));
   const lastIndex = Math.max(0, timeline.bins.length - 1);
-  const x = scaleLinear().domain([0, Math.max(1, lastIndex)]).range([0, width]);
+  const x = scaleLinear()
+    .domain([0, Math.max(1, lastIndex)])
+    .range([0, width]);
   const lowest = Math.min(0, ...series.flatMap((points) => points.map((point) => point[0])));
   const highest = Math.max(lowest + 1, ...series.flatMap((points) => points.map((point) => point[1])));
-  const y = scaleLinear().domain([lowest, highest]).range([CHART_HEIGHT - CHART_PADDING, CHART_PADDING]);
-  const shapeOf = area<SeriesPoint<StackRow>>().x((_, index) => x(index)).y0((point) => y(point[0])).y1((point) => y(point[1])).curve(curveBasis);
+  const y = scaleLinear()
+    .domain([lowest, highest])
+    .range([CHART_HEIGHT - CHART_PADDING, CHART_PADDING]);
+  const shapeOf = area<SeriesPoint<StackRow>>()
+    .x((_, index) => x(index))
+    .y0((point) => y(point[0]))
+    .y1((point) => y(point[1]))
+    .curve(curveBasis);
   const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
   const placed: LabelBox[] = [];
   const shapes = [...series]
@@ -80,7 +109,12 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
       const band = bandOf({ timeline, id: points.key });
       const path = shapeOf(points);
       if (!path) throw new EmptyBandPathError(band.id);
-      return { band, path: `${path}Z`, saturation: saturationOf({ volume: band.volume, maxVolume }), label: placeLabel({ band, points, x, y, placed }) };
+      return {
+        band,
+        path: `${path}Z`,
+        saturation: saturationOf({ volume: band.volume, maxVolume }),
+        label: placeLabel({ band, points, x, y, placed }),
+      };
     });
   return { shapes, binX: (index) => x(index), binAt: (position) => Math.min(lastIndex, Math.max(0, Math.round(x.invert(position)))) };
 }

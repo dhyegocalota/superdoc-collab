@@ -13,7 +13,17 @@ const eventsQuerySchema = z.object({
   [TimelineQueryParam.Limit]: z.coerce.number().int().min(1).max(EVENTS_PAGE_SIZE).optional(),
 });
 
-function readDocumentEvents({ services, documentId, afterSequence, limit }: { services: AppServices; documentId: string; afterSequence: number | null; limit: number }): DocumentEditEvents {
+function readDocumentEvents({
+  services,
+  documentId,
+  afterSequence,
+  limit,
+}: {
+  services: AppServices;
+  documentId: string;
+  afterSequence: number | null;
+  limit: number;
+}): DocumentEditEvents {
   const { events: stored, cursor, nextAfterSequence } = services.readModel.readPage({ documentName: documentId, afterSequence, limit });
   return { events: resolveEvents({ services, documentId, stored }), cursor, nextAfterSequence };
 }
@@ -23,11 +33,15 @@ export function createHistoryRoutes({ services }: { services: AppServices }): Ho
   routes.get('/:documentId/events', (context) => {
     const documentId = context.req.param('documentId');
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
-    const parsed = eventsQuerySchema.safeParse({ [TimelineQueryParam.AfterSequence]: context.req.query(TimelineQueryParam.AfterSequence), [TimelineQueryParam.Limit]: context.req.query(TimelineQueryParam.Limit) });
+    const parsed = eventsQuerySchema.safeParse({
+      [TimelineQueryParam.AfterSequence]: context.req.query(TimelineQueryParam.AfterSequence),
+      [TimelineQueryParam.Limit]: context.req.query(TimelineQueryParam.Limit),
+    });
     if (!parsed.success) return context.json({ error: INVALID_EVENTS_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const { afterSequence, limit } = parsed.data;
     const afterSequenceOrNull = afterSequence === undefined ? null : afterSequence;
-    if (limit === undefined) return context.json(readDocumentEvents({ services, documentId, afterSequence: afterSequenceOrNull, limit: EVENTS_PAGE_SIZE }));
+    if (limit === undefined)
+      return context.json(readDocumentEvents({ services, documentId, afterSequence: afterSequenceOrNull, limit: EVENTS_PAGE_SIZE }));
     return context.json(readDocumentEvents({ services, documentId, afterSequence: afterSequenceOrNull, limit }));
   });
   return routes;

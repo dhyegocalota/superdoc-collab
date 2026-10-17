@@ -15,7 +15,9 @@ export enum LanguageModelAvailability {
   Unavailable = 'unavailable',
 }
 
-export type LanguageModelChoice = { availability: LanguageModelAvailability.Ready; model: LanguageModel } | { availability: LanguageModelAvailability.Unavailable; reason: string };
+export type LanguageModelChoice =
+  | { availability: LanguageModelAvailability.Ready; model: LanguageModel }
+  | { availability: LanguageModelAvailability.Unavailable; reason: string };
 
 function providerSettings({ apiKey, baseUrl }: { apiKey: string; baseUrl: string | null }): OpenRouterProviderSettings {
   if (!baseUrl) return { apiKey };
@@ -28,7 +30,24 @@ export function chooseLanguageModel({ model, apiKey, baseUrl }: Pick<LlmSettings
   return { availability: LanguageModelAvailability.Ready, model: createOpenRouter(providerSettings({ apiKey, baseUrl })).chat(model) };
 }
 
-export async function generateStructured<Schema extends z.ZodType>({ model, schema, system, prompt }: { model: LanguageModel; schema: Schema; system: string; prompt: string }): Promise<z.infer<Schema>> {
-  const { output } = await generateText({ model, output: Output.object<z.infer<Schema>>({ schema }), system, prompt, maxRetries: LLM_MAX_RETRIES, abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS) });
+export async function generateStructured<Schema extends z.ZodType>({
+  model,
+  schema,
+  system,
+  prompt,
+}: {
+  model: LanguageModel;
+  schema: Schema;
+  system: string;
+  prompt: string;
+}): Promise<z.infer<Schema>> {
+  const { output } = await generateText({
+    model,
+    output: Output.object<z.infer<Schema>>({ schema }),
+    system,
+    prompt,
+    maxRetries: LLM_MAX_RETRIES,
+    abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+  });
   return output;
 }

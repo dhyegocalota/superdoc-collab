@@ -38,10 +38,26 @@ const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
 const LONG_LOG_EXTRA_UPDATES = 20;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
-async function upload({ server, cookie, bytes, type = DOCX_MIME_TYPE, fileName = 'Plan.docx' }: { server: TestServer; cookie: string; bytes: Uint8Array; type?: string; fileName?: string }): Promise<Response> {
+async function upload({
+  server,
+  cookie,
+  bytes,
+  type = DOCX_MIME_TYPE,
+  fileName = 'Plan.docx',
+}: {
+  server: TestServer;
+  cookie: string;
+  bytes: Uint8Array;
+  type?: string;
+  fileName?: string;
+}): Promise<Response> {
   const form = new FormData();
   form.set(UPLOAD_FIELD, new File([new Uint8Array(bytes)], fileName, { type }));
-  return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie, origin: server.baseUrl }, body: form });
+  return fetch(`${server.baseUrl}${ApiPath.Documents}`, {
+    method: HttpMethod.Post,
+    headers: { cookie, origin: server.baseUrl },
+    body: form,
+  });
 }
 
 async function listOf({ server, cookie }: { server: TestServer; cookie: string }): Promise<DocumentsList> {
@@ -49,11 +65,31 @@ async function listOf({ server, cookie }: { server: TestServer; cookie: string }
 }
 
 async function createBlank({ server, cookie, title }: { server: TestServer; cookie: string; title: string }): Promise<Response> {
-  return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie, ...JSON_HEADERS }, body: JSON.stringify({ title }) });
+  return fetch(`${server.baseUrl}${ApiPath.Documents}`, {
+    method: HttpMethod.Post,
+    headers: { cookie, ...JSON_HEADERS },
+    body: JSON.stringify({ title }),
+  });
 }
 
-function request({ server, cookie, path, method = HttpMethod.Get, body }: { server: TestServer; cookie: string; path: string; method?: HttpMethod; body?: unknown }): Promise<Response> {
-  return fetch(`${server.baseUrl}${path}`, { method, headers: { cookie, ...JSON_HEADERS }, body: body === undefined ? undefined : JSON.stringify(body) });
+function request({
+  server,
+  cookie,
+  path,
+  method = HttpMethod.Get,
+  body,
+}: {
+  server: TestServer;
+  cookie: string;
+  path: string;
+  method?: HttpMethod;
+  body?: unknown;
+}): Promise<Response> {
+  return fetch(`${server.baseUrl}${path}`, {
+    method,
+    headers: { cookie, ...JSON_HEADERS },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
 function pathOf({ documentId, resource }: { documentId: string; resource?: DocumentResource }): string {
@@ -68,7 +104,9 @@ test('rejects a zip without word/document.xml', async () => {
   const { server, owner } = await signedInOwner();
   const zip = new JSZip();
   zip.file('notes.txt', 'renamed zip');
-  expect((await upload({ server, cookie: owner.cookie, bytes: await zip.generateAsync({ type: 'uint8array' }) })).status).toBe(HttpStatus.UnsupportedMediaType);
+  expect((await upload({ server, cookie: owner.cookie, bytes: await zip.generateAsync({ type: 'uint8array' }) })).status).toBe(
+    HttpStatus.UnsupportedMediaType,
+  );
   expect((await listOf({ server, cookie: owner.cookie })).mine).toEqual([]);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY), { withFileTypes: true }).length).toBe(0);
   await server.stop();
@@ -87,10 +125,23 @@ test('two uploads of the same file create two documents', async () => {
 
 test('imported Word revisions appear in the events with the revision author', { timeout: IMPORT_TIMEOUT_MS + 10_000 }, async () => {
   const { server, owner } = await signedInOwner();
-  const bytes = await buildSeedDocx([{ text: 'Preamble by', trackedChanges: [{ kind: TrackedChangeKind.Insert, author: 'Chris Crawford', date: '2026-02-12T09:01:00Z', text: ' developers' }] }]);
+  const bytes = await buildSeedDocx([
+    {
+      text: 'Preamble by',
+      trackedChanges: [{ kind: TrackedChangeKind.Insert, author: 'Chris Crawford', date: '2026-02-12T09:01:00Z', text: ' developers' }],
+    },
+  ]);
   const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes })).json();
   await expect
-    .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId: created.id })).map((event) => [event.imported, event.authors, event.inserted]), { timeout: IMPORT_TIMEOUT_MS })
+    .poll(
+      async () =>
+        (await readEvents({ server, cookie: owner.cookie, documentId: created.id })).map((event) => [
+          event.imported,
+          event.authors,
+          event.inserted,
+        ]),
+      { timeout: IMPORT_TIMEOUT_MS },
+    )
     .toEqual([[true, [{ id: null, name: 'Chris Crawford' }], ' developers']]);
   await server.stop();
 });
@@ -101,7 +152,11 @@ test('an uploaded document is listed as mine and downloads the original bytes', 
   const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes })).json();
   expect(created.title).toBe('Plan');
   expect((await listOf({ server, cookie: owner.cookie })).mine.map((document) => document.id)).toEqual([created.id]);
-  const downloaded = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id, resource: DocumentResource.Download }) });
+  const downloaded = await request({
+    server,
+    cookie: owner.cookie,
+    path: pathOf({ documentId: created.id, resource: DocumentResource.Download }),
+  });
   expect(new Uint8Array(await downloaded.arrayBuffer())).toEqual(new Uint8Array(bytes));
   await server.stop();
 });
@@ -142,7 +197,13 @@ test('a non-member gets the same 404 as a missing document', async () => {
   const outcomes = await Promise.all(
     attempts.map(async ({ method, resource, body }) => {
       const foreign = await request({ server, cookie: stranger.cookie, path: pathOf({ documentId, resource }), method, body });
-      const missing = await request({ server, cookie: stranger.cookie, path: pathOf({ documentId: randomUUID(), resource }), method, body });
+      const missing = await request({
+        server,
+        cookie: stranger.cookie,
+        path: pathOf({ documentId: randomUUID(), resource }),
+        method,
+        body,
+      });
       return { foreign: [foreign.status, await foreign.json()], missing: [missing.status, await missing.json()] };
     }),
   );
@@ -156,17 +217,34 @@ test('rename by an editor works and a reader gets 403', async () => {
   const { server, documentId } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
-  const renamed = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title: '  New  ' } });
+  const renamed = await request({
+    server,
+    cookie: editor.cookie,
+    path: pathOf({ documentId }),
+    method: HttpMethod.Patch,
+    body: { title: '  New  ' },
+  });
   expect(renamed.status).toBe(HttpStatus.Ok);
   expect(server.services.documents.summary({ documentId, userId: editor.id }).title).toBe('New');
-  const refused = await request({ server, cookie: reader.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title: 'Nope' } });
+  const refused = await request({
+    server,
+    cookie: reader.cookie,
+    path: pathOf({ documentId }),
+    method: HttpMethod.Patch,
+    body: { title: 'Nope' },
+  });
   expect(refused.status).toBe(HttpStatus.Forbidden);
   await server.stop();
 });
 
 test('a blank or whitespace title is refused', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  const statuses = await Promise.all(['', '   '].map(async (title) => (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title } })).status));
+  const statuses = await Promise.all(
+    ['', '   '].map(
+      async (title) =>
+        (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title } })).status,
+    ),
+  );
   expect(statuses).toEqual([HttpStatus.BadRequest, HttpStatus.BadRequest]);
   expect(server.services.documents.summary({ documentId, userId: owner.id }).title).toBe('Shared plan');
   await server.stop();
@@ -174,7 +252,13 @@ test('a blank or whitespace title is refused', async () => {
 
 test('a rename body over the limit is 413', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  const response = await request({ server, cookie: owner.cookie, path: pathOf({ documentId }), method: HttpMethod.Patch, body: { title: 'x'.repeat(RENAME_BODY_OVER_LIMIT_CHARACTERS) } });
+  const response = await request({
+    server,
+    cookie: owner.cookie,
+    path: pathOf({ documentId }),
+    method: HttpMethod.Patch,
+    body: { title: 'x'.repeat(RENAME_BODY_OVER_LIMIT_CHARACTERS) },
+  });
   expect(response.status).toBe(HttpStatus.PayloadTooLarge);
   expect(server.services.documents.summary({ documentId, userId: owner.id }).title).toBe('Shared plan');
   await server.stop();
@@ -185,7 +269,8 @@ test('roomMode stays create until the bootstrap commits', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   await expect.poll(() => server.services.log.hasUpdates(documentId)).toBe(true);
-  const roomModeOf = async () => ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
+  const roomModeOf = async () =>
+    ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
   expect(await roomModeOf()).toBe(RoomMode.Create);
   commitBootstrap(client.document);
   await expect.poll(roomModeOf).toBe(RoomMode.Join);
@@ -196,13 +281,16 @@ test('roomMode stays create until the bootstrap commits', async () => {
 test('roomMode scans a long log in pages until the first committed bootstrap', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
-  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) => writeStory({ document: client.document, texts: ['x'.repeat(index + 1)] }));
+  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) =>
+    writeStory({ document: client.document, texts: ['x'.repeat(index + 1)] }),
+  );
   commitBootstrap(client.document);
   const batchSize = ROOM_MODE_SCAN_BATCH_SIZE;
   await expect.poll(() => server.services.log.readBatch({ documentName: documentId, afterSequence: batchSize, limit: 1 }).length).toBe(1);
   const readAll = vi.spyOn(server.services.log, 'read');
   const readBatch = vi.spyOn(server.services.log, 'readBatch');
-  const roomMode = ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
+  const roomMode = ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument)
+    .roomMode;
   expect(roomMode).toBe(RoomMode.Join);
   expect(readAll).not.toHaveBeenCalled();
   expect(readBatch.mock.calls.length).toBeGreaterThan(1);
@@ -221,7 +309,9 @@ test('a reader opening a never-created room gets 409 NOT_READY', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
-  await expect.poll(async () => (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).status).toBe(HttpStatus.Ok);
+  await expect
+    .poll(async () => (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).status)
+    .toBe(HttpStatus.Ok);
   const readerOpen: OpenedDocument = await (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).json();
   expect(readerOpen.roomMode).toBe(RoomMode.Join);
   client.close();
@@ -231,8 +321,14 @@ test('a reader opening a never-created room gets 409 NOT_READY', async () => {
 test('download names the file with an ASCII fallback and an RFC 5987 filename*', async () => {
   const { server, owner } = await signedInOwner();
   const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: FORBIDDEN_TITLE_FILE_NAME })).json();
-  const downloaded = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id, resource: DocumentResource.Download }) });
-  expect(downloaded.headers.get('content-disposition')).toBe(`attachment; filename="Q3 _final_ (draft)'s plan*.docx"; filename*=UTF-8''Q3%20%22final%22%20%28draft%29%27s%20plan%2A.docx`);
+  const downloaded = await request({
+    server,
+    cookie: owner.cookie,
+    path: pathOf({ documentId: created.id, resource: DocumentResource.Download }),
+  });
+  expect(downloaded.headers.get('content-disposition')).toBe(
+    `attachment; filename="Q3 _final_ (draft)'s plan*.docx"; filename*=UTF-8''Q3%20%22final%22%20%28draft%29%27s%20plan%2A.docx`,
+  );
   await server.stop();
 });
 
@@ -256,8 +352,13 @@ test('members marks the connected owner online', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
-  const { members }: DocumentMembers = await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId, resource: DocumentResource.Members }) })).json();
-  expect(members.map((member) => [member.user.id, member.online])).toEqual([[owner.id, true], [reader.id, false]]);
+  const { members }: DocumentMembers = await (
+    await request({ server, cookie: owner.cookie, path: pathOf({ documentId, resource: DocumentResource.Members }) })
+  ).json();
+  expect(members.map((member) => [member.user.id, member.online])).toEqual([
+    [owner.id, true],
+    [reader.id, false],
+  ]);
   client.close();
   await server.stop();
 });
@@ -292,14 +393,21 @@ test('delete removes the row, the file, the log and the events, and closes the r
 
 test('the title drops the docx extension in any case', async () => {
   const { server, owner } = await signedInOwner();
-  const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Cased'), fileName: 'REPORT.DOCX' })).json();
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Cased'), fileName: 'REPORT.DOCX' })
+  ).json();
   expect(created.title).toBe('REPORT');
   await server.stop();
 });
 
 test('a file name longer than a title may be is truncated', async () => {
   const { server, owner } = await signedInOwner();
-  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Long'), fileName: `${'a'.repeat(TITLE_MAX_LENGTH + 100)}.docx` });
+  const response = await upload({
+    server,
+    cookie: owner.cookie,
+    bytes: await docxBytes('Long'),
+    fileName: `${'a'.repeat(TITLE_MAX_LENGTH + 100)}.docx`,
+  });
   expect(response.status).toBe(HttpStatus.Created);
   const created: DocumentSummary = await response.json();
   expect(created.title).toBe('a'.repeat(TITLE_MAX_LENGTH));
@@ -317,7 +425,11 @@ test('a failing file write leaves no document row', async () => {
 
 test('a malformed multipart body is 400', async () => {
   const { server, owner } = await signedInOwner();
-  const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie: owner.cookie, origin: server.baseUrl, 'content-type': 'multipart/form-data; boundary=missing' }, body: 'not multipart at all' });
+  const response = await fetch(`${server.baseUrl}${ApiPath.Documents}`, {
+    method: HttpMethod.Post,
+    headers: { cookie: owner.cookie, origin: server.baseUrl, 'content-type': 'multipart/form-data; boundary=missing' },
+    body: 'not multipart at all',
+  });
   expect(response.status).toBe(HttpStatus.BadRequest);
   await server.stop();
 });

@@ -3,7 +3,15 @@ import { useEffect, useState } from 'react';
 
 export type EditorSetup = { roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob };
 
-export function useEditorSetup({ opened, user, file }: { opened: OpenedDocument | undefined; user: SessionUser | null; file: Blob | undefined }): EditorSetup | null {
+export function useEditorSetup({
+  opened,
+  user,
+  file,
+}: {
+  opened: OpenedDocument | undefined;
+  user: SessionUser | null;
+  file: Blob | undefined;
+}): EditorSetup | null {
   const [setup, setSetup] = useState<EditorSetup | null>(null);
 
   useEffect(() => {

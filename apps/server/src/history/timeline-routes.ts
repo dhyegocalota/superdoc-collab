@@ -13,18 +13,25 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
   routes.get('/:documentId/timeline', (context) => {
     const documentId = context.req.param('documentId');
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
-    const parsed = timelineQuerySchema.safeParse(queryOf({ read: (name) => context.req.query(name), names: Object.keys(timelineQuerySchema.shape) }));
+    const parsed = timelineQuerySchema.safeParse(
+      queryOf({ read: (name) => context.req.query(name), names: Object.keys(timelineQuerySchema.shape) }),
+    );
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const { term, author, binMs } = parsed.data;
     services.insights.topics.ensure(documentId);
     const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs });
-    services.insights.topics.onTimelineRead({ documentId, unassignedFirstSequences: readTimelinePipeline({ services, documentId }).unassignedFirstSequences });
+    services.insights.topics.onTimelineRead({
+      documentId,
+      unassignedFirstSequences: readTimelinePipeline({ services, documentId }).unassignedFirstSequences,
+    });
     return context.json(timeline);
   });
   routes.get(EDITS_PATH, (context) => {
     const documentId = context.req.param('documentId');
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
-    const parsed = editsQuerySchema.safeParse(queryOf({ read: (name) => context.req.query(name), names: Object.keys(editsQuerySchema.shape) }));
+    const parsed = editsQuerySchema.safeParse(
+      queryOf({ read: (name) => context.req.query(name), names: Object.keys(editsQuerySchema.shape) }),
+    );
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const { term, author, binMs, binStart } = parsed.data;
     return context.json(buildBinEdits({ services, documentId, filter: { term, author }, binStart, binMs }));

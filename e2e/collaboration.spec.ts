@@ -1,7 +1,15 @@
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import { DEMO_USERS, ShareLinkRole } from '../libs/types/src';
-import { expectEveryCharacterAccounted, insertedBy, readEditorText, readEvents, shareAndAccept, typeInParagraph, uploadSeed } from './editor';
+import {
+  expectEveryCharacterAccounted,
+  insertedBy,
+  readEditorText,
+  readEvents,
+  shareAndAccept,
+  typeInParagraph,
+  uploadSeed,
+} from './editor';
 import { expect, signedInContext, test } from './fixtures';
 
 const HISTORY_DATABASE_FILE = 'history.sqlite';
@@ -26,16 +34,22 @@ async function twoAuthorsType(browser: Parameters<typeof signedInContext>[0]['br
 test('two authors converge and each marker is attributed to its author', async ({ browser }) => {
   const { ana, bruno, documentId, initialLength, finalLength } = await twoAuthorsType(browser);
   await expect
-    .poll(async () => {
-      const [anaText, brunoText] = await Promise.all([readEditorText(ana.page), readEditorText(bruno.page)]);
-      return anaText === brunoText && anaText.length === finalLength;
-    }, { timeout: CONVERGENCE_TIMEOUT_MS })
+    .poll(
+      async () => {
+        const [anaText, brunoText] = await Promise.all([readEditorText(ana.page), readEditorText(bruno.page)]);
+        return anaText === brunoText && anaText.length === finalLength;
+      },
+      { timeout: CONVERGENCE_TIMEOUT_MS },
+    )
     .toBe(true);
   await expect
-    .poll(async () => {
-      const events = await readEvents({ page: ana.page, documentId });
-      return [insertedBy({ events, userId: ana.userId }), insertedBy({ events, userId: bruno.userId })];
-    }, { timeout: ATTRIBUTION_TIMEOUT_MS })
+    .poll(
+      async () => {
+        const events = await readEvents({ page: ana.page, documentId });
+        return [insertedBy({ events, userId: ana.userId }), insertedBy({ events, userId: bruno.userId })];
+      },
+      { timeout: ATTRIBUTION_TIMEOUT_MS },
+    )
     .toEqual(MARKERS);
   const events = await readEvents({ page: ana.page, documentId });
   expectEveryCharacterAccounted({ events: events.filter((event) => !event.imported), initialLength, finalLength });

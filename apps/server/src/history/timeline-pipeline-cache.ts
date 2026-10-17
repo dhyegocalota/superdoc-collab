@@ -1,7 +1,14 @@
 import type { BandIdentity, TimelineEvent } from '@superdoc-history/history';
 import { TIMELINE_PIPELINE_CACHE_SIZE, type EventAuthor } from '@superdoc-history/types';
 
-export type TimelinePipeline = { events: TimelineEvent[]; identities: BandIdentity[]; authors: Record<string, EventAuthor>; hasTopics: boolean; unassignedFirstSequences: number[]; cursor: number | null };
+export type TimelinePipeline = {
+  events: TimelineEvent[];
+  identities: BandIdentity[];
+  authors: Record<string, EventAuthor>;
+  hasTopics: boolean;
+  unassignedFirstSequences: number[];
+  cursor: number | null;
+};
 
 type CacheEntry = { key: string; pipeline: TimelinePipeline };
 

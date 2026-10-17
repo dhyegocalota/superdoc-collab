@@ -1,10 +1,38 @@
 import { SuperDocClient } from '@superdoc/sdk';
-import { compact, GcFreeReplays, materialize, projectPending, ReadModel, readMainStoryBlocks, readMainStoryText, REPLAY_CACHE_SIZE, toImportedRevisions, UpdateLog, type ListedTrackedChange } from '@superdoc-history/history';
+import {
+  compact,
+  GcFreeReplays,
+  materialize,
+  projectPending,
+  ReadModel,
+  readMainStoryBlocks,
+  readMainStoryText,
+  REPLAY_CACHE_SIZE,
+  toImportedRevisions,
+  UpdateLog,
+  type ListedTrackedChange,
+} from '@superdoc-history/history';
 import { SECOND_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
-import { describeError, IMPORT_TIMEOUT_MS, ImportTimeoutError, MissingVersionMarkError, ProjectionRequestKind, ProjectionWorkerContextError, ProjectionReplyKind, SNAPSHOT_EVERY_UPDATES, type BlocksReply, type ProjectionDoneReply, type ProjectionFailedReply, type ProjectionReply, type ProjectionRequest, type ProjectionWorkerData, type VersionReply } from './projection-messages';
+import {
+  describeError,
+  IMPORT_TIMEOUT_MS,
+  ImportTimeoutError,
+  MissingVersionMarkError,
+  ProjectionRequestKind,
+  ProjectionWorkerContextError,
+  ProjectionReplyKind,
+  SNAPSHOT_EVERY_UPDATES,
+  type BlocksReply,
+  type ProjectionDoneReply,
+  type ProjectionFailedReply,
+  type ProjectionReply,
+  type ProjectionRequest,
+  type ProjectionWorkerData,
+  type VersionReply,
+} from './projection-messages';
 
 const STOP_DISPOSE_TIMEOUT_MS = SECOND_MS;
 
@@ -69,13 +97,25 @@ function versionReply({ documentId, sequence }: { documentId: string; sequence: 
   const mark = readModel.mark({ documentName: documentId, sequence });
   if (!mark) throw new MissingVersionMarkError({ documentId, sequence });
   const version = replays.version({ log, documentName: documentId, mark });
-  return { kind: ProjectionRequestKind.Version, documentId, sequence, serverTime: mark.serverTime, state: Y.encodeStateAsUpdate(version), text: readMainStoryText(version) };
+  return {
+    kind: ProjectionRequestKind.Version,
+    documentId,
+    sequence,
+    serverTime: mark.serverTime,
+    state: Y.encodeStateAsUpdate(version),
+    text: readMainStoryText(version),
+  };
 }
 
 function blocksReply(documentId: string): BlocksReply {
   const cursor = readModel.cursor(documentId);
   if (cursor === null) return { kind: ProjectionRequestKind.Blocks, documentId, sequence: 0, blocks: [] };
-  return { kind: ProjectionRequestKind.Blocks, documentId, sequence: cursor, blocks: readMainStoryBlocks(materialize({ log, documentName: documentId, untilSequence: cursor })) };
+  return {
+    kind: ProjectionRequestKind.Blocks,
+    documentId,
+    sequence: cursor,
+    blocks: readMainStoryBlocks(materialize({ log, documentName: documentId, untilSequence: cursor })),
+  };
 }
 
 async function handle(request: AnsweredRequest): Promise<ProjectionDoneReply | VersionReply | BlocksReply> {
@@ -84,9 +124,11 @@ async function handle(request: AnsweredRequest): Promise<ProjectionDoneReply | V
   if (request.kind === ProjectionRequestKind.Blocks) return blocksReply(documentId);
   if (request.kind === ProjectionRequestKind.Project) compact({ log, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
   if (kind === ProjectionRequestKind.Forget) replays.forget(documentId);
-  if (request.kind === ProjectionRequestKind.Import) return { kind, documentId, cursor: readModel.cursor(documentId), importError: await importRevisions(request) };
+  if (request.kind === ProjectionRequestKind.Import)
+    return { kind, documentId, cursor: readModel.cursor(documentId), importError: await importRevisions(request) };
   if (kind === ProjectionRequestKind.Forget) readModel.forget(documentId);
-  if (kind === ProjectionRequestKind.Project) return { kind, documentId, cursor: projectPending({ log, readModel, documentName: documentId }), importError: null };
+  if (kind === ProjectionRequestKind.Project)
+    return { kind, documentId, cursor: projectPending({ log, readModel, documentName: documentId }), importError: null };
   return { kind, documentId, cursor: readModel.cursor(documentId), importError: null };
 }
 
@@ -105,7 +147,14 @@ async function answer(request: AnsweredRequest): Promise<ProjectionReply> {
 }
 
 async function stopWorker(): Promise<void> {
-  if (sdkConnection) await withTimeout({ work: sdkConnection.then((client) => client.dispose(), () => undefined), milliseconds: STOP_DISPOSE_TIMEOUT_MS }).catch(() => undefined);
+  if (sdkConnection)
+    await withTimeout({
+      work: sdkConnection.then(
+        (client) => client.dispose(),
+        () => undefined,
+      ),
+      milliseconds: STOP_DISPOSE_TIMEOUT_MS,
+    }).catch(() => undefined);
   historySqlite.close();
   readModelSqlite.close();
   process.exit(0);

@@ -13,11 +13,13 @@ function seededLog(): { log: UpdateLog; close: () => void } {
   const sqlite = openTestDatabase({ set: MigrationSet.History });
   const log = new UpdateLog(sqlite);
   const authors = [new Y.Doc(), new Y.Doc()];
-  authors.forEach((author) => author.on('update', (update: Uint8Array, origin: unknown) => {
-    if (origin === REMOTE_ORIGIN) return;
-    log.append({ documentName: DOCUMENT, connectionUserId: `user-${author.clientID}`, update });
-    authors.filter((other) => other !== author).forEach((other) => Y.applyUpdate(other, update, REMOTE_ORIGIN));
-  }));
+  authors.forEach((author) =>
+    author.on('update', (update: Uint8Array, origin: unknown) => {
+      if (origin === REMOTE_ORIGIN) return;
+      log.append({ documentName: DOCUMENT, connectionUserId: `user-${author.clientID}`, update });
+      authors.filter((other) => other !== author).forEach((other) => Y.applyUpdate(other, update, REMOTE_ORIGIN));
+    }),
+  );
   Array.from({ length: UPDATES }).forEach((_, index) => {
     const text = authors[index % 2]!.getText('t');
     if (index % 7 === 6) text.delete(0, 1);

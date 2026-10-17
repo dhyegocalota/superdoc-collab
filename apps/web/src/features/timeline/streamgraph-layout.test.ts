@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { timelineWith } from '@/test/timeline-fixtures';
+import { timelineWith } from '@/testing/timeline-fixtures';
 import { layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
 
 test('one filled bin renders a closed band with its label hidden', () => {
@@ -11,7 +11,10 @@ test('one filled bin renders a closed band with its label hidden', () => {
 });
 
 test('labels sit inside thick bands and never overlap', () => {
-  const timeline = timelineWith({ volumes: Array.from({ length: 60 }, (_, index) => [400, 300, index === 30 ? 2 : 1]), names: ['Budget', 'Hiring', 'Tiny'] });
+  const timeline = timelineWith({
+    volumes: Array.from({ length: 60 }, (_, index) => [400, 300, index === 30 ? 2 : 1]),
+    names: ['Budget', 'Hiring', 'Tiny'],
+  });
   const shapes = layoutStreamgraph({ timeline, width: 600 }).shapes;
   const labels = shapes.filter((shape) => shape.label !== null);
   expect(labels.map((shape) => shape.band.name).sort()).toEqual(['Budget', 'Hiring']);

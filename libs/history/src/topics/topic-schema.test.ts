@@ -19,7 +19,12 @@ test('rejects a topic without blocks', () => {
 });
 
 test('rejects names that are duplicates after trim and case', () => {
-  const output = { topics: [{ name: 'Budget', blockIds: ['b1'] }, { name: ' budget ', blockIds: ['b2'] }] };
+  const output = {
+    topics: [
+      { name: 'Budget', blockIds: ['b1'] },
+      { name: ' budget ', blockIds: ['b2'] },
+    ],
+  };
   expect(topicsOutputSchema.safeParse(output).success).toBe(false);
 });
 
@@ -42,6 +47,8 @@ test('summaries reject a long sentence and accept none', () => {
 test('a selection summary needs a non-blank sentence within the limit', () => {
   expect(selectionSummaryOutputSchema.safeParse({ sentence: 'Ana raised the budget.', authors: ['Ana'] }).success).toBe(true);
   expect(selectionSummaryOutputSchema.safeParse({ sentence: '   ', authors: [] }).success).toBe(false);
-  expect(selectionSummaryOutputSchema.safeParse({ sentence: 'x'.repeat(SELECTION_SUMMARY_MAX_CHARACTERS + 1), authors: [] }).success).toBe(false);
+  expect(selectionSummaryOutputSchema.safeParse({ sentence: 'x'.repeat(SELECTION_SUMMARY_MAX_CHARACTERS + 1), authors: [] }).success).toBe(
+    false,
+  );
   expect(selectionSummaryOutputSchema.safeParse({ sentence: 'Ana raised the budget.' }).success).toBe(false);
 });

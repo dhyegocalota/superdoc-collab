@@ -14,7 +14,14 @@ const INSERTION: ListedTrackedChange = {
 
 test('maps a listed insertion to an imported revision', () => {
   expect(toImportedRevisions([INSERTION])).toEqual([
-    { revisionId: 'r1', authorName: 'Ana Souza', serverTime: Date.parse('2026-03-01T18:30:00Z'), blockId: '00000002', inserted: ' GDPR clause', deleted: '' },
+    {
+      revisionId: 'r1',
+      authorName: 'Ana Souza',
+      serverTime: Date.parse('2026-03-01T18:30:00Z'),
+      blockId: '00000002',
+      inserted: ' GDPR clause',
+      deleted: '',
+    },
   ]);
 });
 

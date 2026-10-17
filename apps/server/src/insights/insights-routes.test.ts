@@ -1,4 +1,18 @@
-import { DocumentRole, documentApiPath, HttpMethod, HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SELECTION_SUMMARY_TOO_SOON_MESSAGE, SelectionSummaryState, selectionSummaryApiPath, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
+import {
+  DocumentRole,
+  documentApiPath,
+  HttpMethod,
+  HttpStatus,
+  RETRY_AFTER_HEADER,
+  SECOND_MS,
+  SELECTION_SUMMARY_COOLDOWN_MS,
+  SELECTION_SUMMARY_FAILED_MESSAGE,
+  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SelectionSummaryState,
+  selectionSummaryApiPath,
+  TOPICS_REFRESH_TOO_SOON_MESSAGE,
+  topicsRefreshApiPath,
+} from '@superdoc-history/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -41,7 +55,9 @@ test('refresh is 202 for an editor, 403 for a reader, 404 for a stranger', async
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const stranger = await signedInUser({ server, name: 'Stranger' });
-  const statuses = await Promise.all([editor, reader, stranger].map(async (user) => (await refresh({ server, documentId, cookie: user.cookie })).status));
+  const statuses = await Promise.all(
+    [editor, reader, stranger].map(async (user) => (await refresh({ server, documentId, cookie: user.cookie })).status),
+  );
   expect(statuses).toEqual([HttpStatus.Accepted, HttpStatus.Forbidden, HttpStatus.NotFound]);
   client.close();
   await server.stop();
@@ -114,7 +130,10 @@ test('deleting a document forgets its refresh and summary cooldowns', async () =
   await server.services.insights.worker.idle();
   server.services.insights.summaries.cooldown.start(documentId);
   expect(server.services.insights.topics.cooldown.size()).toBe(1);
-  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
+    method: HttpMethod.Delete,
+    headers: { cookie: owner.cookie, origin: server.baseUrl },
+  });
   expect(deleted.status).toBe(HttpStatus.NoContent);
   expect(server.services.insights.topics.cooldown.size()).toBe(0);
   expect(server.services.insights.summaries.cooldown.size()).toBe(0);
@@ -128,13 +147,18 @@ test('summarizing a selection is 202 for an editor, 403 for a reader and 404 for
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const stranger = await signedInUser({ server, name: 'Stranger' });
   expect((await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).status).toBe(HttpStatus.Accepted);
-  expect((await postSelectionSummary({ server, documentId, cookie: reader.cookie, query: MEMBER_QUERY })).status).toBe(HttpStatus.Forbidden);
+  expect((await postSelectionSummary({ server, documentId, cookie: reader.cookie, query: MEMBER_QUERY })).status).toBe(
+    HttpStatus.Forbidden,
+  );
   const strangerResponse = await postSelectionSummary({ server, documentId, cookie: stranger.cookie, query: MEMBER_QUERY });
   const unknownResponse = await postSelectionSummary({ server, documentId: randomUUID(), cookie: stranger.cookie, query: MEMBER_QUERY });
   expect(strangerResponse.status).toBe(HttpStatus.NotFound);
   expect(await strangerResponse.json()).toEqual(await unknownResponse.json());
   await server.services.insights.worker.idle();
-  expect((await readSelectionSummary({ server, documentId, cookie: reader.cookie, query: MEMBER_QUERY })).summary).toMatchObject({ sentence: SELECTION_ANSWER.sentence, isStale: false });
+  expect((await readSelectionSummary({ server, documentId, cookie: reader.cookie, query: MEMBER_QUERY })).summary).toMatchObject({
+    sentence: SELECTION_ANSWER.sentence,
+    isStale: false,
+  });
   await server.stop();
 });
 
@@ -184,7 +208,9 @@ test('a selection with no edits is none and its POST costs nothing', async () =>
 test('polling the GET never calls the model', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
-  const views = await Promise.all([1, 2, 3].map(() => readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })));
+  const views = await Promise.all(
+    [1, 2, 3].map(() => readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })),
+  );
   expect(views.map((view) => view.state)).toEqual([SelectionSummaryState.None, SelectionSummaryState.None, SelectionSummaryState.None]);
   expect(model.doGenerateCalls).toHaveLength(0);
   await server.stop();
@@ -208,16 +234,24 @@ test('topic and period narrow the selection', async () => {
 test('a topic that no longer exists selects nothing', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, owner, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
-  const blockId = (await readEvents({ server, documentId, cookie: owner.cookie })).find((event) => event.inserted === ' a designer')!.blockId;
+  const blockId = (await readEvents({ server, documentId, cookie: owner.cookie })).find(
+    (event) => event.inserted === ' a designer',
+  )!.blockId;
   const repository = server.services.insightsRepository;
   repository.saveTopics({ documentId, topics: [{ id: null, name: 'Hiring', blockIds: [blockId] }], computedAtSequence: 1 });
   const oldId = repository.topics(documentId)[0]!.id;
-  expect((await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).status).toBe(HttpStatus.Accepted);
+  expect((await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).status).toBe(
+    HttpStatus.Accepted,
+  );
   await server.services.insights.worker.idle();
   repository.saveTopics({ documentId, topics: [{ id: null, name: 'Staff', blockIds: [blockId] }], computedAtSequence: 2 });
   const newId = repository.topics(documentId)[0]!.id;
-  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).state).toBe(SelectionSummaryState.None);
-  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${newId}` })).state).toBe(SelectionSummaryState.None);
+  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).state).toBe(
+    SelectionSummaryState.None,
+  );
+  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${newId}` })).state).toBe(
+    SelectionSummaryState.None,
+  );
   await server.stop();
 });
 
@@ -234,7 +268,9 @@ test.each(INVALID_QUERIES)('an invalid selection query %s is 400 for the GET and
 test('an empty at is no period', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
-  expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `${MEMBER_QUERY}&at=` })).toEqual(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY }));
+  expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `${MEMBER_QUERY}&at=` })).toEqual(
+    await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY }),
+  );
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `${MEMBER_QUERY}&at=` });
   await server.services.insights.worker.idle();
   const withEmptyAt = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `${MEMBER_QUERY}&at=` });
@@ -255,13 +291,20 @@ test('a topic recompute stales topic summaries only', async () => {
   await worker.idle();
   server.services.insightsRepository.markPending(documentId);
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).summary?.isStale).toBe(false);
-  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${editor.id}` })).summary?.isStale).toBe(true);
+  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${editor.id}` })).summary?.isStale).toBe(
+    true,
+  );
   await server.stop();
 });
 
 test('without a model the GET is failed with the reason and the POST is 503', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks();
-  expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).toEqual({ state: SelectionSummaryState.Failed, summary: null, failure: LLM_MODEL_MISSING_MESSAGE, isModelAvailable: false });
+  expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).toEqual({
+    state: SelectionSummaryState.Failed,
+    summary: null,
+    failure: LLM_MODEL_MISSING_MESSAGE,
+    isModelAvailable: false,
+  });
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);
   expect(await response.json()).toEqual({ error: LLM_MODEL_MISSING_MESSAGE });
@@ -292,7 +335,10 @@ test('an exhausted hourly cap answers 503 with the seconds until a slot frees', 
 
 test('a cross-site form post is refused', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${MEMBER_QUERY}`, { method: HttpMethod.Post, headers: { cookie: editor.cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' } });
+  const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${MEMBER_QUERY}`, {
+    method: HttpMethod.Post,
+    headers: { cookie: editor.cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' },
+  });
   expect(response.status).toBe(HttpStatus.Forbidden);
   await server.stop();
 });
@@ -305,7 +351,9 @@ test('the key never reaches a log or a response', async () => {
   await new Promise<void>((resolve) => provider.listen(0, '127.0.0.1', resolve));
   const { port } = provider.address() as AddressInfo;
   const languageModel = chooseLanguageModel({ model: 'm', apiKey: PROVIDER_SECRET, baseUrl: `http://127.0.0.1:${port}/api/v1` });
-  const spies = [vi.spyOn(console, 'error'), vi.spyOn(console, 'warn'), vi.spyOn(console, 'log')].map((spy) => spy.mockImplementation(() => undefined));
+  const spies = [vi.spyOn(console, 'error'), vi.spyOn(console, 'warn'), vi.spyOn(console, 'log')].map((spy) =>
+    spy.mockImplementation(() => undefined),
+  );
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel });
   const posted = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   const postedBody = await posted.text();
@@ -313,7 +361,12 @@ test('the key never reaches a log or a response', async () => {
   const view = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(view.failure).toBe(SELECTION_SUMMARY_FAILED_MESSAGE);
   expect(JSON.stringify([postedBody, view])).not.toContain(PROVIDER_SECRET);
-  expect(spies.flatMap((spy) => spy.mock.calls).map((call) => JSON.stringify(call)).join('')).not.toContain(PROVIDER_SECRET);
+  expect(
+    spies
+      .flatMap((spy) => spy.mock.calls)
+      .map((call) => JSON.stringify(call))
+      .join(''),
+  ).not.toContain(PROVIDER_SECRET);
   await server.stop();
   await new Promise((resolve) => provider.close(resolve));
 });
@@ -323,7 +376,10 @@ test('deleting a document forgets its selection cooldown', async () => {
   expect((await postSelectionSummary({ server, documentId, cookie: owner.cookie, query: MEMBER_QUERY })).status).toBe(HttpStatus.Accepted);
   await server.services.insights.worker.idle();
   expect(server.services.insights.selection.cooldown.size()).toBe(1);
-  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
+    method: HttpMethod.Delete,
+    headers: { cookie: owner.cookie, origin: server.baseUrl },
+  });
   expect(deleted.status).toBe(HttpStatus.NoContent);
   expect(server.services.insights.selection.cooldown.size()).toBe(0);
   await server.stop();

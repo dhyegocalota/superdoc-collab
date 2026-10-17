@@ -1,6 +1,22 @@
 import { MINUTE_MS } from '@superdoc-history/types';
 import { Worker } from 'node:worker_threads';
-import { describeError, IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestCrashedError, ProjectionRequestKind, ProjectionStoppedError, type BlocksReply, type ProjectionDoneReply, type ProjectionFailedReply, type ProjectionReply, type ProjectionRequest, type VersionReply } from './projection-messages';
+import {
+  describeError,
+  IMPORT_FAILED_MESSAGE,
+  IMPORT_SKIPPED_MESSAGE,
+  PROJECTION_FAILED_MESSAGE,
+  ProjectionDegradedError,
+  ProjectionReplyKind,
+  ProjectionRequestCrashedError,
+  ProjectionRequestKind,
+  ProjectionStoppedError,
+  type BlocksReply,
+  type ProjectionDoneReply,
+  type ProjectionFailedReply,
+  type ProjectionReply,
+  type ProjectionRequest,
+  type VersionReply,
+} from './projection-messages';
 
 const SOURCE_EXTENSION = '.ts';
 const TSX_REGISTER_SPECIFIER = 'tsx/esm/api';
@@ -14,7 +30,10 @@ function createWorker(databaseDirectory: string): Worker {
   if (!import.meta.url.endsWith(SOURCE_EXTENSION)) return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData });
   const entry = JSON.stringify(new URL('./projection-worker.ts', import.meta.url).href);
   const registerEntry = JSON.stringify(import.meta.resolve(TSX_REGISTER_SPECIFIER));
-  return new Worker(`import(${registerEntry}).then(({ register }) => { register(); return import(${entry}); })`, { eval: true, workerData });
+  return new Worker(`import(${registerEntry}).then(({ register }) => { register(); return import(${entry}); })`, {
+    eval: true,
+    workerData,
+  });
 }
 
 type ServedReply = VersionReply | BlocksReply;
@@ -94,7 +113,10 @@ export class ProjectionScheduler {
   }
 
   version({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionReply> {
-    return this.serve({ key: versionKey({ documentId, sequence }), request: { kind: ProjectionRequestKind.Version, documentId, sequence } }) as Promise<VersionReply>;
+    return this.serve({
+      key: versionKey({ documentId, sequence }),
+      request: { kind: ProjectionRequestKind.Version, documentId, sequence },
+    }) as Promise<VersionReply>;
   }
 
   blocks(documentId: string): Promise<BlocksReply> {
@@ -152,7 +174,8 @@ export class ProjectionScheduler {
 
   private settleFailure(reply: ProjectionFailedReply): void {
     const { documentId, message, requestKind } = reply;
-    if (requestKind === ProjectionRequestKind.Version || requestKind === ProjectionRequestKind.Blocks) return this.rejectWaiters({ key: keyOfFailure(reply), error: new Error(message) });
+    if (requestKind === ProjectionRequestKind.Version || requestKind === ProjectionRequestKind.Blocks)
+      return this.rejectWaiters({ key: keyOfFailure(reply), error: new Error(message) });
     this.rebuilding.delete(documentId);
     this.reimported.delete(documentId);
     this.settleForget(documentId);
@@ -217,7 +240,9 @@ export class ProjectionScheduler {
     const pending = [...this.inFlight];
     this.inFlight.clear();
     pending.forEach((documentId) => this.schedule(documentId));
-    this.pendingImports.forEach((filePath, documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }));
+    this.pendingImports.forEach((filePath, documentId) =>
+      this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }),
+    );
     [...this.forgetting.keys()].forEach((documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId }));
     this.repostWaiting();
   }

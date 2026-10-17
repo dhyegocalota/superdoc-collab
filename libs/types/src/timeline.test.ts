@@ -2,7 +2,15 @@ import { describe, expect, test } from 'vitest';
 import { MIN_RETRY_AFTER_MS, SECOND_MS } from './constants';
 import { RETRY_AFTER_HEADER } from './http';
 import { TimelineQueryParam, TimelineSearchParam } from './timeline';
-import { VersionResource, selectionSummaryApiPath, timelineEditsApiPath, topicsRefreshApiPath, versionApiPath, versionCollaborationPath, versionViewPagePath } from './routes';
+import {
+  VersionResource,
+  selectionSummaryApiPath,
+  timelineEditsApiPath,
+  topicsRefreshApiPath,
+  versionApiPath,
+  versionCollaborationPath,
+  versionViewPagePath,
+} from './routes';
 
 describe('timeline contracts', () => {
   test('builds version and topics paths with encoded ids', () => {

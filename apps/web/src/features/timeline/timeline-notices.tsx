@@ -1,4 +1,12 @@
-import { HISTORY_CATCHING_UP_MESSAGE, NO_MATCHING_EDITS_MESSAGE, SECOND_MS, TOPICS_PENDING_MESSAGE, TOPICS_UNAVAILABLE_MESSAGE, TopicState, type DocumentTimeline } from '@superdoc-history/types';
+import {
+  HISTORY_CATCHING_UP_MESSAGE,
+  NO_MATCHING_EDITS_MESSAGE,
+  SECOND_MS,
+  TOPICS_PENDING_MESSAGE,
+  TOPICS_UNAVAILABLE_MESSAGE,
+  TopicState,
+  type DocumentTimeline,
+} from '@superdoc-history/types';
 import { Button } from '@/components/ui/button';
 import { lagBehindLabel, NO_EDITS_YET_MESSAGE, RETRY_TOPICS_LABEL } from './timeline-copy';
 

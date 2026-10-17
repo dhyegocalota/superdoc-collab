@@ -1,8 +1,29 @@
 import type { Browser, Page } from '@playwright/test';
-import { DEMO_USERS, DOCUMENT_UNAVAILABLE_MESSAGE, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath } from '../libs/types/src';
+import {
+  DEMO_USERS,
+  DOCUMENT_UNAVAILABLE_MESSAGE,
+  ShareLinkRole,
+  TOPICS_UNAVAILABLE_MESSAGE,
+  versionViewPagePath,
+} from '../libs/types/src';
 import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
-import { BACK_TO_LIVE_LABEL, FILTER_LABEL, REFRESH_TOPICS_LABEL, RETRY_TOPICS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
-import { acceptShareLink, EDITOR_INPUT_SELECTOR, editorText, readEvents, shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
+import {
+  BACK_TO_LIVE_LABEL,
+  FILTER_LABEL,
+  REFRESH_TOPICS_LABEL,
+  RETRY_TOPICS_LABEL,
+  VERSION_FRAME_TITLE,
+} from '../apps/web/src/features/timeline/timeline-copy';
+import {
+  acceptShareLink,
+  EDITOR_INPUT_SELECTOR,
+  editorText,
+  readEvents,
+  shareAndAccept,
+  TEXT_RUN_SELECTOR,
+  typeInParagraph,
+  uploadSeed,
+} from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import {
   countViewerHighlights,
@@ -93,7 +114,9 @@ test('a shared at link opens the same version for another member', async ({ brow
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   await bruno.page.goto(ana.page.url());
-  await expect(versionBanner(bruno.page)).toHaveAttribute('data-sequence', String(await shownVersionSequence(ana.page)), { timeout: VERSION_TIMEOUT_MS });
+  await expect(versionBanner(bruno.page)).toHaveAttribute('data-sequence', String(await shownVersionSequence(ana.page)), {
+    timeout: VERSION_TIMEOUT_MS,
+  });
   await expect.poll(() => readViewerText(bruno.page), { timeout: VERSION_TIMEOUT_MS }).toBe(anaText);
   expect(await versionBanner(bruno.page).textContent()).toBe(await versionBanner(ana.page).textContent());
 });
@@ -208,7 +231,9 @@ test('Escape in the live editor moves focus past it and Tab reaches the timeline
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
   await editorText(ana.page).first().click();
-  await expect.poll(() => ana.page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR)).toBe(true);
+  await expect
+    .poll(() => ana.page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR))
+    .toBe(true);
   await ana.page.keyboard.press('Escape');
   await expect.poll(() => ana.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
   await ana.page.keyboard.press('Tab');

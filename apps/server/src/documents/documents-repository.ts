@@ -32,7 +32,10 @@ export class DocumentsRepository {
 
   list(userId: string): DocumentsList {
     const summaries = this.selectSummaries(eq(documentMembers.userId, userId));
-    return { mine: summaries.filter((summary) => summary.role === DocumentRole.Owner), shared: summaries.filter((summary) => summary.role !== DocumentRole.Owner) };
+    return {
+      mine: summaries.filter((summary) => summary.role === DocumentRole.Owner),
+      shared: summaries.filter((summary) => summary.role !== DocumentRole.Owner),
+    };
   }
 
   summary({ documentId, userId }: { documentId: string; userId: string }): DocumentSummary {
@@ -86,19 +89,36 @@ export class DocumentsRepository {
 
   userContacts(userIds: string[]): Map<string, { name: string; email: string }> {
     if (userIds.length === 0) return new Map();
-    const rows = this.database.drizzle.select({ id: user.id, name: user.name, email: user.email }).from(user).where(inArray(user.id, userIds)).all();
+    const rows = this.database.drizzle
+      .select({ id: user.id, name: user.name, email: user.email })
+      .from(user)
+      .where(inArray(user.id, userIds))
+      .all();
     return new Map(rows.map((row) => [row.id, { name: row.name, email: row.email }]));
   }
 
   private selectSummaries(condition: SQL | undefined): DocumentSummary[] {
     return this.database.drizzle
-      .select({ id: documents.id, title: documents.title, updatedAt: documents.updatedAt, role: documentMembers.role, ownerId: user.id, ownerName: user.name })
+      .select({
+        id: documents.id,
+        title: documents.title,
+        updatedAt: documents.updatedAt,
+        role: documentMembers.role,
+        ownerId: user.id,
+        ownerName: user.name,
+      })
       .from(documentMembers)
       .innerJoin(documents, eq(documents.id, documentMembers.documentId))
       .innerJoin(user, eq(user.id, documents.ownerUserId))
       .where(condition)
       .orderBy(desc(documents.updatedAt))
       .all()
-      .map((row) => ({ id: row.id, title: row.title, updatedAt: row.updatedAt.getTime(), role: row.role, owner: { id: row.ownerId, name: row.ownerName } }));
+      .map((row) => ({
+        id: row.id,
+        title: row.title,
+        updatedAt: row.updatedAt.getTime(),
+        role: row.role,
+        owner: { id: row.ownerId, name: row.ownerName },
+      }));
   }
 }

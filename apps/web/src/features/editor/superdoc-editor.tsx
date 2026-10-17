@@ -1,4 +1,11 @@
-import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-history/types';
+import {
+  ApiPath,
+  COLLABORATION_TOKEN_PLACEHOLDER,
+  DOCX_MIME_TYPE,
+  DocumentRole,
+  type RoomMode,
+  type SessionUser,
+} from '@superdoc-history/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
@@ -13,7 +20,15 @@ export enum DocumentMode {
   Editing = 'editing',
 }
 
-type SuperDocEditorProps = { superdocRef: RefObject<SuperDoc | null>; documentId: string; roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob; isInert: boolean };
+type SuperDocEditorProps = {
+  superdocRef: RefObject<SuperDoc | null>;
+  documentId: string;
+  roomMode: RoomMode;
+  role: DocumentRole;
+  user: SessionUser;
+  file: Blob;
+  isInert: boolean;
+};
 
 export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +46,13 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
           id: documentId,
           type: DOCX_MIME_TYPE,
           data: file,
-          v2Collaboration: { providerType: HOCUSPOCUS_PROVIDER, documentId, serverUrl: collaborationUrl(ApiPath.Collaboration), roomMode, token: COLLABORATION_TOKEN_PLACEHOLDER },
+          v2Collaboration: {
+            providerType: HOCUSPOCUS_PROVIDER,
+            documentId,
+            serverUrl: collaborationUrl(ApiPath.Collaboration),
+            roomMode,
+            token: COLLABORATION_TOKEN_PLACEHOLDER,
+          },
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
@@ -54,10 +75,21 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface}>
-      {hasFailed && <p role="alert" className="p-4 text-sm text-destructive">{EDITOR_FAILED_MESSAGE}</p>}
+      {hasFailed && (
+        <p role="alert" className="p-4 text-sm text-destructive">
+          {EDITOR_FAILED_MESSAGE}
+        </p>
+      )}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
-      <div ref={containerRef} data-testid="document-editor" inert={isInert} className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto" />
-      <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">{EDITOR_EXIT_LABEL}</p>
+      <div
+        ref={containerRef}
+        data-testid="document-editor"
+        inert={isInert}
+        className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto"
+      />
+      <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">
+        {EDITOR_EXIT_LABEL}
+      </p>
     </div>
   );
 }

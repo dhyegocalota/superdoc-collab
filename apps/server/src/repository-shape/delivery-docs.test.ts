@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { capturedNames, composeVariables, readRepositoryFile, repositoryPath } from '../testing/repository-files';
+import { capturedNames, composeVariables, readRepositoryFile, repositoryPath } from './repository-files';
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
@@ -13,7 +13,21 @@ const CREDITS_HEADING = '## Credits';
 const LICENSE_HEADING = '## License';
 const LICENSE_SECTION_PATTERN = /## License\n([\s\S]*)$/;
 const STALE_LICENSE_TEXT = 'private until delivery';
-const CREDITED_LIBRARIES = ['SuperDoc', 'Hocuspocus', 'Yjs', 'Better Auth', 'Drizzle', 'Hono', 'React', 'Vite', 'd3', 'Vercel AI SDK', 'OpenRouter', 'shadcn/ui', 'superpowers'];
+const CREDITED_LIBRARIES = [
+  'SuperDoc',
+  'Hocuspocus',
+  'Yjs',
+  'Better Auth',
+  'Drizzle',
+  'Hono',
+  'React',
+  'Vite',
+  'd3',
+  'Vercel AI SDK',
+  'OpenRouter',
+  'shadcn/ui',
+  'superpowers',
+];
 const CAPS_BUSY_TEXT = 'The language model is busy; try again later.';
 const STALE_CAPS_TEXT = 'Past them, topics show';
 const SECRET_SCAN_PATTERNS = ['AUTH_SECRET=', 'DEMO_PASSWORD='];
@@ -56,7 +70,9 @@ function isBroken({ document, target }: { document: string; target: string }): b
 }
 
 function brokenTargets({ document, text }: { document: string; text: string }): string[] {
-  return capturedNames({ text, pattern: LINK_PATTERN }).filter((target) => !EXTERNAL_LINK_PATTERN.test(target)).filter((target) => isBroken({ document, target }));
+  return capturedNames({ text, pattern: LINK_PATTERN })
+    .filter((target) => !EXTERNAL_LINK_PATTERN.test(target))
+    .filter((target) => isBroken({ document, target }));
 }
 
 function readmeSections(): string[] {
@@ -97,7 +113,9 @@ describe('delivery documents', () => {
   });
 
   test.each(SECRET_VARIABLES)('the example file marks %s as a secret', (name) => {
-    expect(lineAbove({ lines: readRepositoryFile(ENVIRONMENT_EXAMPLE_FILE).split(LINE_SEPARATOR), name })).toMatch(new RegExp(`^${SECRET_NOTE_PREFIX}`));
+    expect(lineAbove({ lines: readRepositoryFile(ENVIRONMENT_EXAMPLE_FILE).split(LINE_SEPARATOR), name })).toMatch(
+      new RegExp(`^${SECRET_NOTE_PREFIX}`),
+    );
   });
 
   test('the README license section matches the license files of the repository', () => {
@@ -134,7 +152,9 @@ describe('delivery documents', () => {
   });
 
   test('the test plan owner box scans the history for the generated secrets too', () => {
-    const ownerBox = readRepositoryFile(TEST_PLAN_FILE).split(LINE_SEPARATOR).find((line) => line.includes(PUBLIC_SWITCH_BOX_MARKER));
+    const ownerBox = readRepositoryFile(TEST_PLAN_FILE)
+      .split(LINE_SEPARATOR)
+      .find((line) => line.includes(PUBLIC_SWITCH_BOX_MARKER));
     expect(ownerBox).toBeDefined();
     expect(SECRET_SCAN_PATTERNS.filter((pattern) => !ownerBox?.includes(pattern))).toEqual([]);
   });

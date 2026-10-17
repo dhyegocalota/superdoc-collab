@@ -48,3 +48,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0027](0027-a-pruned-version-sequence-resolves-to-its-minute.md) | A pruned version sequence resolves to the surviving mark of its minute | Accepted | 2026-10-17 |
 | [0028](0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md) | The actor, not the name, marks an AI in our interface | Accepted | 2026-10-17 |
 | [0029](0029-agent-edits-carry-a-human-or-agent-actor.md) | Agent edits carry an actor next to the user they act for | Accepted | 2026-10-17 |
+| [0031](0031-one-summarize-job-runs-only-what-is-stale.md) | One Summarize job runs only what is stale: topics, then the selection summary, then the topic sentences | Accepted | 2026-10-17 |
+| [0032](0032-connection-state-truth-callback-for-transitions-server-presence-for-recovery.md) | Connection state truth: the SuperDoc callback for transitions, server presence for recovery | Accepted | 2026-10-17 |
+| [0033](0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md) | One creator per room: a reservation with per-attempt write fencing and expiry | Accepted | 2026-10-17 |
+| [0034](0034-collaboration-socket-payload-and-rate-limits.md) | Collaboration socket limits: a per-message payload cap and a per-connection rate cap | Accepted | 2026-10-17 |

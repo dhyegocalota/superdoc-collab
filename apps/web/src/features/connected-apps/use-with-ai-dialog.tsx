@@ -37,7 +37,13 @@ function promptsFor({ title, canEdit }: { title: string | null; canEdit: boolean
 
 export type UseWithAiSlot = { trigger?: ReactNode; returnFocusRef?: RefObject<HTMLElement | null> };
 
-export function UseWithAiDialog({ title, canEdit, trigger }: UseWithAiSlot & { title: string | null; canEdit: boolean }) {
+export function UseWithAiDialog({ title, canEdit, trigger, returnFocusRef }: UseWithAiSlot & { title: string | null; canEdit: boolean }) {
+  function returnFocus(event: Event): void {
+    if (!returnFocusRef) return;
+    event.preventDefault();
+    returnFocusRef.current?.focus();
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -50,7 +56,7 @@ export function UseWithAiDialog({ title, canEdit, trigger }: UseWithAiSlot & { t
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className={DIALOG_CLASS_NAME}>
+      <DialogContent className={DIALOG_CLASS_NAME} onCloseAutoFocus={returnFocus}>
         <DialogHeader>
           <DialogTitle>{USE_WITH_AI_TITLE}</DialogTitle>
           <DialogDescription>{USE_WITH_AI_DESCRIPTION}</DialogDescription>

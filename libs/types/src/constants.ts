@@ -11,6 +11,12 @@ export const VERSION_CACHE_SIZE = 16;
 export const TIMELINE_PIPELINE_CACHE_SIZE = 32;
 export const VERSION_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 export const VERSION_FAILURE_TTL_MS = 30 * SECOND_MS;
+export const CREATOR_RESERVATION_MS = MINUTE_MS;
+export const MAX_SOCKET_MESSAGES_PER_SECOND = 120;
+export const POLICY_VIOLATION_CLOSE_CODE = 1008;
+export const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
+export const SOCKET_RATE_LIMIT_REASON = 'Too many messages per second';
+export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 

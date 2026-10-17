@@ -1,37 +1,55 @@
 export type LruEntry<Value> = { key: string; value: Value };
 
 export class LruMap<Value> {
-  readonly isOverBudget: (entries: ReadonlyMap<string, Value>) => boolean;
+  private readonly entries = new Map<string, Value>();
+  private readonly isOverBudget: (entries: ReadonlyMap<string, Value>) => boolean;
 
   constructor({ isOverBudget }: { isOverBudget: (entries: ReadonlyMap<string, Value>) => boolean }) {
     this.isOverBudget = isOverBudget;
   }
 
   get(key: string): Value | null {
-    throw new Error(`LruMap.get is not implemented: ${key}`);
+    const value = this.peek(key);
+    if (value === null) return null;
+    this.entries.delete(key);
+    this.entries.set(key, value);
+    return value;
   }
 
   peek(key: string): Value | null {
-    throw new Error(`LruMap.peek is not implemented: ${key}`);
+    const value = this.entries.get(key);
+    if (value === undefined) return null;
+    return value;
   }
 
-  set({ key }: LruEntry<Value>): LruEntry<Value>[] {
-    throw new Error(`LruMap.set is not implemented: ${key}`);
+  set({ key, value }: LruEntry<Value>): LruEntry<Value>[] {
+    this.entries.delete(key);
+    this.entries.set(key, value);
+    return this.evict();
   }
 
   delete(key: string): boolean {
-    throw new Error(`LruMap.delete is not implemented: ${key}`);
+    return this.entries.delete(key);
   }
 
   keys(): string[] {
-    throw new Error('LruMap.keys is not implemented');
+    return [...this.entries.keys()];
   }
 
   values(): Value[] {
-    throw new Error('LruMap.values is not implemented');
+    return [...this.entries.values()];
   }
 
   size(): number {
-    throw new Error('LruMap.size is not implemented');
+    return this.entries.size;
+  }
+
+  private evict(): LruEntry<Value>[] {
+    if (!this.isOverBudget(this.entries)) return [];
+    const [oldest] = this.entries;
+    if (!oldest) return [];
+    const [key, value] = oldest;
+    this.entries.delete(key);
+    return [{ key, value }, ...this.evict()];
   }
 }

@@ -1,5 +1,6 @@
 import { clampToMark, type ReadModel, type VersionMarkSummary } from '@superdoc-history/history';
 import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
+import { LruMap } from '../limits/lru-map';
 import { describeError } from '../logging/describe-error';
 import { ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
@@ -39,12 +40,24 @@ export function versionKeyPrefixOf(documentId: string): string {
   return `${documentId}${VERSION_KEY_SEPARATOR}`;
 }
 
+function isOverVersionBudget({
+  entries,
+  maxEntries,
+  maxBytes,
+}: {
+  entries: ReadonlyMap<string, LoadedVersion>;
+  maxEntries: number;
+  maxBytes: number;
+}): boolean {
+  const bytes = [...entries.values()].reduce((total, entry) => total + entry.state.byteLength, 0);
+  const isOverByteBudget = bytes > maxBytes && entries.size > 1;
+  return entries.size > maxEntries || isOverByteBudget;
+}
+
 export class VersionsService {
   private readonly readModel: ReadModel;
   private readonly scheduler: ProjectionScheduler;
-  private readonly maxEntries: number;
-  private readonly maxBytes: number;
-  private readonly cache = new Map<string, LoadedVersion>();
+  private readonly cache: LruMap<LoadedVersion>;
   private readonly loading = new Map<string, Promise<LoadedVersion>>();
   private readonly failedAt = new Map<string, number>();
   private readonly generations = new Map<string, number>();
@@ -62,8 +75,7 @@ export class VersionsService {
   }) {
     this.readModel = readModel;
     this.scheduler = scheduler;
-    this.maxEntries = maxEntries;
-    this.maxBytes = maxBytes;
+    this.cache = new LruMap({ isOverBudget: (entries) => isOverVersionBudget({ entries, maxEntries, maxBytes }) });
   }
 
   resolve({ documentId, sequence }: VersionEndpoint): VersionMarkSummary | null {
@@ -74,7 +86,7 @@ export class VersionsService {
     const mark = this.resolve(endpoint);
     if (!mark) throw new VersionNotReadyError(endpoint.documentId);
     const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
-    const cached = this.touch(key);
+    const cached = this.cache.get(key);
     if (cached) return { kind: VersionLookupKind.Ready, version: cached };
     if (this.isFailedRecently(key)) return { kind: VersionLookupKind.Failed };
     this.load(endpoint).catch(() => undefined);
@@ -85,7 +97,7 @@ export class VersionsService {
     const mark = this.resolve(endpoint);
     if (!mark) return Promise.reject(new VersionNotReadyError(endpoint.documentId));
     const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
-    const cached = this.touch(key);
+    const cached = this.cache.get(key);
     if (cached) return Promise.resolve(cached);
     if (this.isFailedRecently(key)) return Promise.reject(new VersionLoadFailedError(key));
     const inFlight = this.loading.get(key);
@@ -155,14 +167,6 @@ export class VersionsService {
     console.error(`${VERSION_LOAD_FAILED_MESSAGE} ${key}: ${describeError(error)}`);
   }
 
-  private touch(key: string): LoadedVersion | null {
-    const cached = this.cache.get(key);
-    if (!cached) return null;
-    this.cache.delete(key);
-    this.cache.set(key, cached);
-    return cached;
-  }
-
   private store({
     key,
     documentId,
@@ -175,17 +179,8 @@ export class VersionsService {
     version: LoadedVersion;
   }): LoadedVersion {
     if (generation !== this.generationOf(documentId)) return version;
-    this.cache.set(key, version);
+    this.cache.set({ key, value: version });
     this.failedAt.delete(key);
-    this.trim();
     return version;
-  }
-
-  private trim(): void {
-    const bytes = [...this.cache.values()].reduce((total, entry) => total + entry.state.byteLength, 0);
-    const isOverBudget = this.cache.size > this.maxEntries || (bytes > this.maxBytes && this.cache.size > 1);
-    if (!isOverBudget) return;
-    this.cache.delete(this.cache.keys().next().value!);
-    this.trim();
   }
 }

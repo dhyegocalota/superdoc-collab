@@ -6,6 +6,7 @@ import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { versionKeyOf, versionKeyPrefixOf, type VersionEndpoint, type VersionsService } from '../history/versions-service';
+import { LruMap } from '../limits/lru-map';
 import { describeError } from '../logging/describe-error';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { COLLABORATION_SOCKET_TIMEOUT_MS, LOADING_ORIGIN } from './collaboration-server';
@@ -42,7 +43,7 @@ export enum VersionAdmission {
 }
 
 export class VersionRooms {
-  private readonly rooms = new Map<string, VersionRoom>();
+  private readonly rooms: LruMap<VersionRoom>;
   private readonly auth: Auth;
   private readonly documents: DocumentsRepository;
   private readonly versions: VersionsService;
@@ -63,6 +64,7 @@ export class VersionRooms {
     this.documents = documents;
     this.versions = versions;
     this.policy = policy;
+    this.rooms = new LruMap({ isOverBudget: (rooms) => rooms.size > policy.limit });
   }
 
   async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<VersionAdmission> {
@@ -87,16 +89,21 @@ export class VersionRooms {
   }
 
   size(): number {
-    return this.rooms.size;
+    return this.rooms.size();
   }
 
   async forget(documentId: string): Promise<void> {
     const prefix = versionKeyPrefixOf(documentId);
-    await Promise.all([...this.rooms.keys()].filter((key) => key.startsWith(prefix)).map((key) => this.destroy(key)));
+    await Promise.all(
+      this.rooms
+        .keys()
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => this.destroy(key)),
+    );
   }
 
   async stop(): Promise<void> {
-    const destroyed = Promise.all([...this.rooms.keys()].map((key) => this.destroy(key)));
+    const destroyed = Promise.all(this.rooms.keys().map((key) => this.destroy(key)));
     const timer: { handle: NodeJS.Timeout | null } = { handle: null };
     const timeout = new Promise<void>((resolve) => {
       timer.handle = setTimeout(resolve, STOP_TIMEOUT_MS);
@@ -112,11 +119,9 @@ export class VersionRooms {
     const key = versionKeyOf(endpoint);
     const existing = this.rooms.get(key);
     const room = existing ? existing : this.create({ key, endpoint });
-    this.rooms.delete(key);
-    this.rooms.set(key, room);
-    [...this.rooms.keys()]
-      .slice(0, Math.max(0, this.rooms.size - this.policy.limit))
-      .forEach((evicted) => this.destroyInBackground(evicted));
+    this.rooms
+      .set({ key, value: room })
+      .forEach((evicted) => this.destroyInBackground({ key: evicted.key, destroying: this.destroyRoom(evicted.value) }));
     return room;
   }
 
@@ -137,31 +142,38 @@ export class VersionRooms {
       connected: async () => this.cancelIdle(key),
       afterUnloadDocument: async () => this.scheduleIdle(key),
     });
-    return { hocuspocus, idleTimer: setTimeout(() => this.destroyInBackground(key), this.policy.idleMs) };
+    return {
+      hocuspocus,
+      idleTimer: setTimeout(() => this.destroyInBackground({ key, destroying: this.destroy(key) }), this.policy.idleMs),
+    };
   }
 
   private cancelIdle(key: string): void {
-    const room = this.rooms.get(key);
+    const room = this.rooms.peek(key);
     if (!room || !room.idleTimer) return;
     clearTimeout(room.idleTimer);
     room.idleTimer = null;
   }
 
   private scheduleIdle(key: string): void {
-    const room = this.rooms.get(key);
+    const room = this.rooms.peek(key);
     if (!room) return;
     this.cancelIdle(key);
-    room.idleTimer = setTimeout(() => this.destroyInBackground(key), this.policy.idleMs);
+    room.idleTimer = setTimeout(() => this.destroyInBackground({ key, destroying: this.destroy(key) }), this.policy.idleMs);
   }
 
-  private destroyInBackground(key: string): void {
-    this.destroy(key).catch((error) => console.error(`${ROOM_DESTROY_FAILED_MESSAGE} ${key}: ${describeError(error)}`));
+  private destroyInBackground({ key, destroying }: { key: string; destroying: Promise<void> }): void {
+    destroying.catch((error) => console.error(`${ROOM_DESTROY_FAILED_MESSAGE} ${key}: ${describeError(error)}`));
   }
 
   private async destroy(key: string): Promise<void> {
-    const room = this.rooms.get(key);
+    const room = this.rooms.peek(key);
     if (!room) return;
     this.rooms.delete(key);
+    await this.destroyRoom(room);
+  }
+
+  private async destroyRoom(room: VersionRoom): Promise<void> {
     if (room.idleTimer) clearTimeout(room.idleTimer);
     await room.hocuspocus.destroy();
   }

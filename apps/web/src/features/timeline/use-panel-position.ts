@@ -83,5 +83,5 @@ export function usePanelPosition(): { position: PanelPosition; choosePosition: (
 }
 
 export function isPanelOpenByDefault(): boolean {
-  throw new Error('isPanelOpenByDefault is not implemented');
+  return window.matchMedia(minWidthQuery(LARGE_BREAKPOINT_PX)).matches;
 }

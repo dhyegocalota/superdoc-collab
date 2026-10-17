@@ -16,8 +16,9 @@ Every time in the product is an epoch millisecond, which is correct for storage 
 
 ## Goals (to be refined in brainstorming)
 
-- A user preference `timeZone` (IANA name) stored on the user; `null` means "follow the browser", which is the default for every account.
-- A preferences page (`/settings`) with a zone picker fed by `Intl.supportedValuesOf('timeZone')`, showing the detected browser zone as the default option.
+- `user.timeZone` already exists and is captured from the browser at sign-up, with a one-time backfill at sign-in for older accounts (built in `invite-only-access`). This feature makes it the single source for display and grouping and lets the user change it.
+- A preferences page (`/settings`) with a zone picker fed by `Intl.supportedValuesOf('timeZone')`, saving through `authClient.updateUser({ timeZone })`.
+- The zone in use is always visible to the user: on the preferences page and next to the timeline (for example "Times in America/Sao_Paulo"), including the rare case where the stored value is still `null` and the browser zone is in use, which must say so.
 - One formatter in `apps/web/src/lib/format-date-time.ts` that always receives the effective zone; no call site formats without it.
 - Timeline requests carry the effective zone; bins of one hour and longer are aligned to that zone's local boundaries, including across DST transitions; the chart axis and tooltips label bins in that zone.
 - Version resolution ("the document at the end of this bin") uses the same bin boundaries.

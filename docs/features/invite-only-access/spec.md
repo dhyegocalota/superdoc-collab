@@ -17,6 +17,7 @@ Sign-up is open. Anyone who finds the URL creates an account, uploads documents 
 - An **invitee** opens the link, enters name, email and password, and lands on their documents like any user.
 - Production deploys seed nothing. The demo users exist only where tests need them.
 - The README reads for a newcomer and carries a prompt an agent can execute to install the app end to end, ending with the human claiming the instance.
+- Every new account stores the time zone its browser reported at sign-up (`user.timeZone`, IANA name), so the zone is never unknown for accounts created from now on; an account created before this slice gets its browser zone written once at its next sign-in. The preferences page, the visible zone indicator and the zone-aligned bins are `docs/features/timezone-preference/` (owner ruling of 2026-10-17: capture at sign-up lives here because the form and the migration are being changed anyway).
 
 ## Non-goals
 
@@ -38,6 +39,13 @@ Sign-up is open. Anyone who finds the URL creates an account, uploads documents 
   - otherwise → `APIError('FORBIDDEN', { message: SIGN_UP_BY_INVITATION_MESSAGE })`.
 - The `hooks.after` for the same path: on a claim, sets `role = admin` on the created user; on an invite, stamps `acceptedBy` and `acceptedAt`. Both run in the same SQLite connection as the user insert; a failure here throws and the response is 500 with the user row left in place, which the test plan covers (an admin can still promote by hand; see Failure handling).
 - Two claims racing: the gate reads the user count, both pass, both insert. The after hook sets `admin` only when the created user is the **earliest** row by `createdAt` then `id`; the other becomes a plain user. Pinned by a unit test with two concurrent sign-ups.
+
+### Time zone at sign-up
+
+- `user.timeZone` is a nullable text column added by the same migration; Better Auth exposes it as an additional field (`user.additionalFields.timeZone`, `type: 'string'`, `required: true`, `input: true`), so `/sign-up/email` requires it and `/update-user` accepts it.
+- The sign-up page sends `Intl.DateTimeFormat().resolvedOptions().timeZone`; the server rejects a value outside `Intl.supportedValuesOf('timeZone')` with 400 `INVALID_TIME_ZONE_MESSAGE`; `signUpSchema` gains `timeZone` with that refinement, applied by the existing input-normalisation hook.
+- `SessionUser` carries `timeZone: string | null`. The sign-in page, after a successful sign-in whose session user has `timeZone === null`, calls `authClient.updateUser({ timeZone })` once with the browser zone and refetches the session. The seed passes `UTC`.
+- Nothing in this slice reads the stored zone for display: the audit found the client already formats in the browser zone, and the preference feature switches the formatter to the stored one.
 
 ### Invites
 

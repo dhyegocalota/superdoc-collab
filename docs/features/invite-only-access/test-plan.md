@@ -17,7 +17,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `auth/token-hash.test.ts` — sha256 hex, 64 characters, deterministic, not equal to the token.
 - [ ] `auth/session.test.ts` — an invited user's session carries `role: 'user'`; the test admin's carries `'admin'`.
 - [ ] `admin/invites.test.ts` — create stores only the hash and returns a URL containing the token once; accept is single use; revoke outcomes (revoked, already-accepted, not-found); expiry after seven days and not before; list names creator and acceptor, newest first.
-- [ ] `auth/sign-up-gate.test.ts` — first sign-up on an unclaimed instance is admin; claimed without token → 403 with `SIGN_UP_BY_INVITATION_MESSAGE` and zero rows; pending token admits once and the user is `'user'`; revoked, expired and unknown tokens → 403; a token used by two concurrent sign-ups admits exactly one and leaves one user; two concurrent first sign-ups leave exactly one admin.
+- [ ] `auth/sign-up-gate.test.ts` — an unknown `timeZone` is 400 before the gate and claims nothing; the stored zone comes back on `/api/me`; first sign-up on an unclaimed instance is admin; claimed without token → 403 with `SIGN_UP_BY_INVITATION_MESSAGE` and zero rows; pending token admits once and the user is `'user'`; revoked, expired and unknown tokens → 403; a token used by two concurrent sign-ups admits exactly one and leaves one user; two concurrent first sign-ups leave exactly one admin.
 - [ ] `auth/seed-demo-users.test.ts` — the seed claims with `admin@example.com` first, admits Ana, Bruno, Caio and Dani as users by invite, and a second run creates nothing and no new invites.
 - [ ] `admin/setup-routes.test.ts` — `/api/setup` is `{ claimed: false }` on an empty database and `{ claimed: true }` after the first sign-up.
 - [ ] `admin/invite-routes.test.ts` — pending → `{ state: 'pending' }`; revoked and unknown → 404.
@@ -30,8 +30,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Unit — web
 
-- [ ] `auth/sign-up-page.test.tsx` — unclaimed → "Claim this instance" heading and the form; claimed without token → invalid message, no form; pending token → "You were invited"; revoked token → invalid message; submit sends `x-invite-token` and a 403 shows the server's sentence.
-- [ ] `auth/sign-in-page.test.tsx` — claim link only while unclaimed; no sign-up link once claimed; nothing while setup is loading.
+- [ ] `auth/sign-up-page.test.tsx` — both forms send the browser's IANA zone in the body; unclaimed → "Claim this instance" heading and the form; claimed without token → invalid message, no form; pending token → "You were invited"; revoked token → invalid message; submit sends `x-invite-token` and a 403 shows the server's sentence.
+- [ ] `auth/sign-in-page.test.tsx` — a session without a zone triggers one `updateUser({ timeZone })`, a session with one triggers none; claim link only while unclaimed; no sign-up link once claimed; nothing while setup is loading.
 - [ ] `auth/use-auth-submit.test.tsx` — 401 and 429 messages unchanged; 403 passes the server message.
 - [ ] `admin/admin-page.test.tsx` — users with roles, no toggle on self; generate copies the URL, shows "Invite link copied", refetches; revoke refetches; make admin posts and refetches; times rendered via `formatTimestamp`.
 - [ ] `admin/require-admin.test.tsx` — user → documents + "Admins only" toast; signed out → sign-in with `next`; admin → children.
@@ -50,6 +50,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 Against a fresh local stack with `SEED_DEMO_USERS=false` (`docker compose up --build` with an empty volume), then against the deployed instance after the merge.
 
+- [ ] Time zone: after the claim, `GET /api/me` shows the browser's zone (run the walk with the Playwright context `timezoneId: 'America/Sao_Paulo'` and expect exactly that string); sign in as a seeded user (`UTC`) and expect it unchanged, since only `null` is backfilled.
 - [ ] Happy path, entry to exit: open the URL → sign-in shows "Claim this instance" → claim as the owner → documents page shows the Admin link → `/admin` → Generate invite → toast "Invite link copied" → open the link in a private window → "You were invited" → create Eve → Eve on documents, no Admin link → back on `/admin`, the invite reads accepted and Eve is listed.
 - [ ] Empty: `/admin` on a fresh claim; expected: the users table shows only the admin, the invites table shows the empty-state paragraph.
 - [ ] Single: one pending invite; expected: one row, state pending, Revoke visible.

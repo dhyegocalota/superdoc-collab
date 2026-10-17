@@ -65,7 +65,8 @@ G1 first (every other group imports from it). G2 and G3 in parallel after G1 (G3
 **Interfaces:**
 - Produces:
   - `enum UserRole { Admin = 'admin', User = 'user' }`
-  - `type SessionUser = { id: string; name: string; email: string; role: UserRole }`
+  - `type SessionUser = { id: string; name: string; email: string; role: UserRole; timeZone: string | null }`
+  - `const INVALID_TIME_ZONE_MESSAGE = 'Unknown time zone.'`; `function isSupportedTimeZone(value: string): boolean` (`Intl.supportedValuesOf('timeZone').includes(value)`); `signUpSchema` gains `timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE)`; `type SignUpInput` follows
   - `const SIGN_UP_BY_INVITATION_MESSAGE = 'Sign-up is by invitation. Ask an admin for a link.'`
   - `const INVITE_TOKEN_HEADER = 'x-invite-token'`
   - `enum InviteState { Pending = 'pending', Accepted = 'accepted', Revoked = 'revoked', Expired = 'expired' }`
@@ -187,11 +188,17 @@ export enum UserRole {
   User = 'user',
 }
 
-export type SessionUser = { id: string; name: string; email: string; role: UserRole };
+export const INVALID_TIME_ZONE_MESSAGE = 'Unknown time zone.';
+
+export function isSupportedTimeZone(value: string): boolean {
+  return Intl.supportedValuesOf('timeZone').includes(value);
+}
+
+export type SessionUser = { id: string; name: string; email: string; role: UserRole; timeZone: string | null };
 export type AdminUser = { id: string; name: string; email: string; role: UserRole; createdAt: number };
 ```
 
-(replace the existing `SessionUser` line.)
+(replace the existing `SessionUser` line; extend `signUpSchema` with `timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE)`; add to `auth.test.ts`: `signUpSchema` accepts `America/Sao_Paulo` and rejects `Mars/Olympus` with that message.)
 
 `libs/types/src/routes.ts`, add `Admin = '/admin'` to `AppRoute`; `Setup = '/api/setup'`, `Invites = '/api/invites'`, `Admin = '/api/admin'` to `ApiPath`; and:
 
@@ -246,7 +253,7 @@ git commit -m "feat(types): user roles, invite states and the admin and invite p
 **Interfaces:**
 - Consumes: `UserRole` from Task 1.
 - Produces:
-  - `authSchema.user` with `role: text('role', { enum: [UserRole.Admin, UserRole.User] }).notNull().default(UserRole.User)`, `banned: integer('banned', { mode: 'boolean' }).notNull().default(false)`, `banReason: text('ban_reason')`, `banExpires: integer('ban_expires', { mode: 'timestamp_ms' })`; `authSchema.session.impersonatedBy: text('impersonated_by')`.
+  - `authSchema.user` with `timeZone: text('time_zone')` (nullable; accounts from before this slice), `role: text('role', { enum: [UserRole.Admin, UserRole.User] }).notNull().default(UserRole.User)`, `banned: integer('banned', { mode: 'boolean' }).notNull().default(false)`, `banReason: text('ban_reason')`, `banExpires: integer('ban_expires', { mode: 'timestamp_ms' })`; `authSchema.session.impersonatedBy: text('impersonated_by')`.
   - `invites` table: `id text pk`, `tokenHash text notNull unique`, `createdBy text notNull references user.id`, `createdAt integer timestamp_ms notNull`, `expiresAt integer timestamp_ms notNull`, `acceptedBy text references user.id`, `acceptedAt integer timestamp_ms`, `revokedAt integer timestamp_ms`.
   - `hashToken(token: string): string` (sha256 hex) in `auth/token-hash.ts`; `hashShareToken` becomes a re-export alias removed: `share-links.ts` calls `hashToken`.
   - `readSession` returns `role`.
@@ -330,7 +337,10 @@ Open `apps/server/drizzle/0004_invite-only-access.sql` and check it contains `AL
 import { admin } from 'better-auth/plugins';
 ...
     plugins: [admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] })],
+    user: { additionalFields: { timeZone: { type: 'string', required: true, input: true } } },
 ```
+
+(`required: true` makes `/sign-up/email` demand it; the zod refinement in `normalizeCredentials` rejects unknown names with 400 before Better Auth sees them. `/update-user` accepts `timeZone` for the sign-in backfill and, later, the preferences page.)
 
 `apps/server/better-auth.config.ts`: the same `plugins` line.
 
@@ -340,11 +350,11 @@ import { admin } from 'better-auth/plugins';
 export async function readSession({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionUser | null> {
   const session = await auth.api.getSession({ headers });
   if (!session) return null;
-  return { id: session.user.id, name: session.user.name, email: session.user.email, role: session.user.role as UserRole };
+  return { id: session.user.id, name: session.user.name, email: session.user.email, role: session.user.role as UserRole, timeZone: timeZoneOf(session.user.timeZone) };
 }
 ```
 
-(The plugin types `role` as `string | null | undefined`; the column is `NOT NULL` with the enum, so the cast is the boundary. If `role` arrives empty, throw `new Error('Session user has no role.')` instead of defaulting.)
+(`timeZoneOf(value: string | null | undefined): string | null` returns `null` for `null` and `undefined`, the two shapes a nullable additional field can take, and the string otherwise: an explicit boundary normalisation, not a default. The plugin types `role` as `string | null | undefined`; the column is `NOT NULL` with the enum, so the cast is the boundary. If `role` arrives empty, throw `new Error('Session user has no role.')` instead of defaulting.)
 
 `apps/server/src/auth/token-hash.ts`:
 
@@ -628,7 +638,7 @@ git commit -m "feat(server): invites repository with hashed single-use tokens"
   - `createAuth({ database, environment, invites })` (new required `invites: InvitesRepository`).
   - `createSignUpGate({ invites, database })` returning `{ before: AuthMiddleware; after: AuthMiddleware }` composed into the existing hooks.
   - `TestServer.admin: TestUser` (claimed at start unless `startTestServer({ claim: false })`).
-  - `signInAndGetCookie` sends `x-invite-token` from `server.services.invites.create({ createdBy: server.admin.id })`.
+  - `signInAndGetCookie` sends `x-invite-token` from `server.services.invites.create({ createdBy: server.admin.id })` and adds `timeZone: TEST_TIME_ZONE` (`'UTC'`) to every sign-up body, including the claim.
   - `DEMO_ADMIN = { name: 'Admin', email: 'admin@example.com' }` in `libs/types`; seed creates it first (claim) then the four demo users through invites.
 
 - [ ] **Step 1: Write the failing tests**
@@ -645,7 +655,7 @@ let clientAddress = 1;
 function signUp({ server, email, token }: { server: TestServer; email: string; token?: string }): Promise<Response> {
   const headers: Record<string, string> = { 'content-type': 'application/json', 'x-forwarded-for': `10.201.0.${clientAddress++}` };
   if (token) headers[INVITE_TOKEN_HEADER] = token;
-  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers, body: JSON.stringify({ name: 'Eve', email, password: TEST_USER_PASSWORD }) });
+  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers, body: JSON.stringify({ name: 'Eve', email, password: TEST_USER_PASSWORD, timeZone: 'America/Sao_Paulo' }) });
 }
 
 function tokenOf(url: string): string {
@@ -700,6 +710,27 @@ test('a token consumed between the check and the submit creates no user', async 
   const [first, second] = await Promise.all([signUp({ server, email: 'a@example.com', token }), signUp({ server, email: 'b@example.com', token })]);
   expect([first.status, second.status].sort()).toEqual([HttpStatus.Ok, HttpStatus.Forbidden]);
   expect(server.database.sqlite.prepare("select count(*) as n from user where email in ('a@example.com','b@example.com')").get()).toEqual({ n: 1 });
+  await server.stop();
+});
+
+test('a sign-up with an unknown time zone is refused before the gate runs', async () => {
+  const server = await startTestServer({ claim: false });
+  const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.201.9.9' },
+    body: JSON.stringify({ name: 'Eve', email: 'eve@example.com', password: TEST_USER_PASSWORD, timeZone: 'Mars/Olympus' }),
+  });
+  expect(response.status).toBe(HttpStatus.BadRequest);
+  expect(server.services.invites.hasAnyUser()).toBe(false);
+  await server.stop();
+});
+
+test('the stored time zone comes back on the session user', async () => {
+  const server = await startTestServer({ claim: false });
+  await signUp({ server, email: 'first@example.com' });
+  const cookie = await signInExisting({ server, email: 'first@example.com', password: TEST_USER_PASSWORD });
+  const me = (await (await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie } })).json()) as { user: { timeZone: string | null } };
+  expect(me.user.timeZone).toBe('America/Sao_Paulo');
   await server.stop();
 });
 
@@ -854,7 +885,7 @@ export async function seedDemoUsers({ auth, database, invites, password }: { aut
 }
 ```
 
-with `seedOne` doing the existing "select by email, else `auth.api.signUpEmail({ body, headers })`" and returning the user id (existing or created). `auth.api.signUpEmail` accepts `headers`, which is how the token reaches the gate. An invite is created only when the account is missing: move `invites.create` inside `seedOne`'s create branch (pass `invites` and `adminId` instead of `headers`) so re-runs create no invites.
+with `seedOne` doing the existing "select by email, else `auth.api.signUpEmail({ body: { name, email, password, timeZone: SEED_TIME_ZONE }, headers })`" (`SEED_TIME_ZONE = 'UTC'`) and returning the user id (existing or created). `auth.api.signUpEmail` accepts `headers`, which is how the token reaches the gate. An invite is created only when the account is missing: move `invites.create` inside `seedOne`'s create branch (pass `invites` and `adminId` instead of `headers`) so re-runs create no invites.
 
 `apps/server/src/seed.ts`: construct `InvitesRepository` and pass it.
 
@@ -1149,7 +1180,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] as string).href) main();
 - Modify: `apps/web/src/features/auth/use-session.ts` (type only: `role` comes with `SessionUser`)
 - Create: `apps/web/src/features/auth/use-setup.ts`, `apps/web/src/features/auth/use-invite.ts`, `apps/web/src/features/auth/setup-api.ts`
 - Modify: `apps/web/src/features/auth/sign-in-page.tsx`, `sign-up-page.tsx`, `auth-copy.ts`, `auth-failure.ts`, `use-auth-submit.ts`
-- Modify: every web test fixture that builds a `SessionUser` (`grep -rn "email:" apps/web/src --include=*.test.tsx` → add `role: UserRole.User`)
+- Modify: every web test fixture that builds a `SessionUser` (`grep -rn "email:" apps/web/src --include=*.test.tsx` → add `role: UserRole.User, timeZone: 'UTC'`)
+- Create: `apps/web/src/lib/browser-time-zone.ts` (`browserTimeZone(): string` → `Intl.DateTimeFormat().resolvedOptions().timeZone`)
 - Test: `apps/web/src/features/auth/sign-up-page.test.tsx` (new), `sign-in-page.test.tsx`, `use-auth-submit.test.tsx`
 
 **Interfaces:**
@@ -1159,6 +1191,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] as string).href) main();
   - `useInvite(token: string | null): UseQueryResult<InviteStatus>` (enabled only with a token; a 404 rejects with `InviteNotValidError`, and the page treats `isError` as "not valid")
   - `authFailureMessage({ status, retryAfterSeconds, serverMessage })`: 403 → `serverMessage`
   - `useAuthSubmit` passes `error.message` as `serverMessage` and accepts `headers?: Record<string, string>` merged into the `fetchOptions`
+  - the sign-up form sends `timeZone: browserTimeZone()` with the body (merged in `submit`, not a visible field); the sign-in page, on success with `user.timeZone === null`, calls `authClient.updateUser({ timeZone: browserTimeZone() })` once and invalidates `SESSION_QUERY_KEY` (`useAuthSubmit` gains an optional `afterSuccess` callback for it)
   - copy: `CLAIM_TITLE = 'Claim this instance'`, `CLAIM_DESCRIPTION = 'The first account becomes the administrator.'`, `INVITED_TITLE = 'You were invited'`, `INVITED_DESCRIPTION = 'Create your account to join.'`, `INVITE_INVALID_MESSAGE = 'This invite is not valid. Ask an admin for a new link.'`, `CLAIM_LINK_LABEL = 'Claim this instance'`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1210,11 +1243,12 @@ test('submitting sends the token in the header and a forbidden sign-up shows the
   await userEvent.type(screen.getByLabelText('Password'), 'long-enough-password');
   await userEvent.click(screen.getByRole('button', { name: SIGN_UP_LABEL }));
   expect(await screen.findByText(SIGN_UP_BY_INVITATION_MESSAGE)).toBeInTheDocument();
-  expect(signUpEmail).toHaveBeenCalledWith(expect.objectContaining({ email: 'eve@example.com' }), expect.objectContaining({ headers: { [INVITE_TOKEN_HEADER]: 'tok' } }));
+  expect(signUpEmail).toHaveBeenCalledWith(
+    expect.objectContaining({ email: 'eve@example.com', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), expect.objectContaining({ headers: { [INVITE_TOKEN_HEADER]: 'tok' } }));
 });
 ```
 
-`sign-in-page.test.tsx`, add: "shows the claim link while unclaimed and no sign-up link once claimed" (two renders, `mockApi` with `claimed` false then true; assert `screen.findByRole('link', { name: CLAIM_LINK_LABEL })` then `queryByRole('link', { name: /sign up/i })` is null).
+`sign-up-page.test.tsx`, add: "the claim form also sends the browser time zone" (unclaimed render, fill the form, assert `signUpEmail` called with `timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone`). `sign-in-page.test.tsx`, add: "a sign-in whose session has no time zone writes the browser zone once" (session mock returns `timeZone: null`; assert `updateUser` called once with `{ timeZone: <browser zone> }`, and not called when the session already has one) and "shows the claim link while unclaimed and no sign-up link once claimed" (two renders, `mockApi` with `claimed` false then true; assert `screen.findByRole('link', { name: CLAIM_LINK_LABEL })` then `queryByRole('link', { name: /sign up/i })` is null).
 
 - [ ] **Step 2: Run the tests to verify they fail**
 

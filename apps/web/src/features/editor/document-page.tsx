@@ -86,7 +86,7 @@ export function DocumentPage() {
         onDownload={editorSetup ? downloadLiveDocument : undefined}
       />
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
-      <ConnectionBanner state={connectionState} failureReason={failureReason} onReload={reload} />
+      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={false} onReload={reload} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
         <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>
           <VersionBanner timeTravel={timeTravel} />

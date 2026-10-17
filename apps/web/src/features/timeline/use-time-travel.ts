@@ -1,27 +1,16 @@
-import {
-  DocumentResource,
-  TimelineSearchParam,
-  VersionViewerState,
-  type EditRunView,
-  type TimelineBin,
-  type TimelineFilter,
-  type VersionSummary,
-  type DocumentTimeline,
-} from '@superdoc-history/types';
-import { skipToken, useQuery } from '@tanstack/react-query';
+import { TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type VersionSummary } from '@superdoc-history/types';
 import { useEffect, useState } from 'react';
+import { isTypingInField } from '@/lib/keyboard';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { binContaining } from './bin-containing';
-import { binEditsQueryKey, fetchBinEdits, pollWhileAvailable, VersionLoadKind } from './timeline-api';
+import { VersionLoadKind } from './timeline-api';
+import { useBinRuns } from './use-bin-runs';
 import { useTimeline } from './use-timeline';
 import { useTimelineSearch } from './use-timeline-search';
 import { useVersionLoad } from './use-version-load';
 
 export const SCRUB_DEBOUNCE_MS = 300;
-const NO_RUNS: EditRunView[] = [];
-const NO_BIN_SEGMENT = 'no-bin';
-const NO_BIN_EDITS_KEY = [DocumentResource.Timeline, NO_BIN_SEGMENT];
 
 type VersionPin = { at: number; sequence: number };
 
@@ -30,7 +19,7 @@ export type TimeTravel = {
   requestedBinStart: number | null;
   requestedBinEnd: number | null;
   requestedSequence: number | null;
-  shown: VersionSummary | null;
+  shownVersion: VersionSummary | null;
   isLoading: boolean;
   hasFailed: boolean;
   runs: EditRunView[];
@@ -38,13 +27,6 @@ export type TimeTravel = {
   backToLive: () => void;
   reportFailure: (sequence: number) => void;
 };
-
-function isTypingInField(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
-  return isTextField && target.value !== '';
-}
 
 function sequenceOf(bin: TimelineBin | undefined): number | null {
   if (!bin) return null;
@@ -56,40 +38,18 @@ function pinnedSequenceAt({ pin, at }: { pin: VersionPin | null; at: number | nu
   return pin.sequence;
 }
 
-function useBinRuns({
-  documentId,
-  timeline,
-  bin,
-  filter,
-}: {
-  documentId: string;
-  timeline: DocumentTimeline | undefined;
-  bin: TimelineBin | undefined;
-  filter: TimelineFilter;
-}): EditRunView[] {
-  const request = bin && timeline ? { documentId, binStart: bin.start, binMs: timeline.binMs, filter } : null;
-  const { data } = useQuery({
-    queryKey: request ? binEditsQueryKey(request) : NO_BIN_EDITS_KEY,
-    queryFn: request ? () => fetchBinEdits(request) : skipToken,
-    refetchInterval: pollWhileAvailable,
-    retry: false,
-  });
-  if (!data) return NO_RUNS;
-  return data.runs;
-}
-
 export function useTimeTravel({ documentId, isEnabled }: { documentId: string; isEnabled: boolean }): TimeTravel {
   const { search, update } = useTimelineSearch();
   const at = search.at;
   const [pendingBinStart, setPendingBinStart] = useState<number | null>(null);
   const [shownVersion, setShownVersion] = useState<VersionSummary | null>(null);
   const [failedFrameSequence, setFailedFrameSequence] = useState<number | null>(null);
-  const [pinned, setPinned] = useState<VersionPin | null>(null);
+  const [pinnedVersion, setPinnedVersion] = useState<VersionPin | null>(null);
   const state = at === null ? VersionViewerState.Live : VersionViewerState.Viewing;
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isEnabled && at !== null });
   const bin = binContaining({ timeline, time: at })?.bin;
   const binSequence = sequenceOf(bin);
-  const requestedSequence = pinnedSequenceAt({ pin: pinned, at });
+  const requestedSequence = pinnedSequenceAt({ pin: pinnedVersion, at });
   const runs = useBinRuns({ documentId, timeline, bin, filter: search.filter });
   const { version, isError } = useVersionLoad({ documentId, sequence: requestedSequence });
   const hasFailedFrame = requestedSequence !== null && failedFrameSequence === requestedSequence;
@@ -100,10 +60,10 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   }, [version]);
 
   useEffect(() => {
-    const isAlreadyPinned = pinnedSequenceAt({ pin: pinned, at }) !== null;
+    const isAlreadyPinned = pinnedSequenceAt({ pin: pinnedVersion, at }) !== null;
     const hasBinWithoutVersion = bin !== undefined && binSequence === null;
     if (at === null) {
-      setPinned(null);
+      setPinnedVersion(null);
       setShownVersion(null);
       return;
     }
@@ -113,8 +73,8 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
       return;
     }
     if (binSequence === null) return;
-    setPinned({ at, sequence: binSequence });
-  }, [at, bin, binSequence, pinned]);
+    setPinnedVersion({ at, sequence: binSequence });
+  }, [at, bin, binSequence, pinnedVersion]);
 
   const { schedule, cancel } = useDebouncedCallback({
     callback: (binStart: number) => {
@@ -158,7 +118,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     requestedBinStart,
     requestedBinEnd: requestedBinStart !== null && timeline ? requestedBinStart + timeline.binMs : null,
     requestedSequence,
-    shown: at === null || isShownFailed ? null : shownVersion,
+    shownVersion: at === null || isShownFailed ? null : shownVersion,
     isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,
     hasFailed,
     runs,

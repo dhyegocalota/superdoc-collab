@@ -2,6 +2,7 @@ import { documentPagePath } from '@superdoc-history/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -61,11 +62,7 @@ export function UploadDialog() {
             {UPLOADING_MESSAGE}
           </p>
         )}
-        {message && (
-          <p role="alert" className="text-sm text-destructive">
-            {message}
-          </p>
-        )}
+        {message && <ErrorMessage>{message}</ErrorMessage>}
       </DialogContent>
     </Dialog>
   );

@@ -1,5 +1,3 @@
-export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';
-
 export const TIMELINE_HEADING = 'Timeline';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';

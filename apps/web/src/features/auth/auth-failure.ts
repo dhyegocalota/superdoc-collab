@@ -1,6 +1,6 @@
 import { AUTH_ERROR_MESSAGE, HttpStatus } from '@superdoc-history/types';
 
-export const RETRY_AFTER_HEADER = 'X-Retry-After';
+export const AUTH_RETRY_AFTER_HEADER = 'X-Retry-After';
 export const GENERIC_AUTH_FAILURE_MESSAGE = 'Something went wrong. Try again.';
 
 function tooManyAttemptsMessage(retryAfterSeconds: string | null): string {

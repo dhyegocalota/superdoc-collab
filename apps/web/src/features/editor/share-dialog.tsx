@@ -2,6 +2,7 @@ import { LINK_COPIED_MESSAGE, SECOND_MS, ShareLinkRole, type ShareLinks } from '
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -76,11 +77,7 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
           {RESET_LINK_LABEL}
         </Button>
       </div>
-      {isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {RESET_FAILED_MESSAGE}
-        </p>
-      )}
+      {isError && <ErrorMessage>{RESET_FAILED_MESSAGE}</ErrorMessage>}
       {copyState === CopyState.Copied && (
         <p role="status" className="text-sm text-muted-foreground">
           {LINK_COPIED_MESSAGE}

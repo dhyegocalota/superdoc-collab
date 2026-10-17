@@ -1,6 +1,8 @@
 import { TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
 import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
+import { KeyboardKey } from '@/lib/keyboard';
+import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { cn } from '@/lib/utils';
 import { BandLabel } from './band-label';
 import { maxBandVolume } from './max-band-volume';
@@ -8,16 +10,6 @@ import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-l
 import { StreamgraphLegend } from './streamgraph-legend';
 import { bandAriaLabel, CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
 import { TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
-
-const PRIMARY_BUTTON_PRESSED = 1;
-
-enum NavigationKey {
-  Previous = 'ArrowLeft',
-  Next = 'ArrowRight',
-  First = 'Home',
-  Last = 'End',
-  Clear = 'Escape',
-}
 
 class MissingBandHueError extends Error {}
 
@@ -31,13 +23,14 @@ type StreamgraphProps = {
 };
 
 function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedIndex: number | null; lastIndex: number }): number | null {
-  if (key === NavigationKey.First) return 0;
-  if (key === NavigationKey.Last) return lastIndex;
-  if (key === NavigationKey.Next && selectedIndex === null) return 0;
-  if (key === NavigationKey.Previous && selectedIndex === null) return lastIndex;
-  if (key === NavigationKey.Next) return Math.min(lastIndex, selectedIndex! + 1);
-  if (key === NavigationKey.Previous) return Math.max(0, selectedIndex! - 1);
-  return null;
+  const isStep = key === KeyboardKey.ArrowRight || key === KeyboardKey.ArrowLeft;
+  if (key === KeyboardKey.Home) return 0;
+  if (key === KeyboardKey.End) return lastIndex;
+  if (!isStep) return null;
+  if (selectedIndex === null && key === KeyboardKey.ArrowRight) return 0;
+  if (selectedIndex === null) return lastIndex;
+  if (key === KeyboardKey.ArrowRight) return Math.min(lastIndex, selectedIndex + 1);
+  return Math.max(0, selectedIndex - 1);
 }
 
 type TooltipAnchor = { index: number; top: number };
@@ -124,7 +117,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   function handleKeyDown(event: KeyboardEvent<SVGPathElement>): void {
     isPointerFocus.current = false;
     setHasKeyboardFocus(true);
-    if (event.key === NavigationKey.Clear) {
+    if (event.key === KeyboardKey.Escape) {
       event.stopPropagation();
       onClearSelection();
       return;

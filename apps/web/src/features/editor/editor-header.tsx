@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Download, Ellipsis } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,11 +57,7 @@ function TitleInput({ documentId, title }: DocumentIdentity & { title: string })
         onBlur={(event) => commit(event.currentTarget)}
         onKeyDown={(event) => event.key === KeyboardKey.Enter && event.currentTarget.blur()}
       />
-      {isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {RENAME_FAILED_MESSAGE}
-        </p>
-      )}
+      {isError && <ErrorMessage>{RENAME_FAILED_MESSAGE}</ErrorMessage>}
     </>
   );
 }
@@ -87,11 +84,7 @@ function DeleteDocumentDialog({
           <DialogTitle>{DELETE_DIALOG_TITLE}</DialogTitle>
           <DialogDescription>{DELETE_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
-        {isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {DELETE_FAILED_MESSAGE}
-          </p>
-        )}
+        {isError && <ErrorMessage>{DELETE_FAILED_MESSAGE}</ErrorMessage>}
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">{CANCEL_LABEL}</Button>

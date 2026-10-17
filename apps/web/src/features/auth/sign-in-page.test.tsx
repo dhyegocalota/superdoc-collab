@@ -1,10 +1,11 @@
-import { AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE } from '@superdoc-history/types';
+import { AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE, HttpStatus } from '@superdoc-history/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from './auth-client';
+import { authFailureMessage, AUTH_RETRY_AFTER_HEADER } from './auth-failure';
 import { pageTitle } from '@/lib/use-document-title';
 import { NO_ACCOUNT_PROMPT, SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL, SIGN_UP_LABEL } from './auth-copy';
 import { SignInPage } from './sign-in-page';
@@ -12,6 +13,7 @@ import { SignInPage } from './sign-in-page';
 vi.mock('./auth-client', () => ({ authClient: { signIn: { email: vi.fn() } } }));
 
 const signInEmail = vi.mocked(authClient.signIn.email);
+const RETRY_SECONDS = '30';
 
 function renderSignInPage() {
   const queryClient = new QueryClient();
@@ -79,4 +81,16 @@ test('the sign-in page names its tab and links to sign-up from copy', async () =
   expect(screen.getByText(NO_ACCOUNT_PROMPT, { exact: false })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: SIGN_UP_LABEL })).toBeInTheDocument();
   await waitFor(() => expect(document.title).toBe(pageTitle(SIGN_IN_LABEL)));
+});
+
+test('a 429 says how many seconds to wait', async () => {
+  signInEmail.mockImplementationOnce((async (_values: unknown, capture: { onResponse: (context: { response: Response }) => void }) => {
+    const headers = { [AUTH_RETRY_AFTER_HEADER]: RETRY_SECONDS };
+    capture.onResponse({ response: new Response(null, { status: HttpStatus.TooManyRequests, headers }) });
+    return { data: null, error: { status: HttpStatus.TooManyRequests } };
+  }) as never);
+  const user = renderSignInPage();
+  await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
+  const expected = authFailureMessage({ status: HttpStatus.TooManyRequests, retryAfterSeconds: RETRY_SECONDS });
+  expect(await screen.findByRole('alert')).toHaveTextContent(expected);
 });

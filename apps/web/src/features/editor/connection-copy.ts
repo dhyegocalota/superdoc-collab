@@ -21,6 +21,7 @@ export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.Unknown]: 'The cause could not be identified.',
 };
 
-export function unsyncedDetailFor(_failureReason: ConnectionFailureReason): string {
-  throw new Error('unsyncedDetailFor is not implemented');
+export function unsyncedDetailFor(failureReason: ConnectionFailureReason): string {
+  if (failureReason === ConnectionFailureReason.SessionEnded) return UNSYNCED_LOST_ON_SIGN_IN_DETAIL;
+  return UNSYNCED_LOST_ON_RELOAD_DETAIL;
 }

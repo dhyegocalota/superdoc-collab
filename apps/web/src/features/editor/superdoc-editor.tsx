@@ -30,18 +30,12 @@ type SuperDocEditorProps = {
   user: SessionUser;
   file: Blob;
   isInert: boolean;
-  focusOnReady: boolean;
 };
 
-export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert, focusOnReady }: SuperDocEditorProps) {
+export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
-  const focusOnReadyRef = useRef(focusOnReady);
-
-  useEffect(() => {
-    focusOnReadyRef.current = focusOnReady;
-  }, [focusOnReady]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -66,10 +60,6 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       user: { id: user.id, name: user.name, email: user.email },
       telemetry: SUPERDOC_TELEMETRY,
       zoom: { mode: initialZoomMode(window) },
-      onReady: ({ superdoc: ready }) => {
-        if (!focusOnReadyRef.current) return;
-        ready.focus();
-      },
       onException: () => setHasFailed(true),
     });
     superdocRef.current = superdoc;

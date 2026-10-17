@@ -2,6 +2,7 @@ import { DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState } from '@superdoc-hist
 import { useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import type { SuperDoc } from 'superdoc';
+import { ErrorMessage } from '@/components/error-message';
 import { useSession } from '@/features/auth/use-session';
 import { isNewDocumentState } from '@/features/documents/new-document-state';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -57,11 +58,7 @@ export function DocumentPage() {
         currentUserId={user ? user.id : null}
         onDownload={editorSetup ? downloadLiveDocument : null}
       />
-      {hasExportFailed && (
-        <p role="alert" className="px-4 py-2 text-sm text-destructive">
-          {EXPORT_FAILED_MESSAGE}
-        </p>
-      )}
+      {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
         <div data-testid="editor-area" className={EDITOR_AREA_CLASS}>
           <VersionBanner timeTravel={timeTravel} />
@@ -83,11 +80,7 @@ export function DocumentPage() {
                 {LOADING_DOCUMENT_MESSAGE}
               </p>
             )}
-            {fileError && (
-              <p role="alert" className="flex-1 p-4 text-sm text-destructive">
-                {DOCUMENT_LOAD_ERROR_MESSAGE}
-              </p>
-            )}
+            {fileError && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
             <VersionFrame
               documentId={documentId}
               version={timeTravel.shownVersion}

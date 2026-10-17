@@ -1,6 +1,7 @@
 import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useId, useState, type CSSProperties } from 'react';
+import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { cn } from '@/lib/utils';
@@ -124,11 +125,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
         </header>
         {isOpen && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-            {refreshTopics.isError && (
-              <p role="alert" className="text-sm text-destructive">
-                {refreshTopics.error.message}
-              </p>
-            )}
+            {refreshTopics.isError && <ErrorMessage>{refreshTopics.error.message}</ErrorMessage>}
             {timeline && (
               <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={() => refreshTopics.mutate()} />
             )}

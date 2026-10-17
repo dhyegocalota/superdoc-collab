@@ -1,6 +1,7 @@
 import { VERSION_FAILED_MESSAGE, type EditRunView } from '@superdoc-history/types';
 import { useCallback, useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
+import { ErrorMessage } from '@/components/error-message';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
 import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
@@ -53,18 +54,8 @@ export function VersionViewPage() {
   }, [isSequenceValid, hasOpenFailed]);
 
   if (!isSequenceValid) return null;
-  if (openError)
-    return (
-      <p role="alert" className="p-4 text-sm text-destructive">
-        {openError.message}
-      </p>
-    );
-  if (hasConnectionFailed)
-    return (
-      <p role="alert" className="p-4 text-sm text-destructive">
-        {VERSION_FAILED_MESSAGE}
-      </p>
-    );
+  if (openError) return <ErrorMessage className="p-4">{openError.message}</ErrorMessage>;
+  if (hasConnectionFailed) return <ErrorMessage className="p-4">{VERSION_FAILED_MESSAGE}</ErrorMessage>;
   if (!user || !opened) return <SessionSkeleton />;
   return (
     <VersionViewer

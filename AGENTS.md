@@ -26,7 +26,7 @@ docs/media        screenshots the README embeds
 .agents/roles     agent role bodies shared by `.claude/agents` and `.codex/agents`
 ```
 
-Every workspace package and `e2e/` has a `README.md` that states purpose only: no commands, configuration, file paths or symbols, because prose is not compiled. The root README's Run it block is the one exception; `apps/server/src/repository-shape/readme-run-block.test.ts` pins it to `package.json`, `.env.example`, the workspace and the demo users. Update a README in the same change as the code it describes ([HARNESS → Build](.claude/HARNESS.md#4-build)).
+Every workspace package and `e2e/` has a `README.md` that states purpose only: no commands, configuration, file paths or symbols, because prose is not compiled. The root README's Quick install section and the install guide's Run from source section are the one exception; `apps/server/src/repository-shape/readme-run-block.test.ts` pins them to `package.json`, `.env.example`, the workspace and the demo users. Update a README in the same change as the code it describes ([HARNESS → Build](.claude/HARNESS.md#4-build)).
 
 ## Language
 

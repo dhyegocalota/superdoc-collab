@@ -86,7 +86,6 @@ export type SelectionSummaryView = {
   summary: SelectionSummary | null;
   failure: string | null;
   isModelAvailable: boolean;
-  step: SummarizeStep;
 };
 export type TimelineCell = { inserted: number; deleted: number; agentInserted: number; agentDeleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };

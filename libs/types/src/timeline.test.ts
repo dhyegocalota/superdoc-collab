@@ -5,7 +5,6 @@ import {
   SummarizeStep,
   TimelineQueryParam,
   TimelineSearchParam,
-  type SelectionSummaryView,
   type TimelineBin,
 } from './timeline';
 
@@ -23,10 +22,6 @@ test('a timeline bin carries its own end', () => {
 
 test('SummarizeStep lists idle, grouping and summarizing', () => {
   expect(Object.values(SummarizeStep)).toEqual(['idle', 'grouping', 'summarizing']);
-});
-
-test('a selection summary view carries the summarize step', () => {
-  expectTypeOf<SelectionSummaryView['step']>().toEqualTypeOf<SummarizeStep>();
 });
 
 test('the summarize cooldown is thirty seconds and the busy message is one sentence', () => {

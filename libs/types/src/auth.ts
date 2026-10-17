@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DATE_TIME_LOCALE } from './constants';
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const NAME_MIN_LENGTH = 2;
@@ -28,7 +29,7 @@ const OFFSET_TIME_ZONE_PATTERN = /^[+-]/;
 
 function isResolvableTimeZone(value: string): boolean {
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    new Intl.DateTimeFormat(DATE_TIME_LOCALE, { timeZone: value });
     return true;
   } catch {
     return false;
@@ -42,7 +43,7 @@ export function isSupportedTimeZone(value: string): boolean {
 }
 
 export function canonicalTimeZone(value: string): string {
-  return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone;
+  return new Intl.DateTimeFormat(DATE_TIME_LOCALE, { timeZone: value }).resolvedOptions().timeZone;
 }
 
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);

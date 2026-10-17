@@ -1,6 +1,5 @@
-import { DAY_MS, HOUR_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
+import { DATE_TIME_LOCALE, DAY_MS, HOUR_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
 
-const LOCALE = 'en-US';
 const HOURS_PER_DAY = 24;
 const FIRST_MONDAY_EPOCH_DAY = 4;
 const FIRST_MONDAY_LOCAL_MS = FIRST_MONDAY_EPOCH_DAY * DAY_MS;
@@ -11,7 +10,7 @@ const partsFormats = new Map<string, Intl.DateTimeFormat>();
 function partsFormat(timeZone: string): Intl.DateTimeFormat {
   const cached = partsFormats.get(timeZone);
   if (cached) return cached;
-  const created = new Intl.DateTimeFormat(LOCALE, {
+  const created = new Intl.DateTimeFormat(DATE_TIME_LOCALE, {
     timeZone,
     hourCycle: 'h23',
     year: 'numeric',

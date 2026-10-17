@@ -19,7 +19,7 @@ import {
   USE_BROWSER_TIME_ZONE_LABEL,
 } from './settings-copy';
 import { useSaveTimeZone } from './use-save-time-zone';
-import { canonicalTimeZone, timeZoneOptions } from './zone-options';
+import { displayTimeZone, timeZoneOptions } from './zone-options';
 
 const SELECT_ID = 'time-zone';
 
@@ -34,7 +34,7 @@ export function SettingsPage() {
     () => timeZoneOptions({ now: Date.now(), extra: storedTimeZone ? [storedTimeZone, browserZone] : [browserZone] }),
     [storedTimeZone, browserZone],
   );
-  const browserDiffers = canonicalTimeZone(browserZone) !== canonicalTimeZone(effectiveTimeZone);
+  const browserDiffers = displayTimeZone(browserZone) !== displayTimeZone(effectiveTimeZone);
   useDocumentTitle(SETTINGS_HEADING);
 
   function chooseTimeZone(timeZone: string): void {

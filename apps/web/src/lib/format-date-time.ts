@@ -1,6 +1,5 @@
-import { MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { DATE_TIME_LOCALE, MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 
-const LOCALE = 'en-US';
 const TIMESTAMP_PARTS: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
 const VERSION_TIME_PARTS: Intl.DateTimeFormatOptions = { timeStyle: 'medium' };
 const DATED_VERSION_TIME_PARTS: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'medium' };
@@ -29,7 +28,7 @@ function formatFor({ timeZone, parts }: { timeZone: string; parts: Intl.DateTime
   const key = JSON.stringify([timeZone, parts]);
   const cached = formats.get(key);
   if (cached) return cached;
-  const created = new Intl.DateTimeFormat(LOCALE, { ...parts, timeZone });
+  const created = new Intl.DateTimeFormat(DATE_TIME_LOCALE, { ...parts, timeZone });
   formats.set(key, created);
   return created;
 }

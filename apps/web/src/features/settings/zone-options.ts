@@ -1,12 +1,12 @@
-import { isSupportedTimeZone, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { canonicalTimeZone, isSupportedTimeZone, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { formatTimeZoneOffset } from '@/lib/format-date-time';
 import { unsupportedTimeZoneLabel } from './settings-copy';
 
 export type TimeZoneOption = { value: string; label: string };
 
-export function canonicalTimeZone(timeZone: string): string {
+export function displayTimeZone(timeZone: string): string {
   if (!isSupportedTimeZone(timeZone)) return timeZone;
-  return new Intl.DateTimeFormat('en-US', { timeZone }).resolvedOptions().timeZone;
+  return canonicalTimeZone(timeZone);
 }
 
 export function timeZoneOptions({ now, extra }: { now: number; extra: string[] }): TimeZoneOption[] {

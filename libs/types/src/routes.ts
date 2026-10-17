@@ -8,6 +8,7 @@ export enum AppRoute {
   Share = '/share/:token',
   VersionView = '/documents/:documentId/versions/:sequence/view',
   Admin = '/admin',
+  Settings = '/settings',
 }
 
 export enum ApiPath {

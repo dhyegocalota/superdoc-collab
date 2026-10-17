@@ -13,6 +13,12 @@ import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOA
 const FILE_INPUT_ID = 'document-file';
 const DOCX_ACCEPT = '.docx';
 
+function uploadErrorMessage({ validationMessage, error }: { validationMessage: string | null; error: Error | null }): string | null {
+  if (validationMessage !== null) return validationMessage;
+  if (error === null) return null;
+  return error.message;
+}
+
 export function UploadDialog() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -26,7 +32,7 @@ export function UploadDialog() {
       await navigate(documentPagePath(document.id));
     },
   });
-  const message = validationMessage || error?.message;
+  const message = uploadErrorMessage({ validationMessage, error });
 
   function onOpenChange(nextIsOpen: boolean): void {
     setIsOpen(nextIsOpen);
@@ -62,7 +68,7 @@ export function UploadDialog() {
             {UPLOADING_MESSAGE}
           </p>
         )}
-        {message && <ErrorMessage>{message}</ErrorMessage>}
+        {message !== null && <ErrorMessage>{message}</ErrorMessage>}
       </DialogContent>
     </Dialog>
   );

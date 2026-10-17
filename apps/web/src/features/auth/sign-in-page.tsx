@@ -1,12 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppRoute, signInSchema, type SignInInput } from '@superdoc-history/types';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { AuthCard } from './auth-card';
 import { authClient } from './auth-client';
 import {
   EMAIL_FIELD_LABEL,
@@ -17,6 +13,7 @@ import {
   SIGN_IN_PENDING_LABEL,
   SIGN_UP_LABEL,
 } from './auth-copy';
+import { AuthFieldType, AuthTextField } from './auth-text-field';
 import { useAuthSubmit } from './use-auth-submit';
 
 export function SignInPage() {
@@ -28,59 +25,25 @@ export function SignInPage() {
   useDocumentTitle(SIGN_IN_LABEL);
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{SIGN_IN_LABEL}</CardTitle>
-          <CardDescription>{SIGN_IN_DESCRIPTION}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form noValidate onSubmit={form.handleSubmit(submit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{EMAIL_FIELD_LABEL}</FormLabel>
-                    <FormControl>
-                      <Input type="email" autoComplete="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{PASSWORD_FIELD_LABEL}</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="current-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {form.formState.errors.root && (
-                <p role="alert" className="text-sm text-destructive">
-                  {form.formState.errors.root.message}
-                </p>
-              )}
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? SIGN_IN_PENDING_LABEL : SIGN_IN_LABEL}
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                {NO_ACCOUNT_PROMPT}{' '}
-                <Link to={AppRoute.SignUp} className="text-primary underline-offset-4 hover:underline">
-                  {SIGN_UP_LABEL}
-                </Link>
-              </p>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </main>
+    <AuthCard
+      form={form}
+      onSubmit={submit}
+      title={SIGN_IN_LABEL}
+      description={SIGN_IN_DESCRIPTION}
+      submitLabel={SIGN_IN_LABEL}
+      pendingLabel={SIGN_IN_PENDING_LABEL}
+      prompt={NO_ACCOUNT_PROMPT}
+      linkLabel={SIGN_UP_LABEL}
+      linkTo={AppRoute.SignUp}
+    >
+      <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />
+      <AuthTextField
+        control={form.control}
+        name="password"
+        label={PASSWORD_FIELD_LABEL}
+        type={AuthFieldType.Password}
+        autoComplete="current-password"
+      />
+    </AuthCard>
   );
 }

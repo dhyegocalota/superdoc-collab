@@ -10,6 +10,7 @@ import {
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
@@ -36,8 +37,8 @@ afterEach(() => vi.restoreAllMocks());
 
 function mockShareApi() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    if (input === ROTATE_EDIT_PATH && init?.method === HttpMethod.Post) return new Response(JSON.stringify(ROTATED_LINKS));
-    return new Response(JSON.stringify(LINKS));
+    if (input === ROTATE_EDIT_PATH && init?.method === HttpMethod.Post) return jsonResponse({ body: ROTATED_LINKS });
+    return jsonResponse({ body: LINKS });
   });
 }
 
@@ -78,7 +79,7 @@ test('Reset link on the edit row posts the rotation and shows the new url', asyn
 test('a failed reset shows an alert and keeps the old url', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (init?.method === HttpMethod.Post) return new Response(null, { status: HttpStatus.Forbidden });
-    return new Response(JSON.stringify(LINKS));
+    return jsonResponse({ body: LINKS });
   });
   await openDialog();
   const editRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Edit] });

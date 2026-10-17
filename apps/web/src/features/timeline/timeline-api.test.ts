@@ -20,6 +20,7 @@ import {
 } from '@superdoc-history/types';
 import { afterEach, expect, test, vi } from 'vitest';
 import { ApiRequestError, DocumentUnavailableError, requestFailedMessage } from '@/lib/api';
+import { jsonResponse } from '@/testing/json-response';
 import {
   fetchSelectionSummary,
   fetchTimeline,
@@ -49,10 +50,10 @@ function respondWith(response: Response) {
 }
 
 test('fetchTimeline sends only the present filters', async () => {
-  const filteredSpy = respondWith(new Response(JSON.stringify({ bins: [] })));
+  const filteredSpy = respondWith(jsonResponse({ body: { bins: [] } }));
   await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: 'a b', author: null } });
   expect(filteredSpy).toHaveBeenLastCalledWith(`${TIMELINE_PATH}?term=a+b`, expect.anything());
-  const bareSpy = respondWith(new Response(JSON.stringify({ bins: [] })));
+  const bareSpy = respondWith(jsonResponse({ body: { bins: [] } }));
   await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null } });
   expect(bareSpy).toHaveBeenLastCalledWith(TIMELINE_PATH, expect.anything());
 });
@@ -67,7 +68,7 @@ test('fetchTimeline throws DocumentUnavailableError on 404', async () => {
 test('fetchVersion maps 202, 200 and 503 and throws on 404', async () => {
   respondWith(new Response(null, { status: HttpStatus.Accepted, headers: { [RETRY_AFTER_HEADER]: '2' } }));
   expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: 2000 });
-  respondWith(new Response(JSON.stringify(VERSION)));
+  respondWith(jsonResponse({ body: VERSION }));
   expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Ready, version: VERSION });
   respondWith(new Response(null, { status: HttpStatus.ServiceUnavailable }));
   expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Failed });
@@ -94,7 +95,7 @@ test('fetchVersion never retries faster than the minimum delay', async () => {
 });
 
 test('refreshTopics returns the status on 202 and explains a 429', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify(STATUS), { status: HttpStatus.Accepted }));
+  const fetchSpy = respondWith(jsonResponse({ body: STATUS, status: HttpStatus.Accepted }));
   expect(await refreshTopics(DOCUMENT_ID)).toEqual(STATUS);
   expect(fetchSpy).toHaveBeenCalledWith(topicsRefreshApiPath(DOCUMENT_ID), expect.objectContaining({ method: HttpMethod.Post }));
   respondWith(new Response(null, { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '7' } }));
@@ -114,7 +115,7 @@ test('a selection summary URL carries the present parts and a bin size only with
   ];
   const requested = await cases.reduce<Promise<string[]>>(async (previous, { selection, binMs }) => {
     const paths = await previous;
-    const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
+    const fetchSpy = respondWith(jsonResponse({ body: NONE_VIEW }));
     expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection, binMs })).toEqual(NONE_VIEW);
     return [...paths, String(fetchSpy.mock.lastCall![0])];
   }, Promise.resolve([]));
@@ -122,7 +123,7 @@ test('a selection summary URL carries the present parts and a bin size only with
 });
 
 test('requesting a summary posts the same selection', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
+  const fetchSpy = respondWith(jsonResponse({ body: NONE_VIEW, status: HttpStatus.Accepted }));
   await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null });
   expect(fetchSpy).toHaveBeenCalledWith(
     `${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`,
@@ -132,7 +133,8 @@ test('requesting a summary posts the same selection', async () => {
 
 test('a summary requested too soon carries the wait from Retry-After', async () => {
   respondWith(
-    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+    jsonResponse({
+      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
       status: HttpStatus.TooManyRequests,
       headers: { [RETRY_AFTER_HEADER]: '12' },
     }),
@@ -153,7 +155,7 @@ test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async 
 });
 
 test('an unavailable model surfaces the server reason', async () => {
-  respondWith(new Response(JSON.stringify({ error: UNAVAILABLE_REASON }), { status: HttpStatus.ServiceUnavailable }));
+  respondWith(jsonResponse({ body: { error: UNAVAILABLE_REASON }, status: HttpStatus.ServiceUnavailable }));
   await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
     new ApiRequestError(UNAVAILABLE_REASON),
   );

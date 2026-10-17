@@ -9,6 +9,7 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { ShareLandingPage } from './share-landing-page';
@@ -20,7 +21,7 @@ const SHARE_ROUTE = `/share/${TOKEN}`;
 afterEach(() => vi.restoreAllMocks());
 
 test('a 200 accept opens the document replacing the share entry', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ documentId: SHARED_DOCUMENT_ID })));
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: { documentId: SHARED_DOCUMENT_ID } }));
   const { router } = renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(SHARED_DOCUMENT_ID)));
   expect(router.state.historyAction).toBe('REPLACE');
@@ -28,7 +29,7 @@ test('a 200 accept opens the document replacing the share entry', async () => {
 
 test('a 404 shows the invalid link message and a way back', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify({ error: INVALID_SHARE_LINK_MESSAGE }), { status: HttpStatus.NotFound }),
+    jsonResponse({ body: { error: INVALID_SHARE_LINK_MESSAGE }, status: HttpStatus.NotFound }),
   );
   renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
   expect(await screen.findByText(INVALID_SHARE_LINK_MESSAGE)).toBeInTheDocument();
@@ -36,7 +37,7 @@ test('a 404 shows the invalid link message and a way back', async () => {
 });
 
 test('the accept is posted once under StrictMode', async () => {
-  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ documentId: SHARED_DOCUMENT_ID })));
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: { documentId: SHARED_DOCUMENT_ID } }));
   const { router } = renderWithProviders(
     <StrictMode>
       <ShareLandingPage />

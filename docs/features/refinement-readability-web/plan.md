@@ -91,7 +91,7 @@ Covers 1.6, 1.14, 1.15, 1.16, 1.19, 1.20, 2.12, the `ResizeHandle` half of 2.3, 
   - `AUTH_RETRY_AFTER_HEADER` from `auth-failure.ts`.
   - `TimeTravel.shownVersion: VersionSummary | null` (was `shown`).
 
-- [ ] **Step 1: Pin the 429 message.** Append to `sign-in-page.test.tsx` (add `HttpStatus` to the `@superdoc-history/types` import and `import { authFailureMessage, RETRY_AFTER_HEADER } from './auth-failure';`):
+- [x] **Step 1: Pin the 429 message.** Append to `sign-in-page.test.tsx` (add `HttpStatus` to the `@superdoc-history/types` import and `import { authFailureMessage, RETRY_AFTER_HEADER } from './auth-failure';`): Evidence: `fc4358e`. The mock uses `mockImplementationOnce`, because `beforeEach(() => signInEmail.mockReset())` returns the mock and Vitest calls it again as a cleanup hook with no arguments.
 
 ```tsx
 const RETRY_SECONDS = '30';
@@ -116,7 +116,11 @@ git add apps/web/src/features/auth/sign-in-page.test.tsx
 git commit -m "test(web): pin the too-many-attempts message on sign-in"
 ```
 
+<<<<<<< HEAD
 - [x] **Step 2: Move the shared API error and message into `lib/api.ts`.** (c7574a9, done by the C2 API developer; the message keeps its trailing period, pinned by timeline-copy.test.ts) Add under `ApiRequestError`:
+=======
+- [x] **Step 2: Move the shared API error and message into `lib/api.ts`.** Add under `ApiRequestError`: Evidence: `74ac4dd`.
+>>>>>>> chore/refinement-readability-web-structure
 
 ```ts
 export class DocumentUnavailableError extends ApiRequestError {}
@@ -128,9 +132,9 @@ export function requestFailedMessage({ subject, status }: { subject: string; sta
 
 Delete `DocumentUnavailableError` from `editor-api.ts` and `requestFailedMessage` from `timeline-copy.ts`. Repoint every import: `rg -l "DocumentUnavailableError|requestFailedMessage" apps/web/src` (today: `timeline-api.ts`, `use-selection-summary.ts`, `document-page.tsx`, `editor-api.ts`, `timeline-api.test.ts`) all import them from `@/lib/api`.
 
-- [ ] **Step 3: One import path for `VERSION_FAILED_MESSAGE` (5.7).** Delete `export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';` from `timeline-copy.ts`. `version-view-page.tsx` and `version-view-page.test.tsx` import it from `@superdoc-history/types`.
+- [x] **Step 3: One import path for `VERSION_FAILED_MESSAGE` (5.7).** Delete `export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';` from `timeline-copy.ts`. `version-view-page.tsx` and `version-view-page.test.tsx` import it from `@superdoc-history/types`. Evidence: `74ac4dd`.
 
-- [ ] **Step 4: One hook or component per file in the editor feature (2.12).** Cut from `document-page.tsx`, unchanged except for the return types:
+- [x] **Step 4: One hook or component per file in the editor feature (2.12).** Cut from `document-page.tsx`, unchanged except for the return types: Evidence: `74ac4dd`.
 
 `features/editor/use-document-file.ts`:
 
@@ -173,11 +177,11 @@ export function useMembers(documentId: string): { members: DocumentMember[]; isU
 
 `features/editor/unavailable-notice.tsx` takes `UnavailableNotice` with its imports (`AppRoute`, `Link`, `BACK_TO_DOCUMENTS_LABEL`), exported. `features/editor/opening-document.tsx` takes lane A's `OpeningDocument` with its imports (`HomeLink`, `Skeleton`, `LOADING_DOCUMENT_MESSAGE`), exported. `document-page.tsx` imports the four and drops the imports only they used.
 
-- [ ] **Step 5: Rename the document page locals (1.15).** In `document-page.tsx`: `freshOpened` → `openedAfterMount`, `setup` → `editorSetup` (every use, including `setup.roomMode`… and `setup ? downloadLiveDocument : null`).
+- [x] **Step 5: Rename the document page locals (1.15).** In `document-page.tsx`: `freshOpened` → `openedAfterMount`, `setup` → `editorSetup` (every use, including `setup.roomMode`… and `setup ? downloadLiveDocument : null`). Evidence: `74ac4dd`.
 
-- [ ] **Step 6: Move `ResizeHandle` (2.3).** Create `features/timeline/resize-handle.tsx` with `ResizeKey`, `PRIMARY_BUTTON_PRESSED` and the `ResizeHandle` function exactly as they are in `timeline-panel.tsx`, exported, with the imports they need (`KeyboardEvent`, `PointerEvent` types from `react`, `RESIZE_PANEL_LABEL` from `./timeline-copy`, `MIN_PANEL_WIDTH`, `PANEL_RESIZE_STEP` from `./use-panel-width`). Delete them from `timeline-panel.tsx` and import `ResizeHandle`.
+- [x] **Step 6: Move `ResizeHandle` (2.3).** Create `features/timeline/resize-handle.tsx` with `ResizeKey`, `PRIMARY_BUTTON_PRESSED` and the `ResizeHandle` function exactly as they are in `timeline-panel.tsx`, exported, with the imports they need (`KeyboardEvent`, `PointerEvent` types from `react`, `RESIZE_PANEL_LABEL` from `./timeline-copy`, `MIN_PANEL_WIDTH`, `PANEL_RESIZE_STEP` from `./use-panel-width`). Delete them from `timeline-panel.tsx` and import `ResizeHandle`. Evidence: `74ac4dd`.
 
-- [ ] **Step 7: Rename the panel locals and name the editor condition (1.14, 3.5).** In `timeline-panel.tsx`: `canRefresh` → `canEdit`, `refresh` → `refreshTopics` (including `refreshTopics.isPending`, `.mutate()`, `.isError`, `.error`). Add, after `canEdit`:
+- [x] **Step 7: Rename the panel locals and name the editor condition (1.14, 3.5).** In `timeline-panel.tsx`: `canRefresh` → `canEdit`, `refresh` → `refreshTopics` (including `refreshTopics.isPending`, `.mutate()`, `.isError`, `.error`). Add, after `canEdit`: Evidence: `74ac4dd`.
 
 ```tsx
 const showsEditorActions = isOpen && canEdit;
@@ -185,13 +189,13 @@ const showsEditorActions = isOpen && canEdit;
 
 and replace every `isOpen && canEdit` in the JSX with `showsEditorActions` (the Summarize button, the Regroup topics button, both reason paragraphs). `TimelineNotices` keeps its `canRefresh` prop and receives `canRefresh={canEdit}`; `SelectionSummaryCard` receives `canRequest={canEdit}`.
 
-- [ ] **Step 8: Move the bin runs hook and the typing check.** Create `features/timeline/use-bin-runs.ts` with `NO_RUNS`, `NO_BIN_SEGMENT`, `NO_BIN_EDITS_KEY` and `useBinRuns` exactly as in `use-time-travel.ts`, `useBinRuns` exported. Move `isTypingInField` from `use-time-travel.ts` to `lib/keyboard.ts`, exported, under the enum. `use-time-travel.ts` imports both.
+- [x] **Step 8: Move the bin runs hook and the typing check.** Create `features/timeline/use-bin-runs.ts` with `NO_RUNS`, `NO_BIN_SEGMENT`, `NO_BIN_EDITS_KEY` and `useBinRuns` exactly as in `use-time-travel.ts`, `useBinRuns` exported. Move `isTypingInField` from `use-time-travel.ts` to `lib/keyboard.ts`, exported, under the enum. `use-time-travel.ts` imports both. Evidence: `74ac4dd`.
 
-- [ ] **Step 9: Rename the time travel state (1.16).** In `use-time-travel.ts`: the `TimeTravel` field `shown` → `shownVersion` (type and returned object: `shownVersion: search.at === null || isShownFailed ? null : shownVersion`), `pinned`/`setPinned` → `pinnedVersion`/`setPinnedVersion`. Consumers: `version-banner.tsx` (`timeTravel.shownVersion`, three uses) and `document-page.tsx` (`version={timeTravel.shownVersion}`).
+- [x] **Step 9: Rename the time travel state (1.16).** In `use-time-travel.ts`: the `TimeTravel` field `shown` → `shownVersion` (type and returned object: `shownVersion: search.at === null || isShownFailed ? null : shownVersion`), `pinned`/`setPinned` → `pinnedVersion`/`setPinnedVersion`. Consumers: `version-banner.tsx` (`timeTravel.shownVersion`, three uses) and `document-page.tsx` (`version={timeTravel.shownVersion}`). Evidence: `74ac4dd`.
 
-- [ ] **Step 10: Name the frame index (1.20).** In `version-frame.tsx` `framesAfterShowing`: `existing` → `existingIndex`.
+- [x] **Step 10: Name the frame index (1.20).** In `version-frame.tsx` `framesAfterShowing`: `existing` → `existingIndex`. Evidence: `74ac4dd`.
 
-- [ ] **Step 11: Highlights without aliases (1.19).** TypeScript does not carry a narrowing into hoisted function declarations, which is why the aliases exist. Replace the body of `use-run-highlights.ts` below `wasEveryTargetSkipped` with (import `type EditorDocument` from `@/features/editor/highlight-edits`):
+- [x] **Step 11: Highlights without aliases (1.19).** TypeScript does not carry a narrowing into hoisted function declarations, which is why the aliases exist. Replace the body of `use-run-highlights.ts` below `wasEveryTargetSkipped` with (import `type EditorDocument` from `@/features/editor/highlight-edits`): Evidence: `74ac4dd`.
 
 ```ts
 function highlightUntilCancelled({
@@ -243,7 +247,7 @@ export function useRunHighlights({ superdoc, runs }: { superdoc: SuperDoc | null
 }
 ```
 
-- [ ] **Step 12: Auth renames and repo-style types (1.6, 5.8).** `auth-failure.ts`: `RETRY_AFTER_HEADER` → `AUTH_RETRY_AFTER_HEADER`; update `use-auth-submit.ts` and the Step 1 test import. In `use-auth-submit.ts` replace the three interfaces and the generic name:
+- [x] **Step 12: Auth renames and repo-style types (1.6, 5.8).** `auth-failure.ts`: `RETRY_AFTER_HEADER` → `AUTH_RETRY_AFTER_HEADER`; update `use-auth-submit.ts` and the Step 1 test import. In `use-auth-submit.ts` replace the three interfaces and the generic name: Evidence: `74ac4dd`.
 
 ```ts
 type ResponseCapture = { onResponse: (context: { response: Response }) => void };
@@ -260,7 +264,7 @@ export function useAuthSubmit<Values extends FieldValues>({
 
 and `submit(values: Values)` in the body. The two-argument `request` mirrors better-auth's `signIn.email(values, fetchOptions)` and stays positional.
 
-- [ ] **Step 13: Run the gate and check the names are gone.**
+- [x] **Step 13: Run the gate and check the names are gone.** Evidence: `74ac4dd`.
 
 ```bash
 pnpm format:check && pnpm typecheck && (cd apps/web && npx vitest run)
@@ -272,7 +276,7 @@ rg -n "isOpen && canEdit|canRefresh" apps/web/src/features/timeline/timeline-pan
 
 Expected: the gate passes with every existing test unchanged except the import paths in Steps 2, 3 and 12. The first two `rg` print nothing (`use-editor-setup.ts` keeps its own `setup` state on purpose; only the page local was renamed), the third prints nothing, the fourth prints only `canRefresh={canEdit}`.
 
-- [ ] **Step 14: Commit.**
+- [x] **Step 14: Commit.** Evidence: `74ac4dd`.
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/lib/keyboard.ts apps/web/src/features/auth/auth-failure.ts apps/web/src/features/auth/use-auth-submit.ts apps/web/src/features/auth/sign-in-page.test.tsx apps/web/src/features/editor/document-page.tsx apps/web/src/features/editor/editor-api.ts apps/web/src/features/editor/use-document-file.ts apps/web/src/features/editor/use-members.ts apps/web/src/features/editor/unavailable-notice.tsx apps/web/src/features/editor/opening-document.tsx apps/web/src/features/timeline/timeline-panel.tsx apps/web/src/features/timeline/resize-handle.tsx apps/web/src/features/timeline/timeline-copy.ts apps/web/src/features/timeline/timeline-api.ts apps/web/src/features/timeline/timeline-api.test.ts apps/web/src/features/timeline/use-time-travel.ts apps/web/src/features/timeline/use-bin-runs.ts apps/web/src/features/timeline/use-selection-summary.ts apps/web/src/features/versions/version-banner.tsx apps/web/src/features/versions/version-frame.tsx apps/web/src/features/versions/version-view-page.tsx apps/web/src/features/versions/version-view-page.test.tsx apps/web/src/features/versions/use-run-highlights.ts
@@ -439,7 +443,7 @@ Covers 4.29 and 3.12.
 **Interfaces:**
 - Produces: `KeyboardKey.ArrowLeft | ArrowRight | Home | End`; `PRIMARY_BUTTON_PRESSED = 1` from `@/lib/pointer`.
 
-- [ ] **Step 1: Pin the arrows without a selection.** Append to `streamgraph.test.tsx`:
+- [x] **Step 1: Pin the arrows without a selection.** Append to `streamgraph.test.tsx`: Evidence: `8001997`.
 
 ```tsx
 test.each([
@@ -467,7 +471,7 @@ git add apps/web/src/features/timeline/streamgraph.test.tsx
 git commit -m "test(web): pin chart keys without a selected bin"
 ```
 
-- [ ] **Step 2: Implement.** `lib/keyboard.ts` enum:
+- [x] **Step 2: Implement.** `lib/keyboard.ts` enum: Evidence: `8518ca4`.
 
 ```ts
 export enum KeyboardKey {
@@ -503,9 +507,9 @@ function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedInd
 
 `resize-handle.tsx`: delete `ResizeKey` and `PRIMARY_BUTTON_PRESSED`; import both shared names; `handleKeyDown` reads `if (event.key === KeyboardKey.ArrowLeft) resizeBy(PANEL_RESIZE_STEP);` and `if (event.key === KeyboardKey.ArrowRight) resizeBy(-PANEL_RESIZE_STEP);`.
 
-- [ ] **Step 3: Run the gate.** Expected: PASS, including "arrow keys, End and Escape drive the selection", "ArrowLeft at the first bin stays at the first bin" and "the separator resizes with the arrow keys and never below the minimum". `rg -n "'Arrow(Left|Right)'|= 1;$" apps/web/src --glob '!*.test.*'` prints only `lib/keyboard.ts`, `lib/pointer.ts` and lane A's `SINGLE_COUNT = 1;` in `timeline-copy.ts`.
+- [x] **Step 3: Run the gate.** Expected: PASS, including "arrow keys, End and Escape drive the selection", "ArrowLeft at the first bin stays at the first bin" and "the separator resizes with the arrow keys and never below the minimum". `rg -n "'Arrow(Left|Right)'|= 1;$" apps/web/src --glob '!*.test.*'` prints only `lib/keyboard.ts`, `lib/pointer.ts` and lane A's `SINGLE_COUNT = 1;` in `timeline-copy.ts`. Evidence: `8518ca4`.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.** Evidence: `8518ca4`.
 
 ```bash
 git add apps/web/src/lib/keyboard.ts apps/web/src/lib/pointer.ts apps/web/src/features/timeline/streamgraph.tsx apps/web/src/features/timeline/resize-handle.tsx
@@ -1850,7 +1854,7 @@ Covers 4.28.
 **Interfaces:**
 - Produces: `ErrorMessage({ children, className }: { children: ReactNode; className?: string })`, rendering `<p role="alert" className={cn('text-sm text-destructive', className)}>`.
 
-- [ ] **Step 1: Write the failing test.** `error-message.test.tsx`:
+- [x] **Step 1: Write the failing test.** `error-message.test.tsx`: Evidence: `37a353b`.
 
 ```tsx
 import { render, screen } from '@testing-library/react';
@@ -1873,16 +1877,16 @@ test('an inset error message is still one alert with its text', () => {
 
 Inert stub: `error-message.tsx` exports an `ErrorMessage` that returns `null`.
 
-- [ ] **Step 2: Run it and see it fail.** `cd apps/web && npx vitest run src/components/error-message.test.tsx`. Expected: FAIL on `Unable to find an accessible element with the role "alert"`.
+- [x] **Step 2: Run it and see it fail.** `cd apps/web && npx vitest run src/components/error-message.test.tsx`. Expected: FAIL on `Unable to find an accessible element with the role "alert"`. Evidence: `37a353b`.
 
-- [ ] **Step 3: Commit the red test.**
+- [x] **Step 3: Commit the red test.** Evidence: `37a353b`.
 
 ```bash
 git add apps/web/src/components/error-message.tsx apps/web/src/components/error-message.test.tsx
 git commit -m "test(web): pin one error message component"
 ```
 
-- [ ] **Step 4: Implement and adopt.** `components/error-message.tsx`:
+- [x] **Step 4: Implement and adopt.** `components/error-message.tsx`: Evidence: `8fd1a34`. Not adopted here: `superdoc-editor.tsx` waits for Task 13 and the UX crash fix, and `selection-summary-card.tsx` belongs to the API lane.
 
 ```tsx
 import type { ReactNode } from 'react';
@@ -1901,9 +1905,9 @@ Replace each `<p role="alert" className="… text-sm text-destructive">{x}</p>` 
 
 Check: `rg -n 'role="alert" className="[^"]*text-destructive' apps/web/src --glob '!*.test.*'` prints only `components/error-message.tsx`, `sign-in-page.tsx` and `sign-up-page.tsx`.
 
-- [ ] **Step 5: Run the gate.** Expected: PASS; every suite that finds an alert by role is unchanged.
+- [x] **Step 5: Run the gate.** Expected: PASS; every suite that finds an alert by role is unchanged. Evidence: `8fd1a34`.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.** Evidence: `8fd1a34`.
 
 ```bash
 git add apps/web/src/components/error-message.tsx apps/web/src/features/documents/documents-page.tsx apps/web/src/features/documents/upload-dialog.tsx apps/web/src/features/timeline/selection-summary-card.tsx apps/web/src/features/timeline/timeline-panel.tsx apps/web/src/features/editor/share-dialog.tsx apps/web/src/features/editor/superdoc-editor.tsx apps/web/src/features/editor/editor-header.tsx apps/web/src/features/editor/document-page.tsx apps/web/src/features/versions/version-view-page.tsx
@@ -1927,7 +1931,7 @@ Covers 2.11 and top-10 item 10.
   - `enum AuthFieldType { Text = 'text', Email = 'email', Password = 'password' }` and `AuthTextField<Values extends FieldValues>({ control, name, label, type, autoComplete }: { control: Control<Values>; name: FieldPath<Values>; label: string; type: AuthFieldType; autoComplete: string })`.
   - `AuthCard<Values extends FieldValues>({ form, onSubmit, title, description, submitLabel, pendingLabel, prompt, linkLabel, linkTo, children }: { form: UseFormReturn<Values>; onSubmit: (values: Values) => Promise<void>; title: string; description: string; submitLabel: string; pendingLabel: string; prompt: string; linkLabel: string; linkTo: AppRoute; children: ReactNode })`.
 
-- [ ] **Step 1: Pin the sign-up page.** No sign-up test exists today. Create `sign-up-page.test.tsx`:
+- [x] **Step 1: Pin the sign-up page.** No sign-up test exists today. Create `sign-up-page.test.tsx`: Evidence: `ec382a5`.
 
 ```tsx
 import { AppRoute } from '@superdoc-history/types';
@@ -1974,7 +1978,7 @@ git add apps/web/src/features/auth/sign-up-page.test.tsx
 git commit -m "test(web): pin the sign-up page"
 ```
 
-- [ ] **Step 2: Write the failing test.** `auth-card.test.tsx`:
+- [x] **Step 2: Write the failing test.** `auth-card.test.tsx`: Evidence: `b44df94`. `onSubmit` is `vi.fn(async (_values: ProbeValues) => undefined)` so `mock.calls[0]?.[0]` typechecks.
 
 ```tsx
 import { AppRoute } from '@superdoc-history/types';
@@ -2046,16 +2050,16 @@ test('while submitting the button shows the pending label and is disabled', asyn
 
 Inert stubs: `auth-card.tsx` exports an `AuthCard` that renders `<main />`; `auth-text-field.tsx` exports `AuthFieldType` (final values) and an `AuthTextField` that returns `null`.
 
-- [ ] **Step 3: Run it and see it fail.** `cd apps/web && npx vitest run src/features/auth/auth-card.test.tsx`. Expected: FAIL on `Unable to find an element with the text: Welcome`, `Unable to find an accessible element with the role "alert"` and `Unable to find an accessible element with the role "button"`.
+- [x] **Step 3: Run it and see it fail.** `cd apps/web && npx vitest run src/features/auth/auth-card.test.tsx`. Expected: FAIL on `Unable to find an element with the text: Welcome`, `Unable to find an accessible element with the role "alert"` and `Unable to find an accessible element with the role "button"`. Evidence: `b44df94`.
 
-- [ ] **Step 4: Commit the red test.**
+- [x] **Step 4: Commit the red test.** Evidence: `b44df94`.
 
 ```bash
 git add apps/web/src/features/auth/auth-card.tsx apps/web/src/features/auth/auth-text-field.tsx apps/web/src/features/auth/auth-card.test.tsx
 git commit -m "test(web): pin the shared auth card and text field"
 ```
 
-- [ ] **Step 5: Implement.** `auth-text-field.tsx`:
+- [x] **Step 5: Implement.** `auth-text-field.tsx`: Evidence: `a0bc370`.
 
 ```tsx
 import type { Control, FieldPath, FieldValues } from 'react-hook-form';
@@ -2203,9 +2207,9 @@ export function SignInPage() {
 
 `sign-up-page.tsx` the same with `SIGN_UP_HEADING`, `SIGN_UP_DESCRIPTION`, `SIGN_UP_LABEL`, `SIGN_UP_PENDING_LABEL`, `HAVE_ACCOUNT_PROMPT`, `SIGN_IN_LABEL`, `AppRoute.SignIn`, `useDocumentTitle(SIGN_UP_HEADING)`, and three fields: `name` (`NAME_FIELD_LABEL`, `AuthFieldType.Text`, `"name"`), `email` (`AuthFieldType.Email`, `"email"`), `password` (`AuthFieldType.Password`, `"new-password"`). Both pages drop the imports they no longer use. The rendered markup is identical to today's except that the name input now carries `type="text"`, which is the input default.
 
-- [ ] **Step 6: Run the gate.** Expected: PASS; `sign-in-page.test.tsx` (including Task 1's 429 pin and lane A's title test), `sign-up-page.test.tsx`, `use-auth-submit.test.tsx` and `redirect-if-session.test.tsx` unchanged.
+- [x] **Step 6: Run the gate.** Expected: PASS; `sign-in-page.test.tsx` (including Task 1's 429 pin and lane A's title test), `sign-up-page.test.tsx`, `use-auth-submit.test.tsx` and `redirect-if-session.test.tsx` unchanged. Evidence: `a0bc370`.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.** Evidence: `a0bc370`.
 
 ```bash
 git add apps/web/src/features/auth/auth-card.tsx apps/web/src/features/auth/auth-text-field.tsx apps/web/src/features/auth/sign-in-page.tsx apps/web/src/features/auth/sign-up-page.tsx
@@ -2225,7 +2229,7 @@ Covers 3.14 and 3.15.
 **Interfaces:**
 - Produces: `EditorHeader`'s `onDownload: (() => void) | undefined` (was `| null`).
 
-- [ ] **Step 1: Pin the upload message order.** Append to `upload-dialog.test.tsx`:
+- [x] **Step 1: Pin the upload message order.** Append to `upload-dialog.test.tsx`: Evidence: `d77e1d4`. Asserts `${UPLOAD_FAILED_MESSAGE} ${status}` because `UPLOAD_SUBJECT` arrives with Task 6; the substring still matches once Task 6 adds the period.
 
 ```tsx
 test('a server failure shows its status and a rejected file afterwards shows only the rejection', async () => {
@@ -2247,7 +2251,7 @@ git add apps/web/src/features/documents/upload-dialog.test.tsx
 git commit -m "test(web): pin which upload message wins"
 ```
 
-- [ ] **Step 2: Implement the upload message.** In `upload-dialog.tsx`, above the component:
+- [x] **Step 2: Implement the upload message.** In `upload-dialog.tsx`, above the component: Evidence: `c995653`.
 
 ```tsx
 function uploadErrorMessage({ validationMessage, error }: { validationMessage: string | null; error: Error | null }): string | null {
@@ -2259,11 +2263,11 @@ function uploadErrorMessage({ validationMessage, error }: { validationMessage: s
 
 `const message = uploadErrorMessage({ validationMessage, error });` replaces the `||` line, and the JSX reads `{message !== null && <ErrorMessage>{message}</ErrorMessage>}`.
 
-- [ ] **Step 3: Implement the download handler.** `editor-header.tsx`: the prop becomes `onDownload: (() => void) | undefined`, and the button reads `disabled={onDownload === undefined} onClick={onDownload}`. `document-page.tsx`: `onDownload={editorSetup ? downloadLiveDocument : undefined}`. In `editor-header.test.tsx`, every `onDownload={null}` becomes `onDownload={undefined}` (`rg -n "onDownload=\{null\}" apps/web/src` prints nothing afterwards).
+- [x] **Step 3: Implement the download handler.** `editor-header.tsx`: the prop becomes `onDownload: (() => void) | undefined`, and the button reads `disabled={onDownload === undefined} onClick={onDownload}`. `document-page.tsx`: `onDownload={editorSetup ? downloadLiveDocument : undefined}`. In `editor-header.test.tsx`, every `onDownload={null}` becomes `onDownload={undefined}` (`rg -n "onDownload=\{null\}" apps/web/src` prints nothing afterwards). Evidence: `c995653`.
 
-- [ ] **Step 4: Run the gate.** Expected: PASS; `upload-dialog.test.tsx`, `editor-header.test.tsx` (download disabled for a header without a handler, enabled with one) and `document-page.test.tsx` "the header download exports the live document and a reader can use it" pass.
+- [x] **Step 4: Run the gate.** Expected: PASS; `upload-dialog.test.tsx`, `editor-header.test.tsx` (download disabled for a header without a handler, enabled with one) and `document-page.test.tsx` "the header download exports the live document and a reader can use it" pass. Evidence: `c995653`.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.** Evidence: `c995653`.
 
 ```bash
 git add apps/web/src/features/documents/upload-dialog.tsx apps/web/src/features/editor/editor-header.tsx apps/web/src/features/editor/document-page.tsx apps/web/src/features/editor/editor-header.test.tsx
@@ -2283,7 +2287,7 @@ Covers the `jsonResponse` half of 4.33. Runs last, after every split has been pr
 **Interfaces:**
 - Produces: `jsonResponse({ body, status, headers }: { body: unknown; status?: number; headers?: HeadersInit }): Response` from `@/testing/json-response`.
 
-- [ ] **Step 1: Create the helper.**
+- [x] **Step 1: Create the helper.** Evidence: `2146fda`.
 
 ```ts
 export function jsonResponse({ body, status, headers }: { body: unknown; status?: number; headers?: HeadersInit }): Response {
@@ -2293,11 +2297,11 @@ export function jsonResponse({ body, status, headers }: { body: unknown; status?
 
 `status` and `headers` left `undefined` give `Response` its defaults (200, no headers), exactly as the two-argument constructor does today.
 
-- [ ] **Step 2: Sweep.** `rg -l "new Response\(JSON\.stringify\(" apps/web/src`. In each file, `new Response(JSON.stringify(X))` → `jsonResponse({ body: X })`, `new Response(JSON.stringify(X), { status: S })` → `jsonResponse({ body: X, status: S })`, `new Response(JSON.stringify(X), { status: S, headers: H })` → `jsonResponse({ body: X, status: S, headers: H })`, and add `import { jsonResponse } from '@/testing/json-response';`. Keep `new Response(null, …)`, `new Response('{}', …)` and binary bodies as they are. Check: `rg -c "new Response\(JSON\.stringify\(" apps/web/src` prints nothing.
+- [x] **Step 2: Sweep.** `rg -l "new Response\(JSON\.stringify\(" apps/web/src`. In each file, `new Response(JSON.stringify(X))` → `jsonResponse({ body: X })`, `new Response(JSON.stringify(X), { status: S })` → `jsonResponse({ body: X, status: S })`, `new Response(JSON.stringify(X), { status: S, headers: H })` → `jsonResponse({ body: X, status: S, headers: H })`, and add `import { jsonResponse } from '@/testing/json-response';`. Keep `new Response(null, …)`, `new Response('{}', …)` and binary bodies as they are. Check: `rg -c "new Response\(JSON\.stringify\(" apps/web/src` prints nothing. Evidence: `2146fda`. `redirect-if-session.test.tsx` and `sign-out-flow.test.tsx` keep one `new Response(JSON.stringify(` each, because their mock factories belong to Task 6.
 
-- [ ] **Step 3: Run the gate.** Expected: PASS with the same test count as before the sweep (`npx vitest run` prints the total; compare with Task 16's run).
+- [x] **Step 3: Run the gate.** Expected: PASS with the same test count as before the sweep (`npx vitest run` prints the total; compare with Task 16's run). Evidence: `2146fda`.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.** Evidence: `2146fda`.
 
 ```bash
 git add apps/web/src/testing/json-response.ts $(rg -l "jsonResponse" apps/web/src --glob '*.test.*')

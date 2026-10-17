@@ -27,6 +27,7 @@ import {
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
+import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
@@ -103,7 +104,7 @@ afterEach(() => {
 });
 
 function json(body: unknown, status = HttpStatus.Ok): Response {
-  return new Response(JSON.stringify(body), { status });
+  return jsonResponse({ body, status });
 }
 
 function mockTimelineApi({
@@ -141,7 +142,7 @@ function mockTimelineApi({
     if (path === SELECTION_PATH && init?.method === HttpMethod.Post) return summarizeResponse();
     if (path === SELECTION_PATH) return json(nextView());
     if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post)
-      return new Response(JSON.stringify(REFRESH_STATUS), { status: refreshStatus, headers: refreshHeaders });
+      return jsonResponse({ body: REFRESH_STATUS, status: refreshStatus, headers: refreshHeaders });
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -425,7 +426,8 @@ test('an up-to-date summary disables Summarize and a stale one shows the badge a
 
 test('a request too soon shows the seconds from Retry-After', async () => {
   const tooSoon = () =>
-    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+    jsonResponse({
+      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
       status: HttpStatus.TooManyRequests,
       headers: { [RETRY_AFTER_HEADER]: '12' },
     });
@@ -437,7 +439,8 @@ test('a request too soon shows the seconds from Retry-After', async () => {
 
 test('the cooldown message belongs to the selection that caused it', async () => {
   const tooSoon = () =>
-    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+    jsonResponse({
+      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
       status: HttpStatus.TooManyRequests,
       headers: { [RETRY_AFTER_HEADER]: '12' },
     });
@@ -474,7 +477,8 @@ test('without a language model Summarize is disabled and the card stays quiet', 
 test('the summary cooldown message goes away when the cooldown ends', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const tooSoon = () =>
-    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+    jsonResponse({
+      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
       status: HttpStatus.TooManyRequests,
       headers: { [RETRY_AFTER_HEADER]: '5' },
     });

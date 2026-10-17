@@ -129,7 +129,7 @@ export function EditorHeader({
   opened: OpenedDocument;
   members: DocumentMember[];
   currentUserId: string | null;
-  onDownload: (() => void) | null;
+  onDownload: (() => void) | undefined;
 }) {
   const { document, role } = opened;
   const isReader = role === DocumentRole.Reader;
@@ -146,7 +146,7 @@ export function EditorHeader({
       {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
       <div className="ml-auto flex items-center gap-2">
         <Members members={members} currentUserId={currentUserId} />
-        <Button variant="outline" aria-label={DOWNLOAD_LABEL} disabled={!onDownload} onClick={onDownload === null ? undefined : onDownload}>
+        <Button variant="outline" aria-label={DOWNLOAD_LABEL} disabled={onDownload === undefined} onClick={onDownload}>
           <Download />
           <span className="hidden sm:inline">{DOWNLOAD_LABEL}</span>
         </Button>

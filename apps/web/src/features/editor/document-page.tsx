@@ -56,7 +56,7 @@ export function DocumentPage() {
         opened={opened}
         members={members}
         currentUserId={user ? user.id : null}
-        onDownload={editorSetup ? downloadLiveDocument : null}
+        onDownload={editorSetup ? downloadLiveDocument : undefined}
       />
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">

@@ -18,6 +18,11 @@ export enum UserRole {
   User = 'user',
 }
 
+export enum TimeZoneSource {
+  Account = 'account',
+  Browser = 'browser',
+}
+
 export function isSupportedTimeZone(value: string): boolean {
   return value === UTC_TIME_ZONE || Intl.supportedValuesOf('timeZone').includes(value);
 }

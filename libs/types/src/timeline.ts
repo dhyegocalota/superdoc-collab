@@ -65,6 +65,7 @@ export enum TimelineQueryParam {
   Around = 'around',
   Topic = 'topic',
   At = 'at',
+  TimeZone = 'timeZone',
 }
 
 export type TimelineFilter = { term: string | null; author: string | null };

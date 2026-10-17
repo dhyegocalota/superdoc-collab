@@ -1,3 +1,4 @@
+import { presentOrNull } from '@superdoc-history/types';
 import { z } from 'zod';
 
 export const LLM_MAX_CONCURRENT_JOBS = 2;
@@ -61,11 +62,6 @@ export type Environment = {
   trustProxy: boolean;
   llm: LlmSettings;
 };
-
-function presentOrNull(value: string | undefined): string | null {
-  if (!value) return null;
-  return value;
-}
 
 function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
   if (!value) return fallback;

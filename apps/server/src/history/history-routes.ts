@@ -1,4 +1,11 @@
-import { DocumentRole, EVENTS_PAGE_SIZE, HttpStatus, TimelineQueryParam, type DocumentEditEvents } from '@superdoc-history/types';
+import {
+  DocumentRole,
+  EVENTS_PAGE_SIZE,
+  HttpStatus,
+  NON_NEGATIVE_INTEGER_PATTERN,
+  TimelineQueryParam,
+  type DocumentEditEvents,
+} from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
@@ -7,7 +14,6 @@ import type { SignedIn } from '../http/require-user';
 import { resolveEvents } from './resolved-events';
 
 const INVALID_EVENTS_QUERY_MESSAGE = 'afterSequence must be a non-negative integer and limit an integer from 1 to the page size';
-const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 const eventsQuerySchema = z.object({
   [TimelineQueryParam.AfterSequence]: z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number).optional(),
   [TimelineQueryParam.Limit]: z.coerce.number().int().min(1).max(EVENTS_PAGE_SIZE).optional(),

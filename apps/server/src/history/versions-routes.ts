@@ -1,6 +1,7 @@
 import {
   DocumentRole,
   HttpStatus,
+  NON_NEGATIVE_INTEGER_PATTERN,
   RETRY_AFTER_HEADER,
   TimelineQueryParam,
   VERSION_FAILED_ERROR,
@@ -20,7 +21,6 @@ import { VersionLookupKind } from './versions-service';
 export const VERSION_MARKS_AROUND = 10;
 export const RETRY_AFTER_SECONDS = 1;
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
-const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 
 export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {

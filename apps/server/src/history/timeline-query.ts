@@ -1,9 +1,8 @@
 import { BIN_LADDER_MS } from '@superdoc-history/history';
-import { FILTER_MAX_LENGTH, TimelineQueryParam } from '@superdoc-history/types';
+import { FILTER_MAX_LENGTH, NON_NEGATIVE_INTEGER_PATTERN, TimelineQueryParam } from '@superdoc-history/types';
 import { z } from 'zod';
 
 export const INVALID_TIMELINE_QUERY_MESSAGE = 'The timeline query is invalid';
-const DIGITS_PATTERN = /^\d+$/;
 const filterText = z
   .string()
   .trim()
@@ -24,7 +23,7 @@ export const timelineQuerySchema = z.object({
 const binStartParameter = z
   .string()
   .optional()
-  .refine((value) => !value || (DIGITS_PATTERN.test(value) && Number.isSafeInteger(Number(value))))
+  .refine((value) => !value || (NON_NEGATIVE_INTEGER_PATTERN.test(value) && Number.isSafeInteger(Number(value))))
   .transform((value) => (value ? Number(value) : null));
 export const editsQuerySchema = timelineQuerySchema.extend({ [TimelineQueryParam.BinStart]: z.coerce.number().int() });
 export const selectionQuerySchema = timelineQuerySchema.extend({

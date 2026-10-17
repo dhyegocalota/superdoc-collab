@@ -64,7 +64,7 @@ export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binM
 }
 
 export function runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number {
-  throw new Error(`runVolume is not implemented: ${run.inserted}`);
+  return run.inserted.length + run.deleted.length;
 }
 
 export function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {

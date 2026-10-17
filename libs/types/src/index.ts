@@ -6,3 +6,4 @@ export * from './documents';
 export * from './history';
 export * from './timeline';
 export * from './constants';
+export * from './text';

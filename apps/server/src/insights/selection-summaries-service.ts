@@ -1,6 +1,6 @@
-import { selectionSummaryOutputSchema, type EditRun } from '@superdoc-history/history';
+import { runVolume, selectionSummaryOutputSchema, type EditRun } from '@superdoc-history/history';
 import {
-  SECOND_MS,
+  secondsRoundedUp,
   SELECTION_SUMMARY_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
@@ -133,7 +133,7 @@ export class SelectionSummariesService {
     const jobKey = jobKeyOf({ documentId, key: resolved.key });
     if (this.jobRunner.isRunning(jobKey)) return { outcome: SelectionRequestOutcome.AlreadyRunning };
     const remainingMs = this.cooldown.remainingMs(documentId);
-    if (remainingMs > 0) return { outcome: SelectionRequestOutcome.TooSoon, retryAfterSeconds: Math.ceil(remainingMs / SECOND_MS) };
+    if (remainingMs > 0) return { outcome: SelectionRequestOutcome.TooSoon, retryAfterSeconds: secondsRoundedUp(remainingMs) };
     if (!this.jobRunner.hasCallBudget()) return this.busy();
     const outcome = this.jobRunner.run({ key: jobKey, job: () => this.summarize({ documentId, resolved, model: languageModel.model }) });
     if (outcome === JobOutcome.Busy) return this.busy();
@@ -145,7 +145,7 @@ export class SelectionSummariesService {
   }
 
   private busy(): SelectionRequestResult {
-    return { outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: Math.ceil(this.jobRunner.retryAfterMs() / SECOND_MS) };
+    return { outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: secondsRoundedUp(this.jobRunner.retryAfterMs()) };
   }
 
   private readNonEmptySelection({
@@ -157,7 +157,7 @@ export class SelectionSummariesService {
   }): ResolvedSelection | null {
     const snapshot = this.readSelection({ documentId, selection });
     const { cursor } = snapshot;
-    const runs = snapshot.runs.filter((run) => run.inserted.length + run.deleted.length > 0);
+    const runs = snapshot.runs.filter((run) => runVolume(run) > 0);
     if (runs.length === 0 || cursor === null) return null;
     return {
       key: selectionKeyOf({ selection, binMs: snapshot.binMs }),

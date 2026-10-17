@@ -1,3 +1,4 @@
 export function presentOrNull(value: string | undefined): string | null {
-  throw new Error(`presentOrNull is not implemented: ${value}`);
+  if (!value) return null;
+  return value;
 }

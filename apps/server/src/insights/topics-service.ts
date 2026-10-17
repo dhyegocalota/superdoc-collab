@@ -2,6 +2,7 @@ import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@super
 import {
   MINUTE_MS,
   SECOND_MS,
+  secondsRoundedUp,
   TOPIC_RECOMPUTE_NEW_BLOCKS,
   TOPICS_FAILED_MESSAGE,
   TopicState,
@@ -74,7 +75,7 @@ export class TopicsService {
   refresh(documentId: string): RefreshResult {
     if (this.jobRunner.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning };
     const remainingMs = this.cooldown.remainingMs(documentId);
-    if (remainingMs > 0) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: Math.ceil(remainingMs / SECOND_MS) };
+    if (remainingMs > 0) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: secondsRoundedUp(remainingMs) };
     this.start({ documentId, isRefresh: true });
     return { outcome: RefreshOutcome.Started };
   }

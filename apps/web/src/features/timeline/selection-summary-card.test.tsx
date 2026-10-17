@@ -15,6 +15,7 @@ import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR } from '@/testing/timeline-
 import { SelectionSummaryCard } from './selection-summary-card';
 import {
   agentMarkLabel,
+  importedAuthorLabel,
   EARLIER_STATE_LABEL,
   GROUPING_TOPICS_MESSAGE,
   NEXT_SUMMARIZING_LABEL,
@@ -111,6 +112,16 @@ test('the summary avatars use the colour of the person found by name in the time
   render(card({ view: FIRST_VIEW }));
   const avatar = screen.getByTitle(FIXTURE_AUTHOR_NAME).firstElementChild;
   expect(avatar).toHaveClass(`bg-author-${authorColorSlot(authorColorKeyOf(AUTHORS.ana!))}`);
+});
+
+test('a summary author missing from the timeline is coloured as an imported author, never a throw', () => {
+  const view: SelectionSummaryView = {
+    ...FIRST_VIEW,
+    summary: { ...FIRST_VIEW.summary!, authors: [{ name: 'Chris Crawford', actor: ClientActor.Human }] },
+  };
+  render(card({ view }));
+  const avatar = screen.getByTitle(importedAuthorLabel('Chris Crawford')).firstElementChild;
+  expect(avatar).toHaveClass(`bg-author-${authorColorSlot(authorColorKeyOf({ id: null, name: 'Chris Crawford' }))}`);
 });
 
 test('step grouping shows the grouping message, and step summarizing shows Topics grouped with a check', () => {

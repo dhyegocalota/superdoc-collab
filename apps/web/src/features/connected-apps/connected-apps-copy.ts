@@ -19,6 +19,14 @@ export const COPY_LABEL = 'Copy';
 export const COPIED_LABEL = 'Copied';
 export const CONNECTED_ON_LABEL = 'Connected';
 export const REVOKE_LABEL = 'Revoke';
+export const USE_WITH_AI_LABEL = 'Use with AI';
+export const USE_WITH_AI_TITLE = 'Use this document with your AI';
+export const USE_WITH_AI_DESCRIPTION =
+  'Connect your AI client once. It asks you to approve access the first time, then works on every document you can open.';
+export const EXAMPLE_PROMPTS_HEADING = 'Then try asking';
+export const MANAGE_CONNECTED_APPS_LABEL = 'Manage connected apps';
+export const CLOSE_LABEL = 'Close';
+export const LIBRARY_PROMPTS: string[] = ['Summarize what changed in my documents today.', 'Which documents did Bruno edit this week?'];
 
 export function copyLabel(subject: string): string {
   return `${COPY_LABEL} ${subject}`;
@@ -39,3 +47,9 @@ export const MCP_SNIPPETS: Record<McpClient, (url: string) => string> = {
   [McpClient.Cursor]: (url) => JSON.stringify({ mcpServers: { history: { url } } }, null, 2),
   [McpClient.ChatGpt]: (url) => url,
 };
+
+export function documentPrompts({ title, canEdit }: { title: string; canEdit: boolean }): string[] {
+  const readPrompts = [`Summarize what changed in “${title}” today.`, `Who edited “${title}” the most, and what did they change?`];
+  if (!canEdit) return readPrompts;
+  return [...readPrompts, `Fix the typos in “${title}”.`];
+}

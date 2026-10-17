@@ -1,6 +1,7 @@
 import { AgentActionKind } from '@superdoc-collab/types';
+import { PanelPosition } from './use-panel-position';
 
-export const TIMELINE_HEADING = 'Timeline';
+export const TIMELINE_HEADING = 'Edits';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
 export const NOTHING_TO_GROUP_MESSAGE = 'No edits to group into topics yet';
@@ -18,7 +19,12 @@ export const STREAMGRAPH_TITLE = 'Edits over time by topic';
 export const BACK_TO_LIVE_LABEL = 'Back to live';
 export const LOADING_VERSION_MESSAGE = 'Loading this version…';
 export const VERSION_FRAME_TITLE = 'Document version';
-export const RESIZE_PANEL_LABEL = 'Resize timeline panel';
+export const RESIZE_PANEL_LABEL = 'Resize edits panel';
+export const PANEL_POSITION_LABEL = 'Panel position';
+export const GROUPING_TOPICS_MESSAGE = 'Grouping edits into topics…';
+export const TOPICS_GROUPED_LABEL = 'Topics grouped';
+export const NEXT_SUMMARIZING_LABEL = 'Then summarizing edits';
+export const SUMMARIZING_LABEL = 'Summarizing…';
 export const SUMMARIZE_EDITS_LABEL = 'Summarize edits';
 export const SELECTION_SUMMARY_HEADING = 'Summary of these edits';
 export const EARLIER_STATE_LABEL = 'For an earlier state';
@@ -34,6 +40,11 @@ export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
 export const AGENT_ACTION_LABELS: Record<AgentActionKind, string> = {
   [AgentActionKind.ShareLinkRotated]: 'rotated a share link',
   [AgentActionKind.DocumentExported]: 'exported the document',
+};
+
+export const PANEL_POSITION_LABELS: Record<PanelPosition, string> = {
+  [PanelPosition.Bottom]: 'Bottom',
+  [PanelPosition.Side]: 'Side',
 };
 
 export function agentMarkLabel(name: string): string {
@@ -94,4 +105,13 @@ export function versionAtLabel(moment: string): string {
 
 export function retryInLabel(seconds: number): string {
   return `Try again in ${seconds} s.`;
+}
+
+export function topicCountLabel(count: number): string {
+  if (count === SINGLE_COUNT) return `${count} topic`;
+  return `${count} topics`;
+}
+
+export function importedAuthorLabel(name: string): string {
+  return `${name}, imported from the DOCX`;
 }

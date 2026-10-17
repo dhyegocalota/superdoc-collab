@@ -1,7 +1,8 @@
 import { HISTORY_CATCHING_UP_MESSAGE, HttpStatus } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { requestFailedMessage } from '@/lib/api';
-import { bandAriaLabel, editDeltaLabel, EditUnit } from './timeline-copy';
+import { bandAriaLabel, editDeltaLabel, EditUnit, importedAuthorLabel, PANEL_POSITION_LABELS, topicCountLabel } from './timeline-copy';
+import { PanelPosition } from './use-panel-position';
 
 test.each([
   { inserted: 2, deleted: 0, unit: EditUnit.Word, expected: '+2 words' },
@@ -23,4 +24,13 @@ test('messages with a verb end with a period', () => {
     'Timeline request failed with status 503.',
   );
   expect(HISTORY_CATCHING_UP_MESSAGE).toBe('History is catching up.');
+});
+
+test('a topic count is singular for one and plural otherwise', () => {
+  expect([0, 1, 2].map(topicCountLabel)).toEqual(['0 topics', '1 topic', '2 topics']);
+});
+
+test('an imported author names the DOCX and each panel position has a label', () => {
+  expect(importedAuthorLabel('Chris Crawford')).toBe('Chris Crawford, imported from the DOCX');
+  expect(Object.values(PanelPosition).map((position) => PANEL_POSITION_LABELS[position])).toEqual(['Bottom', 'Side']);
 });

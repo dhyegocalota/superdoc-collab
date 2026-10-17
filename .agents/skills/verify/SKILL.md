@@ -16,5 +16,3 @@ Rules:
 - Never add `--no-verify`, `--passWithNoTests`, `.only`, `.skip` or retries to make a step pass.
 - On failure: paste the failing test names and the first error block verbatim, state the likely cause in one sentence, and stop. Do not fix anything from this command; fixing goes through the plan.
 - On success: report the three summary lines (typecheck clean, N unit passed, M E2E passed) and the elapsed time.
-
-While the product apps do not exist yet, the gate runs inside `poc/` (`pnpm typecheck && pnpm test:unit && pnpm test:e2e`), which must stay green.

@@ -2,10 +2,11 @@
 paths:
   - "apps/server/**"
   - "libs/history/**"
-  - "poc/lib/**"
 ---
 
 # History capture and projection
+
+Citations to `poc/...` name files of the proof of concept removed on 2026-10-17; the facts stand, the evidence is summarized in ADR 0001–0004.
 
 ## Log schema
 - `updates(sequence INTEGER PRIMARY KEY AUTOINCREMENT, document_name, connection_user_id, yjs_client_ids JSON text, server_time INTEGER ms, update_bytes BLOB)`, indexed on `(document_name, sequence)`. (poc/lib/update-log.ts, ADR 0001)

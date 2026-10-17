@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: [POC results](../../poc/RESULTS.md), the take-home specification
+- Inspired by: POC results (removed 2026-10-17), the take-home specification
 
 ## Context
 
@@ -42,7 +42,7 @@ Spec constraints: no third-party managed services except LLM providers; SuperDoc
 
 ## Evidence
 
-- The POC ran server, projection and tests on Node with `node:sqlite` and Vite build + preview ([POC results](../../poc/RESULTS.md)).
+- The POC ran server, projection and tests on Node with `node:sqlite` and Vite build + preview (POC results, removed 2026-10-17).
 
 ## Revisit when
 

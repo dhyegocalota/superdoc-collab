@@ -7,7 +7,7 @@ Domain facts live in `.claude/rules/*.md`. Claude Code loads them by the `paths:
 
 ## What this is
 
-A full-stack app that visualizes how a collaborative DOCX evolves over time and across contributors, built on SuperDoc Editor v2 with real-time collaboration. The brief is `docs/brief/superdoc-eng-sample-project.docx`. The validated proof of concept is in `poc/` (`poc/RESULTS.md`).
+A full-stack app that visualizes how a collaborative DOCX evolves over time and across contributors, built on SuperDoc Editor v2 with real-time collaboration. The brief is `docs/brief/superdoc-eng-sample-project.docx`. The proof of concept of October 2026 was removed on 2026-10-17; its results are summarized in ADR 0001–0004 and the rules under `.claude/rules/`.
 
 ## Layout
 
@@ -16,7 +16,6 @@ apps/web          React 19 + Vite + TanStack Query + React Router (SuperDoc runs
 apps/server       Hono + Hocuspocus in one process; SQLite; worker threads
 libs/history      Yjs update log, authorship, projection, windows, snapshots
 libs/types        shared types, enums and constants
-poc/              throwaway proof of concept; keep green, do not extend
 docs/adr          architecture decision records
 docs/learnings    dated traps, with what inspired them and when they were revisited
 docs/features     one folder per feature: spec.md + plan.md + test-plan.md

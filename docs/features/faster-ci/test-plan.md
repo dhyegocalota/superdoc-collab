@@ -41,7 +41,7 @@ Not applicable: no user-facing change. The product behaves the same; only the te
 
 ## Performance evidence
 
-- [ ] Timing probe before and after (three boots each of `startTestServer`, `scheduler.forget`, sign-in, stop): worker boot drops from about 340 ms to under 150 ms locally.
+- [ ] Timing probe before and after (boots of `startTestServer`, `scheduler.forget`, sign-in, stop): worker boot is lower with the prebuilt bundle than with the tsx source path. The spec's hypothesis of "under 150 ms" did not hold: developer-1 measured medians of 271 ms (prebuilt) against 334 ms (tsx) over five runs; the remainder is the bundle's own load (the `@superdoc/sdk` import alone is about 80 ms, then SQLite opens and migrates). The tester reproduces the two medians and records them.
 - [ ] Server unit suite wall time locally before and after, from Vitest's `Duration` line.
 - [ ] Workflow file validation: `actionlint .github/workflows/verify.yml` when installed; otherwise a YAML parse of the workflow and the composite action succeeds.
 

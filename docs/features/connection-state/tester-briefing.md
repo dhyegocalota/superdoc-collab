@@ -67,3 +67,22 @@ Port 3150 must be free; the stack refuses to start otherwise.
 
 - No test yet drives a browser against the restartable origin; that starts with Step 20.
 - A spec that crashes before `afterAll` can leave a server on port 3150; the next run then fails at `assertPortFree` until the process is stopped.
+
+### G4: red specs (Steps 20, 22, 23 and the width test)
+
+All four fail today with the same text, because no banner exists yet. Commit ead556e. Each ran alone, since serial mode skips the rest after a failure.
+
+| Test | Red text |
+|------|----------|
+| `a server restart shows lost, reconnecting, then clears` | `expect(locator).toHaveAttribute(expected) failed`, `Expected: "lost"`, `element(s) not found` after 30000ms |
+| `an edit typed while the server is down reaches the other author after reconnect` | same; not a pin, since it waits for `lost` before typing |
+| `the session cookie removed shows failed, an inert editor and a working Reload` | same |
+| `the banner reads well at eight widths` | `expect(locator).toBeVisible() failed`, `element(s) not found` |
+
+Notes for the tester and for the lead:
+- The spec declares `RECOVERED_NOTICE_MS` and `MEMBERS_REFRESH_MS` locally: `RECOVERED_NOTICE_MS` waits on G1, and `editor-api.ts` cannot be imported from `e2e` because it uses the web `@/` alias. Swap the first for the `libs/types` export after G1 merges.
+- The banner states are recorded with an in-page mutation observer, so transient states are caught. `reconnecting` may be skipped if the provider reconnects before reporting it, because the server restarts as soon as `lost` shows; if that happens, Step 21 decides whether the server should stay down longer.
+- The width test checks the banner height against the computed line height of the banner element; if G3 sets a line height on a child only, adjust the measurement.
+- Step 23 expects the Failed banner to carry the Reload button and the alert role together.
+- Added Step 25 in the plan for the width test; lead to confirm.
+- Helper waits moved to `stack.ts` (`waitForHealth`), `ensureServerRunning` restarts the server after any failed test so the next one starts clean, and `.claude/rules/e2e.md` lists port 3150.

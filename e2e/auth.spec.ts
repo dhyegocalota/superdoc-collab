@@ -1,5 +1,5 @@
-import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS, ShareLinkRole } from '../libs/types/src';
-import { editorText, readShareLinks, uploadSeed } from './editor';
+import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS, documentPagePath, ShareLinkRole } from '../libs/types/src';
+import { EDITOR_READY_TIMEOUT_MS, editorText, readShareLinks, uploadSeed } from './editor';
 import {
   DEMO_PASSWORD,
   FORWARDED_FOR_HEADER,
@@ -16,8 +16,6 @@ const NARROW_VIEWPORT = { width: 375, height: 812 };
 const FAILED_ATTEMPTS_BEFORE_LIMIT = 4;
 const INVITE_INVALID_MESSAGE = 'This invite is not valid. Ask an admin for a new link.';
 const SHARED_PARAGRAPH = 'Shared: the plan costs 10.';
-const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)$/;
-const EDITOR_READY_TIMEOUT_MS = 60_000;
 
 test('sign-up without an invite is refused once the instance is claimed', async ({ page }) => {
   await page.goto(AppRoute.SignUp);
@@ -53,8 +51,7 @@ test('a signed-out member who opens a share link lands on the document after sig
   await page.goto(sharePath);
   await expect(page).toHaveURL(`${AppRoute.SignIn}?next=${encodeURIComponent(sharePath)}`);
   await signIn({ page, email: bruno!.email, password: DEMO_PASSWORD });
-  await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
-  expect(DOCUMENT_URL_PATTERN.exec(page.url())![1]).toBe(documentId);
+  await expect(page).toHaveURL(documentPagePath(documentId));
   await expect(editorText(page).filter({ hasText: SHARED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
 });
 

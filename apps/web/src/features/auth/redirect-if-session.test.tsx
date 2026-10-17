@@ -14,6 +14,7 @@ const FORM_TEXT = 'sign-in form';
 const DOCUMENTS_TEXT = 'documents page';
 const SHARE_TEXT = 'share landing';
 const SHARE_PATH = '/share/token-1';
+const FOREIGN_NEXT = 'https://evil.example/share/x';
 
 function respondWithUser(user: SessionUser | null): void {
   vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user } }));
@@ -59,6 +60,6 @@ test('redirects a signed-in user to the next path it was sent from', async () =>
 
 test('ignores a next path on another origin', async () => {
   respondWithUser(ADA);
-  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent('https://evil.example/share/x')}`);
+  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(FOREIGN_NEXT)}`);
   expect(await screen.findByText(DOCUMENTS_TEXT)).toBeInTheDocument();
 });

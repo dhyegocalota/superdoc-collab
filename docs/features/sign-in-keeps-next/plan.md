@@ -27,7 +27,7 @@ One group.
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
-| 2 | a redirect loop between sign-in and a `next` that itself requires sign-in | the E2E times out on `/sign-in` | `safeNextPath` never returns `/sign-in`; the existing `visiting documents signed out…` E2E pins the plain case |
+| 2 | a redirect loop between sign-in and a `next` that itself requires sign-in | the E2E times out on `/sign-in` | each redirect strips one level of `next`, so `/sign-in?next=/sign-in` ends at `/documents` after two hops; the existing `visiting documents signed out…` E2E pins the plain case |
 
 **Steps with no backout:** none.
 

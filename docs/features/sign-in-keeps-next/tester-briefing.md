@@ -29,7 +29,7 @@ Red commit: `03cc665` (unit); the E2E was added with the fix because it needs th
 
 1. Hypothesis: `?next=/sign-in` cannot loop. Break it by: signed in, open `/sign-in?next=%2Fsign-in`.
 2. Hypothesis: the submit's `navigate(next)` and the wrapper's `Navigate` never disagree. Break it by: reading both; both call `safeNextPath` on the same search param.
-3. Hypothesis: sign-up with `next` lands on `next` too (same wrapper). Break it by: a sign-up with an invite is not possible on a claimed instance, so reason from the code.
+3. Hypothesis: sign-up with `next` lands on `next` too (same wrapper). Break it by: no product link carries `next` to `/sign-up` (RequireSession and RequireAdmin send to `/sign-in`, invite links carry only `invite`), so a live check needs a hand-built `/sign-up?invite=<admin invite>&next=%2Fshare%2F<token>`; otherwise reason from the router.
 
 ## Known gaps
 

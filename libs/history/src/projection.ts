@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { findBootstrapSequence } from './document-history';
+import { findBootstrapSequence, findCommittedSnapshot } from './document-history';
 import { projectEditEvents } from './edit-events';
 import type { ReadModel } from './read-model';
 import { materialize, type UpdateLog } from './update-log';
@@ -19,6 +19,12 @@ function bootstrapMark({ log, documentName, sequence }: { log: UpdateLog; docume
   const [update] = log.readRange({ documentName, afterSequence: sequence - 1, untilSequence: sequence });
   if (!update) throw new MissingBootstrapUpdateError(sequence);
   return markOf({ update, document: materialize({ log, documentName, untilSequence: sequence }), isBootstrap: true });
+}
+
+function findBootstrapStart({ log, documentName }: { log: UpdateLog; documentName: string }): number | null {
+  const snapshot = findCommittedSnapshot({ log, documentName });
+  if (snapshot) return snapshot.sequence;
+  return findBootstrapSequence({ updates: log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }) });
 }
 
 function continueProjection({ projection, cursor }: { projection: Projection; cursor: number }): number {
@@ -46,7 +52,7 @@ export function projectPending({
   const projection = { log, readModel, documentName, batchSize };
   const cursor = readModel.cursor(documentName);
   if (cursor !== null) return continueProjection({ projection, cursor });
-  const bootstrapSequence = findBootstrapSequence({ updates: log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }) });
+  const bootstrapSequence = findBootstrapStart({ log, documentName });
   if (bootstrapSequence === null) return null;
   readModel.commit({
     documentName,

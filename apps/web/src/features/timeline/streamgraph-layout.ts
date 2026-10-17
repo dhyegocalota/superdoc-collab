@@ -1,5 +1,5 @@
-import { toStackRows, type StackRow } from '@superdoc-history/history/timeline';
-import type { DocumentTimeline, TimelineBand } from '@superdoc-history/types';
+import { cellVolume, toStackRows, type StackRow } from '@superdoc-history/history/timeline';
+import type { DocumentTimeline, TimelineBand, TimelineCell } from '@superdoc-history/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
 import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series, type SeriesPoint } from 'd3-shape';
 import { maxBandVolume } from './max-band-volume';
@@ -27,6 +27,12 @@ export type StreamgraphLayout = { shapes: BandShape[]; binX: (index: number) => 
 class MissingStackValueError extends Error {}
 class MissingBandError extends Error {}
 class EmptyBandPathError extends Error {}
+
+function agentFractionOf(cell: TimelineCell | undefined): number {
+  const volume = cellVolume(cell);
+  if (!cell || volume === 0) return 0;
+  return (cell.agentInserted + cell.agentDeleted) / volume;
+}
 
 export function saturationOf({ volume, maxVolume }: { volume: number; maxVolume: number }): number {
   if (maxVolume === 0) return SATURATION_MIN;
@@ -108,6 +114,20 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     .y0((point) => y(point[0]))
     .y1((point) => y(point[1]))
     .curve(curveBasis);
+  const agentShapeOf = area<[number, number]>()
+    .x((_, index) => x(index))
+    .y0((point) => y(point[0]))
+    .y1((point) => y(point[1]))
+    .curve(curveBasis);
+
+  function agentPathOf({ band, points }: { band: TimelineBand; points: StackSeries }): string | null {
+    const fractions = timeline.bins.map((bin) => agentFractionOf(bin.byBand[band.id]));
+    if (fractions.every((fraction) => fraction === 0)) return null;
+    const agentPath = agentShapeOf(points.map((point, index) => [point[0], point[0] + (point[1] - point[0]) * fractions[index]!]));
+    if (!agentPath) throw new EmptyBandPathError(band.id);
+    return `${agentPath}Z`;
+  }
+
   const maxVolume = maxBandVolume(timeline);
   const unlabelledShapes = [...series]
     .sort((left, right) => bandOf({ timeline, id: right.key }).volume - bandOf({ timeline, id: left.key }).volume)
@@ -115,14 +135,20 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
       const band = bandOf({ timeline, id: points.key });
       const path = shapeOf(points);
       if (!path) throw new EmptyBandPathError(band.id);
-      return { band, points, path: `${path}Z`, saturation: saturationOf({ volume: band.volume, maxVolume }) };
+      return {
+        band,
+        points,
+        path: `${path}Z`,
+        agentPath: agentPathOf({ band, points }),
+        saturation: saturationOf({ volume: band.volume, maxVolume }),
+      };
     });
   const { shapes } = unlabelledShapes.reduce<{ shapes: BandShape[]; placed: LabelBox[] }>(
-    ({ shapes: done, placed }, { band, points, path, saturation }) => {
+    ({ shapes: done, placed }, { band, points, path, agentPath, saturation }) => {
       const placedLabel = labelBoxOf({ band, points, x, y, placed });
-      if (placedLabel === null) return { shapes: [...done, { band, path, saturation, label: null, agentPath: null }], placed };
+      if (placedLabel === null) return { shapes: [...done, { band, path, saturation, label: null, agentPath }], placed };
       return {
-        shapes: [...done, { band, path, saturation, label: placedLabel.label, agentPath: null }],
+        shapes: [...done, { band, path, saturation, label: placedLabel.label, agentPath }],
         placed: [...placed, placedLabel.box],
       };
     },

@@ -1,7 +1,6 @@
 import { AppRoute } from '@superdoc-collab/types';
-import { LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { authClient } from './auth-client';
 import { SIGN_OUT_LABEL } from './auth-copy';
 import { SIGNED_OUT_STATE } from './sign-out-state';
@@ -15,9 +14,8 @@ export function SignOutButton() {
   }
 
   return (
-    <DropdownMenuItem onSelect={signOut}>
-      <LogOut aria-hidden />
+    <Button variant="outline" onClick={signOut}>
       {SIGN_OUT_LABEL}
-    </DropdownMenuItem>
+    </Button>
   );
 }

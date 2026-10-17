@@ -240,4 +240,23 @@ describe('attachCollaboration', () => {
     expect(() => socket.emit('error', new Error(RESET_FAILURE))).not.toThrow();
     expect(socket.destroyed).toBe(true);
   });
+  test('an agent path upgrade from a non-loopback address is destroyed', () => {
+    const httpServer = new EventEmitter();
+    attachCollaboration({
+      httpServer: httpServer as unknown as Server,
+      hocuspocus: {} as Hocuspocus,
+      versionRooms: {} as VersionRooms,
+      path: ApiPath.Collaboration,
+      allowedOrigin: ORIGIN,
+    });
+    const socket = new Duplex({ read: () => undefined, write: () => undefined });
+    const destroy = vi.spyOn(socket, 'destroy');
+    httpServer.emit(
+      'upgrade',
+      { url: ApiPath.AgentCollaboration, headers: {}, socket: { remoteAddress: '203.0.113.9' } },
+      socket,
+      Buffer.alloc(0),
+    );
+    expect(destroy).toHaveBeenCalledOnce();
+  });
 });

@@ -315,6 +315,7 @@ export async function startServer({
   listeningPort.value = port;
   const sockets = attachCollaboration({
     httpServer: httpServer as Server,
+    auth,
     hocuspocus: services.hocuspocus,
     versionRooms: services.versionRooms,
     path: ApiPath.Collaboration,

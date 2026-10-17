@@ -7,6 +7,7 @@ import {
   RETRY_AFTER_HEADER,
   SECOND_MS,
   SOCKET_RATE_LIMIT_REASON,
+  SOCKET_SINGLE_DOCUMENT_REASON,
   VERSION_FAILURE_TTL_MS,
   versionCollaborationPath,
 } from '@superdoc-collab/types';
@@ -16,6 +17,8 @@ import { EventEmitter } from 'node:events';
 import type { Server } from 'node:http';
 import { connect } from 'node:net';
 import { Duplex } from 'node:stream';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -23,6 +26,7 @@ import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, d
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
+import type { Auth } from '../auth/auth';
 import { attachCollaboration } from './attach-collaboration';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
@@ -43,17 +47,24 @@ const FRAME_OVERHEAD_BYTES = 1024;
 const PADDED_UPDATE_TEST_TIMEOUT_MS = 60_000;
 const SECRET_PAYLOAD_TEXT = 'secret-payload-text';
 const FLOOD_DOCUMENT_ID = '33333333-3333-4333-8333-333333333333';
+const OTHER_FLOOD_DOCUMENT_ID = '44444444-4444-4444-8444-444444444444';
 const FLOOD_ROOM_NAME = `${SUPERDOC_ROOM_PREFIX}${FLOOD_DOCUMENT_ID}`;
 
-function validUpdateFrame(): Buffer {
+function validUpdateFrame(roomName: string = FLOOD_ROOM_NAME): Buffer {
   const document = new Y.Doc();
   document.getText('t').insert(0, SECRET_PAYLOAD_TEXT);
-  const message = new OutgoingMessage(FLOOD_ROOM_NAME).createSyncMessage().writeUpdate(Y.encodeStateAsUpdate(document));
+  const message = new OutgoingMessage(roomName).createSyncMessage().writeUpdate(Y.encodeStateAsUpdate(document));
   return Buffer.from(message.toUint8Array());
 }
 
-function openFloodSocket(server: TestServer): { socket: WebSocket; closed: Promise<{ code: number; reason: string }> } {
-  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, { origin: server.baseUrl });
+function openFloodSocket({ server, cookie }: { server: TestServer; cookie: string }): {
+  socket: WebSocket;
+  closed: Promise<{ code: number; reason: string }>;
+} {
+  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
+    origin: server.baseUrl,
+    headers: { cookie },
+  });
   socket.on('error', () => undefined);
   const closed = new Promise<{ code: number; reason: string }>((resolve) =>
     socket.on('close', (code, reason) => resolve({ code, reason: reason.toString() })),
@@ -61,9 +72,10 @@ function openFloodSocket(server: TestServer): { socket: WebSocket; closed: Promi
   return { socket, closed };
 }
 
-function closeCodeAfterSending({ server, frame }: { server: TestServer; frame: Buffer }): Promise<number> {
+function closeCodeAfterSending({ server, cookie, frame }: { server: TestServer; cookie: string; frame: Buffer }): Promise<number> {
   const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
     origin: server.baseUrl,
+    headers: { cookie },
     maxPayload: 2 * MAX_SOCKET_MESSAGE_BYTES,
   });
   socket.on('error', () => undefined);
@@ -144,8 +156,9 @@ async function healthStatus(server: TestServer): Promise<number> {
 describe('attachCollaboration', () => {
   test('a frame over the payload cap closes with 1009 that the client receives', { timeout: PADDED_UPDATE_TEST_TIMEOUT_MS }, async () => {
     const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const closeCode = await closeCodeAfterSending({ server, frame: Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES + 1) });
+    const closeCode = await closeCodeAfterSending({ server, cookie, frame: Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES + 1) });
     expect(closeCode).toBe(PAYLOAD_TOO_BIG_CLOSE_CODE);
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
@@ -161,8 +174,9 @@ describe('attachCollaboration', () => {
   });
   test('121 frames before authentication close the socket with 1008, are not applied and are logged without the payload', async () => {
     const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const { socket, closed } = openFloodSocket(server);
+    const { socket, closed } = openFloodSocket({ server, cookie });
     await new Promise((resolve) => socket.on('open', resolve));
     const frame = validUpdateFrame();
     Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 1 }).forEach(() => socket.send(frame));
@@ -171,6 +185,16 @@ describe('attachCollaboration', () => {
     expect(warn).toHaveBeenCalled();
     expect(JSON.stringify(warn.mock.calls)).not.toContain(SECRET_PAYLOAD_TEXT);
     warn.mockRestore();
+    await server.stop();
+  });
+  test('a frame for a second document on one socket closes it with 1008', async () => {
+    const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    const { socket, closed } = openFloodSocket({ server, cookie });
+    await new Promise((resolve) => socket.on('open', resolve));
+    socket.send(validUpdateFrame());
+    socket.send(validUpdateFrame(`${SUPERDOC_ROOM_PREFIX}${OTHER_FLOOD_DOCUMENT_ID}`));
+    expect(await closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_SINGLE_DOCUMENT_REASON });
     await server.stop();
   });
   test('121 valid awareness frames close the socket with 1008 and the reason', async () => {
@@ -185,9 +209,18 @@ describe('attachCollaboration', () => {
   });
   test('a malformed frame after the upgrade does not crash the server', async () => {
     const server = await startTestServer();
-    const response = await exchange({ server, path: ApiPath.Collaboration, followUp: UNMASKED_BINARY_FRAME });
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    const response = await exchange({ server, path: ApiPath.Collaboration, cookie, followUp: UNMASKED_BINARY_FRAME });
     expect(response).toContain('101');
     expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    await server.stop();
+  });
+  test('a browser upgrade without a session cookie is destroyed before it reaches Hocuspocus', async () => {
+    const server = await startTestServer();
+    const handleConnection = vi.spyOn(server.services.hocuspocus, 'handleConnection');
+    const response = await exchange({ server, path: ApiPath.Collaboration });
+    expect(response).toBe('');
+    expect(handleConnection).not.toHaveBeenCalled();
     await server.stop();
   });
   test('an upgrade on another path is destroyed and the server keeps answering', async () => {
@@ -234,9 +267,11 @@ describe('attachCollaboration', () => {
   });
   test('a socket that never authenticates is closed by the server as unauthorized', async () => {
     const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
     server.services.hocuspocus.configuration.timeout = SHORT_SOCKET_TIMEOUT_MS;
     const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
       origin: server.baseUrl,
+      headers: { cookie },
     });
     const openedAt = new Promise<number>((resolve) => socket.on('open', () => resolve(Date.now())));
     const closeCode = await new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
@@ -300,6 +335,7 @@ describe('attachCollaboration', () => {
     const httpServer = new EventEmitter();
     attachCollaboration({
       httpServer: httpServer as unknown as Server,
+      auth: {} as Auth,
       hocuspocus: {} as Hocuspocus,
       versionRooms: { authorize } as unknown as VersionRooms,
       path: ApiPath.Collaboration,
@@ -325,6 +361,7 @@ describe('attachCollaboration', () => {
     const httpServer = new EventEmitter();
     attachCollaboration({
       httpServer: httpServer as unknown as Server,
+      auth: {} as Auth,
       hocuspocus: {} as Hocuspocus,
       versionRooms: {} as unknown as VersionRooms,
       path: ApiPath.Collaboration,
@@ -340,4 +377,36 @@ describe('attachCollaboration', () => {
     );
     expect(destroy).toHaveBeenCalledOnce();
   });
+});
+
+test('the frame that breaches the limit reaches the room handler and nothing after it does', async () => {
+  const received = vi.fn();
+  const hocuspocus = {
+    handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
+  } as unknown as Hocuspocus;
+  const auth = {
+    api: { getSession: async () => ({ user: { id: 'user-1', name: 'Eva', email: 'eva@example.test', role: 'user', timeZone: null } }) },
+  } as unknown as Auth;
+  const httpServer = createServer();
+  attachCollaboration({
+    httpServer,
+    auth,
+    hocuspocus,
+    versionRooms: {} as VersionRooms,
+    path: ApiPath.Collaboration,
+    allowedOrigin: ORIGIN,
+  });
+  await new Promise<void>((resolve) => httpServer.listen(0, LOOPBACK_HOST, resolve));
+  const { port } = httpServer.address() as AddressInfo;
+  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${port}${ApiPath.Collaboration}`, {
+    origin: ORIGIN,
+    headers: { cookie: 'session=1' },
+  });
+  socket.on('error', () => undefined);
+  const closed = new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
+  await new Promise((resolve) => socket.on('open', resolve));
+  Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 10 }).forEach(() => socket.send(Buffer.from([0])));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).toHaveBeenCalledTimes(MAX_SOCKET_MESSAGES_PER_SECOND + 1);
+  await new Promise((resolve) => httpServer.close(resolve));
 });

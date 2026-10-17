@@ -6,7 +6,9 @@ import {
   CREATOR_ATTEMPT_QUERY_KEY,
   CREATOR_EPOCH_QUERY_KEY,
   DocumentRole,
+  POLICY_VIOLATION_CLOSE_CODE,
   SECOND_MS,
+  SOCKET_SINGLE_DOCUMENT_REASON,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
   SUPERSEDED_ATTEMPT_REASON,
 } from '@superdoc-collab/types';
@@ -42,6 +44,15 @@ export class CollaborationSupersededError extends Error {
 
   constructor() {
     super(SUPERSEDED_ATTEMPT_REASON);
+  }
+}
+
+export class CollaborationSingleDocumentError extends Error {
+  readonly code = POLICY_VIOLATION_CLOSE_CODE;
+  readonly reason = SOCKET_SINGLE_DOCUMENT_REASON;
+
+  constructor() {
+    super(SOCKET_SINGLE_DOCUMENT_REASON);
   }
 }
 
@@ -92,11 +103,17 @@ export function createCollaborationServer({
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const refusedConnections = new WeakSet<CollaborationContext>();
+  const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   return new Hocuspocus({
     quiet: true,
     timeout: COLLABORATION_SOCKET_TIMEOUT_MS,
     debounce: STORE_DEBOUNCE_MS,
     maxDebounce: MAX_STORE_DEBOUNCE_MS,
+    async onConnect({ request, documentName }) {
+      const firstDocumentName = documentNameBySocket.get(request);
+      if (firstDocumentName === undefined) return void documentNameBySocket.set(request, documentName);
+      if (firstDocumentName !== documentName) throw new CollaborationSingleDocumentError();
+    },
     async onAuthenticate({ requestHeaders, request, token, documentName, connection }): Promise<CollaborationContext> {
       const documentId = requireDocumentId(documentName);
       const actor = connectionActorOf(request);
@@ -109,6 +126,10 @@ export function createCollaborationServer({
       const isCommitted = bootstrap.isCommitted(documentId);
       const isHolder = attempt !== null && reservations.attemptOf({ documentId, userId }) === attempt;
       const mayWrite = reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
+      if (!isCommitted && actor === ClientActor.Agent) {
+        console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
+        throw new CollaborationAuthenticationError();
+      }
       if (!isCommitted && attempt === null) {
         console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationAuthenticationError();

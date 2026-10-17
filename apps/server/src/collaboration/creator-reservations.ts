@@ -1,6 +1,7 @@
+import { CREATOR_RESERVATION_MAX_MS } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 
-export type CreatorReservation = { documentId: string; userId: string; attempt: number; expiresAt: number };
+export type CreatorReservation = { documentId: string; userId: string; attempt: number; reservedAt: number; expiresAt: number };
 export type CreatorTicket = { attempt: number; epoch: string };
 
 const NO_ATTEMPT_ISSUED = 0;
@@ -11,10 +12,20 @@ export class CreatorReservations {
   private readonly latestAttempts = new Map<string, number>();
   private readonly committedAttempts = new Map<string, number>();
   private readonly reservationMs: number;
+  private readonly maxLifetimeMs: number;
   private readonly now: () => number;
 
-  constructor({ reservationMs, now = () => Date.now() }: { reservationMs: number; now?: () => number }) {
+  constructor({
+    reservationMs,
+    maxLifetimeMs = CREATOR_RESERVATION_MAX_MS,
+    now = () => Date.now(),
+  }: {
+    reservationMs: number;
+    maxLifetimeMs?: number;
+    now?: () => number;
+  }) {
     this.reservationMs = reservationMs;
+    this.maxLifetimeMs = maxLifetimeMs;
     this.now = now;
   }
 
@@ -24,7 +35,7 @@ export class CreatorReservations {
     if (isLive && current.userId === userId) return { attempt: current.attempt, epoch: this.epoch };
     if (isLive) return null;
     const attempt = this.latestAttemptOf(documentId) + 1;
-    this.held.set(documentId, { documentId, userId, attempt, expiresAt: this.now() + this.reservationMs });
+    this.held.set(documentId, { documentId, userId, attempt, reservedAt: this.now(), expiresAt: this.now() + this.reservationMs });
     this.latestAttempts.set(documentId, attempt);
     return { attempt, epoch: this.epoch };
   }
@@ -61,7 +72,10 @@ export class CreatorReservations {
   }
 
   touch({ documentId, attempt }: { documentId: string; attempt: number }): void {
-    this.reschedule({ documentId, attempt, expiresAt: this.now() + this.reservationMs });
+    const current = this.held.get(documentId);
+    if (current === undefined) return;
+    const expiresAt = Math.min(this.now() + this.reservationMs, current.reservedAt + this.maxLifetimeMs);
+    this.reschedule({ documentId, attempt, expiresAt });
   }
 
   release({ documentId, attempt }: { documentId: string; attempt: number }): void {

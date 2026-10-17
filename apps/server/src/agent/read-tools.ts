@@ -8,13 +8,13 @@ import {
   INVALID_TIME_ZONE_MESSAGE,
   isSupportedTimeZone,
   RETRY_AFTER_SECONDS,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SUMMARIZE_BUSY_MESSAGE,
 } from '@superdoc-collab/types';
 import { z } from 'zod';
 import { buildBinEdits, buildDocumentTimeline } from '../history/timeline-service';
 import { documentTopics } from '../insights/document-topics';
-import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
-import { SelectionRequestOutcome, type RequestedSelection } from '../insights/selection-summaries-service';
+import type { RequestedSelection } from '../insights/selection-summaries-service';
+import { SummarizeRefusal } from '../insights/summarize-service';
 import { defineDocumentTool, definePersonTool, READ_ONLY_ANNOTATIONS, type AgentToolDefinition } from './agent-tool-definition';
 import { absentAsNull, AgentToolError, jsonResult } from './tool-results';
 
@@ -119,13 +119,11 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
         binMs: absentAsNull(input.binMs),
         timeZone: canonicalTimeZone(input.timeZone),
       };
-      const { selection: summaries } = context.services.insights;
-      const result = summaries.request({ documentId, selection });
-      if (result.outcome === SelectionRequestOutcome.TooSoon)
-        throw new AgentToolError({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, details: { retryAfterSeconds: result.retryAfterSeconds } });
-      if (result.outcome === SelectionRequestOutcome.Busy)
-        throw new AgentToolError({ message: LLM_BUSY_MESSAGE, details: { retryAfterSeconds: result.retryAfterSeconds } });
-      if (result.outcome === SelectionRequestOutcome.Unavailable)
+      const { summarize, selection: summaries } = context.services.insights;
+      const result = summarize.request({ documentId, selection });
+      if (result.outcome === SummarizeRefusal.Busy)
+        throw new AgentToolError({ message: SUMMARIZE_BUSY_MESSAGE, details: { retryAfterSeconds: result.retryAfterSeconds } });
+      if (result.outcome === SummarizeRefusal.Unavailable)
         throw new AgentToolError({ message: result.reason, details: { retryAfterSeconds: RETRY_AFTER_SECONDS } });
       return jsonResult(summaries.read({ documentId, selection }));
     },

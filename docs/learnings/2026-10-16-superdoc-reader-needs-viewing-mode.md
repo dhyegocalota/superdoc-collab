@@ -3,6 +3,7 @@
 - Date: 2026-10-16
 - Inspired by: `docs/features/documents-and-history/spike.md` fact 3; slice 2 reader E2E
 - Revisited: 2026-10-16 — product applies both flags
+- Revisited: 2026-10-17 — still true; final-visuals leaves both flags as they are and a reader gets no toolbar row
 
 ## Signal
 A reader types, the text stays on their screen, nobody else sees it, `onChange` never fires, and no error appears anywhere.

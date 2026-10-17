@@ -172,6 +172,69 @@ Step 23 (`document-page.tsx` integration) is not done; it waits for the merge of
 | opening | `opening-document.test.tsx` | `AssertionError: expected 'flex items-center gap-2 border-b px-4…' to be 'flex h-13 items-center gap-2 border-b…'` |
 
 The red commits of Steps 17, 20 and 21 do not typecheck on purpose: their tests call the new signatures and the stub is the old code. Step 22 is a pin (`editor-copy.test.ts`).
+## G3 Edits panel (developer-3, branch `feat/final-visuals-g3`)
+
+### What changed
+
+- `features/timeline/use-panel-position.ts`: `PanelPosition`, `PANEL_POSITION_STORAGE_KEY` (`superdoc-collab.edits-panel`), `usePanelPosition()` returning `{ position, choosePosition, canChoose }`, `isPanelOpenByDefault()`. Below 1024 px the position is Bottom and `canChoose` is false. From 1024 px a stored value wins; with nothing stored it is Side from 1536 px and Bottom below, following `matchMedia` live. An unknown stored value is removed. Every storage call is in try/catch. A choice is written, then announced on a window event, so every hook instance in the tab follows (the panel and `document-page` each call the hook).
+- `panel-position-toggle.tsx`: `PanelPositionToggle({ position, onChoose })`, a single-select `ToggleGroup` with `PanelBottom` and `PanelRight`. Pressing the chosen item again does not call `onChoose`.
+- `timeline-panel.tsx`: new props `{ documentId, role, position, isOpen, onOpenChange, summarize, onTravel, onBackToLive }`. Exports `PanelState`, `PanelColumn` (`data-column` on the two bottom columns), and `SummarizeHandle` (`{ summarize, isRunning, outcome, error, retryAfterSeconds }`, mirrors G4's `SummarizeControl`). The header is the heading "Edits", the time zone label (hidden below `sm`), a spacer, the position toggle (open and `canChoose`) and the collapse button named `TIMELINE_TOGGLE_LABEL`. `data-position` and `data-state` are on the `aside`. Bottom open: `border-t`, height from `usePanelHeight`, row handle on the top edge, grid `minmax(0,1fr) 380px` from `md` (one scrolling column below), chart column (notices, filter, streamgraph) and list column (summary card, then bin edits or Top edits). Side keeps today's one column, 40 % width, min 420 px, and the rail when collapsed. Bottom collapsed renders `TimelineCollapsedBar` in place of header and body.
+- `timeline-collapsed-bar.tsx`: 44 px bar with "Edits", the three largest topic chips (`bandsByVolume`, exported from `top-edits.tsx`) and an expand button. A chip sets the topic filter (it does not toggle) and calls `onExpand`.
+- `use-panel-width.ts`: `usePanelHeight({ areaHeight })` (42 %, min 240, max area minus 240, follows the area until the first resize) and `useAreaHeight()`, a callback ref that measures the parent element of the `aside`.
+- `resize-handle.tsx`: `ResizeHandle({ position, size, minSize, maxSize, resizeTo, resizeBy })`. Bottom is a row separator (`aria-orientation="horizontal"`, ArrowUp grows, ArrowDown shrinks, pointer size is window height minus `clientY`). Side is the old column handle.
+- `contributor-avatars.tsx`: `AuthorAvatar({ author })` renders `UserAvatar` at 24 px with `authorColorSlot(authorColorKeyOf(author))`, the agent badge, title `importedAuthorLabel(name)` for a null id. `top-edits.tsx`: the topic sentence is a `topic-tint` callout (`bg-muted` for the Other band).
+- `selection-summary-card.tsx`: props `{ view, summarize, canRequest, authors }`. Grouping shows a spinner, `GROUPING_TOPICS_MESSAGE` and muted `NEXT_SUMMARIZING_LABEL`. Summarizing shows a check, `TOPICS_GROUPED_LABEL`, a spinner and `SUMMARIZING_EDITS_MESSAGE`. `outcome === UpToDate` adds `SUMMARY_UP_TO_DATE_MESSAGE`. An error shows its message, with `retryInLabel(retryAfterSeconds)` appended when a cooldown is set (no Retry button during a cooldown). `author-of.ts` gained `authorNamed`.
+- `timeline-notices.tsx` is unchanged: the panel passes `summarize.summarize` as `onRetry`.
+- Mirrors for G4, to drop at the merge: `libs/types/src/timeline.ts` gained `SummarizeOutcome` and an optional `step` on `SelectionSummaryView` (0f0f8ce). G4 makes `step` required.
+- Outside my list: `apps/web/src/lib/keyboard.ts` gained `ArrowUp` and `ArrowDown` (5a58dc1, its own commit).
+
+## G4 Summarize job (developer-4, branch `feat/final-visuals-g4`)
+
+### What changed
+
+- `apps/server/src/insights/summarize-service.ts` (new) — `SummarizeService.request` decides from three staleness checks whether to start one job per document, answers with `SummarizeOutcome` (`Started`, `AlreadyRunning`, `UpToDate`, `Busy`, `Unavailable`), and the job runs regroup, selection summary, sentences in that order, setting `SummarizeStep` on the selection service and returning to `Idle` in a `finally`.
+- `apps/server/src/insights/topics-service.ts` — gains `isStale` and `regroup`; loses `refresh`, `RefreshOutcome`, `TOPIC_REFRESH_COOLDOWN_MS`, the cooldown and `forget`.
+- `apps/server/src/insights/summaries-service.ts` — `refreshStale` becomes `isStale` and `rewriteStale`; the read-path refresh, `SUMMARY_MIN_INTERVAL_MS`, the cooldown and `forget` are gone.
+- `apps/server/src/insights/selection-summaries-service.ts` — keeps `request` for the agent tool; gains `isStale`, `write`, `setStep`, the per-document step, `view.step`; the cooldown uses `SUMMARIZE_COOLDOWN_MS`.
+- `apps/server/src/insights/insights-routes.ts` — selection POST goes through `summarize.request`; the topics refresh route and the read-path refresh are removed.
+- `apps/server/src/insights/last-sequence.ts` (new) — `lastSequenceOf`, shared by topics and summaries.
+- Outside my list, forced by the removals: `apps/server/src/http/app.ts` and `apps/server/src/server.ts` (wire `summarize`), `apps/server/src/collaboration/collaboration-runtime.ts` (drops the two `forget` calls), `apps/server/src/documents/documents-routes.test.ts` (cooldown/forget test now covers the selection service only).
+- `libs/types/src/timeline.ts` — G1 mirror (`SummarizeStep`, `SUMMARIZE_COOLDOWN_MS`, `SUMMARIZE_BUSY_MESSAGE`, `SelectionSummaryView.step`, commit e9350e1); `SELECTION_SUMMARY_COOLDOWN_MS` removed. The lead keeps G1's version at merge.
+- `apps/web/src/features/timeline/summarize-edits-button.tsx` — takes `{ isRunning, onSummarize }`, never disabled, `aria-busy`, `Sparkles`, label `SUMMARIZING_LABEL` while running.
+- `apps/web/src/features/timeline/use-selection-summary.ts` — polls while `state` is running or `step` is not idle.
+- `apps/web/src/features/timeline/timeline-api.ts` — `SummaryTooSoonError` now carries `SUMMARIZE_BUSY_MESSAGE`.
+- `apps/web/src/features/timeline/timeline-copy.ts` — `SUMMARIZING_LABEL` (G3 mirror, commit 4189579).
+- `docs/adr/0031-…md` — Evidence line names the real tests.
+
+### HTTP contract of `POST /api/documents/:id/summaries/selection`
+
+| Answer | When | Body | Header |
+|--------|------|------|--------|
+| 202 | job started, or one already runs | selection view with `state: running`, `step: grouping` or `summarizing` | none |
+| 200 | nothing is stale (summary cached, selection empty, topics fresh, sentences fresh) | selection view, `step: idle` | none |
+| 429 | cooldown running, hourly call budget spent, or all worker slots taken | `{ error: SUMMARIZE_BUSY_MESSAGE }` | one `Retry-After`, seconds, the longer of the remaining cooldown and the model busy wait |
+| 503 | model not configured | `{ error: <reason> }` | `Retry-After: 1` |
+| 400 | bad query | `{ error: INVALID_TIMELINE_QUERY_MESSAGE }` | none |
+| 403, 404 | reader, stranger | as before | none |
+
+`POST /api/documents/:id/topics/refresh` answers 404. `GET /api/documents/:id/summaries` never calls the model.
+
+### Red today, green after
+
+| Test | Red before because | Green after because |
+|------|--------------------|---------------------|
+| `apps/server/src/insights/summarize-service.test.ts` (all 7) | `Cannot find module './summarize-service'` (45708c9) | b63b57f |
+| `insights-routes.test.ts::POST /:documentId/topics/refresh no longer exists` | `expected 202 to be 404` (dd2b2b3) | 4116a80 |
+| `insights-routes.test.ts::a full worker answers 429 with SUMMARIZE_BUSY_MESSAGE` and `::an exhausted hourly cap answers 429 …` | `expected 503 to be 429` | 4116a80 |
+| `insights-routes.test.ts::a second POST inside the cooldown answers 429 with one Retry-After and SUMMARIZE_BUSY_MESSAGE` and `::a second POST with the same filter is 200 from the cache and another filter inside the cooldown is 429` | `expected { Object (error) } to deeply equal { Object (error) }` (the too-soon text) | 4116a80 |
+| `insights-routes.test.ts::the Retry-After is the longer of the cooldown and the model's busy wait` | `expected '30' to be '90'` | 4116a80 |
+| `insights-routes.test.ts::POST selection answers 202 with the running step while a job runs, started or already running` | the 202 view did not report `step: summarizing` | 4116a80 |
+| `apps/web/src/features/timeline/use-selection-summary.test.ts::polls while step is not idle and stops at idle` | `expected +0 to be 2 // Object.is equality` (37132b0) | 78d63e5 |
+| `apps/web/src/features/timeline/summarize-edits-button.test.tsx::is never disabled, and while running reads Summarizing… with aria-busy` | `expect(element).toBeEnabled()` received the button with `disabled=""` | 78d63e5 |
+
+Pins, green when they landed: `insights-routes.test.ts::GET selection returns step idle when no job runs`, `::POST selection answers 200 and starts no job when nothing is stale`, and `selection-summaries-service.test.ts::uses SUMMARIZE_COOLDOWN_MS (30000)` (the G1 mirror already exported the constant).
+
+The plan names `use-selection-summary.test.tsx`; the file is `use-selection-summary.test.ts`.
 
 ### How to run
 
@@ -209,3 +272,218 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 - The "Loading document…" reason is still the page's loading paragraph; `LOADING_DOCUMENT_REASON_ID` is exported for Step 23 to put on it, and Download stays disabled after that paragraph is gone, until SuperDoc's `onReady`.
 - The print view fails (toast) when the last page has no text after 600 frames; a document whose last page is an image only would fail that way.
 - Nothing here was seen in a browser.
+pnpm install --frozen-lockfile
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/use-panel-position.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/panel-position-toggle.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/use-panel-width.test.ts
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/resize-handle.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/contributor-avatars.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/top-edits.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-collapsed-bar.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/selection-summary-card.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-panel.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-notices.test.tsx
+```
+
+### Red today, green after
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `use-panel-position.test.tsx` six tests (658fe49) | `Error: usePanelPosition is not implemented` | hook implemented (3baf323) |
+| `…::the panel starts collapsed below 1024 px and open from it` (ae0d012) | `Error: isPanelOpenByDefault is not implemented` | 51f1715 |
+| `panel-position-toggle.test.tsx` two tests (cb9c8bb) | `Failed to resolve import "./panel-position-toggle" … Does the file exist?` | component added (c290301) |
+| `use-panel-width.test.ts` two tests (428abac) | `Error: usePanelHeight is not implemented` | hook implemented (b181062) |
+| `resize-handle.test.tsx::the row handle is a separator with aria-orientation horizontal…` (bbce3b6) | `Expected the element to have attribute: aria-orientation="horizontal"` `Received: aria-orientation="vertical"` | 114ec7b |
+| `…::the row handle measures the pointer from the bottom of the window` | `expected "vi.fn()" to be called once with arguments: [ 300 ]`, got `1024` | 114ec7b |
+| `…::the column handle stays vertical…` | pin, green when it landed | |
+| `contributor-avatars.test.tsx::AuthorAvatar renders UserAvatar in the author colour…` (8ae842a) | `received value must be an HTMLElement or an SVGElement. Received has value: null` | cd506b1. Changed: the green run first printed `Expected element to have text content: CC  Received: C` for the name `' Chris Crawford '`, a code bug (untrimmed name), fixed in the same commit |
+| `…::an agent shares its person colour` | `Expected the element to have class: bg-author-4  Received: absolute -right-1 -bottom-1 rounded-full bg-primary p-0.5 text-primary-foreground` | cd506b1 |
+| `top-edits.test.tsx::each topic callout has the tinted background token` | `Expected the element to have class: topic-tint  Received: text-sm` | cd506b1 |
+| `timeline-collapsed-bar.test.tsx` four tests (9424c90) | `Failed to resolve import "./timeline-collapsed-bar"` | component added (0b38d62) |
+| `selection-summary-card.test.tsx` seven of fifteen (067dd28): the avatar title and colour, grouping and summarizing steps, request in flight, up to date, error with Retry summary, cooldown | `Unable to find an element with the title: Bob · AI.`, `…with the text: Grouping edits into topics….`, `…with the text: The summary is up to date.`, `Unable to find an accessible element with the role "button" and name "Retry summary"` | 0a73007 |
+| `timeline-panel.test.tsx` eleven of thirty-nine (79c12a7): heading and no header buttons, collapse button, Side attributes, bottom columns, row handle, collapsed bar chip, position toggle stores, Side rail, Retry runs the job, failed summary retry, two same-name avatars | `expected document not to contain element, found <button`, `Unable to find role="alert"`, `Expected the element to have attribute: data-position="side"`, `expected null not to be null`, `aria-orientation="horizontal"`, `expected "vi.fn()" to be called once with arguments: [ true ]`, `Unable to find role="radiogroup" and name "Panel position"`, `expected "vi.fn()" to be called 1 times, but got 0 times`, `Unable to find an element with the title: Ana.` | c8ba6b6. Changed: the row-handle test stubs `getBoundingClientRect` to give the area a height, because an area of 0 px has no room to grow |
+| `timeline-panel.test.tsx` the other 28 tests (79c12a7) | pins of behaviour kept: they were ported to the new props and passed on arrival | |
+| `timeline-notices.test.tsx` two tests (342344a) | pin, green when it landed | |
+
+The panel tests that drove the removed header buttons (Summarize disabled reasons, Regroup, topic refresh, cooldown notices) were deleted with the code. The cooldown and error cases live on the card tests, and the never-disabled button belongs to G4.
+
+### Hypotheses to attack
+
+1. Hypothesis: from 1024 px the toggle stores the choice at once and a reload keeps it; below 1024 px the panel is always at the bottom even with Side stored, and the toggle is hidden. Break it by: choose Side at 1280, reload, shrink to 900, grow back; store `floating` in localStorage by hand; block storage in a private window.
+2. Hypothesis: with nothing stored the panel is beside the page from 1536 px and below it under the page, following the window live. Break it by: dragging the window across 1536 with nothing stored, then with a stored choice.
+3. Hypothesis: the bottom panel's height is 42 % of its parent, never below 240 or above the parent minus 240, and the row handle moves it with the pointer and with ↑ ↓. Break it by: heights of 400, 667 and 1440 px; dragging past both limits; resizing the window while dragged.
+4. Hypothesis: from 320 to 2560 px nothing scrolls horizontally: the grid is one column below 768 px, chips in the collapsed bar truncate, the filter box fills the width below 768 px and is 18 rem wide above. Break it by: 320, 375, 767, 768, 1023, 1024, 1535, 1536, 2560, in light and dark, with long topic names and long author names.
+5. Hypothesis: each bottom column scrolls on its own from 768 px; below it the whole body scrolls as one. Break it by: many topics with a long summary and a selected bin with many runs.
+6. Hypothesis: collapsed at the bottom the bar shows the three largest topics by edit volume, a chip click filters by that topic and opens the panel, and the expand button opens it. Break it by: a document with one topic, none, two topics of equal volume, a topic that is already filtered, a document that loads slowly.
+7. Hypothesis: collapsed at the side the rail is as before and shows no chips. Break it by: collapsing at 1600 px and reloading.
+8. Hypothesis: every avatar is the person's colour, the same in the header, Top edits, the bin edits and the summary card; an AI shares its person's colour and keeps the badge; a DOCX author with no account reads "Name, imported from the DOCX". Break it by: two people with the same name, an AI and its person in one summary, a person who has since left the document.
+9. Hypothesis: the tinted callout is readable in light and dark and follows the topic hue. Break it by: measuring contrast of the text on the tint in both themes, for the yellow and orange topics.
+10. Hypothesis: the card shows the grouping step and then the summarizing step, "up to date" with the sentence, an error with Retry summary, and a cooldown with the seconds and no Retry. Break it by: running Summarize with the model slow, with nothing stale, with the model failing, twice within the cooldown.
+11. Hypothesis: the card is announced once per change (`aria-live="polite"`) and a cached summary never scrolls the page. Break it by: a screen reader pass and by opening the panel with a cached summary.
+
+### Known gaps
+
+- The summary card resolves a summary author by name and actor among `timeline.authors` (`authorByName`, owner decision). A name not found is coloured and titled as an imported author, never a throw. Two people with the same name resolve to the first one. An `id` on `SummaryAuthor` would remove the lookup.
+- The chart hint ("Click the chart or use ← → …") is still drawn by `Streamgraph` under the chart, not on one line with the filter. `streamgraph.tsx` is not in my list.
+- The bottom panel defaults to 58 % of the area below 640 px (`useIsCompact`, `COMPACT_PANEL_HEIGHT_SHARE`) and 42 % from it. Hypothesis: crossing 640 px with no manual resize switches the height; after a resize the chosen height holds. The panel test's `getBoundingClientRect` stub now yields 580 because jsdom reports no match for any media query.
+- `useAreaHeight` measures the parent of the `aside`. G2 must give that parent a definite height that holds the editor and the panel (a flex column with `min-h-0`), or the panel stays at 240 px.
+- While the panel is collapsed at the bottom the timeline is still fetched and polled, because the chips need it. Side collapsed stops the polling as before.
+- `isPanelOpenByDefault()` is the answer for G2's initial `isOpen` (`useState(isPanelOpenByDefault)`); I do not own the state.
+- `top-edits.tsx` has its own `calloutStyleOf` that repeats the swatch's hue and saturation style. `topic-swatch.tsx` is not mine; one shared helper would remove it.
+- `SummarizeHandle` in `timeline-panel.tsx` and G4's `SummarizeControl` are the same shape; G2 passes G4's hook result as is.
+- Dead after this lane, for G4 Step 39: `useSummarizeEdits` in `use-selection-summary.ts`, `summarizeDisabledReason`, `errorForSelection` and `selectionVolume` in `selection-summary.ts`, `use-topics.ts`, `SummaryTooSoonError` in `timeline-api.ts` and the unused copy constants.
+- `apps/web/src/features/editor/document-page.tsx` does not typecheck until G2 passes `position`, `isOpen`, `onOpenChange` and `summarize`; it is the only typecheck error.
+- On the integration base, `libs/types/src/constants.ts` declared `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice, which stopped every run that imports `@superdoc-collab/types`; I removed the second pair in my working tree only and did not commit it.
+- Nothing here was seen in a browser. Real layout, scrolling, the 42 % height, pointer dragging, focus rings and contrast are untested beyond jsdom.
+## G7 pages and Use with AI (developer-7, branch `feat/final-visuals-g7`)
+
+### What changed
+
+- `documents-page.tsx`, `settings-page.tsx`, `connected-apps-page.tsx` and `admin-page.tsx` use `AppTopBar` with `AccountMenu`. The loose links, the user name, the "Documents" back link and `SignOutButton` left every header.
+- Documents header right slot: `UseWithAiDialog` (title `null`, so the library prompts) then `AccountMenu`. In the Mine section "Upload .docx" is the default `Button` (primary) and "New document" is `variant="outline"`.
+- `use-with-ai-dialog.tsx` is new. Props: `{ title: string | null; canEdit: boolean; trigger?: ReactNode }`. `title === null` shows `LIBRARY_PROMPTS`; otherwise `documentPrompts({ title, canEdit })`. Without `trigger` it renders an outline `Button` with `Bot` and `USE_WITH_AI_LABEL`; with `trigger` that node is the `DialogTrigger` child (it must forward a ref and props, so a plain element or a `Button`, never a function component that drops them).
+- `connect-snippets.tsx` exports `ClientSnippet({ client })`, used by the dialog's tab panels and by the page's `ConnectSnippets`.
+- Focus returns to the trigger through Radix's own `DialogTrigger`; no `onCloseAutoFocus` was needed. G2 must add one only if its trigger lives in More actions and unmounts when the menu closes.
+- `sign-out-flow.test.tsx` signs out through the account menu.
+
+### How to run
+
+One file at a time: `pnpm exec vitest run src/features/<path>.test.tsx` from `apps/web`.
+
+### Red today, green after
+
+| Step | Test | Red text | Red | Green |
+|---|---|---|---|---|
+| 51 | `documents-page.test.tsx` header and Use with AI | `Unable to find role="button" and name "Account, Ada"` | f050f13 | 7e45459 |
+| 52 | `settings-page.test.tsx` header | `Unable to find an accessible element with the role "button" and name "Account, Ada"` | 24ff1b8 | c0af70a |
+| 52 | `connected-apps-page.test.tsx` header | `Unable to find an accessible element with the role "link" and name "SuperDoc Collab, back to documents"` | 24ff1b8 | bcee930 |
+| 53 | `admin-page.test.tsx` header | `Unable to find role="button" and name "Account, Ada"` | 66e2900 | b35e00d |
+| 54 | `use-with-ai-dialog.test.tsx` | stub threw `UseWithAiDialog is not implemented`; 6 of 7 failed with `Unable to find role="dialog" and name "Use this document with your AI"` | fafec05 | 6c0a3ae |
+| 55 | `connected-apps-copy.test.ts` | pin, green on landing | 5e3a015 | |
+| | `sign-out-flow.test.tsx` through the account menu | pin | 76bb92d | |
+
+### Hypotheses to attack
+
+1. Hypothesis: the documents header is one row from 320 to 2560 px and nothing is pushed off screen. Break it by: resizing through 320, 375, 639, 640 and 1280 with a long user name.
+2. Hypothesis: the dialog is never wider than the viewport minus 32 px, is 560 px from `sm`, and scrolls inside the viewport at 375 (Claude Code snippet tab, then Cursor, whose JSON is the tallest). Break it by: 375 x 667, and a 320 x 480 viewport in landscape.
+3. Hypothesis: opening the dialog focuses the first tab and Escape returns focus to the Use with AI button. Break it by: keyboard only, then a pointer open and a Close button click.
+4. Hypothesis: "Manage connected apps" navigates to the Connected apps page and the dialog is gone there. Break it by: clicking it, then browser Back.
+5. Hypothesis: the account menu is the only way to Sign out, Settings, Connected apps and Admin from these four pages. Break it by: signing in as an admin and as a user.
+6. Hypothesis: Upload .docx is visibly the primary action and New document the outline one, in light and dark. Break it by: measuring contrast of the primary fill in dark mode.
+
+### Known gaps
+
+- `libs/types/src/constants.ts` on the integration base declared `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice, which made every test that imports `@superdoc-collab/types` fail to parse. I removed the duplicate lines only in my working tree to run the loop and did not commit it; the lead owns the fix.
+- `BACK_TO_DOCUMENTS_LABEL` in `connected-apps-copy.ts` and `SignOutButton`, `HomeLink` are now unused; G8 deletes them (copy file was additions-only for G7).
+- The dialog shows no MCP URL snippet of its own; the ChatGPT tab is the URL. The Connected apps page still lists the URL snippet.
+- Nothing here was seen in a browser; widths, scrolling and real focus are untested beyond jsdom.
+pnpm --filter @superdoc-collab/server exec vitest run src/insights src/documents/documents-routes.test.ts src/agent
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/summarize-edits-button.test.tsx src/features/timeline/use-selection-summary.test.ts src/features/timeline/timeline-api.test.ts
+```
+
+### Hypotheses to attack
+
+1. Hypothesis: a click on Summarize with fresh topics, summary and sentences makes zero model calls and answers 200. Break it by: click twice in a row with one selection, count calls in the server log.
+2. Hypothesis: topics are regrouped only when the last compute failed or `computedAtSequence` is older than the newest edit. Break it by: edit one block inside an existing topic and click; then click again with no edit.
+3. Hypothesis: the card sees `grouping` then `summarizing` then `idle` while polling. Break it by: slow the model and watch the GET selection answers.
+4. Hypothesis: a second click inside 30 s on a stale selection answers 429 with one `Retry-After` and one message, whatever the underlying wait. Break it by: click, change the filter, click again; exhaust the hourly cap and repeat.
+5. Hypothesis: a failed regroup leaves the previous topics and bands in place. Break it by: make the model fail on the topics call and compare the chart before and after.
+6. Hypothesis: deleting a document clears the cooldown and the step. Break it by: start a job, delete the document, create another.
+
+### Known gaps
+
+- Pending G3 merge (Step 39): `use-topics.ts`, `refreshTopics`, `TopicsRefreshTooSoonError`, and in libs/types `topicsRefreshApiPath`, `REFRESH_SEGMENT`, `TOPICS_REFRESH_TOO_SOON_MESSAGE` stay because `timeline-panel.tsx` imports them. After G3 lands, delete them and their tests (`timeline-api.test.ts`, `libs/types/src/routes.test.ts`, `timeline-panel.test.tsx`).
+- G3 files that must change to compile after the merge: `timeline-panel.tsx` (pass `isRunning` from `view.step !== idle` or the mutation pending state to `SummarizeEditsButton`; drop `disabledReason`, `reasonId`, the Regroup button, `useRefreshTopics`, `regroupDisabledReason`), `timeline-notices.tsx` (its retry used `refreshTopics.mutate`; point it at Summarize), `selection-summary-card.tsx` (show "Grouping edits into topics…" and "Summarizing edits…" from `view.step`; `SummaryTooSoonError` now carries `SUMMARIZE_BUSY_MESSAGE`), and their tests. Eight `timeline-panel.test.tsx` tests fail today because they expect a disabled button and the refresh message; `timeline-panel.test.tsx`, `selection-summary-card.test.tsx`, `selection-summary.test.ts`, `document-page.test.tsx` and `time-travel.test.tsx` fixtures need `step: SummarizeStep.Idle` to typecheck.
+- `e2e/timeline.spec.ts` still has "Regroup topics recomputes the names from the current text"; G8 owns it.
+- A document with no topic status yet is not stale for the job: the first computation stays with the GET topics `ensure`. A topic set still computing is also not stale.
+- A failed regroup does not stop the job: the selection summary and the sentences still run on the previous topics.
+- The selection summary only goes stale on a regroup for topic selections, because only they stamp `topicsUpdatedAt`.
+- The agent tool `summarize_selection` still calls `selection.request` and keeps its own too-soon message; it does not run the Summarize job.
+- No test drives the full browser flow; the tester walks it.
+
+### G4 update after the plan review (commits 9fd322d red, d969633 red, next green)
+
+- The POST body is the selection view plus `outcome` (`started`, `running`, `up-to-date`); 202 for `started` and `running`, 200 for `up-to-date`. Refusals stay 429 and 503. `SummarizeOutcome` and `SummarizeResponse` live in `libs/types/src/timeline.ts`; the service-only refusals are `SummarizeRefusal` in `summarize-service.ts`.
+- Sentences are stale when older than the topic set (their `computedAtSequence` is below the topic set's); a rewrite stamps the topic set's sequence. The spec's "newest run" wording is dropped.
+- A failed regroup sets the view failure to `GROUPING_FAILED_MESSAGE` (in libs/types, not `timeline-copy.ts`, because the server writes it) until the next Summarize; a failed selection summary keeps `SELECTION_SUMMARY_FAILED_MESSAGE`. There is no separate `SUMMARIZING_FAILED_MESSAGE`.
+- The MCP tool `summarize_selection` now calls the Summarize service and answers `SUMMARIZE_BUSY_MESSAGE`.
+- New hook `apps/web/src/features/timeline/use-summarize.ts` (`useSummarize({ documentId })` returning `summarize`, `isRunning`, `outcome`, `error`, `retryAfterSeconds`). `useSummarizeEdits` and `summarizeDisabledReason` are gone; `timeline-panel.tsx` (G3) still imports them, so `timeline-panel.test.tsx`, `document-page.test.tsx` and `time-travel.test.tsx` fail at render until G3 lands.
+- The button is enabled when idle; while running it is disabled, reads Summarizing…, has `aria-busy`.
+- `step: SummarizeStep.Idle` added to every view fixture in web tests.
+- Kept for G3: `SELECTION_SUMMARY_COOLDOWN_MS`, `use-topics.ts`, `refreshTopics`, `topicsRefreshApiPath`, `REFRESH_SEGMENT`, `TOPICS_REFRESH_TOO_SOON_MESSAGE`.
+- Wiring edits outside my list: `apps/server/src/http/app.ts` (`summarize` in `InsightsServices`), `apps/server/src/server.ts` (builds the service), `apps/server/src/collaboration/collaboration-runtime.ts` (removed the topics and summaries `forget` calls).
+- Gap: `SelectionSummariesService.request` and its tests remain although no route or tool calls it any more.
+
+### G4 folded tests: `SelectionSummariesService.request` removed
+
+`request`, `SelectionRequestOutcome`, `SelectionRequestResult` and the per-selection job key are gone. Tests that only drove `request` were ported to `write`, `isStale` and `read` (still in `selection-summaries-service.test.ts`, green pins) or deleted. For mutation checks, break the covering test's rule and expect the covering test to fail:
+
+| Deleted test | Rule it pinned | Surviving test that covers it |
+|---|---|---|
+| the cooldown is shared by every filter of one document | one cooldown per document, another document free | `insights-routes.test.ts::a second POST inside the cooldown answers 429 with one Retry-After and SUMMARIZE_BUSY_MESSAGE` (other filter, same document) |
+| a second request while one runs is free | a running job spends no second call | `summarize-service.test.ts::a second request while the job runs is already running and spends no second call` and `insights-routes.test.ts::POST selection answers 202 with the running step while a job runs, started or already running` |
+| a request over the hourly cap is busy and writes nothing | no call over the cap | `insights-routes.test.ts::an exhausted hourly cap answers 429 with the seconds until a slot frees`; the ported `a write over the hourly cap writes nothing` covers the write side |
+| TooSoon halves of `a new edit marks the summary stale…`, `a topic recompute makes the summary stale`, `a model failure is stored…`, `after a failure at an unchanged stamp…` | cooldown refusal | the same routes cooldown test and `the Retry-After is the longer of the cooldown and the model's busy wait` |
+| the `Cached` and `Empty` outcome assertions | nothing stale means no call | `summarize-service.test.ts::makes no model call when topics, summary and sentences are fresh` and `insights-routes.test.ts::POST selection answers 200 and starts no job when nothing is stale` |
+| agent tool busy and too-soon paths | busy answer for the MCP tool | `agent-tools.test.ts::summarize_selection answers busy with retryAfterSeconds` and `::summarize_selection starts the summary and then reads it, and the cooldown answers with retryAfterSeconds` |
+## G8 E2E and docs (developer-8, branch `feat/final-visuals-g8`)
+
+### What changed
+
+- `e2e/final-visuals.spec.ts` (new, 22 tests): top bar and toolbar row, rename with Enter and Escape, Download docx, Download PDF with `window.print` stubbed, theme across reload, the version frame following the theme, panel position at 1280 and 1536, the collapsed bar at 375, Summarize (steps then `Try again in N s.`, and up to date), jump to a member's caret and the offline reason, the waiting page, the Use with AI dialog, and one test per width of 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 in light and dark.
+- `e2e/editor.ts`: `topBar`, `toolbarRow`, `brandLink`, `accountTrigger`, `titleButton`, `downloadButton`, `downloadOptionsButton`, `chooseTheme`, `signOut`, `REMOTE_CARET_SELECTOR`. `e2e/timeline.ts`: `summarizeButton` now lives inside the toolbar row; `waitForSummarizeResponse`.
+- Moved specs: `timeline.spec.ts` (the Regroup test became "Summarize edits regroups the topics from the current text"), `topics-on-open.spec.ts` (title only: it had no refresh to drop), `selection-summary.spec.ts` (the cached-summary test clicks Summarize and expects "The summary is up to date." with no new model call instead of a disabled button), `documents.spec.ts` (waiting page text, title button, Download button), `time-travel.spec.ts` (reader has no toolbar row, new test that the toolbar container is `inert` in a version while Summarize stays live), `auth.spec.ts` (Sign out through the account menu).
+- Docs: `.claude/rules/web-ui.md` (theme, panel position, toolbar, Find, print view, `user.color`, jump route), three `Revisited` lines, `docs/scenarios/core-realtime.md` (T4 says Summarize edits).
+- Commits: `627bc97` (new spec and helpers), `8cf3211` (moved specs), `df1cefb` (docs), then the viewport fix for the jump test and this briefing.
+- Step 59 is pending the G7 merge: `home-link.tsx` and `sign-out-button.tsx` are not deleted yet.
+
+### How to run
+
+Filter by the file path, not by the word `final-visuals`: the checkout path contains that word, so a bare filter selects the whole suite.
+
+```
+pnpm exec playwright test e2e/final-visuals.spec.ts
+```
+
+### Red today, green after (run on G1 + G6 only, `--timeout=30000`)
+
+| Test | Red text today | Goes green when |
+|------|----------------|-----------------|
+| top bar and toolbar row | `getByRole('banner').getByRole('button', { name: 'Rename Final visuals …' })` not found | G2 |
+| title renames on Enter, Escape restores | same locator, test timeout while waiting for the title button | G2 |
+| Download docx | waiting for `getByRole('button', { name: 'Download', exact: true })` | G2 |
+| Download PDF | waiting for `getByRole('button', { name: 'More download formats' })` | G2 |
+| Dark in the account menu, version frame follows | waiting for `getByRole('banner').getByRole('button', { name: 'Account, Ana' })` | G2 and G7 |
+| panel at the bottom at 1280, at the side at 1536 | `locator('aside[data-position]')` not found | G3 |
+| collapsed bar at 375 | `getByTestId('timeline-collapsed-bar')` not found | G3 |
+| Summarize steps and cooldown, up to date | waiting for `getByTestId('editor-toolbar-row').getByRole('button', { name: 'Summarize edits' })` | G2 and G4 |
+| jump to a member's caret | `.v2-collaboration-overlay__remote-caret` was in the viewport before the click (the precondition was wrong at 800 px height; fixed by a 480 px viewport, not rerun) | G5 |
+| waiting page enters on its own | `getByText('Preparing the document…')` not found | G2 |
+| Use with AI dialog | waiting for `getByRole('button', { name: 'Use with AI' })` | G2 and G7 |
+| eight width tests | `getByRole('banner').getByRole('button', { name: 'Account, Ana' })` not found | G2 and G7 |
+
+Moved specs, not run red on purpose; they depend on:
+
+- `timeline.spec.ts` (Summarize in the toolbar row), `selection-summary.spec.ts`, `time-travel.spec.ts` (toolbar row, inert container): G2 and G4.
+- `documents.spec.ts` (waiting text, title button, Download button): G2.
+- `auth.spec.ts` (Sign out in the account menu): G2 and G7.
+- `topics-on-open.spec.ts`: title only, stays green.
+
+The one full-suite attempt (killed early, first filter mistake) showed `auth.spec.ts` sign-out, `documents.spec.ts` rename and waiting, `selection-summary.spec.ts` summarize and `time-travel.spec.ts` inert failing, as expected.
+
+### Hypotheses to attack
+
+1. Hypothesis: after the merges every `final-visuals.spec.ts` test is green in one run with parallel workers. Break it by: running with `--workers=4` and a loaded machine.
+2. Hypothesis: the Summarize steps are observed in order when they are observed at all. Break it by: a slower fake model; the test accepts zero, one or both step messages because the fake model answers instantly.
+3. Hypothesis: the second Summarize click on a stale selection answers 429 with `Retry-After` and the card reads `Try again in N s.`. Break it by: waiting past 30 s before the second click.
+4. Hypothesis: the top bar's top edge is 0 on every animation frame from the first one with a header, at all eight widths and after Dark. Break it by: slow fonts, a cold cache.
+5. Hypothesis: the jump button scrolls Bruno's drawn caret into view in a 480 px tall window and the offline reason is the accessible description. Break it by: a 3-page document where Bruno's page is virtualized for Ana.
+
+### Known gaps
+
+- `e2e/tsconfig.json` has no `@/*` path, so `pnpm typecheck:e2e` fails on `apps/web/src/features/account/account-copy.ts` (`Cannot find module '@/lib/use-theme'`). Playwright resolves it at runtime. Fix is G1's: import `./../../lib/use-theme` relatively in `account-copy.ts`, or add the path to the e2e tsconfig.
+- `PANEL_POSITION_STORAGE_KEY` does not exist yet in `use-panel-position.ts` (G3); `pnpm typecheck:e2e` reports it until the merge.
+- No test reads the print view container height (page count times 1056 px): its selector is not in the tester briefing. The PDF test checks that `print` ran once, that the preparing toast showed, and that no `.superdoc-page` was empty at that moment.
+- The cooldown test takes two real model-backed clicks inside 30 s of each other; nothing isolates the fake model's process-wide counters, so none is asserted.
+- "Waiting page pauses and resumes" (test plan) is not an E2E here: it needs a five minute clock.
+- Nothing here was seen in a browser after the merges.

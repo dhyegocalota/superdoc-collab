@@ -12,17 +12,16 @@ export const SELECTION_SUMMARY_MAX_CHARACTERS = 400;
 export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
-export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
-// NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
+// NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_BUSY_MESSAGE = 'Summaries are busy. Try again in a moment.';
 export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
+export const GROUPING_FAILED_MESSAGE = 'The edits could not be grouped into topics. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
 export const TOPICS_UNAVAILABLE_MESSAGE = 'Topics unavailable';
 export const TOPICS_PENDING_MESSAGE = 'Naming topics…';
 export const TOPICS_FAILED_MESSAGE = 'The topics could not be named. Try again.';
-export const TOPICS_REFRESH_TOO_SOON_MESSAGE = 'Topics were refreshed a moment ago. Try again in a few seconds.';
 export const HISTORY_CATCHING_UP_MESSAGE = 'History is catching up.';
 export const NO_MATCHING_EDITS_MESSAGE = 'No edits match.';
 export const TOPICS_INTERRUPTED_MESSAGE = 'Naming topics was interrupted. Try again.';
@@ -34,16 +33,21 @@ export enum TopicState {
   Ready = 'ready',
   Failed = 'failed',
 }
-export enum SelectionSummaryState {
-  Ready = 'ready',
+export enum SummarizeOutcome {
+  Started = 'started',
   Running = 'running',
-  Failed = 'failed',
-  None = 'none',
+  UpToDate = 'up-to-date',
 }
 export enum SummarizeStep {
   Idle = 'idle',
   Grouping = 'grouping',
   Summarizing = 'summarizing',
+}
+export enum SelectionSummaryState {
+  Ready = 'ready',
+  Running = 'running',
+  Failed = 'failed',
+  None = 'none',
 }
 export enum TimelineFilterKind {
   Term = 'term',
@@ -81,11 +85,13 @@ export type TimelineFilter = { term: string | null; author: string | null };
 export type EditSelection = { term: string | null; author: string | null; topic: string | null; at: number | null };
 export type SummaryAuthor = Pick<EventAuthor, 'name' | 'actor'>;
 export type SelectionSummary = { key: string; sentence: string; authors: SummaryAuthor[]; computedAtSequence: number; isStale: boolean };
+export type SummarizeResponse = SelectionSummaryView & { outcome: SummarizeOutcome };
 export type SelectionSummaryView = {
   state: SelectionSummaryState;
   summary: SelectionSummary | null;
   failure: string | null;
   isModelAvailable: boolean;
+  step: SummarizeStep;
 };
 export type TimelineCell = { inserted: number; deleted: number; agentInserted: number; agentDeleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };

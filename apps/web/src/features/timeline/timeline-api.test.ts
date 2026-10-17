@@ -7,12 +7,11 @@ import {
   MINUTE_MS,
   RETRY_AFTER_HEADER,
   SECOND_MS,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SUMMARIZE_BUSY_MESSAGE,
   selectionSummaryApiPath,
   SelectionSummaryState,
-  TOPICS_REFRESH_TOO_SOON_MESSAGE,
+  SummarizeStep,
   TopicState,
-  topicsRefreshApiPath,
   type EditSelection,
   type SelectionSummaryView,
   type TopicStatus,
@@ -25,10 +24,8 @@ import {
   fetchSelectionSummary,
   fetchTimeline,
   fetchVersion,
-  refreshTopics,
   requestSelectionSummary,
   SummaryTooSoonError,
-  TopicsRefreshTooSoonError,
   VersionLoadKind,
 } from './timeline-api';
 import { SUMMARIZE_EDITS_SUBJECT } from './timeline-copy';
@@ -39,7 +36,13 @@ const VERSION: VersionSummary = { sequence: 7, serverTime: 1, collaborationPath:
 const STATUS: TopicStatus = { state: TopicState.Pending, failure: null, computedAtSequence: null };
 const SELECTION: EditSelection = { term: 'budget', author: 'ana', topic: 'band-0', at: 1_792_165_200_000 };
 const EMPTY_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
-const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const NONE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.None,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
 const TIME_ZONE = 'America/Sao_Paulo';
 const ZONE_QUERY = `timeZone=${encodeURIComponent(TIME_ZONE)}`;
@@ -96,16 +99,6 @@ test('fetchVersion never retries faster than the minimum delay', async () => {
   });
 });
 
-test('refreshTopics returns the status on 202 and explains a 429', async () => {
-  const fetchSpy = respondWith(jsonResponse({ body: STATUS, status: HttpStatus.Accepted }));
-  expect(await refreshTopics(DOCUMENT_ID)).toEqual(STATUS);
-  expect(fetchSpy).toHaveBeenCalledWith(topicsRefreshApiPath(DOCUMENT_ID), expect.objectContaining({ method: HttpMethod.Post }));
-  respondWith(new Response(null, { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '7' } }));
-  const error = await refreshTopics(DOCUMENT_ID).catch((caught: unknown) => caught);
-  expect(error).toBeInstanceOf(TopicsRefreshTooSoonError);
-  expect(error).toMatchObject({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs: 7000 });
-});
-
 const SELECTION_QUERY = `term=budget&author=ana&topic=band-0&at=${SELECTION.at}`;
 
 test('a selection summary URL carries the present parts and a bin size only with a period', async () => {
@@ -136,7 +129,7 @@ test('requesting a summary posts the same selection', async () => {
 test('a summary requested too soon carries the wait from Retry-After', async () => {
   respondWith(
     jsonResponse({
-      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
+      body: { error: SUMMARIZE_BUSY_MESSAGE },
       status: HttpStatus.TooManyRequests,
       headers: { [RETRY_AFTER_HEADER]: '12' },
     }),
@@ -145,7 +138,7 @@ test('a summary requested too soon carries the wait from Retry-After', async () 
     (caught: unknown) => caught,
   );
   expect(error).toBeInstanceOf(SummaryTooSoonError);
-  expect(error).toMatchObject({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterMs: 12 * SECOND_MS });
+  expect(error).toMatchObject({ message: SUMMARIZE_BUSY_MESSAGE, retryAfterMs: 12 * SECOND_MS });
 });
 
 test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async (header) => {

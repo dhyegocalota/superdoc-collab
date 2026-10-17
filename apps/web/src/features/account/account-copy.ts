@@ -1,4 +1,4 @@
-import { ThemePreference } from '@/lib/use-theme';
+import { ThemePreference } from '../../lib/use-theme';
 
 export const ACCOUNT_MENU_LABEL = 'Account';
 export const THEME_LABEL = 'Theme';

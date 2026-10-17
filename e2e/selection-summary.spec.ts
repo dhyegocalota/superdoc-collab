@@ -48,9 +48,9 @@ test('another member with the same filter reads the cached summary without a mod
   const callsAfterSummary = await readSelectionCalls(ana.page.request);
   await bruno.page.goto(ana.page.url());
   await expect(summaryCard(bruno.page)).toContainText(sentence, { timeout: SUMMARY_TIMEOUT_MS });
+  await summarizeButton(bruno.page).click();
+  await expect(summaryCard(bruno.page)).toContainText(SUMMARY_UP_TO_DATE_MESSAGE);
   expect(await readSelectionCalls(bruno.page.request)).toBe(callsAfterSummary);
-  await expect(summarizeButton(bruno.page)).toBeDisabled();
-  await expect(summarizeButton(bruno.page)).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE);
 });
 
 test('an edit outside the filter marks the summary as for an earlier state and enables Summarize', async ({ browser }) => {

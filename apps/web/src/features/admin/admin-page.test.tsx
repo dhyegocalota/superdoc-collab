@@ -16,6 +16,9 @@ import {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { accountMenuLabel } from '@/features/account/account-copy';
+import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
+import { HOME_LINK_LABEL } from '@/features/editor/editor-copy';
 import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
@@ -185,8 +188,12 @@ test('a pending row reads Pending with a Revoke button, an accepted row reads Ac
   expect(within(acceptedRow).getByText(ACCEPTED_INVITE.acceptedBy!.name)).toBeInTheDocument();
 });
 
-test('the header links to Settings', async () => {
+test('the header uses AppTopBar and has no Sign out button', async () => {
   mockApi();
   renderAdminPage();
-  expect(await screen.findByRole('link', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
+  const header = await screen.findByRole('banner');
+  expect(await within(header).findByRole('button', { name: accountMenuLabel(ADMIN_SESSION.name) })).toBeInTheDocument();
+  expect(within(header).getByRole('link', { name: HOME_LINK_LABEL })).toBeInTheDocument();
+  expect(within(header).queryByRole('link', { name: SETTINGS_LINK_LABEL })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: SIGN_OUT_LABEL })).not.toBeInTheDocument();
 });

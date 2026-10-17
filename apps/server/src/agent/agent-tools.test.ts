@@ -2,13 +2,12 @@ import {
   AgentScope,
   AgentTool,
   DocumentRole,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SUMMARIZE_BUSY_MESSAGE,
   type DocumentsList,
   type DocumentTopics,
   UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
-import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
 import { JobOutcome } from '../insights/insights-job-runner';
 import { modelAnswering, readyModel } from '../testing/language-model';
 import { documentWithOwner, memberWithRole } from '../testing/collaboration-client';
@@ -136,7 +135,7 @@ test('summarize_selection answers busy with retryAfterSeconds', async () => {
   const { context } = toolContext({ server, userId: editor.id });
   const result = await callAgentTool({ tool: AgentTool.SummarizeSelection, input: { documentId, ...OTHER_SELECTION }, context });
   expect(result.isError).toBe(true);
-  expect(resultJson(result)).toEqual({ error: LLM_BUSY_MESSAGE, retryAfterSeconds: expect.any(Number) });
+  expect(resultJson(result)).toEqual({ error: SUMMARIZE_BUSY_MESSAGE, retryAfterSeconds: expect.any(Number) });
   vi.restoreAllMocks();
 });
 
@@ -149,7 +148,7 @@ test('summarize_selection starts the summary and then reads it, and the cooldown
   expect(resultJson(read)).toMatchObject({ summary: { sentence: SELECTION_ANSWER.sentence } });
   const tooSoon = await callAgentTool({ tool: AgentTool.SummarizeSelection, input: { documentId, ...OTHER_SELECTION }, context });
   const tooSoonBody = resultJson(tooSoon) as { error: string; retryAfterSeconds: number };
-  expect([tooSoon.isError, tooSoonBody.error]).toEqual([true, SELECTION_SUMMARY_TOO_SOON_MESSAGE]);
+  expect([tooSoon.isError, tooSoonBody.error]).toEqual([true, SUMMARIZE_BUSY_MESSAGE]);
   expect(tooSoonBody.retryAfterSeconds).toBeGreaterThan(0);
 });
 

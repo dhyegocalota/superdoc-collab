@@ -1,11 +1,8 @@
-import { AppRoute } from '@superdoc-collab/types';
-import { Link } from 'react-router';
+import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
+import { AccountMenu } from '@/features/account/account-menu';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
-import { SignOutButton } from '@/features/auth/sign-out-button';
 import { useSession } from '@/features/auth/use-session';
-import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
-import { APP_NAME } from '@/lib/app-copy';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { ADMIN_HEADING, ADMIN_LOAD_ERROR_MESSAGE, INVITES_HEADING, USERS_HEADING } from './admin-copy';
 import { InvitesTable } from './invites-table';
@@ -22,16 +19,7 @@ export function AdminPage() {
   if (!user) return <SessionSkeleton />;
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
-        <span className="font-semibold">{APP_NAME}</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">{user.name}</span>
-          <Link to={AppRoute.Settings} className="text-sm hover:underline">
-            {SETTINGS_LINK_LABEL}
-          </Link>
-          <SignOutButton />
-        </div>
-      </header>
+      <AppTopBar right={<AccountMenu />} />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{ADMIN_HEADING}</h1>
         {(users.isError || invites.isError) && <ErrorMessage>{ADMIN_LOAD_ERROR_MESSAGE}</ErrorMessage>}

@@ -52,6 +52,14 @@ test('rows follow volume, skip silent bands and show chip, avatars, words and th
   expect(row).toHaveTextContent('Budget was cut by a third.');
 });
 
+test('each topic callout has the tinted background token', () => {
+  renderWithProviders(<TopEdits timeline={timeline} summaries={summaries} />, { route: ROUTE });
+  const callout = screen.getByText('Budget was cut by a third.');
+  expect(callout).toHaveClass('topic-tint');
+  expect(callout).toHaveStyle({ '--topic-hue': String(budget!.hue) });
+  expect(callout.getAttribute('style')).toContain('--topic-saturation');
+});
+
 test('clicking a chip sets the topic and clicking again removes it', async () => {
   const user = userEvent.setup();
   const { router } = renderWithProviders(<TopEdits timeline={timeline} summaries={summaries} />, { route: ROUTE });

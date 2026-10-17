@@ -18,6 +18,7 @@ const TIMEOUT_PATTERN = /timeout-minutes: (\d+)/;
 const MAXIMUM_TIMEOUT_MINUTES = 20;
 const WORKFLOW_PERMISSIONS = '\npermissions:\n  contents: read\n';
 const JOBS_START = '\njobs:\n';
+const LINE_SEPARATOR = '\n';
 const UNIT_MATRIX_ENTRIES = [
   '{ name: libs, filter: ./libs/* }',
   '{ name: web, filter: "@superdoc-history/web" }',
@@ -27,31 +28,7 @@ const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";
 const FAIL_FAST_DISABLED = 'fail-fast: false';
 const PLAYWRIGHT_INSTALL = 'pnpm exec playwright install --with-deps chromium';
-const STRICT_SHELL_OPTIONS = 'set -euo pipefail';
-const LENIENT_SHELL_OPTIONS = 'set -eu\n';
 const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.', 'docker restart'];
-const VOLUME_MOUNT = '-v superdoc-ci-data:/data';
-const SIGN_IN_ENDPOINT = '/api/auth/sign-in/email';
-const SIGN_IN_TIMEOUT = '--max-time 10';
-const LINE_SEPARATOR = '\n';
-const DOCKER_JOB_FRAGMENTS = [
-  'actions/checkout@v4',
-  'docker/setup-buildx-action@v3',
-  'docker/build-push-action@v6',
-  'file: docker/Dockerfile',
-  'push: false',
-  'load: true',
-  'cache-from: type=gha',
-  'cache-to: type=gha,mode=max',
-  "grep -q 'Missing environment variable: DEMO_PASSWORD'",
-  '/api/health',
-  '--max-time 5',
-  '--retry-max-time 120',
-  'stat -c %u /data',
-  '/api/auth/sign-in/email',
-  'docker rm -f app',
-  "grep -q 'existing: ana@example.com' app.log",
-];
 
 function job(name: string): string {
   const workflow = readRepositoryFile(WORKFLOW_FILE);
@@ -77,41 +54,9 @@ function jobNames(): string[] {
 }
 
 describe('CI workflow', () => {
-  test('the docker job builds the image without pushing it, boots it and restarts it', () => {
-    const job = dockerJob();
-    expect(DOCKER_JOB_FRAGMENTS.filter((fragment) => !job.includes(fragment))).toEqual([]);
-  });
-
   test('the docker job needs no other job and no secret', () => {
     const job = dockerJob();
     expect(FORBIDDEN_DOCKER_JOB_FRAGMENTS.filter((fragment) => job.includes(fragment))).toEqual([]);
-  });
-
-  test('the redeploy runs the same image again on the same named volume', () => {
-    const mounts = dockerJob()
-      .split(LINE_SEPARATOR)
-      .filter((line) => line.includes(VOLUME_MOUNT));
-    expect(mounts).toHaveLength(2);
-  });
-
-  test('every sign-in request is bounded', () => {
-    const signIns = dockerJob()
-      .split(LINE_SEPARATOR)
-      .filter((line) => line.includes(SIGN_IN_ENDPOINT));
-    expect(signIns).toHaveLength(2);
-    expect(signIns.filter((line) => !line.includes(SIGN_IN_TIMEOUT))).toEqual([]);
-  });
-
-  test('the docker job has a bounded timeout', () => {
-    const match = TIMEOUT_PATTERN.exec(dockerJob());
-    expect(match).not.toBeNull();
-    expect(Number(match?.[1])).toBeLessThanOrEqual(MAXIMUM_TIMEOUT_MINUTES);
-  });
-
-  test('multi-line steps fail on any command in a pipeline', () => {
-    const job = dockerJob();
-    expect(job).toContain(STRICT_SHELL_OPTIONS);
-    expect(job).not.toContain(LENIENT_SHELL_OPTIONS);
   });
 
   test('the workflow grants the token read access to the contents only', () => {

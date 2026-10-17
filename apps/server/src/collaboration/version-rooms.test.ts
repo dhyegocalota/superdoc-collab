@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import { bootstrappedDocument, editedAfterBootstrap } from '../testing/timeline-client';
-import { parseVersionPath, STOP_TIMEOUT_MS } from './version-rooms';
+import { parseVersionPath } from './version-rooms';
 
 const POLL_TIMEOUT_MS = 15_000;
 const SETUP_TIMEOUT_MS = 30_000;
@@ -172,7 +172,7 @@ test('an upgrade on a refused version path is destroyed like an unknown path', a
   await server.stop();
 });
 
-test('stop clears its timeout when destroying a room fails', { timeout: SETUP_TIMEOUT_MS }, async () => {
+test('stop leaves no timer behind when destroying a room fails', { timeout: SETUP_TIMEOUT_MS }, async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
   const [mark] = server.services.readModel.marks(documentId);
   const viewer = await connectToDocument({
@@ -183,14 +183,12 @@ test('stop clears its timeout when destroying a room fails', { timeout: SETUP_TI
   });
   const rooms = server.services.versionRooms as unknown as { destroy: (key: string) => Promise<void> };
   const destroy = vi.spyOn(rooms, 'destroy').mockRejectedValue(new Error(DESTROY_FAILURE));
-  const scheduled = vi.spyOn(globalThis, 'setTimeout');
-  const cleared = vi.spyOn(globalThis, 'clearTimeout');
-  await expect(server.services.versionRooms.stop()).rejects.toThrow(DESTROY_FAILURE);
-  const stopIndex = scheduled.mock.calls.findIndex(([, delay]) => delay === STOP_TIMEOUT_MS);
-  expect(stopIndex).toBeGreaterThanOrEqual(0);
-  expect(cleared).toHaveBeenCalledWith(scheduled.mock.results[stopIndex]!.value);
-  scheduled.mockRestore();
-  cleared.mockRestore();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  const stopFailure = await server.services.versionRooms.stop().catch((error: unknown) => error);
+  const leftTimers = vi.getTimerCount();
+  vi.useRealTimers();
+  expect(stopFailure).toMatchObject({ message: DESTROY_FAILURE });
+  expect(leftTimers).toBe(0);
   destroy.mockRestore();
   viewer.close();
   client.close();

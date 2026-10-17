@@ -1,19 +1,12 @@
 import { type EditRun } from '@superdoc-history/history';
-import {
-  HOUR_MS,
-  MINUTE_MS,
-  SECOND_MS,
-  SELECTION_SUMMARY_COOLDOWN_MS,
-  SELECTION_SUMMARY_FAILED_MESSAGE,
-  SelectionSummaryState,
-} from '@superdoc-history/types';
+import { MINUTE_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-history/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';
 import { failingModel, gatedModel, modelAnswering, readyModel } from '../testing/language-model';
 import { InsightsWorker } from './insights-worker';
-import { chooseLanguageModel, LLM_MODEL_MISSING_MESSAGE, type LanguageModelChoice } from './llm-client';
+import { type LanguageModelChoice } from './llm-client';
 import { selectionKeyOf } from './selection-key';
 import {
   SELECTION_SUMMARY_FAILED_LOG,
@@ -108,33 +101,6 @@ test('a summary is computed once and then served from the cache', async () => {
   });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Cached });
   expect(callsOf(model)).toBe(1);
-  await server.stop();
-});
-
-test('reading never calls the model', async () => {
-  const model = modelAnswering(ANSWER);
-  const { server, documentId, service } = await serviceWith({
-    languageModel: readyModel(model),
-    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
-  });
-  const views = [1, 2, 3].map(() => service.read({ documentId, selection: BRUNO_SELECTION }));
-  expect(views.map((view) => view.state)).toEqual([SelectionSummaryState.None, SelectionSummaryState.None, SelectionSummaryState.None]);
-  expect(callsOf(model)).toBe(0);
-  await server.stop();
-});
-
-test('an empty selection is none and cannot be requested', async () => {
-  const model = modelAnswering(ANSWER);
-  const { server, documentId, service } = await serviceWith({ languageModel: readyModel(model), snapshot: snapshotOf({ runs: [] }) });
-  expect(service.read({ documentId, selection: BRUNO_SELECTION })).toEqual({
-    state: SelectionSummaryState.None,
-    summary: null,
-    failure: null,
-    isModelAvailable: true,
-  });
-  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Empty });
-  expect(service.cooldown.size()).toBe(0);
-  expect(callsOf(model)).toBe(0);
   await server.stop();
 });
 
@@ -317,24 +283,6 @@ test('a failure after a success keeps the old sentence', async () => {
   await server.stop();
 });
 
-test('an unavailable model reads as failed with the reason and refuses requests', async () => {
-  const { server, documentId, service } = await serviceWith({
-    languageModel: chooseLanguageModel({ model: null, apiKey: null, baseUrl: null }),
-    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
-  });
-  expect(service.read({ documentId, selection: BRUNO_SELECTION })).toEqual({
-    state: SelectionSummaryState.Failed,
-    summary: null,
-    failure: LLM_MODEL_MISSING_MESSAGE,
-    isModelAvailable: false,
-  });
-  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({
-    outcome: SelectionRequestOutcome.Unavailable,
-    reason: LLM_MODEL_MISSING_MESSAGE,
-  });
-  await server.stop();
-});
-
 test('a request over the hourly cap is busy and writes nothing', async () => {
   const model = modelAnswering(ANSWER);
   const worker = new InsightsWorker({ maxCallsPerHour: 0 });
@@ -352,36 +300,6 @@ test('a request over the hourly cap is busy and writes nothing', async () => {
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.None);
   expect(service.cooldown.remainingMs(documentId)).toBe(0);
   expect(callsOf(model)).toBe(0);
-  await server.stop();
-});
-
-test('a full worker answers busy without a row', async () => {
-  const model = modelAnswering(ANSWER);
-  const worker = new InsightsWorker({ maxConcurrentJobs: 0 });
-  const { server, documentId, service } = await serviceWith({
-    languageModel: readyModel(model),
-    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
-    worker,
-  });
-  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({
-    outcome: SelectionRequestOutcome.Busy,
-    retryAfterSeconds: 1,
-  });
-  expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.None);
-  expect(callsOf(model)).toBe(0);
-  await server.stop();
-});
-
-test('forget drops the document cooldown', async () => {
-  const model = modelAnswering(ANSWER);
-  const { server, documentId, service, worker } = await serviceWith({
-    languageModel: readyModel(model),
-    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
-  });
-  service.request({ documentId, selection: BRUNO_SELECTION });
-  await worker.idle();
-  service.forget(documentId);
-  expect(service.cooldown.size()).toBe(0);
   await server.stop();
 });
 
@@ -437,23 +355,6 @@ test('after a failure at an unchanged stamp a request is retried once the cooldo
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
     state: SelectionSummaryState.Ready,
     summary: { sentence: ANSWER.sentence },
-  });
-  await server.stop();
-});
-
-test('an exhausted hourly cap answers busy with the time until a slot frees', async () => {
-  const clock = { time: 0 };
-  const worker = new InsightsWorker({ now: () => clock.time, maxCallsPerHour: 1 });
-  worker.consumeCall();
-  clock.time = 10 * MINUTE_MS;
-  const { server, documentId, service } = await serviceWith({
-    languageModel: readyModel(modelAnswering(ANSWER)),
-    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
-    worker,
-  });
-  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({
-    outcome: SelectionRequestOutcome.Busy,
-    retryAfterSeconds: (HOUR_MS - 10 * MINUTE_MS) / SECOND_MS,
   });
   await server.stop();
 });

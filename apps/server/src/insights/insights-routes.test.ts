@@ -23,12 +23,11 @@ import { INVALID_TIMELINE_QUERY_MESSAGE } from '../history/timeline-query';
 import { readEvents } from '../testing/events-client';
 import { memberWithRole } from '../testing/collaboration-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
-import { postSelectionSummary, readSelectionSummary, readTopics, storyWithBlocks, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
+import { postSelectionSummary, readSelectionSummary, storyWithBlocks, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
 import { JobOutcome } from './insights-worker';
 import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
 
-const POLL_TIMEOUT_MS = 15_000;
 const MEMBER_QUERY = 'author=member';
 const NO_MATCH_QUERY = 'term=zzz-nothing';
 const SELECTION_ANSWER = { sentence: 'Member added a designer.', authors: ['Member'] };
@@ -63,8 +62,9 @@ test('refresh is 202 for an editor, 403 for a reader, 404 for a stranger', async
   await server.stop();
 });
 
-test('a second refresh by the same user inside the cooldown is 429 with Retry-After, another document is 202', async () => {
+test('a second refresh on the same document inside the cooldown is 429 with Retry-After for any editor, another document is 202', async () => {
   const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const otherDocumentId = randomUUID();
   server.services.documents.create({ id: otherDocumentId, title: 'Other', ownerUserId: owner.id });
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
@@ -73,62 +73,38 @@ test('a second refresh by the same user inside the cooldown is 429 with Retry-Af
   expect(second.status).toBe(HttpStatus.TooManyRequests);
   expect(await second.json()).toEqual({ error: TOPICS_REFRESH_TOO_SOON_MESSAGE });
   expect(Number(second.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
+  const byEditor = await refresh({ server, documentId, cookie: editor.cookie });
+  expect(byEditor.status).toBe(HttpStatus.TooManyRequests);
+  expect(Number(byEditor.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   expect((await refresh({ server, documentId: otherDocumentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   await server.services.insights.worker.idle();
   client.close();
   await server.stop();
 });
 
-test('a refresh while a run is in flight returns 202 without a second model call', async () => {
+test('a refresh while the run is in flight is 202 without a second model call, then 429 once it ends', async () => {
   let open: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
     open = resolve;
   });
   const model = gatedModel({ gate, answer: { topics: [{ name: 'Budget', blockIds: ['b0'] }] } });
   const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
-  await readTopics({ server, documentId, cookie: owner.cookie });
-  await expect.poll(() => model.doGenerateCalls.length, { timeout: POLL_TIMEOUT_MS }).toBe(1);
+  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   open();
   await server.services.insights.worker.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
-  client.close();
-  await server.stop();
-});
-
-test('a second editor on the same document inside the cooldown is 429 with Retry-After', async () => {
-  const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
-  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
-  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
-  const second = await refresh({ server, documentId, cookie: editor.cookie });
-  expect(second.status).toBe(HttpStatus.TooManyRequests);
-  expect(Number(second.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
-  client.close();
-  await server.stop();
-});
-
-test('the same user refreshing again while the run is in flight gets 202, then 429 once it ends', async () => {
-  let open: () => void = () => undefined;
-  const gate = new Promise<void>((resolve) => {
-    open = resolve;
-  });
-  const model = gatedModel({ gate, answer: { topics: [{ name: 'Budget', blockIds: ['b0'] }] } });
-  const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
-  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  open();
-  await server.services.insights.worker.idle();
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.TooManyRequests);
   client.close();
   await server.stop();
 });
 
-test('deleting a document forgets its refresh and summary cooldowns', async () => {
+test('deleting a document forgets its refresh, summary and selection cooldowns', async () => {
   const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   await server.services.insights.worker.idle();
   server.services.insights.summaries.cooldown.start(documentId);
+  server.services.insights.selection.cooldown.start(documentId);
   expect(server.services.insights.topics.cooldown.size()).toBe(1);
   const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
     method: HttpMethod.Delete,
@@ -137,6 +113,7 @@ test('deleting a document forgets its refresh and summary cooldowns', async () =
   expect(deleted.status).toBe(HttpStatus.NoContent);
   expect(server.services.insights.topics.cooldown.size()).toBe(0);
   expect(server.services.insights.summaries.cooldown.size()).toBe(0);
+  expect(server.services.insights.selection.cooldown.size()).toBe(0);
   client.close();
   await server.stop();
 });
@@ -320,6 +297,9 @@ test('a full worker answers 503 busy', async () => {
   expect(await response.json()).toEqual({ error: LLM_BUSY_MESSAGE });
   expect(response.headers.get(RETRY_AFTER_HEADER)).toBe(String(RETRY_AFTER_SECONDS));
   expect(server.services.insights.selection.cooldown.size()).toBe(0);
+  expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).state).toBe(
+    SelectionSummaryState.None,
+  );
   await server.stop();
 });
 
@@ -369,18 +349,4 @@ test('the key never reaches a log or a response', async () => {
   ).not.toContain(PROVIDER_SECRET);
   await server.stop();
   await new Promise((resolve) => provider.close(resolve));
-});
-
-test('deleting a document forgets its selection cooldown', async () => {
-  const { server, documentId, owner } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  expect((await postSelectionSummary({ server, documentId, cookie: owner.cookie, query: MEMBER_QUERY })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
-  expect(server.services.insights.selection.cooldown.size()).toBe(1);
-  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
-    method: HttpMethod.Delete,
-    headers: { cookie: owner.cookie, origin: server.baseUrl },
-  });
-  expect(deleted.status).toBe(HttpStatus.NoContent);
-  expect(server.services.insights.selection.cooldown.size()).toBe(0);
-  await server.stop();
 });

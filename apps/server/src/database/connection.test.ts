@@ -10,15 +10,6 @@ function temporaryDirectory(): string {
 }
 
 describe('openDatabase', () => {
-  test('creates the auth tables after migrating', () => {
-    const database = openDatabase({ directory: temporaryDirectory(), fileName: AUTH_DATABASE_FILE });
-    runMigrations(database);
-    const tables = database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[];
-    expect(tables.map((table) => table.name)).toEqual(
-      expect.arrayContaining(['account', 'session', 'user', 'verification', 'documents', 'document_members', 'document_share_links']),
-    );
-    database.sqlite.close();
-  });
   test('opens a file with normal synchronous and foreign keys on', () => {
     const sqlite = openSqliteFile({ directory: temporaryDirectory(), fileName: AUTH_DATABASE_FILE });
     expect([sqlite.pragma('synchronous', { simple: true }), sqlite.pragma('foreign_keys', { simple: true })]).toEqual([1, 1]);

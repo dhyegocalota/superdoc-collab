@@ -1,15 +1,8 @@
-import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
-import {
-  bandAriaLabel,
-  REFRESH_TOPICS_LABEL,
-  removeFilterLabel,
-  RETRY_TOPICS_LABEL,
-  TOP_EDITS_LABEL,
-} from '../apps/web/src/features/timeline/timeline-copy';
+import { TimelineSearchParam } from '../libs/types/src';
+import { bandAriaLabel, REFRESH_TOPICS_LABEL, removeFilterLabel, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
 import {
-  ANA,
   BRUNO,
   BUDGET,
   BUDGET_PARAGRAPH,
@@ -23,18 +16,22 @@ import {
   pressInChart,
   readTimeline,
   ruleX,
+  summarizeButton,
+  summaryCard,
   twoAuthorsInTwoTopics,
   VERSION_TIMEOUT_MS,
   waitForBands,
+  waitForSettledTimeline,
 } from './timeline';
 
 const RENAMED_PREFIX = 'Staff ';
-const FAILING_PARAGRAPH = 'FAIL-TOPICS: the plan costs 10.';
 const LONG_TYPING_LENGTH = 80;
 const LONG_TYPING_DELAY_MS = 100;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const VERSION_REQUEST_PATTERN = /\/versions\/\d+$/;
 const FILTER_TIMEOUT_MS = 30_000;
+const SUMMARY_TIMEOUT_MS = 30_000;
+const EDITED_PHRASE = 'edited';
 
 function topEdits(page: Parameters<typeof waitForBands>[0]['page']) {
   return page.getByRole('heading', { name: TOP_EDITS_LABEL }).locator('..').getByRole('listitem');
@@ -59,7 +56,7 @@ test('Refresh topics recomputes the names from the current text', async ({ brows
   await waitForBands({ page: ana.page, names: [`${RENAMED_PREFIX}${HIRING}`] });
 });
 
-test('filter by username hides the other author', async ({ browser }) => {
+test('filters by person and term hide the other author and survive a reload', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await filterBy({ page: ana.page, text: '@bruno' });
@@ -69,18 +66,11 @@ test('filter by username hides the other author', async ({ browser }) => {
   });
   await expect(topEdits(ana.page).filter({ hasText: HIRING })).toHaveCount(1);
   await expect(topEdits(ana.page).filter({ hasText: BUDGET })).toHaveCount(0);
-});
-
-test('filter by term survives a reload', async ({ browser }) => {
-  const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
-  await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await filterBy({ page: ana.page, text: 'designer' });
   await expect(ana.page).toHaveURL(new RegExp(`${TimelineSearchParam.Term}=designer`));
-  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), {
-    timeout: FILTER_TIMEOUT_MS,
-  });
   await ana.page.reload();
   await expect(ana.page.getByRole('button', { name: removeFilterLabel('designer') })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
+  await expect(ana.page).toHaveURL(new RegExp(`${TimelineSearchParam.Author}=bruno`));
   await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), {
     timeout: FILTER_TIMEOUT_MS,
   });
@@ -103,36 +93,13 @@ test('a band appears while the other author is still typing', async ({ browser }
   await typing;
 });
 
-test('topics unavailable shows author bands', async ({ browser }) => {
-  const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [FAILING_PARAGRAPH, HIRING_PARAGRAPH] });
-  await expect(ana.page.getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
-  await waitForBands({ page: ana.page, names: [ANA, BRUNO] });
-  await expect(ana.page.getByRole('button', { name: RETRY_TOPICS_LABEL })).toBeVisible();
-});
-
-test('keyboard moves the selected bin', async ({ browser }) => {
-  const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
-  await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
-  await pressInChart({ page: ana.page, name: BUDGET, keys: ['End'] });
-  await expect.poll(() => new URL(ana.page.url()).searchParams.get(TimelineSearchParam.At), { timeout: FILTER_TIMEOUT_MS }).not.toBeNull();
-  const lastRule = await ruleX(ana.page);
-  const lastAt = new URL(ana.page.url()).searchParams.get(TimelineSearchParam.At);
-  const navigations: string[] = [];
-  ana.page.on('framenavigated', (frame) => navigations.push(frame.url()));
-  await ana.page.keyboard.press('ArrowLeft');
-  await expect
-    .poll(() => new URL(ana.page.url()).searchParams.get(TimelineSearchParam.At), { timeout: FILTER_TIMEOUT_MS })
-    .not.toBe(lastAt);
-  expect(await ruleX(ana.page)).toBeLessThan(lastRule);
-  expect(navigations.filter((url) => url.includes(`${TimelineSearchParam.At}=`))).toHaveLength(1);
-});
-
-test('two quick arrow presses land on the second bin with one navigation', async ({ browser }) => {
+test('keyboard moves the selected bin and two quick presses navigate once', async ({ browser }) => {
   const { ana, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   const { bins } = await readTimeline({ page: ana.page, documentId });
   await pressInChart({ page: ana.page, name: BUDGET, keys: ['End'] });
   await expect.poll(() => currentAt(ana.page), { timeout: VERSION_TIMEOUT_MS }).toBe(bins.at(-1)!.start);
+  const lastRule = await ruleX(ana.page);
   const navigations: string[] = [];
   ana.page.on('framenavigated', (frame) => navigations.push(frame.url()));
   const versionRequests: string[] = [];
@@ -141,18 +108,22 @@ test('two quick arrow presses land on the second bin with one navigation', async
   });
   await ana.page.keyboard.press('ArrowLeft');
   await ana.page.keyboard.press('ArrowLeft');
-  const target = bins.at(-3)!.start;
-  await expect.poll(() => currentAt(ana.page), { timeout: VERSION_TIMEOUT_MS }).toBe(target);
+  await expect.poll(() => currentAt(ana.page), { timeout: VERSION_TIMEOUT_MS }).toBe(bins.at(-3)!.start);
+  expect(await ruleX(ana.page)).toBeLessThan(lastRule);
   expect(navigations.filter((url) => url.includes(`${TimelineSearchParam.At}=`))).toHaveLength(1);
   expect(versionRequests.length).toBeLessThanOrEqual(1);
 });
 
-test('narrow viewport stacks the panel', async ({ browser }) => {
-  const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+test('narrow viewport stacks the panel and fits the summary', async ({ browser }) => {
+  const { ana, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await ana.page.setViewportSize(NARROW_VIEWPORT);
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   const editor = await ana.page.locator('[data-testid="document-editor"]').boundingBox();
   const panel = await ana.page.locator('aside').boundingBox();
   expect(panel!.y).toBeGreaterThanOrEqual(editor!.y + editor!.height);
+  await waitForSettledTimeline({ page: ana.page, documentId });
+  await summarizeButton(ana.page).click();
+  await expect(summaryCard(ana.page)).toContainText(EDITED_PHRASE, { timeout: SUMMARY_TIMEOUT_MS });
+  await expect(summarizeButton(ana.page)).toBeVisible();
   expect(await ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
 });

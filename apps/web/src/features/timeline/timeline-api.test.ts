@@ -51,15 +51,12 @@ function respondWith(response: Response) {
 }
 
 test('fetchTimeline sends only the present filters', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify({ bins: [] })));
+  const filteredSpy = respondWith(new Response(JSON.stringify({ bins: [] })));
   await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: 'a b', author: null } });
-  expect(fetchSpy).toHaveBeenCalledWith(`${TIMELINE_PATH}?term=a+b`, expect.anything());
-});
-
-test('fetchTimeline without filters requests the bare path', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify({ bins: [] })));
+  expect(filteredSpy).toHaveBeenLastCalledWith(`${TIMELINE_PATH}?term=a+b`, expect.anything());
+  const bareSpy = respondWith(new Response(JSON.stringify({ bins: [] })));
   await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null } });
-  expect(fetchSpy).toHaveBeenCalledWith(TIMELINE_PATH, expect.anything());
+  expect(bareSpy).toHaveBeenLastCalledWith(TIMELINE_PATH, expect.anything());
 });
 
 test('fetchTimeline throws DocumentUnavailableError on 404', async () => {
@@ -108,31 +105,22 @@ test('refreshTopics returns the status on 202 and explains a 429', async () => {
   expect(error).toMatchObject({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs: 7000 });
 });
 
-test('reading a selection summary sends every part of the selection', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
-  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(NONE_VIEW);
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`, expect.anything());
-});
+const SELECTION_QUERY = `term=budget&author=ana&topic=band-0&at=${SELECTION.at}`;
 
-test('a selection at a period sends the bin size of that period', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
-  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: MINUTE_MS });
-  expect(fetchSpy).toHaveBeenCalledWith(
-    `${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}&binMs=${MINUTE_MS}`,
-    expect.objectContaining({ method: HttpMethod.Post }),
-  );
-});
-
-test('a selection without a period never sends a bin size', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
-  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION, binMs: MINUTE_MS });
-  expect(fetchSpy).toHaveBeenCalledWith(SELECTION_PATH, expect.anything());
-});
-
-test('an empty selection is read from the bare path', async () => {
-  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
-  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION, binMs: null });
-  expect(fetchSpy).toHaveBeenCalledWith(SELECTION_PATH, expect.anything());
+test('a selection summary URL carries the present parts and a bin size only with a period', async () => {
+  const cases: { selection: EditSelection; binMs: number | null; path: string }[] = [
+    { selection: SELECTION, binMs: null, path: `${SELECTION_PATH}?${SELECTION_QUERY}` },
+    { selection: SELECTION, binMs: MINUTE_MS, path: `${SELECTION_PATH}?${SELECTION_QUERY}&binMs=${MINUTE_MS}` },
+    { selection: EMPTY_SELECTION, binMs: MINUTE_MS, path: SELECTION_PATH },
+    { selection: EMPTY_SELECTION, binMs: null, path: SELECTION_PATH },
+  ];
+  const requested = await cases.reduce<Promise<string[]>>(async (previous, { selection, binMs }) => {
+    const paths = await previous;
+    const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
+    expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection, binMs })).toEqual(NONE_VIEW);
+    return [...paths, String(fetchSpy.mock.lastCall![0])];
+  }, Promise.resolve([]));
+  expect(requested).toEqual(cases.map(({ path }) => path));
 });
 
 test('requesting a summary posts the same selection', async () => {
@@ -186,15 +174,6 @@ test('a selection summary of a document that is gone is unavailable', async () =
     DocumentUnavailableError,
   );
 });
-
-test.each([SelectionSummaryState.Running, SelectionSummaryState.Ready, SelectionSummaryState.Failed])(
-  'a %s selection summary is returned as the server sent it',
-  async (state) => {
-    const view: SelectionSummaryView = { ...NONE_VIEW, state };
-    respondWith(new Response(JSON.stringify(view)));
-    expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(view);
-  },
-);
 
 test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])(
   'reading a selection summary answered with %s fails with the status message',

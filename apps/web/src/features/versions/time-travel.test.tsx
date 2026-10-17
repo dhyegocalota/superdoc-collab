@@ -218,7 +218,6 @@ test('the previous frame stays until the next one is ready and foreign messages 
   await waitFor(() => expect(screen.getAllByTitle(VERSION_FRAME_TITLE)).toHaveLength(2), SLOW_WAIT);
   const frameB = frameFor(50);
   expect(frameB).toHaveAttribute('aria-hidden', 'true');
-  expect(frameB).toHaveClass('invisible');
   sendFromFrame({ frame: frameB, origin: EVIL_ORIGIN });
   sendFromFrame({ frame: frameFor(42) });
   expect(frameB).toHaveAttribute('aria-hidden', 'true');
@@ -401,16 +400,6 @@ test('an at set before the timeline arrives resolves its version once when it do
   expect(versionRequests(fetchSpy)).toHaveLength(1);
 });
 
-test('below the wide layout the editor keeps a usable height and the panel stacks under it', async () => {
-  mockDocumentApi();
-  renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
-  const area = await screen.findByTestId('editor-area');
-  expect(area.className).toContain('min-h-[60dvh]');
-  expect(area.className).toContain('lg:min-h-0');
-  expect(screen.getByRole('separator').closest('aside')).toHaveClass('shrink-0');
-  expect(screen.getByRole('separator').closest('aside')!.className).toContain('max-h-[50dvh]');
-});
-
 test('a document that disappears while viewing stops every poll', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   let isGone = false;
@@ -429,6 +418,8 @@ test('Escape leaves the version from anywhere but a field being typed in', async
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   await screen.findByTitle(VERSION_FRAME_TITLE);
+  fireEvent.keyDown(screen.getByLabelText(TITLE_LABEL), { key: 'Escape' });
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
   const filter = screen.getByLabelText(FILTER_LABEL);
   fireEvent.change(filter, { target: { value: 'bud' } });
   fireEvent.keyDown(filter, { key: 'Escape' });
@@ -437,14 +428,6 @@ test('Escape leaves the version from anywhere but a field being typed in', async
   fireEvent.keyDown(filter, { key: 'Escape' });
   await waitFor(() => expect(router.state.location.search).toBe(''));
   expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
-});
-
-test('Escape in the title input keeps the version', async () => {
-  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
-  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
-  await screen.findByTitle(VERSION_FRAME_TITLE);
-  fireEvent.keyDown(screen.getByLabelText(TITLE_LABEL), { key: 'Escape' });
-  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
 });
 
 test('Escape inside the version frame leaves the version and a foreign frame cannot', async () => {

@@ -36,6 +36,11 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
+  const focusOnReadyRef = useRef(focusOnReady);
+
+  useEffect(() => {
+    focusOnReadyRef.current = focusOnReady;
+  }, [focusOnReady]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -60,7 +65,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       user: { id: user.id, name: user.name, email: user.email },
       zoom: { mode: initialZoomMode(window) },
       onReady: ({ superdoc: ready }) => {
-        if (!focusOnReady) return;
+        if (!focusOnReadyRef.current) return;
         ready.focus();
       },
       onException: () => setHasFailed(true),
@@ -72,7 +77,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       superdocRef.current = null;
       superdoc.destroy();
     };
-  }, [superdocRef, documentId, roomMode, role, user, file, focusOnReady]);
+  }, [superdocRef, documentId, roomMode, role, user, file]);
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;

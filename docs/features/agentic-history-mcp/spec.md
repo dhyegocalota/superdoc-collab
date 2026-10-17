@@ -94,7 +94,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 | `get_timeline` | HistoryRead | Reader | bins, bands, contributors, authors; bin budget of 0016 |
 | `get_bin_edits` | HistoryRead | Reader | edit runs of one bin with authors |
 | `list_topics` | HistoryRead | Reader | topics and their status |
-| `summarize_selection` | HistoryRead | Reader | selection summary through `InsightsJobRunner`; busy returns the retry time |
+| `summarize_selection` | HistoryRead | Editor | selection summary through `InsightsJobRunner`; busy returns the retry time |
 | `inspect_document` | DocumentEdit | Editor | `superdoc_inspect` on the live room |
 | `edit_document` | DocumentEdit | Editor | `superdoc_perform_action`, change mode forced to tracked |
 | `export_docx` | DocumentExport | Reader | the live document as an embedded DOCX resource; records `DocumentExported` |

@@ -6,7 +6,6 @@ import type { AppServices } from '../http/app';
 import type { AgentDocumentSessions, AgentToolContext, AgentToolPrincipal, RecordAgentAction } from './agent-tool-context';
 import { AGENT_TOOLS, agentToolsFor, callAgentTool } from './agent-tools';
 
-export const METHOD_NOT_ALLOWED_STATUS = 405;
 const MCP_SERVER_NAME = 'superdoc-history';
 const MCP_SERVER_VERSION = '1.0.0';
 const ALLOWED_METHOD_HEADER = { Allow: 'POST' };
@@ -44,6 +43,6 @@ export function createMcpRoutes({ services, authorize, unauthorized, sessions, t
       await server.close();
     }
   });
-  routes.on(['GET', 'DELETE'], '/', (honoContext) => honoContext.body(null, METHOD_NOT_ALLOWED_STATUS, ALLOWED_METHOD_HEADER));
+  routes.on(['GET', 'DELETE'], '/', (honoContext) => honoContext.body(null, HttpStatus.MethodNotAllowed, ALLOWED_METHOD_HEADER));
   return routes;
 }

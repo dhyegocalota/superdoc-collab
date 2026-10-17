@@ -7,7 +7,7 @@ import { documentWithOwner } from '../testing/collaboration-client';
 import type { TestServer, TestUser } from '../testing/test-server';
 import type { AgentToolPrincipal } from './agent-tool-context';
 import { ALL_AGENT_SCOPES, sessionsOn } from './agent-tool-fixtures';
-import { createMcpRoutes, METHOD_NOT_ALLOWED_STATUS } from './mcp-route';
+import { createMcpRoutes } from './mcp-route';
 
 const APP_ORIGIN = 'http://app.test';
 const MCP_URL = `${APP_ORIGIN}${ApiPath.Mcp}`;
@@ -133,5 +133,5 @@ test('a tool outside the scopes of the token cannot be called', async () => {
 
 test.each([HttpMethod.Get, HttpMethod.Delete])('%s answers 405 because the server is stateless', async (method) => {
   const response = await Promise.resolve(app.fetch(new Request(MCP_URL, { method })));
-  expect(response.status).toBe(METHOD_NOT_ALLOWED_STATUS);
+  expect(response.status).toBe(HttpStatus.MethodNotAllowed);
 });

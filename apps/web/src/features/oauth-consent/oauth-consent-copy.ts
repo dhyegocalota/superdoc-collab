@@ -1,0 +1,23 @@
+import { AgentScope } from '@superdoc-history/types';
+
+export const CONSENT_HEADING = 'Connect an AI client';
+export const APPROVE_LABEL = 'Approve';
+export const DENY_LABEL = 'Deny';
+export const APPROVING_LABEL = 'Approving…';
+export const SCOPES_HEADING = 'It will be able to';
+export const CLIENT_LOADING_LABEL = 'Loading the client';
+export const CLIENT_LOAD_ERROR_MESSAGE = 'The client could not be loaded.';
+export const CONSENT_FAILED_MESSAGE = 'Your answer could not be sent. Try again.';
+export const INCOMPLETE_REQUEST_MESSAGE = 'This authorization request is incomplete.';
+export const CLIENT_SUBJECT = 'Client request';
+
+export function consentDescription(clientName: string): string {
+  return `${clientName} asks to act on your behalf in your documents.`;
+}
+
+export const SCOPE_LABELS: Record<AgentScope, string> = {
+  [AgentScope.HistoryRead]: 'Read the edit history of your documents',
+  [AgentScope.DocumentEdit]: 'Edit your documents, shown as tracked changes signed as AI',
+  [AgentScope.DocumentExport]: 'Export your documents as .docx files',
+  [AgentScope.DocumentShare]: 'See and rotate the share links of your documents',
+};

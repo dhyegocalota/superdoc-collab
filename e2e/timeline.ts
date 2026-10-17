@@ -14,6 +14,7 @@ export const HIRING_PARAGRAPH = 'Hiring: we add two people.';
 export const ANA_TEXT = ' More money';
 export const BRUNO_TEXT = ' A designer';
 const FAKE_CALLS_PATH = '/calls';
+const SETTLE_WINDOW_MS = 1_500;
 export const HIGHLIGHT_CLASS = 'superdoc-comment-highlight';
 export const BANDS_TIMEOUT_MS = 60_000;
 export const VERSION_TIMEOUT_MS = 60_000;
@@ -158,4 +159,15 @@ export function summaryCard(page: Page): Locator {
 
 export function summarizeButton(page: Page): Locator {
   return page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL });
+}
+
+async function timelineVolume({ page, documentId }: { page: Page; documentId: string }): Promise<string> {
+  const { bins } = await readTimeline({ page, documentId });
+  const volume = bins.flatMap((bin) => Object.values(bin.byBand)).reduce((total, cell) => total + cell.inserted + cell.deleted, 0);
+  return String(volume);
+}
+
+export async function waitForSettledTimeline({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
+  await waitForProjection({ page, documentId });
+  await expectStableFor({ read: () => timelineVolume({ page, documentId }), expected: await timelineVolume({ page, documentId }), durationMs: SETTLE_WINDOW_MS });
 }

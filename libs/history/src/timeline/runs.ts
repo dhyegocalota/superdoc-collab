@@ -63,6 +63,10 @@ export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binM
   return [...runs.values()];
 }
 
+export function runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number {
+  throw new Error(`runVolume is not implemented: ${run.inserted}`);
+}
+
 export function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {
   const searchText = term.toLocaleLowerCase();
   const backspacedDeletion = [...run.deleted].reverse().join('');

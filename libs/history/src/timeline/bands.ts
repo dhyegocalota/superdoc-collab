@@ -66,6 +66,10 @@ function authorsOfBand({
   return created;
 }
 
+export function byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number {
+  throw new Error(`byVolumeDescending is not implemented: ${left.authorKey} ${right.authorKey}`);
+}
+
 export function contributorsByBand(runs: EditRun[]): Record<string, TimelineContributor[]> {
   const totals = new Map<string, Map<string, TimelineContributor>>();
   runs.forEach((run) => {

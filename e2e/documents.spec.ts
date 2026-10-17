@@ -43,6 +43,7 @@ const READER_TEXT = 'READER';
 const EVENTS_TIMEOUT_MS = 30_000;
 const LIVE_TIMEOUT_MS = 30_000;
 const EDITOR_TEST_ID = 'document-editor';
+const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
 
@@ -154,6 +155,25 @@ test('the editor page never scrolls horizontally on a narrow viewport', async ({
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
   await ana.page.setViewportSize(NARROW_VIEWPORT);
   await expect.poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+});
+
+test('on a narrow viewport the page starts at the left edge and the editor never scrolls sideways', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
+  await ana.page.setViewportSize(NARROW_VIEWPORT);
+  await ana.page.reload();
+  const editor = ana.page.getByTestId(EDITOR_TEST_ID);
+  await ana.page.locator(PAGE_SELECTOR).first().waitFor();
+  await expect.poll(() => editor.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(0);
+  await expect
+    .poll(() =>
+      editor.evaluate((element, pageSelector) => {
+        const page = element.querySelector(pageSelector);
+        if (!page) throw new Error('no page rendered');
+        return Math.round(page.getBoundingClientRect().left - element.getBoundingClientRect().left);
+      }, PAGE_SELECTOR),
+    )
+    .toBe(0);
 });
 
 test('the header download exports the live document', async ({ browser }) => {

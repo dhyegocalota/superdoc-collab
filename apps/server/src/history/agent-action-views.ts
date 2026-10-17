@@ -15,7 +15,7 @@ export function readAgentActions({
   span: { from: number; until: number } | null;
 }): AgentActionsInSpan {
   if (span === null) return { actions: [], authors: {} };
-  const marks = services.agentActions.list(documentId).filter((mark) => mark.createdAt >= span.from && mark.createdAt < span.until);
+  const marks = services.agentActions.list({ documentName: documentId, from: span.from, until: span.until });
   const names = services.documents.userNames([...new Set(marks.map((mark) => mark.userId))]);
   const authors = marks.map((mark): [string, EventAuthor] => {
     const name = names.get(mark.userId);

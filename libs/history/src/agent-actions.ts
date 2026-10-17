@@ -30,7 +30,11 @@ export class AgentActionsLog {
       .run(documentName, userId, kind, createdAt);
   }
 
-  list(documentName: string): AgentActionMark[] {
+  span(_documentName: string): { first: number; last: number } | null {
+    throw new Error('AgentActionsLog.span is not implemented');
+  }
+
+  list({ documentName, from, until }: { documentName: string; from: number; until: number }): AgentActionMark[] {
     const rows = this.database
       .prepare('SELECT user_id, kind, created_at FROM agent_actions WHERE document_name = ? ORDER BY created_at, id')
       .all(documentName) as AgentActionRow[];

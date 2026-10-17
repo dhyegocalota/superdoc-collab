@@ -111,5 +111,5 @@ test('forget removes the agent actions of the document', () => {
   const actions = new AgentActionsLog(sqlite);
   actions.record({ documentName: DOCUMENT, userId: 'ana', kind: AgentActionKind.DocumentExported, createdAt: 1 });
   new UpdateLog(sqlite).forget(DOCUMENT);
-  expect(actions.list(DOCUMENT)).toEqual([]);
+  expect(actions.list({ documentName: DOCUMENT, from: 0, until: 100 })).toEqual([]);
 });

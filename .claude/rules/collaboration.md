@@ -8,6 +8,8 @@ paths:
 
 # SuperDoc v2 collaboration
 
+SuperDoc facts about the browser UI (editing surface, focus, zoom, iframes) live in `.claude/rules/web-ui.md`.
+
 ## Versions
 - `superdoc` 2.23.0, `@superdoc/sdk` 2.20.0, `@hocuspocus/server` 2.15.3, `@hocuspocus/provider` ^2.15.3, `yjs` ^13.6.33. (poc/package.json)
 

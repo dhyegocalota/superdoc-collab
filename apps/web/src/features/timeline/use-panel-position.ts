@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LARGE_BREAKPOINT_PX, minWidthQuery, WIDE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { LARGE_BREAKPOINT_PX, minWidthQuery, WIDE_BREAKPOINT_PX } from '../../lib/breakpoints';
 
 export enum PanelPosition {
   Bottom = 'bottom',

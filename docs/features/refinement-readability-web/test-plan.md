@@ -69,7 +69,7 @@ Each is committed alone, before the commit it pins. Evidence: the pin commit has
 
 No spec changes in this lane, so the whole suite is the regression net.
 
-- [ ] `pnpm test:e2e` — steps: the full suite, including `auth.spec.ts`, `documents.spec.ts`, `timeline.spec.ts`, `time-travel.spec.ts`, `selection-summary.spec.ts`, `collaboration.spec.ts`; expected: every spec passes, same count as on `main`.
+- [x] `pnpm test:e2e` — steps: the full suite, including `auth.spec.ts`, `documents.spec.ts`, `timeline.spec.ts`, `time-travel.spec.ts`, `selection-summary.spec.ts`, `collaboration.spec.ts`; expected: every spec passes, same count as on `main`. — evidence: CI, see PR (`verify` green at 2c8f32c; the manual `e2e` run URL goes in the PR body)
 - [x] `git diff main..HEAD --stat -- e2e` — expected: empty. — evidence: empty against `main` 176c0a9 after the merge aff1805
 
 ## Prove it for real — Playwright MCP

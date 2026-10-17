@@ -25,7 +25,7 @@ The live editor never subscribes to `onCollaborationConnectionChange`. A lost co
 | G7 | A callback whose state is `synced` or whose kind is `recovered` refetches members at once. | Unit, state machine |
 | G8 | The version viewer applies the same exception narrowing. Its inert behaviour is unchanged. | Unit, exception narrowing |
 | G9 | With a past version shown, the connection banner sits above the version banner. | Playwright MCP walk |
-| R | The banner and the inert state read well at 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 px. No horizontal page scroll, no clipped Reload, text at most three lines on phones for Lost, Reconnecting and Recovered, and at most five for Failed (title, then one paragraph with the reason and the unsynced-edits sentence); the Reload button may wrap to its own row and stays fully inside the viewport. Lines are counted on the text block without padding. Revised by the lead on 2026-10-17 after the width measurement at 320 px, no layout jump on load or theme switch. | Playwright at eight widths; Playwright MCP walk |
+| R | The banner and the inert state read well at 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 px. No horizontal page scroll, no clipped Reload, text at most three lines on phones for Lost, Reconnecting and Recovered, and at most five for Failed on phones and three from 768 px (title, then one paragraph with the reason and the unsynced-edits sentence); the Reload button may wrap to its own row and stays fully inside the viewport. Lines are counted on the text block without padding. Revised by the lead on 2026-10-17 after the width measurement at 320 px, no layout jump on load or theme switch. | Playwright at eight widths; Playwright MCP walk |
 
 ## Non-goals
 

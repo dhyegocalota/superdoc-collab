@@ -19,6 +19,7 @@ libs/types        shared types, enums and constants
 docs/adr          architecture decision records
 docs/learnings    dated traps, with what inspired them and when they were revisited
 docs/features     one folder per feature: spec.md + plan.md + test-plan.md
+docs/scenarios    agentic walks of the product core, one file per flow, run with /scenario
 docs/media        screenshots the README embeds
 .agents/skills    skills (single source; `.claude/skills` links here)
 .agents/roles     agent role bodies shared by `.claude/agents` and `.codex/agents`

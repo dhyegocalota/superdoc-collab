@@ -2,6 +2,7 @@ import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } 
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
@@ -24,10 +25,11 @@ export function useSelectionSummary({
   timelineStamp: string | null;
 }): UseQueryResult<SelectionSummaryView> {
   const queryClient = useQueryClient();
+  const { timeZone } = useTimeZone();
   const seenStamp = useRef(timelineStamp);
   const query = useQuery({
-    queryKey: selectionSummaryQueryKey({ documentId, selection }),
-    queryFn: () => fetchSelectionSummary({ documentId, selection, binMs }),
+    queryKey: selectionSummaryQueryKey({ documentId, selection, timeZone }),
+    queryFn: () => fetchSelectionSummary({ documentId, selection, binMs, timeZone }),
     enabled: isOpen,
     refetchInterval: pollWhileRunning,
     retry: false,
@@ -37,7 +39,7 @@ export function useSelectionSummary({
     const previousStamp = seenStamp.current;
     seenStamp.current = timelineStamp;
     if (previousStamp === null || timelineStamp === null || previousStamp === timelineStamp) return;
-    void queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection }) });
+    void queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection, timeZone }) });
   }, [timelineStamp]);
 
   return query;
@@ -51,11 +53,12 @@ export function useSummarizeEdits({
   binMs: number | null;
 }): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
   const queryClient = useQueryClient();
+  const { timeZone } = useTimeZone();
   const mutation = useMutation({
-    mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection, binMs }),
+    mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection, binMs, timeZone }),
     onSuccess: async (view, selection) => {
-      queryClient.setQueryData(selectionSummaryQueryKey({ documentId, selection }), view);
-      await queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection }) });
+      queryClient.setQueryData(selectionSummaryQueryKey({ documentId, selection, timeZone }), view);
+      await queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection, timeZone }) });
     },
   });
   const { error, reset } = mutation;

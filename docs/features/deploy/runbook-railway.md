@@ -4,7 +4,7 @@ Supersedes the Dokploy runbook (`runbook.md`) per [ADR 0019](../../adr/0019-depl
 
 ## What gets deployed
 
-One service built from `docker/Dockerfile`, one volume at `/data`, one replica, health check on `/api/health`, public domain `https://<service>.up.railway.app`. `railway.json` declares the builder, the health check and the replica count.
+One service built from `docker/Dockerfile`, one volume at `/data`, one replica, health check on `/api/health`, public domain `https://superdoc.dhyegocalota.com.br`. `railway.json` declares the builder, the health check and the replica count.
 
 ## Before you start
 
@@ -62,12 +62,12 @@ The invite-only migration turns every existing account into a plain user. The in
 ## 4. Domain and origin
 
 ```bash
-railway domain
-railway variables --set APP_ORIGIN=https://<the domain printed above>
+railway domain superdoc.dhyegocalota.com.br --port 3000
+railway variables --set APP_ORIGIN=https://superdoc.dhyegocalota.com.br
 railway up --detach
 ```
 
-`APP_ORIGIN` must match the public URL exactly, or sign-in is refused by the origin check.
+`railway domain` prints a CNAME and a `_railway-verify` TXT record; add both at the DNS host with the proxy off, and set `APP_ORIGIN` only once `railway domain status` reports the certificate issued. `APP_ORIGIN` must match the public URL exactly, or sign-in is refused by the origin check.
 
 ## 5. Check it
 

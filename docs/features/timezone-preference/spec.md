@@ -15,7 +15,7 @@ The audit ([`audit.md`](audit.md)) found storage and comparisons correct, and on
 - Every account has a zone. Accounts created since invite-only store the browser's zone at sign-up; older ones get it at their next sign-in. A preferences page lets the user change it.
 - The zone in use is always visible: on the preferences page and next to the timeline ("Times in America/Sao_Paulo"). If the stored zone is still `null` (a session that has not backfilled yet), the browser's zone is used and the label says "(from this browser)".
 - Every time the app shows is formatted in that zone with the `en-US` locale, through one formatter module that takes the zone as an argument.
-- Timeline bins are aligned to the reader's zone: a bin starts on a multiple of its size in local wall time; day bins start at local midnight; week bins start on local Monday 00:00; a bin ends where the next one starts, so a day bin across a DST change is 23 or 25 hours long.
+- Timeline bins are aligned to the reader's zone: a bin starts on a multiple of its size in local wall time; day bins start at local midnight (or at the transition instant when midnight itself is skipped, as in America/Santiago and Africa/Cairo); week bins start on local Monday 00:00; a bin ends where the next one starts, so a day bin across a DST change is 23 or 25 hours long.
 - The version a bin opens, the edits a bin lists and the selection a summary covers use those same zone-aligned boundaries.
 - Imported tracked-change dates without an offset are read as UTC (Word writes `w:date` in UTC).
 - Tests prove the behaviour in fixed zones independently of the machine's zone.
@@ -44,10 +44,12 @@ The audit ([`audit.md`](audit.md)) found storage and comparisons correct, and on
 
 ### Zone-aligned bins
 
-- New module `libs/history/src/timeline/zoned-time.ts`:
+- New module `libs/history/src/timeline/zoned-time.ts` (revised after the plan review's probe of 12 zones over 2026; reference `zoned2.mjs`):
   - `offsetAt({ time, timeZone }): number` — milliseconds to add to UTC to get local wall time, from `Intl.DateTimeFormat(…, { timeZone, hourCycle: 'h23', … }).formatToParts`.
-  - `zonedBinStartOf({ time, binMs, timeZone }): number` — for `binMs < WEEK_MS`: `local = time + offsetAt(time)`, `flooredLocal = floor(local / binMs) * binMs`, `start = flooredLocal - offsetAt(time)`; if `offsetAt(start) !== offsetAt(time)` (the floor crossed a DST change), use `flooredLocal - offsetAt(start)`. For `WEEK_MS`: floor to local midnight, then step back to Monday by the local weekday. Sub-hour bins are aligned the same way, so half- and quarter-hour zones (Asia/Kolkata, Asia/Kathmandu) align too.
-  - `nextZonedBinStart({ start, binMs, timeZone }) = zonedBinStartOf({ time: start + 1.5 * binMs, binMs, timeZone })` — 23 h and 25 h days and DST hours fall out of it.
+  - `zonedBinStartOf({ time, binMs, timeZone }): number` — one rule for every size: `anchor = binMs % WEEK_MS === 0 ? 4 * DAY_MS : 0` (1970-01-05 is a Monday, so weeks and multi-week bins start on local Monday 00:00); `local = time + offsetAt(time)`; `flooredLocal = floor((local - anchor) / binMs) * binMs + anchor`; the candidate `flooredLocal - offsetAt(time)` is accepted when its own offset equals `offsetAt(time)`; otherwise the transition instant between them is found by bisection, and a boundary that falls in a gap moves to that instant. A repeated wall time (fall-back) yields two boundaries, one per occurrence.
+  - `nextZonedBinStart({ start, binMs, timeZone })` — `zonedBinStartOf(start + binMs)`, retried at `start + binMs + 2 h` if it is not after `start`, then stepped back while `zonedBinStartOf(next - 1) > start`, so short bins after a gap (Australia/Lord_Howe's 30-minute change) are never skipped.
+  - `binStartsCovering` throws if a next start is not after the previous one, and never walks more than `MAX_BINS + COVERING_EXTRA_BINS` bins: a client-chosen zone and `binMs` can never hang the process.
+  - Events are placed into the precomputed bin starts (binary search), so the per-event cost stays an array lookup; the zone math runs once per bin.
 - `binStartsCovering` and `groupIntoRuns` take `timeZone` and use these instead of epoch floors; the padding rule of ADR 0016 is unchanged (one empty bin each side).
 - `TimelineBin` gains `end: number`. `buildBins` resolves `versionSequence` at `end - 1`. The web uses `bin.end` everywhere it used `start + binMs` (`bin-containing.ts`, `streamgraph.tsx`, `formatBinRange`).
 - `chooseBinMs` still picks the size from the span alone; zone never changes the size.
@@ -55,7 +57,7 @@ The audit ([`audit.md`](audit.md)) found storage and comparisons correct, and on
 ### API
 
 - `TimelineQueryParam.TimeZone = 'timeZone'`, **required** on `/timeline`, `/timeline/edits` and `/summaries/selection`, validated with `isSupportedTimeZone`; missing or unknown answers 400 `INVALID_TIMELINE_QUERY_MESSAGE`. No implicit default: a client that does not say its zone gets an error, not UTC bins.
-- `/timeline/edits?binStart=` resolves its end with `nextZonedBinStart`. The selection summary cache key gains the zone (two zones can share a bin start but not its end around a DST change).
+- `/timeline/edits?binStart=` resolves its end with `nextZonedBinStart`. The selection summary cache key gains the zone only for a period selection (`at` set): whole-document summaries do not depend on the zone and must not regenerate per zone. `DocumentTimeline` echoes `timeZone`, and the web labels bins and sends follow-up requests with the timeline's own zone, so a zone change never pairs old bins with new labels.
 - The web sends the effective zone on every timeline, edits and selection request, and the zone joins their query keys, so changing the preference refetches.
 
 ### Imported revisions
@@ -64,7 +66,8 @@ The audit ([`audit.md`](audit.md)) found storage and comparisons correct, and on
 
 ### Tests and CI
 
-- Unit tests pass explicit zones, so they do not depend on the machine: America/Sao_Paulo, Europe/Lisbon across 2026-03-29 and 2026-10-25, Asia/Kolkata, Asia/Kathmandu, Pacific/Kiritimati, UTC.
+- Unit tests pass explicit zones, so they do not depend on the machine: America/Sao_Paulo, Europe/Lisbon across 2026-03-29 and 2026-10-25, America/New_York, Asia/Kolkata, Asia/Kathmandu, Pacific/Kiritimati, Pacific/Chatham (transitions at :45), Australia/Lord_Howe (30-minute DST), Asia/Jerusalem and Africa/Cairo (Friday changes), America/Santiago (midnight gaps), UTC; 2-, 3- and 5-week bins through 2028.
+- Zone IDs: `Intl.supportedValuesOf('timeZone')` lists ICU's legacy IDs (Asia/Calcutta, Asia/Katmandu, Europe/Kiev); validation accepts any ID `Intl.DateTimeFormat` resolves, and the settings list adds the stored and the browser zone when they are aliases missing from it.
 - One CI leg runs the `libs` and `server` unit suites under `TZ=Asia/Kolkata`, to prove the server code never reads the process zone.
 - E2E: a settings spec (change the zone, see the timeline label and a tooltip move), and the existing time-travel specs keep passing with the browser context zone set to America/Sao_Paulo.
 

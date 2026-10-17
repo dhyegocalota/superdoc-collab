@@ -34,12 +34,19 @@ jobs:
           - { name: libs, filter: ./libs/* }
           - { name: web, filter: "@superdoc-collab/web" }
           - { name: server, filter: "@superdoc-collab/server" }
+          - { name: libs-and-server-in-kolkata, timezone: Asia/Kolkata }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install
-      - run: pnpm --filter "${{ matrix.filter }}" test:unit
+      - if: ${{ !matrix.timezone }}
+        run: pnpm --filter "${{ matrix.filter }}" test:unit
         env:
           REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}
+      - if: ${{ matrix.timezone }}
+        run: pnpm --filter "./libs/*" --filter "@superdoc-collab/server" test:unit
+        env:
+          TZ: ${{ matrix.timezone }}
+          REQUIRE_DOCKER_COMPOSE: true
 
   docker:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@
 
 A collaborative DOCX editor that records every edit and shows who changed what, and when: a timeline per topic, time travel to any moment, and model-written summaries of the edits you select. Built on SuperDoc for its take-home brief ([`docs/brief/`](docs/brief/superdoc-eng-sample-project.docx)).
 
-**Live demo:** <https://superdoc-collab.up.railway.app>. Accounts are by invitation: sign in as `ana@example.com` with the password from the delivery message, and open a second browser as `bruno@example.com` to edit together.
+**Live demo:** <https://superdoc.dhyegocalota.com.br>. Accounts are by invitation: sign in as `ana@example.com` with the password from the delivery message, and open a second browser as `bruno@example.com` to edit together.
 
 ![The editor beside the timeline panel: one band per topic, and the top edits per topic with who made them and one sentence each](docs/media/readme/timeline.png)
 

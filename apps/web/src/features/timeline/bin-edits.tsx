@@ -24,8 +24,8 @@ type BinEditsProps = { documentId: string; timeline: DocumentTimeline; bin: Time
 export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   const { timeZone } = useTimeZone();
   const { data } = useQuery({
-    queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
-    queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
+    queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone }),
+    queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone }),
     refetchInterval: pollWhileAvailable(TIMELINE_POLL_MS),
     retry: false,
   });

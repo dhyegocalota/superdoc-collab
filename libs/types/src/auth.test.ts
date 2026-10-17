@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   EMAIL_INVALID_MESSAGE,
   INVALID_TIME_ZONE_MESSAGE,
+  isSupportedTimeZone,
   NAME_TOO_SHORT_MESSAGE,
   PASSWORD_TOO_SHORT_MESSAGE,
   signInSchema,
@@ -50,4 +51,17 @@ test('sign-up rejects an unknown time zone with its message', () => {
 
 test('sign-up requires a time zone', () => {
   expect(signUpSchema.safeParse(SIGN_UP_BASE).success).toBe(false);
+});
+
+test.each([
+  ['the current IANA name of a renamed zone', 'Asia/Kolkata', true],
+  ['the legacy name the runtime lists', 'Asia/Calcutta', true],
+  ['a quarter-hour zone under its current name', 'Asia/Kathmandu', true],
+  ['UTC', 'UTC', true],
+  ['the Etc alias of UTC', 'Etc/UTC', true],
+  ['a raw offset, which is not a zone', '+05:30', false],
+  ['an unknown name', 'Mars/Olympus', false],
+  ['an oversized value', 'x'.repeat(200_000), false],
+])('isSupportedTimeZone accepts %s: %s', (_name, value, expected) => {
+  expect(isSupportedTimeZone(value)).toBe(expected);
 });

@@ -15,13 +15,14 @@ function periodBinMs({ selection, binMs }: { selection: EditSelection; binMs: nu
   return binMs;
 }
 
-export function selectionKeyOf({ selection, binMs }: { selection: EditSelection; binMs: number }): string {
+export function selectionKeyOf({ selection, binMs, timeZone }: { selection: EditSelection; binMs: number; timeZone: string }): string {
   const normalized = [
     normalizedText(selection.term),
     normalizedText(selection.author),
     selection.topic,
     selection.at,
     periodBinMs({ selection, binMs }),
+    timeZone,
   ];
   return createHash(SELECTION_KEY_ALGORITHM).update(JSON.stringify(normalized)).digest(SELECTION_KEY_ENCODING);
 }

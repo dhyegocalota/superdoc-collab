@@ -1,0 +1,48 @@
+const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
+const DEMO_PASSWORD = 'superdoc-demo';
+const WEB_DIST_DIR = 'apps/web/dist';
+const LLM_MODEL = 'openai/gpt-6-luna';
+const FAKE_API_KEY = 'e2e-fake-key';
+const FAKE_API_PATH = '/api/v1';
+const LLM_MAX_CONCURRENT_JOBS = 2;
+const LLM_MAX_CALLS_PER_HOUR = 10_000;
+
+export const FAKE_OPENROUTER_COMMAND = 'node e2e/fake-openrouter.ts';
+export const FAKE_OPENROUTER_HEALTH_PATH = '/health';
+export const SERVER_HEALTH_PATH = '/api/health';
+
+export const BUILD_AND_START_COMMAND = [
+  'pnpm --filter @superdoc-collab/web build',
+  'pnpm --filter @superdoc-collab/server build',
+  'node apps/server/dist/seed.js',
+  'node apps/server/dist/main.js',
+].join(' && ');
+
+export function localOrigin(port: number): string {
+  return `http://127.0.0.1:${port}`;
+}
+
+export function stackEnvironment({
+  port,
+  databaseDir,
+  fakeOpenRouterOrigin,
+}: {
+  port: number;
+  databaseDir: string;
+  fakeOpenRouterOrigin: string;
+}): Record<string, string> {
+  return {
+    PORT: String(port),
+    APP_ORIGIN: localOrigin(port),
+    AUTH_SECRET: TEST_AUTH_SECRET,
+    DATABASE_DIR: databaseDir,
+    TRUST_PROXY: 'true',
+    DEMO_PASSWORD,
+    WEB_DIST_DIR,
+    LLM_MODEL,
+    OPENROUTER_API_KEY: FAKE_API_KEY,
+    OPENROUTER_BASE_URL: `${fakeOpenRouterOrigin}${FAKE_API_PATH}`,
+    LLM_MAX_CONCURRENT_JOBS: String(LLM_MAX_CONCURRENT_JOBS),
+    LLM_MAX_CALLS_PER_HOUR: String(LLM_MAX_CALLS_PER_HOUR),
+  };
+}

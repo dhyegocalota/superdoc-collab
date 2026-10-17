@@ -24,7 +24,8 @@ import { randomUUID } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
-import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
+import * as Y from 'yjs';
+import { connectToDocument, documentWithOwner, memberWithRole, reserveOwner } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { signedInOwner, signedInUser, type TestServer, type TestUser } from '../testing/test-server';
 import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
@@ -282,23 +283,19 @@ test('roomMode stays create until the bootstrap commits', async () => {
 
 test('roomMode scans a long log in pages until the first committed bootstrap', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
-  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) =>
-    writeStory({ document: client.document, texts: ['x'.repeat(index + 1)] }),
+  const document = new Y.Doc();
+  document.on('update', (update: Uint8Array) =>
+    server.services.updateLog.append({ documentName: documentId, connectionUserId: owner.id, connectionActor: ClientActor.Human, update }),
   );
-  commitBootstrap(client.document);
-  const batchSize = ROOM_MODE_SCAN_BATCH_SIZE;
-  await expect
-    .poll(() => server.services.updateLog.readBatch({ documentName: documentId, afterSequence: batchSize, limit: 1 }).length)
-    .toBe(1);
+  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) =>
+    writeStory({ document, texts: ['x'.repeat(index + 1)] }),
+  );
+  commitBootstrap(document);
   const readAll = vi.spyOn(server.services.updateLog, 'read');
   const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
-  const roomMode = ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument)
-    .roomMode;
-  expect(roomMode).toBe(RoomMode.Join);
+  expect((await openedBy({ server, user: owner, documentId })).roomMode).toBe(RoomMode.Join);
   expect(readAll).not.toHaveBeenCalled();
   expect(readBatch.mock.calls.length).toBeGreaterThan(1);
-  client.close();
   await server.stop();
 });
 
@@ -309,7 +306,7 @@ test('a reader opening a never-created room gets 409 NOT_READY', async () => {
   const notReady = await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) });
   expect([notReady.status, await notReady.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
   const editorOpen = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
-  expect([editorOpen.status, ((await editorOpen.json()) as OpenedDocument).roomMode]).toEqual([HttpStatus.Ok, RoomMode.Create]);
+  expect(editorOpen.status).toBe(HttpStatus.Conflict);
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
@@ -430,6 +427,7 @@ test('signed-out requests get 401', async () => {
 test('delete removes the row, the file, the log and the events, and closes the room', async () => {
   const { server, owner } = await signedInOwner();
   const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Doomed' })).json();
+  reserveOwner({ server, documentId: created.id, owner });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId: created.id });
   const closed = new Promise<void>((resolve) => client.provider.on('close', () => resolve()));
   writeStory({ document: client.document, texts: ['Hello'] });

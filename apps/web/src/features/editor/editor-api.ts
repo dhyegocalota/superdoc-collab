@@ -17,6 +17,8 @@ import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, assertOk, re
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
+export class DocumentNotReadyError extends ApiRequestError {}
+
 export const BLANK_DOCX_PATH = '/blank.docx';
 export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 

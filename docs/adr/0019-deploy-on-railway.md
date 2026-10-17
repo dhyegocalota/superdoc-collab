@@ -16,6 +16,7 @@ Serverless hosts (Vercel, Cloudflare Workers, Lambda, Cloud Run) have no persist
 - The demo runs on **Railway** as one service built from this repository's `docker/Dockerfile`, with a volume mounted at `/data`, one replica, the health check on `/api/health` and the Railway-provided `*.up.railway.app` domain with TLS. `railway.json` at the repository root declares the builder, the health check and the replica count; the volume and the variables are created in the project.
 - The environment is the one `deploy/docker-compose.yml` documents: `PORT=3000`, `DATABASE_DIR=/data`, `WEB_DIST_DIR=/app/web`, `TRUST_PROXY=true` (safe only behind Railway's proxy), `APP_ORIGIN` set to the public URL, `AUTH_SECRET`, `SEED_DEMO_USERS`, `DEMO_PASSWORD`, the OpenRouter variables and the two LLM caps.
 - `deploy/docker-compose.yml` stays as the reference for any compose host and for the repository-shape tests; Railway does not read it.
+- The container runs as root on Railway (`RAILWAY_RUN_UID=0`): the volume is mounted owned by root and the image's `USER node` cannot write it. The image itself keeps `USER node` for every other host.
 - Replicas stay at one. SQLite, the projection worker and the in-memory cooldowns and caps do not survive a second instance ([0004](0004-stack.md), [0011](0011-process-wide-llm-cost-caps.md)).
 
 ## Alternatives considered

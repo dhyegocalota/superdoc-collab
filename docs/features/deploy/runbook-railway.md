@@ -35,6 +35,8 @@ railway variables \
   --set DATABASE_DIR=/data \
   --set WEB_DIST_DIR=/app/web \
   --set TRUST_PROXY=true \
+  --set RAILWAY_RUN_UID=0 \
+  --set RAILWAY_DOCKERFILE_PATH=docker/Dockerfile \
   --set SEED_DEMO_USERS=true \
   --set DEMO_PASSWORD=<the demo password> \
   --set AUTH_SECRET="$(openssl rand -base64 48)" \
@@ -44,7 +46,7 @@ railway variables \
 scripts/with-env.sh sh -c 'railway variables --set "OPENROUTER_API_KEY=$OPENROUTER_API_KEY"'
 ```
 
-The last line passes the key from `.env` without printing it. The caps above are demo-day values; ADR 0011's defaults are 2 and 60.
+The last line passes the key from `.env` without printing it. `RAILWAY_RUN_UID=0` runs the container as root because Railway mounts the volume owned by root while the image switches to `node`; without it the server exits with `Database directory is not writable: /data`. `RAILWAY_DOCKERFILE_PATH` pins the Dockerfile even when `railway.json` is missing from the upload (`railway up` sends tracked files only). The caps above are demo-day values; ADR 0011's defaults are 2 and 60.
 
 ## 4. Domain and origin
 
@@ -89,3 +91,5 @@ Backup: `railway ssh -- tar czf - /data > backup.tgz` while the service runs. Re
 | Editor loads, no cursors from the other window | WebSocket blocked or two replicas | one replica only; check `railway status` |
 | Topics show "could not be named" | key or model id wrong | `railway logs`, fix the variable |
 | Documents vanish after a deploy | volume not mounted at `/data` | step 2 |
+| Crash loop, logs say `Database directory is not writable: /data` | the volume is root-owned and the image runs as `node` | `RAILWAY_RUN_UID=0` (step 3) |
+| Build log says `railpack prepare exited with an error` | Railway autodetected instead of using the Dockerfile | commit `railway.json` or set `RAILWAY_DOCKERFILE_PATH` (step 3) |

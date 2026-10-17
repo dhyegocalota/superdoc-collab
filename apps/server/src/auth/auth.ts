@@ -38,6 +38,10 @@ const omitSessionToken = createAuthMiddleware(async (context) => {
   return context.json(body);
 });
 
+export function mcpResourceOf(appOrigin: string): string {
+  return `${appOrigin}${ApiPath.Mcp}`;
+}
+
 export function createAuth({ database, environment }: { database: AuthDatabase; environment: Environment }) {
   return betterAuth({
     secret: environment.authSecret,
@@ -46,14 +50,15 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),
     emailAndPassword: { enabled: true },
     plugins: [
-      jwt({ jwt: { issuer: environment.appOrigin } }),
+      jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
       mcp({
         loginPage: AppRoute.SignIn,
         consentPage: AppRoute.OAuthConsent,
-        resource: `${environment.appOrigin}${ApiPath.Mcp}`,
+        resource: mcpResourceOf(environment.appOrigin),
         scopes: OAUTH_SCOPES,
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
+        clientRegistrationDefaultApplicationType: 'infer',
       }),
     ],
     hooks: { before: normalizeCredentials, after: omitSessionToken },

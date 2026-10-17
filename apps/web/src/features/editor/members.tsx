@@ -29,18 +29,18 @@ function jumpReasonOf({
   member,
   currentUserId,
   isPastVersion,
-  hasCursor,
+  isInDocument,
 }: {
   member: DocumentMember;
   currentUserId: string | null;
   isPastVersion: boolean;
-  hasCursor: boolean;
+  isInDocument: boolean;
 }): string | null {
   const name = member.user.name;
   if (isPastVersion) return BACK_TO_LIVE_TO_JUMP_REASON;
   if (member.user.id === currentUserId) return SELF_MEMBER_REASON;
   if (!member.online) return offlineMemberReason(name);
-  if (!hasCursor) return notInDocumentReason(name);
+  if (!isInDocument) return notInDocumentReason(name);
   return null;
 }
 
@@ -151,8 +151,8 @@ export function Members({
 
   const states = members.map((member): JumpState => {
     const isSelf = member.user.id === currentUserId;
-    const hasCursor = hasCursor(member);
-    return { member, isOnline: member.online || isSelf, reason: jumpReasonOf({ member, currentUserId, isPastVersion, hasCursor }) };
+    const isInDocument = hasCursor(member);
+    return { member, isOnline: member.online || isSelf, reason: jumpReasonOf({ member, currentUserId, isPastVersion, isInDocument }) };
   });
   const hasMenu = states.length > MAX_MEMBERS_WITHOUT_MENU;
   const visible = hasMenu ? states.slice(0, MEMBERS_BESIDE_MENU) : states;

@@ -11,8 +11,12 @@ const JOBS_START = '\njobs:\n';
 const UNIT_STEP_PATTERN = /- run: pnpm test:unit\s+env:\s+REQUIRE_DOCKER_COMPOSE: 'true'/;
 const STRICT_SHELL_OPTIONS = 'set -euo pipefail';
 const LENIENT_SHELL_OPTIONS = 'set -eu\n';
-const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.'];
-const DOCKER_JOB_FRAGMENTS = ['actions/checkout@v4', 'docker/setup-buildx-action@v3', 'docker/build-push-action@v6', 'file: docker/Dockerfile', 'push: false', 'load: true', 'cache-from: type=gha', 'cache-to: type=gha,mode=max', "grep -q 'Missing environment variable: DEMO_PASSWORD'", '/api/health', '--max-time 5', '--retry-max-time 120', 'stat -c %u /data', '/api/auth/sign-in/email', 'docker restart app', "grep -q 'existing: ana@example.com' app.log"];
+const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.', 'docker restart'];
+const VOLUME_MOUNT = '-v superdoc-ci-data:/data';
+const SIGN_IN_ENDPOINT = '/api/auth/sign-in/email';
+const SIGN_IN_TIMEOUT = '--max-time 10';
+const LINE_SEPARATOR = '\n';
+const DOCKER_JOB_FRAGMENTS = ['actions/checkout@v4', 'docker/setup-buildx-action@v3', 'docker/build-push-action@v6', 'file: docker/Dockerfile', 'push: false', 'load: true', 'cache-from: type=gha', 'cache-to: type=gha,mode=max', "grep -q 'Missing environment variable: DEMO_PASSWORD'", '/api/health', '--max-time 5', '--retry-max-time 120', 'stat -c %u /data', '/api/auth/sign-in/email', 'docker rm -f app', "grep -q 'existing: ana@example.com' app.log"];
 
 function dockerJob(): string {
   const workflow = readRepositoryFile(WORKFLOW_FILE);
@@ -37,6 +41,17 @@ describe('CI workflow', () => {
   test('the docker job needs no other job and no secret', () => {
     const job = dockerJob();
     expect(FORBIDDEN_DOCKER_JOB_FRAGMENTS.filter((fragment) => job.includes(fragment))).toEqual([]);
+  });
+
+  test('the redeploy runs the same image again on the same named volume', () => {
+    const mounts = dockerJob().split(LINE_SEPARATOR).filter((line) => line.includes(VOLUME_MOUNT));
+    expect(mounts).toHaveLength(2);
+  });
+
+  test('every sign-in request is bounded', () => {
+    const signIns = dockerJob().split(LINE_SEPARATOR).filter((line) => line.includes(SIGN_IN_ENDPOINT));
+    expect(signIns).toHaveLength(2);
+    expect(signIns.filter((line) => !line.includes(SIGN_IN_TIMEOUT))).toEqual([]);
   });
 
   test('the docker job has a bounded timeout', () => {

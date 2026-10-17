@@ -17,6 +17,9 @@ const CREDITED_LIBRARIES = ['SuperDoc', 'Hocuspocus', 'Yjs', 'Better Auth', 'Dri
 const CAPS_BUSY_TEXT = 'The language model is busy; try again later.';
 const STALE_CAPS_TEXT = 'Past them, topics show';
 const SECRET_SCAN_PATTERNS = ['AUTH_SECRET=', 'DEMO_PASSWORD='];
+const ENVIRONMENT_FILES_SCAN = "git log --all --name-only --format= | grep -E '(^|/)\\.env' | grep -vx '.env.example'";
+const PUBLIC_SWITCH_BOX_MARKER = 'before the repository goes public';
+const TEST_PLAN_FILE = 'docs/features/deploy/test-plan.md';
 const SQUASH_MERGE_NOTE = 'drop `-m 1` for a squash merge';
 const DEPLOY_REPORTED_NOTE = 'as soon as `up -d` returns';
 const SECRET_VARIABLES = ['AUTH_SECRET', 'DEMO_PASSWORD', 'OPENROUTER_API_KEY'];
@@ -124,5 +127,15 @@ describe('delivery documents', () => {
   test('the runbook covers squash merges and the early deploy report', () => {
     const runbook = readRepositoryFile(RUNBOOK_FILE);
     expect([SQUASH_MERGE_NOTE, DEPLOY_REPORTED_NOTE].filter((note) => !runbook.includes(note))).toEqual([]);
+  });
+
+  test.each([RUNBOOK_FILE, TEST_PLAN_FILE])('%s scans the history for every committed environment file', (document) => {
+    expect(readRepositoryFile(document)).toContain(ENVIRONMENT_FILES_SCAN);
+  });
+
+  test('the test plan owner box scans the history for the generated secrets too', () => {
+    const ownerBox = readRepositoryFile(TEST_PLAN_FILE).split(LINE_SEPARATOR).find((line) => line.includes(PUBLIC_SWITCH_BOX_MARKER));
+    expect(ownerBox).toBeDefined();
+    expect(SECRET_SCAN_PATTERNS.filter((pattern) => !ownerBox?.includes(pattern))).toEqual([]);
   });
 });

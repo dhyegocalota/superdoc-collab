@@ -20,7 +20,7 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
-import { MAX_STORE_DEBOUNCE_MS } from './collaboration-server';
+import { MAX_STORE_DEBOUNCE_MS, OPEN_BUDGET_LOG } from './collaboration-server';
 import type { CollaborationContext } from './collaboration-context';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
@@ -276,12 +276,14 @@ describe('collaboration room lifecycle', () => {
 describe('collaboration admission to an uncommitted room', () => {
   test('a user who exhausted the open budget is refused before the log is scanned', async () => {
     const { server, documentId, owner } = await documentWithOwner();
-    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach(() => server.services.openLimits.record(owner.id));
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+      server.services.openBudget.record({ userId: owner.id, documentId: `spent-${index}` }),
+    );
     const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await expect(connectToDocument({ server, cookie: owner.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
     expect(readBatch).not.toHaveBeenCalled();
-    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    expect(warn).toHaveBeenCalledWith(`${OPEN_BUDGET_LOG} ${documentId}`);
     warn.mockRestore();
     await server.stop();
   });

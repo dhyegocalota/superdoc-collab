@@ -43,6 +43,7 @@ const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
 const ORIGIN = 'http://app.test';
 const FOREIGN_ADDRESS = '203.0.113.9';
+const ABNORMAL_CLOSE_CODE = 1006;
 const SESSION_EXPIRED_REASON = 'Session expired';
 const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
 const FRAME_OVERHEAD_BYTES = 1024;
@@ -277,7 +278,7 @@ describe('attachCollaboration', () => {
     const getSession = vi.spyOn(server.auth.api, 'getSession').mockRejectedValue(new Error(RESET_FAILURE));
     const handleConnection = vi.spyOn(server.services.hocuspocus, 'handleConnection');
     const { closed } = openFloodSocket({ server, cookie });
-    expect((await closed).code).not.toBe(UNAUTHORIZED_CLOSE_CODE);
+    expect((await closed).code).toBe(ABNORMAL_CLOSE_CODE);
     expect(handleConnection).not.toHaveBeenCalled();
     getSession.mockRestore();
     await server.stop();

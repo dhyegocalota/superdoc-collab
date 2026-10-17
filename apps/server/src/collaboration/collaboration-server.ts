@@ -36,7 +36,7 @@ export const LOADING_ORIGIN = 'update-log-replay';
 
 const PARSE_BASE_URL = 'http://localhost';
 const FIRST_ATTEMPT = 1;
-const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
+export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
 const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';

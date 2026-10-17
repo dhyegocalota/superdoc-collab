@@ -5,6 +5,7 @@ import {
   AgentTool,
   DocumentRole,
   documentPagePath,
+  OPEN_UNCOMMITTED_PER_MINUTE,
   ShareLinkRole,
   type DocumentMembers,
 } from '@superdoc-collab/types';
@@ -122,6 +123,17 @@ test('export_docx returns the live document as an embedded DOCX resource, record
   ]);
   expect(recorded).toEqual([{ documentId, userId: reader.id, kind: AgentActionKind.DocumentExported }]);
   expect(existsSync(dirname(written[0]!))).toBe(false);
+});
+
+test('export_docx with the open budget spent is refused before any log scan', async () => {
+  Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+    server.services.openBudget.record({ userId: reader.id, documentId: `spent-${index}` }),
+  );
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const save = vi.fn();
+  const { context, recorded } = toolContext({ server, userId: reader.id, sessions: sessionsOn({ save }) });
+  const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+  expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
 });
 
 test('export_docx hides the cause, logs it, removes the temporary file and records nothing when the save fails', async () => {

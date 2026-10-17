@@ -302,6 +302,8 @@ test('Summarize is disabled with a reason when nothing matches', async () => {
   const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
   expect(button).toBeDisabled();
   expect(button).toHaveAttribute('title', NO_EDITS_TO_SUMMARIZE_MESSAGE);
+  expect(screen.getByText(NO_EDITS_TO_SUMMARIZE_MESSAGE)).toBeVisible();
+  expect(button).toHaveAccessibleDescription(NO_EDITS_TO_SUMMARIZE_MESSAGE);
 });
 
 test('a selected bin with no edits disables Summarize', async () => {
@@ -341,6 +343,7 @@ test('an up-to-date summary disables Summarize and a stale one shows the badge a
   await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE);
+  expect(screen.getByText(SUMMARY_UP_TO_DATE_MESSAGE)).toBeVisible();
   cleanup();
   vi.restoreAllMocks();
   mockTimelineApi({ selectionViews: [STALE_VIEW] });
@@ -401,5 +404,46 @@ test('without a language model Summarize is disabled and the card stays quiet', 
   const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
   await waitFor(() => expect(button).toHaveAttribute('title', SUMMARIES_UNAVAILABLE_MESSAGE));
   expect(button).toBeDisabled();
+  expect(screen.getByText(SUMMARIES_UNAVAILABLE_MESSAGE)).toBeVisible();
   expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
+});
+
+test('the summary cooldown message goes away when the cooldown ends', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const tooSoon = () => new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '5' } });
+  mockTimelineApi({ summarizeResponse: tooSoon });
+  renderPanel();
+  fireEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(retryInLabel(5));
+  await vi.advanceTimersByTimeAsync(4 * SECOND_MS);
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  await vi.advanceTimersByTimeAsync(2 * SECOND_MS);
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('Retry is disabled while its request is pending', async () => {
+  const pending = new Promise<Response>(() => undefined);
+  const fetchSpy = mockTimelineApi({ selectionViews: [FAILED_VIEW], summarizeResponse: () => pending });
+  renderPanel();
+  const retry = await screen.findByRole('button', { name: RETRY_SUMMARY_LABEL });
+  await userEvent.click(retry);
+  await waitFor(() => expect(retry).toBeDisabled());
+  await userEvent.click(retry);
+  expect(postCalls(fetchSpy)).toHaveLength(1);
+});
+
+test('the summary card sits in a polite live region that exists before it has content', async () => {
+  mockTimelineApi();
+  renderPanel();
+  await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
+  expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
+  expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
+});
+
+test('two authors with the same name each get an avatar', async () => {
+  const twins: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, authors: [FIXTURE_AUTHOR_NAME, FIXTURE_AUTHOR_NAME] } };
+  mockTimelineApi({ selectionViews: [twins] });
+  renderPanel();
+  const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
+  expect(within(card).getAllByTitle(FIXTURE_AUTHOR_NAME)).toHaveLength(2);
 });

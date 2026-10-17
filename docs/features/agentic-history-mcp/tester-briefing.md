@@ -310,8 +310,12 @@ Both tests were written after the product code landed, so neither was red first.
 2. Hypothesis: the revoked call fails at `initialize` with HTTP 401. Break it by: revoke between `initialize` and a tool call with a long-lived client.
 3. Hypothesis: three parallel runs do not collide. Break it by: `--repeat-each 5` with four workers; registration is limited to five per minute per address and each test uses its own address.
 
+### Added after the lead's review
+
+- The first test also asserts the AI badge (`Edited by AI`) inside the author list item titled "Ana · AI".
+- `a document exported by the AI is a DOCX and leaves a mark`: `export_docx` returns an embedded resource with the DOCX mime type and bytes that start with the ZIP signature, and the "exported the document" mark appears.
+- The share-link mark is now awaited without a reload and appeared on its own. Repeat runs: 12 of 12 green at 4 workers, 8 of 9 and 17 of 18 at 3 and 6 workers; the one failure each time was the first test timing out on the Hiring band appearing after 60 seconds under load (topic naming shares two model slots across workers).
+
 ### Known gaps
 
-- The AI-badge on the author list and the export tool are not covered by an E2E.
-- The mark test reloads the page after the server shows the action, so it does not depend on when the panel refetches; whether the panel picks the mark up without a reload is untested.
-
+- None known for the lane; all three tests are pins, not red-first.

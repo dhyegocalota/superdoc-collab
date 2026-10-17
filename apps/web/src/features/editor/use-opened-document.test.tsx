@@ -19,6 +19,10 @@ import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
 const GIVE_UP_POLLS = DOCUMENT_READY_GIVE_UP_MS / DOCUMENT_READY_POLL_MS;
 const OVERSHOOT_POLLS = GIVE_UP_POLLS + 50;
 const HIDDEN_MS = 10 * MINUTE_MS;
+const FAKE_TIMERS: Parameters<typeof vi.useFakeTimers>[0] = {
+  toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
+};
+const SETTLE_MS = 100;
 const OPENED = openedAs(DocumentRole.Reader);
 
 type Answer = () => Response;
@@ -40,6 +44,8 @@ function answerInOrder(...answers: Answer[]) {
 async function advance(milliseconds: number): Promise<void> {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(milliseconds);
+    await new Promise((resolve) => setImmediate(resolve));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
   });
 }
 
@@ -47,7 +53,7 @@ function renderOpenedDocument() {
   return renderHookWithRouter(() => useOpenedDocument(DOCUMENT_ID)).result;
 }
 
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => vi.useFakeTimers(FAKE_TIMERS));
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();

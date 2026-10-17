@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from '@/features/editor/collaboration-config';
+import { SUPERDOC_TELEMETRY } from '@/features/editor/superdoc-telemetry';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
 
@@ -42,6 +43,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
     const superdoc = new SuperDoc({
       selector: container,
       documentMode: DocumentMode.Viewing,
+      telemetry: SUPERDOC_TELEMETRY,
       documents: [
         {
           id: documentId,

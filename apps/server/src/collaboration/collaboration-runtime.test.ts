@@ -45,3 +45,18 @@ test("a takeover closes the superseded creator's socket with 4403 and the reason
   expect(superseded.close).toHaveBeenCalledWith({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
   expect(otherRoom.close).not.toHaveBeenCalled();
 });
+
+test('a takeover close is logged with the document id and the superseded attempt', () => {
+  const clock = { time: 0 };
+  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => clock.time });
+  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [connectionWithAttempt(1)] }, reservations });
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
+  expect(warn).not.toHaveBeenCalled();
+  clock.time += CREATOR_RESERVATION_MS + 1;
+  runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR });
+  expect(warn).toHaveBeenCalledOnce();
+  expect(warn.mock.calls.flat().join(' ')).toContain(DOCUMENT_ID);
+  expect(warn.mock.calls.flat().join(' ')).toContain('attempt 1');
+  warn.mockRestore();
+});

@@ -20,6 +20,7 @@
     "test:unit": "pnpm -r test:unit && pnpm test:hooks",
     "test:hooks": "bash .agents/hooks/hooks.test.sh",
     "test:e2e": "playwright test",
+    "scenario:stack": "tsx e2e/scenario-stack.ts",
     "seed": "pnpm --filter @superdoc-collab/server seed",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -31,6 +32,7 @@
     "@types/node": "24.19.2",
     "better-sqlite3": "13.0.3",
     "prettier": "3.9.10",
+    "tsx": "4.23.15",
     "typescript": "7.0.2"
   }
 }

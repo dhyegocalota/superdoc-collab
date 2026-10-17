@@ -38,7 +38,7 @@ Two further facts shape the decision. `delete-consent` in the Better Auth OAuth 
 - Access tokens are verified with the Better Auth resource verifier: signature against the JWKS, issuer, audience, expiry and DPoP binding, then the `at+jwt` type. A hook binds a token request that omits the RFC 8707 `resource` to the MCP resource, so clients never receive an opaque token.
 - Room tokens are signed with a key derived from the auth secret by a fixed label, not with the secret itself.
 - Rotating `AUTH_SECRET` invalidates room tokens and JWT signing keys together, as it already does for share links ([0017](0017-share-links-reissued-when-the-secret-changes.md)); clients re-run OAuth.
-- The issuer is the Railway URL ([0019](0019-deploy-on-railway.md)); local development uses `http://localhost`, which the MCP clients accept for loopback.
+- The issuer is `APP_ORIGIN`, the demo domain `https://superdoc.dhyegocalota.com.br` ([0019](0019-deploy-on-railway.md)); local development uses `http://localhost`, which the MCP clients accept for loopback.
 - One replica keeps the in-memory SDK hosts and the consent check consistent; a second replica would need shared state.
 
 ## Evidence

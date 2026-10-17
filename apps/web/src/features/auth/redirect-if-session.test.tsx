@@ -12,20 +12,21 @@ vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeo
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const FORM_TEXT = 'sign-in form';
 const DOCUMENTS_TEXT = 'documents page';
-const CONNECTED_APPS_TEXT = 'connected apps page';
+const ADMIN_TEXT = 'admin page';
+const EXTERNAL_NEXT = 'https://evil.example/steal';
 
 function respondWithUser(user: SessionUser | null): void {
   vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user } }));
 }
 
-function renderSignInRoute(entry: string = AppRoute.SignIn) {
+function renderSignInRoute(initialEntry: string = AppRoute.SignIn) {
   const router = createMemoryRouter(
     [
       { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
       { path: AppRoute.Documents, element: DOCUMENTS_TEXT },
-      { path: AppRoute.ConnectedApps, element: CONNECTED_APPS_TEXT },
+      { path: AppRoute.Admin, element: ADMIN_TEXT },
     ],
-    { initialEntries: [entry] },
+    { initialEntries: [initialEntry] },
   );
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -49,9 +50,14 @@ test('renders the form when signed out', async () => {
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
 });
 
-test('redirects a signed-in user to the page the next parameter names', async () => {
+test('a signed-in user goes to the page named by next', async () => {
   respondWithUser(ADA);
-  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.ConnectedApps)}`);
-  expect(await screen.findByText(CONNECTED_APPS_TEXT)).toBeInTheDocument();
-  expect(screen.queryByText(DOCUMENTS_TEXT)).not.toBeInTheDocument();
+  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.Admin)}`);
+  expect(await screen.findByText(ADMIN_TEXT)).toBeInTheDocument();
+});
+
+test('a next pointing at another origin falls back to documents', async () => {
+  respondWithUser(ADA);
+  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(EXTERNAL_NEXT)}`);
+  expect(await screen.findByText(DOCUMENTS_TEXT)).toBeInTheDocument();
 });

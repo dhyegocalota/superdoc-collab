@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { AgentScope, AgentTool, ApiPath, AppRoute, type DocumentTimeline, type ShareLinks } from '../libs/types/src';
 import { APPROVE_LABEL, consentDescription } from '../apps/web/src/features/oauth-consent/oauth-consent-copy';
@@ -20,6 +20,7 @@ const CODE_CHALLENGE_METHOD = 'S256';
 const MCP_CLIENT_NAME = 'e2e-mcp-client';
 const MCP_CLIENT_VERSION = '1.0.0';
 const CONSENT_TIMEOUT_MS = 30_000;
+const TRACKED_CHANGE_CARD_SELECTOR = '.comments-dialog.floating-comment';
 
 type AuthorizationServerMetadata = {
   registration_endpoint: string;
@@ -156,12 +157,19 @@ export function toolJson<Shape>(result: ToolResult): Shape {
   return JSON.parse(text) as Shape;
 }
 
-export async function revokeInConnectedApps({ page, clientName }: { page: Page; clientName: string }): Promise<void> {
+export async function openConnectedApps({ page, clientName }: { page: Page; clientName: string }): Promise<void> {
   await page.goto(AppRoute.ConnectedApps);
   await expect(page.getByRole('heading', { name: CONNECTED_APPS_HEADING })).toBeVisible();
   await expect(page.getByText(clientName, { exact: true })).toBeVisible();
+}
+
+export async function revokeConnectedApp({ page, clientName }: { page: Page; clientName: string }): Promise<void> {
   await page.getByRole('button', { name: revokeLabel(clientName) }).click();
   await expect(page.getByText(clientName, { exact: true })).toHaveCount(0);
+}
+
+export function trackedChangeCards(page: Page): Locator {
+  return page.locator(TRACKED_CHANGE_CARD_SELECTOR);
 }
 
 export async function readTimelineThroughAgent({
@@ -197,4 +205,14 @@ export async function revealShareLinksThroughAgent({
   documentId: string;
 }): Promise<ShareLinks> {
   return toolJson<ShareLinks>(await callTool({ connection, tool: AgentTool.GetShareLinks, args: { documentId } }));
+}
+
+export async function rejectedStatus(call: Promise<unknown>): Promise<number> {
+  try {
+    await call;
+  } catch (error) {
+    if (error instanceof StreamableHTTPError && error.code !== undefined) return error.code;
+    throw error;
+  }
+  throw new Error('The call was accepted');
 }

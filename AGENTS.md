@@ -7,7 +7,7 @@ Domain facts live in `.claude/rules/*.md` and load by path. Decisions live in `d
 
 ## What this is
 
-A full-stack app that visualizes how a collaborative DOCX evolves over time and across contributors, built on SuperDoc Editor v2 with real-time collaboration. The brief is the `.docx` at the repo root. The validated proof of concept is in `poc/` (`poc/RESULTS.md`).
+A full-stack app that visualizes how a collaborative DOCX evolves over time and across contributors, built on SuperDoc Editor v2 with real-time collaboration. The brief is `docs/brief/superdoc-eng-sample-project.docx`. The validated proof of concept is in `poc/` (`poc/RESULTS.md`).
 
 ## Layout
 

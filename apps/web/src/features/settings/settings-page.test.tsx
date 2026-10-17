@@ -1,10 +1,13 @@
 import { UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { accountMenuLabel } from '@/features/account/account-copy';
 import { authClient } from '@/features/auth/auth-client';
+import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
+import { HOME_LINK_LABEL } from '@/features/editor/editor-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -128,4 +131,12 @@ test('clears the inline error when the selection changes', async () => {
   expect(await screen.findByRole('alert')).toBeInTheDocument();
   await user.selectOptions(zoneSelect(), ACCOUNT_ZONE);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('the header has the brand link and the account menu, and no Sign out button', () => {
+  renderPage();
+  const header = screen.getByRole('banner');
+  expect(within(header).getByRole('link', { name: HOME_LINK_LABEL })).toBeInTheDocument();
+  expect(within(header).getByRole('button', { name: accountMenuLabel(USER.name) })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: SIGN_OUT_LABEL })).not.toBeInTheDocument();
 });

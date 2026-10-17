@@ -58,7 +58,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
-      zoom: { mode: initialZoomMode() },
+      zoom: { mode: initialZoomMode(window) },
       onReady: ({ superdoc: ready }) => {
         if (!focusOnReady) return;
         ready.focus();
@@ -66,7 +66,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       onException: () => setHasFailed(true),
     });
     superdocRef.current = superdoc;
-    const stopFollowingViewport = followViewportZoom(superdoc);
+    const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window });
     return () => {
       stopFollowingViewport();
       superdocRef.current = null;

@@ -1,5 +1,24 @@
 # Tester briefing: web readability (lane C2)
 
+## Assembled branch: what changed
+
+Branch `chore/refinement-readability-web-api` holds the whole lane except Tasks 13 and 18, which wait for lane A.
+
+- **Moves and names (Tasks 1, 4).** The editor and timeline hooks live in their own files: `use-members.ts`, `use-document-file.ts`, `use-bin-runs.ts`, `resize-handle.tsx`, `opening-document.tsx` and `unavailable-notice.tsx`. The arrow keys and the pointer button are shared constants.
+- **Timeline helpers (Tasks 2, 3, 5).** The web reads the volume, presence and digit helpers from the libraries. `maxBandVolume` and `authorNames` replace inline copies. Streamgraph labels no longer have a hidden side effect.
+- **API layer (Tasks 6 to 9).** See the section below.
+- **Listener hooks and splits (Tasks 10 to 12).** `useWindowMessage` and `useEscapeKey` serve the version frame and page. `useTimeTravel` and `TimelinePanel` are split, with `binContaining`, `useVersionLoad` and `useBinSelection`.
+- **Shared UI (Tasks 14 to 16).** Every styled inline error renders through `ErrorMessage`, now including the selection summary card. The auth pages use `AuthCard` and `AuthTextField`. The upload message order and the download handler are simpler.
+- **Tests (Task 17).** Every web test builds JSON responses with `jsonResponse`, now including `lib/api.test.ts` and the two auth suites.
+- **Integration fix.** `upload-dialog.test.tsx` reads its expected failure from `requestFailedMessage`. The constant it imported was removed in Task 6.
+
+Leftovers after the last sweep, all expected:
+
+- `superdoc-editor.tsx` keeps its inline styled alert until Task 13.
+- `share-landing-page.tsx` and `unavailable-notice.tsx` keep their unstyled alerts by design.
+- `max-band-volume.ts` holds the one `Math.max(0, ...bands)`, as the helper itself.
+- `testing/json-response.ts` holds the one `new Response(JSON.stringify`, as the helper itself.
+
 ## API layer: Tasks 2, 6, 7, 8, 9 and Task 1 Step 2
 
 Branch `chore/refinement-readability-web-api`. It merges `chore/refinement-readability-web-structure` (Task 1 and the sibling's later tasks) before Task 8.
@@ -42,6 +61,6 @@ pnpm --filter @superdoc-history/types exec vitest run
 
 ### Known gaps and deviations
 
-- **Visible text change.** `requestFailedMessage` ends with a period, as it already did for the timeline messages. Upload, accepting a share link, members, share links, rotate, rename, delete, the documents list and the session request now end with a period too. The upload dialog and the share landing page show that text. No test pins those strings.
+- **Visible text change.** `requestFailedMessage` ends with a period, as it already did for the timeline messages. Upload, accepting a share link, members, share links, rotate, rename, delete, the documents list and the session request now end with a period too. The upload dialog and the share landing page show that text. The lead approved this, because the copy rule is that sentences end with a period. `upload-dialog.test.tsx` pins the upload message.
 - **Summary reset timing.** The summary cooldown used to reset after the wait rounded up to whole seconds. It now resets after the exact wait. This differs only for a fractional `Retry-After` header.
 - The plan's check for `/ SECOND_MS` in `features/timeline` still matches `timeline-notices.tsx` (projection lag) and `timeline-panel.test.tsx`. Neither concerns retry waits.

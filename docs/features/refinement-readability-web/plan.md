@@ -1882,7 +1882,7 @@ git add apps/web/src/components/error-message.tsx apps/web/src/components/error-
 git commit -m "test(web): pin one error message component"
 ```
 
-- [x] **Step 4: Implement and adopt.** `components/error-message.tsx`: Evidence: `8fd1a34`. Not adopted here: `superdoc-editor.tsx` waits for Task 13 and the UX crash fix, and `selection-summary-card.tsx` belongs to the API lane.
+- [x] **Step 4: Implement and adopt.** `components/error-message.tsx`: Evidence: `8fd1a34`. Not adopted here: `superdoc-editor.tsx` waits for Task 13 and the UX crash fix. `selection-summary-card.tsx` adopted on the integration branch: `dc218ce`.
 
 ```tsx
 import type { ReactNode } from 'react';
@@ -2293,7 +2293,7 @@ export function jsonResponse({ body, status, headers }: { body: unknown; status?
 
 `status` and `headers` left `undefined` give `Response` its defaults (200, no headers), exactly as the two-argument constructor does today.
 
-- [x] **Step 2: Sweep.** `rg -l "new Response\(JSON\.stringify\(" apps/web/src`. In each file, `new Response(JSON.stringify(X))` → `jsonResponse({ body: X })`, `new Response(JSON.stringify(X), { status: S })` → `jsonResponse({ body: X, status: S })`, `new Response(JSON.stringify(X), { status: S, headers: H })` → `jsonResponse({ body: X, status: S, headers: H })`, and add `import { jsonResponse } from '@/testing/json-response';`. Keep `new Response(null, …)`, `new Response('{}', …)` and binary bodies as they are. Check: `rg -c "new Response\(JSON\.stringify\(" apps/web/src` prints nothing. Evidence: `2146fda`. `redirect-if-session.test.tsx` and `sign-out-flow.test.tsx` keep one `new Response(JSON.stringify(` each, because their mock factories belong to Task 6.
+- [x] **Step 2: Sweep.** `rg -l "new Response\(JSON\.stringify\(" apps/web/src`. In each file, `new Response(JSON.stringify(X))` → `jsonResponse({ body: X })`, `new Response(JSON.stringify(X), { status: S })` → `jsonResponse({ body: X, status: S })`, `new Response(JSON.stringify(X), { status: S, headers: H })` → `jsonResponse({ body: X, status: S, headers: H })`, and add `import { jsonResponse } from '@/testing/json-response';`. Keep `new Response(null, …)`, `new Response('{}', …)` and binary bodies as they are. Check: `rg -c "new Response\(JSON\.stringify\(" apps/web/src` prints nothing. Evidence: `2146fda`. `redirect-if-session.test.tsx`, `sign-out-flow.test.tsx` and `lib/api.test.ts` swept on the integration branch: `a43b023`.
 
 - [x] **Step 3: Run the gate.** Expected: PASS with the same test count as before the sweep (`npx vitest run` prints the total; compare with Task 16's run). Evidence: `2146fda`.
 

@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';
-import { formatBinRange, TooltipAlignment, tooltipAlignment, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
+import { formatBinRange, TooltipAlignment, tooltipAlignment, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
 const timeline = timelineWith({
@@ -119,4 +119,29 @@ test('the first and the last bins open their tooltip inward', () => {
   expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.Start);
   rerender(<Streamgraph timeline={timeline} width={WIDTH} selectedIndex={timeline.bins.length - 1} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={vi.fn()} />);
   expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.End);
+});
+
+test('the focused band is described by the tooltip while it shows', () => {
+  renderGraph({ selectedIndex: 1 });
+  expect(budgetBand()).not.toHaveAttribute('aria-describedby');
+  fireEvent.focus(budgetBand());
+  expect(budgetBand()).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id);
+  fireEvent.blur(budgetBand());
+  expect(budgetBand()).not.toHaveAttribute('aria-describedby');
+});
+
+test('Escape clears the selection and hides the keyboard tooltip', () => {
+  const { rerender, onClearSelection } = renderGraph({ selectedIndex: 1 });
+  fireEvent.focus(budgetBand());
+  fireEvent.keyDown(budgetBand(), { key: 'Escape' });
+  expect(onClearSelection).toHaveBeenCalledTimes(1);
+  rerender(<Streamgraph timeline={timeline} width={WIDTH} selectedIndex={null} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={onClearSelection} />);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('the tooltip never grows wider than a narrow chart', () => {
+  const narrowWidth = TOOLTIP_WIDTH / 2;
+  render(<Streamgraph timeline={timeline} width={narrowWidth} selectedIndex={1} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={vi.fn()} />);
+  fireEvent.focus(budgetBand());
+  expect(screen.getByRole('tooltip')).toHaveStyle({ width: `${narrowWidth}px` });
 });

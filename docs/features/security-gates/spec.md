@@ -39,7 +39,7 @@ push / pull_request
             ├─ pnpm security:audit        = pnpm audit --prod --audit-level=high
             ├─ gitleaks binary pinned by version and checksum
             ├─ .github/scripts/secret-rules-probe.sh   a fresh token fires, a shipped placeholder stays silent
-            ├─ gitleaks git                            scans every commit reachable from the head
+            ├─ gitleaks git                            scans every commit on every branch and tag (full checkout)
             └─ gitleaks dir                            scans the checked-out tree (merge commits carry no patch), before pnpm install
 
 weekly

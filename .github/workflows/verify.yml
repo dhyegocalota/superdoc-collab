@@ -121,7 +121,7 @@ jobs:
           tar --extract --gzip --file gitleaks.tar.gz gitleaks
       - name: The secret rules fire on a near miss and stay silent on a shipped placeholder
         run: .github/scripts/secret-rules-probe.sh ./gitleaks
-      - name: Every commit reachable from the head is free of secrets
+      - name: Every commit on every branch and tag is free of secrets
         run: ./gitleaks git --no-banner --redact --exit-code 1 .
       - name: The checked-out tree is free of secrets, merge commits included
         run: ./gitleaks dir --no-banner --redact --exit-code 1 .

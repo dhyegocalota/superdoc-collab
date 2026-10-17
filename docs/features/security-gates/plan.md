@@ -38,7 +38,7 @@ G1 first (tests red, then the files that turn them green), then G2. Both run inl
 |------|-------------|------------------------------------|----------------|
 | 2 | gitleaks flags the shipped placeholders | `gitleaks git` lists `.env.example` or `playwright.config.ts` | allowlist the exact strings in `.gitleaks.toml`, never the files |
 | 2 | `pnpm audit` is red in CI but green locally (registry drift) | the `security` job fails on an advisory id not seen locally | bump the dependency or list the CVE with a reason in the same commit |
-| 2 | gitleaks-action needs a licence | job log says `GITLEAKS_LICENSE` is required | the action is free for personal repositories; if the log disagrees, pin the binary step instead of the action |
+| 2 | ~~gitleaks-action needs a licence~~ struck: the action was dropped after review (it reads at most thirty PR commits and never walks into a merged lane); the job downloads the binary and verifies its checksum | ~~job log says `GITLEAKS_LICENSE` is required~~ | ~~pin the binary step instead of the action~~ done |
 | 4 | Codex rejects the config entry | `.codex/config.toml` parse error in the Codex log | copy the exact shape of the `reviewer` entry |
 | 5 | `/open-pr` dispatches the security reviewer on a docs-only diff and wastes a prompt | the verdict is `NOT APPLICABLE` on a diff with no code paths | gate 3b skips the dispatch when `git diff --name-only` has no path under the code roots |
 

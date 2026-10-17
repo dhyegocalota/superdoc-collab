@@ -28,10 +28,7 @@ pnpm test:hooks && pnpm format:check && pnpm typecheck
 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
-| `security-config.test.ts::the security audit script gates production dependencies at high` | `scripts["security:audit"]` was undefined | the script exists with the exact command |
-| `security-config.test.ts::verify runs the security audit right after the typecheck` | `verify` went straight to `test:unit` | `verify` chains `security:audit` second |
-| `security-config.test.ts::dependabot watches npm and github actions weekly` | no `dependabot.yml` | both ecosystems weekly |
-| `security-config.test.ts::gitleaks extends the default rules` | no `.gitleaks.toml` | `useDefault = true` |
+| ~~`security-config.test.ts` (four cases)~~ | red at 9ffbffc as the plan records | deleted after review finding 8: they compared config strings with themselves; the `security` job running the commands is the proof |
 | `ci-workflow.test.ts::the workflow runs exactly the checks, unit, docker and security jobs` | three jobs | `security` appended after `docker` |
 | `ci-workflow.test.ts::the security job audits production dependencies and scans the full history for secrets` | no job | both steps and `fetch-depth: 0` |
 | `agent-surfaces.test.ts::the roles are exactly the expected ones` | five roles | `security-reviewer` role file |

@@ -19,4 +19,4 @@ Gate production dependencies only (`pnpm security:audit` = `pnpm audit --prod --
 
 - `package.json` → `security:audit`
 - `.github/workflows/verify.yml` → `security` job
-- `apps/server/src/repository-shape/security-config.test.ts`
+- `apps/server/src/repository-shape/ci-workflow.test.ts` → `the security job audits production dependencies…`

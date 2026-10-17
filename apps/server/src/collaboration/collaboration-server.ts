@@ -33,6 +33,7 @@ export const LOADING_ORIGIN = 'update-log-replay';
 const PARSE_BASE_URL = 'http://localhost';
 const FIRST_ATTEMPT = 1;
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
+const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
 const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket on an uncommitted room without the creator attempt';
 
 export class CollaborationSupersededError extends Error {
@@ -116,7 +117,15 @@ export function createCollaborationServer({
         console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationSupersededError();
       }
+      if (!mayWrite) connection.readOnly = true;
       return { userId, documentId, actor, creatorAttempt: attempt, creatorEpoch: epoch };
+    },
+    async connected({ context, connectionInstance }) {
+      const { documentId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
+      const isWriteAllowed = reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: true });
+      if (isWriteAllowed) return;
+      console.warn(`${SUPERSEDED_CLOSE_LOG} ${documentId}`);
+      connectionInstance.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
     },
     async onLoadDocument({ document, documentName }) {
       const restored = materialize({

@@ -145,4 +145,4 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 ## License
 
-The repository is public from delivery. All rights reserved; source published for evaluation.
+[GNU AGPL-3.0](LICENSE), the same licence as SuperDoc and its SDK, which this application is built on. Copyright 2026 Dhyego Calota.

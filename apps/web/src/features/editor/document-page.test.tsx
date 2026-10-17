@@ -21,6 +21,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { pageTitle } from '@/lib/use-document-title';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { NEW_DOCUMENT_STATE } from '@/features/documents/new-document-state';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import {
@@ -37,11 +38,16 @@ import {
 } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
+import { ZoomMode } from './superdoc-zoom';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 
-type SuperDocConfig = { onException: (payload: { error: Error }) => void };
+type SuperDocConfig = {
+  onException: (payload: { error: Error }) => void;
+  onReady: (payload: { superdoc: { focus: () => void } }) => void;
+  zoom: { mode: string };
+};
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
@@ -98,6 +104,12 @@ function mockDocumentApi({
       return new Response(JSON.stringify(openStatus === HttpStatus.Ok ? current : openBody), { status: openStatus });
     throw new Error(`unexpected request ${String(input)}`);
   });
+}
+
+function constructedConfig(): SuperDocConfig {
+  const firstCall = SuperDoc.mock.calls.at(0);
+  if (!firstCall) throw new Error('SuperDoc was not constructed');
+  return firstCall[0];
 }
 
 beforeEach(() => SuperDoc.mockClear());
@@ -273,4 +285,33 @@ test('the browser tab names the open document', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
+});
+
+test('a document created with New document gets the caret once the editor is ready', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID), state: NEW_DOCUMENT_STATE });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const focus = vi.fn();
+  constructedConfig().onReady({ superdoc: { focus } });
+  expect(focus).toHaveBeenCalledTimes(1);
+});
+
+test('an existing document does not take the focus', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const focus = vi.fn();
+  constructedConfig().onReady({ superdoc: { focus } });
+  expect(focus).not.toHaveBeenCalled();
+});
+
+test('below the large breakpoint the page fits the width', async () => {
+  vi.spyOn(window, 'matchMedia').mockReturnValue({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as MediaQueryList);
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth } })));
 });

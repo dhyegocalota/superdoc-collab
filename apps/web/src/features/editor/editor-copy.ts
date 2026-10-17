@@ -4,6 +4,7 @@ import { APP_NAME } from '../../lib/app-copy';
 export const TITLE_LABEL = 'Title';
 export const SHARE_LABEL = 'Share';
 export const DELETE_LABEL = 'Delete';
+export const MORE_ACTIONS_LABEL = 'More actions';
 export const DELETE_CONFIRM_LABEL = 'Delete document';
 export const DELETE_DIALOG_TITLE = 'Delete this document?';
 export const DELETE_DIALOG_DESCRIPTION = 'The document and its history are removed for everyone.';

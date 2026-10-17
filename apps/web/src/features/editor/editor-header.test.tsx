@@ -19,6 +19,7 @@ import {
   DOWNLOAD_LABEL,
   HOME_LINK_LABEL,
   memberLabel,
+  MORE_ACTIONS_LABEL,
   RENAME_FAILED_MESSAGE,
   SHARE_LABEL,
   TITLE_LABEL,
@@ -27,6 +28,11 @@ import { EditorHeader } from './editor-header';
 
 const RENAMED_TITLE = 'Renamed';
 const onDownload = vi.fn();
+
+async function openDeleteDialog(): Promise<void> {
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: DELETE_LABEL }));
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -85,7 +91,7 @@ test('the owner deletes after confirming and returns to the documents list', asy
       route: documentPagePath(DOCUMENT_ID),
     },
   );
-  await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
+  await openDeleteDialog();
   expect(fetchSpy).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
@@ -135,7 +141,7 @@ test('a failed delete shows an alert and stays on the page', async () => {
       route: documentPagePath(DOCUMENT_ID),
     },
   );
-  await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
+  await openDeleteDialog();
   await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(DELETE_FAILED_MESSAGE);
   expect(router.state.location.pathname).toBe(documentPagePath(DOCUMENT_ID));
@@ -154,4 +160,22 @@ test('the download button is disabled until the editor is ready', () => {
     <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={null} />,
   );
   expect(screen.getByRole('button', { name: DOWNLOAD_LABEL })).toBeDisabled();
+});
+
+test('Delete lives in the More actions menu, Download and Share keep their names as icons', async () => {
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
+  expect(screen.queryByRole('button', { name: DELETE_LABEL })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: DOWNLOAD_LABEL })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: SHARE_LABEL })).toBeInTheDocument();
+  await openDeleteDialog();
+  expect(await screen.findByRole('button', { name: DELETE_CONFIRM_LABEL })).toBeInTheDocument();
+});
+
+test('a reader has no More actions menu', () => {
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
+  expect(screen.queryByRole('button', { name: MORE_ACTIONS_LABEL })).not.toBeInTheDocument();
 });

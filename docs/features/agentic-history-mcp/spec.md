@@ -8,7 +8,7 @@
 
 ## Problem
 
-A person who works on a document in SuperDoc History cannot ask their own AI client to read the history or edit the document for them. When they do it by hand outside the app, nothing in the history tells a human edit from an AI one. SuperDoc is moving towards agentic editing, and the [SDK room-join spike](../spike-sdk-room-join.md) proved that a server-side `@superdoc/sdk` host can join the live Hocuspocus room and edit in tracked mode.
+A person who works on a document in SuperDoc History cannot ask their own AI client to read the history or edit the document for them. When they do it by hand outside the app, nothing in the history tells a human edit from an AI one. SuperDoc is moving towards agentic editing, and the [SDK room-join spike](spike-sdk-room-join.md) proved that a server-side `@superdoc/sdk` host can join the live Hocuspocus room and edit in tracked mode.
 
 ## Goals
 

@@ -4,5 +4,5 @@ Behaviour-preserving removal of code outside the workspace: the reviewer and `pn
 
 - [ ] `delivery-docs.test.ts` "no spike or proof-of-concept code is committed at the root" — input: `spikes/` present; expected: fails naming `spikes`
 - [ ] Same test after the removal — expected: passes
-- [ ] Every Markdown link in the repository resolves — expected: `delivery-docs.test.ts` green
+- [ ] Every link to the moved file resolves — expected: `rg -n "spike-sdk-room-join"` names only paths that exist relative to each linking file
 - [ ] `pnpm verify` on the branch — expected: green

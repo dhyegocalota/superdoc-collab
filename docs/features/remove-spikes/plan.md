@@ -7,7 +7,7 @@
 ## Steps
 
 - [x] **Step 1:** red: `delivery-docs.test.ts` "no spike or proof-of-concept code is committed at the root".
-- [x] **Step 2:** move the results and screenshots, delete `spikes/`, fix the links, `.prettierignore`, `AGENTS.md`, HARNESS §1.
+- [ ] **Step 2:** move the results and screenshots, delete `spikes/`, fix the links, `.prettierignore`, `AGENTS.md`, HARNESS §1.
 - [ ] **Step 3:** `pnpm verify`, reviewer, PR, merge.
 
 ## Failure modes

@@ -1,8 +1,9 @@
 # The SDK opens a document with a `collaboration` block, no error is raised, and the room on the server stays empty
 
 - Date: 2026-10-17
-- Inspired by: spike [`sdk-room-join`](../features/agentic-history-mcp/spike-sdk-room-join.md) (code at commit `c1ada06`) (agentic history, SuperDoc SDK inside a live Hocuspocus room); the docs page "Node.js SDK" shows the `collaboration` option without the runtime requirement, and the top-level `@superdoc/sdk` typings do not expose it, so the first search of the published package concluded it did not exist
+- Inspired by: spike [`sdk-room-join`](../features/agentic-history-mcp/spike-sdk-room-join.md) (agentic history, code at commit `c1ada06`: SuperDoc SDK inside a live Hocuspocus room); the docs page "Node.js SDK" shows the `collaboration` option without the runtime requirement, and the top-level `@superdoc/sdk` typings do not expose it, so the first search of the published package concluded it did not exist
 - Revisited: 2026-10-17 — `room-join.test.ts` S1 to S4 green twice with `runtime: 'v2'`
+- Revisited: 2026-10-17 — still true; the spike's code left the tree and stays at `c1ada06`
 
 ## Signal
 `client.open({ collaboration: { providerType: 'hocuspocus', url, documentId, roomMode } })` resolves, `doc.info()` and edits work, yet Hocuspocus never logs a connection, `server.documents` has no room, and a later `roomMode: 'join'` fails with `no committed v2 collaboration room exists for join intent`.

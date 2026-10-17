@@ -1,13 +1,8 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
+import { KeyboardKey } from '@/lib/keyboard';
+import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { RESIZE_PANEL_LABEL } from './timeline-copy';
 import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
-
-enum ResizeKey {
-  Widen = 'ArrowLeft',
-  Narrow = 'ArrowRight',
-}
-
-const PRIMARY_BUTTON_PRESSED = 1;
 
 export function ResizeHandle({
   width,
@@ -30,8 +25,8 @@ export function ResizeHandle({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === ResizeKey.Widen) resizeBy(PANEL_RESIZE_STEP);
-    if (event.key === ResizeKey.Narrow) resizeBy(-PANEL_RESIZE_STEP);
+    if (event.key === KeyboardKey.ArrowLeft) resizeBy(PANEL_RESIZE_STEP);
+    if (event.key === KeyboardKey.ArrowRight) resizeBy(-PANEL_RESIZE_STEP);
   }
 
   return (

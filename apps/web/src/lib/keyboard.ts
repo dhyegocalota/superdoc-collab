@@ -1,6 +1,10 @@
 export enum KeyboardKey {
   Escape = 'Escape',
   Enter = 'Enter',
+  ArrowLeft = 'ArrowLeft',
+  ArrowRight = 'ArrowRight',
+  Home = 'Home',
+  End = 'End',
 }
 
 export function isTypingInField(target: EventTarget | null): boolean {

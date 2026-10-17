@@ -4,11 +4,12 @@ import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
+import { ExceptionOutcome, exceptionOutcome } from '@/features/editor/superdoc-exceptions';
 import { DocumentMode, superdocOptions } from '@/features/editor/superdoc-options';
 import { FITTED_PAGE_CLASS, followViewportZoom } from '@/features/editor/superdoc-zoom';
 import { cn } from '@/lib/utils';
 
-enum ConnectionState {
+enum ViewerConnectionState {
   Degraded = 'degraded',
   Failed = 'failed',
 }
@@ -50,10 +51,14 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
         onReady(superdoc);
       },
       onCollaborationConnectionChange: ({ state }) => {
-        const isRefused = state === ConnectionState.Failed || (state === ConnectionState.Degraded && !isReady);
+        const isRefused = state === ViewerConnectionState.Failed || (state === ViewerConnectionState.Degraded && !isReady);
         if (isRefused) onConnectionFailed();
       },
-      onException: onFailed,
+      onException: (payload) => {
+        const outcome = exceptionOutcome(payload);
+        if (outcome === ExceptionOutcome.ConnectionFailed) onConnectionFailed();
+        if (outcome === ExceptionOutcome.Fatal) onFailed();
+      },
     });
     const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window.parent });
     return () => {

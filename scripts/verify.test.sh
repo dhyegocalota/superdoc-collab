@@ -53,7 +53,7 @@ write_stub() {
 
 install_stubs() {
   mkdir -p "$stub_bin" "$linked_bin"
-  write_stub pnpm 'echo "pnpm $*" >> "$STUB_LOG"; [[ -n "${STUB_MUTATE:-}" ]] && eval "$STUB_MUTATE"; [[ "$*" == "${STUB_FAIL:-}" ]] && exit 1; exit 0'
+  write_stub pnpm 'echo "pnpm $* TZ=${TZ:-}" >> "$STUB_LOG"; [[ -n "${STUB_MUTATE:-}" ]] && eval "$STUB_MUTATE"; [[ "$*" == "${STUB_FAIL:-}" ]] && exit 1; exit 0'
   write_stub node 'echo "$STUB_NODE_VERSION"'
   write_stub gitleaks 'echo "gitleaks $*" >> "$STUB_LOG"'
   write_stub docker 'echo "docker $*" >> "$STUB_LOG"; [[ "$1" == info && -n "${STUB_DOCKER_DOWN:-}" ]] && exit 1; exit 0'
@@ -400,6 +400,26 @@ run_verify
 expect_equal "a failed fetch still runs green" "$status" 0
 expect_match "a failed fetch says no record" "$output" 'verify: no record: origin main could not be fetched'
 expect_equal "a failed fetch writes no record" "$(record_count)" 0
+
+new_repository
+commit_change apps/server/src/x.ts
+run_verify
+expect_equal "a server change exits 0" "$status" 0
+expect_match "a server change runs the server again in Kolkata" "$(calls)" 'pnpm --filter @superdoc-collab/server test:unit TZ=Asia/Kolkata'
+expect_match "a server change announces the time zone run" "$output" 'verify: unit in Asia/Kolkata'
+
+new_repository
+commit_change apps/web/vite.config.ts
+run_verify
+expect_equal "a web change exits 0" "$status" 0
+expect_match "a web change runs the web unit suite" "$(calls)" 'pnpm --filter @superdoc-collab/web test:unit'
+expect_no_match "a web change never runs in Kolkata" "$(calls)" 'TZ=Asia/Kolkata'
+
+new_repository
+commit_change README.md
+run_verify all
+expect_equal "all exits 0" "$status" 0
+expect_match "all runs the libraries and the server again in Kolkata" "$(calls)" 'pnpm --filter @superdoc-collab/server --filter @superdoc-collab/history --filter @superdoc-collab/types test:unit TZ=Asia/Kolkata'
 
 rm -rf "$scratch"
 

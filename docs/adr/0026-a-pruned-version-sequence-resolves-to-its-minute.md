@@ -7,7 +7,7 @@
 
 ## Context
 
-Version marks are kept once per minute: when a later mark lands in a minute, the earlier non-bootstrap mark of that minute is pruned. The timeline hands the client a `versionSequence` per bin; the client pins it in the URL (`?at=`) and asks `/versions/<sequence>`. When the client read the timeline while the projection was behind, every bin carried the projection cursor as its sequence, a mark that the next projection batch pruned. `clampToMark` then resolved the pruned sequence to the latest mark at or before it, which inside a minute is the bootstrap mark: the user opened the live bin and saw the seed document without that minute's edits, and the pin kept it that way. The E2E failed that way four times on 2026-10-17; the same race reaches users.
+Version marks are kept once per minute: when a later mark lands in a minute, the earlier non-bootstrap mark of that minute is pruned. The timeline hands the client a `versionSequence` per bin; the client pins it in the URL (`?at=`) and asks `/versions/<sequence>`. When the client read the timeline while the projection was behind, every bin carried the projection cursor as its sequence, a mark that the next projection batch pruned. `clampToMark` then resolved the pruned sequence to the latest mark before it, the previous minute's mark or the bootstrap when it shares the minute: the user opened the live bin and saw a state without that minute's edits, and the pin kept it that way. The E2E failed that way four times on 2026-10-17; the same race reaches users.
 
 ## Decision
 

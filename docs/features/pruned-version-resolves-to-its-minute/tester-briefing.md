@@ -21,6 +21,8 @@ pnpm test:e2e e2e/time-travel.spec.ts
 |------|--------------------------------|---------------------|
 | `version-marks.test.ts::a sequence whose mark was pruned…` | stub threw `resolveMark is not implemented` | the minute's surviving mark is returned |
 | `version-marks.test.ts::a sequence the log does not know clamps down like before` | same stub | clamp kept for unknown sequences |
+| `versions-routes.test.ts::a logged sequence that is not a mark resolves to the mark that ends its minute` | pin (landed green after the fix, independent oracle: the newest mark) | fails on the old clamp |
+| `update-log.test.ts::serverTimeOf answers the logged time…` | pin (added after review) | pins the document scope and the null branch |
 
 Red commit: `2950b9e`.
 
@@ -32,4 +34,4 @@ Red commit: `2950b9e`.
 
 ## Known gaps
 
-- `serverTimeOf` has no dedicated unit test yet beyond the route property test; add one if you find the time.
+- None known.

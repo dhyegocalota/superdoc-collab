@@ -21,7 +21,7 @@ One group.
 ### G1
 
 - [x] **Step 1:** red `resolveMark` tests with a not-implemented stub (2950b9e).
-- [x] **Step 2:** `resolveMark`, `UpdateLog.serverTimeOf`, the service wired to the log, the route property test against `resolveMark`.
+- [x] **Step 2:** `resolveMark`, `UpdateLog.serverTimeOf`, the service wired to the log, the route property test against `resolveMark`. The existing route test for a pre-bootstrap sequence went red on the first implementation (b8e732f) and 9c97336 lifts a sequence at or before the first mark before the minute resolution; the independent-oracle route test (3524bfe, 1da4000) landed green after the fix and is a pin; a direct `serverTimeOf` unit test was added after review.
 
 ## Failure modes
 

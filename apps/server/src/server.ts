@@ -3,6 +3,8 @@ import type { Hocuspocus } from '@hocuspocus/server';
 import type { Hono } from 'hono';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type Database from 'better-sqlite3';
+import type { WebSocketServer } from 'ws';
 import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
@@ -68,26 +70,46 @@ function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType>
   });
 }
 
-export async function startServer({
+type Databases = { database: AuthDatabase; historySqlite: Database.Database; readModelSqlite: Database.Database };
+
+function openDatabases({
+  databaseDirectory,
+  documentFilesDirectory,
+}: {
+  databaseDirectory: string;
+  documentFilesDirectory: string;
+}): Databases {
+  ensureWritableDirectory(databaseDirectory);
+  ensureWritableDirectory(documentFilesDirectory);
+  const database = openDatabase({ directory: databaseDirectory, fileName: AUTH_DATABASE_FILE });
+  runMigrations(database);
+  const historySqlite = openSqliteFile({ directory: databaseDirectory, fileName: HISTORY_DATABASE_FILE });
+  runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History });
+  const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
+  runHistoryMigrations({ sqlite: readModelSqlite, set: MigrationSet.ReadModel });
+  return { database, historySqlite, readModelSqlite };
+}
+
+function closeDatabases({ database, historySqlite, readModelSqlite }: Databases): void {
+  database.sqlite.close();
+  historySqlite.close();
+  readModelSqlite.close();
+}
+
+function createServices({
   environment,
-  webDistDirectory,
-  languageModel = chooseLanguageModel(environment.llm),
-  versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
+  databases,
+  documentFilesDirectory,
+  languageModel,
+  versionRoomPolicy,
 }: {
   environment: Environment;
-  webDistDirectory: string | null;
-  languageModel?: LanguageModelChoice;
-  versionRoomPolicy?: VersionRoomPolicy;
-}): Promise<RunningServer> {
-  const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
-  ensureWritableDirectory(environment.databaseDirectory);
-  ensureWritableDirectory(documentFilesDirectory);
-  const database = openDatabase({ directory: environment.databaseDirectory, fileName: AUTH_DATABASE_FILE });
-  runMigrations(database);
-  const historySqlite = openSqliteFile({ directory: environment.databaseDirectory, fileName: HISTORY_DATABASE_FILE });
-  runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History });
-  const readModelSqlite = openSqliteFile({ directory: environment.databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
-  runHistoryMigrations({ sqlite: readModelSqlite, set: MigrationSet.ReadModel });
+  databases: Databases;
+  documentFilesDirectory: string;
+  languageModel: LanguageModelChoice;
+  versionRoomPolicy: VersionRoomPolicy;
+}): { auth: Auth; services: ServerServices } {
+  const { database, historySqlite, readModelSqlite } = databases;
   const documents = new DocumentsRepository(database);
   const insightsRepository = new InsightsRepository(database);
   insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
@@ -97,7 +119,6 @@ export async function startServer({
   const auth = createAuth({ database, environment });
   const versions = new VersionsService({ readModel, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
-  findDocumentsToProject({ historySqlite, readModelSqlite }).forEach((documentId) => scheduler.schedule(documentId));
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const hocuspocus = createCollaborationServer({
     auth,
@@ -111,9 +132,6 @@ export async function startServer({
   });
   const timelinePipelines = new TimelinePipelineCache();
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
-  findDocumentsWithoutMarks(readModelSqlite).forEach(
-    (documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }),
-  );
   const runtime = createCollaborationRuntime({
     hocuspocus,
     updateLog,
@@ -167,31 +185,73 @@ export async function startServer({
     versions,
     versionRooms,
   };
+  return { auth, services };
+}
+
+function resumeProjections({ databases, services }: { databases: Databases; services: ServerServices }): void {
+  findDocumentsToProject({ historySqlite: databases.historySqlite, readModelSqlite: databases.readModelSqlite }).forEach((documentId) =>
+    services.scheduler.schedule(documentId),
+  );
+  findDocumentsWithoutMarks(databases.readModelSqlite).forEach(
+    (documentId) => void services.scheduler.rebuild({ documentId, filePath: services.storage.pathOf(documentId) }),
+  );
+}
+
+async function closeCollaboration(services: ServerServices): Promise<void> {
+  await services.versionRooms.stop();
+  await services.hocuspocus.destroy();
+  services.throttle.stop();
+  await services.scheduler.stop();
+  await services.insights.jobRunner.idle();
+}
+
+async function stopServer({
+  services,
+  databases,
+  httpServer,
+  sockets,
+}: {
+  services: ServerServices;
+  databases: Databases;
+  httpServer: ServerType;
+  sockets: WebSocketServer;
+}): Promise<void> {
+  await closeCollaboration(services);
+  sockets.clients.forEach((client) => client.terminate());
+  sockets.close();
+  closeAllConnectionsWhenSupported(httpServer);
+  await closeServer(httpServer);
+  closeDatabases(databases);
+}
+
+export async function startServer({
+  environment,
+  webDistDirectory,
+  languageModel = chooseLanguageModel(environment.llm),
+  versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
+}: {
+  environment: Environment;
+  webDistDirectory: string | null;
+  languageModel?: LanguageModelChoice;
+  versionRoomPolicy?: VersionRoomPolicy;
+}): Promise<RunningServer> {
+  const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
+  const databases = openDatabases({ databaseDirectory: environment.databaseDirectory, documentFilesDirectory });
+  const { auth, services } = createServices({ environment, databases, documentFilesDirectory, languageModel, versionRoomPolicy });
+  resumeProjections({ databases, services });
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
-  async function closeCollaboration(): Promise<void> {
-    await versionRooms.stop();
-    await hocuspocus.destroy();
-    throttle.stop();
-    await scheduler.stop();
-    await jobRunner.idle();
-  }
-  function closeDatabases(): void {
-    database.sqlite.close();
-    historySqlite.close();
-    readModelSqlite.close();
-  }
   const httpServer = await listen({ app, port: environment.port }).catch(async (error) => {
-    await closeCollaboration();
-    closeDatabases();
+    await closeCollaboration(services);
+    closeDatabases(databases);
     throw error;
   });
   const { port } = httpServer.address() as AddressInfo;
   const sockets = attachCollaboration({
     httpServer: httpServer as Server,
-    hocuspocus,
-    versionRooms,
+    hocuspocus: services.hocuspocus,
+    versionRooms: services.versionRooms,
     path: ApiPath.Collaboration,
     allowedOrigin: environment.appOrigin,
   });
@@ -199,15 +259,8 @@ export async function startServer({
     httpServer,
     port,
     auth,
-    database,
+    database: databases.database,
     services,
-    stop: async () => {
-      await closeCollaboration();
-      sockets.clients.forEach((client) => client.terminate());
-      sockets.close();
-      closeAllConnectionsWhenSupported(httpServer);
-      await closeServer(httpServer);
-      closeDatabases();
-    },
+    stop: () => stopServer({ services, databases, httpServer, sockets }),
   };
 }

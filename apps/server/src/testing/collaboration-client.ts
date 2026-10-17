@@ -11,11 +11,16 @@ import { signedInOwner, signedInUser, type TestServer, type TestUser } from './t
 const DOCUMENT_TITLE = 'Shared plan';
 const MEMBER_NAME = 'Member';
 
-export type CollaborationClient = { document: Y.Doc; provider: HocuspocusProvider; close: () => void };
+export type ClosedSocket = { code: number; reason: string };
+
+export type CollaborationClient = { document: Y.Doc; provider: HocuspocusProvider; closed: Promise<ClosedSocket>; close: () => void };
 
 export class CollaborationRefusedError extends Error {
-  constructor() {
+  readonly closeCode: number | null;
+
+  constructor({ closeCode = null }: { closeCode?: number | null } = {}) {
     super('The collaboration server refused the connection.');
+    this.closeCode = closeCode;
   }
 }
 
@@ -47,6 +52,10 @@ function openProvider({
 }): Promise<CollaborationClient> {
   return new Promise((resolve, reject) => {
     let isSynced = false;
+    let reportClosed: (closedSocket: ClosedSocket) => void = () => undefined;
+    const closed = new Promise<ClosedSocket>((resolveClosed) => {
+      reportClosed = resolveClosed;
+    });
     const websocketProvider = new HocuspocusProviderWebsocket({
       url: server.baseUrl.replace('http', 'ws') + path,
       WebSocketPolyfill: socketWithHeaders({ headers, origin }),
@@ -60,16 +69,17 @@ function openProvider({
       token,
       onSynced: () => {
         isSynced = true;
-        resolve({ document, provider, close });
+        resolve({ document, provider, closed, close });
       },
       onAuthenticationFailed: () => {
         close();
         reject(new CollaborationRefusedError());
       },
-      onClose: () => {
+      onClose: ({ event }) => {
+        reportClosed({ code: event.code, reason: event.reason });
         if (isSynced) return;
         close();
-        reject(new CollaborationRefusedError());
+        reject(new CollaborationRefusedError({ closeCode: event.code }));
       },
     });
     const connectWithoutRejection = websocketProvider.connect.bind(websocketProvider);

@@ -2,12 +2,15 @@ import {
   ApiPath,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
+  MAX_SOCKET_MESSAGES_PER_SECOND,
+  POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_RATE_LIMIT_REASON,
   VERSION_FAILURE_TTL_MS,
   versionCollaborationPath,
 } from '@superdoc-collab/types';
-import type { Hocuspocus } from '@hocuspocus/server';
+import { OutgoingMessage, type Hocuspocus } from '@hocuspocus/server';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import type { Server } from 'node:http';
@@ -15,9 +18,11 @@ import { connect } from 'node:net';
 import { Duplex } from 'node:stream';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
+import * as Y from 'yjs';
 import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
+import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import { attachCollaboration } from './attach-collaboration';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
@@ -36,6 +41,25 @@ const FOREIGN_ADDRESS = '203.0.113.9';
 const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
 const FRAME_OVERHEAD_BYTES = 1024;
 const PADDED_UPDATE_TEST_TIMEOUT_MS = 60_000;
+const SECRET_PAYLOAD_TEXT = 'secret-payload-text';
+const FLOOD_DOCUMENT_ID = '33333333-3333-4333-8333-333333333333';
+const FLOOD_ROOM_NAME = `${SUPERDOC_ROOM_PREFIX}${FLOOD_DOCUMENT_ID}`;
+
+function validUpdateFrame(): Buffer {
+  const document = new Y.Doc();
+  document.getText('t').insert(0, SECRET_PAYLOAD_TEXT);
+  const message = new OutgoingMessage(FLOOD_ROOM_NAME).createSyncMessage().writeUpdate(Y.encodeStateAsUpdate(document));
+  return Buffer.from(message.toUint8Array());
+}
+
+function openFloodSocket(server: TestServer): { socket: WebSocket; closed: Promise<{ code: number; reason: string }> } {
+  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, { origin: server.baseUrl });
+  socket.on('error', () => undefined);
+  const closed = new Promise<{ code: number; reason: string }>((resolve) =>
+    socket.on('close', (code, reason) => resolve({ code, reason: reason.toString() })),
+  );
+  return { socket, closed };
+}
 
 function closeCodeAfterSending({ server, frame }: { server: TestServer; frame: Buffer }): Promise<number> {
   const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
@@ -132,6 +156,30 @@ describe('attachCollaboration', () => {
     const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
     client.document.getText('t').insert(0, 'x'.repeat(MAX_SOCKET_MESSAGE_BYTES - FRAME_OVERHEAD_BYTES));
     await expect.poll(() => server.services.updateLog.hasUpdates(documentId), { timeout: PADDED_UPDATE_TEST_TIMEOUT_MS }).toBe(true);
+    client.close();
+    await server.stop();
+  });
+  test('121 frames before authentication close the socket with 1008, are not applied and are logged without the payload', async () => {
+    const server = await startTestServer();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { socket, closed } = openFloodSocket(server);
+    await new Promise((resolve) => socket.on('open', resolve));
+    const frame = validUpdateFrame();
+    Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 1 }).forEach(() => socket.send(frame));
+    expect(await closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_RATE_LIMIT_REASON });
+    expect(server.services.updateLog.hasUpdates(FLOOD_DOCUMENT_ID)).toBe(false);
+    expect(warn).toHaveBeenCalled();
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(SECRET_PAYLOAD_TEXT);
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('121 valid awareness frames close the socket with 1008 and the reason', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 1 }).forEach((_, index) => client.provider.setAwarenessField('cursor', index));
+    expect(await client.closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_RATE_LIMIT_REASON });
+    warn.mockRestore();
     client.close();
     await server.stop();
   });

@@ -22,6 +22,7 @@ import {
   PASSWORD_FIELD_LABEL,
   SIGN_IN_LABEL,
   SIGN_UP_LABEL,
+  SETUP_FAILED_MESSAGE,
 } from './auth-copy';
 import { SignUpPage } from './sign-up-page';
 
@@ -31,10 +32,10 @@ const signUpEmail = vi.mocked(authClient.signUp.email);
 const TOKEN = 'invite-token';
 const BROWSER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-function mockApi({ claimed, inviteStatus }: { claimed: boolean; inviteStatus: number }) {
+function mockApi({ claimed, inviteStatus, setupStatus = HttpStatus.Ok }: { claimed: boolean; inviteStatus: number; setupStatus?: number }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: null } });
-    if (input === ApiPath.Setup) return jsonResponse({ body: { claimed } });
+    if (input === ApiPath.Setup) return jsonResponse({ body: { claimed }, status: setupStatus });
     if (String(input).startsWith(ApiPath.Invites)) return jsonResponse({ body: { state: InviteState.Pending }, status: inviteStatus });
     throw new Error(`unexpected ${String(input)}`);
   });
@@ -105,4 +106,10 @@ test('submitting sends the token in the header; a forbidden sign-up shows the se
   await fillAndSubmit();
   expect(await screen.findByRole('alert')).toHaveTextContent(SIGN_UP_BY_INVITATION_MESSAGE);
   expect(signUpEmail.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ headers: { [INVITE_TOKEN_HEADER]: TOKEN } }));
+});
+
+test('a failed setup check shows an error instead of loading forever', async () => {
+  mockApi({ claimed: false, inviteStatus: HttpStatus.NotFound, setupStatus: HttpStatus.InternalServerError });
+  renderWithProviders(<SignUpPage />, { route: AppRoute.SignUp });
+  expect(await screen.findByRole('alert')).toHaveTextContent(SETUP_FAILED_MESSAGE);
 });

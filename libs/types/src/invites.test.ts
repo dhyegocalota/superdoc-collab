@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { DAY_MS } from './constants';
-import { INVITE_TTL_MS, InviteState, inviteStateOf } from './invites';
+import { INVITE_TTL_MS, InviteState, inviteStateOf, inviteTokenOf, MissingInviteTokenError } from './invites';
 
 const NOW = Date.UTC(2026, 9, 17, 12, 0);
 
@@ -22,4 +22,12 @@ test.each([
   ['revoked wins over expired', { expiresAt: NOW - 1, acceptedAt: null, revokedAt: NOW - DAY_MS }, InviteState.Revoked],
 ])('%s', (_name, timestamps, expected) => {
   expect(inviteStateOf({ now: NOW, ...timestamps })).toBe(expected);
+});
+
+test('the invite token is read from an invite URL', () => {
+  expect(inviteTokenOf('https://app.example/sign-up?invite=abc')).toBe('abc');
+});
+
+test('a URL without an invite token is an error, never an empty token', () => {
+  expect(() => inviteTokenOf('https://app.example/sign-up')).toThrow(MissingInviteTokenError);
 });

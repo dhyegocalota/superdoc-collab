@@ -1,9 +1,10 @@
-import { HttpStatus, INVITE_TOKEN_HEADER, SIGN_UP_BY_INVITATION_MESSAGE } from '@superdoc-history/types';
+import { HttpStatus, INVITE_TOKEN_HEADER, SIGN_UP_BY_INVITATION_MESSAGE } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { expect, test, vi } from 'vitest';
+import { SETUP_QUERY_KEY } from './setup-api';
 import { SESSION_QUERY_KEY } from './use-session';
 import { useAuthSubmit } from './use-auth-submit';
 
@@ -69,4 +70,12 @@ test('shows the server message on a 403 and does not navigate', async () => {
   await submit({});
   expect(setError).toHaveBeenCalledWith('root', { message: SIGN_UP_BY_INVITATION_MESSAGE });
   expect(navigate).not.toHaveBeenCalled();
+});
+
+test('a successful submit marks the setup status stale, so a claim is not shown again', async () => {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(SETUP_QUERY_KEY, { claimed: false });
+  const { submit } = renderSubmit({ queryClient, options: {} });
+  await submit({});
+  expect(queryClient.getQueryState(SETUP_QUERY_KEY)?.isInvalidated).toBe(true);
 });

@@ -33,7 +33,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `auth/sign-up-page.test.tsx` — unclaimed → "Claim this instance" heading and the form; claimed without token → invalid message, no form; pending token → "You were invited"; revoked token → invalid message; submit sends `x-invite-token` and a 403 shows the server's sentence.
 - [ ] `auth/sign-in-page.test.tsx` — claim link only while unclaimed; no sign-up link once claimed; nothing while setup is loading.
 - [ ] `auth/use-auth-submit.test.tsx` — 401 and 429 messages unchanged; 403 passes the server message.
-- [ ] `admin/admin-page.test.tsx` — users with roles, no toggle on self; generate copies the URL, shows "Invite link copied", refetches; revoke refetches; make admin posts and refetches; times rendered via `formatDateTime`.
+- [ ] `admin/admin-page.test.tsx` — users with roles, no toggle on self; generate copies the URL, shows "Invite link copied", refetches; revoke refetches; make admin posts and refetches; times rendered via `formatTimestamp`.
 - [ ] `admin/require-admin.test.tsx` — user → documents + "Admins only" toast; signed out → sign-in with `next`; admin → children.
 - [ ] `documents/documents-page.test.tsx` — Admin link only for admins.
 
@@ -81,4 +81,4 @@ The reviewer picks the three claims most likely to be wrong and tries to refute 
 
 - The claim flow is not in the Playwright suite (the shared stack is seeded and therefore claimed); it is pinned by real-HTTP server tests and by the MCP walk on a fresh stack.
 - The Better Auth `admin` plugin exposes its own endpoints (`/api/auth/admin/*`, such as `create-user`, `set-role`, `ban-user`) guarded by the plugin's own role check; the plan does not add tests for each, only the reviewer's Claim 2 reads them. If the review finds one reachable by a non-admin, it becomes a test and a fix before the PR.
-- Browser zone rendering of invite times is asserted against `formatDateTime`'s output, not a literal; zone correctness itself is the `timezone-preference` feature.
+- Browser zone rendering of invite times is asserted against `formatTimestamp`'s output, not a literal; zone correctness itself is the `timezone-preference` feature.

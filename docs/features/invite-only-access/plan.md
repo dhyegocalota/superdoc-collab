@@ -25,7 +25,7 @@
 - No comments except `// NB ADR NNNN:` pointers; flat `if`s; early returns; no `else`; no `?? default`; enums over literals; constants at the top of the file or in `libs/types`; named parameters for more than one parameter; array methods over loops; no `.js` imports.
 - Every change ships with tests; red test first in its own commit; Conventional Commits; never commit from `main`; branch `feat/invite-only-access`.
 - Errors are `{ error: string }` with `HttpStatus`; creation answers `201`; deletion answers `204`.
-- Times are epoch milliseconds end to end; the web renders them with `formatDateTime` in the reader's zone.
+- Times are epoch milliseconds end to end; the web renders them with `formatTimestamp` in the reader's zone.
 - Copy in English; messages are exported constants, never inline strings in JSX or handlers.
 - Prettier (`pnpm format:check`) green before every commit; `pnpm typecheck` green for the package being changed before every commit, and for the whole workspace again from Task 7 on (Task 1 adds `role` to `SessionUser`, which the server fixes in Task 2 and the web fixtures in Task 7; CI runs on the pull request).
 
@@ -1275,7 +1275,7 @@ git commit -m "feat(web): claim and invited sign-up states, setup-aware sign-in,
 - Test: `apps/web/src/features/admin/admin-page.test.tsx`, `require-admin.test.tsx`, `apps/web/src/features/documents/documents-page.test.tsx` (header link)
 
 **Interfaces:**
-- Consumes: `AdminUser`, `InviteSummary`, `CreatedInvite`, `adminApiPath`, `AdminResource`, `UserRole`, `InviteState`, `formatDateTime` (`apps/web/src/lib/format-date-time.ts`), `toast` from `sonner`.
+- Consumes: `AdminUser`, `InviteSummary`, `CreatedInvite`, `adminApiPath`, `AdminResource`, `UserRole`, `InviteState`, `formatTimestamp` (`apps/web/src/lib/format-date-time.ts`), `toast` from `sonner`.
 - Produces: `ADMIN_LINK_LABEL = 'Admin'`, `ADMINS_ONLY_TOAST = 'Admins only'`, `GENERATE_INVITE_LABEL = 'Generate invite'`, `INVITE_COPIED_TOAST = 'Invite link copied'`, `REVOKE_LABEL = 'Revoke'`, `MAKE_ADMIN_LABEL = 'Make admin'`, `MAKE_USER_LABEL = 'Make user'`; query keys `ADMIN_USERS_QUERY_KEY = ['admin', 'users']`, `INVITES_QUERY_KEY = ['admin', 'invites']`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1286,7 +1286,7 @@ git commit -m "feat(web): claim and invited sign-up states, setup-aware sign-in,
 - "generate invite posts, copies the URL, shows the toast and refetches the list" (assert `writeText` called with the URL, `findByText(INVITE_COPIED_TOAST)`, and a second GET of invites)
 - "revoke sends DELETE and refetches"
 - "make admin posts the role and refetches users"
-- "times render through formatDateTime" (assert `formatDateTime(expiresAt)` text is present; the fixture uses `Date.UTC(2026, 9, 24, 12, 0)` and the test runs under the vitest `TZ` already configured for web tests, or sets `process.env.TZ` is not possible in jsdom: compare against `formatDateTime` output, not a literal)
+- "times render through formatTimestamp" (assert `formatTimestamp(expiresAt)` text is present; the fixture uses `Date.UTC(2026, 9, 24, 12, 0)` and the test runs under the vitest `TZ` already configured for web tests, or sets `process.env.TZ` is not possible in jsdom: compare against `formatTimestamp` output, not a literal)
 
 `require-admin.test.tsx`: "a user is sent to documents with the Admins-only toast", "signed out goes to sign-in with next", "an admin renders the children".
 
@@ -1300,7 +1300,7 @@ git commit -m "feat(web): claim and invited sign-up states, setup-aware sign-in,
 
 `use-admin-users.ts`, `use-invites.ts`: queries. Mutations live in the table components with `useMutation` + `queryClient.invalidateQueries` on success (the `new-document-button.tsx` pattern): generate → `await navigator.clipboard.writeText(created.url); toast(INVITE_COPIED_TOAST); invalidate INVITES_QUERY_KEY`; revoke → invalidate invites; set role → invalidate users.
 
-`users-table.tsx`: columns Name, Email, Role, Joined (`formatDateTime(user.createdAt)`), Action (`MAKE_ADMIN_LABEL` / `MAKE_USER_LABEL` button, omitted for `user.id === session.user.id`).
+`users-table.tsx`: columns Name, Email, Role, Joined (`formatTimestamp(user.createdAt)`), Action (`MAKE_ADMIN_LABEL` / `MAKE_USER_LABEL` button, omitted for `user.id === session.user.id`).
 
 `invites-table.tsx`: columns State, Created, Expires, Created by, Accepted by, Action (`REVOKE_LABEL` only for `InviteState.Pending`); "Generate invite" button above the table; empty state paragraph like `document-table.tsx`.
 

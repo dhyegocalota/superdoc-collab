@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppRoute, signInSchema, type SignInInput } from '@superdoc-history/types';
 import { useForm } from 'react-hook-form';
+import { useLocation } from 'react-router';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { AuthCard } from './auth-card';
 import { authClient } from './auth-client';
@@ -13,6 +14,7 @@ import {
   SIGN_IN_PENDING_LABEL,
   SIGN_UP_LABEL,
 } from './auth-copy';
+import { signedQuerySearch } from './signed-query-search';
 import { AuthFieldType, AuthTextField } from './auth-text-field';
 import { useAuthSubmit } from './use-auth-submit';
 
@@ -22,6 +24,7 @@ export function SignInPage() {
     form,
     request: (values, responseCapture) => authClient.signIn.email(values, responseCapture),
   });
+  const { search } = useLocation();
   useDocumentTitle(SIGN_IN_LABEL);
 
   return (
@@ -34,7 +37,7 @@ export function SignInPage() {
       pendingLabel={SIGN_IN_PENDING_LABEL}
       prompt={NO_ACCOUNT_PROMPT}
       linkLabel={SIGN_UP_LABEL}
-      linkTo={AppRoute.SignUp}
+      linkTo={`${AppRoute.SignUp}${signedQuerySearch(search)}`}
     >
       <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />
       <AuthTextField

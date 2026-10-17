@@ -1,6 +1,6 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import { materialize, type UpdateLog } from '@superdoc-history/history';
-import { DocumentRole } from '@superdoc-history/types';
+import { DocumentRole, SECOND_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -8,9 +8,9 @@ import { authenticateMember, CollaborationAuthenticationError } from './authenti
 import { createClientDeclarer } from './client-declarations';
 import { documentIdFromRoomName } from './room-name';
 
-export const COLLABORATION_SOCKET_TIMEOUT_MS = 10_000;
-const STORE_DEBOUNCE_MS = 2000;
-export const MAX_STORE_DEBOUNCE_MS = 4000;
+export const COLLABORATION_SOCKET_TIMEOUT_MS = 10 * SECOND_MS;
+const STORE_DEBOUNCE_MS = 2 * SECOND_MS;
+export const MAX_STORE_DEBOUNCE_MS = 4 * SECOND_MS;
 
 export const LOADING_ORIGIN = 'update-log-replay';
 

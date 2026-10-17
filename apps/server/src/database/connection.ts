@@ -1,3 +1,4 @@
+import { SECOND_MS } from '@superdoc-history/types';
 import Database from 'better-sqlite3';
 import { accessSync, constants, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -6,7 +7,7 @@ import * as authSchema from './schema/auth';
 import * as documentsSchema from './schema/documents';
 import * as insightsSchema from './schema/insights';
 
-const BUSY_TIMEOUT_MS = 5000;
+const BUSY_TIMEOUT_MS = 5 * SECOND_MS;
 export const AUTH_DATABASE_FILE = 'auth.sqlite';
 export const HISTORY_DATABASE_FILE = 'history.sqlite';
 export const READ_MODEL_DATABASE_FILE = 'read-model.sqlite';

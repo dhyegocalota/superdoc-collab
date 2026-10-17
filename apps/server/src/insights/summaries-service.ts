@@ -1,5 +1,5 @@
 import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-history/history';
-import { MINUTE_MS, type TopicSummaries } from '@superdoc-history/types';
+import { HOUR_MS, MINUTE_MS, type TopicSummaries } from '@superdoc-history/types';
 import { describeError } from '../history/projection-messages';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
@@ -10,7 +10,7 @@ import { SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './pr
 export const SUMMARY_MIN_INTERVAL_MS = MINUTE_MS;
 export const SUMMARIES_BUSY_MESSAGE = 'Skipped summarizing topics, the language model is busy, for document';
 export const SUMMARIES_FAILED_MESSAGE = 'Summarizing topics failed for document';
-const SUMMARY_RUN_BIN_MS = 60 * MINUTE_MS;
+const SUMMARY_RUN_BIN_MS = HOUR_MS;
 
 type StaleTopic = { topic: StoredTopic; runs: EditRun[] };
 

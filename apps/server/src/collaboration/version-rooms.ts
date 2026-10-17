@@ -1,5 +1,5 @@
 import { Hocuspocus } from '@hocuspocus/server';
-import { ApiPath, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-history/types';
+import { ApiPath, SECOND_MS, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-history/types';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -13,7 +13,7 @@ import { DOCUMENT_ID_PATTERN, documentIdFromRoomName } from './room-name';
 const SEQUENCE_PATTERN = /^[1-9]\d{0,15}$/;
 const VERSION_PATH_PREFIX = `${ApiPath.Collaboration}/versions/`;
 const PATH_SEPARATOR = '/';
-const STOP_TIMEOUT_MS = 5000;
+export const STOP_TIMEOUT_MS = 5 * SECOND_MS;
 const ROOM_DESTROY_FAILED_MESSAGE = 'Destroying a version instance failed for';
 
 export type { VersionEndpoint };

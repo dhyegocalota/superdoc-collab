@@ -1,11 +1,12 @@
 import { SuperDocClient } from '@superdoc/sdk';
 import { compact, GcFreeReplays, materialize, projectPending, ReadModel, readMainStoryBlocks, readMainStoryText, REPLAY_CACHE_SIZE, toImportedRevisions, UpdateLog, type ListedTrackedChange } from '@superdoc-history/history';
+import { SECOND_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { describeError, IMPORT_TIMEOUT_MS, ImportTimeoutError, MissingVersionMarkError, ProjectionRequestKind, ProjectionWorkerContextError, ProjectionReplyKind, SNAPSHOT_EVERY_UPDATES, type BlocksReply, type ProjectionDoneReply, type ProjectionFailedReply, type ProjectionReply, type ProjectionRequest, type ProjectionWorkerData, type VersionReply } from './projection-messages';
 
-const STOP_DISPOSE_TIMEOUT_MS = 1000;
+const STOP_DISPOSE_TIMEOUT_MS = SECOND_MS;
 
 const port = parentPort;
 if (!port) throw new ProjectionWorkerContextError();

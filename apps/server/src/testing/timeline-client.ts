@@ -1,10 +1,11 @@
 import { ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { BlockChangeKind, DocumentResource, HttpStatus, DocumentRole, documentApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
+import { BlockChangeKind, DocumentResource, HttpStatus, DocumentRole, RETRY_AFTER_HEADER, documentApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
 import { expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { RETRY_AFTER_SECONDS } from '../history/versions-routes';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
@@ -102,7 +103,7 @@ export async function readJson<Body>({ server, cookie, path }: { server: TestSer
 const ANOTHER_DOCUMENT_TITLE = 'Another';
 const ORIGINAL_TEXT = 'Original';
 const EDITED_TEXT = 'Original edited';
-const RETRY_AFTER_SECONDS_TEXT = '1';
+const RETRY_AFTER_SECONDS_TEXT = String(RETRY_AFTER_SECONDS);
 
 export async function editedAfterBootstrap({ versionRoomPolicy }: { versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{ server: TestServer; documentId: string; owner: TestUser; client: CollaborationClient; bootstrapText: string; editedText: string }> {
   const { server, documentId, owner } = await documentWithOwner({ versionRoomPolicy });
@@ -131,7 +132,7 @@ export async function pollVersion({ server, cookie, documentId, sequence }: { se
     .poll(
       async () => {
         const response = await request();
-        if (response.status === HttpStatus.Accepted) expect(response.headers.get('retry-after')).toBe(RETRY_AFTER_SECONDS_TEXT);
+        if (response.status === HttpStatus.Accepted) expect(response.headers.get(RETRY_AFTER_HEADER)).toBe(RETRY_AFTER_SECONDS_TEXT);
         return response.status;
       },
       { timeout: PROJECTION_TIMEOUT_MS },

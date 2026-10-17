@@ -1,11 +1,9 @@
-import { DocumentRole, HttpStatus, TOPICS_REFRESH_TOO_SOON_MESSAGE, type DocumentTopics } from '@superdoc-history/types';
+import { DocumentRole, HttpStatus, RETRY_AFTER_HEADER, TOPICS_REFRESH_TOO_SOON_MESSAGE, type DocumentTopics } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { requireDocumentRole } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { RefreshOutcome } from './topics-service';
-
-const RETRY_AFTER_HEADER = 'Retry-After';
 
 function documentTopics({ services, documentId }: { services: AppServices; documentId: string }): DocumentTopics {
   const topics = services.insightsRepository.topics(documentId).map((topic) => ({ id: topic.id, name: topic.name, blockCount: topic.blockIds.length }));

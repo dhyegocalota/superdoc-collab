@@ -1,4 +1,4 @@
-import { agentAuthorName, MINUTE_MS, RoomMode, SECOND_MS } from '@superdoc-history/types';
+import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS } from '@superdoc-history/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
@@ -57,6 +57,9 @@ export class AgentSessions implements AgentDocumentSessions {
     issueRoomToken: (options: { userId: string; documentId: string }) => string;
     collaborationUrl: () => string;
     locateRoom: (documentId: string) => LocatedRoom;
+    roleOf: (options: { userId: string; documentId: string }) => DocumentRole | null;
+    now?: () => number;
+    tokenLifetimeMs?: number;
     createClient?: () => AgentSessionsClient;
     maxSessions?: number;
     idleMs?: number;

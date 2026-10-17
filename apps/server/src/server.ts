@@ -188,6 +188,7 @@ function createServices({
   const agentSessions = new AgentSessions({
     issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.AgentCollaboration}`,
+    roleOf: ({ userId, documentId }) => documents.findRole({ documentId, userId }),
     locateRoom: (documentId) => ({ roomMode: runtime.roomMode(documentId), filePath: storage.pathOf(documentId) }),
   });
   const services: ServerServices = {

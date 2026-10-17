@@ -1,4 +1,4 @@
-import { agentAuthorName, RoomMode } from '@superdoc-history/types';
+import { agentAuthorName, DocumentRole, RoomMode } from '@superdoc-history/types';
 import type { SuperDocDocument } from '@superdoc/sdk';
 import { afterEach, expect, test, vi } from 'vitest';
 import { AgentSessionOpenTimeoutError, AgentSessions, type AgentSessionsClient } from './agent-sessions';
@@ -8,6 +8,8 @@ const COLLABORATION_URL = 'ws://127.0.0.1:1/collaboration/agent';
 const FILE_PATH = '/documents/file.docx';
 const ROOM_TOKEN = 'room-token';
 const SHORT_MS = 30;
+const TOKEN_LIFETIME_MS = 1000;
+const OPEN_TIMEOUT_MS = 100;
 const ANA: AgentPerson = { userId: 'ana', name: 'Ana', email: 'ana@example.com' };
 const BRUNO: AgentPerson = { userId: 'bruno', name: 'Bruno', email: 'bruno@example.com' };
 
@@ -29,18 +31,23 @@ function documentNamed(name: string): FakeDocument {
 function sessionsOn({
   client,
   roomMode = RoomMode.Join,
+  role = { current: DocumentRole.Editor },
   ...limits
 }: {
   client: AgentSessionsClient;
   roomMode?: RoomMode;
+  role?: { current: DocumentRole };
   maxSessions?: number;
   idleMs?: number;
   openTimeoutMs?: number;
+  now?: () => number;
+  tokenLifetimeMs?: number;
 }): AgentSessions {
   return new AgentSessions({
     issueRoomToken: () => ROOM_TOKEN,
     collaborationUrl: () => COLLABORATION_URL,
     locateRoom: () => ({ roomMode, filePath: FILE_PATH }),
+    roleOf: () => role.current,
     createClient: () => client,
     ...limits,
   });
@@ -118,7 +125,7 @@ test('the least recently used idle session closes at the cap', async () => {
 
 test('a session with a call in flight is never evicted', async () => {
   const { client, opened } = openedPerDocument();
-  const sessions = sessionsOn({ client, maxSessions: 1 });
+  const sessions = sessionsOn({ client, maxSessions: 2 });
   let release: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -212,4 +219,59 @@ test('close closes every idle session and disposes the client', async () => {
   await sessions.close();
   expect([...opened.values()].map(({ close }) => close.mock.calls.length)).toEqual([1, 1]);
   expect(client.dispose).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  { name: 'is still younger than the token lifetime minus the open timeout', ageMs: TOKEN_LIFETIME_MS - OPEN_TIMEOUT_MS - 1, opens: 1 },
+  { name: 'reaches the token lifetime minus the open timeout', ageMs: TOKEN_LIFETIME_MS - OPEN_TIMEOUT_MS, opens: 2 },
+])('a cached session that $name is reused or replaced', async ({ ageMs, opens }) => {
+  const { client, opened } = openedPerDocument();
+  const clock = { current: 0 };
+  const sessions = sessionsOn({ client, now: () => clock.current, tokenLifetimeMs: TOKEN_LIFETIME_MS, openTimeoutMs: OPEN_TIMEOUT_MS });
+  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
+  clock.current = ageMs;
+  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
+  expect(client.open).toHaveBeenCalledTimes(opens);
+  expect(opened.get('plan')!.close).toHaveBeenCalledTimes(opens - 1);
+  await sessions.close();
+});
+
+test('a cached session opened under another role is replaced so the room permissions match', async () => {
+  const { client, opened } = openedPerDocument();
+  const role = { current: DocumentRole.Reader };
+  const sessions = sessionsOn({ client, role });
+  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
+  role.current = DocumentRole.Editor;
+  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
+  expect(client.open).toHaveBeenCalledTimes(2);
+  expect(opened.get('plan')!.close).toHaveBeenCalledTimes(1);
+  await sessions.close();
+});
+
+test('a cached session opened under another author name is replaced', async () => {
+  const { client } = openedPerDocument();
+  const sessions = sessionsOn({ client });
+  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
+  await sessions.run({ person: { ...ANA, name: 'Ana Lima' }, documentId: 'plan', work: async () => undefined });
+  expect(client.open.mock.calls.map(([parameters]) => parameters.userName)).toEqual([agentAuthorName('Ana'), agentAuthorName('Ana Lima')]);
+  await sessions.close();
+});
+
+test('parallel calls on different documents never hold more rooms than the cap', async () => {
+  const { client, opened } = openedPerDocument();
+  const sessions = sessionsOn({ client, maxSessions: 1 });
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const first = sessions.run({ person: ANA, documentId: 'first', work: () => gate });
+  await vi.waitFor(() => expect(opened.has('first')).toBe(true));
+  const second = sessions.run({ person: ANA, documentId: 'second', work: async () => undefined });
+  await new Promise((resolve) => setTimeout(resolve, SHORT_MS));
+  expect(client.open).toHaveBeenCalledTimes(1);
+  release();
+  await Promise.all([first, second]);
+  expect(client.open).toHaveBeenCalledTimes(2);
+  expect(opened.get('first')!.close).toHaveBeenCalledTimes(1);
+  await sessions.close();
 });

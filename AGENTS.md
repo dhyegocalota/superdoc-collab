@@ -3,7 +3,7 @@
 Read by Claude Code (`CLAUDE.md`), Codex (`AGENTS.md`) and Gemini (`GEMINI.md`): the three names are the same file.
 
 **Process lives in `.claude/HARNESS.md`. Read it before any feature, fix or review.**
-Domain facts live in `.claude/rules/*.md` and load by path. Decisions live in `docs/adr/`. Traps live in `docs/learnings/`.
+Domain facts live in `.claude/rules/*.md`. Claude Code loads them by the `paths:` globs in their front matter; every other tool opens, before editing a file, each rule whose globs match it. Decisions live in `docs/adr/`. Traps live in `docs/learnings/`.
 
 ## What this is
 
@@ -20,6 +20,7 @@ poc/              throwaway proof of concept; keep green, do not extend
 docs/adr          architecture decision records
 docs/learnings    dated traps, with what inspired them and when they were revisited
 docs/features     one folder per feature: spec.md + plan.md + test-plan.md
+docs/media        screenshots the README embeds
 .agents/skills    skills (single source; `.claude/skills` links here)
 .agents/roles     agent role bodies shared by `.claude/agents` and `.codex/agents`
 ```
@@ -53,5 +54,6 @@ A change without tests is not done. Unit with Vitest, E2E with Playwright, and t
 ## Tooling
 
 - `.mcp.json` (Claude, Cursor) and `.codex/config.toml` (Codex) declare the same MCP servers: `playwright`, `context7`.
+- One source per agent surface, thin adapters per tool ([ADR 0014](docs/adr/0014-one-source-per-agent-surface.md)): skills in `.agents/skills` (`.claude/skills` links there), roles in `.agents/roles` (wrapped by `.claude/agents/*.md` and `.codex/agents/*.toml`), hook scripts in `.agents/hooks` (wired by `.claude/settings.json` and `.codex/hooks.json`).
 - TypeScript intelligence: Claude Code uses the `typescript-lsp` plugin; everyone else runs `pnpm typecheck`.
 - Secrets live in `.env` files that agents never edit; `.env.example` documents them.

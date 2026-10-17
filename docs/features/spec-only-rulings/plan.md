@@ -13,14 +13,14 @@
 | Group | Paths owned |
 |-------|-------------|
 | G1 | `libs/history/src/timeline/bins.ts`, `bins.test.ts` |
-| G2 | `docs/adr/0014-*.md`, `0015-*.md`, `0016-*.md`, `0011-*.md` (status line), `docs/adr/README.md` |
+| G2 | `docs/adr/0015-*.md`, `0016-*.md`, `0017-*.md`, `0011-*.md` (status line), `docs/adr/README.md` |
 | G3 | `AGENTS.md`, `.claude/HARNESS.md`, `.claude/hooks/warn-conventions.sh`, `.agents/roles/developer.md`, the eight `NB ADR` lines |
 
 ## Steps
 
 - [x] **Step 1:** red test: `bins.test.ts::a span of %i ms never draws more than MAX_BINS bins` fails with `expected 122 to be less than or equal to 120` for 119 minutes.
 - [x] **Step 2:** `chooseBinMs` budgets `COVERING_EXTRA_BINS`; `binStartsCovering` pads `EDGE_BINS`; the week fallback divides by `MAX_BINS - COVERING_EXTRA_BINS`.
-- [x] **Step 3:** ADRs 0014, 0015, 0016 from the template; index rows; ADR 0011 status line refined by 0014.
+- [x] **Step 3:** ADRs 0015, 0016, 0017 from the template; index rows; ADR 0011 status line refined by 0015.
 - [x] **Step 4:** conventions, invariant 9, hook exclusion, developer role; `NB ADR` lines at `MAX_BINS`, `TOPIC_RECOMPUTE_NEW_BLOCKS`, `SELECTION_SUMMARY_COOLDOWN_MS`, `keepsReadyTopics`, `matchPreviousTopics`, `ShareLinksRepository.links`, `LLM_MAX_CONCURRENT_JOBS`, `resolveAuthorIds`, `endsItsMinute`.
 
 ## Failure modes

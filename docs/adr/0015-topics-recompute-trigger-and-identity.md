@@ -1,4 +1,4 @@
-# 0014. Topics: when they are recomputed and how they keep their identity
+# 0015. Topics: when they are recomputed and how they keep their identity
 
 - Status: Accepted
 - Date: 2026-10-17
@@ -27,7 +27,7 @@ Topics are named by the model, and every recompute costs a model call and can re
 
 ## Consequences
 
-- `TOPIC_RECOMPUTE_NEW_BLOCKS` lives in `libs/types` and carries an `NB ADR 0014` pointer, as do `keepsReadyTopics` and `matchPreviousTopics`; `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` sits next to the service.
+- `TOPIC_RECOMPUTE_NEW_BLOCKS` lives in `libs/types` and carries an `NB ADR 0015` pointer, as do `keepsReadyTopics` and `matchPreviousTopics`; `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` sits next to the service.
 - A document whose new blocks all land inside existing topics is never recomputed automatically; Refresh is the way to re-cluster it.
 
 ## Evidence

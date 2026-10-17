@@ -35,4 +35,4 @@ Fixes after the five slices:
 | Fix | Closes | Status |
 |-----|--------|--------|
 | [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |
-| [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0014–0016 for the rulings that lived only in specs, `NB ADR` pointers in code | Building |
+| [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Building |

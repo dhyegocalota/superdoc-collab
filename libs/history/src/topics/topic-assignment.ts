@@ -29,7 +29,7 @@ function chosenId({ chosen, index }: { chosen: Map<number, string>; index: numbe
   return id;
 }
 
-// NB ADR 0014: a recomputed topic keeps an earlier id when at least half of its blocks were in that earlier topic; otherwise it is new.
+// NB ADR 0015: a recomputed topic keeps an earlier id when at least half of its blocks were in that earlier topic; otherwise it is new.
 export function matchPreviousTopics({ previous, next }: { previous: { id: string; blockIds: string[] }[]; next: NormalizedTopic[] }): IdentifiedTopic[] {
   const candidates = next
     .flatMap((topic, index) => previous.map((old) => ({ index, id: old.id, needed: topic.blockIds.length, shared: sharedBlocks({ blockIds: topic.blockIds, previousBlockIds: old.blockIds }) })))

@@ -32,6 +32,14 @@
 
 <!-- What a reader might expect here and deliberately is not. -->
 
+## Merge sensitivity
+
+<!-- Reviewer verdict, verbatim: LOW | MEDIUM | HIGH — reason. LOW → delete the Blast radius and Human checklist sections. -->
+
+## Blast radius
+
+<!-- MEDIUM or HIGH only. What this PR can break and for whom: surfaces touched (auth, sessions, sharing, history log, projection, migrations, deploy, data), who notices first, how to roll back, whether rollback loses data. -->
+
 ## Checklist
 
 - [ ] Spec approved by the owner before building
@@ -40,3 +48,9 @@
 - [ ] Screenshots and video recorded with Playwright MCP and hosted on the `pr-media-<slug>` release
 - [ ] Tests: unit, E2E, and the user walk
 - [ ] Everything in English; no comments, no `?? default`, no `else`
+
+## Human checklist
+
+<!-- MEDIUM or HIGH only; always the last section. Hand checks a person runs before merging, one box each, concrete: open X as Y and expect Z; run the rollback once; confirm the migration on a copy of production data. The agent writes these and never ticks them. -->
+
+- [ ] 

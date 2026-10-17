@@ -1,7 +1,7 @@
 import { SECOND_MS } from './constants';
 import type { EventAuthor } from './history';
 
-// NB ADR 0014: topics are recomputed automatically only once this many new blocks sit outside every topic, so single edits spend no model call.
+// NB ADR 0015: topics are recomputed automatically only once this many new blocks sit outside every topic, so single edits spend no model call.
 export const TOPIC_RECOMPUTE_NEW_BLOCKS = 5;
 export const EVENTS_PAGE_SIZE = 500;
 export const FILTER_MAX_LENGTH = 200;

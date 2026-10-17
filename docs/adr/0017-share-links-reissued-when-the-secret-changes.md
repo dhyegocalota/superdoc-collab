@@ -1,4 +1,4 @@
-# 0016. Share links are reissued when the signing secret changes
+# 0017. Share links are reissued when the signing secret changes
 
 - Status: Accepted
 - Date: 2026-10-17
@@ -26,7 +26,7 @@ A share token is derived from the server's signing secret and a per-link nonce; 
 ## Consequences
 
 - Rotating `AUTH_SECRET` is a supported way to invalidate every share link of every document at once.
-- `ShareLinksRepository.links` carries an `NB ADR 0016` pointer; `isIssuedBySecret` is the check, used by `links` to reissue and by `resolve` to refuse.
+- `ShareLinksRepository.links` carries an `NB ADR 0017` pointer; `isIssuedBySecret` is the check, used by `links` to reissue and by `resolve` to refuse.
 
 ## Evidence
 

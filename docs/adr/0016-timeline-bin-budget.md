@@ -1,4 +1,4 @@
-# 0015. The timeline draws at most 120 bins
+# 0016. The timeline draws at most 120 bins
 
 - Status: Accepted
 - Date: 2026-10-17

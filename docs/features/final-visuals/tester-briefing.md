@@ -8,14 +8,16 @@ Written by the developer sub-agents when their steps are done. A developer does 
 
 - `libs/types/src/author-colors.ts`: `authorColorKeyOf`, `authorColorSlot` (FNV-1a over UTF-8 bytes), `AuthorColorSlot` (1 to 6), `AUTHOR_COLOR_SLOT_COUNT`, `AGENT_KEY_SUFFIX`, `IMPORTED_KEY_PREFIX`, `HASH_OFFSET_BASIS`, `HASH_PRIME`. It takes `Pick<EventAuthor, 'id' | 'name'>`, so any `EventAuthor` is accepted as is. An agent's `id` with the `#agent` suffix loses it; `id: null` becomes `imported:` plus the trimmed lowercase name.
 - `libs/types/src/constants.ts`: `DOCUMENT_READY_POLL_MS`, `DOCUMENT_READY_GIVE_UP_MS`, `CURSOR_GLOW_MS`, `JUMP_FAILED_NOTICE_MS`.
-- `libs/types/src/timeline.ts`: `SummarizeStep`, `SUMMARIZE_COOLDOWN_MS`, `SUMMARIZE_BUSY_MESSAGE`, and a required `step: SummarizeStep` on `SelectionSummaryView`. `SELECTION_SUMMARY_COOLDOWN_MS` and `TOPICS_REFRESH_TOO_SOON_MESSAGE` are still there for G4 to remove.
+- `libs/types/src/timeline.ts`: `SummarizeStep`, `SUMMARIZE_COOLDOWN_MS`, `SUMMARIZE_BUSY_MESSAGE`; `SelectionSummaryView.step` is left to G4. `SELECTION_SUMMARY_COOLDOWN_MS` and `TOPICS_REFRESH_TOO_SOON_MESSAGE` are still there for G4 to remove.
 - `apps/web/src/lib/breakpoints.ts`, `use-theme.ts` (`useTheme`, `ThemePreference`, `THEME_STORAGE_KEY`, `isThemePreference`).
 - `apps/web/index.html`: inline script that adds `dark` before the bundle.
 - `apps/web/src/styles/globals.css`: `--paper`, `--topic-tint-lightness`, `--author-1` to `--author-6`, dark `--primary` at `oklch(0.55 0.2 263)`, `bg-paper` and `bg-author-N` in `@theme inline`, `.topic-tint`, the `--sd-ui-*` and `--sd-layout-page-bg` mapping.
 - `apps/web/src/components/ui/`: `toggle-group.tsx`, `tooltip.tsx`, `tabs.tsx`, and `dropdown-menu.tsx` with `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuRadioGroup`, `DropdownMenuRadioItem`.
 - `apps/web/src/components/`: `user-avatar.tsx` (`UserAvatar`, `UserAvatarSize` 24 and 32), `brand-link.tsx`, `app-top-bar.tsx`.
 - `apps/web/src/features/account/`: `account-menu.tsx`, `account-copy.ts`.
-- `apps/web/src/features/auth/sign-out-button.tsx`: now a `DropdownMenuItem`.
+- `apps/web/src/features/auth/`: `use-sign-out.ts`, `sign-out-menu-item.tsx` (`SignOutMenuItem`, used by the account menu); `SignOutButton` is unchanged in behaviour.
+- `apps/web/src/app/providers.tsx`: mounts `useTheme()` once; hook instances in one tab stay in step through a window event.
+- Copy landed per lead: editor, timeline and connected-apps copy files, and the `PanelPosition` enum in `features/timeline/use-panel-position.ts` (enum only). `TIMELINE_HEADING`, `RESIZE_PANEL_LABEL` and `TIMELINE_TOGGLE_LABEL` changed value.
 
 ### How to run
 
@@ -56,12 +58,12 @@ Failure texts are what the red run printed at the red commit. A row marked "chan
 3. Hypothesis: a theme change in one tab reaches the other tab and the version iframe. Break it by: open two tabs, choose Dark in one, look at the other without reloading.
 4. Hypothesis: the account menu stays open after a theme choice and closes after a link or Sign out. Break it by: keyboard only (Enter, Space, arrows, Escape) and then at 375 px.
 5. Hypothesis: the primary Summarize/Share buttons in dark mode reach AA. Break it by: measure white on dark `--primary` and the `--author-N` backgrounds.
-6. Hypothesis: with `step` required on `SelectionSummaryView`, nothing in G1 compiles wrong. Break it by: `pnpm typecheck` and read the errors (they belong to G4, listed below).
+6. Hypothesis: choosing a theme in the account menu is never undone by an OS theme change under Light or Dark. Break it by: choose Dark, then flip the OS theme.
 
 ### Known gaps
 
-- `pnpm typecheck` is red in files G1 does not own, because `SelectionSummaryView.step` is required. G4 must add `step` to the producer `apps/server/src/insights/selection-summaries-service.ts` (line 185) and to these web fixtures: `features/editor/document-page.test.tsx`, `features/timeline/selection-summary-card.test.tsx`, `selection-summary.test.ts`, `timeline-api.test.ts`, `timeline-panel.test.tsx`, `use-selection-summary.test.ts`, `features/versions/time-travel.test.tsx`.
-- `SignOutButton` is now a menu item and throws `MenuItem must be used within Menu` outside a menu. Thirty-one tests fail until G7 swaps the standalone header buttons for `AccountMenu`: `features/admin/admin-page.test.tsx`, `features/documents/documents-page.test.tsx`, `features/settings/settings-page.test.tsx` and `features/auth/sign-out-flow.test.tsx` (it clicks a `button` named Sign out; after the swap it opens the account menu first).
+- Step 13 changed: the sign-out menu item is `SignOutMenuItem` (red a5d061d, green 7d75944); the first menu-item-in-button version (58c27ba, f69197e) was reverted, so no page breaks and typecheck is clean.
+- Extra red/green pairs: Providers theme (6bc3922, 7f1beb4), shared choice across hook instances (b5c515c, 91b82f0).
 - `apps/web/src/lib/copy-rules.test.ts` does not scan `account-copy.ts`; its owner can add it.
 - The account trigger has `aria-label` but no `Tooltip` yet (design section 2 lists one); the Tooltip primitive is ready for whoever wires the top bars.
 - `home-link.tsx` is untouched; G8 deletes it. `BrandLink` imports `HOME_LINK_LABEL` from `features/editor/editor-copy.ts`.

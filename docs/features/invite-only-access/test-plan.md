@@ -25,7 +25,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `admin/admin-routes.test.ts` — five routes × (signed out → 401, user → 403); users listed with roles and `createdAt` numbers; create → 201 with a URL that admits exactly one sign-up (the second answers 403); revoke → 204 / 409 / 404; roles: promote, step down with another admin present (200), last admin → 409 `LAST_ADMIN_MESSAGE`, unknown → 404, bad role → 400; two admins demoting each other at once leave one admin.
 - [ ] `http/auth-admin-endpoints.test.ts` — `impersonate-user`, `set-role`, `create-user`, `set-user-password`, `remove-user`, `ban-user`, `list-users` under `/api/auth/admin/` answer 404 to the admin; `/update-user` with `{ role: 'admin' }` answers 400 and the role stays `user`.
 - [ ] `admin/promote.test.ts` — promotes an existing email; reports an unknown one; the tsup entry `admin-promote` exists.
-- [ ] Every pre-existing server test passes after the listed edits (`app.test.ts`, `server.test.ts`, `seed-demo-users.test.ts`), including the five restart suites — expected: `pnpm --filter @superdoc-history/server test:unit` green, count ≥ 383 plus the new tests.
+- [ ] Every pre-existing server test passes after the listed edits (`app.test.ts`, `server.test.ts`, `seed-demo-users.test.ts`), including the five restart suites — expected: `pnpm --filter @superdoc-collab/server test:unit` green, count ≥ 383 plus the new tests.
 - [ ] `repository-shape/compose.test.ts`, `delivery-docs.test.ts` — production compose sets `SEED_DEMO_USERS` to `"false"` and never reads `DEMO_PASSWORD`; the README configuration table lists every production compose variable; the agent prompt names `AUTH_SECRET`, `APP_ORIGIN`, `SEED_DEMO_USERS=false` and ends with "claim the instance"; Limits mentions `admin-promote`.
 
 ## Unit — web
@@ -66,7 +66,7 @@ Against a fresh local stack with `SEED_DEMO_USERS=false` (`docker compose up --b
 - [ ] Console and network clean: zero console errors, zero failed requests other than the expected 404 on dead invite lookups, the 403 on the refused sign-up and the 404 on the plugin endpoint probe.
 - [ ] Desktop width 1280: both tables readable without horizontal page scroll.
 - [ ] Narrow width 375: tables scroll inside their border, Generate reachable, the header shows the Admin link without overflow, the dialog's URL field wraps or scrolls and Copy stays visible.
-- [ ] Screenshots at `docs/features/invite-only-access/media/` (claim, invited, admin page with the dialog, invalid invite); video at the same folder; `docs/media/readme/09-admin-invites.png` for the README.
+- [ ] Screenshots at `docs/features/invite-only-access/media/` (claim, invited, admin page with the dialog, invalid invite); video at the same folder; the README no longer carries feature screenshots.
 
 ## Edge cases found during execution
 

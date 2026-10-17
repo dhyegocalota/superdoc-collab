@@ -12,7 +12,7 @@ Written by the lead from the four developer reports. Nobody on the build side ra
 
 ## Known gaps to check, not to assume
 
-- `docs/media/readme/09-admin-invites.png` is a placeholder copy of another screenshot; capture the real `/admin` page with the dialog open and overwrite it.
+- Capture the real `/admin` page with the invite dialog open into `docs/features/invite-only-access/media/`; the README is one screen with one screenshot since main's README cleanup, so nothing goes to `docs/media/readme/`.
 - The `x-invite-token` header reaching the server through Better Auth's `fetchOptions.headers` was verified only against mocks on the web side; the MCP walk proves it end to end.
 - The deployed Railway instance still runs with `SEED_DEMO_USERS=true` and holds users from the first walk; do not deploy this branch there during testing.
 

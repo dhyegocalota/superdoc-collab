@@ -133,7 +133,7 @@ test('sign-up requires a known IANA time zone', () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @superdoc-history/types exec vitest run`
+Run: `pnpm --filter @superdoc-collab/types exec vitest run`
 Expected: FAIL with `Cannot find module './invites'`, `inviteApiPath is not defined`, and the time-zone assertion.
 
 - [ ] **Step 3: Commit red**
@@ -244,7 +244,7 @@ export function signUpPagePath(token: string): string {
 
 - [ ] **Step 5: Run the tests and typecheck the package**
 
-Run: `pnpm --filter @superdoc-history/types exec vitest run && pnpm --filter @superdoc-history/types typecheck`
+Run: `pnpm --filter @superdoc-collab/types exec vitest run && pnpm --filter @superdoc-collab/types typecheck`
 Expected: PASS. (`pnpm typecheck` at the root now lists the `SessionUser` consumers in server and web; record them in the commit body.)
 
 - [ ] **Step 6: Commit green**
@@ -314,7 +314,7 @@ test('a session whose user has no role is an error, never a default', async () =
 
 - [ ] **Step 4: Implement**
 
-Schema: add the columns to `user` and `session` as in Interfaces (`UserRole` from `@superdoc-history/types`). `schema/invites.ts`:
+Schema: add the columns to `user` and `session` as in Interfaces (`UserRole` from `@superdoc-collab/types`). `schema/invites.ts`:
 
 ```ts
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -391,7 +391,7 @@ export function hashToken(token: string): string {
 
 - [ ] **Step 5: Run the tests and typecheck the server**
 
-Run: `pnpm --filter @superdoc-history/server exec vitest run src/auth src/documents/share-links.test.ts src/documents/share-links-routes.test.ts && pnpm --filter @superdoc-history/server typecheck`
+Run: `pnpm --filter @superdoc-collab/server exec vitest run src/auth src/documents/share-links.test.ts src/documents/share-links-routes.test.ts && pnpm --filter @superdoc-collab/server typecheck`
 Expected: PASS (the existing `/api/me` `toEqual` assertions in `app.test.ts` and `server.test.ts` are updated in Task 4, when sign-up changes).
 
 - [ ] **Step 6: Commit green** — `feat(server): user roles via the admin plugin, time zone on the user, invites table, shared token hash`.
@@ -422,7 +422,7 @@ export class InvitesRepository {
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
-import { DAY_MS, INVITE_TTL_MS, InviteState } from '@superdoc-history/types';
+import { DAY_MS, INVITE_TTL_MS, InviteState } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { signedInUser, startTestServer } from '../testing/test-server';
 import { InvitesRepository, RevokeOutcome } from './invites';
@@ -504,7 +504,7 @@ test('list names the creator and the acceptor', async () => {
 
 ```ts
 import { randomBytes, randomUUID } from 'node:crypto';
-import { INVITE_TTL_MS, inviteStateOf, signUpPagePath, type CreatedInvite, type InviteSummary } from '@superdoc-history/types';
+import { INVITE_TTL_MS, inviteStateOf, signUpPagePath, type CreatedInvite, type InviteSummary } from '@superdoc-collab/types';
 import { and, asc, desc, eq, gt, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { hashToken } from '../auth/token-hash';
@@ -645,7 +645,7 @@ export class InvitesRepository {
 `apps/server/src/auth/sign-up-gate.test.ts`:
 
 ```ts
-import { ApiPath, DAY_MS, HttpStatus, INVITE_TOKEN_HEADER, INVITE_TTL_MS, InviteState, SIGN_UP_BY_INVITATION_MESSAGE, UserRole } from '@superdoc-history/types';
+import { ApiPath, DAY_MS, HttpStatus, INVITE_TOKEN_HEADER, INVITE_TTL_MS, InviteState, SIGN_UP_BY_INVITATION_MESSAGE, UserRole } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { currentUserId, signInExisting, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
 
@@ -808,7 +808,7 @@ test('the seed claims the instance with the admin and admits the demo users by i
 `apps/server/src/auth/sign-up-gate.ts`:
 
 ```ts
-import { INVITE_TOKEN_HEADER, SIGN_UP_BY_INVITATION_MESSAGE, UserRole } from '@superdoc-history/types';
+import { INVITE_TOKEN_HEADER, SIGN_UP_BY_INVITATION_MESSAGE, UserRole } from '@superdoc-collab/types';
 import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthMiddleware, type HookEndpointContext } from 'better-auth/api';
 import { and, eq, notExists } from 'drizzle-orm';
@@ -956,7 +956,7 @@ Existing tests: `app.test.ts` sign-ups go through `signInAndGetCookie`/`signedIn
 
 - [ ] **Step 6: Run the whole server suite and typecheck**
 
-Run: `pnpm --filter @superdoc-history/server test:unit && pnpm --filter @superdoc-history/server typecheck`
+Run: `pnpm --filter @superdoc-collab/server test:unit && pnpm --filter @superdoc-collab/server typecheck`
 Expected: PASS, including the five restart tests (`collaboration-history.test.ts`, `projection-scheduler.test.ts` ×2, `topics-service.test.ts`, `history-routes.test.ts`) which reopen a claimed database.
 
 - [ ] **Step 7: Commit green** — `feat(server): first sign-up claims the instance, later ones need a pending invite`.
@@ -1131,7 +1131,7 @@ test('update-user cannot change the role', async () => {
 `require-admin.ts`:
 
 ```ts
-import { ADMINS_ONLY_MESSAGE, HttpStatus, UserRole } from '@superdoc-history/types';
+import { ADMINS_ONLY_MESSAGE, HttpStatus, UserRole } from '@superdoc-collab/types';
 import { createMiddleware } from 'hono/factory';
 import type { SignedIn } from './require-user';
 
@@ -1146,7 +1146,7 @@ export function requireAdmin() {
 `admin/users.ts`:
 
 ```ts
-import { UserRole, type AdminUser } from '@superdoc-history/types';
+import { UserRole, type AdminUser } from '@superdoc-collab/types';
 import { asc, eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { user } from '../database/schema/auth';
@@ -1213,7 +1213,7 @@ const AUTH_ADMIN_PATH = `${ApiPath.Auth}/admin/*`;
 
 (`NOT_FOUND_MESSAGE` from `libs/types` if it exists, else add `'Not found.'` next to the other messages.) The web never installs `adminClient`.
 
-- [ ] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-history/server exec vitest run src/admin src/http && pnpm --filter @superdoc-history/server typecheck`: PASS.
+- [ ] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-collab/server exec vitest run src/admin src/http && pnpm --filter @superdoc-collab/server typecheck`: PASS.
 - [ ] **Step 6: Commit green** — `feat(server): setup status, invite lookup, admin routes; the plugin's admin endpoints are closed`.
 
 ---
@@ -1248,7 +1248,7 @@ test('the build emits the promote entry', () => {
 
 ```ts
 import { pathToFileURL } from 'node:url';
-import { UserRole } from '@superdoc-history/types';
+import { UserRole } from '@superdoc-collab/types';
 import { eq } from 'drizzle-orm';
 import { loadEnvironment } from '../config/environment';
 import { AUTH_DATABASE_FILE, openDatabase, type AuthDatabase } from '../database/connection';
@@ -1413,7 +1413,7 @@ export function SignUpPage() {
 
 `sign-in-page.tsx`: `useSetup()`; the footer shows the claim link only when `setup.data?.claimed === false`, and nothing while loading or when claimed. `afterSuccess`: `const me = await fetchSession(); if (me.user && me.user.timeZone === null) await authClient.updateUser({ timeZone: browserTimeZone() });` (`fetchSession` is the existing `/api/me` fetcher behind `useSession`; export it from `use-session.ts` if it is local).
 
-- [ ] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-history/web test:unit && pnpm typecheck`: PASS, workspace green.
+- [ ] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-collab/web test:unit && pnpm typecheck`: PASS, workspace green.
 - [ ] **Step 6: Commit green** — `feat(web): claim and invited sign-up, browser time zone on sign-up and first sign-in, setup-aware sign-in`.
 
 ---

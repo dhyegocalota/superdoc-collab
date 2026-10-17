@@ -1,6 +1,7 @@
 import { ApiPath, DOCX_MIME_TYPE, HttpStatus, INVITE_TOKEN_HEADER, UPLOAD_FIELD, UserRole, inviteTokenOf } from '@superdoc-collab/types';
 import { buildSeedDocx } from '@superdoc-collab/history';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { AUTH_BODY_MAX_BYTES } from './app';
 import { signedInUser, startTestServer, TEST_TIME_ZONE, type TestServer } from '../testing/test-server';
 
 let server: TestServer;
@@ -54,6 +55,19 @@ function cookieOf(response: Response): string {
     .map((cookie) => cookie.split(';')[0])
     .join('; ');
 }
+
+describe('auth body limit', () => {
+  test('a body above the limit to dynamic client registration is refused with 413 and sign-up still works', async () => {
+    const oversized = await fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress(), origin: server.baseUrl },
+      body: JSON.stringify({ client_name: 'x'.repeat(AUTH_BODY_MAX_BYTES + 1) }),
+    });
+    expect(oversized.status).toBe(HttpStatus.PayloadTooLarge);
+    const signedUp = await signUp({ name: 'Bia', email: 'bia@example.com', password: 'superdoc-demo' });
+    expect(signedUp.status).toBe(HttpStatus.Ok);
+  });
+});
 
 describe('sign-up, sign-in and me', () => {
   test('a new user signs up, signs in and reads itself', async () => {

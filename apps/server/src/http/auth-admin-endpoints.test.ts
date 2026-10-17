@@ -44,7 +44,8 @@ test('update-user cannot change the role', async () => {
 
 test.each([
   ['an unknown zone', 'Mars/Olympus', HttpStatus.BadRequest],
-  ['an oversized value', 'x'.repeat(200_000), HttpStatus.BadRequest],
+  ['an oversized value', 'x'.repeat(1_000), HttpStatus.BadRequest],
+  ['a body above the auth body limit', 'x'.repeat(200_000), HttpStatus.PayloadTooLarge],
   ['a known zone', 'America/Sao_Paulo', HttpStatus.Ok],
 ])('update-user with %s answers the right status', async (_name, timeZone, expected) => {
   const server = await startTestServer();

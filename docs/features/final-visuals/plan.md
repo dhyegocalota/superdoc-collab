@@ -136,11 +136,11 @@ Each red step's test is written first and committed alone. Stubs throw `<name> i
 
 ### G7 pages
 
-- [ ] **Step 51: documents header.** Test `apps/web/src/features/documents/documents-page.test.tsx::the header holds Use with AI and the account menu only, with no Sign out button, and Upload is the primary action`. Red: `found link "Connected apps"`.
-- [ ] **Step 52: settings and connected apps headers.** Tests `settings-page.test.tsx::the header has the brand link and the account menu, and no Sign out button`, and `connected-apps-page.test.tsx::the header has no Back to documents link`. Red: `found button "Sign out"`.
-- [ ] **Step 53: admin header.** Test `admin-page.test.tsx::the header uses AppTopBar and has no Sign out button`. Red: `expected the Settings link to be absent from the header`.
-- [ ] **Step 54: Use with AI dialog.** Tests `use-with-ai-dialog.test.tsx::tabs show one client at a time`, and `…::a reader sees two example prompts that name the document, an editor sees three`. Red: `Failed to resolve import "./use-with-ai-dialog"`.
-- [ ] **Step 55: copy.** Test `connected-apps-copy.test.ts::documentPrompts adds the fix prompt only when canEdit is true`. Red: `documentPrompts is not a function`.
+- [x] **Step 51: documents header.** Test `apps/web/src/features/documents/documents-page.test.tsx::the header holds Use with AI and the account menu only, with no Sign out button, and Upload is the primary action`. Red: `found link "Connected apps"`. Evidence: red f050f13 (`Unable to find role="button" and name "Account, Ada"`), green 7e45459.
+- [x] **Step 52: settings and connected apps headers.** Tests `settings-page.test.tsx::the header has the brand link and the account menu, and no Sign out button`, and `connected-apps-page.test.tsx::the header has no Back to documents link`. Red: `found button "Sign out"`. Evidence: red 24ff1b8 (`Unable to find an accessible element with the role "button" and name "Account, Ada"`; `…role "link" and name "SuperDoc Collab, back to documents"`), green c0af70a and bcee930.
+- [x] **Step 53: admin header.** Test `admin-page.test.tsx::the header uses AppTopBar and has no Sign out button`. Red: `expected the Settings link to be absent from the header`. Evidence: red 66e2900 (`Unable to find role="button" and name "Account, Ada"`), green b35e00d.
+- [x] **Step 54: Use with AI dialog.** Tests `use-with-ai-dialog.test.tsx::tabs show one client at a time`, and `…::a reader sees two example prompts that name the document, an editor sees three`. Red: `Failed to resolve import "./use-with-ai-dialog"`. Evidence: red fafec05 stub (`Unable to find role="dialog" and name "Use this document with your AI"` after the stub's `UseWithAiDialog is not implemented`), green 6c0a3ae.
+- [x] **Step 55: copy.** Test `connected-apps-copy.test.ts::documentPrompts adds the fix prompt only when canEdit is true`. Red: `documentPrompts is not a function`. Evidence: pin 5e3a015 (green on landing: `documentPrompts` already existed from G1).
 
 ### G8 E2E and docs
 

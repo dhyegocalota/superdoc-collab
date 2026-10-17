@@ -25,6 +25,16 @@ function Snippet({ label, text, instruction }: { label: string; text: string; in
   );
 }
 
+export function ClientSnippet({ client }: { client: McpClient }) {
+  return (
+    <Snippet
+      label={MCP_CLIENT_LABELS[client]}
+      text={MCP_SNIPPETS[client](MCP_URL)}
+      instruction={client === McpClient.ChatGpt ? CHATGPT_INSTRUCTION : undefined}
+    />
+  );
+}
+
 export function ConnectSnippets() {
   return (
     <section className="space-y-4">
@@ -32,12 +42,7 @@ export function ConnectSnippets() {
       <p className="text-sm text-muted-foreground">{CONNECT_DESCRIPTION}</p>
       <Snippet label={MCP_URL_LABEL} text={MCP_URL} />
       {Object.values(McpClient).map((client) => (
-        <Snippet
-          key={client}
-          label={MCP_CLIENT_LABELS[client]}
-          text={MCP_SNIPPETS[client](MCP_URL)}
-          instruction={client === McpClient.ChatGpt ? CHATGPT_INSTRUCTION : undefined}
-        />
+        <ClientSnippet key={client} client={client} />
       ))}
     </section>
   );

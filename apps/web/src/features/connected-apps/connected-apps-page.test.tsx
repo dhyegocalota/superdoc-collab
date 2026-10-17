@@ -1,8 +1,13 @@
-import { AgentScope, ApiPath } from '@superdoc-collab/types';
+import { AgentScope, ApiPath, UserRole, type SessionUser } from '@superdoc-collab/types';
+import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { accountMenuLabel } from '@/features/account/account-copy';
 import { authClient } from '@/features/auth/auth-client';
+import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
+import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
+import { HOME_LINK_LABEL } from '@/features/editor/editor-copy';
 import { CLIENT_LOAD_ERROR_MESSAGE, SCOPE_LABELS } from '@/features/oauth-consent/oauth-consent-copy';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { formatTimestamp } from '@/lib/format-date-time';
@@ -36,6 +41,7 @@ const CONSENT = {
   createdAt: new Date(Date.UTC(2026, 9, 16, 12, 0)).toISOString(),
 };
 const CLIENT_NAME = 'Claude Desktop';
+const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const MCP_URL = `${window.location.origin}${ApiPath.Mcp}`;
 
 beforeEach(() => {
@@ -134,4 +140,15 @@ test.each([
   renderWithProviders(<ConnectedAppsPage />);
   await user.click(await screen.findByRole('button', { name: copyLabel(subject) }));
   await waitFor(async () => expect(await navigator.clipboard.readText()).toBe(expected));
+});
+
+test('the header has no Back to documents link and no Sign out button, and shows the account menu', async () => {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(SESSION_QUERY_KEY, USER);
+  renderWithProviders(<ConnectedAppsPage />, { queryClient });
+  const header = screen.getByRole('banner');
+  expect(within(header).getByRole('link', { name: HOME_LINK_LABEL })).toBeInTheDocument();
+  expect(within(header).getByRole('button', { name: accountMenuLabel(USER.name) })).toBeInTheDocument();
+  expect(within(header).getAllByRole('link')).toHaveLength(1);
+  expect(screen.queryByRole('button', { name: SIGN_OUT_LABEL })).not.toBeInTheDocument();
 });

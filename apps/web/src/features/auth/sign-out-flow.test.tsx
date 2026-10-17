@@ -4,13 +4,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, type InitialEntry } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { accountMenuLabel } from '@/features/account/account-copy';
+import { AccountMenu } from '@/features/account/account-menu';
 import { apiGet } from '@/lib/api';
 import { jsonResponse } from '@/testing/json-response';
 import { authClient } from './auth-client';
 import { SIGN_OUT_LABEL } from './auth-copy';
 import { RedirectIfSession } from './redirect-if-session';
 import { RequireSession } from './require-session';
-import { SignOutButton } from './sign-out-button';
 import { SIGNED_OUT_STATE } from './sign-out-state';
 import { SESSION_QUERY_KEY } from './use-session';
 
@@ -45,7 +46,7 @@ function renderApp({
         path: AppRoute.Documents,
         element: (
           <RequireSession>
-            <SignOutButton />
+            <AccountMenu />
           </RequireSession>
         ),
       },
@@ -60,9 +61,15 @@ function renderApp({
   return { router, queryClient };
 }
 
+async function signOut(): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: accountMenuLabel(ADA.name) }));
+  await user.click(await screen.findByRole('menuitem', { name: SIGN_OUT_LABEL }));
+}
+
 test('signing out lands on the bare sign-in route and stays there', async () => {
   const { router, queryClient } = renderApp();
-  await userEvent.setup().click(await screen.findByRole('button', { name: SIGN_OUT_LABEL }));
+  await signOut();
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
   await waitFor(() => expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull());
   await waitFor(() => expect(router.state.location.state).toBeNull());
@@ -72,7 +79,7 @@ test('signing out lands on the bare sign-in route and stays there', async () => 
 
 test('a session read that already sees the signed-out user does not turn into a next redirect', async () => {
   const { router, queryClient } = renderApp();
-  await userEvent.setup().click(await screen.findByRole('button', { name: SIGN_OUT_LABEL }));
+  await signOut();
   await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
   expect(router.state.location.search).toBe('');

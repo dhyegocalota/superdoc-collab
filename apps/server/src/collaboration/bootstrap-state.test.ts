@@ -1,4 +1,4 @@
-import { ClientActor } from '@superdoc-collab/types';
+import { BOOTSTRAP_SCAN_CACHE_ENTRIES, ClientActor } from '@superdoc-collab/types';
 import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import { commitBootstrap, openTestDatabase } from '@superdoc-collab/history/testing';
 import * as Y from 'yjs';
@@ -109,5 +109,33 @@ test('an uncommitted answer resumes the scan after the rows it already read', ()
   expect(bootstrap.isCommitted(DOCUMENT_ID)).toBe(true);
   expect(readBatch.mock.calls.map(([parameters]) => parameters.afterSequence)).toEqual([lastScanned]);
   expect(committedSequence).toBe(lastScanned + 1);
+  close();
+});
+
+test('the scan progress of the 33rd uncommitted document evicts the first', () => {
+  const { updateLog, readModel, close } = stateOver();
+  const bootstrap = createBootstrapState({ updateLog, readModel });
+  const documentIds = Array.from({ length: BOOTSTRAP_SCAN_CACHE_ENTRIES + 1 }, (_, index) => `document-${index}`);
+  const document = new Y.Doc();
+  document.getText(TEXT_NAME).insert(0, LIVE_TEXT);
+  documentIds.forEach((documentId) =>
+    updateLog.append({
+      documentName: documentId,
+      connectionUserId: USER_ID,
+      connectionActor: ClientActor.Human,
+      update: Y.encodeStateAsUpdate(document),
+    }),
+  );
+  documentIds.forEach((documentId) => bootstrap.isCommitted(documentId));
+  const readBatch = vi.spyOn(updateLog, 'readBatch');
+  const first = documentIds[0]!;
+  const last = documentIds.at(-1)!;
+  bootstrap.isCommitted(first);
+  bootstrap.isCommitted(last);
+  expect(readBatch.mock.calls.map(([parameters]) => [parameters.documentName, parameters.afterSequence])).toEqual([
+    [first, 0],
+    [first, 1],
+    [last, 33],
+  ]);
   close();
 });

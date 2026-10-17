@@ -1,7 +1,7 @@
-import type { Document, Hocuspocus } from '@hocuspocus/server';
+import type { Connection, Document, Hocuspocus } from '@hocuspocus/server';
 import * as Y from 'yjs';
 import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
-import { RoomMode } from '@superdoc-collab/types';
+import { RoomMode, SUPERSEDED_ATTEMPT_CLOSE_CODE, SUPERSEDED_ATTEMPT_REASON } from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';
@@ -13,6 +13,8 @@ import type { CreatorReservations } from './creator-reservations';
 import { documentIdFromRoomName } from './room-name';
 
 export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
+
+type AttemptContext = { creatorAttempt: number | null };
 
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
@@ -49,6 +51,9 @@ export function createCollaborationRuntime({
   function roomsOf(documentId: string): Document[] {
     return [...hocuspocus.documents.values()].filter((room) => documentIdFromRoomName(room.name) === documentId);
   }
+  function connectionsOf(documentId: string): Connection[] {
+    return roomsOf(documentId).flatMap((room) => [...room.connections.values()].map(({ connection }) => connection));
+  }
   function findCommittedBootstrap({
     documentId,
     afterSequence,
@@ -74,15 +79,16 @@ export function createCollaborationRuntime({
   }
   return {
     reserveCreator: ({ documentId, userId }) => {
-      throw new Error('reserveCreator is not implemented');
+      const attempt = reservations.reserve({ documentId, userId });
+      if (attempt === null) return null;
+      connectionsOf(documentId)
+        .filter((connection) => (connection.context as AttemptContext).creatorAttempt !== attempt)
+        .forEach((connection) => connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON }));
+      return attempt;
     },
     roomMode: (documentId) => (hasCommittedBootstrap(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
-      new Set(
-        roomsOf(documentId).flatMap((room) =>
-          [...room.connections.values()].map(({ connection }) => (connection.context as CollaborationContext).userId),
-        ),
-      ),
+      new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));

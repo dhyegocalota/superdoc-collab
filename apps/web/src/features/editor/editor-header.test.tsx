@@ -13,11 +13,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
-import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   CANCEL_LABEL,
@@ -86,7 +87,12 @@ async function openDeleteDialog(): Promise<void> {
   await userEvent.click(await screen.findByRole('menuitem', { name: DELETE_LABEL }));
 }
 
+beforeEach(() => {
+  installAuthorPalette();
+});
+
 afterEach(() => {
+  removeAuthorPalette();
   vi.restoreAllMocks();
   vi.mocked(Members).mockClear();
   onDownloadDocx.mockClear();

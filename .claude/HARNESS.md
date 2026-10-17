@@ -48,7 +48,7 @@ Classify the change so the depth of the spec matches the risk:
 
 When in doubt, take the heavier tier. Hidden complexity discovered mid-task upgrades the tier: stop, say so, step up.
 
-**Docs lane.** A change whose `pnpm verify --plan` class is `docs`, and that no person or agent follows step by step (install guides, runbooks, the agent install file), may take the docs lane: one ten-line `spec.md` that says `**Lane:** docs`, no plan, test plan or tester, one reviewer on the mid model, no security reviewer ([ADR 0028](../docs/adr/0028-the-local-gate-runs-what-the-diff-can-break.md)). The class is necessary, never sufficient. A one-line change to code or configuration never takes it.
+**Docs lane.** A change whose `pnpm verify --plan` class is `docs`, and that no person or agent follows step by step, may take the docs lane. Install guides, runbooks, the agent install file and `docs/scenarios/` are followed step by step, so they never take it. The lane is one ten-line `spec.md` that says `**Lane:** docs`, no plan, test plan or tester, one reviewer on the mid model, no security reviewer, on the class of the whole branch against `origin/main` ([ADR 0028](../docs/adr/0028-the-local-gate-runs-what-the-diff-can-break.md)). The class is necessary, never sufficient. A one-line change to code or configuration never takes it.
 
 ## 2. Record
 
@@ -105,21 +105,21 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - A commit that claims to be formatting only is re-diffed with whitespace and quotes normalised (`git diff -w`, then Prettier on both sides) before "no behaviour change" is trusted.
 - Red-first claims are spot-checked in a throwaway worktree: check out the red commit, run the named test, compare the failure with the text the test plan records.
 - Findings are delivered in chat and fixed before the PR. The reviewer never posts to GitHub.
-- A `security-reviewer` sub-agent, fresh and read-only, then attacks the same diff with the repository's threat model (sessions, per-document authorization, share links, credentials, storage, secrets in prompts and logs, supply chain) and answers `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE` ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)). It runs on every diff except one whose `pnpm verify --plan` class is `docs`; a `CRITICAL` or `IMPORTANT` finding goes back to Build.
+- A `security-reviewer` sub-agent, fresh and read-only, then attacks the same diff with the repository's threat model (sessions, per-document authorization, share links, credentials, storage, secrets in prompts and logs, supply chain) and answers `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE` ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)). It runs on every diff except one in the docs lane (section 1); a `CRITICAL` or `IMPORTANT` finding goes back to Build.
 
 ## 7. Ship
 
 `/open-pr` runs the gates in order and stops at the first failure:
 
 1. `/verify`: `pnpm verify` runs what the diff can break, once per commit (ADR 0028).
-2. `test-plan.md` fully ticked by the tester, with evidence.
+2. `test-plan.md` ticked with evidence by the tester for class `product`, by the lead for class `tooling`; skipped in the docs lane.
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
 3b. Security verdict `CLEAR` or `NOT APPLICABLE`; `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build. The verdict line goes into the PR body under `## Security`.
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
 5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
-8. **The gate is local** (ADR 0028). Hosted runs are not waited for: GitHub Actions does not run for this repository. Before the merge, merge `main` into the branch (never rebase), run `/verify`, post its summary as a PR comment and merge on green; a red gate goes back to Build. `.github/workflows/` stay true to the gate through their repository-shape tests for the day hosted runs come back.
+8. **The gate is local** (ADR 0028). Hosted runs are not waited for: GitHub Actions does not run for this repository. Before the merge, `git fetch origin` and merge `origin/main` into the branch (never rebase), run `/verify`, post its summary as a PR comment, confirm `origin/main` is still an ancestor of the head after a fresh fetch, and merge on green; a red gate goes back to Build. `.github/workflows/` stay true to the gate through their repository-shape tests for the day hosted runs come back.
 
 9. **Scenarios before the merge.** `/open-pr` matches the diff against the `paths` of every `docs/scenarios/*.md` and names the scenarios to run with `/scenario <slug>`; the owner decides. A scenario boots the whole stack on its own ports with the fake model and walks the product's core with one browser per author, hunting edge cases; a defect it finds goes back to Build with a regression test, never an inline fix (ADR 0023).
 
@@ -209,6 +209,7 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 |---|---|---|
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
+| `guard-verify-records.sh` | PreToolUse Bash, Edit/Write | blocks writing records of green commits by hand; only `scripts/verify.sh` writes them (ADR 0028) |
 | `doctor.sh` | SessionStart; `/verify` gate 0; CI `checks` | prints one line per tool the harness needs (`ok`, `missing` or `skipped`, required or optional, what is lost, the `fix:` for this platform's package manager); exit 1 when a required tool is missing. The session hooks force exit 0 so the report reaches the context |
 | `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
 | `remind-docs.sh` | Stop | names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change, when those documents did not change; each document once until the next commit |

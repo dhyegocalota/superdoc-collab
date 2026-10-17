@@ -23,4 +23,4 @@ Output format:
 Security verdict: CLEAR | FINDINGS | NOT APPLICABLE — <one line>
 ```
 
-`CLEAR` means every surface the diff touches held against your attacks. `FINDINGS` means at least one did not. `NOT APPLICABLE` is only for a diff whose every path is a Markdown file under `docs/` or a `README.md`; configuration, lockfiles, agent surfaces, hooks and CI all count as code. Say which paths you checked. A finding without a file, a line and a concrete attack does not count.
+`CLEAR` means every surface the diff touches held against your attacks. `FINDINGS` means at least one did not. `NOT APPLICABLE` is only for the docs lane: a spec that says `**Lane:** docs` and a branch whose `pnpm verify --plan` class is `docs` (Markdown under `docs/`, `docs/media/` and READMEs; never install guides, runbooks, the agent install file or `docs/scenarios/`); configuration, lockfiles, agent surfaces, hooks and CI all count as code. Say which paths you checked. A finding without a file, a line and a concrete attack does not count.

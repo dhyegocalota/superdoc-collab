@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: [SDK room-join spike](../../spikes/sdk-room-join/RESULTS.md), [0002](0002-authorship-observed-vs-declared.md), [learning: runtime v2](../learnings/2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md)
+- Inspired by: [SDK room-join spike](../features/agentic-history-mcp/spike-sdk-room-join.md), [0002](0002-authorship-observed-vs-declared.md), [learning: runtime v2](../learnings/2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md)
 
 ## Context
 

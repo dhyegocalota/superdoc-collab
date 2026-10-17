@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: [SDK room-join spike](../../spikes/sdk-room-join/RESULTS.md), [0005](0005-authentication-with-better-auth.md), [0010](0010-documents-ownership-and-share-links.md), [0017](0017-share-links-reissued-when-the-secret-changes.md), [0019](0019-deploy-on-railway.md), Better Auth `@better-auth/mcp` and `@better-auth/oauth-provider` docs
+- Inspired by: [SDK room-join spike](../features/agentic-history-mcp/spike-sdk-room-join.md), [0005](0005-authentication-with-better-auth.md), [0010](0010-documents-ownership-and-share-links.md), [0017](0017-share-links-reissued-when-the-secret-changes.md), [0019](0019-deploy-on-railway.md), Better Auth `@better-auth/mcp` and `@better-auth/oauth-provider` docs
 
 ## Context
 

@@ -10,7 +10,11 @@ const MARKDOWN_EXTENSION = '.md';
 const TOML_EXTENSION = '.toml';
 const EXPECTED_ROLES = ['developer', 'frontend-designer', 'recorder', 'researcher', 'reviewer', 'security-reviewer', 'tester'];
 const VERIFY_SKILL_FILE = '.agents/skills/verify/SKILL.md';
-const DOCTOR_SCRIPT_GATE = '0. `.agents/hooks/doctor.sh`';
+const OPEN_PR_SKILL_FILE = '.agents/skills/open-pr/SKILL.md';
+const VERIFY_SCRIPT_FILE = 'scripts/verify.sh';
+const DOCTOR_SCRIPT_CALL = '"$root/.agents/hooks/doctor.sh"';
+const GATE_COMMAND = '`pnpm verify';
+const GATE_STEPS = ['pnpm typecheck', 'pnpm security:audit', 'pnpm test:unit', 'pnpm test:e2e', 'gitleaks git'];
 
 function roleNames(): string[] {
   return readdirSync(repositoryPath(ROLES_DIRECTORY))
@@ -53,7 +57,13 @@ describe('agent surfaces', () => {
     expect(missing).toEqual([]);
   });
 
-  test('the verify skill opens with the doctor script, not the pnpm built-in of the same name', () => {
-    expect(readRepositoryFile(VERIFY_SKILL_FILE)).toContain(DOCTOR_SCRIPT_GATE);
+  test('the verify skill runs the one gate, which calls the doctor script, not the pnpm built-in of the same name', () => {
+    expect(readRepositoryFile(VERIFY_SKILL_FILE)).toContain(GATE_COMMAND);
+    expect(readRepositoryFile(VERIFY_SCRIPT_FILE)).toContain(DOCTOR_SCRIPT_CALL);
+  });
+
+  test('the verify and open-pr skills never repeat the steps of the gate', () => {
+    const skills = [VERIFY_SKILL_FILE, OPEN_PR_SKILL_FILE].map((file) => readRepositoryFile(file)).join('\n');
+    expect(GATE_STEPS.filter((step) => skills.includes(step))).toEqual([]);
   });
 });

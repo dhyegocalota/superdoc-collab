@@ -23,6 +23,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm test:hooks
+      - run: pnpm test:verify
       - run: .agents/hooks/doctor.sh
         env:
           GH_TOKEN: ${{ github.token }}

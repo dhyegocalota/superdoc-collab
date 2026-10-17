@@ -40,3 +40,9 @@ export async function readJson<Body>({ response, subject }: { response: Response
   assertOk({ response, subject });
   return response.json();
 }
+
+type PolledQuery = { state: { error: Error | null } };
+
+export function pollWhileAvailable(intervalMs: number): (query: PolledQuery) => number | false {
+  return () => false;
+}

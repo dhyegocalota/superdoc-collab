@@ -12,8 +12,8 @@ The collaboration socket server is created with the library default, which accep
 
 ## Decision
 
-- `maxPayload` on the socket server equals a small multiple of `MAX_UPLOAD_BYTES`: 8 times 10 MB. The constant is `MAX_SOCKET_MESSAGE_BYTES` in `libs/types`. The multiple was 4 until the room-admission measurement of 2026-10-17: a text-dense 9.52 MiB DOCX syncs its seed in one 36,593,816-byte frame, 3.7 times its file size, so 4 times left 15% of headroom and 8 times leaves 2.2 times, still under the `ws` default of 100 MiB.
-- A per-socket rate cap of 120 frames in a rolling second, through the existing `SlidingWindow`, counted at the `ws` layer in `attach-collaboration.ts` from the first frame, before authentication too: Hocuspocus queues every frame that arrives before the authentication message without a bound, so a counter inside its hooks would start too late. The constant is `MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types`. A frame over the payload cap is closed by `ws` with 1009, which the provider treats as final; `terminateOnError` leaves a socket that is already closing alone so that close frame is delivered.
+- `maxPayload` on the socket server equals a small multiple of `MAX_UPLOAD_BYTES`: 8 times 10 MiB, which is 80 MiB or 83,886,080 bytes. The constant is `MAX_SOCKET_MESSAGE_BYTES` in `libs/types`. The multiple was 4 until the room-admission measurement of 2026-10-17: a text-dense 9.52 MiB DOCX syncs its seed in one 36,593,816-byte frame, 3.7 times its file size, so 4 times (41,943,040 bytes) left 15% of headroom and 8 times (83,886,080 bytes) leaves 2.2 times, still under the `ws` default of 100 MiB.
+- A per-socket rate cap of 120 frames in a rolling second, through the existing `SlidingWindow`, counted at the `ws` layer in `attach-collaboration.ts` from the first frame, before authentication too: Hocuspocus queues every frame that arrives before the authentication message without a bound, so a counter inside its hooks would start too late. The constant is `MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types`. A frame over the payload cap is closed by `ws` with 1009, which the provider treats as final; `terminateOnError` returns early on a socket that is already closing (true again at c9c7745, together with the close timeout) so that close frame is delivered. The socket server is created with one `closeTimeout` of `SOCKET_CLOSE_GRACE_MS` (one second), and every server-initiated close uses it, so a peer that ignores the close frame is terminated after the grace.
 - A breach of the rate cap closes that socket with close code 1008 (policy violation) and a reason string. The client's provider reconnects on its own.
 - A fence refusal, a takeover close and a 409 are logged with the document id; the payload cap and the rate cap close at the ws layer before any document name is known, so their lines carry no document id. Nothing ever logs a payload.
 
@@ -30,8 +30,8 @@ The collaboration socket server is created with the library default, which accep
 ## Consequences
 
 - A legitimate burst, such as a large paste near the cap, closes the socket once and reconnects.
-- The rate window is per connection, so a client that opens many connections multiplies its budget. The origin check is client-chosen and authentication ran after the upgrade, so neither bounded it; the security review of 2026-10-17 added a session check in the upgrade handler before `handleUpgrade`, one document per socket (a second document name on a socket closes it), a terminate one second after a breach close, and a five-minute cap on a reservation's total lifetime.
-- The limits appear in the logs by document id, which helps tell a flooder from a bug, and never expose content.
+- The rate window is per connection, so a client that opens many connections multiplies its budget. The origin check is client-chosen and authentication ran after the upgrade, so neither bounded it; the security review of 2026-10-17 added a session check in the upgrade handler before `handleUpgrade`, one document per socket (a second document name on a socket closes it), a close timeout of one second on every server-initiated close, and a five-minute cap on a reservation's total lifetime. A session that fails at the upgrade completes the upgrade and closes with 4401, so the client shows failed without retries.
+- A fence refusal, a takeover close, a 409 and a single-document close appear in the logs by document id, which helps tell a flooder from a bug. The payload cap and the rate cap carry no document id, because the ws layer closes them before any document name is known. No line exposes content.
 
 ## Evidence
 
@@ -40,6 +40,7 @@ Added by the room-admission plan.
 - A unit test of the rate breach: the 121st message in a second closes the socket with 1008.
 - A unit test of the payload cap: a message above the cap closes the socket.
 - A unit test that a seeded room at the upload cap still creates.
+- A unit test that a second document name on one socket closes it with 1008, and one that a peer ignoring a server close is destroyed within the grace.
 
 ## Revisit when
 

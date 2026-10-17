@@ -13,6 +13,8 @@ export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
+export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
+export const SUMMARIZE_BUSY_MESSAGE = 'Summarizing is busy. Try again in a moment.';
 export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
@@ -30,6 +32,11 @@ export enum TopicState {
   Pending = 'pending',
   Ready = 'ready',
   Failed = 'failed',
+}
+export enum SummarizeStep {
+  Idle = 'idle',
+  Grouping = 'grouping',
+  Summarizing = 'summarizing',
 }
 export enum SelectionSummaryState {
   Ready = 'ready',
@@ -78,6 +85,7 @@ export type SelectionSummaryView = {
   summary: SelectionSummary | null;
   failure: string | null;
   isModelAvailable: boolean;
+  step: SummarizeStep;
 };
 export type TimelineCell = { inserted: number; deleted: number; agentInserted: number; agentDeleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };

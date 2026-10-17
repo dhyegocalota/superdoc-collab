@@ -43,6 +43,8 @@ Sign-up is open. Anyone who finds the URL creates an account, uploads documents 
 
 - Table `invites` in `auth.sqlite`: `id` (random), `tokenHash` (sha256 of the token, unique), `createdBy` (user id), `createdAt`, `expiresAt` (`createdAt + INVITE_TTL_MS`, 7 days), `acceptedBy` (user id, nullable), `acceptedAt` (nullable), `revokedAt` (nullable).
 - Token: `INVITE_TOKEN_BYTES = 32` random bytes, base64url, returned once by the create endpoint inside the full URL `${APP_ORIGIN}/sign-up?invite=<token>`; never stored.
+- The token travels to the server in the `x-invite-token` request header (`INVITE_TOKEN_HEADER` in `libs/types`), set by the sign-up page through the Better Auth client's per-call `fetchOptions`; `signUpSchema` is unchanged. Ruled during planning: the client types the body strictly and the header keeps one sign-up path.
+- Times: `expiresAt`, `createdAt` and `acceptedAt` are epoch milliseconds in the database and in the API; the admin page renders them with the shared `formatDateTime` in the reader's own time zone, never a server zone (owner requirement of 2026-10-17: time zones must work carefully everywhere; the cross-cutting audit lives in `docs/features/timezone-correctness/`).
 - State is derived, never stored: `pending` (no acceptedAt, no revokedAt, not expired), `accepted`, `revoked`, `expired`. `InviteState` enum in `libs/types`.
 - `InvitesRepository` (`apps/server/src/admin/invites.ts`): `create({ createdBy })`, `list()`, `revoke(id)`, `resolve(token)` (pending only, else `null`), `accept({ id, userId })`. Hashing is a sibling of `hashShareToken`, moved to a shared `token-hash.ts` so both use it.
 
@@ -55,12 +57,12 @@ Admin routes answer 401 signed out and 403 for a non-admin; `requireAdmin` middl
 | `GET /api/setup` | public | `{ claimed }` |
 | `GET /api/invites/:token` | public | `200 { state: 'pending' }` only while the invite is pending; unknown, accepted, revoked and expired tokens all answer 404 with no detail, so the page shows one "This invite is not valid" for every dead link |
 | `GET /api/admin/users` | admin | `[{ id, name, email, role, createdAt }]` |
-| `POST /api/admin/users/:id/role` | admin | `{ role }`; an admin cannot demote themselves (409), so an instance never ends up without an admin |
+| `POST /api/admin/users/:id/role` | admin | `{ role }`; the last admin cannot be demoted (409 `LAST_ADMIN_MESSAGE`), so an instance never ends up without an admin; an admin may step down only when another admin exists |
 | `GET /api/admin/invites` | admin | `[{ id, state, createdAt, expiresAt, createdBy: { name }, acceptedBy: { name } \| null }]` |
 | `POST /api/admin/invites` | admin | `201 { id, url, expiresAt }` |
 | `DELETE /api/admin/invites/:id` | admin | `204`; revoking an accepted invite is a 409 |
 
-`ApiPath` gains `Setup = '/api/setup'`, `Invites = '/api/invites'`, `Admin = '/api/admin'`; `AppRoute` gains `Admin = '/admin'`. `signUpSchema` gains `inviteToken: z.string().optional()`; the gate decides whether it is required.
+`ApiPath` gains `Setup = '/api/setup'`, `Invites = '/api/invites'`, `Admin = '/api/admin'`; `AppRoute` gains `Admin = '/admin'`. `signUpSchema` is unchanged; the gate reads the `x-invite-token` header and decides whether it is required.
 
 ### Web
 
@@ -87,7 +89,7 @@ The README is rewritten for a newcomer, in this order: one-paragraph pitch, thre
 | Token valid at page load, consumed or revoked before submit | 403 from the gate; the form shows the message, nothing written |
 | After hook fails on a claim | the user exists as `user`; the instance is claimed with no admin. Recovery: `pnpm admin:promote <email>` script in `apps/server` (one file, uses the repository), documented under Limits |
 | Two concurrent claims | one admin, one user (earliest row wins) |
-| Admin demotes themselves | 409, role unchanged |
+| The last admin is demoted (by themselves or by nobody else, since they are the last) | 409, role unchanged |
 | Revoke an accepted invite | 409 |
 | Expired invite opened | "This invite is not valid" |
 | Admin page opened by a user | redirect to documents with a toast |

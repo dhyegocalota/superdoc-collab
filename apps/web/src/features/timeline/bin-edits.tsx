@@ -2,6 +2,7 @@ import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from 
 import { useQuery } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { authorNames } from './author-of';
 import { maxBandVolume } from './max-band-volume';
 import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
@@ -21,6 +22,7 @@ function snippetOf(text: string): string {
 type BinEditsProps = { documentId: string; timeline: DocumentTimeline; bin: TimelineBin; filter: TimelineFilter };
 
 export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
+  const { timeZone } = useTimeZone();
   const { data } = useQuery({
     queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
     queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
@@ -49,7 +51,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   if (!data) return null;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</h3>
+      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone })}</h3>
       {data.runs.length === 0 && (
         <p role="status" className="text-sm text-muted-foreground">
           {NO_EDITS_IN_BIN_MESSAGE}

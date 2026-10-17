@@ -436,3 +436,51 @@ test('rebuilding a degraded scheduler leaves nothing rebuilding', async () => {
   server.services.scheduler.isDegraded = false;
   await server.stop();
 });
+
+test('a blocks reply resolves its waiter whatever cursor it carries', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const internals = server.services.scheduler as unknown as SchedulerInternals;
+  const blocks = server.services.scheduler.blocks(documentId);
+  internals.settle({ kind: ProjectionRequestKind.Blocks, documentId, sequence: 7, blocks: [] });
+  await expect(blocks).resolves.toMatchObject({ sequence: 7 });
+  postMessage.mockRestore();
+  await server.stop();
+});
+
+test('a version failure rejects only the waiter of that sequence', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const internals = server.services.scheduler as unknown as SchedulerInternals;
+  const [first, second] = [1, 2].map((sequence) => server.services.scheduler.version({ documentId, sequence }));
+  internals.settle({
+    kind: ProjectionReplyKind.Failed,
+    documentId,
+    message: 'boom',
+    requestKind: ProjectionRequestKind.Version,
+    sequence: 1,
+  });
+  internals.settle({ kind: ProjectionRequestKind.Version, documentId, sequence: 2, serverTime: 0, state: new Uint8Array(), text: '' });
+  await expect(first).rejects.toThrow('boom');
+  await expect(second).resolves.toMatchObject({ sequence: 2 });
+  postMessage.mockRestore();
+  await server.stop();
+});
+
+test('a rebuild imports after forgetting, projects after importing, and ends after projecting', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const internals = server.services.scheduler as unknown as SchedulerInternals;
+  const done = (kind: ProjectionRequestKind) => internals.settle({ kind, documentId, cursor: null, importError: null });
+  const rebuilt = server.services.scheduler.rebuild({ documentId, filePath: 'plan.docx' });
+  done(ProjectionRequestKind.Forget);
+  await rebuilt;
+  expect(postMessage).toHaveBeenLastCalledWith({ kind: ProjectionRequestKind.Import, documentId, filePath: 'plan.docx' });
+  done(ProjectionRequestKind.Import);
+  expect(postMessage).toHaveBeenLastCalledWith({ kind: ProjectionRequestKind.Project, documentId });
+  expect(server.services.scheduler.isRebuilding(documentId)).toBe(true);
+  done(ProjectionRequestKind.Project);
+  expect(server.services.scheduler.isRebuilding(documentId)).toBe(false);
+  postMessage.mockRestore();
+  await server.stop();
+});

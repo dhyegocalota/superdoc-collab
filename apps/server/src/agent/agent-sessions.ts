@@ -1,4 +1,12 @@
-import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS, secondsRoundedUp } from '@superdoc-collab/types';
+import {
+  agentAuthorName,
+  DOCUMENT_NOT_READY_ERROR,
+  type DocumentRole,
+  MINUTE_MS,
+  RoomMode,
+  SECOND_MS,
+  secondsRoundedUp,
+} from '@superdoc-collab/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
@@ -243,13 +251,12 @@ export class AgentSessions implements AgentDocumentSessions {
     role,
     userName,
   }: { person: AgentPerson; documentId: string } & SessionTraits): Promise<OpenedSession> {
-    const { roomMode, filePath } = this.locateRoom(documentId);
-    const seed = roomMode === RoomMode.Create ? { doc: filePath } : {};
+    const { roomMode } = this.locateRoom(documentId);
+    if (roomMode === RoomMode.Create) throw new AgentToolError({ message: DOCUMENT_NOT_READY_ERROR });
     await this.connected();
     const opening = this.client.open(
       {
         runtime: SDK_RUNTIME,
-        ...seed,
         userName,
         userEmail: person.email,
         collaboration: { providerType: COLLABORATION_PROVIDER, url: this.collaborationUrl(), documentId, roomMode },

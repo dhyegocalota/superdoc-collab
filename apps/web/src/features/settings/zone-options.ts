@@ -1,4 +1,4 @@
-import { UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { isSupportedTimeZone, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { unsupportedTimeZoneLabel } from './settings-copy';
 
 export type TimeZoneOption = { value: string; label: string };
@@ -15,12 +15,15 @@ function offsetLabel({ timeZone, now }: { timeZone: string; now: number }): stri
   return `${timeZone} (${UTC_TIME_ZONE}${offset === '' ? ZERO_OFFSET : offset})`;
 }
 
-export function timeZoneOptions({ now, current }: { now: number; current: string }): TimeZoneOption[] {
-  const supported = new Set([...Intl.supportedValuesOf('timeZone'), UTC_TIME_ZONE]);
-  const isUnsupported = !supported.has(current);
-  const values = [...supported, ...(isUnsupported ? [current] : [])].sort();
+export function canonicalTimeZone(timeZone: string): string {
+  if (!isSupportedTimeZone(timeZone)) return timeZone;
+  return new Intl.DateTimeFormat('en-US', { timeZone }).resolvedOptions().timeZone;
+}
+
+export function timeZoneOptions({ now, extra }: { now: number; extra: string[] }): TimeZoneOption[] {
+  const values = [...new Set([...Intl.supportedValuesOf('timeZone'), UTC_TIME_ZONE, ...extra])].sort();
   return values.map((value) => ({
     value,
-    label: value === current && isUnsupported ? unsupportedTimeZoneLabel(value) : offsetLabel({ timeZone: value, now }),
+    label: isSupportedTimeZone(value) ? offsetLabel({ timeZone: value, now }) : unsupportedTimeZoneLabel(value),
   }));
 }

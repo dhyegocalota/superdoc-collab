@@ -18,7 +18,7 @@ import {
   USE_BROWSER_TIME_ZONE_LABEL,
 } from './settings-copy';
 import { useSaveTimeZone } from './use-save-time-zone';
-import { timeZoneOptions } from './zone-options';
+import { canonicalTimeZone, timeZoneOptions } from './zone-options';
 
 const SELECT_ID = 'time-zone';
 
@@ -26,8 +26,12 @@ export function SettingsPage() {
   const { timeZone: effectiveTimeZone } = useTimeZone();
   const [selectedTimeZone, setSelectedTimeZone] = useState(effectiveTimeZone);
   const saveTimeZone = useSaveTimeZone();
-  const options = useMemo(() => timeZoneOptions({ now: Date.now(), current: effectiveTimeZone }), [effectiveTimeZone]);
   const browserZone = browserTimeZone();
+  const options = useMemo(
+    () => timeZoneOptions({ now: Date.now(), extra: [effectiveTimeZone, browserZone] }),
+    [effectiveTimeZone, browserZone],
+  );
+  const browserDiffers = canonicalTimeZone(browserZone) !== canonicalTimeZone(effectiveTimeZone);
   useDocumentTitle(SETTINGS_HEADING);
 
   return (
@@ -55,7 +59,7 @@ export function SettingsPage() {
               ))}
             </select>
           </div>
-          {browserZone !== effectiveTimeZone && (
+          {browserDiffers && (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               {browserReportsMessage(browserZone)}
               <Button type="button" variant="outline" size="sm" onClick={() => setSelectedTimeZone(browserZone)}>

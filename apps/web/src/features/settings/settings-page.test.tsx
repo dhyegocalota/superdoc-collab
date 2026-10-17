@@ -18,7 +18,7 @@ import {
 } from './settings-copy';
 import { SettingsPage } from './settings-page';
 
-vi.mock('sonner', () => ({ toast: vi.fn() }));
+vi.mock('sonner', async (importOriginal) => ({ ...(await importOriginal<typeof import('sonner')>()), toast: vi.fn() }));
 vi.mock('@/lib/browser-time-zone');
 vi.mock('@/features/auth/auth-client', () => ({ authClient: { updateUser: vi.fn(), signOut: vi.fn() } }));
 

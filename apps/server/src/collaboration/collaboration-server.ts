@@ -1,7 +1,7 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage } from 'node:http';
 import { materialize, type UpdateLog } from '@superdoc-collab/history';
-import { ClientActor, DocumentRole, SECOND_MS, TAB_QUERY_KEY } from '@superdoc-collab/types';
+import { ClientActor, DocumentRole, isTabId, SECOND_MS, TAB_QUERY_KEY } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -23,6 +23,12 @@ function requireDocumentId(roomName: string): string {
   const documentId = documentIdFromRoomName(roomName);
   if (!documentId) throw new CollaborationAuthenticationError();
   return documentId;
+}
+
+function tabIdOf(requestParameters: URLSearchParams): string | null {
+  const tab = requestParameters.get(TAB_QUERY_KEY);
+  if (tab === null || !isTabId(tab)) return null;
+  return tab;
 }
 
 function connectionActorOf(request: IncomingMessage): ClientActor {
@@ -57,7 +63,7 @@ export function createCollaborationServer({
           ? await authenticateAgent({ auth, documents, token, documentId })
           : await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
       if (role === DocumentRole.Reader) connection.readOnly = true;
-      return { userId, documentId, actor, tabId: requestParameters.get(TAB_QUERY_KEY) };
+      return { userId, documentId, actor, tabId: tabIdOf(requestParameters) };
     },
     async onLoadDocument({ document, documentName }) {
       const restored = materialize({

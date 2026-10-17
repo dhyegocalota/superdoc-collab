@@ -401,6 +401,37 @@ test('members answers isCurrentUserOnline for the tab that asks, not for another
   await server.stop();
 });
 
+test('a socket of another user carrying a tab id does not make that tab online for the asking user', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const readerTab = randomUUID();
+  const client = await connectToDocument({
+    server,
+    cookie: reader.cookie,
+    documentId,
+    path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${readerTab}`,
+  });
+  const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${readerTab}`;
+  const ownerAnswer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  const readerAnswer: DocumentMembers = await (await request({ server, cookie: reader.cookie, path })).json();
+  expect([ownerAnswer.isCurrentUserOnline, readerAnswer.isCurrentUserOnline]).toEqual([false, true]);
+  client.close();
+  await server.stop();
+});
+
+test.each([
+  { name: 'empty', tab: '' },
+  { name: 'not a UUID', tab: 'a'.repeat(1024) },
+])('members treats a $name tab as absent and answers per user', async ({ tab }) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${tab}`;
+  const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  expect(answer.isCurrentUserOnline).toBe(true);
+  client.close();
+  await server.stop();
+});
+
 test('signed-out requests get 401', async () => {
   const { server } = await signedInOwner();
   const paths = [ApiPath.Documents, pathOf({ documentId: randomUUID() }), `${ApiPath.ShareLinks}/token/accept`];

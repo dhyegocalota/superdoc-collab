@@ -7,6 +7,7 @@ import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { versionKeyOf, versionKeyPrefixOf, type VersionEndpoint, type VersionsService } from '../history/versions-service';
 import { LruMap } from '../limits/lru-map';
+import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { COLLABORATION_SOCKET_TIMEOUT_MS, LOADING_ORIGIN } from './collaboration-server';
@@ -103,16 +104,8 @@ export class VersionRooms {
   }
 
   async stop(): Promise<void> {
-    const destroyed = Promise.all(this.rooms.keys().map((key) => this.destroy(key)));
-    const timer: { handle: NodeJS.Timeout | null } = { handle: null };
-    const timeout = new Promise<void>((resolve) => {
-      timer.handle = setTimeout(resolve, STOP_TIMEOUT_MS);
-    });
-    try {
-      await Promise.race([destroyed, timeout]);
-    } finally {
-      if (timer.handle) clearTimeout(timer.handle);
-    }
+    const destroyed = Promise.all(this.rooms.keys().map((key) => this.destroy(key))).then(() => undefined);
+    await withTimeout({ work: destroyed, milliseconds: STOP_TIMEOUT_MS, onTimeout: () => undefined });
   }
 
   private roomFor(endpoint: VersionEndpoint): VersionRoom {

@@ -16,6 +16,7 @@ import { SECOND_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
+import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import {
   IMPORT_TIMEOUT_MS,
@@ -64,13 +65,6 @@ function connectedSuperdocClient(): Promise<SuperDocClient> {
   return connecting;
 }
 
-function withTimeout<Value>({ work, milliseconds }: { work: Promise<Value>; milliseconds: number }): Promise<Value> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new ImportTimeoutError(milliseconds)), milliseconds);
-    work.then(resolve, reject).finally(() => clearTimeout(timer));
-  });
-}
-
 async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
   const opened = await (await connectedSuperdocClient()).open({ doc: filePath });
   try {
@@ -83,7 +77,13 @@ async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
 
 async function importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): Promise<string | null> {
   try {
-    const items = await withTimeout({ work: listRevisions(filePath), milliseconds: IMPORT_TIMEOUT_MS });
+    const items = await withTimeout({
+      work: listRevisions(filePath),
+      milliseconds: IMPORT_TIMEOUT_MS,
+      onTimeout: () => {
+        throw new ImportTimeoutError(IMPORT_TIMEOUT_MS);
+      },
+    });
     readModel.commitImported({ documentName: documentId, revisions: toImportedRevisions(items) });
     return null;
   } catch (error) {
@@ -155,6 +155,7 @@ async function stopWorker(): Promise<void> {
         () => undefined,
       ),
       milliseconds: STOP_DISPOSE_TIMEOUT_MS,
+      onTimeout: () => undefined,
     }).catch(() => undefined);
   historySqlite.close();
   readModelSqlite.close();

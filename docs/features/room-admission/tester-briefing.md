@@ -119,7 +119,6 @@ The four open-route tests share one red and one green commit: the editor 409 is 
 
 ### Known gaps
 
-- `apps/web/src/features/editor/superdoc-editor.tsx` still calls `superdocOptions` without the ticket, because the parameter is optional and that file is not G4's. Until the lead passes `setup.creatorTicket` through it, the socket URL carries no ticket in the browser.
-- `LocatedRoom.filePath` in `agent-sessions.ts` and the `locateRoom` wiring in `server.ts` are now unused.
-- `agent-sessions.test.ts::a document nobody has opened is created from its stored file` asserts the seed that was removed, so it fails. It is not in G4's ownership.
-- `agent-sessions-room.test.ts` (its `beforeAll` and `roomCreatedByOwner`) and `mcp-over-oauth.test.ts` build rooms through `seededDocument`, which relied on the agent seeding the room. They now fail with `NOT_READY` until they open a committed room, which needs a real creator because the agent toolkit reads the DOCX content. That belongs with G3's Step 10.
+- Pending G3's committed-room fixture: `agent-sessions-room.test.ts` (its `beforeAll` and `roomCreatedByOwner`) and `mcp-over-oauth.test.ts` build rooms through `seededDocument`, which relied on the agent seeding the room. They fail with `NOT_READY` until they open a committed room, which needs a real creator because the agent toolkit reads the DOCX content.
+- `use-opened-document.ts` also sets `refetchOnMount: 'always'`: with `staleTime: Infinity` alone a cached open answer would never be refetched on mount, which broke `document-page.test.tsx::a cached create followed by a fresh join`. The holder's refetch returns the same ticket.
+- Follow-up: `superdoc-editor.tsx` and `document-page.tsx` pass the ticket (6fc34d0 red); `LocatedRoom.filePath` and its wiring are removed; `agent-sessions.test.ts` now pins `a document nobody has opened answers NOT_READY and seeds nothing`.

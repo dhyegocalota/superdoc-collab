@@ -99,7 +99,7 @@ function sessionsWith({
     issueRoomToken: ({ userId, documentId: roomId }) =>
       signRoomToken({ secret: TEST_AUTH_SECRET, userId, documentId: roomId, now: tokenIssuedAt() }),
     collaborationUrl: () => `${server.baseUrl.replace('http', 'ws')}${ApiPath.AgentCollaboration}`,
-    locateRoom: (roomId) => ({ roomMode, filePath: server.services.storage.pathOf(roomId) }),
+    locateRoom: (roomId) => ({ roomMode }),
     roleOf: ({ userId, documentId: roomId }) => server.services.documents.findRole({ documentId: roomId, userId }),
     tokenLifetimeMs,
     openTimeoutMs,

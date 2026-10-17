@@ -23,7 +23,7 @@ const SDK_RUNTIME = 'v2';
 const COLLABORATION_PROVIDER = 'hocuspocus';
 
 export type AgentSessionsClient = Pick<SuperDocClient, 'connect' | 'open' | 'dispose'>;
-export type LocatedRoom = { roomMode: RoomMode; filePath: string };
+export type LocatedRoom = { roomMode: RoomMode };
 type RoleOf = (options: { userId: string; documentId: string }) => DocumentRole | null;
 type OpenedSession = {
   document: SuperDocDocument;

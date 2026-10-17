@@ -124,9 +124,13 @@ export function attachCollaboration({
     const { cookie } = request.headers;
     if (!cookie) return void socket.destroy();
     socket.on('error', destroyOnSocketError);
-    const session = await readSession({ auth, headers: new Headers({ cookie }) }).catch(() => null);
+    const lookup = await readSession({ auth, headers: new Headers({ cookie }) }).then(
+      (session) => ({ isFailed: false, session }),
+      () => ({ isFailed: true, session: null }),
+    );
     socket.removeListener('error', destroyOnSocketError);
-    if (!session) return refuseSession({ request, socket, head });
+    if (lookup.isFailed) return void socket.destroy();
+    if (!lookup.session) return refuseSession({ request, socket, head });
     upgrade({ request, socket, head, endpoint: null });
   }
   httpServer.on('upgrade', (request, socket, head) => {

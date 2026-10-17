@@ -6,9 +6,7 @@ import {
   DocumentRole,
   HttpStatus,
   MAX_UPLOAD_BYTES,
-  MINUTE_MS,
   NOT_A_DOCX_MESSAGE,
-  OPEN_UNCOMMITTED_PER_MINUTE,
   RoomMode,
   secondsRoundedUp,
   TITLE_MAX_LENGTH,
@@ -23,7 +21,6 @@ import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
 import { retryLater } from '../http/retry-later';
-import { SlidingWindow } from '../limits/sliding-window';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
 
@@ -58,7 +55,7 @@ function contentDisposition(fileName: string): string {
 }
 
 export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { documents, storage, runtime } = services;
+  const { documents, storage, runtime, openLimits } = services;
   const routes = new Hono<SignedIn>();
 
   async function storeDocument({
@@ -87,15 +84,6 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const parsed = titleSchema.safeParse(await context.req.json().catch(() => null));
     if (!parsed.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
     return storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title: parsed.data.title, importRevisions: false });
-  }
-
-  const uncommittedOpens = new Map<string, SlidingWindow>();
-  function uncommittedOpensOf(userId: string): SlidingWindow {
-    const existing = uncommittedOpens.get(userId);
-    if (existing !== undefined) return existing;
-    const created = new SlidingWindow({ windowMs: MINUTE_MS });
-    uncommittedOpens.set(userId, created);
-    return created;
   }
 
   function notReady({ context, documentId }: { context: Context<SignedIn>; documentId: string }): Response {
@@ -131,13 +119,10 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
-    const roomMode = runtime.roomMode(documentId);
-    if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
-    const opens = uncommittedOpensOf(userId);
-    if (opens.count() >= OPEN_UNCOMMITTED_PER_MINUTE) {
+    const isKnownCommitted = runtime.isKnownCommitted(documentId);
+    const waitMs = isKnownCommitted ? null : openLimits.waitMs(userId);
+    if (waitMs !== null) {
       console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);
-      const oldest = opens.oldest();
-      const waitMs = oldest === null ? MINUTE_MS : MINUTE_MS - (Date.now() - oldest);
       return retryLater({
         context,
         body: { error: OPEN_RATE_LIMITED_MESSAGE },
@@ -145,7 +130,9 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
         retryAfterSeconds: secondsRoundedUp(waitMs),
       });
     }
-    opens.record();
+    const roomMode = runtime.roomMode(documentId);
+    if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
+    openLimits.record(userId);
     if (role === DocumentRole.Reader) return notReady({ context, documentId });
     const ticket = runtime.reserveCreator({ documentId, userId });
     if (ticket === null) return notReady({ context, documentId });

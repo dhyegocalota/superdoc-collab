@@ -36,7 +36,7 @@ function mockApi({ claimed, inviteStatus, setupStatus = HttpStatus.Ok }: { claim
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: null } });
     if (input === ApiPath.Setup) return jsonResponse({ body: { claimed }, status: setupStatus });
-    if (String(input).startsWith(ApiPath.Invites)) return jsonResponse({ body: { state: InviteState.Pending }, status: inviteStatus });
+    if (input === ApiPath.Invites) return jsonResponse({ body: { state: InviteState.Pending }, status: inviteStatus });
     throw new Error(`unexpected ${String(input)}`);
   });
 }
@@ -112,4 +112,13 @@ test('a failed setup check shows an error instead of loading forever', async () 
   mockApi({ claimed: false, inviteStatus: HttpStatus.NotFound, setupStatus: HttpStatus.InternalServerError });
   renderWithProviders(<SignUpPage />, { route: AppRoute.SignUp });
   expect(await screen.findByRole('alert')).toHaveTextContent(SETUP_FAILED_MESSAGE);
+});
+
+test('the invite check sends the token in a header, never in the URL', async () => {
+  const fetchSpy = mockApi({ claimed: true, inviteStatus: HttpStatus.Ok });
+  renderWithProviders(<SignUpPage />, { route: signUpPagePath('tok') });
+  await screen.findByRole('heading', { name: INVITED_TITLE });
+  const inviteCall = fetchSpy.mock.calls.find(([input]) => input === ApiPath.Invites);
+  expect(new Headers(inviteCall?.[1]?.headers).get(INVITE_TOKEN_HEADER)).toBe('tok');
+  expect(fetchSpy.mock.calls.some(([input]) => String(input).includes('tok'))).toBe(false);
 });

@@ -13,6 +13,7 @@ import {
   MAX_UPLOAD_BYTES,
   TITLE_MAX_LENGTH,
   RoomMode,
+  TAB_QUERY_KEY,
   UPLOAD_FIELD,
   type DocumentMembers,
   type DocumentsList,
@@ -374,6 +375,28 @@ test('members reports whether the current user is online', async () => {
   const ownerAnswer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
   const readerAnswer: DocumentMembers = await (await request({ server, cookie: reader.cookie, path })).json();
   expect([ownerAnswer.isCurrentUserOnline, readerAnswer.isCurrentUserOnline]).toEqual([true, false]);
+  client.close();
+  await server.stop();
+});
+
+test('members answers isCurrentUserOnline for the tab that asks, not for another tab of the same user', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connectedTab = randomUUID();
+  const otherTab = randomUUID();
+  const client = await connectToDocument({
+    server,
+    cookie: owner.cookie,
+    documentId,
+    path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${connectedTab}`,
+  });
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  async function answerFor(query: string): Promise<boolean | undefined> {
+    const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path: `${path}${query}` })).json();
+    return answer.isCurrentUserOnline;
+  }
+  expect(await answerFor(`?${TAB_QUERY_KEY}=${connectedTab}`)).toBe(true);
+  expect(await answerFor(`?${TAB_QUERY_KEY}=${otherTab}`)).toBe(false);
+  expect(await answerFor('')).toBe(true);
   client.close();
   await server.stop();
 });

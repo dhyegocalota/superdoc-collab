@@ -1,0 +1,13 @@
+title = "superdoc-collab"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders the repository ships on purpose; each pattern is anchored to the whole secret, never a file"
+regexes = [
+  '''^dGhlIHNhbXBsZSBub25jZQ==$''',
+  '''^[a-z0-9-]+-test-secret-[a-z0-9-]+$''',
+  '''^[a-z0-9-]+-secret-with-at-least-32-characters$''',
+  '''^change-me-32-characters-minimum-secret$''',
+]

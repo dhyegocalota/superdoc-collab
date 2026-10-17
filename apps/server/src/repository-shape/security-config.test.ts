@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { readRepositoryFile } from './repository-files';
+import { capturedNames, readRepositoryFile } from './repository-files';
 
 const PACKAGE_FILE = 'package.json';
 const DEPENDABOT_FILE = '.github/dependabot.yml';
@@ -11,6 +11,8 @@ const VERIFY_PREFIX = 'pnpm typecheck && pnpm security:audit && pnpm test:unit';
 const DEPENDABOT_ECOSYSTEMS = ['package-ecosystem: npm', 'package-ecosystem: github-actions'];
 const WEEKLY_INTERVAL = 'interval: weekly';
 const GITLEAKS_DEFAULT_RULES = 'useDefault = true';
+const GITLEAKS_REGEX_PATTERN = /'''(.*?)'''/g;
+const ANCHORED_PATTERN = /^\^.*\$$/;
 
 function scripts(): Record<string, string> {
   return JSON.parse(readRepositoryFile(PACKAGE_FILE)).scripts;
@@ -33,5 +35,11 @@ describe('security configuration', () => {
 
   test('gitleaks extends the default rules', () => {
     expect(readRepositoryFile(GITLEAKS_FILE)).toContain(GITLEAKS_DEFAULT_RULES);
+  });
+
+  test('every gitleaks allowlist pattern is anchored to the whole secret', () => {
+    const patterns = capturedNames({ text: readRepositoryFile(GITLEAKS_FILE), pattern: GITLEAKS_REGEX_PATTERN });
+    expect(patterns.length).toBeGreaterThan(0);
+    expect(patterns.filter((pattern) => !ANCHORED_PATTERN.test(pattern))).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage } from 'node:http';
-import { materialize, type UpdateLog } from '@superdoc-collab/history';
+import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
   ClientActor,
   CREATOR_ATTEMPT_QUERY_KEY,
@@ -32,6 +32,7 @@ export const LOADING_ORIGIN = 'update-log-replay';
 
 const PARSE_BASE_URL = 'http://localhost';
 const FIRST_ATTEMPT = 1;
+const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket on an uncommitted room without the creator attempt';
 
 export class CollaborationSupersededError extends Error {
@@ -41,6 +42,12 @@ export class CollaborationSupersededError extends Error {
   constructor() {
     super(SUPERSEDED_ATTEMPT_REASON);
   }
+}
+
+function warnOncePerConnection({ context, warned }: { context: CollaborationContext; warned: WeakSet<CollaborationContext> }): void {
+  if (warned.has(context)) return;
+  warned.add(context);
+  console.warn(`${REFUSED_UPDATE_LOG} ${context.documentId}`);
 }
 
 function claimedTicketOf(request: IncomingMessage): { attempt: number | null; epoch: string | null } {
@@ -83,6 +90,7 @@ export function createCollaborationServer({
   onStored: (documentId: string) => void;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
+  const refusedConnections = new WeakSet<CollaborationContext>();
   return new Hocuspocus({
     quiet: true,
     timeout: COLLABORATION_SOCKET_TIMEOUT_MS,
@@ -118,10 +126,26 @@ export function createCollaborationServer({
       });
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
     },
-    async onChange({ update, context, transactionOrigin }) {
+    async onChange({ update, context, transactionOrigin, document }) {
       if (transactionOrigin === LOADING_ORIGIN) return;
-      const { userId, documentId, actor } = context as CollaborationContext;
+      const connectionContext = context as CollaborationContext;
+      const { userId, documentId, actor, creatorAttempt, creatorEpoch } = connectionContext;
+      // NB ADR 0033: only the latest attempt writes while uncommitted, and a committed room accepts the committing attempt or a socket with none.
+      const isWriteAllowed = reservations.mayWrite({
+        documentId,
+        attempt: creatorAttempt,
+        epoch: creatorEpoch,
+        isCommitted: isBootstrapCommitted({ document }),
+      });
+      if (!isWriteAllowed) return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
+      const isCommittingUpdate = creatorAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);
+      if (isCommittingUpdate) {
+        bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });
+        reservations.commit({ documentId, attempt: creatorAttempt });
+        return onLogged(documentId);
+      }
       updateLog.append({ documentName: documentId, connectionUserId: userId, connectionActor: actor, update });
+      if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
       onLogged(documentId);
     },
     async onStoreDocument({ documentName }) {

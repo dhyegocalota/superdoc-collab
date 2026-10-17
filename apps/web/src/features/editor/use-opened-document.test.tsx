@@ -14,7 +14,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, openedAs } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
-import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
+import { DocumentReadiness, useOpenedDocument, useOpenedDocumentWithoutPolling } from './use-opened-document';
 
 const GIVE_UP_POLLS = DOCUMENT_READY_GIVE_UP_MS / DOCUMENT_READY_POLL_MS;
 const OVERSHOOT_POLLS = GIVE_UP_POLLS + 50;
@@ -127,4 +127,12 @@ test('a 404 is unavailable, not a failure to retry', async () => {
   await advance(0);
   expect(result.current.readiness).toBe(DocumentReadiness.Unavailable);
   expect(result.current.error?.message).toBe(DOCUMENT_UNAVAILABLE_MESSAGE);
+});
+
+test('without polling a NOT_READY answer is asked once and stays waiting', async () => {
+  const fetchSpy = answerInOrder(notReady, entered);
+  const result = renderHookWithRouter(() => useOpenedDocumentWithoutPolling(DOCUMENT_ID)).result;
+  await advance(DOCUMENT_READY_POLL_MS * 5);
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
 });

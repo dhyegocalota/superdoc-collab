@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentRole,
@@ -52,14 +53,18 @@ const RUNS: EditRunView[] = [
 
 let openedStatus = HttpStatus.Ok;
 
+function openedBody(): unknown {
+  if (openedStatus === HttpStatus.Conflict) return { error: DOCUMENT_NOT_READY_ERROR };
+  return openedAs(DocumentRole.Editor);
+}
+
 beforeEach(() => {
   openedStatus = HttpStatus.Ok;
   SuperDoc.mockClear();
   vi.mocked(useRunHighlights).mockClear();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
-    if (input === documentApiPath({ documentId: DOCUMENT_ID }))
-      return jsonResponse({ body: openedAs(DocumentRole.Editor), status: openedStatus });
+    if (input === documentApiPath({ documentId: DOCUMENT_ID })) return jsonResponse({ body: openedBody(), status: openedStatus });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     throw new Error(`unexpected request ${String(input)}`);
   });
@@ -147,6 +152,15 @@ test('a connection that drops after the room was ready keeps the viewer', async 
 
 test('a document the viewer cannot open shows the unavailable notice, tells the parent and never connects', async () => {
   openedStatus = HttpStatus.NotFound;
+  const postToParent = vi.spyOn(window.parent, 'postMessage');
+  renderWithProviders(<VersionViewPage />, { route: ROUTE });
+  expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_UNAVAILABLE_MESSAGE);
+  expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Failed }, window.location.origin);
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('a document that is not ready shows the unavailable notice, tells the parent and never connects', async () => {
+  openedStatus = HttpStatus.Conflict;
   const postToParent = vi.spyOn(window.parent, 'postMessage');
   renderWithProviders(<VersionViewPage />, { route: ROUTE });
   expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_UNAVAILABLE_MESSAGE);

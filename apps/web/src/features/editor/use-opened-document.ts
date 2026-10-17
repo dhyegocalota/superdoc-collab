@@ -27,7 +27,7 @@ function readinessOf({ data, error, errorCount, resumedAt }: ReadinessInput): Do
   return DocumentReadiness.Waiting;
 }
 
-export function useOpenedDocument(documentId: string) {
+function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string; shouldPoll: boolean }) {
   const [resume, setResume] = useState({ documentId, errorCount: 0 });
   const resumedAt = resume.documentId === documentId ? resume.errorCount : 0;
   const query = useQuery({
@@ -38,7 +38,8 @@ export function useOpenedDocument(documentId: string) {
     refetchInterval: (current) => {
       const { data, error, errorUpdateCount } = current.state;
       const readiness = readinessOf({ data, error, errorCount: errorUpdateCount, resumedAt });
-      return readiness === DocumentReadiness.Waiting ? DOCUMENT_READY_POLL_MS : false;
+      const isWaiting = readiness === DocumentReadiness.Waiting;
+      return isWaiting && shouldPoll ? DOCUMENT_READY_POLL_MS : false;
     },
   });
   const readiness = readinessOf({ data: query.data, error: query.error, errorCount: query.errorUpdateCount, resumedAt });
@@ -61,4 +62,12 @@ export function useOpenedDocument(documentId: string) {
     keepWaiting,
     retry,
   };
+}
+
+export function useOpenedDocument(documentId: string) {
+  return useOpenedDocumentQuery({ documentId, shouldPoll: true });
+}
+
+export function useOpenedDocumentWithoutPolling(documentId: string) {
+  return useOpenedDocumentQuery({ documentId, shouldPoll: false });
 }

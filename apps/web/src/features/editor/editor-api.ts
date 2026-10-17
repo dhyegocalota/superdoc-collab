@@ -45,7 +45,8 @@ export function documentFileQueryKey({
 
 export async function openDocument(documentId: string): Promise<OpenedDocument> {
   const response = await apiGet(documentApiPath({ documentId }));
-  if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
+  const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
+  if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
   if (response.status === HttpStatus.Conflict && (await response.json()).error === DOCUMENT_NOT_READY_ERROR)
     throw new DocumentNotReadyError(DOCUMENT_NOT_READY_ERROR);
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);

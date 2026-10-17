@@ -3,6 +3,7 @@ dist
 coverage
 pnpm-lock.yaml
 poc
+spikes
 .pr-media
 .superpowers
 test-results

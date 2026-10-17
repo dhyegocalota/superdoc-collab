@@ -44,3 +44,9 @@ Refinement after the five slices:
 | [`refinement-readability-web`](refinement-readability-web/) | `useTimeTravel` and `TimelinePanel` split, one web API layer for pollers and query keys, both auth pages rebuilt on shared parts | Building |
 | [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
+
+After the refinement:
+
+| Feature | Delivers | Status |
+|---------|----------|--------|
+| [`agentic-history-mcp`](agentic-history-mcp/) | A remote MCP server any AI client connects to as a real person through OAuth: read the history, edit in tracked mode, export, share; every AI edit marked "Name · AI"; revocable connected apps | Approved |

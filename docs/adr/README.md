@@ -39,3 +39,5 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0017](0017-share-links-reissued-when-the-secret-changes.md) | Share links are reissued when the signing secret changes | Accepted | 2026-10-17 |
 | [0018](0018-fan-out-ci-and-prebuild-the-projection-worker.md) | Fan CI out into independent jobs and boot a prebuilt projection worker in tests | Accepted | 2026-10-17 |
 | [0019](0019-deploy-on-railway.md) | Deploy the demo on Railway | Accepted | 2026-10-17 |
+| [0020](0020-agent-edits-carry-a-human-or-agent-actor.md) | Agent edits carry an actor next to the user they act for | Accepted | 2026-10-17 |
+| [0021](0021-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md) | MCP clients authorize with OAuth; agents join rooms with a short-lived room token | Accepted | 2026-10-17 |

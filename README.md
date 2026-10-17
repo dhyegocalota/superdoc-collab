@@ -2,9 +2,23 @@
 
 A collaborative DOCX editor that records every edit and turns that record into a timeline of who changed what and when, with time travel and LLM-written summaries. It is the take-home project for SuperDoc ([brief](docs/brief/superdoc-eng-sample-project.docx)); the design rationale is in [`docs/adr/`](docs/adr/).
 
-## Status
+## Live demo
 
-Slices 1 and 2 shipped: workspace, Docker, CI, Better Auth, documents, sharing, live collaboration and history capture. Slice 3 is being built on `feat/timeline-and-time-travel`: the timeline panel, time travel and the LLM topics and summaries. Slice 4 is being built on `feat/llm-insights`: the on-demand "Summarize edits" summary and the timeline polish. The deploy follows. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
+- **Demo:** not deployed yet; the owner adds the URL after the first deploy ([runbook, step 6](docs/features/deploy/runbook.md#6-hand-it-over)).
+- **Repository:** <https://github.com/dhyegocalota/superdoc-take-home>
+
+The demo accounts' password comes with the delivery message. Every slice, its spec and its pull request are listed in the [roadmap](docs/features/README.md#roadmap).
+
+## Try it
+
+1. Sign in as `ana@example.com` with the demo password, or create your own account.
+2. **Upload .docx** with your own file or with the brief ([`docs/brief/superdoc-eng-sample-project.docx`](docs/brief/superdoc-eng-sample-project.docx)); **New document** starts from a blank page.
+3. Type a few sentences, delete a word, then **Share** and copy the edit link.
+4. Open the link in a private window, sign in as `bruno@example.com` and edit next to Ana: each sees the other's edits and cursor.
+5. **Toggle timeline**: the chart shows edit volume over time per topic (per author until topics exist), and **Top edits** lists who changed what.
+6. Filter with plain text, or `@bruno` for one person: the chart, the list and the highlights narrow together.
+7. Click a moment on the chart to read the document as it was then; **Back to live** returns.
+8. **Summarize edits** writes one to three sentences about exactly the edits the panel shows.
 
 ## Features
 
@@ -40,11 +54,9 @@ Topics, the per-topic sentences and the selection summaries go through the Verce
 scripts/with-env.sh pnpm --filter @superdoc-history/server exec vitest run src/insights/topics-llm.smoke.test.ts
 ```
 
-## Quick start
+## Run locally
 
 Requirements: Node 24 (`.nvmrc`) and pnpm 8.15.9.
-
-### Local development
 
 ```bash
 cp .env.example .env
@@ -58,7 +70,9 @@ The server reads its configuration from the shell; there is no dotenv loader. We
 
 The editor needs the built bundle: SuperDoc's worker breaks under `vite dev`. To use documents, run `pnpm build`, then start the server with `WEB_DIST_DIR=apps/web/dist` and open the server's own port.
 
-### Docker
+Run any command with the variables from `.env` loaded without printing them: `scripts/with-env.sh pnpm dev` (or `ENV_FILE=.env.example scripts/with-env.sh …`). Agents never read or edit `.env`; this script is how they start the app with real secrets.
+
+## Run with Docker
 
 ```bash
 ENV_FILE=.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true docker compose up --build -d
@@ -67,22 +81,24 @@ curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -H 'o
 
 The sign-in smoke check must print `200`.
 
-One image serves the SPA and the API on <http://localhost:3000>; the healthcheck calls `/api/health`. Reset all data with `docker compose down -v`. The image carries both history migration sets (`libs/history/drizzle`) and `@superdoc/sdk`'s native binary, which imports tracked changes from uploads; the server creates `/data/documents` at boot.
+One image serves the SPA and the API on <http://localhost:3000>; the healthcheck calls `/api/health`. Reset all data with `docker compose down -v`. The image carries both history migration sets (`libs/history/drizzle`) and `@superdoc/sdk`'s native binary, which imports tracked changes from uploads; the server creates `/data/documents` at boot. The entrypoint requires `SEED_DEMO_USERS` to be exactly `true` or `false`, and `DEMO_PASSWORD` when it is `true`.
 
-Run any command with the variables from `.env` loaded without printing them: `scripts/with-env.sh pnpm dev` (or `ENV_FILE=.env.example scripts/with-env.sh …`). Agents never read or edit `.env`; this script is how they start the app with real secrets.
+## Deploy (Dokploy)
+
+Production runs [`deploy/docker-compose.yml`](deploy/docker-compose.yml) as a Dokploy compose service built from this repository: one container behind Traefik with HTTPS, its data on a named volume at `/data`, and every secret in the Dokploy environment ([ADR 0013](docs/adr/0013-deploy-with-dokploy-compose.md)). The compose file pins `TRUST_PROXY=true`, which is safe only behind that proxy. The [runbook](docs/features/deploy/runbook.md) creates the service, sets the environment, attaches the domain, checks the deploy, seeds the demo accounts and rolls back. CI builds and boots the image on every pull request (job `docker` in [`verify.yml`](.github/workflows/verify.yml)).
 
 ## Demo users
 
-Ana, Bruno, Caio and Dani: `ana@example.com`, `bruno@example.com`, `caio@example.com`, `dani@example.com`. The password is `DEMO_PASSWORD` (`superdoc-demo` in `.env.example`). `pnpm seed` is idempotent.
+Ana, Bruno, Caio and Dani: `ana@example.com`, `bruno@example.com`, `caio@example.com`, `dani@example.com`. Locally the password is `DEMO_PASSWORD` (`superdoc-demo` in `.env.example`); on the demo URL it is the one in the delivery message. `pnpm seed` and the container's entrypoint are idempotent: existing accounts keep their password.
 
 ## Tests
 
 | Command | Covers |
 |---|---|
 | `pnpm typecheck` | every package plus the E2E project |
-| `pnpm test:unit` | `libs/types` (7), `libs/history`, `apps/server` (real HTTP, real SQLite, real WebSocket; the 150 ms timeline latency budget is asserted only when `CI` is unset) and `apps/web` (Vitest and Testing Library) |
-| `pnpm test:e2e` | 16 Playwright specs: auth (7), documents and sharing (7), two-author collaboration and attribution (2); builds and starts the stack itself, needs Chromium (`pnpm exec playwright install chromium`) |
-| `pnpm verify` | the three above, in order; the same gate runs in CI ([`verify.yml`](.github/workflows/verify.yml)) |
+| `pnpm test:unit` | `libs/types`, `libs/history`, `apps/server` (real HTTP, real SQLite, real WebSocket; the 150 ms timeline latency budget is asserted only when `CI` is unset; the deploy checks in `apps/server/src/deploy` render the compose file with the Docker CLI and Compose v2, no daemon needed; that block is skipped without the Docker CLI and required in CI) and `apps/web` (Vitest and Testing Library) |
+| `pnpm test:e2e` | Playwright specs for auth, documents and sharing, two-author collaboration, the timeline, time travel, topics and summaries; builds and starts the stack itself, needs Chromium (`pnpm exec playwright install chromium`) |
+| `pnpm verify` | the three above, in order; the same gate runs in CI ([`verify.yml`](.github/workflows/verify.yml)) next to the `docker` job that builds and boots the image |
 
 ## Architecture in brief
 
@@ -99,9 +115,27 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 - [`docs/learnings/`](docs/learnings/): dated traps
 - [`poc/`](poc/RESULTS.md): proof-of-concept results behind the history architecture
 
-## Citations
+## Limits
+
+- **One instance.** SQLite files, the projection worker and the language-model caps live in one process ([ADR 0004](docs/adr/0004-stack.md)). The app does not scale horizontally, and a restart forgets the in-memory cooldowns.
+- **Language-model caps.** At most 2 model jobs at once and 60 model calls per rolling hour for the whole server ([ADR 0011](docs/adr/0011-process-wide-llm-cost-caps.md)). Past them topics show "The language model is busy; try again later." and a summary request gets a 503 that consumes no cooldown. A model error or a missing key shows "The topics could not be named. Try again." or "The edits could not be summarized. Try again." instead. Editing keeps working in every case.
+- **No email.** Accounts have no verification and no password reset; the demo accounts share one password.
+- **DOCX only.** Up to 10 MB per file; no PDF or image import.
+- **Manual backups.** The [runbook](docs/features/deploy/runbook.md#8-back-up-and-reset) shows how to copy the data volume.
+
+## Credits
 
 **LLM use.** This codebase is developed with Claude Code (Anthropic) driving the harness in this repository. Every pull request is built by developer sub-agents, tested by a separate tester sub-agent with Playwright MCP and reviewed by a reviewer sub-agent; decisions are recorded in ADRs. The product itself calls a model in three places: topic names for a document, one sentence per topic and the sentence for a selection of edits, through the Vercel AI SDK and OpenRouter with `openai/gpt-6-luna` ([ADR 0006](docs/adr/0006-llm-via-vercel-ai-sdk.md)). Only author names and edit text are sent (names only, no emails), capped at 500 characters per block and 6000 characters per selection prompt, and the prompts treat that text as data, not instructions; without a key the features degrade to a `failed` state instead of failing the page.
+
+**Libraries.**
+
+- SuperDoc editor `superdoc` and `@superdoc/sdk` (AGPL-3.0)
+- Hocuspocus server and provider (MIT) and Yjs (MIT) for real-time collaboration
+- Better Auth (MIT) for accounts and sessions
+- Drizzle ORM (Apache-2.0) over better-sqlite3 (MIT)
+- Hono (MIT) for the API
+- React (MIT) and Vite (MIT) for the web app, with `d3-scale` and `d3-shape` (ISC) for the streamgraph
+- Vercel AI SDK `ai` and the OpenRouter provider (Apache-2.0), calling `openai/gpt-6-luna` through OpenRouter
 
 **Starter code.**
 
@@ -111,4 +145,4 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 ## License
 
-No license yet. The repository is private until delivery.
+The repository is public from delivery. All rights reserved; source published for evaluation.

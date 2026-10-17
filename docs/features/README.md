@@ -26,6 +26,6 @@ Five vertical slices, in build order ([ADR 0008](../adr/0008-vertical-slices.md)
 |---|-------|----------|--------|
 | 1 | [`bootstrap-and-auth`](bootstrap-and-auth/) | workspace, apps, Docker, `/verify` green, Better Auth with seeded users | Shipped 2026-10-16 ([PR #1](https://github.com/dhyegocalota/superdoc-take-home/pull/1)) |
 | 2 | [`documents-and-history`](documents-and-history/) | upload and list DOCX, SuperDoc with live collaboration, history capture and read model | Shipped 2026-10-16 ([PR #2](https://github.com/dhyegocalota/superdoc-take-home/pull/2)) |
-| 3 | [`timeline-and-time-travel`](timeline-and-time-travel/) | streamgraph by LLM topics, filters, top edits with per-topic summaries, time-travel viewer (spike first) | Building |
-| 4 | `llm-insights` | "Summarize edits" on demand for the filtered selection, polish | Building |
-| 5 | `deploy` | Compose on the owner's VPS through Dokploy, delivery README | Not started |
+| 3 | [`timeline-and-time-travel`](timeline-and-time-travel/) | streamgraph by LLM topics, filters, top edits with per-topic summaries, time-travel viewer (spike first) | Shipped 2026-10-16 ([PR #3](https://github.com/dhyegocalota/superdoc-take-home/pull/3)) |
+| 4 | [`llm-insights`](llm-insights/) | "Summarize edits" on demand for the filtered selection, polish | Shipped 2026-10-16 ([PR #4](https://github.com/dhyegocalota/superdoc-take-home/pull/4)) |
+| 5 | [`deploy`](deploy/) | Compose on the owner's VPS through Dokploy, delivery README | Building |

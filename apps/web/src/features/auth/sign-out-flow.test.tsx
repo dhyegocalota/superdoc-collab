@@ -31,7 +31,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
-function renderApp({ initialEntries = [AppRoute.Documents], seededUser = null }: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null } = {}) {
+function renderApp({
+  initialEntries = [AppRoute.Documents],
+  seededUser = null,
+}: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   if (seededUser) queryClient.setQueryData(SESSION_QUERY_KEY, seededUser);
   const router = createMemoryRouter(

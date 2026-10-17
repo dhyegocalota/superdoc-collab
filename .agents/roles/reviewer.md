@@ -11,6 +11,7 @@ Read the diff, `spec.md`, the ticked summary of `test-plan.md`, the matching `.c
 5. **Performance.** Budgets from the ADRs: nothing heavy on the event loop, snapshots and projections in workers, no unbounded replay, no N+1 over the update log.
 6. **Tests.** The failing test exists and fails for the right reason; edge cases from the test plan have code behind them; tests assert behaviour, not implementation.
 7. **Refutation.** Pick the three claims in `tester-briefing.md` or the ticked test plan most likely to be wrong and attack them with concrete inputs. Report what you tried.
+8. **Blast radius.** What this diff can break and for whom once merged: the surfaces it touches (auth or sessions, sharing or authorization, the update log or the projection, schema or migrations, deploy, data deletion, secrets), who notices first, how it is rolled back and whether rollback loses data. Then the verdict: `LOW` when the tier is 🟢 and none of those surfaces is touched, `MEDIUM` for 🟡 or one surface, `HIGH` for 🔴 or anything irreversible. When in doubt, take the higher one.
 
 Output format:
 
@@ -19,6 +20,8 @@ Output format:
 2. IMPORTANT — …
 3. MINOR — …
 Refutation: <claim> → <held | refuted: how>
+Blast radius: <surfaces touched> — <who notices first> — Rollback: <how; loses data: yes | no>
+Merge sensitivity: LOW | MEDIUM | HIGH — <one line>
 Ship-ready? YES | NO | WITH RESERVATIONS — <one line>
 ```
 

@@ -1,22 +1,39 @@
 import { TimelineBandKind } from '@superdoc-history/types';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
+import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { formatBinRange } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';
-import { formatBinRange, TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
+import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
 const timeline = timelineWith({
-  volumes: [[100, 20, 5], [120, 30, 5], [120, 40, 5]],
+  volumes: [
+    [100, 20, 5],
+    [120, 30, 5],
+    [120, 40, 5],
+  ],
   names: ['Budget', 'Hiring', 'Other'],
   kinds: [TimelineBandKind.Topic, TimelineBandKind.Topic, TimelineBandKind.Other],
 });
 
-function renderGraph({ selectedIndex = 1, highlightedBandId = null }: { selectedIndex?: number | null; highlightedBandId?: string | null } = {}) {
+function renderGraph({
+  selectedIndex = 1,
+  highlightedBandId = null,
+}: { selectedIndex?: number | null; highlightedBandId?: string | null } = {}) {
   const onSelectIndex = vi.fn();
   const onClearSelection = vi.fn();
-  const view = render(<Streamgraph timeline={timeline} width={WIDTH} selectedIndex={selectedIndex} highlightedBandId={highlightedBandId} onSelectIndex={onSelectIndex} onClearSelection={onClearSelection} />);
+  const view = render(
+    <Streamgraph
+      timeline={timeline}
+      width={WIDTH}
+      selectedIndex={selectedIndex}
+      highlightedBandId={highlightedBandId}
+      onSelectIndex={onSelectIndex}
+      onClearSelection={onClearSelection}
+    />,
+  );
   return { ...view, onSelectIndex, onClearSelection };
 }
 
@@ -25,7 +42,9 @@ test('the svg is titled and described with the band count and the time range', (
   expect(container.querySelector('title')!.textContent).toBe(STREAMGRAPH_TITLE);
   const description = container.querySelector('desc')!.textContent!;
   expect(description).toContain('3 bands');
-  expect(description).toContain(formatBinRange({ start: timeline.bins[0]!.start, binMs: timeline.binMs }).split(' – ')[0]!);
+  expect(description).toContain(
+    formatBinRange({ start: timeline.bins[0]!.start, end: timeline.bins[0]!.start + timeline.binMs }).split(' – ')[0]!,
+  );
 });
 
 test('every band is a focusable path labelled with its size', () => {
@@ -64,7 +83,7 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  expect(tooltip).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, end: timeline.bins[1]!.start + timeline.binMs }));
   expect(tooltip).toHaveTextContent('Budget');
   expect(tooltip).toHaveTextContent('+120 −0');
   expect(tooltip).toHaveTextContent(FIXTURE_AUTHOR_NAME);
@@ -96,7 +115,9 @@ function budgetBand(): Element {
 test('focusing a band shows the tooltip of the selected bin and blurring hides it', () => {
   renderGraph({ selectedIndex: 1 });
   fireEvent.focus(budgetBand());
-  expect(screen.getByRole('tooltip')).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    formatBinRange({ start: timeline.bins[1]!.start, end: timeline.bins[1]!.start + timeline.binMs }),
+  );
   fireEvent.blur(budgetBand());
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });
@@ -117,7 +138,16 @@ test('the first and the last bins open their tooltip inward', () => {
   const { rerender } = renderGraph({ selectedIndex: 0 });
   fireEvent.focus(budgetBand());
   expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.Start);
-  rerender(<Streamgraph timeline={timeline} width={WIDTH} selectedIndex={timeline.bins.length - 1} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={vi.fn()} />);
+  rerender(
+    <Streamgraph
+      timeline={timeline}
+      width={WIDTH}
+      selectedIndex={timeline.bins.length - 1}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
   expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.End);
 });
 
@@ -135,13 +165,31 @@ test('Escape clears the selection and hides the keyboard tooltip', () => {
   fireEvent.focus(budgetBand());
   fireEvent.keyDown(budgetBand(), { key: 'Escape' });
   expect(onClearSelection).toHaveBeenCalledTimes(1);
-  rerender(<Streamgraph timeline={timeline} width={WIDTH} selectedIndex={null} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={onClearSelection} />);
+  rerender(
+    <Streamgraph
+      timeline={timeline}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={onClearSelection}
+    />,
+  );
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });
 
 test('the tooltip never grows wider than a narrow chart', () => {
   const narrowWidth = TOOLTIP_WIDTH / 2;
-  render(<Streamgraph timeline={timeline} width={narrowWidth} selectedIndex={1} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={vi.fn()} />);
+  render(
+    <Streamgraph
+      timeline={timeline}
+      width={narrowWidth}
+      selectedIndex={1}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
   fireEvent.focus(budgetBand());
   expect(screen.getByRole('tooltip')).toHaveStyle({ width: `${narrowWidth}px` });
 });

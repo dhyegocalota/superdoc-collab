@@ -1,5 +1,7 @@
 # Tester briefing: Deploy
 
+Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
+
 Written by the lead after the single lane finished. Nobody on the build side ran `test-plan.md` or declares the deployment works; the owner performs the first real deploy in the morning and ticks the OWNER boxes.
 
 ## What changed

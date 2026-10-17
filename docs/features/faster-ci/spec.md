@@ -3,7 +3,7 @@
 **Status:** Approved
 **Tier:** 🟡 medium (CI layout, Playwright parallelism, one new option through `startServer` into `ProjectionScheduler`)
 **Owner approval:** approved 2026-10-17 (chat: the three lanes as proposed; no push until the owner says so)
-**ADRs:** [0014](../../adr/0014-fan-out-ci-and-prebuild-the-projection-worker.md)
+**ADRs:** [0018](../../adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md)
 **Not changing:** the `docker` job, what the tests assert about the product, the production worker spawn path, the cooldown and throttle constants, the Dockerfile.
 
 ## Problem
@@ -20,7 +20,7 @@ A pull request waits 15 to 16 minutes for the `verify` job: 9m15s of E2E specs r
 
 ## Non-goals
 
-- Sharding the E2E suite across runners (ADR 0014: single runner; revisit past four minutes).
+- Sharding the E2E suite across runners (ADR 0018: single runner; revisit past four minutes).
 - Making the selection-summary cooldown configurable; the 43 s spec stays as it is.
 - Sharing a server across tests within a file.
 - A gate job for branch protection (none exists on this plan).
@@ -62,14 +62,14 @@ apps/server vitest run
 - `PROJECTION_WORKER_FILE` names a missing file: each spawn fails, the error listener logs it, the scheduler restarts the worker until `MAX_WORKER_RESTARTS_PER_WINDOW` and then degrades, exactly as for any crashing worker.
 - The tsup build fails in global setup: Vitest aborts before any test with tsup's error; nothing runs against a stale bundle because `clean: true` empties the cache directory first.
 - A matrix entry fails: `fail-fast: false` lets the other entries finish so the red job names every failing package.
-- Parallel E2E flake from shared demo users: the helper no longer asserts an empty list; any future spec that needs an empty list must sign up its own user (ADR 0014 consequences).
+- Parallel E2E flake from shared demo users: the helper no longer asserts an empty list; any future spec that needs an empty list must sign up its own user (ADR 0018 consequences).
 
 ## Open questions → answers
 
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
 | Build the three lanes (parallel E2E, job fan-out, prebuilt worker)? | yes / subset | yes, keep it local, no push yet | 2026-10-17 |
-| Shard E2E across two runners? | two runners (wall ~3 min, ~16 billed) / one runner (wall ~4.5 min, ~14 billed) | not answered; one runner taken as the cheaper default (ADR 0014), owner can override | 2026-10-17 |
+| Shard E2E across two runners? | two runners (wall ~3 min, ~16 billed) / one runner (wall ~4.5 min, ~14 billed) | not answered; one runner taken as the cheaper default (ADR 0018), owner can override | 2026-10-17 |
 
 ## Test strategy summary
 

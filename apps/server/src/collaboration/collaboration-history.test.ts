@@ -20,7 +20,9 @@ test("a reader's update is acknowledged but never logged", async () => {
   await expect.poll(() => server.services.log.hasUpdates(documentId)).toBe(true);
   await expect.poll(() => readerClient.document.getText('t').toString()).toContain('owner');
   expect(ownerClient.document.getText('t').toString()).toBe('owner');
-  expect(server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId)).not.toContain(reader.id);
+  expect(server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId)).not.toContain(
+    reader.id,
+  );
   [readerClient, ownerClient].forEach((client) => client.close());
   await server.stop();
 });
@@ -33,7 +35,11 @@ test('a restarted server restores the room from the log', async () => {
   client.close();
   await server.stop();
   const restarted = await startTestServer({ databaseDirectory: server.databaseDirectory });
-  const reopened = await connectToDocument({ server: restarted, cookie: await signInExisting({ server: restarted, email: owner.email, password: TEST_USER_PASSWORD }), documentId });
+  const reopened = await connectToDocument({
+    server: restarted,
+    cookie: await signInExisting({ server: restarted, email: owner.email, password: TEST_USER_PASSWORD }),
+    documentId,
+  });
   expect(reopened.document.getText('t').toString()).toBe('persisted');
   reopened.close();
   await restarted.stop();
@@ -43,7 +49,9 @@ test("a member's update is logged with their user id", async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.document.getText('t').insert(0, 'hello');
-  await expect.poll(() => server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId)).toEqual([owner.id]);
+  await expect
+    .poll(() => server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId))
+    .toEqual([owner.id]);
   client.close();
   await server.stop();
 });
@@ -85,7 +93,9 @@ test('a member of one document is refused on another', async () => {
 
 test('an upgrade the server destroys rejects the connection promptly', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, origin: 'https://evil.example' })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, origin: 'https://evil.example' })).rejects.toBeInstanceOf(
+    CollaborationRefusedError,
+  );
   await server.stop();
 });
 
@@ -105,7 +115,9 @@ test('the worker writes the heavy snapshot', { timeout: SNAPSHOT_WAIT_MS * 2 }, 
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
   Array.from({ length: UPDATES_BEFORE_SNAPSHOT }).forEach(() => client.document.getText('t').insert(0, 'x'));
-  await expect.poll(() => server.services.log.latestSnapshot({ documentName: documentId, atOrBefore: ALL })?.sequence, { timeout: SNAPSHOT_WAIT_MS }).toBeDefined();
+  await expect
+    .poll(() => server.services.log.latestSnapshot({ documentName: documentId, atOrBefore: ALL })?.sequence, { timeout: SNAPSHOT_WAIT_MS })
+    .toBeDefined();
   client.close();
   await server.stop();
 });

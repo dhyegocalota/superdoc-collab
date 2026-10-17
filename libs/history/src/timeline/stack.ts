@@ -11,7 +11,10 @@ function cellVolume(cell: TimelineCell | undefined): number {
 }
 
 export function toStackRows({ bins, bandIds }: { bins: TimelineBin[]; bandIds: string[] }): StackRow[] {
-  return bins.map((bin) => ({ start: bin.start, values: Object.fromEntries(bandIds.map((bandId) => [bandId, cellVolume(bin.byBand[bandId])])) }));
+  return bins.map((bin) => ({
+    start: bin.start,
+    values: Object.fromEntries(bandIds.map((bandId) => [bandId, cellVolume(bin.byBand[bandId])])),
+  }));
 }
 
 export function huesByOnset(bands: Pick<TimelineBand, 'id' | 'onsetTime'>[]): Map<string, number> {

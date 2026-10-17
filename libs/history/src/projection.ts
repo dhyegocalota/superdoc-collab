@@ -32,12 +32,27 @@ function continueProjection({ projection, cursor }: { projection: Projection; cu
   return continueProjection({ projection, cursor: last.sequence });
 }
 
-export function projectPending({ log, readModel, documentName, batchSize = PROJECTION_BATCH_SIZE }: { log: UpdateLog; readModel: ReadModel; documentName: string; batchSize?: number }): number | null {
+export function projectPending({
+  log,
+  readModel,
+  documentName,
+  batchSize = PROJECTION_BATCH_SIZE,
+}: {
+  log: UpdateLog;
+  readModel: ReadModel;
+  documentName: string;
+  batchSize?: number;
+}): number | null {
   const projection = { log, readModel, documentName, batchSize };
   const cursor = readModel.cursor(documentName);
   if (cursor !== null) return continueProjection({ projection, cursor });
   const bootstrapSequence = findBootstrapSequence({ updates: log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }) });
   if (bootstrapSequence === null) return null;
-  readModel.commit({ documentName, events: [], marks: [bootstrapMark({ log, documentName, sequence: bootstrapSequence })], lastSequence: bootstrapSequence });
+  readModel.commit({
+    documentName,
+    events: [],
+    marks: [bootstrapMark({ log, documentName, sequence: bootstrapSequence })],
+    lastSequence: bootstrapSequence,
+  });
   return continueProjection({ projection, cursor: bootstrapSequence });
 }

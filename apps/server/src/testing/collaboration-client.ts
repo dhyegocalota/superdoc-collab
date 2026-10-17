@@ -28,10 +28,29 @@ function socketWithCookie({ cookie, origin }: { cookie: string; origin: string }
   } as unknown as typeof WebSocket;
 }
 
-export function connectToDocument({ server, cookie, documentId, document = new Y.Doc(), origin = server.baseUrl, path = ApiPath.Collaboration }: { server: TestServer; cookie: string; documentId: string; document?: Y.Doc; origin?: string; path?: string }): Promise<CollaborationClient> {
+export function connectToDocument({
+  server,
+  cookie,
+  documentId,
+  document = new Y.Doc(),
+  origin = server.baseUrl,
+  path = ApiPath.Collaboration,
+}: {
+  server: TestServer;
+  cookie: string;
+  documentId: string;
+  document?: Y.Doc;
+  origin?: string;
+  path?: string;
+}): Promise<CollaborationClient> {
   return new Promise((resolve, reject) => {
     let isSynced = false;
-    const websocketProvider = new HocuspocusProviderWebsocket({ url: server.baseUrl.replace('http', 'ws') + path, WebSocketPolyfill: socketWithCookie({ cookie, origin }), maxAttempts: 1, connect: false });
+    const websocketProvider = new HocuspocusProviderWebsocket({
+      url: server.baseUrl.replace('http', 'ws') + path,
+      WebSocketPolyfill: socketWithCookie({ cookie, origin }),
+      maxAttempts: 1,
+      connect: false,
+    });
     const provider = new HocuspocusProvider({
       websocketProvider,
       document,
@@ -61,14 +80,29 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
   });
 }
 
-export async function documentWithOwner({ languageModel, versionRoomPolicy }: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{ server: TestServer; documentId: string; owner: TestUser }> {
+export async function documentWithOwner({
+  languageModel,
+  versionRoomPolicy,
+}: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{
+  server: TestServer;
+  documentId: string;
+  owner: TestUser;
+}> {
   const { server, owner } = await signedInOwner({ languageModel, versionRoomPolicy });
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: DOCUMENT_TITLE, ownerUserId: owner.id });
   return { server, documentId, owner };
 }
 
-export async function memberWithRole({ server, documentId, role }: { server: TestServer; documentId: string; role: DocumentRole }): Promise<TestUser> {
+export async function memberWithRole({
+  server,
+  documentId,
+  role,
+}: {
+  server: TestServer;
+  documentId: string;
+  role: DocumentRole;
+}): Promise<TestUser> {
   const member = await signedInUser({ server, name: MEMBER_NAME });
   server.services.documents.grant({ documentId, userId: member.id, role });
   return member;

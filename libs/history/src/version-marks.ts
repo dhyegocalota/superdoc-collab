@@ -9,13 +9,20 @@ export function minuteStartOf(serverTime: number): number {
   return Math.floor(serverTime / VERSION_MARK_MS) * VERSION_MARK_MS;
 }
 
+// NB ADR 0003 (addendum): a version mark is kept once per minute, so time travel resolves at minute granularity.
 export function endsItsMinute({ update, next }: { update: LoggedUpdate; next: LoggedUpdate | undefined }): boolean {
   if (!next) return true;
   return minuteStartOf(next.serverTime) !== minuteStartOf(update.serverTime);
 }
 
 export function markOf({ update, document, isBootstrap }: { update: LoggedUpdate; document: Y.Doc; isBootstrap: boolean }): VersionMark {
-  return { sequence: update.sequence, serverTime: update.serverTime, minuteStart: minuteStartOf(update.serverTime), isBootstrap, snapshot: Y.encodeSnapshot(Y.snapshot(document)) };
+  return {
+    sequence: update.sequence,
+    serverTime: update.serverTime,
+    minuteStart: minuteStartOf(update.serverTime),
+    isBootstrap,
+    snapshot: Y.encodeSnapshot(Y.snapshot(document)),
+  };
 }
 
 export function versionSequenceAt({ marks, time }: { marks: VersionMarkSummary[]; time: number }): number | null {

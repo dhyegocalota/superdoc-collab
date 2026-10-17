@@ -16,7 +16,15 @@ test('twelve topics keep the eight largest in the order the model gave', () => {
 });
 
 test('unknown block ids are dropped and reported', () => {
-  const { topics, unknownBlockIds } = normalizeTopics({ output: { topics: [{ name: 'Budget', blockIds: ['b1', 'gone', 'b2'] }, { name: 'Ghost', blockIds: ['gone'] }] }, knownBlockIds: KNOWN });
+  const { topics, unknownBlockIds } = normalizeTopics({
+    output: {
+      topics: [
+        { name: 'Budget', blockIds: ['b1', 'gone', 'b2'] },
+        { name: 'Ghost', blockIds: ['gone'] },
+      ],
+    },
+    knownBlockIds: KNOWN,
+  });
   expect(topics).toEqual([{ name: 'Budget', blockIds: ['b1', 'b2'] }]);
   expect(unknownBlockIds).toEqual(['gone']);
 });
@@ -27,18 +35,35 @@ test('one topic is kept as is', () => {
 });
 
 test('a block claimed twice stays with the first topic', () => {
-  const output = { topics: [{ name: 'First', blockIds: ['b1', 'b2'] }, { name: 'Second', blockIds: ['b2', 'b3'] }] };
-  expect(normalizeTopics({ output, knownBlockIds: KNOWN }).topics).toEqual([{ name: 'First', blockIds: ['b1', 'b2'] }, { name: 'Second', blockIds: ['b3'] }]);
+  const output = {
+    topics: [
+      { name: 'First', blockIds: ['b1', 'b2'] },
+      { name: 'Second', blockIds: ['b2', 'b3'] },
+    ],
+  };
+  expect(normalizeTopics({ output, knownBlockIds: KNOWN }).topics).toEqual([
+    { name: 'First', blockIds: ['b1', 'b2'] },
+    { name: 'Second', blockIds: ['b3'] },
+  ]);
 });
 
 test('a recomputed topic keeps the id of the topic it mostly covers', () => {
-  const previous = [{ id: 't1', blockIds: ['b1', 'b2', 'b3'] }, { id: 't2', blockIds: ['b4'] }];
+  const previous = [
+    { id: 't1', blockIds: ['b1', 'b2', 'b3'] },
+    { id: 't2', blockIds: ['b4'] },
+  ];
   const next = [
     { name: 'Costs', blockIds: ['b1', 'b2', 'b9'] },
     { name: 'Team', blockIds: ['b4', 'b5', 'b6'] },
     { name: 'New', blockIds: ['b7'] },
   ];
   expect(matchPreviousTopics({ previous, next }).map((matched) => matched.id)).toEqual(['t1', null, null]);
+});
+
+test('exactly half of the blocks from an earlier topic keeps its id', () => {
+  const previous = [{ id: 't1', blockIds: ['b1', 'b9'] }];
+  const next = [{ name: 'Half', blockIds: ['b1', 'b2'] }];
+  expect(matchPreviousTopics({ previous, next }).map((matched) => matched.id)).toEqual(['t1']);
 });
 
 test('an id is reused at most once, by the larger overlap', () => {

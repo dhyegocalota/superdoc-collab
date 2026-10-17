@@ -8,11 +8,18 @@ import { useSession } from '@/features/auth/use-session';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useRequiredParam } from '@/lib/use-required-param';
-import { DocumentUnavailableError, documentFileQueryKey, fetchDocumentFile, fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';
+import {
+  DocumentUnavailableError,
+  documentFileQueryKey,
+  fetchDocumentFile,
+  fetchMembers,
+  MEMBERS_REFRESH_MS,
+  membersQueryKey,
+} from './editor-api';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
-import { VersionBanner } from './version-banner';
-import { VersionFrame } from './version-frame';
+import { VersionBanner } from '@/features/versions/version-banner';
+import { VersionFrame } from '@/features/versions/version-frame';
 import { SuperDocEditor } from './superdoc-editor';
 import { useEditorSetup } from './use-editor-setup';
 import { useOpenedDocument } from './use-opened-document';
@@ -79,15 +86,44 @@ export function DocumentPage() {
   return (
     <div className="flex h-dvh flex-col">
       <EditorHeader opened={opened} members={members} onDownload={setup ? downloadLiveDocument : null} />
-      {hasExportFailed && <p role="alert" className="px-4 py-2 text-sm text-destructive">{EXPORT_FAILED_MESSAGE}</p>}
+      {hasExportFailed && (
+        <p role="alert" className="px-4 py-2 text-sm text-destructive">
+          {EXPORT_FAILED_MESSAGE}
+        </p>
+      )}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
         <div data-testid="editor-area" className={EDITOR_AREA_CLASS}>
           <VersionBanner timeTravel={timeTravel} />
           <div className="relative flex min-h-0 min-w-0 flex-1">
-            {setup && <SuperDocEditor superdocRef={superdocRef} documentId={documentId} roomMode={setup.roomMode} role={setup.role} user={setup.user} file={setup.file} isInert={timeTravel.state === VersionViewerState.Viewing} />}
-            {!setup && !fileError && <p role="status" className="flex-1 p-4 text-sm text-muted-foreground">{LOADING_DOCUMENT_MESSAGE}</p>}
-            {fileError && <p role="alert" className="flex-1 p-4 text-sm text-destructive">{DOCUMENT_LOAD_ERROR_MESSAGE}</p>}
-            <VersionFrame documentId={documentId} version={timeTravel.shown} requestedSequence={timeTravel.requestedSequence} runs={timeTravel.runs} onFailed={timeTravel.reportFailure} onExit={timeTravel.backToLive} />
+            {setup && (
+              <SuperDocEditor
+                superdocRef={superdocRef}
+                documentId={documentId}
+                roomMode={setup.roomMode}
+                role={setup.role}
+                user={setup.user}
+                file={setup.file}
+                isInert={timeTravel.state === VersionViewerState.Viewing}
+              />
+            )}
+            {!setup && !fileError && (
+              <p role="status" className="flex-1 p-4 text-sm text-muted-foreground">
+                {LOADING_DOCUMENT_MESSAGE}
+              </p>
+            )}
+            {fileError && (
+              <p role="alert" className="flex-1 p-4 text-sm text-destructive">
+                {DOCUMENT_LOAD_ERROR_MESSAGE}
+              </p>
+            )}
+            <VersionFrame
+              documentId={documentId}
+              version={timeTravel.shown}
+              requestedSequence={timeTravel.requestedSequence}
+              runs={timeTravel.runs}
+              onFailed={timeTravel.reportFailure}
+              onExit={timeTravel.backToLive}
+            />
           </div>
         </div>
         <TimelinePanel documentId={documentId} role={opened.role} onTravel={timeTravel.travelTo} onBackToLive={timeTravel.backToLive} />

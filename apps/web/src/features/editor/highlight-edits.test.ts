@@ -1,9 +1,20 @@
 import type { EditRunView } from '@superdoc-history/types';
 import { expect, expectTypeOf, test, vi } from 'vitest';
 import { HIGHLIGHT_COMMENT_TEXT } from './editor-copy';
-import { clearHighlights, HIGHLIGHT_EXTERNAL_ID_PREFIX, highlightEdits, highlightTargets, MAX_HIGHLIGHTS, MIN_HIGHLIGHT_CHARACTERS, type EditorDocument } from './highlight-edits';
+import {
+  clearHighlights,
+  HIGHLIGHT_EXTERNAL_ID_PREFIX,
+  highlightEdits,
+  highlightTargets,
+  MAX_HIGHLIGHTS,
+  MIN_HIGHLIGHT_CHARACTERS,
+  type EditorDocument,
+} from './highlight-edits';
 
-type MatchInput = { select: { pattern: string; mode: string; caseSensitive: boolean; type: string }; within: { kind: string; nodeId: string } };
+type MatchInput = {
+  select: { pattern: string; mode: string; caseSensitive: boolean; type: string };
+  within: { kind: string; nodeId: string };
+};
 type CreateInput = { text: string; externalId: string; target: unknown };
 
 function run({ blockId, inserted = '', deleted = '' }: { blockId: string; inserted?: string; deleted?: string }): EditRunView {
@@ -21,7 +32,9 @@ function stubDocument({ matchesByBlock, failCreateAt = [] }: { matchesByBlock: R
         matchCalls.push(input);
         const count = matchesByBlock[input.within.nodeId];
         if (count === undefined) throw new Error('within-target-not-found');
-        return { items: Array.from({ length: count }, (_, index) => ({ matchKind: 'text', target: { nodeId: input.within.nodeId, index } })) };
+        return {
+          items: Array.from({ length: count }, (_, index) => ({ matchKind: 'text', target: { nodeId: input.within.nodeId, index } })),
+        };
       }),
     },
     comments: {
@@ -44,7 +57,11 @@ test('the comment and match APIs keep the shape the highlighter relies on', () =
     select: { type: 'text'; pattern: string; mode: 'contains'; caseSensitive: true };
     within: { kind: 'block'; nodeType: 'paragraph'; nodeId: string };
   }>().toMatchTypeOf<Parameters<EditorDocument['query']['match']>[0]>();
-  expectTypeOf<Parameters<EditorDocument['comments']['create']>[0]>().toMatchTypeOf<{ text: string; externalId?: string; target?: unknown }>();
+  expectTypeOf<Parameters<EditorDocument['comments']['create']>[0]>().toMatchTypeOf<{
+    text: string;
+    externalId?: string;
+    target?: unknown;
+  }>();
   expectTypeOf<Parameters<EditorDocument['comments']['delete']>[0]>().toEqualTypeOf<{ commentId: string }>();
 });
 
@@ -61,8 +78,14 @@ test('each inserted run is matched once inside its own block and a stale block i
   const result = await highlightEdits({ document, runs });
   expect(result).toEqual({ commentIds: ['c1', 'c2', 'c3'], skippedCount: 1, targetCount: 3 });
   expect(matchCalls).toHaveLength(3);
-  expect(matchCalls.every((call) => call.within.kind === 'block' && call.select.mode === 'contains' && call.select.caseSensitive && call.select.type === 'text')).toBe(true);
-  expect(created.every((comment) => comment.text === HIGHLIGHT_COMMENT_TEXT && comment.externalId.startsWith(HIGHLIGHT_EXTERNAL_ID_PREFIX))).toBe(true);
+  expect(
+    matchCalls.every(
+      (call) => call.within.kind === 'block' && call.select.mode === 'contains' && call.select.caseSensitive && call.select.type === 'text',
+    ),
+  ).toBe(true);
+  expect(
+    created.every((comment) => comment.text === HIGHLIGHT_COMMENT_TEXT && comment.externalId.startsWith(HIGHLIGHT_EXTERNAL_ID_PREFIX)),
+  ).toBe(true);
   expect(new Set(created.map((comment) => comment.externalId)).size).toBe(3);
 });
 

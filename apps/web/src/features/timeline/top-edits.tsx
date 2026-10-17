@@ -4,12 +4,17 @@ import { TOP_EDITS_LABEL, wordsDeltaLabel } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
 function sumWords(contributors: TimelineContributor[]): { inserted: number; deleted: number } {
-  return contributors.reduce((total, contributor) => ({ inserted: total.inserted + contributor.wordsInserted, deleted: total.deleted + contributor.wordsDeleted }), { inserted: 0, deleted: 0 });
+  return contributors.reduce(
+    (total, contributor) => ({ inserted: total.inserted + contributor.wordsInserted, deleted: total.deleted + contributor.wordsDeleted }),
+    { inserted: 0, deleted: 0 },
+  );
 }
 
 export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
   const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
-  const rows = timeline.bands.filter((band) => band.volume > 0).sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
+  const rows = timeline.bands
+    .filter((band) => band.volume > 0)
+    .sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">{TOP_EDITS_LABEL}</h3>

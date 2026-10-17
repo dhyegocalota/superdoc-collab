@@ -40,11 +40,24 @@ export function FilterBox() {
 
   return (
     <div className="flex flex-col gap-2">
-      <Input aria-label={FILTER_LABEL} placeholder={FILTER_PLACEHOLDER} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} />
+      <Input
+        aria-label={FILTER_LABEL}
+        placeholder={FILTER_PLACEHOLDER}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={handleKeyDown}
+      />
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
           {chips.map((chip) => (
-            <Button key={chip.param} type="button" variant="secondary" size="sm" aria-label={removeFilterLabel(chip.value!)} onClick={() => update({ changes: { [chip.param]: null }, replace: true })}>
+            <Button
+              key={chip.param}
+              type="button"
+              variant="secondary"
+              size="sm"
+              aria-label={removeFilterLabel(chip.value!)}
+              onClick={() => update({ changes: { [chip.param]: null }, replace: true })}
+            >
               {chip.value}
               <X />
             </Button>

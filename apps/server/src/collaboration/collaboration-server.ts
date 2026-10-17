@@ -22,7 +22,19 @@ function requireDocumentId(roomName: string): string {
   return documentId;
 }
 
-export function createCollaborationServer({ auth, documents, log, onLogged, onStored }: { auth: Auth; documents: DocumentsRepository; log: UpdateLog; onLogged: (documentId: string) => void; onStored: (documentId: string) => void }): Hocuspocus {
+export function createCollaborationServer({
+  auth,
+  documents,
+  log,
+  onLogged,
+  onStored,
+}: {
+  auth: Auth;
+  documents: DocumentsRepository;
+  log: UpdateLog;
+  onLogged: (documentId: string) => void;
+  onStored: (documentId: string) => void;
+}): Hocuspocus {
   const declarer = createClientDeclarer(log);
   return new Hocuspocus({
     quiet: true,

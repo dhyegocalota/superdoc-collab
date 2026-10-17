@@ -44,9 +44,9 @@ test('projects edits after the bootstrap with the raw identity facts', () => {
   const ana = bootstrapped(['Hello']);
   writeStory({ document: ana, texts: ['Hello world'] });
   projectPending({ log, readModel, documentName: DOCUMENT });
-  expect(events().map(({ kind, inserted, yjsClientIds, connectionUserId }) => ({ kind, inserted, yjsClientIds, connectionUserId }))).toEqual([
-    { kind: BlockChangeKind.Modified, inserted: ' world', yjsClientIds: [ana.clientID], connectionUserId: 'ana' },
-  ]);
+  expect(
+    events().map(({ kind, inserted, yjsClientIds, connectionUserId }) => ({ kind, inserted, yjsClientIds, connectionUserId })),
+  ).toEqual([{ kind: BlockChangeKind.Modified, inserted: ' world', yjsClientIds: [ana.clientID], connectionUserId: 'ana' }]);
 });
 
 test('a rewound cursor re-projects without duplicates', () => {
@@ -70,7 +70,11 @@ test('projects in batches and resumes from the cursor', () => {
   const ana = bootstrapped(['']);
   Array.from({ length: BATCHED_WRITES }).forEach((_, index) => writeStory({ document: ana, texts: ['x'.repeat(index + 1)] }));
   const cursor = projectPending({ log, readModel, documentName: DOCUMENT, batchSize: BATCH_SIZE });
-  expect(events().map((event) => event.inserted).join('')).toBe('x'.repeat(BATCHED_WRITES));
+  expect(
+    events()
+      .map((event) => event.inserted)
+      .join(''),
+  ).toBe('x'.repeat(BATCHED_WRITES));
   expect(cursor).toBe(lastLoggedSequence());
 });
 
@@ -78,9 +82,15 @@ test('imported revisions are stored once, with sequence 0 and the revision autho
   const revision = { revisionId: 'r1', authorName: IMPORTED_AUTHOR, serverTime: 1, blockId: 'b0', inserted: 'x', deleted: '' };
   readModel.commitImported({ documentName: DOCUMENT, revisions: [revision] });
   readModel.commitImported({ documentName: DOCUMENT, revisions: [revision] });
-  expect(events().map(({ imported, authorName, sequence, yjsClientIds, connectionUserId }) => ({ imported, authorName, sequence, yjsClientIds, connectionUserId }))).toEqual([
-    { imported: true, authorName: IMPORTED_AUTHOR, sequence: 0, yjsClientIds: null, connectionUserId: null },
-  ]);
+  expect(
+    events().map(({ imported, authorName, sequence, yjsClientIds, connectionUserId }) => ({
+      imported,
+      authorName,
+      sequence,
+      yjsClientIds,
+      connectionUserId,
+    })),
+  ).toEqual([{ imported: true, authorName: IMPORTED_AUTHOR, sequence: 0, yjsClientIds: null, connectionUserId: null }]);
 });
 
 test('forgetting a document clears its events and cursor', () => {

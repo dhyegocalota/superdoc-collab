@@ -5,15 +5,15 @@
 ```
 AGENTS.md            facts and conventions, pointers to this file          (CLAUDE.md, GEMINI.md link here)
 .claude/HARNESS.md   this file: the process
-.claude/rules/       domain facts loaded by path
+.claude/rules/       domain facts; Claude Code loads them by path, every other tool opens the ones whose globs match
 .agents/roles/       agent role bodies (one source for .claude/agents and .codex/agents)
-.agents/skills/      skills: vendored superpowers subset + feature, adr, learning
-.claude/commands/    /verify, /check-ui, /open-pr
+.agents/skills/      skills: vendored superpowers subset + feature, adr, learning, verify, check-ui, open-pr
+.agents/hooks/       hook scripts (one source for .claude/settings.json and .codex/hooks.json)
 docs/features/<slug> spec.md + plan.md + test-plan.md for every feature or fix
 docs/adr/            decisions            docs/learnings/   dated traps
 ```
 
-The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENTS.md` follow the same phases; only the mechanics of spawning sub-agents differ (see Agents).
+The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENTS.md` follow the same phases; only the mechanics of spawning sub-agents differ (see Agents). Every surface has one source under `.agents/` and a thin adapter per tool ([ADR 0014](../docs/adr/0014-one-source-per-agent-surface.md)).
 
 ## 0. Invariants
 
@@ -25,7 +25,8 @@ The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENT
 6. Every PR that touches UI carries screenshots and a playable video recorded through Playwright MCP, hosted as GitHub Release assets and embedded in the body.
 7. Every decision with alternatives becomes an ADR before the code that depends on it.
 8. Everything in the repo is in English.
-9. Tests are mandatory. No `sleep`. No `?? default`. No comments. See `AGENTS.md` → Code conventions.
+9. Tests are mandatory. No `sleep`. No `?? default`. No comments other than `// NB ADR NNNN:` pointers. See `AGENTS.md` → Code conventions.
+10. Every PR states its merge sensitivity. A sensitive PR also states its blast radius and ends with a checklist a human runs before merging (section 7).
 
 ## 1. Agree
 
@@ -77,7 +78,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 ## 6. Review
 
 - A `reviewer` sub-agent, with a fresh context, reviews the diff before the PR opens: conventions (`AGENTS.md`, `.claude/rules/`), correctness, security (auth, session tokens on sockets, SQL binding, enumeration-safe auth responses, secrets, path traversal on uploads, DOCX size limits, tenant isolation per document), performance budgets from the ADRs, and tests. It also tries to **refute** the tester: pick the three claims most likely to be wrong and attack them.
-- Output: numbered findings `CRITICAL | IMPORTANT | MINOR`, each with file:line, the rule, the production consequence and a minimal fix; closing with `Ship-ready? YES | NO | WITH RESERVATIONS`.
+- Output: numbered findings `CRITICAL | IMPORTANT | MINOR`, each with file:line, the rule, the production consequence and a minimal fix; then the **blast radius** (surfaces touched, who notices first, how to roll back, whether rollback loses data) and `Merge sensitivity: LOW | MEDIUM | HIGH` with a one-line reason; closing with `Ship-ready? YES | NO | WITH RESERVATIONS`.
 - Findings are delivered in chat and fixed before the PR. The reviewer never posts to GitHub.
 
 ## 7. Ship
@@ -89,9 +90,12 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
 5. Learnings sweep (section 8). "Nothing learned" is a valid answer, stated out loud.
-6. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
+6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
+7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
 
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
+
+**Sensitive PRs.** A PR is sensitive when its tier is 🟡 or 🔴, or when the diff touches auth or sessions, sharing or authorization, the update log or the projection, schema or migrations, deploy files, data deletion or secrets handling. The reviewer decides: `Merge sensitivity: LOW | MEDIUM | HIGH`, and MEDIUM or HIGH means sensitive. Every PR body carries the verdict with its reason. A sensitive PR also carries a **Blast radius** section (what can break and for whom, who notices first, how to roll back, whether rollback loses data) and ends with a **Human checklist**: the checks a person runs by hand before merging, one box each, concrete enough to execute without the agent (open X as Y, expect Z; run the rollback once; confirm the migration on a copy of production data). The agent writes the checklist, never ticks it, and never lowers the reviewer's verdict.
 
 ## 8. Learn
 
@@ -120,7 +124,7 @@ Tokens are spent where judgment is needed, not on re-reading documents.
 - `tester` reads `test-plan.md` because executing it is the job, plus `tester-briefing.md`. It does not read `plan.md`.
 - `reviewer` reads the diff, `spec.md` and the ticked summary of `test-plan.md`. It opens `plan.md` only to check a struck-through step.
 - `researcher` reads code, rules, ADR titles and learnings index; it opens an ADR or learning body only when its title matches the task.
-- Domain rules in `.claude/rules/` load by `paths:` globs; they never match `docs/**`, so planning work does not pull them in.
+- Domain rules in `.claude/rules/` load by `paths:` globs in Claude Code; other tools open the rules whose globs match the files they edit, as `AGENTS.md` says. The globs never match `docs/**`, so planning work does not pull them in.
 - Bulk output (test runs, logs, sweeps) runs in a sub-agent that reports failures only. Small tasks that fit in three tool calls run inline; a sub-agent costs a full prompt before its first call.
 - Status lives in one line at the top of `spec.md` and in the ticked boxes; nobody rewrites a summary that a `grep -c "\[x\]"` can produce.
 
@@ -151,17 +155,17 @@ Routing: bulk reading and sweeps → cheapest model; implementing a decided desi
 | `feature` | skill | scaffolds `docs/features/<slug>/` |
 | `adr` | skill | scaffolds a numbered ADR |
 | `learning` | skill | records or revisits a learning |
-| `/verify` | command | typecheck → unit → E2E, stop at first failure |
-| `/check-ui` | command | Playwright MCP walk, screenshots, video, release upload |
-| `/open-pr` | command | the Ship gates, then the PR |
+| `/verify` | skill | typecheck → unit → E2E, stop at first failure |
+| `/check-ui` | skill | Playwright MCP walk, screenshots, video, release upload |
+| `/open-pr` | skill | the Ship gates, then the PR |
 
-Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each `SKILL.md` says what was changed.
+Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each `SKILL.md` says what was changed. Claude Code invokes a skill as `/<name>` with `$ARGUMENTS`; Codex as `$<name>` followed by the arguments in plain text.
 
 ## 11. Autonomy contract
 
 **Decide alone:** file names inside the agreed layout, test names, internal helper shapes, the order of plan steps, which sub-agent model to use.
 **Ask first:** anything in the spec, anything visible to the user, design-system choices, dependencies added, schema changes, deleting data, commits and pushes, anything that costs money (LLM batch runs, deploys).
-**Never:** edit `.env*`, `git add -A`, `--no-verify`, commit on `main`, post review findings to GitHub, mark a test-plan box without evidence, call something done without running it.
+**Never:** edit `.env*`, `git add -A`, `--no-verify`, commit on `main`, post review findings to GitHub, mark a test-plan box without evidence, tick a human checklist box, lower a reviewer's merge sensitivity, call something done without running it.
 
 ## 12. Enforcement
 
@@ -169,6 +173,8 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 |---|---|---|
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
-| `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, `// ` comments, `else {` in `.ts`/`.tsx` |
+| `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
+
+The scripts live in `.agents/hooks/` and read the tool input from stdin, in the shape both tools send (`tool_input.file_path` from Claude Code, `apply_patch` headers in `tool_input.command` from Codex). Claude Code wires them in `.claude/settings.json`, Codex in `.codex/hooks.json`; `pnpm test:hooks` runs `.agents/hooks/hooks.test.sh` against both shapes and is part of `pnpm test:unit`.
 
 Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks.

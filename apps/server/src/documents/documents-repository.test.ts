@@ -18,7 +18,10 @@ test('grant upgrades a role and never downgrades it', async () => {
   documents.grant({ documentId, userId: bruno, role: DocumentRole.Editor });
   documents.grant({ documentId, userId: bruno, role: DocumentRole.Reader });
   documents.grant({ documentId, userId: ana, role: DocumentRole.Reader });
-  expect([documents.findRole({ documentId, userId: bruno }), documents.findRole({ documentId, userId: ana })]).toEqual([DocumentRole.Editor, DocumentRole.Owner]);
+  expect([documents.findRole({ documentId, userId: bruno }), documents.findRole({ documentId, userId: ana })]).toEqual([
+    DocumentRole.Editor,
+    DocumentRole.Owner,
+  ]);
   await server.stop();
 });
 
@@ -28,7 +31,13 @@ test('the owner sees it as mine and a member as shared, with the owner named', a
   const documentId = randomUUID();
   documents.create({ id: documentId, title: 'Plan', ownerUserId: ana });
   documents.grant({ documentId, userId: bruno, role: DocumentRole.Reader });
-  const expected = { id: documentId, title: 'Plan', updatedAt: expect.any(Number), role: DocumentRole.Reader, owner: { id: ana, name: 'Ana' } };
+  const expected = {
+    id: documentId,
+    title: 'Plan',
+    updatedAt: expect.any(Number),
+    role: DocumentRole.Reader,
+    owner: { id: ana, name: 'Ana' },
+  };
   expect(documents.list(bruno)).toEqual({ mine: [], shared: [expected] });
   expect(documents.list(ana).mine).toEqual([{ ...expected, role: DocumentRole.Owner }]);
   expect(documents.summary({ documentId, userId: bruno })).toEqual(expected);
@@ -40,9 +49,13 @@ test('requireDocumentRole hides a non-member as not found and refuses a low role
   const { documents } = server.services;
   const documentId = randomUUID();
   documents.create({ id: documentId, title: 'Plan', ownerUserId: ana });
-  expect(() => requireDocumentRole({ documents, documentId, userId: bruno, minimumRole: DocumentRole.Reader })).toThrow(DocumentNotFoundError);
+  expect(() => requireDocumentRole({ documents, documentId, userId: bruno, minimumRole: DocumentRole.Reader })).toThrow(
+    DocumentNotFoundError,
+  );
   documents.grant({ documentId, userId: bruno, role: DocumentRole.Reader });
-  expect(() => requireDocumentRole({ documents, documentId, userId: bruno, minimumRole: DocumentRole.Editor })).toThrow(DocumentRoleTooLowError);
+  expect(() => requireDocumentRole({ documents, documentId, userId: bruno, minimumRole: DocumentRole.Editor })).toThrow(
+    DocumentRoleTooLowError,
+  );
   expect(requireDocumentRole({ documents, documentId, userId: bruno, minimumRole: DocumentRole.Reader })).toBe(DocumentRole.Reader);
   await server.stop();
 });

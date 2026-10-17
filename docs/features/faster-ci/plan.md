@@ -4,7 +4,7 @@
 **Tier:** 🟡 medium
 **Seam:** `startServer` → `ProjectionScheduler` (one new optional input); Playwright config and `e2e/fixtures.ts`; `.github/`.
 **Assumptions (decided, owner can override):**
-- One E2E runner, no sharding (ADR 0014).
+- One E2E runner, no sharding (ADR 0018).
 - The prebuilt bundle lives under `apps/server/node_modules/.cache/superdoc-history-vitest/` so `better-sqlite3` and `@superdoc/sdk` resolve from `apps/server/node_modules` exactly as they do from `dist/`.
 - No gate job; no branch protection exists on this plan.
 

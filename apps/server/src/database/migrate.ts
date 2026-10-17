@@ -30,5 +30,8 @@ export function runMigrations(database: AuthDatabase): void {
 }
 
 export function runHistoryMigrations({ sqlite, set }: { sqlite: Database.Database; set: MigrationSet }): void {
-  runMigrationSet({ sqlite, migrationsFolder: findMigrationsFolder({ startUrl: import.meta.url, relativePath: join(HISTORY_MIGRATIONS_PATH, set) }) });
+  runMigrationSet({
+    sqlite,
+    migrationsFolder: findMigrationsFolder({ startUrl: import.meta.url, relativePath: join(HISTORY_MIGRATIONS_PATH, set) }),
+  });
 }

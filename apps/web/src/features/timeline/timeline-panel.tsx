@@ -12,7 +12,7 @@ import { Streamgraph } from './streamgraph';
 import { REFRESH_TOPICS_LABEL, RESIZE_PANEL_LABEL, TIMELINE_HEADING } from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
-import { useElementWidth } from './use-element-width';
+import { useElementWidth } from '@/lib/use-element-width';
 import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP, usePanelWidth } from './use-panel-width';
 import { useSelectionSummary, useSummarizeEdits } from './use-selection-summary';
 import { useRefreshTopics } from './use-topics';
@@ -29,7 +29,17 @@ const PRIMARY_BUTTON_PRESSED = 1;
 
 type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
-function ResizeHandle({ width, maxWidth, resizeTo, resizeBy }: { width: number; maxWidth: number; resizeTo: (next: number) => void; resizeBy: (delta: number) => void }) {
+function ResizeHandle({
+  width,
+  maxWidth,
+  resizeTo,
+  resizeBy,
+}: {
+  width: number;
+  maxWidth: number;
+  resizeTo: (next: number) => void;
+  resizeBy: (delta: number) => void;
+}) {
   function handlePointerDown(event: PointerEvent<HTMLDivElement>): void {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -74,14 +84,30 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const canRefresh = role !== DocumentRole.Reader;
   const ToggleIcon = isOpen ? PanelRightClose : PanelRightOpen;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
-  const selectedIndex = timeline && selectedTime !== null ? timeline.bins.findIndex((bin) => selectedTime >= bin.start && selectedTime < bin.start + timeline.binMs) : -1;
+  const selectedIndex =
+    timeline && selectedTime !== null
+      ? timeline.bins.findIndex((bin) => selectedTime >= bin.start && selectedTime < bin.start + timeline.binMs)
+      : -1;
   const selectedBin = timeline && selectedIndex >= 0 ? timeline.bins[selectedIndex] : undefined;
-  const selection: EditSelection = { term: search.filter.term, author: search.filter.author, topic: search.topic, at: selectedBin ? selectedBin.start : null };
+  const selection: EditSelection = {
+    term: search.filter.term,
+    author: search.filter.author,
+    topic: search.topic,
+    at: selectedBin ? selectedBin.start : null,
+  };
   const binMs = timeline ? timeline.binMs : null;
-  const { data: selectionSummary } = useSelectionSummary({ documentId, selection, binMs, isOpen, timelineStamp: timeline ? timelineStamp(timeline) : null });
+  const { data: selectionSummary } = useSelectionSummary({
+    documentId,
+    selection,
+    binMs,
+    isOpen,
+    timelineStamp: timeline ? timelineStamp(timeline) : null,
+  });
   const summarize = useSummarizeEdits({ documentId, binMs });
   const reasonId = useId();
-  const disabledReason = timeline ? summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending }) : null;
+  const disabledReason = timeline
+    ? summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending })
+    : null;
   const summaryError = errorForSelection({ error: summarize.error, variables: summarize.variables, selection });
 
   useEffect(() => {
@@ -100,7 +126,10 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   }
 
   return (
-    <aside className="flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l" style={{ '--panel-width': `${width}px` } as CSSProperties}>
+    <aside
+      className="flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l"
+      style={{ '--panel-width': `${width}px` } as CSSProperties}
+    >
       <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2">
@@ -114,16 +143,32 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
                 {REFRESH_TOPICS_LABEL}
               </Button>
             )}
-            <Button variant="ghost" size="icon" aria-label={TIMELINE_TOGGLE_LABEL} aria-expanded={isOpen} onClick={() => setIsOpen(!isOpen)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={TIMELINE_TOGGLE_LABEL}
+              aria-expanded={isOpen}
+              onClick={() => setIsOpen(!isOpen)}
+            >
               <ToggleIcon />
             </Button>
           </div>
-          {isOpen && canRefresh && disabledReason !== null && <p id={reasonId} className="basis-full px-2 text-xs text-muted-foreground">{disabledReason}</p>}
+          {isOpen && canRefresh && disabledReason !== null && (
+            <p id={reasonId} className="basis-full px-2 text-xs text-muted-foreground">
+              {disabledReason}
+            </p>
+          )}
         </header>
         {isOpen && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-            {refresh.isError && <p role="alert" className="text-sm text-destructive">{refresh.error.message}</p>}
-            {timeline && <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canRefresh} onRetry={() => refresh.mutate()} />}
+            {refresh.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                {refresh.error.message}
+              </p>
+            )}
+            {timeline && (
+              <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canRefresh} onRetry={() => refresh.mutate()} />
+            )}
             <div ref={chartRef}>
               {timeline && chartWidth > 0 && (
                 <Streamgraph
@@ -139,7 +184,13 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
             <FilterBox />
             {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
             {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
-            <SelectionSummaryCard view={selectionSummary} error={summaryError} canRequest={canRefresh} isPending={summarize.isPending} onRetry={() => summarize.mutate(selection)} />
+            <SelectionSummaryCard
+              view={selectionSummary}
+              error={summaryError}
+              canRequest={canRefresh}
+              isPending={summarize.isPending}
+              onRetry={() => summarize.mutate(selection)}
+            />
           </div>
         )}
       </div>

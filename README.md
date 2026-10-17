@@ -20,6 +20,21 @@ The demo accounts' password comes with the delivery message. Every slice, its sp
 7. Click a moment on the chart to read the document as it was then; **Back to live** returns.
 8. **Summarize edits** writes one to three sentences about exactly the edits the panel shows.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Ana and Bruno editing the same document live](docs/media/readme/01-two-authors-editing.png) | ![The timeline panel beside the editor, one band per topic](docs/media/readme/02-timeline-topic-bands.png) |
+| Ana and Bruno edit the same document live, each seeing the other's cursor | The timeline panel: one band per topic, named by the model |
+| ![Top edits per topic](docs/media/readme/03-top-edits.png) | ![Filtering with @bruno](docs/media/readme/04-filter-by-author.png) |
+| Top edits: topic, word delta, contributors and one sentence about what changed | `@bruno` narrows the chart, the list and the highlights to one person |
+| ![Time travel: the document at an earlier moment](docs/media/readme/05-time-travel.png) | ![The summary card for the current selection](docs/media/readme/06-summary-card.png) |
+| Time travel: the document as it was at that moment, its edits highlighted, with Back to live | Summarize edits: one to three sentences about exactly the selection on screen |
+| ![A reader sees the summary card but no Summarize button](docs/media/readme/07-reader-view.png) | ![The editor and panel at 375 px](docs/media/readme/08-narrow-375.png) |
+| A reader joined through the read-only link sees the summary but cannot type or summarize | At 375 px the panel stacks under the editor |
+
+Each pull request also carries a video walk recorded with Playwright MCP, for example the [LLM insights walkthrough](https://github.com/dhyegocalota/superdoc-take-home/releases/download/pr-media-llm-insights/walkthrough.mp4); the full sets are embedded in the pull requests listed in the [roadmap](docs/features/README.md#roadmap).
+
 ## Features
 
 - **Documents.** Upload a `.docx` (up to 10 MB) or create a blank document; the list shows "Mine" and "Shared with me" with the owner, the last update and your role. Rename, download and delete from the editor header (delete is owner only).
@@ -96,11 +111,48 @@ Ana, Bruno, Caio and Dani: `ana@example.com`, `bruno@example.com`, `caio@example
 | Command | Covers |
 |---|---|
 | `pnpm typecheck` | every package plus the E2E project |
-| `pnpm test:unit` | `libs/types`, `libs/history`, `apps/server` (real HTTP, real SQLite, real WebSocket; the 150 ms timeline latency budget is asserted only when `CI` is unset; the deploy checks in `apps/server/src/deploy` render the compose file with the Docker CLI and Compose v2, no daemon needed; that block is skipped without the Docker CLI and required in CI) and `apps/web` (Vitest and Testing Library) |
+| `pnpm test:unit` | `libs/types`, `libs/history`, `apps/server` (real HTTP, real SQLite, real WebSocket; the 150 ms timeline latency budget is asserted only when `CI` is unset; the deploy checks in `apps/server/src/repository-shape` render the compose file with the Docker CLI and Compose v2, no daemon needed; that block is skipped without the Docker CLI and required in CI) and `apps/web` (Vitest and Testing Library) |
 | `pnpm test:e2e` | Playwright specs for auth, documents and sharing, two-author collaboration, the timeline, time travel, topics and summaries; builds and starts the stack itself, needs Chromium (`pnpm exec playwright install chromium`) |
 | `pnpm verify` | the three above, in order; the same gate runs in CI ([`verify.yml`](.github/workflows/verify.yml)) next to the `docker` job that builds and boots the image |
 
 ## Architecture in brief
+
+```mermaid
+flowchart TB
+  subgraph browser["Browser · React 19 + Vite SPA"]
+    editor["SuperDoc editor<br/>live document, cursors, awareness"]
+    viewer["Version viewer<br/>read-only SuperDoc in an iframe"]
+    panel["Timeline panel<br/>streamgraph · filter · top edits · summaries"]
+  end
+
+  subgraph server["One Node process, one port (Hono + Hocuspocus)"]
+    hono["Hono<br/>REST API + built SPA"]
+    auth["Better Auth<br/>sessions, demo users"]
+    hocus["Hocuspocus<br/>one live room per document"]
+    rooms["Version rooms<br/>one read-only room per version"]
+    worker[["Projection worker thread<br/>Yjs replay → edit events, version marks"]]
+    insights["Insights worker<br/>topics · per-topic sentences · selection summaries<br/>process-wide caps"]
+    log[("history.sqlite<br/>update log · snapshots · identities")]
+    read[("read-model.sqlite<br/>edit events · version marks · cursor")]
+    authDb[("auth.sqlite<br/>users · documents · members · share links · topics · summaries")]
+    files[/"documents/‹id›.docx"/]
+  end
+
+  llm["OpenRouter<br/>via Vercel AI SDK"]
+
+  editor <-- "WebSocket /collaboration" --> hocus
+  viewer <-- "WebSocket /collaboration/versions/‹id›/‹sequence›" --> rooms
+  panel -- "GET /api/documents/‹id›/timeline · events · versions · summaries" --> hono
+  hono --> auth --> authDb
+  hono -- "upload · download" --> files
+  hocus -- "every Yjs update, with its connection's user" --> log
+  log -- "1.5 s throttle" --> worker --> read
+  read --> hono
+  log -- "snapshot + tail at a mark" --> rooms
+  hono -- "topics, summaries (202 + polling)" --> insights
+  insights -- "names and edit text only" --> llm
+  insights --> authDb
+```
 
 One Node process on one port: Hono serves the API and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. `libs/history` holds the update log, the projection and the read model; one worker thread projects the log into edit events. The web app is a React and Vite SPA. See [ADR 0001](docs/adr/0001-event-sourcing-over-yjs.md), [ADR 0004](docs/adr/0004-stack.md), [ADR 0005](docs/adr/0005-authentication-with-better-auth.md) and [ADR 0009](docs/adr/0009-design-system.md).
 
@@ -145,4 +197,4 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 ## License
 
-The repository is public from delivery. All rights reserved; source published for evaluation.
+[GNU AGPL-3.0](LICENSE), the same licence as SuperDoc and its SDK, which this application is built on. Copyright 2026 Dhyego Calota.

@@ -21,7 +21,17 @@ import {
 import { afterEach, expect, test, vi } from 'vitest';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
 import { ApiRequestError } from '@/lib/api';
-import { fetchSelectionSummary, fetchTimeline, fetchVersion, refreshTopics, requestSelectionSummary, SummaryTooSoonError, SUMMARIZE_EDITS_SUBJECT, TopicsRefreshTooSoonError, VersionLoadKind } from './timeline-api';
+import {
+  fetchSelectionSummary,
+  fetchTimeline,
+  fetchVersion,
+  refreshTopics,
+  requestSelectionSummary,
+  SummaryTooSoonError,
+  SUMMARIZE_EDITS_SUBJECT,
+  TopicsRefreshTooSoonError,
+  VersionLoadKind,
+} from './timeline-api';
 import { requestFailedMessage } from './timeline-copy';
 
 const DOCUMENT_ID = 'doc-1';
@@ -54,7 +64,9 @@ test('fetchTimeline without filters requests the bare path', async () => {
 
 test('fetchTimeline throws DocumentUnavailableError on 404', async () => {
   respondWith(new Response(null, { status: HttpStatus.NotFound }));
-  await expect(fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null } })).rejects.toBeInstanceOf(DocumentUnavailableError);
+  await expect(fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null } })).rejects.toBeInstanceOf(
+    DocumentUnavailableError,
+  );
 });
 
 test('fetchVersion maps 202, 200 and 503 and throws on 404', async () => {
@@ -70,11 +82,20 @@ test('fetchVersion maps 202, 200 and 503 and throws on 404', async () => {
 
 test('fetchVersion never retries faster than the minimum delay', async () => {
   respondWith(new Response(null, { status: HttpStatus.Accepted }));
-  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: MIN_RETRY_AFTER_MS });
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({
+    kind: VersionLoadKind.Pending,
+    retryAfterMs: MIN_RETRY_AFTER_MS,
+  });
   respondWith(new Response(null, { status: HttpStatus.Accepted, headers: { [RETRY_AFTER_HEADER]: 'soon' } }));
-  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: MIN_RETRY_AFTER_MS });
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({
+    kind: VersionLoadKind.Pending,
+    retryAfterMs: MIN_RETRY_AFTER_MS,
+  });
   respondWith(new Response(null, { status: HttpStatus.Accepted, headers: { [RETRY_AFTER_HEADER]: '0' } }));
-  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: MIN_RETRY_AFTER_MS });
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({
+    kind: VersionLoadKind.Pending,
+    retryAfterMs: MIN_RETRY_AFTER_MS,
+  });
 });
 
 test('refreshTopics returns the status on 202 and explains a 429', async () => {
@@ -96,7 +117,10 @@ test('reading a selection summary sends every part of the selection', async () =
 test('a selection at a period sends the bin size of that period', async () => {
   const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
   await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: MINUTE_MS });
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}&binMs=${MINUTE_MS}`, expect.objectContaining({ method: HttpMethod.Post }));
+  expect(fetchSpy).toHaveBeenCalledWith(
+    `${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}&binMs=${MINUTE_MS}`,
+    expect.objectContaining({ method: HttpMethod.Post }),
+  );
 });
 
 test('a selection without a period never sends a bin size', async () => {
@@ -114,12 +138,22 @@ test('an empty selection is read from the bare path', async () => {
 test('requesting a summary posts the same selection', async () => {
   const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
   await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null });
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`, expect.objectContaining({ method: HttpMethod.Post }));
+  expect(fetchSpy).toHaveBeenCalledWith(
+    `${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`,
+    expect.objectContaining({ method: HttpMethod.Post }),
+  );
 });
 
 test('a summary requested too soon carries the seconds from Retry-After', async () => {
-  respondWith(new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '12' } }));
-  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null }).catch((caught: unknown) => caught);
+  respondWith(
+    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+      status: HttpStatus.TooManyRequests,
+      headers: { [RETRY_AFTER_HEADER]: '12' },
+    }),
+  );
+  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null }).catch(
+    (caught: unknown) => caught,
+  );
   expect(error).toBeInstanceOf(SummaryTooSoonError);
   expect(error).toMatchObject({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterSeconds: 12 });
 });
@@ -127,31 +161,47 @@ test('a summary requested too soon carries the seconds from Retry-After', async 
 test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async (header) => {
   const headers = header === null ? undefined : { [RETRY_AFTER_HEADER]: header };
   respondWith(new Response('{}', { status: HttpStatus.TooManyRequests, headers }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toMatchObject({ retryAfterSeconds: MIN_RETRY_AFTER_MS / SECOND_MS });
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toMatchObject({
+    retryAfterSeconds: MIN_RETRY_AFTER_MS / SECOND_MS,
+  });
 });
 
 test('an unavailable model surfaces the server reason', async () => {
   respondWith(new Response(JSON.stringify({ error: UNAVAILABLE_REASON }), { status: HttpStatus.ServiceUnavailable }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(UNAVAILABLE_REASON));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
+    new ApiRequestError(UNAVAILABLE_REASON),
+  );
 });
 
 test('a 503 without a JSON error falls back to the status message', async () => {
   respondWith(new Response('<html>busy</html>', { status: HttpStatus.ServiceUnavailable }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
+    new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })),
+  );
 });
 
 test('a selection summary of a document that is gone is unavailable', async () => {
   respondWith(new Response('{}', { status: HttpStatus.NotFound }));
-  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toBeInstanceOf(DocumentUnavailableError);
+  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toBeInstanceOf(
+    DocumentUnavailableError,
+  );
 });
 
-test.each([SelectionSummaryState.Running, SelectionSummaryState.Ready, SelectionSummaryState.Failed])('a %s selection summary is returned as the server sent it', async (state) => {
-  const view: SelectionSummaryView = { ...NONE_VIEW, state };
-  respondWith(new Response(JSON.stringify(view)));
-  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(view);
-});
+test.each([SelectionSummaryState.Running, SelectionSummaryState.Ready, SelectionSummaryState.Failed])(
+  'a %s selection summary is returned as the server sent it',
+  async (state) => {
+    const view: SelectionSummaryView = { ...NONE_VIEW, state };
+    respondWith(new Response(JSON.stringify(view)));
+    expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(view);
+  },
+);
 
-test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])('reading a selection summary answered with %s fails with the status message', async (status) => {
-  respondWith(new Response('{}', { status }));
-  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })));
-});
+test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])(
+  'reading a selection summary answered with %s fails with the status message',
+  async (status) => {
+    respondWith(new Response('{}', { status }));
+    await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
+      new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })),
+    );
+  },
+);

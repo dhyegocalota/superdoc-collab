@@ -11,7 +11,16 @@ const FIRST_SEQUENCE = 1;
 const SECOND_SEQUENCE = 2;
 
 function editAt(sequence: number, blockId = 'block') {
-  return { sequence, serverTime: sequence, blockId, kind: BlockChangeKind.Modified, inserted: 'x', deleted: '', yjsClientIds: [1], connectionUserId: 'ana' };
+  return {
+    sequence,
+    serverTime: sequence,
+    blockId,
+    kind: BlockChangeKind.Modified,
+    inserted: 'x',
+    deleted: '',
+    yjsClientIds: [1],
+    connectionUserId: 'ana',
+  };
 }
 
 test('a batch committed between the two reads appears in neither the events nor the cursor', () => {
@@ -48,7 +57,11 @@ test('readPage ends on a sequence boundary', () => {
 
 test('forget clears the marks', () => {
   const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
-  const mark = markOf({ update: { sequence: 1, serverTime: 10 } as Parameters<typeof markOf>[0]['update'], document: new Y.Doc(), isBootstrap: true });
+  const mark = markOf({
+    update: { sequence: 1, serverTime: 10 } as Parameters<typeof markOf>[0]['update'],
+    document: new Y.Doc(),
+    isBootstrap: true,
+  });
   readModel.commit({ documentName: DOCUMENT, events: [], marks: [mark], lastSequence: 1 });
   expect(readModel.marks(DOCUMENT)).toHaveLength(1);
   readModel.forget(DOCUMENT);

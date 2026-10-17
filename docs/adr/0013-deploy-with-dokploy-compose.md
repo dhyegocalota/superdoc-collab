@@ -1,5 +1,7 @@
 # 0013. Deploy with a Dokploy compose service built from the repository
 
+Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
+
 - Status: Accepted (owner to confirm at the first deploy)
 - Date: 2026-10-16
 - Deciders: Claude (lead, by delegated authority); Dhyego Calota (owner, to confirm at the first deploy)

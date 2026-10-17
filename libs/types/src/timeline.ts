@@ -1,6 +1,7 @@
 import { SECOND_MS } from './constants';
 import type { EventAuthor } from './history';
 
+// NB ADR 0015: topics are recomputed automatically only once this many new blocks sit outside every topic, so single edits spend no model call.
 export const TOPIC_RECOMPUTE_NEW_BLOCKS = 5;
 export const EVENTS_PAGE_SIZE = 500;
 export const FILTER_MAX_LENGTH = 200;
@@ -9,6 +10,7 @@ export const OTHER_BAND_NAME = 'Other';
 export const SELECTION_SUMMARY_MAX_CHARACTERS = 400;
 export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
+// NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
 export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
@@ -23,30 +25,84 @@ export const TOPICS_INTERRUPTED_MESSAGE = 'Naming topics was interrupted. Try ag
 export const VERSION_FAILED_ERROR = 'VERSION_FAILED';
 export const VERSION_FAILED_MESSAGE = 'This version could not be opened. Try another moment.';
 
-export enum TopicState { Pending = 'pending', Ready = 'ready', Failed = 'failed' }
-export enum SelectionSummaryState { Ready = 'ready', Running = 'running', Failed = 'failed', None = 'none' }
-export enum TimelineFilterKind { Term = 'term', Author = 'author' }
-export enum VersionViewerState { Live = 'live', Viewing = 'viewing' }
-export enum TimelineBandKind { Topic = 'topic', Other = 'other', Author = 'author' }
-export enum TimelineSearchParam { Term = 'term', Author = 'author', At = 'at', Topic = 'topic' }
-export enum TimelineQueryParam { Term = 'term', Author = 'author', BinMs = 'binMs', BinStart = 'binStart', AfterSequence = 'afterSequence', Limit = 'limit', Around = 'around', Topic = 'topic', At = 'at' }
+export enum TopicState {
+  Pending = 'pending',
+  Ready = 'ready',
+  Failed = 'failed',
+}
+export enum SelectionSummaryState {
+  Ready = 'ready',
+  Running = 'running',
+  Failed = 'failed',
+  None = 'none',
+}
+export enum TimelineFilterKind {
+  Term = 'term',
+  Author = 'author',
+}
+export enum VersionViewerState {
+  Live = 'live',
+  Viewing = 'viewing',
+}
+export enum TimelineBandKind {
+  Topic = 'topic',
+  Other = 'other',
+  Author = 'author',
+}
+export enum TimelineSearchParam {
+  Term = 'term',
+  Author = 'author',
+  At = 'at',
+  Topic = 'topic',
+}
+export enum TimelineQueryParam {
+  Term = 'term',
+  Author = 'author',
+  BinMs = 'binMs',
+  BinStart = 'binStart',
+  AfterSequence = 'afterSequence',
+  Limit = 'limit',
+  Around = 'around',
+  Topic = 'topic',
+  At = 'at',
+}
 
 export type TimelineFilter = { term: string | null; author: string | null };
 export type EditSelection = { term: string | null; author: string | null; topic: string | null; at: number | null };
 export type SelectionSummary = { key: string; sentence: string; authors: string[]; computedAtSequence: number; isStale: boolean };
-export type SelectionSummaryView = { state: SelectionSummaryState; summary: SelectionSummary | null; failure: string | null; isModelAvailable: boolean };
+export type SelectionSummaryView = {
+  state: SelectionSummaryState;
+  summary: SelectionSummary | null;
+  failure: string | null;
+  isModelAvailable: boolean;
+};
 export type TimelineCell = { inserted: number; deleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };
 export type TimelineBand = { id: string; kind: TimelineBandKind; name: string; hue: number | null; onsetTime: number; volume: number };
 export type TimelineContributor = { authorKey: string; inserted: number; deleted: number; wordsInserted: number; wordsDeleted: number };
 export type TopicStatus = { state: TopicState; failure: string | null; computedAtSequence: number | null };
 export type ProjectionStatus = { isBehind: boolean; lagMs: number | null; isDegraded: boolean; cursor: number | null };
-export type DocumentTimeline = { binMs: number; bins: TimelineBin[]; bands: TimelineBand[]; contributorsByBand: Record<string, TimelineContributor[]>; authors: Record<string, EventAuthor>; topics: TopicStatus; projection: ProjectionStatus };
+export type DocumentTimeline = {
+  binMs: number;
+  bins: TimelineBin[];
+  bands: TimelineBand[];
+  contributorsByBand: Record<string, TimelineContributor[]>;
+  authors: Record<string, EventAuthor>;
+  topics: TopicStatus;
+  projection: ProjectionStatus;
+};
 export type DocumentTopic = { id: string; name: string; blockCount: number };
 export type DocumentTopics = { status: TopicStatus; topics: DocumentTopic[] };
 export type TopicSummary = { topicId: string; sentence: string; computedAtSequence: number };
 export type TopicSummaries = { summaries: TopicSummary[] };
-export type EditRunView = { blockId: string; bandId: string; authorKeys: string[]; inserted: string; deleted: string; lastServerTime: number };
+export type EditRunView = {
+  blockId: string;
+  bandId: string;
+  authorKeys: string[];
+  inserted: string;
+  deleted: string;
+  lastServerTime: number;
+};
 export type BinEdits = { binStart: number; binMs: number; runs: EditRunView[]; authors: Record<string, EventAuthor> };
 export type VersionSummary = { sequence: number; serverTime: number; collaborationPath: string };
 export type VersionText = { sequence: number; text: string };

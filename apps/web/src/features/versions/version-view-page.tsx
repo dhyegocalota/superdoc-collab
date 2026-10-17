@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
-import { readViewerMessage, ViewerMessageKind } from '@/features/editor/viewer-messages';
-import { VersionViewer } from '@/features/editor/version-viewer';
+import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
+import { VersionViewer } from './version-viewer';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
 import { KeyboardKey } from '@/lib/keyboard';
@@ -64,8 +64,27 @@ export function VersionViewPage() {
   }, [isSequenceValid, hasOpenFailed]);
 
   if (!isSequenceValid) return null;
-  if (openError) return <p role="alert" className="p-4 text-sm text-destructive">{openError.message}</p>;
-  if (hasConnectionFailed) return <p role="alert" className="p-4 text-sm text-destructive">{VERSION_FAILED_MESSAGE}</p>;
+  if (openError)
+    return (
+      <p role="alert" className="p-4 text-sm text-destructive">
+        {openError.message}
+      </p>
+    );
+  if (hasConnectionFailed)
+    return (
+      <p role="alert" className="p-4 text-sm text-destructive">
+        {VERSION_FAILED_MESSAGE}
+      </p>
+    );
   if (!user || !opened) return <SessionSkeleton />;
-  return <VersionViewer documentId={documentId} sequence={sequence} user={user} onReady={handleReady} onFailed={handleFailed} onConnectionFailed={handleConnectionFailed} />;
+  return (
+    <VersionViewer
+      documentId={documentId}
+      sequence={sequence}
+      user={user}
+      onReady={handleReady}
+      onFailed={handleFailed}
+      onConnectionFailed={handleConnectionFailed}
+    />
+  );
 }

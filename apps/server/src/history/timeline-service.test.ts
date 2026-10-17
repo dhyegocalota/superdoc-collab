@@ -9,8 +9,15 @@ test('a selection snapshot is stamped with the cursor its events were read at', 
   const { server, documentId } = await twoAuthorsInTwoBlocks();
   const { readModel } = server.services;
   const builtAt = readModel.cursor(documentId)!;
-  vi.spyOn(readModel, 'cursor').mockReturnValueOnce(builtAt).mockReturnValueOnce(builtAt).mockReturnValue(builtAt + CURSOR_ADVANCE);
-  const snapshot = buildSelectionSnapshot({ services: server.services, documentId, selection: { term: null, author: null, topic: null, at: null, binMs: MINUTE_MS } });
+  vi.spyOn(readModel, 'cursor')
+    .mockReturnValueOnce(builtAt)
+    .mockReturnValueOnce(builtAt)
+    .mockReturnValue(builtAt + CURSOR_ADVANCE);
+  const snapshot = buildSelectionSnapshot({
+    services: server.services,
+    documentId,
+    selection: { term: null, author: null, topic: null, at: null, binMs: MINUTE_MS },
+  });
   expect(snapshot.cursor).toBe(builtAt);
   vi.restoreAllMocks();
   await server.stop();

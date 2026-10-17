@@ -15,7 +15,8 @@ export enum VersionLookupKind {
   Failed = 'failed',
 }
 
-export type VersionLookup = { kind: VersionLookupKind.Ready; version: LoadedVersion } | { kind: VersionLookupKind.Pending } | { kind: VersionLookupKind.Failed };
+export type VersionLookup =
+  { kind: VersionLookupKind.Ready; version: LoadedVersion } | { kind: VersionLookupKind.Pending } | { kind: VersionLookupKind.Failed };
 
 export class VersionNotReadyError extends Error {
   constructor(documentId: string) {
@@ -47,7 +48,17 @@ export class VersionsService {
   private readonly failedAt = new Map<string, number>();
   private readonly generations = new Map<string, number>();
 
-  constructor({ readModel, scheduler, maxEntries = VERSION_CACHE_SIZE, maxBytes = VERSION_CACHE_MAX_BYTES }: { readModel: ReadModel; scheduler: ProjectionScheduler; maxEntries?: number; maxBytes?: number }) {
+  constructor({
+    readModel,
+    scheduler,
+    maxEntries = VERSION_CACHE_SIZE,
+    maxBytes = VERSION_CACHE_MAX_BYTES,
+  }: {
+    readModel: ReadModel;
+    scheduler: ProjectionScheduler;
+    maxEntries?: number;
+    maxBytes?: number;
+  }) {
     this.readModel = readModel;
     this.scheduler = scheduler;
     this.maxEntries = maxEntries;
@@ -84,7 +95,9 @@ export class VersionsService {
   forget(documentId: string): void {
     const prefix = versionKeyPrefixOf(documentId);
     this.generations.set(documentId, this.generationOf(documentId) + 1);
-    [this.cache, this.failedAt, this.loading].forEach((entries) => [...entries.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => entries.delete(key)));
+    [this.cache, this.failedAt, this.loading].forEach((entries) =>
+      [...entries.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => entries.delete(key)),
+    );
   }
 
   private start({ key, documentId, sequence }: { key: string; documentId: string; sequence: number }): Promise<LoadedVersion> {
@@ -124,7 +137,17 @@ export class VersionsService {
     return false;
   }
 
-  private recordFailure({ key, documentId, generation, error }: { key: string; documentId: string; generation: number; error: unknown }): void {
+  private recordFailure({
+    key,
+    documentId,
+    generation,
+    error,
+  }: {
+    key: string;
+    documentId: string;
+    generation: number;
+    error: unknown;
+  }): void {
     if (generation !== this.generationOf(documentId)) return;
     this.failedAt.set(key, Date.now());
     if (error instanceof ProjectionStoppedError) return;
@@ -139,7 +162,17 @@ export class VersionsService {
     return cached;
   }
 
-  private store({ key, documentId, generation, version }: { key: string; documentId: string; generation: number; version: LoadedVersion }): LoadedVersion {
+  private store({
+    key,
+    documentId,
+    generation,
+    version,
+  }: {
+    key: string;
+    documentId: string;
+    generation: number;
+    version: LoadedVersion;
+  }): LoadedVersion {
     if (generation !== this.generationOf(documentId)) return version;
     this.cache.set(key, version);
     this.failedAt.delete(key);

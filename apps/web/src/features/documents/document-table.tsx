@@ -2,9 +2,8 @@ import { documentPagePath, type DocumentSummary } from '@superdoc-history/types'
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatTimestamp } from '@/lib/format-date-time';
 import { COLUMN_HEADERS } from './documents-copy';
-
-const UPDATED_AT_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 type DocumentTableProps = {
   documents: DocumentSummary[];
@@ -32,7 +31,7 @@ export function DocumentTable({ documents, emptyMessage }: DocumentTableProps) {
                 </Link>
               </TableCell>
               <TableCell>{document.owner.name}</TableCell>
-              <TableCell>{UPDATED_AT_FORMAT.format(document.updatedAt)}</TableCell>
+              <TableCell>{formatTimestamp(document.updatedAt)}</TableCell>
               <TableCell>
                 <Badge variant="secondary">{document.role}</Badge>
               </TableCell>

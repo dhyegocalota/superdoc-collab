@@ -29,10 +29,21 @@ export enum ProjectionReplyKind {
 }
 
 export type ProjectionDoneReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null; importError: string | null };
-export type VersionReply = { kind: ProjectionRequestKind.Version; documentId: string; sequence: number; serverTime: number; state: Uint8Array; text: string };
+export type VersionReply = {
+  kind: ProjectionRequestKind.Version;
+  documentId: string;
+  sequence: number;
+  serverTime: number;
+  state: Uint8Array;
+  text: string;
+};
 export type BlocksReply = { kind: ProjectionRequestKind.Blocks; documentId: string; sequence: number; blocks: Block[] };
 type FailedReplyBase = { kind: ProjectionReplyKind.Failed; documentId: string; message: string };
-export type ProjectionFailedReply = FailedReplyBase & ({ requestKind: ProjectionRequestKind.Version; sequence: number } | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null });
+export type ProjectionFailedReply = FailedReplyBase &
+  (
+    | { requestKind: ProjectionRequestKind.Version; sequence: number }
+    | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
+  );
 export type ProjectionReply = ProjectionDoneReply | VersionReply | BlocksReply | ProjectionFailedReply;
 
 export type ProjectionWorkerData = { databaseDirectory: string };

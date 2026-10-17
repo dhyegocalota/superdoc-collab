@@ -60,9 +60,7 @@ export class UpdateLog {
     const serverTime = Date.now();
     yjsClientIds.forEach((yjsClientId) => this.observeClientIdentity({ documentName, yjsClientId, userId: connectionUserId }));
     const result = this.database
-      .prepare(
-        'INSERT INTO updates (document_name, connection_user_id, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?)',
-      )
+      .prepare('INSERT INTO updates (document_name, connection_user_id, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?)')
       .run(documentName, connectionUserId, JSON.stringify(yjsClientIds), serverTime, update);
     return { sequence: Number(result.lastInsertRowid), documentName, connectionUserId, yjsClientIds, serverTime, update };
   }
@@ -84,9 +82,10 @@ export class UpdateLog {
   }
 
   identitySources(documentName: string): Map<number, IdentitySource> {
-    const rows = this.database
-      .prepare('SELECT yjs_client_id, source FROM client_identities WHERE document_name = ?')
-      .all(documentName) as { yjs_client_id: number; source: IdentitySource }[];
+    const rows = this.database.prepare('SELECT yjs_client_id, source FROM client_identities WHERE document_name = ?').all(documentName) as {
+      yjs_client_id: number;
+      source: IdentitySource;
+    }[];
     return new Map(rows.map((row) => [row.yjs_client_id, row.source]));
   }
 
@@ -101,7 +100,15 @@ export class UpdateLog {
     return this.readRange({ documentName, afterSequence: 0, untilSequence });
   }
 
-  readRange({ documentName, afterSequence, untilSequence }: { documentName: string; afterSequence: number; untilSequence: number }): LoggedUpdate[] {
+  readRange({
+    documentName,
+    afterSequence,
+    untilSequence,
+  }: {
+    documentName: string;
+    afterSequence: number;
+    untilSequence: number;
+  }): LoggedUpdate[] {
     const rows = this.database
       .prepare('SELECT * FROM updates WHERE document_name = ? AND sequence > ? AND sequence <= ? ORDER BY sequence')
       .all(documentName, afterSequence, untilSequence) as UpdateRow[];
@@ -109,7 +116,9 @@ export class UpdateLog {
   }
 
   readBatch({ documentName, afterSequence, limit }: { documentName: string; afterSequence: number; limit: number }): LoggedUpdate[] {
-    const rows = this.database.prepare('SELECT * FROM updates WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT ?').all(documentName, afterSequence, limit) as UpdateRow[];
+    const rows = this.database
+      .prepare('SELECT * FROM updates WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT ?')
+      .all(documentName, afterSequence, limit) as UpdateRow[];
     return rows.map(toLoggedUpdate);
   }
 
@@ -118,11 +127,15 @@ export class UpdateLog {
   }
 
   forget(documentName: string): void {
-    this.database.transaction(() => HISTORY_TABLES.forEach((table) => this.database.prepare(`DELETE FROM ${table} WHERE document_name = ?`).run(documentName)))();
+    this.database.transaction(() =>
+      HISTORY_TABLES.forEach((table) => this.database.prepare(`DELETE FROM ${table} WHERE document_name = ?`).run(documentName)),
+    )();
   }
 
   writeSnapshot({ documentName, sequence, state }: { documentName: string; sequence: number; state: Uint8Array }): void {
-    this.database.prepare('INSERT OR IGNORE INTO snapshots (document_name, sequence, state) VALUES (?, ?, ?)').run(documentName, sequence, state);
+    this.database
+      .prepare('INSERT OR IGNORE INTO snapshots (document_name, sequence, state) VALUES (?, ?, ?)')
+      .run(documentName, sequence, state);
   }
 
   latestSnapshot({ documentName, atOrBefore }: { documentName: string; atOrBefore: number }): Snapshot | null {
@@ -153,7 +166,13 @@ export function compact({ log, documentName, everyUpdates }: { log: UpdateLog; d
   const afterSequence = latest ? latest.sequence : 0;
   const tail = log.readRange({ documentName, afterSequence, untilSequence: Number.MAX_SAFE_INTEGER });
   const boundaries = tail.filter((_, index) => (index + 1) % everyUpdates === 0).map((update) => update.sequence);
-  boundaries.forEach((sequence) => log.writeSnapshot({ documentName, sequence, state: Y.encodeStateAsUpdate(materialize({ log, documentName, untilSequence: sequence })) }));
+  boundaries.forEach((sequence) =>
+    log.writeSnapshot({
+      documentName,
+      sequence,
+      state: Y.encodeStateAsUpdate(materialize({ log, documentName, untilSequence: sequence })),
+    }),
+  );
   return boundaries;
 }
 

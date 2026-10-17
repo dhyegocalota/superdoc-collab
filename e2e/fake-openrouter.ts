@@ -40,7 +40,10 @@ function textOf(content: ChatMessage['content']): string {
 }
 
 function userPrompt(body: { messages: ChatMessage[] }): string {
-  return body.messages.filter((message) => message.role === 'user').map((message) => textOf(message.content)).join('\n');
+  return body.messages
+    .filter((message) => message.role === 'user')
+    .map((message) => textOf(message.content))
+    .join('\n');
 }
 
 function topicNameOf(text: string): string {
@@ -61,7 +64,9 @@ function topicsAnswer(prompt: string): { topics: { name: string; blockIds: strin
 }
 
 function summariesAnswer(prompt: string): { summaries: { topicId: string; sentence: string }[] } {
-  return { summaries: [...prompt.matchAll(TOPIC_PATTERN)].map(([, topicId, name]) => ({ topicId: topicId!, sentence: `Edits about ${name}.` })) };
+  return {
+    summaries: [...prompt.matchAll(TOPIC_PATTERN)].map(([, topicId, name]) => ({ topicId: topicId!, sentence: `Edits about ${name}.` })),
+  };
 }
 
 function unescapeXml(text: string): string {
@@ -75,7 +80,11 @@ function selectionAnswer(prompt: string): { sentence: string; authors: string[] 
   return { sentence: `${authors.join(NAME_JOINER)} edited ${editCount} passages.`, authors };
 }
 
-const ANSWERS: Record<CallKind, (prompt: string) => object> = { [CallKind.Topics]: topicsAnswer, [CallKind.Summaries]: summariesAnswer, [CallKind.Selection]: selectionAnswer };
+const ANSWERS: Record<CallKind, (prompt: string) => object> = {
+  [CallKind.Topics]: topicsAnswer,
+  [CallKind.Summaries]: summariesAnswer,
+  [CallKind.Selection]: selectionAnswer,
+};
 
 const calls: Record<CallKind, number> = { [CallKind.Topics]: 0, [CallKind.Summaries]: 0, [CallKind.Selection]: 0 };
 
@@ -123,7 +132,9 @@ createServer((request, response) => {
   if (request.method === 'GET' && request.url === HEALTH_PATH) return send({ response, status: OK, body: {} });
   if (request.method === 'GET' && request.url === CALLS_PATH) return send({ response, status: OK, body: calls });
   if (request.method === 'POST' && request.url?.endsWith(CHAT_COMPLETIONS_SUFFIX)) {
-    handleChat({ request, response }).catch((error: unknown) => send({ response, status: BAD_REQUEST, body: { error: { message: String(error) } } }));
+    handleChat({ request, response }).catch((error: unknown) =>
+      send({ response, status: BAD_REQUEST, body: { error: { message: String(error) } } }),
+    );
     return;
   }
   send({ response, status: NOT_FOUND, body: {} });

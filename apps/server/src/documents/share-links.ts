@@ -26,6 +26,7 @@ export class ShareLinksRepository {
     this.appOrigin = appOrigin;
   }
 
+  // NB ADR 0017: a link whose stored token hash does not match the current signing secret never resolves and is reissued on read.
   links(documentId: string): ShareLinks {
     const existing = this.database.drizzle.select().from(documentShareLinks).where(eq(documentShareLinks.documentId, documentId)).all();
     const missing = Object.values(ShareLinkRole).filter((role) => !existing.some((row) => row.role === role && this.isIssuedBySecret(row)));
@@ -33,7 +34,9 @@ export class ShareLinksRepository {
       missing.forEach((role) => this.writeNonce({ documentId, role }));
       return this.links(documentId);
     }
-    return Object.fromEntries(existing.map((row) => [row.role, `${this.appOrigin}${sharePagePath(deriveShareToken({ secret: this.secret, nonce: row.nonce }))}`])) as ShareLinks;
+    return Object.fromEntries(
+      existing.map((row) => [row.role, `${this.appOrigin}${sharePagePath(deriveShareToken({ secret: this.secret, nonce: row.nonce }))}`]),
+    ) as ShareLinks;
   }
 
   rotate({ documentId, role }: { documentId: string; role: ShareLinkRole }): ShareLinks {
@@ -45,6 +48,7 @@ export class ShareLinksRepository {
     const tokenHash = hashShareToken(token);
     const row = this.database.drizzle.select().from(documentShareLinks).where(eq(documentShareLinks.tokenHash, tokenHash)).get();
     if (!row) return null;
+    if (!this.isIssuedBySecret(row)) return null;
     if (!timingSafeEqual(Buffer.from(row.tokenHash), Buffer.from(tokenHash))) return null;
     return { documentId: row.documentId, role: row.role };
   }

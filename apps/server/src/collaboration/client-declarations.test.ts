@@ -8,11 +8,18 @@ const DOCUMENT_ID = 'document-1';
 type FakeConnection = { userId: string; clients: number[]; readOnly?: boolean };
 
 function fakeDocument(connections: FakeConnection[]): Document {
-  const states = new Map(connections.flatMap(({ userId, clients }) => clients.map((clientId): [number, { userId: string }] => [clientId, { userId }])));
+  const states = new Map(
+    connections.flatMap(({ userId, clients }) => clients.map((clientId): [number, { userId: string }] => [clientId, { userId }])),
+  );
   return {
     name: DOCUMENT_ID,
     awareness: { getStates: () => states },
-    connections: new Map(connections.map(({ userId, clients, readOnly = false }, index) => [index, { clients: new Set(clients), connection: { readOnly, context: { userId, documentId: DOCUMENT_ID } } }])),
+    connections: new Map(
+      connections.map(({ userId, clients, readOnly = false }, index) => [
+        index,
+        { clients: new Set(clients), connection: { readOnly, context: { userId, documentId: DOCUMENT_ID } } },
+      ]),
+    ),
   } as unknown as Document;
 }
 
@@ -31,5 +38,10 @@ test('a read-only connection declares nothing', () => {
 });
 
 test('a client id held by two connections is declared by neither', () => {
-  expect(declaredBy([{ userId: 'ana', clients: [1, 2] }, { userId: 'bruno', clients: [1] }])).toEqual(['2:ana']);
+  expect(
+    declaredBy([
+      { userId: 'ana', clients: [1, 2] },
+      { userId: 'bruno', clients: [1] },
+    ]),
+  ).toEqual(['2:ana']);
 });

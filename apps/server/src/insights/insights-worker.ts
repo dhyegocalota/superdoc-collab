@@ -2,6 +2,7 @@ import { HOUR_MS, MIN_RETRY_AFTER_MS } from '@superdoc-history/types';
 import { describeError } from '../history/projection-messages';
 
 export const INSIGHTS_JOB_FAILED_MESSAGE = 'Insights job failed for';
+// NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
 export const LLM_MAX_CONCURRENT_JOBS = 2;
 export const LLM_MAX_CALLS_PER_HOUR = 60;
 export const LLM_WINDOW_MS = HOUR_MS;
@@ -19,7 +20,11 @@ export class InsightsWorker {
   private readonly maxConcurrentJobs: number;
   private readonly maxCallsPerHour: number;
 
-  constructor({ now = () => Date.now(), maxConcurrentJobs = LLM_MAX_CONCURRENT_JOBS, maxCallsPerHour = LLM_MAX_CALLS_PER_HOUR }: { now?: () => number; maxConcurrentJobs?: number; maxCallsPerHour?: number } = {}) {
+  constructor({
+    now = () => Date.now(),
+    maxConcurrentJobs = LLM_MAX_CONCURRENT_JOBS,
+    maxCallsPerHour = LLM_MAX_CALLS_PER_HOUR,
+  }: { now?: () => number; maxConcurrentJobs?: number; maxCallsPerHour?: number } = {}) {
     this.now = now;
     this.maxConcurrentJobs = maxConcurrentJobs;
     this.maxCallsPerHour = maxCallsPerHour;

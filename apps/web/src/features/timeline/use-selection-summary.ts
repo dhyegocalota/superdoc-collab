@@ -2,7 +2,13 @@ import { SECOND_MS, SelectionSummaryState, type EditSelection, type SelectionSum
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, SummaryTooSoonError, TIMELINE_POLL_MS } from './timeline-api';
+import {
+  fetchSelectionSummary,
+  requestSelectionSummary,
+  selectionSummaryQueryKey,
+  SummaryTooSoonError,
+  TIMELINE_POLL_MS,
+} from './timeline-api';
 
 function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
   if (query.state.error instanceof DocumentUnavailableError) return false;
@@ -10,7 +16,19 @@ function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefin
   return false;
 }
 
-export function useSelectionSummary({ documentId, selection, binMs, isOpen, timelineStamp }: { documentId: string; selection: EditSelection; binMs: number | null; isOpen: boolean; timelineStamp: string | null }): UseQueryResult<SelectionSummaryView> {
+export function useSelectionSummary({
+  documentId,
+  selection,
+  binMs,
+  isOpen,
+  timelineStamp,
+}: {
+  documentId: string;
+  selection: EditSelection;
+  binMs: number | null;
+  isOpen: boolean;
+  timelineStamp: string | null;
+}): UseQueryResult<SelectionSummaryView> {
   const queryClient = useQueryClient();
   const seenStamp = useRef(timelineStamp);
   const query = useQuery({
@@ -31,7 +49,13 @@ export function useSelectionSummary({ documentId, selection, binMs, isOpen, time
   return query;
 }
 
-export function useSummarizeEdits({ documentId, binMs }: { documentId: string; binMs: number | null }): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
+export function useSummarizeEdits({
+  documentId,
+  binMs,
+}: {
+  documentId: string;
+  binMs: number | null;
+}): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection, binMs }),

@@ -15,7 +15,9 @@ export type HighlightTarget = { blockId: string; pattern: string };
 export type HighlightResult = { commentIds: string[]; skippedCount: number; targetCount: number };
 
 export function highlightTargets(runs: EditRunView[]): HighlightTarget[] {
-  const targets = runs.map((run) => ({ blockId: run.blockId, pattern: run.inserted.trim() })).filter((target) => target.pattern.length >= MIN_HIGHLIGHT_CHARACTERS);
+  const targets = runs
+    .map((run) => ({ blockId: run.blockId, pattern: run.inserted.trim() }))
+    .filter((target) => target.pattern.length >= MIN_HIGHLIGHT_CHARACTERS);
   const unique = new Map(targets.map((target) => [`${target.blockId}|${target.pattern}`, target]));
   return [...unique.values()].sort((left, right) => right.pattern.length - left.pattern.length);
 }
@@ -37,9 +39,17 @@ export async function highlightEdits({ document, runs }: { document: EditorDocum
     matched
       .flat()
       .slice(0, MAX_HIGHLIGHTS)
-      .map((target, index) => document.comments.create({ text: HIGHLIGHT_COMMENT_TEXT, externalId: `${HIGHLIGHT_EXTERNAL_ID_PREFIX}-${batchId}-${index}`, target })),
+      .map((target, index) =>
+        document.comments.create({
+          text: HIGHLIGHT_COMMENT_TEXT,
+          externalId: `${HIGHLIGHT_EXTERNAL_ID_PREFIX}-${batchId}-${index}`,
+          target,
+        }),
+      ),
   );
-  const commentIds = settledReceipts.flatMap((settled) => (settled.status === 'fulfilled' && settled.value.success ? [settled.value.id] : []));
+  const commentIds = settledReceipts.flatMap((settled) =>
+    settled.status === 'fulfilled' && settled.value.success ? [settled.value.id] : [],
+  );
   return { commentIds, skippedCount: matched.filter((found) => found.length === 0).length, targetCount: targets.length };
 }
 

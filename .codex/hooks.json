@@ -1,0 +1,42 @@
+{
+  "description": "The same guards Claude Code runs from .claude/settings.json; the scripts live in .agents/hooks and read the tool input from stdin.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/guard-secrets.sh\"",
+            "timeout": 10,
+            "statusMessage": "Guarding .env files"
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/guard-git-add-all.sh\"",
+            "timeout": 10,
+            "statusMessage": "Guarding git add and the gates"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/warn-conventions.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking code conventions"
+          }
+        ]
+      }
+    ]
+  }
+}

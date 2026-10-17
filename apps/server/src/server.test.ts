@@ -65,9 +65,20 @@ describe('startServer', () => {
     const environment = testEnvironment();
     const first = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
     const headers = { 'content-type': 'application/json' };
-    await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-up/email` }), { method: 'POST', headers, body: JSON.stringify(RESTART_CREDENTIALS) });
-    const signedIn = await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-in/email` }), { method: 'POST', headers, body: JSON.stringify({ email: RESTART_CREDENTIALS.email, password: RESTART_CREDENTIALS.password }) });
-    const cookie = signedIn.headers.getSetCookie().map((setCookie) => setCookie.split(';')[0]).join('; ');
+    await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-up/email` }), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(RESTART_CREDENTIALS),
+    });
+    const signedIn = await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-in/email` }), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email: RESTART_CREDENTIALS.email, password: RESTART_CREDENTIALS.password }),
+    });
+    const cookie = signedIn.headers
+      .getSetCookie()
+      .map((setCookie) => setCookie.split(';')[0])
+      .join('; ');
     await first.stop();
     const second = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
     const me = await fetch(urlOf({ port: second.port, path: ApiPath.Me }), { headers: { cookie } });
@@ -87,7 +98,11 @@ test('startServer rejects instead of hanging when the port is taken', async () =
   const blocker = createServer();
   await new Promise<void>((resolve) => blocker.listen(0, resolve));
   const { port } = blocker.address() as AddressInfo;
-  await expect(startServer({ environment: { ...testEnvironment(), port }, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() })).rejects.toMatchObject({ code: 'EADDRINUSE' });
+  await expect(
+    startServer({ environment: { ...testEnvironment(), port }, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() }),
+  ).rejects.toMatchObject({
+    code: 'EADDRINUSE',
+  });
   await new Promise((resolve) => blocker.close(resolve));
 });
 

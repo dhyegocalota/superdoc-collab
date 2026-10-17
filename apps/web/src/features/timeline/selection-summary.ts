@@ -1,5 +1,10 @@
 import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
-import { NO_EDITS_TO_SUMMARIZE_MESSAGE, SUMMARIES_UNAVAILABLE_MESSAGE, SUMMARIZING_EDITS_MESSAGE, SUMMARY_UP_TO_DATE_MESSAGE } from './timeline-copy';
+import {
+  NO_EDITS_TO_SUMMARIZE_MESSAGE,
+  SUMMARIES_UNAVAILABLE_MESSAGE,
+  SUMMARIZING_EDITS_MESSAGE,
+  SUMMARY_UP_TO_DATE_MESSAGE,
+} from './timeline-copy';
 
 export function selectionVolume({ timeline, selection }: { timeline: DocumentTimeline; selection: EditSelection }): number {
   return timeline.bins
@@ -9,7 +14,15 @@ export function selectionVolume({ timeline, selection }: { timeline: DocumentTim
     .reduce((total, [, cell]) => total + cell.inserted + cell.deleted, 0);
 }
 
-export function summarizeDisabledReason({ volume, view, isPending }: { volume: number; view: SelectionSummaryView | undefined; isPending: boolean }): string | null {
+export function summarizeDisabledReason({
+  volume,
+  view,
+  isPending,
+}: {
+  volume: number;
+  view: SelectionSummaryView | undefined;
+  isPending: boolean;
+}): string | null {
   if (volume === 0) return NO_EDITS_TO_SUMMARIZE_MESSAGE;
   if (isPending) return SUMMARIZING_EDITS_MESSAGE;
   if (view === undefined) return null;
@@ -24,7 +37,15 @@ export function isSameSelection({ left, right }: { left: EditSelection; right: E
   return left.term === right.term && left.author === right.author && left.topic === right.topic && left.at === right.at;
 }
 
-export function errorForSelection({ error, variables, selection }: { error: Error | null; variables: EditSelection | undefined; selection: EditSelection }): Error | null {
+export function errorForSelection({
+  error,
+  variables,
+  selection,
+}: {
+  error: Error | null;
+  variables: EditSelection | undefined;
+  selection: EditSelection;
+}): Error | null {
   if (error === null || variables === undefined) return null;
   if (!isSameSelection({ left: variables, right: selection })) return null;
   return error;

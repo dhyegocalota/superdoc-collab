@@ -54,6 +54,7 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
         scopes: OAUTH_SCOPES,
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
+        clientRegistrationDefaultApplicationType: 'infer',
       }),
     ],
     hooks: { before: normalizeCredentials, after: omitSessionToken },

@@ -15,6 +15,7 @@ export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; 
   const rows = timeline.bands
     .filter((band) => band.volume > 0)
     .sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
+  if (rows.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">{TOP_EDITS_LABEL}</h3>

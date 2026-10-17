@@ -1,8 +1,7 @@
 export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';
 
 export const TIMELINE_HEADING = 'Timeline';
-export const REFRESH_TOPICS_LABEL = 'Refresh topics';
-export const REGROUP_TOPICS_LABEL = 'Refresh topics';
+export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
 export const NOTHING_TO_GROUP_MESSAGE = 'No edits to group into topics yet';
 export const RETRY_TOPICS_LABEL = 'Retry';
@@ -24,8 +23,8 @@ export const EARLIER_STATE_LABEL = 'For an earlier state';
 export const RETRY_SUMMARY_LABEL = 'Retry summary';
 export const SUMMARIZING_EDITS_MESSAGE = 'Summarizing edits…';
 export const NO_EDITS_TO_SUMMARIZE_MESSAGE = 'No edits to summarize';
-export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date';
-export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable';
+export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date.';
+export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
 

@@ -1,4 +1,4 @@
-import { DocumentRole, type EditSelection } from '@superdoc-history/types';
+import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,13 @@ import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineSt
 import { SelectionSummaryCard } from './selection-summary-card';
 import { SummarizeEditsButton } from './summarize-edits-button';
 import { Streamgraph } from './streamgraph';
-import { REFRESH_TOPICS_LABEL, RESIZE_PANEL_LABEL, TIMELINE_HEADING } from './timeline-copy';
+import {
+  NOTHING_TO_GROUP_MESSAGE,
+  REGROUP_TOPICS_LABEL,
+  REGROUPING_TOPICS_MESSAGE,
+  RESIZE_PANEL_LABEL,
+  TIMELINE_HEADING,
+} from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useElementWidth } from '@/lib/use-element-width';
@@ -77,6 +83,12 @@ function ResizeHandle({
   );
 }
 
+function regroupDisabledReason({ timeline, isPending }: { timeline: DocumentTimeline | undefined; isPending: boolean }): string | null {
+  if (isPending) return REGROUPING_TOPICS_MESSAGE;
+  if (timeline && timeline.bins.length === 0) return NOTHING_TO_GROUP_MESSAGE;
+  return null;
+}
+
 export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: TimelinePanelProps) {
   const [isOpen, setIsOpen] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -114,6 +126,8 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const disabledReason = timeline
     ? summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending })
     : null;
+  const regroupReasonId = useId();
+  const regroupReason = regroupDisabledReason({ timeline, isPending: refresh.isPending });
   const summaryError = errorForSelection({ error: summarize.error, variables: summarize.variables, selection });
 
   useEffect(() => {
@@ -149,8 +163,15 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               <SummarizeEditsButton disabledReason={disabledReason} reasonId={reasonId} onSummarize={() => summarize.mutate(selection)} />
             )}
             {isOpen && canRefresh && (
-              <Button type="button" variant="outline" size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate()}>
-                {REFRESH_TOPICS_LABEL}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={regroupReason !== null}
+                aria-describedby={regroupReason === null ? undefined : regroupReasonId}
+                onClick={() => refresh.mutate()}
+              >
+                {REGROUP_TOPICS_LABEL}
               </Button>
             )}
             <Button
@@ -166,6 +187,11 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
           {isOpen && canRefresh && disabledReason !== null && (
             <p id={reasonId} className="basis-full px-2 text-xs text-muted-foreground">
               {disabledReason}
+            </p>
+          )}
+          {isOpen && canRefresh && regroupReason !== null && (
+            <p id={regroupReasonId} className="basis-full px-2 text-xs text-muted-foreground">
+              {regroupReason}
             </p>
           )}
         </header>
@@ -192,8 +218,6 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               )}
             </div>
             <FilterBox />
-            {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
-            {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
             <SelectionSummaryCard
               view={selectionSummary}
               error={summaryError}
@@ -201,6 +225,8 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               isPending={summarize.isPending}
               onRetry={() => summarize.mutate(selection)}
             />
+            {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
+            {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
           </div>
         )}
       </div>

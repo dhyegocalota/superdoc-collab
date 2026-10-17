@@ -18,6 +18,7 @@ export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: Ti
   const { topics, projection, bins, bands } = timeline;
   const isLagging = projection.isBehind && projection.lagMs !== null && projection.lagMs >= PROJECTION_LAG_NOTICE_MS;
   const hasNoMatches = hasFilter && bins.length > 0 && bands.every((band) => band.volume === 0);
+  const isNamingTopics = topics.state === TopicState.Pending && bins.length > 0;
   return (
     <div className="flex flex-col gap-2 text-sm">
       {topics.state === TopicState.Failed && (
@@ -31,7 +32,7 @@ export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: Ti
           )}
         </div>
       )}
-      {topics.state === TopicState.Pending && <p role="status">{TOPICS_PENDING_MESSAGE}</p>}
+      {isNamingTopics && <p role="status">{TOPICS_PENDING_MESSAGE}</p>}
       {isLagging && (
         <div role="status" className="flex items-center gap-2">
           <p>{HISTORY_CATCHING_UP_MESSAGE}</p>

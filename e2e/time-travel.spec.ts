@@ -50,7 +50,7 @@ const LIVE_TEXT = ' live';
 const AGAIN_TEXT = ' again';
 const VERSIONS_SEGMENT = '/versions/';
 const BAND_NAME = 'Budget';
-const INSERTED_SNIPPET_PATTERN = /\+".+"/;
+const INSERTED_SNIPPET_SELECTOR = 'ins';
 const FAILING_PARAGRAPHS = ['FAIL-TOPICS: the plan costs 10.', 'Hiring: we add two people.'];
 const STABLE_WINDOW_MS = 4_500;
 const ANA = DEMO_USERS[0]!.name;
@@ -104,7 +104,7 @@ test('the edit bin shows the edit and lists it', async ({ browser }) => {
   expect(serverText).toContain(EDIT_TEXT.trim());
   const binEdits = ana.page.locator('aside section').getByRole('listitem');
   await expect(binEdits.filter({ hasText: ANA })).toBeVisible();
-  await expect(binEdits.filter({ hasText: INSERTED_SNIPPET_PATTERN })).toBeVisible();
+  await expect(binEdits.filter({ has: ana.page.locator(INSERTED_SNIPPET_SELECTOR) })).toBeVisible();
 });
 
 test('a shared at link opens the same version for another member', async ({ browser }) => {

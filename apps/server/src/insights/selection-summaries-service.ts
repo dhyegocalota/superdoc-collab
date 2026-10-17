@@ -4,6 +4,7 @@ import {
   SELECTION_SUMMARY_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
+  UTC_TIME_ZONE,
   type EditSelection,
   type EventAuthor,
   type SelectionSummary,
@@ -158,7 +159,7 @@ export class SelectionSummariesService {
     const runs = snapshot.runs.filter((run) => runVolume(run) > 0);
     if (runs.length === 0 || cursor === null) return null;
     return {
-      key: selectionKeyOf({ selection, binMs: snapshot.binMs }),
+      key: selectionKeyOf({ selection, binMs: snapshot.binMs, timeZone: UTC_TIME_ZONE }),
       snapshot: { ...snapshot, runs },
       cursor,
       topicsUpdatedAt: snapshot.topicsUpdatedAt,

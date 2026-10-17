@@ -15,7 +15,7 @@ function periodBinMs({ selection, binMs }: { selection: EditSelection; binMs: nu
   return binMs;
 }
 
-export function selectionKeyOf({ selection, binMs }: { selection: EditSelection; binMs: number }): string {
+export function selectionKeyOf({ selection, binMs }: { selection: EditSelection; binMs: number; timeZone: string }): string {
   const normalized = [
     normalizedText(selection.term),
     normalizedText(selection.author),

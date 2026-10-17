@@ -4,15 +4,17 @@ import {
   MINUTE_MS,
   documentApiPath,
   HttpStatus,
+  selectionSummaryApiPath,
   timelineEditsApiPath,
   TimelineBandKind,
+  TimelineQueryParam,
   type DocumentTimeline,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { TimelinePipelineCache } from './timeline-pipeline-cache';
-import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
+import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks, zonedQuery } from '../testing/timeline-client';
 import { signedInUser } from '../testing/test-server';
 
 const DAY_BIN_MS = 1440 * MINUTE_MS;
@@ -25,8 +27,31 @@ const OFF_LADDER_BIN_MS = 61_000;
 const TWO_MINUTE_BIN_MS = 2 * MINUTE_MS;
 
 function timelineUrl({ server, documentId, query }: { server: { baseUrl: string }; documentId: string; query: string }): string {
-  return `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${query}`;
+  return `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${zonedQuery({ query })}`;
 }
+
+function editsUrl({ server, documentId, query }: { server: { baseUrl: string }; documentId: string; query: string }): string {
+  return `${server.baseUrl}${timelineEditsApiPath(documentId)}?${zonedQuery({ query })}`;
+}
+
+const ZONELESS_PATHS = [
+  ['timeline', (documentId: string) => documentApiPath({ documentId, resource: DocumentResource.Timeline })],
+  ['edits', (documentId: string) => `${timelineEditsApiPath(documentId)}?binStart=0`],
+  ['selection', (documentId: string) => selectionSummaryApiPath(documentId)],
+] as const;
+const UNKNOWN_TIME_ZONE = 'Mars/Olympus';
+
+test.each(ZONELESS_PATHS)('the %s route answers 400 when timeZone is missing or unknown', async (_name, pathOf) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const path = `${server.baseUrl}${pathOf(documentId)}`;
+  const separator = path.includes('?') ? '&' : '?';
+  const missing = await fetch(path, { headers: { cookie: owner.cookie } });
+  const unknown = await fetch(`${path}${separator}${TimelineQueryParam.TimeZone}=${encodeURIComponent(UNKNOWN_TIME_ZONE)}`, {
+    headers: { cookie: owner.cookie },
+  });
+  expect([missing.status, unknown.status]).toEqual([HttpStatus.BadRequest, HttpStatus.BadRequest]);
+  await server.stop();
+});
 
 test('filters by author name or email and keeps the x axis', async () => {
   const { server, documentId, owner, editor } = await twoAuthorsInTwoBlocks();
@@ -48,10 +73,9 @@ test('filters by author name or email and keeps the x axis', async () => {
 
 test('term=a.b*( narrows without a 500', async () => {
   const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
-  const response = await fetch(
-    `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?term=${encodeURIComponent('a.b*(')}`,
-    { headers: { cookie: owner.cookie } },
-  );
+  const response = await fetch(timelineUrl({ server, documentId, query: `term=${encodeURIComponent('a.b*(')}` }), {
+    headers: { cookie: owner.cookie },
+  });
   expect(response.status).toBe(HttpStatus.Ok);
   expect(((await response.json()) as DocumentTimeline).bands.every((band) => band.volume === 0)).toBe(true);
   await server.stop();
@@ -121,20 +145,20 @@ test('edits lists the runs of one bin', async () => {
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${DAY_BIN_MS}` });
   const editBin = timeline.bins.find((bin) => Object.keys(bin.byBand).length > 0)!;
   const edits = (await (
-    await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=${editBin.start}&binMs=${DAY_BIN_MS}`, {
+    await fetch(editsUrl({ server, documentId, query: `binStart=${editBin.start}&binMs=${DAY_BIN_MS}` }), {
       headers: { cookie: owner.cookie },
     })
   ).json()) as BinEdits;
   expect(edits.runs.map((run) => run.inserted)).toEqual([' more money', ' a designer']);
   const empty = (await (
-    await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=0&binMs=${DAY_BIN_MS}`, {
+    await fetch(editsUrl({ server, documentId, query: `binStart=0&binMs=${DAY_BIN_MS}` }), {
       headers: { cookie: owner.cookie },
     })
   ).json()) as BinEdits;
   expect(empty.runs).toEqual([]);
-  expect(
-    (await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binMs=${DAY_BIN_MS}`, { headers: { cookie: owner.cookie } })).status,
-  ).toBe(HttpStatus.BadRequest);
+  expect((await fetch(editsUrl({ server, documentId, query: `binMs=${DAY_BIN_MS}` }), { headers: { cookie: owner.cookie } })).status).toBe(
+    HttpStatus.BadRequest,
+  );
   await server.stop();
 });
 
@@ -173,7 +197,7 @@ test('ten thousand events build one pipeline per cursor and answer within the lo
   commitBulkEvents({ server, documentId, userId: owner.id, count: BULK_EVENTS, blockCount: BULK_BLOCKS });
   const headers = { cookie: owner.cookie };
   const timelineCall = () => timed(() => fetch(timelineUrl({ server, documentId, query: '' }), { headers }));
-  const editsCall = () => timed(() => fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=0`, { headers }));
+  const editsCall = () => timed(() => fetch(editsUrl({ server, documentId, query: 'binStart=0' }), { headers }));
   const durations = [await timelineCall(), await timelineCall(), await editsCall()];
   if (!isContinuousIntegration) durations.forEach((duration) => expect(duration).toBeLessThan(LATENCY_BUDGET_MS));
   expect(server.services.timelinePipelines.builds).toBe(1);

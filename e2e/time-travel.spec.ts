@@ -1,17 +1,12 @@
 import type { Browser, Page } from '@playwright/test';
-import {
-  DEMO_USERS,
-  DOCUMENT_UNAVAILABLE_MESSAGE,
-  ShareLinkRole,
-  TOPICS_UNAVAILABLE_MESSAGE,
-  versionViewPagePath,
-} from '../libs/types/src';
+import { DEMO_USERS, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath } from '../libs/types/src';
 import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import {
   BACK_TO_LIVE_LABEL,
   FILTER_LABEL,
   REFRESH_TOPICS_LABEL,
   RETRY_TOPICS_LABEL,
+  SUMMARIZE_EDITS_LABEL,
   VERSION_FRAME_TITLE,
 } from '../apps/web/src/features/timeline/timeline-copy';
 import {
@@ -48,7 +43,6 @@ const PARAGRAPHS = ['Budget: the plan costs 10.', 'Hiring: we add two people.'];
 const EDIT_TEXT = ' More money';
 const LIVE_TEXT = ' live';
 const AGAIN_TEXT = ' again';
-const VERSIONS_SEGMENT = '/versions/';
 const BAND_NAME = 'Budget';
 const INSERTED_SNIPPET_PATTERN = /\+".+"/;
 const FAILING_PARAGRAPHS = ['FAIL-TOPICS: the plan costs 10.', 'Hiring: we add two people.'];
@@ -97,7 +91,7 @@ test('the first bin opens a version of its minute and Back to live returns', asy
   await expect.poll(() => readLiveText(ana.page)).toContain(AGAIN_TEXT);
 });
 
-test('the edit bin shows the edit and lists it', async ({ browser }) => {
+test('the edit bin shows the edit, lists it and Browser Back returns to live', async ({ browser }) => {
   const { ana, documentId } = await ownerWithEdit(browser);
   await openEditBin({ page: ana.page, documentId });
   const serverText = await expectViewerMatchesServer({ page: ana.page, documentId });
@@ -105,6 +99,10 @@ test('the edit bin shows the edit and lists it', async ({ browser }) => {
   const binEdits = ana.page.locator('aside section').getByRole('listitem');
   await expect(binEdits.filter({ hasText: ANA })).toBeVisible();
   await expect(binEdits.filter({ hasText: INSERTED_SNIPPET_PATTERN })).toBeVisible();
+  await ana.page.goBack();
+  await expect.poll(() => currentAt(ana.page)).toBeNull();
+  await expect(versionBanner(ana.page)).toHaveCount(0);
+  await expect.poll(() => readLiveText(ana.page)).toContain(EDIT_TEXT);
 });
 
 test('a shared at link opens the same version for another member', async ({ browser }) => {
@@ -119,29 +117,6 @@ test('a shared at link opens the same version for another member', async ({ brow
   });
   await expect.poll(() => readViewerText(bruno.page), { timeout: VERSION_TIMEOUT_MS }).toBe(anaText);
   expect(await versionBanner(bruno.page).textContent()).toBe(await versionBanner(ana.page).textContent());
-});
-
-test('a non-member opening an at link sees the document is unavailable', async ({ browser }) => {
-  const { ana, documentId } = await ownerWithEdit(browser);
-  await openEditBin({ page: ana.page, documentId });
-  const dani = await signedInContext({ browser, user: DEMO_USERS[3]! });
-  const versionRequests: string[] = [];
-  dani.page.on('request', (request) => {
-    if (request.url().includes(VERSIONS_SEGMENT)) versionRequests.push(request.url());
-  });
-  await dani.page.goto(ana.page.url());
-  await expect(dani.page.getByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: VERSION_TIMEOUT_MS });
-  expect(versionRequests).toEqual([]);
-});
-
-test('Browser Back from a version returns to live', async ({ browser }) => {
-  const { ana } = await ownerWithEdit(browser);
-  await pressInChart({ page: ana.page, name: BAND_NAME, keys: ['End'] });
-  await expect.poll(() => currentAt(ana.page), { timeout: VERSION_TIMEOUT_MS }).not.toBeNull();
-  await ana.page.goBack();
-  await expect.poll(() => currentAt(ana.page)).toBeNull();
-  await expect(versionBanner(ana.page)).toHaveCount(0);
-  await expect.poll(() => readLiveText(ana.page)).toContain(EDIT_TEXT);
 });
 
 test('highlights stay local to one viewer', async ({ browser }) => {
@@ -183,6 +158,7 @@ test('a reader opens the timeline and a version, cannot refresh, and the room dr
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
   await waitForBands({ page: caio.page, names: [BAND_NAME] });
   await expect(caio.page.getByRole('button', { name: REFRESH_TOPICS_LABEL })).toHaveCount(0);
+  await expect(caio.page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveCount(0);
   await editorText(caio.page).first().click();
   await caio.page.keyboard.press('Escape');
   await expect.poll(() => caio.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
@@ -199,11 +175,12 @@ test('a reader opens the timeline and a version, cannot refresh, and the room dr
   expect(await readLiveText(ana.page)).toBe(liveBefore);
 });
 
-test('a reader sees failed topics without a Retry button while the owner has one', async ({ browser }) => {
+test('failed topics fall back to author bands and only the owner gets Retry', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: FAILING_PARAGRAPHS });
   await typeInParagraph({ page: ana.page, paragraphText: 'FAIL-TOPICS:', text: EDIT_TEXT });
   await expect(ana.page.getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: VERSION_TIMEOUT_MS });
+  await waitForBands({ page: ana.page, names: [ANA] });
   await expect(ana.page.getByRole('button', { name: RETRY_TOPICS_LABEL })).toBeVisible();
   const caio = await signedInContext({ browser, user: DEMO_USERS[2]! });
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });

@@ -24,6 +24,10 @@
 
 <!-- Reviewer verdict and the findings that were fixed. -->
 
+## Security
+
+<!-- Security reviewer verdict, verbatim: CLEAR | FINDINGS | NOT APPLICABLE — reason, and the findings that were fixed. -->
+
 ## Learnings
 
 <!-- docs/learnings/ files recorded or revisited by this change, or "nothing learned". -->
@@ -45,6 +49,7 @@
 - [ ] Spec approved by the owner before building
 - [ ] plan.md and test-plan.md exist and the test plan was executed by a tester sub-agent
 - [ ] Reviewed by a reviewer sub-agent before opening
+- [ ] Reviewed by a security-reviewer sub-agent before opening
 - [ ] Screenshots and video recorded with Playwright MCP and hosted on the `pr-media-<slug>` release
 - [ ] Tests: unit, E2E, and the user walk
 - [ ] Everything in English; no comments, no `?? default`, no `else`

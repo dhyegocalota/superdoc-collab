@@ -181,7 +181,7 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 **Libraries.**
 
-- SuperDoc editor `superdoc` and `@superdoc/sdk` (AGPL-3.0)
+- SuperDoc editor `superdoc` and `@superdoc/sdk` (AGPL-3.0); the editor's usage telemetry is disabled, so the page talks to no host but this server and the LLM provider through it
 - Hocuspocus server and provider (MIT) and Yjs (MIT) for real-time collaboration
 - Better Auth (MIT) for accounts and sessions
 - Drizzle ORM (Apache-2.0) over better-sqlite3 (MIT)

@@ -171,10 +171,11 @@ test('a session near the end of its room token is replaced, so an edit after a r
 
 test('an agent opening an uncommitted room is answered NOT_READY and seeds nothing', async () => {
   const roomId = await seededDocument({ server, owner });
+  const before = loggedUpdates(roomId);
   const refused = await editThrough({ sessions: sessionsWith({ roomMode: RoomMode.Create }), user: owner, name: 'Ana', roomId }).catch(
     (error: unknown) => error,
   );
   expect(refused).toBeInstanceOf(AgentToolError);
   expect((refused as AgentToolError).message).toBe(DOCUMENT_NOT_READY_ERROR);
-  expect(loggedUpdates(roomId)).toBe(0);
+  expect(loggedUpdates(roomId)).toBe(before);
 });

@@ -1,4 +1,4 @@
-import { VERSION_MARK_MS } from '@superdoc-history/types';
+import { ClientActor, VERSION_MARK_MS } from '@superdoc-history/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
 import { MigrationSet } from './migrations';
@@ -30,7 +30,9 @@ test('keeps the bootstrap mark and one mark per minute', () => {
   const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
   const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
   const ana = new Y.Doc();
-  ana.on('update', (update: Uint8Array) => log.append({ documentName: DOCUMENT, connectionUserId: 'ana', update }));
+  ana.on('update', (update: Uint8Array) =>
+    log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update }),
+  );
   writeStory({ document: ana, texts: ['Plan'] });
   commitBootstrap(ana);
   Array.from({ length: EDITS }).forEach((_, index) => {

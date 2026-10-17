@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { ClientActor } from '@superdoc-history/types';
 import * as Y from 'yjs';
 
 const HISTORY_TABLES = ['updates', 'snapshots', 'client_identities'];
@@ -7,6 +8,7 @@ export type LoggedUpdate = {
   sequence: number;
   documentName: string;
   connectionUserId: string;
+  connectionActor: ClientActor;
   yjsClientIds: number[];
   serverTime: number;
   update: Uint8Array;
@@ -21,12 +23,14 @@ export type ClientIdentity = {
   documentName: string;
   yjsClientId: number;
   userId: string;
+  actor: ClientActor;
 };
 
 type UpdateRow = {
   sequence: number;
   document_name: string;
   connection_user_id: string;
+  connection_actor: ClientActor;
   yjs_client_ids: string;
   server_time: number;
   update_bytes: Uint8Array;
@@ -37,6 +41,7 @@ function toLoggedUpdate(row: UpdateRow): LoggedUpdate {
     sequence: row.sequence,
     documentName: row.document_name,
     connectionUserId: row.connection_user_id,
+    connectionActor: row.connection_actor,
     yjsClientIds: JSON.parse(row.yjs_client_ids),
     serverTime: row.server_time,
     update: new Uint8Array(row.update_bytes),
@@ -55,14 +60,26 @@ export class UpdateLog {
     this.database = database;
   }
 
-  append({ documentName, connectionUserId, update }: { documentName: string; connectionUserId: string; update: Uint8Array }): LoggedUpdate {
+  append({
+    documentName,
+    connectionUserId,
+    connectionActor,
+    update,
+  }: {
+    documentName: string;
+    connectionUserId: string;
+    connectionActor: ClientActor;
+    update: Uint8Array;
+  }): LoggedUpdate {
     const yjsClientIds = extractStructClientIds(update);
     const serverTime = Date.now();
-    yjsClientIds.forEach((yjsClientId) => this.observeClientIdentity({ documentName, yjsClientId, userId: connectionUserId }));
+    yjsClientIds.forEach((yjsClientId) =>
+      this.observeClientIdentity({ documentName, yjsClientId, userId: connectionUserId, actor: connectionActor }),
+    );
     const result = this.database
       .prepare('INSERT INTO updates (document_name, connection_user_id, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?)')
       .run(documentName, connectionUserId, JSON.stringify(yjsClientIds), serverTime, update);
-    return { sequence: Number(result.lastInsertRowid), documentName, connectionUserId, yjsClientIds, serverTime, update };
+    return { sequence: Number(result.lastInsertRowid), documentName, connectionUserId, connectionActor, yjsClientIds, serverTime, update };
   }
 
   observeClientIdentity({ documentName, yjsClientId, userId }: ClientIdentity): void {

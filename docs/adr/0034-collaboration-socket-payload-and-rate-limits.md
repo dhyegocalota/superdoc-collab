@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
+- Revised: 2026-10-17, after the plan review (the counter moves to the ws layer and covers frames before authentication)
 - Inspired by: `docs/features/connection-state/brief.md` finding 4, the SuperDoc hosted collaboration server (1 MiB per message, 120 messages per second per room, 16 MiB per room)
 
 ## Context
@@ -12,7 +13,7 @@ The collaboration socket server is created with the library default, which accep
 ## Decision
 
 - `maxPayload` on the socket server equals a small multiple of `MAX_UPLOAD_BYTES`: 4 times 10 MB. The constant is `MAX_SOCKET_MESSAGE_BYTES` in `libs/types`.
-- A per-connection rate cap of 120 messages in a rolling second, through the existing `SlidingWindow`. The constant is `MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types`.
+- A per-socket rate cap of 120 frames in a rolling second, through the existing `SlidingWindow`, counted at the `ws` layer in `attach-collaboration.ts` from the first frame, before authentication too: Hocuspocus queues every frame that arrives before the authentication message without a bound, so a counter inside its hooks would start too late. The constant is `MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types`. A frame over the payload cap is closed by `ws` with 1009, which the provider treats as final; `terminateOnError` leaves a socket that is already closing alone so that close frame is delivered.
 - A breach of the rate cap closes that socket with close code 1008 (policy violation) and a reason string. The client's provider reconnects on its own.
 - Both limits are logged with the document id and never with the payload.
 

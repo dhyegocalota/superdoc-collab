@@ -45,6 +45,8 @@ export type ProjectionFailedReply = FailedReplyBase &
     | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
   );
 export type ProjectionReply = ProjectionDoneReply | VersionReply | BlocksReply | ProjectionFailedReply;
+export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>;
+export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply;
 
 export type ProjectionWorkerData = { databaseDirectory: string };
 

@@ -18,6 +18,7 @@ export const MAX_SOCKET_MESSAGES_PER_SECOND = 120;
 export const POLICY_VIOLATION_CLOSE_CODE = 1008;
 export const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
 export const SOCKET_RATE_LIMIT_REASON = 'Too many messages per second';
+export const SOCKET_SINGLE_DOCUMENT_REASON = 'One document per socket';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;

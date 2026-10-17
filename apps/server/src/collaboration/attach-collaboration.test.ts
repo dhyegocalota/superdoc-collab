@@ -7,6 +7,7 @@ import {
   RETRY_AFTER_HEADER,
   SECOND_MS,
   SOCKET_RATE_LIMIT_REASON,
+  SOCKET_SINGLE_DOCUMENT_REASON,
   VERSION_FAILURE_TTL_MS,
   versionCollaborationPath,
 } from '@superdoc-collab/types';
@@ -43,12 +44,13 @@ const FRAME_OVERHEAD_BYTES = 1024;
 const PADDED_UPDATE_TEST_TIMEOUT_MS = 60_000;
 const SECRET_PAYLOAD_TEXT = 'secret-payload-text';
 const FLOOD_DOCUMENT_ID = '33333333-3333-4333-8333-333333333333';
+const OTHER_FLOOD_DOCUMENT_ID = '44444444-4444-4444-8444-444444444444';
 const FLOOD_ROOM_NAME = `${SUPERDOC_ROOM_PREFIX}${FLOOD_DOCUMENT_ID}`;
 
-function validUpdateFrame(): Buffer {
+function validUpdateFrame(roomName: string = FLOOD_ROOM_NAME): Buffer {
   const document = new Y.Doc();
   document.getText('t').insert(0, SECRET_PAYLOAD_TEXT);
-  const message = new OutgoingMessage(FLOOD_ROOM_NAME).createSyncMessage().writeUpdate(Y.encodeStateAsUpdate(document));
+  const message = new OutgoingMessage(roomName).createSyncMessage().writeUpdate(Y.encodeStateAsUpdate(document));
   return Buffer.from(message.toUint8Array());
 }
 
@@ -171,6 +173,15 @@ describe('attachCollaboration', () => {
     expect(warn).toHaveBeenCalled();
     expect(JSON.stringify(warn.mock.calls)).not.toContain(SECRET_PAYLOAD_TEXT);
     warn.mockRestore();
+    await server.stop();
+  });
+  test('a frame for a second document on one socket closes it with 1008', async () => {
+    const server = await startTestServer();
+    const { socket, closed } = openFloodSocket(server);
+    await new Promise((resolve) => socket.on('open', resolve));
+    socket.send(validUpdateFrame());
+    socket.send(validUpdateFrame(`${SUPERDOC_ROOM_PREFIX}${OTHER_FLOOD_DOCUMENT_ID}`));
+    expect(await closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_SINGLE_DOCUMENT_REASON });
     await server.stop();
   });
   test('121 valid awareness frames close the socket with 1008 and the reason', async () => {

@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
@@ -64,7 +67,7 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Refuse to seed without a demo password
         run: |
-          set -eu
+          set -euo pipefail
           status=0
           docker run --rm -e SEED_DEMO_USERS=true "$IMAGE" > refusal.log 2>&1 || status=$?
           cat refusal.log
@@ -79,20 +82,20 @@ jobs:
         run: curl --fail --silent --show-error --max-time 5 --retry 30 --retry-delay 2 --retry-max-time 120 --retry-all-errors "$SMOKE_ORIGIN/api/health"
       - name: The web app is served
         run: |
-          set -eu
+          set -euo pipefail
           curl --fail --silent --show-error --output index.html "$SMOKE_ORIGIN/"
           grep -q '<title>SuperDoc History</title>' index.html
       - name: The data volume belongs to the node user
         run: test "$(docker exec app stat -c %u /data)" = "1000"
       - name: A seeded demo user signs in
         run: |
-          set -eu
+          set -euo pipefail
           status=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'content-type: application/json' -H "origin: $SMOKE_ORIGIN" -d "{\"email\":\"ana@example.com\",\"password\":\"$SMOKE_DEMO_PASSWORD\"}" "$SMOKE_ORIGIN/api/auth/sign-in/email")
           echo "sign-in status: $status"
           test "$status" = "200"
       - name: Restart keeps the data and the accounts
         run: |
-          set -eu
+          set -euo pipefail
           docker restart app
           curl --fail --silent --show-error --max-time 5 --retry 30 --retry-delay 2 --retry-max-time 120 --retry-all-errors "$SMOKE_ORIGIN/api/health"
           docker logs app > app.log 2>&1

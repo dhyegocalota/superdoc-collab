@@ -1,6 +1,6 @@
 import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import type { CommentsLayout, Config } from 'superdoc';
-import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
+import { collaborationUrl, type CreatorTicket, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { initialZoomMode } from './superdoc-zoom';
 
@@ -19,6 +19,7 @@ export function superdocOptions({
   documentMode,
   collaborationPath,
   roomMode,
+  creatorTicket,
   user,
   viewport,
 }: {
@@ -28,6 +29,7 @@ export function superdocOptions({
   documentMode: DocumentMode;
   collaborationPath: string;
   roomMode: RoomMode;
+  creatorTicket?: CreatorTicket | null;
   user: SessionUser;
   viewport: Window;
 }): Config {
@@ -42,7 +44,7 @@ export function superdocOptions({
         v2Collaboration: {
           providerType: HOCUSPOCUS_PROVIDER,
           documentId,
-          serverUrl: collaborationUrl(collaborationPath),
+          serverUrl: collaborationUrl({ path: collaborationPath, creatorTicket }),
           roomMode,
           token: COLLABORATION_TOKEN_PLACEHOLDER,
         },

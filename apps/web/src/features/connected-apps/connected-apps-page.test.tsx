@@ -88,6 +88,16 @@ test('the ChatGPT instruction is visible text', async () => {
   expect(await screen.findByText(CHATGPT_INSTRUCTION)).toBeInTheDocument();
 });
 
+test('revoking an app that is already revoked removes the row without an error', async () => {
+  deleteConsent.mockResolvedValue({ data: null, error: { status: 404 } } as never);
+  const user = userEvent.setup();
+  renderWithProviders(<ConnectedAppsPage />);
+  getConsents.mockResolvedValue({ data: [], error: null } as never);
+  await user.click(await screen.findByRole('button', { name: revokeLabel(CLIENT_NAME) }));
+  expect(await screen.findByText(CONNECTED_APPS_EMPTY_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(REVOKE_ERROR_MESSAGE)).not.toBeInTheDocument();
+});
+
 test('no consents shows the empty message', async () => {
   getConsents.mockResolvedValue({ data: [], error: null } as never);
   renderWithProviders(<ConnectedAppsPage />);

@@ -742,7 +742,7 @@ In `versions/time-travel.test.tsx`:
 - [ ] **Step 9: Run the suite and the class-string sweep**
 
 Run: `pnpm --filter @superdoc-history/web test:unit && pnpm typecheck`
-Expected: `Tests  201 passed (201)`, typecheck clean.
+Expected: `Tests  205 passed (205)`, typecheck clean.
 Run: `rg -n "toHaveClass\('(opacity-40|invisible|topic-band|topic-band-other|shrink-0)'\)|className\).toContain\('(min-h|lg:|max-h)" apps/web/src`
 Expected: no output.
 

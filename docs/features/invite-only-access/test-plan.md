@@ -86,6 +86,9 @@ The reviewer picks the three claims most likely to be wrong and tries to refute 
 
 ## Coverage honesty
 
+- Two screenshots (`03-admin-invite-dialog.png`, `07-copy-failed.png`) show about ten characters of invite tokens from the local walk stack, which was destroyed with its volume after the walk; those tokens no longer resolve anywhere. Not redacted.
+- The invite lookup has no rate limit of its own (Better Auth's limiter covers `/api/auth/*` only); tokens are 256-bit, so this costs at most one indexed lookup per request.
+
 - The walk ran on `a4c7edf`, before the review fixes in `3bd9c52`. The three behaviours those fixes added are pinned by tests, not walked: the 400 for an unknown or oversized zone on `/update-user` (`auth-admin-endpoints.test.ts`, real HTTP), the error shown when `/api/setup` fails (`sign-up-page.test.tsx`), and the setup refresh after a successful submit (`use-auth-submit.test.tsx`).
 
 - A network cut after the create request reaches the server but before its answer reaches the page leaves a pending invite whose link was never shown. It admits nobody (the token exists only in that lost response), is visible as Pending, can be revoked, and expires in seven days. Accepted rather than fixed.

@@ -50,14 +50,14 @@ The last line passes the key from `.env` without printing it. `RAILWAY_RUN_UID=0
 
 The invite-only migration turns every existing account into a plain user. The instance is claimed (it has users) but has no administrator, so step 5's `{"claimed":false}` check and step 6 cannot pass. Pick one path after the deploy:
 
-- **Keep the data.** Promote your own account; the earlier accounts stay as plain users with the passwords they had (removing accounts is not in the product yet):
+- **Keep the data.** Promote your own account; the earlier accounts stay as plain users with the passwords they had, and removing accounts is not in the product yet. Choose this only when those passwords are private: the seeded demo accounts share `DEMO_PASSWORD`, so if it was ever published, take the clean path instead.
 
   ```bash
   railway ssh -- node dist/admin-promote.js <your email>
   ```
 
   Skip step 5's claim check and step 6; open `/admin` signed in as that account.
-- **Start clean.** Back up (step 9), delete the volume in the dashboard, recreate it at `/data`, redeploy, and continue with step 5 and the claim in step 6.
+- **Start clean** (recommended for a public demo that was seeded). Back up (step 9), delete the volume in the dashboard, recreate it at `/data`, redeploy, and continue with step 5 and the claim in step 6.
 
 ## 4. Domain and origin
 

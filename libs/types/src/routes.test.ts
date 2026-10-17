@@ -4,7 +4,6 @@ import {
   adminApiPath,
   DocumentResource,
   documentApiPath,
-  inviteApiPath,
   selectionSummaryApiPath,
   sharePagePath,
   signUpPagePath,
@@ -44,7 +43,6 @@ test('builds every path with its ids encoded', () => {
 });
 
 test('invite and admin paths encode their parameters', () => {
-  expect(inviteApiPath('a b')).toBe('/api/invites/a%20b');
   expect(adminApiPath(AdminResource.Users)).toBe('/api/admin/users');
   expect(adminApiPath(AdminResource.Invites)).toBe('/api/admin/invites');
   expect(signUpPagePath('x/y')).toBe('/sign-up?invite=x%2Fy');

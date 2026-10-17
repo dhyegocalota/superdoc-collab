@@ -116,9 +116,9 @@ test('a failed setup check shows an error instead of loading forever', async () 
 
 test('the invite check sends the token in a header, never in the URL', async () => {
   const fetchSpy = mockApi({ claimed: true, inviteStatus: HttpStatus.Ok });
-  renderWithProviders(<SignUpPage />, { route: signUpPagePath('tok') });
-  await screen.findByRole('heading', { name: INVITED_TITLE });
+  renderWithProviders(<SignUpPage />, { route: signUpPagePath(TOKEN) });
+  await screen.findByText(INVITED_TITLE);
   const inviteCall = fetchSpy.mock.calls.find(([input]) => input === ApiPath.Invites);
-  expect(new Headers(inviteCall?.[1]?.headers).get(INVITE_TOKEN_HEADER)).toBe('tok');
-  expect(fetchSpy.mock.calls.some(([input]) => String(input).includes('tok'))).toBe(false);
+  expect(new Headers(inviteCall?.[1]?.headers).get(INVITE_TOKEN_HEADER)).toBe(TOKEN);
+  expect(fetchSpy.mock.calls.some(([input]) => String(input).includes(TOKEN))).toBe(false);
 });

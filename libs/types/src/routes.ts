@@ -100,10 +100,6 @@ export function versionViewPagePath({ documentId, sequence }: { documentId: stri
   return `${documentPagePath(documentId)}/${COLLABORATION_VERSIONS_SEGMENT}/${sequence}/${VERSION_VIEW_SEGMENT}`;
 }
 
-export function inviteApiPath(token: string): string {
-  return `${ApiPath.Invites}/${encodeURIComponent(token)}`;
-}
-
 export function adminApiPath(resource: AdminResource): string {
   return `${ApiPath.Admin}/${resource}`;
 }

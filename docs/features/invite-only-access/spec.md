@@ -61,7 +61,7 @@ Admin routes answer 401 signed out and 403 for a non-admin; `requireAdmin` middl
 | Method and path | Who | Body / answer |
 |---|---|---|
 | `GET /api/setup` | public | `{ claimed }` |
-| `GET /api/invites/:token` | public | `200 { state: 'pending' }` only while the invite is pending; unknown, accepted, revoked and expired tokens all answer 404 with no detail, so the page shows one "This invite is not valid" for every dead link |
+| `GET /api/invites` with `x-invite-token` | public | `200 { state: 'pending' }` only while the invite is pending; unknown, accepted, revoked and expired tokens all answer 404 with no detail, so the page shows one "This invite is not valid" for every dead link |
 | `GET /api/admin/users` | admin | `[{ id, name, email, role, createdAt }]` |
 | `POST /api/admin/users/:id/role` | admin | `{ role }`; the last admin cannot be demoted (409 `LAST_ADMIN_MESSAGE`), so an instance never ends up without an admin; an admin may step down only when another admin exists |
 | `GET /api/admin/invites` | admin | `[{ id, state, createdAt, expiresAt, createdBy: { name }, acceptedBy: { name } \| null }]` |
@@ -100,6 +100,8 @@ The README is rewritten for a newcomer, in this order: one-paragraph pitch, thre
 | Revoke an accepted invite | 409 |
 | Expired invite opened | "This invite is not valid" |
 | Admin page opened by a user | redirect to documents with a toast |
+
+Security review ruling (2026-10-17): the invite lookup reads the token from the `x-invite-token` header, never from the URL path, so access logs never hold a live invite; the admin's link keeps the token in its query string, which is the designed credential.
 
 ## Open questions → answers
 

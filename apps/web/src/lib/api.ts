@@ -23,6 +23,10 @@ export function apiGet(path: string): Promise<Response> {
   return fetch(path, { credentials: 'same-origin' });
 }
 
+export function apiGetWithHeaders({ path, headers }: { path: string; headers: Record<string, string> }): Promise<Response> {
+  return fetch(path, { credentials: 'same-origin', headers });
+}
+
 export function apiSend({ path, method, body }: { path: string; method: HttpMethod; body: BodyInit | null }): Promise<Response> {
   const headers = typeof body === 'string' ? { 'content-type': JSON_CONTENT_TYPE } : undefined;
   return fetch(path, { method, body, headers, credentials: 'same-origin' });

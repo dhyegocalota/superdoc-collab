@@ -53,7 +53,13 @@ export const titleSchema = z.object({ title: z.string().trim().min(1).max(TITLE_
 export type UserReference = { id: string; name: string };
 export type DocumentSummary = { id: string; title: string; owner: UserReference; updatedAt: number; role: DocumentRole };
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
-export type OpenedDocument = { document: DocumentSummary; role: DocumentRole; roomMode: RoomMode; creatorAttempt: number | null };
+export type OpenedDocument = {
+  document: DocumentSummary;
+  role: DocumentRole;
+  roomMode: RoomMode;
+  creatorAttempt: number | null;
+  creatorEpoch: string | null;
+};
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean };
 export type DocumentMembers = { members: DocumentMember[] };
 export type ShareLinks = Record<ShareLinkRole, string>;

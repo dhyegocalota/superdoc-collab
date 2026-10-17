@@ -10,5 +10,5 @@ export function summaryAs(role: DocumentRole): DocumentSummary {
 }
 
 export function openedAs(role: DocumentRole, roomMode = RoomMode.Create): OpenedDocument {
-  return { document: summaryAs(role), role, roomMode, creatorAttempt: null };
+  return { document: summaryAs(role), role, roomMode, creatorAttempt: null, creatorEpoch: null };
 }

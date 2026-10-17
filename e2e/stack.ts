@@ -1,4 +1,4 @@
-const LOOPBACK_HOST = '127.0.0.1';
+export const LOOPBACK_HOST = '127.0.0.1';
 const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
 const DEMO_PASSWORD = 'superdoc-demo';
 const WEB_DIST_DIR = 'apps/web/dist';

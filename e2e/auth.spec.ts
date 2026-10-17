@@ -1,7 +1,7 @@
 import { CONNECTED_APPS_HEADING } from '../apps/web/src/features/connected-apps/connected-apps-copy';
 import { MINE_EMPTY_MESSAGE } from '../apps/web/src/features/documents/documents-copy';
 import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS, documentPagePath, ShareLinkRole } from '../libs/types/src';
-import { EDITOR_READY_TIMEOUT_MS, editorText, readShareLinks, uploadSeed } from './editor';
+import { EDITOR_READY_TIMEOUT_MS, editorText, readShareLinks, signOut, uploadSeed } from './editor';
 import {
   DEMO_PASSWORD,
   FORWARDED_FOR_HEADER,
@@ -69,7 +69,7 @@ test('sign out returns to sign-in and documents is protected again', async ({ pa
   await page.goto(AppRoute.SignIn);
   await signIn({ page, email: bruno!.email, password: DEMO_PASSWORD });
   await expectSignedInAs({ page, name: bruno!.name });
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signOut({ page, name: bruno!.name });
   await expect(page).toHaveURL(AppRoute.SignIn);
   await page.goto(AppRoute.Documents);
   await expect(page).toHaveURL(/\/sign-in\?next=/);

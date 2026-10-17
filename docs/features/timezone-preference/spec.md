@@ -80,6 +80,8 @@ The audit ([`audit.md`](audit.md)) found storage and comparisons correct, and on
 | DST gap or overlap inside a bin | bins are built from instants, so the gap bin is shorter and the overlap bin longer; no bin is empty because of the clock change alone |
 | Save on the settings page fails | the select keeps the chosen value, an inline error shows, nothing toasts |
 
+Ruling during testing (2026-10-17): a zone's spelling is the one the runtime's ICU resolves it to. Node 24 and Chromium resolve `Asia/Kathmandu` to `Asia/Katmandu` and `Asia/Kolkata` to `Asia/Calcutta`; the server canonicalises every incoming zone the same way, so a zone has one spelling end to end, and the label shows that spelling. A future ICU that switches to the current IANA names changes the spelling without breaking anything, since both resolve.
+
 ## Open questions → answers
 
 | Question | Options | Lead's ruling | Date |

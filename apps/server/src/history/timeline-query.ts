@@ -1,4 +1,4 @@
-import { BIN_LADDER_MS } from '@superdoc-collab/history';
+import { BIN_LADDER_MS, MAX_BIN_MS } from '@superdoc-collab/history';
 import {
   canonicalTimeZone,
   FILTER_MAX_LENGTH,
@@ -17,7 +17,7 @@ const filterText = z
   .optional()
   .transform((value) => (value ? value : null));
 function isSupportedBinMs(value: number): boolean {
-  return BIN_LADDER_MS.includes(value) || (value > 0 && value % WEEK_MS === 0);
+  return BIN_LADDER_MS.includes(value) || (value > 0 && value <= MAX_BIN_MS && value % WEEK_MS === 0);
 }
 
 const binMsParameter = z.coerce

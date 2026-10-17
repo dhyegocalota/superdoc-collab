@@ -4,8 +4,8 @@ import type { ImportedRevision } from './read-model';
 const OFFSET_LESS_DATE_TIME = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
 const UTC_DESIGNATOR = 'Z';
 const SPACE_SEPARATED_DATE_TIME = /^(\d{4}-\d{2}-\d{2}) (?=\d{2}:)/;
-const MIN_REVISION_YEAR = 1900;
-const MAX_REVISION_YEAR = 9999;
+export const MIN_REVISION_YEAR = 1900;
+export const MAX_REVISION_YEAR = 9999;
 
 export enum TrackedChangeType {
   Insertion = 'insertion',

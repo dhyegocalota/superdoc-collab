@@ -1,4 +1,5 @@
 import { MINUTE_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
+import { MAX_REVISION_YEAR, MIN_REVISION_YEAR } from '../imported-revisions';
 import type { EditRun } from './runs';
 import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 
@@ -28,6 +29,9 @@ export function chooseBinMs(spanMs: number): number {
   if (fitting) return fitting;
   return Math.ceil(spanMs / (MAX_BINS - COVERING_EXTRA_BINS) / WEEK_MS) * WEEK_MS;
 }
+
+const MAX_IMPORTED_SPAN_MS = Date.UTC(MAX_REVISION_YEAR + 1, 0, 1) - Date.UTC(MIN_REVISION_YEAR, 0, 1);
+export const MAX_BIN_MS = chooseBinMs(MAX_IMPORTED_SPAN_MS);
 
 function advancedStart({ start, binMs, timeZone }: { start: number; binMs: number; timeZone: string }): number {
   const next = nextZonedBinStart({ start, binMs, timeZone });

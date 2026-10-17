@@ -4,7 +4,8 @@ const LOCALE = 'en-US';
 const HOURS_PER_DAY = 24;
 const FIRST_MONDAY_EPOCH_DAY = 4;
 const FIRST_MONDAY_LOCAL_MS = FIRST_MONDAY_EPOCH_DAY * DAY_MS;
-const LONGEST_SHIFT_MS = 2 * HOUR_MS;
+const PROBE_STEP_MS = HOUR_MS;
+const MAX_PROBE_SHIFT_MS = DAY_MS;
 const partsFormats = new Map<string, Intl.DateTimeFormat>();
 
 function partsFormat(timeZone: string): Intl.DateTimeFormat {
@@ -83,8 +84,13 @@ function steppedBack({ next, start, binMs, timeZone }: { next: number; start: nu
   return steppedBack({ next: previous, start, binMs, timeZone });
 }
 
+function probedBinStart({ start, binMs, timeZone, shiftMs }: { start: number; binMs: number; timeZone: string; shiftMs: number }): number {
+  const probed = zonedBinStartOf({ time: start + binMs + shiftMs, binMs, timeZone });
+  if (probed > start || shiftMs >= MAX_PROBE_SHIFT_MS) return probed;
+  return probedBinStart({ start, binMs, timeZone, shiftMs: shiftMs + PROBE_STEP_MS });
+}
+
 export function nextZonedBinStart({ start, binMs, timeZone }: { start: number; binMs: number; timeZone: string }): number {
-  const probed = zonedBinStartOf({ time: start + binMs, binMs, timeZone });
-  const next = probed > start ? probed : zonedBinStartOf({ time: start + binMs + LONGEST_SHIFT_MS, binMs, timeZone });
+  const next = probedBinStart({ start, binMs, timeZone, shiftMs: 0 });
   return steppedBack({ next, start, binMs, timeZone });
 }

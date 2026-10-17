@@ -47,6 +47,8 @@ export enum VersionResource {
   Text = 'text',
 }
 
+export const CREATOR_ATTEMPT_QUERY_KEY = 'attempt';
+export const CREATOR_EPOCH_QUERY_KEY = 'epoch';
 const REFRESH_SEGMENT = 'refresh';
 const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';

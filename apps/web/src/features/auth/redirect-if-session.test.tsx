@@ -65,7 +65,7 @@ test('a next pointing at another origin falls back to documents', async () => {
 });
 
 test('the signed-out landing keeps the next query for the form', async () => {
-  respondWithUser(ADA);
+  respondWithUser(null);
   const nextSearch = `?next=${encodeURIComponent(AppRoute.Admin)}`;
   const router = renderSignInRoute(`${AppRoute.SignIn}${nextSearch}`, SIGNED_OUT_STATE);
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();

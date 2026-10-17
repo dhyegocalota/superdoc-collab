@@ -87,3 +87,9 @@ panel (filters in URL, at = selected bin) ──POST /api/documents/:id/summarie
 - Web: button gating by role and volume, polling until ready, cooldown message from `Retry-After`, stale badge, keyboard tooltip and clipped tooltip positions.
 - E2E (fake OpenRouter): filter by `@bruno` → Summarize → sentence names Bruno; second click → cached (one fake call); new edit → stale badge; reader has no button; 375 px layout.
 - Tester walk: real model once through `scripts/with-env.sh`; cooldown by two editors; LLM failure state.
+
+## Execution amendments (2026-10-17)
+
+- The panel re-reads the selection summary when the filtered timeline changes (volume, or the topic set's state and `computedAtSequence`), so a new edit inside the selection or a topic recompute shows the "For an earlier state" badge within one poll; an edit outside the current filter is noticed on the next read (reload, filter or bin change) — the server still decides Cached vs Started, so no extra model call can result.
+- Both 503s (Busy, Unavailable) carry `Retry-After`; the hourly Busy derives it from the oldest call in the window.
+- The summaries per-minute backoff is consumed on Busy (log-spam guard); the topics cooldown and the selection cooldown are consumed only when the model call starts.

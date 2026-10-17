@@ -109,6 +109,10 @@ export function createCollaborationServer({
       const isCommitted = bootstrap.isCommitted(documentId);
       const isHolder = attempt !== null && reservations.attemptOf({ documentId, userId }) === attempt;
       const mayWrite = reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
+      if (!isCommitted && actor === ClientActor.Agent) {
+        console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
+        throw new CollaborationAuthenticationError();
+      }
       if (!isCommitted && attempt === null) {
         console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationAuthenticationError();

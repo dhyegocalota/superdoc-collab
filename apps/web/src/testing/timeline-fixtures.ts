@@ -38,6 +38,7 @@ export function timelineWith({
   );
   const bins = volumes.map((row, binIndex) => ({
     start: FIRST_BIN_START + binIndex * MINUTE_MS,
+    end: FIRST_BIN_START + (binIndex + 1) * MINUTE_MS,
     versionSequence: null,
     byBand: Object.fromEntries(
       bands.map((band, index) => [band.id, { inserted: row[index]!, deleted: 0, authorKeys: [FIXTURE_AUTHOR_KEY] }]),

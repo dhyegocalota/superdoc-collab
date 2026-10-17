@@ -12,5 +12,5 @@ HARNESS §7 step 8 and the `open-pr` Merge section told the agent to dispatch th
 
 ## Change
 
-- HARNESS §7 step 8, the `open-pr` Merge section and `e2e/README.md`: suggest the dispatch only when the diff can change what the suite exercises (product code under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, dependencies, the build or runtime configuration). Docs, agent tooling and repository-shape tests merge on the green automatic run and the local `/verify`.
+- HARNESS §7 step 8, the `open-pr` Merge section and `e2e/README.md`: suggest the dispatch only when the diff can change what the suite exercises (product source under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, `.github/workflows/e2e.yml`, `.github/actions/`, `.nvmrc`, dependencies or build configuration; the list lives in HARNESS only). Docs, agent tooling, unit tests and repository-shape tests merge on the green automatic run and the local `/verify`.
 - When the owner asks for the run, the dispatch-and-wait steps are unchanged.

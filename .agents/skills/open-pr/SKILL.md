@@ -34,7 +34,7 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 
 ## Merge
 
-The automatic CI (`verify.yml`) does not run the E2E suite (ADR 0018). Suggest the manual E2E dispatch only when the diff can change what the suite exercises: product code under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, dependencies, the build or runtime configuration. For docs, agent tooling and repository-shape tests, do not suggest it. When the owner asks for the merge:
+The automatic CI (`verify.yml`) does not run the E2E suite (ADR 0018). Suggest the manual E2E dispatch only when the diff touches a path listed in HARNESS §7 step 8; otherwise do not suggest it. When the owner asks for the merge:
 
 1. Only if the owner asked for the E2E run: dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), find the run (`gh run list --workflow e2e --branch <branch> --limit 1`) and wait with `gh run watch <id> --exit-status`.
 2. Wait for the automatic `verify` run of the same head to be green (`gh pr checks <n> --watch`).

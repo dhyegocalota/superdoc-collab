@@ -17,6 +17,7 @@ import { LOADING_DOCUMENT_REASON_ID } from './download-menu';
 import { VersionBanner } from '@/features/versions/version-banner';
 import { VersionFrame } from '@/features/versions/version-frame';
 import { OpeningDocument } from './opening-document';
+import { ReadinessAnnouncement } from './readiness-announcement';
 import { SuperDocEditor } from './superdoc-editor';
 import { useDocumentFile } from './use-document-file';
 import { useEditorSetup } from './use-editor-setup';
@@ -47,16 +48,27 @@ export function DocumentPage() {
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
 
-  if (readiness === DocumentReadiness.Opening) return <OpeningDocument />;
-  if (isUnavailable) {
+  function withAnnouncement(page: ReactNode): ReactNode {
     return (
-      <WaitingForDocument documentId={documentId} readiness={DocumentReadiness.Unavailable} onKeepWaiting={keepWaiting} onRetry={retry} />
+      <>
+        <ReadinessAnnouncement readiness={readiness} />
+        {page}
+      </>
+    );
+  }
+
+  if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
+  if (isUnavailable) {
+    return withAnnouncement(
+      <WaitingForDocument documentId={documentId} readiness={DocumentReadiness.Unavailable} onKeepWaiting={keepWaiting} onRetry={retry} />,
     );
   }
   if (readiness !== DocumentReadiness.Ready) {
-    return <WaitingForDocument documentId={documentId} readiness={readiness} onKeepWaiting={keepWaiting} onRetry={retry} />;
+    return withAnnouncement(
+      <WaitingForDocument documentId={documentId} readiness={readiness} onKeepWaiting={keepWaiting} onRetry={retry} />,
+    );
   }
-  if (!opened) return <OpeningDocument />;
+  if (!opened) return withAnnouncement(<OpeningDocument />);
 
   const { title } = opened.document;
   const isReader = opened.role === DocumentRole.Reader;
@@ -78,7 +90,7 @@ export function DocumentPage() {
     superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
   }
 
-  return (
+  return withAnnouncement(
     <div className="flex h-dvh flex-col">
       <EditorHeader
         opened={opened}
@@ -140,6 +152,6 @@ export function DocumentPage() {
           onBackToLive={timeTravel.backToLive}
         />
       </div>
-    </div>
+    </div>,
   );
 }

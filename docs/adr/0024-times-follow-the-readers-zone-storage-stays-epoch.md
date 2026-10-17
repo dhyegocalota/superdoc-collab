@@ -29,7 +29,7 @@ Everything is stored and compared as UTC epoch milliseconds, which is right. Dis
 ## Consequences
 
 - `TimelineBin.end` is new and every consumer uses it; `start + binMs` is wrong from now on.
-- Cache keys for timelines and selection summaries include the zone.
+- Timeline cache keys include the zone; a selection summary key includes it only for a period selection, since a whole-document summary does not depend on it.
 - E2E helpers that read the timeline pass a zone.
 
 ## Evidence

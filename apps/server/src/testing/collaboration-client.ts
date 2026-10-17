@@ -159,14 +159,16 @@ export function connectAgentToDocument({
   documentId,
   document = new Y.Doc(),
   path = ApiPath.AgentCollaboration,
+  ticket = null,
 }: {
   server: TestServer;
   token: string;
   documentId: string;
   document?: Y.Doc;
   path?: string;
+  ticket?: CreatorTicket | null;
 }): Promise<CollaborationClient> {
-  return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path, ticket: null });
+  return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path, ticket });
 }
 
 export async function documentWithOwner({

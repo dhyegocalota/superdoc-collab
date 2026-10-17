@@ -340,7 +340,7 @@ test('clicking a bin without a version mark summarizes that bin', async () => {
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   await userEvent.click(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}`]));
+  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]));
   expect(window.location.search).not.toContain('at=');
 });
 
@@ -471,4 +471,29 @@ test('a timeline that advances reads the summary once and shows it for an earlie
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeEnabled();
   await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 3);
   expect(selectionReads(fetchSpy)).toBe(2);
+});
+
+test('every topic compute reads the summary again even when the volume is the same', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const pending: DocumentTimeline = { ...baseTimeline, topics: { state: TopicState.Pending, failure: null, computedAtSequence: null } };
+  const recomputed: DocumentTimeline = { ...baseTimeline, topics: { state: TopicState.Ready, failure: null, computedAtSequence: 9 } };
+  const fetchSpy = mockTimelineApi({ timelines: [baseTimeline, pending, recomputed], selectionViews: [READY_VIEW, READY_VIEW, STALE_VIEW] });
+  renderPanel();
+  expect(await screen.findByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
+  expect(selectionReads(fetchSpy)).toBe(1);
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS);
+  await waitFor(() => expect(selectionReads(fetchSpy)).toBe(2));
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS);
+  await waitFor(() => expect(selectionReads(fetchSpy)).toBe(3));
+  expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
+  expect(screen.getByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
+});
+
+test('refreshing the topics reads the summary again', async () => {
+  const fetchSpy = mockTimelineApi({ selectionViews: [READY_VIEW] });
+  renderPanel();
+  await screen.findByText(READY_VIEW.summary!.sentence);
+  const before = selectionReads(fetchSpy);
+  await userEvent.click(screen.getByRole('button', { name: REFRESH_TOPICS_LABEL }));
+  await waitFor(() => expect(selectionReads(fetchSpy)).toBe(before + 1));
 });

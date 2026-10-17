@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';
-import { formatBinRange, TooltipAlignment, tooltipAlignment, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
+import { formatBinRange, TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
 const timeline = timelineWith({
@@ -144,4 +144,20 @@ test('the tooltip never grows wider than a narrow chart', () => {
   render(<Streamgraph timeline={timeline} width={narrowWidth} selectedIndex={1} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={vi.fn()} />);
   fireEvent.focus(budgetBand());
   expect(screen.getByRole('tooltip')).toHaveStyle({ width: `${narrowWidth}px` });
+});
+
+const ALIGNMENT_SHIFT: Record<TooltipAlignment, number> = {
+  [TooltipAlignment.Start]: 0,
+  [TooltipAlignment.Center]: 0.5,
+  [TooltipAlignment.End]: 1,
+};
+
+test.each([343, 300, 256, 600])('the tooltip box stays inside a chart %i px wide wherever the bin is', (chartWidth) => {
+  const tooltipWidth = Math.min(TOOLTIP_WIDTH, chartWidth);
+  Array.from({ length: chartWidth + 1 }, (_, left) => left).forEach((left) => {
+    const anchor = tooltipAnchorLeft({ left, chartWidth });
+    const boxStart = anchor - tooltipWidth * ALIGNMENT_SHIFT[tooltipAlignment({ left, chartWidth })];
+    expect(boxStart).toBeGreaterThanOrEqual(0);
+    expect(boxStart + tooltipWidth).toBeLessThanOrEqual(chartWidth);
+  });
 });

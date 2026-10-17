@@ -1,7 +1,7 @@
-import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, TopicState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/test/timeline-fixtures';
-import { errorForSelection, selectionVolume, summarizeDisabledReason } from './selection-summary';
+import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';
 import { NO_EDITS_TO_SUMMARIZE_MESSAGE, SUMMARIES_UNAVAILABLE_MESSAGE, SUMMARIZING_EDITS_MESSAGE, SUMMARY_UP_TO_DATE_MESSAGE } from './timeline-copy';
 
 const timeline = timelineWith({ volumes: [[10, 0], [0, 5]], names: ['Budget', 'Hiring'] });
@@ -31,4 +31,12 @@ test('an error belongs only to the selection that caused it', () => {
   expect(errorForSelection({ error, variables: NO_SELECTION, selection: NO_SELECTION })).toBe(error);
   expect(errorForSelection({ error, variables: NO_SELECTION, selection: { ...NO_SELECTION, author: 'bruno' } })).toBeNull();
   expect(errorForSelection({ error: null, variables: NO_SELECTION, selection: NO_SELECTION })).toBeNull();
+});
+
+test('the timeline stamp moves with the edit volume and with every topic compute', () => {
+  const stamp = timelineStamp(timeline);
+  expect(timelineStamp({ ...timeline })).toBe(stamp);
+  expect(timelineStamp(timelineWith({ volumes: [[10, 0], [0, 6]], names: ['Budget', 'Hiring'] }))).not.toBe(stamp);
+  expect(timelineStamp({ ...timeline, topics: { ...timeline.topics, state: TopicState.Pending } })).not.toBe(stamp);
+  expect(timelineStamp({ ...timeline, topics: { ...timeline.topics, computedAtSequence: 99 } })).not.toBe(stamp);
 });

@@ -4,6 +4,7 @@ import {
   HttpMethod,
   HttpStatus,
   MIN_RETRY_AFTER_MS,
+  MINUTE_MS,
   RETRY_AFTER_HEADER,
   SECOND_MS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
@@ -88,25 +89,37 @@ test('refreshTopics returns the status on 202 and explains a 429', async () => {
 
 test('reading a selection summary sends every part of the selection', async () => {
   const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
-  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).toEqual(NONE_VIEW);
+  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(NONE_VIEW);
   expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`, expect.anything());
+});
+
+test('a selection at a period sends the bin size of that period', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
+  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: MINUTE_MS });
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}&binMs=${MINUTE_MS}`, expect.objectContaining({ method: HttpMethod.Post }));
+});
+
+test('a selection without a period never sends a bin size', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
+  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION, binMs: MINUTE_MS });
+  expect(fetchSpy).toHaveBeenCalledWith(SELECTION_PATH, expect.anything());
 });
 
 test('an empty selection is read from the bare path', async () => {
   const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
-  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION });
+  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION, binMs: null });
   expect(fetchSpy).toHaveBeenCalledWith(SELECTION_PATH, expect.anything());
 });
 
 test('requesting a summary posts the same selection', async () => {
   const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
-  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION });
+  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null });
   expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`, expect.objectContaining({ method: HttpMethod.Post }));
 });
 
 test('a summary requested too soon carries the seconds from Retry-After', async () => {
   respondWith(new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '12' } }));
-  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION }).catch((caught: unknown) => caught);
+  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null }).catch((caught: unknown) => caught);
   expect(error).toBeInstanceOf(SummaryTooSoonError);
   expect(error).toMatchObject({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterSeconds: 12 });
 });
@@ -114,31 +127,31 @@ test('a summary requested too soon carries the seconds from Retry-After', async 
 test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async (header) => {
   const headers = header === null ? undefined : { [RETRY_AFTER_HEADER]: header };
   respondWith(new Response('{}', { status: HttpStatus.TooManyRequests, headers }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toMatchObject({ retryAfterSeconds: MIN_RETRY_AFTER_MS / SECOND_MS });
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toMatchObject({ retryAfterSeconds: MIN_RETRY_AFTER_MS / SECOND_MS });
 });
 
 test('an unavailable model surfaces the server reason', async () => {
   respondWith(new Response(JSON.stringify({ error: UNAVAILABLE_REASON }), { status: HttpStatus.ServiceUnavailable }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toEqual(new ApiRequestError(UNAVAILABLE_REASON));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(UNAVAILABLE_REASON));
 });
 
 test('a 503 without a JSON error falls back to the status message', async () => {
   respondWith(new Response('<html>busy</html>', { status: HttpStatus.ServiceUnavailable }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })));
 });
 
 test('a selection summary of a document that is gone is unavailable', async () => {
   respondWith(new Response('{}', { status: HttpStatus.NotFound }));
-  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toBeInstanceOf(DocumentUnavailableError);
+  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toBeInstanceOf(DocumentUnavailableError);
 });
 
 test.each([SelectionSummaryState.Running, SelectionSummaryState.Ready, SelectionSummaryState.Failed])('a %s selection summary is returned as the server sent it', async (state) => {
   const view: SelectionSummaryView = { ...NONE_VIEW, state };
   respondWith(new Response(JSON.stringify(view)));
-  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).toEqual(view);
+  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(view);
 });
 
 test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])('reading a selection summary answered with %s fails with the status message', async (status) => {
   respondWith(new Response('{}', { status }));
-  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })));
+  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })));
 });

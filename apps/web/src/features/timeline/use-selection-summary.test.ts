@@ -20,7 +20,7 @@ function respondWith(response: () => Response) {
 async function pollsAfterFirstRead(status: () => Response): Promise<number> {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const fetchSpy = respondWith(status);
-  const { result } = renderHookWithRouter(() => useSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, isOpen: true, timelineVolume: null }));
+  const { result } = renderHookWithRouter(() => useSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, isOpen: true, timelineStamp: null }));
   await waitFor(() => expect(result.current.isFetched).toBe(true));
   await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * POLL_COUNT);
   return fetchSpy.mock.calls.length - 1;

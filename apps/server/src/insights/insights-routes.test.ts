@@ -1,4 +1,4 @@
-import { DocumentRole, HttpStatus, RETRY_AFTER_HEADER, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
+import { DocumentRole, documentApiPath, HttpStatus, RETRY_AFTER_HEADER, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';
@@ -80,6 +80,20 @@ test('the same user refreshing again while the run is in flight gets 202, then 4
   open();
   await server.services.insights.worker.idle();
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.TooManyRequests);
+  client.close();
+  await server.stop();
+});
+
+test('deleting a document forgets its refresh and summary cooldowns', async () => {
+  const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
+  expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
+  await server.services.insights.worker.idle();
+  server.services.insights.summaries.cooldown.start(documentId);
+  expect(server.services.insights.topics.cooldown.size()).toBe(1);
+  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: 'DELETE', headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  expect(deleted.status).toBe(HttpStatus.NoContent);
+  expect(server.services.insights.topics.cooldown.size()).toBe(0);
+  expect(server.services.insights.summaries.cooldown.size()).toBe(0);
   client.close();
   await server.stop();
 });

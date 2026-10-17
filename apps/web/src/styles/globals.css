@@ -135,6 +135,9 @@
   .topic-tint {
     background-color: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-tint-lightness));
   }
+  .member-glow {
+    box-shadow: 0 0 0 3px var(--ring);
+  }
   .topic-swatch-other {
     background-color: var(--topic-other);
   }

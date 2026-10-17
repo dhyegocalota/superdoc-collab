@@ -47,7 +47,7 @@ A one-word README change pays four to five sub-agents and two to four full gate 
 
 ### Failure handling
 
-A failed gate prints `verify: <gate> failed`, exits 1 and writes no record. A dirty tree never writes a record. A missing `gitleaks` fails its gate with the fix line; a missing Docker fails it when `docker/` or `deploy/` changed and is printed as skipped otherwise. Nothing passes silently.
+A failed gate prints `verify: <gate> failed`, exits 1 and writes no record. A dirty tree never writes a record. A missing `gitleaks` fails its gate with the fix line; a missing Docker fails it when the image's own files (`docker/`, `deploy/`, `.dockerignore`, `railway.json`, the compose files) changed and is printed as skipped otherwise. Nothing passes silently.
 
 ## Open questions → answers
 

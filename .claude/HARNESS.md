@@ -116,7 +116,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
 3b. Security verdict `CLEAR` or `NOT APPLICABLE`; `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build. The verdict line goes into the PR body under `## Security`.
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
-5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
+5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only origin/main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
 8. **The gate is local** (ADR 0028). Hosted runs are not waited for: GitHub Actions does not run for this repository. Before the merge, `git fetch origin` and merge `origin/main` into the branch (never rebase), run `/verify`, post its summary as a PR comment, confirm `origin/main` is still an ancestor of the head after a fresh fetch, and merge on green; a red gate goes back to Build. `.github/workflows/` stay true to the gate through their repository-shape tests for the day hosted runs come back.
@@ -125,7 +125,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 
 **Merge on green.** When the owner asks to merge as soon as the gate is green, merge, then land the tester's ticks and evidence in a `docs` follow-up PR.
 
-**Image proof.** When the diff touches `docker/` or `deploy/`, the `docker` gate builds the image and fails without a running Docker; the agent asks to install it and never merges around it.
+**Image proof.** When the diff touches the image's own files (`docker/`, `deploy/`, `.dockerignore`, `railway.json`, the compose files), the `docker` gate builds the image and fails without a running Docker; the agent asks to install it and never merges around it.
 
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
 

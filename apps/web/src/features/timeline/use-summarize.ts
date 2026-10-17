@@ -1,4 +1,5 @@
 import { secondsRoundedUp, SelectionSummaryState, SummarizeStep, type EditSelection, type SummarizeOutcome } from '@superdoc-collab/types';
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RetryLaterError } from '@/lib/api';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
@@ -37,6 +38,12 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
     },
   });
   const { error, reset } = mutation;
+
+  const selectionKey = JSON.stringify(queryKey);
+
+  useEffect(() => {
+    reset();
+  }, [selectionKey, reset]);
 
   useResetAfterRetry({ error, reset });
 

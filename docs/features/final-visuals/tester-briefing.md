@@ -274,6 +274,12 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 7. The page stays white in dark mode and a remote caret matches that member's avatar colour. Break it by: two browsers, a user whose slot collides with another.
 8. The editor header never shows a download that fails silently: a DOCX export failure shows `EXPORT_FAILED_MESSAGE` under the bar (still the page's job).
 
+### Review fix: empty selection and the outcome across selections
+
+- An empty selection or a document with no edits answers `UpToDate` with no summary; the card now says `NO_EDITS_TO_SUMMARIZE_MESSAGE` instead of "The summary is up to date." (red, then green: `selection-summary-card.test.tsx::an empty selection answered up to date shows the empty message…`).
+- `useSummarize` (G4's file, one authorized edit) resets its mutation when the selection query key changes, so the outcome and error belong to the selection (`use-summarize.test.tsx::the outcome belongs to the selection: another bin does not inherit it`; red `expected 'up-to-date' to be null`).
+- Hypothesis: after Summarize answers up to date on one bin, another bin or topic shows its own view with no up-to-date line. Break it by: switching bin, topic and filter right after the answer, and while a request is in flight.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

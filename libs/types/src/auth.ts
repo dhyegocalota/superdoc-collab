@@ -41,6 +41,10 @@ export function isSupportedTimeZone(value: string): boolean {
   return isResolvableTimeZone(value);
 }
 
+export function canonicalTimeZone(value: string): string {
+  throw new Error('canonicalTimeZone is not implemented');
+}
+
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);
 const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE);
 

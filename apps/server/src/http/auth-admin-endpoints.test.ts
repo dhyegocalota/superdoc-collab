@@ -57,3 +57,16 @@ test.each([
   expect(response.status).toBe(expected);
   await server.stop();
 });
+
+test('update-user stores the canonical spelling of a time zone alias', async () => {
+  const server = await startTestServer();
+  const eve = await signedInUser({ server, name: 'Eve' });
+  await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
+    method: HttpMethod.Post,
+    headers: { cookie: eve.cookie, 'content-type': 'application/json', origin: server.baseUrl },
+    body: JSON.stringify({ timeZone: 'us/eastern' }),
+  });
+  const row = server.database.sqlite.prepare('select time_zone as timeZone from user where id = ?').get(eve.id) as { timeZone: string };
+  expect(row.timeZone).toBe('America/New_York');
+  await server.stop();
+});

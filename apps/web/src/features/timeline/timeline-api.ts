@@ -4,7 +4,11 @@ import {
   DocumentResource,
   HttpMethod,
   HttpStatus,
+  MIN_RETRY_AFTER_MS,
+  RETRY_AFTER_HEADER,
   SECOND_MS,
+  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  selectionSummaryApiPath,
   TimelineQueryParam,
   timelineEditsApiPath,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
@@ -12,6 +16,8 @@ import {
   versionApiPath,
   type BinEdits,
   type DocumentTimeline,
+  type EditSelection,
+  type SelectionSummaryView,
   type TimelineFilter,
   type TopicStatus,
   type TopicSummaries,
@@ -24,13 +30,24 @@ import { requestFailedMessage } from './timeline-copy';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
 
-const RETRY_AFTER_HEADER = 'Retry-After';
-export const MIN_RETRY_AFTER_MS = SECOND_MS;
 const EDITS_SEGMENT = 'edits';
+const SELECTION_SEGMENT = 'selection';
+export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
+
+type ErrorBody = { error: string };
 
 export class TopicsRefreshTooSoonError extends ApiRequestError {
   constructor(readonly retryAfterMs: number) {
     super(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+  }
+}
+
+export class SummaryTooSoonError extends ApiRequestError {
+  readonly retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds: number) {
+    super(SELECTION_SUMMARY_TOO_SOON_MESSAGE);
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -65,6 +82,10 @@ export function versionQueryKey({ documentId, sequence }: { documentId: string; 
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Versions, sequence];
 }
 
+export function selectionSummaryQueryKey({ documentId, selection }: { documentId: string; selection: EditSelection }): unknown[] {
+  return [...summariesQueryKey(documentId), SELECTION_SEGMENT, selection];
+}
+
 export function pollWhileAvailable(query: { state: { error: Error | null } }): number | false {
   if (query.state.error instanceof DocumentUnavailableError) return false;
   return TIMELINE_POLL_MS;
@@ -81,6 +102,23 @@ function filterParams(filter: TimelineFilter): URLSearchParams {
   if (filter.term) params.set(TimelineQueryParam.Term, filter.term);
   if (filter.author) params.set(TimelineQueryParam.Author, filter.author);
   return params;
+}
+
+function selectionParams(selection: EditSelection): URLSearchParams {
+  const params = filterParams(selection);
+  if (selection.topic) params.set(TimelineQueryParam.Topic, selection.topic);
+  if (selection.at !== null) params.set(TimelineQueryParam.At, String(selection.at));
+  return params;
+}
+
+function isErrorBody(body: unknown): body is ErrorBody {
+  return typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string';
+}
+
+async function unavailableMessage(response: Response): Promise<string> {
+  const body: unknown = await response.json().catch(() => null);
+  if (isErrorBody(body)) return body.error;
+  return requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status });
 }
 
 function assertDocumentAvailable(response: Response): void {
@@ -113,6 +151,22 @@ export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new TopicsRefreshTooSoonError(readRetryAfterMs(response));
   if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Topics refresh', status: response.status }));
+  return response.json();
+}
+
+export async function fetchSelectionSummary({ documentId, selection }: { documentId: string; selection: EditSelection }): Promise<SelectionSummaryView> {
+  const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams(selection) }));
+  assertDocumentAvailable(response);
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status: response.status }));
+  return response.json();
+}
+
+export async function requestSelectionSummary({ documentId, selection }: { documentId: string; selection: EditSelection }): Promise<SelectionSummaryView> {
+  const response = await apiSend({ path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams(selection) }), method: HttpMethod.Post, body: null });
+  assertDocumentAvailable(response);
+  if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(Math.ceil(readRetryAfterMs(response) / SECOND_MS));
+  if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status }));
   return response.json();
 }
 

@@ -85,6 +85,12 @@ Pins (green when they landed): `timeline/bands.test.ts::contributors list a pers
 - `agent_actions` rows are only deleted by `UpdateLog.forget`; nothing prunes them otherwise.
 - `AgentActionsLog` is wired in `server.ts` with two lines that L3 also edits; the merge should keep one.
 
+### Review fixes
+
+- Agent actions now widen the span that picks the bin width and the covering bins, so an action after the last edit, or in a document with no edits, gets a bin and a mark (hypothesis 5 above is superseded: nothing is dropped, bins grow instead). Red: `AssertionError: expected [] to deeply equal [ 1767225600000, 1767229200000 ]` (only actions) and `expected false to be true` (after the last edit). Tests: `timeline-routes.test.ts` "an action after the last edit…", "a document with only agent actions…".
+- `AgentActionsLog.list({ documentName, from, until })` reads a range and `span(documentName)` gives the bounds. Red: `expected [ 5, 10, 20, 30 ] to deeply equal [ 10, 20 ]` and `AgentActionsLog.span is not implemented`.
+- Marks follow the author filter (matching on merged authors, so a person's email keeps their AI's marks) and ignore the term filter. Red: `expected [ …(2) ] to deeply equal [ Array(1) ]`. Hypothesis: filtering by the editor hides the owner's AI marks.
+
 ## L2 auth and collaboration
 
 ### What changed

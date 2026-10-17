@@ -2,6 +2,7 @@ import { AppRoute } from '@superdoc-history/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
+import { Toaster } from '@/components/ui/sonner';
 import { createMemoryRouter, parsePath, RouterProvider } from 'react-router';
 
 const ANY_PATH = '*';
@@ -28,6 +29,7 @@ export function renderWithProviders(
   render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>,
   );
   return { queryClient, router };

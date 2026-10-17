@@ -88,7 +88,7 @@ export function ConnectionBanner({ state, failureReason, isReloading, onReload }
       <Icon aria-hidden className={cn('size-4 shrink-0', iconClassName)} />
       <div className="min-w-0 flex-1 basis-48">
         <p className="font-medium">{title}</p>
-        {body && <p className="text-xs text-muted-foreground">{body}</p>}
+        {body && <p className="text-sm leading-5 text-muted-foreground">{body}</p>}
       </div>
       {isFailed && (
         <Button type="button" variant="outline" size="sm" className="ml-auto" disabled={isReloading} onClick={onReload}>

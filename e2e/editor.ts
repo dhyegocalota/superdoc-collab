@@ -103,6 +103,11 @@ async function focusParagraphEnd({ page, paragraphText }: { page: Page; paragrap
   }).toPass({ timeout: FOCUS_TIMEOUT_MS });
 }
 
+export async function insertInParagraph({ page, paragraphText, text }: { page: Page; paragraphText: string; text: string }): Promise<void> {
+  await focusParagraphEnd({ page, paragraphText });
+  await page.keyboard.insertText(text);
+}
+
 export async function typeInParagraph({ page, paragraphText, text }: { page: Page; paragraphText: string; text: string }): Promise<void> {
   await focusParagraphEnd({ page, paragraphText });
   for (const character of text) {

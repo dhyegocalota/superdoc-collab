@@ -12,6 +12,7 @@ import {
   RELOAD_LABEL,
   RELOADING_LABEL,
   SIGN_IN_LABEL,
+  UNSYNCED_LOST_ON_RELOAD_DETAIL,
   unsyncedDetailFor,
 } from './connection-copy';
 

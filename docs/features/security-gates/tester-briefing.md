@@ -18,7 +18,7 @@ Written by the developer sub-agent when its steps are done. The developer does n
 ```bash
 pnpm install --frozen-lockfile
 pnpm security:audit                      # expected exit 0, one moderate advisory reported, none at high
-pnpm audit --audit-level=high            # expected exit 1: every high path goes through @better-auth/cli
+pnpm audit --audit-level=high            # expected exit 1 at the time: every high path went through @better-auth/cli (replaced by auth 1.7.10 on 2026-10-17, now exit 0)
 gitleaks git --no-banner --redact .      # expected: no leaks found (gitleaks 8.30.1 via brew)
 pnpm --filter @superdoc-collab/server test:unit
 pnpm test:hooks && pnpm format:check && pnpm typecheck

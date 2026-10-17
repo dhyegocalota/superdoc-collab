@@ -38,10 +38,10 @@ Security was one lens of the general `reviewer` role, next to conventions, corre
 ## Evidence
 
 - `pnpm audit --audit-level=high` exits 1 (fifteen advisories); `pnpm audit --prod --audit-level=high` exits 0 on 2026-10-17.
-- Every high or critical advisory resolves through `apps/server > @better-auth/cli 1.4.21`, which is the latest release.
+- Every high or critical advisory resolved through `apps/server > @better-auth/cli 1.4.21`, which was the latest release of that package. On 2026-10-17 the deprecated `@better-auth/cli` was replaced by `auth` 1.7.10 (the CLI now ships under that name and follows `better-auth`); the regenerated Drizzle schema is identical to the committed one, and `pnpm audit --audit-level=high` on the whole tree exits 0 with one moderate advisory left (esbuild under drizzle-kit).
 
 ## Revisit when
 
-- `@better-auth/cli` releases a version that follows `better-auth` 1.7, so the dev tree can be audited at `high` too.
+- The dev tree is clean at `high` since 2026-10-17 (the CLI moved to `auth` 1.7.10), so `security:audit` can drop `--prod` and gate the whole tree.
 - The server grows a second process or an SSR surface, where CodeQL's taint tracking would pay for its minutes.
 - A security finding reaches `main` through a path neither the scanners nor the role covers.

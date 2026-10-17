@@ -20,7 +20,7 @@ Security in this repository is one lens of a generalist reviewer and nothing mec
 ## Non-goals
 
 - Static analysis (CodeQL, Semgrep): deferred in ADR 0022.
-- Auditing dev-only dependencies as a gate: `@better-auth/cli` pins a vulnerable `better-auth` 1.4 and is at its latest release; it is reported, not gated.
+- Auditing dev-only dependencies as a gate: at the time `@better-auth/cli` pinned a vulnerable `better-auth` 1.4 and was at its latest release; it was reported, not gated. Replaced by `auth` 1.7.10 on 2026-10-17, see ADR 0022.
 - Fixing any product vulnerability found by the first security review: a finding goes to its own fix with its own feature folder.
 - Runtime protections (WAF, rate limits beyond what exists).
 

@@ -25,6 +25,7 @@ export const EDITOR_FAILED_MESSAGE = 'The editor stopped working. Reload the pag
 export const EDITOR_ESCAPE_HINT = 'Press Escape to leave the editor.';
 export const EDITOR_EXIT_LABEL = 'End of the editor';
 export const SHARE_OPENING_MESSAGE = 'Opening…';
+export const ACCEPT_LINK_SUBJECT = 'Accepting the link';
 export const RENAME_FAILED_MESSAGE = 'The title could not be saved.';
 export const DELETE_FAILED_MESSAGE = 'The document could not be deleted.';
 export const RESET_FAILED_MESSAGE = 'The link could not be reset.';

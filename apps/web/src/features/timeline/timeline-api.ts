@@ -24,12 +24,12 @@ import {
 } from '@superdoc-history/types';
 import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, readJson, requestFailedMessage, RetryLaterError } from '@/lib/api';
 import { documentQueryKey } from '@/features/documents/documents-api';
+import { SUMMARIZE_EDITS_SUBJECT, TOPICS_REFRESH_SUBJECT } from './timeline-copy';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
 
 const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';
-export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 
 type ErrorBody = { error: string };
 
@@ -144,7 +144,7 @@ export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   const response = await apiSend({ path: topicsRefreshApiPath(documentId), method: HttpMethod.Post, body: null });
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new TopicsRefreshTooSoonError(readRetryAfterMs(response));
-  return readJson<TopicStatus>({ response, subject: 'Topics refresh' });
+  return readJson<TopicStatus>({ response, subject: TOPICS_REFRESH_SUBJECT });
 }
 
 export async function fetchSelectionSummary({

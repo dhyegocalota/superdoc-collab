@@ -28,10 +28,10 @@ import {
   refreshTopics,
   requestSelectionSummary,
   SummaryTooSoonError,
-  SUMMARIZE_EDITS_SUBJECT,
   TopicsRefreshTooSoonError,
   VersionLoadKind,
 } from './timeline-api';
+import { SUMMARIZE_EDITS_SUBJECT } from './timeline-copy';
 
 const DOCUMENT_ID = 'doc-1';
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });

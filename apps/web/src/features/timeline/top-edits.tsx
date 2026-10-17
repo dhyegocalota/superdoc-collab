@@ -1,6 +1,15 @@
-import type { DocumentTimeline, TimelineContributor, TopicSummaries } from '@superdoc-collab/types';
+import {
+  TimelineBandKind,
+  type DocumentTimeline,
+  type TimelineBand,
+  type TimelineContributor,
+  type TopicSummaries,
+} from '@superdoc-collab/types';
+import type { CSSProperties } from 'react';
+import { cn } from '@/lib/utils';
 import { ContributorAvatars } from './contributor-avatars';
 import { maxBandVolume } from './max-band-volume';
+import { saturationOf } from './streamgraph-layout';
 import { editDeltaLabel, EditUnit, TOP_EDITS_LABEL } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
@@ -9,6 +18,13 @@ function sumWords(contributors: TimelineContributor[]): { inserted: number; dele
     (total, contributor) => ({ inserted: total.inserted + contributor.wordsInserted, deleted: total.deleted + contributor.wordsDeleted }),
     { inserted: 0, deleted: 0 },
   );
+}
+
+function calloutStyleOf({ band, maxVolume }: { band: TimelineBand; maxVolume: number }): CSSProperties {
+  return {
+    '--topic-hue': String(band.hue),
+    '--topic-saturation': `${saturationOf({ volume: band.volume, maxVolume })}%`,
+  } as CSSProperties;
 }
 
 export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
@@ -33,7 +49,14 @@ export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; 
               {contributors && (
                 <p className="text-xs text-muted-foreground">{editDeltaLabel({ ...sumWords(contributors), unit: EditUnit.Word })}</p>
               )}
-              {sentence && <p className="text-sm">{sentence}</p>}
+              {sentence && (
+                <p
+                  className={cn('rounded-md px-2 py-1 text-sm', band.kind === TimelineBandKind.Other ? 'bg-muted' : 'topic-tint')}
+                  style={band.kind === TimelineBandKind.Other ? undefined : calloutStyleOf({ band, maxVolume })}
+                >
+                  {sentence}
+                </p>
+              )}
             </li>
           );
         })}

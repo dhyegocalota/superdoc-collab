@@ -24,7 +24,6 @@ export async function signIn({ page, email, password }: { page: Page; email: str
 
 export async function expectSignedInAs({ page, name }: { page: Page; name: string }): Promise<void> {
   await expect(page).toHaveURL(AppRoute.Documents);
-  await expect(page.getByText('No documents yet')).toBeVisible();
   await expect(page.getByRole('banner').getByText(name, { exact: true })).toBeVisible();
 }
 

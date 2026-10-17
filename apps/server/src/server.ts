@@ -91,11 +91,13 @@ export async function startServer({
   webDistDirectory,
   languageModel = chooseLanguageModel(environment.llm),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
+  projectionWorkerFile = null,
 }: {
   environment: Environment;
   webDistDirectory: string | null;
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
+  projectionWorkerFile?: URL | null;
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
   ensureWritableDirectory(environment.databaseDirectory);
@@ -111,7 +113,7 @@ export async function startServer({
   insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
   const log = new UpdateLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
-  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory });
+  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const auth = createAuth({ database, environment });
   const versions = new VersionsService({ readModel, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });

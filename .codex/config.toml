@@ -19,8 +19,12 @@ config_file = ".codex/agents/security-reviewer.toml"
 
 [mcp_servers.playwright]
 command = "npx"
-args = ["-y", "@playwright/mcp@latest", "--browser", "chromium"]
+args = ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+
+[mcp_servers.playwright-second]
+command = "npx"
+args = ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
 
 [mcp_servers.context7]
 command = "npx"
-args = ["-y", "@upstash/context7-mcp@latest"]
+args = ["-y", "@upstash/context7-mcp@4.4.2"]

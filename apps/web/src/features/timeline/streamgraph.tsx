@@ -1,6 +1,7 @@
 import { TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
 import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { KeyboardKey } from '@/lib/keyboard';
 import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { cn } from '@/lib/utils';
@@ -64,6 +65,7 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
 }
 
 export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
+  const { timeZone } = useTimeZone();
   const titleId = useId();
   const descriptionId = useId();
   const tooltipId = useId();
@@ -78,7 +80,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   const focusableBandId = focusableBandIdOf({ shapes: layout.shapes, highlightedBandId });
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
   const firstMoment = timeline.bins[0]!.start;
-  const lastMoment = timeline.bins[lastIndex]!.start + timeline.binMs;
+  const lastMoment = timeline.bins[lastIndex]!.end;
 
   function offsetOf(event: PointerEvent<SVGSVGElement>): number {
     return event.clientX - event.currentTarget.getBoundingClientRect().left;
@@ -168,8 +170,8 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         <desc id={descriptionId}>
           {streamgraphDescription({
             bandCount: timeline.bands.length,
-            from: formatTimestamp(firstMoment),
-            to: formatTimestamp(lastMoment),
+            from: formatTimestamp({ time: firstMoment, timeZone }),
+            to: formatTimestamp({ time: lastMoment, timeZone }),
           })}
         </desc>
         {layout.shapes.map(renderBand)}
@@ -189,8 +191,10 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         )}
       </svg>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <time dateTime={new Date(firstMoment).toISOString()}>{formatBinMoment({ time: firstMoment, binMs: timeline.binMs })}</time>
-        <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs })}</time>
+        <time dateTime={new Date(firstMoment).toISOString()}>
+          {formatBinMoment({ time: firstMoment, binMs: timeline.binMs, timeZone })}
+        </time>
+        <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs, timeZone })}</time>
       </div>
       {hasUnlabelledBand && <StreamgraphLegend bands={layout.shapes.map((shape) => shape.band)} maxVolume={maxVolume} />}
       <p className="text-xs text-muted-foreground">{CHART_HINT}</p>

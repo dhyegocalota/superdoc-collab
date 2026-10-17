@@ -4,22 +4,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FAKE_OPENROUTER_ORIGIN, FAKE_OPENROUTER_PORT } from './e2e/fake-openrouter-origin';
 import { E2E_TIME_ZONE } from './e2e/time-zone';
+import {
+  BUILD_AND_START_COMMAND,
+  FAKE_OPENROUTER_COMMAND,
+  FAKE_OPENROUTER_HEALTH_PATH,
+  localOrigin,
+  SERVER_HEALTH_PATH,
+  stackEnvironment,
+} from './e2e/stack';
 
 const PORT = 3100;
-const ORIGIN = `http://127.0.0.1:${PORT}`;
+const ORIGIN = localOrigin(PORT);
 const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;
 const CONTINUOUS_INTEGRATION_WORKERS = 4;
 const LOCAL_WORKERS = '50%';
-const LLM_MAX_CONCURRENT_JOBS = 2;
-const LLM_MAX_CALLS_PER_HOUR = 10_000;
-const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
-const BUILD_AND_START_COMMAND = [
-  'pnpm --filter @superdoc-collab/web build',
-  'pnpm --filter @superdoc-collab/server build',
-  'node apps/server/dist/seed.js',
-  'node apps/server/dist/main.js',
-].join(' && ');
 
 if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-collab-e2e-'));
 const DATABASE_DIR = process.env.E2E_DATABASE_DIR;
@@ -34,30 +33,17 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command: 'node e2e/fake-openrouter.ts',
-      url: `${FAKE_OPENROUTER_ORIGIN}/health`,
+      command: FAKE_OPENROUTER_COMMAND,
+      url: `${FAKE_OPENROUTER_ORIGIN}${FAKE_OPENROUTER_HEALTH_PATH}`,
       reuseExistingServer: false,
       env: { FAKE_OPENROUTER_PORT: String(FAKE_OPENROUTER_PORT) },
     },
     {
       command: BUILD_AND_START_COMMAND,
-      url: `${ORIGIN}/api/health`,
+      url: `${ORIGIN}${SERVER_HEALTH_PATH}`,
       reuseExistingServer: false,
       timeout: SERVER_START_TIMEOUT_MS,
-      env: {
-        PORT: String(PORT),
-        APP_ORIGIN: ORIGIN,
-        AUTH_SECRET: TEST_AUTH_SECRET,
-        DATABASE_DIR,
-        TRUST_PROXY: 'true',
-        DEMO_PASSWORD: 'superdoc-demo',
-        WEB_DIST_DIR: 'apps/web/dist',
-        LLM_MODEL: 'openai/gpt-6-luna',
-        OPENROUTER_API_KEY: 'e2e-fake-key',
-        OPENROUTER_BASE_URL: `${FAKE_OPENROUTER_ORIGIN}/api/v1`,
-        LLM_MAX_CONCURRENT_JOBS: String(LLM_MAX_CONCURRENT_JOBS),
-        LLM_MAX_CALLS_PER_HOUR: String(LLM_MAX_CALLS_PER_HOUR),
-      },
+      env: stackEnvironment({ port: PORT, databaseDir: DATABASE_DIR, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN }),
     },
   ],
 });

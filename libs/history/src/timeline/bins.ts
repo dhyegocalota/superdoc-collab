@@ -1,5 +1,6 @@
 import { MINUTE_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
 import type { EditRun } from './runs';
+import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
 export const MAX_BINS = 120;
@@ -15,14 +16,30 @@ export function chooseBinMs(spanMs: number): number {
   return Math.ceil(spanMs / (MAX_BINS - COVERING_EXTRA_BINS) / WEEK_MS) * WEEK_MS;
 }
 
-export function binStartOf({ time, binMs }: { time: number; binMs: number }): number {
-  return Math.floor(time / binMs) * binMs;
+function startsFrom({ start, last, binMs, timeZone }: { start: number; last: number; binMs: number; timeZone: string }): number[] {
+  if (start >= last) return [start];
+  return [start, ...startsFrom({ start: nextZonedBinStart({ start, binMs, timeZone }), last, binMs, timeZone })];
 }
 
-export function binStartsCovering({ firstTime, lastTime, binMs }: { firstTime: number; lastTime: number; binMs: number }): number[] {
-  const first = binStartOf({ time: firstTime, binMs }) - EDGE_BINS * binMs;
-  const last = binStartOf({ time: lastTime, binMs }) + EDGE_BINS * binMs;
-  return Array.from({ length: (last - first) / binMs + 1 }, (_, index) => first + index * binMs);
+export function binStartsCovering({
+  firstTime,
+  lastTime,
+  binMs,
+  timeZone,
+}: {
+  firstTime: number;
+  lastTime: number;
+  binMs: number;
+  timeZone: string;
+}): number[] {
+  const firstStart = zonedBinStartOf({ time: firstTime, binMs, timeZone });
+  const lastStart = zonedBinStartOf({ time: lastTime, binMs, timeZone });
+  return startsFrom({
+    start: zonedBinStartOf({ time: firstStart - 1, binMs, timeZone }),
+    last: nextZonedBinStart({ start: lastStart, binMs, timeZone }),
+    binMs,
+    timeZone,
+  });
 }
 
 function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun }): TimelineCell {
@@ -38,19 +55,27 @@ export function buildBins({
   runs,
   binStarts,
   binMs,
+  timeZone,
   versionSequenceAt,
 }: {
   runs: EditRun[];
   binStarts: number[];
   binMs: number;
+  timeZone: string;
   versionSequenceAt: (time: number) => number | null;
 }): TimelineBin[] {
-  return binStarts.map((start) => ({
-    start,
-    end: start + binMs,
-    versionSequence: versionSequenceAt(start + binMs - 1),
-    byBand: runs
-      .filter((run) => run.binStart === start)
-      .reduce<Record<string, TimelineCell>>((cells, run) => ({ ...cells, [run.bandId]: mergeCell({ cell: cells[run.bandId], run }) }), {}),
-  }));
+  return binStarts.map((start) => {
+    const end = nextZonedBinStart({ start, binMs, timeZone });
+    return {
+      start,
+      end,
+      versionSequence: versionSequenceAt(end - 1),
+      byBand: runs
+        .filter((run) => run.binStart === start)
+        .reduce<Record<string, TimelineCell>>(
+          (cells, run) => ({ ...cells, [run.bandId]: mergeCell({ cell: cells[run.bandId], run }) }),
+          {},
+        ),
+    };
+  });
 }

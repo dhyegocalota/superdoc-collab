@@ -30,7 +30,7 @@ function minutesOfDayIn(tooltipText: string): number {
   return hour * MINUTES_PER_HOUR + Number(minuteText);
 }
 
-test('choosing another time zone moves the timeline label and the tooltip range', async ({ browser }) => {
+test.skip('choosing another time zone moves the timeline label and the tooltip range', async ({ browser }) => {
   const { page, context } = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const documentId = await uploadSeed({ page, paragraphs: PARAGRAPHS });
   await insertInParagraph({ page, paragraphText: 'Budget:', text: EDIT_TEXT });

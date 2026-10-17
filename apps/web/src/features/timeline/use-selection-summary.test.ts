@@ -7,6 +7,8 @@ import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { TIMELINE_POLL_MS } from './timeline-api';
 import { useSelectionSummary } from './use-selection-summary';
 
+vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
+
 const SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
 const POLL_COUNT = 3;
 

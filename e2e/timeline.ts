@@ -7,6 +7,7 @@ import {
   VERSION_FRAME_TITLE,
 } from '../apps/web/src/features/timeline/timeline-copy';
 import {
+  ApiPath,
   DEMO_USERS,
   DocumentResource,
   documentApiPath,
@@ -16,13 +17,13 @@ import {
   VersionResource,
   versionApiPath,
   type DocumentTimeline,
+  type SessionUser,
   type VersionMarks,
   type VersionText,
 } from '../libs/types/src';
 import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
-import { E2E_TIME_ZONE } from './time-zone';
 
 export const ANA = DEMO_USERS[0]!.name;
 export const BRUNO = DEMO_USERS[1]!.name;
@@ -128,9 +129,19 @@ export async function ruleX(page: Page): Promise<number> {
   return Number(await page.locator('svg line.pointer-events-none').first().getAttribute('x1'));
 }
 
+export async function readAccountTimeZone(page: Page): Promise<string> {
+  const response = await page.request.get(ApiPath.Me);
+  expect(response.ok()).toBe(true);
+  const { user } = (await response.json()) as { user: SessionUser };
+  if (user.timeZone === null) throw new Error('The account has no time zone');
+  return user.timeZone;
+}
+
 export async function readTimeline({ page, documentId }: { page: Page; documentId: string }): Promise<DocumentTimeline> {
   const path = documentApiPath({ documentId, resource: DocumentResource.Timeline });
-  const response = await page.request.get(`${path}?${TimelineQueryParam.TimeZone}=${encodeURIComponent(E2E_TIME_ZONE)}`);
+  const timeZone = await readAccountTimeZone(page);
+  const response = await page.request.get(`${path}?${TimelineQueryParam.TimeZone}=${encodeURIComponent(timeZone)}`);
+  expect(response.ok()).toBe(true);
   return (await response.json()) as DocumentTimeline;
 }
 

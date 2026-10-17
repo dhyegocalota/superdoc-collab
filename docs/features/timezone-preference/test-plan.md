@@ -4,13 +4,13 @@ Every box states the input and the exact expected outcome; ticked boxes carry ` 
 
 ## The failing test first
 
-- [ ] `libs/history/src/timeline/zoned-time.test.ts` day bin in America/Sao_Paulo — input `Date.UTC(2026, 9, 17, 2, 0)`; expected `Date.UTC(2026, 9, 16, 3, 0)`; before the build: module missing, then `expected 1792195200000 to be 1792206000000` style mismatch on the epoch floor.
+- [ ] `libs/history/src/timeline/zoned-time.test.ts` day bin in America/Sao_Paulo — input `Date.UTC(2026, 9, 17, 2, 0)`; expected `Date.UTC(2026, 9, 16, 3, 0)`; before the build: module missing, then the epoch floor `1792195200000` where `1792119600000` is expected.
 
 ## Unit
 
 - [ ] Every case listed under Tasks Z1.2–Z1.4, Z2.1, Z3.1–Z3.3 in `plan.md`, each with its literal inputs and outputs.
 - [ ] `pnpm test:unit` green; the `TZ=Asia/Kolkata` CI leg green for `libs` and `server`.
-- [ ] Grep proves no process-zone API: `rg -n "getHours|getDate\\(|getDay\\(|toDateString|getFullYear|new Date\\([0-9]" apps libs --glob '!**/*.test.*'` returns nothing.
+- [ ] Grep proves no process-zone API: `rg -n "getHours|getMinutes\\(|getMonth\\(|getDate\\(|getDay\\(|setHours\\(|toDateString|toLocale(Date|Time)?String|getFullYear|Intl\\.DateTimeFormat\\(undefined|new Date\\([0-9]|start \\+ binMs|\\+ timeline\\.binMs" apps libs --glob '!**/*.test.*'` returns nothing.
 
 ## E2E
 
@@ -32,7 +32,7 @@ Empty on purpose.
 
 ## Adversarial review
 
-- [ ] Claim 1: bins never overlap or leave gaps in any zone across a DST change — attack: property test over a year of instants in Lisbon, New York, Sydney, Kathmandu; result: <refuted | held>
+- [ ] Claim 1: bins never overlap, leave gaps or walk backwards in any zone across a DST change — attack: the plan reviewer's property suite (`tz-probe/probe.mjs`) over 2026 in Lisbon, New York, Sydney, São Paulo, Kathmandu, Kiritimati, St. John's, Chatham, Lord Howe, Santiago, Cairo and Jerusalem for every ladder size and 2/3/5-week bins; result: <refuted | held>
 - [ ] Claim 2: the server never builds bins in the process zone — attack: run the suites under three `TZ` values and compare outputs; result: <refuted | held>
 - [ ] Claim 3: no time on screen bypasses the formatter — attack: grep the web for `toLocale`, `Intl.DateTimeFormat(` outside the formatter, and `new Date(` rendered as text; result: <refuted | held>
 

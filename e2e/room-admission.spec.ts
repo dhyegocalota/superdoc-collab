@@ -1,7 +1,6 @@
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { crc32, deflateSync } from 'node:zlib';
 import type { APIResponse, Page, Response } from '@playwright/test';
 import {
   ApiPath,
@@ -25,6 +24,7 @@ import { buildSeedDocx, findBootstrapSequence } from '../libs/history/src';
 import type { LoggedUpdate } from '../libs/history/src/update-log';
 import { SUPERDOC_ROOM_PREFIX } from '../apps/server/src/collaboration/room-name';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks } from './editor';
+import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
 
 const EDITOR_TEST_ID = 'document-editor';
@@ -37,6 +37,7 @@ const LARGE_TEST_TIMEOUT_MS = 240_000;
 const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
 const RESERVATION_EXPIRY_WAIT_MS = MINUTE_MS + SECOND_MS;
 const SLOW_TEST_TIMEOUT_MS = RESERVATION_EXPIRY_WAIT_MS + 120_000;
+const MINIMUM_FLUSHED_FRAMES = 3;
 const SLOW_ENVIRONMENT_VARIABLE = 'E2E_SLOW';
 const HISTORY_DATABASE_FILE = 'history.sqlite';
 const CREATOR_SOCKET_STATE_KEY = 'creatorSocketState';
@@ -44,161 +45,15 @@ const AUTH_MESSAGE_TYPE = 2;
 const TOKEN_AUTH_SUBTYPE = 0;
 const AUTHENTICATED_AUTH_SUBTYPE = 2;
 
-const IMAGE_WIDTH_PIXELS = 1000;
-const IMAGE_HEIGHT_PIXELS = 3328;
-const BYTES_PER_PIXEL = 3;
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const PNG_BIT_DEPTH = 8;
-const PNG_RGB_COLOR_TYPE = 2;
-const STORED_COMPRESSION_LEVEL = 0;
-const PSEUDO_RANDOM_SEED = 2463534242;
-const XORSHIFT_LEFT_FIRST = 13;
-const XORSHIFT_RIGHT = 17;
-const XORSHIFT_LEFT_SECOND = 5;
-const BYTE_MASK = 0xff;
-const ZIP_VERSION = 20;
-const ZIP_DOS_DATE = 33;
-const ZIP_LOCAL_SIGNATURE = 0x04034b50;
-const ZIP_CENTRAL_SIGNATURE = 0x02014b50;
-const ZIP_END_SIGNATURE = 0x06054b50;
-const EMU_PER_PIXEL = 9525;
-const XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-const PACKAGE_RELATIONSHIPS_NAMESPACE = 'http://schemas.openxmlformats.org/package/2006/relationships';
-const RELATIONSHIP_NAMESPACE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-const WORD_DRAWING_NAMESPACE = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
-const DRAWING_NAMESPACE = 'http://schemas.openxmlformats.org/drawingml/2006/main';
-const PICTURE_NAMESPACE = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
-
-type ZipEntry = { name: string; data: Buffer };
 type OpenAnswer = { status: number; roomMode: RoomMode | null };
 type CreatorSocketState = { isAuthenticated: boolean; closeCode: number | null };
 
+function occurrencesOf({ text, fragment }: { text: string; fragment: string }): number {
+  return text.split(fragment).length - 1;
+}
+
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
-}
-
-function pseudoRandomBytes(length: number): Buffer {
-  const bytes = Buffer.alloc(length);
-  let state = PSEUDO_RANDOM_SEED;
-  for (let index = 0; index < length; index++) {
-    state ^= state << XORSHIFT_LEFT_FIRST;
-    state ^= state >>> XORSHIFT_RIGHT;
-    state ^= state << XORSHIFT_LEFT_SECOND;
-    bytes[index] = state & BYTE_MASK;
-  }
-  return bytes;
-}
-
-function pngChunk({ type, data }: { type: string; data: Buffer }): Buffer {
-  const body = Buffer.concat([Buffer.from(type), data]);
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
-  const checksum = Buffer.alloc(4);
-  checksum.writeUInt32BE(crc32(body));
-  return Buffer.concat([length, body, checksum]);
-}
-
-function noisePng(): Buffer {
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(IMAGE_WIDTH_PIXELS, 0);
-  header.writeUInt32BE(IMAGE_HEIGHT_PIXELS, 4);
-  header[8] = PNG_BIT_DEPTH;
-  header[9] = PNG_RGB_COLOR_TYPE;
-  const rowBytes = 1 + IMAGE_WIDTH_PIXELS * BYTES_PER_PIXEL;
-  const rows = pseudoRandomBytes(rowBytes * IMAGE_HEIGHT_PIXELS);
-  Array.from({ length: IMAGE_HEIGHT_PIXELS }, (_, row) => row * rowBytes).forEach((offset) => (rows[offset] = 0));
-  return Buffer.concat([
-    PNG_SIGNATURE,
-    pngChunk({ type: 'IHDR', data: header }),
-    pngChunk({ type: 'IDAT', data: deflateSync(rows, { level: STORED_COMPRESSION_LEVEL }) }),
-    pngChunk({ type: 'IEND', data: Buffer.alloc(0) }),
-  ]);
-}
-
-function storedZip(entries: ZipEntry[]): Buffer {
-  const localParts = entries.map(({ name, data }) => {
-    const header = Buffer.alloc(30);
-    header.writeUInt32LE(ZIP_LOCAL_SIGNATURE, 0);
-    header.writeUInt16LE(ZIP_VERSION, 4);
-    header.writeUInt16LE(ZIP_DOS_DATE, 12);
-    header.writeUInt32LE(crc32(data), 14);
-    header.writeUInt32LE(data.length, 18);
-    header.writeUInt32LE(data.length, 22);
-    header.writeUInt16LE(Buffer.byteLength(name), 26);
-    return Buffer.concat([header, Buffer.from(name), data]);
-  });
-  const offsets = localParts.map((_, index) => localParts.slice(0, index).reduce((sum, part) => sum + part.length, 0));
-  const centralParts = entries.map(({ name, data }, index) => {
-    const header = Buffer.alloc(46);
-    header.writeUInt32LE(ZIP_CENTRAL_SIGNATURE, 0);
-    header.writeUInt16LE(ZIP_VERSION, 4);
-    header.writeUInt16LE(ZIP_VERSION, 6);
-    header.writeUInt16LE(ZIP_DOS_DATE, 14);
-    header.writeUInt32LE(crc32(data), 16);
-    header.writeUInt32LE(data.length, 20);
-    header.writeUInt32LE(data.length, 24);
-    header.writeUInt16LE(Buffer.byteLength(name), 28);
-    header.writeUInt32LE(offsets[index]!, 42);
-    return Buffer.concat([header, Buffer.from(name)]);
-  });
-  const central = Buffer.concat(centralParts);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(ZIP_END_SIGNATURE, 0);
-  end.writeUInt16LE(entries.length, 8);
-  end.writeUInt16LE(entries.length, 10);
-  end.writeUInt32LE(central.length, 12);
-  end.writeUInt32LE(
-    localParts.reduce((sum, part) => sum + part.length, 0),
-    16,
-  );
-  return Buffer.concat([...localParts, central, end]);
-}
-
-function inlineImage(): string {
-  const width = IMAGE_WIDTH_PIXELS * EMU_PER_PIXEL;
-  const height = IMAGE_HEIGHT_PIXELS * EMU_PER_PIXEL;
-  return (
-    `<w:r><w:drawing><wp:inline><wp:extent cx="${width}" cy="${height}"/><wp:docPr id="1" name="Picture 1"/>` +
-    `<a:graphic><a:graphicData uri="${PICTURE_NAMESPACE}"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="image1.png"/><pic:cNvPicPr/></pic:nvPicPr>` +
-    '<pic:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
-    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${width}" cy="${height}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
-    '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>'
-  );
-}
-
-function buildLargeDocx(paragraphText: string): Buffer {
-  const documentXml =
-    `${XML_HEADER}<w:document xmlns:w="${WORD_NAMESPACE}" xmlns:r="${RELATIONSHIP_NAMESPACE}" xmlns:wp="${WORD_DRAWING_NAMESPACE}" ` +
-    `xmlns:a="${DRAWING_NAMESPACE}" xmlns:pic="${PICTURE_NAMESPACE}"><w:body>` +
-    `<w:p><w:r><w:t>${paragraphText}</w:t></w:r></w:p><w:p>${inlineImage()}</w:p><w:sectPr/></w:body></w:document>`;
-  return storedZip([
-    {
-      name: '[Content_Types].xml',
-      data: Buffer.from(
-        `${XML_HEADER}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
-          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-          '<Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/>' +
-          '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
-      ),
-    },
-    {
-      name: '_rels/.rels',
-      data: Buffer.from(
-        `${XML_HEADER}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}">` +
-          `<Relationship Id="rId1" Type="${RELATIONSHIP_NAMESPACE}/officeDocument" Target="word/document.xml"/></Relationships>`,
-      ),
-    },
-    {
-      name: 'word/_rels/document.xml.rels',
-      data: Buffer.from(
-        `${XML_HEADER}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}">` +
-          `<Relationship Id="rId1" Type="${RELATIONSHIP_NAMESPACE}/image" Target="media/image1.png"/></Relationships>`,
-      ),
-    },
-    { name: 'word/document.xml', data: Buffer.from(documentXml) },
-    { name: 'word/media/image1.png', data: noisePng() },
-  ]);
 }
 
 async function seedBuffer(paragraphs: string[]): Promise<Buffer> {
@@ -321,9 +176,28 @@ test('two editors open a fresh document at once and only the first is answered C
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
   await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
-  const answers = await Promise.all([ana, bruno].map(({ page }) => openDocument({ page, documentId })));
-  expect(answers.filter((answer) => answer.roomMode === RoomMode.Create)).toHaveLength(1);
-  expect(answers.filter((answer) => answer.status === HttpStatus.Conflict)).toHaveLength(1);
+  const firstAnswers = await Promise.all(
+    [ana, bruno].map(async ({ page }) => {
+      const firstOpen = page.waitForResponse(isOpenResponse(documentId));
+      await page.goto(documentPagePath(documentId));
+      return describeOpenAnswer(await firstOpen);
+    }),
+  );
+  expect(firstAnswers.filter((answer) => answer.roomMode === RoomMode.Create)).toHaveLength(1);
+  expect(firstAnswers.filter((answer) => answer.status === HttpStatus.Conflict)).toHaveLength(1);
+});
+
+test('the holder opens a fresh document in two pages at once and the room holds one paragraph', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
+  const secondPage = await ana.context.newPage();
+  await Promise.all([ana.page, secondPage].map((page) => page.goto(documentPagePath(documentId))));
+  await expect
+    .poll(() => openDocument({ page: ana.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
+    .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
+  await ana.page.reload();
+  await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  expect(occurrencesOf({ text: await readEditorText(ana.page), fragment: SEED_PARAGRAPH })).toBe(1);
 });
 
 test("the second editor's open is answered 200 Join once the creator commits", async ({ browser }) => {
@@ -398,4 +272,50 @@ test("a superseded creator's socket closes with 4403 after the 60 s expiry", asy
   await expect
     .poll(() => readCreatorSocketState(ana.page), { timeout: COMMIT_TIMEOUT_MS })
     .toMatchObject({ closeCode: SUPERSEDED_ATTEMPT_CLOSE_CODE });
+});
+
+test('a creator who goes offline mid-create is replaced by the next editor and leaves one paragraph set', async ({ browser }) => {
+  test.skip(
+    !process.env[SLOW_ENVIRONMENT_VARIABLE],
+    `Can wait for the 60 s reservation expiry; set ${SLOW_ENVIRONMENT_VARIABLE}=1 to run it`,
+  );
+  test.setTimeout(SLOW_TEST_TIMEOUT_MS);
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
+  await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
+  const anaSocketFrames: number[] = [];
+  ana.page.on('websocket', (socket) => {
+    anaSocketFrames.push(0);
+    const socketIndex = anaSocketFrames.length - 1;
+    socket.once('framesent', () => void ana.context.setOffline(true));
+    socket.on('framesent', () => anaSocketFrames[socketIndex]!++);
+  });
+  await ana.page.goto(documentPagePath(documentId));
+  await expect.poll(() => anaSocketFrames.length).toBeGreaterThan(0);
+  await expect
+    .poll(() => openDocument({ page: bruno.page, documentId }), {
+      timeout: RESERVATION_EXPIRY_WAIT_MS + COMMIT_TIMEOUT_MS,
+      intervals: [SECOND_MS],
+    })
+    .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Create });
+  await bruno.page.goto(documentPagePath(documentId));
+  await expect(editorText(bruno.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await expect
+    .poll(() => openDocument({ page: bruno.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
+    .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
+  await ana.context.setOffline(false);
+  await expect.poll(() => anaSocketFrames.at(-1)!, { timeout: COMMIT_TIMEOUT_MS }).toBeGreaterThan(MINIMUM_FLUSHED_FRAMES);
+  await expect
+    .poll(
+      async () => {
+        const [anaText, brunoText] = await Promise.all([readEditorText(ana.page), readEditorText(bruno.page)]);
+        if (anaText !== brunoText) return null;
+        return occurrencesOf({ text: brunoText, fragment: SEED_PARAGRAPH });
+      },
+      { timeout: COMMIT_TIMEOUT_MS },
+    )
+    .toBe(1);
+  await bruno.page.reload();
+  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
 });

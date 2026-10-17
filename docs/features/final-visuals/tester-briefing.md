@@ -487,3 +487,12 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - The cooldown test takes two real model-backed clicks inside 30 s of each other; nothing isolates the fake model's process-wide counters, so none is asserted.
 - "Waiting page pauses and resumes" (test plan) is not an E2E here: it needs a five minute clock.
 - Nothing here was seen in a browser after the merges.
+
+### G2 Step 23: integration (red fa48cb2, green ef27dfd)
+
+- `document-page.tsx` now: calls `useSummarize` once and `usePanelPosition`, holds the panel `isOpen` (starts from `isPanelOpenByDefault`), mounts `EditorToolbarRow` with the toolbar container held in state, and renders `SuperDocEditor` only once the container exists (readers have no row and wait for nothing). Summarize opens the panel and then runs. `UseWithAiDialog` plugs in through `renderUseWithAi`. A non-Ready readiness, and a members 404, render `WaitingForDocument`; `UnavailableNotice` is no longer imported (G6 Step 50 can delete it). The page layout is a column at the Bottom position and a row from 1024 px at the Side position.
+- The red run printed `TypeError: Cannot read properties of undefined (reading 'collapsed')` (the panel got no position); the test mock matched the timeline and summaries routes by exact path, so it now matches before the query string.
+- Version viewer (0ccf7d3, lead option A): it passes no toolbar, takes the author palette from the new `author-palette.ts` and fits the width at every width. `followViewportZoom`, `initialZoomMode` and `NARROW_VIEWPORT_QUERY` are gone. Share is now the primary button.
+- Gap: `WaitingForDocument` (G6's file) still draws its own placeholder header, not `AppTopBar`, so the bar can jump between the waiting page and the editor.
+- Gap: `renderUseWithAi` is a render prop; the title passed to the dialog is the current document title.
+- `pnpm typecheck` is clean in this lane. Only single test files were run; no package suite.

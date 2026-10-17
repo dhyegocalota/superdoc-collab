@@ -64,3 +64,23 @@ export function summariesPrompt(topics: PromptTopic[]): string {
   const rendered = topics.map((topic) => `<topic id="${escapeXml(topic.id)}" name="${escapeXml(topic.name)}">\n${withinBudget(topic.edits.map(renderEdit)).join('\n')}\n</topic>`);
   return `<topics>\n${rendered.join('\n')}\n</topics>`;
 }
+
+export type SelectionEdit = { authors: string[]; inserted: string; deleted: string };
+
+export function fitEdits<Edit>(_options: { edits: Edit[]; maxCharacters: number; overheadOf: () => number }): Edit[] {
+  return [];
+}
+
+export function fitSelection(_edits: SelectionEdit[]): SelectionEdit[] {
+  return [];
+}
+
+export function namesOf(_edits: SelectionEdit[]): string[] {
+  return [];
+}
+
+export function selectionPrompt(_edits: SelectionEdit[]): string {
+  return '';
+}
+
+export const SELECTION_SYSTEM_PROMPT = '';

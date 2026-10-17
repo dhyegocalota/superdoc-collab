@@ -16,7 +16,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `pnpm test:e2e e2e/time-travel.spec.ts`; expected: 9 passed — pending the lead's local CI run on the PR head (the earlier local run at 1da4000: 9 passed (2.0m))
+- [ ] `pnpm test:e2e e2e/time-travel.spec.ts`; expected: 9 passed — pending the lead's local CI run on the PR head (earlier local run at 1da4000: 9 passed (2.0m))
 - [x] Mutation: make `resolveMark` ignore `serverTime` (scratch), run `version-marks.test.ts`; expected: the pruned-sequence case fails; restore — evidence: inserted an unconditional `return clampToMark(...)` before the `serverTime` branch; 2 failed / 7 passed: `a sequence whose mark was pruned…` (`expected 9 to be 14`) and `a sequence pruned in the bootstrap minute…` (`expected 3 to be 5`); restored with `git checkout -- libs/history/src/version-marks.ts`, `git status` clean
 
 ## Prove it for real — Playwright MCP
@@ -29,7 +29,7 @@ Stack `pnpm scenario:stack` on 3200 as Ana, document `9eb2d158-d484-4283-a169-25
 
 ## Edge cases found during execution
 
-- [ ] Typing into a blank New document (click the body, then `insertText`, `keyboard.type` or `fill` on the textarea); expected: the text appears — observed: `The editor stopped working. Reload the page to continue.`, text empty after reload, console clean; same alert the scenario-runs plan records. Probably unrelated to this change (history code only), not checked against main; regression test belongs to that lane — evidence: `blank-document-insert-text-editor-stopped-1280.png` — Lead's triage: this is SuperDoc's `edit-rejected` rejection of a keystroke on a focused textarea without a selection (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md); automation focuses the textarea without the click a user makes. PR #38 (editor-survives-rejected-edits) turns it into a status line; not a defect of this change
+- [ ] Typing into a blank New document (click the body, then `insertText`, `keyboard.type` or `fill` on the textarea); expected: the text appears — observed: `The editor stopped working. Reload the page to continue.`, text empty after reload, console clean; same alert the scenario-runs plan records. Probably unrelated to this change (history code only), not checked against main; regression test belongs to that lane — evidence: `blank-document-insert-text-editor-stopped-1280.png` — Lead's triage: this is SuperDoc's `edit-rejected` rejection of a keystroke on a focused textarea without a selection (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md); automation focuses the textarea without the click a user makes. PR #38 (editor-survives-rejected-edits) turns it into a status line; not a defect of this change — Lead's triage: SuperDoc's `edit-rejected` for a keystroke on a focused textarea without a selection (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md); automation focuses the textarea without a user's click. PR #38, merged, turns it into a status line; not a defect of this change
 - [x] Request `/versions/<newest mark + 100>/text`; expected: newest mark — evidence: sequence 145 for a request above 145, status 200
 
 ## Adversarial review

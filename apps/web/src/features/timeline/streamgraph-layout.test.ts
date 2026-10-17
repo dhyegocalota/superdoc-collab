@@ -103,3 +103,25 @@ test('a thick band whose label would cover a placed one stays unlabelled', () =>
   const unlabelled = shapes.filter((shape) => shape.label === null).map((shape) => shape.band.name);
   expect(unlabelled).toEqual(['Budget review']);
 });
+
+test('a band without agent volume has no agent path and a band with agent volume has a closed one', () => {
+  const timeline = timelineWith({
+    volumes: [
+      [40, 10],
+      [50, 10],
+      [60, 10],
+    ],
+    names: ['Budget', 'Hiring'],
+    agentVolumes: [
+      [0, 0],
+      [20, 0],
+      [30, 0],
+    ],
+  });
+  const shapes = layoutStreamgraph({ timeline, width: 420 }).shapes;
+  const budget = shapes.find((shape) => shape.band.name === 'Budget')!;
+  const hiring = shapes.find((shape) => shape.band.name === 'Hiring')!;
+  expect(budget.agentPath).toMatch(/^M.*Z$/);
+  expect(budget.agentPath).not.toBe(budget.path);
+  expect(hiring.agentPath).toBeNull();
+});

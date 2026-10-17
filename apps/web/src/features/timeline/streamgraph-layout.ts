@@ -14,7 +14,13 @@ const HALF = 2;
 
 type StackSeries = Series<StackRow, string>;
 type LabelBox = { left: number; right: number; top: number; bottom: number };
-export type BandShape = { band: TimelineBand; path: string; saturation: number; label: { x: number; y: number } | null };
+export type BandShape = {
+  band: TimelineBand;
+  path: string;
+  saturation: number;
+  label: { x: number; y: number } | null;
+  agentPath: string | null;
+};
 type PlacedLabel = { label: { x: number; y: number }; box: LabelBox };
 export type StreamgraphLayout = { shapes: BandShape[]; binX: (index: number) => number; binAt: (position: number) => number };
 
@@ -114,8 +120,11 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
   const { shapes } = unlabelledShapes.reduce<{ shapes: BandShape[]; placed: LabelBox[] }>(
     ({ shapes: done, placed }, { band, points, path, saturation }) => {
       const placedLabel = labelBoxOf({ band, points, x, y, placed });
-      if (placedLabel === null) return { shapes: [...done, { band, path, saturation, label: null }], placed };
-      return { shapes: [...done, { band, path, saturation, label: placedLabel.label }], placed: [...placed, placedLabel.box] };
+      if (placedLabel === null) return { shapes: [...done, { band, path, saturation, label: null, agentPath: null }], placed };
+      return {
+        shapes: [...done, { band, path, saturation, label: placedLabel.label, agentPath: null }],
+        placed: [...placed, placedLabel.box],
+      };
     },
     { shapes: [], placed: [] },
   );

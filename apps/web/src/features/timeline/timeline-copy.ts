@@ -27,6 +27,9 @@ export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date.';
 export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
+export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
+export const AI_BADGE_TEXT = 'AI';
+export const AI_BADGE_LABEL = 'Edited by AI';
 
 const INSERTED_SIGN = '+';
 const DELETED_SIGN = '−';

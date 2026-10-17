@@ -1,10 +1,10 @@
 import { TimelineBandKind } from '@superdoc-history/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
-import { CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
+import { AGENT_LEGEND_LABEL, CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
@@ -289,4 +289,61 @@ test('another key selects nothing', () => {
   const { onSelectIndex } = renderGraph({ selectedIndex: 1 });
   fireEvent.keyDown(screen.getByLabelText('Budget, 340 characters'), { key: 'a' });
   expect(onSelectIndex).not.toHaveBeenCalled();
+});
+
+const AGENT_SELECTOR = '[data-actor="agent"]';
+const agentTimeline = timelineWith({
+  volumes: [
+    [100, 20],
+    [120, 30],
+    [120, 40],
+  ],
+  names: ['Budget', 'Hiring'],
+  agentVolumes: [
+    [0, 0],
+    [60, 0],
+    [30, 0],
+  ],
+});
+
+function renderAgentGraph() {
+  return render(
+    <Streamgraph
+      timeline={agentTimeline}
+      width={WIDTH}
+      selectedIndex={1}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+}
+
+test('a band with agent volume renders a hatched agent layer and no other band does', () => {
+  const { container } = renderAgentGraph();
+  const layers = container.querySelectorAll(AGENT_SELECTOR);
+  expect(layers).toHaveLength(1);
+  const patternId = container.querySelector('defs pattern')!.id;
+  expect(layers[0]).toHaveAttribute('fill', `url(#${patternId})`);
+  expect(container.querySelectorAll('defs pattern')).toHaveLength(1);
+});
+
+test('no agent volume renders no agent layer, no pattern and no legend row', () => {
+  const { container } = renderGraph();
+  expect(container.querySelector(AGENT_SELECTOR)).toBeNull();
+  expect(container.querySelector('defs pattern')).toBeNull();
+  expect(screen.queryByText(AGENT_LEGEND_LABEL)).not.toBeInTheDocument();
+});
+
+test('agent volume adds the hatched legend row', () => {
+  renderAgentGraph();
+  expect(screen.getByText(AGENT_LEGEND_LABEL)).toBeInTheDocument();
+});
+
+test('pin: the tooltip lists the agent author once with the AI suffix', () => {
+  const { container } = renderAgentGraph();
+  fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
+  const tooltip = screen.getByRole('tooltip');
+  expect(tooltip).toHaveTextContent(FIXTURE_AGENT_AUTHOR_NAME);
+  expect(tooltip).not.toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} · AI`);
 });

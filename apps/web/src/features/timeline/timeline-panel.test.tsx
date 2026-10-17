@@ -24,9 +24,9 @@ import {
   type DocumentTimeline,
   type SelectionSummaryView,
 } from '@superdoc-history/types';
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
@@ -642,4 +642,55 @@ test('bin edits mark insertions and deletions without quotes or padding', async 
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
   expect((await screen.findByText('More money')).tagName).toBe('INS');
   expect(screen.getByText('old').tagName).toBe('DEL');
+});
+
+const CONNECTED_WIDTH = 600;
+const DETACHED_WIDTH = 0;
+const resizeObservers = new Set<DetachingResizeObserver>();
+
+class DetachingResizeObserver {
+  private readonly targets: Element[] = [];
+
+  constructor(private readonly callback: ResizeObserverCallback) {
+    resizeObservers.add(this);
+  }
+
+  observe(target: Element): void {
+    this.targets.push(target);
+    this.report();
+  }
+
+  unobserve(): void {}
+
+  disconnect(): void {
+    resizeObservers.delete(this);
+  }
+
+  report(): void {
+    const entries = this.targets.map(
+      (target) => ({ target, contentRect: { width: target.isConnected ? CONNECTED_WIDTH : DETACHED_WIDTH } }) as ResizeObserverEntry,
+    );
+    this.callback(entries, this as unknown as ResizeObserver);
+  }
+}
+
+function reportSizes(): void {
+  act(() => resizeObservers.forEach((observer) => observer.report()));
+}
+
+test('reopening the panel brings the chart back', async () => {
+  const sharedResizeObserver = globalThis.ResizeObserver;
+  vi.stubGlobal('ResizeObserver', DetachingResizeObserver);
+  onTestFinished(() => {
+    vi.stubGlobal('ResizeObserver', sharedResizeObserver);
+  });
+  mockTimelineApi();
+  renderPanel();
+  expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
+  const toggle = screen.getByRole('button', { name: TIMELINE_TOGGLE_LABEL });
+  await userEvent.click(toggle);
+  reportSizes();
+  await userEvent.click(toggle);
+  reportSizes();
+  expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
 });

@@ -131,3 +131,14 @@ test('a selection summary of a document that is gone is unavailable', async () =
   respondWith(new Response('{}', { status: HttpStatus.NotFound }));
   await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toBeInstanceOf(DocumentUnavailableError);
 });
+
+test.each([SelectionSummaryState.Running, SelectionSummaryState.Ready, SelectionSummaryState.Failed])('a %s selection summary is returned as the server sent it', async (state) => {
+  const view: SelectionSummaryView = { ...NONE_VIEW, state };
+  respondWith(new Response(JSON.stringify(view)));
+  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).toEqual(view);
+});
+
+test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])('reading a selection summary answered with %s fails with the status message', async (status) => {
+  respondWith(new Response('{}', { status }));
+  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })));
+});

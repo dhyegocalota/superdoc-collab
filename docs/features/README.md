@@ -28,4 +28,10 @@ Five vertical slices, in build order ([ADR 0008](../adr/0008-vertical-slices.md)
 | 2 | [`documents-and-history`](documents-and-history/) | upload and list DOCX, SuperDoc with live collaboration, history capture and read model | Shipped 2026-10-16 ([PR #2](https://github.com/dhyegocalota/superdoc-take-home/pull/2)) |
 | 3 | [`timeline-and-time-travel`](timeline-and-time-travel/) | streamgraph by LLM topics, filters, top edits with per-topic summaries, time-travel viewer (spike first) | Shipped 2026-10-16 ([PR #3](https://github.com/dhyegocalota/superdoc-take-home/pull/3)) |
 | 4 | [`llm-insights`](llm-insights/) | "Summarize edits" on demand for the filtered selection, polish | Shipped 2026-10-16 ([PR #4](https://github.com/dhyegocalota/superdoc-take-home/pull/4)) |
-| 5 | [`deploy`](deploy/) | Compose on the owner's VPS through Dokploy, delivery README | Building |
+| 5 | [`deploy`](deploy/) | Compose on the owner's VPS through Dokploy, delivery README | Shipped 2026-10-17 ([PR #5](https://github.com/dhyegocalota/superdoc-take-home/pull/5)) |
+
+Fixes after the five slices:
+
+| Fix | Closes | Status |
+|-----|--------|--------|
+| [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |

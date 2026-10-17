@@ -1,4 +1,4 @@
-import { HISTORY_CATCHING_UP_MESSAGE, HttpStatus } from '@superdoc-history/types';
+import { HISTORY_CATCHING_UP_MESSAGE, HttpStatus } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { requestFailedMessage } from '@/lib/api';
 import { bandAriaLabel, editDeltaLabel, EditUnit } from './timeline-copy';

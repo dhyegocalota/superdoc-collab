@@ -1,4 +1,4 @@
-import type { AppRoute } from '@superdoc-history/types';
+import type { AppRoute } from '@superdoc-collab/types';
 import type { ReactNode } from 'react';
 import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Link } from 'react-router';

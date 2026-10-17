@@ -1,7 +1,7 @@
-import { DocumentRole } from '@superdoc-history/types';
-import { IdentitySource } from '@superdoc-history/history';
+import { DocumentRole } from '@superdoc-collab/types';
+import { IdentitySource } from '@superdoc-collab/history';
 import { randomUUID } from 'node:crypto';
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';

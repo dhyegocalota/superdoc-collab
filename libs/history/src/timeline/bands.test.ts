@@ -1,4 +1,4 @@
-import { TimelineBandKind } from '@superdoc-history/types';
+import { TimelineBandKind } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { buildBands, byVolumeDescending, contributorsByBand } from './bands';
 import type { EditRun } from './runs';

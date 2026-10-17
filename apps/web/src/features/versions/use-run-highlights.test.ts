@@ -1,4 +1,4 @@
-import type { EditRunView } from '@superdoc-history/types';
+import type { EditRunView } from '@superdoc-collab/types';
 import { renderHook } from '@testing-library/react';
 import type { SuperDoc } from 'superdoc';
 import { beforeEach, expect, test, vi } from 'vitest';

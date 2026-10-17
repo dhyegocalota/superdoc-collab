@@ -1,5 +1,5 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
-import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, type DocumentRole } from '@superdoc-history/types';
+import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, type DocumentRole } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import * as Y from 'yjs';

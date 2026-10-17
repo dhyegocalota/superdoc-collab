@@ -1,5 +1,5 @@
-import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-history/history';
-import { HOUR_MS, MINUTE_MS, type TopicSummaries } from '@superdoc-history/types';
+import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-collab/history';
+import { HOUR_MS, MINUTE_MS, type TopicSummaries } from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';

@@ -1,5 +1,5 @@
 import type { Document } from '@hocuspocus/server';
-import type { UpdateLog } from '@superdoc-history/history';
+import type { UpdateLog } from '@superdoc-collab/history';
 import type { CollaborationContext } from './collaboration-server';
 
 type PresenceState = { userId?: string };

@@ -14,7 +14,7 @@ import {
   SelectionSummaryState,
   type OpenedDocument,
   type SelectionSummaryView,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

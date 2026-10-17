@@ -1,4 +1,4 @@
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-history/types';
+import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';

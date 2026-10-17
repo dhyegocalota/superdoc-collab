@@ -46,3 +46,5 @@ Refinement after the five slices:
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
 | [`invite-only-access`](invite-only-access/) | First sign-up claims the instance as admin, single-use invite links, `/admin`, no seed in production, newcomer README with an agent install prompt | Spec in review |
 | [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Building |
+| [`cleanup-docs`](cleanup-docs/) | `poc/` removed, the root README down to one screen and one screenshot, package READMEs without source references | Shipped 2026-10-17 |
+| [`readme-purpose-only`](readme-purpose-only/) | READMEs carry purpose only; the root Run it block is pinned to package.json, .env.example and the workspace by a repository-shape test | Shipped 2026-10-17 |

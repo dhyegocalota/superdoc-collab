@@ -1,4 +1,4 @@
-import { documentPagePath } from '@superdoc-history/types';
+import { documentPagePath } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';

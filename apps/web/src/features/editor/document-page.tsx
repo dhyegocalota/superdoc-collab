@@ -1,4 +1,4 @@
-import { DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState } from '@superdoc-history/types';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState } from '@superdoc-collab/types';
 import { useRef, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';

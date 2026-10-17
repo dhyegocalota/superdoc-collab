@@ -1,4 +1,4 @@
-import { ApiPath, DEMO_ADMIN, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type SessionUser } from '@superdoc-history/types';
+import { ApiPath, DEMO_ADMIN, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type SessionUser } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
@@ -49,7 +49,7 @@ async function reserveFreePort(): Promise<number> {
 }
 
 export function testEnvironment({
-  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')),
+  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-collab-')),
 }: { databaseDirectory?: string } = {}): Environment {
   return {
     port: 0,
@@ -76,7 +76,7 @@ function isAddressInUse(error: unknown): boolean {
 
 export async function startTestServer({
   trustProxy = true,
-  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-history-')),
+  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-collab-')),
   languageModel = chooseLanguageModel(NO_LLM_SETTINGS),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   attemptsLeft = START_ATTEMPTS,

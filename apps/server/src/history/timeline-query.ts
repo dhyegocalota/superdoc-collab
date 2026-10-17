@@ -1,5 +1,5 @@
-import { BIN_LADDER_MS } from '@superdoc-history/history';
-import { FILTER_MAX_LENGTH, NON_NEGATIVE_INTEGER_PATTERN, TimelineQueryParam } from '@superdoc-history/types';
+import { BIN_LADDER_MS } from '@superdoc-collab/history';
+import { FILTER_MAX_LENGTH, NON_NEGATIVE_INTEGER_PATTERN, TimelineQueryParam } from '@superdoc-collab/types';
 import { z } from 'zod';
 
 export const INVALID_TIMELINE_QUERY_MESSAGE = 'The timeline query is invalid';

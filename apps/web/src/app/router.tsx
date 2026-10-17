@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AdminPage } from '@/features/admin/admin-page';
 import { RequireAdmin } from '@/features/admin/require-admin';

@@ -32,8 +32,8 @@ jobs:
       matrix:
         include:
           - { name: libs, filter: ./libs/* }
-          - { name: web, filter: "@superdoc-history/web" }
-          - { name: server, filter: "@superdoc-history/server" }
+          - { name: web, filter: "@superdoc-collab/web" }
+          - { name: server, filter: "@superdoc-collab/server" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      IMAGE: superdoc-history:ci
+      IMAGE: superdoc-collab:ci
       SMOKE_ORIGIN: http://127.0.0.1:3000
       SMOKE_AUTH_SECRET: ci-smoke-auth-secret-with-at-least-32-characters
       SMOKE_DEMO_PASSWORD: ci-smoke-demo-password
@@ -80,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --output index.html "$SMOKE_ORIGIN/"
-          grep -q '<title>SuperDoc History</title>' index.html
+          grep -q '<title>SuperDoc Collab</title>' index.html
       - name: The data volume belongs to the node user
         run: test "$(docker exec app stat -c %u /data)" = "1000"
       - name: A seeded demo user signs in

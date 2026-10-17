@@ -14,7 +14,7 @@ One service built from `docker/Dockerfile`, one volume at `/data`, one replica, 
 ## 1. Create the project and the service
 
 ```bash
-railway init --name superdoc-history
+railway init --name superdoc-collab
 railway up --detach
 ```
 
@@ -60,7 +60,7 @@ railway up --detach
 
 ## 5. Check it
 
-- [x] `railway status` shows the service with one replica and a volume at `/data`. — evidence: railway status 2026-10-17: Online, volume superdoc-history-volume at /data (1 MB / 500 MB), region iad; replica count not shown by the CLI
+- [x] `railway status` shows the service with one replica and a volume at `/data`. — evidence: railway status 2026-10-17: Online, volume superdoc-collab-volume at /data (1 MB / 500 MB), region iad; replica count not shown by the CLI
 - [x] `curl -s https://<domain>/api/health` answers `200`. — evidence: curl returned 200 on 2026-10-17
 - [ ] `curl -s https://<domain>/api/setup` answers `{"claimed":false}` before step 6.
 - [x] In the browser, after step 6: upload `docs/brief/superdoc-eng-sample-project.docx`, type, open the timeline; open the share link in a private window as an invited user and see both cursors. — evidence: first walk 2026-10-17 with the former demo accounts; repeat after the claim

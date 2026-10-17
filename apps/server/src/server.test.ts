@@ -1,4 +1,4 @@
-import { ApiPath, AppRoute, UserRole } from '@superdoc-history/types';
+import { ApiPath, AppRoute, UserRole } from '@superdoc-collab/types';
 import Database from 'better-sqlite3';
 import { createServer, type AddressInfo } from 'node:net';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';

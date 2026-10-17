@@ -1,4 +1,4 @@
-import { MINUTE_MS, OTHER_BAND_ID, TimelineBandKind, TopicState, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
+import { MINUTE_MS, OTHER_BAND_ID, TimelineBandKind, TopicState, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
 
 const FIRST_BIN_START = 1_792_165_200_000;
 const HUE_START = 205;

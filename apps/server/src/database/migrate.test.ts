@@ -6,7 +6,7 @@ import { describe, expect, test } from 'vitest';
 import { MigrationsFolderNotFoundError, findMigrationsFolder } from './migrate';
 
 function temporaryDirectory(): string {
-  return mkdtempSync(join(tmpdir(), 'superdoc-history-'));
+  return mkdtempSync(join(tmpdir(), 'superdoc-collab-'));
 }
 
 describe('findMigrationsFolder', () => {

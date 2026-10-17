@@ -1,4 +1,4 @@
-import type { EditSelection } from '@superdoc-history/types';
+import type { EditSelection } from '@superdoc-collab/types';
 import { createHash } from 'node:crypto';
 
 const SELECTION_KEY_ALGORITHM = 'sha256';

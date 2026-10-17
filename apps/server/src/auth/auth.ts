@@ -1,4 +1,4 @@
-import { signInSchema, signUpSchema, UserRole } from '@superdoc-history/types';
+import { signInSchema, signUpSchema, UserRole } from '@superdoc-collab/types';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';

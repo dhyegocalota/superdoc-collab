@@ -9,7 +9,7 @@ Written by the developer sub-agents when their steps are done. The developers do
 - `libs/history/src/{document-content,edit-windows,single-flight,edit-events,document-history,seed-docx,docx-signature}.ts` — the pure POC modules lifted; `edit-events.ts` now emits raw `ProjectedEdit` (`yjsClientIds` plus `connectionUserId`) and starts from state bytes; `findBootstrapSequence` returns `null` for an unbootstrapped room; `isDocx` checks the zip signature and `word/document.xml`.
 - `libs/history/src/update-log.ts`, `schema/history.ts`, `migrations.ts`, `drizzle/history/` — the update log on better-sqlite3 with drizzle migrations; `compact` reads only the tail after the latest snapshot; `readBatch`, `hasUpdates`, `forget`.
 - `libs/history/src/{read-model,projection,imported-revisions}.ts`, `schema/read-model.ts`, `drizzle/read-model/` — `edit_events` and `projection_cursor`, cursor-based idempotent `projectPending`, mapping of imported tracked changes.
-- `libs/history/src/testing/**` — `openTestDatabase`, `writeStory`, `commitBootstrap`, exported as `@superdoc-history/history/testing`.
+- `libs/history/src/testing/**` — `openTestDatabase`, `writeStory`, `commitBootstrap`, exported as `@superdoc-collab/history/testing`.
 
 **G2, server** (`apps/server`) — documents and sharing routes, the Hocuspocus membership check and read-only connections, the update log and the projection worker, `GET /api/documents/:id/events`. Details per task are in `plan.md` Tasks 5 to 9.
 

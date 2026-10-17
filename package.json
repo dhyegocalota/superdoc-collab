@@ -1,5 +1,5 @@
 {
-  "name": "superdoc-history",
+  "name": "superdoc-collab",
   "private": true,
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@8.15.9",
@@ -19,7 +19,7 @@
     "test:unit": "pnpm -r test:unit && pnpm test:hooks",
     "test:hooks": "bash .agents/hooks/hooks.test.sh",
     "test:e2e": "playwright test",
-    "seed": "pnpm --filter @superdoc-history/server seed",
+    "seed": "pnpm --filter @superdoc-collab/server seed",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm typecheck && pnpm test:unit && pnpm test:e2e"

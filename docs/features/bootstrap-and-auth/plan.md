@@ -41,7 +41,7 @@ Inputs the spec implies but no happy path exercises; each has a pinned test in t
 
 ## Sequencing
 
-G1 first (Tasks 1). Then G2 (Tasks 2–6) ∥ G3 (Tasks 7–8), both importing `@superdoc-history/types`. Then G4 (Tasks 9–11). Then Z.
+G1 first (Tasks 1). Then G2 (Tasks 2–6) ∥ G3 (Tasks 7–8), both importing `@superdoc-collab/types`. Then G4 (Tasks 9–11). Then Z.
 
 ---
 
@@ -53,14 +53,14 @@ G1 first (Tasks 1). Then G2 (Tasks 2–6) ∥ G3 (Tasks 7–8), both importing `
 - Test: `libs/types/src/auth.test.ts`
 
 **Interfaces:**
-- Produces: package `@superdoc-history/types` exporting `AppRoute`, `ApiPath`, `signInSchema`, `signUpSchema`, `SignInInput`, `SignUpInput`, `DEMO_USERS`, `PASSWORD_MIN_LENGTH`, `AUTH_ERROR_MESSAGE`.
+- Produces: package `@superdoc-collab/types` exporting `AppRoute`, `ApiPath`, `signInSchema`, `signUpSchema`, `SignInInput`, `SignUpInput`, `DEMO_USERS`, `PASSWORD_MIN_LENGTH`, `AUTH_ERROR_MESSAGE`.
 
 - [x] **Step 1: Root files**
 
 `package.json`
 ```json
 {
-  "name": "superdoc-history",
+  "name": "superdoc-collab",
   "private": true,
   "packageManager": "pnpm@8.15.9",
   "engines": { "node": ">=24" },
@@ -70,7 +70,7 @@ G1 first (Tasks 1). Then G2 (Tasks 2–6) ∥ G3 (Tasks 7–8), both importing `
     "typecheck": "pnpm -r typecheck",
     "test:unit": "pnpm -r test:unit",
     "test:e2e": "playwright test",
-    "seed": "pnpm --filter @superdoc-history/server seed",
+    "seed": "pnpm --filter @superdoc-collab/server seed",
     "verify": "pnpm typecheck && pnpm test:unit && pnpm test:e2e"
   },
   "devDependencies": { "@playwright/test": "1.64.1", "typescript": "7.0.2" }
@@ -111,7 +111,7 @@ describe('signUpSchema', () => {
 });
 ```
 
-- [x] **Step 3: Run it, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./auth`.
+- [x] **Step 3: Run it, expect failure** — `pnpm --filter @superdoc-collab/types test:unit` → FAIL: cannot find `./auth`.
 
 - [x] **Step 4: Implement**
 
@@ -158,7 +158,7 @@ export const DEMO_USERS: readonly DemoUser[] = [
   { name: 'Dani', email: 'dani@example.com' },
 ];
 ```
-`libs/types/src/index.ts` re-exports the three files. `libs/types/package.json`: name `@superdoc-history/types`, `"type": "module"`, `"exports": { ".": "./src/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, dependencies `zod 4.6.7`, devDependencies `vitest 5.0.5`.
+`libs/types/src/index.ts` re-exports the three files. `libs/types/package.json`: name `@superdoc-collab/types`, `"type": "module"`, `"exports": { ".": "./src/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, dependencies `zod 4.6.7`, devDependencies `vitest 5.0.5`.
 
 - [x] **Step 5: Run it, expect pass** — same command → 3 passed. `pnpm typecheck` clean.
 
@@ -210,7 +210,7 @@ import { AUTH_DATABASE_FILE, DatabaseDirectoryNotWritableError, openDatabase } f
 import { runMigrations } from './migrate';
 
 function temporaryDirectory(): string {
-  return mkdtempSync(join(tmpdir(), 'superdoc-history-'));
+  return mkdtempSync(join(tmpdir(), 'superdoc-collab-'));
 }
 
 describe('openDatabase', () => {
@@ -235,7 +235,7 @@ describe('openDatabase', () => {
 });
 ```
 
-- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit` → FAIL: modules not found.
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server test:unit` → FAIL: modules not found.
 
 - [x] **Step 3: Implement configuration**
 
@@ -270,7 +270,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
 
 - [x] **Step 4: Generate the Better Auth schema for Drizzle, then the migration**
 
-Create a minimal `apps/server/src/auth/auth.ts` placeholder is **not** allowed; instead run the CLI against a config file: `apps/server/better-auth.config.ts` exporting `betterAuth({ database: drizzleAdapter(drizzle(new Database(':memory:')), { provider: 'sqlite' }), emailAndPassword: { enabled: true } })`, then `pnpm --filter @superdoc-history/server exec better-auth generate --config better-auth.config.ts --output src/database/schema/auth.ts` (package `@better-auth/cli@1.4.21` as a devDependency). Commit the generated `schema/auth.ts` as is. `drizzle.config.ts`: `{ dialect: 'sqlite', schema: './src/database/schema/*.ts', out: './drizzle' }`. Run `pnpm --filter @superdoc-history/server exec drizzle-kit generate` and commit `drizzle/0000_*.sql` and `drizzle/meta/`.
+Create a minimal `apps/server/src/auth/auth.ts` placeholder is **not** allowed; instead run the CLI against a config file: `apps/server/better-auth.config.ts` exporting `betterAuth({ database: drizzleAdapter(drizzle(new Database(':memory:')), { provider: 'sqlite' }), emailAndPassword: { enabled: true } })`, then `pnpm --filter @superdoc-collab/server exec better-auth generate --config better-auth.config.ts --output src/database/schema/auth.ts` (package `@better-auth/cli@1.4.21` as a devDependency). Commit the generated `schema/auth.ts` as is. `drizzle.config.ts`: `{ dialect: 'sqlite', schema: './src/database/schema/*.ts', out: './drizzle' }`. Run `pnpm --filter @superdoc-collab/server exec drizzle-kit generate` and commit `drizzle/0000_*.sql` and `drizzle/meta/`.
 
 - [x] **Step 5: Implement connection and migrations**
 
@@ -320,7 +320,7 @@ export function runMigrations(database: AuthDatabase): void {
   migrate(database.drizzle, { migrationsFolder: MIGRATIONS_FOLDER });
 }
 ```
-`apps/server/package.json`: name `@superdoc-history/server`, `"type": "module"`, scripts `dev: tsx watch src/main.ts`, `build: tsc -p tsconfig.build.json`, `start: node dist/main.js`, `typecheck: tsc --noEmit`, `test:unit: vitest run`, `seed: tsx src/seed.ts`; dependencies `hono 4.13.13`, `@hono/node-server 2.1.5`, `better-auth 1.7.10`, `drizzle-orm 0.45.4`, `better-sqlite3 13.0.3`, `@hocuspocus/server 2.15.3`, `yjs 13.6.33`, `ws 8.22.0`, `zod 4.6.7`, `@superdoc-history/types workspace:*`; devDependencies `drizzle-kit 0.31.11`, `@better-auth/cli 1.4.21`, `@types/better-sqlite3 9.6.0`, `@types/ws 8.18.2`, `@types/node`, `tsx 4.23.15`, `vitest 5.0.5`, `@hocuspocus/provider 2.15.3` (tests only).
+`apps/server/package.json`: name `@superdoc-collab/server`, `"type": "module"`, scripts `dev: tsx watch src/main.ts`, `build: tsc -p tsconfig.build.json`, `start: node dist/main.js`, `typecheck: tsc --noEmit`, `test:unit: vitest run`, `seed: tsx src/seed.ts`; dependencies `hono 4.13.13`, `@hono/node-server 2.1.5`, `better-auth 1.7.10`, `drizzle-orm 0.45.4`, `better-sqlite3 13.0.3`, `@hocuspocus/server 2.15.3`, `yjs 13.6.33`, `ws 8.22.0`, `zod 4.6.7`, `@superdoc-collab/types workspace:*`; devDependencies `drizzle-kit 0.31.11`, `@better-auth/cli 1.4.21`, `@types/better-sqlite3 9.6.0`, `@types/ws 8.18.2`, `@types/node`, `tsx 4.23.15`, `vitest 5.0.5`, `@hocuspocus/provider 2.15.3` (tests only).
 
 - [x] **Step 6: Run, expect pass** — 7 tests pass. `pnpm typecheck` clean.
 
@@ -345,7 +345,7 @@ _Done — evidence: commits 890dbb4, 8566a7f, 29da170, 57a1be3; fix round 1 re-r
 
 `app.test.ts` (real HTTP, `fetch`, cookie jar by hand)
 ```ts
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { startTestServer, type TestServer } from '../testing/test-server';
 
@@ -471,7 +471,7 @@ export async function readSession({ auth, headers }: { auth: Auth; headers: Head
 ```
 `app.ts`
 ```ts
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
@@ -503,7 +503,7 @@ import { createApp } from '../http/app';
 export type TestServer = { baseUrl: string; auth: Auth; database: AuthDatabase; httpServer: ServerType; stop: () => Promise<void> };
 
 export async function startTestServer(): Promise<TestServer> {
-  const database = openDatabase({ directory: mkdtempSync(join(tmpdir(), 'superdoc-history-')), fileName: AUTH_DATABASE_FILE });
+  const database = openDatabase({ directory: mkdtempSync(join(tmpdir(), 'superdoc-collab-')), fileName: AUTH_DATABASE_FILE });
   runMigrations(database);
   const httpServer = await new Promise<ServerType>((resolve) => {
     const started = serve({ fetch: () => new Response(), port: 0 }, () => resolve(started));
@@ -597,7 +597,7 @@ _Done — evidence: commit 526ef7d; task review approved_
 
 ```ts
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 import WebSocket from 'ws';
 import { describe, expect, test } from 'vitest';
 import { COLLABORATION_TOKEN_PLACEHOLDER } from './collaboration-server';
@@ -753,7 +753,7 @@ _Done — evidence: commit eed192c; task review approved; CLI verified end to en
 - Consumes: `AppRoute`, `ApiPath`, `signInSchema`, `signUpSchema`, `AUTH_ERROR_MESSAGE`.
 - Produces: `useSession(): { user: SessionUser | null; isLoading: boolean }` (query key `['me']`); `RequireSession` route wrapper; `safeNextPath(raw: string | null): string`; `authClient` from `better-auth/react` `createAuthClient({ baseURL: window.location.origin })`.
 
-- [x] **Step 1: Scaffold** — `pnpm create vite apps/web --template react-ts` adjusted to the base tsconfig; add `@tailwindcss/vite`, `tailwindcss 4.3.3`, `react-router 8.4.0`, `@tanstack/react-query 5.104.3`, `react-hook-form 7.90.0`, `@hookform/resolvers 5.9.1`, `better-auth 1.7.10` (client), `@superdoc-history/types workspace:*`; devDependencies `vitest 5.0.5`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`. `vite.config.ts` proxies `/api` and `/collaboration` (with `ws: true`) to `http://localhost:3000`. `components.json` for shadcn with `tailwind.css: src/styles/globals.css`, style `new-york`, base colour `neutral`.
+- [x] **Step 1: Scaffold** — `pnpm create vite apps/web --template react-ts` adjusted to the base tsconfig; add `@tailwindcss/vite`, `tailwindcss 4.3.3`, `react-router 8.4.0`, `@tanstack/react-query 5.104.3`, `react-hook-form 7.90.0`, `@hookform/resolvers 5.9.1`, `better-auth 1.7.10` (client), `@superdoc-collab/types workspace:*`; devDependencies `vitest 5.0.5`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`. `vite.config.ts` proxies `/api` and `/collaboration` (with `ws: true`) to `http://localhost:3000`. `components.json` for shadcn with `tailwind.css: src/styles/globals.css`, style `new-york`, base colour `neutral`.
 
 - [x] **Step 2: Design tokens (ADR 0009)** in `globals.css`: shadcn's default neutral token set with the accent (`--primary`) set to a blue close to the SuperDoc editor's, `font-family: Inter, system-ui, sans-serif` loaded from a self-hosted `@fontsource-variable/inter` (no Google Fonts CDN: no third-party services), `.dark` block present with the inverted neutrals. No component sets a raw colour.
 
@@ -778,7 +778,7 @@ test.each([
 
 `safe-next-path.ts`
 ```ts
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 
 export function safeNextPath(raw: string | null): string {
   if (!raw) return AppRoute.Documents;
@@ -789,7 +789,7 @@ export function safeNextPath(raw: string | null): string {
 ```
 `use-session.ts`: `useQuery({ queryKey: ['me'], queryFn: fetchMe, retry: false })` where `fetchMe` returns `null` on 401 and the user on 200. `require-session.tsx`: renders children when `user`, a skeleton while loading, `<Navigate to={AppRoute.SignIn + '?next=' + encodeURIComponent(location.pathname + location.search)} replace />` otherwise. `sign-in-page.tsx` and `sign-up-page.tsx`: `react-hook-form` + `zodResolver(signInSchema)`; on success `queryClient.invalidateQueries({ queryKey: ['me'] })` then `navigate(safeNextPath(searchParams.get('next')))`; on 401 set a form-level error `AUTH_ERROR_MESSAGE`; on 429 show `Too many attempts. Try again in ${retryAfter} seconds.` from the `X-Retry-After` header. `sign-out-button.tsx`: `authClient.signOut()` then invalidate `['me']` and navigate to `AppRoute.SignIn`. `documents-page.tsx`: header with the user's name and the sign-out button, an empty state card "No documents yet" (slice 2 fills it). `router.tsx`: `createBrowserRouter` with `/` → redirect to `AppRoute.Documents`, the two auth routes, and `AppRoute.Documents` wrapped in `RequireSession`.
 
-- [x] **Step 6: Run, expect pass** — unit tests green; `pnpm --filter @superdoc-history/web build` produces `dist/`.
+- [x] **Step 6: Run, expect pass** — unit tests green; `pnpm --filter @superdoc-collab/web build` produces `dist/`.
 
 - [x] **Step 7: Commit** — `feat(web): add the app shell, design tokens and the sign-in flow`
 
@@ -803,7 +803,7 @@ _Done — evidence: commit f046a51; task review approved_
 - Modify: `apps/web/src/features/auth/sign-in-page.tsx`, `sign-up-page.tsx`, `apps/web/src/routes/documents-page.tsx`
 
 - [x] **Step 1:** Forms centred in a `max-w-sm` card on desktop, full width with 16 px gutters under 640 px; focus rings visible; the submit button shows a pending state and is disabled while the request is in flight; `Enter` submits.
-- [x] **Step 2:** Verify with `pnpm --filter @superdoc-history/web dev` at 1280 px and 375 px (developer visual check; the tester proves it with Playwright MCP).
+- [x] **Step 2:** Verify with `pnpm --filter @superdoc-collab/web dev` at 1280 px and 375 px (developer visual check; the tester proves it with Playwright MCP).
 - [x] **Step 3: Commit** — `feat(web): make the auth screens responsive`
 
 ---
@@ -841,7 +841,7 @@ _Done — evidence: commits d34df6f (web fix found by the specs), 3f1e686; 7/7 t
 **Files:**
 - Create: `docker/Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml`, `.dockerignore`
 
-- [x] **Step 1: Dockerfile** — stage `build`: `node:24-bookworm-slim`, corepack pnpm 8.15.9, `pnpm install --frozen-lockfile`, `pnpm build` (web then server); stage `runtime`: same base, copy `apps/server/dist`, `apps/server/drizzle`, `apps/web/dist`, production `node_modules` (`pnpm deploy --prod --filter @superdoc-history/server /app`), `WEB_DIST_DIR=/app/web`, `DATABASE_DIR=/data`, `USER node`, `HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1))"`. better-sqlite3's prebuilt binary matches `node:24` on linux x64 and arm64; the build stage runs `pnpm rebuild better-sqlite3` only when the prebuilt download fails.
+- [x] **Step 1: Dockerfile** — stage `build`: `node:24-bookworm-slim`, corepack pnpm 8.15.9, `pnpm install --frozen-lockfile`, `pnpm build` (web then server); stage `runtime`: same base, copy `apps/server/dist`, `apps/server/drizzle`, `apps/web/dist`, production `node_modules` (`pnpm deploy --prod --filter @superdoc-collab/server /app`), `WEB_DIST_DIR=/app/web`, `DATABASE_DIR=/data`, `USER node`, `HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1))"`. better-sqlite3's prebuilt binary matches `node:24` on linux x64 and arm64; the build stage runs `pnpm rebuild better-sqlite3` only when the prebuilt download fails.
 - [x] **Step 2: entrypoint.sh** — runs the seed when `SEED_DEMO_USERS=true`, then `node dist/main.js`.
 - [x] **Step 3: docker-compose.yml** — one service `app`, `ports: ["3000:3000"]`, `env_file: .env`, volume `history-data:/data`, `healthcheck` mirroring the Dockerfile.
 - [x] **Step 4: Verify** — `docker compose up --build -d`, `curl -f localhost:3000/api/health`, `curl -s localhost:3000/sign-in | grep -q '<div id="root">'`, `docker compose down`.

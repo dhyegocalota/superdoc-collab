@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';

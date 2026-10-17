@@ -1,4 +1,4 @@
-import { ApiPath, AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE, HttpStatus, UserRole } from '@superdoc-history/types';
+import { ApiPath, AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE, HttpStatus, UserRole } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

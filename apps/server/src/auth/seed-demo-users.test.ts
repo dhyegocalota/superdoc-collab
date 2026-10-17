@@ -1,4 +1,4 @@
-import { ApiPath, DEMO_ADMIN, DEMO_USERS, UserRole, UTC_TIME_ZONE } from '@superdoc-history/types';
+import { ApiPath, DEMO_ADMIN, DEMO_USERS, UserRole, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { seedDemoUsers } from './seed-demo-users';
 import { startTestServer, type TestServer } from '../testing/test-server';

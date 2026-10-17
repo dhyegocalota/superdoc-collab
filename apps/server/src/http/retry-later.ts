@@ -1,4 +1,4 @@
-import { RETRY_AFTER_HEADER, type HttpStatus } from '@superdoc-history/types';
+import { RETRY_AFTER_HEADER, type HttpStatus } from '@superdoc-collab/types';
 import type { Context } from 'hono';
 
 type RetryStatus = HttpStatus.Accepted | HttpStatus.TooManyRequests | HttpStatus.ServiceUnavailable;

@@ -1,4 +1,4 @@
-import { DocumentResource, RoomMode, type EditSelection, type TimelineFilter } from '@superdoc-history/types';
+import { DocumentResource, RoomMode, type EditSelection, type TimelineFilter } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { expect, test } from 'vitest';
 import { documentFileQueryKey, membersQueryKey, openedDocumentQueryKey, shareLinksQueryKey } from '@/features/editor/editor-api';

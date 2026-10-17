@@ -1,4 +1,4 @@
-import { DocumentRole, UserRole, UTC_TIME_ZONE, type SessionUser } from '@superdoc-history/types';
+import { DocumentRole, UserRole, UTC_TIME_ZONE, type SessionUser } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { expect, test, vi } from 'vitest';
 import type { SignedIn } from '../http/require-user';

@@ -1,4 +1,4 @@
-import { UserRole, type SessionUser } from '@superdoc-history/types';
+import { UserRole, type SessionUser } from '@superdoc-collab/types';
 import type { Auth } from './auth';
 
 export class SessionUserWithoutRoleError extends Error {

@@ -9,8 +9,8 @@ import {
   TOPIC_RECOMPUTE_NEW_BLOCKS,
   topicsRefreshApiPath,
   TimelineBandKind,
-} from '@superdoc-history/types';
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+} from '@superdoc-collab/types';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';

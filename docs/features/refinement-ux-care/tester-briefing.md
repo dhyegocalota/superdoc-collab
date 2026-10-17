@@ -29,7 +29,7 @@ E2E: `e2e/documents.spec.ts` deletes through the menu and expects the "Can edit"
 ### How to run
 
 ```bash
-pnpm --filter @superdoc-history/web exec vitest run
+pnpm --filter @superdoc-collab/web exec vitest run
 pnpm typecheck
 pnpm test:e2e
 ```
@@ -61,7 +61,7 @@ The server failure is the timeline-routes latency budget: 193 ms against 150 ms,
 - At 375 the editor header takes at most two rows and the page does not scroll sideways.
 - The "More actions" menu opens with mouse and keyboard; Delete opens the confirm dialog; Cancel closes it and the header stays clickable.
 - A reader sees no "More actions" button.
-- The browser tab reads "Plan · SuperDoc History" on a document, "Documents · SuperDoc History" on the list, and "Sign in" or "Create your account" on the auth pages.
+- The browser tab reads "Plan · SuperDoc Collab" on a document, "Documents · SuperDoc Collab" on the list, and "Sign in" or "Create your account" on the auth pages.
 - Opening a document shows the header with a title skeleton and "Loading document…" instead of a grey screen.
 - The current user's avatar shows the green dot at once; a screen reader announces "Ana, online".
 - The documents page shows three skeleton rows while loading, then the lists; Shared shows "Can edit" or "Can view", never the raw role.

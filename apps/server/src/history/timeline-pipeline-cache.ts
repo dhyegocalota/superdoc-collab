@@ -1,5 +1,5 @@
-import type { BandIdentity, TimelineEvent } from '@superdoc-history/history';
-import { TIMELINE_PIPELINE_CACHE_SIZE, type EventAuthor } from '@superdoc-history/types';
+import type { BandIdentity, TimelineEvent } from '@superdoc-collab/history';
+import { TIMELINE_PIPELINE_CACHE_SIZE, type EventAuthor } from '@superdoc-collab/types';
 import { LruMap } from '../limits/lru-map';
 
 export type TimelinePipeline = {

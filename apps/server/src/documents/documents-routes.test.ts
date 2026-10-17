@@ -1,5 +1,5 @@
-import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-history/history';
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-collab/history';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
   DOCUMENT_NOT_READY_ERROR,
@@ -17,7 +17,7 @@ import {
   type DocumentsList,
   type DocumentSummary,
   type OpenedDocument,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import JSZip from 'jszip';
 import { randomUUID } from 'node:crypto';
 import { readdirSync } from 'node:fs';

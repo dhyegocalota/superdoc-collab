@@ -1,5 +1,5 @@
-import { resolveAuthorIds, type StoredEditEvent } from '@superdoc-history/history';
-import type { DocumentEditEvent, EventAuthor } from '@superdoc-history/types';
+import { resolveAuthorIds, type StoredEditEvent } from '@superdoc-collab/history';
+import type { DocumentEditEvent, EventAuthor } from '@superdoc-collab/types';
 import type { AppServices } from '../http/app';
 
 export class IncompleteEditEventError extends Error {

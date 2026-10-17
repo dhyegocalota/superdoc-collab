@@ -1,4 +1,4 @@
-import { HttpStatus, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { HttpStatus, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';

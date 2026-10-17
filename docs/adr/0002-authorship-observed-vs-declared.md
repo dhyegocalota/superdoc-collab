@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: [POC results](../../poc/RESULTS.md), [relay attribution tests](../../poc/tests/node/relay-attribution.test.ts)
+- Inspired by: POC results (removed 2026-10-17), relay attribution tests (removed 2026-10-17)
 
 ## Context
 

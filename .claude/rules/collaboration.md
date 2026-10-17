@@ -2,11 +2,11 @@
 paths:
   - "apps/web/**"
   - "apps/server/**"
-  - "poc/client/**"
-  - "poc/server/**"
 ---
 
 # SuperDoc v2 collaboration
+
+Citations to `poc/...` name files of the proof of concept removed on 2026-10-17; the facts stand, the evidence is summarized in ADR 0001–0004.
 
 SuperDoc facts about the browser UI (editing surface, focus, zoom, iframes) live in `.claude/rules/web-ui.md`.
 

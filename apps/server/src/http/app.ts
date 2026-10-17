@@ -1,9 +1,9 @@
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { ApiPath, HttpStatus } from '@superdoc-history/types';
+import { ApiPath, HttpStatus } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
-import type { ReadModel, UpdateLog } from '@superdoc-history/history';
+import type { ReadModel, UpdateLog } from '@superdoc-collab/history';
 import { createAdminRoutes } from '../admin/admin-routes';
 import { createInviteRoutes } from '../admin/invite-routes';
 import type { InvitesRepository } from '../admin/invites';

@@ -1,4 +1,4 @@
-import { DocumentRole, ShareLinkRole } from '@superdoc-history/types';
+import { DocumentRole, ShareLinkRole } from '@superdoc-collab/types';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { user } from './auth';
 

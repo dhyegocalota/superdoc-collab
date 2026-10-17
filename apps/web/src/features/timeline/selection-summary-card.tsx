@@ -1,4 +1,4 @@
-import { secondsRoundedUp, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
+import { secondsRoundedUp, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useEffect, useId, useRef, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';

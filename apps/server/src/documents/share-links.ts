@@ -1,4 +1,4 @@
-import { sharePagePath, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
+import { sharePagePath, ShareLinkRole, type ShareLinks } from '@superdoc-collab/types';
 import { eq } from 'drizzle-orm';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { hashToken } from '../auth/token-hash';

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AppRoute, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, signUpSchema, type SignUpInput } from '@superdoc-history/types';
+import { AppRoute, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, signUpSchema, type SignUpInput } from '@superdoc-collab/types';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router';
 import { browserTimeZone } from '@/lib/browser-time-zone';

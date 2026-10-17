@@ -1,4 +1,4 @@
-import { BlockChangeKind } from '@superdoc-history/types';
+import { BlockChangeKind } from '@superdoc-collab/types';
 import { diffChars } from 'diff';
 import * as Y from 'yjs';
 import { readMainStoryBlocks, type Block } from './document-content';

@@ -1,4 +1,4 @@
-import { HOUR_MS, MIN_RETRY_AFTER_MS } from '@superdoc-history/types';
+import { HOUR_MS, MIN_RETRY_AFTER_MS } from '@superdoc-collab/types';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';

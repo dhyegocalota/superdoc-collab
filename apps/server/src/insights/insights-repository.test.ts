@@ -1,4 +1,4 @@
-import { SELECTION_SUMMARY_FAILED_MESSAGE, TOPICS_INTERRUPTED_MESSAGE, TopicState } from '@superdoc-history/types';
+import { SELECTION_SUMMARY_FAILED_MESSAGE, TOPICS_INTERRUPTED_MESSAGE, TopicState } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';

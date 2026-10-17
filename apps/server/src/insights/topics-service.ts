@@ -1,4 +1,4 @@
-import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@superdoc-history/history';
+import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@superdoc-collab/history';
 import {
   MINUTE_MS,
   SECOND_MS,
@@ -7,7 +7,7 @@ import {
   TOPICS_FAILED_MESSAGE,
   TopicState,
   type TopicStatus,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';

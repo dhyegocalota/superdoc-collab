@@ -1,4 +1,4 @@
-import type { EditRunView } from '@superdoc-history/types';
+import type { EditRunView } from '@superdoc-collab/types';
 
 export enum ViewerMessageKind {
   Ready = 'ready',

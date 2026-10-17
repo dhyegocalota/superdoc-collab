@@ -66,7 +66,7 @@ The groups own disjoint files and can run in parallel. G2 removes the server `sh
 
 - [ ] **Step 1: Record the before counts**
 
-Run: `pnpm --filter @superdoc-history/types test:unit && pnpm --filter @superdoc-history/history test:unit`
+Run: `pnpm --filter @superdoc-collab/types test:unit && pnpm --filter @superdoc-collab/history test:unit`
 Expected: `Tests  13 passed (13)` and `Tests  80 passed (80)`.
 
 - [ ] **Step 2: Create the routes table**
@@ -148,7 +148,7 @@ test('every page search parameter is also a timeline query parameter', () => {
 - [ ] **Step 5: Prove the type-level check is red for the right reason**
 
 Temporarily change `TimelineSearchParam.Topic = 'topic'` to `'topics'` in `libs/types/src/timeline.ts`.
-Run: `pnpm --filter @superdoc-history/types typecheck`
+Run: `pnpm --filter @superdoc-collab/types typecheck`
 Expected: FAIL in `timeline.test.ts` on `toExtend`. Restore `'topic'`; typecheck passes.
 
 - [ ] **Step 6: Delete the unused history modules and the keystroke duplicate**
@@ -174,7 +174,7 @@ The window grouping (`idleGapMs`, `maxWindowMs`, `coEditGapMs`) was ported from 
 
 - [ ] **Step 8: Run the suites and typecheck**
 
-Run: `pnpm --filter @superdoc-history/types test:unit && pnpm --filter @superdoc-history/history test:unit && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/types test:unit && pnpm --filter @superdoc-collab/history test:unit && pnpm typecheck`
 Expected: `Tests  7 passed (7)`, `Tests  72 passed (72)`, typecheck clean.
 
 - [ ] **Step 9: Commit**
@@ -221,7 +221,7 @@ git commit -m "test(types,history): fold the path tests into one table and delet
 
 - [ ] **Step 1: Record the before count**
 
-Run: `pnpm --filter @superdoc-history/server test:unit`
+Run: `pnpm --filter @superdoc-collab/server test:unit`
 Expected: `Tests  383 passed | 2 skipped (385)`.
 
 - [ ] **Step 2: Repository-shape prose (owner decision)**
@@ -323,7 +323,7 @@ describe('CI workflow', () => {
 });
 ```
 
-Run: `pnpm --filter @superdoc-history/server exec vitest run src/repository-shape`
+Run: `pnpm --filter @superdoc-collab/server exec vitest run src/repository-shape`
 Expected: delivery-docs 4 passed, ci-workflow 2 passed, compose, dockerfile and entrypoint unchanged.
 
 - [ ] **Step 3: Small drops and folds**
@@ -564,7 +564,7 @@ Run each mutation, watch the named test fail with the stated message, then rever
 
 - [ ] **Step 9: Run the suite**
 
-Run: `pnpm --filter @superdoc-history/server test:unit`
+Run: `pnpm --filter @superdoc-collab/server test:unit`
 Expected: `Tests  336 passed | 2 skipped (338)`; the per-file counts in the table above.
 
 - [ ] **Step 10: Commit**
@@ -598,7 +598,7 @@ git commit -m "test(server): fold service and library copies into their route tw
 
 - [ ] **Step 1: Record the before count**
 
-Run: `pnpm --filter @superdoc-history/web test:unit`
+Run: `pnpm --filter @superdoc-collab/web test:unit`
 Expected: `Tests  218 passed (218)`.
 
 - [ ] **Step 2: Write the failing fading test**
@@ -615,7 +615,7 @@ test('a highlighted band keeps full opacity while the others fade', () => {
 
 - [ ] **Step 3: Run it to verify it fails**
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/streamgraph.test.tsx -t "keeps full opacity"`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/streamgraph.test.tsx -t "keeps full opacity"`
 Expected: FAIL, `Expected the element to have attribute: data-faded="false"`.
 
 - [ ] **Step 4: Commit the red test**
@@ -741,7 +741,7 @@ In `versions/time-travel.test.tsx`:
 
 - [ ] **Step 9: Run the suite and the class-string sweep**
 
-Run: `pnpm --filter @superdoc-history/web test:unit && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web test:unit && pnpm typecheck`
 Expected: `Tests  205 passed (205)`, typecheck clean.
 Run: `rg -n "toHaveClass\('(opacity-40|invisible|topic-band|topic-band-other|shrink-0)'\)|className\).toContain\('(min-h|lg:|max-h)" apps/web/src`
 Expected: no output.

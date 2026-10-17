@@ -1,4 +1,4 @@
-import { TimelineFilterKind, TimelineSearchParam } from '@superdoc-history/types';
+import { TimelineFilterKind, TimelineSearchParam } from '@superdoc-collab/types';
 import { X } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';

@@ -1,4 +1,4 @@
-import { SelectionSummaryState, TopicState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, TopicState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';

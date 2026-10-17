@@ -6,8 +6,8 @@ import {
   INVITE_TOKEN_HEADER,
   UPLOAD_FIELD,
   UserRole,
-} from '@superdoc-history/types';
-import { buildSeedDocx } from '@superdoc-history/history';
+} from '@superdoc-collab/types';
+import { buildSeedDocx } from '@superdoc-collab/history';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { signedInUser, startTestServer, TEST_TIME_ZONE, type TestServer } from '../testing/test-server';
 

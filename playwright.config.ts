@@ -14,13 +14,13 @@ const LLM_MAX_CONCURRENT_JOBS = 2;
 const LLM_MAX_CALLS_PER_HOUR = 10_000;
 const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
 const BUILD_AND_START_COMMAND = [
-  'pnpm --filter @superdoc-history/web build',
-  'pnpm --filter @superdoc-history/server build',
+  'pnpm --filter @superdoc-collab/web build',
+  'pnpm --filter @superdoc-collab/server build',
   'node apps/server/dist/seed.js',
   'node apps/server/dist/main.js',
 ].join(' && ');
 
-if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-history-e2e-'));
+if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-collab-e2e-'));
 const DATABASE_DIR = process.env.E2E_DATABASE_DIR;
 
 export default defineConfig({

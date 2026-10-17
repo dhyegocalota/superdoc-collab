@@ -1,4 +1,4 @@
-import { DEMO_ADMIN, DEMO_USERS, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type DemoUser } from '@superdoc-history/types';
+import { DEMO_ADMIN, DEMO_USERS, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type DemoUser } from '@superdoc-collab/types';
 import { eq } from 'drizzle-orm';
 import type { InvitesRepository } from '../admin/invites';
 import type { AuthDatabase } from '../database/connection';

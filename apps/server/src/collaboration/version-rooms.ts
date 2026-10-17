@@ -1,5 +1,5 @@
 import { Hocuspocus } from '@hocuspocus/server';
-import { ApiPath, SECOND_MS, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-history/types';
+import { ApiPath, SECOND_MS, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-collab/types';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import * as Y from 'yjs';

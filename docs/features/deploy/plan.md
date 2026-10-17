@@ -302,11 +302,11 @@ describe('Dockerfile', () => {
 });
 ```
 
-- [ ] **Step 2: Run them red** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy`. Expected: 5 failed, 4 passed. The failures, each on its assertion:
+- [ ] **Step 2: Run them red** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy`. Expected: 5 failed, 4 passed. The failures, each on its assertion:
   - `refuses to seed without a demo password and starts nothing`, `refuses to seed with an empty demo password`, `refuses to start when the seeding flag is missing`, `refuses a seeding flag that is not exactly true or false`: `AssertionError: expected +0 to be 1`
   - `installs dependencies from the workspace manifests before copying the sources`: `AssertionError: expected [ …(4) ] to not include 'COPY . .'`
 
-  `pnpm deploy writes to a folder the repository does not have` passes now (there is no `deploy/` folder yet); it is the guard that turns red if Task 2 lands without this task's Dockerfile change. Then `pnpm --filter @superdoc-history/server typecheck` is clean.
+  `pnpm deploy writes to a folder the repository does not have` passes now (there is no `deploy/` folder yet); it is the guard that turns red if Task 2 lands without this task's Dockerfile change. Then `pnpm --filter @superdoc-collab/server typecheck` is clean.
 - [ ] **Step 3: Commit the red tests**
 
 ```bash
@@ -352,7 +352,7 @@ COPY libs/types/package.json libs/types/package.json
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
-RUN pnpm deploy --prod --filter @superdoc-history/server /workspace/release
+RUN pnpm deploy --prod --filter @superdoc-collab/server /workspace/release
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
@@ -376,7 +376,7 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 ```
 
   and append one line, `deploy`, to `.dockerignore` (after `playwright-report`). Check: `grep -c "/workspace/deploy" docker/Dockerfile` prints 0; the `COPY …/package.json` lines name every workspace importer: `git show HEAD:pnpm-lock.yaml | sed -n '/^importers:/,/^packages:/p' | grep -E "^  [^ ]"` prints exactly `.`, `apps/server`, `apps/web`, `libs/history`, `libs/types`.
-- [ ] **Step 6: Run them green** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy` → 9 passed. `pnpm --filter @superdoc-history/server typecheck` clean.
+- [ ] **Step 6: Run them green** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy` → 9 passed. `pnpm --filter @superdoc-collab/server typecheck` clean.
 - [ ] **Step 7: Commit**
 
 ```bash
@@ -565,7 +565,7 @@ services:
       PORT: "3000"
 ```
 
-- [ ] **Step 3: Run it red** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy/compose.test.ts`. Expected: 9 failed, 3 passed. Failures on their assertions: `expected undefined to deeply equal [ '3000' ]` (no `expose`), `expected undefined to deeply equal [ ObjectContaining{…} ]` (no volume), `expected { PORT: '3000' } to deeply equal ObjectContaining{…}` (pins, then secrets), `expected [ Array(6) ] to deeply equal [ [ 'DEMO_PASSWORD', '' ], …(5) ]` (optional keys), `expected +0 not to be +0` three times (each required variable), `expected [] to deeply equal [ 'APP_ORIGIN', 'AUTH_SECRET', …(7) ]`. Passing guards: `every variable read from the environment is documented in the example file`, `the example file leaves the OpenRouter key empty`, `no OpenRouter key is committed`. (This machine has the Docker CLI, so the rendering block runs; on a machine without it that block shows 8 skipped.) Run `pnpm --filter @superdoc-history/server exec vitest run src/deploy/dockerfile.test.ts` too: still 2 passed (the stub `deploy/` folder exists and the Task 1 target is `release`).
+- [ ] **Step 3: Run it red** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/compose.test.ts`. Expected: 9 failed, 3 passed. Failures on their assertions: `expected undefined to deeply equal [ '3000' ]` (no `expose`), `expected undefined to deeply equal [ ObjectContaining{…} ]` (no volume), `expected { PORT: '3000' } to deeply equal ObjectContaining{…}` (pins, then secrets), `expected [ Array(6) ] to deeply equal [ [ 'DEMO_PASSWORD', '' ], …(5) ]` (optional keys), `expected +0 not to be +0` three times (each required variable), `expected [] to deeply equal [ 'APP_ORIGIN', 'AUTH_SECRET', …(7) ]`. Passing guards: `every variable read from the environment is documented in the example file`, `the example file leaves the OpenRouter key empty`, `no OpenRouter key is committed`. (This machine has the Docker CLI, so the rendering block runs; on a machine without it that block shows 8 skipped.) Run `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/dockerfile.test.ts` too: still 2 passed (the stub `deploy/` folder exists and the Task 1 target is `release`).
 - [ ] **Step 4: Commit the red test**
 
 ```bash
@@ -605,7 +605,7 @@ volumes:
   superdoc-data:
 ```
 
-- [ ] **Step 6: Run it green** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy` → 21 passed. Without the Docker CLI on `PATH`, `compose.test.ts` reports 4 passed and 8 skipped; with `REQUIRE_DOCKER_COMPOSE=true` and no Docker CLI the file fails with `Docker Compose v2 is required in CI`. By hand, the refusal reads well: `env -i PATH="$PATH" HOME="$HOME" APP_ORIGIN=https://demo.example.com SEED_DEMO_USERS=true docker compose -f deploy/docker-compose.yml config` exits non-zero and prints `required variable AUTH_SECRET is missing a value: Set AUTH_SECRET in the Dokploy environment`. `docker compose -f docker-compose.yml config --quiet` with `ENV_FILE=.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true` still exits 0 (the local file is untouched).
+- [ ] **Step 6: Run it green** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy` → 21 passed. Without the Docker CLI on `PATH`, `compose.test.ts` reports 4 passed and 8 skipped; with `REQUIRE_DOCKER_COMPOSE=true` and no Docker CLI the file fails with `Docker Compose v2 is required in CI`. By hand, the refusal reads well: `env -i PATH="$PATH" HOME="$HOME" APP_ORIGIN=https://demo.example.com SEED_DEMO_USERS=true docker compose -f deploy/docker-compose.yml config` exits non-zero and prints `required variable AUTH_SECRET is missing a value: Set AUTH_SECRET in the Dokploy environment`. `docker compose -f docker-compose.yml config --quiet` with `ENV_FILE=.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true` still exits 0 (the local file is untouched).
 - [ ] **Step 7: Commit**
 
 ```bash
@@ -623,7 +623,7 @@ git add deploy/docker-compose.yml && git commit -m "feat(deploy): add the Dokplo
 - Modify: `.github/workflows/verify.yml`
 
 **Interfaces:**
-- Consumes: `readRepositoryFile` (Task 1); the entrypoint refusal message (Task 1); `docker/Dockerfile` (Task 1); `GET /api/health`, `POST /api/auth/sign-in/email`, the SPA title `SuperDoc History` (`apps/web/index.html`).
+- Consumes: `readRepositoryFile` (Task 1); the entrypoint refusal message (Task 1); `docker/Dockerfile` (Task 1); `GET /api/health`, `POST /api/auth/sign-in/email`, the SPA title `SuperDoc Collab` (`apps/web/index.html`).
 - Produces: the `docker` job, whose step names the test plan and the PR body quote: `Refuse to seed without a demo password`, `Start the image on a named volume`, `Health answers 200`, `The web app is served`, `The data volume belongs to the node user`, `A seeded demo user signs in`, `Restart keeps the data and the accounts`; and `REQUIRE_DOCKER_COMPOSE: 'true'` on the `verify` job's `pnpm test:unit` step.
 
 - [ ] **Step 1: Write the failing test** — `apps/server/src/deploy/ci-workflow.test.ts`:
@@ -648,7 +648,7 @@ describe('CI workflow', () => {
 });
 ```
 
-- [ ] **Step 2: Run it red** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy/ci-workflow.test.ts` → 2 failed: `AssertionError: expected [ '\n  docker:\n', …(11) ] to deeply equal []` and `expected 'name: verify\n\non:\n  pull_request:\…' to contain '      - run: pnpm test:unit\n        …'`.
+- [ ] **Step 2: Run it red** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/ci-workflow.test.ts` → 2 failed: `AssertionError: expected [ '\n  docker:\n', …(11) ] to deeply equal []` and `expected 'name: verify\n\non:\n  pull_request:\…' to contain '      - run: pnpm test:unit\n        …'`.
 - [ ] **Step 3: Commit the red test**
 
 ```bash
@@ -706,7 +706,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      IMAGE: superdoc-history:ci
+      IMAGE: superdoc-collab:ci
       SMOKE_ORIGIN: http://127.0.0.1:3000
       SMOKE_AUTH_SECRET: ci-smoke-auth-secret-with-at-least-32-characters
       SMOKE_DEMO_PASSWORD: ci-smoke-demo-password
@@ -741,7 +741,7 @@ jobs:
         run: |
           set -eu
           curl --fail --silent --show-error --output index.html "$SMOKE_ORIGIN/"
-          grep -q '<title>SuperDoc History</title>' index.html
+          grep -q '<title>SuperDoc Collab</title>' index.html
       - name: The data volume belongs to the node user
         run: test "$(docker exec app stat -c %u /data)" = "1000"
       - name: A seeded demo user signs in
@@ -764,7 +764,7 @@ jobs:
         run: docker logs app
 ```
 
-- [ ] **Step 5: Check it** — `ruby -ryaml -e 'puts YAML.load_file(ARGV[0])["jobs"].keys.inspect' .github/workflows/verify.yml` prints `["verify", "docker"]`; `pnpm --filter @superdoc-history/server exec vitest run src/deploy` → 23 passed. The job itself runs only on the pull request (Z5); nothing here runs Docker.
+- [ ] **Step 5: Check it** — `ruby -ryaml -e 'puts YAML.load_file(ARGV[0])["jobs"].keys.inspect' .github/workflows/verify.yml` prints `["verify", "docker"]`; `pnpm --filter @superdoc-collab/server exec vitest run src/deploy` → 23 passed. The job itself runs only on the pull request (Z5); nothing here runs Docker.
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -844,7 +844,7 @@ describe('delivery documents', () => {
 ```
 
   and a stub `docs/features/deploy/runbook.md` holding the single line `# Deploy runbook: Dokploy`.
-- [ ] **Step 2: Run it red** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy/delivery-docs.test.ts` → 2 failed, 1 passed: `the runbook sets every variable the compose file reads` fails with `expected [ 'APP_ORIGIN', 'AUTH_SECRET', …(7) ] to deeply equal []`; `a link to a heading its target does not have is reported` fails with `expected [ …(2) ] to deeply equal [ Array(1) ]` (the stub has no `6. Hand it over` heading, so the present anchor is reported too); the link check passes on the stub (no links yet).
+- [ ] **Step 2: Run it red** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/delivery-docs.test.ts` → 2 failed, 1 passed: `the runbook sets every variable the compose file reads` fails with `expected [ 'APP_ORIGIN', 'AUTH_SECRET', …(7) ] to deeply equal []`; `a link to a heading its target does not have is reported` fails with `expected [ …(2) ] to deeply equal [ Array(1) ]` (the stub has no `6. Hand it over` heading, so the present anchor is reported too); the link check passes on the stub (no links yet).
 - [ ] **Step 3: Commit the red test**
 
 ```bash
@@ -856,7 +856,7 @@ git add apps/server/src/deploy/delivery-docs.test.ts docs/features/deploy/runboo
 ````markdown
 # Deploy runbook: Dokploy
 
-How to put SuperDoc History on a VPS that runs Dokploy, check it, seed the demo accounts and roll back. About ten minutes once DNS resolves. The decision behind this shape is [ADR 0013](../../adr/0013-deploy-with-dokploy-compose.md).
+How to put SuperDoc Collab on a VPS that runs Dokploy, check it, seed the demo accounts and roll back. About ten minutes once DNS resolves. The decision behind this shape is [ADR 0013](../../adr/0013-deploy-with-dokploy-compose.md).
 
 Steps marked **(from memory, verify in the UI)** describe Dokploy screens that could not be checked from the machine that wrote this runbook. Labels may differ slightly in your Dokploy version; the intent of each step does not.
 
@@ -884,8 +884,8 @@ Steps marked **(from memory, verify in the UI)** describe Dokploy screens that c
 
 ## 1. Create the compose service (from memory, verify in the UI)
 
-1. Dokploy → **Projects** → **Create Project**, name `superdoc-history`.
-2. Open the project → **Create Service** → **Compose**. Name `superdoc-history`, compose type **Docker Compose** (not Stack) → **Create**.
+1. Dokploy → **Projects** → **Create Project**, name `superdoc-collab`.
+2. Open the project → **Create Service** → **Compose**. Name `superdoc-collab`, compose type **Docker Compose** (not Stack) → **Create**.
 3. In the service, **General** tab: provider **GitHub** (or **Git** with the public URL), repository `dhyegocalota/superdoc-take-home`, branch `main`, **Compose Path** `./deploy/docker-compose.yml` → **Save**.
 
 ## 2. Set the environment (from memory, verify in the UI)
@@ -1040,7 +1040,7 @@ and deploy. `tar` running as root keeps the files owned by uid 1000, the `node` 
 **Reset.** Stop the service, run `docker volume rm <volume name>`, and deploy: the volume is recreated empty, owned by `node`, and the demo accounts are seeded again.
 ````
 
-- [ ] **Step 5: Run it green** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy` → 26 passed. By hand: `openssl rand -base64 48 | tr -d '\n' | wc -c` prints 64 and the output contains no `$`.
+- [ ] **Step 5: Run it green** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy` → 26 passed. By hand: `openssl rand -base64 48 | tr -d '\n' | wc -c` prints 64 and the output contains no `$`.
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -1137,7 +1137,7 @@ describe('delivery documents', () => {
 });
 ```
 
-- [ ] **Step 2: Run them red** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy/delivery-docs.test.ts` → 3 failed, 4 passed: `expected [ 'Live demo', 'Try it', …(5) ] to deeply equal []`, `expected [ Array(3) ] to deeply equal []` (Status, Quick start, Citations still present), `expected '# SuperDoc History…' to contain '](docs/features/deploy/runbook.md)'`. Both link checks and the anchor case pass (the current README's links resolve and carry no anchors).
+- [ ] **Step 2: Run them red** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/delivery-docs.test.ts` → 3 failed, 4 passed: `expected [ 'Live demo', 'Try it', …(5) ] to deeply equal []`, `expected [ Array(3) ] to deeply equal []` (Status, Quick start, Citations still present), `expected '# SuperDoc Collab…' to contain '](docs/features/deploy/runbook.md)'`. Both link checks and the anchor case pass (the current README's links resolve and carry no anchors).
 - [ ] **Step 3: Commit the red tests**
 
 ```bash
@@ -1209,7 +1209,7 @@ Production runs [`deploy/docker-compose.yml`](deploy/docker-compose.yml) as a Do
   9. Rename `## Citations` to `## Credits`; its text stays as it is.
 
   Check: `grep -n "^## " README.md` prints, in order, `Live demo`, `Try it`, `Features`, `Run locally`, `Run with Docker`, `Deploy (Dokploy)`, `Demo users`, `Tests`, `Architecture in brief`, `Process`, `Limits`, `Credits`, `License`.
-- [ ] **Step 5: Run them green** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy` → 30 passed.
+- [ ] **Step 5: Run them green** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy` → 30 passed.
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -1320,7 +1320,7 @@ describe('delivery documents', () => {
 });
 ```
 
-- [ ] **Step 2: Run them red** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy/delivery-docs.test.ts` → 3 failed, 7 passed: `expected 'APP_ORIGIN=http://localhost:5173' to match /^# Secret/`, `expected 'DATABASE_DIR=./data' to match /^# Secret/`, `expected '# NB: LLM access goes through OpenRou…' to match /^# Secret/`.
+- [ ] **Step 2: Run them red** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/delivery-docs.test.ts` → 3 failed, 7 passed: `expected 'APP_ORIGIN=http://localhost:5173' to match /^# Secret/`, `expected 'DATABASE_DIR=./data' to match /^# Secret/`, `expected '# NB: LLM access goes through OpenRou…' to match /^# Secret/`.
 - [ ] **Step 3: Commit the red tests**
 
 ```bash
@@ -1356,7 +1356,7 @@ LLM_MAX_CALLS_PER_HOUR=
 ```
 
   Check: `git diff -U0 .env.example | grep '^[-+][A-Z]'` prints nothing (no value changed); `sh -c 'set -a; . ./.env.example; set +a; echo "$SEED_DEMO_USERS $LLM_MODEL"'` prints `false openai/gpt-6-luna`.
-- [ ] **Step 5: Run everything green** — `pnpm --filter @superdoc-history/server exec vitest run src/deploy` → 33 passed; `pnpm typecheck` clean; `pnpm --filter @superdoc-history/server test:unit` green.
+- [ ] **Step 5: Run everything green** — `pnpm --filter @superdoc-collab/server exec vitest run src/deploy` → 33 passed; `pnpm typecheck` clean; `pnpm --filter @superdoc-collab/server test:unit` green.
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -1367,7 +1367,7 @@ git add .env.example && git commit -m "docs(env): add production notes to the ex
 
 ### Z. Prove and ship
 
-- [ ] **Z1: Tester briefing** — `developer-s5` fills `docs/features/deploy/tester-briefing.md`: what changed (one line per task), how to run the deploy suite (`pnpm --filter @superdoc-history/server exec vitest run src/deploy`), the production-shaped local run of the entrypoint (from `apps/server` after `pnpm build`: `env PORT=3300 APP_ORIGIN=http://127.0.0.1:3300 AUTH_SECRET=deploy-walk-secret-0123456789abcdef0123 DATABASE_DIR=$(mktemp -d) TRUST_PROXY=true SEED_DEMO_USERS=true DEMO_PASSWORD=deploy-walk-password WEB_DIST_DIR=../web/dist sh ../../docker/entrypoint.sh`), and **the Docker caveat**: this machine cannot pull images, so every image box is checked from the CI `docker` job's log on the draft PR, and the runbook boxes marked OWNER are the owner's morning acceptance after merge. Commit: `git add docs/features/deploy/tester-briefing.md && git commit -m "docs(deploy): add the tester briefing"`.
+- [ ] **Z1: Tester briefing** — `developer-s5` fills `docs/features/deploy/tester-briefing.md`: what changed (one line per task), how to run the deploy suite (`pnpm --filter @superdoc-collab/server exec vitest run src/deploy`), the production-shaped local run of the entrypoint (from `apps/server` after `pnpm build`: `env PORT=3300 APP_ORIGIN=http://127.0.0.1:3300 AUTH_SECRET=deploy-walk-secret-0123456789abcdef0123 DATABASE_DIR=$(mktemp -d) TRUST_PROXY=true SEED_DEMO_USERS=true DEMO_PASSWORD=deploy-walk-password WEB_DIST_DIR=../web/dist sh ../../docker/entrypoint.sh`), and **the Docker caveat**: this machine cannot pull images, so every image box is checked from the CI `docker` job's log on the draft PR, and the runbook boxes marked OWNER are the owner's morning acceptance after merge. Commit: `git add docs/features/deploy/tester-briefing.md && git commit -m "docs(deploy): add the tester briefing"`.
 - [ ] **Z2: Tester run (local boxes)** — a fresh `tester` sub-agent executes `test-plan.md`: every local box ticked with evidence; the CI boxes marked `BLOCKED: runs on the pull request`; the OWNER boxes marked `BLOCKED: owner-executed after merge`.
 - [ ] **Z3: Reviewer** — a fresh `reviewer` sub-agent reviews `git diff main...HEAD` against the spec, with the five Review focus lines as its checklist, and refutes the three adversarial claims in `test-plan.md`. Findings fixed through new red/green commits before Z5.
 - [ ] **Z4: Learnings** — write, with the `learning` skill, `docs/learnings/<date>-pnpm-deploy-refuses-a-non-empty-target.md` (Signal: the image build stops with `ERR_PNPM_DEPLOY_DIR_NOT_EMPTY` right after a folder is added to the repository; Cause: the build stage copies the whole repository into `/workspace` and then deploys into a folder under it; Do: deploy into a folder the repository cannot have and pin it with `dockerfile.test.ts`; Anchor: `docker/Dockerfile`, `apps/server/src/deploy/dockerfile.test.ts`), add it to the `tooling` table in `docs/learnings/README.md`, and append a `Revisited` line to `docs/learnings/2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md` ("still true; slice 5 used stub compose and runbook files so each red run reached its assertion"). State any other learning found, or "nothing else learned". Commit: `git add docs/learnings/<file> docs/learnings/README.md docs/learnings/2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md && git commit -m "docs(learnings): record the pnpm deploy target trap"`.

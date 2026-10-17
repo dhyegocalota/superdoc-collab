@@ -1,4 +1,4 @@
-import { selectionSummaryOutputSchema } from '@superdoc-history/history';
+import { selectionSummaryOutputSchema } from '@superdoc-collab/history';
 import { expect, test } from 'vitest';
 import { loadLlmSettings } from '../config/environment';
 import { chooseLanguageModel, generateStructured, LanguageModelAvailability } from './llm-client';

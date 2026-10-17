@@ -6,7 +6,7 @@ import {
   InviteState,
   SIGN_UP_BY_INVITATION_MESSAGE,
   signUpPagePath,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';

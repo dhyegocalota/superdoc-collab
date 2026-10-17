@@ -1,5 +1,5 @@
-import type { IdentifiedTopic } from '@superdoc-history/history';
-import { TopicState, type TopicStatus, type TopicSummary } from '@superdoc-history/types';
+import type { IdentifiedTopic } from '@superdoc-collab/history';
+import { TopicState, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
 import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';

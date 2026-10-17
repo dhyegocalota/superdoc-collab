@@ -23,7 +23,7 @@ import {
   type BinEdits,
   type DocumentTimeline,
   type SelectionSummaryView,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';

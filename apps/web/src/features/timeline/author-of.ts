@@ -1,4 +1,4 @@
-import type { EventAuthor } from '@superdoc-history/types';
+import type { EventAuthor } from '@superdoc-collab/types';
 
 const NAME_SEPARATOR = ', ';
 

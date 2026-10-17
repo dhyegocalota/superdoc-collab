@@ -44,10 +44,10 @@ importers:
       '@openrouter/ai-sdk-provider':
         specifier: 3.1.0
         version: 3.1.0(ai@7.0.142)(zod@4.6.7)
-      '@superdoc-history/history':
+      '@superdoc-collab/history':
         specifier: workspace:*
         version: link:../../libs/history
-      '@superdoc-history/types':
+      '@superdoc-collab/types':
         specifier: workspace:*
         version: link:../../libs/types
       '@superdoc/sdk':
@@ -123,10 +123,10 @@ importers:
       '@hookform/resolvers':
         specifier: 5.9.1
         version: 5.9.1(react-hook-form@7.90.0)(zod@4.6.7)
-      '@superdoc-history/history':
+      '@superdoc-collab/history':
         specifier: workspace:*
         version: link:../../libs/history
-      '@superdoc-history/types':
+      '@superdoc-collab/types':
         specifier: workspace:*
         version: link:../../libs/types
       '@tanstack/react-query':
@@ -226,7 +226,7 @@ importers:
 
   libs/history:
     dependencies:
-      '@superdoc-history/types':
+      '@superdoc-collab/types':
         specifier: workspace:*
         version: link:../types
       better-sqlite3:

@@ -1,4 +1,4 @@
-import { LINK_COPIED_MESSAGE, SECOND_MS, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
+import { LINK_COPIED_MESSAGE, SECOND_MS, ShareLinkRole, type ShareLinks } from '@superdoc-collab/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';

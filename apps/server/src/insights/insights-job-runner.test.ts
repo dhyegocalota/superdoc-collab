@@ -1,4 +1,4 @@
-import { MIN_RETRY_AFTER_MS, MINUTE_MS } from '@superdoc-history/types';
+import { MIN_RETRY_AFTER_MS, MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { InsightsJobRunner, JobOutcome, LLM_WINDOW_MS } from './insights-job-runner';

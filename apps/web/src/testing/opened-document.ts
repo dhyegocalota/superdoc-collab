@@ -1,4 +1,4 @@
-import { DocumentRole, RoomMode, UserRole, type DocumentSummary, type OpenedDocument, type SessionUser } from '@superdoc-history/types';
+import { DocumentRole, RoomMode, UserRole, type DocumentSummary, type OpenedDocument, type SessionUser } from '@superdoc-collab/types';
 
 export const DOCUMENT_ID = 'doc-1';
 export const DOCUMENT_TITLE = 'Plan';

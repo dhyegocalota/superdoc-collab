@@ -1,5 +1,5 @@
 {
-  "name": "@superdoc-history/web",
+  "name": "@superdoc-collab/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,8 +13,8 @@
     "@fontsource-variable/inter": "5.3.0",
     "@hocuspocus/provider": "2.15.3",
     "@hookform/resolvers": "5.9.1",
-    "@superdoc-history/history": "workspace:*",
-    "@superdoc-history/types": "workspace:*",
+    "@superdoc-collab/history": "workspace:*",
+    "@superdoc-collab/types": "workspace:*",
     "@tanstack/react-query": "5.104.3",
     "better-auth": "1.7.10",
     "class-variance-authority": "0.7.1",

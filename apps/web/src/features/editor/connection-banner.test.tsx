@@ -90,6 +90,7 @@ test('Failed is the title and one paragraph holding the reason and the unsynced 
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SyncTimeout });
   const paragraphs = screen.getByTestId('connection-banner').querySelectorAll('p');
   expect(paragraphs).toHaveLength(2);
+  expect(paragraphs[1]).toHaveClass('text-sm', 'leading-5');
   expect(paragraphs[1]).toHaveTextContent(`${FAILURE_REASON_COPY[ConnectionFailureReason.SyncTimeout]} ${UNSYNCED_LOST_ON_RELOAD_DETAIL}`);
 });
 

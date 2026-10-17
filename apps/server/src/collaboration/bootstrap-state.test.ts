@@ -139,3 +139,19 @@ test('the scan progress of the 33rd uncommitted document evicts the first', () =
   ]);
   close();
 });
+
+test('the scan progress of a document is dropped once a snapshot answers for it', () => {
+  const { updateLog, readModel, close } = stateOver();
+  const bootstrap = createBootstrapState({ updateLog, readModel });
+  const document = new Y.Doc();
+  const sequence = appendChange({ updateLog, document, change: () => document.getText(TEXT_NAME).insert(0, LIVE_TEXT) });
+  expect(bootstrap.isCommitted(DOCUMENT_ID)).toBe(false);
+  updateLog.writeSnapshot({ documentName: DOCUMENT_ID, sequence, state: Y.encodeStateAsUpdate(document) });
+  expect(bootstrap.isCommitted(DOCUMENT_ID)).toBe(false);
+  updateLog.forget(DOCUMENT_ID);
+  appendChange({ updateLog, document, change: () => document.getText(TEXT_NAME).insert(0, LIVE_TEXT) });
+  const readBatch = vi.spyOn(updateLog, 'readBatch');
+  expect(bootstrap.isCommitted(DOCUMENT_ID)).toBe(false);
+  expect(readBatch.mock.calls[0]![0].afterSequence).toBe(0);
+  close();
+});

@@ -1,9 +1,9 @@
 import { expect, type Page } from '@playwright/test';
-import { AppRoute, DocumentResource, documentApiPath, DOCX_MIME_TYPE, type DocumentEditEvent, type DocumentEditEvents, type ShareLinkRole, type ShareLinks } from '../libs/types/src';
+import { AppRoute, DocumentResource, documentApiPath, DOCX_MIME_TYPE, TimelineQueryParam, type DocumentEditEvent, type DocumentEditEvents, type ShareLinkRole, type ShareLinks } from '../libs/types/src';
 import { buildSeedDocx } from '../libs/history/src';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
 
-const TEXT_RUN_SELECTOR = '.superdoc-text-run';
+export const TEXT_RUN_SELECTOR = '.superdoc-text-run';
 const EDITOR_INPUT_SELECTOR = 'textarea';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';
@@ -70,10 +70,17 @@ export async function typeInParagraph({ page, paragraphText, text }: { page: Pag
   }
 }
 
-export async function readEvents({ page, documentId }: { page: Page; documentId: string }): Promise<DocumentEditEvent[]> {
-  const response = await page.request.get(documentApiPath({ documentId, resource: DocumentResource.Events }));
-  const { events } = (await response.json()) as DocumentEditEvents;
-  return events;
+export async function readEventsPage({ page, documentId, afterSequence }: { page: Page; documentId: string; afterSequence: number | null }): Promise<DocumentEditEvents> {
+  const path = documentApiPath({ documentId, resource: DocumentResource.Events });
+  const query = afterSequence === null ? '' : `?${TimelineQueryParam.AfterSequence}=${afterSequence}`;
+  const response = await page.request.get(`${path}${query}`);
+  return (await response.json()) as DocumentEditEvents;
+}
+
+export async function readEvents({ page, documentId, afterSequence = null }: { page: Page; documentId: string; afterSequence?: number | null }): Promise<DocumentEditEvent[]> {
+  const { events, nextAfterSequence } = await readEventsPage({ page, documentId, afterSequence });
+  if (nextAfterSequence === null) return events;
+  return [...events, ...(await readEvents({ page, documentId, afterSequence: nextAfterSequence }))];
 }
 
 export function insertedBy({ events, userId }: { events: DocumentEditEvent[]; userId: string }): string {

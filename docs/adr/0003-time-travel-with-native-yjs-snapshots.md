@@ -1,6 +1,6 @@
 # 0003. Implement time travel with native Yjs snapshots
 
-- Status: Proposed (pending a spike)
+- Status: Accepted (spike `docs/features/timeline-and-time-travel/spike.md` confirmed all four facts; shipped in slice 3)
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: [POC results](../../poc/RESULTS.md), [0001](0001-event-sourcing-over-yjs.md), benchmark on the T11 history
@@ -48,9 +48,16 @@ Spike required before accepting: `Y.createDocFromSnapshot` over SuperDoc's `Y.Do
 ## Evidence
 
 - Benchmark table above on the T11 history; 100 ms load breakdown above.
-- POC proves snapshot + tail replay equals full replay at every sequence ([RESULTS.md](../../poc/RESULTS.md)); the native-snapshot path itself is not yet proven.
+- POC proves snapshot + tail replay equals full replay at every sequence ([RESULTS.md](../../poc/RESULTS.md)); the native-snapshot path is proven by the slice 3 spike and by `libs/history/src/version-state.test.ts` (every mark restores exactly what a full replay yields, including delete-heavy histories).
 
 ## Revisit when
 
 - The spike fails.
 - Documents exceed what one in-memory doc per room allows.
+
+## Addendum (2026-10-16, slice 3)
+
+- Versions are isolated by endpoint (`/collaboration/versions/<documentId>/<sequence>`), not by a room-name suffix: SuperDoc derives the room from the document id and cannot be renamed into a synthetic room, so each version gets its own read-only Hocuspocus instance behind the same upgrade handler.
+- The viewer is a same-origin iframe running a second SuperDoc in viewing mode; the live editor stays mounted and `inert`.
+- Marks are per minute and resolved at minute granularity from a bin's last instant; an open viewer pins the sequence it resolved.
+- Memory bound: version cache by entries and bytes, replay cache of two gc:false documents in the worker, version rooms evicted LRU at a fixed count.

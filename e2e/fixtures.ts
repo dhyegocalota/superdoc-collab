@@ -28,10 +28,13 @@ export async function expectSignedInAs({ page, name }: { page: Page; name: strin
   await expect(page.getByRole('banner').getByText(name, { exact: true })).toBeVisible();
 }
 
+const openedContexts: BrowserContext[] = [];
+
 export type SignedInContext = { context: BrowserContext; page: Page; userId: string };
 
 export async function signedInContext({ browser, user }: { browser: Browser; user: DemoUser }): Promise<SignedInContext> {
   const context = await browser.newContext({ extraHTTPHeaders: { [FORWARDED_FOR_HEADER]: randomClientAddress() } });
+  openedContexts.push(context);
   const page = await context.newPage();
   await page.goto(AppRoute.SignIn);
   await signIn({ page, email: user.email, password: DEMO_PASSWORD });
@@ -41,7 +44,14 @@ export async function signedInContext({ browser, user }: { browser: Browser; use
   return { context, page, userId: session.id };
 }
 
-export const test = base.extend<{ clientAddress: string }>({
+export const test = base.extend<{ clientAddress: string; closeOpenedContexts: void }>({
+  closeOpenedContexts: [
+    async ({}, use) => {
+      await use();
+      await Promise.all(openedContexts.splice(0).map((context) => context.close()));
+    },
+    { auto: true },
+  ],
   clientAddress: async ({}, use) => {
     await use(randomClientAddress());
   },

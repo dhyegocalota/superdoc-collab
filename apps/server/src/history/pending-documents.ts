@@ -15,3 +15,9 @@ export function findDocumentsToProject({ historySqlite, readModelSqlite }: { his
     })
     .map((row) => row.document_name);
 }
+
+const DOCUMENTS_WITHOUT_MARKS = 'SELECT document_name FROM projection_cursor WHERE document_name NOT IN (SELECT document_name FROM version_marks)';
+
+export function findDocumentsWithoutMarks(readModelSqlite: Database.Database): string[] {
+  return (readModelSqlite.prepare(DOCUMENTS_WITHOUT_MARKS).all() as { document_name: string }[]).map((row) => row.document_name);
+}

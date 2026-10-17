@@ -10,3 +10,7 @@ export * from './read-model';
 export * from './seed-docx';
 export * from './single-flight';
 export * from './update-log';
+export * from './version-marks';
+export * from './version-state';
+export * from './timeline';
+export * from './topics';

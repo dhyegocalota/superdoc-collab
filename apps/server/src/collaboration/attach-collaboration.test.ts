@@ -1,6 +1,7 @@
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath, versionCollaborationPath } from '@superdoc-history/types';
+import { randomUUID } from 'node:crypto';
 import { connect } from 'node:net';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 
@@ -70,5 +71,28 @@ describe('attachCollaboration', () => {
     await new Promise<void>((resolve) => socket.on('close', () => resolve()));
     await server.stop();
     expect(Date.now() - startedAt).toBeLessThan(UNAUTHENTICATED_CLOSE_DEADLINE_MS);
+  });
+  test('a client that resets the socket while the version upgrade is authorized does not crash the server', async () => {
+    const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Dora' });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const authorize = vi.spyOn(server.services.versionRooms, 'authorize').mockImplementation(() => gate.then(() => false));
+    const uncaught = vi.fn();
+    process.on('uncaughtException', uncaught);
+    const { port } = new URL(server.baseUrl);
+    const socket = connect({ host: LOOPBACK_HOST, port: Number(port) });
+    socket.on('error', () => undefined);
+    socket.on('connect', () => socket.write(upgradeRequest({ path: versionCollaborationPath({ documentId: randomUUID(), sequence: 1 }), origin: server.baseUrl, cookie })));
+    await expect.poll(() => authorize.mock.calls.length).toBe(1);
+    socket.resetAndDestroy();
+    expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    release();
+    expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    process.off('uncaughtException', uncaught);
+    expect(uncaught).not.toHaveBeenCalled();
+    await server.stop();
   });
 });

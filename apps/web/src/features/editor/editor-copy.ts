@@ -27,3 +27,4 @@ export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
   [ShareLinkRole.Edit]: 'Edit link',
   [ShareLinkRole.Read]: 'Read-only link',
 };
+export const HIGHLIGHT_COMMENT_TEXT = 'Edited in this period';

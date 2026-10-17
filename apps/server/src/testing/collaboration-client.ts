@@ -3,6 +3,8 @@ import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, type DocumentRole } from '@su
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
+import type { VersionRoomPolicy } from '../collaboration/version-rooms';
+import type { LanguageModelChoice } from '../insights/llm-client';
 import { SUPERDOC_ROOM_PREFIX } from '../collaboration/room-name';
 import { signedInOwner, signedInUser, type TestServer, type TestUser } from './test-server';
 
@@ -26,10 +28,10 @@ function socketWithCookie({ cookie, origin }: { cookie: string; origin: string }
   } as unknown as typeof WebSocket;
 }
 
-export function connectToDocument({ server, cookie, documentId, document = new Y.Doc(), origin = server.baseUrl }: { server: TestServer; cookie: string; documentId: string; document?: Y.Doc; origin?: string }): Promise<CollaborationClient> {
+export function connectToDocument({ server, cookie, documentId, document = new Y.Doc(), origin = server.baseUrl, path = ApiPath.Collaboration }: { server: TestServer; cookie: string; documentId: string; document?: Y.Doc; origin?: string; path?: string }): Promise<CollaborationClient> {
   return new Promise((resolve, reject) => {
     let isSynced = false;
-    const websocketProvider = new HocuspocusProviderWebsocket({ url: server.baseUrl.replace('http', 'ws') + ApiPath.Collaboration, WebSocketPolyfill: socketWithCookie({ cookie, origin }), maxAttempts: 1, connect: false });
+    const websocketProvider = new HocuspocusProviderWebsocket({ url: server.baseUrl.replace('http', 'ws') + path, WebSocketPolyfill: socketWithCookie({ cookie, origin }), maxAttempts: 1, connect: false });
     const provider = new HocuspocusProvider({
       websocketProvider,
       document,
@@ -49,7 +51,9 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
         reject(new CollaborationRefusedError());
       },
     });
-    websocketProvider.connect().catch(() => undefined);
+    const connectWithoutRejection = websocketProvider.connect.bind(websocketProvider);
+    websocketProvider.connect = () => connectWithoutRejection().catch(() => undefined);
+    websocketProvider.connect();
     function close(): void {
       provider.destroy();
       websocketProvider.destroy();
@@ -57,8 +61,8 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
   });
 }
 
-export async function documentWithOwner(): Promise<{ server: TestServer; documentId: string; owner: TestUser }> {
-  const { server, owner } = await signedInOwner();
+export async function documentWithOwner({ languageModel, versionRoomPolicy }: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{ server: TestServer; documentId: string; owner: TestUser }> {
+  const { server, owner } = await signedInOwner({ languageModel, versionRoomPolicy });
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: DOCUMENT_TITLE, ownerUserId: owner.id });
   return { server, documentId, owner };

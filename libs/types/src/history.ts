@@ -17,4 +17,4 @@ export type DocumentEditEvent = {
   deleted: string;
   imported: boolean;
 };
-export type DocumentEditEvents = { events: DocumentEditEvent[]; cursor: number | null };
+export type DocumentEditEvents = { events: DocumentEditEvent[]; cursor: number | null; nextAfterSequence: number | null };

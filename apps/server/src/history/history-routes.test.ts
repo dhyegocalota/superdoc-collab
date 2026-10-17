@@ -1,5 +1,5 @@
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { DocumentResource, DocumentRole, documentApiPath, HttpStatus, type DocumentEditEvents } from '@superdoc-history/types';
+import { DocumentResource, DocumentRole, documentApiPath, EVENTS_PAGE_SIZE, HttpStatus, type DocumentEditEvents } from '@superdoc-history/types';
 import { ReadModel } from '@superdoc-history/history';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
@@ -9,6 +9,7 @@ import * as Y from 'yjs';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { insertedBy, readEvents } from '../testing/events-client';
+import { commitBulkEvents } from '../testing/timeline-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
@@ -24,6 +25,8 @@ test("events attribute each author's inserted text", async () => {
   writeStory({ document: editorClient.document, texts: ['Hello A B'] });
   await expect.poll(async () => insertedBy({ events: await readEvents({ server, cookie: owner.cookie, documentId }), userId: editor.id }), { timeout: PROJECTION_TIMEOUT_MS }).toBe(' B');
   expect(insertedBy({ events: await readEvents({ server, cookie: owner.cookie, documentId }), userId: owner.id })).toBe(' A');
+  const body = (await (await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie: owner.cookie } })).json()) as DocumentEditEvents;
+  expect(body.nextAfterSequence).toBeNull();
   [ownerClient, editorClient].forEach((client) => client.close());
   await server.stop();
 });
@@ -94,15 +97,53 @@ test('a batch committed between the cursor and the events read stays out of both
   const { server, documentId, owner } = await documentWithOwner();
   const { readModel } = server.services;
   const SETTLED_SEQUENCE = 3;
-  readModel.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE });
+  readModel.commit({ documentName: documentId, events: [], marks: [], lastSequence: SETTLED_SEQUENCE });
   const writer = new ReadModel(new Database(join(server.databaseDirectory, READ_MODEL_DATABASE_FILE)));
   const originalCursor = readModel.cursor.bind(readModel);
   vi.spyOn(readModel, 'cursor').mockImplementation((documentName) => {
     const cursor = originalCursor(documentName);
-    writer.commit({ documentName: documentId, events: [], lastSequence: SETTLED_SEQUENCE + 1 });
+    writer.commit({ documentName: documentId, events: [], marks: [], lastSequence: SETTLED_SEQUENCE + 1 });
     return cursor;
   });
   const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}`, { headers: { cookie: owner.cookie } });
   expect(((await response.json()) as DocumentEditEvents).cursor).toBe(SETTLED_SEQUENCE);
+  await server.stop();
+});
+
+const BULK_EVENT_COUNT = 1200;
+
+async function fetchEventsPage({ server, documentId, cookie, query }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string; cookie: string; query: string }): Promise<Response> {
+  return fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}?${query}`, { headers: { cookie } });
+}
+
+test('events default to a 500-event page', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: BULK_EVENT_COUNT });
+  const page = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: '' })).json()) as DocumentEditEvents;
+  expect(page.events).toHaveLength(EVENTS_PAGE_SIZE);
+  expect(page.nextAfterSequence).toBe(EVENTS_PAGE_SIZE);
+  await server.stop();
+});
+
+async function sequencesFollowing({ server, documentId, cookie, afterSequence }: { server: Awaited<ReturnType<typeof documentWithOwner>>['server']; documentId: string; cookie: string; afterSequence: number }): Promise<number[]> {
+  const page = (await (await fetchEventsPage({ server, documentId, cookie, query: `limit=1&afterSequence=${afterSequence}` })).json()) as DocumentEditEvents;
+  const sequences = page.events.map((event) => event.sequence);
+  if (page.nextAfterSequence === null) return sequences;
+  return [...sequences, ...(await sequencesFollowing({ server, documentId, cookie, afterSequence: page.nextAfterSequence }))];
+}
+
+test('events page on a sequence boundary', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: 6, eventsPerSequence: 2, blockCount: 6 });
+  const first = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: 'limit=1' })).json()) as DocumentEditEvents;
+  expect(first.events.map((event) => event.sequence)).toEqual([1, 1]);
+  expect(first.nextAfterSequence).toBe(1);
+  expect(await sequencesFollowing({ server, documentId, cookie: owner.cookie, afterSequence: 0 })).toEqual([1, 1, 2, 2, 3, 3]);
+  await server.stop();
+});
+
+test.each(['limit=0', 'limit=-1', `limit=${EVENTS_PAGE_SIZE + 1}`, 'limit=abc'])('events reject %s', async (query) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  expect((await fetchEventsPage({ server, documentId, cookie: owner.cookie, query })).status).toBe(HttpStatus.BadRequest);
   await server.stop();
 });

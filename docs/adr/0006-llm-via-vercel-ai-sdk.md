@@ -37,3 +37,7 @@ The spec forbids third-party managed services except LLM providers. The product 
 
 - The default provider's pricing or models change materially.
 - The spec clarifies whether intermediaries count as LLM providers.
+
+## Addendum 2026-10-16
+
+Owner decision for slice 3: the provider behind the AI SDK is **OpenRouter** (`@openrouter/ai-sdk-provider`), model `openai/gpt-6-luna` (cheap), configured by `OPENROUTER_API_KEY` and `LLM_MODEL`. The earlier concern about OpenRouter being a managed intermediary is accepted by the owner: the brief's exception for LLM providers is read as covering an LLM gateway, and the README states it. Switching provider or model stays an environment change.

@@ -3,6 +3,7 @@
 - Date: 2026-10-16
 - Inspired by: slice 2 final review refutation of "events within ~3 s"; tester measurement (first events after ~4 s)
 - Revisited: 2026-10-16 — `maxDebounce` set to 4 s; projection from `onChange` deferred to slice 3
+- Revisited: 2026-10-16 — slice 3 schedules projection from `onChange` on a 1.5 s throttle with the store as the final flush (`apps/server/src/history/projection-throttle.ts`)
 
 ## Signal
 Two authors type continuously and `/events` shows nothing for many seconds, then a burst.

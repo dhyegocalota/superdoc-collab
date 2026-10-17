@@ -1,0 +1,41 @@
+import * as Y from 'yjs';
+import type { UpdateLog } from './update-log';
+import type { VersionMark } from './version-marks';
+
+export const REPLAY_CACHE_SIZE = 2;
+
+type Replay = { document: Y.Doc; lastSequence: number };
+
+export class GcFreeReplays {
+  private readonly capacity: number;
+  private readonly replays = new Map<string, Replay>();
+
+  constructor(capacity: number) {
+    this.capacity = capacity;
+  }
+
+  version({ log, documentName, mark }: { log: UpdateLog; documentName: string; mark: VersionMark }): Y.Doc {
+    return Y.createDocFromSnapshot(this.caughtUp({ log, documentName }), Y.decodeSnapshot(mark.snapshot));
+  }
+
+  forget(documentName: string): void {
+    this.replays.delete(documentName);
+  }
+
+  private replayOf(documentName: string): Replay {
+    const cached = this.replays.get(documentName);
+    if (cached) return cached;
+    return { document: new Y.Doc({ gc: false }), lastSequence: 0 };
+  }
+
+  private caughtUp({ log, documentName }: { log: UpdateLog; documentName: string }): Y.Doc {
+    const replay = this.replayOf(documentName);
+    const tail = log.readRange({ documentName, afterSequence: replay.lastSequence, untilSequence: Number.MAX_SAFE_INTEGER });
+    tail.forEach((update) => Y.applyUpdate(replay.document, update.update));
+    const lastSequence = tail.reduce((latest, update) => Math.max(latest, update.sequence), replay.lastSequence);
+    this.replays.delete(documentName);
+    this.replays.set(documentName, { document: replay.document, lastSequence });
+    [...this.replays.keys()].slice(0, Math.max(0, this.replays.size - this.capacity)).forEach((evicted) => this.replays.delete(evicted));
+    return replay.document;
+  }
+}

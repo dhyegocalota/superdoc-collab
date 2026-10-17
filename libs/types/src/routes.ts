@@ -4,6 +4,7 @@ export enum AppRoute {
   Documents = '/documents',
   Document = '/documents/:documentId',
   Share = '/share/:token',
+  VersionView = '/documents/:documentId/versions/:sequence/view',
 }
 
 export enum ApiPath {
@@ -20,7 +21,20 @@ export enum DocumentResource {
   Members = 'members',
   Download = 'download',
   ShareLinks = 'share-links',
+  Timeline = 'timeline',
+  Topics = 'topics',
+  Summaries = 'summaries',
+  Versions = 'versions',
 }
+
+export enum VersionResource {
+  Text = 'text',
+}
+
+const REFRESH_SEGMENT = 'refresh';
+const EDITS_SEGMENT = 'edits';
+const COLLABORATION_VERSIONS_SEGMENT = 'versions';
+const VERSION_VIEW_SEGMENT = 'view';
 
 export function documentPagePath(documentId: string): string {
   return `${AppRoute.Documents}/${encodeURIComponent(documentId)}`;
@@ -38,4 +52,26 @@ export function sharePagePath(token: string): string {
 
 export function shareLinkAcceptPath(token: string): string {
   return `${ApiPath.ShareLinks}/${encodeURIComponent(token)}/accept`;
+}
+
+export function topicsRefreshApiPath(documentId: string): string {
+  return `${documentApiPath({ documentId, resource: DocumentResource.Topics })}/${REFRESH_SEGMENT}`;
+}
+
+export function timelineEditsApiPath(documentId: string): string {
+  return `${documentApiPath({ documentId, resource: DocumentResource.Timeline })}/${EDITS_SEGMENT}`;
+}
+
+export function versionApiPath({ documentId, sequence, resource }: { documentId: string; sequence: number; resource?: VersionResource }): string {
+  const base = `${documentApiPath({ documentId, resource: DocumentResource.Versions })}/${sequence}`;
+  if (!resource) return base;
+  return `${base}/${resource}`;
+}
+
+export function versionCollaborationPath({ documentId, sequence }: { documentId: string; sequence: number }): string {
+  return `${ApiPath.Collaboration}/${COLLABORATION_VERSIONS_SEGMENT}/${encodeURIComponent(documentId)}/${sequence}`;
+}
+
+export function versionViewPagePath({ documentId, sequence }: { documentId: string; sequence: number }): string {
+  return `${documentPagePath(documentId)}/${COLLABORATION_VERSIONS_SEGMENT}/${sequence}/${VERSION_VIEW_SEGMENT}`;
 }

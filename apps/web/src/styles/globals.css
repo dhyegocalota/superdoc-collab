@@ -22,6 +22,8 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.55 0.22 263);
+  --topic-lightness: 62%;
+  --topic-other: oklch(0.87 0 0);
 }
 
 .dark {
@@ -43,6 +45,8 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.62 0.2 263);
+  --topic-lightness: 48%;
+  --topic-other: oklch(0.4 0 0);
 }
 
 @theme inline {
@@ -77,5 +81,20 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  .topic-band {
+    fill: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-lightness));
+  }
+  .topic-band-other {
+    fill: var(--topic-other);
+  }
+  .topic-swatch {
+    background-color: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-lightness));
+  }
+  .topic-swatch-other {
+    background-color: var(--topic-other);
   }
 }

@@ -44,3 +44,7 @@ Owner decision on 2026-10-16 after comparing the three options.
 ## Revisit when
 
 A slice's plan exceeds roughly twenty steps or its pull request stops being reviewable in one sitting: split it and record the split here as a superseding ADR.
+
+## Addendum 2026-10-16
+
+Owner decision after slice 2: the streamgraph bands are LLM-named topics from the start, so topic naming and the per-topic summary sentence of the "Top edits" panel move from slice 4 into slice 3. Slice 4 keeps the on-demand "Summarize edits" (summary of the filtered or selected range) and polish. Slice 3 therefore carries the Vercel AI SDK integration (ADR 0006) and the time-travel spike (ADR 0003).

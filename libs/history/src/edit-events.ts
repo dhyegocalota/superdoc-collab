@@ -3,6 +3,7 @@ import { diffChars } from 'diff';
 import * as Y from 'yjs';
 import { readMainStoryBlocks, type Block } from './document-content';
 import type { LoggedUpdate } from './update-log';
+import { endsItsMinute, markOf, type VersionMark } from './version-marks';
 
 export type EditEvent = {
   sequence: number;
@@ -58,16 +59,21 @@ export function resolveAuthorIds({ update, identities }: { update: Pick<LoggedUp
 
 export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
 
-export function projectEditEvents({ baselineState, updates }: { baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedEdit[] {
+export type ProjectedBatch = { events: ProjectedEdit[]; marks: VersionMark[] };
+
+export function projectEditEvents({ baselineState, updates }: { baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedBatch {
   const document = new Y.Doc();
   Y.applyUpdate(document, baselineState);
   let previous = readBlockStates(document);
-  return updates.flatMap((update) => {
+  const marks: VersionMark[] = [];
+  const events = updates.flatMap((update, index) => {
     Y.applyUpdate(document, update.update);
     const current = readBlockStates(document);
     const changes = diffBlocks({ before: previous, after: current });
     previous = current;
+    if (endsItsMinute({ update, next: updates[index + 1] })) marks.push(markOf({ update, document, isBootstrap: false }));
     const { sequence, serverTime, yjsClientIds, connectionUserId } = update;
     return changes.map((change) => ({ ...change, sequence, serverTime, yjsClientIds, connectionUserId }));
   });
+  return { events, marks };
 }

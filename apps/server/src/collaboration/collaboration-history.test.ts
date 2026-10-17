@@ -1,11 +1,14 @@
 import { DocumentRole } from '@superdoc-history/types';
 import { IdentitySource } from '@superdoc-history/history';
 import { randomUUID } from 'node:crypto';
-import { expect, test } from 'vitest';
+import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 
 const ALL = Number.MAX_SAFE_INTEGER;
+const SNAPSHOT_WAIT_MS = 15_000;
+const UPDATES_BEFORE_SNAPSHOT = 1001;
 
 test("a reader's update is acknowledged but never logged", async () => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -83,5 +86,26 @@ test('a member of one document is refused on another', async () => {
 test('an upgrade the server destroys rejects the connection promptly', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   await expect(connectToDocument({ server, cookie: owner.cookie, documentId, origin: 'https://evil.example' })).rejects.toBeInstanceOf(CollaborationRefusedError);
+  await server.stop();
+});
+
+test('every logged update requests a throttled projection', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const request = vi.spyOn(server.services.throttle, 'request');
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  client.document.getText('t').insert(0, 'x');
+  await expect.poll(() => request.mock.calls.map(([requested]) => requested)).toContain(documentId);
+  client.close();
+  await server.stop();
+});
+
+test('the worker writes the heavy snapshot', { timeout: SNAPSHOT_WAIT_MS * 2 }, async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: [''] });
+  commitBootstrap(client.document);
+  Array.from({ length: UPDATES_BEFORE_SNAPSHOT }).forEach(() => client.document.getText('t').insert(0, 'x'));
+  await expect.poll(() => server.services.log.latestSnapshot({ documentName: documentId, atOrBefore: ALL })?.sequence, { timeout: SNAPSHOT_WAIT_MS }).toBeDefined();
+  client.close();
   await server.stop();
 });

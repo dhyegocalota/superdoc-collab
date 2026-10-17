@@ -1,9 +1,11 @@
 import { ApiPath, AppRoute } from '@superdoc-history/types';
+import { createServer, type AddressInfo } from 'node:net';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './database/connection';
+import { JobOutcome } from './insights/insights-worker';
 import { startServer } from './server';
 import { testEnvironment } from './testing/test-server';
 
@@ -79,4 +81,22 @@ describe('startServer', () => {
     chmodSync(documentsDirectory, 0o500);
     await expect(startServer({ environment, webDistDirectory: null })).rejects.toThrow(DatabaseDirectoryNotWritableError);
   });
+});
+
+test('startServer rejects instead of hanging when the port is taken', async () => {
+  const blocker = createServer();
+  await new Promise<void>((resolve) => blocker.listen(0, resolve));
+  const { port } = blocker.address() as AddressInfo;
+  await expect(startServer({ environment: { ...testEnvironment(), port }, webDistDirectory: null })).rejects.toMatchObject({ code: 'EADDRINUSE' });
+  await new Promise((resolve) => blocker.close(resolve));
+});
+
+test('startServer hands the configured LLM limits to the insights worker', async () => {
+  const environment = { ...testEnvironment(), llm: { model: null, apiKey: null, baseUrl: null, maxConcurrentJobs: 1, maxCallsPerHour: 1 } };
+  const running = await startServer({ environment, webDistDirectory: null });
+  const { worker } = running.services.insights;
+  expect(worker.run({ key: 'held', job: () => new Promise<void>((resolve) => setTimeout(resolve, 50)) })).toBe(JobOutcome.Started);
+  expect(worker.run({ key: 'other', job: async () => undefined })).toBe(JobOutcome.Busy);
+  expect([worker.consumeCall(), worker.consumeCall()]).toEqual([true, false]);
+  await running.stop();
 });

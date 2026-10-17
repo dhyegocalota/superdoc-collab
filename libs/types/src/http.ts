@@ -1,5 +1,6 @@
 export enum HttpStatus {
   Ok = 200,
+  Accepted = 202,
   Created = 201,
   NoContent = 204,
   BadRequest = 400,
@@ -11,6 +12,7 @@ export enum HttpStatus {
   UnsupportedMediaType = 415,
   TooManyRequests = 429,
   InternalServerError = 500,
+  ServiceUnavailable = 503,
 }
 
 export enum HttpMethod {

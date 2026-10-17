@@ -230,3 +230,20 @@ The red commit ca4bccd adds `membersAnsweredAt: null` as a stub so typecheck sta
 - `document-page.test.tsx` (G3b's file) matches the members path exactly and fails on `?tab=`; reported to the lead, not edited here.
 - `onlineTabIds` ignores every tab of a connection that has no `tab` query, so a client that omits it reads `false` when it asks with a tab.
 
+### G4: runs against the merged banner
+
+Run on the integration branch merged into the lane, ports 3100, 3199 and 3150 free. Do not run two gates at once: they share those ports, and a second run silently talks to the first run's server.
+
+| Test | Result | Output |
+|------|--------|--------|
+| `the restartable server answers health after a stop and a start` | green, 1.0 s | |
+| `a server restart shows lost, reconnecting, then clears` | green, 8.6 s | observed order lost, reconnecting, recovered, then the banner cleared |
+| `an edit typed while the server is down reaches the other author after reconnect` | green, 7.2 s | |
+| `the session cookie removed shows failed, an inert editor and a working Reload` | green, 6.6 s | |
+| `the banner reads well at eight widths` | red | `banner content height at 320px`, `Expected: <= 60`, `Received: 168` |
+
+- The transient `lost` is never polled alone: the spec waits for `lost` or `reconnecting`, and the order comes from the in-page observer.
+- The edit test compares the marker event's `serverTime` with the moment just before `startServer` is called, because health answers up to a poll interval after the new server accepted the edit. The old server was down at that moment, so the new one recorded the edit.
+- With the cookie cleared, Failed shows as soon as the server stops, so that test no longer waits for `lost`.
+- The width test is red for a real reason. Lost and Reconnecting fit at all eight widths. Failed at 320 px reads as three paragraphs plus Reload, 168 px of content against 60 px for three lines, and the design asks for three lines at most on phones. Reload sits inside the viewport. 375 px probably fails the same way and was not reached.
+- The banner's vertical padding and borders are excluded from the measured height.

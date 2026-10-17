@@ -14,6 +14,7 @@ const STACK_START_TIMEOUT_MS = 300_000;
 const DATABASE_DIRECTORY_PREFIX = 'superdoc-collab-scenario-';
 const STOP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
 const ADDRESS_IN_USE = 'EADDRINUSE';
+const NO_SUCH_PROCESS = 'ESRCH';
 
 const origin = localOrigin(SCENARIO_PORT);
 const fakeOpenRouterOrigin = localOrigin(SCENARIO_FAKE_OPENROUTER_PORT);
@@ -37,8 +38,21 @@ function start({ command, environment }: { command: string; environment: Record<
   return child;
 }
 
+function isRunning(child: ChildProcess): boolean {
+  return child.pid !== undefined && child.exitCode === null && child.signalCode === null;
+}
+
+function stopGroup(pid: number): void {
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch (error) {
+    const alreadyGone = (error as NodeJS.ErrnoException).code === NO_SUCH_PROCESS;
+    if (!alreadyGone) throw error;
+  }
+}
+
 function stopAll(): void {
-  children.filter((child) => child.pid !== undefined && child.exitCode === null).forEach((child) => process.kill(-child.pid!, 'SIGTERM'));
+  children.filter(isRunning).forEach((child) => stopGroup(child.pid!));
 }
 
 async function isHealthy(url: string): Promise<boolean> {

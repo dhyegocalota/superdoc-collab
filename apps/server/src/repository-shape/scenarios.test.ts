@@ -43,8 +43,8 @@ function violations(scenario: Scenario): string[] {
   const missingScalars = REQUIRED_SCALARS.filter((key) => !(key in scenario.scalars)).map((key) => `${scenario.slug}: missing ${key}`);
   const noPaths = scenario.paths.length === 0 ? [`${scenario.slug}: no paths`] : [];
   const slugMismatch = scenario.scalars.name !== scenario.slug ? [`${scenario.slug}: name differs from the file name`] : [];
-  const headings = scenario.body.match(TEST_HEADING_PATTERN) ?? [];
-  const expects = scenario.body.match(EXPECT_LINE_PATTERN) ?? [];
+  const headings = [...scenario.body.matchAll(TEST_HEADING_PATTERN)];
+  const expects = [...scenario.body.matchAll(EXPECT_LINE_PATTERN)];
   const noTests = headings.length === 0 ? [`${scenario.slug}: no test`] : [];
   const expectsMismatch =
     headings.length !== expects.length ? [`${scenario.slug}: ${headings.length} tests but ${expects.length} Expect lines`] : [];

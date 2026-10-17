@@ -27,9 +27,11 @@ export function ShareLandingPage() {
 
   if (!failureMessage)
     return (
-      <p role="status" className="p-6 text-sm text-muted-foreground">
-        {SHARE_OPENING_MESSAGE}
-      </p>
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
+        <p role="status" className="text-sm text-muted-foreground">
+          {SHARE_OPENING_MESSAGE}
+        </p>
+      </main>
     );
 
   return (

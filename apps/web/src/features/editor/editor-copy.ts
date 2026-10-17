@@ -19,12 +19,12 @@ export const SHARE_DIALOG_DESCRIPTION =
   'Anyone signed in with a link joins with that link’s access. Resetting a link stops the old one from working.';
 export const TIMELINE_TOGGLE_LABEL = 'Toggle timeline';
 export const DOCUMENT_LOAD_ERROR_MESSAGE = 'The document could not be loaded.';
-export const LOADING_DOCUMENT_MESSAGE = 'Loading document...';
+export const LOADING_DOCUMENT_MESSAGE = 'Loading document…';
 export const EXPORT_FAILED_MESSAGE = 'The document could not be exported.';
 export const EDITOR_FAILED_MESSAGE = 'The editor stopped working. Reload the page to continue.';
 export const EDITOR_ESCAPE_HINT = 'Press Escape to leave the editor.';
 export const EDITOR_EXIT_LABEL = 'End of the editor';
-export const SHARE_OPENING_MESSAGE = 'Opening...';
+export const SHARE_OPENING_MESSAGE = 'Opening…';
 export const RENAME_FAILED_MESSAGE = 'The title could not be saved.';
 export const DELETE_FAILED_MESSAGE = 'The document could not be deleted.';
 export const RESET_FAILED_MESSAGE = 'The link could not be reset.';

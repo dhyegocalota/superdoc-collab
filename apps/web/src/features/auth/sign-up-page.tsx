@@ -6,8 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { authClient } from './auth-client';
-import { SIGN_UP_LABEL, SIGN_UP_PENDING_LABEL } from './auth-copy';
+import {
+  EMAIL_FIELD_LABEL,
+  HAVE_ACCOUNT_PROMPT,
+  NAME_FIELD_LABEL,
+  PASSWORD_FIELD_LABEL,
+  SIGN_IN_LABEL,
+  SIGN_UP_DESCRIPTION,
+  SIGN_UP_HEADING,
+  SIGN_UP_LABEL,
+  SIGN_UP_PENDING_LABEL,
+} from './auth-copy';
 import { useAuthSubmit } from './use-auth-submit';
 
 export function SignUpPage() {
@@ -16,13 +27,14 @@ export function SignUpPage() {
     form,
     request: (values, responseCapture) => authClient.signUp.email(values, responseCapture),
   });
+  useDocumentTitle(SIGN_UP_HEADING);
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Create your account</CardTitle>
-          <CardDescription>Your documents and their history stay private to you.</CardDescription>
+          <CardTitle>{SIGN_UP_HEADING}</CardTitle>
+          <CardDescription>{SIGN_UP_DESCRIPTION}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -32,7 +44,7 @@ export function SignUpPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{NAME_FIELD_LABEL}</FormLabel>
                     <FormControl>
                       <Input autoComplete="name" {...field} />
                     </FormControl>
@@ -45,7 +57,7 @@ export function SignUpPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{EMAIL_FIELD_LABEL}</FormLabel>
                     <FormControl>
                       <Input type="email" autoComplete="email" {...field} />
                     </FormControl>
@@ -58,7 +70,7 @@ export function SignUpPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{PASSWORD_FIELD_LABEL}</FormLabel>
                     <FormControl>
                       <Input type="password" autoComplete="new-password" {...field} />
                     </FormControl>
@@ -75,9 +87,9 @@ export function SignUpPage() {
                 {form.formState.isSubmitting ? SIGN_UP_PENDING_LABEL : SIGN_UP_LABEL}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
+                {HAVE_ACCOUNT_PROMPT}{' '}
                 <Link to={AppRoute.SignIn} className="text-primary underline-offset-4 hover:underline">
-                  Sign in
+                  {SIGN_IN_LABEL}
                 </Link>
               </p>
             </form>

@@ -21,6 +21,7 @@ const QUICK_INSTALL_HEADING = '## Quick install';
 const CONFIGURATION_SECTION_HEADING = '## Configuration';
 const RECOVERY_SECTION_HEADING = '## Recovery';
 const SECTION_PATTERN = /^## /m;
+const PROTOTYPE_FOLDERS = ['spikes', 'poc'];
 const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
 const REPOSITORY_URL = 'https://github.com/dhyegocalota/superdoc-collab';
 const GITHUB_URL_PATTERN = /https:\/\/github\.com\/[^\s`)]+/g;
@@ -123,6 +124,10 @@ describe('delivery documents', () => {
     const urls = followed.match(GITHUB_URL_PATTERN);
     expect(urls).not.toBeNull();
     expect(urls?.filter((url) => url !== REPOSITORY_URL)).toEqual([]);
+  });
+
+  test('no spike or proof-of-concept code is committed at the root', () => {
+    expect(PROTOTYPE_FOLDERS.filter((folder) => existsSync(repositoryPath(folder)))).toEqual([]);
   });
 
   test('the install guide explains how to promote an administrator', () => {

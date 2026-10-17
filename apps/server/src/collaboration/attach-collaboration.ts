@@ -1,14 +1,24 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { HttpStatus, MAX_SOCKET_MESSAGE_BYTES, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
+import {
+  HttpStatus,
+  MAX_SOCKET_MESSAGE_BYTES,
+  POLICY_VIOLATION_CLOSE_CODE,
+  RETRY_AFTER_HEADER,
+  SECOND_MS,
+  SOCKET_RATE_LIMIT_REASON,
+  VERSION_FAILURE_TTL_MS,
+} from '@superdoc-collab/types';
 import { WebSocket, WebSocketServer } from 'ws';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
+import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
+const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
 
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
@@ -43,6 +53,13 @@ export function attachCollaboration({
   allowedOrigin: string;
 }): WebSocketServer {
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_SOCKET_MESSAGE_BYTES });
+  const messageLimit = new SocketMessageLimit();
+  function closeOnBreach(this: WebSocket): void {
+    if (!messageLimit.breached(this)) return;
+    console.warn(SOCKET_RATE_LIMIT_LOG);
+    this.removeAllListeners('message');
+    this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+  }
   function upgrade({
     request,
     socket,
@@ -56,6 +73,7 @@ export function attachCollaboration({
   }): void {
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
+      webSocket.on('message', closeOnBreach);
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);
     });

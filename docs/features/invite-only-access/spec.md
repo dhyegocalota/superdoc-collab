@@ -1,8 +1,8 @@
 # Invite-only access — spec
 
-- Status: In review
+- Status: Approved
 - Tier: red (authentication surface: who can create an account, a new role, a new table, a new admin page).
-- Owner approval: design approved in chat 2026-10-17 (four questions answered: first sign-up claims the instance; single-use invite links; admin-only invites on `/admin`; demo seed out of production, kept for E2E and agentic tests). Spec: pending.
+- Owner approval: design approved in chat 2026-10-17 (four questions answered: first sign-up claims the instance; single-use invite links; admin-only invites on `/admin`; demo seed out of production, kept for E2E and agentic tests). Spec: approved 2026-10-17 ("continua").
 - ADRs: [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md); amends [0005](../../adr/0005-authentication-with-better-auth.md) (open sign-up, seeded demo users). [0010](../../adr/0010-documents-ownership-and-share-links.md) is unchanged: admins have no power over documents they do not own.
 - Not changing: document ownership and share links, sessions, the Hocuspocus handshake, the LLM pipeline, the demo seed's content (Ana, Bruno, Caio, Dani stay as test users).
 

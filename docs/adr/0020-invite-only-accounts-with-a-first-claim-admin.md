@@ -1,6 +1,6 @@
 # 0020. Invite-only accounts with a first-claim admin
 
-- Status: Proposed (owner approved the design in chat on 2026-10-17; Accepted when the spec is approved)
+- Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: [0005](0005-authentication-with-better-auth.md) (open sign-up, seeded demo users), [0010](0010-documents-ownership-and-share-links.md) (token hashing for share links), [0011](0011-process-wide-llm-cost-caps.md) (the budget an open sign-up exposes), the first Railway deploy (an instance anyone can join spends the owner's model key)

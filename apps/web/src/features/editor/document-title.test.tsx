@@ -9,8 +9,8 @@ import { DocumentTitle } from './document-title';
 
 const RENAMED_TITLE = 'Renamed';
 
-function renderTitle(role: DocumentRole): void {
-  renderWithProviders(<DocumentTitle documentId={DOCUMENT_ID} title={DOCUMENT_TITLE} role={role} />);
+function renderTitle(role: DocumentRole, onFailureChange = vi.fn()): void {
+  renderWithProviders(<DocumentTitle documentId={DOCUMENT_ID} title={DOCUMENT_TITLE} role={role} onFailureChange={onFailureChange} />);
 }
 
 function patchRequests(fetchSpy: MockInstance<typeof fetch>) {
@@ -54,4 +54,18 @@ test('a reader gets an h1 and no button', () => {
   renderTitle(DocumentRole.Reader);
   expect(screen.getByRole('heading', { level: 1, name: DOCUMENT_TITLE })).toBeVisible();
   expect(screen.queryByRole('button')).toBeNull();
+});
+
+test('a failed save reports the failure upward, and a new save clears it', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: HttpStatus.BadRequest }));
+  const onFailureChange = vi.fn();
+  renderTitle(DocumentRole.Editor, onFailureChange);
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
+  await waitFor(() => expect(onFailureChange).toHaveBeenLastCalledWith(true));
+  expect(screen.queryByRole('alert')).toBeNull();
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.NoContent }));
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
+  await waitFor(() => expect(onFailureChange).toHaveBeenLastCalledWith(false));
 });

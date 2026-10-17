@@ -101,6 +101,11 @@ export function DocumentPage() {
         onDownloadDocx={downloadLiveDocument}
         renderUseWithAi={renderUseWithAi}
       />
+      {superdoc === null && !fileError && (
+        <p id={LOADING_DOCUMENT_REASON_ID} role="status" className="px-4 py-1 text-xs text-muted-foreground">
+          {LOADING_DOCUMENT_MESSAGE}
+        </p>
+      )}
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <EditorToolbarRow
         role={opened.role}
@@ -124,11 +129,6 @@ export function DocumentPage() {
                 file={editorSetup.file}
                 isInert={isViewingPastVersion}
               />
-            )}
-            {!(editorSetup && isToolbarReady) && !fileError && (
-              <p id={LOADING_DOCUMENT_REASON_ID} role="status" className="flex-1 p-4 text-sm text-muted-foreground">
-                {LOADING_DOCUMENT_MESSAGE}
-              </p>
             )}
             {fileError && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
             <VersionFrame

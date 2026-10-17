@@ -32,6 +32,8 @@ import {
   BACK_TO_DOCUMENTS_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,
   DOWNLOAD_BUTTON_LABEL,
+  DOWNLOAD_PDF_LABEL,
+  MORE_ACTIONS_LABEL,
   EDITOR_ESCAPE_HINT,
   EDITOR_EXIT_LABEL,
   EDIT_REJECTED_MESSAGE,
@@ -404,4 +406,16 @@ test('an editor gets the toolbar container of the row and a reader gets none', a
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   expect(constructedConfig().ui.toolbar).toBeUndefined();
   expect(screen.queryByTestId('toolbar-container')).toBeNull();
+});
+
+test('while the editor is mounted but not ready, Download and its More actions items are described by the loading reason', async () => {
+  SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
+    return { destroy: superDocDestroy, export: superDocExport };
+  });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toHaveAccessibleDescription(LOADING_DOCUMENT_MESSAGE);
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  expect(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toHaveAccessibleDescription(LOADING_DOCUMENT_MESSAGE);
 });

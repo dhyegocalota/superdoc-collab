@@ -20,23 +20,18 @@ export const timelineQuerySchema = z.object({
   [TimelineQueryParam.Author]: filterText,
   [TimelineQueryParam.BinMs]: binMsParameter,
 });
+function isOptionalSafeInteger(value: string | undefined): boolean {
+  if (!value) return true;
+  return NON_NEGATIVE_INTEGER_PATTERN.test(value) && Number.isSafeInteger(Number(value));
+}
+
 const binStartParameter = z
   .string()
   .optional()
-  .refine((value) => !value || (NON_NEGATIVE_INTEGER_PATTERN.test(value) && Number.isSafeInteger(Number(value))))
+  .refine(isOptionalSafeInteger)
   .transform((value) => (value ? Number(value) : null));
 export const editsQuerySchema = timelineQuerySchema.extend({ [TimelineQueryParam.BinStart]: z.coerce.number().int() });
 export const selectionQuerySchema = timelineQuerySchema.extend({
   [TimelineQueryParam.Topic]: filterText,
   [TimelineQueryParam.At]: binStartParameter,
 });
-
-export function queryOf({
-  read,
-  names,
-}: {
-  read: (name: string) => string | undefined;
-  names: string[];
-}): Record<string, string | undefined> {
-  return Object.fromEntries(names.map((name) => [name, read(name)]));
-}

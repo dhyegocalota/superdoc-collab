@@ -8,7 +8,7 @@ import {
 } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { authorizedDocumentId } from '../documents/require-document-role';
-import { INVALID_TIMELINE_QUERY_MESSAGE, queryOf, selectionQuerySchema } from '../history/timeline-query';
+import { INVALID_TIMELINE_QUERY_MESSAGE, selectionQuerySchema } from '../history/timeline-query';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater } from '../http/retry-later';
@@ -17,10 +17,6 @@ import { SelectionRequestOutcome } from './selection-summaries-service';
 import { RefreshOutcome } from './topics-service';
 
 const SELECTION_PATH = '/:documentId/summaries/selection';
-
-function parseSelection(read: (name: string) => string | undefined): ReturnType<typeof selectionQuerySchema.safeParse> {
-  return selectionQuerySchema.safeParse(queryOf({ read, names: Object.keys(selectionQuerySchema.shape) }));
-}
 
 function documentTopics({ services, documentId }: { services: AppServices; documentId: string }): DocumentTopics {
   const topics = services.insightsRepository
@@ -55,13 +51,13 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
   });
   routes.get(SELECTION_PATH, (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
-    const parsed = parseSelection((name) => context.req.query(name));
+    const parsed = selectionQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     return context.json(services.insights.selection.read({ documentId, selection: parsed.data }));
   });
   routes.post(SELECTION_PATH, (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Editor });
-    const parsed = parseSelection((name) => context.req.query(name));
+    const parsed = selectionQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const selection = parsed.data;
     const result = services.insights.selection.request({ documentId, selection });

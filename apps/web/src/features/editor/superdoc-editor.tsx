@@ -46,7 +46,8 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
-    const isOnEditingSurface = event.target instanceof HTMLElement && event.target.closest(EDITING_SURFACE_SELECTOR) !== null;
+    const surface = event.target instanceof HTMLElement ? event.target.closest(EDITING_SURFACE_SELECTOR) : null;
+    const isOnEditingSurface = surface !== null && event.currentTarget.contains(surface);
     if (!isOnEditingSurface) return;
     exitRef.current?.focus();
   }

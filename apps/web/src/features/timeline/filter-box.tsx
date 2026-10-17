@@ -28,7 +28,7 @@ export function FilterBox() {
       return;
     }
     if (event.key !== KeyboardKey.Enter) return;
-    const parsed = parseFilterInput(draft);
+    const parsed = parseFilterInput(event.currentTarget.value);
     if (!parsed) return;
     update({ changes: { [PARAM_BY_KIND[parsed.kind]]: parsed.value }, replace: true });
     setDraft('');

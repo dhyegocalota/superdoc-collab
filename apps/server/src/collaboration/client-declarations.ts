@@ -10,14 +10,17 @@ export function createClientDeclarer(updateLog: UpdateLog) {
   return {
     declare(document: Document): void {
       const states = document.awareness.getStates() as Map<number, PresenceState>;
-      const writable = [...document.connections.values()].filter(({ connection }) => !connection.readOnly);
+      const writable = [...document.connections.values()].filter(({ connection }) => {
+        const { actor } = connection.context as CollaborationContext;
+        return !connection.readOnly && actor === ClientActor.Human;
+      });
       const holders = [...document.connections.values()].flatMap(({ clients }) => [...clients] as number[]);
       const declarations = writable.flatMap(({ clients, connection }) => {
-        const { userId, documentId } = connection.context as CollaborationContext;
+        const { userId, documentId, actor } = connection.context as CollaborationContext;
         const isContested = (clientId: number) => holders.filter((holder) => holder === clientId).length > 1;
         return [...clients]
           .filter((clientId: number) => states.get(clientId)?.userId === userId && !isContested(clientId))
-          .map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId, actor: ClientActor.Human }));
+          .map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId, actor }));
       });
       const signature = JSON.stringify(declarations.map(({ yjsClientId, userId }) => `${yjsClientId}:${userId}`).sort());
       if (lastDeclared.get(document.name) === signature) return;

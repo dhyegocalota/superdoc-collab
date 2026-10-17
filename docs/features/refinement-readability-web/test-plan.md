@@ -20,10 +20,10 @@ Each red commit precedes its implementation commit in `git log --oneline main..H
 - [x] `apps/web/src/lib/use-escape-key.test.ts::Escape calls the latest handler while enabled` — input: handler swapped once, Escape on `document.body`; expected at red: 0 calls; green: first 0, second 1. — evidence: red 2246958 (`expected "vi.fn()" to be called 1 times, but got 0 times`), green 897720d
 - [x] `apps/web/src/features/timeline/bin-containing.test.ts::a time inside a bin finds that bin and its index` — input: a time inside and at the start of the second bin; expected at red: `expected null to deeply equal { index: 1, … }`; green: `{ index: 1, bin }` both times. — evidence: red d2f3028 (`expected null to deeply equal { index: 1, bin: { …(3) } }`), green 40ca285
 - [x] `apps/web/src/features/timeline/use-bin-selection.test.ts::selecting a bin with a version travels to it, a bin without one only selects it` — input: `selectIndex(0)` then `selectIndex(2)` (bin 2 has version 7); expected at red: `expected null to be 0`; green: index 0 without travel, then index 2 and `onTravel(bins[2].start)`. — evidence: red e2233ef (`expected null to be +0`, `expected null to be 1`, spy 0 times), green af6a539
-- [ ] `apps/web/src/features/editor/superdoc-options.test.ts::the options open the file in its room as the signed-in user at the viewport zoom` — input: a Join room, viewing mode, the session user; expected at red: `expected {} to deeply equal { selector: …`; green: the full object with `serverUrl: 'ws://localhost:3000/collaboration/doc-1'` and `zoom: { mode: 'manual' }`.
+- [x] `apps/web/src/features/editor/superdoc-options.test.ts::the options open the file in its room as the signed-in user at the viewport zoom` — input: a Join room, viewing mode, the session user; expected at red: `expected {} to deeply equal { selector: …`; green: the full object with `serverUrl: 'ws://localhost:3000/collaboration/doc-1'` and `zoom: { mode: 'manual' }`. — evidence: red 4f7f2f3 (`expected {} to deeply equal { selector: <div></div>, …(5) }`), green 1cbf6df
 - [x] `apps/web/src/components/error-message.test.tsx::an error message is announced as an alert` — input: a message as children; expected at red: no element with role `alert`; green: one alert with the text. — evidence: red 37a353b (`Unable to find an accessible element with the role "alert"`), green 8fd1a34
 - [x] `apps/web/src/features/auth/auth-card.test.tsx::a root error is announced as an alert` — input: a form whose root error is set on mount; expected at red: no element with role `alert`; green: one alert reading the root error. — evidence: red b44df94 (`Unable to find role="alert"`), green a0bc370
-- [x] Confirmed every red fails for the right reason: each failure above is an assertion message, never `Cannot find module` or `is not a function` (the inert stubs listed in each task make sure of it). — evidence: each red above rerun at its red commit in a scratch worktree; all fail on an assertion, none on a missing module or function. Task 13's red (`superdoc-options.test.ts`) is still to come
+- [x] Confirmed every red fails for the right reason: each failure above is an assertion message, never `Cannot find module` or `is not a function` (the inert stubs listed in each task make sure of it). — evidence: each red above rerun at its red commit in a scratch worktree; all fail on an assertion, none on a missing module or function. Task 13's red included
 
 ## Pinning tests (green before and after their change)
 
@@ -63,14 +63,14 @@ Each is committed alone, before the commit it pins. Evidence: the pin commit has
 - [x] At the Task 12 commit, `cd apps/web && npx vitest run src/features/timeline/timeline-panel.test.tsx` passes with the same test count as on `main`. — evidence: af6a539: 41 passed, the same 41 as on 2efd828 and 2a39004
 - [x] At the Task 10 and Task 11 commits, `version-view-page.test.tsx` passes with only Task 1's import change in its diff (Task 13 later changes one more import path, for `DocumentMode`). — evidence: 897720d 10 passed, 40ca285 10 passed; no C2 commit other than 74ac4dd touches `version-view-page.test.tsx`
 - [x] At the Task 6 commit, `redirect-if-session.test.tsx` and `sign-out-flow.test.tsx` pass, and their diff is only the `vi.mock('@/lib/api', …)` line switched to the partial `importOriginal` form. — evidence: fd95348: web 290 passed; both files changed by one line each, the `vi.mock` factory
-- [ ] `cd apps/web && npx vitest run` total at Task 18 = total on `main` + the new tests listed above (count them; record both numbers). — interim: 267 at 2a39004, 306 at 2c8f32c (+39 = 37 new tests − 1 folded + 3 more `test.each` cases); final count at Task 18
+- [x] `cd apps/web && npx vitest run` total at Task 18 = total on `main` + the new tests listed above (count them; record both numbers). — evidence: 273 on `main` (176c0a9), 313 at 84236ec; +40 = 38 new tests − 1 folded + 3 more `test.each` cases
 
 ## E2E (Playwright specs)
 
 No spec changes in this lane, so the whole suite is the regression net.
 
 - [ ] `pnpm test:e2e` — steps: the full suite, including `auth.spec.ts`, `documents.spec.ts`, `timeline.spec.ts`, `time-travel.spec.ts`, `selection-summary.spec.ts`, `collaboration.spec.ts`; expected: every spec passes, same count as on `main`.
-- [x] `git diff main..HEAD --stat -- e2e` — expected: empty. — evidence: empty against the C2 base 2a39004
+- [x] `git diff main..HEAD --stat -- e2e` — expected: empty. — evidence: empty against `main` 176c0a9 after the merge aff1805
 
 ## Prove it for real — Playwright MCP
 

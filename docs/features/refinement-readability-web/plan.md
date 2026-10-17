@@ -1676,7 +1676,7 @@ Covers 4.26.
 - Moves: `enum DocumentMode` from `superdoc-editor.tsx` into `superdoc-options.ts`, so the options file imports nothing from the component and there is no import cycle, not even a type-only one. Importers repoint: `superdoc-editor.tsx`, `version-viewer.tsx`, `document-page.test.tsx` and `version-view-page.test.tsx` (import path only).
 - Produces: `superdocOptions({ container, documentId, file, documentMode, collaborationPath, roomMode, user }: { container: HTMLElement; documentId: string; file: Blob; documentMode: DocumentMode; collaborationPath: string; roomMode: RoomMode; user: SessionUser }): Config` (`Config` from `superdoc`).
 
-- [ ] **Step 1: Write the failing test.** `superdoc-options.test.ts`:
+- [x] **Step 1: Write the failing test.** (4f7f2f3; the options also take viewport (the viewer zooms by window.parent since lane A) and carry telemetry: SUPERDOC_TELEMETRY) `superdoc-options.test.ts`:
 
 ```ts
 import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-history/types';
@@ -1726,16 +1726,16 @@ test('the options open the file in its room as the signed-in user at the viewpor
 
 (`ws://localhost:3000` is jsdom's origin, as `version-view-page.test.tsx` already asserts; lane A's `matchMedia` double answers `matches: false`, hence `Manual`.) Inert stub: `superdoc-options.ts` exports the moved `DocumentMode` enum (final values, deleted from `superdoc-editor.tsx` with its importers repointed in this red commit) and `superdocOptions` returning `{} as Config`. Stage `superdoc-editor.tsx`, `version-viewer.tsx`, `document-page.test.tsx` and `version-view-page.test.tsx` with the red commit for that move.
 
-- [ ] **Step 2: Run it and see it fail.** `cd apps/web && npx vitest run src/features/editor/superdoc-options.test.ts`. Expected: FAIL on `expected {} to deeply equal { selector: …`.
+- [x] **Step 2: Run it and see it fail.** (expected {} to deeply equal { selector: <div></div>, …(5) }) `cd apps/web && npx vitest run src/features/editor/superdoc-options.test.ts`. Expected: FAIL on `expected {} to deeply equal { selector: …`.
 
-- [ ] **Step 3: Commit the red test.**
+- [x] **Step 3: Commit the red test.** (4f7f2f3)
 
 ```bash
 git add apps/web/src/features/editor/superdoc-options.ts apps/web/src/features/editor/superdoc-options.test.ts apps/web/src/features/editor/superdoc-editor.tsx apps/web/src/features/versions/version-viewer.tsx apps/web/src/features/editor/document-page.test.tsx apps/web/src/features/versions/version-view-page.test.tsx
 git commit -m "test(web): pin the SuperDoc options shared by the editor and the viewer"
 ```
 
-- [ ] **Step 4: Implement.** `superdoc-options.ts`:
+- [x] **Step 4: Implement.** (1cbf6df) `superdoc-options.ts`:
 
 ```ts
 import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, type RoomMode, type SessionUser } from '@superdoc-history/types';
@@ -1827,9 +1827,9 @@ const superdoc = new SuperDoc({
 
 Both keep `followViewportZoom(superdoc)` and their cleanups as lane A left them. Drop the imports they no longer use (`COLLABORATION_TOKEN_PLACEHOLDER`, `DOCX_MIME_TYPE`, `collaborationUrl`, `HOCUSPOCUS_PROVIDER`, `initialZoomMode`). If `Config` rejects the spread because a callback type narrows a field, type the literal with `satisfies Config` at the call instead of a cast.
 
-- [ ] **Step 5: Run the gate.** Expected: PASS; `document-page.test.tsx` ("creating fetches the stored download and a reader gets the viewing mode", "a cached create followed by a fresh join…", lane A's fit-width test) and `version-view-page.test.tsx` ("the frame page opens a read-only SuperDoc on the version endpoint…") unchanged.
+- [x] **Step 5: Run the gate.** (web 313 passed) Expected: PASS; `document-page.test.tsx` ("creating fetches the stored download and a reader gets the viewing mode", "a cached create followed by a fresh join…", lane A's fit-width test) and `version-view-page.test.tsx` ("the frame page opens a read-only SuperDoc on the version endpoint…") unchanged.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.** (1cbf6df)
 
 ```bash
 git add apps/web/src/features/editor/superdoc-options.ts apps/web/src/features/editor/superdoc-editor.tsx apps/web/src/features/versions/version-viewer.tsx
@@ -1882,7 +1882,7 @@ git add apps/web/src/components/error-message.tsx apps/web/src/components/error-
 git commit -m "test(web): pin one error message component"
 ```
 
-- [x] **Step 4: Implement and adopt.** `components/error-message.tsx`: Evidence: `8fd1a34`. Not adopted here: `superdoc-editor.tsx` waits for Task 13 and the UX crash fix. `selection-summary-card.tsx` adopted on the integration branch: `dc218ce`.
+- [x] **Step 4: Implement and adopt.** `components/error-message.tsx`: Evidence: `8fd1a34`. `selection-summary-card.tsx` adopted on the integration branch: `dc218ce`. `superdoc-editor.tsx` and lane A's share links load error adopted after lane A merged: `84236ec`.
 
 ```tsx
 import type { ReactNode } from 'react';
@@ -2308,7 +2308,7 @@ git commit -m "test(web): build JSON responses in tests with one helper"
 
 ### Task 18: Lane gate
 
-- [ ] **Step 1: Run every gate.**
+- [x] **Step 1: Run every gate.** (format:check, typecheck and test:unit green at 84236ec (types 11, history 77, web 313, server 401 + 2 skipped); test:e2e runs in CI on the pushed branch)
 
 ```bash
 pnpm format:check && pnpm typecheck && pnpm test:unit && pnpm test:e2e
@@ -2316,7 +2316,7 @@ pnpm format:check && pnpm typecheck && pnpm test:unit && pnpm test:e2e
 
 Expected: PASS. E2E specs are untouched by this lane, so any failure is a behaviour change: return to the task that owns the file.
 
-- [ ] **Step 2: Check the audit leftovers are gone.**
+- [x] **Step 2: Check the audit leftovers are gone.** (only the expected hits, plus upload-dialog FILE_INPUT_ID, an input id unrelated to the query key)
 
 ```bash
 rg -n "retryAfterSeconds|\bpinned\b|\.shown\b|canRefresh\b|'document-file'|NavigationKey|ResizeKey|failed with status \$" apps/web/src --glob '!*.test.*'
@@ -2324,7 +2324,7 @@ rg -n "retryAfterSeconds|\bpinned\b|\.shown\b|canRefresh\b|'document-file'|Navig
 
 Expected: only `canRefresh` inside `timeline-notices.tsx` and as the prop passed to it, `retryAfterSeconds` inside `features/auth/` (the auth header stays a seconds string), `'document-file'` in `DOCUMENT_FILE_QUERY_KEY`'s declaration, and `requestFailedMessage` in `lib/api.ts`.
 
-- [ ] **Step 3: Write the tester briefing** at `docs/features/refinement-readability-web/tester-briefing.md` (template in `docs/features/_template/tester-briefing.md`): the commit list per task, the red-then-green test commits, the pinning tests, and each "nothing visible changed" claim as a hypothesis. It also states:
+- [x] **Step 3: Write the tester briefing** (tester-briefing.md) at `docs/features/refinement-readability-web/tester-briefing.md` (template in `docs/features/_template/tester-briefing.md`): the commit list per task, the red-then-green test commits, the pinning tests, and each "nothing visible changed" claim as a hypothesis. It also states:
   - `fetchDocuments` and `fetchMe` now throw `ApiRequestError` instead of a plain `Error`. The message is identical and no code or test checks the class.
   - Task 2's red commit fails only `pnpm --filter @superdoc-history/types typecheck` (TS2345); its Vitest run is green at red, because `presentOrNull(null)` already returns `null` at runtime.
   - Task 13 moved `DocumentMode` into `superdoc-options.ts` so the options file and `superdoc-editor.tsx` do not import each other; the two test files that import `DocumentMode` changed their import path only.

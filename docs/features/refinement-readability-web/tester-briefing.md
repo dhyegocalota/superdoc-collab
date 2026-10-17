@@ -2,22 +2,30 @@
 
 ## Assembled branch: what changed
 
-Branch `chore/refinement-readability-web-api` holds the whole lane except Tasks 13 and 18, which wait for lane A.
+Branch `chore/refinement-readability-web-api` holds the whole lane, merged with `main` after lane A (aff1805). The lane gate is green at 84236ec: format:check, typecheck and `pnpm test:unit` (types 11, history 77, web 313, server 401 plus 2 skipped). E2E runs in CI on the pushed branch.
 
 - **Moves and names (Tasks 1, 4).** The editor and timeline hooks live in their own files: `use-members.ts`, `use-document-file.ts`, `use-bin-runs.ts`, `resize-handle.tsx`, `opening-document.tsx` and `unavailable-notice.tsx`. The arrow keys and the pointer button are shared constants.
 - **Timeline helpers (Tasks 2, 3, 5).** The web reads the volume, presence and digit helpers from the libraries. `maxBandVolume` and `authorNames` replace inline copies. Streamgraph labels no longer have a hidden side effect.
 - **API layer (Tasks 6 to 9).** See the section below.
 - **Listener hooks and splits (Tasks 10 to 12).** `useWindowMessage` and `useEscapeKey` serve the version frame and page. `useTimeTravel` and `TimelinePanel` are split, with `binContaining`, `useVersionLoad` and `useBinSelection`.
-- **Shared UI (Tasks 14 to 16).** Every styled inline error renders through `ErrorMessage`, now including the selection summary card. The auth pages use `AuthCard` and `AuthTextField`. The upload message order and the download handler are simpler.
+- **SuperDoc options (Task 13).** `superdocOptions` in `features/editor/superdoc-options.ts` builds the options for the editor and the version viewer. It takes the viewport, because the viewer zooms by `window.parent`, and it carries the telemetry switch. `DocumentMode` moved there, so the options file and `superdoc-editor.tsx` do not import each other. `document-page.test.tsx` and `version-view-page.test.tsx` changed that import path only.
+- **Shared UI (Tasks 14 to 16).** Every styled inline error renders through `ErrorMessage`, including the selection summary card, the editor failure and lane A's share links load error. The auth pages use `AuthCard` and `AuthTextField`. The upload message order and the download handler are simpler.
 - **Tests (Task 17).** Every web test builds JSON responses with `jsonResponse`, now including `lib/api.test.ts` and the two auth suites.
 - **Integration fix.** `upload-dialog.test.tsx` reads its expected failure from `requestFailedMessage`. The constant it imported was removed in Task 6.
 
 Leftovers after the last sweep, all expected:
 
-- `superdoc-editor.tsx` keeps its inline styled alert until Task 13.
 - `share-landing-page.tsx` and `unavailable-notice.tsx` keep their unstyled alerts by design.
 - `max-band-volume.ts` holds the one `Math.max(0, ...bands)`, as the helper itself.
 - `testing/json-response.ts` holds the one `new Response(JSON.stringify`, as the helper itself.
+- The audit check of Task 18 finds only the expected names, plus `FILE_INPUT_ID = 'document-file'` in `upload-dialog.tsx`, an input id unrelated to the query key.
+
+Facts the plan asks to state:
+
+- `fetchDocuments` and `fetchMe` now throw `ApiRequestError` instead of a plain `Error`. No code or test checks the class. Their message gains the trailing period described below.
+- Task 2's red commit fails only `pnpm --filter @superdoc-history/types typecheck` (TS2345). Its Vitest run is green at red, because `presentOrNull(null)` already returned `null` at runtime.
+- Tasks 6 and 13 edited existing test files: two `@/lib/api` mock factories in Task 6 and two `DocumentMode` import paths in Task 13.
+- `superdoc-options.test.ts` failed at red 4f7f2f3 on `expected {} to deeply equal { selector: … }` and passes from 1cbf6df.
 
 ## API layer: Tasks 2, 6, 7, 8, 9 and Task 1 Step 2
 

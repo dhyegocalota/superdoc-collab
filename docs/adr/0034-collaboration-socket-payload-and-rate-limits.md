@@ -30,7 +30,7 @@ The collaboration socket server is created with the library default, which accep
 ## Consequences
 
 - A legitimate burst, such as a large paste near the cap, closes the socket once and reconnects.
-- The rate window is per connection, so a client that opens many connections multiplies its budget. Authentication and the origin check bound that today.
+- The rate window is per connection, so a client that opens many connections multiplies its budget. The origin check is client-chosen and authentication ran after the upgrade, so neither bounded it; the security review of 2026-10-17 added a session check in the upgrade handler before `handleUpgrade`, one document per socket (a second document name on a socket closes it), a terminate one second after a breach close, and a five-minute cap on a reservation's total lifetime.
 - The limits appear in the logs by document id, which helps tell a flooder from a bug, and never expose content.
 
 ## Evidence

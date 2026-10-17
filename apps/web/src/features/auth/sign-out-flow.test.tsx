@@ -13,7 +13,7 @@ import { SignOutButton } from './sign-out-button';
 import { SIGNED_OUT_STATE } from './sign-out-state';
 import { SESSION_QUERY_KEY } from './use-session';
 
-vi.mock('@/lib/api', () => ({ apiGet: vi.fn() }));
+vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };

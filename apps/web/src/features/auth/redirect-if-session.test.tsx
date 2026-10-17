@@ -6,7 +6,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { apiGet } from '@/lib/api';
 import { RedirectIfSession } from './redirect-if-session';
 
-vi.mock('@/lib/api', () => ({ apiGet: vi.fn() }));
+vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
 const FORM_TEXT = 'sign-in form';

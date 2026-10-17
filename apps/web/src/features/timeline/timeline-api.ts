@@ -1,5 +1,4 @@
 import {
-  DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentResource,
   HttpMethod,
@@ -23,7 +22,16 @@ import {
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-history/types';
-import { ApiRequestError, apiGet, apiSend, DocumentUnavailableError, requestFailedMessage, RetryLaterError } from '@/lib/api';
+import {
+  ApiRequestError,
+  apiGet,
+  apiSend,
+  assertDocumentAvailable,
+  DocumentUnavailableError,
+  readJson,
+  requestFailedMessage,
+  RetryLaterError,
+} from '@/lib/api';
 import { documentQueryKey } from '@/features/documents/documents-api';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
@@ -127,10 +135,6 @@ async function unavailableMessage(response: Response): Promise<string> {
   return requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status });
 }
 
-function assertDocumentAvailable(response: Response): void {
-  if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
-}
-
 function readRetryAfterMs(response: Response): number {
   const retryAfterMs = Number(response.headers.get(RETRY_AFTER_HEADER)) * SECOND_MS;
   if (!Number.isFinite(retryAfterMs)) return MIN_RETRY_AFTER_MS;
@@ -141,23 +145,20 @@ export async function fetchTimeline({ documentId, filter }: { documentId: string
   const path = documentApiPath({ documentId, resource: DocumentResource.Timeline });
   const response = await apiGet(withQuery({ path, params: filterParams(filter) }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Timeline request', status: response.status }));
-  return response.json();
+  return readJson<DocumentTimeline>({ response, subject: 'Timeline request' });
 }
 
 export async function fetchSummaries(documentId: string): Promise<TopicSummaries> {
   const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Summaries }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Summaries request', status: response.status }));
-  return response.json();
+  return readJson<TopicSummaries>({ response, subject: 'Summaries request' });
 }
 
 export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   const response = await apiSend({ path: topicsRefreshApiPath(documentId), method: HttpMethod.Post, body: null });
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new TopicsRefreshTooSoonError(readRetryAfterMs(response));
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Topics refresh', status: response.status }));
-  return response.json();
+  return readJson<TopicStatus>({ response, subject: 'Topics refresh' });
 }
 
 export async function fetchSelectionSummary({
@@ -171,8 +172,7 @@ export async function fetchSelectionSummary({
 }): Promise<SelectionSummaryView> {
   const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status: response.status }));
-  return response.json();
+  return readJson<SelectionSummaryView>({ response, subject: 'Selection summary request' });
 }
 
 export async function requestSelectionSummary({
@@ -192,8 +192,7 @@ export async function requestSelectionSummary({
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(readRetryAfterMs(response));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status }));
-  return response.json();
+  return readJson<SelectionSummaryView>({ response, subject: SUMMARIZE_EDITS_SUBJECT });
 }
 
 export async function fetchBinEdits({
@@ -212,8 +211,7 @@ export async function fetchBinEdits({
   params.set(TimelineQueryParam.BinMs, String(binMs));
   const response = await apiGet(withQuery({ path: timelineEditsApiPath(documentId), params }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Bin edits request', status: response.status }));
-  return response.json();
+  return readJson<BinEdits>({ response, subject: 'Bin edits request' });
 }
 
 export async function fetchVersion({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionLoad> {

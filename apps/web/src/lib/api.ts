@@ -1,4 +1,4 @@
-import type { HttpMethod } from '@superdoc-history/types';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus, type HttpMethod } from '@superdoc-history/types';
 
 const JSON_CONTENT_TYPE = 'application/json';
 
@@ -28,10 +28,15 @@ export function apiSend({ path, method, body }: { path: string; method: HttpMeth
   return fetch(path, { method, body, headers, credentials: 'same-origin' });
 }
 
-export function assertDocumentAvailable(response: Response): void {}
+export function assertDocumentAvailable(response: Response): void {
+  if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
+}
 
-export function assertOk({ response, subject }: { response: Response; subject: string }): void {}
+export function assertOk({ response, subject }: { response: Response; subject: string }): void {
+  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject, status: response.status }));
+}
 
-export function readJson<Body>({ response, subject }: { response: Response; subject: string }): Promise<Body> {
+export async function readJson<Body>({ response, subject }: { response: Response; subject: string }): Promise<Body> {
+  assertOk({ response, subject });
   return response.json();
 }

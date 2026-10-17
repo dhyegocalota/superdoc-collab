@@ -1,6 +1,7 @@
 import { presentOrNull } from '@superdoc-history/types';
 import { z } from 'zod';
 
+// NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
 export const LLM_MAX_CONCURRENT_JOBS = 2;
 export const LLM_MAX_CALLS_PER_HOUR = 60;
 const AUTH_SECRET_MIN_LENGTH = 32;

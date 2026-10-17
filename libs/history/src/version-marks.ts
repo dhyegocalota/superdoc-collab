@@ -9,6 +9,7 @@ export function minuteStartOf(serverTime: number): number {
   return Math.floor(serverTime / VERSION_MARK_MS) * VERSION_MARK_MS;
 }
 
+// NB ADR 0003 (addendum): a version mark is kept once per minute, so time travel resolves at minute granularity.
 export function endsItsMinute({ update, next }: { update: LoggedUpdate; next: LoggedUpdate | undefined }): boolean {
   if (!next) return true;
   return minuteStartOf(next.serverTime) !== minuteStartOf(update.serverTime);

@@ -102,12 +102,14 @@ function createServices({
   documentFilesDirectory,
   languageModel,
   versionRoomPolicy,
+  projectionWorkerFile,
 }: {
   environment: Environment;
   databases: Databases;
   documentFilesDirectory: string;
   languageModel: LanguageModelChoice;
   versionRoomPolicy: VersionRoomPolicy;
+  projectionWorkerFile: URL | null;
 }): { auth: Auth; services: ServerServices } {
   const { database, historySqlite, readModelSqlite } = databases;
   const documents = new DocumentsRepository(database);
@@ -115,7 +117,7 @@ function createServices({
   insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
   const updateLog = new UpdateLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
-  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory });
+  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const auth = createAuth({ database, environment });
   const versions = new VersionsService({ readModel, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
@@ -230,15 +232,24 @@ export async function startServer({
   webDistDirectory,
   languageModel = chooseLanguageModel(environment.llm),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
+  projectionWorkerFile = null,
 }: {
   environment: Environment;
   webDistDirectory: string | null;
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
+  projectionWorkerFile?: URL | null;
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
   const databases = openDatabases({ databaseDirectory: environment.databaseDirectory, documentFilesDirectory });
-  const { auth, services } = createServices({ environment, databases, documentFilesDirectory, languageModel, versionRoomPolicy });
+  const { auth, services } = createServices({
+    environment,
+    databases,
+    documentFilesDirectory,
+    languageModel,
+    versionRoomPolicy,
+    projectionWorkerFile,
+  });
   resumeProjections({ databases, services });
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });

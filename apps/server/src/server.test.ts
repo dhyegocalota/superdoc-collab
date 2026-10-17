@@ -9,7 +9,7 @@ import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './d
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { JobOutcome } from './insights/insights-job-runner';
 import { startServer } from './server';
-import { testEnvironment } from './testing/test-server';
+import { prebuiltProjectionWorkerFile, testEnvironment } from './testing/test-server';
 
 const RESTART_CREDENTIALS = { name: 'Eva', email: 'eva@example.com', password: 'superdoc-demo' };
 
@@ -26,7 +26,11 @@ function urlOf({ port, path }: { port: number; path: string }): string {
 
 describe('startServer', () => {
   test('serves the SPA fallback for an app route when the web directory is set', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: AppRoute.Documents }));
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('app');
@@ -34,14 +38,22 @@ describe('startServer', () => {
   });
 
   test('serves static files from the web directory', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: '/asset.txt' }));
     expect(await response.text()).toBe('static asset');
     await running.stop();
   });
 
   test('api 404 is json, not the SPA, when the web directory is set', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: '/api/missing' }));
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Not found' });
@@ -49,7 +61,11 @@ describe('startServer', () => {
   });
 
   test('api 404 is json without a web directory', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: null });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: null,
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: '/api/missing' }));
     expect(response.status).toBe(404);
     expect(response.headers.get('content-type')).toContain('json');
@@ -57,7 +73,11 @@ describe('startServer', () => {
   });
 
   test('still answers the health endpoint with the web directory mounted', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: ApiPath.Health }));
     expect(await response.json()).toEqual({ status: 'ok' });
     await running.stop();
@@ -65,7 +85,7 @@ describe('startServer', () => {
 
   test('a session cookie survives a restart on the same database directory', async () => {
     const environment = testEnvironment();
-    const first = await startServer({ environment, webDistDirectory: null });
+    const first = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
     const headers = { 'content-type': 'application/json' };
     await fetch(urlOf({ port: first.port, path: `${ApiPath.Auth}/sign-up/email` }), {
       method: 'POST',
@@ -82,7 +102,7 @@ describe('startServer', () => {
       .map((setCookie) => setCookie.split(';')[0])
       .join('; ');
     await first.stop();
-    const second = await startServer({ environment, webDistDirectory: null });
+    const second = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
     const me = await fetch(urlOf({ port: second.port, path: ApiPath.Me }), { headers: { cookie } });
     await second.stop();
     expect(await me.json()).toEqual({ user: { id: expect.any(String), name: RESTART_CREDENTIALS.name, email: RESTART_CREDENTIALS.email } });
@@ -92,7 +112,9 @@ describe('startServer', () => {
     const documentsDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
     mkdirSync(documentsDirectory);
     chmodSync(documentsDirectory, 0o500);
-    await expect(startServer({ environment, webDistDirectory: null })).rejects.toThrow(DatabaseDirectoryNotWritableError);
+    await expect(
+      startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() }),
+    ).rejects.toThrow(DatabaseDirectoryNotWritableError);
   });
 });
 
@@ -102,7 +124,13 @@ test('startServer rejects instead of hanging when the port is taken', async () =
   const { port } = blocker.address() as AddressInfo;
   const stopScheduler = vi.spyOn(ProjectionScheduler.prototype, 'stop');
   const closeDatabase = vi.spyOn(Database.prototype, 'close');
-  await expect(startServer({ environment: { ...testEnvironment(), port }, webDistDirectory: null })).rejects.toMatchObject({
+  await expect(
+    startServer({
+      environment: { ...testEnvironment(), port },
+      webDistDirectory: null,
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    }),
+  ).rejects.toMatchObject({
     code: 'EADDRINUSE',
   });
   expect([stopScheduler.mock.calls.length, closeDatabase.mock.calls.length]).toEqual([1, 3]);
@@ -112,7 +140,11 @@ test('startServer rejects instead of hanging when the port is taken', async () =
 });
 
 test('stop closes collaboration in order, then the three databases', async () => {
-  const running = await startServer({ environment: testEnvironment(), webDistDirectory: null });
+  const running = await startServer({
+    environment: testEnvironment(),
+    webDistDirectory: null,
+    projectionWorkerFile: prebuiltProjectionWorkerFile(),
+  });
   const { versionRooms, hocuspocus, throttle, scheduler, insights } = running.services;
   const closeDatabase = vi.spyOn(Database.prototype, 'close');
   const spies = [
@@ -132,7 +164,7 @@ test('stop closes collaboration in order, then the three databases', async () =>
 
 test('startServer hands the configured LLM limits to the insights worker', async () => {
   const environment = { ...testEnvironment(), llm: { model: null, apiKey: null, baseUrl: null, maxConcurrentJobs: 1, maxCallsPerHour: 1 } };
-  const running = await startServer({ environment, webDistDirectory: null });
+  const running = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
   const { jobRunner } = running.services.insights;
   expect(jobRunner.run({ key: 'held', job: () => new Promise<void>((resolve) => setTimeout(resolve, 50)) })).toBe(JobOutcome.Started);
   expect(jobRunner.run({ key: 'other', job: async () => undefined })).toBe(JobOutcome.Busy);

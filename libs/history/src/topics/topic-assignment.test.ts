@@ -60,6 +60,12 @@ test('a recomputed topic keeps the id of the topic it mostly covers', () => {
   expect(matchPreviousTopics({ previous, next }).map((matched) => matched.id)).toEqual(['t1', null, null]);
 });
 
+test('exactly half of the blocks from an earlier topic keeps its id', () => {
+  const previous = [{ id: 't1', blockIds: ['b1', 'b9'] }];
+  const next = [{ name: 'Half', blockIds: ['b1', 'b2'] }];
+  expect(matchPreviousTopics({ previous, next }).map((matched) => matched.id)).toEqual(['t1']);
+});
+
 test('an id is reused at most once, by the larger overlap', () => {
   const previous = [{ id: 't1', blockIds: ['b1', 'b2', 'b3', 'b4'] }];
   const next = [

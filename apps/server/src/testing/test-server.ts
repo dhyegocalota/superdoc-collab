@@ -11,6 +11,7 @@ import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collabor
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type ServerServices } from '../server';
+import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
 
 const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 const LOOPBACK_HOST = '127.0.0.1';
@@ -55,6 +56,12 @@ export function testEnvironment({
   };
 }
 
+export function prebuiltProjectionWorkerFile(): URL | null {
+  const value = process.env[PROJECTION_WORKER_FILE_VARIABLE];
+  if (!value) return null;
+  return new URL(value);
+}
+
 const ADDRESS_IN_USE_CODE = 'EADDRINUSE';
 const START_ATTEMPTS = 5;
 
@@ -85,7 +92,13 @@ export async function startTestServer({
     llm: NO_LLM_SETTINGS,
   };
   try {
-    const running = await startServer({ environment, webDistDirectory: null, languageModel, versionRoomPolicy });
+    const running = await startServer({
+      environment,
+      webDistDirectory: null,
+      languageModel,
+      versionRoomPolicy,
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     return {
       baseUrl: environment.appOrigin,
       auth: running.auth,

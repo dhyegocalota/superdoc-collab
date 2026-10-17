@@ -8,6 +8,8 @@ const PORT = 3100;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;
+const CONTINUOUS_INTEGRATION_WORKERS = 4;
+const LOCAL_WORKERS = '50%';
 const LLM_MAX_CONCURRENT_JOBS = 2;
 const LLM_MAX_CALLS_PER_HOUR = 10_000;
 const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
@@ -24,7 +26,7 @@ const DATABASE_DIR = process.env.E2E_DATABASE_DIR;
 export default defineConfig({
   testDir: 'e2e',
   timeout: TEST_TIMEOUT_MS,
-  workers: 1,
+  workers: process.env.CI ? CONTINUOUS_INTEGRATION_WORKERS : LOCAL_WORKERS,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: ORIGIN, trace: 'retain-on-failure' },

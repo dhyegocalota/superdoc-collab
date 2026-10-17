@@ -2,7 +2,7 @@
 
 Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
 
-- Status: Accepted (owner to confirm at the first deploy)
+- Status: Superseded by [0019](0019-deploy-on-railway.md) (the owner chose a host of their own before the first deploy)
 - Date: 2026-10-16
 - Deciders: Claude (lead, by delegated authority); Dhyego Calota (owner, to confirm at the first deploy)
 - Inspired by: [0004](0004-stack.md) ("Docker Compose on the owner's VPS via Dokploy: Traefik for WSS, a volume for SQLite"), [0008](0008-vertical-slices.md) (slice 5 risks: WebSockets behind Traefik, SQLite volume, demo URL), [0011](0011-process-wide-llm-cost-caps.md), the brief (a deployed demo URL plus the repository; no managed services except LLM providers)

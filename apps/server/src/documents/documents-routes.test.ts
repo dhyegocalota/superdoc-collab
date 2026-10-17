@@ -382,8 +382,10 @@ test('delete removes the row, the file, the log and the events, and closes the r
   const closed = new Promise<void>((resolve) => client.provider.on('close', () => resolve()));
   writeStory({ document: client.document, texts: ['Hello'] });
   await expect.poll(() => server.services.updateLog.hasUpdates(created.id)).toBe(true);
+  const forgetPipeline = vi.spyOn(server.services.timelinePipelines, 'forget');
   const deleted = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id }), method: HttpMethod.Delete });
   expect(deleted.status).toBe(HttpStatus.NoContent);
+  expect(forgetPipeline).toHaveBeenCalledWith(created.id);
   expect((await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id }) })).status).toBe(HttpStatus.NotFound);
   await expect(server.services.storage.read(created.id)).rejects.toThrow();
   expect(server.services.updateLog.hasUpdates(created.id)).toBe(false);

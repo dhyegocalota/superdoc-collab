@@ -12,4 +12,4 @@ After three honest attempts at the same failure, stop and use the `systematic-de
 
 Finish by writing or appending `docs/features/<slug>/tester-briefing.md`: what changed and where, how to run it, which tests are red today and green after, every behaviour you believe works stated as a hypothesis for the tester, and the gaps you know about.
 
-Never: comments, `?? default`, `else`, nested `if`, acronyms, `.js` imports, `sleep`, `git add -A`, commits on `main`, editing `.env*`.
+Never: comments other than `// NB ADR NNNN:` pointers, `?? default`, `else`, nested `if`, acronyms, `.js` imports, `sleep`, `git add -A`, commits on `main`, editing `.env*`.

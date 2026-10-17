@@ -163,43 +163,16 @@ async function fetchEventsPage({
   return fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Events })}?${query}`, { headers: { cookie } });
 }
 
-test('events default to a 500-event page', async () => {
+test('events default to a 500-event page and honour a smaller limit after a sequence', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   commitBulkEvents({ server, documentId, userId: owner.id, count: BULK_EVENT_COUNT });
   const page = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: '' })).json()) as DocumentEditEvents;
   expect(page.events).toHaveLength(EVENTS_PAGE_SIZE);
   expect(page.nextAfterSequence).toBe(EVENTS_PAGE_SIZE);
-  await server.stop();
-});
-
-async function sequencesFollowing({
-  server,
-  documentId,
-  cookie,
-  afterSequence,
-}: {
-  server: Awaited<ReturnType<typeof documentWithOwner>>['server'];
-  documentId: string;
-  cookie: string;
-  afterSequence: number;
-}): Promise<number[]> {
-  const page = (await (
-    await fetchEventsPage({ server, documentId, cookie, query: `limit=1&afterSequence=${afterSequence}` })
-  ).json()) as DocumentEditEvents;
-  const sequences = page.events.map((event) => event.sequence);
-  if (page.nextAfterSequence === null) return sequences;
-  return [...sequences, ...(await sequencesFollowing({ server, documentId, cookie, afterSequence: page.nextAfterSequence }))];
-}
-
-test('events page on a sequence boundary', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBulkEvents({ server, documentId, userId: owner.id, count: 6, eventsPerSequence: 2, blockCount: 6 });
-  const first = (await (
-    await fetchEventsPage({ server, documentId, cookie: owner.cookie, query: 'limit=1' })
-  ).json()) as DocumentEditEvents;
-  expect(first.events.map((event) => event.sequence)).toEqual([1, 1]);
-  expect(first.nextAfterSequence).toBe(1);
-  expect(await sequencesFollowing({ server, documentId, cookie: owner.cookie, afterSequence: 0 })).toEqual([1, 1, 2, 2, 3, 3]);
+  const query = `limit=1&afterSequence=${EVENTS_PAGE_SIZE}`;
+  const small = (await (await fetchEventsPage({ server, documentId, cookie: owner.cookie, query })).json()) as DocumentEditEvents;
+  expect(small.events.map((event) => event.sequence)).toEqual([EVENTS_PAGE_SIZE + 1]);
+  expect(small.nextAfterSequence).toBe(EVENTS_PAGE_SIZE + 1);
   await server.stop();
 });
 

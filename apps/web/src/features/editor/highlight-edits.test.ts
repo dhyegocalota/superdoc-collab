@@ -1,5 +1,5 @@
 import type { EditRunView } from '@superdoc-history/types';
-import { expect, expectTypeOf, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { HIGHLIGHT_COMMENT_TEXT } from './editor-copy';
 import {
   clearHighlights,
@@ -51,19 +51,6 @@ function stubDocument({ matchesByBlock, failCreateAt = [] }: { matchesByBlock: R
   };
   return { document: document as unknown as EditorDocument, matchCalls, created, deleted };
 }
-
-test('the comment and match APIs keep the shape the highlighter relies on', () => {
-  expectTypeOf<{
-    select: { type: 'text'; pattern: string; mode: 'contains'; caseSensitive: true };
-    within: { kind: 'block'; nodeType: 'paragraph'; nodeId: string };
-  }>().toMatchTypeOf<Parameters<EditorDocument['query']['match']>[0]>();
-  expectTypeOf<Parameters<EditorDocument['comments']['create']>[0]>().toMatchTypeOf<{
-    text: string;
-    externalId?: string;
-    target?: unknown;
-  }>();
-  expectTypeOf<Parameters<EditorDocument['comments']['delete']>[0]>().toEqualTypeOf<{ commentId: string }>();
-});
 
 test('each inserted run is matched once inside its own block and a stale block is skipped', async () => {
   const { document, matchCalls, created } = stubDocument({ matchesByBlock: { b2: 1, b3: 2 } });

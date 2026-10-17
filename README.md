@@ -4,7 +4,7 @@ A collaborative DOCX editor that records every edit and turns that record into a
 
 ## Live demo
 
-- **Demo:** not deployed yet; the owner adds the URL after the first deploy ([runbook, step 6](docs/features/deploy/runbook.md#6-hand-it-over)).
+- **Demo:** <https://superdoc-collab.up.railway.app> (Railway, [ADR 0019](docs/adr/0019-deploy-on-railway.md)).
 - **Repository:** <https://github.com/dhyegocalota/superdoc-take-home>
 
 The demo accounts' password comes with the delivery message. Every slice, its spec and its pull request are listed in the [roadmap](docs/features/README.md#roadmap).
@@ -19,6 +19,21 @@ The demo accounts' password comes with the delivery message. Every slice, its sp
 6. Filter with plain text, or `@bruno` for one person: the chart, the list and the highlights narrow together.
 7. Click a moment on the chart to read the document as it was then; **Back to live** returns.
 8. **Summarize edits** writes one to three sentences about exactly the edits the panel shows.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Ana and Bruno editing the same document live](docs/media/readme/01-two-authors-editing.png) | ![The timeline panel beside the editor, one band per topic](docs/media/readme/02-timeline-topic-bands.png) |
+| Ana and Bruno edit the same document live, each seeing the other's cursor | The timeline panel: one band per topic, named by the model |
+| ![Top edits per topic](docs/media/readme/03-top-edits.png) | ![Filtering with @bruno](docs/media/readme/04-filter-by-author.png) |
+| Top edits: topic, word delta, contributors and one sentence about what changed | `@bruno` narrows the chart, the list and the highlights to one person |
+| ![Time travel: the document at an earlier moment](docs/media/readme/05-time-travel.png) | ![The summary card for the current selection](docs/media/readme/06-summary-card.png) |
+| Time travel: the document as it was at that moment, its edits highlighted, with Back to live | Summarize edits: one to three sentences about exactly the selection on screen |
+| ![A reader sees the summary card but no Summarize button](docs/media/readme/07-reader-view.png) | ![The editor and panel at 375 px](docs/media/readme/08-narrow-375.png) |
+| A reader joined through the read-only link sees the summary but cannot type or summarize | At 375 px the panel stacks under the editor |
+
+Each pull request also carries a video walk recorded with Playwright MCP, for example the [LLM insights walkthrough](https://github.com/dhyegocalota/superdoc-take-home/releases/download/pr-media-llm-insights/walkthrough.mp4); the full sets are embedded in the pull requests listed in the [roadmap](docs/features/README.md#roadmap).
 
 ## Features
 
@@ -83,9 +98,9 @@ The sign-in smoke check must print `200`.
 
 One image serves the SPA and the API on <http://localhost:3000>; the healthcheck calls `/api/health`. Reset all data with `docker compose down -v`. The image carries both history migration sets (`libs/history/drizzle`) and `@superdoc/sdk`'s native binary, which imports tracked changes from uploads; the server creates `/data/documents` at boot. The entrypoint requires `SEED_DEMO_USERS` to be exactly `true` or `false`, and `DEMO_PASSWORD` when it is `true`.
 
-## Deploy (Dokploy)
+## Deploy (Railway)
 
-Production runs [`deploy/docker-compose.yml`](deploy/docker-compose.yml) as a Dokploy compose service built from this repository: one container behind Traefik with HTTPS, its data on a named volume at `/data`, and every secret in the Dokploy environment ([ADR 0013](docs/adr/0013-deploy-with-dokploy-compose.md)). The compose file pins `TRUST_PROXY=true`, which is safe only behind that proxy. The [runbook](docs/features/deploy/runbook.md) creates the service, sets the environment, attaches the domain, checks the deploy, seeds the demo accounts and rolls back. CI builds and boots the image on every pull request (job `docker` in [`verify.yml`](.github/workflows/verify.yml)).
+The demo runs on Railway as one service built from [`docker/Dockerfile`](docker/Dockerfile), with a volume at `/data`, one replica, the health check on `/api/health` and Railway's TLS domain ([ADR 0019](docs/adr/0019-deploy-on-railway.md)); [`railway.json`](railway.json) declares the builder and the health check. The environment is the one [`deploy/docker-compose.yml`](deploy/docker-compose.yml) documents for any compose host, with `TRUST_PROXY=true`, which is safe only behind a proxy. The [Railway runbook](docs/features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, seeds the demo accounts and rolls back. CI builds and boots the image on every pull request (job `docker` in [`verify.yml`](.github/workflows/verify.yml)).
 
 ## Demo users
 
@@ -101,6 +116,43 @@ Ana, Bruno, Caio and Dani: `ana@example.com`, `bruno@example.com`, `caio@example
 | `pnpm verify` | the three above, in order; the same gate runs in CI ([`verify.yml`](.github/workflows/verify.yml)) next to the `docker` job that builds and boots the image |
 
 ## Architecture in brief
+
+```mermaid
+flowchart TB
+  subgraph browser["Browser · React 19 + Vite SPA"]
+    editor["SuperDoc editor<br/>live document, cursors, awareness"]
+    viewer["Version viewer<br/>read-only SuperDoc in an iframe"]
+    panel["Timeline panel<br/>streamgraph · filter · top edits · summaries"]
+  end
+
+  subgraph server["One Node process, one port (Hono + Hocuspocus)"]
+    hono["Hono<br/>REST API + built SPA"]
+    auth["Better Auth<br/>sessions, demo users"]
+    hocus["Hocuspocus<br/>one live room per document"]
+    rooms["Version rooms<br/>one read-only room per version"]
+    worker[["Projection worker thread<br/>Yjs replay → edit events, version marks"]]
+    insights["Insights worker<br/>topics · per-topic sentences · selection summaries<br/>process-wide caps"]
+    log[("history.sqlite<br/>update log · snapshots · identities")]
+    read[("read-model.sqlite<br/>edit events · version marks · cursor")]
+    authDb[("auth.sqlite<br/>users · documents · members · share links · topics · summaries")]
+    files[/"documents/‹id›.docx"/]
+  end
+
+  llm["OpenRouter<br/>via Vercel AI SDK"]
+
+  editor <-- "WebSocket /collaboration" --> hocus
+  viewer <-- "WebSocket /collaboration/versions/‹id›/‹sequence›" --> rooms
+  panel -- "GET /api/documents/‹id›/timeline · events · versions · summaries" --> hono
+  hono --> auth --> authDb
+  hono -- "upload · download" --> files
+  hocus -- "every Yjs update, with its connection's user" --> log
+  log -- "1.5 s throttle" --> worker --> read
+  read --> hono
+  log -- "snapshot + tail at a mark" --> rooms
+  hono -- "topics, summaries (202 + polling)" --> insights
+  insights -- "names and edit text only" --> llm
+  insights --> authDb
+```
 
 One Node process on one port: Hono serves the API and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. `libs/history` holds the update log, the projection and the read model; one worker thread projects the log into edit events. The web app is a React and Vite SPA. See [ADR 0001](docs/adr/0001-event-sourcing-over-yjs.md), [ADR 0004](docs/adr/0004-stack.md), [ADR 0005](docs/adr/0005-authentication-with-better-auth.md) and [ADR 0009](docs/adr/0009-design-system.md).
 
@@ -121,7 +173,7 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 - **Language-model caps.** At most 2 model jobs at once and 60 model calls per rolling hour for the whole server ([ADR 0011](docs/adr/0011-process-wide-llm-cost-caps.md)). Past them topics show "The language model is busy; try again later." and a summary request gets a 503 that consumes no cooldown. A model error or a missing key shows "The topics could not be named. Try again." or "The edits could not be summarized. Try again." instead. Editing keeps working in every case.
 - **No email.** Accounts have no verification and no password reset; the demo accounts share one password.
 - **DOCX only.** Up to 10 MB per file; no PDF or image import.
-- **Manual backups.** The [runbook](docs/features/deploy/runbook.md#8-back-up-and-reset) shows how to copy the data volume.
+- **Manual backups.** The [runbook](docs/features/deploy/runbook-railway.md#8-back-up-and-reset) shows how to copy the data volume.
 
 ## Credits
 

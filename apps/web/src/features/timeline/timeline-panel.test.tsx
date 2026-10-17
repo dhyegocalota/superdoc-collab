@@ -328,14 +328,24 @@ function postCalls(fetchSpy: ReturnType<typeof mockTimelineApi>): string[] {
     .map(([input]) => String(input));
 }
 
-test('an editor summarizes the filtered selection and sees who edited', async () => {
-  const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW] });
+test('an editor summarizes the filtered selection, waits on a disabled button and sees who edited', async () => {
+  let release: (response: Response) => void = () => undefined;
+  const pending = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
   renderPanel({ route: `${ROUTE}?author=ana` });
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
   expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
+  );
+  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
+  release(json(READY_VIEW, HttpStatus.Accepted));
   const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
-  expect(card).toHaveTextContent(READY_VIEW.summary!.sentence);
+  await waitFor(() => expect(card).toHaveTextContent(READY_VIEW.summary!.sentence));
   expect(within(card).getByTitle(FIXTURE_AUTHOR_NAME)).toBeInTheDocument();
+  expect(postCalls(fetchSpy)).toHaveLength(1);
 });
 
 test('a reader reads the summary but has no Summarize button', async () => {
@@ -402,26 +412,6 @@ test('an up-to-date summary disables Summarize and a stale one shows the badge a
   renderPanel();
   expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeEnabled();
-});
-
-test('the button is disabled while the request is in flight and while the summary is up to date', async () => {
-  let release: (response: Response) => void = () => undefined;
-  const pending = new Promise<Response>((resolve) => {
-    release = resolve;
-  });
-  const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
-  renderPanel();
-  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
-  );
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
-  release(json(READY_VIEW, HttpStatus.Accepted));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE),
-  );
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
-  expect(postCalls(fetchSpy)).toHaveLength(1);
 });
 
 test('a request too soon shows the seconds from Retry-After', async () => {

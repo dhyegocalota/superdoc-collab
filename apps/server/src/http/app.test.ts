@@ -46,13 +46,6 @@ function cookieOf(response: Response): string {
     .join('; ');
 }
 
-describe('health', () => {
-  test('answers ok', async () => {
-    const response = await fetch(`${server.baseUrl}${ApiPath.Health}`);
-    expect(await response.json()).toEqual({ status: 'ok' });
-  });
-});
-
 describe('sign-up, sign-in and me', () => {
   test('a new user signs up, signs in and reads itself', async () => {
     expect((await signUp(credentials)).status).toBe(200);

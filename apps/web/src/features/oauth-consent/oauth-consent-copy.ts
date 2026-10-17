@@ -20,3 +20,14 @@ export const SCOPE_LABELS: Record<AgentScope, string> = {
   [AgentScope.DocumentExport]: 'Export your documents as .docx files',
   [AgentScope.DocumentShare]: 'See and rotate the share links of your documents',
 };
+
+const KNOWN_SCOPES: string[] = Object.values(AgentScope);
+
+function isAgentScope(scope: string): scope is AgentScope {
+  return KNOWN_SCOPES.includes(scope);
+}
+
+export function scopeLabel(scope: string): string {
+  if (!isAgentScope(scope)) return scope;
+  return SCOPE_LABELS[scope];
+}

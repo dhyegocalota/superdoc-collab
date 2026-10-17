@@ -1,4 +1,3 @@
-import { AgentScope } from '@superdoc-history/types';
 import { useMutation } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
@@ -17,23 +16,12 @@ import {
   consentDescription,
   DENY_LABEL,
   INCOMPLETE_REQUEST_MESSAGE,
-  SCOPE_LABELS,
+  scopeLabel,
   SCOPES_HEADING,
 } from './oauth-consent-copy';
 import { useOAuthClientName } from './use-oauth-client-name';
 
 const SCOPE_SEPARATOR = ' ';
-const KNOWN_SCOPES: string[] = Object.values(AgentScope);
-
-function isAgentScope(scope: string): scope is AgentScope {
-  return KNOWN_SCOPES.includes(scope);
-}
-
-function scopeLabel(scope: string): string {
-  if (!isAgentScope(scope)) return scope;
-  return SCOPE_LABELS[scope];
-}
-
 function ConsentShell({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center p-4">

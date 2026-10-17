@@ -32,7 +32,7 @@ const CONSENT = {
   scopes: [AgentScope.HistoryRead, AgentScope.DocumentExport],
   createdAt: new Date(Date.UTC(2026, 9, 16, 12, 0)).toISOString(),
 };
-const CLIENT_NAME = 'Claude Code';
+const CLIENT_NAME = 'Claude Desktop';
 const MCP_URL = `${window.location.origin}${ApiPath.Mcp}`;
 
 beforeEach(() => {

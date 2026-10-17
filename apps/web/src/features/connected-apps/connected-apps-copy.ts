@@ -10,7 +10,6 @@ export const CONNECTED_APPS_EMPTY_MESSAGE = 'No AI clients connected yet';
 export const CONNECTED_APPS_LOAD_ERROR_MESSAGE = 'Connected apps could not be loaded.';
 export const REVOKE_ERROR_MESSAGE = 'The app could not be revoked. Try again.';
 export const LOADING_CONNECTED_APPS_LABEL = 'Loading connected apps';
-export const CONNECTED_APPS_SUBJECT = 'Connected apps request';
 export const CONNECT_HEADING = 'Connect an AI client';
 export const CONNECT_DESCRIPTION = 'Point your AI client at this address. It asks you to approve access the first time.';
 export const MCP_URL_LABEL = 'MCP URL';

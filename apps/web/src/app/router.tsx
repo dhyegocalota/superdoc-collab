@@ -1,5 +1,6 @@
 import { AppRoute } from '@superdoc-history/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { ConnectedAppsPage } from '@/features/connected-apps/connected-apps-page';
 import { DocumentPage } from '@/features/editor/document-page';
 import { RedirectIfSession } from '@/features/auth/redirect-if-session';
 import { RequireSession } from '@/features/auth/require-session';
@@ -67,6 +68,14 @@ export const routes: RouteObject[] = [
     element: (
       <RequireSession>
         <OAuthConsentPage />
+      </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.ConnectedApps,
+    element: (
+      <RequireSession>
+        <ConnectedAppsPage />
       </RequireSession>
     ),
   },

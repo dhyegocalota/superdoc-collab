@@ -81,3 +81,7 @@ export function usePanelPosition(): { position: PanelPosition; choosePosition: (
   const chosenPosition = storedPosition === null ? widthPosition : storedPosition;
   return { position: canChoose ? chosenPosition : PanelPosition.Bottom, choosePosition, canChoose };
 }
+
+export function isPanelOpenByDefault(): boolean {
+  throw new Error('isPanelOpenByDefault is not implemented');
+}

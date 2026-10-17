@@ -30,7 +30,10 @@ type AuthorizationServerMetadata = {
 
 export type RegisteredClient = { clientId: string; clientName: string; redirectUri: string; metadata: AuthorizationServerMetadata };
 export type AgentConnection = RegisteredClient & { accessToken: string; origin: string };
-export type ToolResult = { isError?: boolean; content: { type: string; text?: string }[] };
+export type ToolResult = {
+  isError?: boolean;
+  content: { type: string; text?: string; resource?: { mimeType: string; blob?: string } }[];
+};
 
 function base64Url(buffer: Buffer): string {
   return buffer.toString('base64url');
@@ -215,4 +218,18 @@ export async function rejectedStatus(call: Promise<unknown>): Promise<number> {
     throw error;
   }
   throw new Error('The call was accepted');
+}
+
+export async function exportDocxThroughAgent({
+  connection,
+  documentId,
+}: {
+  connection: AgentConnection;
+  documentId: string;
+}): Promise<{ mimeType: string; bytes: Buffer }> {
+  const result = await callTool({ connection, tool: AgentTool.ExportDocx, args: { documentId } });
+  expect(result.isError).not.toBe(true);
+  const resource = result.content.find((part) => part.type === 'resource')?.resource;
+  if (!resource?.blob) throw new Error('The export carried no embedded resource');
+  return { mimeType: resource.mimeType, bytes: Buffer.from(resource.blob, 'base64') };
 }

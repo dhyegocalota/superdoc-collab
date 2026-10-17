@@ -30,6 +30,7 @@ function isAgentScope(scope: string): scope is AgentScope {
 }
 
 export function scopeLabel(scope: string): string {
+  if (scope === OFFLINE_ACCESS_SCOPE) return OFFLINE_ACCESS_LABEL;
   if (!isAgentScope(scope)) return scope;
   return SCOPE_LABELS[scope];
 }

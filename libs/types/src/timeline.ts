@@ -1,3 +1,4 @@
+import { SECOND_MS } from './constants';
 import type { EventAuthor } from './history';
 
 export const TOPIC_RECOMPUTE_NEW_BLOCKS = 5;
@@ -5,6 +6,12 @@ export const EVENTS_PAGE_SIZE = 500;
 export const FILTER_MAX_LENGTH = 200;
 export const OTHER_BAND_ID = 'other';
 export const OTHER_BAND_NAME = 'Other';
+export const SELECTION_SUMMARY_MAX_CHARACTERS = 400;
+export const SELECTION_RUN_MAX_CHARACTERS = 300;
+export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
+export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
+export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
+export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
 export const TOPICS_UNAVAILABLE_MESSAGE = 'Topics unavailable';
 export const TOPICS_PENDING_MESSAGE = 'Naming topics…';
@@ -17,13 +24,17 @@ export const VERSION_FAILED_ERROR = 'VERSION_FAILED';
 export const VERSION_FAILED_MESSAGE = 'This version could not be opened. Try another moment.';
 
 export enum TopicState { Pending = 'pending', Ready = 'ready', Failed = 'failed' }
+export enum SelectionSummaryState { Ready = 'ready', Running = 'running', Failed = 'failed', None = 'none' }
 export enum TimelineFilterKind { Term = 'term', Author = 'author' }
 export enum VersionViewerState { Live = 'live', Viewing = 'viewing' }
 export enum TimelineBandKind { Topic = 'topic', Other = 'other', Author = 'author' }
 export enum TimelineSearchParam { Term = 'term', Author = 'author', At = 'at', Topic = 'topic' }
-export enum TimelineQueryParam { Term = 'term', Author = 'author', BinMs = 'binMs', BinStart = 'binStart', AfterSequence = 'afterSequence', Limit = 'limit', Around = 'around' }
+export enum TimelineQueryParam { Term = 'term', Author = 'author', BinMs = 'binMs', BinStart = 'binStart', AfterSequence = 'afterSequence', Limit = 'limit', Around = 'around', Topic = 'topic', At = 'at' }
 
 export type TimelineFilter = { term: string | null; author: string | null };
+export type EditSelection = { term: string | null; author: string | null; topic: string | null; at: number | null };
+export type SelectionSummary = { key: string; sentence: string; authors: string[]; computedAtSequence: number; isStale: boolean };
+export type SelectionSummaryView = { state: SelectionSummaryState; summary: SelectionSummary | null; failure: string | null; isModelAvailable: boolean };
 export type TimelineCell = { inserted: number; deleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };
 export type TimelineBand = { id: string; kind: TimelineBandKind; name: string; hue: number | null; onsetTime: number; volume: number };

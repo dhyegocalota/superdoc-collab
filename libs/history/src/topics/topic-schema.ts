@@ -1,3 +1,4 @@
+import { SELECTION_SUMMARY_MAX_CHARACTERS } from '@superdoc-history/types';
 import { z } from 'zod';
 
 export const MIN_TOPICS = 4;
@@ -15,5 +16,8 @@ export const topicsOutputSchema = z
 
 export const summariesOutputSchema = z.object({ summaries: z.array(z.object({ topicId: z.string().min(1), sentence: z.string().trim().min(1).max(SUMMARY_SENTENCE_MAX_LENGTH) })) });
 
+export const selectionSummaryOutputSchema = z.object({ sentence: z.string().trim().min(1).max(SELECTION_SUMMARY_MAX_CHARACTERS), authors: z.array(z.string().trim().min(1)) });
+
 export type TopicsOutput = z.infer<typeof topicsOutputSchema>;
 export type SummariesOutput = z.infer<typeof summariesOutputSchema>;
+export type SelectionSummaryOutput = z.infer<typeof selectionSummaryOutputSchema>;

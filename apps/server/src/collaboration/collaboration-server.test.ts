@@ -1,4 +1,6 @@
-import { ApiPath, ClientActor, DocumentRole } from '@superdoc-collab/types';
+import { commitBootstrap as markBootstrapCommitted } from '@superdoc-collab/history/testing';
+import { ApiPath, ClientActor, DocumentRole, RoomMode } from '@superdoc-collab/types';
+import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from '../agent/room-tokens';
@@ -12,10 +14,112 @@ import {
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
 import { MAX_STORE_DEBOUNCE_MS } from './collaboration-server';
+import type { CollaborationContext } from './collaboration-context';
+import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
 const KEYSTROKES_PER_DEBOUNCE = 4;
 
+type ChangePayload = Parameters<NonNullable<TestServer['services']['hocuspocus']['configuration']['onChange']>>[0];
+
 type Scenario = { server: TestServer; documentId: string; owner: TestUser };
+
+const SECRET_PAYLOAD_TEXT = 'secret-payload-text';
+
+function updateWith({ committed }: { committed: boolean }): { document: Y.Doc; update: Uint8Array } {
+  const document = new Y.Doc();
+  document.getText('t').insert(0, SECRET_PAYLOAD_TEXT);
+  if (committed) markBootstrapCommitted(document);
+  return { document, update: Y.encodeStateAsUpdate(document) };
+}
+
+function contextOf({
+  userId,
+  documentId,
+  attempt,
+  epoch,
+}: {
+  userId: string;
+  documentId: string;
+  attempt: number;
+  epoch: string;
+}): CollaborationContext {
+  return { userId, documentId, actor: ClientActor.Human, creatorAttempt: attempt, creatorEpoch: epoch };
+}
+
+function sendChange({
+  server,
+  context,
+  document,
+  update,
+}: {
+  server: TestServer;
+  context: CollaborationContext;
+  document: Y.Doc;
+  update: Uint8Array;
+}): Promise<void> {
+  const payload = {
+    update,
+    context,
+    document,
+    documentName: `${SUPERDOC_ROOM_PREFIX}${context.documentId}`,
+    transactionOrigin: {},
+  } as unknown as ChangePayload;
+  return server.services.hocuspocus.configuration.onChange(payload) as Promise<void>;
+}
+
+function loggedRows(scenario: Pick<Scenario, 'server' | 'documentId'>) {
+  return scenario.server.services.updateLog.read({ documentName: scenario.documentId, untilSequence: Number.MAX_SAFE_INTEGER });
+}
+
+async function supersededScenario() {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const { reservations } = server.services;
+  const first = reservations.reserve({ documentId, userId: owner.id })!;
+  reservations.release({ documentId, attempt: first.attempt });
+  const second = reservations.reserve({ documentId, userId: editor.id })!;
+  const superseded = contextOf({ userId: owner.id, documentId, attempt: first.attempt, epoch: first.epoch });
+  const latest = contextOf({ userId: editor.id, documentId, attempt: second.attempt, epoch: second.epoch });
+  return { server, documentId, superseded, latest };
+}
+
+describe('collaboration write fence', () => {
+  test("a superseded attempt's update is not appended to the log", async () => {
+    const { server, documentId, superseded, latest } = await supersededScenario();
+    await sendChange({ server, context: superseded, ...updateWith({ committed: false }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(0);
+    await sendChange({ server, context: latest, ...updateWith({ committed: false }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(1);
+    await server.stop();
+  });
+  test("a stale attempt's refusal is logged once per connection, with the document id and without the payload", async () => {
+    const { server, documentId, superseded } = await supersededScenario();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const change = updateWith({ committed: false });
+    await sendChange({ server, context: superseded, ...change });
+    await sendChange({ server, context: superseded, ...change });
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(SECRET_PAYLOAD_TEXT);
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('a fenced committing update does not mark the room committed', async () => {
+    const { server, documentId, superseded } = await supersededScenario();
+    await sendChange({ server, context: superseded, ...updateWith({ committed: true }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(0);
+    expect(server.services.runtime.roomMode(documentId)).toBe(RoomMode.Create);
+    await server.stop();
+  });
+  test('the committing update is appended once with its snapshot and the room becomes committed', async () => {
+    const { server, documentId, latest } = await supersededScenario();
+    await sendChange({ server, context: latest, ...updateWith({ committed: true }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(1);
+    expect(server.services.updateLog.latestSnapshot({ documentName: documentId, atOrBefore: Number.MAX_SAFE_INTEGER })?.sequence).toBe(1);
+    expect(server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    await server.stop();
+  });
+});
 
 describe('collaboration admission to an uncommitted room', () => {
   test('a member is refused on an uncommitted room with no attempt', async () => {

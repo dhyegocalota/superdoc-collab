@@ -160,5 +160,5 @@ test('a jump whose caret left shows the not-found message in the tooltip for thr
   await act(async () => {
     vi.advanceTimersByTime(JUMP_FAILED_MS);
   });
-  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  expect(screen.getByRole('tooltip')).not.toHaveTextContent(cursorNotFoundMessage('Bruno'));
 });

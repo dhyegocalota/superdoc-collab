@@ -2,6 +2,7 @@ import { AppRoute, UserRole } from '@superdoc-collab/types';
 import { Link } from 'react-router';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { SignOutButton } from '@/features/auth/sign-out-button';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { useSession } from '@/features/auth/use-session';
 import { APP_NAME } from '@/lib/app-copy';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -40,6 +41,9 @@ export function DocumentsPage() {
               {ADMIN_LINK_LABEL}
             </Link>
           )}
+          <Link to={AppRoute.Settings} className="text-sm hover:underline">
+            {SETTINGS_LINK_LABEL}
+          </Link>
           <SignOutButton />
         </div>
       </header>

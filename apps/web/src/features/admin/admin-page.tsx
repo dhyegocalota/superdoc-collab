@@ -1,6 +1,9 @@
+import { AppRoute } from '@superdoc-collab/types';
+import { Link } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { SignOutButton } from '@/features/auth/sign-out-button';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { useSession } from '@/features/auth/use-session';
 import { APP_NAME } from '@/lib/app-copy';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -23,6 +26,9 @@ export function AdminPage() {
         <span className="font-semibold">{APP_NAME}</span>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">{user.name}</span>
+          <Link to={AppRoute.Settings} className="text-sm hover:underline">
+            {SETTINGS_LINK_LABEL}
+          </Link>
           <SignOutButton />
         </div>
       </header>

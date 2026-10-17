@@ -4,6 +4,7 @@ import { useId, useState, type CSSProperties } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
+import { TimeZoneLabel } from '@/features/settings/time-zone-label';
 import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
 import { FilterBox } from './filter-box';
@@ -112,6 +113,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               <ToggleIcon />
             </Button>
           </div>
+          {isOpen && <TimeZoneLabel />}
           {showsEditorActions && disabledReason !== null && (
             <p id={reasonId} className="basis-full px-2 text-xs text-muted-foreground">
               {disabledReason}

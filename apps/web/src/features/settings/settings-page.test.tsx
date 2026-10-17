@@ -2,6 +2,7 @@ import { UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from '@/features/auth/auth-client';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
@@ -17,13 +18,14 @@ import {
 } from './settings-copy';
 import { SettingsPage } from './settings-page';
 
+vi.mock('sonner', () => ({ toast: vi.fn() }));
 vi.mock('@/lib/browser-time-zone');
 vi.mock('@/features/auth/auth-client', () => ({ authClient: { updateUser: vi.fn(), signOut: vi.fn() } }));
 
 const ACCOUNT_ZONE = 'America/Sao_Paulo';
 const BROWSER_ZONE = 'Europe/Lisbon';
 const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: ACCOUNT_ZONE };
-const CHOSEN_ZONE = 'Asia/Kolkata';
+const CHOSEN_ZONE = 'Asia/Katmandu';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -67,7 +69,7 @@ test('saves the chosen zone, refreshes the session and toasts', async () => {
   const user = userEvent.setup();
   await user.selectOptions(zoneSelect(), CHOSEN_ZONE);
   await user.click(screen.getByRole('button', { name: SAVE_TIME_ZONE_LABEL }));
-  expect(await screen.findByText(TIME_ZONE_SAVED_TOAST)).toBeInTheDocument();
+  await waitFor(() => expect(toast).toHaveBeenCalledWith(TIME_ZONE_SAVED_TOAST));
   expect(authClient.updateUser).toHaveBeenCalledWith({ timeZone: CHOSEN_ZONE });
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: SESSION_QUERY_KEY });
 });
@@ -81,5 +83,5 @@ test('shows an inline error and keeps the selection when saving fails', async ()
   expect(await screen.findByRole('alert')).toHaveTextContent(SAVE_TIME_ZONE_FAILED_MESSAGE);
   await waitFor(() => expect(screen.getByRole('button', { name: SAVE_TIME_ZONE_LABEL })).toBeEnabled());
   expect(zoneSelect()).toHaveValue(CHOSEN_ZONE);
-  expect(screen.queryByText(TIME_ZONE_SAVED_TOAST)).not.toBeInTheDocument();
+  expect(toast).not.toHaveBeenCalled();
 });

@@ -46,7 +46,7 @@ The red commit da3b144 leaves the web typecheck red: no stub, because the hook h
 
 - The failed-poll test drives the refetch with `invalidateQueries`, not the 5 s interval, so the polling cadence is not covered here.
 - Any members poll error yields `null`, including the unavailable case; `isUnavailable` is unchanged.
-- <what the developer knows is missing or untested>
+- G1: the per-user flag is exercised only through unit tests here; the browser walk and the E2E restart prove it end to end.
 
 ## G4: end-to-end infrastructure (Steps 18 and 19)
 

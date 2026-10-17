@@ -92,6 +92,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 5. Learnings sweep (section 8). "Nothing learned" is a valid answer, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
+8. **E2E on CI before the merge.** The automatic workflow (`verify.yml`) runs `checks`, `unit` and `docker` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Once the PR is ready to merge, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build. Never merge on the local run alone.
 
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
 

@@ -13,38 +13,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - id: playwright
-        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - uses: ./.github/actions/install
       - run: pnpm format:check
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck
-      - run: pnpm test:unit
+      - run: pnpm test:hooks
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: libs, filter: ./libs/* }
+          - { name: web, filter: "@superdoc-history/web" }
+          - { name: server, filter: "@superdoc-history/server" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install
+      - run: pnpm --filter "${{ matrix.filter }}" test:unit
         env:
-          REQUIRE_DOCKER_COMPOSE: 'true'
-      - run: pnpm test:e2e
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-artifacts
-          path: |
-            playwright-report
-            test-results
-          if-no-files-found: ignore
+          REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}
 
   docker:
     runs-on: ubuntu-latest

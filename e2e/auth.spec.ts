@@ -1,3 +1,4 @@
+import { MINE_EMPTY_MESSAGE } from '../apps/web/src/features/documents/documents-copy';
 import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS } from '../libs/types/src';
 import { DEMO_PASSWORD, FORWARDED_FOR_HEADER, expect, expectSignedInAs, randomClientAddress, signIn, test, uniqueEmail } from './fixtures';
 
@@ -13,6 +14,7 @@ test('a new user signs up and lands on documents', async ({ page }) => {
   await page.getByLabel('Password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'Sign up' }).click();
   await expectSignedInAs({ page, name });
+  await expect(page.getByText(MINE_EMPTY_MESSAGE)).toBeVisible();
 });
 
 test('wrong password shows one generic message', async ({ page }) => {

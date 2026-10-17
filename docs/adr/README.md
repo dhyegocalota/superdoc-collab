@@ -37,3 +37,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0015](0015-topics-recompute-trigger-and-identity.md) | Topics: when they are recomputed and how they keep their identity | Accepted | 2026-10-17 |
 | [0016](0016-timeline-bin-budget.md) | The timeline draws at most 120 bins | Accepted | 2026-10-17 |
 | [0017](0017-share-links-reissued-when-the-secret-changes.md) | Share links are reissued when the signing secret changes | Accepted | 2026-10-17 |
+| [0018](0018-fan-out-ci-and-prebuild-the-projection-worker.md) | Fan CI out into independent jobs and boot a prebuilt projection worker in tests | Accepted | 2026-10-17 |

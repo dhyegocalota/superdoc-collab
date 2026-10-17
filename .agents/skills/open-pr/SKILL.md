@@ -32,4 +32,13 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 - Create: `gh pr create --base main --title "<type>(<scope>): <summary>" --body-file <file>` (`--draft` when asked). Update: `gh api repos/{owner}/{repo}/pulls/<n> -X PATCH --field body=@<file>`.
 - Reply with the PR URL and the gate summary (verify ✓, test plan N/N, reviewer verdict, media assets, learnings).
 
+## Merge
+
+The automatic CI (`verify.yml`) does not run the E2E suite (ADR 0018). Before merging, or when the owner asks for the merge:
+
+1. Dispatch the E2E workflow for the branch head: `gh workflow run e2e.yml --ref <branch>`, then find the run (`gh run list --workflow e2e --branch <branch> --limit 1`) and wait with `gh run watch <id> --exit-status`.
+2. Wait for the automatic `verify` run of the same head to be green as well (`gh pr checks <n> --watch`).
+3. Both green → merge the way the owner asked (`gh pr merge <n> --merge`). Either red → back to Build; never merge on the local E2E run alone.
+4. Report both run URLs and their wall times in the reply.
+
 All PR text in English. Review findings never go to GitHub; only the verdict summary does.

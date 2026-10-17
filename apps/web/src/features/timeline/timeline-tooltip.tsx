@@ -2,7 +2,7 @@ import { cellVolume } from '@superdoc-collab/history/timeline';
 import type { DocumentTimeline } from '@superdoc-collab/types';
 import { formatBinRange } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
-import { authorNames } from './author-of';
+import { AuthorNames } from './author-names';
 import { editDeltaLabel, EditUnit } from './timeline-copy';
 
 export const TOOLTIP_WIDTH = 256;
@@ -76,7 +76,7 @@ export function TimelineTooltip({
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
           {band.name} {editDeltaLabel({ inserted: cell!.inserted, deleted: cell!.deleted, unit: EditUnit.Character })} ·{' '}
-          {authorNames({ authors: timeline.authors, authorKeys: cell!.authorKeys })}
+          <AuthorNames authors={timeline.authors} authorKeys={cell!.authorKeys} />
         </p>
       ))}
     </div>

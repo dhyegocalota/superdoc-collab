@@ -30,8 +30,6 @@ export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
 export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
-export const AI_BADGE_TEXT = 'AI';
-export const AI_BADGE_LABEL = 'Edited by AI';
 
 export const AGENT_ACTION_LABELS: Record<AgentActionKind, string> = {
   [AgentActionKind.ShareLinkRotated]: 'rotated a share link',
@@ -43,7 +41,7 @@ export function agentMarkLabel(name: string): string {
 }
 
 export function agentActionLabel({ name, kind }: { name: string; kind: AgentActionKind }): string {
-  return `${name} ${AGENT_ACTION_LABELS[kind]}`;
+  return `${name}'s AI ${AGENT_ACTION_LABELS[kind]}`;
 }
 
 const INSERTED_SIGN = '+';

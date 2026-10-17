@@ -389,7 +389,7 @@ test('every agent action is one mark and hovering it names the action', () => {
   const marks = ACTION_KINDS.map((kind) => screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind }) }));
   expect(marks).toHaveLength(ACTION_KINDS.length);
   fireEvent.pointerEnter(marks[0]!);
-  expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
   fireEvent.pointerLeave(marks[0]!);
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

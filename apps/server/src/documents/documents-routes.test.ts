@@ -366,6 +366,18 @@ test('members marks the connected owner online', async () => {
   await server.stop();
 });
 
+test('members reports whether the current user is online', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  const ownerAnswer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  const readerAnswer: DocumentMembers = await (await request({ server, cookie: reader.cookie, path })).json();
+  expect([ownerAnswer.isCurrentUserOnline, readerAnswer.isCurrentUserOnline]).toEqual([true, false]);
+  client.close();
+  await server.stop();
+});
+
 test('signed-out requests get 401', async () => {
   const { server } = await signedInOwner();
   const paths = [ApiPath.Documents, pathOf({ documentId: randomUUID() }), `${ApiPath.ShareLinks}/token/accept`];

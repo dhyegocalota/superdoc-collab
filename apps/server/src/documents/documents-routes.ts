@@ -151,7 +151,10 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   routes.get('/:documentId/members', (context) => {
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
     const online = runtime.onlineUserIds(documentId);
-    return context.json({ members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })) });
+    return context.json({
+      members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
+      isCurrentUserOnline: online.has(context.var.user.id),
+    });
   });
 
   return routes;

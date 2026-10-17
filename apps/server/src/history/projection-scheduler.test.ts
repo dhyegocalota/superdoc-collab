@@ -451,7 +451,10 @@ parentPort.on('message', (request) => {
 });
 `;
   writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), probeSource);
-  const scheduler = new ProjectionScheduler({ databaseDirectory: directory, projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)) });
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+  });
   const reply = await scheduler.blocks(randomUUID());
   expect(reply.sequence).toBe(PROBE_SEQUENCE);
   await scheduler.stop();

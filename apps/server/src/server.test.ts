@@ -24,7 +24,11 @@ function urlOf({ port, path }: { port: number; path: string }): string {
 
 describe('startServer', () => {
   test('serves the SPA fallback for an app route when the web directory is set', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory(), projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: AppRoute.Documents }));
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('app');
@@ -32,14 +36,22 @@ describe('startServer', () => {
   });
 
   test('serves static files from the web directory', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory(), projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: '/asset.txt' }));
     expect(await response.text()).toBe('static asset');
     await running.stop();
   });
 
   test('api 404 is json, not the SPA, when the web directory is set', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory(), projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: '/api/missing' }));
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Not found' });
@@ -47,7 +59,11 @@ describe('startServer', () => {
   });
 
   test('api 404 is json without a web directory', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: null,
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: '/api/missing' }));
     expect(response.status).toBe(404);
     expect(response.headers.get('content-type')).toContain('json');
@@ -55,7 +71,11 @@ describe('startServer', () => {
   });
 
   test('still answers the health endpoint with the web directory mounted', async () => {
-    const running = await startServer({ environment: testEnvironment(), webDistDirectory: createWebDistDirectory(), projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: createWebDistDirectory(),
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const response = await fetch(urlOf({ port: running.port, path: ApiPath.Health }));
     expect(await response.json()).toEqual({ status: 'ok' });
     await running.stop();
@@ -90,7 +110,9 @@ describe('startServer', () => {
     const documentsDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
     mkdirSync(documentsDirectory);
     chmodSync(documentsDirectory, 0o500);
-    await expect(startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() })).rejects.toThrow(DatabaseDirectoryNotWritableError);
+    await expect(
+      startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() }),
+    ).rejects.toThrow(DatabaseDirectoryNotWritableError);
   });
 });
 
@@ -99,7 +121,11 @@ test('startServer rejects instead of hanging when the port is taken', async () =
   await new Promise<void>((resolve) => blocker.listen(0, resolve));
   const { port } = blocker.address() as AddressInfo;
   await expect(
-    startServer({ environment: { ...testEnvironment(), port }, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() }),
+    startServer({
+      environment: { ...testEnvironment(), port },
+      webDistDirectory: null,
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    }),
   ).rejects.toMatchObject({
     code: 'EADDRINUSE',
   });

@@ -10,7 +10,14 @@ const BUNDLE_DIRECTORY = join('node_modules', '.cache', 'superdoc-history-vitest
 
 export default async function setup(): Promise<() => void> {
   const outDirectory = join(import.meta.dirname, BUNDLE_DIRECTORY);
-  await build({ ...serverBuildOptions, entry: { [PROJECTION_WORKER_ENTRY_NAME]: PROJECTION_WORKER_SOURCE }, outDir: outDirectory, clean: true, silent: true, config: false });
+  await build({
+    ...serverBuildOptions,
+    entry: { [PROJECTION_WORKER_ENTRY_NAME]: PROJECTION_WORKER_SOURCE },
+    outDir: outDirectory,
+    clean: true,
+    silent: true,
+    config: false,
+  });
   process.env[PROJECTION_WORKER_FILE_VARIABLE] = pathToFileURL(join(outDirectory, `${PROJECTION_WORKER_ENTRY_NAME}.js`)).href;
   return () => {
     delete process.env[PROJECTION_WORKER_FILE_VARIABLE];

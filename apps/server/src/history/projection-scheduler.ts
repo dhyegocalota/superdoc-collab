@@ -25,7 +25,13 @@ const WORKER_DEGRADED_MESSAGE = 'Projection worker keeps failing; projection is 
 export const MAX_WORKER_RESTARTS_PER_WINDOW = 5;
 export const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
 
-function createWorker({ databaseDirectory, projectionWorkerFile }: { databaseDirectory: string; projectionWorkerFile: URL | null }): Worker {
+function createWorker({
+  databaseDirectory,
+  projectionWorkerFile,
+}: {
+  databaseDirectory: string;
+  projectionWorkerFile: URL | null;
+}): Worker {
   const workerData = { databaseDirectory };
   if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData });
   if (!import.meta.url.endsWith(SOURCE_EXTENSION)) return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData });

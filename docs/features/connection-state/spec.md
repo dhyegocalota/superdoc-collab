@@ -60,7 +60,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 
 **Request after Lost.** When the reading turns Lost or Reconnecting the hook records `lostAt`, cancels the in-flight members request (`queryClient.cancelQueries`) and refetches. A members answer counts only when its `dataUpdatedAt` is later than `lostAt`; `useMembers` exposes that time as `membersAnsweredAt`. A flag that still reads `true` from before the outage therefore never shows Recovered.
 
-**Per-tab presence.** The flag is per tab, not per user, so a second tab of the same person cannot keep this tab "online". Each page load creates a `tabId` (`crypto.randomUUID()`), appends it as the `tab` query of the collaboration socket URL (`collaboration-config.ts`), where `onAuthenticate` stores it in the connection context, and sends it as the `tab` query of the members request; the members route answers `isCurrentUserOnline` for that tab through `runtime.onlineTabIds(documentId)`. A members request without `tab` keeps the per-user answer for other callers.
+**Per-tab presence.** The flag is per tab, not per user, so a second tab of the same person cannot keep this tab "online". Each page load creates a `tabId` (`crypto.randomUUID()`), appends it as the `tab` query of the collaboration socket URL (`collaboration-config.ts`), where `onAuthenticate` stores it in the connection context, and sends it as the `tab` query of the members request; the members route answers `isCurrentUserOnline` for that tab through `runtime.onlineTabIds({ documentId, userId })`, the tab ids of that user's live connections in the room. A `tab` that is not a UUID is ignored, and a members request without a valid `tab` keeps the per-user answer for other callers.
 
 | Transport reading | Server sees this user online | Banner state |
 |-------------------|------------------------------|--------------|
@@ -72,10 +72,11 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 ### Reload
 
 1. The author presses Reload in the banner.
-2. `DocumentPage` refetches the open query (`openedDocumentQueryKey`) and the file query (`DOCUMENT_FILE_QUERY_KEY`) and awaits both, so the answer for an already bootstrapped room comes back as `RoomMode.Join` with the current file.
+2. `DocumentPage` disables the button (it reads "Reloading…"), then refetches exactly the open query (`openedDocumentQueryKey`) and the current file query (`documentFileQueryKey`), each with `exact: true` and `throwOnError`, and awaits both, so the answer for an already bootstrapped room comes back as `RoomMode.Join` with the current file.
 3. The hook resets to reading Clear and state Online.
 4. Only then `DocumentPage` bumps `editorGeneration`, used as the `key` of `SuperDocEditor` and passed to `useEditorSetup`, which drops its captured setup when the generation changes (today it captures once behind a `setup === null` guard). The old instance is destroyed in its cleanup and a new one mounts with the refetched setup.
 5. The old instance's handlers check an `isActive` flag and drop late callbacks.
+6. If either refetch fails, the page stays as it was: the open query keeps its previous data, the banner stays Failed, the editor stays mounted and inert, the line "The server could not be reached. Try again." appears under the banner, the button is enabled again, and the file load error shows only while there is no editor.
 
 ## Interfaces
 
@@ -84,7 +85,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
   - `ConnectionFailureReason { AccessDenied = 'access-denied', ConnectionFailed = 'connection-failed', SyncTimeout = 'sync-timeout', WorkerTransportFailed = 'worker-transport-failed', SessionEnded = 'session-ended', Unknown = 'unknown' }`
 - `libs/types/src/constants.ts`: `RECOVERED_NOTICE_MS = 3 * SECOND_MS`.
 - `libs/types/src/documents.ts`: `DocumentMembers` becomes `{ members: DocumentMember[]; isCurrentUserOnline: boolean }`.
-- `apps/server/src/documents/documents-routes.ts`, members route: reads the user id from `context.var.user.id` and adds `isCurrentUserOnline: online.has(userId)`. `online` is `runtime.onlineUserIds(documentId)`, the user ids with a live Hocuspocus connection in that room. The flag reflects what the server holds, not what the browser believes.
+- `apps/server/src/documents/documents-routes.ts`, members route: reads the user id from `context.var.user.id` and adds `isCurrentUserOnline: online.has(userId)`, or, when the request carries a valid `tab`, whether `runtime.onlineTabIds({ documentId, userId })` holds that tab. `online` is `runtime.onlineUserIds(documentId)`, the user ids with a live Hocuspocus connection in that room. The flag reflects what the server holds, not what the browser believes.
 - `apps/web/src/features/editor/use-members.ts`: returns `isCurrentUserOnline: boolean | null`. It is `null` before the first answer and while the latest poll has failed, never the previous answer.
 - `apps/web/src/features/editor/superdoc-exceptions.ts`:
   - `SuperDocExceptionCode` gains `WorkerTransportFailed = 'worker-transport-failed'`. The installed types do not list that literal, so the code is read as a string.
@@ -97,7 +98,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
   - `reportTransport` refetches members when `hasSynced` is true.
   - Exported pure `mergeConnectionState({ reading, isCurrentUserOnline }): ConnectionState` for the merge table.
 - `apps/web/src/features/editor/superdoc-editor.tsx`: gains `onTransportReport: (report: TransportReport) => void`. Its `onCollaborationConnectionChange` and `onException` call `onTransportReport` through the `isActive` guard. Fatal keeps `EDITOR_FAILED_MESSAGE`. Recoverable keeps the status line. Logged calls `console.warn` with the diagnostic message, since `apps/web` has no logger.
-- `apps/web/src/features/editor/connection-banner.tsx`: `ConnectionBanner({ state, failureReason, onReload })`, following `VersionBanner`. It renders nothing when Online. Failed uses `role="alert"`; the other states use `role="status"`. Each has `data-testid="connection-banner"` and `data-state`.
+- `apps/web/src/features/editor/connection-banner.tsx`: `ConnectionBanner({ state, failureReason, isReloading, onAction })`, following `VersionBanner`. It renders nothing when Online. Failed uses `role="alert"`; the other states use `role="status"`. Each has `data-testid="connection-banner"` and `data-state`.
 - `apps/web/src/features/editor/connection-copy.ts`: `LOST_TITLE`, `RECONNECTING_TITLE`, `RECOVERED_TITLE`, `FAILED_TITLE`, `KEPT_AND_DATED_DETAIL`, `RELOAD_LABEL`, and `FAILURE_REASON_COPY: Record<ConnectionFailureReason, string>` with an `Unknown` entry.
 - `apps/web/src/features/editor/document-page.tsx`: holds `editorGeneration`, calls `useConnectionState`, renders `ConnectionBanner` between the top bar and the flex row, so it is full width and above the version banner. `isInert` is true when time travel is viewing or the state is Failed. The editor area gets `opacity-60` when Failed.
 - `apps/web/src/features/versions/version-viewer.tsx`: `onException` maps through `exceptionOutcome`. Logged and Recoverable do nothing. ConnectionFailed calls `onConnectionFailed`. Fatal calls `onFailed`. Its local `ConnectionState` enum is renamed `ViewerConnectionState` so it does not shadow the shared enum. Its refusal rule stays as it is.
@@ -120,7 +121,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
 | Where the connection state shows | banner under the top bar; status pill beside Members | Banner (design 6.12) | 2026-10-17 |
-| Does Reload keep edits that had not synced (design row 7.25) | keep them; discard them; warn before Reload | Spike answered 2026-10-17: Reload loses them. The bundle has no IndexedDB persistence; a sentence typed during an outage was gone after a reload, while the same sentence synced when the page stayed open until the server returned. So the Failed banner's detail says, after the reason: "Edits that have not synced are lost when you reload. Download the document first to keep them." (`UNSYNCED_LOST_ON_RELOAD_DETAIL` in `connection-copy.ts`). Decided by the lead within the approved scope. | 2026-10-17 |
+| Does Reload keep edits that had not synced (design row 7.25) | keep them; discard them; warn before Reload | Spike answered 2026-10-17: Reload loses them. The bundle has no IndexedDB persistence; a sentence typed during an outage was gone after a reload, while the same sentence synced when the page stayed open until the server returned. So the Failed banner's detail says, after the reason: "Unsynced edits are lost on reload. Download first to keep them." (`UNSYNCED_LOST_ON_RELOAD_DETAIL` in `connection-copy.ts`); when the session ended and the button reads Sign in, the detail says "on sign-in" instead. Decided by the lead within the approved scope. | 2026-10-17 |
 | Does Reload show "Loading document…" as design 1.14 says | show it; remount in place | Remount in place. The open and file queries are invalidated and the editor remounts under a new key; the brief asks only that the document reopens and re-authenticates, which the new socket does. Decided by the lead within the approved scope. | 2026-10-17 |
 | Version viewer edit rejection | fail time travel as today; log and ignore | Log and ignore: the viewer is inert and cannot take a user edit. Decided by the lead within the approved scope. | 2026-10-17 |
 
@@ -130,6 +131,6 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 - Unit, `use-connection-state.test.ts`: the merge table row by row, the state machine with fake timers (Lost, then Reconnecting, then Recovered, then Online after `RECOVERED_NOTICE_MS`), Failed stickiness, two callbacks in one tick, Reload reset, and a Lost cancelling Recovered.
 - Unit, `use-members` and the members route in `documents-routes.test.ts`: `isCurrentUserOnline` is true with a live socket and false without one, and `null` after a failed poll.
 - Unit, `connection-banner.test.tsx`: each state's copy, the Unknown reason line, and no output when Online.
-- E2E, `e2e/connection-state.spec.ts`, one browser per author: the server restarted mid-session shows Lost, then Reconnecting, then clears; an edit typed while down reaches the other author after reconnect. The session cookie removed shows Failed, an inert editor and a working Reload.
+- E2E, `e2e/connection-state.spec.ts`, one browser per author: the server restarted mid-session shows Reconnecting (Lost is optional, because the provider reports both in the same tick), then clears; an edit typed while down reaches the other author after reconnect. The session cookie removed shows Failed, an inert editor and a working Reload.
 - Playwright MCP walk, recorded for the PR: every state at the eight widths, with screenshots, plus dark mode for Reconnecting and Failed.
 - Existing tests that must still pass: `superdoc-exceptions.test.ts` and the `collaboration.spec.ts` case for a rejected edit.

@@ -1,5 +1,5 @@
 import type { EventAuthor } from '@superdoc-collab/types';
-import { binStartOf } from './bins';
+import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 
 const IMPORTED_AUTHOR_PREFIX = 'imported:';
 const RUN_KEY_SEPARATOR = '|';
@@ -30,12 +30,39 @@ export function authorKey(author: EventAuthor): string {
   return author.id;
 }
 
-export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binMs: number }): EditRun[] {
+function occupiedBinStarts({ events, binMs, timeZone }: { events: TimelineEvent[]; binMs: number; timeZone: string }): number[] {
+  const starts: number[] = [];
+  let currentEnd = -Infinity;
+  events
+    .map((event) => event.serverTime)
+    .sort((left, right) => left - right)
+    .forEach((time) => {
+      if (time < currentEnd) return;
+      const start = zonedBinStartOf({ time, binMs, timeZone });
+      starts.push(start);
+      currentEnd = nextZonedBinStart({ start, binMs, timeZone });
+    });
+  return starts;
+}
+
+function binStartContaining({ binStarts, time }: { binStarts: number[]; time: number }): number {
+  let low = 0;
+  let high = binStarts.length - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (binStarts[middle]! <= time) low = middle;
+    else high = middle - 1;
+  }
+  return binStarts[low]!;
+}
+
+export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEvent[]; binMs: number; timeZone: string }): EditRun[] {
   const runs = new Map<string, EditRun>();
+  const binStarts = occupiedBinStarts({ events, binMs, timeZone });
   [...events]
     .sort((left, right) => left.sequence - right.sequence || left.serverTime - right.serverTime)
     .forEach((event) => {
-      const binStart = binStartOf({ time: event.serverTime, binMs });
+      const binStart = binStartContaining({ binStarts, time: event.serverTime });
       const key = [binStart, event.blockId, event.authorKeys.join(',')].join(RUN_KEY_SEPARATOR);
       const run = runs.get(key);
       if (!run) {

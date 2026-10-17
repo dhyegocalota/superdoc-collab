@@ -10,6 +10,7 @@ import {
   selectionSummaryApiPath,
   SelectionSummaryState,
   timelineEditsApiPath,
+  UTC_TIME_ZONE,
   VERSION_FAILED_MESSAGE,
   versionApiPath,
   versionCollaborationPath,
@@ -313,7 +314,7 @@ test('a moment without a version yet shows progress up to the end of its period'
   };
   mockDocumentApi({ timelines: [withoutVersion] });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
-  const endOfPeriod = formatVersionMoment(BIN_STARTS[1]! + versionedTimeline.binMs);
+  const endOfPeriod = formatVersionMoment({ time: versionedTimeline.bins[1]!.end, timeZone: UTC_TIME_ZONE });
   await waitFor(() => expect(screen.getByTestId('version-banner')).toHaveTextContent(endOfPeriod));
   expect(screen.getByTestId('version-banner')).toHaveTextContent(LOADING_VERSION_MESSAGE);
   expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();

@@ -3,21 +3,23 @@ import { Button } from '@/components/ui/button';
 import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, versionAtLabel } from '@/features/timeline/timeline-copy';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
 import { formatVersionMoment } from '@/lib/format-date-time';
+import { useTimeZone } from '@/lib/use-time-zone';
 
-function loadingMessage(timeTravel: TimeTravel): string {
+function loadingMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }): string {
   if (timeTravel.requestedBinEnd === null) return LOADING_VERSION_MESSAGE;
-  return `${LOADING_VERSION_MESSAGE} ${formatVersionMoment(timeTravel.requestedBinEnd)}`;
+  return `${LOADING_VERSION_MESSAGE} ${formatVersionMoment({ time: timeTravel.requestedBinEnd, timeZone })}`;
 }
 
-function bannerMessage(timeTravel: TimeTravel): string {
+function bannerMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }): string {
   if (timeTravel.hasFailed) return VERSION_FAILED_MESSAGE;
-  if (timeTravel.isLoading || !timeTravel.shownVersion) return loadingMessage(timeTravel);
-  return versionAtLabel(formatVersionMoment(timeTravel.shownVersion.serverTime));
+  if (timeTravel.isLoading || !timeTravel.shownVersion) return loadingMessage({ timeTravel, timeZone });
+  return versionAtLabel(formatVersionMoment({ time: timeTravel.shownVersion.serverTime, timeZone }));
 }
 
 export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
+  const { timeZone } = useTimeZone();
   if (timeTravel.state === VersionViewerState.Live) return null;
-  const message = bannerMessage(timeTravel);
+  const message = bannerMessage({ timeTravel, timeZone });
   return (
     <div
       role="status"

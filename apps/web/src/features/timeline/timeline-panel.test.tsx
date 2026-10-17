@@ -1,4 +1,6 @@
 import {
+  UTC_TIME_ZONE,
+  AppRoute,
   documentApiPath,
   documentPagePath,
   DocumentResource,
@@ -32,6 +34,7 @@ import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from './timeline-api';
+import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
   FILTER_LABEL,
@@ -97,6 +100,8 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = scrollIntoView;
   scrollIntoView.mockClear();
 });
+
+vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -346,7 +351,7 @@ test('an editor summarizes the filtered selection, waits on a disabled button an
   const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
   renderPanel({ route: `${ROUTE}?author=ana` });
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?timeZone=UTC&author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
   await waitFor(() =>
     expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
   );
@@ -393,7 +398,7 @@ test('an at outside every bin summarizes the whole selection', async () => {
   const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
   await waitFor(() => expect(button).toBeEnabled());
   await userEvent.click(button);
-  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([SELECTION_PATH]));
+  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC`]));
 });
 
 test('clicking a bin without a version mark summarizes that bin', async () => {
@@ -404,7 +409,7 @@ test('clicking a bin without a version mark summarizes that bin', async () => {
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   await userEvent.click(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
   await waitFor(() =>
-    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
+    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC&at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
   );
   expect(window.location.search).not.toContain('at=');
 });
@@ -687,4 +692,13 @@ test('reopening the panel brings the chart back', async () => {
   await userEvent.click(toggle);
   reportSizes();
   expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
+});
+
+test('the header names the zone times are shown in and links to settings', async () => {
+  mockTimelineApi({ timeline: baseTimeline });
+  renderPanel();
+  expect(await screen.findByRole('link', { name: new RegExp(`^${timesInLabel(UTC_TIME_ZONE)}`) })).toHaveAttribute(
+    'href',
+    AppRoute.Settings,
+  );
 });

@@ -4,21 +4,22 @@ import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatTimestamp } from '@/lib/format-date-time';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
 import { COLUMNS_BY_KIND, DocumentColumn, type DocumentListKind, NARROW_HIDDEN_COLUMNS } from './document-columns';
 import { COLUMN_LABELS, ROLE_LABELS } from './documents-copy';
 
 const NARROW_HIDDEN_CLASS = 'hidden sm:table-cell';
 
-const CELL_CONTENT: Record<DocumentColumn, (document: DocumentSummary) => ReactNode> = {
-  [DocumentColumn.Title]: (document) => (
+const CELL_CONTENT: Record<DocumentColumn, (args: { document: DocumentSummary; timeZone: string }) => ReactNode> = {
+  [DocumentColumn.Title]: ({ document }) => (
     <Link to={documentPagePath(document.id)} className="font-medium hover:underline">
       {document.title}
     </Link>
   ),
-  [DocumentColumn.Owner]: (document) => document.owner.name,
-  [DocumentColumn.Updated]: (document) => formatTimestamp(document.updatedAt),
-  [DocumentColumn.Access]: (document) => <Badge variant="secondary">{ROLE_LABELS[document.role]}</Badge>,
+  [DocumentColumn.Owner]: ({ document }) => document.owner.name,
+  [DocumentColumn.Updated]: ({ document, timeZone }) => formatTimestamp({ time: document.updatedAt, timeZone }),
+  [DocumentColumn.Access]: ({ document }) => <Badge variant="secondary">{ROLE_LABELS[document.role]}</Badge>,
 };
 
 type DocumentTableProps = {
@@ -28,6 +29,7 @@ type DocumentTableProps = {
 };
 
 export function DocumentTable({ documents, emptyMessage, kind }: DocumentTableProps) {
+  const { timeZone } = useTimeZone();
   const columns = COLUMNS_BY_KIND[kind];
   const hiddenWhenNarrow = NARROW_HIDDEN_COLUMNS[kind];
 
@@ -53,7 +55,7 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
             <TableRow key={document.id}>
               {columns.map((column) => (
                 <TableCell key={column} className={columnClass(column)}>
-                  {CELL_CONTENT[column](document)}
+                  {CELL_CONTENT[column]({ document, timeZone })}
                 </TableCell>
               ))}
             </TableRow>

@@ -41,7 +41,7 @@ export type SelectionRequestResult =
   | { outcome: SelectionRequestOutcome.TooSoon | SelectionRequestOutcome.Busy; retryAfterSeconds: number }
   | { outcome: SelectionRequestOutcome.Unavailable; reason: string };
 
-export type RequestedSelection = EditSelection & { binMs: number | null };
+export type RequestedSelection = EditSelection & { binMs: number | null; timeZone: string };
 export type SelectionSnapshot = {
   runs: EditRun[];
   authors: Record<string, EventAuthor>;
@@ -158,7 +158,7 @@ export class SelectionSummariesService {
     const runs = snapshot.runs.filter((run) => runVolume(run) > 0);
     if (runs.length === 0 || cursor === null) return null;
     return {
-      key: selectionKeyOf({ selection, binMs: snapshot.binMs }),
+      key: selectionKeyOf({ selection, binMs: snapshot.binMs, timeZone: selection.timeZone }),
       snapshot: { ...snapshot, runs },
       cursor,
       topicsUpdatedAt: snapshot.topicsUpdatedAt,

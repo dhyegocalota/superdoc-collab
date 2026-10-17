@@ -65,6 +65,7 @@ export enum TimelineQueryParam {
   Around = 'around',
   Topic = 'topic',
   At = 'at',
+  TimeZone = 'timeZone',
 }
 
 export type TimelineFilter = { term: string | null; author: string | null };
@@ -77,12 +78,13 @@ export type SelectionSummaryView = {
   isModelAvailable: boolean;
 };
 export type TimelineCell = { inserted: number; deleted: number; authorKeys: string[] };
-export type TimelineBin = { start: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };
+export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };
 export type TimelineBand = { id: string; kind: TimelineBandKind; name: string; hue: number | null; onsetTime: number; volume: number };
 export type TimelineContributor = { authorKey: string; inserted: number; deleted: number; wordsInserted: number; wordsDeleted: number };
 export type TopicStatus = { state: TopicState; failure: string | null; computedAtSequence: number | null };
 export type ProjectionStatus = { isBehind: boolean; lagMs: number | null; isDegraded: boolean; cursor: number | null };
 export type DocumentTimeline = {
+  timeZone: string;
   binMs: number;
   bins: TimelineBin[];
   bands: TimelineBand[];

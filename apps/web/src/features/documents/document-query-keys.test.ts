@@ -18,6 +18,7 @@ const SELECTION: EditSelection = { term: null, author: null, topic: 'band-0', at
 const BIN_START = 1_792_165_200_000;
 const BIN_MS = 60_000;
 const SEQUENCE = 7;
+const TIME_ZONE = 'America/Sao_Paulo';
 
 function keysMatching({ queryClient, queryKey }: { queryClient: QueryClient; queryKey: unknown[] }): unknown[][] {
   return queryClient
@@ -31,15 +32,16 @@ test('every document key keeps its value', () => {
   expect(membersQueryKey(DOCUMENT_ID)).toEqual(['documents', DOCUMENT_ID, DocumentResource.Members]);
   expect(shareLinksQueryKey(DOCUMENT_ID)).toEqual(['documents', DOCUMENT_ID, DocumentResource.ShareLinks]);
   expect(documentFileQueryKey({ documentId: DOCUMENT_ID, roomMode: RoomMode.Join })).toEqual(['document-file', DOCUMENT_ID, RoomMode.Join]);
-  expect(timelineQueryKey({ documentId: DOCUMENT_ID, filter: FILTER })).toEqual([
+  expect(timelineQueryKey({ documentId: DOCUMENT_ID, filter: FILTER, timeZone: TIME_ZONE })).toEqual([
     'documents',
     DOCUMENT_ID,
     DocumentResource.Timeline,
     FILTER,
+    TIME_ZONE,
   ]);
   expect(summariesQueryKey(DOCUMENT_ID)).toEqual(['documents', DOCUMENT_ID, DocumentResource.Summaries]);
   expect(topicsQueryKey(DOCUMENT_ID)).toEqual(['documents', DOCUMENT_ID, DocumentResource.Topics]);
-  expect(binEditsQueryKey({ documentId: DOCUMENT_ID, binStart: BIN_START, binMs: BIN_MS, filter: FILTER })).toEqual([
+  expect(binEditsQueryKey({ documentId: DOCUMENT_ID, binStart: BIN_START, binMs: BIN_MS, filter: FILTER, timeZone: TIME_ZONE })).toEqual([
     'documents',
     DOCUMENT_ID,
     DocumentResource.Timeline,
@@ -47,6 +49,7 @@ test('every document key keeps its value', () => {
     BIN_START,
     BIN_MS,
     FILTER,
+    TIME_ZONE,
   ]);
   expect(versionQueryKey({ documentId: DOCUMENT_ID, sequence: SEQUENCE })).toEqual([
     'documents',
@@ -54,19 +57,26 @@ test('every document key keeps its value', () => {
     DocumentResource.Versions,
     SEQUENCE,
   ]);
-  expect(selectionSummaryQueryKey({ documentId: DOCUMENT_ID, selection: SELECTION })).toEqual([
+  expect(selectionSummaryQueryKey({ documentId: DOCUMENT_ID, selection: SELECTION, timeZone: TIME_ZONE })).toEqual([
     'documents',
     DOCUMENT_ID,
     DocumentResource.Summaries,
     'selection',
     SELECTION,
+    TIME_ZONE,
   ]);
 });
 
 test('the timeline prefix reaches the timeline and its bin edits, and the documents prefix never reaches the file', () => {
   const queryClient = new QueryClient();
-  const timelineKey = timelineQueryKey({ documentId: DOCUMENT_ID, filter: FILTER });
-  const binEditsKey = binEditsQueryKey({ documentId: DOCUMENT_ID, binStart: BIN_START, binMs: BIN_MS, filter: FILTER });
+  const timelineKey = timelineQueryKey({ documentId: DOCUMENT_ID, filter: FILTER, timeZone: TIME_ZONE });
+  const binEditsKey = binEditsQueryKey({
+    documentId: DOCUMENT_ID,
+    binStart: BIN_START,
+    binMs: BIN_MS,
+    filter: FILTER,
+    timeZone: TIME_ZONE,
+  });
   const fileKey = documentFileQueryKey({ documentId: DOCUMENT_ID, roomMode: RoomMode.Create });
   [timelineKey, binEditsKey, summariesQueryKey(DOCUMENT_ID), topicsQueryKey(DOCUMENT_ID), membersQueryKey(DOCUMENT_ID), fileKey].forEach(
     (queryKey) => queryClient.setQueryData(queryKey, {}),

@@ -10,7 +10,7 @@ paths:
 - A handler that consumes a key calls `event.preventDefault()`; document-level handlers check `event.defaultPrevented` and stand down. (filter-box.tsx, apps/web/src/features/timeline/use-time-travel.ts, apps/web/src/features/editor/superdoc-editor.tsx)
 - A container that unmounts and remounts (a collapsed panel) is measured through a callback ref, never a ref object read once in an effect. (apps/web/src/lib/use-element-width.ts)
 - `scrollIntoView` runs on state transitions only (running → result), never on every key change and never on the first render with a cached result. (apps/web/src/features/timeline/selection-summary-card.tsx)
-- `Intl.DateTimeFormat` instances are module constants, built once. (apps/web/src/lib/format-date-time.ts)
+- Every time on screen goes through `apps/web/src/lib/format-date-time.ts` with the effective zone from `useTimeZone()` and the `en-US` locale; its `Intl.DateTimeFormat` instances are cached per zone and options. Nothing else formats a time. (ADR 0024)
 
 ## Focus and keyboard
 - A Radix `Dialog` opened without a `DialogTrigger` returns focus to `body` on close. Pass `onCloseAutoFocus` that prevents the default and focuses the opener. (apps/web/src/features/editor/editor-header.tsx, docs/learnings/2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md)

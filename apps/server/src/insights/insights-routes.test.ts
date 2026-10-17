@@ -13,6 +13,7 @@ import {
   selectionSummaryApiPath,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   topicsRefreshApiPath,
+  UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
@@ -23,7 +24,14 @@ import { INVALID_TIMELINE_QUERY_MESSAGE } from '../history/timeline-query';
 import { readEvents } from '../testing/events-client';
 import { memberWithRole } from '../testing/collaboration-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
-import { postSelectionSummary, readSelectionSummary, storyWithBlocks, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
+import {
+  postSelectionSummary,
+  readSelectionSummary,
+  readTimeline,
+  storyWithBlocks,
+  twoAuthorsInTwoBlocks,
+  zonedQuery,
+} from '../testing/timeline-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
 import { JobOutcome } from './insights-job-runner';
 import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
@@ -34,6 +42,7 @@ const SELECTION_ANSWER = { sentence: 'Member added a designer.', authors: ['Memb
 const COOLDOWN_SECONDS = SELECTION_SUMMARY_COOLDOWN_MS / SECOND_MS;
 const PROVIDER_SECRET = 'sk-test-secret';
 const FOREIGN_ORIGIN = 'https://evil.example';
+const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
 const INVALID_QUERIES = ['at=-5', 'at=abc', 'at=1.5', `at=${'9'.repeat(20)}`, `topic=${'t'.repeat(201)}`];
 
 afterEach(() => {
@@ -234,11 +243,56 @@ test('a topic that no longer exists selects nothing', async () => {
 
 test.each(INVALID_QUERIES)('an invalid selection query %s is 400 for the GET and the POST', async (query) => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  const get = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${query}`, { headers: { cookie: editor.cookie } });
+  const get = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${zonedQuery({ query })}`, {
+    headers: { cookie: editor.cookie },
+  });
   const post = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query });
   expect([get.status, post.status]).toEqual([HttpStatus.BadRequest, HttpStatus.BadRequest]);
   expect(await get.json()).toEqual({ error: INVALID_TIMELINE_QUERY_MESSAGE });
   expect(await post.json()).toEqual({ error: INVALID_TIMELINE_QUERY_MESSAGE });
+  await server.stop();
+});
+
+function selectionRowCount(server: TestServer): number {
+  const row = server.database.sqlite.prepare('select count(*) as total from selection_summaries').get() as { total: number };
+  return row.total;
+}
+
+test('a whole-document selection summarized in one zone is served in another from the same row', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
+  const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY, timeZone: UTC_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
+  const otherZone = await readSelectionSummary({
+    server,
+    documentId,
+    cookie: editor.cookie,
+    query: MEMBER_QUERY,
+    timeZone: SAO_PAULO_TIME_ZONE,
+  });
+  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY, timeZone: SAO_PAULO_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
+  expect(otherZone.state).toBe(SelectionSummaryState.Ready);
+  expect(selectionRowCount(server)).toBe(1);
+  await server.stop();
+});
+
+test('a period selection summarized in one zone is not served for another', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
+  const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
+  const timeline = await readTimeline({ server, documentId, cookie: editor.cookie, timeZone: UTC_TIME_ZONE });
+  const query = `${MEMBER_QUERY}&at=${timeline.bins.find((bin) => Object.keys(bin.byBand).length > 0)!.start}`;
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: UTC_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
+  const otherZone = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
+  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
+  expect(otherZone.state).toBe(SelectionSummaryState.None);
+  expect(selectionRowCount(server)).toBe(2);
   await server.stop();
 });
 

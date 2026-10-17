@@ -110,8 +110,8 @@ function mockDocumentApi({
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (input === MEMBERS_PATH) return jsonResponse({ body: { members: [] }, status: currentMembersStatus() });
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
-    if (input === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
-    if (input === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
+    if (String(input).split('?')[0] === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
+    if (String(input).split('?')[0] === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
     if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) {
       summaryStep = SummarizeStep.Grouping;
       return jsonResponse({

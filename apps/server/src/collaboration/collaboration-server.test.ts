@@ -178,3 +178,19 @@ test("a connection's tab id is in the room's online tab ids and leaves with the 
   await expect.poll(() => server.services.runtime.onlineTabIds({ documentId, userId: owner.id })).toEqual(new Set());
   await server.stop();
 });
+
+test.each([
+  { name: 'empty', tab: '' },
+  { name: 'not a UUID', tab: 'a'.repeat(1024) },
+])('a $name tab query is not stored', async ({ tab }) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({
+    server,
+    cookie: owner.cookie,
+    documentId,
+    path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${tab}`,
+  });
+  expect(server.services.runtime.onlineTabIds({ documentId, userId: owner.id })).toEqual(new Set());
+  client.close();
+  await server.stop();
+});

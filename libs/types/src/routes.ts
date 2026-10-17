@@ -49,6 +49,10 @@ export enum VersionResource {
 
 export const TAB_QUERY_KEY = 'tab';
 
+export function isTabId(value: string): boolean {
+  throw new Error('isTabId is not implemented');
+}
+
 const REFRESH_SEGMENT = 'refresh';
 const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';

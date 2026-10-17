@@ -419,6 +419,19 @@ test('a socket of another user carrying a tab id does not make that tab online f
   await server.stop();
 });
 
+test.each([
+  { name: 'empty', tab: '' },
+  { name: 'not a UUID', tab: 'a'.repeat(1024) },
+])('members treats a $name tab as absent and answers per user', async ({ tab }) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${tab}`;
+  const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  expect(answer.isCurrentUserOnline).toBe(true);
+  client.close();
+  await server.stop();
+});
+
 test('signed-out requests get 401', async () => {
   const { server } = await signedInOwner();
   const paths = [ApiPath.Documents, pathOf({ documentId: randomUUID() }), `${ApiPath.ShareLinks}/token/accept`];

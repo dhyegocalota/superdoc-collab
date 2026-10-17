@@ -25,7 +25,12 @@ enum ConnectionAction {
   Reset = 'reset',
 }
 
-type ConnectionStateInput = { documentId: string; isCurrentUserOnline: boolean | null; membersAnsweredAt: number | null };
+type ConnectionStateInput = {
+  documentId: string;
+  isCurrentUserOnline: boolean | null;
+  membersAnsweredAt: number | null;
+  isSessionEnded: boolean;
+};
 
 type ConnectionStateView = {
   state: ConnectionState;
@@ -122,6 +127,13 @@ const REDUCERS: { [Type in ConnectionAction]: (machine: Machine, action: Extract
 function reduceMachine(machine: Machine, action: Action): Machine {
   const reducer = REDUCERS[action.type] as (machine: Machine, action: Action) => Machine;
   return reducer(machine, action);
+}
+
+export function resolveFailureReason(_input: {
+  failureReason: ConnectionFailureReason | null;
+  isSessionEnded: boolean;
+}): ConnectionFailureReason | null {
+  throw new Error('resolveFailureReason is not implemented');
 }
 
 export function useConnectionState({ documentId, isCurrentUserOnline, membersAnsweredAt }: ConnectionStateInput): ConnectionStateView {

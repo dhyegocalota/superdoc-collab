@@ -34,7 +34,7 @@ export function DocumentPage() {
   const { data: opened, error, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
-  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt } = useMembers(documentId);
+  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const queryClient = useQueryClient();
   const {
     state: connectionState,
@@ -45,6 +45,7 @@ export function DocumentPage() {
     documentId,
     isCurrentUserOnline,
     membersAnsweredAt,
+    isSessionEnded,
   });
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [isReloading, setIsReloading] = useState(false);

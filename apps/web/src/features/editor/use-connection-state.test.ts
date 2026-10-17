@@ -7,15 +7,16 @@ import { DOCUMENT_ID } from '@/testing/opened-document';
 import { membersQueryKey } from './editor-api';
 import {
   mergeConnectionState,
+  resolveFailureReason,
   TransportReading,
   transportReportOf,
   useConnectionState,
   type TransportReport,
 } from './use-connection-state';
 
-type MembersInput = { isCurrentUserOnline: boolean | null; membersAnsweredAt: number | null };
+type MembersInput = { isCurrentUserOnline: boolean | null; membersAnsweredAt: number | null; isSessionEnded: boolean };
 
-const NOT_ANSWERED: MembersInput = { isCurrentUserOnline: null, membersAnsweredAt: null };
+const NOT_ANSWERED: MembersInput = { isCurrentUserOnline: null, membersAnsweredAt: null, isSessionEnded: false };
 const START_TIME = new Date('2026-10-17T10:00:00Z');
 const OUTAGE_DELAY_MS = 1000;
 const ANSWER_DELAY_MS = 50;
@@ -54,7 +55,7 @@ function renderConnection({
   }
   function answer(isCurrentUserOnline: boolean | null): void {
     advance(ANSWER_DELAY_MS);
-    rendered.rerender({ isCurrentUserOnline, membersAnsweredAt: Date.now() });
+    rendered.rerender({ isCurrentUserOnline, membersAnsweredAt: Date.now(), isSessionEnded: false });
   }
   return { ...rendered, report, advance, answer, invalidateQueries, cancelQueries };
 }
@@ -121,7 +122,9 @@ test('a Lost reading cancels the in-flight members request and refetches', () =>
 });
 
 test('a server flag that was true before the Lost reading stays Lost', () => {
-  const connection = renderConnection({ initialProps: { isCurrentUserOnline: true, membersAnsweredAt: Date.now() } });
+  const connection = renderConnection({
+    initialProps: { isCurrentUserOnline: true, membersAnsweredAt: Date.now(), isSessionEnded: false },
+  });
   connection.advance(OUTAGE_DELAY_MS);
   connection.report(readingReport(TransportReading.Lost));
   expect(connection.result.current.state).toBe(ConnectionState.Lost);
@@ -134,7 +137,7 @@ test('an answer that finished before the Lost reading never confirms recovery', 
   const answeredBeforeLoss = Date.now();
   connection.advance(OUTAGE_DELAY_MS);
   connection.report(readingReport(TransportReading.Lost));
-  connection.rerender({ isCurrentUserOnline: true, membersAnsweredAt: answeredBeforeLoss });
+  connection.rerender({ isCurrentUserOnline: true, membersAnsweredAt: answeredBeforeLoss, isSessionEnded: false });
   expect(connection.result.current.state).toBe(ConnectionState.Lost);
 });
 
@@ -255,3 +258,25 @@ test.each([TransportReading.Lost, TransportReading.Reconnecting])(
     });
   },
 );
+
+test.each([
+  { failureReason: ConnectionFailureReason.Unknown, isSessionEnded: true, expected: ConnectionFailureReason.SessionEnded },
+  { failureReason: ConnectionFailureReason.Unknown, isSessionEnded: false, expected: ConnectionFailureReason.Unknown },
+  { failureReason: ConnectionFailureReason.AccessDenied, isSessionEnded: true, expected: ConnectionFailureReason.AccessDenied },
+  { failureReason: null, isSessionEnded: true, expected: null },
+])('reason $failureReason with session ended $isSessionEnded resolves to $expected', ({ failureReason, isSessionEnded, expected }) => {
+  expect(resolveFailureReason({ failureReason, isSessionEnded })).toBe(expected);
+});
+
+test('a Failed Unknown becomes SessionEnded when the members poll met a 401', () => {
+  const connection = renderConnection({ initialProps: { ...NOT_ANSWERED, isSessionEnded: true } });
+  connection.report(readingReport(TransportReading.Failed, ConnectionFailureReason.Unknown));
+  expect(connection.result.current.state).toBe(ConnectionState.Failed);
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.SessionEnded);
+});
+
+test('a Failed Unknown stays Unknown when the session has not ended', () => {
+  const connection = renderConnection();
+  connection.report(readingReport(TransportReading.Failed, ConnectionFailureReason.Unknown));
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.Unknown);
+});

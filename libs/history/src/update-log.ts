@@ -168,18 +168,29 @@ export class UpdateLog {
       .run(documentName, sequence, state);
   }
 
-  appendCommitted(parameters: {
+  appendCommitted({
+    state,
+    ...parameters
+  }: {
     documentName: string;
     connectionUserId: string;
     connectionActor: ClientActor;
     update: Uint8Array;
     state: Uint8Array;
   }): LoggedUpdate {
-    throw new Error('appendCommitted is not implemented');
+    return this.database.transaction(() => {
+      const appended = this.append(parameters);
+      this.writeSnapshot({ documentName: parameters.documentName, sequence: appended.sequence, state });
+      return appended;
+    })();
   }
 
   snapshotAfter({ documentName, afterSequence }: { documentName: string; afterSequence: number }): Snapshot | null {
-    throw new Error('snapshotAfter is not implemented');
+    const row = this.database
+      .prepare('SELECT sequence, state FROM snapshots WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT 1')
+      .get(documentName, afterSequence) as { sequence: number; state: Uint8Array } | undefined;
+    if (!row) return null;
+    return { sequence: row.sequence, state: new Uint8Array(row.state) };
   }
 
   latestSnapshot({ documentName, atOrBefore }: { documentName: string; atOrBefore: number }): Snapshot | null {

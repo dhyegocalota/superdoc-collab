@@ -4,6 +4,7 @@
 - Inspired by: slice 3 known gap "Escape inside the viewer frame does not exit a version", closed in `docs/features/known-minors/`
 - Revisited: 2026-10-17 — fixed with a `postMessage` kind on the existing same-origin channel
 - Revisited: 2026-10-17 — the frame files moved to `features/versions/` (refinement-structure)
+- Revisited: 2026-10-17 — still true; the UX lane touched `version-view-page.tsx` only for the tab title. Its zoom work met the sibling trap (`matchMedia` inside the frame measures the frame). Both promoted to `.claude/rules/web-ui.md`
 
 ## Signal
 A global `document.addEventListener('keydown', …)` in the app works everywhere except while the user is inside the embedded version viewer: Escape does nothing there, with no error.

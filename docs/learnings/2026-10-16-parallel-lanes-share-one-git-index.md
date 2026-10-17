@@ -3,6 +3,7 @@
 - Date: 2026-10-16
 - Inspired by: slice 2 execution — commit `ea27dbc` (lane A) carried lane C's staged deletion of `apps/web/src/routes/documents-page.tsx`; commit `dbdaee5` carried the tester's test-plan edits
 - Revisited: 2026-10-16 — rule applied to every later commit; one more harmless recurrence (docs only)
+- Revisited: 2026-10-17 — still true; one worktree per lane, ownership lists and merge-not-rebase are now in `.claude/HARNESS.md` → Parallel lanes and the developer role
 
 ## Signal
 `git show --stat` of a commit lists a file outside the author's ownership group, and the other lane's next commit is missing a change it made.

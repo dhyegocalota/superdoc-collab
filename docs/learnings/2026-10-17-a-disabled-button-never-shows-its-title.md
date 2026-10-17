@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: slice 4 Task 10 review (`apps/web/src/features/timeline/summarize-edits-button.tsx`): the "why is this disabled" reason lived only in `title` on a natively `disabled` button
 - Revisited: 2026-10-17
+- Revisited: 2026-10-17 — still true; the UX lane gave Regroup topics the same visible reason (`regroupDisabledReason` in `timeline-panel.tsx`) instead of a `title`. Promoted to `.claude/rules/web-ui.md` → Copy
 
 ## Signal
 A greyed-out button with a perfectly good `title` explaining why, and nobody — mouse or keyboard — ever reads it; tests pass because they assert the attribute.

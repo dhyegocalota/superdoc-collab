@@ -20,7 +20,7 @@ The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENT
 
 1. Nothing is built before the owner and the agent agree on 100% of the design. Agreement is explicit, in writing, in the spec.
 2. Every feature **and every fix** gets `docs/features/<slug>/` with `spec.md`, `plan.md` and `test-plan.md`. Never one without the others. A fix's spec may be ten lines; it still exists.
-3. Executing the test plan is the priority. A plan whose test plan is not run is not done.
+3. Executing the test plan is the priority. A plan whose test plan is not run is not done. A behaviour-preserving refactor is the one exception: the reviewer and the full CI run prove it (section 5).
 4. The agent that builds never runs the test plan. The tester is a different sub-agent with a fresh context.
 5. Every PR is reviewed by a reviewer sub-agent before it opens. There is always a reviewer.
 6. Every PR that touches UI carries screenshots and a playable video recorded through Playwright MCP, hosted as GitHub Release assets and embedded in the body.
@@ -64,23 +64,41 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - Work on a `feat/`, `fix/`, `docs/` or `chore/` branch, never on `main`.
 - `developer` sub-agents implement. Each owns disjoint paths named in the plan. They tick their own steps. A step that turns out wrong is struck through with the reason, not deleted.
 - `test-driven-development` skill: failing test first, confirm it fails for the right reason, minimal code, green, refactor. **Commit the failing test on its own before the implementation commit**, so the tester can prove red-first from `git log` (see `docs/learnings/2026-10-16-commit-the-failing-test-first.md`).
+- The red commit may add a stub of the new symbol that throws `<name> is not implemented`, so `pnpm typecheck` stays green and the run reaches the named assertion. The test plan and the tester briefing record the failure text the red run actually printed, not the one expected.
+- A test that is green when it lands is a **pin**, not a red test. Its commit and its briefing row say `pin`; it never stands in for a red-first box.
+- Prettier is enforced in CI (`pnpm format:check`). Run `pnpm exec prettier --write <staged files>` before every commit; Markdown and YAML are ignored by `.prettierignore`.
+- The `Co-Authored-By` trailer names the model that wrote that commit. Mixed trailers across one lane are correct; never rewrite them to match.
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
 - Stuck after three honest attempts → `systematic-debugging` skill, then escalate to the owner with evidence.
 - **Docs move with the code.** A change that makes a README, a `.claude/rules/` fact or the `AGENTS.md` layout wrong updates it in the same commit. A package README states purpose, commands and layout, never behaviour the code already shows, and links the folders it names so a rename fails CI. The `remind-docs.sh` Stop hook names the documents that describe uncommitted changes; update them or say why none applies.
 
+**Parallel lanes.** When the lead runs several developers at once:
+
+- One developer per file set, one worktree per lane. The lead's prompt gives each developer an explicit ownership list and names the files its siblings own.
+- A developer that must touch a sibling's file stops and asks the lead, or leaves the change out and notes it in the tester briefing. It never edits the file on its own.
+- Developers commit on their lane branch and never push. The lead merges the lanes and pushes.
+- Lane branches take other branches by merge, never by rebase: a rebase rewrites the red-first hashes the test plan cites.
+- When `main` moves, the lead tells each developer what landed and which of its files collide. The developer merges `main` at its next task boundary, never mid-step.
+- Two developers never do the same step. When a step was done twice anyway, reconcile the two in the merge and note it in `plan.md`; never revert either one.
+
 ## 5. Prove
 
 - A `tester` sub-agent, never the developer, with a fresh context, executes `test-plan.md` end to end and ticks boxes with evidence (commit hash, log path, counts, screenshot path).
 - Browser work runs through **Playwright MCP** from the user's perspective: walk the whole flow, not the changed screen; assert what the user sees; take the unhappy paths on purpose; read console and network; cover empty, single and many; both desktop and narrow widths; multi-author flows open one browser context per author.
+- **Playwright MCP down.** The tester drives a throwaway spec, `e2e/_walk-<slug>.spec.ts`, with a scratch copy of `playwright.config.ts` whose `PORT` and fake model port (`e2e/fake-openrouter-origin.ts`) differ from any stack already running. It takes screenshots at 1280 and 375, compares them with the screenshots taken before the change, then deletes the spec and the config. `e2e/_*.spec.ts` is never committed.
+- A change that folds or deletes tests is proven with **mutation checks**: break the behaviour the dropped test covered, confirm a surviving test goes red, restore. Record each mutation and the test that caught it.
 - Edge cases are hunted during execution, not only listed upfront. New ones found go into `test-plan.md` and get a regression test.
 - Any bug found returns to Build. The tester never fixes product code.
+- A behaviour-preserving refactor lane needs no tester: the reviewer and the full CI run, E2E included, are the proof. A lane that changes anything the user sees always gets one.
 - `verification-before-completion` skill before anything is called done: run it, read the output, then claim it.
 
 ## 6. Review
 
 - A `reviewer` sub-agent, with a fresh context, reviews the diff before the PR opens: conventions (`AGENTS.md`, `.claude/rules/`), correctness, security (auth, session tokens on sockets, SQL binding, enumeration-safe auth responses, secrets, path traversal on uploads, DOCX size limits, tenant isolation per document), performance budgets from the ADRs, and tests. It also tries to **refute** the tester: pick the three claims most likely to be wrong and attack them.
 - Output: numbered findings `CRITICAL | IMPORTANT | MINOR`, each with file:line, the rule, the production consequence and a minimal fix; then the **blast radius** (surfaces touched, who notices first, how to roll back, whether rollback loses data) and `Merge sensitivity: LOW | MEDIUM | HIGH` with a one-line reason; closing with `Ship-ready? YES | NO | WITH RESERVATIONS`.
+- A commit that claims to be formatting only is re-diffed with whitespace and quotes normalised (`git diff -w`, then Prettier on both sides) before "no behaviour change" is trusted.
+- Red-first claims are spot-checked in a throwaway worktree: check out the red commit, run the named test, compare the failure with the text the test plan records.
 - Findings are delivered in chat and fixed before the PR. The reviewer never posts to GitHub.
 
 ## 7. Ship
@@ -95,6 +113,10 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
 8. **E2E on CI only when it can catch something.** The automatic workflow (`verify.yml`) runs `checks`, `unit` and `docker` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Suggest the dispatch to the owner only when the diff can change what the suite exercises: product source under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, `.github/workflows/e2e.yml`, `.github/actions/`, `.nvmrc`, dependencies or build configuration. Docs, agent tooling, unit tests and repository-shape tests merge on the green automatic run and the local `/verify`; never suggest the dispatch for them, even when they live under `apps/` or `libs/`. When the owner asks for it, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build.
+
+**CI runs.** GitHub sometimes creates no `verify` run for a push or a pull request. When the head has no run, dispatch one (`gh workflow run verify.yml --ref <branch>`) instead of pushing an empty commit. Never poll the GitHub API in a loop: tight polling trips the secondary rate limit. Wait with `gh run watch <id> --exit-status`, one call per run, or a scheduled wakeup.
+
+**Merge on green.** When the owner asks to merge as soon as CI is green, merge, then land the tester's ticks and evidence in a `docs` follow-up PR.
 
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
 

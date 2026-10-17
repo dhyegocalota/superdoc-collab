@@ -2,16 +2,20 @@ import type { KeyboardEvent, PointerEvent } from 'react';
 import { KeyboardKey } from '@/lib/keyboard';
 import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { RESIZE_PANEL_LABEL } from './timeline-copy';
-import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
+import type { PanelPosition } from './use-panel-position';
+import { PANEL_RESIZE_STEP } from './use-panel-width';
 
 export function ResizeHandle({
-  width,
-  maxWidth,
+  size,
+  minSize,
+  maxSize,
   resizeTo,
   resizeBy,
 }: {
-  width: number;
-  maxWidth: number;
+  position: PanelPosition;
+  size: number;
+  minSize: number;
+  maxSize: number;
   resizeTo: (next: number) => void;
   resizeBy: (delta: number) => void;
 }) {
@@ -34,9 +38,9 @@ export function ResizeHandle({
       role="separator"
       aria-orientation="vertical"
       aria-label={RESIZE_PANEL_LABEL}
-      aria-valuenow={width}
-      aria-valuemin={MIN_PANEL_WIDTH}
-      aria-valuemax={maxWidth}
+      aria-valuenow={size}
+      aria-valuemin={minSize}
+      aria-valuemax={maxSize}
       tabIndex={0}
       className="hidden w-1 shrink-0 cursor-col-resize bg-border hover:bg-ring focus-visible:bg-ring lg:block"
       onPointerDown={handlePointerDown}

@@ -19,7 +19,8 @@ import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useElementWidth } from '@/lib/use-element-width';
 import { useBinSelection } from './use-bin-selection';
-import { usePanelWidth } from './use-panel-width';
+import { PanelPosition } from './use-panel-position';
+import { MIN_PANEL_WIDTH, usePanelWidth } from './use-panel-width';
 import { useSelectionSummary, useSummarizeEdits } from './use-selection-summary';
 import { useRefreshTopics } from './use-topics';
 import { useSummaries } from './use-summaries';
@@ -87,7 +88,16 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
       )}
       style={{ '--panel-width': `${width}px` } as CSSProperties}
     >
-      {isOpen && <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />}
+      {isOpen && (
+        <ResizeHandle
+          position={PanelPosition.Side}
+          size={width}
+          minSize={MIN_PANEL_WIDTH}
+          maxSize={maxWidth}
+          resizeTo={resizeTo}
+          resizeBy={resizeBy}
+        />
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className={cn('flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2', !isOpen && 'lg:flex-col')}>
           <h2 className={cn('px-2 text-sm font-medium', !isOpen && 'lg:sr-only')}>{TIMELINE_HEADING}</h2>

@@ -100,9 +100,9 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 - [x] **Step 20:** Red: `oauth-consent-page.test.tsx` "shows the client name and the scopes in plain words; Approve posts the consent"; then `features/oauth-consent/` on the shared auth card, `oauth-consent-copy.ts`, route `AppRoute.OAuthConsent` behind `RequireSession` keeping the query string. (red 6555eff, green e4ec03b)
 - [x] **Step 21:** Red: `connected-apps-page.test.tsx` "lists clients with connected date and scopes; Revoke calls delete-consent and invalidates the list"; "copy buttons copy the MCP URL and each snippet"; then `features/connected-apps/` (`connected-apps-api.ts`, `use-connected-apps.ts`, `use-revoke-connected-app.ts`, `connected-apps-copy.ts`), route `AppRoute.ConnectedApps`, link from the documents page header next to the user name. (red e2e2fe8 and the documents header test, green 10be077)
-- [ ] **Step 22:** (after L1 step 4) Red: `streamgraph.test.tsx` "a band with agent volume renders a hatched agent layer"; legend row; `contributor-avatars` "an agent author shows the AI badge"; `timeline-tooltip` lists "Name · AI".
-- [ ] **Step 23:** (after L1 step 5) Red: agent action marks on the time axis with tooltips naming the action; then the marks.
-- [ ] **Step 24:** Update `apps/web/README.md` layout; write the L4 part of `tester-briefing.md`.
+- [x] **Step 22:** (after L1 step 4) Red: `streamgraph.test.tsx` "a band with agent volume renders a hatched agent layer"; legend row; `contributor-avatars` "an agent author shows the AI badge"; `timeline-tooltip` lists "Name · AI". (merge of the history lane 467412b; red f680ee6, green c37b262; the tooltip row is a pin because author names already carry the suffix)
+- [x] **Step 23:** (after L1 step 5) Red: agent action marks on the time axis with tooltips naming the action; then the marks. (red e050943, green 3d78702)
+- [x] **Step 24:** Update `apps/web/README.md` layout; write the L4 part of `tester-briefing.md`.
 
 ### L5 E2E
 

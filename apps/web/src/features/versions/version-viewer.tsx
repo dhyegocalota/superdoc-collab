@@ -13,7 +13,8 @@ import { collaborationUrl, HOCUSPOCUS_PROVIDER } from '@/features/editor/collabo
 import { SUPERDOC_TELEMETRY } from '@/features/editor/superdoc-telemetry';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
-import { followViewportZoom, initialZoomMode } from '@/features/editor/superdoc-zoom';
+import { FITTED_PAGE_CLASS, followViewportZoom, initialZoomMode } from '@/features/editor/superdoc-zoom';
+import { cn } from '@/lib/utils';
 
 enum ConnectionState {
   Degraded = 'degraded',
@@ -78,5 +79,5 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
     };
   }, [documentId, sequence, blank, user, onReady, onFailed, onConnectionFailed]);
 
-  return <div ref={containerRef} data-testid="version-viewer" className="h-dvh min-w-0 overflow-auto" />;
+  return <div ref={containerRef} data-testid="version-viewer" className={cn('h-dvh min-w-0 overflow-auto', FITTED_PAGE_CLASS)} />;
 }

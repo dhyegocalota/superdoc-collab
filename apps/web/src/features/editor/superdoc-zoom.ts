@@ -7,6 +7,7 @@ export enum ZoomMode {
 
 export const NARROW_VIEWPORT_QUERY = '(width < 64rem)';
 export const FULL_ZOOM_PERCENT = 100;
+export const FITTED_PAGE_CLASS = '[&_.superdoc>*]:min-w-0 [&_.presentation-editor]:items-center-safe!';
 
 export function initialZoomMode(viewport: Window): ZoomMode {
   if (viewport.matchMedia(NARROW_VIEWPORT_QUERY).matches) return ZoomMode.FitWidth;

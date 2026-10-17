@@ -100,19 +100,21 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - A commit that claims to be formatting only is re-diffed with whitespace and quotes normalised (`git diff -w`, then Prettier on both sides) before "no behaviour change" is trusted.
 - Red-first claims are spot-checked in a throwaway worktree: check out the red commit, run the named test, compare the failure with the text the test plan records.
 - Findings are delivered in chat and fixed before the PR. The reviewer never posts to GitHub.
+- A `security-reviewer` sub-agent, fresh and read-only, then attacks the same diff with the repository's threat model (sessions, per-document authorization, share links, credentials, storage, secrets in prompts and logs, supply chain) and answers `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE` ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)). It runs on every diff except one made only of Markdown under `docs/` and READMEs; a `CRITICAL` or `IMPORTANT` finding goes back to Build.
 
 ## 7. Ship
 
 `/open-pr` runs the gates in order and stops at the first failure:
 
-1. `/verify`: typecheck → unit → E2E.
+1. `/verify`: typecheck → security audit → secret scan → unit → E2E.
 2. `test-plan.md` fully ticked by the tester, with evidence.
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
+3b. Security verdict `CLEAR` or `NOT APPLICABLE`; `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build. The verdict line goes into the PR body under `## Security`.
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
 5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
-8. **E2E on CI only when it can catch something.** The automatic workflow (`verify.yml`) runs `checks`, `unit` and `docker` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Suggest the dispatch to the owner only when the diff can change what the suite exercises: product source under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, `.github/workflows/e2e.yml`, `.github/actions/`, `.nvmrc`, dependencies or build configuration. Docs, agent tooling, unit tests and repository-shape tests merge on the green automatic run and the local `/verify`; never suggest the dispatch for them, even when they live under `apps/` or `libs/`. When the owner asks for it, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build.
+8. **E2E on CI only when it can catch something.** The automatic workflow (`verify.yml`) runs `checks`, `unit`, `docker` and `security` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Suggest the dispatch to the owner only when the diff can change what the suite exercises: product source under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, `.github/workflows/e2e.yml`, `.github/actions/`, `.nvmrc`, dependencies or build configuration. Docs, agent tooling, unit tests and repository-shape tests merge on the green automatic run and the local `/verify`; never suggest the dispatch for them, even when they live under `apps/` or `libs/`. When the owner asks for it, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build.
 
 **CI runs.** GitHub sometimes creates no `verify` run for a push or a pull request. When the head has no run, dispatch one (`gh workflow run verify.yml --ref <branch>`) instead of pushing an empty commit. Never poll the GitHub API in a loop: tight polling trips the secondary rate limit. Wait with `gh run watch <id> --exit-status`, one call per run, or a scheduled wakeup.
 
@@ -163,6 +165,7 @@ Role bodies live in `.agents/roles/<role>.md`, one source. Claude Code reads the
 | `developer` | writes | disjoint paths named in the plan, unit tests, tester briefing | runs the test plan, claims it works |
 | `tester` | fresh | executes `test-plan.md`, Playwright MCP walks, evidence, edge-case hunting | fixes product code |
 | `reviewer` | fresh, read-only | conventions, security, refutation, verdict | posts to GitHub |
+| `security-reviewer` | fresh, read-only | attacks the diff: sessions, authorization, share links, credentials, storage, secrets, supply chain | posts to GitHub, fixes code |
 | `recorder` | writes media only | screenshots, video, ffmpeg, release upload, PR embeds | touches code |
 
 Routing: bulk reading and sweeps → cheapest model; implementing a decided design → mid model; architecture, security review, "is this right" → strongest model. Small tasks that fit in three tool calls run inline.
@@ -180,7 +183,7 @@ Routing: bulk reading and sweeps → cheapest model; implementing a decided desi
 | `feature` | skill | scaffolds `docs/features/<slug>/` |
 | `adr` | skill | scaffolds a numbered ADR |
 | `learning` | skill | records or revisits a learning |
-| `/verify` | skill | typecheck → unit → E2E, stop at first failure |
+| `/verify` | skill | typecheck → security audit → secret scan → unit → E2E, stop at first failure |
 | `/check-ui` | skill | Playwright MCP walk, screenshots, video, release upload |
 | `/open-pr` | skill | the Ship gates, then the PR |
 
@@ -205,4 +208,4 @@ The scripts live in `.agents/hooks/` and read the tool input from stdin, in the 
 
 Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it names each document once until the next commit, never blocks a stop that is already continuing, and the agent may answer that nothing applies.
 
-CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README. `apps/server/src/repository-shape/readme-run-block.test.ts` fails when the root README's Run it block names a script, package filter, file, environment variable, demo user or port the sources do not have, or when any package or e2e README carries a fenced block, a `pnpm` or `docker` command or an environment variable.
+CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README. `apps/server/src/repository-shape/readme-run-block.test.ts` fails when the root README's Run it block names a script, package filter, file, environment variable, demo user or port the sources do not have, or when any package or e2e README carries a fenced block, a `pnpm` or `docker` command or an environment variable. `agent-surfaces.test.ts` fails when a role under `.agents/roles/` lacks its Claude Code wrapper, its Codex wrapper or its Codex registration. The `security` job of `verify.yml` audits production dependencies at `high` (`pnpm security:audit`) and scans every commit on every branch and tag plus the checked-out tree with a checksum-pinned gitleaks binary, after `.github/scripts/secret-rules-probe.sh` proves the rules fire on a fresh token and stay silent on a shipped placeholder (`.gitleaks.toml` allowlists the exact placeholder strings, anchored); `.github/dependabot.yml` opens weekly version updates and, with the repository's alerts and automated security fixes on, security updates ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)).

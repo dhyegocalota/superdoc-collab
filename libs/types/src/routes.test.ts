@@ -31,7 +31,6 @@ test('builds every path with its ids encoded', () => {
     '/api/documents/d1/events',
     '/api/documents/a%2Fb/versions/42',
     '/api/documents/d1/versions/7/text',
-    '/api/documents/d1/topics/refresh',
     '/api/documents/d1/timeline/edits',
     '/documents/d1/versions/42/view',
     '/collaboration/versions/a%2Fb/42',

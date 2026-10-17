@@ -45,5 +45,5 @@
 ### Task 3: docs, review, PR
 
 - [x] Feature folder, learning, roadmap row, tester briefing.
-- [x] Reviewer sub-agent on the branch diff; fix findings.
+- [x] Reviewer sub-agent on the branch diff: WITH RESERVATIONS, two IMPORTANT (a filled filter box lost the version on the first Escape in a real browser because React commits the cleared draft before the document listener runs; an unsplit comma name was dropped) and five MINOR; all seven fixed in one round with tests.
 - [x] PR, CI green, merge.

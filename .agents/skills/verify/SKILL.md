@@ -1,4 +1,5 @@
 ---
+name: verify
 description: Local gate — typecheck, unit tests, E2E — stopping at the first failure. Run before any "done", before /open-pr, and after every merge from main.
 argument-hint: [unit|e2e|all]
 allowed-tools: Bash(pnpm:*), Bash(git status:*), Read

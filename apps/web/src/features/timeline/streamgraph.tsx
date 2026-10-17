@@ -133,6 +133,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         d={shape.path}
         tabIndex={shape.band.id === focusableBandId ? 0 : -1}
         aria-label={bandAriaLabel({ name: shape.band.name, volume: shape.band.volume })}
+        data-faded={isFaded}
         className={cn(
           isOther ? 'topic-band-other' : 'topic-band',
           'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2',

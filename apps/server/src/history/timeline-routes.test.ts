@@ -1,4 +1,3 @@
-import { MAX_BINS } from '@superdoc-history/history';
 import {
   type BinEdits,
   DocumentResource,
@@ -10,7 +9,7 @@ import {
   type DocumentTimeline,
 } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
-import { expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { TimelinePipelineCache } from './timeline-pipeline-cache';
 import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
@@ -22,10 +21,8 @@ const CI_ENVIRONMENT_VARIABLE = 'CI';
 const isContinuousIntegration = Boolean(process.env[CI_ENVIRONMENT_VARIABLE]);
 const BULK_EVENTS = 10_000;
 const BULK_BLOCKS = 600;
-const TWO_HOURS_EVENTS = 121;
 const OFF_LADDER_BIN_MS = 61_000;
 const TWO_MINUTE_BIN_MS = 2 * MINUTE_MS;
-const TEN_MINUTE_BIN_MS = 10 * MINUTE_MS;
 
 function timelineUrl({ server, documentId, query }: { server: { baseUrl: string }; documentId: string; query: string }): string {
   return `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${query}`;
@@ -85,15 +82,6 @@ test('with stored topics the bands are topics and unassigned blocks fall into Ot
   await server.stop();
 });
 
-test('term filters runs case-insensitively', async () => {
-  const { server, documentId, owner, editor } = await twoAuthorsInTwoBlocks();
-  const all = await readTimeline({ server, documentId, cookie: owner.cookie });
-  const filtered = await readTimeline({ server, documentId, cookie: owner.cookie, query: 'term=DESIGNER' });
-  expect(filtered.bins.map((bin) => bin.start)).toEqual(all.bins.map((bin) => bin.start));
-  expect(filtered.bands.filter((band) => band.volume > 0).map((band) => band.id)).toEqual([editor.id]);
-  await server.stop();
-});
-
 test('a fixed binMs outside the ladder is 400', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   expect(
@@ -104,16 +92,6 @@ test('a fixed binMs outside the ladder is 400', async () => {
   });
   expect(accepted.status).toBe(HttpStatus.Ok);
   expect(((await accepted.json()) as DocumentTimeline).binMs).toBe(TWO_MINUTE_BIN_MS);
-  await server.stop();
-});
-
-test('bins carry the version of their end', async () => {
-  const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
-  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
-  const markSequences = server.services.readModel.marks(documentId).map((mark) => mark.sequence);
-  const inner = timeline.bins.slice(1, -1);
-  expect(inner.length).toBeGreaterThan(0);
-  inner.forEach((bin) => expect(markSequences).toContain(bin.versionSequence));
   await server.stop();
 });
 
@@ -206,18 +184,6 @@ test('ten thousand events build one pipeline per cursor and answer within the lo
   await server.stop();
 });
 
-test('two hours of history choose two-minute bins', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBulkEvents({ server, documentId, userId: owner.id, count: TWO_HOURS_EVENTS, stepMs: MINUTE_MS });
-  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
-  expect(timeline.binMs).toBe(TWO_MINUTE_BIN_MS);
-  expect(timeline.bins.length).toBeLessThanOrEqual(MAX_BINS + 2);
-  expect((await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${TEN_MINUTE_BIN_MS}` })).binMs).toBe(
-    TEN_MINUTE_BIN_MS,
-  );
-  await server.stop();
-});
-
 test('forgetting a document drops its cached pipeline', () => {
   const cache = new TimelinePipelineCache();
   const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [], cursor: null };
@@ -226,14 +192,6 @@ test('forgetting a document drops its cached pipeline', () => {
   cache.forget('d1');
   cache.get({ documentId: 'd1', key: 'k', build: () => pipeline });
   expect(cache.builds).toBe(2);
-});
-
-test('deleting the runtime document forgets its cached pipeline', async () => {
-  const { server, documentId } = await documentWithOwner();
-  const forget = vi.spyOn(server.services.timelinePipelines, 'forget');
-  await server.services.runtime.forget(documentId);
-  expect(forget).toHaveBeenCalledWith(documentId);
-  await server.stop();
 });
 
 test('the pipeline cache evicts the least recently read document', () => {

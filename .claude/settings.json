@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-secrets.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.agents/hooks/guard-secrets.sh"
           }
         ]
       },
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-git-add-all.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.agents/hooks/guard-git-add-all.sh"
           }
         ]
       }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/warn-conventions.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.agents/hooks/warn-conventions.sh"
           }
         ]
       }

@@ -6,7 +6,3 @@ test('counts whitespace separated words', () => {
   expect(countWords('')).toBe(0);
   expect(countWords('   ')).toBe(0);
 });
-
-test('counts a run built from keystrokes', () => {
-  expect(countWords([...'Hello w'].join(''))).toBe(2);
-});

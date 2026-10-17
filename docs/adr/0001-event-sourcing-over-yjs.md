@@ -45,3 +45,7 @@ Event-source the Yjs update stream ("B+"):
 
 - SuperDoc ships a history or time-travel API.
 - Multi-instance deployment is needed.
+
+## Addendum 2026-10-17
+
+The window grouping (`idleGapMs`, `maxWindowMs`, `coEditGapMs`) was ported from the POC but never used: the timeline groups edits into runs per author, block and bin (`libs/history/src/timeline/`), so `edit-windows` and `single-flight` were deleted in refinement-tests; the POC still proves H10.

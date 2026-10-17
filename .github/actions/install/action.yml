@@ -1,0 +1,14 @@
+name: install
+description: Set up pnpm and Node with the dependency cache, then install the locked dependencies
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+        cache-dependency-path: pnpm-lock.yaml
+    - run: pnpm install --frozen-lockfile
+      shell: bash

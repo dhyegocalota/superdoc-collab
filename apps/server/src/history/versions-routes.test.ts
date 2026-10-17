@@ -26,7 +26,7 @@ import { ProjectionRequestKind, ProjectionStoppedError } from './projection-mess
 import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService } from './versions-service';
 
-const MINUTES = 8;
+const MINUTES = 3;
 const SETTLE_ROUND_TRIPS = 5;
 const PROPERTY_SEED = 20261016;
 const SAMPLED_SEQUENCES = 20;

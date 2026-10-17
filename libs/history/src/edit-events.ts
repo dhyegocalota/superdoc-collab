@@ -55,6 +55,7 @@ function diffBlocks({ before, after }: { before: BlockStates; after: BlockStates
   return blockIds.flatMap((blockId) => diffBlock({ blockId, before, after }));
 }
 
+// NB ADR 0002: an update with no structs (deletion-only) is attributed to the sending connection.
 export function resolveAuthorIds({
   update,
   identities,

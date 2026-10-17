@@ -33,7 +33,7 @@ The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENT
 
 ## 1. Agree
 
-Start with the `brainstorming` skill, always, for features and fixes alike. One question at a time. Present options with trade-offs and a recommendation; **the owner decides**. Design-system choices (components, typography, colours, chart style) are the owner's and are never picked silently.
+Start with the `brainstorming` skill, always, for features and fixes alike. One question at a time. Present options with trade-offs and a recommendation; **the owner decides**. Design-system choices (components, typography, colours, chart style) are the owner's and are never picked silently. A change that adds or reshapes a screen gets a `frontend-designer` sub-agent before the plan: it writes `docs/features/<slug>/design.md` with the states, components, tokens, copy and options, and the owner's answers land there.
 
 Agreement is reached when the owner approves the written `spec.md`. "Sounds good" in chat approves writing the spec, not building.
 
@@ -168,6 +168,7 @@ Role bodies live in `.agents/roles/<role>.md`, one source. Claude Code reads the
 | Role | Context | Owns | Never |
 |---|---|---|---|
 | `researcher` | read-only | finds reusable code, affected files, patterns, risks | writes code |
+| `frontend-designer` | writes design docs only | `design.md`: screens and states, components, tokens, copy, accessibility, options with a recommendation | writes product code, picks a design-system choice for the owner |
 | `developer` | writes | disjoint paths named in the plan, unit tests, tester briefing | runs the test plan, claims it works |
 | `tester` | fresh | executes `test-plan.md`, Playwright MCP walks, evidence, edge-case hunting | fixes product code |
 | `reviewer` | fresh, read-only | conventions, security, refutation, verdict | posts to GitHub |

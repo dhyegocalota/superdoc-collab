@@ -334,7 +334,7 @@ test('the header stays while the document opens', async () => {
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   expect(await screen.findByRole('link', { name: HOME_LINK_LABEL })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent(LOADING_DOCUMENT_MESSAGE);
+  expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toHaveAttribute('role', 'status');
 });
 
 test('the browser tab names the open document', async () => {

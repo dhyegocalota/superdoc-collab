@@ -545,3 +545,11 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - `TopicsService.regroup` goes through the `topics:<id>` job key: it starts the job when none runs and awaits `InsightsJobRunner.settled(key)` either way, so an editor's Summarize and an automatic recompute share one model call. Test: `topics-service.test.ts::a regroup awaits the topics job that is already running and the model is called once` (red: 3 calls).
 - Side effect: the regroup now holds a second process-wide job slot while the Summarize job waits on it, so a full worker answers the regroup busy sooner than before.
 - `SELECTION_SUMMARY_TOO_SOON_MESSAGE` deleted from `libs/types` (no consumer).
+
+### G6 addendum: "The document is ready." announcement
+
+- `readiness-announcement.tsx` renders a persistent polite `role="status"` region (visually hidden) above every state of `DocumentPage` (opening, waiting, error, editor). It fills with `DOCUMENT_READY_ANNOUNCEMENT` only when the readiness moves from `Waiting` or `Paused` to `Ready`. `document-page.tsx` wraps its four returns in one helper so the region keeps its identity across states.
+- Red `095d5f3`: `moving from Waiting to Ready announces that the document is ready` and the Paused variant fail on `toHaveTextContent`; `a document that opens Ready at once announces nothing` is a pin. Green is the commit after it.
+- `document-page.test.tsx::the header stays while the document opens` now finds its status region by text, because the page has a second status region.
+- Hypothesis: a screen reader says "The document is ready." once when a waiting page gives way to the editor, and says nothing when a document opens at once. Break it by: a screen reader pass of both entries; a reload on the editor; Keep waiting then ready.
+- Gap: no page-level test drives Waiting to Ready through `DocumentPage`; the unit tests cover the component only.

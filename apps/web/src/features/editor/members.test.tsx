@@ -1,7 +1,8 @@
-import { DocumentRole, type DocumentMember } from '@superdoc-collab/types';
+import { authorColorSlot, DocumentRole, type DocumentMember } from '@superdoc-collab/types';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
+import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
   BACK_TO_LIVE_TO_JUMP_REASON,
@@ -32,9 +33,14 @@ const dario = memberNamed({ id: 'u4', name: 'Dario', online: true });
 
 let editor: HTMLElement;
 
-function addCaret(name: string): void {
+function colorOf(member: DocumentMember): string {
+  return AUTHOR_PALETTE[authorColorSlot(member.user.id) - 1]!;
+}
+
+function addCaret({ name, color }: { name: string; color: string }): void {
   const caret = document.createElement('div');
   const label = document.createElement('div');
+  caret.style.backgroundColor = color;
   caret.className = 'v2-collaboration-overlay__remote-caret';
   label.className = 'v2-collaboration-overlay__remote-label';
   label.textContent = name;
@@ -52,19 +58,21 @@ function manyMembers(count: number): DocumentMember[] {
 }
 
 beforeEach(() => {
+  installAuthorPalette();
   editor = document.createElement('div');
   editor.dataset.testid = 'document-editor';
   document.body.append(editor);
 });
 
 afterEach(() => {
+  removeAuthorPalette();
   editor.remove();
   scrollIntoView.mockClear();
   vi.useRealTimers();
 });
 
 test('a member with a live position is a button named Go to Bruno’s cursor', async () => {
-  addCaret('Bruno');
+  addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
   const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
   expect(button).not.toHaveAttribute('aria-disabled', 'true');
@@ -88,7 +96,7 @@ test('an online member with no position, an offline member and the current user 
 });
 
 test('while a past version is shown every member is aria-disabled with Go back to live to jump to a cursor', async () => {
-  addCaret('Bruno');
+  addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno], isPastVersion: true });
   const buttons = screen.getAllByRole('button');
   expect(buttons.map((button) => button.getAttribute('aria-disabled'))).toEqual(['true', 'true']);
@@ -120,7 +128,7 @@ test('with seven members it shows four avatars and a button named 3 more people 
 });
 
 test('the +N menu items for members who cannot be jumped to are aria-disabled with their reasons', async () => {
-  addCaret('Dario');
+  addCaret({ name: 'Dario', color: colorOf(dario) });
   const members = [
     ana,
     bruno,
@@ -140,7 +148,7 @@ test('the +N menu items for members who cannot be jumped to are aria-disabled wi
 });
 
 test('after a jump a status region reads Moved to Bruno’s cursor.', async () => {
-  addCaret('Bruno');
+  addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
   const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
   await userEvent.click(button);
@@ -151,7 +159,7 @@ test('after a jump a status region reads Moved to Bruno’s cursor.', async () =
 
 test('a jump whose caret left shows the not-found message in the tooltip for three seconds', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  addCaret('Bruno');
+  addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
   const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
   editor.replaceChildren();
@@ -161,4 +169,11 @@ test('a jump whose caret left shows the not-found message in the tooltip for thr
     vi.advanceTimersByTime(JUMP_FAILED_MS);
   });
   expect(screen.getByRole('tooltip')).not.toHaveTextContent(cursorNotFoundMessage('Bruno'));
+});
+
+test('a peer who borrows the name of an online member does not make that member jumpable', async () => {
+  addCaret({ name: 'Bruno', color: '#000000' });
+  renderMembers({ members: [ana, bruno] });
+  const button = screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) });
+  expect(button).toHaveAttribute('aria-disabled', 'true');
 });

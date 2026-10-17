@@ -2,7 +2,7 @@ import { AUTHOR_COLOR_SLOT_COUNT, authorColorSlot, type SessionUser } from '@sup
 
 class MissingAuthorColorError extends Error {}
 
-function authorColorOf(slot: number): string {
+export function authorColorOf(slot: number): string {
   const color = getComputedStyle(document.documentElement).getPropertyValue(`--author-${slot}`).trim();
   if (color === '') throw new MissingAuthorColorError(`--author-${slot}`);
   return color;

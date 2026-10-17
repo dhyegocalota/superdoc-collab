@@ -98,7 +98,7 @@ export function commitBulkEvents({
   blockCount?: number;
   stepMs?: number;
 }): void {
-  server.services.log.observeClientIdentity({ documentName: documentId, yjsClientId: BULK_CLIENT_ID, userId });
+  server.services.updateLog.observeClientIdentity({ documentName: documentId, yjsClientId: BULK_CLIENT_ID, userId });
   const events = Array.from({ length: count }, (_, offset) => {
     const index = startIndex + offset;
     return {

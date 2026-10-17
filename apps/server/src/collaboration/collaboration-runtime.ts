@@ -21,7 +21,7 @@ export type DocumentRuntime = {
 
 export function createCollaborationRuntime({
   hocuspocus,
-  log,
+  updateLog,
   readModel,
   scheduler,
   storage,
@@ -30,7 +30,7 @@ export function createCollaborationRuntime({
   versionRooms,
 }: {
   hocuspocus: Hocuspocus;
-  log: UpdateLog;
+  updateLog: UpdateLog;
   readModel: ReadModel;
   scheduler: ProjectionScheduler;
   storage: DocumentFileStorage;
@@ -51,7 +51,7 @@ export function createCollaborationRuntime({
     afterSequence: number;
     document: Y.Doc;
   }): number | null {
-    const page = log.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
+    const page = updateLog.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
     const last = page.at(-1);
     if (!last) return null;
     const found = findBootstrapSequence({ updates: page, document });
@@ -76,7 +76,7 @@ export function createCollaborationRuntime({
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));
-      log.forget(documentId);
+      updateLog.forget(documentId);
       bootstrapped.delete(documentId);
       timelinePipelines.forget(documentId);
       versions.forget(documentId);

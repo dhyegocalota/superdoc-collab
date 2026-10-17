@@ -13,9 +13,9 @@ import type { LanguageModel } from 'ai';
 import { describeError } from '../logging/describe-error';
 import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
-import { JobOutcome, type InsightsWorker } from './insights-worker';
+import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
-import { authorsNamed, fitSelection, namesOf, SELECTION_SYSTEM_PROMPT, selectionPrompt, type SelectionEdit } from './prompts';
+import { fitSelection, mentionedAuthors, namesOf, SELECTION_SYSTEM_PROMPT, selectionPrompt, type SelectionEdit } from './prompts';
 import { selectionKeyOf } from './selection-key';
 
 export const SELECTION_SUMMARY_FAILED_LOG = 'Summarizing a selection failed for document';
@@ -88,32 +88,32 @@ export class SelectionSummariesService {
   readonly cooldown = new DocumentCooldown({ durationMs: SELECTION_SUMMARY_COOLDOWN_MS });
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
-  private readonly worker: InsightsWorker;
+  private readonly jobRunner: InsightsJobRunner;
   private readonly readSelection: ReadSelection;
 
   constructor({
     repository,
     languageModel,
-    worker,
+    jobRunner,
     readSelection,
   }: {
     repository: InsightsRepository;
     languageModel: LanguageModelChoice;
-    worker: InsightsWorker;
+    jobRunner: InsightsJobRunner;
     readSelection: ReadSelection;
   }) {
     this.repository = repository;
     this.languageModel = languageModel;
-    this.worker = worker;
+    this.jobRunner = jobRunner;
     this.readSelection = readSelection;
   }
 
   read({ documentId, selection }: { documentId: string; selection: RequestedSelection }): SelectionSummaryView {
-    const resolved = this.resolve({ documentId, selection });
+    const resolved = this.readNonEmptySelection({ documentId, selection });
     if (resolved === null) return this.view({ state: SelectionSummaryState.None, summary: null, failure: null });
     const stored = this.repository.selectionSummary({ documentId, key: resolved.key });
     const summary = summaryOf({ stored, stamp: resolved });
-    if (this.worker.isRunning(jobKeyOf({ documentId, key: resolved.key })))
+    if (this.jobRunner.isRunning(jobKeyOf({ documentId, key: resolved.key })))
       return this.view({ state: SelectionSummaryState.Running, summary, failure: null });
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
       return this.view({ state: SelectionSummaryState.Failed, summary, failure: this.languageModel.reason });
@@ -123,19 +123,19 @@ export class SelectionSummariesService {
   }
 
   request({ documentId, selection }: { documentId: string; selection: RequestedSelection }): SelectionRequestResult {
-    const choice = this.languageModel;
-    if (choice.availability === LanguageModelAvailability.Unavailable)
-      return { outcome: SelectionRequestOutcome.Unavailable, reason: choice.reason };
-    const resolved = this.resolve({ documentId, selection });
+    const languageModel = this.languageModel;
+    if (languageModel.availability === LanguageModelAvailability.Unavailable)
+      return { outcome: SelectionRequestOutcome.Unavailable, reason: languageModel.reason };
+    const resolved = this.readNonEmptySelection({ documentId, selection });
     if (resolved === null) return { outcome: SelectionRequestOutcome.Empty };
     if (isFresh({ stored: this.repository.selectionSummary({ documentId, key: resolved.key }), stamp: resolved }))
       return { outcome: SelectionRequestOutcome.Cached };
     const jobKey = jobKeyOf({ documentId, key: resolved.key });
-    if (this.worker.isRunning(jobKey)) return { outcome: SelectionRequestOutcome.AlreadyRunning };
+    if (this.jobRunner.isRunning(jobKey)) return { outcome: SelectionRequestOutcome.AlreadyRunning };
     const remainingMs = this.cooldown.remainingMs(documentId);
     if (remainingMs > 0) return { outcome: SelectionRequestOutcome.TooSoon, retryAfterSeconds: Math.ceil(remainingMs / SECOND_MS) };
-    if (!this.worker.hasCallBudget()) return this.busy();
-    const outcome = this.worker.run({ key: jobKey, job: () => this.summarize({ documentId, resolved, model: choice.model }) });
+    if (!this.jobRunner.hasCallBudget()) return this.busy();
+    const outcome = this.jobRunner.run({ key: jobKey, job: () => this.summarize({ documentId, resolved, model: languageModel.model }) });
     if (outcome === JobOutcome.Busy) return this.busy();
     return { outcome: SelectionRequestOutcome.Started };
   }
@@ -145,10 +145,16 @@ export class SelectionSummariesService {
   }
 
   private busy(): SelectionRequestResult {
-    return { outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: Math.ceil(this.worker.retryAfterMs() / SECOND_MS) };
+    return { outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: Math.ceil(this.jobRunner.retryAfterMs() / SECOND_MS) };
   }
 
-  private resolve({ documentId, selection }: { documentId: string; selection: RequestedSelection }): ResolvedSelection | null {
+  private readNonEmptySelection({
+    documentId,
+    selection,
+  }: {
+    documentId: string;
+    selection: RequestedSelection;
+  }): ResolvedSelection | null {
     const snapshot = this.readSelection({ documentId, selection });
     const { cursor } = snapshot;
     const runs = snapshot.runs.filter((run) => run.inserted.length + run.deleted.length > 0);
@@ -183,7 +189,7 @@ export class SelectionSummariesService {
     model: LanguageModel;
   }): Promise<void> {
     const { key, cursor, topicsUpdatedAt } = resolved;
-    if (!this.worker.consumeCall()) return;
+    if (!this.jobRunner.consumeCall()) return;
     this.cooldown.start(documentId);
     try {
       const edits = fitSelection(editsOf(resolved.snapshot));
@@ -194,7 +200,7 @@ export class SelectionSummariesService {
         system: SELECTION_SYSTEM_PROMPT,
         prompt: selectionPrompt(edits),
       });
-      const authors = authorsNamed({ returned: output.authors, names });
+      const authors = mentionedAuthors({ returned: output.authors, names });
       this.repository.saveSelectionSummary({
         documentId,
         key,

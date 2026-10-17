@@ -11,7 +11,7 @@ export enum JobOutcome {
   Busy = 'busy',
 }
 
-export class InsightsWorker {
+export class InsightsJobRunner {
   private readonly running = new Map<string, Promise<void>>();
   private readonly startedAt: number[] = [];
   private readonly now: () => number;

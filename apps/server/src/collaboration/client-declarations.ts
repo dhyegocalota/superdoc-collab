@@ -4,7 +4,7 @@ import type { CollaborationContext } from './collaboration-server';
 
 type PresenceState = { userId?: string };
 
-export function createClientDeclarer(log: UpdateLog) {
+export function createClientDeclarer(updateLog: UpdateLog) {
   const lastDeclared = new Map<string, string>();
   return {
     declare(document: Document): void {
@@ -21,7 +21,7 @@ export function createClientDeclarer(log: UpdateLog) {
       const signature = JSON.stringify(declarations.map(({ yjsClientId, userId }) => `${yjsClientId}:${userId}`).sort());
       if (lastDeclared.get(document.name) === signature) return;
       lastDeclared.set(document.name, signature);
-      declarations.forEach((declaration) => log.declareClientIdentity(declaration));
+      declarations.forEach((declaration) => updateLog.declareClientIdentity(declaration));
     },
     forget(documentName: string): void {
       lastDeclared.delete(documentName);

@@ -268,7 +268,7 @@ test('roomMode stays create until the bootstrap commits', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
-  await expect.poll(() => server.services.log.hasUpdates(documentId)).toBe(true);
+  await expect.poll(() => server.services.updateLog.hasUpdates(documentId)).toBe(true);
   const roomModeOf = async () =>
     ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
   expect(await roomModeOf()).toBe(RoomMode.Create);
@@ -286,9 +286,11 @@ test('roomMode scans a long log in pages until the first committed bootstrap', a
   );
   commitBootstrap(client.document);
   const batchSize = ROOM_MODE_SCAN_BATCH_SIZE;
-  await expect.poll(() => server.services.log.readBatch({ documentName: documentId, afterSequence: batchSize, limit: 1 }).length).toBe(1);
-  const readAll = vi.spyOn(server.services.log, 'read');
-  const readBatch = vi.spyOn(server.services.log, 'readBatch');
+  await expect
+    .poll(() => server.services.updateLog.readBatch({ documentName: documentId, afterSequence: batchSize, limit: 1 }).length)
+    .toBe(1);
+  const readAll = vi.spyOn(server.services.updateLog, 'read');
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
   const roomMode = ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument)
     .roomMode;
   expect(roomMode).toBe(RoomMode.Join);
@@ -379,12 +381,12 @@ test('delete removes the row, the file, the log and the events, and closes the r
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId: created.id });
   const closed = new Promise<void>((resolve) => client.provider.on('close', () => resolve()));
   writeStory({ document: client.document, texts: ['Hello'] });
-  await expect.poll(() => server.services.log.hasUpdates(created.id)).toBe(true);
+  await expect.poll(() => server.services.updateLog.hasUpdates(created.id)).toBe(true);
   const deleted = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id }), method: HttpMethod.Delete });
   expect(deleted.status).toBe(HttpStatus.NoContent);
   expect((await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id }) })).status).toBe(HttpStatus.NotFound);
   await expect(server.services.storage.read(created.id)).rejects.toThrow();
-  expect(server.services.log.hasUpdates(created.id)).toBe(false);
+  expect(server.services.updateLog.hasUpdates(created.id)).toBe(false);
   expect(server.services.readModel.cursor(created.id)).toBeNull();
   await closed;
   client.close();

@@ -30,7 +30,7 @@ import {
 } from '../testing/test-server';
 import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
 import { LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
-import { INSIGHTS_JOB_FAILED_MESSAGE, JobOutcome } from './insights-worker';
+import { INSIGHTS_JOB_FAILED_MESSAGE, JobOutcome } from './insights-job-runner';
 import { SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import { TOPIC_RECOMPUTE_MIN_INTERVAL_MS, UNKNOWN_TOPIC_BLOCKS_MESSAGE } from './topics-service';
 
@@ -206,7 +206,7 @@ test('a job whose document is deleted mid-call is logged once', async () => {
   });
   expect(deleted.ok).toBe(true);
   open();
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(errors.mock.calls.filter(([line]) => String(line).startsWith(INSIGHTS_JOB_FAILED_MESSAGE))).toHaveLength(1);
   expect(unhandled).not.toHaveBeenCalled();
   process.off('unhandledRejection', unhandled);
@@ -245,11 +245,11 @@ test('prompts escape markup and carry no email', async () => {
     )
     .toBe(true);
   await readTopics({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Summaries })}`, {
     headers: { cookie: owner.cookie },
   });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const [topicsPrompt, summariesPrompt] = model.doGenerateCalls.map((call) => JSON.stringify(call.prompt));
   expect(topicsPrompt).toContain('&lt;b&gt;x&lt;/b&gt; &amp; y');
   expect(summariesPrompt).toContain('Ana &lt;script&gt;');
@@ -271,16 +271,16 @@ test('the key never reaches a log or a response', { timeout: 60_000 }, async () 
   const languageModel = chooseLanguageModel({ model: 'm', apiKey: SECRET, baseUrl: `http://127.0.0.1:${port}` });
   const { server, documentId, owner, client } = await storyWithBlocks({ languageModel, texts: ['Budget up'] });
   const topics = await readTopics({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const refreshed = await fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, {
     method: 'POST',
     headers: { cookie: owner.cookie, origin: server.baseUrl },
   });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const summaries = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Summaries })}`, {
     headers: { cookie: owner.cookie },
   });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const bodies = [
     JSON.stringify(await readTopics({ server, documentId, cookie: owner.cookie })),
     JSON.stringify(topics),
@@ -298,7 +298,7 @@ test('five new unassigned blocks trigger a recompute once', async () => {
   const model = modelAnswering(topicsAnswer({ blockIds: ['b0'] }), topicsAnswer({ blockIds: ['b0'] }));
   const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
   await readTopics({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const added = Array.from({ length: TOPIC_RECOMPUTE_NEW_BLOCKS }, (_, index) => `Extra ${index}`);
   writeStory({ document: client.document, texts: ['Budget up ', ...added] });
   await expect
@@ -309,7 +309,7 @@ test('five new unassigned blocks trigger a recompute once', async () => {
   vi.setSystemTime(Date.now() + TOPIC_RECOMPUTE_MIN_INTERVAL_MS + 1);
   await readTimeline({ server, documentId, cookie: owner.cookie });
   await readTimeline({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(2);
   vi.useRealTimers();
   client.close();
@@ -320,7 +320,7 @@ test('blocks the model leaves out do not retrigger the recompute', async () => {
   const model = modelAnswering(topicsAnswer({ blockIds: ['b0'] }), topicsAnswer({ blockIds: ['b0'] }), topicsAnswer({ blockIds: ['b0'] }));
   const { server, documentId, owner, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
   await readTopics({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const added = Array.from({ length: TOPIC_RECOMPUTE_NEW_BLOCKS }, (_, index) => `Extra ${index}`);
   writeStory({ document: client.document, texts: ['Budget up ', ...added] });
   await expect
@@ -329,11 +329,11 @@ test('blocks the model leaves out do not retrigger the recompute', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(Date.now() + TOPIC_RECOMPUTE_MIN_INTERVAL_MS + 1);
   await readTimeline({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(2);
   vi.setSystemTime(Date.now() + TOPIC_RECOMPUTE_MIN_INTERVAL_MS + 1);
   await readTimeline({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(2);
   vi.useRealTimers();
   client.close();
@@ -369,7 +369,7 @@ async function projectBlocks({
 test('a document with no blocks is not computed and the next read computes once blocks exist', async () => {
   const { server, documentId, owner, model } = await emptyDocumentWithModel();
   expect((await readTopics({ server, documentId, cookie: owner.cookie })).status.state).toBe(TopicState.Pending);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(server.services.insightsRepository.status(documentId)).toBeNull();
   expect(model.doGenerateCalls).toHaveLength(0);
   const client = await projectBlocks({ server, documentId, owner });
@@ -390,11 +390,11 @@ test('refresh on a document with no blocks returns 202 without consuming the coo
       headers: { cookie: owner.cookie, origin: server.baseUrl },
     });
   expect((await refresh()).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(server.services.insightsRepository.status(documentId)).toBeNull();
   const client = await projectBlocks({ server, documentId, owner });
   expect((await refresh()).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
   client.close();
@@ -404,7 +404,7 @@ test('refresh on a document with no blocks returns 202 without consuming the coo
 test('a timeline read before the projection never stores ready with no topics', async () => {
   const { server, documentId, owner, model } = await emptyDocumentWithModel();
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(timeline.topics).toEqual({ state: TopicState.Pending, failure: null, computedAtSequence: null });
   expect(server.services.insightsRepository.status(documentId)).toBeNull();
   expect(model.doGenerateCalls).toHaveLength(0);
@@ -419,7 +419,7 @@ test('topics fail visibly when the process-wide LLM cap is full', async () => {
     open = resolve;
   });
   const outcomes = Array.from({ length: LLM_MAX_CONCURRENT_JOBS }, (_, index) =>
-    server.services.insights.worker.run({ key: `held-${index}`, job: () => held }),
+    server.services.insights.jobRunner.run({ key: `held-${index}`, job: () => held }),
   );
   expect(outcomes).toEqual(outcomes.map(() => JobOutcome.Started));
   expect((await readTopics({ server, documentId, cookie: owner.cookie })).status).toMatchObject({
@@ -428,7 +428,7 @@ test('topics fail visibly when the process-wide LLM cap is full', async () => {
   });
   expect(model.doGenerateCalls).toHaveLength(0);
   open();
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   client.close();
   await server.stop();
 });
@@ -439,7 +439,7 @@ test('empty-document jobs never exhaust the hourly model budget', async () => {
   await Array.from({ length: EMPTY_JOBS }).reduce<Promise<void>>(async (previous) => {
     await previous;
     server.services.insights.topics.ensure(documentId);
-    await server.services.insights.worker.idle();
+    await server.services.insights.jobRunner.idle();
   }, Promise.resolve());
   expect(model.doGenerateCalls).toHaveLength(0);
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
@@ -460,7 +460,7 @@ async function readyDocumentWithFiveNewBlocks(): Promise<Awaited<ReturnType<type
   const story = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
   const { server, documentId, owner, client } = story;
   await readTopics({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const added = Array.from({ length: TOPIC_RECOMPUTE_NEW_BLOCKS }, (_, index) => `Extra ${index}`);
   writeStory({ document: client.document, texts: ['Budget up ', ...added] });
   await expect
@@ -478,15 +478,15 @@ test('a busy automatic recompute keeps the ready topics ready', async () => {
     open = resolve;
   });
   Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) =>
-    server.services.insights.worker.run({ key: `held-${index}`, job: () => held }),
+    server.services.insights.jobRunner.run({ key: `held-${index}`, job: () => held }),
   );
   await readTimeline({ server, documentId, cookie: owner.cookie });
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready, failure: null });
   open();
-  await server.services.insights.worker.idle();
-  vi.spyOn(server.services.insights.worker, 'consumeCall').mockReturnValue(false);
+  await server.services.insights.jobRunner.idle();
+  vi.spyOn(server.services.insights.jobRunner, 'consumeCall').mockReturnValue(false);
   await readTimeline({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready, failure: null });
   expect(model.doGenerateCalls).toHaveLength(1);
   vi.useRealTimers();
@@ -496,13 +496,13 @@ test('a busy automatic recompute keeps the ready topics ready', async () => {
 
 test('a busy explicit refresh shows failed with the busy message', async () => {
   const { server, documentId, owner, client } = await readyDocumentWithFiveNewBlocks();
-  vi.spyOn(server.services.insights.worker, 'consumeCall').mockReturnValue(false);
+  vi.spyOn(server.services.insights.jobRunner, 'consumeCall').mockReturnValue(false);
   const refreshed = await fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, {
     method: 'POST',
     headers: { cookie: owner.cookie, origin: server.baseUrl },
   });
   expect(refreshed.status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Failed, failure: LLM_BUSY_MESSAGE });
   vi.useRealTimers();
   client.close();

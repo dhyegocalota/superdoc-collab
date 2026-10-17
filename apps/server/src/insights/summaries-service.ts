@@ -4,7 +4,7 @@ import { describeError } from '../logging/describe-error';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
 import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
-import { JobOutcome, type InsightsWorker } from './insights-worker';
+import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
 import { SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
 
@@ -22,24 +22,24 @@ function summariesKey(documentId: string): string {
 export class SummariesService {
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
-  private readonly worker: InsightsWorker;
+  private readonly jobRunner: InsightsJobRunner;
   private readonly readPipeline: (documentId: string) => TimelinePipeline;
   readonly cooldown = new DocumentCooldown({ durationMs: SUMMARY_MIN_INTERVAL_MS });
 
   constructor({
     repository,
     languageModel,
-    worker,
+    jobRunner,
     readPipeline,
   }: {
     repository: InsightsRepository;
     languageModel: LanguageModelChoice;
-    worker: InsightsWorker;
+    jobRunner: InsightsJobRunner;
     readPipeline: (documentId: string) => TimelinePipeline;
   }) {
     this.repository = repository;
     this.languageModel = languageModel;
-    this.worker = worker;
+    this.jobRunner = jobRunner;
     this.readPipeline = readPipeline;
   }
 
@@ -49,7 +49,7 @@ export class SummariesService {
 
   refreshStale(documentId: string): void {
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
-    if (this.worker.isRunning(summariesKey(documentId))) return;
+    if (this.jobRunner.isRunning(summariesKey(documentId))) return;
     if (this.cooldown.remainingMs(documentId) > 0) return;
     const topics = this.repository.topics(documentId);
     if (topics.length === 0) return;
@@ -58,7 +58,7 @@ export class SummariesService {
     if (stale.length === 0) return;
     const computedAtSequence = pipeline.events.reduce((latest, event) => Math.max(latest, event.sequence), 0);
     this.cooldown.start(documentId);
-    const outcome = this.worker.run({
+    const outcome = this.jobRunner.run({
       key: summariesKey(documentId),
       job: () => this.summarize({ documentId, stale, pipeline, computedAtSequence }),
     });
@@ -116,15 +116,14 @@ export class SummariesService {
     pipeline: TimelinePipeline;
     computedAtSequence: number;
   }): Promise<void> {
-    const choice = this.languageModel;
-    if (choice.availability === LanguageModelAvailability.Unavailable) return;
-    if (!this.worker.consumeCall()) {
+    if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
+    if (!this.jobRunner.consumeCall()) {
       console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
       return;
     }
     try {
       const output = await generateStructured({
-        model: choice.model,
+        model: this.languageModel.model,
         schema: summariesOutputSchema,
         system: SUMMARIES_SYSTEM_PROMPT,
         prompt: summariesPrompt(this.promptTopics({ stale, pipeline })),

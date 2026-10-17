@@ -29,7 +29,7 @@ import { DEFAULT_VERSION_ROOM_POLICY, VersionRooms, type VersionRoomPolicy } fro
 import { createApp, NOT_FOUND_MESSAGE, type AppServices, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
-import { InsightsWorker } from './insights/insights-worker';
+import { InsightsJobRunner } from './insights/insights-job-runner';
 import { SelectionSummariesService } from './insights/selection-summaries-service';
 import { SummariesService } from './insights/summaries-service';
 import { TopicsService } from './insights/topics-service';
@@ -91,7 +91,7 @@ export async function startServer({
   const documents = new DocumentsRepository(database);
   const insightsRepository = new InsightsRepository(database);
   insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
-  const log = new UpdateLog(historySqlite);
+  const updateLog = new UpdateLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory });
   const auth = createAuth({ database, environment });
@@ -102,7 +102,7 @@ export async function startServer({
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
-    log,
+    updateLog,
     onLogged: (documentId) => throttle.request(documentId),
     onStored: (documentId) => {
       documents.touch(documentId);
@@ -114,32 +114,41 @@ export async function startServer({
   findDocumentsWithoutMarks(readModelSqlite).forEach(
     (documentId) => void scheduler.rebuild({ documentId, filePath: storage.pathOf(documentId) }),
   );
-  const runtime = createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines, versions, versionRooms });
+  const runtime = createCollaborationRuntime({
+    hocuspocus,
+    updateLog,
+    readModel,
+    scheduler,
+    storage,
+    timelinePipelines,
+    versions,
+    versionRooms,
+  });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
-  const insightsWorker = new InsightsWorker({
+  const jobRunner = new InsightsJobRunner({
     maxConcurrentJobs: environment.llm.maxConcurrentJobs,
     maxCallsPerHour: environment.llm.maxCallsPerHour,
   });
   const insights: InsightsServices = {
-    worker: insightsWorker,
-    topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, worker: insightsWorker }),
+    jobRunner,
+    topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, jobRunner }),
     summaries: new SummariesService({
       repository: insightsRepository,
       languageModel,
-      worker: insightsWorker,
+      jobRunner,
       readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
     }),
     selection: new SelectionSummariesService({
       repository: insightsRepository,
       languageModel,
-      worker: insightsWorker,
+      jobRunner,
       readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }),
     }),
   };
   const services: ServerServices = {
     documents,
     storage,
-    log,
+    updateLog,
     hocuspocus,
     readModel,
     scheduler,
@@ -160,7 +169,7 @@ export async function startServer({
     await hocuspocus.destroy();
     throttle.stop();
     await scheduler.stop();
-    await insightsWorker.idle();
+    await jobRunner.idle();
   }
   function closeDatabases(): void {
     database.sqlite.close();

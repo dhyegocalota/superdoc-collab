@@ -57,7 +57,7 @@ test('a reader before any topic gets an empty list', async () => {
 test('one call summarizes every stale topic', async () => {
   const { server, documentId, owner, client, model } = await twoTopicDocument();
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
   const topicIds = server.services.insightsRepository.topics(documentId).map((topic) => topic.id);
   topicIds.forEach((topicId) => expect(JSON.stringify(model.doGenerateCalls[0]!.prompt)).toContain(topicId));
@@ -72,9 +72,9 @@ test('one call summarizes every stale topic', async () => {
 test('a topic without new edits is not resummarized', async () => {
   const { server, documentId, owner, client, model } = await twoTopicDocument();
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
   client.close();
   await server.stop();
@@ -83,7 +83,7 @@ test('a topic without new edits is not resummarized', async () => {
 test('a new edit inside the minimum interval waits', async () => {
   const { server, documentId, owner, client, model } = await twoTopicDocument();
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   writeStory({ document: client.document, texts: ['Budget up again', 'Hiring up'] });
   await expect
     .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), {
@@ -91,12 +91,12 @@ test('a new edit inside the minimum interval waits', async () => {
     })
     .toEqual(expect.arrayContaining([' again']));
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(Date.now() + SUMMARY_MIN_INTERVAL_MS + 1);
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(2);
   vi.useRealTimers();
   client.close();
@@ -111,18 +111,18 @@ test('summaries are skipped and logged when the process-wide LLM cap is full', a
     open = resolve;
   });
   Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) =>
-    server.services.insights.worker.run({ key: `held-${index}`, job: () => held }),
+    server.services.insights.jobRunner.run({ key: `held-${index}`, job: () => held }),
   );
   await readSummaries({ server, documentId, cookie: owner.cookie });
   expect(model.doGenerateCalls).toHaveLength(0);
   await readSummaries({ server, documentId, cookie: owner.cookie });
   expect(warnings.mock.calls.filter(([line]) => String(line).startsWith(SUMMARIES_BUSY_MESSAGE))).toHaveLength(1);
   open();
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(Date.now() + SUMMARY_MIN_INTERVAL_MS + 1);
   await readSummaries({ server, documentId, cookie: owner.cookie });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
   client.close();
   await server.stop();

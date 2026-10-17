@@ -69,15 +69,15 @@ export class ProjectionScheduler {
   private readonly databaseDirectory: string;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
-  private readonly rerun = new Set<string>();
-  private readonly rebuilding = new Set<string>();
-  private readonly reimported = new Set<string>();
+  private readonly documentsNeedingRerun = new Set<string>();
+  private readonly rebuildingDocuments = new Set<string>();
+  private readonly reimportedDocuments = new Set<string>();
   private readonly waiting = new Map<string, WaitingRequest>();
   private readonly forgetting = new Map<string, (() => void)[]>();
   private readonly restartTimes: number[] = [];
   private readonly loggedProjectionFailures = new Set<string>();
-  private alive = true;
-  degraded = false;
+  private isAlive = true;
+  isDegraded = false;
   private readonly loggedImportFailures = new Set<string>();
   private stopping: Promise<void> | null = null;
 
@@ -87,9 +87,9 @@ export class ProjectionScheduler {
   }
 
   schedule(documentId: string): void {
-    if (this.degraded) return;
+    if (this.isDegraded) return;
     if (this.inFlight.has(documentId)) {
-      this.rerun.add(documentId);
+      this.documentsNeedingRerun.add(documentId);
       return;
     }
     this.inFlight.add(documentId);
@@ -97,19 +97,19 @@ export class ProjectionScheduler {
   }
 
   importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): void {
-    if (this.degraded) return console.error(`${IMPORT_SKIPPED_MESSAGE} ${documentId}`);
+    if (this.isDegraded) return console.error(`${IMPORT_SKIPPED_MESSAGE} ${documentId}`);
     this.pendingImports.set(documentId, filePath);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath });
   }
 
   rebuild({ documentId, filePath }: { documentId: string; filePath: string }): Promise<void> {
-    if (this.degraded) return Promise.resolve();
-    this.rebuilding.add(documentId);
+    if (this.isDegraded) return Promise.resolve();
+    this.rebuildingDocuments.add(documentId);
     return this.forget(documentId).then(() => this.importRevisions({ documentId, filePath }));
   }
 
   isRebuilding(documentId: string): boolean {
-    return this.rebuilding.has(documentId);
+    return this.rebuildingDocuments.has(documentId);
   }
 
   version({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionReply> {
@@ -124,7 +124,7 @@ export class ProjectionScheduler {
   }
 
   forget(documentId: string): Promise<void> {
-    if (this.degraded) return Promise.resolve();
+    if (this.isDegraded) return Promise.resolve();
     this.pendingImports.delete(documentId);
     return new Promise((resolve) => {
       this.forgetting.set(documentId, [...this.waitingForgets(documentId), resolve]);
@@ -134,7 +134,7 @@ export class ProjectionScheduler {
 
   stop(): Promise<void> {
     if (this.stopping) return this.stopping;
-    if (!this.alive) return Promise.resolve();
+    if (!this.isAlive) return Promise.resolve();
     this.waiting.forEach((_, key) => this.rejectWaiters({ key, error: new ProjectionStoppedError() }));
     this.stopping = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
@@ -142,7 +142,7 @@ export class ProjectionScheduler {
   }
 
   private serve({ key, request }: { key: string; request: ProjectionRequest }): Promise<ServedReply> {
-    if (this.degraded) return Promise.reject(new ProjectionDegradedError());
+    if (this.isDegraded) return Promise.reject(new ProjectionDegradedError());
     if (this.stopping) return Promise.reject(new ProjectionStoppedError());
     return new Promise((resolve, reject) => {
       const existing = this.waiting.get(key);
@@ -157,11 +157,11 @@ export class ProjectionScheduler {
 
   private spawn(): Worker {
     const worker = createWorker(this.databaseDirectory);
-    this.alive = true;
+    this.isAlive = true;
     worker.on('message', (reply: ProjectionReply) => this.settle(reply));
     worker.on('error', (error) => console.error(`${WORKER_ERROR_MESSAGE}: ${describeError(error)}`));
     worker.on('exit', () => {
-      this.alive = false;
+      this.isAlive = false;
       this.restart();
     });
     return worker;
@@ -176,11 +176,11 @@ export class ProjectionScheduler {
     const { documentId, message, requestKind } = reply;
     if (requestKind === ProjectionRequestKind.Version || requestKind === ProjectionRequestKind.Blocks)
       return this.rejectWaiters({ key: keyOfFailure(reply), error: new Error(message) });
-    this.rebuilding.delete(documentId);
-    this.reimported.delete(documentId);
+    this.rebuildingDocuments.delete(documentId);
+    this.reimportedDocuments.delete(documentId);
     this.settleForget(documentId);
     this.inFlight.delete(documentId);
-    this.rerun.delete(documentId);
+    this.documentsNeedingRerun.delete(documentId);
     if (this.loggedProjectionFailures.has(documentId)) return;
     this.loggedProjectionFailures.add(documentId);
     console.error(`${PROJECTION_FAILED_MESSAGE} ${documentId}: ${message}`);
@@ -191,15 +191,15 @@ export class ProjectionScheduler {
     const { kind, documentId, importError } = reply;
     if (kind === ProjectionRequestKind.Forget) return this.settleForget(documentId);
     if (kind === ProjectionRequestKind.Import) this.pendingImports.delete(documentId);
-    if (kind === ProjectionRequestKind.Import && this.rebuilding.has(documentId)) {
-      this.reimported.add(documentId);
+    if (kind === ProjectionRequestKind.Import && this.rebuildingDocuments.has(documentId)) {
+      this.reimportedDocuments.add(documentId);
       this.schedule(documentId);
     }
     if (importError !== null) return this.reportImportFailure({ documentId, importError });
     if (kind !== ProjectionRequestKind.Project) return;
     this.inFlight.delete(documentId);
-    if (this.rerun.delete(documentId)) return this.schedule(documentId);
-    if (this.reimported.delete(documentId)) this.rebuilding.delete(documentId);
+    if (this.documentsNeedingRerun.delete(documentId)) return this.schedule(documentId);
+    if (this.reimportedDocuments.delete(documentId)) this.rebuildingDocuments.delete(documentId);
   }
 
   private resolveWaiters(reply: ServedReply): void {
@@ -264,14 +264,14 @@ export class ProjectionScheduler {
   }
 
   private degrade(): void {
-    this.degraded = true;
+    this.isDegraded = true;
     console.error(WORKER_DEGRADED_MESSAGE);
     [...this.forgetting.keys()].forEach((documentId) => this.settleForget(documentId));
     this.inFlight.clear();
     this.pendingImports.clear();
-    this.rerun.clear();
-    this.rebuilding.clear();
-    this.reimported.clear();
+    this.documentsNeedingRerun.clear();
+    this.rebuildingDocuments.clear();
+    this.reimportedDocuments.clear();
     [...this.waiting.keys()].forEach((key) => this.rejectWaiters({ key, error: new ProjectionDegradedError() }));
   }
 }

@@ -41,25 +41,25 @@ if (!port) throw new ProjectionWorkerContextError();
 const { databaseDirectory } = workerData as ProjectionWorkerData;
 const historySqlite = openSqliteFile({ directory: databaseDirectory, fileName: HISTORY_DATABASE_FILE });
 const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
-const log = new UpdateLog(historySqlite);
+const updateLog = new UpdateLog(historySqlite);
 const readModel = new ReadModel(readModelSqlite);
 const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
-let sdkConnection: Promise<SuperDocClient> | null = null;
+let superdocClient: Promise<SuperDocClient> | null = null;
 let queue = Promise.resolve();
 let importQueue = Promise.resolve();
 
-async function connectSdk(): Promise<SuperDocClient> {
+async function connectSuperdocClient(): Promise<SuperDocClient> {
   const client = new SuperDocClient();
   await client.connect();
   return client;
 }
 
-function connectedSdk(): Promise<SuperDocClient> {
-  if (sdkConnection) return sdkConnection;
-  const connecting = connectSdk();
-  sdkConnection = connecting;
+function connectedSuperdocClient(): Promise<SuperDocClient> {
+  if (superdocClient) return superdocClient;
+  const connecting = connectSuperdocClient();
+  superdocClient = connecting;
   connecting.catch(() => {
-    sdkConnection = null;
+    superdocClient = null;
   });
   return connecting;
 }
@@ -72,7 +72,7 @@ function withTimeout<Value>({ work, milliseconds }: { work: Promise<Value>; mill
 }
 
 async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
-  const opened = await (await connectedSdk()).open({ doc: filePath });
+  const opened = await (await connectedSuperdocClient()).open({ doc: filePath });
   try {
     const listed = (await opened.trackChanges.list({})) as unknown as { items: ListedTrackedChange[] };
     return listed.items;
@@ -96,7 +96,7 @@ type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.
 function versionReply({ documentId, sequence }: { documentId: string; sequence: number }): VersionReply {
   const mark = readModel.mark({ documentName: documentId, sequence });
   if (!mark) throw new MissingVersionMarkError({ documentId, sequence });
-  const version = replays.version({ log, documentName: documentId, mark });
+  const version = replays.version({ log: updateLog, documentName: documentId, mark });
   return {
     kind: ProjectionRequestKind.Version,
     documentId,
@@ -114,7 +114,7 @@ function blocksReply(documentId: string): BlocksReply {
     kind: ProjectionRequestKind.Blocks,
     documentId,
     sequence: cursor,
-    blocks: readMainStoryBlocks(materialize({ log, documentName: documentId, untilSequence: cursor })),
+    blocks: readMainStoryBlocks(materialize({ log: updateLog, documentName: documentId, untilSequence: cursor })),
   };
 }
 
@@ -122,13 +122,14 @@ async function handle(request: AnsweredRequest): Promise<ProjectionDoneReply | V
   const { kind, documentId } = request;
   if (request.kind === ProjectionRequestKind.Version) return versionReply(request);
   if (request.kind === ProjectionRequestKind.Blocks) return blocksReply(documentId);
-  if (request.kind === ProjectionRequestKind.Project) compact({ log, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
+  if (request.kind === ProjectionRequestKind.Project)
+    compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
   if (kind === ProjectionRequestKind.Forget) replays.forget(documentId);
   if (request.kind === ProjectionRequestKind.Import)
     return { kind, documentId, cursor: readModel.cursor(documentId), importError: await importRevisions(request) };
   if (kind === ProjectionRequestKind.Forget) readModel.forget(documentId);
   if (kind === ProjectionRequestKind.Project)
-    return { kind, documentId, cursor: projectPending({ log, readModel, documentName: documentId }), importError: null };
+    return { kind, documentId, cursor: projectPending({ log: updateLog, readModel, documentName: documentId }), importError: null };
   return { kind, documentId, cursor: readModel.cursor(documentId), importError: null };
 }
 
@@ -147,9 +148,9 @@ async function answer(request: AnsweredRequest): Promise<ProjectionReply> {
 }
 
 async function stopWorker(): Promise<void> {
-  if (sdkConnection)
+  if (superdocClient)
     await withTimeout({
-      work: sdkConnection.then(
+      work: superdocClient.then(
         (client) => client.dispose(),
         () => undefined,
       ),

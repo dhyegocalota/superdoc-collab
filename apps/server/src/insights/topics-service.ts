@@ -12,7 +12,7 @@ import type { ProjectionScheduler } from '../history/projection-scheduler';
 import { describeError } from '../logging/describe-error';
 import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository } from './insights-repository';
-import { JobOutcome, type InsightsWorker } from './insights-worker';
+import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type LanguageModelChoice } from './llm-client';
 import { TOPICS_SYSTEM_PROMPT, topicsPrompt } from './prompts';
 
@@ -40,24 +40,24 @@ export class TopicsService {
   private readonly repository: InsightsRepository;
   private readonly scheduler: ProjectionScheduler;
   private readonly languageModel: LanguageModelChoice;
-  private readonly worker: InsightsWorker;
+  private readonly jobRunner: InsightsJobRunner;
   readonly cooldown = new DocumentCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
 
   constructor({
     repository,
     scheduler,
     languageModel,
-    worker,
+    jobRunner,
   }: {
     repository: InsightsRepository;
     scheduler: ProjectionScheduler;
     languageModel: LanguageModelChoice;
-    worker: InsightsWorker;
+    jobRunner: InsightsJobRunner;
   }) {
     this.repository = repository;
     this.scheduler = scheduler;
     this.languageModel = languageModel;
-    this.worker = worker;
+    this.jobRunner = jobRunner;
   }
 
   status(documentId: string): TopicStatus {
@@ -72,7 +72,7 @@ export class TopicsService {
   }
 
   refresh(documentId: string): RefreshResult {
-    if (this.worker.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning };
+    if (this.jobRunner.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning };
     const remainingMs = this.cooldown.remainingMs(documentId);
     if (remainingMs > 0) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: Math.ceil(remainingMs / SECOND_MS) };
     this.start({ documentId, isRefresh: true });
@@ -96,7 +96,7 @@ export class TopicsService {
   }
 
   private start({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
-    const outcome = this.worker.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
+    const outcome = this.jobRunner.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
     if (outcome !== JobOutcome.Busy) return;
     if (this.keepsReadyTopics({ previous: this.repository.status(documentId), isRefresh })) return;
     this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
@@ -116,15 +116,14 @@ export class TopicsService {
   }
 
   private async compute({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): Promise<void> {
-    const choice = this.languageModel;
-    if (choice.availability === LanguageModelAvailability.Unavailable) {
+    if (this.languageModel.availability === LanguageModelAvailability.Unavailable) {
       this.consumeCooldown({ documentId, isRefresh });
-      return this.repository.markFailed({ documentId, failure: choice.reason });
+      return this.repository.markFailed({ documentId, failure: this.languageModel.reason });
     }
     const previous = this.repository.status(documentId);
     this.repository.markPending(documentId);
     try {
-      await this.recompute({ documentId, model: choice.model, previous, isRefresh });
+      await this.recompute({ documentId, model: this.languageModel.model, previous, isRefresh });
     } catch (error) {
       if (error instanceof LanguageModelBusyError) return this.settleBusy({ documentId, previous, isRefresh });
       console.error(`${TOPICS_COMPUTE_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
@@ -145,17 +144,17 @@ export class TopicsService {
   }): Promise<void> {
     const { blocks, sequence } = await this.scheduler.blocks(documentId);
     if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
-    const named = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
-    if (named.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
+    const blocksWithText = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
+    if (blocksWithText.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
     this.consumeCooldown({ documentId, isRefresh });
-    if (!this.worker.consumeCall()) throw new LanguageModelBusyError();
+    if (!this.jobRunner.consumeCall()) throw new LanguageModelBusyError();
     const output = await generateStructured({
       model,
       schema: topicsOutputSchema,
       system: TOPICS_SYSTEM_PROMPT,
-      prompt: topicsPrompt(named),
+      prompt: topicsPrompt(blocksWithText),
     });
-    const normalized = normalizeTopics({ output, knownBlockIds: new Set(named.map((block) => block.blockId)) });
+    const normalized = normalizeTopics({ output, knownBlockIds: new Set(blocksWithText.map((block) => block.blockId)) });
     if (normalized.unknownBlockIds.length > 0)
       console.warn(`${UNKNOWN_TOPIC_BLOCKS_MESSAGE} ${documentId}: ${normalized.unknownBlockIds.length}`);
     const topics = matchPreviousTopics({ previous: this.repository.topics(documentId), next: normalized.topics });

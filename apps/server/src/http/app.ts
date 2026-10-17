@@ -16,7 +16,7 @@ import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/req
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import { createInsightsRoutes } from '../insights/insights-routes';
-import type { InsightsWorker } from '../insights/insights-worker';
+import type { InsightsJobRunner } from '../insights/insights-job-runner';
 import type { SelectionSummariesService } from '../insights/selection-summaries-service';
 import type { SummariesService } from '../insights/summaries-service';
 import type { TopicsService } from '../insights/topics-service';
@@ -39,7 +39,7 @@ export type InsightsServices = {
   topics: TopicsService;
   summaries: SummariesService;
   selection: SelectionSummariesService;
-  worker: InsightsWorker;
+  jobRunner: InsightsJobRunner;
 };
 
 export type AppServices = {
@@ -47,7 +47,7 @@ export type AppServices = {
   storage: DocumentFileStorage;
   runtime: DocumentRuntime;
   shareLinks: ShareLinksRepository;
-  log: UpdateLog;
+  updateLog: UpdateLog;
   readModel: ReadModel;
   insightsRepository: InsightsRepository;
   scheduler: ProjectionScheduler;

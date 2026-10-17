@@ -25,7 +25,7 @@ import { memberWithRole } from '../testing/collaboration-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
 import { postSelectionSummary, readSelectionSummary, readTopics, storyWithBlocks, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
-import { JobOutcome } from './insights-worker';
+import { JobOutcome } from './insights-job-runner';
 import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
 
 const POLL_TIMEOUT_MS = 15_000;
@@ -68,13 +68,13 @@ test('a second refresh by the same user inside the cooldown is 429 with Retry-Af
   const otherDocumentId = randomUUID();
   server.services.documents.create({ id: otherDocumentId, title: 'Other', ownerUserId: owner.id });
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const second = await refresh({ server, documentId, cookie: owner.cookie });
   expect(second.status).toBe(HttpStatus.TooManyRequests);
   expect(await second.json()).toEqual({ error: TOPICS_REFRESH_TOO_SOON_MESSAGE });
   expect(Number(second.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   expect((await refresh({ server, documentId: otherDocumentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   client.close();
   await server.stop();
 });
@@ -90,7 +90,7 @@ test('a refresh while a run is in flight returns 202 without a second model call
   await expect.poll(() => model.doGenerateCalls.length, { timeout: POLL_TIMEOUT_MS }).toBe(1);
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   open();
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
   client.close();
   await server.stop();
@@ -100,7 +100,7 @@ test('a second editor on the same document inside the cooldown is 429 with Retry
   const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const second = await refresh({ server, documentId, cookie: editor.cookie });
   expect(second.status).toBe(HttpStatus.TooManyRequests);
   expect(Number(second.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
@@ -118,7 +118,7 @@ test('the same user refreshing again while the run is in flight gets 202, then 4
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   open();
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.TooManyRequests);
   client.close();
   await server.stop();
@@ -127,7 +127,7 @@ test('the same user refreshing again while the run is in flight gets 202, then 4
 test('deleting a document forgets its refresh and summary cooldowns', async () => {
   const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
   expect((await refresh({ server, documentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   server.services.insights.summaries.cooldown.start(documentId);
   expect(server.services.insights.topics.cooldown.size()).toBe(1);
   const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
@@ -154,7 +154,7 @@ test('summarizing a selection is 202 for an editor, 403 for a reader and 404 for
   const unknownResponse = await postSelectionSummary({ server, documentId: randomUUID(), cookie: stranger.cookie, query: MEMBER_QUERY });
   expect(strangerResponse.status).toBe(HttpStatus.NotFound);
   expect(await strangerResponse.json()).toEqual(await unknownResponse.json());
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect((await readSelectionSummary({ server, documentId, cookie: reader.cookie, query: MEMBER_QUERY })).summary).toMatchObject({
     sentence: SELECTION_ANSWER.sentence,
     isStale: false,
@@ -166,7 +166,7 @@ test('filtering by person sends only that person runs', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const prompt = promptOf(model);
   expect(prompt).toContain(' a designer');
   expect(prompt).not.toContain(' more money');
@@ -178,7 +178,7 @@ test('a second POST with the same filter is 200 from the cache and another filte
   const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
   expect((await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const cached = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(cached.status).toBe(HttpStatus.Ok);
   expect(await cached.json()).toMatchObject({ state: SelectionSummaryState.Ready });
@@ -220,7 +220,7 @@ test('topic and period narrow the selection', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${editor.id}` });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const prompt = promptOf(model);
   expect(prompt).toContain(' a designer');
   expect(prompt).not.toContain(' more money');
@@ -243,7 +243,7 @@ test('a topic that no longer exists selects nothing', async () => {
   expect((await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).status).toBe(
     HttpStatus.Accepted,
   );
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   repository.saveTopics({ documentId, topics: [{ id: null, name: 'Staff', blockIds: [blockId] }], computedAtSequence: 2 });
   const newId = repository.topics(documentId)[0]!.id;
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).state).toBe(
@@ -272,7 +272,7 @@ test('an empty at is no period', async () => {
     await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY }),
   );
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `${MEMBER_QUERY}&at=` });
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const withEmptyAt = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `${MEMBER_QUERY}&at=` });
   const without = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(withEmptyAt.summary!.key).toBe(without.summary!.key);
@@ -283,12 +283,12 @@ test('a topic recompute stales topic summaries only', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
-  const { worker } = server.services.insights;
+  const { jobRunner } = server.services.insights;
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
-  await worker.idle();
+  await jobRunner.idle();
   vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${editor.id}` });
-  await worker.idle();
+  await jobRunner.idle();
   server.services.insightsRepository.markPending(documentId);
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).summary?.isStale).toBe(false);
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${editor.id}` })).summary?.isStale).toBe(
@@ -314,7 +314,7 @@ test('without a model the GET is failed with the reason and the POST is 503', as
 
 test('a full worker answers 503 busy', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  vi.spyOn(server.services.insights.worker, 'run').mockReturnValue(JobOutcome.Busy);
+  vi.spyOn(server.services.insights.jobRunner, 'run').mockReturnValue(JobOutcome.Busy);
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);
   expect(await response.json()).toEqual({ error: LLM_BUSY_MESSAGE });
@@ -325,8 +325,8 @@ test('a full worker answers 503 busy', async () => {
 
 test('an exhausted hourly cap answers 503 with the seconds until a slot frees', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  vi.spyOn(server.services.insights.worker, 'hasCallBudget').mockReturnValue(false);
-  vi.spyOn(server.services.insights.worker, 'retryAfterMs').mockReturnValue(90 * SECOND_MS);
+  vi.spyOn(server.services.insights.jobRunner, 'hasCallBudget').mockReturnValue(false);
+  vi.spyOn(server.services.insights.jobRunner, 'retryAfterMs').mockReturnValue(90 * SECOND_MS);
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);
   expect(response.headers.get(RETRY_AFTER_HEADER)).toBe('90');
@@ -357,7 +357,7 @@ test('the key never reaches a log or a response', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel });
   const posted = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   const postedBody = await posted.text();
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   const view = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(view.failure).toBe(SELECTION_SUMMARY_FAILED_MESSAGE);
   expect(JSON.stringify([postedBody, view])).not.toContain(PROVIDER_SECRET);
@@ -374,7 +374,7 @@ test('the key never reaches a log or a response', async () => {
 test('deleting a document forgets its selection cooldown', async () => {
   const { server, documentId, owner } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
   expect((await postSelectionSummary({ server, documentId, cookie: owner.cookie, query: MEMBER_QUERY })).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.worker.idle();
+  await server.services.insights.jobRunner.idle();
   expect(server.services.insights.selection.cooldown.size()).toBe(1);
   const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
     method: HttpMethod.Delete,

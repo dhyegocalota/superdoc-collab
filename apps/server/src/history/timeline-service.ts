@@ -34,6 +34,8 @@ import type { RequestedSelection, SelectionSnapshot } from '../insights/selectio
 import { resolveEvents } from './resolved-events';
 import type { TimelinePipeline } from './timeline-pipeline-cache';
 
+const PIPELINE_KEY_SEPARATOR = ':';
+
 export class AuthorlessEventError extends Error {
   constructor(eventId: number) {
     super(`Edit event ${eventId} has no author.`);
@@ -107,22 +109,20 @@ function firstSequencesOf(events: DocumentEditEvent[]): number[] {
   return [...firstByBlock.values()];
 }
 
-export function pipelineKey({ services, documentId }: { services: AppServices; documentId: string }): string {
-  const declaredCount = [...services.log.identitySources(documentId).values()].filter(
+export function pipelineCacheKey({ services, documentId }: { services: AppServices; documentId: string }): string {
+  const cursor = services.readModel.cursor(documentId);
+  const clientCount = services.updateLog.clientIdentities(documentId).size;
+  const declaredCount = [...services.updateLog.identitySources(documentId).values()].filter(
     (source) => source === IdentitySource.Declared,
   ).length;
-  return [
-    services.readModel.cursor(documentId),
-    services.log.clientIdentities(documentId).size,
-    declaredCount,
-    services.insightsRepository.updatedAt(documentId),
-  ].join(':');
+  const topicsUpdatedAt = services.insightsRepository.updatedAt(documentId);
+  return [cursor, clientCount, declaredCount, topicsUpdatedAt].join(PIPELINE_KEY_SEPARATOR);
 }
 
 export function readTimelinePipeline({ services, documentId }: { services: AppServices; documentId: string }): TimelinePipeline {
   return services.timelinePipelines.get({
     documentId,
-    key: pipelineKey({ services, documentId }),
+    key: pipelineCacheKey({ services, documentId }),
     build: () => buildPipeline({ services, documentId }),
   });
 }
@@ -137,13 +137,13 @@ function matchingAuthorKeys({
   author: string | null;
 }): Set<string> | null {
   if (author === null) return null;
-  const needle = author.toLocaleLowerCase();
+  const searchText = author.toLocaleLowerCase();
   const entries = Object.entries(pipeline.authors);
   const contacts = services.documents.userContacts(entries.flatMap(([, eventAuthor]) => (eventAuthor.id === null ? [] : [eventAuthor.id])));
   const matches = entries.filter(([key, eventAuthor]) => {
     const contact = contacts.get(key);
-    const emailMatches = contact !== undefined && contact.email.toLocaleLowerCase().includes(needle);
-    return eventAuthor.name.toLocaleLowerCase().includes(needle) || emailMatches;
+    const emailMatches = contact !== undefined && contact.email.toLocaleLowerCase().includes(searchText);
+    return eventAuthor.name.toLocaleLowerCase().includes(searchText) || emailMatches;
   });
   return new Set(matches.map(([key]) => key));
 }
@@ -163,8 +163,12 @@ function lastTimeOf(events: TimelineEvent[]): number {
 
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
   const cursor = services.readModel.cursor(documentId);
-  const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? ALL_SEQUENCES : cursor, limit: 1 });
-  const isDegraded = services.scheduler.degraded;
+  const [next] = services.updateLog.readBatch({
+    documentName: documentId,
+    afterSequence: cursor === null ? ALL_SEQUENCES : cursor,
+    limit: 1,
+  });
+  const isDegraded = services.scheduler.isDegraded;
   if (!next) return { isBehind: false, lagMs: null, isDegraded, cursor };
   return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded, cursor };
 }
@@ -257,7 +261,7 @@ export function buildBinEdits({
   return { binStart, binMs: chosenBinMs, runs, authors };
 }
 
-function topicStampOf({
+function topicsUpdatedAtFor({
   services,
   documentId,
   selection,
@@ -287,6 +291,6 @@ export function buildSelectionSnapshot({
     authors: pipeline.authors,
     binMs,
     cursor: pipeline.cursor,
-    topicsUpdatedAt: topicStampOf({ services, documentId, selection }),
+    topicsUpdatedAt: topicsUpdatedAtFor({ services, documentId, selection }),
   };
 }

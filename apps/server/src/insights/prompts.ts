@@ -165,7 +165,7 @@ function selectionEditOverhead({ edit, kept }: { edit: SelectionEdit; kept: Sele
   return EMPTY_SELECTION_EDIT_LENGTH + LINE_SEPARATOR.length + authorGroupOverhead({ edit, kept });
 }
 
-function capRun(edit: SelectionEdit): SelectionEdit {
+function capEdit(edit: SelectionEdit): SelectionEdit {
   return {
     authors: edit.authors.slice(0, SELECTION_MAX_AUTHORS_PER_EDIT).map((name) => name.slice(0, FILTER_MAX_LENGTH)),
     inserted: edit.inserted.slice(0, SELECTION_RUN_MAX_CHARACTERS),
@@ -175,7 +175,7 @@ function capRun(edit: SelectionEdit): SelectionEdit {
 
 export function fitSelection(edits: SelectionEdit[]): SelectionEdit[] {
   return fitEdits({
-    edits: edits.map(capRun),
+    edits: edits.map(capEdit),
     maxCharacters: SELECTION_PROMPT_MAX_CHARACTERS - SELECTION_OPEN.length - SELECTION_CLOSE.length,
     overheadOf: selectionEditOverhead,
   });
@@ -185,7 +185,7 @@ export function namesOf(edits: SelectionEdit[]): string[] {
   return [...new Set(edits.flatMap((edit) => edit.authors))];
 }
 
-export function authorsNamed({ returned, names }: { returned: string[]; names: string[] }): string[] {
+export function mentionedAuthors({ returned, names }: { returned: string[]; names: string[] }): string[] {
   return names.filter((name) => returned.includes(name) || name.split(AUTHOR_SEPARATOR).every((part) => returned.includes(part)));
 }
 

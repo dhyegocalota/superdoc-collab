@@ -1,6 +1,6 @@
 import { clampToMark, readMainStoryText, type ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { DocumentResource, DocumentRole, HttpStatus, VERSION_FAILED_ERROR, VERSION_FAILURE_TTL_MS, VERSION_MARK_MS, VERSION_NOT_READY_ERROR, VersionResource, documentApiPath, versionApiPath, versionCollaborationPath, type VersionMarks, type VersionText } from '@superdoc-history/types';
+import { ApiPath, DocumentResource, DocumentRole, HttpStatus, VERSION_FAILED_ERROR, VERSION_FAILURE_TTL_MS, VERSION_MARK_MS, VERSION_NOT_READY_ERROR, VersionResource, documentApiPath, versionApiPath, versionCollaborationPath, type VersionMarks, type VersionText } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
@@ -12,6 +12,7 @@ import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService } from './versions-service';
 
 const MINUTES = 8;
+const SETTLE_ROUND_TRIPS = 5;
 const PROPERTY_SEED = 20261016;
 const SAMPLED_SEQUENCES = 20;
 const PROJECTION_TIMEOUT_MS = 15_000;
@@ -105,6 +106,27 @@ test('a rebuilding document answers 202', async () => {
   const response = await fetch(`${server.baseUrl}${versionApiPath({ documentId, sequence: 1 })}`, { headers: { cookie: owner.cookie } });
   expect(response.status).toBe(HttpStatus.Accepted);
   expect(response.headers.get('retry-after')).toBe('1');
+  await server.stop();
+});
+
+test('a viewer whose document was deleted retries the upgrade without an unhandled rejection', async () => {
+  const unhandled = vi.fn();
+  process.on('unhandledRejection', unhandled);
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: Number.MAX_SAFE_INTEGER });
+  const viewer = await connectToDocument({ server, cookie: owner.cookie, documentId, path: version.collaborationPath });
+  const authorize = vi.spyOn(server.services.versionRooms, 'authorize');
+  client.close();
+  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: 'DELETE', headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  expect(deleted.ok).toBe(true);
+  await expect.poll(() => authorize.mock.calls.length, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(0);
+  await Array.from({ length: SETTLE_ROUND_TRIPS }).reduce<Promise<unknown>>(async (previous) => {
+    await previous;
+    return fetch(`${server.baseUrl}${ApiPath.Health}`);
+  }, Promise.resolve());
+  process.off('unhandledRejection', unhandled);
+  expect(unhandled).not.toHaveBeenCalled();
+  viewer.close();
   await server.stop();
 });
 

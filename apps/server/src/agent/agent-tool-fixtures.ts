@@ -8,6 +8,7 @@ import type { TestServer, TestUser } from '../testing/test-server';
 import type { AgentDocumentSessions, AgentToolContext } from './agent-tool-context';
 
 export const ALL_AGENT_SCOPES = Object.values(AgentScope);
+export const TOOL_APP_ORIGIN = 'http://app.test';
 const SEED_TEXT = 'Budget is approved.';
 const SEED_TITLE = 'Plan';
 const UNEXPECTED_SESSION_MESSAGE = 'No document session is expected here';
@@ -37,6 +38,7 @@ export function toolContext({
 }): { context: AgentToolContext; recorded: RecordedAgentAction[] } {
   const recorded: RecordedAgentAction[] = [];
   const context: AgentToolContext = {
+    appOrigin: TOOL_APP_ORIGIN,
     services: server.services,
     principal: { userId, scopes },
     sessions,

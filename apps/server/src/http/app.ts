@@ -89,6 +89,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.route(
     ApiPath.Mcp,
     createMcpRoutes({
+      appOrigin: environment.appOrigin,
       services,
       authorize: (request) => authorizeAgentRequest({ auth, request, jwksUrl: services.jwksUrl() }),
       unauthorized: () => unauthorizedAgentResponse({ appOrigin: environment.appOrigin }),

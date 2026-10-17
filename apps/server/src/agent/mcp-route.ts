@@ -13,7 +13,11 @@ const MCP_SERVER_NAME = 'superdoc-history';
 const MCP_SERVER_VERSION = '1.0.0';
 const ALLOWED_METHOD_HEADER = { Allow: 'POST' };
 
+export type McpRateLimit = { maxCalls: number; windowMs: number };
+
 export type McpRouteOptions = {
+  appOrigin: string;
+  rateLimit?: McpRateLimit;
   services: AppServices;
   authorize: (request: Request) => Promise<AgentToolPrincipal | null>;
   unauthorized: () => Response;
@@ -31,7 +35,7 @@ function createMcpServer(context: AgentToolContext): McpServer {
   return server;
 }
 
-export function createMcpRoutes({ services, authorize, unauthorized, sessions, toolkit, recordAction }: McpRouteOptions): Hono {
+export function createMcpRoutes({ appOrigin, services, authorize, unauthorized, sessions, toolkit, recordAction }: McpRouteOptions): Hono {
   const routes = new Hono();
   routes.post(
     '/',
@@ -43,7 +47,7 @@ export function createMcpRoutes({ services, authorize, unauthorized, sessions, t
       const principal = await authorize(honoContext.req.raw);
       if (!principal) return unauthorized();
       if (agentToolsFor(principal.scopes).length === 0) return honoContext.body(null, HttpStatus.Forbidden);
-      const server = createMcpServer({ services, principal, sessions, toolkit, recordAction });
+      const server = createMcpServer({ appOrigin, services, principal, sessions, toolkit, recordAction });
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       await server.connect(transport);
       try {

@@ -4,9 +4,9 @@ import {
   AgentActionKind,
   AgentTool,
   DocumentRole,
+  documentPagePath,
   ShareLinkRole,
   type DocumentMembers,
-  type ShareLinks,
 } from '@superdoc-history/types';
 import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -14,7 +14,7 @@ import { existsSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import { memberWithRole, documentWithOwner } from '../testing/collaboration-client';
 import type { TestServer, TestUser } from '../testing/test-server';
-import { resultJson, sessionsOn, toolContext } from './agent-tool-fixtures';
+import { resultJson, sessionsOn, TOOL_APP_ORIGIN, toolContext } from './agent-tool-fixtures';
 import { callAgentTool, TOOL_FAILED_MESSAGE } from './agent-tools';
 import { MAX_EDITS, MAX_TEXT_LENGTH, MAX_TEXTS } from './document-tools';
 
@@ -152,26 +152,38 @@ test('list_members returns the members with their roles and presence', async () 
   expect(members.members.every(({ online }) => online === false)).toBe(true);
 });
 
-test('get_share_links gives the owner both links and records the reveal, and an editor gets the role error', async () => {
+const SHARE_PATH_FRAGMENT = '/share/';
+
+test('get_share_links points the owner to the Share dialog without any link secret and records nothing, and an editor gets the role error', async () => {
   const asOwner = toolContext({ server, userId: owner.id });
-  const links = resultJson(
-    await callAgentTool({ tool: AgentTool.GetShareLinks, input: { documentId }, context: asOwner.context }),
-  ) as ShareLinks;
-  expect(links).toEqual(server.services.shareLinks.links(documentId));
-  expect(asOwner.recorded).toEqual([{ documentId, userId: owner.id, kind: AgentActionKind.ShareLinkRevealed }]);
+  const result = await callAgentTool({ tool: AgentTool.GetShareLinks, input: { documentId }, context: asOwner.context });
+  const text = JSON.stringify(resultJson(result));
+  expect(resultJson(result)).toEqual({
+    documentUrl: `${TOOL_APP_ORIGIN}${documentPagePath(documentId)}`,
+    instruction: expect.stringContaining('Share'),
+  });
+  Object.values(server.services.shareLinks.links(documentId)).forEach((link) => expect(text).not.toContain(link));
+  expect(text).not.toContain(SHARE_PATH_FRAGMENT);
+  expect(asOwner.recorded).toEqual([]);
   const asEditor = toolContext({ server, userId: editor.id });
   const refused = await callAgentTool({ tool: AgentTool.GetShareLinks, input: { documentId }, context: asEditor.context });
   expect([refused.isError, asEditor.recorded]).toEqual([true, []]);
 });
 
-test.each(Object.values(ShareLinkRole))('rotate_share_link rotates only the %s link and records it', async (role) => {
+test.each(Object.values(ShareLinkRole))('rotate_share_link rotates only the %s link, records it and reveals no link', async (role) => {
   const before = server.services.shareLinks.links(documentId);
   const { context, recorded } = toolContext({ server, userId: owner.id });
-  const rotated = resultJson(await callAgentTool({ tool: AgentTool.RotateShareLink, input: { documentId, role }, context })) as ShareLinks;
+  const result = await callAgentTool({ tool: AgentTool.RotateShareLink, input: { documentId, role }, context });
+  const after = server.services.shareLinks.links(documentId);
   const untouched = Object.values(ShareLinkRole).filter((other) => other !== role);
-  expect(rotated[role]).not.toBe(before[role]);
-  untouched.forEach((other) => expect(rotated[other]).toBe(before[other]));
-  expect(server.services.shareLinks.links(documentId)).toEqual(rotated);
+  expect(after[role]).not.toBe(before[role]);
+  untouched.forEach((other) => expect(after[other]).toBe(before[other]));
+  expect(resultJson(result)).toEqual({
+    rotated: role,
+    documentUrl: `${TOOL_APP_ORIGIN}${documentPagePath(documentId)}`,
+    instruction: expect.stringContaining('Share'),
+  });
+  expect(JSON.stringify(resultJson(result))).not.toContain(SHARE_PATH_FRAGMENT);
   expect(recorded).toEqual([{ documentId, userId: owner.id, kind: AgentActionKind.ShareLinkRotated }]);
 });
 

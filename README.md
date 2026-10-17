@@ -117,6 +117,43 @@ Ana, Bruno, Caio and Dani: `ana@example.com`, `bruno@example.com`, `caio@example
 
 ## Architecture in brief
 
+```mermaid
+flowchart TB
+  subgraph browser["Browser · React 19 + Vite SPA"]
+    editor["SuperDoc editor<br/>live document, cursors, awareness"]
+    viewer["Version viewer<br/>read-only SuperDoc in an iframe"]
+    panel["Timeline panel<br/>streamgraph · filter · top edits · summaries"]
+  end
+
+  subgraph server["One Node process, one port (Hono + Hocuspocus)"]
+    hono["Hono<br/>REST API + built SPA"]
+    auth["Better Auth<br/>sessions, demo users"]
+    hocus["Hocuspocus<br/>one live room per document"]
+    rooms["Version rooms<br/>one read-only room per version"]
+    worker[["Projection worker thread<br/>Yjs replay → edit events, version marks"]]
+    insights["Insights worker<br/>topics · per-topic sentences · selection summaries<br/>process-wide caps"]
+    log[("history.sqlite<br/>update log · snapshots · identities")]
+    read[("read-model.sqlite<br/>edit events · version marks · cursor")]
+    authDb[("auth.sqlite<br/>users · documents · members · share links · topics · summaries")]
+    files[/"documents/‹id›.docx"/]
+  end
+
+  llm["OpenRouter<br/>via Vercel AI SDK"]
+
+  editor <-- "WebSocket /collaboration" --> hocus
+  viewer <-- "WebSocket /collaboration/versions/‹id›/‹sequence›" --> rooms
+  panel -- "GET /api/documents/‹id›/timeline · events · versions · summaries" --> hono
+  hono --> auth --> authDb
+  hono -- "upload · download" --> files
+  hocus -- "every Yjs update, with its connection's user" --> log
+  log -- "1.5 s throttle" --> worker --> read
+  read --> hono
+  log -- "snapshot + tail at a mark" --> rooms
+  hono -- "topics, summaries (202 + polling)" --> insights
+  insights -- "names and edit text only" --> llm
+  insights --> authDb
+```
+
 One Node process on one port: Hono serves the API and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. `libs/history` holds the update log, the projection and the read model; one worker thread projects the log into edit events. The web app is a React and Vite SPA. See [ADR 0001](docs/adr/0001-event-sourcing-over-yjs.md), [ADR 0004](docs/adr/0004-stack.md), [ADR 0005](docs/adr/0005-authentication-with-better-auth.md) and [ADR 0009](docs/adr/0009-design-system.md).
 
 ## Process

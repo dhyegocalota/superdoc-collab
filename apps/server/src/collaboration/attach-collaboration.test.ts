@@ -117,9 +117,22 @@ describe('attachCollaboration', () => {
       await server.stop();
     },
   );
-  test('an upgrade without an origin is destroyed', async () => {
+  test('the browser path still refuses a missing origin', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: ApiPath.Collaboration, origin: '' });
+    expect(response).toBe('');
+    await server.stop();
+  });
+  test('an agent path upgrade without an origin reaches authentication', async () => {
+    const server = await startTestServer();
+    const response = await exchange({ server, path: ApiPath.AgentCollaboration, origin: '' });
+    expect(response).toContain('101');
+    expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    await server.stop();
+  });
+  test('an upgrade on a path that only extends the agent path is destroyed', async () => {
+    const server = await startTestServer();
+    const response = await exchange({ server, path: `${ApiPath.AgentCollaboration}/other`, origin: '' });
     expect(response).toBe('');
     await server.stop();
   });

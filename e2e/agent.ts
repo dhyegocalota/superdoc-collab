@@ -2,9 +2,13 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { AgentScope, ApiPath, AppRoute, type AgentTool } from '../libs/types/src';
+import { AgentScope, AgentTool, ApiPath, AppRoute, type DocumentTimeline, type ShareLinks } from '../libs/types/src';
 import { APPROVE_LABEL, consentDescription } from '../apps/web/src/features/oauth-consent/oauth-consent-copy';
 import { CONNECTED_APPS_HEADING, revokeLabel } from '../apps/web/src/features/connected-apps/connected-apps-copy';
+
+enum EditAction {
+  ReplaceText = 'replace_text',
+}
 
 const DISCOVERY_PATH = '/.well-known/oauth-authorization-server';
 const REDIRECT_PATH = '/e2e-oauth-callback';
@@ -24,7 +28,7 @@ type AuthorizationServerMetadata = {
 };
 
 export type RegisteredClient = { clientId: string; clientName: string; redirectUri: string; metadata: AuthorizationServerMetadata };
-export type AgentConnection = RegisteredClient & { accessToken: string };
+export type AgentConnection = RegisteredClient & { accessToken: string; origin: string };
 export type ToolResult = { isError?: boolean; content: { type: string; text?: string }[] };
 
 function base64Url(buffer: Buffer): string {
@@ -41,7 +45,6 @@ export async function registerClient({ request, origin }: { request: APIRequestC
     data: {
       client_name: clientName,
       redirect_uris: [redirectUri],
-      application_type: 'native',
       token_endpoint_auth_method: 'none',
       grant_types: ['authorization_code'],
       response_types: ['code'],
@@ -122,17 +125,15 @@ export async function connectAiClient({ page, request }: { page: Page; request: 
   const client = await registerClient({ request, origin });
   const { code, verifier } = await approveConsent({ page, client, origin });
   const accessToken = await exchangeCode({ request, origin, client, code, verifier });
-  return { ...client, accessToken };
+  return { ...client, accessToken, origin };
 }
 
 export async function callTool({
-  origin,
-  accessToken,
+  connection: { origin, accessToken },
   tool,
   args,
 }: {
-  origin: string;
-  accessToken: string;
+  connection: AgentConnection;
   tool: AgentTool;
   args: Record<string, unknown>;
 }): Promise<ToolResult> {
@@ -161,4 +162,39 @@ export async function revokeInConnectedApps({ page, clientName }: { page: Page; 
   await expect(page.getByText(clientName, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: revokeLabel(clientName) }).click();
   await expect(page.getByText(clientName, { exact: true })).toHaveCount(0);
+}
+
+export async function readTimelineThroughAgent({
+  connection,
+  documentId,
+}: {
+  connection: AgentConnection;
+  documentId: string;
+}): Promise<DocumentTimeline> {
+  return toolJson<DocumentTimeline>(await callTool({ connection, tool: AgentTool.GetTimeline, args: { documentId } }));
+}
+
+export async function replaceTextThroughAgent({
+  connection,
+  documentId,
+  find,
+  replace,
+}: {
+  connection: AgentConnection;
+  documentId: string;
+  find: string;
+  replace: string;
+}): Promise<ToolResult> {
+  const args = { documentId, action: EditAction.ReplaceText, edits: [{ find, replace }] };
+  return callTool({ connection, tool: AgentTool.EditDocument, args });
+}
+
+export async function revealShareLinksThroughAgent({
+  connection,
+  documentId,
+}: {
+  connection: AgentConnection;
+  documentId: string;
+}): Promise<ShareLinks> {
+  return toolJson<ShareLinks>(await callTool({ connection, tool: AgentTool.GetShareLinks, args: { documentId } }));
 }

@@ -5,7 +5,7 @@ export const TOPIC_HUE_END = 25;
 
 export type StackRow = { start: number; values: Record<string, number> };
 
-function cellVolume(cell: TimelineCell | undefined): number {
+export function cellVolume(cell: TimelineCell | undefined): number {
   if (!cell) return 0;
   return cell.inserted + cell.deleted;
 }

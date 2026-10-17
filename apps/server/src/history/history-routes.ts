@@ -1,16 +1,27 @@
-import { DocumentRole, EVENTS_PAGE_SIZE, HttpStatus, TimelineQueryParam, type DocumentEditEvents } from '@superdoc-history/types';
+import {
+  DocumentRole,
+  EVENTS_PAGE_SIZE,
+  HttpStatus,
+  NON_NEGATIVE_INTEGER_PATTERN,
+  TimelineQueryParam,
+  type DocumentEditEvents,
+} from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireDocumentRole } from '../documents/require-document-role';
+import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { resolveEvents } from './resolved-events';
 
 const INVALID_EVENTS_QUERY_MESSAGE = 'afterSequence must be a non-negative integer and limit an integer from 1 to the page size';
-const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 const eventsQuerySchema = z.object({
-  [TimelineQueryParam.AfterSequence]: z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number).optional(),
-  [TimelineQueryParam.Limit]: z.coerce.number().int().min(1).max(EVENTS_PAGE_SIZE).optional(),
+  [TimelineQueryParam.AfterSequence]: z
+    .string()
+    .regex(NON_NEGATIVE_INTEGER_PATTERN)
+    .transform(Number)
+    .optional()
+    .transform((value) => (value === undefined ? null : value)),
+  [TimelineQueryParam.Limit]: z.coerce.number().int().min(1).max(EVENTS_PAGE_SIZE).default(EVENTS_PAGE_SIZE),
 });
 
 function readDocumentEvents({
@@ -31,18 +42,11 @@ function readDocumentEvents({
 export function createHistoryRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
   routes.get('/:documentId/events', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
-    const parsed = eventsQuerySchema.safeParse({
-      [TimelineQueryParam.AfterSequence]: context.req.query(TimelineQueryParam.AfterSequence),
-      [TimelineQueryParam.Limit]: context.req.query(TimelineQueryParam.Limit),
-    });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
+    const parsed = eventsQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_EVENTS_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const { afterSequence, limit } = parsed.data;
-    const afterSequenceOrNull = afterSequence === undefined ? null : afterSequence;
-    if (limit === undefined)
-      return context.json(readDocumentEvents({ services, documentId, afterSequence: afterSequenceOrNull, limit: EVENTS_PAGE_SIZE }));
-    return context.json(readDocumentEvents({ services, documentId, afterSequence: afterSequenceOrNull, limit }));
+    return context.json(readDocumentEvents({ services, documentId, afterSequence, limit }));
   });
   return routes;
 }

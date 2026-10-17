@@ -106,12 +106,12 @@ test('projection status carries the cursor the timeline was built from', async (
 
 test('projection status reports a lag', async () => {
   const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
-  server.services.scheduler.degraded = true;
+  server.services.scheduler.isDegraded = true;
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.document.getText('lag').insert(0, 'x');
   await expect.poll(async () => (await readTimeline({ server, documentId, cookie: owner.cookie })).projection.isBehind).toBe(true);
   expect((await readTimeline({ server, documentId, cookie: owner.cookie })).projection.isDegraded).toBe(true);
-  server.services.scheduler.degraded = false;
+  server.services.scheduler.isDegraded = false;
   client.close();
   await server.stop();
 });

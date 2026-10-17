@@ -34,6 +34,8 @@ import type { RequestedSelection, SelectionSnapshot } from '../insights/selectio
 import { resolveEvents } from './resolved-events';
 import type { TimelinePipeline } from './timeline-pipeline-cache';
 
+const PIPELINE_KEY_SEPARATOR = ':';
+
 export class AuthorlessEventError extends Error {
   constructor(eventId: number) {
     super(`Edit event ${eventId} has no author.`);
@@ -53,9 +55,8 @@ function bandIdentities({ services, documentId, events }: { services: AppService
 } {
   const topics = services.insightsRepository.topics(documentId);
   if (topics.length === 0) {
-    const authors = new Map(events.flatMap((event) => event.authors.map((author): [string, EventAuthor] => [authorKey(author), author])));
     return {
-      identities: [...authors].map(([id, author]) => ({ id, kind: TimelineBandKind.Author, name: author.name })),
+      identities: Object.entries(authorsOf(events)).map(([id, author]) => ({ id, kind: TimelineBandKind.Author, name: author.name })),
       bandOf: primaryAuthorKey,
       hasTopics: false,
     };
@@ -68,24 +69,33 @@ function bandIdentities({ services, documentId, events }: { services: AppService
   return { identities, bandOf: (event) => topicBandId({ assignment, blockId: event.blockId }), hasTopics: true };
 }
 
+function isUnassigned({ event, bandId, hasTopics }: { event: DocumentEditEvent; bandId: string; hasTopics: boolean }): boolean {
+  if (event.kind === BlockChangeKind.Removed) return false;
+  return !hasTopics || bandId === OTHER_BAND_ID;
+}
+
+function toTimelineEvent({ event, bandId }: { event: DocumentEditEvent; bandId: string }): TimelineEvent {
+  return {
+    sequence: event.sequence,
+    serverTime: event.serverTime,
+    blockId: event.blockId,
+    bandId,
+    authorKeys: event.authors.map(authorKey),
+    inserted: event.inserted,
+    deleted: event.deleted,
+  };
+}
+
 function buildPipeline({ services, documentId }: { services: AppServices; documentId: string }): TimelinePipeline {
   const { events: stored, cursor } = services.readModel.readWithCursor({ documentName: documentId, afterSequence: null });
   const events = resolveEvents({ services, documentId, stored });
   const { identities, bandOf, hasTopics } = bandIdentities({ services, documentId, events });
-  const timelineEvents = events.map((event): TimelineEvent => ({
-    sequence: event.sequence,
-    serverTime: event.serverTime,
-    blockId: event.blockId,
-    bandId: bandOf(event),
-    authorKeys: event.authors.map(authorKey),
-    inserted: event.inserted,
-    deleted: event.deleted,
-  }));
-  const unassignedEvents = events.filter(
-    (event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID),
-  );
+  const eventsWithBand = events.map((event) => ({ event, bandId: bandOf(event) }));
+  const unassignedEvents = eventsWithBand
+    .filter(({ event, bandId }) => isUnassigned({ event, bandId, hasTopics }))
+    .map(({ event }) => event);
   return {
-    events: timelineEvents,
+    events: eventsWithBand.map(toTimelineEvent),
     identities,
     authors: authorsOf(events),
     hasTopics,
@@ -107,22 +117,20 @@ function firstSequencesOf(events: DocumentEditEvent[]): number[] {
   return [...firstByBlock.values()];
 }
 
-export function pipelineKey({ services, documentId }: { services: AppServices; documentId: string }): string {
-  const declaredCount = [...services.log.identitySources(documentId).values()].filter(
+export function pipelineCacheKey({ services, documentId }: { services: AppServices; documentId: string }): string {
+  const cursor = services.readModel.cursor(documentId);
+  const clientCount = services.updateLog.clientIdentities(documentId).size;
+  const declaredCount = [...services.updateLog.identitySources(documentId).values()].filter(
     (source) => source === IdentitySource.Declared,
   ).length;
-  return [
-    services.readModel.cursor(documentId),
-    services.log.clientIdentities(documentId).size,
-    declaredCount,
-    services.insightsRepository.updatedAt(documentId),
-  ].join(':');
+  const topicsUpdatedAt = services.insightsRepository.updatedAt(documentId);
+  return [cursor, clientCount, declaredCount, topicsUpdatedAt].join(PIPELINE_KEY_SEPARATOR);
 }
 
 export function readTimelinePipeline({ services, documentId }: { services: AppServices; documentId: string }): TimelinePipeline {
   return services.timelinePipelines.get({
     documentId,
-    key: pipelineKey({ services, documentId }),
+    key: pipelineCacheKey({ services, documentId }),
     build: () => buildPipeline({ services, documentId }),
   });
 }
@@ -137,13 +145,13 @@ function matchingAuthorKeys({
   author: string | null;
 }): Set<string> | null {
   if (author === null) return null;
-  const needle = author.toLocaleLowerCase();
+  const searchText = author.toLocaleLowerCase();
   const entries = Object.entries(pipeline.authors);
   const contacts = services.documents.userContacts(entries.flatMap(([, eventAuthor]) => (eventAuthor.id === null ? [] : [eventAuthor.id])));
   const matches = entries.filter(([key, eventAuthor]) => {
     const contact = contacts.get(key);
-    const emailMatches = contact !== undefined && contact.email.toLocaleLowerCase().includes(needle);
-    return eventAuthor.name.toLocaleLowerCase().includes(needle) || emailMatches;
+    const emailMatches = contact !== undefined && contact.email.toLocaleLowerCase().includes(searchText);
+    return eventAuthor.name.toLocaleLowerCase().includes(searchText) || emailMatches;
   });
   return new Set(matches.map(([key]) => key));
 }
@@ -163,8 +171,12 @@ function lastTimeOf(events: TimelineEvent[]): number {
 
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
   const cursor = services.readModel.cursor(documentId);
-  const [next] = services.log.readBatch({ documentName: documentId, afterSequence: cursor === null ? ALL_SEQUENCES : cursor, limit: 1 });
-  const isDegraded = services.scheduler.degraded;
+  const [next] = services.updateLog.readBatch({
+    documentName: documentId,
+    afterSequence: cursor === null ? ALL_SEQUENCES : cursor,
+    limit: 1,
+  });
+  const isDegraded = services.scheduler.isDegraded;
   if (!next) return { isBehind: false, lagMs: null, isDegraded, cursor };
   return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded, cursor };
 }
@@ -257,7 +269,7 @@ export function buildBinEdits({
   return { binStart, binMs: chosenBinMs, runs, authors };
 }
 
-function topicStampOf({
+function topicsUpdatedAtFor({
   services,
   documentId,
   selection,
@@ -287,6 +299,6 @@ export function buildSelectionSnapshot({
     authors: pipeline.authors,
     binMs,
     cursor: pipeline.cursor,
-    topicsUpdatedAt: topicStampOf({ services, documentId, selection }),
+    topicsUpdatedAt: topicsUpdatedAtFor({ services, documentId, selection }),
   };
 }

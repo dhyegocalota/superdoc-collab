@@ -97,8 +97,8 @@ test('a version endpoint never writes the log, the identities or the room mode',
       ).json()) as OpenedDocument
     ).roomMode;
   const before = {
-    updates: server.services.log.readBatch({ documentName: documentId, afterSequence: 0, limit: 1000 }).length,
-    identities: server.services.log.clientIdentities(documentId).size,
+    updates: server.services.updateLog.readBatch({ documentName: documentId, afterSequence: 0, limit: 1000 }).length,
+    identities: server.services.updateLog.clientIdentities(documentId).size,
     marks: server.services.readModel.marks(documentId).length,
     roomMode: await roomModeOf(),
   };
@@ -110,8 +110,8 @@ test('a version endpoint never writes the log, the identities or the room mode',
   await expect.poll(() => writer.document.getText('t').toString(), { timeout: POLL_TIMEOUT_MS }).toBe('dropped');
   expect(observer.document.getText('t').toString()).toBe('');
   const after = {
-    updates: server.services.log.readBatch({ documentName: documentId, afterSequence: 0, limit: 1000 }).length,
-    identities: server.services.log.clientIdentities(documentId).size,
+    updates: server.services.updateLog.readBatch({ documentName: documentId, afterSequence: 0, limit: 1000 }).length,
+    identities: server.services.updateLog.clientIdentities(documentId).size,
     marks: server.services.readModel.marks(documentId).length,
     roomMode: await roomModeOf(),
   };

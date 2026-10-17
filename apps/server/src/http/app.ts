@@ -16,7 +16,7 @@ import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/req
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import { createInsightsRoutes } from '../insights/insights-routes';
-import type { InsightsWorker } from '../insights/insights-worker';
+import type { InsightsJobRunner } from '../insights/insights-job-runner';
 import type { SelectionSummariesService } from '../insights/selection-summaries-service';
 import type { SummariesService } from '../insights/summaries-service';
 import type { TopicsService } from '../insights/topics-service';
@@ -26,7 +26,6 @@ import { createVersionsRoutes } from '../history/versions-routes';
 import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from '../collaboration/version-rooms';
 import { createTimelineRoutes } from '../history/timeline-routes';
-import { NOT_FOUND_MESSAGE } from '../server';
 import { withClientAddress } from './client-address';
 import { health } from './health';
 import { createMeHandler } from './me';
@@ -34,12 +33,14 @@ import { requireUser } from './require-user';
 
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
+export const NOT_FOUND_MESSAGE = 'Not found';
+const PROTECTED_PATHS = [ApiPath.Documents, `${ApiPath.Documents}/*`, `${ApiPath.ShareLinks}/*`];
 
 export type InsightsServices = {
   topics: TopicsService;
   summaries: SummariesService;
   selection: SelectionSummariesService;
-  worker: InsightsWorker;
+  jobRunner: InsightsJobRunner;
 };
 
 export type AppServices = {
@@ -47,7 +48,7 @@ export type AppServices = {
   storage: DocumentFileStorage;
   runtime: DocumentRuntime;
   shareLinks: ShareLinksRepository;
-  log: UpdateLog;
+  updateLog: UpdateLog;
   readModel: ReadModel;
   insightsRepository: InsightsRepository;
   scheduler: ProjectionScheduler;
@@ -61,12 +62,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   const app = new Hono();
   const signedIn = requireUser({ auth });
   const sameOriginOnly = csrf({ origin: environment.appOrigin });
-  app.use(`${ApiPath.Documents}/*`, sameOriginOnly);
-  app.use(`${ApiPath.ShareLinks}/*`, sameOriginOnly);
-  app.use(ApiPath.Documents, sameOriginOnly);
-  app.use(ApiPath.Documents, signedIn);
-  app.use(`${ApiPath.Documents}/*`, signedIn);
-  app.use(`${ApiPath.ShareLinks}/*`, signedIn);
+  PROTECTED_PATHS.forEach((path) => app.use(path, sameOriginOnly, signedIn));
   app.onError((error, context) => {
     if (error instanceof DocumentNotFoundError) return context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
     if (error instanceof DocumentRoleTooLowError) return context.json({ error: FORBIDDEN_MESSAGE }, HttpStatus.Forbidden);

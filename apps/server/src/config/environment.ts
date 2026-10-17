@@ -1,6 +1,9 @@
+import { presentOrNull } from '@superdoc-history/types';
 import { z } from 'zod';
-import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../insights/insights-worker';
 
+// NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
+export const LLM_MAX_CONCURRENT_JOBS = 2;
+export const LLM_MAX_CALLS_PER_HOUR = 60;
 const AUTH_SECRET_MIN_LENGTH = 32;
 
 export class MissingEnvironmentVariableError extends Error {
@@ -60,11 +63,6 @@ export type Environment = {
   trustProxy: boolean;
   llm: LlmSettings;
 };
-
-function presentOrNull(value: string | undefined): string | null {
-  if (!value) return null;
-  return value;
-}
 
 function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
   if (!value) return fallback;

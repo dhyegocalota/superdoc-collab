@@ -1,11 +1,13 @@
 import { ApiPath, AppRoute } from '@superdoc-history/types';
+import Database from 'better-sqlite3';
 import { createServer, type AddressInfo } from 'node:net';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './database/connection';
-import { JobOutcome } from './insights/insights-worker';
+import { ProjectionScheduler } from './history/projection-scheduler';
+import { JobOutcome } from './insights/insights-job-runner';
 import { startServer } from './server';
 import { prebuiltProjectionWorkerFile, testEnvironment } from './testing/test-server';
 
@@ -120,6 +122,8 @@ test('startServer rejects instead of hanging when the port is taken', async () =
   const blocker = createServer();
   await new Promise<void>((resolve) => blocker.listen(0, resolve));
   const { port } = blocker.address() as AddressInfo;
+  const stopScheduler = vi.spyOn(ProjectionScheduler.prototype, 'stop');
+  const closeDatabase = vi.spyOn(Database.prototype, 'close');
   await expect(
     startServer({
       environment: { ...testEnvironment(), port },
@@ -129,15 +133,41 @@ test('startServer rejects instead of hanging when the port is taken', async () =
   ).rejects.toMatchObject({
     code: 'EADDRINUSE',
   });
+  expect([stopScheduler.mock.calls.length, closeDatabase.mock.calls.length]).toEqual([1, 3]);
+  expect(stopScheduler.mock.invocationCallOrder[0]).toBeLessThan(closeDatabase.mock.invocationCallOrder[0]!);
+  vi.restoreAllMocks();
   await new Promise((resolve) => blocker.close(resolve));
+});
+
+test('stop closes collaboration in order, then the three databases', async () => {
+  const running = await startServer({
+    environment: testEnvironment(),
+    webDistDirectory: null,
+    projectionWorkerFile: prebuiltProjectionWorkerFile(),
+  });
+  const { versionRooms, hocuspocus, throttle, scheduler, insights } = running.services;
+  const closeDatabase = vi.spyOn(Database.prototype, 'close');
+  const spies = [
+    vi.spyOn(versionRooms, 'stop'),
+    vi.spyOn(hocuspocus, 'destroy'),
+    vi.spyOn(throttle, 'stop'),
+    vi.spyOn(scheduler, 'stop'),
+    vi.spyOn(insights.jobRunner, 'idle'),
+    closeDatabase,
+  ];
+  await running.stop();
+  const firstCalls = spies.map((spy) => spy.mock.invocationCallOrder[0]!);
+  expect(firstCalls).toEqual([...firstCalls].sort((left, right) => left - right));
+  expect(closeDatabase).toHaveBeenCalledTimes(3);
+  vi.restoreAllMocks();
 });
 
 test('startServer hands the configured LLM limits to the insights worker', async () => {
   const environment = { ...testEnvironment(), llm: { model: null, apiKey: null, baseUrl: null, maxConcurrentJobs: 1, maxCallsPerHour: 1 } };
   const running = await startServer({ environment, webDistDirectory: null, projectionWorkerFile: prebuiltProjectionWorkerFile() });
-  const { worker } = running.services.insights;
-  expect(worker.run({ key: 'held', job: () => new Promise<void>((resolve) => setTimeout(resolve, 50)) })).toBe(JobOutcome.Started);
-  expect(worker.run({ key: 'other', job: async () => undefined })).toBe(JobOutcome.Busy);
-  expect([worker.consumeCall(), worker.consumeCall()]).toEqual([true, false]);
+  const { jobRunner } = running.services.insights;
+  expect(jobRunner.run({ key: 'held', job: () => new Promise<void>((resolve) => setTimeout(resolve, 50)) })).toBe(JobOutcome.Started);
+  expect(jobRunner.run({ key: 'other', job: async () => undefined })).toBe(JobOutcome.Busy);
+  expect([jobRunner.consumeCall(), jobRunner.consumeCall()]).toEqual([true, false]);
   await running.stop();
 });

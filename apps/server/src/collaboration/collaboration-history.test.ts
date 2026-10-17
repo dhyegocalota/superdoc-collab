@@ -17,12 +17,12 @@ test("a reader's update is acknowledged but never logged", async () => {
   readerClient.document.getText('t').insert(0, 'reader');
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
   ownerClient.document.getText('t').insert(0, 'owner');
-  await expect.poll(() => server.services.log.hasUpdates(documentId)).toBe(true);
+  await expect.poll(() => server.services.updateLog.hasUpdates(documentId)).toBe(true);
   await expect.poll(() => readerClient.document.getText('t').toString()).toContain('owner');
   expect(ownerClient.document.getText('t').toString()).toBe('owner');
-  expect(server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId)).not.toContain(
-    reader.id,
-  );
+  expect(
+    server.services.updateLog.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId),
+  ).not.toContain(reader.id);
   [readerClient, ownerClient].forEach((client) => client.close());
   await server.stop();
 });
@@ -31,7 +31,7 @@ test('a restarted server restores the room from the log', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.document.getText('t').insert(0, 'persisted');
-  await expect.poll(() => server.services.log.hasUpdates(documentId)).toBe(true);
+  await expect.poll(() => server.services.updateLog.hasUpdates(documentId)).toBe(true);
   client.close();
   await server.stop();
   const restarted = await startTestServer({ databaseDirectory: server.databaseDirectory });
@@ -50,7 +50,7 @@ test("a member's update is logged with their user id", async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.document.getText('t').insert(0, 'hello');
   await expect
-    .poll(() => server.services.log.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId))
+    .poll(() => server.services.updateLog.read({ documentName: documentId, untilSequence: ALL }).map((update) => update.connectionUserId))
     .toEqual([owner.id]);
   client.close();
   await server.stop();
@@ -68,7 +68,9 @@ test('an awareness userId equal to the socket user declares the identity', async
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.provider.setAwarenessField('userId', owner.id);
   client.document.getText('t').insert(0, 'declared');
-  await expect.poll(() => server.services.log.identitySources(documentId).get(client.document.clientID)).toBe(IdentitySource.Declared);
+  await expect
+    .poll(() => server.services.updateLog.identitySources(documentId).get(client.document.clientID))
+    .toBe(IdentitySource.Declared);
   client.close();
   await server.stop();
 });
@@ -78,7 +80,9 @@ test('an awareness userId of someone else stays observed', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.provider.setAwarenessField('userId', 'someone-else');
   client.document.getText('t').insert(0, 'spoofed');
-  await expect.poll(() => server.services.log.identitySources(documentId).get(client.document.clientID)).toBe(IdentitySource.Observed);
+  await expect
+    .poll(() => server.services.updateLog.identitySources(documentId).get(client.document.clientID))
+    .toBe(IdentitySource.Observed);
   client.close();
   await server.stop();
 });
@@ -116,7 +120,9 @@ test('the worker writes the heavy snapshot', { timeout: SNAPSHOT_WAIT_MS * 2 }, 
   commitBootstrap(client.document);
   Array.from({ length: UPDATES_BEFORE_SNAPSHOT }).forEach(() => client.document.getText('t').insert(0, 'x'));
   await expect
-    .poll(() => server.services.log.latestSnapshot({ documentName: documentId, atOrBefore: ALL })?.sequence, { timeout: SNAPSHOT_WAIT_MS })
+    .poll(() => server.services.updateLog.latestSnapshot({ documentName: documentId, atOrBefore: ALL })?.sequence, {
+      timeout: SNAPSHOT_WAIT_MS,
+    })
     .toBeDefined();
   client.close();
   await server.stop();

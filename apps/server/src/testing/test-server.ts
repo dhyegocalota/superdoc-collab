@@ -8,7 +8,7 @@ import type { Auth } from '../auth/auth';
 import type { Environment, LlmSettings } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collaboration/version-rooms';
-import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../insights/insights-worker';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type ServerServices } from '../server';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';

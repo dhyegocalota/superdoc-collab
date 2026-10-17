@@ -106,9 +106,9 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### L5 E2E
 
-- [ ] **Step 25:** `e2e/agent.ts` helpers: register a client, approve consent in the page, exchange the code, call tools with `@modelcontextprotocol/sdk`.
-- [ ] **Step 26:** `e2e/agent.spec.ts`: the five-step acceptance walk of the spec, asserting the tracked-change card name, the hatched layer, the share mark and the 401 after Revoke.
-- [ ] **Step 27:** Update `e2e/README.md` spec list.
+- [x] **Step 25:** `e2e/agent.ts` helpers: register a client, approve consent in the page, exchange the code, call tools with `@modelcontextprotocol/sdk`. Evidence: commits 9866b84 and 48009c4; the OAuth walk ran green before the tools existed.
+- [x] **Step 26:** `e2e/agent.spec.ts`: the five-step acceptance walk of the spec, asserting the tracked-change card name, the hatched layer, the share mark and the 401 after Revoke. Evidence: `agent.spec.ts` two tests, green three times in a row on a scratch stack (6 passed).
+- [x] **Step 27:** Update `e2e/README.md` spec list. Evidence: README lists `agent.spec.ts` and `agent.ts`.
 
 ## Failure modes
 

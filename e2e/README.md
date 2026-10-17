@@ -23,6 +23,7 @@ CI runs the suite only on manual dispatch (`gh workflow run e2e.yml --ref <branc
 | [`topics-on-open.spec.ts`](topics-on-open.spec.ts) | topics named for a document opened right after upload |
 | [`time-travel.spec.ts`](time-travel.spec.ts) | versions from the chart, shared `at` links, local highlights, readers, Escape |
 | [`selection-summary.spec.ts`](selection-summary.spec.ts) | summaries by person, the shared cache, staleness and failures |
+| [`agent.spec.ts`](agent.spec.ts) | an MCP client connects through OAuth, edits in tracked mode, shows as AI, is revoked; a revealed share link leaves a mark |
 
 ## Helpers
 
@@ -31,5 +32,6 @@ CI runs the suite only on manual dispatch (`gh workflow run e2e.yml --ref <branc
 | [`fixtures.ts`](fixtures.ts) | the extended `test` (a distinct client address per test, contexts closed after it), sign-in and signed-in contexts |
 | [`editor.ts`](editor.ts) | uploading the seed, typing in a paragraph, share links, reading edit events and the character-accounting invariant |
 | [`timeline.ts`](timeline.ts) | bands, filters, the version frame, summaries and waits on the projection |
+| [`agent.ts`](agent.ts) | OAuth registration, consent and code exchange with PKCE; MCP tool calls with a bearer token; Connected apps; tracked-change cards |
 
 Conventions for every spec are in [`.claude/rules/testing.md`](../.claude/rules/testing.md): no `sleep`, wait on conditions, present-tense names.

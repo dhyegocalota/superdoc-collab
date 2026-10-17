@@ -269,3 +269,43 @@ Pins, green when they landed: the streamgraph tooltip lists the agent author onc
 - `AuthorAvatar` in the selection summary card derives the actor from the " · AI" suffix of the name, because summaries carry names only.
 - Nothing here was run in a browser; the redirect after Approve is the redirect plugin's behaviour and is only unit-tested through the mocked client.
 
+## L5 E2E
+
+### What changed
+
+- `e2e/agent.ts`: registers an MCP client by dynamic registration, drives the consent page, exchanges the code with PKCE, calls tools with `@modelcontextprotocol/sdk` over Streamable HTTP and a bearer token, opens Connected apps and revokes. Tool argument shapes live only here (`readTimelineThroughAgent`, `replaceTextThroughAgent`, `revealShareLinksThroughAgent`).
+- `e2e/agent.spec.ts`: the two E2E boxes of the test plan.
+- `e2e/tsconfig.json`: a `paths` entry maps `@modelcontextprotocol/sdk/*` to the copy installed in `apps/server`, so no root dependency was added. Playwright honours the same mapping at run time.
+
+### How the OAuth code is captured
+
+The client registers a loopback redirect URI on the app's own origin, with no `application_type`, like Claude Code does. The spec signs in as Ana, opens the authorization URL (PKCE S256, `resource` set to the MCP URL) in a second page of the same context, and clicks Approve. `page.route` fulfils the redirect request with an empty 200 and `waitForRequest` reads `code` and `state` from its URL. The token call is made without cookies, as a real client would.
+
+### How to run
+
+```
+pnpm exec playwright test e2e/agent.spec.ts
+```
+
+If another worktree already holds ports 3100 and 3199, use a scratch copy of `playwright.config.ts` with other ports and delete it afterwards.
+
+### Tests
+
+Both tests were written after the product code landed, so neither was red first. Both are pins of the lanes' work.
+
+| Test | Pin of |
+|------|--------|
+| an AI client connects, edits in tracked mode and is revoked | OAuth registration and consent, MCP route, tracked edit through the SDK room join, "Ana · AI" card, hatched layer, Connected apps, revoke then 401 |
+| a shared link revealed by the AI leaves a mark | `get_share_links`, `agent_actions`, the timeline mark and its tooltip |
+
+### Hypotheses to attack
+
+1. Hypothesis: the tracked-change card is found by the SuperDoc class `.comments-dialog.floating-comment`. Break it by: upgrade SuperDoc and rerun; the selector is the only coupling.
+2. Hypothesis: the revoked call fails at `initialize` with HTTP 401. Break it by: revoke between `initialize` and a tool call with a long-lived client.
+3. Hypothesis: three parallel runs do not collide. Break it by: `--repeat-each 5` with four workers; registration is limited to five per minute per address and each test uses its own address.
+
+### Known gaps
+
+- The AI-badge on the author list and the export tool are not covered by an E2E.
+- The mark test reloads the page after the server shows the action, so it does not depend on when the panel refetches; whether the panel picks the mark up without a reload is untested.
+

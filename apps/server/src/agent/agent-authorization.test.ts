@@ -84,6 +84,14 @@ describe('agent authorization', () => {
     expect(await authorizeAgentRequest({ auth: server.auth, request: bearerRequest(token) })).toBeNull();
   });
 
+  test('a client that omits the resource parameter still holds a token the agent route accepts', async () => {
+    const client = await connectAgentClient({ server, user, omitResource: true });
+    expect(await authorizeAgentRequest({ auth: server.auth, request: bearerRequest(client.accessToken) })).toMatchObject({
+      userId: user.id,
+      clientId: client.clientId,
+    });
+  });
+
   test('a lowercase bearer scheme is accepted', async () => {
     const client = await connectAgentClient({ server, user });
     const request = new Request('http://localhost/api/mcp', { method: 'POST', headers: { authorization: `bearer ${client.accessToken}` } });

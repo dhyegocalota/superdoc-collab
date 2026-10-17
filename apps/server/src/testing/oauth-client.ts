@@ -108,12 +108,14 @@ async function requestConsentQuery({
   clientId,
   scopes,
   challenge,
+  resourceParameters,
 }: {
   server: TestServer;
   user: TestUser;
   clientId: string;
   scopes: AgentScope[];
   challenge: string;
+  resourceParameters: Record<string, string>;
 }): Promise<string> {
   const query = new URLSearchParams({
     response_type: CODE_RESPONSE_TYPE,
@@ -123,7 +125,7 @@ async function requestConsentQuery({
     state: OAUTH_STATE,
     code_challenge: challenge,
     code_challenge_method: CHALLENGE_METHOD,
-    resource: `${server.baseUrl}${ApiPath.Mcp}`,
+    ...resourceParameters,
   });
   const response = await requireOk({
     step: 'authorize',
@@ -164,12 +166,14 @@ async function exchangeCode({
   code,
   verifier,
   dpopKey,
+  resourceParameters,
 }: {
   server: TestServer;
   clientId: string;
   code: string;
   verifier: string;
   dpopKey?: DpopKey;
+  resourceParameters: Record<string, string>;
 }): Promise<string> {
   const tokenUrl = authUrl({ server, path: OAuthPath.Token });
   const dpopHeaders: Record<string, string> = dpopKey
@@ -186,7 +190,7 @@ async function exchangeCode({
         redirect_uri: REDIRECT_URI,
         client_id: clientId,
         code_verifier: verifier,
-        resource: `${server.baseUrl}${ApiPath.Mcp}`,
+        ...resourceParameters,
       }),
     }),
   });
@@ -206,20 +210,23 @@ export async function connectAgentClient({
   user,
   scopes = Object.values(AgentScope),
   dpopKey,
+  omitResource = false,
 }: {
   server: TestServer;
   user: TestUser;
   scopes?: AgentScope[];
   dpopKey?: DpopKey;
+  omitResource?: boolean;
 }): Promise<ConnectedAgentClient> {
+  const resourceParameters: Record<string, string> = omitResource ? {} : { resource: `${server.baseUrl}${ApiPath.Mcp}` };
   const clientId = await registerAgentClient({ server, dpopBound: Boolean(dpopKey) });
   const verifier = randomBytes(CODE_VERIFIER_BYTES).toString('base64url');
   const challenge = createHash(DIGEST).update(verifier).digest('base64url');
-  const consentQuery = await requestConsentQuery({ server, user, clientId, scopes, challenge });
+  const consentQuery = await requestConsentQuery({ server, user, clientId, scopes, challenge, resourceParameters });
   const redirectUri = await approveConsent({ server, user, consentQuery, accept: true });
   const code = new URL(redirectUri).searchParams.get('code');
   if (!code) throw new OAuthStepFailedError({ step: 'code', status: 0, body: redirectUri });
-  const accessToken = await exchangeCode({ server, clientId, code, verifier, dpopKey });
+  const accessToken = await exchangeCode({ server, clientId, code, verifier, dpopKey, resourceParameters });
   const consentId = await findConsentId({ auth: server.auth, user, clientId });
   return { accessToken, clientId, consentId, scopes };
 }

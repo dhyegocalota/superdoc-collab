@@ -15,6 +15,7 @@ export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
+export const SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/';
 export const DOCUMENT_NOT_READY_ERROR = 'NOT_READY';
 export const DOCUMENT_NOT_READY_MESSAGE = 'The owner has not opened this document yet.';
 export const DOCUMENT_UNAVAILABLE_MESSAGE = 'This document is no longer available.';

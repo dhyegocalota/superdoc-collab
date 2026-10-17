@@ -1,4 +1,6 @@
-export const SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/';
+import { SUPERDOC_ROOM_PREFIX } from '@superdoc-collab/types';
+
+export { SUPERDOC_ROOM_PREFIX };
 export const DOCUMENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function documentIdFromRoomName(roomName: string): string | null {

@@ -65,3 +65,9 @@ pnpm exec playwright test e2e/selection-summary.spec.ts e2e/time-travel.spec.ts 
 
 - Full E2E suite not run (only the three changed specs).
 - No sweep of `rg` for orphaned constants beyond typecheck; `noUnusedLocals` is off, so an unused constant would not fail.
+
+## Follow-up from pre-flight review
+
+- The topics no-LLM test now awaits `worker.idle()` after the read and after the refresh, so the refresh cannot answer AlreadyRunning and `scheduler.blocks` not being called is a real assertion.
+- The collaboration-server typing interval is cleared with `onTestFinished`.
+- Gap: with the class checks gone, nothing pins the Other band's distinct style (accepted by the spec).

@@ -28,11 +28,17 @@ const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE)
 
 export const signInSchema = z.object({ email, password });
 
-const DOT_LIKE_SEPARATORS = '·•⋅∙・.';
-const RESERVED_NAME_ENDING = new RegExp(`[${DOT_LIKE_SEPARATORS}]\\s*a[il]$`);
+const DOT_LIKE_SEPARATORS = '·•⋅∙・.‧ꞏ˙⸱\u0307';
+const FORMAT_CHARACTERS = /\p{Cf}/gu;
+const RESERVED_NAME_ENDING = new RegExp(`[${DOT_LIKE_SEPARATORS}]\\s*(.)(.)$`, 'u');
+const LOOKALIKES_OF_A = 'aа\u03b1';
+const LOOKALIKES_OF_I = 'il1|ι\u0456\u04c0';
 
 function impersonatesAgent(name: string): boolean {
-  return RESERVED_NAME_ENDING.test(name.normalize('NFKC').toLowerCase());
+  const tail = RESERVED_NAME_ENDING.exec(name.normalize('NFKC').replace(FORMAT_CHARACTERS, '').toLowerCase());
+  if (!tail) return false;
+  const [, first, second] = tail;
+  return LOOKALIKES_OF_A.includes(first!) && LOOKALIKES_OF_I.includes(second!);
 }
 
 const personName = z

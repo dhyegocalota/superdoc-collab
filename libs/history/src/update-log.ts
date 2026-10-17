@@ -19,11 +19,14 @@ export enum IdentitySource {
   Declared = 'declared',
 }
 
-export type ClientIdentity = {
-  documentName: string;
-  yjsClientId: number;
+export type ClientBinding = {
   userId: string;
   actor: ClientActor;
+};
+
+export type ClientIdentity = ClientBinding & {
+  documentName: string;
+  yjsClientId: number;
 };
 
 type UpdateRow = {
@@ -95,7 +98,7 @@ export class UpdateLog {
       .prepare(
         `INSERT INTO client_identities (document_name, yjs_client_id, user_id, source, actor) VALUES (?, ?, ?, ?, ?)
          ON CONFLICT (document_name, yjs_client_id) DO UPDATE SET user_id = excluded.user_id, source = excluded.source, actor = excluded.actor
-         WHERE client_identities.source = ?`,
+         WHERE client_identities.source = ? AND client_identities.actor = excluded.actor`,
       )
       .run(documentName, yjsClientId, userId, IdentitySource.Declared, actor, IdentitySource.Observed);
   }
@@ -108,11 +111,11 @@ export class UpdateLog {
     return new Map(rows.map((row) => [row.yjs_client_id, row.source]));
   }
 
-  clientIdentities(documentName: string): Map<number, string> {
+  clientIdentities(documentName: string): Map<number, ClientBinding> {
     const rows = this.database
-      .prepare('SELECT yjs_client_id, user_id FROM client_identities WHERE document_name = ?')
-      .all(documentName) as { yjs_client_id: number; user_id: string }[];
-    return new Map(rows.map((row) => [row.yjs_client_id, row.user_id]));
+      .prepare('SELECT yjs_client_id, user_id, actor FROM client_identities WHERE document_name = ?')
+      .all(documentName) as { yjs_client_id: number; user_id: string; actor: ClientActor }[];
+    return new Map(rows.map((row) => [row.yjs_client_id, { userId: row.user_id, actor: row.actor }]));
   }
 
   read({ documentName, untilSequence }: { documentName: string; untilSequence: number }): LoggedUpdate[] {

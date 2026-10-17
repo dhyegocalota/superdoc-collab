@@ -2,7 +2,7 @@ import { BlockChangeKind } from '@superdoc-history/types';
 import { diffChars } from 'diff';
 import * as Y from 'yjs';
 import { readMainStoryBlocks, type Block } from './document-content';
-import type { LoggedUpdate } from './update-log';
+import type { ClientBinding, LoggedUpdate } from './update-log';
 import { endsItsMinute, markOf, type VersionMark } from './version-marks';
 
 export type EditEvent = {
@@ -61,12 +61,12 @@ export function resolveAuthorIds({
   identities,
 }: {
   update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
-  identities: Map<number, string>;
+  identities: Map<number, ClientBinding>;
 }): string[] {
   const structAuthors = update.yjsClientIds.flatMap((clientId) => {
-    const userId = identities.get(clientId);
-    if (!userId) throw new Error(`Yjs client ${clientId} has no bound identity.`);
-    return [userId];
+    const binding = identities.get(clientId);
+    if (!binding) throw new Error(`Yjs client ${clientId} has no bound identity.`);
+    return [binding.userId];
   });
   if (structAuthors.length === 0) return [update.connectionUserId];
   return [...new Set(structAuthors)].sort();

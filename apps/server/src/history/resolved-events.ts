@@ -1,4 +1,4 @@
-import { resolveAuthorIds, type StoredEditEvent } from '@superdoc-history/history';
+import { resolveAuthorIds, type ClientBinding, type StoredEditEvent } from '@superdoc-history/history';
 import type { DocumentEditEvent, EventAuthor } from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
 
@@ -14,7 +14,7 @@ export class UnknownAuthorError extends Error {
   }
 }
 
-function authorIdsOf({ event, identities }: { event: StoredEditEvent; identities: Map<number, string> }): string[] {
+function authorIdsOf({ event, identities }: { event: StoredEditEvent; identities: Map<number, ClientBinding> }): string[] {
   const { yjsClientIds, connectionUserId } = event;
   if (event.imported) return [];
   if (yjsClientIds === null || connectionUserId === null) throw new IncompleteEditEventError(event.id);

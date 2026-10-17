@@ -24,7 +24,7 @@ import {
   type DocumentTimeline,
   type SelectionSummaryView,
 } from '@superdoc-history/types';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID } from '@/test/opened-document';
@@ -337,11 +337,11 @@ test('clicking a bin without a version mark summarizes that bin', async () => {
 
 test('an up-to-date summary disables Summarize and a stale one shows the badge and enables it', async () => {
   mockTimelineApi({ selectionViews: [READY_VIEW] });
-  const upToDate = renderPanel();
+  renderPanel();
   await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE);
-  upToDate.unmount();
+  cleanup();
   vi.restoreAllMocks();
   mockTimelineApi({ selectionViews: [STALE_VIEW] });
   renderPanel();
@@ -385,11 +385,11 @@ test('the cooldown message belongs to the selection that caused it', async () =>
 
 test('a failed summary offers a retry to editors only', async () => {
   const fetchSpy = mockTimelineApi({ selectionViews: [FAILED_VIEW] });
-  const editor = renderPanel();
+  renderPanel();
   expect(await screen.findByText(SELECTION_SUMMARY_FAILED_MESSAGE)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: RETRY_SUMMARY_LABEL }));
   await waitFor(() => expect(postCalls(fetchSpy)).toHaveLength(1));
-  editor.unmount();
+  cleanup();
   renderPanel({ role: DocumentRole.Reader });
   expect(await screen.findByText(SELECTION_SUMMARY_FAILED_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: RETRY_SUMMARY_LABEL })).not.toBeInTheDocument();

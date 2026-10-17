@@ -319,3 +319,9 @@ Both tests were written after the product code landed, so neither was red first.
 ### Known gaps
 
 - None known for the lane; all three tests are pins, not red-first.
+
+### L4 review fixes
+
+- Sign-in redirect goes to `next` (was always Documents); the consent card shows "Access will be sent to <host>"; a client without a name shows its redirect host on consent and "Unnamed AI client" with Revoke on Connected apps; `invalid_signature` shows the expired message on consent and sign-in; the sign-up and sign-in links keep a signed query; sign-up refuses names ending in "· AI"; AI badge and action marks are `role="img"` (marks are focusable images, no longer buttons); ChatGPT copy button copies only the URL; `OFFLINE_ACCESS_SCOPE` lives in `libs/types`.
+- E2E selectors changed: action marks are `getByRole('img', { name })`; the AI badge is `getByRole('img', { name: 'Edited by AI' })`.
+- Verified: auth and agent E2E specs pass on a scratch config (12 tests) including the signed-out authorize walk and the Connected apps deep link.

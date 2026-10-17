@@ -1,10 +1,22 @@
-import { AgentActionKind, DOCX_MIME_TYPE, AgentTool, agentAuthorName, ClientActor, DEMO_USERS, HttpStatus } from '../libs/types/src';
+import {
+  AppRoute,
+  AgentActionKind,
+  DOCX_MIME_TYPE,
+  AgentTool,
+  agentAuthorName,
+  ClientActor,
+  DEMO_USERS,
+  HttpStatus,
+} from '../libs/types/src';
 import {
   callTool,
   exportDocxThroughAgent,
+  approveConsentPage,
+  beginAuthorization,
   connectAiClient,
   openConnectedApps,
   readTimelineThroughAgent,
+  registerClient,
   revealShareLinksThroughAgent,
   replaceTextThroughAgent,
   rejectedStatus,
@@ -13,7 +25,7 @@ import {
   trackedChangeCards,
 } from './agent';
 import { insertInParagraph, uploadSeed } from './editor';
-import { expect, signedInContext, test } from './fixtures';
+import { DEMO_PASSWORD, expect, signedInContext, signIn, test } from './fixtures';
 import { agentActionLabel, AI_BADGE_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import {
   ANA_TEXT,
@@ -69,7 +81,7 @@ test('a shared link revealed by the AI leaves a mark', async ({ browser, request
     .poll(async () => (await readTimeline({ page: ana.page, documentId })).agentActions.map((action) => action.kind))
     .toEqual([AgentActionKind.ShareLinkRevealed]);
   const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.ShareLinkRevealed });
-  const mark = ana.page.getByRole('button', { name: label });
+  const mark = ana.page.getByRole('img', { name: label });
   await expect(mark).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
   await mark.hover();
   await expect(ana.page.getByRole('tooltip')).toHaveText(label);
@@ -88,5 +100,19 @@ test('a document exported by the AI is a DOCX and leaves a mark', async ({ brows
   expect(mimeType).toBe(DOCX_MIME_TYPE);
   expect(bytes.subarray(0, ZIP_SIGNATURE.length)).toEqual(ZIP_SIGNATURE);
   const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.DocumentExported });
-  await expect(ana.page.getByRole('button', { name: label })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
+  await expect(ana.page.getByRole('img', { name: label })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
+});
+
+test('a signed-out authorize walk reaches consent after sign-in and Approve reaches the redirect with a code', async ({
+  page,
+  request,
+}) => {
+  await page.goto(AppRoute.SignIn);
+  const { origin } = new URL(page.url());
+  const client = await registerClient({ request, origin });
+  const { state, callback } = await beginAuthorization({ page, client, origin });
+  await expect(page).toHaveURL(new RegExp(`${AppRoute.SignIn}\\?`));
+  await signIn({ page, email: ANA.email, password: DEMO_PASSWORD });
+  const code = await approveConsentPage({ page, client, state, callback });
+  expect(code).not.toBe('');
 });

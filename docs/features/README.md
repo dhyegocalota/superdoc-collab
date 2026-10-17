@@ -35,3 +35,4 @@ Fixes after the five slices:
 | Fix | Closes | Status |
 |-----|--------|--------|
 | [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |
+| [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Building |

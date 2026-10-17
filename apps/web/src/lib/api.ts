@@ -4,6 +4,12 @@ const JSON_CONTENT_TYPE = 'application/json';
 
 export class ApiRequestError extends Error {}
 
+export class DocumentUnavailableError extends ApiRequestError {}
+
+export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
+  return `${subject} failed with status ${status}.`;
+}
+
 export class RetryLaterError extends ApiRequestError {
   readonly retryAfterMs: number;
 

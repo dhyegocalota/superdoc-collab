@@ -1,7 +1,7 @@
 import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
-import { DocumentUnavailableError } from '@/features/editor/editor-api';
+import { DocumentUnavailableError } from '@/lib/api';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 

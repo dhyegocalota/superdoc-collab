@@ -9,15 +9,9 @@ import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { DocumentUnavailableError } from '@/lib/api';
 import { useRequiredParam } from '@/lib/use-required-param';
-import {
-  DocumentUnavailableError,
-  documentFileQueryKey,
-  fetchDocumentFile,
-  fetchMembers,
-  MEMBERS_REFRESH_MS,
-  membersQueryKey,
-} from './editor-api';
+import { documentFileQueryKey, fetchDocumentFile, fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
 import { HomeLink } from './home-link';

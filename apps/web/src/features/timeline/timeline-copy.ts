@@ -42,10 +42,6 @@ const UNIT_LABELS: Record<EditUnit, { one: string; many: string }> = {
   [EditUnit.Character]: { one: 'character', many: 'characters' },
 };
 
-export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
-  return `${subject} failed with status ${status}.`;
-}
-
 export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
   return `${name}, ${countLabel({ count: volume, unit: EditUnit.Character })}`;
 }

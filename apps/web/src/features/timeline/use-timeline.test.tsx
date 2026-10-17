@@ -24,11 +24,12 @@ function requestedZones(fetchSpy: { mock: { calls: unknown[][] } }): (string | n
 }
 
 test('the timeline request carries the effective zone and changing the zone refetches', async () => {
-  const fetchSpy = vi
-    .spyOn(globalThis, 'fetch')
-    .mockImplementation(async () => jsonResponse({ body: timelineWith({ volumes: [[1]], names: ['Budget'] }) }));
   const queryClient = new QueryClient();
   queryClient.setQueryData(SESSION_QUERY_KEY, USER);
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: queryClient.getQueryData(SESSION_QUERY_KEY) } });
+    return jsonResponse({ body: timelineWith({ volumes: [[1]], names: ['Budget'] }) });
+  });
   renderHookWithRouter(() => useTimeline({ documentId: DOCUMENT_ID, filter: FILTER, isOpen: true }), { queryClient });
   await waitFor(() => expect(requestedZones(fetchSpy)).toEqual([SAO_PAULO]));
   act(() => queryClient.setQueryData(SESSION_QUERY_KEY, { ...USER, timeZone: KATHMANDU }));

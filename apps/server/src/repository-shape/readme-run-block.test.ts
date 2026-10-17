@@ -18,7 +18,9 @@ type PnpmInvocation = { packageName: string | undefined; script: string };
 const README_FILE = 'README.md';
 const ENVIRONMENT_EXAMPLE_FILE = '.env.example';
 const ROOT_COMPOSE_FILE = 'docker-compose.yml';
-const RUN_SECTION_HEADING = '## Run it';
+const INSTALL_FILE = 'docs/install.md';
+const QUICK_INSTALL_HEADING = '## Quick install';
+const FROM_SOURCE_HEADING = '## Run from source';
 const SECTION_END = '\n## ';
 const LINE_SEPARATOR = '\n';
 const COMPOSE_COMMAND = 'docker compose';
@@ -78,15 +80,15 @@ function composeNames(): string[] {
   return [...rootCompose.matchAll(COMPOSE_VARIABLE_PATTERN)].flatMap((match) => match.slice(1).filter(Boolean));
 }
 
-function runSection(text: string): string {
-  const start = text.indexOf(RUN_SECTION_HEADING);
-  if (start === -1) throw new Error(`${RUN_SECTION_HEADING} is missing`);
-  const end = text.indexOf(SECTION_END, start + RUN_SECTION_HEADING.length);
+function section({ text, heading }: { text: string; heading: string }): string {
+  const start = text.indexOf(heading);
+  if (start === -1) throw new Error(`${heading} is missing`);
+  const end = text.indexOf(SECTION_END, start + heading.length);
   return end === -1 ? text.slice(start) : text.slice(start, end);
 }
 
-function withoutRunSection(text: string): string {
-  return text.replace(runSection(text), '');
+function withoutQuickInstall(text: string): string {
+  return text.replace(section({ text, heading: QUICK_INSTALL_HEADING }), '');
 }
 
 function pnpmInvocations(text: string): PnpmInvocation[] {
@@ -111,9 +113,12 @@ function composeFiles(text: string): string[] {
     });
 }
 
-const runText = runSection(readme);
+const runText = [
+  section({ text: readme, heading: QUICK_INSTALL_HEADING }),
+  section({ text: readRepositoryFile(INSTALL_FILE), heading: FROM_SOURCE_HEADING }),
+].join(LINE_SEPARATOR);
 
-describe('the README run section', () => {
+describe('the README quick install and the install guide run from source', () => {
   test('has at least one pnpm command to check', () => {
     expect(pnpmInvocations(runText).length).toBeGreaterThan(0);
   });
@@ -143,7 +148,7 @@ describe('the README run section', () => {
   });
 
   test('a pnpm command written in prose is checked like one in a fenced block', () => {
-    const scratch = runSection(readme.replace('`docker compose down -v`', '`pnpm reset`'));
+    const scratch = section({ text: readme.replace('`docker compose down -v`', '`pnpm reset`'), heading: QUICK_INSTALL_HEADING });
     expect(pnpmInvocations(scratch).filter((invocation) => !isPackageScript(invocation))).toEqual([
       { packageName: undefined, script: 'reset' },
     ]);
@@ -158,15 +163,20 @@ describe('the README run section', () => {
   });
 
   test('a missing heading throws and a last section runs to the end', () => {
-    expect(() => runSection('# Title')).toThrow();
-    expect(runSection(`# Title\n\n${RUN_SECTION_HEADING}\n\ntext`)).toBe(`${RUN_SECTION_HEADING}\n\ntext`);
+    expect(() => section({ text: '# Title', heading: QUICK_INSTALL_HEADING })).toThrow();
+    expect(section({ text: `# Title\n\n${QUICK_INSTALL_HEADING}\n\ntext`, heading: QUICK_INSTALL_HEADING })).toBe(
+      `${QUICK_INSTALL_HEADING}\n\ntext`,
+    );
   });
 });
 
 describe('the README prose', () => {
-  test.each(capturedNames({ text: readme, pattern: PROSE_VARIABLE_PATTERN }))('%s is a key of the example environment file', (name) => {
-    expect(documentedVariables).toContain(name);
-  });
+  test.each([...new Set(capturedNames({ text: `${readme}${LINE_SEPARATOR}${runText}`, pattern: PROSE_VARIABLE_PATTERN }))])(
+    '%s is a key of the example environment file',
+    (name) => {
+      expect(documentedVariables).toContain(name);
+    },
+  );
 
   test.each(capturedNames({ text: readme, pattern: DEMO_ADDRESS_PATTERN }))('%s is a demo user', (email) => {
     expect(DEMO_USERS.map((user) => user.email)).toContain(email);
@@ -186,8 +196,8 @@ describe('the README prose', () => {
 });
 
 describe('where commands and configuration may appear', () => {
-  test('the only fenced blocks of the root README sit under the Run it heading', () => {
-    expect(FENCE_PATTERN.test(withoutRunSection(readme))).toBe(false);
+  test('the only fenced blocks of the root README sit under the Quick install heading', () => {
+    expect(FENCE_PATTERN.test(withoutQuickInstall(readme))).toBe(false);
   });
 
   const packageReadmes = [...workspacePackages(), ...DOCUMENTED_FOLDERS].map((path) => posix.join(path, README_FILE));

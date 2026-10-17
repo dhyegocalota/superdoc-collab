@@ -1,4 +1,4 @@
-import { clampToMark, type ReadModel, type VersionMarkSummary } from '@superdoc-collab/history';
+import { resolveMark, type ReadModel, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
 import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { LruMap } from '../limits/lru-map';
@@ -72,6 +72,7 @@ function isOverVersionBudget({
 
 export class VersionsService {
   private readonly readModel: ReadModel;
+  private readonly updateLog: UpdateLog;
   private readonly scheduler: ProjectionScheduler;
   private readonly cache: LruMap<LoadedVersion>;
   private readonly loading = new Map<string, Promise<LoadedVersion>>();
@@ -80,22 +81,27 @@ export class VersionsService {
 
   constructor({
     readModel,
+    updateLog,
     scheduler,
     maxEntries = VERSION_CACHE_SIZE,
     maxBytes = VERSION_CACHE_MAX_BYTES,
   }: {
     readModel: ReadModel;
+    updateLog: UpdateLog;
     scheduler: ProjectionScheduler;
     maxEntries?: number;
     maxBytes?: number;
   }) {
     this.readModel = readModel;
+    this.updateLog = updateLog;
     this.scheduler = scheduler;
     this.cache = new LruMap({ isOverBudget: (entries) => isOverVersionBudget({ entries, maxEntries, maxBytes }) });
   }
 
+  // NB ADR 0027: a sequence whose mark was pruned resolves to the surviving mark of its minute, never to an earlier one.
   resolve({ documentId, sequence }: VersionEndpoint): VersionMarkSummary | null {
-    return clampToMark({ marks: this.readModel.marks(documentId), sequence });
+    const serverTime = this.updateLog.serverTimeOf({ documentName: documentId, sequence });
+    return resolveMark({ marks: this.readModel.marks(documentId), sequence, serverTime });
   }
 
   peek(endpoint: VersionEndpoint): VersionLookup {

@@ -49,3 +49,12 @@ test('forget removes one document and keeps the others', () => {
   expect(log.clientIdentities(DOCUMENT).size).toBe(0);
   expect(log.hasUpdates(OTHER_DOCUMENT)).toBe(true);
 });
+
+test('serverTimeOf answers the logged time for a sequence of the document and null otherwise', () => {
+  const log = logWith(3);
+  typedUpdates(1).forEach((update) => log.append({ documentName: OTHER_DOCUMENT, connectionUserId: 'bruno', update }));
+  const [first] = log.read({ documentName: DOCUMENT, untilSequence: 1 });
+  expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 1 })).toBe(first!.serverTime);
+  expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 99 })).toBeNull();
+  expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 4 })).toBeNull();
+});

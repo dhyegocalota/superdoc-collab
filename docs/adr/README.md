@@ -44,3 +44,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0023](0023-agentic-scenario-runs-with-one-browser-per-author.md) | Agentic scenario runs with one Playwright MCP server per author | Accepted | 2026-10-17 |
 | [0024](0024-times-follow-the-readers-zone-storage-stays-epoch.md) | Times follow the reader's zone; storage stays epoch milliseconds | Accepted | 2026-10-17 |
 | [0026](0026-the-agent-repairs-its-own-machine-doctor-reports-never-installs.md) | The agent repairs its own machine: a doctor reports at session start and never installs | Accepted | 2026-10-17 |
+| [0027](0027-a-pruned-version-sequence-resolves-to-its-minute.md) | A pruned version sequence resolves to the surviving mark of its minute | Accepted | 2026-10-17 |

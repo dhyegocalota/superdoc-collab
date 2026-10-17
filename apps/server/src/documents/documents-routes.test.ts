@@ -2,6 +2,7 @@ import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-history/hist
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
 import {
   ApiPath,
+  ClientActor,
   DOCUMENT_NOT_READY_ERROR,
   DOCX_MIME_TYPE,
   documentApiPath,
@@ -142,7 +143,7 @@ test('imported Word revisions appear in the events with the revision author', { 
         ]),
       { timeout: IMPORT_TIMEOUT_MS },
     )
-    .toEqual([[true, [{ id: null, name: 'Chris Crawford' }], ' developers']]);
+    .toEqual([[true, [{ id: null, name: 'Chris Crawford', actor: ClientActor.Human }], ' developers']]);
   await server.stop();
 });
 

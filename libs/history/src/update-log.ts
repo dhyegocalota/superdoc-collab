@@ -1,12 +1,14 @@
 import type Database from 'better-sqlite3';
+import { ClientActor } from '@superdoc-history/types';
 import * as Y from 'yjs';
 
-const HISTORY_TABLES = ['updates', 'snapshots', 'client_identities'];
+const HISTORY_TABLES = ['updates', 'snapshots', 'client_identities', 'agent_actions'];
 
 export type LoggedUpdate = {
   sequence: number;
   documentName: string;
   connectionUserId: string;
+  connectionActor: ClientActor;
   yjsClientIds: number[];
   serverTime: number;
   update: Uint8Array;
@@ -17,16 +19,21 @@ export enum IdentitySource {
   Declared = 'declared',
 }
 
-export type ClientIdentity = {
+export type ClientBinding = {
+  userId: string;
+  actor: ClientActor;
+};
+
+export type ClientIdentity = ClientBinding & {
   documentName: string;
   yjsClientId: number;
-  userId: string;
 };
 
 type UpdateRow = {
   sequence: number;
   document_name: string;
   connection_user_id: string;
+  connection_actor: ClientActor;
   yjs_client_ids: string;
   server_time: number;
   update_bytes: Uint8Array;
@@ -37,6 +44,7 @@ function toLoggedUpdate(row: UpdateRow): LoggedUpdate {
     sequence: row.sequence,
     documentName: row.document_name,
     connectionUserId: row.connection_user_id,
+    connectionActor: row.connection_actor,
     yjsClientIds: JSON.parse(row.yjs_client_ids),
     serverTime: row.server_time,
     update: new Uint8Array(row.update_bytes),
@@ -55,30 +63,44 @@ export class UpdateLog {
     this.database = database;
   }
 
-  append({ documentName, connectionUserId, update }: { documentName: string; connectionUserId: string; update: Uint8Array }): LoggedUpdate {
+  append({
+    documentName,
+    connectionUserId,
+    connectionActor,
+    update,
+  }: {
+    documentName: string;
+    connectionUserId: string;
+    connectionActor: ClientActor;
+    update: Uint8Array;
+  }): LoggedUpdate {
     const yjsClientIds = extractStructClientIds(update);
     const serverTime = Date.now();
-    yjsClientIds.forEach((yjsClientId) => this.observeClientIdentity({ documentName, yjsClientId, userId: connectionUserId }));
+    yjsClientIds.forEach((yjsClientId) =>
+      this.observeClientIdentity({ documentName, yjsClientId, userId: connectionUserId, actor: connectionActor }),
+    );
     const result = this.database
-      .prepare('INSERT INTO updates (document_name, connection_user_id, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?)')
-      .run(documentName, connectionUserId, JSON.stringify(yjsClientIds), serverTime, update);
-    return { sequence: Number(result.lastInsertRowid), documentName, connectionUserId, yjsClientIds, serverTime, update };
+      .prepare(
+        'INSERT INTO updates (document_name, connection_user_id, connection_actor, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(documentName, connectionUserId, connectionActor, JSON.stringify(yjsClientIds), serverTime, update);
+    return { sequence: Number(result.lastInsertRowid), documentName, connectionUserId, connectionActor, yjsClientIds, serverTime, update };
   }
 
-  observeClientIdentity({ documentName, yjsClientId, userId }: ClientIdentity): void {
+  observeClientIdentity({ documentName, yjsClientId, userId, actor }: ClientIdentity): void {
     this.database
-      .prepare('INSERT OR IGNORE INTO client_identities (document_name, yjs_client_id, user_id, source) VALUES (?, ?, ?, ?)')
-      .run(documentName, yjsClientId, userId, IdentitySource.Observed);
+      .prepare('INSERT OR IGNORE INTO client_identities (document_name, yjs_client_id, user_id, source, actor) VALUES (?, ?, ?, ?, ?)')
+      .run(documentName, yjsClientId, userId, IdentitySource.Observed, actor);
   }
 
-  declareClientIdentity({ documentName, yjsClientId, userId }: ClientIdentity): void {
+  declareClientIdentity({ documentName, yjsClientId, userId, actor }: ClientIdentity): void {
     this.database
       .prepare(
-        `INSERT INTO client_identities (document_name, yjs_client_id, user_id, source) VALUES (?, ?, ?, ?)
-         ON CONFLICT (document_name, yjs_client_id) DO UPDATE SET user_id = excluded.user_id, source = excluded.source
-         WHERE client_identities.source = ?`,
+        `INSERT INTO client_identities (document_name, yjs_client_id, user_id, source, actor) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (document_name, yjs_client_id) DO UPDATE SET user_id = excluded.user_id, source = excluded.source, actor = excluded.actor
+         WHERE client_identities.source = ? AND client_identities.actor = excluded.actor`,
       )
-      .run(documentName, yjsClientId, userId, IdentitySource.Declared, IdentitySource.Observed);
+      .run(documentName, yjsClientId, userId, IdentitySource.Declared, actor, IdentitySource.Observed);
   }
 
   identitySources(documentName: string): Map<number, IdentitySource> {
@@ -89,11 +111,11 @@ export class UpdateLog {
     return new Map(rows.map((row) => [row.yjs_client_id, row.source]));
   }
 
-  clientIdentities(documentName: string): Map<number, string> {
+  clientIdentities(documentName: string): Map<number, ClientBinding> {
     const rows = this.database
-      .prepare('SELECT yjs_client_id, user_id FROM client_identities WHERE document_name = ?')
-      .all(documentName) as { yjs_client_id: number; user_id: string }[];
-    return new Map(rows.map((row) => [row.yjs_client_id, row.user_id]));
+      .prepare('SELECT yjs_client_id, user_id, actor FROM client_identities WHERE document_name = ?')
+      .all(documentName) as { yjs_client_id: number; user_id: string; actor: ClientActor }[];
+    return new Map(rows.map((row) => [row.yjs_client_id, { userId: row.user_id, actor: row.actor }]));
   }
 
   read({ documentName, untilSequence }: { documentName: string; untilSequence: number }): LoggedUpdate[] {

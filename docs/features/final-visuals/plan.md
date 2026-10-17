@@ -118,12 +118,12 @@ Each red step's test is written first and committed alone. Stubs throw `<name> i
 
 ### G6 waiting page
 
-- [ ] **Step 45: typed not-ready error.** Test `apps/web/src/features/editor/editor-api.test.ts::a 409 NOT_READY throws DocumentNotReadyError, not a generic error`. Red: `expected ApiRequestError to be DocumentNotReadyError`.
-- [ ] **Step 46: polling.** Tests `use-opened-document.test.tsx::a NOT_READY answer is a state that polls every 2 s and enters on 200`. Red: `expected undefined to be true` on `isNotReady`.
-- [ ] **Step 47: give-up counts polls.** Test `use-opened-document.test.tsx::after 150 polls the state is paused, and ten minutes hidden with zero polls keeps it waiting`. Expected: paused after 150 polls, not after 300000 ms of hidden time. Red: `expected false to be true`.
-- [ ] **Step 48: keep waiting and errors.** Tests `use-opened-document.test.tsx::keepWaiting restarts the count` and `…::a non-409 error stays an error and retry refetches once`. Red: `keepWaiting is not a function`.
-- [ ] **Step 49: waiting card.** Tests `waiting-for-document.test.tsx::the waiting state shows Preparing the document… and Back to documents`, `…::the paused state shows the five-minute message and Keep waiting first`, and `…::the title shows when the documents cache holds it, and a skeleton otherwise`. Red: `Failed to resolve import "./waiting-for-document"`.
-- [ ] **Step 50: remove dead notice.** Delete `unavailable-notice.tsx` and `DOCUMENT_NOT_READY_MESSAGE` from `libs/types/src/documents.ts`. Red: none; proof is `pnpm typecheck` after G2's integration step.
+- [x] **Step 45: typed not-ready error.** Test `apps/web/src/features/editor/editor-api.test.ts::a 409 NOT_READY throws DocumentNotReadyError, not a generic error`. Red: `expected ApiRequestError to be DocumentNotReadyError`. Done: red `1fb396c`, green `5e50263`.
+- [x] **Step 46: polling.** Tests `use-opened-document.test.tsx::a NOT_READY answer is a state that polls every 2 s and enters on 200`. Red: `expected undefined to be true` on `isNotReady`. Done: red `26f67bd`, green `ffa5adb`. The hook returns `readiness` (a `DocumentReadiness` enum) instead of an `isNotReady` flag.
+- [x] **Step 47: give-up counts polls.** Test `use-opened-document.test.tsx::after 150 polls the state is paused, and ten minutes hidden with zero polls keeps it waiting`. Expected: paused after 150 polls, not after 300000 ms of hidden time. Red: `expected false to be true`. Done: red `26f67bd`, green `ffa5adb`. The hidden half is its own test, `ten minutes hidden with zero polls keeps it waiting`.
+- [x] **Step 48: keep waiting and errors.** Tests `use-opened-document.test.tsx::keepWaiting restarts the count` and `…::a non-409 error stays an error and retry refetches once`. Red: `keepWaiting is not a function`. Done: red `26f67bd`, green `ffa5adb`. The retry function is named `retry`.
+- [x] **Step 49: waiting card.** Tests `waiting-for-document.test.tsx::the waiting state shows Preparing the document… and Back to documents`, `…::the paused state shows the five-minute message and Keep waiting first`, and `…::the title shows when the documents cache holds it, and a skeleton otherwise`. Red: `Failed to resolve import "./waiting-for-document"`. Done: red `c2a914d`, green `9dbb452`.
+- [ ] **Step 50: remove dead notice.** Delete `unavailable-notice.tsx` and `DOCUMENT_NOT_READY_MESSAGE` from `libs/types/src/documents.ts`. Red: none; proof is `pnpm typecheck` after G2's integration step. Pending G2 integration: `document-page.tsx`, `document-page.test.tsx` and `e2e/documents.spec.ts` still import `UnavailableNotice` or `DOCUMENT_NOT_READY_MESSAGE`, so nothing is deleted in lane G6.
 
 ### G7 pages
 

@@ -371,6 +371,17 @@ test('the 61st open of uncommitted documents by one user within a minute answers
   await server.stop();
 });
 
+test('the 61st open of an uncommitted document makes no query to the log', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  await Promise.all(
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }, () => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })),
+  );
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const limited = await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) });
+  expect([limited.status, readBatch.mock.calls.length]).toEqual([HttpStatus.TooManyRequests, 0]);
+  await server.stop();
+});
+
 test('a committed room answers Join with creatorAttempt null for a reader and an editor', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });

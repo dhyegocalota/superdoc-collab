@@ -1,5 +1,12 @@
 import { commitBootstrap as markBootstrapCommitted, writeStory } from '@superdoc-collab/history/testing';
-import { ApiPath, ClientActor, DocumentRole, RoomMode, SUPERSEDED_ATTEMPT_CLOSE_CODE } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  ClientActor,
+  DocumentRole,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  RoomMode,
+  SUPERSEDED_ATTEMPT_CLOSE_CODE,
+} from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
@@ -267,6 +274,17 @@ describe('collaboration room lifecycle', () => {
 });
 
 describe('collaboration admission to an uncommitted room', () => {
+  test('a user who exhausted the open budget is refused before the log is scanned', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach(() => server.services.openLimits.record(owner.id));
+    const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    expect(readBatch).not.toHaveBeenCalled();
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    warn.mockRestore();
+    await server.stop();
+  });
   test('a member is refused on an uncommitted room with no attempt', async () => {
     const { server, documentId } = await documentWithOwner();
     const member = await memberWithRole({ server, documentId, role: DocumentRole.Editor });

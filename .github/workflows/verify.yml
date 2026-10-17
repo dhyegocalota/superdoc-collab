@@ -13,13 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  typecheck:
+  checks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install
+      - run: pnpm format:check
       - run: pnpm typecheck
+      - run: pnpm test:hooks
 
   unit:
     runs-on: ubuntu-latest

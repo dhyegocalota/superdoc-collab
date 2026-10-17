@@ -2,6 +2,9 @@ export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';
 
 export const TIMELINE_HEADING = 'Timeline';
 export const REFRESH_TOPICS_LABEL = 'Refresh topics';
+export const REGROUP_TOPICS_LABEL = 'Refresh topics';
+export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
+export const NOTHING_TO_GROUP_MESSAGE = 'No edits to group into topics yet';
 export const RETRY_TOPICS_LABEL = 'Retry';
 export const FILTER_LABEL = 'Filter';
 export const FILTER_PLACEHOLDER = 'Filter by text or @person';

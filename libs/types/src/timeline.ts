@@ -13,7 +13,6 @@ export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
-export const SELECTION_SUMMARY_COOLDOWN_MS = 30 * SECOND_MS;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_BUSY_MESSAGE = 'Summaries are busy. Try again in a moment.';
 export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
@@ -23,7 +22,6 @@ export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
 export const TOPICS_UNAVAILABLE_MESSAGE = 'Topics unavailable';
 export const TOPICS_PENDING_MESSAGE = 'Naming topics…';
 export const TOPICS_FAILED_MESSAGE = 'The topics could not be named. Try again.';
-export const TOPICS_REFRESH_TOO_SOON_MESSAGE = 'Topics were refreshed a moment ago. Try again in a few seconds.';
 export const HISTORY_CATCHING_UP_MESSAGE = 'History is catching up.';
 export const NO_MATCHING_EDITS_MESSAGE = 'No edits match.';
 export const TOPICS_INTERRUPTED_MESSAGE = 'Naming topics was interrupted. Try again.';

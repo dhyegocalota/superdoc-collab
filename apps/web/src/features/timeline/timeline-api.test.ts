@@ -11,9 +11,7 @@ import {
   selectionSummaryApiPath,
   SelectionSummaryState,
   SummarizeStep,
-  TOPICS_REFRESH_TOO_SOON_MESSAGE,
   TopicState,
-  topicsRefreshApiPath,
   type EditSelection,
   type SelectionSummaryView,
   type TopicStatus,
@@ -26,10 +24,8 @@ import {
   fetchSelectionSummary,
   fetchTimeline,
   fetchVersion,
-  refreshTopics,
   requestSelectionSummary,
   SummaryTooSoonError,
-  TopicsRefreshTooSoonError,
   VersionLoadKind,
 } from './timeline-api';
 import { SUMMARIZE_EDITS_SUBJECT } from './timeline-copy';
@@ -101,16 +97,6 @@ test('fetchVersion never retries faster than the minimum delay', async () => {
     kind: VersionLoadKind.Pending,
     retryAfterMs: MIN_RETRY_AFTER_MS,
   });
-});
-
-test('refreshTopics returns the status on 202 and explains a 429', async () => {
-  const fetchSpy = respondWith(jsonResponse({ body: STATUS, status: HttpStatus.Accepted }));
-  expect(await refreshTopics(DOCUMENT_ID)).toEqual(STATUS);
-  expect(fetchSpy).toHaveBeenCalledWith(topicsRefreshApiPath(DOCUMENT_ID), expect.objectContaining({ method: HttpMethod.Post }));
-  respondWith(new Response(null, { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '7' } }));
-  const error = await refreshTopics(DOCUMENT_ID).catch((caught: unknown) => caught);
-  expect(error).toBeInstanceOf(TopicsRefreshTooSoonError);
-  expect(error).toMatchObject({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs: 7000 });
 });
 
 const SELECTION_QUERY = `term=budget&author=ana&topic=band-0&at=${SELECTION.at}`;

@@ -1,0 +1,9 @@
+import { DOCUMENT_READY_GIVE_UP_MS, MINUTE_MS } from '@superdoc-collab/types';
+
+export const PREPARING_DOCUMENT_MESSAGE = 'Preparing the document…';
+export const PREPARING_DOCUMENT_HINT = 'It opens here on its own as soon as its owner has opened it once.';
+export const NOT_READY_PAUSED_HEADING = 'The document is not ready yet';
+export const NOT_READY_PAUSED_MESSAGE = `We stopped checking after ${DOCUMENT_READY_GIVE_UP_MS / MINUTE_MS} minutes. Its owner has not opened it once.`;
+export const KEEP_WAITING_LABEL = 'Keep waiting';
+export const TRY_AGAIN_LABEL = 'Try again';
+export const LOAD_RETRY_HINT = 'Check your connection and try again.';

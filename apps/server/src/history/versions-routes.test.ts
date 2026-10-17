@@ -85,6 +85,21 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
   await server.stop();
 });
 
+test('a logged sequence that is not a mark resolves to the mark that ends its minute', async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const newestMark = server.services.readModel.marks(documentId).at(-1)!;
+  const loggedBetween = server.services.updateLog
+    .read({ documentName: documentId, untilSequence: newestMark.sequence })
+    .map((update) => update.sequence)
+    .filter((sequence) => sequence > newestMark.sequence - 1 || sequence < newestMark.sequence)
+    .find((sequence) => sequence !== newestMark.sequence && sequence > server.services.readModel.marks(documentId)[0]!.sequence);
+  expect(loggedBetween).toBeDefined();
+  const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: loggedBetween! });
+  expect(version.sequence).toBe(newestMark.sequence);
+  client.close();
+  await server.stop();
+});
+
 test('a sequence before the bootstrap resolves to the bootstrap version', async () => {
   const { server, documentId, owner, bootstrapText, client } = await editedAfterBootstrap();
   const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: 1 });

@@ -56,6 +56,9 @@ export function resolveMark({
   sequence: number;
   serverTime: number | null;
 }): VersionMarkSummary | null {
+  const first = marks[0];
+  if (!first) return null;
+  if (sequence <= first.sequence) return first;
   const exact = markWithSequence({ marks, sequence });
   if (exact) return exact;
   if (serverTime === null) return clampToMark({ marks, sequence });

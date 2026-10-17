@@ -75,6 +75,11 @@ test('a sequence whose mark was pruned resolves to the surviving mark of its min
   expect(resolveMark({ marks: MINUTES, sequence: 9, serverTime: 70 * SECOND })?.sequence).toBe(9);
 });
 
+test('a sequence before the first mark resolves to the first mark even when later marks share its minute', () => {
+  const sameMinute = [MINUTES[0]!, { sequence: 5, serverTime: 20 * SECOND, minuteStart: 0, isBootstrap: false }];
+  expect(resolveMark({ marks: sameMinute, sequence: 1, serverTime: 2 * SECOND })?.sequence).toBe(3);
+});
+
 test('a sequence the log does not know clamps down like before', () => {
   expect(resolveMark({ marks: SUMMARIES, sequence: 12, serverTime: null })?.sequence).toBe(9);
   expect(resolveMark({ marks: SUMMARIES, sequence: 1, serverTime: null })?.sequence).toBe(3);

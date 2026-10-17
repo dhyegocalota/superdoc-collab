@@ -1,4 +1,4 @@
-import { DocumentRole, documentApiPath, HttpStatus, RETRY_AFTER_HEADER, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
+import { DocumentRole, documentApiPath, HttpMethod, HttpStatus, RETRY_AFTER_HEADER, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';
@@ -90,7 +90,7 @@ test('deleting a document forgets its refresh and summary cooldowns', async () =
   await server.services.insights.worker.idle();
   server.services.insights.summaries.cooldown.start(documentId);
   expect(server.services.insights.topics.cooldown.size()).toBe(1);
-  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: 'DELETE', headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie, origin: server.baseUrl } });
   expect(deleted.status).toBe(HttpStatus.NoContent);
   expect(server.services.insights.topics.cooldown.size()).toBe(0);
   expect(server.services.insights.summaries.cooldown.size()).toBe(0);

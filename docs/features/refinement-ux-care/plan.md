@@ -1137,7 +1137,7 @@ git commit -m "fix(web): put the summary under the filters and keep the empty pa
   - `EditorHeader({ opened, members, currentUserId, onDownload }: { opened: OpenedDocument; members: DocumentMember[]; currentUserId: string | null; onDownload: (() => void) | null })`.
   - `Members({ members, currentUserId }: { members: DocumentMember[]; currentUserId: string | null })`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (bb2cb9b)
 
 `editor-header.test.tsx` (every existing render gains `currentUserId={SESSION_USER.id}`; import `SESSION_USER` from `@/testing/opened-document`, `HOME_LINK_LABEL`, `memberLabel`):
 
@@ -1186,19 +1186,19 @@ test('the browser tab names the open document', async () => {
 
 Inert stubs: `HOME_LINK_LABEL` and `memberLabel` (returning `name`) exported from `editor-copy.ts`; `EditorHeader` and `Members` accept and ignore `currentUserId`.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (bb2cb9b, 4 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor/editor-header.test.tsx src/features/editor/document-page.test.tsx`
 Expected: FAIL on `Unable to find role="link"`, `Unable to find an element with the text: Ada, online`, and `expected 'SuperDoc History' to be 'Plan · SuperDoc History'`.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (bb2cb9b)
 
 ```bash
 git add apps/web/src/features/editor/editor-header.test.tsx apps/web/src/features/editor/document-page.test.tsx apps/web/src/features/editor/editor-copy.ts apps/web/src/features/editor/editor-header.tsx apps/web/src/features/editor/members.tsx
 git commit -m "test(web): pin the home link, presence labels and the opening header"
 ```
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement** (64dfd80)
 
 `editor-copy.ts`:
 
@@ -1276,12 +1276,12 @@ function OpeningDocument() {
 
 call `useDocumentTitle(opened ? opened.document.title : null);` with the other hooks (before the early returns), replace `if (!opened) return <SessionSkeleton />;` with `if (!opened) return <OpeningDocument />;`, and pass `currentUserId={user ? user.id : null}` to `EditorHeader`.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests** (64dfd80, web 223/223)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit** (64dfd80)
 
 ```bash
 git add apps/web/src/features/editor/home-link.tsx apps/web/src/features/editor/editor-header.tsx apps/web/src/features/editor/members.tsx apps/web/src/features/editor/document-page.tsx apps/web/src/features/editor/editor-copy.ts
@@ -1312,7 +1312,7 @@ git commit -m "fix(web): link the editor back home, name the tab and announce pr
   - `DocumentTable({ documents, emptyMessage, kind }: { documents: DocumentSummary[]; emptyMessage: string; kind: DocumentListKind })`.
   - Copy: `ROLE_LABELS`, `COLUMN_LABELS`, `DOCUMENTS_HEADING`, `LOADING_DOCUMENTS_LABEL`, `UPLOADING_MESSAGE` (`COLUMN_HEADERS` is deleted).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (d06cb61)
 
 `documents-page.test.tsx` (import `COLUMN_LABELS`, `DOCUMENTS_HEADING`, `LOADING_DOCUMENTS_LABEL`, `ROLE_LABELS`, `CREATE_ERROR_MESSAGE`, `COLUMNS_BY_KIND`, `DocumentListKind`, `pageTitle`, `APP_NAME`):
 
@@ -1382,19 +1382,19 @@ test('while the upload runs the input is disabled and the wait is announced', as
 
 Inert stubs: the new copy constants and enums exist; `COLUMN_LABELS` and `COLUMNS_BY_KIND` have their final values; the components ignore them.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (d06cb61, 5 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/documents`
 Expected: FAIL on the missing app name and h1, headers `['Title','Owner','Updated','My role']` for Mine, the raw `editor` badge, no status while loading, the alert inside the button row, and no "Uploading…" status.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (d06cb61)
 
 ```bash
 git add apps/web/src/features/documents/documents-page.test.tsx apps/web/src/features/documents/upload-dialog.test.tsx apps/web/src/features/documents/documents-copy.ts apps/web/src/features/documents/document-columns.ts
 git commit -m "test(web): pin the readable documents list, its loading rows and the upload wait"
 ```
 
-- [ ] **Step 4: Implement the columns and the table**
+- [x] **Step 4: Implement the columns and the table** (3cc560f)
 
 `document-columns.ts`:
 
@@ -1512,7 +1512,7 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
 }
 ```
 
-- [ ] **Step 5: Implement the page, the create hook and the upload wait**
+- [x] **Step 5: Implement the page, the create hook and the upload wait** (3cc560f)
 
 `use-create-document.ts`:
 
@@ -1620,12 +1620,12 @@ export function DocumentsPage() {
 
 `upload-dialog.tsx`: read `isPending` from `useMutation`, give the input `disabled={isPending}`, and render `{isPending && <p role="status" className="text-sm text-muted-foreground">{UPLOADING_MESSAGE}</p>}` under it.
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests** (3cc560f, web 228/228, no COLUMN_HEADERS left)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/documents && pnpm typecheck`
 Expected: PASS. `rg -n "COLUMN_HEADERS" apps e2e` prints nothing.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit** (3cc560f)
 
 ```bash
 git add apps/web/src/features/documents/document-columns.ts apps/web/src/features/documents/use-create-document.ts apps/web/src/features/documents/document-list-skeleton.tsx apps/web/src/features/documents/document-table.tsx apps/web/src/features/documents/documents-page.tsx apps/web/src/features/documents/new-document-button.tsx apps/web/src/features/documents/upload-dialog.tsx apps/web/src/features/documents/documents-copy.ts
@@ -1660,7 +1660,7 @@ git commit -m "fix(web): make the documents list readable on a phone and show it
   - `SuperDocEditor` gains `focusOnReady: boolean`.
   - `MORE_ACTIONS_LABEL`; the delete dialog opens from the "More actions" menu (Task 8 adds Cancel to it).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (0746356)
 
 `superdoc-zoom.test.ts`:
 
@@ -1774,19 +1774,19 @@ Change the two existing delete tests to call `openDeleteDialog()` instead of cli
 
 Inert stubs: `superdoc-zoom.ts` exports the enum, constants, `initialZoomMode` returning `ZoomMode.Manual` and `followViewportZoom` returning a no-op; `new-document-state.ts` complete (it is data, see Step 4); `MORE_ACTIONS_LABEL` exported.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (0746356, 8 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor`
 Expected: FAIL on `expected 'manual' to be 'fit-width'`, `setZoomMode` never called, `onReady is not a function` (or `focus` not called), the missing `zoom` key, the Delete button still present, and no "More actions" button.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (0746356)
 
 ```bash
 git add apps/web/src/features/editor/superdoc-zoom.ts apps/web/src/features/editor/superdoc-zoom.test.ts apps/web/src/features/documents/new-document-state.ts apps/web/src/features/editor/document-page.test.tsx apps/web/src/features/editor/editor-header.test.tsx apps/web/src/features/editor/editor-copy.ts
 git commit -m "test(web): pin the phone header, the fitted page and the new document caret"
 ```
 
-- [ ] **Step 4: Implement zoom and the new document state**
+- [x] **Step 4: Implement zoom and the new document state** (4c8e966)
 
 `superdoc-zoom.ts`:
 
@@ -1834,7 +1834,7 @@ export function isNewDocumentState(state: unknown): state is NewDocumentState {
 
 `use-create-document.ts`: `await navigate(documentPagePath(document.id), { state: NEW_DOCUMENT_STATE });`.
 
-- [ ] **Step 5: Implement the editor surface**
+- [x] **Step 5: Implement the editor surface** (4c8e966)
 
 `superdoc-editor.tsx`: add `focusOnReady: boolean` to the props (and to the effect's dependency list), then in the effect:
 
@@ -1866,7 +1866,7 @@ The container gets the page backdrop: `className="min-h-0 min-w-0 flex-1 overflo
 
 `features/versions/version-viewer.tsx`: add `zoom: { mode: initialZoomMode() }` to its SuperDoc config, and `const stopFollowingViewport = followViewportZoom(superdoc);` with `stopFollowingViewport()` in its cleanup before `superdoc.destroy()`.
 
-- [ ] **Step 6: Implement the header**
+- [x] **Step 6: Implement the header** (4c8e966)
 
 `editor-copy.ts`: `export const MORE_ACTIONS_LABEL = 'More actions';`
 
@@ -1942,12 +1942,12 @@ await ana.page.getByRole('menuitem', { name: DELETE_LABEL }).click();
 await ana.page.getByRole('button', { name: DELETE_CONFIRM_LABEL }).click();
 ```
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests** (4c8e966, web 235/235)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit** (4c8e966)
 
 ```bash
 git add apps/web/src/features/editor/superdoc-zoom.ts apps/web/src/features/editor/superdoc-editor.tsx apps/web/src/features/editor/document-page.tsx apps/web/src/features/editor/editor-header.tsx apps/web/src/features/editor/share-dialog.tsx apps/web/src/features/editor/editor-copy.ts apps/web/src/features/documents/use-create-document.ts apps/web/src/features/versions/version-viewer.tsx e2e/documents.spec.ts
@@ -1968,7 +1968,7 @@ git commit -m "fix(web): fit the page and the header on a phone and place the ca
 - Consumes: `openDeleteDialog` test helper and `DocumentActionsMenu` from Task 7; `Skeleton` from Task 1.
 - Produces: `CANCEL_LABEL`, `RESET_LINK_LABEL` (replaces `ROTATE_LABEL`), `RESET_FAILED_MESSAGE` (replaces `ROTATE_FAILED_MESSAGE`), `COPY_FAILED_MESSAGE`, `LOADING_SHARE_LINKS_LABEL`, `COPIED_NOTICE_MS` (exported from `share-dialog.tsx`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (bbcb0d8)
 
 `editor-header.test.tsx` (import `CANCEL_LABEL`):
 
@@ -2043,19 +2043,19 @@ test('Link copied clears after a few seconds', async () => {
 
 Inert stubs: the new copy constants and `COPIED_NOTICE_MS` exported; `RESET_LINK_LABEL` keeps the old value `'Rotate'` until Step 4.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (bbcb0d8, 6 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor/editor-header.test.tsx src/features/editor/share-dialog.test.tsx`
 Expected: FAIL on `Unable to find role="button" and name "Cancel"`, the description without "stops the old one", no loading status, an unhandled rejection or no status after a refused copy, and "Link copied" still present.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (bbcb0d8)
 
 ```bash
 git add apps/web/src/features/editor/editor-header.test.tsx apps/web/src/features/editor/share-dialog.test.tsx apps/web/src/features/editor/editor-copy.ts apps/web/src/features/editor/share-dialog.tsx
 git commit -m "test(web): pin Cancel on delete and the share dialog's missing states"
 ```
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement** (228197c)
 
 `editor-copy.ts` (delete `ROTATE_LABEL` and `ROTATE_FAILED_MESSAGE`):
 
@@ -2155,12 +2155,12 @@ The Reset link button is disabled only while its own request runs, and `aria-bus
 
 If the shadcn `Input` in this repo does not forward `ref` (React 19 passes `ref` as a prop to function components, so it does), confirm with `pnpm typecheck`.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests** (228197c, web 241/241, no ROTATE_ constants left)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor && pnpm typecheck`
 Expected: PASS. `rg -n "ROTATE_LABEL|ROTATE_FAILED_MESSAGE" apps e2e` prints nothing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit** (228197c)
 
 ```bash
 git add apps/web/src/features/editor/editor-header.tsx apps/web/src/features/editor/share-dialog.tsx apps/web/src/features/editor/editor-copy.ts
@@ -2186,7 +2186,7 @@ Runs after G1 is merged into the lane branch (its test reads the timeline senten
 - Consumes: `useDocumentTitle`, `pageTitle` from Task 1.
 - Produces: `SIGN_UP_HEADING`, `SIGN_IN_DESCRIPTION`, `SIGN_UP_DESCRIPTION`, `NO_ACCOUNT_PROMPT`, `HAVE_ACCOUNT_PROMPT`, `NAME_FIELD_LABEL`, `EMAIL_FIELD_LABEL`, `PASSWORD_FIELD_LABEL` in `auth-copy.ts`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (4b65836)
 
 `apps/web/src/lib/copy-rules.test.ts`:
 
@@ -2249,19 +2249,19 @@ test('the opening state is centred like the failure state', () => {
 
 Inert stubs: the new auth copy constants exist. If the three-dots test lists a string that is not copy (a pattern or a path in `libs/types`), drop that module from `COPY_MODULES` and list the copy constants by name instead; never change a non-copy value to satisfy it.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (4b65836, 9 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib/copy-rules.test.ts src/features/auth src/features/sharing`
 Expected: FAIL listing `'Signing in...'`, `'Creating account...'`, `'Loading document...'`, `'Opening...'`; the four `libs/types` sentences without a period; `document.title` not set; no `main` around the opening status.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (4b65836)
 
 ```bash
 git add apps/web/src/lib/copy-rules.test.ts apps/web/src/features/auth/sign-in-page.test.tsx apps/web/src/features/sharing/share-landing-page.test.tsx apps/web/src/features/auth/auth-copy.ts
 git commit -m "test(web): pin one ellipsis, sentence periods and auth copy in one place"
 ```
 
-- [ ] **Step 4: Implement the copy**
+- [x] **Step 4: Implement the copy** (9b582c1)
 
 `auth-copy.ts`:
 
@@ -2291,7 +2291,7 @@ export const PASSWORD_FIELD_LABEL = 'Password';
 
 Check nobody asserts the old literals: `rg -n "no longer valid'|no longer available'|History is catching up'|No edits match'|Signing in\.\.\.|Opening\.\.\." apps libs e2e` prints only the constants' own lines.
 
-- [ ] **Step 5: Implement the pages**
+- [x] **Step 5: Implement the pages** (9b582c1)
 
 `sign-in-page.tsx`: `useDocumentTitle(SIGN_IN_LABEL);`; `<CardTitle>{SIGN_IN_LABEL}</CardTitle>`, `<CardDescription>{SIGN_IN_DESCRIPTION}</CardDescription>`, the field labels from `EMAIL_FIELD_LABEL` and `PASSWORD_FIELD_LABEL`, and the cross-link:
 
@@ -2318,12 +2318,12 @@ if (!failureMessage) {
 }
 ```
 
-- [ ] **Step 6: Run every gate**
+- [ ] **Step 6: Run every gate** (after merge d412020: typecheck green, web 272/272; server 382/383, the one red is the timeline-routes latency budget under machine load; E2E not run, port 3100 held by another agent)
 
 Run: `pnpm typecheck && pnpm test:unit && pnpm test:e2e`
 Expected: PASS. The E2E suite exercises the renamed labels (`REGROUP_TOPICS_LABEL`, the Delete menu, the band locator) through their constants.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit** (9b582c1)
 
 ```bash
 git add apps/web/src/features/auth/auth-copy.ts apps/web/src/features/auth/sign-in-page.tsx apps/web/src/features/auth/sign-up-page.tsx apps/web/src/features/sharing/share-landing-page.tsx apps/web/src/features/editor/editor-copy.ts libs/types/src/documents.ts libs/types/src/timeline.ts

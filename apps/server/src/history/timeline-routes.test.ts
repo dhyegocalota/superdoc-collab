@@ -1,6 +1,8 @@
 import {
   type BinEdits,
   DocumentResource,
+  HOUR_MS,
+  DAY_MS,
   MINUTE_MS,
   documentApiPath,
   HttpStatus,
@@ -8,6 +10,7 @@ import {
   timelineEditsApiPath,
   TimelineBandKind,
   TimelineQueryParam,
+  UTC_TIME_ZONE,
   type DocumentTimeline,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
@@ -30,8 +33,18 @@ function timelineUrl({ server, documentId, query }: { server: { baseUrl: string 
   return `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${zonedQuery({ query })}`;
 }
 
-function editsUrl({ server, documentId, query }: { server: { baseUrl: string }; documentId: string; query: string }): string {
-  return `${server.baseUrl}${timelineEditsApiPath(documentId)}?${zonedQuery({ query })}`;
+function editsUrl({
+  server,
+  documentId,
+  query,
+  timeZone,
+}: {
+  server: { baseUrl: string };
+  documentId: string;
+  query: string;
+  timeZone?: string;
+}): string {
+  return `${server.baseUrl}${timelineEditsApiPath(documentId)}?${zonedQuery({ query, timeZone })}`;
 }
 
 const ZONELESS_PATHS = [
@@ -39,6 +52,11 @@ const ZONELESS_PATHS = [
   ['edits', (documentId: string) => `${timelineEditsApiPath(documentId)}?binStart=0`],
   ['selection', (documentId: string) => selectionSummaryApiPath(documentId)],
 ] as const;
+const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
+const SAO_PAULO_OFFSET_MS = -3 * HOUR_MS;
+const KIRITIMATI_TIME_ZONE = 'Pacific/Kiritimati';
+const ZONED_EVENT_COUNT = 40;
+const ZONED_STEP_MS = 3 * HOUR_MS;
 const UNKNOWN_TIME_ZONE = 'Mars/Olympus';
 
 test.each(ZONELESS_PATHS)('the %s route answers 400 when timeZone is missing or unknown', async (_name, pathOf) => {
@@ -228,4 +246,47 @@ test('the pipeline cache evicts the least recently read document', () => {
   expect(cache.builds).toBe(3);
   read('d2');
   expect(cache.builds).toBe(4);
+});
+
+test('a Sao Paulo day timeline starts every bin at local midnight and ends where the next starts', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
+  const timeline = await readTimeline({
+    server,
+    documentId,
+    cookie: owner.cookie,
+    query: `binMs=${DAY_BIN_MS}`,
+    timeZone: SAO_PAULO_TIME_ZONE,
+  });
+  expect(timeline.bins.map((bin) => (bin.start + SAO_PAULO_OFFSET_MS) % DAY_MS)).toEqual(timeline.bins.map(() => 0));
+  expect(timeline.bins.slice(0, -1).map((bin, index) => bin.end === timeline.bins[index + 1]!.start)).toEqual(
+    timeline.bins.slice(0, -1).map(() => true),
+  );
+  await server.stop();
+});
+
+test('the same document reads different bin starts in UTC and in Kiritimati', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
+  const query = `binMs=${DAY_BIN_MS}`;
+  const utc = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: UTC_TIME_ZONE });
+  const kiritimati = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: KIRITIMATI_TIME_ZONE });
+  expect(kiritimati.bins.map((bin) => bin.start)).not.toEqual(utc.bins.map((bin) => bin.start));
+  await server.stop();
+});
+
+test('edits of a Sao Paulo bin are found by the bin start the timeline returned', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
+  const query = `binMs=${DAY_BIN_MS}`;
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
+  const editBin = timeline.bins.find((bin) => Object.keys(bin.byBand).length > 0)!;
+  const response = await fetch(
+    editsUrl({ server, documentId, query: `${query}&binStart=${editBin.start}`, timeZone: SAO_PAULO_TIME_ZONE }),
+    {
+      headers: { cookie: owner.cookie },
+    },
+  );
+  expect(((await response.json()) as BinEdits).runs.length).toBeGreaterThan(0);
+  await server.stop();
 });

@@ -21,6 +21,7 @@ import {
   BlockChangeKind,
   OTHER_BAND_ID,
   OTHER_BAND_NAME,
+  UTC_TIME_ZONE,
   TimelineBandKind,
   type BinEdits,
   type DocumentEditEvent,
@@ -197,7 +198,7 @@ function matchedRunsOf({
   filter: TimelineFilter;
   binMs: number;
 }): { allRuns: EditRun[]; matchedRuns: EditRun[] } {
-  const allRuns = groupIntoRuns({ events: pipeline.events, binMs });
+  const allRuns = groupIntoRuns({ events: pipeline.events, binMs, timeZone: UTC_TIME_ZONE });
   return {
     allRuns,
     matchedRuns: filterRuns({
@@ -226,10 +227,21 @@ export function buildDocumentTimeline({
   const binStarts =
     pipeline.events.length === 0
       ? []
-      : binStartsCovering({ firstTime: firstTimeOf(pipeline.events), lastTime: lastTimeOf(pipeline.events), binMs: chosenBinMs });
+      : binStartsCovering({
+          firstTime: firstTimeOf(pipeline.events),
+          lastTime: lastTimeOf(pipeline.events),
+          binMs: chosenBinMs,
+          timeZone: UTC_TIME_ZONE,
+        });
   return {
     binMs: chosenBinMs,
-    bins: buildBins({ runs: matchedRuns, binStarts, binMs: chosenBinMs, versionSequenceAt: (time) => versionSequenceAt({ marks, time }) }),
+    bins: buildBins({
+      runs: matchedRuns,
+      binStarts,
+      binMs: chosenBinMs,
+      timeZone: UTC_TIME_ZONE,
+      versionSequenceAt: (time) => versionSequenceAt({ marks, time }),
+    }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
     authors: pipeline.authors,

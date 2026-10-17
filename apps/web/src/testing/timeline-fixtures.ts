@@ -1,4 +1,12 @@
-import { MINUTE_MS, OTHER_BAND_ID, TimelineBandKind, TopicState, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
+import {
+  ClientActor,
+  MINUTE_MS,
+  OTHER_BAND_ID,
+  TimelineBandKind,
+  TopicState,
+  type DocumentTimeline,
+  type TimelineBand,
+} from '@superdoc-history/types';
 
 const FIRST_BIN_START = 1_792_165_200_000;
 const HUE_START = 205;
@@ -40,7 +48,10 @@ export function timelineWith({
     start: FIRST_BIN_START + binIndex * MINUTE_MS,
     versionSequence: null,
     byBand: Object.fromEntries(
-      bands.map((band, index) => [band.id, { inserted: row[index]!, deleted: 0, authorKeys: [FIXTURE_AUTHOR_KEY] }]),
+      bands.map((band, index) => [
+        band.id,
+        { inserted: row[index]!, deleted: 0, agentInserted: 0, agentDeleted: 0, authorKeys: [FIXTURE_AUTHOR_KEY] },
+      ]),
     ),
   }));
   return {
@@ -48,7 +59,8 @@ export function timelineWith({
     bins,
     bands,
     contributorsByBand: {},
-    authors: { [FIXTURE_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AUTHOR_NAME } },
+    agentActions: [],
+    authors: { [FIXTURE_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human } },
     topics: { state: TopicState.Ready, failure: null, computedAtSequence: 1 },
     projection: { isBehind: false, lagMs: null, isDegraded: false, cursor: 1 },
   };

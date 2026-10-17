@@ -85,7 +85,6 @@ export function createCollaborationRuntime({
       versions.forget(documentId);
       await versionRooms.forget(documentId);
       await scheduler.forget(documentId);
-      insights.topics.forget(documentId);
       insights.selection.forget(documentId);
     },
   };

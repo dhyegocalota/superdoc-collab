@@ -2,7 +2,8 @@ import { type EditRun } from '@superdoc-collab/history';
 import {
   ClientActor,
   MINUTE_MS,
-  SELECTION_SUMMARY_COOLDOWN_MS,
+  SECOND_MS,
+  SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
   UTC_TIME_ZONE,
@@ -146,7 +147,7 @@ test('a new edit marks the summary stale and a request recomputes it after the c
     outcome: SelectionRequestOutcome.TooSoon,
     retryAfterSeconds: COOLDOWN_SECONDS,
   });
-  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
@@ -170,6 +171,18 @@ test('a topic recompute makes the summary stale', async () => {
     outcome: SelectionRequestOutcome.TooSoon,
     retryAfterSeconds: expect.any(Number),
   });
+  await server.stop();
+});
+
+test('uses SUMMARIZE_COOLDOWN_MS (30000)', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const { server, documentId, service } = await serviceWith({
+    languageModel: readyModel(modelAnswering(ANSWER)),
+    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
+  });
+  service.cooldown.start(documentId);
+  expect(service.cooldown.remainingMs(documentId)).toBe(SUMMARIZE_COOLDOWN_MS);
+  expect(SUMMARIZE_COOLDOWN_MS).toBe(30 * SECOND_MS);
   await server.stop();
 });
 
@@ -356,7 +369,7 @@ test('a failure after a success keeps the old sentence', async () => {
   service.request({ documentId, selection: BRUNO_SELECTION });
   await jobRunner.idle();
   state.snapshot = snapshotOf({ runs: BRUNO_RUNS, cursor: FIRST_CURSOR + 1 });
-  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
@@ -432,7 +445,7 @@ test('after a failure at an unchanged stamp a request is retried once the cooldo
   await jobRunner.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.Failed);
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toMatchObject({ outcome: SelectionRequestOutcome.TooSoon });
-  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({

@@ -1,7 +1,7 @@
 import { runVolume, selectionSummaryOutputSchema, type EditRun } from '@superdoc-collab/history';
 import {
   secondsRoundedUp,
-  SELECTION_SUMMARY_COOLDOWN_MS,
+  SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
   SummarizeStep,
@@ -92,7 +92,7 @@ function summaryOf({ stored, stamp }: { stored: StoredSelectionSummary | null; s
 }
 
 export class SelectionSummariesService {
-  readonly cooldown = new KeyedCooldown({ durationMs: SELECTION_SUMMARY_COOLDOWN_MS });
+  readonly cooldown = new KeyedCooldown({ durationMs: SUMMARIZE_COOLDOWN_MS });
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;

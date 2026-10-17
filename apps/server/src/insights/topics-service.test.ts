@@ -7,7 +7,6 @@ import {
   DocumentResource,
   DocumentRole,
   TOPIC_RECOMPUTE_NEW_BLOCKS,
-  topicsRefreshApiPath,
   TimelineBandKind,
 } from '@superdoc-collab/types';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
@@ -80,7 +79,7 @@ test('malformed output fails with the generic message', async () => {
   await server.stop();
 });
 
-test('no LLM fails with the configuration reason on read and on refresh without reading the blocks', async () => {
+test('no LLM fails with the configuration reason on read and on regroup without reading the blocks', async () => {
   const { server, documentId, owner, client } = await storyWithBlocks({ texts: ['Budget up'] });
   expect((await readTopics({ server, documentId, cookie: owner.cookie })).status).toMatchObject({
     state: TopicState.Failed,
@@ -91,15 +90,11 @@ test('no LLM fails with the configuration reason on read and on refresh without 
     TimelineBandKind.Author,
   ]);
   const blocks = vi.spyOn(server.services.scheduler, 'blocks');
-  const refreshed = await fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, {
-    method: 'POST',
-    headers: { cookie: owner.cookie, origin: server.baseUrl },
+  await server.services.insights.topics.regroup(documentId);
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({
+    state: TopicState.Failed,
+    failure: LLM_MODEL_MISSING_MESSAGE,
   });
-  expect(refreshed.status).toBe(HttpStatus.Accepted);
-  await server.services.insights.jobRunner.idle();
-  await expect
-    .poll(async () => (await readTopics({ server, documentId, cookie: owner.cookie })).status, { timeout: POLL_TIMEOUT_MS })
-    .toMatchObject({ state: TopicState.Failed, failure: LLM_MODEL_MISSING_MESSAGE });
   expect(blocks).not.toHaveBeenCalled();
   client.close();
   await server.stop();
@@ -221,11 +216,7 @@ test('the key never reaches a log or a response', { timeout: 60_000 }, async () 
   const { server, documentId, owner, client } = await storyWithBlocks({ languageModel, texts: ['Budget up'] });
   const topics = await readTopics({ server, documentId, cookie: owner.cookie });
   await server.services.insights.jobRunner.idle();
-  const refreshed = await fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, {
-    method: 'POST',
-    headers: { cookie: owner.cookie, origin: server.baseUrl },
-  });
-  await server.services.insights.jobRunner.idle();
+  await server.services.insights.topics.regroup(documentId);
   const summaries = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Summaries })}`, {
     headers: { cookie: owner.cookie },
   });
@@ -233,7 +224,7 @@ test('the key never reaches a log or a response', { timeout: 60_000 }, async () 
   const bodies = [
     JSON.stringify(await readTopics({ server, documentId, cookie: owner.cookie })),
     JSON.stringify(topics),
-    await refreshed.text(),
+    JSON.stringify(server.services.insightsRepository.status(documentId)),
     await summaries.text(),
   ];
   const lines = logged.flatMap((spy) => spy.mock.calls.map((call) => JSON.stringify(call)));
@@ -331,19 +322,12 @@ test('a document with no blocks is not computed and the next read computes once 
   await server.stop();
 });
 
-test('refresh on a document with no blocks returns 202 without consuming the cooldown', async () => {
+test('a regroup on a document with no blocks stores nothing, and the next regroup computes once blocks exist', async () => {
   const { server, documentId, owner, model } = await emptyDocumentWithModel();
-  const refresh = () =>
-    fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, {
-      method: 'POST',
-      headers: { cookie: owner.cookie, origin: server.baseUrl },
-    });
-  expect((await refresh()).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.jobRunner.idle();
+  await server.services.insights.topics.regroup(documentId);
   expect(server.services.insightsRepository.status(documentId)).toBeNull();
   const client = await projectBlocks({ server, documentId, owner });
-  expect((await refresh()).status).toBe(HttpStatus.Accepted);
-  await server.services.insights.jobRunner.idle();
+  await server.services.insights.topics.regroup(documentId);
   expect(model.doGenerateCalls).toHaveLength(1);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
   client.close();
@@ -443,15 +427,10 @@ test('a busy automatic recompute keeps the ready topics ready', async () => {
   await server.stop();
 });
 
-test('a busy explicit refresh shows failed with the busy message', async () => {
-  const { server, documentId, owner, client } = await readyDocumentWithFiveNewBlocks();
+test('a busy regroup shows failed with the busy message', async () => {
+  const { server, documentId, client } = await readyDocumentWithFiveNewBlocks();
   vi.spyOn(server.services.insights.jobRunner, 'consumeCall').mockReturnValue(false);
-  const refreshed = await fetch(`${server.baseUrl}${topicsRefreshApiPath(documentId)}`, {
-    method: 'POST',
-    headers: { cookie: owner.cookie, origin: server.baseUrl },
-  });
-  expect(refreshed.status).toBe(HttpStatus.Accepted);
-  await server.services.insights.jobRunner.idle();
+  await server.services.insights.topics.regroup(documentId);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Failed, failure: LLM_BUSY_MESSAGE });
   vi.useRealTimers();
   client.close();

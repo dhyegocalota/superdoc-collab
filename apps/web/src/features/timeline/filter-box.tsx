@@ -21,7 +21,7 @@ export function FilterBox() {
   ].filter((chip) => chip.value !== null);
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    const isClearingDraft = event.key === KeyboardKey.Escape && draft !== '';
+    const isClearingDraft = event.key === KeyboardKey.Escape && event.currentTarget.value !== '';
     if (isClearingDraft) {
       event.preventDefault();
       setDraft('');

@@ -6,7 +6,7 @@ import { KeyboardKey } from '@/lib/keyboard';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 
-const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"]';
+const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
 export enum DocumentMode {
   Viewing = 'viewing',

@@ -10,6 +10,7 @@ import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
+import { signInPathFor } from '@/features/auth/sign-in-path';
 import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -98,8 +99,7 @@ export function DocumentPage() {
   }
 
   function signInAgain(): void {
-    const next = encodeURIComponent(location.pathname + location.search);
-    navigate(`${AppRoute.SignIn}?next=${next}`, { state: SIGNED_OUT_STATE });
+    navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
   const isFailed = connectionState === ConnectionState.Failed;

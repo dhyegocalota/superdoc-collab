@@ -163,6 +163,22 @@ The red test for attach-collaboration first waited for the socket to close, whic
 - With the origin check on, requests that post credentials must carry `Origin`. Test helpers and three test files now send it. Browsers always do. Cookie-less OAuth calls (register, token) need none.
 - Gap: the replay store for DPoP proofs is the process-local default, fine for one replica.
 
+### Security review round (revocation, storage, surface)
+
+| Test | Red before the fix because | Green after because |
+|------|-----------------------------|----------------------|
+| `agent/agent-revocation.test.ts` refresh after delete-consent | `expected 200 to be greater than or equal to 400` | the delete-consent before-hook removes the stored refresh and access tokens |
+| `agent/agent-revocation.test.ts` narrower re-consent, update-consent narrowing | `expected [ 'history:read', ... ] to deeply equal [ 'history:read' ]` | token scopes are intersected with the stored consent per request |
+| `auth/oauth.test.ts` create-client, session token | `expected 201 to be 404`, `expected 200 to be 404` | both paths disabled |
+| `auth/oauth.test.ts` registration: five megabyte body, twenty thousand uris | `expected 201 to be 413` | 16 KB body limit on the auth routes |
+| `auth/oauth.test.ts` registration: long name, many uris | `expected 201 to be 400` | registration limits plugin |
+| `collaboration/attach-collaboration.test.ts` non-loopback agent upgrade | `expected "Mock" to be called once, but got 0 times` | peer address must be loopback |
+
+- Pins: the full-scope token row and the normal registration row.
+- Test order matters in the registration table: the 413 rows run last because the server answers before reading the body and Node reuses the reset socket for the next request.
+- Hypothesis: after a consent is deleted or narrowed, no call with an old access or refresh token reaches a tool outside the narrower scopes. Break it by: re-consent with fewer scopes, refresh with the old token, call `tools/list` with every token.
+- Hypothesis: auth.sqlite no longer grows from unauthenticated registration. Break it by: register with 16 KB of metadata in other fields and watch the file size.
+
 ## L3 agent and MCP
 
 Lane `developer-agent`, branch `feat/agentic-history-mcp-agent`, plan Steps 13 to 19. L1 and L2 were merged before the wiring.

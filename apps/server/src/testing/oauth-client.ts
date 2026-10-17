@@ -1,5 +1,5 @@
 import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID, type KeyObject } from 'node:crypto';
-import { AgentScope, ApiPath } from '@superdoc-collab/types';
+import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 import type { TestServer, TestUser } from './test-server';
 
@@ -31,6 +31,7 @@ enum OAuthPath {
   Consent = '/oauth2/consent',
   Token = '/oauth2/token',
   DeleteConsent = '/oauth2/delete-consent',
+  UpdateConsent = '/oauth2/update-consent',
 }
 
 let nextAddress = 0;
@@ -40,6 +41,8 @@ export class OAuthStepFailedError extends Error {
     super(`OAuth step ${step} failed with status ${status}: ${body}`);
   }
 }
+
+export type RequestedScope = AgentScope | typeof OFFLINE_ACCESS_SCOPE;
 
 export type DpopKey = { privateKey: KeyObject; publicJwk: JsonWebKey };
 
@@ -68,9 +71,10 @@ export function dpopProof({ key, method, url, accessToken }: { key: DpopKey; met
 
 export type ConnectedAgentClient = {
   accessToken: string;
+  refreshToken?: string;
   clientId: string;
   consentId: string;
-  scopes: AgentScope[];
+  scopes: RequestedScope[];
 };
 
 async function requireOk({ step, response }: { step: string; response: Response }): Promise<Response> {
@@ -113,7 +117,7 @@ async function requestConsentQuery({
   server: TestServer;
   user: TestUser;
   clientId: string;
-  scopes: AgentScope[];
+  scopes: RequestedScope[];
   challenge: string;
   resourceParameters: Record<string, string>;
 }): Promise<string> {
@@ -174,7 +178,7 @@ async function exchangeCode({
   verifier: string;
   dpopKey?: DpopKey;
   resourceParameters: Record<string, string>;
-}): Promise<string> {
+}): Promise<{ accessToken: string; refreshToken?: string }> {
   const tokenUrl = authUrl({ server, path: OAuthPath.Token });
   const dpopHeaders: Record<string, string> = dpopKey
     ? { [DPOP_HEADER]: dpopProof({ key: dpopKey, method: POST_METHOD, url: tokenUrl }) }
@@ -194,8 +198,8 @@ async function exchangeCode({
       }),
     }),
   });
-  const { access_token } = (await response.json()) as { access_token: string };
-  return access_token;
+  const { access_token, refresh_token } = (await response.json()) as { access_token: string; refresh_token?: string };
+  return { accessToken: access_token, refreshToken: refresh_token };
 }
 
 async function findConsentId({ auth, user, clientId }: { auth: Auth; user: TestUser; clientId: string }): Promise<string> {
@@ -211,24 +215,26 @@ export async function connectAgentClient({
   scopes = Object.values(AgentScope),
   dpopKey,
   omitResource = false,
+  clientId: existingClientId,
 }: {
   server: TestServer;
   user: TestUser;
-  scopes?: AgentScope[];
+  scopes?: RequestedScope[];
+  clientId?: string;
   dpopKey?: DpopKey;
   omitResource?: boolean;
 }): Promise<ConnectedAgentClient> {
   const resourceParameters: Record<string, string> = omitResource ? {} : { resource: `${server.baseUrl}${ApiPath.Mcp}` };
-  const clientId = await registerAgentClient({ server, dpopBound: Boolean(dpopKey) });
+  const clientId = existingClientId ? existingClientId : await registerAgentClient({ server, dpopBound: Boolean(dpopKey) });
   const verifier = randomBytes(CODE_VERIFIER_BYTES).toString('base64url');
   const challenge = createHash(DIGEST).update(verifier).digest('base64url');
   const consentQuery = await requestConsentQuery({ server, user, clientId, scopes, challenge, resourceParameters });
   const redirectUri = await approveConsent({ server, user, consentQuery, accept: true });
   const code = new URL(redirectUri).searchParams.get('code');
   if (!code) throw new OAuthStepFailedError({ step: 'code', status: 0, body: redirectUri });
-  const accessToken = await exchangeCode({ server, clientId, code, verifier, dpopKey, resourceParameters });
+  const tokens = await exchangeCode({ server, clientId, code, verifier, dpopKey, resourceParameters });
   const consentId = await findConsentId({ auth: server.auth, user, clientId });
-  return { accessToken, clientId, consentId, scopes };
+  return { ...tokens, clientId, consentId, scopes };
 }
 
 export async function deleteConsent({ server, user, consentId }: { server: TestServer; user: TestUser; consentId: string }): Promise<void> {
@@ -240,4 +246,48 @@ export async function deleteConsent({ server, user, consentId }: { server: TestS
       body: JSON.stringify({ id: consentId }),
     }),
   });
+}
+
+export async function updateConsent({
+  server,
+  user,
+  consentId,
+  scopes,
+}: {
+  server: TestServer;
+  user: TestUser;
+  consentId: string;
+  scopes: RequestedScope[];
+}): Promise<void> {
+  await requireOk({
+    step: 'update-consent',
+    response: await fetch(authUrl({ server, path: OAuthPath.UpdateConsent }), {
+      method: POST_METHOD,
+      headers: { 'content-type': JSON_CONTENT_TYPE, cookie: user.cookie, origin: server.baseUrl },
+      body: JSON.stringify({ id: consentId, update: { scopes } }),
+    }),
+  });
+}
+
+export async function refreshAccessToken({
+  server,
+  clientId,
+  refreshToken,
+}: {
+  server: TestServer;
+  clientId: string;
+  refreshToken: string;
+}): Promise<{ status: number; accessToken?: string; refreshToken?: string }> {
+  const response = await fetch(authUrl({ server, path: OAuthPath.Token }), {
+    method: POST_METHOD,
+    headers: { 'content-type': FORM_CONTENT_TYPE, 'x-forwarded-for': `${TOKEN_ADDRESS_PREFIX}.${nextAddress++}` },
+    body: new URLSearchParams({
+      grant_type: REFRESH_TOKEN_GRANT,
+      refresh_token: refreshToken,
+      client_id: clientId,
+      resource: `${server.baseUrl}${ApiPath.Mcp}`,
+    }),
+  });
+  const body = (await response.json()) as { access_token?: string; refresh_token?: string };
+  return { status: response.status, accessToken: body.access_token, refreshToken: body.refresh_token };
 }

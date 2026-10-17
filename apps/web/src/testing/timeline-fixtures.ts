@@ -1,5 +1,6 @@
 import {
   agentAuthorName,
+  type AgentActionView,
   ClientActor,
   MINUTE_MS,
   OTHER_BAND_ID,
@@ -40,11 +41,13 @@ export function timelineWith({
   names,
   kinds = names.map(() => TimelineBandKind.Topic),
   agentVolumes = volumes.map((row) => row.map(() => 0)),
+  agentActions = [],
 }: {
   volumes: number[][];
   names: string[];
   kinds?: TimelineBandKind[];
   agentVolumes?: number[][];
+  agentActions?: AgentActionView[];
 }): DocumentTimeline {
   const bands = names.map((name, index) =>
     bandOf({ name, kind: kinds[index]!, index, count: names.length, volume: volumes.reduce((sum, row) => sum + row[index]!, 0) }),
@@ -70,7 +73,7 @@ export function timelineWith({
     bins,
     bands,
     contributorsByBand: {},
-    agentActions: [],
+    agentActions,
     authors: {
       [FIXTURE_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human },
       [FIXTURE_AGENT_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AGENT_AUTHOR_NAME, actor: ClientActor.Agent },

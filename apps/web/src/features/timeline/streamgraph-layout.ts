@@ -22,7 +22,12 @@ export type BandShape = {
   agentPath: string | null;
 };
 type PlacedLabel = { label: { x: number; y: number }; box: LabelBox };
-export type StreamgraphLayout = { shapes: BandShape[]; binX: (index: number) => number; binAt: (position: number) => number };
+export type StreamgraphLayout = {
+  shapes: BandShape[];
+  binX: (index: number) => number;
+  binAt: (position: number) => number;
+  timeX: (time: number) => number;
+};
 
 class MissingStackValueError extends Error {}
 class MissingBandError extends Error {}
@@ -154,5 +159,12 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     },
     { shapes: [], placed: [] },
   );
-  return { shapes, binX: (index) => x(index), binAt: (position) => Math.min(lastIndex, Math.max(0, Math.round(x.invert(position)))) };
+  return {
+    shapes,
+    binX: (index) => x(index),
+    binAt: (position) => Math.min(lastIndex, Math.max(0, Math.round(x.invert(position)))),
+    timeX: () => {
+      throw new Error('timeX is not implemented');
+    },
+  };
 }

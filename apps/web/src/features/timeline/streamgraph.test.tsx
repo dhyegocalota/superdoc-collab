@@ -1,10 +1,10 @@
-import { TimelineBandKind } from '@superdoc-history/types';
+import { AgentActionKind, TimelineBandKind } from '@superdoc-history/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
-import { AGENT_LEGEND_LABEL, CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
+import { AGENT_ACTION_LABELS, AGENT_LEGEND_LABEL, agentActionLabel, CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
@@ -346,4 +346,60 @@ test('pin: the tooltip lists the agent author once with the AI suffix', () => {
   const tooltip = screen.getByRole('tooltip');
   expect(tooltip).toHaveTextContent(FIXTURE_AGENT_AUTHOR_NAME);
   expect(tooltip).not.toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} · AI`);
+});
+
+const ACTION_KINDS = [AgentActionKind.ShareLinkRevealed, AgentActionKind.DocumentExported];
+const actionTimeline = timelineWith({
+  volumes: [
+    [100, 20],
+    [120, 30],
+    [120, 40],
+  ],
+  names: ['Budget', 'Hiring'],
+  agentActions: ACTION_KINDS.map((kind, index) => ({
+    authorKey: FIXTURE_AGENT_AUTHOR_KEY,
+    kind,
+    createdAt: timeline.bins[index]!.start + index * 1000,
+  })),
+});
+
+function renderActionGraph(source = actionTimeline) {
+  return render(
+    <Streamgraph
+      timeline={source}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+}
+
+test('every agent action is one mark and hovering it names the action', () => {
+  renderActionGraph();
+  const marks = ACTION_KINDS.map((kind) =>
+    screen.getByRole('button', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind }) }),
+  );
+  expect(marks).toHaveLength(ACTION_KINDS.length);
+  fireEvent.pointerEnter(marks[0]!);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
+  fireEvent.pointerLeave(marks[0]!);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('focusing a mark shows its tooltip and blurring hides it', () => {
+  renderActionGraph();
+  const mark = screen.getByRole('button', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[1]! }) });
+  fireEvent.focus(mark);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(AGENT_ACTION_LABELS[ACTION_KINDS[1]!]);
+  fireEvent.blur(mark);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('a timeline without agent actions renders no marks', () => {
+  renderGraph();
+  expect(
+    screen.queryByRole('button', { name: new RegExp(AGENT_ACTION_LABELS[AgentActionKind.ShareLinkRevealed]) }),
+  ).not.toBeInTheDocument();
 });

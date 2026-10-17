@@ -46,11 +46,15 @@ scratch=$(mktemp -d)
 printf 'const value = input ?? "fallback";\nif (a) {\n  b();\n} else {\n  c();\n}\n' > "$scratch/else.ts"
 printf 'export function clean(): number {\n  return 1;\n}\n' > "$scratch/clean.ts"
 printf 'const value = input ?? "fallback";\n' > "$scratch/notes.md"
+printf '// NB ADR 0015: the rule in one sentence.\nexport const LIMIT = 5;\n' > "$scratch/pointer.ts"
+printf '// NB ADR 0015: the rule in one sentence.\n// plain comment\nexport const LIMIT = 5;\n' > "$scratch/comment.ts"
 expect_stderr "claude: else and ?? default are warned" "else.*return early|masks a missing value" warn-conventions.sh "$(claude_edit "$scratch/else.ts")"
 expect_stderr "codex: patch headers reach the same warnings" "masks a missing value" warn-conventions.sh "$(codex_patch Update "$scratch/else.ts")"
 expect_exit "clean file passes silently" 0 warn-conventions.sh "$(claude_edit "$scratch/clean.ts")"
 [[ -z "$(printf '%s' "$(claude_edit "$scratch/clean.ts")" | "$here/warn-conventions.sh" 2>&1)" ]] || { echo "FAIL clean file produced a warning"; failures=$((failures + 1)); }
 [[ -z "$(printf '%s' "$(claude_edit "$scratch/notes.md")" | "$here/warn-conventions.sh" 2>&1)" ]] || { echo "FAIL markdown file produced a warning"; failures=$((failures + 1)); }
+expect_stderr "a plain comment next to an NB pointer is warned" "only '// NB ADR NNNN:' pointers are allowed" warn-conventions.sh "$(claude_edit "$scratch/comment.ts")"
+[[ -z "$(printf '%s' "$(claude_edit "$scratch/pointer.ts")" | "$here/warn-conventions.sh" 2>&1)" ]] || { echo "FAIL an NB ADR pointer produced a warning"; failures=$((failures + 1)); }
 rm -rf "$scratch"
 
 [[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0

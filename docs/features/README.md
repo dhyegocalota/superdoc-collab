@@ -36,3 +36,4 @@ Refinement after the five slices:
 |-----|--------|--------|
 | [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |
 | [`refinement-structure`](refinement-structure/) | Prettier, the version viewer in `features/versions`, one date-time formatter, `repository-shape` and `testing` folder names | Building |
+| [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Building |

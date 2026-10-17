@@ -211,7 +211,7 @@ test('two hours of history choose two-minute bins', async () => {
   commitBulkEvents({ server, documentId, userId: owner.id, count: TWO_HOURS_EVENTS, stepMs: MINUTE_MS });
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
   expect(timeline.binMs).toBe(TWO_MINUTE_BIN_MS);
-  expect(timeline.bins.length).toBeLessThanOrEqual(MAX_BINS + 2);
+  expect(timeline.bins.length).toBeLessThanOrEqual(MAX_BINS);
   expect((await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${TEN_MINUTE_BIN_MS}` })).binMs).toBe(
     TEN_MINUTE_BIN_MS,
   );

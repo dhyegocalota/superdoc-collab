@@ -31,7 +31,7 @@ Everything in the repo is in English: code, identifiers, comments-free code, doc
 
 ## Code conventions
 
-- No comments; names carry the meaning. No acronyms in identifiers.
+- No comments; names carry the meaning. The one exception is a pointer to a decision: one line, `// NB ADR NNNN: <the rule in one sentence>`, placed on the constant or function that embodies it. It never explains mechanics, and a rule that deserves one deserves the ADR first. No acronyms in identifiers.
 - Flat `if`s, early returns, no `else`.
 - Never `?? defaultValue` to mask a missing value. Model absence explicitly: throw, return early or make the field required upstream.
 - Enums over string literals. Constants over magic literals, declared at the top of the file or in `libs/types`.

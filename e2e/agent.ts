@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, type APIRequestContext, type Locator, type Page, type Request } from '@playwright/test';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { AgentScope, AgentTool, ApiPath, AppRoute, type DocumentTimeline, type ShareLinks } from '../libs/types/src';
+import { AgentScope, AgentTool, ApiPath, AppRoute, ShareLinkRole, type DocumentTimeline } from '../libs/types/src';
 import { APPROVE_LABEL, consentDescription, redirectNotice } from '../apps/web/src/features/oauth-consent/oauth-consent-copy';
 import { CONNECTED_APPS_HEADING, revokeLabel } from '../apps/web/src/features/connected-apps/connected-apps-copy';
 
@@ -229,14 +229,16 @@ export async function replaceTextThroughAgent({
   return callTool({ connection, tool: AgentTool.EditDocument, args });
 }
 
-export async function revealShareLinksThroughAgent({
+export async function rotateShareLinkThroughAgent({
   connection,
   documentId,
+  role,
 }: {
   connection: AgentConnection;
   documentId: string;
-}): Promise<ShareLinks> {
-  return toolJson<ShareLinks>(await callTool({ connection, tool: AgentTool.GetShareLinks, args: { documentId } }));
+  role: ShareLinkRole;
+}): Promise<{ rotated: ShareLinkRole; documentUrl: string }> {
+  return toolJson(await callTool({ connection, tool: AgentTool.RotateShareLink, args: { documentId, role } }));
 }
 
 export async function rejectedStatus(call: Promise<unknown>): Promise<number> {

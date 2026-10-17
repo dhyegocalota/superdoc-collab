@@ -11,7 +11,6 @@ export enum AgentScope {
 }
 
 export enum AgentActionKind {
-  ShareLinkRevealed = 'share-link-revealed',
   ShareLinkRotated = 'share-link-rotated',
   DocumentExported = 'document-exported',
 }

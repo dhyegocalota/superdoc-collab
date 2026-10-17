@@ -23,7 +23,7 @@ CI runs the suite only on manual dispatch (`gh workflow run e2e.yml --ref <branc
 | [`topics-on-open.spec.ts`](topics-on-open.spec.ts) | topics named for a document opened right after upload |
 | [`time-travel.spec.ts`](time-travel.spec.ts) | versions from the chart, shared `at` links, local highlights, readers, Escape |
 | [`selection-summary.spec.ts`](selection-summary.spec.ts) | summaries by person, the shared cache, staleness and failures |
-| [`agent.spec.ts`](agent.spec.ts) | an MCP client connects through OAuth, edits in tracked mode, shows as AI, is revoked, shows the AI badge; a revealed share link and an export leave marks |
+| [`agent.spec.ts`](agent.spec.ts) | an MCP client connects through OAuth, edits in tracked mode, shows as AI, is revoked, shows the AI badge; a rotated share link and an export leave marks |
 
 ## Helpers
 

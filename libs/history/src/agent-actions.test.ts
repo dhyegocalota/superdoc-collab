@@ -10,10 +10,10 @@ const OTHER_DOCUMENT = 'other';
 test('recorded actions come back in time order', () => {
   const log = new AgentActionsLog(openTestDatabase({ set: MigrationSet.History }));
   log.record({ documentName: DOCUMENT, userId: 'ana', kind: AgentActionKind.DocumentExported, createdAt: 30 });
-  log.record({ documentName: DOCUMENT, userId: 'bruno', kind: AgentActionKind.ShareLinkRevealed, createdAt: 10 });
+  log.record({ documentName: DOCUMENT, userId: 'bruno', kind: AgentActionKind.ShareLinkRotated, createdAt: 10 });
   log.record({ documentName: OTHER_DOCUMENT, userId: 'ana', kind: AgentActionKind.ShareLinkRotated, createdAt: 20 });
   expect(log.list({ documentName: DOCUMENT, from: 0, until: 100 })).toEqual([
-    { userId: 'bruno', kind: AgentActionKind.ShareLinkRevealed, createdAt: 10 },
+    { userId: 'bruno', kind: AgentActionKind.ShareLinkRotated, createdAt: 10 },
     { userId: 'ana', kind: AgentActionKind.DocumentExported, createdAt: 30 },
   ]);
 });

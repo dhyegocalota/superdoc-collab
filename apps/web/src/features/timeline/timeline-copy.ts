@@ -34,7 +34,6 @@ export const AI_BADGE_TEXT = 'AI';
 export const AI_BADGE_LABEL = 'Edited by AI';
 
 export const AGENT_ACTION_LABELS: Record<AgentActionKind, string> = {
-  [AgentActionKind.ShareLinkRevealed]: 'revealed a share link',
   [AgentActionKind.ShareLinkRotated]: 'rotated a share link',
   [AgentActionKind.DocumentExported]: 'exported the document',
 };

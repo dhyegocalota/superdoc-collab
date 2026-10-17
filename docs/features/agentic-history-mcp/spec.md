@@ -22,7 +22,7 @@ A person who works on a document in SuperDoc History cannot ask their own AI cli
 1. The reviewer opens the deployed app, goes to Connected apps, and runs one command in Claude Code: `claude mcp add --transport http history <url>`. OAuth opens the app, they approve, and the page lists "Claude Code · connected" with a Revoke button.
 2. In Claude Code they ask "what changed in this document this week and by whom?" and get an answer built from the real history.
 3. They ask "rewrite the second paragraph more formally". In the browser a tracked change signed "Name · AI" appears, the streamgraph gains a hatched layer in that topic's colour, and the author list shows the AI badge.
-4. They ask for the read link. The link works and the timeline shows a mark "Name · AI revealed the read link".
+4. They ask for the read link. The AI does not get the link: it points them to the Share dialog of the document, where they copy it themselves. When they ask the AI to rotate the read link, the timeline shows a mark "Name · AI rotated a share link".
 5. They click Revoke. The next tool call in Claude Code fails with 401.
 
 ## Non-goals
@@ -60,7 +60,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 
 - `enum ClientActor { Human = 'human', Agent = 'agent' }`
 - `enum AgentScope { HistoryRead = 'history:read', DocumentEdit = 'document:edit', DocumentExport = 'document:export', DocumentShare = 'document:share' }`
-- `enum AgentActionKind { ShareLinkRevealed = 'share-link-revealed', ShareLinkRotated = 'share-link-rotated', DocumentExported = 'document-exported' }`
+- `enum AgentActionKind { ShareLinkRotated = 'share-link-rotated', DocumentExported = 'document-exported' }`
 - `enum AgentTool` with one member per tool below.
 - `EventAuthor` gains `actor: ClientActor`. An agent's author key is `<userId>#agent`.
 - `TimelineCell` gains `agentInserted` and `agentDeleted`; `inserted` and `deleted` stay totals.
@@ -99,8 +99,8 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 | `edit_document` | DocumentEdit | Editor | `superdoc_perform_action`, change mode forced to tracked |
 | `export_docx` | DocumentExport | Reader | the live document as an embedded DOCX resource; records `DocumentExported` |
 | `list_members` | DocumentShare | Reader | members and roles |
-| `get_share_links` | DocumentShare | Owner | both links; records `ShareLinkRevealed` |
-| `rotate_share_link` | DocumentShare | Owner | rotates one link; records `ShareLinkRotated` |
+| `get_share_links` | DocumentShare | Owner | the document page and the instruction to open Share; never a link secret; records nothing |
+| `rotate_share_link` | DocumentShare | Owner | rotates one link without returning it; records `ShareLinkRotated` |
 
 **Web (`apps/web/src/features`)**
 
@@ -126,6 +126,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
+| May an AI client read the share link secrets? | return both links · return the document page and point to the Share dialog | no: a collaborator can plant instructions in one document that make the person's AI read another document's links through `get_share_links` and paste them back with `edit_document`; no tool returns a secret, tools carry read-only or destructive annotations, one active room per person and a per-person call limit bound the rest. The reveal mark and `ShareLinkRevealed` are removed; rotation keeps its mark | 2026-10-17 |
 | Who operates the agent first? | reviewer via MCP · in-app panel · both | a person via MCP from any client; the panel later | 2026-10-17 |
 | How does an AI edit appear in identity? | child of the person · flag only · independent author | child of the person (`actor`) | 2026-10-17 |
 | How does a client authorize? | personal token · OAuth · token then OAuth | OAuth, with revocable connected apps | 2026-10-17 |

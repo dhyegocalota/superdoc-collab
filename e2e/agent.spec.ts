@@ -7,6 +7,7 @@ import {
   ClientActor,
   DEMO_USERS,
   HttpStatus,
+  ShareLinkRole,
 } from '../libs/types/src';
 import {
   callTool,
@@ -17,9 +18,9 @@ import {
   openConnectedApps,
   readTimelineThroughAgent,
   registerClient,
-  revealShareLinksThroughAgent,
   replaceTextThroughAgent,
   rejectedStatus,
+  rotateShareLinkThroughAgent,
   revokeConnectedApp,
   toolJson,
   trackedChangeCards,
@@ -67,7 +68,7 @@ test('an AI client connects, edits in tracked mode and is revoked', async ({ bro
   expect(await rejectedStatus(revokedCall)).toBe(HttpStatus.Unauthorized);
 });
 
-test('a shared link revealed by the AI leaves a mark', async ({ browser, request }) => {
+test('a share link rotated by the AI leaves a mark and reveals no link', async ({ browser, request }) => {
   const ana = await signedInContext({ browser, user: ANA });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await insertInParagraph({ page: ana.page, paragraphText: BUDGET_PARAGRAPH.slice(0, 7), text: ANA_TEXT });
@@ -75,12 +76,13 @@ test('a shared link revealed by the AI leaves a mark', async ({ browser, request
   await waitForSettledTimeline({ page: ana.page, documentId });
   const connection = await connectAiClient({ page: await ana.context.newPage(), request });
 
-  await revealShareLinksThroughAgent({ connection, documentId });
+  const rotation = await rotateShareLinkThroughAgent({ connection, documentId, role: ShareLinkRole.Read });
+  expect(JSON.stringify(rotation)).not.toContain(AppRoute.Share.replace(':token', ''));
 
   await expect
     .poll(async () => (await readTimeline({ page: ana.page, documentId })).agentActions.map((action) => action.kind))
-    .toEqual([AgentActionKind.ShareLinkRevealed]);
-  const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.ShareLinkRevealed });
+    .toEqual([AgentActionKind.ShareLinkRotated]);
+  const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.ShareLinkRotated });
   const mark = ana.page.getByRole('img', { name: label });
   await expect(mark).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
   await mark.hover();

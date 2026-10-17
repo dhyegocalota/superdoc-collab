@@ -155,6 +155,9 @@ report=$(doctor Linux)
 expect_match "doctor: no package manager falls back to the URL" "$report" 'fix: https://jqlang.github.io/jq/download/'
 doctor_exit "doctor: the fallback keeps the exit code" 1 Linux
 
+stub_all; rm "$doctor_bin/gh" "$doctor_bin/brew"; stub apk 'exit 0'
+expect_match "doctor: gh on Alpine is github-cli" "$(doctor_line Linux gh)" 'fix: sudo apk add github-cli$'
+
 stub_all; rm "$doctor_bin/ffmpeg" "$doctor_bin/gitleaks" "$doctor_bin/docker"
 report=$(doctor Darwin)
 expect_match "doctor: optional tools are counted apart" "$report" 'doctor: 0 missing required, 3 missing optional'
@@ -191,12 +194,13 @@ doctor_nvmrc() { DOCTOR_NVMRC="$nvmrc_file" DOCTOR_PATH="$doctor_bin" DOCTOR_HOM
 stub_all
 printf '24.7.0\n' > "$nvmrc_file"
 expect_match "doctor: a full version in .nvmrc is read as its major" "$(doctor_nvmrc | grep '^node ')" '^node \| ok \|'
-rm -f /tmp/doctor-pwned
-printf 'root[$(touch${IFS}/tmp/doctor-pwned)]\n' > "$nvmrc_file"
+pwned_dir=$(mktemp -d)
+printf 'root[$(touch${IFS}'"$pwned_dir"'/marker)]\n' > "$nvmrc_file"
 output=$(doctor_nvmrc); status=$?
 [[ "$status" == 1 ]] || { echo "FAIL doctor with a hostile .nvmrc: expected exit 1, got $status"; failures=$((failures + 1)); }
 expect_match "doctor: a hostile .nvmrc is refused" "$output" '^doctor: \.nvmrc is not a version$'
-[[ ! -e /tmp/doctor-pwned ]] || { echo "FAIL doctor evaluated the .nvmrc"; failures=$((failures + 1)); rm -f /tmp/doctor-pwned; }
+[[ ! -e "$pwned_dir/marker" ]] || { echo "FAIL doctor evaluated the .nvmrc"; failures=$((failures + 1)); }
+rm -rf "$pwned_dir"
 rm -f "$nvmrc_file"
 
 guard_path=$(mktemp -d)

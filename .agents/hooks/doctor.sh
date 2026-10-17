@@ -37,6 +37,12 @@ chromium_install() {
   echo "pnpm install && pnpm exec playwright install chromium"
 }
 
+gh_install() {
+  [[ "$manager" == apk ]] && { echo "sudo apk add github-cli"; return; }
+  [[ "$manager" == pacman ]] && { echo "sudo pacman -S --noconfirm github-cli"; return; }
+  install_with gh "https://github.com/cli/cli#installation"
+}
+
 docker_install() {
   [[ "$manager" == brew ]] && { echo "brew install --cask docker"; return; }
   echo "https://docs.docker.com/engine/install/"
@@ -47,7 +53,7 @@ fix_for() {
     node) echo "nvm install (reads .nvmrc), or https://nodejs.org/en/download" ;;
     pnpm) echo "corepack enable && corepack prepare pnpm@$wanted_pnpm --activate" ;;
     jq) install_with jq "https://jqlang.github.io/jq/download/" ;;
-    gh) install_with gh "https://github.com/cli/cli#installation" ;;
+    gh) gh_install ;;
     gh-auth) echo "gh auth login (run it yourself; the agent cannot)" ;;
     chromium) chromium_install ;;
     skills) echo "ln -sfn ../.agents/skills .claude/skills" ;;
@@ -81,7 +87,7 @@ node_major() { run node -v 2>/dev/null | sed -nE '1s/^v([0-9]+).*/\1/p'; }
 check_node() { local installed_major; have node && installed_major=$(node_major) && [[ "$installed_major" =~ ^[0-9]+$ ]] && [[ "$installed_major" -ge "$wanted_node" ]]; }
 check_pnpm() { have pnpm && [[ "$(COREPACK_ENABLE_NETWORK=0 run pnpm -v 2>/dev/null)" == "$wanted_pnpm" ]]; }
 check_jq() { have jq; }
-check_gh() { have gh && run gh auth status >/dev/null 2>&1; }
+check_gh() { have gh && run gh auth token >/dev/null 2>&1; }
 check_chromium() { ls -d "$(browsers_dir)"/chromium-* >/dev/null 2>&1; }
 check_skills() { [[ "$(cd "$root/.claude/skills" 2>/dev/null && pwd -P)" == "$(cd "$root/.agents/skills" && pwd -P)" ]]; }
 check_gitleaks() { have gitleaks; }
@@ -98,8 +104,8 @@ if [[ "${1:-}" == --fix ]]; then
   exit 0
 fi
 
-[[ "$wanted_node" =~ ^[0-9]+$ ]] || { echo "doctor: .nvmrc is not a version" >&2; exit 1; }
-[[ -n "$wanted_pnpm" ]] || { echo "doctor: packageManager is not pnpm@x.y.z" >&2; exit 1; }
+[[ "$wanted_node" =~ ^[0-9]+$ ]] || { echo "doctor: .nvmrc is not a version"; exit 1; }
+[[ -n "$wanted_pnpm" ]] || { echo "doctor: packageManager is not pnpm@x.y.z"; exit 1; }
 
 missing_required=0
 missing_optional=0

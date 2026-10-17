@@ -23,8 +23,22 @@ export enum TimeZoneSource {
   Browser = 'browser',
 }
 
+export const TIME_ZONE_MAX_LENGTH = 64;
+const OFFSET_TIME_ZONE_PATTERN = /^[+-]/;
+
+function isResolvableTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isSupportedTimeZone(value: string): boolean {
-  return value === UTC_TIME_ZONE || Intl.supportedValuesOf('timeZone').includes(value);
+  if (value.length > TIME_ZONE_MAX_LENGTH) return false;
+  if (OFFSET_TIME_ZONE_PATTERN.test(value)) return false;
+  return isResolvableTimeZone(value);
 }
 
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);

@@ -24,19 +24,21 @@ const SHARE_ROLES = Object.values(ShareLinkRole);
 
 export const COPIED_NOTICE_MS = 3 * SECOND_MS;
 
-enum CopyState {
-  Idle = 'idle',
-  Copied = 'copied',
-  Failed = 'failed',
-}
+type CopiedLink = { role: ShareLinkRole };
 
-type ShareLinkRowProps = { documentId: string; role: ShareLinkRole; url: string };
+type ShareLinkRowProps = {
+  documentId: string;
+  role: ShareLinkRole;
+  url: string;
+  isCopied: boolean;
+  onCopied: () => void;
+  onReset: () => void;
+};
 
-function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
+function ShareLinkRow({ documentId, role, url, isCopied, onCopied, onReset }: ShareLinkRowProps) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [copyState, setCopyState] = useState(CopyState.Idle);
-  const [copiedCount, setCopiedCount] = useState(0);
+  const [hasCopyFailed, setHasCopyFailed] = useState(false);
   const label = SHARE_LINK_LABELS[role];
   const {
     mutate: reset,
@@ -45,25 +47,19 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
   } = useMutation({
     mutationFn: () => rotateShareLink({ documentId, role }),
     onSuccess: (links: ShareLinks) => {
-      setCopyState(CopyState.Idle);
+      onReset();
       queryClient.setQueryData(shareLinksQueryKey(documentId), links);
     },
   });
 
-  useEffect(() => {
-    if (copyState !== CopyState.Copied) return;
-    const timer = window.setTimeout(() => setCopyState(CopyState.Idle), COPIED_NOTICE_MS);
-    return () => window.clearTimeout(timer);
-  }, [copyState, copiedCount]);
-
   async function copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(url);
-      setCopyState(CopyState.Copied);
-      setCopiedCount((count) => count + 1);
+      setHasCopyFailed(false);
+      onCopied();
     } catch {
       inputRef.current?.select();
-      setCopyState(CopyState.Failed);
+      setHasCopyFailed(true);
     }
   }
 
@@ -84,12 +80,12 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
           {RESET_FAILED_MESSAGE}
         </p>
       )}
-      {copyState === CopyState.Copied && (
+      {isCopied && (
         <p role="status" className="text-sm text-muted-foreground">
           {LINK_COPIED_MESSAGE}
         </p>
       )}
-      {copyState === CopyState.Failed && (
+      {hasCopyFailed && (
         <p role="status" className="text-sm text-muted-foreground">
           {COPY_FAILED_MESSAGE}
         </p>
@@ -100,11 +96,22 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
 
 export function ShareDialog({ documentId }: { documentId: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState<CopiedLink | null>(null);
   const { data, isPending, isError } = useQuery({
     queryKey: shareLinksQueryKey(documentId),
     queryFn: () => fetchShareLinks(documentId),
     enabled: isOpen,
   });
+
+  useEffect(() => {
+    if (!copiedLink) return;
+    const timer = window.setTimeout(() => setCopiedLink(null), COPIED_NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [copiedLink]);
+
+  function forgetCopied(role: ShareLinkRole): void {
+    setCopiedLink((current) => (current?.role === role ? null : current));
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -131,7 +138,18 @@ export function ShareDialog({ documentId }: { documentId: string }) {
             ))}
           </div>
         )}
-        {data && SHARE_ROLES.map((role) => <ShareLinkRow key={role} documentId={documentId} role={role} url={data[role]} />)}
+        {data &&
+          SHARE_ROLES.map((role) => (
+            <ShareLinkRow
+              key={role}
+              documentId={documentId}
+              role={role}
+              url={data[role]}
+              isCopied={copiedLink?.role === role}
+              onCopied={() => setCopiedLink({ role })}
+              onReset={() => forgetCopied(role)}
+            />
+          ))}
       </DialogContent>
     </Dialog>
   );

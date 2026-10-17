@@ -106,7 +106,7 @@ function onlyRequestWithMethod(fetchSpy: MockInstance<typeof fetch>, method: Htt
 test('at 1280 the right slot order is Members, Find, Use with AI, Share, Download, More actions, account', () => {
   renderHeader({ role: DocumentRole.Owner, members: [ADA] });
   const controls: Record<string, HTMLElement> = {
-    Members: screen.getByText(memberLabel({ name: ADA.user.name, isOnline: true })),
+    Members: screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) }),
     Find: screen.getByRole('button', { name: FIND_IN_DOCUMENT_LABEL }),
     'Use with AI': screen.getByRole('button', { name: USE_WITH_AI_LABEL }),
     Share: screen.getByRole('button', { name: SHARE_LABEL }),
@@ -232,7 +232,7 @@ test('members announce their presence and the current user is online at once', (
     { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true },
   ];
   renderHeader({ role: DocumentRole.Owner, members });
-  expect(screen.getByText(memberLabel({ name: 'Ada', isOnline: true }))).toBeInTheDocument();
-  expect(screen.getByText(memberLabel({ name: 'Carla', isOnline: true }))).toBeInTheDocument();
-  expect(screen.getByText(memberLabel({ name: 'Bruno', isOnline: false }))).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ada', isOnline: true }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel({ name: 'Carla', isOnline: true }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: false }) })).toBeInTheDocument();
 });

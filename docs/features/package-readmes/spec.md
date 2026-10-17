@@ -1,6 +1,6 @@
 # Package READMEs and docs that move with the code — spec
 
-- Status: Building
+- Status: Shipped 2026-10-17
 - Tier: green (documentation, one hook, one repository-shape test; no product code).
 - Owner approval: approved 2026-10-17 (the owner asked for "README nas subpastas necessárias + automated agentic rules pra atualizar static non-code things like README once the code change").
 - ADRs: none; [0014](../../adr/0014-one-source-per-agent-surface.md) governs where the hook lives.

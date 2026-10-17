@@ -58,6 +58,7 @@ export function DocumentPage() {
   if (!opened) return <OpeningDocument />;
 
   const { title } = opened.document;
+  const { roomMode } = opened;
 
   function downloadLiveDocument(): void {
     const superdoc = superdocRef.current;
@@ -71,7 +72,7 @@ export function DocumentPage() {
     try {
       await Promise.all([
         queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true }),
-        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode: opened.roomMode }), exact: true }),
+        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode }), exact: true }),
       ]);
       resetConnection();
       setEditorGeneration((generation) => generation + 1);

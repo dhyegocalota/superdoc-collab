@@ -50,7 +50,7 @@ Refinement after the five slices:
 | [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
 | [`invite-only-access`](invite-only-access/) | First sign-up claims the instance as admin, single-use invite links, `/admin`, no seed in production, newcomer README with an agent install prompt | Shipped 2026-10-17 ([PR #23](https://github.com/dhyegocalota/superdoc-collab/pull/23)) |
-| [`timezone-preference`](timezone-preference/) | Preferences page, the zone always visible, one zone-aware formatter, timeline bins aligned to the reader's zone across DST | Building |
+| [`timezone-preference`](timezone-preference/) | Preferences page, the zone always visible, one zone-aware formatter, timeline bins aligned to the reader's zone across DST | Shipped 2026-10-17 ([PR #33](https://github.com/dhyegocalota/superdoc-collab/pull/33)) |
 | [`sign-in-next`](sign-in-next/) | Signing in follows `?next=` instead of always opening documents | Shipped 2026-10-17 ([PR #32](https://github.com/dhyegocalota/superdoc-collab/pull/32)) |
 | [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Building |
 | [`cleanup-docs`](cleanup-docs/) | `poc/` removed, the root README down to one screen and one screenshot, package READMEs without source references | Shipped 2026-10-17 |

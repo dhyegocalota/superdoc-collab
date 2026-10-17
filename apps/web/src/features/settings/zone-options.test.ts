@@ -7,7 +7,7 @@ const JANUARY = Date.UTC(2026, 0, 15, 12, 0);
 const JULY = Date.UTC(2026, 6, 15, 12, 0);
 
 function labelOf({ now, zone }: { now: number; zone: string }): string | undefined {
-  return timeZoneOptions({ now, current: UTC_TIME_ZONE }).find((option) => option.value === zone)?.label;
+  return timeZoneOptions({ now, extra: [] }).find((option) => option.value === zone)?.label;
 }
 
 test.each([
@@ -21,13 +21,18 @@ test.each([
 });
 
 test('lists every supported zone once, sorted, with UTC among them', () => {
-  const values = timeZoneOptions({ now: JANUARY, current: UTC_TIME_ZONE }).map((option) => option.value);
+  const values = timeZoneOptions({ now: JANUARY, extra: [] }).map((option) => option.value);
   expect(values).toEqual([...new Set(values)].sort());
   expect(values).toContain(UTC_TIME_ZONE);
   expect(values.length).toBeGreaterThan(300);
 });
 
 test('keeps a stored zone the runtime no longer knows, marked as not recognized', () => {
-  const options = timeZoneOptions({ now: JANUARY, current: 'Mars/Olympus' });
+  const options = timeZoneOptions({ now: JANUARY, extra: ['Mars/Olympus'] });
   expect(options.find((option) => option.value === 'Mars/Olympus')?.label).toBe(unsupportedTimeZoneLabel('Mars/Olympus'));
+});
+
+test('adds an alias the runtime resolves but does not list, with its offset', () => {
+  const options = timeZoneOptions({ now: JANUARY, extra: ['Asia/Kolkata'] });
+  expect(options.find((option) => option.value === 'Asia/Kolkata')?.label).toBe('Asia/Kolkata (UTC+05:30)');
 });

@@ -85,3 +85,12 @@ test('shows an inline error and keeps the selection when saving fails', async ()
   expect(zoneSelect()).toHaveValue(CHOSEN_ZONE);
   expect(toast).not.toHaveBeenCalled();
 });
+
+test('preselects an alias zone and treats the browser spelling of it as the same zone', () => {
+  vi.mocked(browserTimeZone).mockReturnValue('Asia/Calcutta');
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(SESSION_QUERY_KEY, { ...USER, timeZone: 'Asia/Kolkata' });
+  renderWithProviders(<SettingsPage />, { queryClient });
+  expect(zoneSelect()).toHaveValue('Asia/Kolkata');
+  expect(screen.queryByRole('button', { name: USE_BROWSER_TIME_ZONE_LABEL })).not.toBeInTheDocument();
+});

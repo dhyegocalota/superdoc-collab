@@ -50,14 +50,16 @@ export class VersionRooms {
     this.policy = policy;
   }
 
-  async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<boolean> {
+  async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<VersionAdmission> {
     try {
       await authenticateMember({ auth: this.auth, documents: this.documents, cookie: request.headers.cookie, documentId: endpoint.documentId });
     } catch {
-      return false;
+      return VersionAdmission.Refused;
     }
     const mark = this.versions.resolve(endpoint);
-    return mark !== null && mark.sequence === endpoint.sequence;
+    if (mark === null || mark.sequence !== endpoint.sequence) return VersionAdmission.Refused;
+    if (this.versions.hasFailedRecently(endpoint)) return VersionAdmission.Unavailable;
+    return VersionAdmission.Allowed;
   }
 
   handle({ endpoint, webSocket, request }: { endpoint: VersionEndpoint; webSocket: WebSocket; request: IncomingMessage }): void {
@@ -79,8 +81,11 @@ export class VersionRooms {
     const timeout = new Promise<void>((resolve) => {
       timer.handle = setTimeout(resolve, STOP_TIMEOUT_MS);
     });
-    await Promise.race([destroyed, timeout]);
-    if (timer.handle) clearTimeout(timer.handle);
+    try {
+      await Promise.race([destroyed, timeout]);
+    } finally {
+      if (timer.handle) clearTimeout(timer.handle);
+    }
   }
 
   private roomFor(endpoint: VersionEndpoint): VersionRoom {

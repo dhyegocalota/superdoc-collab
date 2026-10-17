@@ -1,10 +1,12 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
+import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { parseVersionPath, type VersionEndpoint, type VersionRooms } from './version-rooms';
+import { parseVersionPath, VersionAdmission, type VersionEndpoint, type VersionRooms } from './version-rooms';
 
 const PARSE_BASE_URL = 'http://localhost';
+const UNAVAILABLE_UPGRADE_RESPONSE = [`HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`, `${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`, 'Connection: close', 'Content-Length: 0', '', ''].join('\r\n');
 
 function terminateOnError(this: WebSocket): void {
   this.terminate();
@@ -26,9 +28,10 @@ export function attachCollaboration({ httpServer, hocuspocus, versionRooms, path
   function upgradeVersion({ request, socket, head, endpoint }: { request: IncomingMessage; socket: Duplex; head: Buffer; endpoint: VersionEndpoint }): void {
     socket.on('error', destroyOnSocketError);
     versionRooms.authorize({ endpoint, request }).then(
-      (isAllowed) => {
+      (admission) => {
+        if (admission === VersionAdmission.Unavailable) return socket.end(UNAVAILABLE_UPGRADE_RESPONSE);
         socket.removeListener('error', destroyOnSocketError);
-        if (!isAllowed) return socket.destroy();
+        if (admission === VersionAdmission.Refused) return socket.destroy();
         upgrade({ request, socket, head, endpoint });
       },
       () => {

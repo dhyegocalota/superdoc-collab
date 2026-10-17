@@ -2,6 +2,7 @@ import { toStackRows, type StackRow } from '@superdoc-history/history/timeline';
 import type { DocumentTimeline, TimelineBand } from '@superdoc-history/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
 import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series, type SeriesPoint } from 'd3-shape';
+import { maxBandVolume } from './max-band-volume';
 
 export const CHART_HEIGHT = 240;
 export const MIN_LABEL_HEIGHT = 16;
@@ -14,6 +15,7 @@ const HALF = 2;
 type StackSeries = Series<StackRow, string>;
 type LabelBox = { left: number; right: number; top: number; bottom: number };
 export type BandShape = { band: TimelineBand; path: string; saturation: number; label: { x: number; y: number } | null };
+type PlacedLabel = { label: { x: number; y: number }; box: LabelBox };
 export type StreamgraphLayout = { shapes: BandShape[]; binX: (index: number) => number; binAt: (position: number) => number };
 
 class MissingStackValueError extends Error {}
@@ -41,7 +43,7 @@ function intersects({ first, second }: { first: LabelBox; second: LabelBox }): b
   return first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
 }
 
-function placeLabel({
+function labelBoxOf({
   band,
   points,
   x,
@@ -53,7 +55,7 @@ function placeLabel({
   x: ScaleLinear<number, number>;
   y: ScaleLinear<number, number>;
   placed: LabelBox[];
-}): { x: number; y: number } | null {
+}): PlacedLabel | null {
   const thickness = points.map((point) => y(point[0]) - y(point[1]));
   const halfWidth = (band.name.length * LABEL_CHARACTER_WIDTH) / HALF;
 
@@ -76,8 +78,7 @@ function placeLabel({
     bottom: centerY + MIN_LABEL_HEIGHT / HALF,
   };
   if (placed.some((other) => intersects({ first: box, second: other }))) return null;
-  placed.push(box);
-  return { x: centerX, y: centerY };
+  return { label: { x: centerX, y: centerY }, box };
 }
 
 export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimeline; width: number }): StreamgraphLayout {
@@ -101,20 +102,22 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     .y0((point) => y(point[0]))
     .y1((point) => y(point[1]))
     .curve(curveBasis);
-  const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
-  const placed: LabelBox[] = [];
-  const shapes = [...series]
+  const maxVolume = maxBandVolume(timeline);
+  const unlabelledShapes = [...series]
     .sort((left, right) => bandOf({ timeline, id: right.key }).volume - bandOf({ timeline, id: left.key }).volume)
     .map((points) => {
       const band = bandOf({ timeline, id: points.key });
       const path = shapeOf(points);
       if (!path) throw new EmptyBandPathError(band.id);
-      return {
-        band,
-        path: `${path}Z`,
-        saturation: saturationOf({ volume: band.volume, maxVolume }),
-        label: placeLabel({ band, points, x, y, placed }),
-      };
+      return { band, points, path: `${path}Z`, saturation: saturationOf({ volume: band.volume, maxVolume }) };
     });
+  const { shapes } = unlabelledShapes.reduce<{ shapes: BandShape[]; placed: LabelBox[] }>(
+    ({ shapes: done, placed }, { band, points, path, saturation }) => {
+      const placedLabel = labelBoxOf({ band, points, x, y, placed });
+      if (placedLabel === null) return { shapes: [...done, { band, path, saturation, label: null }], placed };
+      return { shapes: [...done, { band, path, saturation, label: placedLabel.label }], placed: [...placed, placedLabel.box] };
+    },
+    { shapes: [], placed: [] },
+  );
   return { shapes, binX: (index) => x(index), binAt: (position) => Math.min(lastIndex, Math.max(0, Math.round(x.invert(position)))) };
 }

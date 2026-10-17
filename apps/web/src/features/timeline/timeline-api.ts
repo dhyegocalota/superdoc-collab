@@ -1,5 +1,4 @@
 import {
-  DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentResource,
   HttpMethod,
@@ -23,31 +22,26 @@ import {
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-history/types';
-import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
-import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { requestFailedMessage } from './timeline-copy';
+import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, readJson, requestFailedMessage, RetryLaterError } from '@/lib/api';
+import { documentQueryKey } from '@/features/documents/documents-api';
+import { SUMMARIZE_EDITS_SUBJECT, TOPICS_REFRESH_SUBJECT } from './timeline-copy';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
 
 const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';
-export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 
 type ErrorBody = { error: string };
 
-export class TopicsRefreshTooSoonError extends ApiRequestError {
-  constructor(readonly retryAfterMs: number) {
-    super(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+export class TopicsRefreshTooSoonError extends RetryLaterError {
+  constructor(retryAfterMs: number) {
+    super({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs });
   }
 }
 
-export class SummaryTooSoonError extends ApiRequestError {
-  readonly retryAfterSeconds: number;
-
-  constructor(retryAfterSeconds: number) {
-    super(SELECTION_SUMMARY_TOO_SOON_MESSAGE);
-    this.retryAfterSeconds = retryAfterSeconds;
+export class SummaryTooSoonError extends RetryLaterError {
+  constructor(retryAfterMs: number) {
+    super({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterMs });
   }
 }
 
@@ -63,15 +57,15 @@ export type VersionLoad =
   | { kind: VersionLoadKind.Failed };
 
 export function timelineQueryKey({ documentId, filter }: { documentId: string; filter: TimelineFilter }): unknown[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline, filter];
+  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, filter] });
 }
 
-export function summariesQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Summaries];
+export function summariesQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.Summaries] });
 }
 
-export function topicsQueryKey(documentId: string): string[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Topics];
+export function topicsQueryKey(documentId: string): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.Topics] });
 }
 
 export function binEditsQueryKey({
@@ -85,20 +79,15 @@ export function binEditsQueryKey({
   binMs: number;
   filter: TimelineFilter;
 }): unknown[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter];
+  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter] });
 }
 
 export function versionQueryKey({ documentId, sequence }: { documentId: string; sequence: number | null }): unknown[] {
-  return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.Versions, sequence];
+  return documentQueryKey({ documentId, segments: [DocumentResource.Versions, sequence] });
 }
 
 export function selectionSummaryQueryKey({ documentId, selection }: { documentId: string; selection: EditSelection }): unknown[] {
   return [...summariesQueryKey(documentId), SELECTION_SEGMENT, selection];
-}
-
-export function pollWhileAvailable(query: { state: { error: Error | null } }): number | false {
-  if (query.state.error instanceof DocumentUnavailableError) return false;
-  return TIMELINE_POLL_MS;
 }
 
 function withQuery({ path, params }: { path: string; params: URLSearchParams }): string {
@@ -132,10 +121,6 @@ async function unavailableMessage(response: Response): Promise<string> {
   return requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status });
 }
 
-function assertDocumentAvailable(response: Response): void {
-  if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
-}
-
 function readRetryAfterMs(response: Response): number {
   const retryAfterMs = Number(response.headers.get(RETRY_AFTER_HEADER)) * SECOND_MS;
   if (!Number.isFinite(retryAfterMs)) return MIN_RETRY_AFTER_MS;
@@ -146,23 +131,20 @@ export async function fetchTimeline({ documentId, filter }: { documentId: string
   const path = documentApiPath({ documentId, resource: DocumentResource.Timeline });
   const response = await apiGet(withQuery({ path, params: filterParams(filter) }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Timeline request', status: response.status }));
-  return response.json();
+  return readJson<DocumentTimeline>({ response, subject: 'Timeline request' });
 }
 
 export async function fetchSummaries(documentId: string): Promise<TopicSummaries> {
   const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Summaries }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Summaries request', status: response.status }));
-  return response.json();
+  return readJson<TopicSummaries>({ response, subject: 'Summaries request' });
 }
 
 export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   const response = await apiSend({ path: topicsRefreshApiPath(documentId), method: HttpMethod.Post, body: null });
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new TopicsRefreshTooSoonError(readRetryAfterMs(response));
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Topics refresh', status: response.status }));
-  return response.json();
+  return readJson<TopicStatus>({ response, subject: TOPICS_REFRESH_SUBJECT });
 }
 
 export async function fetchSelectionSummary({
@@ -176,8 +158,7 @@ export async function fetchSelectionSummary({
 }): Promise<SelectionSummaryView> {
   const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status: response.status }));
-  return response.json();
+  return readJson<SelectionSummaryView>({ response, subject: 'Selection summary request' });
 }
 
 export async function requestSelectionSummary({
@@ -195,10 +176,9 @@ export async function requestSelectionSummary({
     body: null,
   });
   assertDocumentAvailable(response);
-  if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(Math.ceil(readRetryAfterMs(response) / SECOND_MS));
+  if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(readRetryAfterMs(response));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status }));
-  return response.json();
+  return readJson<SelectionSummaryView>({ response, subject: SUMMARIZE_EDITS_SUBJECT });
 }
 
 export async function fetchBinEdits({
@@ -217,8 +197,7 @@ export async function fetchBinEdits({
   params.set(TimelineQueryParam.BinMs, String(binMs));
   const response = await apiGet(withQuery({ path: timelineEditsApiPath(documentId), params }));
   assertDocumentAvailable(response);
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Bin edits request', status: response.status }));
-  return response.json();
+  return readJson<BinEdits>({ response, subject: 'Bin edits request' });
 }
 
 export async function fetchVersion({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionLoad> {

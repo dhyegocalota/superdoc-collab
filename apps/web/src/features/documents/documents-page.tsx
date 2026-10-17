@@ -2,6 +2,7 @@ import { SignOutButton } from '@/features/auth/sign-out-button';
 import { useSession } from '@/features/auth/use-session';
 import { APP_NAME } from '@/lib/app-copy';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { ErrorMessage } from '@/components/error-message';
 import { DocumentListKind } from './document-columns';
 import { DocumentListSkeleton } from './document-list-skeleton';
 import { DocumentTable } from './document-table';
@@ -36,11 +37,7 @@ export function DocumentsPage() {
       </header>
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{DOCUMENTS_HEADING}</h1>
-        {isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {DOCUMENTS_LOAD_ERROR_MESSAGE}
-          </p>
-        )}
+        {isError && <ErrorMessage>{DOCUMENTS_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         {isPending && <DocumentListSkeleton />}
         {data && (
           <>
@@ -52,11 +49,7 @@ export function DocumentsPage() {
                   <NewDocumentButton isPending={createDocument.isPending} onCreate={() => createDocument.mutate()} />
                 </div>
               </div>
-              {createDocument.isError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {CREATE_ERROR_MESSAGE}
-                </p>
-              )}
+              {createDocument.isError && <ErrorMessage>{CREATE_ERROR_MESSAGE}</ErrorMessage>}
               <DocumentTable documents={data.mine} emptyMessage={MINE_EMPTY_MESSAGE} kind={DocumentListKind.Mine} />
             </section>
             <section className="space-y-4">

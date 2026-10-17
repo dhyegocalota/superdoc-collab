@@ -1,6 +1,7 @@
 import { HISTORY_CATCHING_UP_MESSAGE, HttpStatus } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { bandAriaLabel, editDeltaLabel, EditUnit, requestFailedMessage } from './timeline-copy';
+import { requestFailedMessage } from '@/lib/api';
+import { bandAriaLabel, editDeltaLabel, EditUnit } from './timeline-copy';
 
 test.each([
   { inserted: 2, deleted: 0, unit: EditUnit.Word, expected: '+2 words' },

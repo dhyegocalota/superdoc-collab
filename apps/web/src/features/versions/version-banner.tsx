@@ -11,8 +11,8 @@ function loadingMessage(timeTravel: TimeTravel): string {
 
 function bannerMessage(timeTravel: TimeTravel): string {
   if (timeTravel.hasFailed) return VERSION_FAILED_MESSAGE;
-  if (timeTravel.isLoading || !timeTravel.shown) return loadingMessage(timeTravel);
-  return versionAtLabel(formatVersionMoment(timeTravel.shown.serverTime));
+  if (timeTravel.isLoading || !timeTravel.shownVersion) return loadingMessage(timeTravel);
+  return versionAtLabel(formatVersionMoment(timeTravel.shownVersion.serverTime));
 }
 
 export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
@@ -22,7 +22,7 @@ export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
     <div
       role="status"
       data-testid="version-banner"
-      data-sequence={timeTravel.shown?.sequence}
+      data-sequence={timeTravel.shownVersion?.sequence}
       className="flex items-center justify-between gap-2 border-b bg-muted px-4 py-2 text-sm"
     >
       <p>{message}</p>

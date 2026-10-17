@@ -1,7 +1,8 @@
+import { cellVolume } from '@superdoc-history/history/timeline';
 import type { DocumentTimeline } from '@superdoc-history/types';
 import { formatBinRange } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
-import { authorOf } from './author-of';
+import { authorNames } from './author-of';
 import { editDeltaLabel, EditUnit } from './timeline-copy';
 
 export const TOOLTIP_WIDTH = 256;
@@ -58,9 +59,7 @@ export function TimelineTooltip({
   chartWidth: number;
 }) {
   const bin = timeline.bins[index]!;
-  const rows = timeline.bands
-    .map((band) => ({ band, cell: bin.byBand[band.id] }))
-    .filter(({ cell }) => cell !== undefined && cell.inserted + cell.deleted > 0);
+  const rows = timeline.bands.map((band) => ({ band, cell: bin.byBand[band.id] })).filter(({ cell }) => cellVolume(cell) > 0);
   const alignment = tooltipAlignment({ left, chartWidth });
   return (
     <div
@@ -77,7 +76,7 @@ export function TimelineTooltip({
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
           {band.name} {editDeltaLabel({ inserted: cell!.inserted, deleted: cell!.deleted, unit: EditUnit.Character })} ·{' '}
-          {cell!.authorKeys.map((authorKey) => authorOf({ authors: timeline.authors, authorKey }).name).join(', ')}
+          {authorNames({ authors: timeline.authors, authorKeys: cell!.authorKeys })}
         </p>
       ))}
     </div>

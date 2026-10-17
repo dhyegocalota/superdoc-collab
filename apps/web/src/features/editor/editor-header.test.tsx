@@ -158,7 +158,7 @@ test('the download button asks for the live export', async () => {
 
 test('the download button is disabled until the editor is ready', () => {
   renderWithProviders(
-    <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={null} />,
+    <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={undefined} />,
   );
   expect(screen.getByRole('button', { name: DOWNLOAD_LABEL })).toBeDisabled();
 });

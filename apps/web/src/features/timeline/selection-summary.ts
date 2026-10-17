@@ -1,3 +1,4 @@
+import { cellVolume } from '@superdoc-history/history/timeline';
 import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import {
   NO_EDITS_TO_SUMMARIZE_MESSAGE,
@@ -11,7 +12,7 @@ export function selectionVolume({ timeline, selection }: { timeline: DocumentTim
     .filter((bin) => selection.at === null || bin.start === selection.at)
     .flatMap((bin) => Object.entries(bin.byBand))
     .filter(([bandId]) => selection.topic === null || bandId === selection.topic)
-    .reduce((total, [, cell]) => total + cell.inserted + cell.deleted, 0);
+    .reduce((total, [, cell]) => total + cellVolume(cell), 0);
 }
 
 export function summarizeDisabledReason({

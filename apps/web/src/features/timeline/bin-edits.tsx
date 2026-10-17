@@ -1,8 +1,10 @@
 import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
+import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';
-import { authorOf } from './author-of';
-import { binEditsQueryKey, fetchBinEdits, pollWhileAvailable } from './timeline-api';
+import { authorNames } from './author-of';
+import { maxBandVolume } from './max-band-volume';
+import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
 import { NO_EDITS_IN_BIN_MESSAGE } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
@@ -22,10 +24,10 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   const { data } = useQuery({
     queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
     queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
-    refetchInterval: pollWhileAvailable,
+    refetchInterval: pollWhileAvailable(TIMELINE_POLL_MS),
     retry: false,
   });
-  const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
+  const maxVolume = maxBandVolume(timeline);
 
   function renderRun(run: EditRunView) {
     const band = timeline.bands.find((candidate) => candidate.id === run.bandId);
@@ -36,9 +38,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
       <li key={`${run.blockId}-${run.bandId}`} className="flex flex-col items-start gap-1">
         <div className="flex w-full items-center justify-between gap-2">
           <TopicChip band={band} maxVolume={maxVolume} />
-          <p className="text-xs text-muted-foreground">
-            {run.authorKeys.map((authorKey) => authorOf({ authors: data!.authors, authorKey }).name).join(', ')}
-          </p>
+          <p className="text-xs text-muted-foreground">{authorNames({ authors: data!.authors, authorKeys: run.authorKeys })}</p>
         </div>
         {inserted && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
         {deleted && <del className="rounded-sm bg-deleted px-1 text-sm">{snippetOf(deleted)}</del>}

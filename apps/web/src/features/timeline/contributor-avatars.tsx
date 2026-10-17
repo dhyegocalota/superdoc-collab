@@ -1,3 +1,4 @@
+import { byVolumeDescending } from '@superdoc-history/history/timeline';
 import type { EventAuthor, TimelineContributor } from '@superdoc-history/types';
 import { initialsOf } from '@/lib/initials';
 import { authorOf } from './author-of';
@@ -20,7 +21,7 @@ export function ContributorAvatars({
   authors: Record<string, EventAuthor>;
 }) {
   const ranked = [...contributors]
-    .sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted) || left.authorKey.localeCompare(right.authorKey))
+    .sort((left, right) => byVolumeDescending(left, right) || left.authorKey.localeCompare(right.authorKey))
     .slice(0, MAX_AVATARS);
   return (
     <ul className="flex items-center gap-1">

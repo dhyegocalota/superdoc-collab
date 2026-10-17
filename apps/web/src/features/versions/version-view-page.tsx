@@ -1,15 +1,16 @@
-import type { EditRunView } from '@superdoc-history/types';
+import { VERSION_FAILED_MESSAGE, type EditRunView } from '@superdoc-history/types';
 import { useCallback, useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
+import { ErrorMessage } from '@/components/error-message';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
 import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
 import { VersionViewer } from './version-viewer';
-import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
-import { KeyboardKey } from '@/lib/keyboard';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { useEscapeKey } from '@/lib/use-escape-key';
 import { useRequiredParam } from '@/lib/use-required-param';
+import { useWindowMessage } from '@/lib/use-window-message';
 import { useRunHighlights } from './use-run-highlights';
 
 const NO_RUNS: EditRunView[] = [];
@@ -40,24 +41,13 @@ export function VersionViewPage() {
     postToParent(ViewerMessageKind.Failed);
   }, []);
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent): void {
-      const message = readViewerMessage({ event, expectedSource: window.parent });
-      if (message?.kind === ViewerMessageKind.Highlight) setRuns(message.runs);
-      if (message?.kind === ViewerMessageKind.Clear) setRuns(NO_RUNS);
-    }
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
-      postToParent(ViewerMessageKind.Exit);
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  useWindowMessage((event) => {
+    const message = readViewerMessage({ event, expectedSource: window.parent });
+    if (message === null) return;
+    if (message.kind === ViewerMessageKind.Highlight) setRuns(message.runs);
+    if (message.kind === ViewerMessageKind.Clear) setRuns(NO_RUNS);
+  });
+  useEscapeKey({ isEnabled: true, onEscape: () => postToParent(ViewerMessageKind.Exit) });
 
   const hasOpenFailed = openError !== null;
 
@@ -66,18 +56,8 @@ export function VersionViewPage() {
   }, [isSequenceValid, hasOpenFailed]);
 
   if (!isSequenceValid) return null;
-  if (openError)
-    return (
-      <p role="alert" className="p-4 text-sm text-destructive">
-        {openError.message}
-      </p>
-    );
-  if (hasConnectionFailed)
-    return (
-      <p role="alert" className="p-4 text-sm text-destructive">
-        {VERSION_FAILED_MESSAGE}
-      </p>
-    );
+  if (openError) return <ErrorMessage className="p-4">{openError.message}</ErrorMessage>;
+  if (hasConnectionFailed) return <ErrorMessage className="p-4">{VERSION_FAILED_MESSAGE}</ErrorMessage>;
   if (!user || !opened) return <SessionSkeleton />;
   return (
     <VersionViewer

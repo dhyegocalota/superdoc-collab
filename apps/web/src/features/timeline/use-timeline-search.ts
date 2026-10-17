@@ -1,8 +1,14 @@
-import { FILTER_MAX_LENGTH, TimelineFilterKind, TimelineSearchParam, type TimelineFilter } from '@superdoc-history/types';
+import {
+  FILTER_MAX_LENGTH,
+  NON_NEGATIVE_INTEGER_PATTERN,
+  presentOrNull,
+  TimelineFilterKind,
+  TimelineSearchParam,
+  type TimelineFilter,
+} from '@superdoc-history/types';
 import { useSearchParams } from 'react-router';
 
 export const AUTHOR_PREFIX = '@';
-const BIN_START_PATTERN = /^\d+$/;
 
 export type TimelineSearch = { filter: TimelineFilter; at: number | null; topic: string | null };
 export type TimelineSearchChanges = Partial<Record<TimelineSearchParam, string | null>>;
@@ -15,13 +21,8 @@ export function parseFilterInput(value: string): { kind: TimelineFilterKind; val
   return { kind: isAuthor ? TimelineFilterKind.Author : TimelineFilterKind.Term, value: content };
 }
 
-function presentOrNull(value: string | null): string | null {
-  if (!value) return null;
-  return value;
-}
-
 function readBinStart(value: string | null): number | null {
-  if (!value || !BIN_START_PATTERN.test(value)) return null;
+  if (!value || !NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;
   return Number(value);
 }
 

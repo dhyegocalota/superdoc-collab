@@ -7,18 +7,19 @@ import {
   versionCollaborationPath,
   versionViewPagePath,
   RoomMode,
+  VERSION_FAILED_MESSAGE,
   type EditRunView,
 } from '@superdoc-history/types';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
-import { DocumentMode } from '@/features/editor/superdoc-editor';
+import { DocumentMode } from '@/features/editor/superdoc-options';
 import { NARROW_VIEWPORT_QUERY, ZoomMode } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
 import { pageTitle } from '@/lib/use-document-title';
+import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useRunHighlights } from './use-run-highlights';
 import { VersionViewPage } from './version-view-page';
 
@@ -56,9 +57,9 @@ beforeEach(() => {
   SuperDoc.mockClear();
   vi.mocked(useRunHighlights).mockClear();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (input === documentApiPath({ documentId: DOCUMENT_ID }))
-      return new Response(JSON.stringify(openedAs(DocumentRole.Editor)), { status: openedStatus });
+      return jsonResponse({ body: openedAs(DocumentRole.Editor), status: openedStatus });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     throw new Error(`unexpected request ${String(input)}`);
   });

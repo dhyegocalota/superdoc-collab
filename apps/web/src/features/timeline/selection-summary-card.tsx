@@ -1,5 +1,6 @@
-import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
+import { secondsRoundedUp, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
 import { useEffect, useId, useRef, type RefObject } from 'react';
+import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AuthorAvatar } from './contributor-avatars';
@@ -21,7 +22,7 @@ type SelectionSummaryCardProps = {
 };
 
 function errorMessage(error: Error): string {
-  if (error instanceof SummaryTooSoonError) return `${error.message} ${retryInLabel(error.retryAfterSeconds)}`;
+  if (error instanceof SummaryTooSoonError) return `${error.message} ${retryInLabel(secondsRoundedUp(error.retryAfterMs))}`;
   return error.message;
 }
 
@@ -86,11 +87,7 @@ function SummarySection({ view, error, canRequest, isPending, onRetry }: Selecti
           {RETRY_SUMMARY_LABEL}
         </Button>
       )}
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(error)}
-        </p>
-      )}
+      {error && <ErrorMessage>{errorMessage(error)}</ErrorMessage>}
     </section>
   );
 }

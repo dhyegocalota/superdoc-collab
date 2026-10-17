@@ -2,6 +2,14 @@ import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
 
+const RAMP_HALF_LENGTH = 8;
+
+function rampThrough({ start, middle, end }: { start: number; middle: number; end: number }): number[] {
+  const rise = Array.from({ length: RAMP_HALF_LENGTH }, (_, index) => start + ((middle - start) * index) / RAMP_HALF_LENGTH);
+  const fall = Array.from({ length: RAMP_HALF_LENGTH + 1 }, (_, index) => middle + ((end - middle) * index) / RAMP_HALF_LENGTH);
+  return [...rise, ...fall];
+}
+
 test('one filled bin renders a closed band with its label hidden', () => {
   const timeline = timelineWith({ volumes: [[0], [5], [0]], names: ['Budget'] });
   const [shape] = layoutStreamgraph({ timeline, width: 420 }).shapes;
@@ -36,4 +44,62 @@ test('binAt maps a pixel to the nearest bin and binX maps it back', () => {
   expect(layout.binAt(-50)).toBe(0);
   expect(layout.binAt(210)).toBe(2);
   expect(layout.binAt(900)).toBe(4);
+});
+
+test('label positions stay where they are for a crowded chart', () => {
+  const timeline = timelineWith({
+    volumes: Array.from({ length: 40 }, (_, index) => [400, 380, 360, index % 2 === 0 ? 300 : 20, 15]),
+    names: ['Budget', 'Hiring', 'Marketing', 'Legal', 'Tiny'],
+  });
+  const labels = layoutStreamgraph({ timeline, width: 480 }).shapes.map((shape) => ({ name: shape.band.name, label: shape.label }));
+  expect(labels).toMatchInlineSnapshot(`
+    [
+      {
+        "label": {
+          "x": 443.0769230769231,
+          "y": 119.22167360473262,
+        },
+        "name": "Budget",
+      },
+      {
+        "label": {
+          "x": 49.230769230769226,
+          "y": 121.838365897982,
+        },
+        "name": "Hiring",
+      },
+      {
+        "label": {
+          "x": 61.53846153846153,
+          "y": 79.91495921454671,
+        },
+        "name": "Marketing",
+      },
+      {
+        "label": null,
+        "name": "Legal",
+      },
+      {
+        "label": null,
+        "name": "Tiny",
+      },
+    ]
+  `);
+});
+
+test('a thick band whose label would cover a placed one stays unlabelled', () => {
+  const ramps = [
+    rampThrough({ start: 300, middle: 100, end: 340 }),
+    rampThrough({ start: 100, middle: 340, end: 100 }),
+    rampThrough({ start: 100, middle: 400, end: 100 }),
+    rampThrough({ start: 60, middle: 260, end: 100 }),
+    rampThrough({ start: 260, middle: 260, end: 300 }),
+  ];
+  const timeline = timelineWith({
+    volumes: ramps[0]!.map((_, binIndex) => ramps.map((ramp) => ramp[binIndex]!)),
+    names: ['Budget review', 'Hiring plan', 'Marketing push', 'Legal terms', 'Roadmap'],
+  });
+  const shapes = layoutStreamgraph({ timeline, width: 300 }).shapes;
+  const unlabelled = shapes.filter((shape) => shape.label === null).map((shape) => shape.band.name);
+  expect(unlabelled).toEqual(['Budget review']);
 });

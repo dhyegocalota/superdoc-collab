@@ -62,8 +62,12 @@ function matchesStamp({ stored, stamp }: { stored: StoredSelectionSummary; stamp
   return stored.computedAtSequence === stamp.cursor && stored.topicsUpdatedAt === stamp.topicsUpdatedAt;
 }
 
+function hasUsableSentence(stored: StoredSelectionSummary | null): stored is StoredSelectionSummary & { sentence: string } {
+  return stored !== null && stored.sentence !== null && stored.failure === null;
+}
+
 function isFresh({ stored, stamp }: { stored: StoredSelectionSummary | null; stamp: SelectionStamp }): boolean {
-  if (stored === null || stored.sentence === null || stored.failure !== null) return false;
+  if (!hasUsableSentence(stored)) return false;
   return matchesStamp({ stored, stamp });
 }
 

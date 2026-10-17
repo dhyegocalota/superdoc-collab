@@ -131,7 +131,13 @@ export async function startServer({
   });
   const insights: InsightsServices = {
     jobRunner,
-    topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, jobRunner }),
+    topics: new TopicsService({
+      repository: insightsRepository,
+      scheduler,
+      languageModel,
+      jobRunner,
+      readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
+    }),
     summaries: new SummariesService({
       repository: insightsRepository,
       languageModel,

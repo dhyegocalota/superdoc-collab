@@ -10,6 +10,7 @@ import {
 } from '@superdoc-history/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
+import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { InsightsRepository } from './insights-repository';
@@ -37,11 +38,16 @@ function topicsKey(documentId: string): string {
   return `topics:${documentId}`;
 }
 
+function newBlocksSince({ sequences, computedAtSequence }: { sequences: number[]; computedAtSequence: number }): number {
+  return sequences.filter((sequence) => sequence > computedAtSequence).length;
+}
+
 export class TopicsService {
   private readonly repository: InsightsRepository;
   private readonly scheduler: ProjectionScheduler;
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;
+  private readonly readPipeline: (documentId: string) => TimelinePipeline;
   readonly cooldown = new KeyedCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
 
   constructor({
@@ -49,16 +55,19 @@ export class TopicsService {
     scheduler,
     languageModel,
     jobRunner,
+    readPipeline,
   }: {
     repository: InsightsRepository;
     scheduler: ProjectionScheduler;
     languageModel: LanguageModelChoice;
     jobRunner: InsightsJobRunner;
+    readPipeline: (documentId: string) => TimelinePipeline;
   }) {
     this.repository = repository;
     this.scheduler = scheduler;
     this.languageModel = languageModel;
     this.jobRunner = jobRunner;
+    this.readPipeline = readPipeline;
   }
 
   status(documentId: string): TopicStatus {
@@ -84,14 +93,17 @@ export class TopicsService {
     this.cooldown.forget(documentId);
   }
 
-  onTimelineRead({ documentId, unassignedFirstSequences }: { documentId: string; unassignedFirstSequences: number[] }): void {
+  onTimelineRead(documentId: string): void {
     const status = this.repository.status(documentId);
     const updatedAt = this.repository.updatedAt(documentId);
     if (!status || updatedAt === null) return;
     if (status.state !== TopicState.Ready) return;
     if (status.computedAtSequence === null) return;
-    const computedAtSequence = status.computedAtSequence;
-    if (unassignedFirstSequences.filter((sequence) => sequence > computedAtSequence).length < TOPIC_RECOMPUTE_NEW_BLOCKS) return;
+    const newBlocks = newBlocksSince({
+      sequences: this.readPipeline(documentId).unassignedFirstSequences,
+      computedAtSequence: status.computedAtSequence,
+    });
+    if (newBlocks < TOPIC_RECOMPUTE_NEW_BLOCKS) return;
     if (Date.now() - updatedAt < TOPIC_RECOMPUTE_MIN_INTERVAL_MS) return;
     this.start({ documentId, isRefresh: false });
   }

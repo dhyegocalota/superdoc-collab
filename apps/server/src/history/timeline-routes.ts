@@ -4,7 +4,7 @@ import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { editsQuerySchema, INVALID_TIMELINE_QUERY_MESSAGE, timelineQuerySchema } from './timeline-query';
-import { buildBinEdits, buildDocumentTimeline, readTimelinePipeline } from './timeline-service';
+import { buildBinEdits, buildDocumentTimeline } from './timeline-service';
 
 const EDITS_PATH = '/:documentId/timeline/edits';
 
@@ -17,10 +17,7 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     const { term, author, binMs } = parsed.data;
     services.insights.topics.ensure(documentId);
     const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs });
-    services.insights.topics.onTimelineRead({
-      documentId,
-      unassignedFirstSequences: readTimelinePipeline({ services, documentId }).unassignedFirstSequences,
-    });
+    services.insights.topics.onTimelineRead(documentId);
     return context.json(timeline);
   });
   routes.get(EDITS_PATH, (context) => {

@@ -19,6 +19,10 @@ function summariesKey(documentId: string): string {
   return `summaries:${documentId}`;
 }
 
+function lastSequenceOf(sequences: number[]): number {
+  return sequences.reduce((latest, sequence) => Math.max(latest, sequence), 0);
+}
+
 export class SummariesService {
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
@@ -56,7 +60,7 @@ export class SummariesService {
     const pipeline = this.readPipeline(documentId);
     const stale = this.staleTopics({ documentId, topics, pipeline });
     if (stale.length === 0) return;
-    const computedAtSequence = pipeline.events.reduce((latest, event) => Math.max(latest, event.sequence), 0);
+    const computedAtSequence = lastSequenceOf(pipeline.events.map((event) => event.sequence));
     this.cooldown.start(documentId);
     const outcome = this.jobRunner.run({
       key: summariesKey(documentId),
@@ -87,7 +91,7 @@ export class SummariesService {
       .filter(({ topic, runs: topicRuns }) => {
         if (topicRuns.length === 0) return false;
         const computedAt = summarized.get(topic.id);
-        return computedAt === undefined || topicRuns.reduce((latest, run) => Math.max(latest, run.lastSequence), 0) > computedAt;
+        return computedAt === undefined || lastSequenceOf(topicRuns.map((run) => run.lastSequence)) > computedAt;
       });
   }
 

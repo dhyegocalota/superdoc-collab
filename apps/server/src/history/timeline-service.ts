@@ -55,9 +55,8 @@ function bandIdentities({ services, documentId, events }: { services: AppService
 } {
   const topics = services.insightsRepository.topics(documentId);
   if (topics.length === 0) {
-    const authors = new Map(events.flatMap((event) => event.authors.map((author): [string, EventAuthor] => [authorKey(author), author])));
     return {
-      identities: [...authors].map(([id, author]) => ({ id, kind: TimelineBandKind.Author, name: author.name })),
+      identities: Object.entries(authorsOf(events)).map(([id, author]) => ({ id, kind: TimelineBandKind.Author, name: author.name })),
       bandOf: primaryAuthorKey,
       hasTopics: false,
     };
@@ -70,24 +69,33 @@ function bandIdentities({ services, documentId, events }: { services: AppService
   return { identities, bandOf: (event) => topicBandId({ assignment, blockId: event.blockId }), hasTopics: true };
 }
 
+function isUnassigned({ event, bandId, hasTopics }: { event: DocumentEditEvent; bandId: string; hasTopics: boolean }): boolean {
+  if (event.kind === BlockChangeKind.Removed) return false;
+  return !hasTopics || bandId === OTHER_BAND_ID;
+}
+
+function toTimelineEvent({ event, bandId }: { event: DocumentEditEvent; bandId: string }): TimelineEvent {
+  return {
+    sequence: event.sequence,
+    serverTime: event.serverTime,
+    blockId: event.blockId,
+    bandId,
+    authorKeys: event.authors.map(authorKey),
+    inserted: event.inserted,
+    deleted: event.deleted,
+  };
+}
+
 function buildPipeline({ services, documentId }: { services: AppServices; documentId: string }): TimelinePipeline {
   const { events: stored, cursor } = services.readModel.readWithCursor({ documentName: documentId, afterSequence: null });
   const events = resolveEvents({ services, documentId, stored });
   const { identities, bandOf, hasTopics } = bandIdentities({ services, documentId, events });
-  const timelineEvents = events.map((event): TimelineEvent => ({
-    sequence: event.sequence,
-    serverTime: event.serverTime,
-    blockId: event.blockId,
-    bandId: bandOf(event),
-    authorKeys: event.authors.map(authorKey),
-    inserted: event.inserted,
-    deleted: event.deleted,
-  }));
-  const unassignedEvents = events.filter(
-    (event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID),
-  );
+  const eventsWithBand = events.map((event) => ({ event, bandId: bandOf(event) }));
+  const unassignedEvents = eventsWithBand
+    .filter(({ event, bandId }) => isUnassigned({ event, bandId, hasTopics }))
+    .map(({ event }) => event);
   return {
-    events: timelineEvents,
+    events: eventsWithBand.map(toTimelineEvent),
     identities,
     authors: authorsOf(events),
     hasTopics,

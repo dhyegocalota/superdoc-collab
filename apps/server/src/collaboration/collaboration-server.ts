@@ -128,11 +128,9 @@ export function createCollaborationServer({
       connectionInstance.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
     },
     async onLoadDocument({ document, documentName }) {
-      const restored = materialize({
-        log: updateLog,
-        documentName: requireDocumentId(documentName),
-        untilSequence: Number.MAX_SAFE_INTEGER,
-      });
+      const documentId = requireDocumentId(documentName);
+      if (!bootstrap.isCommitted(documentId)) return;
+      const restored = materialize({ log: updateLog, documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER });
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
     },
     async onChange({ update, context, transactionOrigin, document }) {
@@ -156,6 +154,15 @@ export function createCollaborationServer({
       updateLog.append({ documentName: documentId, connectionUserId: userId, connectionActor: actor, update });
       if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
       onLogged(documentId);
+    },
+    async onDisconnect({ context, document }) {
+      const { documentId, creatorAttempt } = context as CollaborationContext;
+      if (creatorAttempt === null) return;
+      const isAttemptStillConnected = [...document.connections.values()].some(
+        ({ connection }) => (connection.context as CollaborationContext).creatorAttempt === creatorAttempt,
+      );
+      if (isAttemptStillConnected) return;
+      reservations.release({ documentId, attempt: creatorAttempt });
     },
     async onStoreDocument({ documentName }) {
       onStored(requireDocumentId(documentName));

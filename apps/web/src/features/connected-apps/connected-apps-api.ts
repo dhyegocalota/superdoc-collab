@@ -6,7 +6,15 @@ import { CONNECTED_APPS_LOAD_ERROR_MESSAGE, REVOKE_ERROR_MESSAGE } from './conne
 
 export const CONNECTED_APPS_QUERY_KEY = ['connected-apps'];
 
-export type ConnectedApp = { id: string; clientName: string | null; scopes: string[]; connectedAt: number };
+export type ConnectedApp = { id: string; clientName: string | null; isNameUnavailable: boolean; scopes: string[]; connectedAt: number };
+
+async function nameOf(clientId: string): Promise<Pick<ConnectedApp, 'clientName' | 'isNameUnavailable'>> {
+  try {
+    return { clientName: await fetchOAuthClientName(clientId), isNameUnavailable: false };
+  } catch {
+    return { clientName: null, isNameUnavailable: true };
+  }
+}
 
 export async function fetchConnectedApps(): Promise<ConnectedApp[]> {
   const { data: consents, error } = await authClient.oauth2.getConsents();
@@ -14,7 +22,7 @@ export async function fetchConnectedApps(): Promise<ConnectedApp[]> {
   return Promise.all(
     consents.map(async (consent) => ({
       id: consent.id,
-      clientName: await fetchOAuthClientName(consent.clientId),
+      ...(await nameOf(consent.clientId)),
       scopes: consent.scopes,
       connectedAt: new Date(consent.createdAt).getTime(),
     })),

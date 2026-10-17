@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { scopeLabel } from '@/features/oauth-consent/oauth-consent-copy';
+import { CLIENT_LOAD_ERROR_MESSAGE, scopeLabel } from '@/features/oauth-consent/oauth-consent-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import type { ConnectedApp } from './connected-apps-api';
@@ -33,6 +33,7 @@ function ConnectedAppRow({ app }: { app: ConnectedApp }) {
     <li className="flex flex-wrap items-start justify-between gap-4 rounded-md border p-4">
       <div className="space-y-2">
         <p className="font-medium">{displayName}</p>
+        {app.isNameUnavailable && <ErrorMessage>{CLIENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         <p className="text-sm text-muted-foreground">
           {CONNECTED_ON_LABEL} {formatTimestamp(app.connectedAt)}
         </p>

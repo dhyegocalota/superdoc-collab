@@ -142,7 +142,9 @@ test('pin: the agent layer is as tall as the agent share of the band', () => {
   const timeline = timelineWith({ volumes: [[10], [10], [10]], names: ['Budget'], agentVolumes: [[4], [4], [4]] });
   const [shape] = layoutStreamgraph({ timeline, width: 420 }).shapes;
   const heightOf = (path: string): number => {
-    const ys = (path.match(/-?\d+(\.\d+)?/g) ?? []).map(Number).filter((_, index) => index % 2 === 1);
+    const numbers = path.match(/-?\d+(\.\d+)?/g);
+    expect(numbers).not.toBeNull();
+    const ys = numbers!.map(Number).filter((_, index) => index % 2 === 1);
     return Math.max(...ys) - Math.min(...ys);
   };
   expect(heightOf(shape!.agentPath!) / heightOf(shape!.path)).toBeCloseTo(0.4, 3);

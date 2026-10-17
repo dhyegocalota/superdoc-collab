@@ -13,6 +13,8 @@ import {
   CONSENT_HEADING,
   consentDescription,
   redirectNotice,
+  appRedirectNotice,
+  CLIENT_LOAD_ERROR_MESSAGE,
   DENY_LABEL,
   INCOMPLETE_REQUEST_MESSAGE,
   scopeLabel,
@@ -21,18 +23,24 @@ import {
 import { useOAuthClientName } from './use-oauth-client-name';
 
 const SCOPE_SEPARATOR = ' ';
-function redirectHostOf(redirectUri: string | null): string | null {
+type RedirectTarget = { name: string; notice: string };
+
+function redirectTargetOf(redirectUri: string | null): RedirectTarget | null {
   if (!redirectUri) return null;
   try {
-    return new URL(redirectUri).host || null;
+    const { host, protocol } = new URL(redirectUri);
+    if (host) return { name: host, notice: redirectNotice(host) };
+    const scheme = protocol.slice(0, -1);
+    if (!scheme) return null;
+    return { name: scheme, notice: appRedirectNotice(scheme) };
   } catch {
     return null;
   }
 }
 
-function clientDisplayName({ clientName, redirectHost }: { clientName: string | null; redirectHost: string }): string {
+function clientDisplayName({ clientName, redirectName }: { clientName: string | null; redirectName: string }): string {
   if (clientName) return clientName;
-  return redirectHost;
+  return redirectName;
 }
 
 function ConsentShell({ children }: { children: ReactNode }) {
@@ -43,7 +51,7 @@ function ConsentShell({ children }: { children: ReactNode }) {
   );
 }
 
-function ConsentRequest({ clientId, scopes, redirectHost }: { clientId: string; scopes: string[]; redirectHost: string }) {
+function ConsentRequest({ clientId, scopes, redirectTarget }: { clientId: string; scopes: string[]; redirectTarget: RedirectTarget }) {
   const clientName = useOAuthClientName(clientId);
   const answer = useMutation({ mutationFn: submitConsent });
   const isAnswering = answer.isPending || answer.isSuccess;
@@ -53,7 +61,9 @@ function ConsentRequest({ clientId, scopes, redirectHost }: { clientId: string; 
       <CardHeader>
         <CardTitle>{CONSENT_HEADING}</CardTitle>
         {clientName.isSuccess && (
-          <CardDescription>{consentDescription(clientDisplayName({ clientName: clientName.data, redirectHost }))}</CardDescription>
+          <CardDescription>
+            {consentDescription(clientDisplayName({ clientName: clientName.data, redirectName: redirectTarget.name }))}
+          </CardDescription>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -62,6 +72,7 @@ function ConsentRequest({ clientId, scopes, redirectHost }: { clientId: string; 
             {CLIENT_LOADING_LABEL}
           </p>
         )}
+        {clientName.isError && <ErrorMessage>{CLIENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         {clientName.isSuccess && (
           <section aria-label={SCOPES_HEADING} className="space-y-2">
             <h2 className="text-sm font-medium">{SCOPES_HEADING}</h2>
@@ -70,7 +81,7 @@ function ConsentRequest({ clientId, scopes, redirectHost }: { clientId: string; 
                 <li key={scope}>{scopeLabel(scope)}</li>
               ))}
             </ul>
-            <p className="text-sm text-muted-foreground">{redirectNotice(redirectHost)}</p>
+            <p className="text-sm text-muted-foreground">{redirectTarget.notice}</p>
           </section>
         )}
         {answer.isError && <ErrorMessage>{answer.error.message}</ErrorMessage>}
@@ -93,10 +104,10 @@ export function OAuthConsentPage() {
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client_id');
   const requestedScope = searchParams.get('scope');
-  const redirectHost = redirectHostOf(searchParams.get('redirect_uri'));
+  const redirectTarget = redirectTargetOf(searchParams.get('redirect_uri'));
   useDocumentTitle(CONSENT_HEADING);
 
-  if (!clientId || !requestedScope || !redirectHost)
+  if (!clientId || !requestedScope || !redirectTarget)
     return (
       <ConsentShell>
         <CardContent>
@@ -104,5 +115,7 @@ export function OAuthConsentPage() {
         </CardContent>
       </ConsentShell>
     );
-  return <ConsentRequest clientId={clientId} scopes={requestedScope.split(SCOPE_SEPARATOR).filter(Boolean)} redirectHost={redirectHost} />;
+  return (
+    <ConsentRequest clientId={clientId} scopes={requestedScope.split(SCOPE_SEPARATOR).filter(Boolean)} redirectTarget={redirectTarget} />
+  );
 }

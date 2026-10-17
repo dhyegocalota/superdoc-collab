@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { AGENT_NAME_SUFFIX } from './agent';
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const NAME_MIN_LENGTH = 2;
@@ -13,11 +12,11 @@ const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);
 const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE);
 
 export const signInSchema = z.object({ email, password });
-const WHITESPACE = /\s+/g;
-const RESERVED_NAME_ENDING = AGENT_NAME_SUFFIX.replace(WHITESPACE, '').toLowerCase();
+const DOT_LIKE_SEPARATORS = '·•⋅∙・.';
+const RESERVED_NAME_ENDING = new RegExp(`[${DOT_LIKE_SEPARATORS}]\\s*a[il]$`);
 
 function impersonatesAgent(name: string): boolean {
-  return name.replace(WHITESPACE, '').toLowerCase().endsWith(RESERVED_NAME_ENDING);
+  return RESERVED_NAME_ENDING.test(name.normalize('NFKC').toLowerCase());
 }
 
 export const signUpSchema = signInSchema.extend({

@@ -31,7 +31,19 @@ describe('signUpSchema', () => {
       NAME_TOO_SHORT_MESSAGE,
     );
   });
-  test.each(['Ana · AI', 'Ana ·  ai', ' Ana · AI '])('rejects the name "%s" that impersonates an AI', (name) => {
+  test.each([
+    'Ana · AI',
+    'Ana ·  ai',
+    ' Ana · AI ',
+    'Bob • AI',
+    'Bob ⋅ AI',
+    'Bob ∙ AI',
+    'Bob ・AI',
+    'Bob . AI',
+    'Bob · ＡＩ',
+    'Bob·AI',
+    'Bob · Al',
+  ])('rejects the name "%s" that impersonates an AI', (name) => {
     expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
   });
   test('accepts a name that merely contains AI', () => {

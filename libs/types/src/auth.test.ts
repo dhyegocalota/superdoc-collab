@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
   EMAIL_INVALID_MESSAGE,
-  NAME_RESERVED_MESSAGE,
   INVALID_TIME_ZONE_MESSAGE,
   NAME_TOO_SHORT_MESSAGE,
   PASSWORD_TOO_SHORT_MESSAGE,
@@ -33,20 +32,11 @@ describe('signUpSchema', () => {
       NAME_TOO_SHORT_MESSAGE,
     );
   });
-  test.each([
-    'Ana · AI',
-    'Ana ·  ai',
-    ' Ana · AI ',
-    'Bob • AI',
-    'Bob ⋅ AI',
-    'Bob ∙ AI',
-    'Bob ・AI',
-    'Bob . AI',
-    'Bob · ＡＩ',
-    'Bob·AI',
-    'Bob · Al',
-  ])('rejects the name "%s" that impersonates an AI', (name) => {
-    expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
+  test.each(['Ana · AI', 'Bob • AI', 'Bob . AI', 'Bob · Al'])('accepts the free-form name "%s"', (name) => {
+    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success).toBe(true);
+  });
+  test.each(['Li Ai', 'Tanaka Ai', 'Wang Al'])('accepts the real name "%s" that only ends in a space and two letters', (name) => {
+    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success).toBe(true);
   });
   test('accepts a name that merely contains AI', () => {
     expect(
@@ -74,8 +64,8 @@ test('sign-up requires a time zone', () => {
   expect(signUpSchema.safeParse(SIGN_UP_BASE).success).toBe(false);
 });
 
-test('update-user rejects a name that impersonates an AI', () => {
-  expect(firstMessage(updateUserSchema.safeParse({ name: 'Ana · AI' }))).toBe(NAME_RESERVED_MESSAGE);
+test('update-user accepts a free-form name', () => {
+  expect(updateUserSchema.safeParse({ name: 'Ana · AI' }).success).toBe(true);
 });
 
 test('update-user accepts a time zone alone', () => {

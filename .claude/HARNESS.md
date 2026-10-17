@@ -29,6 +29,7 @@ The process is tool-agnostic. Claude Code, Codex and any agent that reads `AGENT
 8. Everything in the repo is in English.
 9. Tests are mandatory. No `sleep`. No `?? default`. No comments other than `// NB ADR NNNN:` pointers. See `AGENTS.md` → Code conventions.
 10. Every PR states its merge sensitivity. A sensitive PR also states its blast radius and ends with a checklist a human runs before merging (section 7).
+11. The agent repairs its own machine before it works, and never works with a blocking hook off. `.agents/hooks/doctor.sh` is the only list of the tools the harness needs; it runs at session start, as `/verify` gate 0 and on CI, and prose never repeats it. It reports; the agent asks before installing ([ADR 0026](../docs/adr/0026-the-agent-repairs-its-own-machine-doctor-reports-never-installs.md)).
 
 ## 1. Agree
 
@@ -123,6 +124,8 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 
 **Merge on green.** When the owner asks to merge as soon as CI is green, merge, then land the tester's ticks and evidence in a `docs` follow-up PR.
 
+**Image proof without Docker.** When the diff touches `docker/` or `deploy/` and the doctor reports Docker missing, the agent either asks to install it or writes in the PR body that the image was proven by the `docker` job of CI only. Never silently.
+
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
 
 **Sensitive PRs.** A PR is sensitive when its tier is 🟡 or 🔴, or when the diff touches auth or sessions, sharing or authorization, the update log or the projection, schema or migrations, deploy files, data deletion or secrets handling. The reviewer decides: `Merge sensitivity: LOW | MEDIUM | HIGH`, and MEDIUM or HIGH means sensitive. Every PR body carries the verdict with its reason. A sensitive PR also carries a **Blast radius** section (what can break and for whom, who notices first, how to roll back, whether rollback loses data) and ends with a **Human checklist**: the checks a person runs by hand before merging, one box each, concrete enough to execute without the agent (open X as Y, expect Z; run the rollback once; confirm the migration on a copy of production data). The agent writes the checklist, never ticks it, and never lowers the reviewer's verdict.
@@ -186,7 +189,7 @@ Routing: bulk reading and sweeps → cheapest model; implementing a decided desi
 | `feature` | skill | scaffolds `docs/features/<slug>/` |
 | `adr` | skill | scaffolds a numbered ADR |
 | `learning` | skill | records or revisits a learning |
-| `/verify` | skill | typecheck → security audit → secret scan → unit → E2E, stop at first failure |
+| `/verify` | skill | machine doctor → typecheck → security audit → secret scan → unit → E2E, stop at first failure |
 | `/check-ui` | skill | Playwright MCP walk, screenshots, video, release upload |
 | `/open-pr` | skill | the Ship gates, then the PR |
 | `/scenario` | skill | boots the stack on 3200/3299 and walks one `docs/scenarios/<slug>.md` with one Playwright MCP server per author |
@@ -196,7 +199,7 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 ## 11. Autonomy contract
 
 **Decide alone:** file names inside the agreed layout, test names, internal helper shapes, the order of plan steps, which sub-agent model to use.
-**Ask first:** anything in the spec, anything visible to the user, design-system choices, dependencies added, schema changes, deleting data, commits and pushes, anything that costs money (LLM batch runs, deploys).
+**Ask first:** anything in the spec, anything visible to the user, design-system choices, dependencies added, installing a tool on the machine (the doctor's fix: lines), schema changes, deleting data, commits and pushes, anything that costs money (LLM batch runs, deploys).
 **Never:** edit `.env*`, `git add -A`, `--no-verify`, commit on `main`, post review findings to GitHub, mark a test-plan box without evidence, tick a human checklist box, lower a reviewer's merge sensitivity, call something done without running it.
 
 ## 12. Enforcement
@@ -205,11 +208,12 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 |---|---|---|
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
+| `doctor.sh` | SessionStart; `/verify` gate 0; CI `checks` | prints one line per tool the harness needs (`ok`, `missing` or `skipped`, required or optional, what is lost, the `fix:` for this platform's package manager); exit 1 when a required tool is missing. The session hooks force exit 0 so the report reaches the context |
 | `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
 | `remind-docs.sh` | Stop | names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change, when those documents did not change; each document once until the next commit |
 
-The scripts live in `.agents/hooks/` and read the tool input from stdin, in the shape both tools send (`tool_input.file_path` from Claude Code, `apply_patch` headers in `tool_input.command` from Codex). Claude Code wires them in `.claude/settings.json`, Codex in `.codex/hooks.json`; `pnpm test:hooks` runs `.agents/hooks/hooks.test.sh` against both shapes and is part of `pnpm test:unit`.
+The scripts live in `.agents/hooks/` and read the tool input from stdin, in the shape both tools send (`tool_input.file_path` from Claude Code, `apply_patch` headers in `tool_input.command` from Codex). Claude Code wires them in `.claude/settings.json`, Codex in `.codex/hooks.json`; `pnpm test:hooks` runs `.agents/hooks/hooks.test.sh` against both shapes and is part of `pnpm test:unit`. The two guards exit 2 with the doctor's fix line when `jq` is absent; a guard that becomes a no-op is not a guard.
 
 Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it names each document once until the next commit, never blocks a stop that is already continuing, and the agent may answer that nothing applies.
 
-CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README. `apps/server/src/repository-shape/readme-run-block.test.ts` fails when the root README's Run it block names a script, package filter, file, environment variable, demo user or port the sources do not have, or when any package or e2e README carries a fenced block, a `pnpm` or `docker` command or an environment variable. `agent-surfaces.test.ts` fails when a role under `.agents/roles/` lacks its Claude Code wrapper, its Codex wrapper or its Codex registration. The `security` job of `verify.yml` audits production dependencies at `high` (`pnpm security:audit`) and scans every commit on every branch and tag plus the checked-out tree with a checksum-pinned gitleaks binary, after `.github/scripts/secret-rules-probe.sh` proves the rules fire on a fresh token and stay silent on a shipped placeholder (`.gitleaks.toml` allowlists the exact placeholder strings, anchored); the repository's Dependabot alerts and automated security fixes are on, so a PR opens only for a vulnerable dependency with a fix ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)).
+CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README. `apps/server/src/repository-shape/readme-run-block.test.ts` fails when the root README's Quick install section or the install guide's Run from source section names a script, package filter, file, environment variable, demo user or port the sources do not have, or when any package or e2e README carries a fenced block, a `pnpm` or `docker` command or an environment variable. `agent-surfaces.test.ts` fails when a role under `.agents/roles/` lacks its Claude Code wrapper, its Codex wrapper or its Codex registration. The `security` job of `verify.yml` audits production dependencies at `high` (`pnpm security:audit`) and scans every commit on every branch and tag plus the checked-out tree with a checksum-pinned gitleaks binary, after `.github/scripts/secret-rules-probe.sh` proves the rules fire on a fresh token and stay silent on a shipped placeholder (`.gitleaks.toml` allowlists the exact placeholder strings, anchored); the repository's Dependabot alerts and automated security fixes are on, so a PR opens only for a vulnerable dependency with a fix ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)).

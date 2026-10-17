@@ -30,6 +30,7 @@ import {
   DOWNLOAD_LABEL,
   EDITOR_ESCAPE_HINT,
   EDITOR_EXIT_LABEL,
+  EDIT_REJECTED_MESSAGE,
   EDITOR_FAILED_MESSAGE,
   EXPORT_FAILED_MESSAGE,
   HOME_LINK_LABEL,
@@ -37,6 +38,7 @@ import {
   TITLE_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
+import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
@@ -45,7 +47,7 @@ const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, sum
 
 type SuperDocConfig = {
   telemetry: { enabled: boolean };
-  onException: (payload: { error: Error }) => void;
+  onException: (payload: { code?: string; error: Error; editor: null }) => void;
   zoom: { mode: string };
 };
 
@@ -192,8 +194,26 @@ test('an editor exception shows the editor failure', async () => {
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const firstCall = SuperDoc.mock.calls.at(0);
   if (!firstCall) throw new Error('SuperDoc was not constructed');
-  act(() => firstCall[0].onException({ error: new Error('boom') }));
+  act(() => firstCall[0].onException({ error: new Error('boom'), editor: null }));
   expect(await screen.findByRole('alert')).toHaveTextContent(EDITOR_FAILED_MESSAGE);
+});
+
+test('a rejected edit shows a status that a key keeps and a click on the editor clears, with no failure', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const firstCall = SuperDoc.mock.calls.at(0);
+  if (!firstCall) throw new Error('SuperDoc was not constructed');
+  act(() => firstCall[0].onException({ code: SuperDocExceptionCode.EditRejected, error: new Error('rejected'), editor: null }));
+  expect(await screen.findByText(EDIT_REJECTED_MESSAGE)).toHaveAttribute('role', 'status');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  const editor = screen.getByTestId('document-editor');
+  fireEvent.keyDown(editor, { key: 'a' });
+  expect(screen.getByText(EDIT_REJECTED_MESSAGE)).toBeInTheDocument();
+  fireEvent.pointerDown(editor);
+  expect(screen.getByText(EDIT_REJECTED_MESSAGE)).toBeInTheDocument();
+  fireEvent.click(editor);
+  expect(screen.queryByText(EDIT_REJECTED_MESSAGE)).not.toBeInTheDocument();
 });
 
 test('the editor is destroyed when the page unmounts', async () => {

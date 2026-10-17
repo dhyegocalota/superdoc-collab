@@ -70,7 +70,8 @@ export enum TimelineQueryParam {
 
 export type TimelineFilter = { term: string | null; author: string | null };
 export type EditSelection = { term: string | null; author: string | null; topic: string | null; at: number | null };
-export type SelectionSummary = { key: string; sentence: string; authors: string[]; computedAtSequence: number; isStale: boolean };
+export type SummaryAuthor = Pick<EventAuthor, 'name' | 'actor'>;
+export type SelectionSummary = { key: string; sentence: string; authors: SummaryAuthor[]; computedAtSequence: number; isStale: boolean };
 export type SelectionSummaryView = {
   state: SelectionSummaryState;
   summary: SelectionSummary | null;

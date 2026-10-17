@@ -44,3 +44,6 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0023](0023-agentic-scenario-runs-with-one-browser-per-author.md) | Agentic scenario runs with one Playwright MCP server per author | Accepted | 2026-10-17 |
 | [0024](0024-agent-edits-carry-a-human-or-agent-actor.md) | Agent edits carry an actor next to the user they act for | Accepted | 2026-10-17 |
 | [0025](0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md) | MCP clients authorize with OAuth; agents join rooms with a short-lived room token | Accepted | 2026-10-17 |
+| [0026](0026-the-agent-repairs-its-own-machine-doctor-reports-never-installs.md) | The agent repairs its own machine: a doctor reports at session start and never installs | Accepted | 2026-10-17 |
+| [0027](0027-a-pruned-version-sequence-resolves-to-its-minute.md) | A pruned version sequence resolves to the surviving mark of its minute | Accepted | 2026-10-17 |
+| [0028](0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md) | The actor, not the name, marks an AI in our interface | Accepted | 2026-10-17 |

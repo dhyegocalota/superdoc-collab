@@ -131,3 +131,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict with blast radius and merge sensitivity; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/check-ui:** screenshots and video recorded and uploaded.
 - [ ] **/open-pr:** gates passed, learnings and docs sweep stated, PR opened; `verify.yml` and the dispatched `e2e.yml` green.
+
+### Note: actor-driven AI icon
+
+Step 22's name-suffix badge was replaced by an actor-driven icon ([ADR 0028](../../adr/0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md)): server names stay plain, summaries carry `{ name, actor }`, the reserved-name rule was removed. Commits on the web lane: a42a74e (server), da96a98 red and 2f2617a green (web).

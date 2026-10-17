@@ -27,7 +27,7 @@ import {
 } from './agent';
 import { insertInParagraph, uploadSeed } from './editor';
 import { DEMO_PASSWORD, expect, signedInContext, signIn, test } from './fixtures';
-import { agentActionLabel, AI_BADGE_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
+import { agentActionLabel, agentMarkLabel } from '../apps/web/src/features/timeline/timeline-copy';
 import {
   ANA_TEXT,
   BANDS_TIMEOUT_MS,
@@ -59,7 +59,7 @@ test('an AI client connects, edits in tracked mode and is revoked', async ({ bro
   await waitForBands({ page: ana.page, names: [HIRING] });
   await waitForSettledTimeline({ page: ana.page, documentId });
   await expect(ana.page.locator(AGENT_LAYER_SELECTOR).first()).toBeVisible();
-  await expect(ana.page.locator(`li[title="${agentAuthorName(ANA.name)}"]`).getByLabel(AI_BADGE_LABEL)).toBeVisible();
+  await expect(ana.page.locator(`li[title="${ANA.name}"]`).getByRole('img', { name: agentMarkLabel(ANA.name) })).toBeVisible();
 
   const connectedApps = await ana.context.newPage();
   await openConnectedApps({ page: connectedApps, clientName: connection.clientName });
@@ -82,7 +82,7 @@ test('a share link rotated by the AI leaves a mark and reveals no link', async (
   await expect
     .poll(async () => (await readTimeline({ page: ana.page, documentId })).agentActions.map((action) => action.kind))
     .toEqual([AgentActionKind.ShareLinkRotated]);
-  const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.ShareLinkRotated });
+  const label = agentActionLabel({ name: ANA.name, kind: AgentActionKind.ShareLinkRotated });
   const mark = ana.page.getByRole('img', { name: label });
   await expect(mark).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
   await mark.hover();
@@ -101,7 +101,7 @@ test('a document exported by the AI is a DOCX and leaves a mark', async ({ brows
 
   expect(mimeType).toBe(DOCX_MIME_TYPE);
   expect(bytes.subarray(0, ZIP_SIGNATURE.length)).toEqual(ZIP_SIGNATURE);
-  const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.DocumentExported });
+  const label = agentActionLabel({ name: ANA.name, kind: AgentActionKind.DocumentExported });
   await expect(ana.page.getByRole('img', { name: label })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
 });
 

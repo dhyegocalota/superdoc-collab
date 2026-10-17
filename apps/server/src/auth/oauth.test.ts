@@ -51,7 +51,7 @@ describe('oauth discovery', () => {
     expect(response.status).toBe(status);
   });
 
-  test('a signed-in person cannot take the AI name suffix through update-user', async () => {
+  test('a signed-in person may use any name through update-user, the AI icon comes from the actor', async () => {
     const person = await signedInUser({ server, name: 'Paula' });
     const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
       method: 'POST',
@@ -59,7 +59,71 @@ describe('oauth discovery', () => {
       body: JSON.stringify({ name: 'Paula · AI' }),
     });
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: person.cookie } });
-    expect(response.status).toBe(HttpStatus.BadRequest);
-    expect(((await me.json()) as { user: { name: string } }).user.name).toBe('Paula');
+    expect(response.status).toBe(HttpStatus.Ok);
+    expect(((await me.json()) as { user: { name: string } }).user.name).toBe('Paula · AI');
+  });
+
+  test.each([
+    { name: 'create-client', method: 'POST', path: '/oauth2/create-client' },
+    { name: 'the session token', method: 'GET', path: '/token' },
+  ])('$name is not served', async ({ method, path }) => {
+    const person = await signedInUser({ server, name: 'Tania' });
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
+      method,
+      headers: { 'content-type': 'application/json', cookie: person.cookie, origin: server.baseUrl },
+      body: method === 'POST' ? JSON.stringify({ client_name: 'x', redirect_uris: ['https://example.com/cb'] }) : undefined,
+    });
+    expect(response.status).toBe(HttpStatus.NotFound);
+  });
+
+  describe('dynamic client registration is bounded', () => {
+    let nextAddress = 0;
+    function register(body: Record<string, unknown>): Promise<Response> {
+      nextAddress += 1;
+      return fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/register`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.230.0.${nextAddress}` },
+        body: JSON.stringify(body),
+      });
+    }
+    const validBody = { client_name: 'Client', redirect_uris: ['https://example.com/callback'], token_endpoint_auth_method: 'none' };
+
+    test.each([
+      { name: 'a client name over the cap', body: { ...validBody, client_name: 'x'.repeat(300) }, status: HttpStatus.BadRequest },
+      {
+        name: 'more redirect uris than the cap',
+        body: { ...validBody, redirect_uris: Array.from({ length: 40 }, (_, index) => `https://example.com/${index}`) },
+        status: HttpStatus.BadRequest,
+      },
+      ...['logo_uri', 'client_uri', 'policy_uri', 'tos_uri'].map((field) => ({
+        name: `a long ${field}`,
+        body: { ...validBody, [field]: `https://example.com/${'x'.repeat(600)}` },
+        status: HttpStatus.BadRequest,
+      })),
+      {
+        name: 'too many contacts',
+        body: { ...validBody, contacts: ['a@example.com', 'b@example.com', 'c@example.com', 'd@example.com'] },
+        status: HttpStatus.BadRequest,
+      },
+      { name: 'a long contact', body: { ...validBody, contacts: [`${'x'.repeat(300)}@example.com`] }, status: HttpStatus.BadRequest },
+      { name: 'a normal registration', body: validBody, status: HttpStatus.Created },
+      {
+        name: 'three kilobytes in an unknown field',
+        body: { ...validBody, padding: 'x'.repeat(3 * 1024) },
+        status: HttpStatus.PayloadTooLarge,
+      },
+      {
+        name: 'a five megabyte body',
+        body: { ...validBody, client_name: 'x'.repeat(5 * 1024 * 1024) },
+        status: HttpStatus.PayloadTooLarge,
+      },
+      {
+        name: 'twenty thousand redirect uris',
+        body: { ...validBody, redirect_uris: Array.from({ length: 20_000 }, (_, index) => `https://example.com/${index}`) },
+        status: HttpStatus.PayloadTooLarge,
+      },
+    ])('$name answers $status', async ({ body, status }) => {
+      expect((await register(body)).status).toBe(status);
+    });
   });
 });

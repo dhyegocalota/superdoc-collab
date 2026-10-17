@@ -11,7 +11,7 @@ import {
   type DocumentsList,
 } from '@superdoc-collab/types';
 import { Hono } from 'hono';
-import { afterAll, beforeAll, expect, test } from 'vitest';
+import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import type { TestServer, TestUser } from '../testing/test-server';
@@ -227,4 +227,28 @@ test('a person over the call limit gets 429 with Retry-After while another perso
   expect(limited.status).toBe(HttpStatus.TooManyRequests);
   expect(Number(limited.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   expect((await postAs({ routes, token: OTHER_TOKEN })).status).toBe(HttpStatus.Ok);
+});
+
+test('a JSON-RPC batch answers 400 and runs no tool', async () => {
+  const listed = vi.spyOn(server.services.documents, 'list');
+  const call = { jsonrpc: '2.0', method: 'tools/call', params: { name: AgentTool.ListDocuments, arguments: {} } };
+  const response = await Promise.resolve(
+    app.fetch(
+      new Request(MCP_URL, {
+        method: HttpMethod.Post,
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+          authorization: `${BEARER_PREFIX}${OWNER_TOKEN}`,
+        },
+        body: JSON.stringify([
+          { ...call, id: 1 },
+          { ...call, id: 2 },
+        ]),
+      }),
+    ),
+  );
+  expect(response.status).toBe(HttpStatus.BadRequest);
+  expect(listed).not.toHaveBeenCalled();
+  listed.mockRestore();
 });

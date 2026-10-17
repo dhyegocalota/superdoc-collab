@@ -59,6 +59,7 @@ export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: P
 export type RunningServer = {
   httpServer: ServerType;
   port: number;
+  host: string | null;
   auth: Auth;
   database: AuthDatabase;
   services: ServerServices;
@@ -74,9 +75,9 @@ export function closeServer(httpServer: ServerType): Promise<void> {
   return new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
 }
 
-function listen({ app, port }: { app: Hono; port: number }): Promise<ServerType> {
+function listen({ app, port, host }: { app: Hono; port: number; host: string | null }): Promise<ServerType> {
   return new Promise((resolve, reject) => {
-    const started = serve({ fetch: app.fetch, port }, () => resolve(started));
+    const started = serve({ fetch: app.fetch, port, ...(host === null ? {} : { hostname: host }) }, () => resolve(started));
     started.once('error', reject);
   });
 }
@@ -138,7 +139,7 @@ function createServices({
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
   const auth = createAuth({ database, environment, invites });
-  const versions = new VersionsService({ readModel, scheduler });
+  const versions = new VersionsService({ readModel, updateLog, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const hocuspocus = createCollaborationServer({
@@ -297,7 +298,7 @@ export async function startServer({
   const app = createApp({ auth, environment, services });
   if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
-  const httpServer = await listen({ app, port: environment.port }).catch(async (error) => {
+  const httpServer = await listen({ app, port: environment.port, host: environment.host }).catch(async (error) => {
     await closeCollaboration(services);
     closeDatabases(databases);
     throw error;
@@ -314,6 +315,7 @@ export async function startServer({
   return {
     httpServer,
     port,
+    host: environment.host,
     auth,
     database: databases.database,
     services,

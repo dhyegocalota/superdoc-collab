@@ -9,6 +9,8 @@ const CODEX_CONFIG_FILE = '.codex/config.toml';
 const MARKDOWN_EXTENSION = '.md';
 const TOML_EXTENSION = '.toml';
 const EXPECTED_ROLES = ['developer', 'recorder', 'researcher', 'reviewer', 'security-reviewer', 'tester'];
+const VERIFY_SKILL_FILE = '.agents/skills/verify/SKILL.md';
+const DOCTOR_SCRIPT_GATE = '0. `.agents/hooks/doctor.sh`';
 
 function roleNames(): string[] {
   return readdirSync(repositoryPath(ROLES_DIRECTORY))
@@ -49,5 +51,9 @@ describe('agent surfaces', () => {
       (role) => !config.includes(`[agents.${role}]\nconfig_file = "${CODEX_AGENTS_DIRECTORY}/${role}${TOML_EXTENSION}"`),
     );
     expect(missing).toEqual([]);
+  });
+
+  test('the verify skill opens with the doctor script, not the pnpm built-in of the same name', () => {
+    expect(readRepositoryFile(VERIFY_SKILL_FILE)).toContain(DOCTOR_SCRIPT_GATE);
   });
 });

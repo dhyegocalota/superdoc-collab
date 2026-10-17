@@ -137,6 +137,14 @@ export class UpdateLog {
     return rows.map(toLoggedUpdate);
   }
 
+  serverTimeOf({ documentName, sequence }: { documentName: string; sequence: number }): number | null {
+    const row = this.database
+      .prepare('SELECT server_time FROM updates WHERE document_name = ? AND sequence = ?')
+      .get(documentName, sequence) as { server_time: number } | undefined;
+    if (!row) return null;
+    return row.server_time;
+  }
+
   readBatch({ documentName, afterSequence, limit }: { documentName: string; afterSequence: number; limit: number }): LoggedUpdate[] {
     const rows = this.database
       .prepare('SELECT * FROM updates WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT ?')

@@ -5,7 +5,6 @@ export const NAME_MIN_LENGTH = 2;
 export const AUTH_ERROR_MESSAGE = 'Invalid email or password.';
 export const EMAIL_INVALID_MESSAGE = 'Enter a valid email address.';
 export const PASSWORD_TOO_SHORT_MESSAGE = `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
-export const NAME_RESERVED_MESSAGE = 'This name is reserved for AI clients.';
 export const NAME_TOO_SHORT_MESSAGE = `Use at least ${NAME_MIN_LENGTH} characters.`;
 export const INVALID_TIME_ZONE_MESSAGE = 'Unknown time zone.';
 export const SIGN_UP_BY_INVITATION_MESSAGE = 'Sign-up is by invitation. Ask an admin for a link.';
@@ -28,18 +27,7 @@ const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE)
 
 export const signInSchema = z.object({ email, password });
 
-const DOT_LIKE_SEPARATORS = '·•⋅∙・.';
-const RESERVED_NAME_ENDING = new RegExp(`[${DOT_LIKE_SEPARATORS}]\\s*a[il]$`);
-
-function impersonatesAgent(name: string): boolean {
-  return RESERVED_NAME_ENDING.test(name.normalize('NFKC').toLowerCase());
-}
-
-const personName = z
-  .string()
-  .trim()
-  .min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE)
-  .refine((name) => !impersonatesAgent(name), NAME_RESERVED_MESSAGE);
+const personName = z.string().trim().min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE);
 
 export const signUpSchema = signInSchema.extend({
   name: personName,

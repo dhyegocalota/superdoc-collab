@@ -31,7 +31,7 @@ import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR, timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from './timeline-api';
 import {
   EARLIER_STATE_LABEL,
@@ -73,7 +73,7 @@ const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, sum
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const READY_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
-  summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_AUTHOR_NAME], computedAtSequence: 3, isStale: false },
+  summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_SUMMARY_AUTHOR], computedAtSequence: 3, isStale: false },
   failure: null,
   isModelAvailable: true,
 };
@@ -515,7 +515,7 @@ test('the summary card sits in a polite live region that exists before it has co
 test('two authors with the same name each get an avatar', async () => {
   const twins: SelectionSummaryView = {
     ...READY_VIEW,
-    summary: { ...READY_VIEW.summary!, authors: [FIXTURE_AUTHOR_NAME, FIXTURE_AUTHOR_NAME] },
+    summary: { ...READY_VIEW.summary!, authors: [FIXTURE_SUMMARY_AUTHOR, FIXTURE_SUMMARY_AUTHOR] },
   };
   mockTimelineApi({ selectionViews: [twins] });
   renderPanel();

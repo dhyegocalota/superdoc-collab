@@ -163,6 +163,22 @@ The red test for attach-collaboration first waited for the socket to close, whic
 - With the origin check on, requests that post credentials must carry `Origin`. Test helpers and three test files now send it. Browsers always do. Cookie-less OAuth calls (register, token) need none.
 - Gap: the replay store for DPoP proofs is the process-local default, fine for one replica.
 
+### Security review round (revocation, storage, surface)
+
+| Test | Red before the fix because | Green after because |
+|------|-----------------------------|----------------------|
+| `agent/agent-revocation.test.ts` refresh after delete-consent | `expected 200 to be greater than or equal to 400` | the delete-consent before-hook removes the stored refresh and access tokens |
+| `agent/agent-revocation.test.ts` narrower re-consent, update-consent narrowing | `expected [ 'history:read', ... ] to deeply equal [ 'history:read' ]` | token scopes are intersected with the stored consent per request |
+| `auth/oauth.test.ts` create-client, session token | `expected 201 to be 404`, `expected 200 to be 404` | both paths disabled |
+| `auth/oauth.test.ts` registration: five megabyte body, twenty thousand uris | `expected 201 to be 413` | 16 KB body limit on the auth routes |
+| `auth/oauth.test.ts` registration: long name, many uris | `expected 201 to be 400` | registration limits plugin |
+| `collaboration/attach-collaboration.test.ts` non-loopback agent upgrade | `expected "Mock" to be called once, but got 0 times` | peer address must be loopback |
+
+- Pins: the full-scope token row and the normal registration row.
+- Test order matters in the registration table: the 413 rows run last because the server answers before reading the body and Node reuses the reset socket for the next request.
+- Hypothesis: after a consent is deleted or narrowed, no call with an old access or refresh token reaches a tool outside the narrower scopes. Break it by: re-consent with fewer scopes, refresh with the old token, call `tools/list` with every token.
+- Hypothesis: auth.sqlite no longer grows from unauthenticated registration. Break it by: register with 16 KB of metadata in other fields and watch the file size.
+
 ## L3 agent and MCP
 
 Lane `developer-agent`, branch `feat/agentic-history-mcp-agent`, plan Steps 13 to 19. L1 and L2 were merged before the wiring.
@@ -273,7 +289,7 @@ The consent page reads `client_id` and `scope` (space separated) from the query 
 | hatched agent layer | `svg path[data-actor="agent"]`, `aria-hidden`, `fill="url(#agent-hatch-<band id>)"`; patterns in `svg defs pattern` |
 | legend row | text "Hatched: edited by AI" |
 | AI badge | element with `aria-label="Edited by AI"` inside the avatar `li` whose `title` is "Name · AI" |
-| action marks | `getByRole('button', { name: '<Name · AI> revealed a share link' })` (also "rotated a share link", "exported the document"); hovering or focusing shows `role="tooltip"` with the same sentence |
+| action marks | `getByRole('img', { name: '<Name · AI> rotated a share link' })` (also "exported the document"; a focusable `role="img"` span); hovering or focusing shows `role="tooltip"` with the same sentence |
 
 ### Red today, green after
 
@@ -384,3 +400,11 @@ Hypotheses to attack:
 1. Hypothesis: a signed-in person cannot take the AI suffix through `/update-user`. Break it by: post `{ "name": "Eve ・ＡＩ" }` and `{ "name": "Eve" }` to `/api/auth/update-user`; the first answers 400, the second 200.
 2. Hypothesis: an AI client can still authorize on an instance where sign-up is invite-only. Break it by: start with no session, follow the authorize redirect to sign-in, sign in as an invited user, and finish consent.
 3. Hypothesis: the two migrations apply in order on a copy of a database that already ran main's 0004. Break it by: copy a production-like `auth.sqlite`, start the server, and list the OAuth tables.
+
+### L4 actor-driven AI icon (supersedes the name-suffix badge above)
+
+- The AI icon (`role="img"`, `aria-label` "Edited by <Name>'s AI", same text as tooltip) is rendered from `EventAuthor.actor` by `AgentMark` next to the plain name in: avatars, the timeline tooltip, bin edits, top edits and the selection summary card. Action marks read "<Name>'s AI rotated a share link". The old "Edited by AI" badge and every suffix parser are gone.
+- Server: agent authors carry the plain name; selection summary `authors` are `{ name, actor }`; the model sees "<Name>'s AI"; migration `0006_clear-selection-summaries` empties the cached summaries.
+- Names are free-form: "Bob · AI" is accepted at sign-up and update-user and shows no icon. Only the SuperDoc session name keeps " · AI" (tracked-change cards).
+- Hypotheses: a human named "Bob · AI" never shows the icon; an agent edit shows "Ana" plus the icon in avatars, tooltip and top edits; an existing selection summary is recomputed after deploy. Break it by: renaming a person to "Ana · AI" mid-session; opening a document with an old cached summary.
+- E2E selectors: avatar `li[title="<Name>"]` containing `getByRole('img', { name: "Edited by <Name>'s AI" })`; marks `getByRole('img', { name: "<Name>'s AI revealed a share link" })`.

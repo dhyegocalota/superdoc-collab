@@ -63,7 +63,7 @@ export async function authorizeAgentRequest({
   const { sub: userId, client_id: clientId, scope } = claims;
   if (typeof userId !== 'string' || typeof clientId !== 'string' || typeof scope !== 'string') return null;
   // NB ADR 0025: delete-consent leaves issued tokens valid, so the consent is checked per request
-  const consent = await adapter.findOne({
+  const consent = await adapter.findOne<{ scopes: string[] }>({
     model: CONSENT_MODEL,
     where: [
       { field: 'userId', value: userId },
@@ -71,7 +71,10 @@ export async function authorizeAgentRequest({
     ],
   });
   if (!consent) return null;
-  const scopes = scope.split(SCOPE_SEPARATOR).filter((granted): granted is AgentScope => AGENT_SCOPES.has(granted));
+  const consented = new Set<string>(consent.scopes);
+  const scopes = scope
+    .split(SCOPE_SEPARATOR)
+    .filter((granted): granted is AgentScope => AGENT_SCOPES.has(granted) && consented.has(granted));
   return { userId, clientId, scopes };
 }
 

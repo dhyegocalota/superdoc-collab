@@ -4,8 +4,9 @@ import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
+import { isRecoverableException } from './superdoc-exceptions';
 import { DocumentMode, superdocOptions } from './superdoc-options';
-import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
+import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS, followViewportZoom } from './superdoc-zoom';
 
@@ -25,6 +26,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
+  const [hasRejectedEdit, setHasRejectedEdit] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -40,7 +42,10 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         user,
         viewport: window,
       }),
-      onException: () => setHasFailed(true),
+      onException: (payload) => {
+        if (isRecoverableException(payload)) return setHasRejectedEdit(true);
+        setHasFailed(true);
+      },
     });
     superdocRef.current = superdoc;
     const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window });
@@ -48,8 +53,13 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       stopFollowingViewport();
       superdocRef.current = null;
       superdoc.destroy();
+      setHasRejectedEdit(false);
     };
   }, [superdocRef, documentId, roomMode, role, user, file]);
+
+  function clearRejectedEdit(): void {
+    setHasRejectedEdit(false);
+  }
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
@@ -60,8 +70,13 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface} onClick={clearRejectedEdit}>
       {hasFailed && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
+      {hasRejectedEdit && (
+        <p role="status" className="px-4 py-1 text-xs text-muted-foreground">
+          {EDIT_REJECTED_MESSAGE}
+        </p>
+      )}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div
         ref={containerRef}

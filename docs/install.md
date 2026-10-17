@@ -23,15 +23,28 @@ The [Railway runbook](features/deploy/runbook-railway.md) creates the service, t
 Paste this into Claude Code, Codex or any agent with a shell. It installs the app and stops where only you can continue.
 
 ```text
-Install https://github.com/dhyegocalota/superdoc-take-home for me.
-
-1. Clone the repository and read README.md and docs/features/deploy/runbook-railway.md.
-2. Ask me one question: Railway (hosted, about US$5/month) or Docker Compose on this machine. Do not continue until I answer.
-3. Generate AUTH_SECRET with `openssl rand -base64 48`. Set the environment the runbook lists: PORT=3000, DATABASE_DIR=/data, WEB_DIST_DIR=/app/web, TRUST_PROXY=true (Railway) or false (local), APP_ORIGIN=<the public URL>, SEED_DEMO_USERS=false, and, if I give you an OpenRouter key, OPENROUTER_API_KEY and LLM_MODEL. Never print a secret.
-4. Railway: follow the runbook steps 1 to 5 with the Railway CLI (I will run `railway login` when you ask). Docker: `docker compose up --build -d` with the variables above.
-5. Verify: GET /api/health answers 200 and GET /api/setup answers {"claimed":false}.
-6. Print the URL and stop. Tell me to open it and claim the instance: the first account created becomes the administrator, and sign-up closes behind it. Then tell me that /admin generates single-use invite links for my team.
+Install https://github.com/dhyegocalota/superdoc-collab by following docs/agent-install.md in that repository.
 ```
+
+The agent's steps live in [`agent-install.md`](agent-install.md): one question (Railway or Docker Compose), the environment in [Configuration](#configuration), a health check, then the claim is yours.
+
+## Run from source
+
+With Node 24 and pnpm:
+
+```bash
+cp .env.example .env
+pnpm install
+pnpm build
+scripts/with-env.sh pnpm seed
+WEB_DIST_DIR=apps/web/dist scripts/with-env.sh pnpm --filter @superdoc-collab/server start
+```
+
+Topics and summaries need `OPENROUTER_API_KEY` in `.env`; without it the app works and the chart shows one band per author.
+
+## Develop with an agent
+
+Clone the repository and open it in Claude Code or Codex. The first session reports which tools the harness needs and are missing on this machine, with the install command for your platform; approve the installs you want, then ask for `/verify`. The list lives in `.agents/hooks/doctor.sh` and nowhere else.
 
 ## First login
 

@@ -3,7 +3,7 @@
 **Status:** Approved
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 ("fix os 5 achados", finding 3 after PR #31; the reviewer's trace turned the flake into this product defect)
-**ADRs:** [0026](../../adr/0026-a-pruned-version-sequence-resolves-to-its-minute.md)
+**ADRs:** [0027](../../adr/0027-a-pruned-version-sequence-resolves-to-its-minute.md)
 **Not changing:** the client pin (`?at=`), the one-mark-per-minute budget (ADR 0003), `clampToMark` for sequences the log does not know, the E2E spec itself.
 
 ## Problem

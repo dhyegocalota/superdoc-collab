@@ -98,7 +98,7 @@ export class VersionsService {
     this.cache = new LruMap({ isOverBudget: (entries) => isOverVersionBudget({ entries, maxEntries, maxBytes }) });
   }
 
-  // NB ADR 0026: a sequence whose mark was pruned resolves to the surviving mark of its minute, never to an earlier one.
+  // NB ADR 0027: a sequence whose mark was pruned resolves to the surviving mark of its minute, never to an earlier one.
   resolve({ documentId, sequence }: VersionEndpoint): VersionMarkSummary | null {
     const serverTime = this.updateLog.serverTimeOf({ documentName: documentId, sequence });
     return resolveMark({ marks: this.readModel.marks(documentId), sequence, serverTime });

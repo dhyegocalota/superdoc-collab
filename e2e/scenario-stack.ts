@@ -8,6 +8,7 @@ import {
   FAKE_OPENROUTER_COMMAND,
   FAKE_OPENROUTER_HEALTH_PATH,
   localOrigin,
+  LOOPBACK_HOST,
   SERVER_HEALTH_PATH,
   stackEnvironment,
 } from './stack';
@@ -18,7 +19,6 @@ const HEALTH_POLL_INTERVAL_MS = 500;
 const STACK_START_TIMEOUT_MS = 300_000;
 const DATABASE_DIRECTORY_PREFIX = 'superdoc-collab-scenario-';
 const STOP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
-const LOOPBACK_HOST = '127.0.0.1';
 const CONNECTION_REFUSED = 'ECONNREFUSED';
 const NO_SUCH_PROCESS = 'ESRCH';
 

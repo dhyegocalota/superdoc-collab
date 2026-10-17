@@ -4,7 +4,7 @@
 **Tier:** 🟡
 **Seam:** `VersionsService.resolve` in `apps/server/src/history/versions-service.ts`; `clampToMark` in `libs/history/src/version-marks.ts`.
 **Assumptions (decided, owner can override):**
-- Resolution lives on the server (ADR 0026); the client pin and the E2E spec stay as they are.
+- Resolution lives on the server (ADR 0027); the client pin and the E2E spec stay as they are.
 
 ## File map
 

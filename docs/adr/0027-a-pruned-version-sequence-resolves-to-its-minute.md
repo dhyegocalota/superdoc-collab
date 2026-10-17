@@ -1,4 +1,4 @@
-# 0026. A pruned version sequence resolves to the surviving mark of its minute
+# 0027. A pruned version sequence resolves to the surviving mark of its minute
 
 - Status: Accepted
 - Date: 2026-10-17

@@ -6,29 +6,27 @@ A collaborative DOCX editor that records every edit and shows who changed what, 
 
 ![The editor beside the timeline panel: one band per topic, and the top edits per topic with who made them and one sentence each](docs/media/readme/timeline.png)
 
-## Run it
+## Quick install
+
+**With an agent.** Paste this into Claude Code, Codex or any agent with a shell; it asks you one question, installs, and stops where only you can continue:
+
+```text
+Install https://github.com/dhyegocalota/superdoc-collab by following docs/agent-install.md in that repository.
+```
+
+**With Docker**, as a local demo with seeded users:
 
 ```bash
 ENV_FILE=.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true docker compose up --build -d
 ```
 
-Open <http://localhost:3000> and sign in as `ana@example.com` / `superdoc-demo`. The demo users are Ana, Bruno, Caio and Dani at `example.com`, all with that password. `docker compose down -v` resets everything.
+Open <http://localhost:3000> and sign in as `ana@example.com` / `superdoc-demo`. The demo users are Ana, Bruno, Caio and Dani at `example.com`, all with that password. `docker compose down -v` resets everything. Topics and summaries need `OPENROUTER_API_KEY`; without it the app works and the chart shows one band per author.
 
-From source, with Node 24 and pnpm:
-
-```bash
-cp .env.example .env
-pnpm install
-pnpm build
-scripts/with-env.sh pnpm seed
-WEB_DIST_DIR=apps/web/dist scripts/with-env.sh pnpm --filter @superdoc-collab/server start
-```
-
-Topics and summaries need `OPENROUTER_API_KEY` in `.env`; without it the app works and the chart shows one band per author.
+Railway, running from source, configuration and recovery: [Install and run](docs/install.md).
 
 ## Read more
 
-- [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team
+- [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team; [develop with an agent](docs/install.md#develop-with-an-agent)
 - [Architecture, features and limits](docs/architecture.md)
 - [Decisions](docs/adr/) and [features](docs/features/README.md#roadmap), one folder and one pull request each
 - [How the work is done](.claude/HARNESS.md) with Claude Code, and the [credits](docs/credits.md)

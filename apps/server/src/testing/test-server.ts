@@ -14,7 +14,7 @@ import { startServer, type RunningServer, type ServerServices } from '../server'
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
 
 const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
-const LOOPBACK_HOST = '127.0.0.1';
+export const LOOPBACK_HOST = '127.0.0.1';
 const UNIQUE_EMAIL_SUFFIX_LENGTH = 8;
 const NO_LLM_SETTINGS: LlmSettings = {
   model: null,
@@ -53,6 +53,7 @@ export function testEnvironment({
 }: { databaseDirectory?: string } = {}): Environment {
   return {
     port: 0,
+    host: LOOPBACK_HOST,
     appOrigin: `http://${LOOPBACK_HOST}`,
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
@@ -94,6 +95,7 @@ export async function startTestServer({
   const port = await reserveFreePort();
   const environment: Environment = {
     port,
+    host: LOOPBACK_HOST,
     appOrigin: `http://${LOOPBACK_HOST}:${port}`,
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,

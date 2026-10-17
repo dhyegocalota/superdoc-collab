@@ -18,7 +18,7 @@ export const EDITOR_INPUT_SELECTOR = 'textarea';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';
 const FOCUS_TIMEOUT_MS = 30_000;
-const EDITOR_READY_TIMEOUT_MS = 60_000;
+export const EDITOR_READY_TIMEOUT_MS = 60_000;
 const TYPING_DELAY_MS = 20;
 
 export function editorText(page: Page) {

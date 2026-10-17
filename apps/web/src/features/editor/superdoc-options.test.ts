@@ -92,7 +92,7 @@ test('excludeItems is declared satisfies readonly ToolbarItemId[]', () => {
 });
 
 test('ui.search is true so Cmd+F opens the Find bar', () => {
-  expect(optionsFor(document.createElement('div')).ui?.search).toBe(true);
+  expect(optionsFor(document.createElement('div')).ui).toMatchObject({ search: true });
 });
 
 test('user.color and colors come from the palette arguments', () => {
@@ -102,5 +102,5 @@ test('user.color and colors come from the palette arguments', () => {
 });
 
 test('without a toolbar container there is no toolbar', () => {
-  expect(optionsFor(null).ui?.toolbar).toBeUndefined();
+  expect(optionsFor(null).ui).not.toHaveProperty('toolbar');
 });

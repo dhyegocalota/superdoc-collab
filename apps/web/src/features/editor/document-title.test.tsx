@@ -1,7 +1,7 @@
 import { DocumentRole, documentApiPath, HttpMethod, HttpStatus } from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
 import { DOCUMENT_ID, DOCUMENT_TITLE } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { renameTitleLabel, TITLE_LABEL } from './editor-copy';
@@ -13,8 +13,8 @@ function renderTitle(role: DocumentRole): void {
   renderWithProviders(<DocumentTitle documentId={DOCUMENT_ID} title={DOCUMENT_TITLE} role={role} />);
 }
 
-function patchRequests(fetchSpy: ReturnType<typeof vi.spyOn>) {
-  return fetchSpy.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === HttpMethod.Patch);
+function patchRequests(fetchSpy: MockInstance<typeof fetch>) {
+  return fetchSpy.mock.calls.filter(([, init]) => init?.method === HttpMethod.Patch);
 }
 
 afterEach(() => vi.restoreAllMocks());

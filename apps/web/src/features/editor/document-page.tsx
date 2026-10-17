@@ -1,5 +1,5 @@
 import { DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState } from '@superdoc-collab/types';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
 import { useSession } from '@/features/auth/use-session';
@@ -19,6 +19,10 @@ import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
 import { useOpenedDocument } from './use-opened-document';
 
+function renderNothing(): null {
+  return null;
+}
+
 const EDITOR_AREA_CLASS = 'relative flex min-h-[60dvh] min-w-0 flex-1 flex-col lg:min-h-0';
 
 export function DocumentPage() {
@@ -28,7 +32,7 @@ export function DocumentPage() {
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { members, isUnavailable } = useMembers(documentId);
-  const superdocRef = useRef<SuperDoc | null>(null);
+  const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
@@ -41,7 +45,6 @@ export function DocumentPage() {
   const { title } = opened.document;
 
   function downloadLiveDocument(): void {
-    const superdoc = superdocRef.current;
     if (!superdoc) return;
     setHasExportFailed(false);
     superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
@@ -53,7 +56,10 @@ export function DocumentPage() {
         opened={opened}
         members={members}
         currentUserId={user ? user.id : null}
-        onDownload={editorSetup ? downloadLiveDocument : undefined}
+        superdoc={superdoc}
+        isPastVersion={timeTravel.state === VersionViewerState.Viewing}
+        onDownloadDocx={downloadLiveDocument}
+        renderUseWithAi={renderNothing}
       />
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
@@ -62,7 +68,8 @@ export function DocumentPage() {
           <div className="relative flex min-h-0 min-w-0 flex-1">
             {editorSetup && (
               <SuperDocEditor
-                superdocRef={superdocRef}
+                onSuperdocChange={setSuperdoc}
+                toolbarContainer={null}
                 documentId={documentId}
                 roomMode={editorSetup.roomMode}
                 role={editorSetup.role}

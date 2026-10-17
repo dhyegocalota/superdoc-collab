@@ -1,6 +1,7 @@
 import { authorColorSlot, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { SESSION_USER } from '@/testing/opened-document';
 import { SuperDocEditor } from './superdoc-editor';
 
@@ -24,8 +25,6 @@ const { SuperDoc, superdocDestroy } = vi.hoisted(() => {
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
 
-const AUTHOR_COLORS = ['#2e39b8', '#5a2eb8', '#912eb8', '#b82ea8', '#b82e70', '#b82e39'];
-
 function renderEditor({
   toolbarContainer = null,
   onSuperdocChange = vi.fn(),
@@ -47,18 +46,18 @@ function renderEditor({
   return { config: firstCall[0], onSuperdocChange };
 }
 
-beforeEach(() => AUTHOR_COLORS.forEach((color, index) => document.documentElement.style.setProperty(`--author-${index + 1}`, color)));
+beforeEach(installAuthorPalette);
 
 afterEach(() => {
-  AUTHOR_COLORS.forEach((_color, index) => document.documentElement.style.removeProperty(`--author-${index + 1}`));
+  removeAuthorPalette();
   SuperDoc.mockClear();
   superdocDestroy.mockClear();
 });
 
 test('passes the current author colour and six palette colours to SuperDoc', () => {
   const { config } = renderEditor();
-  expect(config.user.color).toBe(AUTHOR_COLORS[authorColorSlot(SESSION_USER.id) - 1]);
-  expect(config.colors).toEqual(AUTHOR_COLORS);
+  expect(config.user.color).toBe(AUTHOR_PALETTE[authorColorSlot(SESSION_USER.id) - 1]);
+  expect(config.colors).toEqual(AUTHOR_PALETTE);
 });
 
 test('the page background class is bg-paper and not bg-background', () => {

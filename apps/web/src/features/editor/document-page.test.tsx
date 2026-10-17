@@ -21,13 +21,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import {
   BACK_TO_DOCUMENTS_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,
-  DOWNLOAD_LABEL,
+  DOWNLOAD_BUTTON_LABEL,
   EDITOR_ESCAPE_HINT,
   EDITOR_EXIT_LABEL,
   EDIT_REJECTED_MESSAGE,
@@ -35,7 +36,7 @@ import {
   EXPORT_FAILED_MESSAGE,
   HOME_LINK_LABEL,
   LOADING_DOCUMENT_MESSAGE,
-  TITLE_LABEL,
+  renameTitleLabel,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
@@ -49,6 +50,7 @@ type SuperDocConfig = {
   telemetry: { enabled: boolean };
   onException: (payload: { code?: string; error: Error; editor: null }) => void;
   zoom: { mode: string };
+  onReady: (payload: { superdoc: unknown }) => void;
 };
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
@@ -57,8 +59,10 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
   return {
     superDocDestroy,
     superDocExport,
-    SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) {
-      return { destroy: superDocDestroy, export: superDocExport };
+    SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
+      const instance = { destroy: superDocDestroy, export: superDocExport };
+      config.onReady({ superdoc: instance });
+      return instance;
     }),
   };
 });
@@ -113,8 +117,12 @@ function constructedConfig(): SuperDocConfig {
   return firstCall[0];
 }
 
-beforeEach(() => SuperDoc.mockClear());
+beforeEach(() => {
+  SuperDoc.mockClear();
+  installAuthorPalette();
+});
 afterEach(() => {
+  removeAuthorPalette();
   vi.restoreAllMocks();
   superDocDestroy.mockClear();
   superDocExport.mockClear();
@@ -131,10 +139,9 @@ test('a title rename does not re-create the editor', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner), renamedTitle: RENAMED_TITLE });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  const title = await screen.findByRole('textbox', { name: TITLE_LABEL });
-  await userEvent.clear(title);
-  await userEvent.type(title, `${RENAMED_TITLE}{Enter}`);
-  await screen.findByDisplayValue(RENAMED_TITLE);
+  await userEvent.click(await screen.findByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
+  await screen.findByRole('button', { name: renameTitleLabel(RENAMED_TITLE) });
   expect(SuperDoc).toHaveBeenCalledTimes(1);
   expect(superDocDestroy).not.toHaveBeenCalled();
 });
@@ -178,7 +185,9 @@ test('creating fetches the stored download and a reader gets the viewing mode', 
   const requestedPaths = fetchSpy.mock.calls.map(([input]) => input);
   expect(requestedPaths).toContain(DOWNLOAD_PATH);
   expect(requestedPaths).not.toContain(BLANK_DOCX_PATH);
-  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documentMode: DocumentMode.Viewing, user: EDITOR_USER }));
+  expect(SuperDoc).toHaveBeenCalledWith(
+    expect.objectContaining({ documentMode: DocumentMode.Viewing, user: expect.objectContaining(EDITOR_USER) }),
+  );
 });
 
 test('a rejected file fetch shows the load error instead of an empty pane', async () => {
@@ -258,7 +267,7 @@ test('the header download exports the live document and a reader can use it', as
   mockDocumentApi({ opened: openedAs(DocumentRole.Reader, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_LABEL }));
+  await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
   expect(superDocExport).toHaveBeenCalledTimes(1);
   expect(superDocExport).toHaveBeenCalledWith(expect.objectContaining({ triggerDownload: true }));
 });
@@ -268,7 +277,7 @@ test('a failed export shows an alert instead of an unhandled rejection', async (
   mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_LABEL }));
+  await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(EXPORT_FAILED_MESSAGE);
 });
 
@@ -313,20 +322,17 @@ test('the browser tab names the open document', async () => {
   await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
 });
 
-test('below the large breakpoint the page fits the width', async () => {
-  vi.spyOn(window, 'matchMedia').mockReturnValue({
-    matches: true,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  } as unknown as MediaQueryList);
+test('the page fits the width at every width, capped at full size', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth } })));
+  await waitFor(() =>
+    expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth, fitWidth: { max: 100 } } })),
+  );
 });
 
 test('the editor never takes the focus on its own', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  expect(constructedConfig()).not.toHaveProperty('onReady');
+  expect(document.body).toHaveFocus();
 });

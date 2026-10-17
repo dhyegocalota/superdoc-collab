@@ -4,7 +4,7 @@ A collaborative DOCX editor that records every edit and turns that record into a
 
 ## Live demo
 
-- **Demo:** not deployed yet; the owner adds the URL after the first deploy ([runbook, step 6](docs/features/deploy/runbook-railway.md#6-hand-it-over)).
+- **Demo:** <https://superdoc-history-production.up.railway.app> (Railway, [ADR 0019](docs/adr/0019-deploy-on-railway.md)).
 - **Repository:** <https://github.com/dhyegocalota/superdoc-take-home>
 
 The demo accounts' password comes with the delivery message. Every slice, its spec and its pull request are listed in the [roadmap](docs/features/README.md#roadmap).

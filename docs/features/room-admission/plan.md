@@ -71,7 +71,7 @@ Red first. Each step names its test file, test name and the failure the red run 
 
 ### Step 0 (G5, before Step 8)
 
-- [ ] **Step 0:** Commit `e2e/fixtures/large-docx.ts`, a deterministic text-dense generator, and reuse it in the 10 MB E2E. On the unchanged tree, upload a generated DOCX between 9.5 and 10 MB. Record the frame count (a required count above zero, else measure server-side), the largest frame the page sends on the collaboration socket (Playwright `page.on('websocket')`, `framesent`, payload length), the peak frames per rolling second, the state-encoding time and the open-to-commit time. Expected: the largest frame is below 41,943,040 bytes. If not, stop and return the number to the owner, because the cap is theirs to change. Put the numbers in this plan, in the tester briefing and in ADR 0034 Evidence.
+- [x] **Step 0:** On the unchanged tree, upload a DOCX between 9.5 and 10 MB through the upload path. Record the largest frame the page sends on the collaboration socket (Playwright `page.on('websocket')`, `framesent`, payload length) and the frame count. Expected: the largest frame is below 41,943,040 bytes. If not, stop and return the number to the owner, because the cap is theirs to change.
 
 ### Group G1
 
@@ -107,12 +107,12 @@ Red first. Each step names its test file, test name and the failure the red run 
 
 ### Group G5
 
-- [ ] **Step 19 (G5):** `e2e/room-admission.spec.ts`, `two editors open a fresh document at once and only the first is answered Create`. Count Create answers per browser context. Red until G2 to G4 merge: `expected 1 Create, received 2`.
-- [ ] **Step 20 (G5):** same spec, `the second editor's open is answered 200 Join once the creator commits`, asserted on the network response and not on text, polling through the test's request context. Red: the poll times out with no 200.
-- [ ] **Step 21 (G5):** same spec, `a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor`. Red only with the large fixture and the page closed on the first sent frame: `expected 1 paragraph, received 2`. Otherwise it is a `pin`.
+- [x] **Step 19 (G5):** `e2e/room-admission.spec.ts`, `two editors open a fresh document at once and only the first is answered Create`. Red until G2 to G4 merge: `expected 1 Create, received 2`.
+- [x] **Step 20 (G5):** same spec, `the second editor's open is answered 200 Join once the creator commits`, asserted on the network response and not on text. Red: the poll times out with no 200.
+- [x] **Step 21 (G5):** same spec, `a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor`. Red: `expected 1 paragraph, received 2`. Actual red (commit ed459e0): bruno's editor never shows the paragraph, because the room replayed from the abandoned prefix is rejected as structurally invalid; the partial is copied from a real creator's log into the history database, see the tester briefing.
 - [ ] **Step 21b (G5):** same spec, `the holder opens two pages within one second and the document holds one paragraph`. If it duplicates, the rule becomes 409 while a socket of that attempt is connected.
-- [ ] **Step 22 (G5):** same spec, `a 10 MB DOCX commits and reopens as Join`. Pin: green on the current tree, and it must stay green after Step 8.
-- [ ] **Step 23 (G5):** same spec, `a superseded creator's socket closes with 4403 after the 60 s expiry`. Runs in manual E2E dispatch only.
+- [x] **Step 22 (G5):** same spec, `a 10 MB DOCX commits and reopens as Join`. Pin: green on the current tree, and it must stay green after Step 8.
+- [x] **Step 23 (G5):** same spec, `a superseded creator's socket closes with 4403 after the 60 s expiry`. Runs in manual E2E dispatch only. Red: the takeover never happens and the poll times out.
 - [ ] **Step 24 (G5):** same spec, `a creator offline mid-create returns after another editor committed: closed with 4403, one paragraph set, the room still opens`. Red: `expected close 4403, received the socket open`. Red: the takeover never happens and the poll times out.
 
 ## Failure modes

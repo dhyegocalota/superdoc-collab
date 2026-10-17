@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
-import { signedInOwner, signedInUser, type TestServer } from '../testing/test-server';
+import { signedInOwner, signedInUser, type TestServer, type TestUser } from '../testing/test-server';
 import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
 import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtime';
 
@@ -37,6 +37,7 @@ const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
 const LONG_LOG_EXTRA_UPDATES = 20;
+const FIRST_ATTEMPT = 1;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function upload({
@@ -317,6 +318,56 @@ test('a reader opening a never-created room gets 409 NOT_READY', async () => {
     .toBe(HttpStatus.Ok);
   const readerOpen: OpenedDocument = await (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).json();
   expect(readerOpen.roomMode).toBe(RoomMode.Join);
+  client.close();
+  await server.stop();
+});
+
+async function openedBy({ server, user, documentId }: { server: TestServer; user: TestUser; documentId: string }): Promise<OpenedDocument> {
+  return (await request({ server, cookie: user.cookie, path: pathOf({ documentId }) })).json();
+}
+
+test('the first editor to open a fresh room is reserved as creator with attempt 1', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const opened = await openedBy({ server, user: owner, documentId });
+  expect([opened.roomMode, opened.creatorAttempt, opened.creatorEpoch]).toEqual([
+    RoomMode.Create,
+    FIRST_ATTEMPT,
+    server.services.reservations.epoch,
+  ]);
+  await server.stop();
+});
+
+test('a second open by the holder keeps attempt 1', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const first = await openedBy({ server, user: owner, documentId });
+  const second = await openedBy({ server, user: owner, documentId });
+  expect([second.creatorAttempt, second.creatorEpoch]).toEqual([first.creatorAttempt, first.creatorEpoch]);
+  expect(second.creatorAttempt).toBe(FIRST_ATTEMPT);
+  await server.stop();
+});
+
+test('a second editor opening a live reservation gets 409 NOT_READY', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  await openedBy({ server, user: owner, documentId });
+  const refused = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
+  expect([refused.status, await refused.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
+  await server.stop();
+});
+
+test('a committed room answers Join with creatorAttempt null for a reader and an editor', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: ['Hello'] });
+  commitBootstrap(client.document);
+  await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+  const answers = await Promise.all([reader, editor].map((user) => openedBy({ server, user, documentId })));
+  expect(answers.map(({ roomMode, creatorAttempt, creatorEpoch }) => [roomMode, creatorAttempt, creatorEpoch])).toEqual([
+    [RoomMode.Join, null, null],
+    [RoomMode.Join, null, null],
+  ]);
   client.close();
   await server.stop();
 });

@@ -10,9 +10,10 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { requestFailedMessage } from '@/lib/api';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { FILE_INPUT_LABEL, UPLOAD_FAILED_MESSAGE, UPLOAD_LABEL, UPLOADING_MESSAGE } from './documents-copy';
+import { FILE_INPUT_LABEL, UPLOAD_LABEL, UPLOAD_SUBJECT, UPLOADING_MESSAGE } from './documents-copy';
 import { UploadDialog } from './upload-dialog';
 
 const UPLOADED_DOCUMENT = { id: 'doc-1', title: 'plan', owner: { id: 'user-1', name: 'Ada' }, updatedAt: 1, role: DocumentRole.Owner };
@@ -72,7 +73,7 @@ test('a server failure shows its status and a rejected file afterwards shows onl
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.InternalServerError }));
   renderWithProviders(<UploadDialog />);
   await chooseFile(docxFile({ name: 'plan.docx', size: 10 }));
-  const serverFailure = `${UPLOAD_FAILED_MESSAGE} ${HttpStatus.InternalServerError}`;
+  const serverFailure = requestFailedMessage({ subject: UPLOAD_SUBJECT, status: HttpStatus.InternalServerError });
   expect(await screen.findByRole('alert')).toHaveTextContent(serverFailure);
   await userEvent.setup({ applyAccept: false }).upload(screen.getByLabelText(FILE_INPUT_LABEL), new File(['x'], 'plan.pdf'));
   expect(screen.getByRole('alert')).toHaveTextContent(NOT_A_DOCX_MESSAGE);

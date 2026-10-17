@@ -9,7 +9,7 @@ import {
   type DocumentMember,
 } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
@@ -49,7 +49,8 @@ const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: 
 const onDownloadDocx = vi.fn();
 
 function renderUseWithAi(trigger?: ReactNode): ReactNode {
-  return trigger ?? <button type="button">{USE_WITH_AI_LABEL}</button>;
+  if (trigger) return trigger;
+  return <button type="button">{USE_WITH_AI_LABEL}</button>;
 }
 
 type HeaderOptions = {
@@ -164,6 +165,7 @@ test('a failed rename shows an alert', async () => {
   renderHeader();
   await renameTo(RENAMED_TITLE);
   expect(await screen.findByRole('alert')).toHaveTextContent(RENAME_FAILED_MESSAGE);
+  expect(within(screen.getByRole('banner')).queryByRole('alert')).toBeNull();
 });
 
 test('the owner deletes after confirming and returns to the documents list', async () => {

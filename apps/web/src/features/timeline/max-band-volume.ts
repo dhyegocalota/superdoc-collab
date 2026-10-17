@@ -1,5 +1,5 @@
 import type { DocumentTimeline } from '@superdoc-history/types';
 
 export function maxBandVolume(timeline: DocumentTimeline): number {
-  return 0;
+  return Math.max(0, ...timeline.bands.map((band) => band.volume));
 }

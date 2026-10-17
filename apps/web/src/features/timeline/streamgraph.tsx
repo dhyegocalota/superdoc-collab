@@ -3,6 +3,7 @@ import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEven
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { BandLabel } from './band-label';
+import { maxBandVolume } from './max-band-volume';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
 import { StreamgraphLegend } from './streamgraph-legend';
 import { bandAriaLabel, CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
@@ -80,7 +81,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   const lastIndex = timeline.bins.length - 1;
   const tooltipAnchor = tooltipAnchorOf({ hovered, selectedIndex, hasFocus: hasKeyboardFocus });
   if (timeline.bins.length === 0) return null;
-  const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
+  const maxVolume = maxBandVolume(timeline);
   const focusableBandId = focusableBandIdOf({ shapes: layout.shapes, highlightedBandId });
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
   const firstMoment = timeline.bins[0]!.start;

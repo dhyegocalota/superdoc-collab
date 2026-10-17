@@ -1,5 +1,7 @@
 import type { EventAuthor } from '@superdoc-history/types';
 
+const NAME_SEPARATOR = ', ';
+
 class MissingAuthorError extends Error {}
 
 export function authorOf({ authors, authorKey }: { authors: Record<string, EventAuthor>; authorKey: string }): EventAuthor {
@@ -9,5 +11,5 @@ export function authorOf({ authors, authorKey }: { authors: Record<string, Event
 }
 
 export function authorNames({ authors, authorKeys }: { authors: Record<string, EventAuthor>; authorKeys: string[] }): string {
-  return '';
+  return authorKeys.map((authorKey) => authorOf({ authors, authorKey }).name).join(NAME_SEPARATOR);
 }

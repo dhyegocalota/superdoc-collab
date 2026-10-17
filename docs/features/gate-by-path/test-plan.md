@@ -35,6 +35,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `gitleaks` absent — expected: `verify: secrets failed`; exit 1
 - [ ] Green on a clean tree — expected: a record for `HEAD` under the git common directory
 - [ ] Green on a dirty tree — expected: no record
+- [ ] `pnpm-lock.yaml` change or `all` with Docker absent — expected: `verify: docker skipped: Docker is not running; the image is proven only when docker/ or deploy/ change`, exit 0, a record written
 - [ ] Second run at a recorded `HEAD` — expected: `already green`, no tool called
 - [ ] A docs commit after a recorded product commit — expected: `base:` is the recorded commit, `class: docs`
 - [ ] A record written under another Node version — expected: ignored, `base:` is the merge base

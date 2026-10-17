@@ -200,6 +200,21 @@ expect_equal "Docker down fails" "$status" 1
 expect_match "Docker down names the fix" "$output" 'verify: docker failed: the image needs a running Docker\. fix: install docker'
 
 new_repository
+commit_change pnpm-lock.yaml
+STUB_DOCKER_DOWN=1
+run_verify
+expect_equal "the lockfile without Docker exits 0" "$status" 0
+expect_match "the lockfile without Docker skips the image" "$output" 'verify: docker skipped: Docker is not running; the image is proven only when docker/ or deploy/ change'
+expect_equal "the lockfile without Docker writes a record" "$(record_count)" 1
+
+new_repository
+commit_change README.md
+STUB_DOCKER_DOWN=1
+run_verify all
+expect_equal "all without Docker exits 0" "$status" 0
+expect_match "all without Docker skips the image" "$output" 'verify: docker skipped: Docker is not running'
+
+new_repository
 commit_change apps/web/vite.config.ts
 STUB_FAIL=typecheck
 run_verify

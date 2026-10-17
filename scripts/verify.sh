@@ -9,6 +9,7 @@ readonly EVERYTHING_GATES=all
 readonly NO_GATES=-
 readonly SERVER_PACKAGE=@superdoc-collab/server
 readonly IMAGE_TAG=superdoc-collab:verify
+readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when docker/ or deploy/ change"
 readonly USAGE="usage: verify.sh [auto|all] [--plan]"
 
 mode=auto
@@ -69,6 +70,7 @@ absorb_path() {
   IFS=$'\t' read -r row_class row_gates <<< "$(row_for "$path")"
   [[ $(class_rank "$row_class") -gt $(class_rank "$class") ]] && class=$row_class
   [[ $row_gates == "$EVERYTHING_GATES" ]] && run_everything=true
+  has_word "$row_gates" docker && image_changed=true
   has_word "$row_gates" unit && unit_folders="$unit_folders $(cut -d/ -f1-2 <<< "$path")"
   [[ $row_gates == "$EVERYTHING_GATES" || $row_gates == "$NO_GATES" ]] || wanted_gates="$wanted_gates $row_gates"
 }
@@ -141,8 +143,10 @@ gate_unit() {
 docker_is_running() { have docker && docker info >/dev/null 2>&1; }
 
 gate_docker() {
-  docker_is_running || { failure_reason="the image needs a running Docker. fix: $("$root/.agents/hooks/doctor.sh" --fix docker)"; return 1; }
-  docker build -f "$root/docker/Dockerfile" -t "$IMAGE_TAG" "$root"
+  docker_is_running && { docker build -f "$root/docker/Dockerfile" -t "$IMAGE_TAG" "$root"; return; }
+  [[ $image_changed == false ]] && { echo "$DOCKER_SKIPPED"; return; }
+  failure_reason="the image needs a running Docker. fix: $("$root/.agents/hooks/doctor.sh" --fix docker)"
+  return 1
 }
 
 write_record() {
@@ -168,6 +172,7 @@ wanted_gates=$ALWAYS_GATES
 unit_folders=""
 unit_packages=""
 run_everything=false
+image_changed=false
 [[ $mode == all ]] && run_everything=true
 
 while IFS= read -r path; do

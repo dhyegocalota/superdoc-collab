@@ -9,7 +9,8 @@ import {
   ShareLinkRole,
 } from '../libs/types/src';
 import { insertInParagraph, readEditorText, readEvents, shareAndAccept, uploadSeed } from './editor';
-import { DEMO_PASSWORD, expect, signedInContext, signIn, test, type SignedInContext } from './fixtures';
+import { SIGN_IN_LABEL } from '../apps/web/src/features/editor/connection-copy';
+import { DEMO_PASSWORD, expect, signedInContext, signIn, test } from './fixtures';
 import { ensureServerRunning, startRestartableStack, startServer, stopRestartableStack, stopServer } from './restartable-stack';
 import { SERVER_HEALTH_PATH } from './stack';
 
@@ -127,13 +128,6 @@ async function measureAtEveryWidth(page: Page): Promise<string[]> {
   return problems;
 }
 
-async function signInAgain({ author }: { author: SignedInContext }): Promise<void> {
-  const page = await author.context.newPage();
-  await page.goto(AppRoute.SignIn);
-  await signIn({ page, email: ana!.email, password: DEMO_PASSWORD });
-  await expect(page).toHaveURL(AppRoute.Documents);
-}
-
 test('the restartable server answers health after a stop and a start', async () => {
   await stopServer();
   await startServer();
@@ -175,16 +169,19 @@ test('an edit typed while the server is down reaches the other author after reco
   expect(markerEvent.serverTime).toBeGreaterThanOrEqual(restartingAt);
 });
 
-test('the session cookie removed shows failed, an inert editor and a working Reload', async ({ browser }) => {
+test('the session cookie removed shows failed, an inert editor and Sign in that returns to the document', async ({ browser }) => {
   const { owner } = await openSharedDocument(browser);
+  const documentPath = new URL(owner.page.url()).pathname;
   await owner.context.clearCookies();
   await stopServer();
   await startServer();
   await expect(banner(owner.page)).toHaveAttribute(STATE_ATTRIBUTE, ConnectionState.Failed, { timeout: FAILED_TIMEOUT_MS });
-  await expect(owner.page.getByRole('alert').filter({ has: owner.page.getByRole('button', { name: 'Reload' }) })).toBeVisible();
+  await expect(owner.page.getByRole('alert').filter({ has: owner.page.getByRole('button', { name: SIGN_IN_LABEL }) })).toBeVisible();
   await expect(owner.page.getByTestId(EDITOR_TEST_ID)).toHaveAttribute('inert', '');
-  await signInAgain({ author: owner });
-  await owner.page.getByRole('button', { name: 'Reload' }).click();
+  await owner.page.getByRole('button', { name: SIGN_IN_LABEL }).click();
+  await expect(owner.page).toHaveURL(new RegExp(`${AppRoute.SignIn}\\?next=`));
+  await signIn({ page: owner.page, email: ana!.email, password: DEMO_PASSWORD });
+  await expect(owner.page).toHaveURL(new RegExp(`${documentPath}$`));
   await expect(banner(owner.page)).toHaveCount(0);
   await expect(owner.page.getByTestId(EDITOR_TEST_ID)).not.toHaveAttribute('inert');
   await insertInParagraph({ page: owner.page, paragraphText: ANA_PARAGRAPH, text: RELOADED_MARKER });

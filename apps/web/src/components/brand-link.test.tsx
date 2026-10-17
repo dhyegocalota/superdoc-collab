@@ -7,12 +7,12 @@ import { renderWithProviders } from '@/testing/render-with-providers';
 import { BrandLink } from './brand-link';
 
 test('links to documents, named "SuperDoc Collab, back to documents", with no arrow', () => {
-  const { container } = renderWithProviders(<BrandLink />);
+  renderWithProviders(<BrandLink />);
   const link = screen.getByRole('link', { name: HOME_LINK_LABEL });
   expect(link).toHaveAttribute('href', AppRoute.Documents);
   expect(link).toHaveClass('hover:bg-accent');
   expect(screen.getAllByRole('link')).toHaveLength(1);
-  expect(container.querySelector('svg.lucide-arrow-left')).not.toBeInTheDocument();
+  expect(document.body.querySelector('svg.lucide-arrow-left')).not.toBeInTheDocument();
 });
 
 test('draws a primary mark with a file icon and the app name hidden below sm', () => {

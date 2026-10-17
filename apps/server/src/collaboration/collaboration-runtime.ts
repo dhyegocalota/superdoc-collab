@@ -10,6 +10,7 @@ import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { CollaborationContext } from './collaboration-context';
 import type { BootstrapState } from './bootstrap-state';
 import type { CreatorReservations } from './creator-reservations';
+import type { RoomModeAnswer, RoomModes } from './room-modes';
 import { documentIdFromRoomName } from './room-name';
 
 const TAKEOVER_CLOSE_LOG = 'Closed a socket superseded by a takeover';
@@ -18,6 +19,7 @@ export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
 
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
+  roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   isKnownCommitted: (documentId: string) => boolean;
   reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
   onlineUserIds: (documentId: string) => Set<string>;
@@ -36,6 +38,7 @@ export function createCollaborationRuntime({
   insights,
   reservations,
   bootstrap,
+  roomModes,
 }: {
   hocuspocus: Hocuspocus;
   updateLog: UpdateLog;
@@ -47,6 +50,7 @@ export function createCollaborationRuntime({
   insights: InsightsServices;
   reservations: CreatorReservations;
   bootstrap: BootstrapState;
+  roomModes: RoomModes;
 }): DocumentRuntime {
   function roomsOf(documentId: string): Document[] {
     return [...hocuspocus.documents.values()].filter((room) => documentIdFromRoomName(room.name) === documentId);
@@ -70,6 +74,7 @@ export function createCollaborationRuntime({
         });
       return ticket;
     },
+    roomModeFor: (parameters) => roomModes.resolve(parameters),
     isKnownCommitted: (documentId) => bootstrap.isKnownCommitted(documentId),
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>

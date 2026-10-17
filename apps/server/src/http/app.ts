@@ -18,6 +18,7 @@ import type { AgentSessions } from '../agent/agent-sessions';
 import type { AgentToolContext } from '../agent/agent-tool-context';
 import { createMcpRoutes } from '../agent/mcp-route';
 import type { Environment } from '../config/environment';
+import type { OpenBudget } from '../limits/open-budget';
 import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -67,6 +68,7 @@ export type AppServices = {
   storage: DocumentFileStorage;
   runtime: DocumentRuntime;
   openLimits: KeyedSlidingWindow;
+  openBudget: OpenBudget;
   shareLinks: ShareLinksRepository;
   updateLog: UpdateLog;
   agentActions: AgentActionsLog;

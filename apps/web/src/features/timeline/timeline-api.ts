@@ -10,8 +10,6 @@ import {
   selectionSummaryApiPath,
   TimelineQueryParam,
   timelineEditsApiPath,
-  TOPICS_REFRESH_TOO_SOON_MESSAGE,
-  topicsRefreshApiPath,
   versionApiPath,
   type BinEdits,
   type DocumentTimeline,
@@ -25,7 +23,7 @@ import {
 } from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, readJson, requestFailedMessage, RetryLaterError } from '@/lib/api';
 import { documentQueryKey } from '@/features/documents/documents-api';
-import { SUMMARIZE_EDITS_SUBJECT, TOPICS_REFRESH_SUBJECT } from './timeline-copy';
+import { SUMMARIZE_EDITS_SUBJECT } from './timeline-copy';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
 
@@ -33,12 +31,6 @@ const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';
 
 type ErrorBody = { error: string };
-
-export class TopicsRefreshTooSoonError extends RetryLaterError {
-  constructor(retryAfterMs: number) {
-    super({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs });
-  }
-}
 
 export class SummaryTooSoonError extends RetryLaterError {
   constructor(retryAfterMs: number) {
@@ -174,13 +166,6 @@ export async function fetchSummaries(documentId: string): Promise<TopicSummaries
   const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Summaries }));
   assertDocumentAvailable(response);
   return readJson<TopicSummaries>({ response, subject: 'Summaries request' });
-}
-
-export async function refreshTopics(documentId: string): Promise<TopicStatus> {
-  const response = await apiSend({ path: topicsRefreshApiPath(documentId), method: HttpMethod.Post, body: null });
-  assertDocumentAvailable(response);
-  if (response.status === HttpStatus.TooManyRequests) throw new TopicsRefreshTooSoonError(readRetryAfterMs(response));
-  return readJson<TopicStatus>({ response, subject: TOPICS_REFRESH_SUBJECT });
 }
 
 export async function fetchSelectionSummary({

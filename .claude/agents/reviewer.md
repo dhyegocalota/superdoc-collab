@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Read-only review of a diff before its PR opens: agreement with the spec, conventions, correctness, security, performance budgets, tests, and refutation of tester claims. Use PROACTIVELY before /open-pr. Never posts to GitHub.
-tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(pnpm typecheck:*), Bash(pnpm test:*)
+tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(pnpm typecheck:*), Bash(pnpm test:*), Bash(git worktree:*), Bash(git stash:*), Bash(npx vitest:*), Bash(pnpm exec prettier:*), Bash(rg:*)
 model: opus
 ---
 

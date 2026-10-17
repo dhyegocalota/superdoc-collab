@@ -1,5 +1,6 @@
 import { ShareLinkRole } from '@superdoc-collab/types';
 import { APP_NAME } from '../../lib/app-copy';
+import { DownloadFormat } from './download-format';
 
 export const TITLE_LABEL = 'Title';
 export const SHARE_LABEL = 'Share';
@@ -16,6 +17,10 @@ export const DOWNLOAD_PDF_LABEL = 'Download PDF';
 export const PREPARING_PDF_MESSAGE = 'Preparing the PDF…';
 export const PDF_FAILED_MESSAGE = 'The PDF could not be prepared.';
 export const PDF_PRINT_HINT = 'Choose “Save as PDF” in the print dialog.';
+export const DOWNLOAD_FORMAT_LABELS: Record<DownloadFormat, string> = {
+  [DownloadFormat.Docx]: DOWNLOAD_LABEL,
+  [DownloadFormat.Pdf]: DOWNLOAD_PDF_LABEL,
+};
 export const SELF_MEMBER_REASON = 'This is you';
 export const BACK_TO_LIVE_TO_JUMP_REASON = 'Go back to live to jump to a cursor';
 export const BACK_TO_DOCUMENTS_LABEL = 'Back to documents';

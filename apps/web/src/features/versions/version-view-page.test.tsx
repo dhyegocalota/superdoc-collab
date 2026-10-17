@@ -15,9 +15,10 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-options';
-import { NARROW_VIEWPORT_QUERY, ZoomMode } from '@/features/editor/superdoc-zoom';
+import { FIT_WIDTH_ZOOM } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
 import { pageTitle } from '@/lib/use-document-title';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -61,6 +62,7 @@ function openedBody(): unknown {
 beforeEach(() => {
   openedStatus = HttpStatus.Ok;
   SuperDoc.mockClear();
+  installAuthorPalette();
   vi.mocked(useRunHighlights).mockClear();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
@@ -69,7 +71,10 @@ beforeEach(() => {
     throw new Error(`unexpected request ${String(input)}`);
   });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  removeAuthorPalette();
+  vi.restoreAllMocks();
+});
 
 async function renderFrame(): Promise<SuperDocConfig> {
   renderWithProviders(<VersionViewPage />, { route: ROUTE });
@@ -175,14 +180,9 @@ test('Escape inside the frame asks the parent to leave the version', async () =>
   expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Exit }, window.location.origin);
 });
 
-test('the version measures the page around its frame, not the frame, to pick its zoom', async () => {
-  const parentMatchMedia = vi.fn(
-    () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList,
-  );
-  vi.spyOn(window, 'parent', 'get').mockReturnValue({ matchMedia: parentMatchMedia } as unknown as Window);
+test('the version fits the width at every width, like the editor', async () => {
   const config = await renderFrame();
-  expect(config.zoom).toEqual({ mode: ZoomMode.FitWidth });
-  expect(parentMatchMedia).toHaveBeenCalledWith(NARROW_VIEWPORT_QUERY);
+  expect(config.zoom).toEqual(FIT_WIDTH_ZOOM);
 });
 
 test('the version page names its tab after the document', async () => {

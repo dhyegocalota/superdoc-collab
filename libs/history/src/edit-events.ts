@@ -15,6 +15,8 @@ export type EditEvent = {
   deleted: string;
 };
 
+const BINDING_KEY_SEPARATOR = '#';
+
 type BlockStates = Map<string, Pick<Block, 'text' | 'mergedIntoBlockId'>>;
 type BlockChange = Pick<EditEvent, 'blockId' | 'kind' | 'inserted' | 'deleted'>;
 
@@ -55,21 +57,30 @@ function diffBlocks({ before, after }: { before: BlockStates; after: BlockStates
   return blockIds.flatMap((blockId) => diffBlock({ blockId, before, after }));
 }
 
+function bindingKey(binding: ClientBinding): string {
+  return `${binding.userId}${BINDING_KEY_SEPARATOR}${binding.actor}`;
+}
+
+function byUserThenActor(left: ClientBinding, right: ClientBinding): number {
+  return bindingKey(left) < bindingKey(right) ? -1 : 1;
+}
+
 // NB ADR 0002: an update with no structs (deletion-only) is attributed to the sending connection.
 export function resolveAuthorIds({
   update,
   identities,
 }: {
-  update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
+  update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId' | 'connectionActor'>;
   identities: Map<number, ClientBinding>;
-}): string[] {
-  const structAuthors = update.yjsClientIds.flatMap((clientId) => {
+}): ClientBinding[] {
+  const structAuthors = update.yjsClientIds.map((clientId) => {
     const binding = identities.get(clientId);
     if (!binding) throw new Error(`Yjs client ${clientId} has no bound identity.`);
-    return [binding.userId];
+    return binding;
   });
-  if (structAuthors.length === 0) return [update.connectionUserId];
-  return [...new Set(structAuthors)].sort();
+  if (structAuthors.length === 0) return [{ userId: update.connectionUserId, actor: update.connectionActor }];
+  const distinct = new Map(structAuthors.map((binding) => [bindingKey(binding), { userId: binding.userId, actor: binding.actor }]));
+  return [...distinct.values()].sort(byUserThenActor);
 }
 
 export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId' | 'connectionActor'>;

@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-history/types';
+import { ClientActor, MINUTE_MS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import type { EditRun, TimelineEvent } from './runs';
 import { authorKey, filterRuns, groupIntoRuns, narrowRuns, runVolume } from './runs';
@@ -71,7 +71,7 @@ test('matching is case-insensitive and finds backspaced deletions', () => {
   const runs = [runOf({ author: 'ana', inserted: '', deleted: 'tegdub' }), runOf({ author: 'bruno', inserted: 'budget', deleted: '' })];
   expect(filterRuns({ runs, term: 'Budget', authorKeys: null })).toHaveLength(2);
   expect(filterRuns({ runs, term: 'Budget', authorKeys: new Set(['bruno']) }).map((run) => run.authorKeys)).toEqual([['bruno']]);
-  expect(authorKey({ id: null, name: 'Chris Crawford' })).toBe('imported:Chris Crawford');
+  expect(authorKey({ id: null, name: 'Chris Crawford', actor: ClientActor.Human })).toBe('imported:Chris Crawford');
 });
 
 function placed({ inserted, bandId, binStart }: { inserted: string; bandId: string; binStart: number }): EditRun {

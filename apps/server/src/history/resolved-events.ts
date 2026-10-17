@@ -1,5 +1,5 @@
 import { resolveAuthorIds, type ClientBinding, type StoredEditEvent } from '@superdoc-history/history';
-import type { DocumentEditEvent, EventAuthor } from '@superdoc-history/types';
+import { agentAuthorName, ClientActor, type DocumentEditEvent, type EventAuthor } from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
 
 export class IncompleteEditEventError extends Error {
@@ -14,27 +14,27 @@ export class UnknownAuthorError extends Error {
   }
 }
 
-function authorIdsOf({ event, identities }: { event: StoredEditEvent; identities: Map<number, ClientBinding> }): string[] {
-  const { yjsClientIds, connectionUserId } = event;
+function authorBindingsOf({ event, identities }: { event: StoredEditEvent; identities: Map<number, ClientBinding> }): ClientBinding[] {
+  const { yjsClientIds, connectionUserId, connectionActor } = event;
   if (event.imported) return [];
   if (yjsClientIds === null || connectionUserId === null) throw new IncompleteEditEventError(event.id);
-  return resolveAuthorIds({ update: { yjsClientIds, connectionUserId }, identities });
+  return resolveAuthorIds({ update: { yjsClientIds, connectionUserId, connectionActor }, identities });
 }
 
 function authorsOf({
   event,
-  authorIds,
+  bindings,
   names,
 }: {
   event: StoredEditEvent;
-  authorIds: string[];
+  bindings: ClientBinding[];
   names: Map<string, string>;
 }): EventAuthor[] {
-  if (event.authorName !== null) return [{ id: null, name: event.authorName }];
-  return authorIds.map((id) => {
-    const name = names.get(id);
-    if (!name) throw new UnknownAuthorError(id);
-    return { id, name };
+  if (event.authorName !== null) return [{ id: null, name: event.authorName, actor: ClientActor.Human }];
+  return bindings.map(({ userId, actor }) => {
+    const name = names.get(userId);
+    if (!name) throw new UnknownAuthorError(userId);
+    return { id: userId, name: actor === ClientActor.Agent ? agentAuthorName(name) : name, actor };
   });
 }
 
@@ -48,9 +48,9 @@ export function resolveEvents({
   stored: StoredEditEvent[];
 }): DocumentEditEvent[] {
   const identities = services.updateLog.clientIdentities(documentId);
-  const resolved = stored.map((event) => ({ event, authorIds: authorIdsOf({ event, identities }) }));
-  const names = services.documents.userNames([...new Set(resolved.flatMap(({ authorIds }) => authorIds))]);
-  return resolved.map(({ event, authorIds }) => ({
+  const resolved = stored.map((event) => ({ event, bindings: authorBindingsOf({ event, identities }) }));
+  const names = services.documents.userNames([...new Set(resolved.flatMap(({ bindings }) => bindings.map(({ userId }) => userId)))]);
+  return resolved.map(({ event, bindings }) => ({
     id: event.id,
     sequence: event.sequence,
     serverTime: event.serverTime,
@@ -59,6 +59,6 @@ export function resolveEvents({
     inserted: event.inserted,
     deleted: event.deleted,
     imported: event.imported,
-    authors: authorsOf({ event, authorIds, names }),
+    authors: authorsOf({ event, bindings, names }),
   }));
 }

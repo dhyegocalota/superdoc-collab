@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { BlockChangeKind, type ClientActor } from '@superdoc-history/types';
+import { BlockChangeKind, ClientActor } from '@superdoc-history/types';
 import type { ProjectedEdit } from './edit-events';
 import type { VersionMark, VersionMarkSummary } from './version-marks';
 
@@ -7,8 +7,8 @@ const IMPORTED_SEQUENCE = 0;
 export const ALL_SEQUENCES = IMPORTED_SEQUENCE - 1;
 const IMPORTED_KEY_PREFIX = 'imported';
 const READ_MODEL_TABLES = ['edit_events', 'projection_cursor', 'version_marks'];
-const INSERT_EVENT = `INSERT OR IGNORE INTO edit_events (document_name, event_key, sequence, server_time, yjs_client_ids, connection_user_id, author_name, block_id, kind, inserted, deleted, imported)
-  VALUES (@documentName, @eventKey, @sequence, @serverTime, @yjsClientIds, @connectionUserId, @authorName, @blockId, @kind, @inserted, @deleted, @imported)`;
+const INSERT_EVENT = `INSERT OR IGNORE INTO edit_events (document_name, event_key, sequence, server_time, yjs_client_ids, connection_user_id, connection_actor, author_name, block_id, kind, inserted, deleted, imported)
+  VALUES (@documentName, @eventKey, @sequence, @serverTime, @yjsClientIds, @connectionUserId, @connectionActor, @authorName, @blockId, @kind, @inserted, @deleted, @imported)`;
 
 const PRUNE_MINUTE = 'DELETE FROM version_marks WHERE document_name = ? AND minute_start = ? AND sequence < ? AND is_bootstrap = 0';
 const INSERT_MARK = `INSERT OR IGNORE INTO version_marks (document_name, sequence, server_time, minute_start, is_bootstrap, snapshot)
@@ -109,6 +109,7 @@ export class ReadModel {
           serverTime: event.serverTime,
           yjsClientIds: JSON.stringify(event.yjsClientIds),
           connectionUserId: event.connectionUserId,
+          connectionActor: event.connectionActor,
           authorName: null,
           blockId: event.blockId,
           kind: event.kind,
@@ -136,6 +137,7 @@ export class ReadModel {
           serverTime: revision.serverTime,
           yjsClientIds: null,
           connectionUserId: null,
+          connectionActor: ClientActor.Human,
           authorName: revision.authorName,
           blockId: revision.blockId,
           kind: BlockChangeKind.Modified,

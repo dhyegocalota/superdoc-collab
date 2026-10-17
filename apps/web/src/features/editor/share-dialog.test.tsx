@@ -7,7 +7,7 @@ import {
   ShareLinkRole,
   type ShareLinks,
 } from '@superdoc-collab/types';
-import { act, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
@@ -42,6 +42,8 @@ function mockShareApi() {
     return jsonResponse({ body: LINKS });
   });
 }
+
+const NOTICE_FAKE_TIMERS = { toFake: ['setTimeout', 'clearTimeout'] } satisfies Parameters<typeof vi.useFakeTimers>[0];
 
 async function openDialog(): Promise<void> {
   renderWithProviders(<ShareDialog documentId={DOCUMENT_ID} />);
@@ -141,17 +143,17 @@ test('Link copied clears after a few seconds', async () => {
 });
 
 test('copying again keeps Link copied for a full period from the second copy', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
   mockShareApi();
-  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  userEvent.setup();
   vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
   await openDialog();
   const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
   const copyButton = within(readRow).getByRole('button', { name: COPY_LABEL });
-  await user.click(copyButton);
-  expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  vi.useFakeTimers(NOTICE_FAKE_TIMERS);
+  await act(async () => fireEvent.click(copyButton));
+  expect(within(readRow).getByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
   act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
-  await user.click(copyButton);
+  await act(async () => fireEvent.click(copyButton));
   act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
   expect(within(readRow).getByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
   act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));

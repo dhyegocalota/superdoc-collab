@@ -21,7 +21,6 @@ import {
   BlockChangeKind,
   OTHER_BAND_ID,
   OTHER_BAND_NAME,
-  UTC_TIME_ZONE,
   TimelineBandKind,
   type BinEdits,
   type DocumentEditEvent,
@@ -192,13 +191,15 @@ function matchedRunsOf({
   pipeline,
   filter,
   binMs,
+  timeZone,
 }: {
   services: AppServices;
   pipeline: TimelinePipeline;
   filter: TimelineFilter;
   binMs: number;
+  timeZone: string;
 }): { allRuns: EditRun[]; matchedRuns: EditRun[] } {
-  const allRuns = groupIntoRuns({ events: pipeline.events, binMs, timeZone: UTC_TIME_ZONE });
+  const allRuns = groupIntoRuns({ events: pipeline.events, binMs, timeZone });
   return {
     allRuns,
     matchedRuns: filterRuns({
@@ -214,15 +215,17 @@ export function buildDocumentTimeline({
   documentId,
   filter,
   binMs,
+  timeZone,
 }: {
   services: AppServices;
   documentId: string;
   filter: TimelineFilter;
   binMs: number | null;
+  timeZone: string;
 }): DocumentTimeline {
   const pipeline = readTimelinePipeline({ services, documentId });
   const chosenBinMs = binMsOf({ binMs, pipeline });
-  const { allRuns, matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
+  const { allRuns, matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const marks = services.readModel.marks(documentId);
   const binStarts =
     pipeline.events.length === 0
@@ -231,7 +234,7 @@ export function buildDocumentTimeline({
           firstTime: firstTimeOf(pipeline.events),
           lastTime: lastTimeOf(pipeline.events),
           binMs: chosenBinMs,
-          timeZone: UTC_TIME_ZONE,
+          timeZone,
         });
   return {
     binMs: chosenBinMs,
@@ -239,7 +242,7 @@ export function buildDocumentTimeline({
       runs: matchedRuns,
       binStarts,
       binMs: chosenBinMs,
-      timeZone: UTC_TIME_ZONE,
+      timeZone,
       versionSequenceAt: (time) => versionSequenceAt({ marks, time }),
     }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
@@ -256,16 +259,18 @@ export function buildBinEdits({
   filter,
   binStart,
   binMs,
+  timeZone,
 }: {
   services: AppServices;
   documentId: string;
   filter: TimelineFilter;
   binStart: number;
   binMs: number | null;
+  timeZone: string;
 }): BinEdits {
   const pipeline = readTimelinePipeline({ services, documentId });
   const chosenBinMs = binMsOf({ binMs, pipeline });
-  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
+  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const runs = matchedRuns
     .filter((run) => run.binStart === binStart)
     .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }) => ({
@@ -305,7 +310,7 @@ export function buildSelectionSnapshot({
 }): SelectionSnapshot {
   const pipeline = readTimelinePipeline({ services, documentId });
   const binMs = binMsOf({ binMs: selection.binMs, pipeline });
-  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs });
+  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs, timeZone: selection.timeZone });
   return {
     runs: narrowRuns({ runs: matchedRuns, bandId: selection.topic, binStart: selection.at }),
     authors: pipeline.authors,

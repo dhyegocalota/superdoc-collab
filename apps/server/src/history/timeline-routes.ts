@@ -14,9 +14,9 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = timelineQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
-    const { term, author, binMs } = parsed.data;
+    const { term, author, binMs, timeZone } = parsed.data;
     services.insights.topics.ensure(documentId);
-    const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs });
+    const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs, timeZone });
     services.insights.topics.onTimelineRead(documentId);
     return context.json(timeline);
   });
@@ -24,8 +24,8 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = editsQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
-    const { term, author, binMs, binStart } = parsed.data;
-    return context.json(buildBinEdits({ services, documentId, filter: { term, author }, binStart, binMs }));
+    const { term, author, binMs, binStart, timeZone } = parsed.data;
+    return context.json(buildBinEdits({ services, documentId, filter: { term, author }, binStart, binMs, timeZone }));
   });
   return routes;
 }

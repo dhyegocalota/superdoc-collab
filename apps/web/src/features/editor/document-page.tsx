@@ -1,8 +1,16 @@
-import { ConnectionState, DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState } from '@superdoc-collab/types';
+import {
+  AppRoute,
+  ConnectionFailureReason,
+  ConnectionState,
+  DOCUMENT_UNAVAILABLE_MESSAGE,
+  VersionViewerState,
+} from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
+import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
@@ -36,6 +44,8 @@ export function DocumentPage() {
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const {
     state: connectionState,
     failureReason,
@@ -87,7 +97,13 @@ export function DocumentPage() {
     }
   }
 
+  function signInAgain(): void {
+    const next = encodeURIComponent(location.pathname + location.search);
+    navigate(`${AppRoute.SignIn}?next=${next}`, { state: SIGNED_OUT_STATE });
+  }
+
   const isFailed = connectionState === ConnectionState.Failed;
+  const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
   return (
     <div className="flex h-dvh flex-col">
@@ -98,7 +114,12 @@ export function DocumentPage() {
         onDownload={editorSetup ? downloadLiveDocument : undefined}
       />
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
-      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={isReloading} onReload={reload} />
+      <ConnectionBanner
+        state={connectionState}
+        failureReason={failureReason}
+        isReloading={isReloading}
+        onReload={isSessionEndedFailure ? signInAgain : reload}
+      />
       {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
         <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>

@@ -81,7 +81,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 
 - `libs/types/src/connection.ts` (new, exported from `index.ts`):
   - `ConnectionState { Online = 'online', Lost = 'lost', Reconnecting = 'reconnecting', Recovered = 'recovered', Failed = 'failed' }`
-  - `ConnectionFailureReason { AccessDenied = 'access-denied', ConnectionFailed = 'connection-failed', SyncTimeout = 'sync-timeout', WorkerTransportFailed = 'worker-transport-failed', Unknown = 'unknown' }`
+  - `ConnectionFailureReason { AccessDenied = 'access-denied', ConnectionFailed = 'connection-failed', SyncTimeout = 'sync-timeout', WorkerTransportFailed = 'worker-transport-failed', SessionEnded = 'session-ended', Unknown = 'unknown' }`
 - `libs/types/src/constants.ts`: `RECOVERED_NOTICE_MS = 3 * SECOND_MS`.
 - `libs/types/src/documents.ts`: `DocumentMembers` becomes `{ members: DocumentMember[]; isCurrentUserOnline: boolean }`.
 - `apps/server/src/documents/documents-routes.ts`, members route: reads the user id from `context.var.user.id` and adds `isCurrentUserOnline: online.has(userId)`. `online` is `runtime.onlineUserIds(documentId)`, the user ids with a live Hocuspocus connection in that room. The flag reflects what the server holds, not what the browser believes.
@@ -109,7 +109,8 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 - Two callbacks in one tick: they fold in arrival order, and Failed is sticky.
 - The server sees the user online while the callback says failed: Failed wins.
 - An exception and a callback both report failure: the reading and reason from the exception take precedence over Unknown from the callback.
-- The callback says failed with no exception: the reason is Unknown. The developer reads the callback's `detail` at runtime to confirm which values occur (design 1.14).
+- The callback says failed with no exception and the latest members poll was a 401: the reason is SessionEnded, the copy is "Your session ended. Sign in again." and the button reads "Sign in" and navigates to the sign-in route with `next` set to the current path, in place of Reload. The tester captured the removed-cookie sequence 2026-10-17: lost, reconnecting, failed, each with `detail: null` and no exception, so the transport carries no reason and the app derives it from the 401 (`useMembers` exposes `isSessionEnded`; `resolveFailureReason` turns Unknown into SessionEnded).
+- The callback says failed with no exception and no 401: the reason is Unknown. The developer reads the callback's `detail` at runtime to confirm which values occur (design 1.14).
 - A Lost reading that arrives during Recovered cancels the recovery timer. The timer is also cleared on unmount.
 - A `synced` callback while Online refetches members and changes nothing else.
 - Only a members answer whose request started after the transport reading turned Lost or Reconnecting can confirm Recovered; an answer already in flight at that moment is ignored. If the browser drops its socket while the server still holds it, the server reports the user online until its own socket timeout closes it, so Recovered can show early for that window. Accepted by the lead on 2026-10-17: the window is bounded by the server timeout and the next Lost reading cancels the recovery.

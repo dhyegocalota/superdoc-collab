@@ -22,6 +22,16 @@ export class MissingTrackedChangeTextError extends Error {
   }
 }
 
+export class InvalidRevisionDateError extends Error {
+  constructor(revisionId: string) {
+    super(`Tracked change ${revisionId} has an unreadable date.`);
+  }
+}
+
+export function parseRevisionDate(_: { value: string; revisionId: string }): number {
+  throw new Error('parseRevisionDate is not implemented');
+}
+
 function requireText({ text, revisionId }: { text: string | null; revisionId: string }): string {
   if (text === null) throw new MissingTrackedChangeTextError(revisionId);
   return text;

@@ -55,13 +55,16 @@ function sessionsOn({
 
 function openedPerDocument() {
   const opened = new Map<string, FakeDocument>();
+  const replaced: FakeDocument[] = [];
   const client = fakeClient(async ([parameters]) => {
     const documentId = (parameters.collaboration as { documentId: string }).documentId;
     const document = documentNamed(documentId);
+    const previous = opened.get(documentId);
+    if (previous) replaced.push(previous);
     opened.set(documentId, document);
     return document as unknown as SuperDocDocument;
   });
-  return { client, opened };
+  return { client, opened, replaced };
 }
 
 afterEach(() => {
@@ -225,26 +228,26 @@ test.each([
   { name: 'is still younger than the token lifetime minus the open timeout', ageMs: TOKEN_LIFETIME_MS - OPEN_TIMEOUT_MS - 1, opens: 1 },
   { name: 'reaches the token lifetime minus the open timeout', ageMs: TOKEN_LIFETIME_MS - OPEN_TIMEOUT_MS, opens: 2 },
 ])('a cached session that $name is reused or replaced', async ({ ageMs, opens }) => {
-  const { client, opened } = openedPerDocument();
+  const { client, replaced } = openedPerDocument();
   const clock = { current: 0 };
   const sessions = sessionsOn({ client, now: () => clock.current, tokenLifetimeMs: TOKEN_LIFETIME_MS, openTimeoutMs: OPEN_TIMEOUT_MS });
   await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
   clock.current = ageMs;
   await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
   expect(client.open).toHaveBeenCalledTimes(opens);
-  expect(opened.get('plan')!.close).toHaveBeenCalledTimes(opens - 1);
+  expect(replaced.map(({ close }) => close.mock.calls.length)).toEqual(opens === 1 ? [] : [1]);
   await sessions.close();
 });
 
 test('a cached session opened under another role is replaced so the room permissions match', async () => {
-  const { client, opened } = openedPerDocument();
+  const { client, replaced } = openedPerDocument();
   const role = { current: DocumentRole.Reader };
   const sessions = sessionsOn({ client, role });
   await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
   role.current = DocumentRole.Editor;
   await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
   expect(client.open).toHaveBeenCalledTimes(2);
-  expect(opened.get('plan')!.close).toHaveBeenCalledTimes(1);
+  expect(replaced.map(({ close }) => close.mock.calls.length)).toEqual([1]);
   await sessions.close();
 });
 

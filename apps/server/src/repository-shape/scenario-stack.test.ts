@@ -11,8 +11,10 @@ const SCENARIO_STACK_COMMAND = 'tsx e2e/scenario-stack.ts';
 const SCENARIO_PORT = 3200;
 const DATABASE_DIRECTORY = '/tmp/scenario-stack-test';
 const FAKE_OPENROUTER_ORIGIN = 'http://127.0.0.1:3299';
+const LOOPBACK_HOST = '127.0.0.1';
 const EXPECTED_KEYS = [
   'PORT',
+  'HOST',
   'APP_ORIGIN',
   'AUTH_SECRET',
   'DATABASE_DIR',
@@ -37,6 +39,7 @@ describe('scenario stack', () => {
     const environment = stackEnvironment();
     expect(Object.keys(environment).sort()).toEqual([...EXPECTED_KEYS].sort());
     expect(environment.PORT).toBe(String(SCENARIO_PORT));
+    expect(environment.HOST).toBe(LOOPBACK_HOST);
     expect(environment.APP_ORIGIN).toBe(`http://127.0.0.1:${SCENARIO_PORT}`);
     expect(environment.DATABASE_DIR).toBe(DATABASE_DIRECTORY);
     expect(environment.OPENROUTER_BASE_URL).toBe(`${FAKE_OPENROUTER_ORIGIN}/api/v1`);

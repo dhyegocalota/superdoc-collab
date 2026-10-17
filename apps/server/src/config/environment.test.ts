@@ -22,6 +22,7 @@ describe('loadEnvironment', () => {
   test('parses a complete environment', () => {
     expect(loadEnvironment(complete)).toEqual({
       port: 3000,
+      host: null,
       appOrigin: 'http://localhost:5173',
       authSecret: 'x'.repeat(32),
       databaseDirectory: '/tmp/data',
@@ -33,6 +34,11 @@ describe('loadEnvironment', () => {
     const { [name]: _removed, ...rest } = complete;
     expect(() => loadEnvironment(rest)).toThrow(new MissingEnvironmentVariableError(name));
   });
+  test('binds the address HOST names and every interface without it', () => {
+    expect(loadEnvironment({ ...complete, HOST: '127.0.0.1' }).host).toBe('127.0.0.1');
+    expect(loadEnvironment({ ...complete, HOST: '' }).host).toBeNull();
+  });
+
   test('parses TRUST_PROXY true', () => {
     expect(loadEnvironment({ ...complete, TRUST_PROXY: 'true' }).trustProxy).toBe(true);
   });

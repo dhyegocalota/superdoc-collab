@@ -35,6 +35,7 @@ The E2E suite already boots the whole stack (build, seed, fake model, server) on
 - A scenario run writes screenshots and a report under the git-ignored `.pr-media/scenario-<slug>/`; defects become learnings or fix features, never inline fixes.
 - A session started before `.mcp.json` changed does not have `playwright-second`; the skill says so and stops rather than falling back to two tabs of one browser.
 - Known gap: Hono's `serve()` gets no hostname, so a scenario stack (like the E2E stack before it) listens on every interface with the public demo credentials for the length of the walk. Binding test stacks to 127.0.0.1 is a product change with its own fix feature.
+  Amended 2026-10-17: closed by `docs/features/test-stacks-bind-loopback/`: the server reads an optional `HOST`, and `e2e/stack.ts` sets `127.0.0.1` for the E2E and scenario stacks; the container leaves `HOST` unset and keeps every interface.
 
 ## Evidence
 
@@ -43,7 +44,6 @@ The E2E suite already boots the whole stack (build, seed, fake model, server) on
 
 ## Revisit when
 
-- The server accepts a bind host, so the test stacks can move to loopback.
 - A scenario needs three or more authors at once.
 - Playwright MCP exposes several contexts as first-class tools in one server.
 - Scenario runs become stable enough to run on a schedule rather than on suggestion.

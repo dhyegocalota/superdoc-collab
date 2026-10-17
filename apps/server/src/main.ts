@@ -13,7 +13,7 @@ const running = await startServer({
   environment: loadEnvironment(process.env),
   webDistDirectory: readOptionalWebDistDirectory(process.env),
 });
-console.log(`listening on :${running.port}`);
+console.log(`listening on ${running.host === null ? '' : running.host}:${running.port}`);
 process.on('SIGTERM', () => {
   void running.stop().then(() => process.exit(0));
 });

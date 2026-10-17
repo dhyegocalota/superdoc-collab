@@ -15,7 +15,8 @@ import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
 import { NARROW_VIEWPORT_QUERY, ZoomMode } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { pageTitle } from '@/lib/use-document-title';
+import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useRunHighlights } from './use-run-highlights';
@@ -161,4 +162,9 @@ test('the version measures the page around its frame, not the frame, to pick its
   const config = await renderFrame();
   expect(config.zoom).toEqual({ mode: ZoomMode.FitWidth });
   expect(parentMatchMedia).toHaveBeenCalledWith(NARROW_VIEWPORT_QUERY);
+});
+
+test('the version page names its tab after the document', async () => {
+  await renderFrame();
+  await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
 });

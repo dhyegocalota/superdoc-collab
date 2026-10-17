@@ -8,6 +8,7 @@ import { VersionViewer } from './version-viewer';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
 import { KeyboardKey } from '@/lib/keyboard';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { useRunHighlights } from './use-run-highlights';
 
@@ -23,6 +24,7 @@ export function VersionViewPage() {
   const isSequenceValid = Number.isInteger(sequence);
   const { user } = useSession();
   const { data: opened, error: openError } = useOpenedDocument(documentId);
+  useDocumentTitle(opened ? opened.document.title : null);
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [hasConnectionFailed, setHasConnectionFailed] = useState(false);
   const [runs, setRuns] = useState<EditRunView[]>(NO_RUNS);

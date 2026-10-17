@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { acceptShareLink } from './share-api';
 
@@ -13,6 +14,7 @@ export function ShareLandingPage() {
   const navigate = useNavigate();
   const hasRequested = useRef(false);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
+  useDocumentTitle(null);
 
   useEffect(() => {
     if (hasRequested.current) return;

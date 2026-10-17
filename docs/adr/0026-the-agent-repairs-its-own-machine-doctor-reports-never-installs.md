@@ -34,6 +34,7 @@ Onboarding in this repository is agentic: the developer opens the repository in 
 ## Consequences
 
 - The doctor is a single bash script with no dependencies, tested by `.agents/hooks/hooks.test.sh` with a fake `PATH` and a forced platform, so the `fix:` lines for Linux and macOS are both pinned.
+- A script that runs on every session start is an attack surface of its own: it validates what it reads from the repository (`.nvmrc` digits only, `packageManager` as `pnpm@x.y.z`) before any comparison, because bash's `-ge` evaluates its operands arithmetically and a crafted `.nvmrc` would otherwise execute at session start; the security review of 2026-10-17 reproduced that path before the fix.
 - A session that starts on a machine without `jq` sees the report on turn 1 and cannot edit `.env` or run `git add -A` unnoticed in the meantime: the guards block with the same `fix:` line.
 - `/verify` gains a gate 0 and CI gains one step; both fail when a required tool is missing, which on CI means `actions/install` and the doctor disagree.
 - `docs/install.md` gains "Develop with an agent", three lines that mirror "Install with an agent": clone, open in Claude Code or Codex, approve the installs the first session proposes, ask for `/verify`. The README's "Read more" links it.

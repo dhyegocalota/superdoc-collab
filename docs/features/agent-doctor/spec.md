@@ -70,7 +70,8 @@ Documents, each pointing at the script and never repeating the list:
 ### Interfaces
 
 - `doctor.sh` stdin: none. stdout: one line per tool in the shape above, then a summary line `doctor: <n> missing required, <m> missing optional`. Exit 0 or 1.
-- Test seam: `DOCTOR_UNAME` and `DOCTOR_PATH` environment variables override `uname -s` and `PATH` so `hooks.test.sh` pins the Linux and macOS `fix:` lines and the missing-tool paths without touching the real machine. Both are read only by the doctor.
+- Test seams: `DOCTOR_UNAME`, `DOCTOR_PATH`, `DOCTOR_HOME`, `DOCTOR_SKIP` and `DOCTOR_NVMRC` override `uname -s`, the tool lookup path, the home directory, the tools to skip and the `.nvmrc` file, so `hooks.test.sh` pins the Linux and macOS `fix:` lines, the missing-tool paths and the hostile `.nvmrc` case without touching the real machine. All five are read only by the doctor; the `jq` guard checks the real `PATH`.
+- The doctor validates what it reads from the repository before using it: `.nvmrc` must be digits and `packageManager` must be `pnpm@x.y.z`, or it exits 1 with a one-line reason before any report line, because a `-ge` comparison evaluates its operands arithmetically and would execute a crafted file.
 - `hooks.test.sh`: new cases for the doctor and for the guards without `jq`.
 
 ### Failure handling

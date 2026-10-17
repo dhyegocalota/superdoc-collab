@@ -35,6 +35,7 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [copyState, setCopyState] = useState(CopyState.Idle);
+  const [copiedCount, setCopiedCount] = useState(0);
   const label = SHARE_LINK_LABELS[role];
   const {
     mutate: reset,
@@ -52,12 +53,13 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
     if (copyState !== CopyState.Copied) return;
     const timer = window.setTimeout(() => setCopyState(CopyState.Idle), COPIED_NOTICE_MS);
     return () => window.clearTimeout(timer);
-  }, [copyState]);
+  }, [copyState, copiedCount]);
 
   async function copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(url);
       setCopyState(CopyState.Copied);
+      setCopiedCount((count) => count + 1);
     } catch {
       inputRef.current?.select();
       setCopyState(CopyState.Failed);

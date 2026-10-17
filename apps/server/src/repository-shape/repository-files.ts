@@ -7,7 +7,8 @@ export const REPOSITORY_ROOT = resolve(fileURLToPath(new URL('../../../../', imp
 export const DEPLOY_COMPOSE_FILE = 'deploy/docker-compose.yml';
 const README_PATHSPEC = '*README.md';
 const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
-const PACKAGE_MANIFEST = 'package.json';
+export const PACKAGE_MANIFEST = 'package.json';
+export const DOCUMENTED_FOLDERS = ['e2e'];
 const LINE_SEPARATOR = '\n';
 const INTERPOLATED_VARIABLE_PATTERN = /\$\{([A-Z_]+)[:?-]/g;
 

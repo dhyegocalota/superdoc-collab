@@ -1,12 +1,19 @@
 import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { capturedNames, composeVariables, readmes, readRepositoryFile, repositoryPath, workspacePackages } from './repository-files';
+import {
+  capturedNames,
+  composeVariables,
+  DOCUMENTED_FOLDERS,
+  readmes,
+  readRepositoryFile,
+  repositoryPath,
+  workspacePackages,
+} from './repository-files';
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
-const DOCUMENTED_FOLDERS = ['e2e'];
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
 const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g;

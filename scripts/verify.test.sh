@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+set -u
+here="$(cd "$(dirname "$0")" && pwd)"
+source_root="$(cd "$here/.." && pwd)"
+failures=0
+
+scratch=$(mktemp -d)
+repository="$scratch/repository"
+stub_bin="$scratch/stub-bin"
+linked_bin="$scratch/linked-bin"
+export STUB_LOG="$scratch/calls.log"
+stub_path="$stub_bin:$linked_bin:/usr/bin:/bin"
+
+DEFAULT_NODE_VERSION=v24.7.0
+OTHER_NODE_VERSION=v25.0.0
+ALL_GATES="doctor format secrets typecheck audit hooks unit e2e docker"
+ALL_PACKAGES="@superdoc-collab/history @superdoc-collab/server @superdoc-collab/types @superdoc-collab/web"
+
+expect_match() {
+  local name=$1 output=$2 pattern=$3
+  [[ "$output" =~ $pattern ]] && return
+  echo "FAIL $name: output did not match /$pattern/: $output"
+  failures=$((failures + 1))
+}
+
+expect_no_match() {
+  local name=$1 output=$2 pattern=$3
+  [[ "$output" =~ $pattern ]] || return
+  echo "FAIL $name: output matched /$pattern/: $output"
+  failures=$((failures + 1))
+}
+
+expect_equal() {
+  local name=$1 actual=$2 expected=$3
+  [[ "$actual" == "$expected" ]] && return
+  echo "FAIL $name: expected '$expected', got '$actual'"
+  failures=$((failures + 1))
+}
+
+expect_line() {
+  local name=$1 output=$2 key=$3 expected=$4
+  expect_equal "$name: $key" "$(grep "^$key: " <<< "$output")" "$key: $expected"
+}
+
+in_repository() { git -C "$repository" -c user.name=verify -c user.email=verify@example.com "$@"; }
+
+write_stub() {
+  printf '#!/usr/bin/env bash\n%s\n' "$2" > "$stub_bin/$1"
+  chmod +x "$stub_bin/$1"
+}
+
+install_stubs() {
+  mkdir -p "$stub_bin" "$linked_bin"
+  write_stub pnpm 'echo "pnpm $*" >> "$STUB_LOG"; [[ "$*" == "${STUB_FAIL:-}" ]] && exit 1; exit 0'
+  write_stub node 'echo "$STUB_NODE_VERSION"'
+  write_stub gitleaks 'echo "gitleaks $*" >> "$STUB_LOG"'
+  write_stub docker 'echo "docker $*" >> "$STUB_LOG"; [[ "$1" == info && -n "${STUB_DOCKER_DOWN:-}" ]] && exit 1; exit 0'
+  ln -sf "$(command -v git)" "$linked_bin/git"
+  ln -sf "$(command -v jq)" "$linked_bin/jq"
+}
+
+write_package() {
+  local folder=$1 name=$2 dependencies=$3
+  mkdir -p "$repository/$folder"
+  printf '{"name":"%s","dependencies":%s}\n' "$name" "$dependencies" > "$repository/$folder/package.json"
+}
+
+change() {
+  mkdir -p "$(dirname "$repository/$1")"
+  printf 'change %s\n' "$RANDOM" >> "$repository/$1"
+}
+
+commit_change() {
+  change "$1"
+  in_repository add -- "$1"
+  in_repository commit -q -m "change $1"
+}
+
+head_sha() { in_repository rev-parse HEAD; }
+record_file() { echo "$repository/.git/verify/$(head_sha)"; }
+record_count() { find "$repository/.git/verify" -type f 2>/dev/null | wc -l | tr -d ' '; }
+
+new_repository() {
+  rm -rf "$repository" "$stub_bin"
+  install_stubs
+  mkdir -p "$repository"
+  in_repository init -q -b main
+  mkdir -p "$repository/scripts" "$repository/.agents/hooks" "$repository/.agents/skills/x" "$repository/.github/scripts" "$repository/.github/workflows" "$repository/docker" "$repository/docs"
+  cp "$source_root/scripts/verify.sh" "$source_root/scripts/verify-gates.tsv" "$repository/scripts/"
+  write_package apps/web @superdoc-collab/web '{"@superdoc-collab/history":"workspace:*","@superdoc-collab/types":"workspace:*"}'
+  write_package apps/server @superdoc-collab/server '{"@superdoc-collab/history":"workspace:*","@superdoc-collab/types":"workspace:*"}'
+  write_package libs/history @superdoc-collab/history '{"@superdoc-collab/types":"workspace:*"}'
+  write_package libs/types @superdoc-collab/types '{}'
+  printf '#!/usr/bin/env bash\n[[ "${1:-}" == --fix ]] && { echo "install $2"; exit 0; }\necho doctor >> "$STUB_LOG"\n' > "$repository/.agents/hooks/doctor.sh"
+  printf '#!/usr/bin/env bash\necho "probe $*" >> "$STUB_LOG"\n' > "$repository/.github/scripts/secret-rules-probe.sh"
+  chmod +x "$repository/.agents/hooks/doctor.sh" "$repository/.github/scripts/secret-rules-probe.sh" "$repository/scripts/verify.sh"
+  local tracked
+  for tracked in README.md LICENSE AGENTS.md pnpm-lock.yaml docs/install.md docker/Dockerfile .agents/skills/x/SKILL.md .github/workflows/verify.yml apps/web/README.md apps/web/vite.config.ts apps/web/src/a.ts apps/server/src/x.ts apps/server/src/repository-shape/x.test.ts libs/types/src/x.ts; do
+    change "$tracked"
+  done
+  in_repository add -- scripts apps libs .agents .github docker docs README.md LICENSE AGENTS.md pnpm-lock.yaml
+  in_repository commit -q -m initial
+  in_repository checkout -q -b feature
+  export STUB_NODE_VERSION=$DEFAULT_NODE_VERSION STUB_FAIL= STUB_DOCKER_DOWN=
+  : > "$STUB_LOG"
+}
+
+run_verify() {
+  output=$(cd "$repository" && PATH="$stub_path" bash scripts/verify.sh "$@" 2>&1)
+  status=$?
+}
+
+classify() {
+  new_repository
+  change "$1"
+  run_verify --plan
+}
+
+calls() { cat "$STUB_LOG"; }
+
+classify README.md
+expect_line "a README typo" "$output" class docs
+expect_line "a README typo" "$output" gates "doctor format secrets shape"
+expect_line "a README typo" "$output" packages -
+
+classify docs/install.md
+expect_line "docs/install.md" "$output" class docs
+
+classify apps/web/README.md
+expect_line "a package README" "$output" class docs
+
+classify apps/web/vite.config.ts
+expect_line "a web file" "$output" class product
+expect_line "a web file" "$output" gates "doctor format secrets typecheck shape unit e2e"
+expect_line "a web file" "$output" packages @superdoc-collab/web
+
+classify apps/server/src/x.ts
+expect_line "a server file" "$output" packages @superdoc-collab/server
+expect_line "a server file" "$output" gates "doctor format secrets typecheck unit e2e"
+
+classify libs/types/src/x.ts
+expect_line "a types file" "$output" packages "$ALL_PACKAGES"
+
+classify .agents/skills/x/SKILL.md
+expect_line "a skill" "$output" class tooling
+expect_line "a skill" "$output" gates "doctor format secrets hooks shape"
+
+classify AGENTS.md
+expect_line "AGENTS.md" "$output" class tooling
+
+classify .github/workflows/verify.yml
+expect_line "a workflow" "$output" class tooling
+expect_no_match "a workflow" "$output" 'e2e'
+
+classify apps/server/src/repository-shape/x.test.ts
+expect_line "a repository shape test" "$output" gates "doctor format secrets typecheck shape"
+expect_no_match "a repository shape test" "$output" 'e2e'
+
+classify pnpm-lock.yaml
+expect_line "the lockfile" "$output" class product
+expect_line "the lockfile" "$output" gates "$ALL_GATES"
+
+classify scripts/verify-gates.tsv
+expect_line "the gate map" "$output" gates "$ALL_GATES"
+
+classify LICENSE
+expect_line "an unknown path" "$output" class product
+expect_line "an unknown path" "$output" gates "$ALL_GATES"
+
+new_repository
+in_repository mv apps/web/src/a.ts docs/a.md
+run_verify --plan
+expect_line "a rename out of an app" "$output" class product
+expect_line "a rename out of an app" "$output" packages @superdoc-collab/web
+
+classify apps/server/src/new.ts
+expect_line "an untracked server file" "$output" packages @superdoc-collab/server
+
+new_repository
+change README.md
+change apps/web/vite.config.ts
+run_verify --plan
+expect_line "a README and a web file" "$output" class product
+
+classify docker/Dockerfile
+expect_line "the Dockerfile" "$output" gates "doctor format secrets shape docker"
+
+new_repository
+commit_change README.md
+run_verify
+expect_equal "a README change runs green" "$status" 0
+expect_match "a README change reports the gates" "$output" "verify: 4 gates green at $(in_repository rev-parse --short HEAD) \(docs\)"
+expect_no_match "a README change skips the heavy gates" "$(calls)" 'typecheck|test:unit|test:e2e'
+
+new_repository
+commit_change docker/Dockerfile
+STUB_DOCKER_DOWN=1
+run_verify
+expect_equal "Docker down fails" "$status" 1
+expect_match "Docker down names the fix" "$output" 'verify: docker failed: the image needs a running Docker\. fix: install docker'
+
+new_repository
+commit_change apps/web/vite.config.ts
+STUB_FAIL=typecheck
+run_verify
+expect_equal "a failing typecheck exits 1" "$status" 1
+expect_match "a failing typecheck is named" "$output" 'verify: typecheck failed'
+expect_no_match "a failing typecheck stops the run" "$(calls)" 'security:audit|test:unit|test:e2e'
+expect_equal "a failing typecheck writes no record" "$(record_count)" 0
+
+new_repository
+commit_change README.md
+rm "$stub_bin/gitleaks"
+run_verify
+expect_equal "a missing gitleaks exits 1" "$status" 1
+expect_match "a missing gitleaks names the fix" "$output" 'verify: secrets failed: gitleaks is not installed\. fix: install gitleaks'
+
+new_repository
+commit_change README.md
+run_verify
+expect_equal "a clean green run exits 0" "$status" 0
+expect_match "a clean green run writes the record" "$(cat "$(record_file)")" "node: $DEFAULT_NODE_VERSION"$'\n'"class: docs"$'\n'"gates: doctor format secrets shape"
+: > "$STUB_LOG"
+run_verify
+expect_equal "a second run exits 0" "$status" 0
+expect_match "a second run is already green" "$output" "verify: $(in_repository rev-parse --short HEAD) already green"
+expect_equal "a second run calls no tool" "$(calls)" ""
+
+new_repository
+change README.md
+run_verify
+expect_equal "a dirty green run exits 0" "$status" 0
+expect_equal "a dirty green run writes no record" "$(record_count)" 0
+
+new_repository
+commit_change apps/web/vite.config.ts
+recorded_commit=$(head_sha)
+run_verify
+commit_change README.md
+run_verify --plan
+expect_line "a docs commit after a recorded commit" "$output" base "$recorded_commit (record)"
+expect_line "a docs commit after a recorded commit" "$output" class docs
+
+new_repository
+commit_change README.md
+run_verify
+STUB_NODE_VERSION=$OTHER_NODE_VERSION
+run_verify --plan
+expect_line "a record under another Node version" "$output" base "$(in_repository rev-parse main) (merge base)"
+
+new_repository
+commit_change apps/web/vite.config.ts
+run_verify
+in_repository checkout -q main
+commit_change apps/server/src/x.ts
+in_repository checkout -q feature
+in_repository merge -q --no-edit main
+run_verify --plan
+expect_line "a merge of main into a recorded branch" "$output" packages @superdoc-collab/server
+
+new_repository
+commit_change apps/web/vite.config.ts
+run_verify
+run_verify all --plan
+expect_line "all ignores records" "$output" base "$(in_repository rev-parse main) (merge base)"
+: > "$STUB_LOG"
+run_verify all
+expect_equal "all exits 0" "$status" 0
+expect_match "all checks the whole format" "$(calls)" 'pnpm format:check'
+expect_match "all runs every unit suite" "$(calls)" 'pnpm test:unit'
+expect_match "all runs every E2E suite" "$(calls)" 'pnpm test:e2e'
+
+rm -rf "$scratch"
+
+[[ "$failures" == 0 ]] && echo "verify: all checks passed" && exit 0
+echo "verify: $failures check(s) failed"
+exit 1

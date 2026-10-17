@@ -308,7 +308,7 @@ Both tests were written after the product code landed, so neither was red first.
 
 - The first test also asserts the AI badge (`Edited by AI`) inside the author list item titled "Ana · AI".
 - `a document exported by the AI is a DOCX and leaves a mark`: `export_docx` returns an embedded resource with the DOCX mime type and bytes that start with the ZIP signature, and the "exported the document" mark appears.
-- The share-link mark is now awaited without a reload and appeared on its own. Three repeats, 9 of 9 green.
+- The share-link mark is now awaited without a reload and appeared on its own. Repeat runs: 12 of 12 green at 4 workers, 8 of 9 and 17 of 18 at 3 and 6 workers; the one failure each time was the first test timing out on the Hiring band appearing after 60 seconds under load (topic naming shares two model slots across workers).
 
 ### Known gaps
 

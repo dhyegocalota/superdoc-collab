@@ -17,6 +17,8 @@ import { EventEmitter } from 'node:events';
 import type { Server } from 'node:http';
 import { connect } from 'node:net';
 import { Duplex } from 'node:stream';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -375,4 +377,36 @@ describe('attachCollaboration', () => {
     );
     expect(destroy).toHaveBeenCalledOnce();
   });
+});
+
+test('the frame that breaches the limit reaches the room handler and nothing after it does', async () => {
+  const received = vi.fn();
+  const hocuspocus = {
+    handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
+  } as unknown as Hocuspocus;
+  const auth = {
+    api: { getSession: async () => ({ user: { id: 'user-1', name: 'Eva', email: 'eva@example.test', role: 'user', timeZone: null } }) },
+  } as unknown as Auth;
+  const httpServer = createServer();
+  attachCollaboration({
+    httpServer,
+    auth,
+    hocuspocus,
+    versionRooms: {} as VersionRooms,
+    path: ApiPath.Collaboration,
+    allowedOrigin: ORIGIN,
+  });
+  await new Promise<void>((resolve) => httpServer.listen(0, LOOPBACK_HOST, resolve));
+  const { port } = httpServer.address() as AddressInfo;
+  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${port}${ApiPath.Collaboration}`, {
+    origin: ORIGIN,
+    headers: { cookie: 'session=1' },
+  });
+  socket.on('error', () => undefined);
+  const closed = new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
+  await new Promise((resolve) => socket.on('open', resolve));
+  Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 10 }).forEach(() => socket.send(Buffer.from([0])));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).toHaveBeenCalledTimes(MAX_SOCKET_MESSAGES_PER_SECOND + 1);
+  await new Promise((resolve) => httpServer.close(resolve));
 });

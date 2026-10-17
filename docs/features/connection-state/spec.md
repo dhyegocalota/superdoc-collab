@@ -54,7 +54,11 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 
 ### Merge
 
-`useConnectionState` holds the latest transport reading from the callback and the server flag from `useMembers`. `TransportReading` is `Clear`, `Lost`, `Reconnecting` or `Failed`. The callback maps to a reading by its kind and state: `lost`, `reconnecting` and `failed` map to themselves, and `initial`, `recovered` and state `synced` map to Clear.
+`useConnectionState` holds the latest transport reading from the callback and the server flag from `useMembers`. `TransportReading` is `Clear`, `Lost`, `Reconnecting` or `Failed`. The callback maps to a reading by its kind and state: `lost`, `reconnecting` and `failed` map to themselves; `initial` maps to Clear; `recovered` and state `synced` keep the current reading and only set `hasSynced`, which triggers an immediate members refetch (ADR 0032: the callback never confirms recovery on its own). Revised by the lead on 2026-10-17 after the plan review.
+
+**Request after Lost.** When the reading turns Lost or Reconnecting the hook records `lostAt`, cancels the in-flight members request (`queryClient.cancelQueries`) and refetches. A members answer counts only when its `dataUpdatedAt` is later than `lostAt`; `useMembers` exposes that time as `membersAnsweredAt`. A flag that still reads `true` from before the outage therefore never shows Recovered.
+
+**Per-tab presence.** The flag is per tab, not per user, so a second tab of the same person cannot keep this tab "online". Each page load creates a `tabId` (`crypto.randomUUID()`), appends it as the `tab` query of the collaboration socket URL (`collaboration-config.ts`), where `onAuthenticate` stores it in the connection context, and sends it as the `tab` query of the members request; the members route answers `isCurrentUserOnline` for that tab through `runtime.onlineTabIds(documentId)`. A members request without `tab` keeps the per-user answer for other callers.
 
 | Transport reading | Server sees this user online | Banner state |
 |-------------------|------------------------------|--------------|
@@ -66,9 +70,9 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 ### Reload
 
 1. The author presses Reload in the banner.
-2. `DocumentPage` invalidates the open query (`openedDocumentQueryKey`) and the file query (`DOCUMENT_FILE_QUERY_KEY`).
+2. `DocumentPage` refetches the open query (`openedDocumentQueryKey`) and the file query (`DOCUMENT_FILE_QUERY_KEY`) and awaits both, so the answer for an already bootstrapped room comes back as `RoomMode.Join` with the current file.
 3. The hook resets to reading Clear and state Online.
-4. `DocumentPage` bumps an `editorGeneration` state used as the `key` of `SuperDocEditor`. The old instance is destroyed in its cleanup and a new one mounts.
+4. Only then `DocumentPage` bumps `editorGeneration`, used as the `key` of `SuperDocEditor` and passed to `useEditorSetup`, which drops its captured setup when the generation changes (today it captures once behind a `setup === null` guard). The old instance is destroyed in its cleanup and a new one mounts with the refetched setup.
 5. The old instance's handlers check an `isActive` flag and drop late callbacks.
 
 ## Interfaces

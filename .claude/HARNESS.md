@@ -76,6 +76,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
 - Stuck after three honest attempts → `systematic-debugging` skill, then escalate to the owner with evidence.
+- **Nothing temporary reaches `main`.** Spikes, prototypes, walks, notes and any scratch folder an agent creates live in the scratchpad or a throwaway worktree, never in the repository. The root holds only the entries `delivery-docs.test.ts` lists, and no path may carry a segment such as `spike`, `poc`, `scratch`, `tmp`, `playground`, `sandbox` or `wip`; a new root entry is added to that list in the same PR, where the reviewer sees it.
 - **Docs move with the code.** A change that makes a README, a `.claude/rules/` fact or the `AGENTS.md` layout wrong updates it in the same commit. A package README states purpose only, never commands, configuration or behaviour the code already shows, and links the folders it names so a rename fails CI. The `remind-docs.sh` Stop hook names the documents that describe uncommitted changes; update them or say why none applies.
 
 **Parallel lanes.** When the lead runs several developers at once:

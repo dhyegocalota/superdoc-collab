@@ -38,4 +38,6 @@ Empty on purpose.
 
 ## Coverage honesty
 
+- `imported-revisions.test.ts::a listed change without an offset in its date maps to UTC` is a pin under a UTC process (it passes before the fix there); it only guards the behaviour in the `TZ=Asia/Kolkata` CI leg (core review, 2026-10-17).
+
 - Long-span (multi-day) timelines are proven by unit and route tests with fixed `serverTime`; the live walk can only show short spans.

@@ -21,6 +21,7 @@ import {
   SHARE_DIALOG_DESCRIPTION,
   SHARE_LABEL,
   SHARE_LINK_LABELS,
+  SHARE_LINKS_LOAD_ERROR_MESSAGE,
 } from './editor-copy';
 import { COPIED_NOTICE_MS, ShareDialog } from './share-dialog';
 
@@ -155,4 +156,11 @@ test('copying again keeps Link copied for a full period from the second copy', a
   act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
   expect(within(readRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
   vi.useRealTimers();
+});
+
+test('links that fail to load show an alert instead of placeholders', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
+  await openDialog();
+  expect(await screen.findByRole('alert')).toHaveTextContent(SHARE_LINKS_LOAD_ERROR_MESSAGE);
+  expect(screen.queryByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).not.toBeInTheDocument();
 });

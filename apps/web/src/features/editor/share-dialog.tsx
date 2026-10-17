@@ -17,6 +17,7 @@ import {
   SHARE_DIALOG_TITLE,
   SHARE_LABEL,
   SHARE_LINK_LABELS,
+  SHARE_LINKS_LOAD_ERROR_MESSAGE,
 } from './editor-copy';
 
 const SHARE_ROLES = Object.values(ShareLinkRole);
@@ -99,7 +100,11 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
 
 export function ShareDialog({ documentId }: { documentId: string }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { data } = useQuery({ queryKey: shareLinksQueryKey(documentId), queryFn: () => fetchShareLinks(documentId), enabled: isOpen });
+  const { data, isPending, isError } = useQuery({
+    queryKey: shareLinksQueryKey(documentId),
+    queryFn: () => fetchShareLinks(documentId),
+    enabled: isOpen,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -114,7 +119,12 @@ export function ShareDialog({ documentId }: { documentId: string }) {
           <DialogTitle>{SHARE_DIALOG_TITLE}</DialogTitle>
           <DialogDescription>{SHARE_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
-        {!data && (
+        {isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {SHARE_LINKS_LOAD_ERROR_MESSAGE}
+          </p>
+        )}
+        {isPending && (
           <div role="status" aria-label={LOADING_SHARE_LINKS_LABEL} className="space-y-4">
             {SHARE_ROLES.map((role) => (
               <Skeleton key={role} className="h-16 w-full" />

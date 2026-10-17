@@ -1,4 +1,4 @@
-import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
+import { secondsRoundedUp, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
 import { useEffect, useId, useRef, type RefObject } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ type SelectionSummaryCardProps = {
 };
 
 function errorMessage(error: Error): string {
-  if (error instanceof SummaryTooSoonError) return `${error.message} ${retryInLabel(error.retryAfterSeconds)}`;
+  if (error instanceof SummaryTooSoonError) return `${error.message} ${retryInLabel(secondsRoundedUp(error.retryAfterMs))}`;
   return error.message;
 }
 

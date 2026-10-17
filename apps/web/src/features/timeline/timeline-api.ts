@@ -23,7 +23,7 @@ import {
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-history/types';
-import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
+import { ApiRequestError, apiGet, apiSend, RetryLaterError } from '@/lib/api';
 import { documentQueryKey } from '@/features/documents/documents-api';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
 import { requestFailedMessage } from './timeline-copy';
@@ -36,18 +36,15 @@ export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 
 type ErrorBody = { error: string };
 
-export class TopicsRefreshTooSoonError extends ApiRequestError {
-  constructor(readonly retryAfterMs: number) {
-    super(TOPICS_REFRESH_TOO_SOON_MESSAGE);
+export class TopicsRefreshTooSoonError extends RetryLaterError {
+  constructor(retryAfterMs: number) {
+    super({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs });
   }
 }
 
-export class SummaryTooSoonError extends ApiRequestError {
-  readonly retryAfterSeconds: number;
-
-  constructor(retryAfterSeconds: number) {
-    super(SELECTION_SUMMARY_TOO_SOON_MESSAGE);
-    this.retryAfterSeconds = retryAfterSeconds;
+export class SummaryTooSoonError extends RetryLaterError {
+  constructor(retryAfterMs: number) {
+    super({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterMs });
   }
 }
 
@@ -195,7 +192,7 @@ export async function requestSelectionSummary({
     body: null,
   });
   assertDocumentAvailable(response);
-  if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(Math.ceil(readRetryAfterMs(response) / SECOND_MS));
+  if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(readRetryAfterMs(response));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
   if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: response.status }));
   return response.json();

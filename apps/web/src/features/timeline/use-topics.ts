@@ -1,8 +1,8 @@
 import { DocumentResource, type TopicStatus } from '@superdoc-history/types';
-import { useEffect } from 'react';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { documentQueryKey } from '@/features/documents/documents-api';
-import { refreshTopics, summariesQueryKey, TopicsRefreshTooSoonError, topicsQueryKey } from './timeline-api';
+import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
+import { refreshTopics, summariesQueryKey, topicsQueryKey } from './timeline-api';
 
 export function useRefreshTopics(documentId: string): UseMutationResult<TopicStatus, Error, void> {
   const queryClient = useQueryClient();
@@ -16,11 +16,7 @@ export function useRefreshTopics(documentId: string): UseMutationResult<TopicSta
   });
   const { error, reset } = mutation;
 
-  useEffect(() => {
-    if (!(error instanceof TopicsRefreshTooSoonError)) return;
-    const timer = setTimeout(reset, error.retryAfterMs);
-    return () => clearTimeout(timer);
-  }, [error, reset]);
+  useResetAfterRetry({ error, reset });
 
   return mutation;
 }

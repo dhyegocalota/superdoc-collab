@@ -9,6 +9,7 @@ import {
   documentWithOwner,
   memberWithRole,
 } from '../testing/collaboration-client';
+import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
 import { MAX_STORE_DEBOUNCE_MS } from './collaboration-server';
 
@@ -123,6 +124,7 @@ describe('collaboration credentials by path', () => {
     },
   ])('$name is accepted: $accepted', async ({ connect, accepted }) => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const outcome = connect({ server, documentId, owner });
     if (!accepted) await expect(outcome).rejects.toBeInstanceOf(CollaborationRefusedError);
     if (accepted) (await outcome).close();
@@ -131,6 +133,7 @@ describe('collaboration credentials by path', () => {
 
   test('an agent update is logged with the Agent actor', async () => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const agent = await connectAgentToDocument({ server, token: roomToken({ userId: owner.id, documentId }), documentId });
     agent.document.getText('t').insert(0, 'tracked by the agent');
     await expect
@@ -139,13 +142,14 @@ describe('collaboration credentials by path', () => {
           .read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER })
           .map((row) => row.connectionActor),
       )
-      .toEqual([ClientActor.Agent]);
+      .toEqual([ClientActor.Human, ClientActor.Agent]);
     agent.close();
     await server.stop();
   });
 
   test('a browser update is logged with the Human actor', async () => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const browser = await connectToDocument({ server, cookie: owner.cookie, documentId });
     browser.document.getText('t').insert(0, 'typed by the person');
     await expect
@@ -160,7 +164,8 @@ describe('collaboration credentials by path', () => {
   });
 
   test('a room token for a member who was removed is refused', async () => {
-    const { server, documentId } = await documentWithOwner();
+    const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const member = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
     const token = roomToken({ userId: member.id, documentId });
     server.database.sqlite.prepare('DELETE FROM document_members WHERE user_id = ?').run(member.id);
@@ -170,6 +175,7 @@ describe('collaboration credentials by path', () => {
 
   test('a reader room token connects read-only and no update is logged', async () => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
     const agent = await connectAgentToDocument({ server, token: roomToken({ userId: reader.id, documentId }), documentId });
     agent.document.getText('t').insert(0, 'reader');

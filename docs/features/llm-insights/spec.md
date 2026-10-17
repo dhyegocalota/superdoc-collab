@@ -2,7 +2,7 @@
 
 - Status: Approved on the owner's behalf (overnight authorization recorded in the slice 3 ledger, 2026-10-16) — scope fixed by the owner: "Summarize edits" for the current filtered selection + polish of the parked minors; no export.
 - Tier: medium (one new endpoint, one new table, one new panel control; no schema change to existing tables).
-- Owner approval: pre-approved 2026-10-16 (decisions table below).
+- Owner approval: approved 2026-10-16 (on the owner's behalf under the overnight authorization; decisions table below).
 - ADRs: [0006](../../adr/0006-llm-via-vercel-ai-sdk.md) (OpenRouter `openai/gpt-6-luna` addendum), [0008](../../adr/0008-vertical-slices.md), [0011](../../adr/0011-process-wide-llm-cost-caps.md) (spend caps), [0012](../../adr/0012-selection-summaries-cached-per-filter-and-cursor.md) (new: selection summaries cached per filter key and freshness stamp, rate-limited per document).
 - Not changing: topics, per-topic sentences, the timeline pipeline, time travel, auth, storage.
 

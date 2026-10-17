@@ -16,7 +16,7 @@ import {
   type ProjectionReply,
   type VersionReply,
 } from './projection-messages';
-import { requestKeyOf, WaitingRequests, type ServedReply, type ServedRequest } from './waiting-requests';
+import { isServedReply, requestKeyOf, WaitingRequests, type ServedReply, type ServedRequest } from './waiting-requests';
 
 const SOURCE_EXTENSION = '.ts';
 const TSX_REGISTER_SPECIFIER = 'tsx/esm/api';
@@ -144,8 +144,7 @@ export class ProjectionScheduler {
 
   private settle(reply: ProjectionReply): void {
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
-    if (reply.kind === ProjectionRequestKind.Version || reply.kind === ProjectionRequestKind.Blocks)
-      return this.waitingRequests.resolve(reply);
+    if (isServedReply(reply)) return this.waitingRequests.resolve(reply);
     if (reply.kind === ProjectionRequestKind.Forget) return this.settleForget(reply.documentId);
     if (reply.kind === ProjectionRequestKind.Import) return this.settleImport(reply);
     return this.settleProject(reply);

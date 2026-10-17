@@ -2,6 +2,7 @@ import {
   ProjectionRequestCrashedError,
   ProjectionRequestKind,
   type BlocksReply,
+  type ProjectionReply,
   type ProjectionRequest,
   type VersionReply,
 } from './projection-messages';
@@ -10,6 +11,10 @@ export type ServedReply = VersionReply | BlocksReply;
 export type ServedRequest = Extract<ProjectionRequest, { kind: ProjectionRequestKind.Version | ProjectionRequestKind.Blocks }>;
 type Waiter = { resolve: (reply: ServedReply) => void; reject: (error: Error) => void };
 type WaitingRequest = { request: ServedRequest; waiters: Waiter[]; posts: number };
+
+export function isServedReply(reply: ProjectionReply): reply is ServedReply {
+  return reply.kind === ProjectionRequestKind.Version || reply.kind === ProjectionRequestKind.Blocks;
+}
 
 export function requestKeyOf({
   kind,

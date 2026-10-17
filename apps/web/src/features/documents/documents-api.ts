@@ -14,6 +14,10 @@ import { CREATE_FAILED_MESSAGE, UPLOAD_FAILED_MESSAGE } from './documents-copy';
 
 export const DOCUMENTS_QUERY_KEY = ['documents'];
 
+export function documentQueryKey({ documentId, segments }: { documentId: string; segments: unknown[] }): unknown[] {
+  return [];
+}
+
 export function validateUpload(file: File): string | null {
   if (!file.name.toLowerCase().endsWith(DOCX_EXTENSION)) return NOT_A_DOCX_MESSAGE;
   if (file.size > MAX_UPLOAD_BYTES) return UPLOAD_TOO_LARGE_MESSAGE;

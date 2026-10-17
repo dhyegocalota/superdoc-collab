@@ -10,7 +10,7 @@ import {
   topicsQueryKey,
   versionQueryKey,
 } from '@/features/timeline/timeline-api';
-import { DOCUMENTS_QUERY_KEY } from './documents-api';
+import { documentQueryKey, DOCUMENTS_QUERY_KEY } from './documents-api';
 
 const DOCUMENT_ID = 'doc-1';
 const FILTER: TimelineFilter = { term: 'budget', author: null };
@@ -74,4 +74,10 @@ test('the timeline prefix reaches the timeline and its bin edits, and the docume
   const timelinePrefix = [...DOCUMENTS_QUERY_KEY, DOCUMENT_ID, DocumentResource.Timeline];
   expect(keysMatching({ queryClient, queryKey: timelinePrefix })).toEqual([timelineKey, binEditsKey]);
   expect(keysMatching({ queryClient, queryKey: DOCUMENTS_QUERY_KEY })).not.toContainEqual(fileKey);
+});
+
+test('a document key nests its segments under the documents key', () => {
+  const membersKey = documentQueryKey({ documentId: DOCUMENT_ID, segments: [DocumentResource.Members] });
+  expect(membersKey).toEqual([...DOCUMENTS_QUERY_KEY, DOCUMENT_ID, DocumentResource.Members]);
+  expect(documentQueryKey({ documentId: DOCUMENT_ID, segments: [] })).toEqual([...DOCUMENTS_QUERY_KEY, DOCUMENT_ID]);
 });

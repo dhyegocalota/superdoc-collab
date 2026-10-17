@@ -1,4 +1,4 @@
-import { clampToMark, readMainStoryText, type ReadModel } from '@superdoc-collab/history';
+import { readMainStoryText, resolveMark, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
@@ -27,6 +27,7 @@ import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService } from './versions-service';
 
 const MINUTES = 3;
+const unknownSequenceLog = { serverTimeOf: () => null } as unknown as UpdateLog;
 const SETTLE_ROUND_TRIPS = 5;
 const PROPERTY_SEED = 20261016;
 const SAMPLED_SEQUENCES = 20;
@@ -74,7 +75,8 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
         cookie: owner.cookie,
         path: versionApiPath({ documentId, sequence, resource: VersionResource.Text }),
       });
-      expect(resolved).toBe(clampToMark({ marks: server.services.readModel.marks(documentId), sequence })!.sequence);
+      const serverTime = server.services.updateLog.serverTimeOf({ documentName: documentId, sequence });
+      expect(resolved).toBe(resolveMark({ marks: server.services.readModel.marks(documentId), sequence, serverTime })!.sequence);
       expect(text).toBe(readMainStoryText(replay(server.services.updateLog.read({ documentName: documentId, untilSequence: resolved }))));
     }),
   );
@@ -210,7 +212,7 @@ test('the cache stays under its byte budget', async () => {
       text: '',
     }),
   } as unknown as ProjectionScheduler;
-  const versions = new VersionsService({ readModel, scheduler, maxBytes: SMALL_BUDGET_BYTES });
+  const versions = new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler, maxBytes: SMALL_BUDGET_BYTES });
   await versions.load({ documentId, sequence: 1 });
   await versions.load({ documentId, sequence: 2 });
   expect(versions.peek({ documentId, sequence: 2 }).kind).toBe(VersionLookupKind.Ready);
@@ -285,7 +287,10 @@ function stubbedVersions(version: (request: { documentId: string; sequence: numb
 } {
   const documentId = randomUUID();
   const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
-  return { versions: new VersionsService({ readModel, scheduler: { version } as unknown as ProjectionScheduler }), documentId };
+  return {
+    versions: new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler: { version } as unknown as ProjectionScheduler }),
+    documentId,
+  };
 }
 
 test('peeks that land while a load is in flight log one line when it fails', async () => {

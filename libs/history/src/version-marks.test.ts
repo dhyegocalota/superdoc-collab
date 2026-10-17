@@ -68,9 +68,11 @@ test('clampToMark snaps down and lifts a sequence before the first mark', () => 
 });
 
 test('a sequence whose mark was pruned resolves to the surviving mark of its minute', () => {
-  const prunedInSecondMinute = { sequence: 12, serverTime: 125, minuteStart: 120 };
-  expect(resolveMark({ marks: SUMMARIES, sequence: 12, serverTime: prunedInSecondMinute.serverTime })?.sequence).toBe(14);
-  expect(resolveMark({ marks: SUMMARIES, sequence: 9, serverTime: 70 })?.sequence).toBe(9);
+  const prunedInThirdMinute = { sequence: 12, serverTime: 125 * SECOND };
+  expect(
+    resolveMark({ marks: MINUTES, sequence: prunedInThirdMinute.sequence, serverTime: prunedInThirdMinute.serverTime })?.sequence,
+  ).toBe(14);
+  expect(resolveMark({ marks: MINUTES, sequence: 9, serverTime: 70 * SECOND })?.sequence).toBe(9);
 });
 
 test('a sequence the log does not know clamps down like before', () => {

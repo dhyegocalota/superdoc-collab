@@ -124,7 +124,7 @@ function createServices({
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
   const auth = createAuth({ database, environment, invites });
-  const versions = new VersionsService({ readModel, scheduler });
+  const versions = new VersionsService({ readModel, updateLog, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const hocuspocus = createCollaborationServer({

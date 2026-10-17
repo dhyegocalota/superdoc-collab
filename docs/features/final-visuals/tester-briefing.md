@@ -72,7 +72,7 @@ Every "it works" is a hypothesis the tester tries to break.
 
 ### Known gaps
 
-- The first answer counts as one of the 150, so the card pauses 148 intervals (about 4 minutes 56 seconds) after the first answer. After "Keep waiting" the count restarts from the refetch it triggers.
+- The first answer counts as one of the 150, so the card pauses after 149 intervals (4 minutes 58 seconds) following the first answer. After "Keep waiting" the count restarts from the refetch it triggers.
 - The title is read once per render from the cache with `getQueryData`; it does not subscribe, so a title that arrives while the card is up appears at the next render.
 - The header is a placeholder until G2 swaps in `AppTopBar`; the account menu is absent until then.
 - The use-opened-document tests settle fake timers with a 100 ms advance after each step; changing TanStack's notify scheduling could need a bigger value.

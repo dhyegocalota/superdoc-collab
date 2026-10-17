@@ -2,7 +2,7 @@ import { AppRoute, type SessionUser } from '@superdoc-history/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, RouterProvider, type InitialEntry } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { apiGet } from '@/lib/api';
 import { authClient } from './auth-client';
@@ -31,8 +31,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
-function renderApp(initialEntries: Parameters<typeof createMemoryRouter>[1] = { initialEntries: [AppRoute.Documents] }) {
+function renderApp({ initialEntries = [AppRoute.Documents], seededUser = null }: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  if (seededUser) queryClient.setQueryData(SESSION_QUERY_KEY, seededUser);
   const router = createMemoryRouter(
     [
       { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
@@ -45,7 +46,7 @@ function renderApp(initialEntries: Parameters<typeof createMemoryRouter>[1] = { 
         ),
       },
     ],
-    initialEntries,
+    { initialEntries },
   );
   render(
     <QueryClientProvider client={queryClient}>
@@ -74,8 +75,7 @@ test('a session read that already sees the signed-out user does not turn into a 
 });
 
 test('arriving signed out while the session still looks signed in shows the form, clears the session and drops the marker', async () => {
-  const { router, queryClient } = renderApp({ initialEntries: [{ pathname: AppRoute.SignIn, state: SIGNED_OUT_STATE }] });
-  queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
+  const { router, queryClient } = renderApp({ initialEntries: [{ pathname: AppRoute.SignIn, state: SIGNED_OUT_STATE }], seededUser: ADA });
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
   await waitFor(() => expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull());
   await waitFor(() => expect(router.state.location.state).toBeNull());

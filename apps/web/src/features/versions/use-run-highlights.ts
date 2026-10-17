@@ -1,4 +1,4 @@
-import type { EditRunView } from '@superdoc-history/types';
+import type { EditRunView } from '@superdoc-collab/types';
 import { useEffect } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { clearHighlights, highlightEdits, type EditorDocument, type HighlightResult } from '@/features/editor/highlight-edits';

@@ -1,4 +1,4 @@
-import { BlockChangeKind, ClientActor } from '@superdoc-history/types';
+import { BlockChangeKind, ClientActor } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { beforeEach, expect, test } from 'vitest';
 import { MigrationSet } from './migrations';

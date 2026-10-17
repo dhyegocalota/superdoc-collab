@@ -9,7 +9,7 @@ import {
   RoomMode,
   VERSION_FAILED_MESSAGE,
   type EditRunView,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';

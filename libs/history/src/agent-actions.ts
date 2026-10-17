@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { AgentActionKind, AgentActionMark } from '@superdoc-history/types';
+import type { AgentActionKind, AgentActionMark } from '@superdoc-collab/types';
 
 type AgentActionRow = {
   user_id: string;

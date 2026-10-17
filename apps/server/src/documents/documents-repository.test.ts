@@ -1,4 +1,4 @@
-import { DocumentRole } from '@superdoc-history/types';
+import { DocumentRole } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { signedInOwner, signedInUser } from '../testing/test-server';

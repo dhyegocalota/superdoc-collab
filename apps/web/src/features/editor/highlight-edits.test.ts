@@ -1,4 +1,4 @@
-import type { EditRunView } from '@superdoc-history/types';
+import type { EditRunView } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { HIGHLIGHT_COMMENT_TEXT } from './editor-copy';
 import {

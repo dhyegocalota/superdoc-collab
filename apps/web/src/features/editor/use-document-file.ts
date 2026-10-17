@@ -1,4 +1,4 @@
-import type { RoomMode } from '@superdoc-history/types';
+import type { RoomMode } from '@superdoc-collab/types';
 import { skipToken, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { documentFileQueryKey, fetchDocumentFile } from './editor-api';
 

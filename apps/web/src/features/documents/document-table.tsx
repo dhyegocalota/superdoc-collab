@@ -1,4 +1,4 @@
-import { documentPagePath, type DocumentSummary } from '@superdoc-history/types';
+import { documentPagePath, type DocumentSummary } from '@superdoc-collab/types';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';

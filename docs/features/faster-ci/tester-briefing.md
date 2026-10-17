@@ -32,14 +32,14 @@ Every "it works" is a hypothesis the tester tries to break.
 
 **Changed:** `.github/workflows/verify.yml` now has the jobs `typecheck`, `unit` (matrix `libs`, `web`, `server`, `fail-fast: false`), `e2e` and `docker`, with no `needs:`. `.github/actions/install/action.yml` is a new composite action (pnpm, Node from `.nvmrc`, pnpm cache keyed on `pnpm-lock.yaml`, frozen install). `apps/server/src/deploy/ci-workflow.test.ts` has a `job(name)` slicer and the new pins. The docker job is unchanged.
 
-**Run:** `pnpm --filter @superdoc-history/server exec vitest run src/deploy/ci-workflow.test.ts` (16 tests).
+**Run:** `pnpm --filter @superdoc-collab/server exec vitest run src/deploy/ci-workflow.test.ts` (16 tests).
 
 **Red then green:** commit 04ae9d3 fails 8 of 16 on the old workflow (job list is `['verify', 'docker']`, missing `typecheck`, `unit` and `e2e` jobs). Commit 0142f47 turns them green. Commit 337b690 only fixes a type error in the test.
 
 **Hypotheses to verify:**
 - The workflow and action files parse as YAML (parsed with Ruby; `actionlint` is not installed here).
 - On a real run, the three Node jobs start in parallel and the matrix legs show as `unit (libs)`, `unit (web)` and `unit (server)`.
-- Each filter matches a package: `./libs/*`, `@superdoc-history/web`, `@superdoc-history/server`.
+- Each filter matches a package: `./libs/*`, `@superdoc-collab/web`, `@superdoc-collab/server`.
 - Only the server leg sets `REQUIRE_DOCKER_COMPOSE` to true; the others get false.
 - `cache: pnpm` with `cache-dependency-path` works inside the composite action.
 
@@ -92,12 +92,12 @@ Red on the untouched tree with `pnpm test:e2e --workers=4 e2e/auth.spec.ts e2e/d
 - `apps/server/src/server.ts`: `startServer` accepts `projectionWorkerFile` and forwards it to the scheduler.
 - `apps/server/src/testing/test-server.ts`: `prebuiltProjectionWorkerFile()` reads `PROJECTION_WORKER_FILE`; `startTestServer` passes it. `apps/server/src/server.test.ts` passes it in its ten direct `startServer` calls.
 - `apps/server/tsup.config.ts`: exports `serverBuildOptions`; the default export wraps it.
-- `apps/server/vitest.global-setup.ts` (new) builds only the worker entry into `apps/server/node_modules/.cache/superdoc-history-vitest/` and sets the variable; `vitest.config.ts` lists it under `globalSetup`.
+- `apps/server/vitest.global-setup.ts` (new) builds only the worker entry into `apps/server/node_modules/.cache/superdoc-collab-vitest/` and sets the variable; `vitest.config.ts` lists it under `globalSetup`.
 
 ### How to run
 
 ```bash
-pnpm --filter @superdoc-history/server test:unit
+pnpm --filter @superdoc-collab/server test:unit
 pnpm typecheck
 ```
 
@@ -125,7 +125,7 @@ Vitest `Duration` of the server suite: 98.91 s before, 65.51 s after (40 passed 
 2. Hypothesis: the bundle resolves `better-sqlite3` and `@superdoc/sdk` from `apps/server/node_modules`. Break it by: run a projection test (`events-client` flow) and look for `Cannot find package` in stderr.
 3. Hypothesis: a stale bundle never runs. Break it by: change `projection-worker.ts`, rerun, and check the output differs; `clean: true` empties the directory first.
 4. Hypothesis: a missing file degrades like any crashing worker. Break it by: set the variable to a missing path and expect restarts then the degraded message.
-5. Hypothesis: the production build still emits `main`, `seed` and `projection-worker`. Break it by: `pnpm --filter @superdoc-history/server build` and list `dist/`.
+5. Hypothesis: the production build still emits `main`, `seed` and `projection-worker`. Break it by: `pnpm --filter @superdoc-collab/server build` and list `dist/`.
 
 ### Known gaps
 

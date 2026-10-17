@@ -1,4 +1,4 @@
-import { DocumentResource, type TopicStatus } from '@superdoc-history/types';
+import { DocumentResource, type TopicStatus } from '@superdoc-collab/types';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { documentQueryKey } from '@/features/documents/documents-api';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';

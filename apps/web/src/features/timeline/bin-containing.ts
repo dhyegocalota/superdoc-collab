@@ -1,4 +1,4 @@
-import type { DocumentTimeline, TimelineBin } from '@superdoc-history/types';
+import type { DocumentTimeline, TimelineBin } from '@superdoc-collab/types';
 
 export type IndexedBin = { index: number; bin: TimelineBin };
 

@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { authClient } from './auth-client';

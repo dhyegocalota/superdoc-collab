@@ -9,7 +9,7 @@ pnpm install --frozen-lockfile
 pnpm format:check
 pnpm typecheck
 pnpm test:unit
-pnpm --filter @superdoc-history/server build && ls apps/server/dist/projection-worker.js
+pnpm --filter @superdoc-collab/server build && ls apps/server/dist/projection-worker.js
 ```
 
 Single suites: `cd apps/server && npx vitest run <path>`, `cd libs/history && npx vitest run src/timeline`, `cd libs/types && npx vitest run`.

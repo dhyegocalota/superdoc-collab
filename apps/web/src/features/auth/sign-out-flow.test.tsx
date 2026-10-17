@@ -1,4 +1,4 @@
-import { AppRoute, type SessionUser } from '@superdoc-history/types';
+import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -17,7 +17,7 @@ import { SESSION_QUERY_KEY } from './use-session';
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
-const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
+const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const FORM_TEXT = 'sign-in form';
 
 let isSignedIn = true;

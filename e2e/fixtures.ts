@@ -7,6 +7,8 @@ const EMAIL_SUFFIX_LENGTH = 8;
 
 export const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 export const DEMO_PASSWORD = 'superdoc-demo';
+export const ADMIN_EMAIL = 'admin@example.com';
+const ADMIN_PERMISSIONS = ['clipboard-read', 'clipboard-write'];
 
 export function randomClientAddress(): string {
   return `10.${randomInt(OCTET_LIMIT)}.${randomInt(OCTET_LIMIT)}.${randomInt(OCTET_LIMIT)}`;
@@ -41,6 +43,52 @@ export async function signedInContext({ browser, user }: { browser: Browser; use
   const response = await page.request.get(ApiPath.Me);
   const { user: session } = (await response.json()) as { user: { id: string } };
   return { context, page, userId: session.id };
+}
+
+export type OpenedContext = { context: BrowserContext; page: Page };
+
+export async function openedContext({ browser, permissions }: { browser: Browser; permissions?: string[] }): Promise<OpenedContext> {
+  const context = await browser.newContext({ extraHTTPHeaders: { [FORWARDED_FOR_HEADER]: randomClientAddress() }, permissions });
+  openedContexts.push(context);
+  const page = await context.newPage();
+  return { context, page };
+}
+
+export async function signedInAdmin({ browser }: { browser: Browser }): Promise<OpenedContext> {
+  const admin = await openedContext({ browser, permissions: ADMIN_PERMISSIONS });
+  await admin.page.goto(AppRoute.SignIn);
+  await signIn({ page: admin.page, email: ADMIN_EMAIL, password: DEMO_PASSWORD });
+  await expect(admin.page).toHaveURL(AppRoute.Documents);
+  return admin;
+}
+
+export async function generateInvite({ page }: { page: Page }): Promise<string> {
+  await page.getByRole('button', { name: 'Generate invite' }).click();
+  const dialog = page.getByRole('dialog');
+  const url = await dialog.getByRole('textbox', { name: 'Invite link' }).inputValue();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  return url;
+}
+
+export async function acceptInvite({
+  browser,
+  url,
+  name,
+  email,
+}: {
+  browser: Browser;
+  url: string;
+  name: string;
+  email: string;
+}): Promise<OpenedContext> {
+  const invited = await openedContext({ browser });
+  await invited.page.goto(url);
+  await invited.page.getByLabel('Name').fill(name);
+  await invited.page.getByLabel('Email').fill(email);
+  await invited.page.getByLabel('Password').fill(DEMO_PASSWORD);
+  await invited.page.getByRole('button', { name: 'Sign up' }).click();
+  return invited;
 }
 
 export const test = base.extend<{ clientAddress: string; closeOpenedContexts: void }>({

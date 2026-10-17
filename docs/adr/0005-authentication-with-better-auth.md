@@ -1,6 +1,6 @@
 # 0005. Authenticate with Better Auth
 
-- Status: Accepted
+- Status: Accepted Open sign-up and the seeded demo users are amended by [0020](0020-invite-only-accounts-with-a-first-claim-admin.md).
 - Date: 2026-10-16
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: take-home specification, [0002](0002-authorship-observed-vs-declared.md), [0004](0004-stack.md)
@@ -31,7 +31,7 @@ The take-home lists real authentication as out of scope, but the owner wants it.
 
 ## Evidence
 
-- The POC proves the socket-bound attribution model with a stand-in token ([POC results](../../poc/RESULTS.md)); the session-token path is new work.
+- The POC proves the socket-bound attribution model with a stand-in token (POC results, removed 2026-10-17); the session-token path is new work.
 
 ## Revisit when
 

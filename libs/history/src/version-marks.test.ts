@@ -1,4 +1,4 @@
-import { ClientActor, VERSION_MARK_MS } from '@superdoc-history/types';
+import { ClientActor, VERSION_MARK_MS } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
 import { MigrationSet } from './migrations';

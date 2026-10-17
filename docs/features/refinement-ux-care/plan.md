@@ -29,7 +29,7 @@
 - Tests first: each task commits its failing tests on their own (`test(web): …`) before the implementation commit (`fix(web): …`). Each red test fails on its named assertion, not on an import error (add inert stubs when needed).
 - No class-string assertions in new tests; assert roles, names, text, attributes, call arguments.
 - Never `git add -A` or `git add .`; add the files named in the task. Attribution lines from the agent harness go at the end of every commit body.
-- Single test: `pnpm --filter @superdoc-history/web exec vitest run <path>`. Gates: `pnpm typecheck`, `pnpm test:unit`, `pnpm test:e2e`.
+- Single test: `pnpm --filter @superdoc-collab/web exec vitest run <path>`. Gates: `pnpm typecheck`, `pnpm test:unit`, `pnpm test:e2e`.
 
 ## Review Focus
 
@@ -108,12 +108,12 @@ test('a page without a title yet shows the app name alone', () => {
 });
 ```
 
-Inert stubs so the test fails on its assertion: `app-copy.ts` exports `APP_NAME = 'SuperDoc History'`; `use-document-title.ts` exports `pageTitle` returning `APP_NAME` and `useDocumentTitle` doing nothing.
+Inert stubs so the test fails on its assertion: `app-copy.ts` exports `APP_NAME = 'SuperDoc Collab'`; `use-document-title.ts` exports `pageTitle` returning `APP_NAME` and `useDocumentTitle` doing nothing.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib/use-document-title.test.ts`
-Expected: FAIL with `expected 'SuperDoc History' to be 'Plan · SuperDoc History'`.
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/lib/use-document-title.test.ts`
+Expected: FAIL with `expected 'SuperDoc Collab' to be 'Plan · SuperDoc Collab'`.
 
 - [ ] **Step 3: Commit the red test**
 
@@ -322,7 +322,7 @@ export function renderHookWithRouter<Result>(hook: () => Result, { route = AppRo
 
 - [ ] **Step 8: Run the tests and the typecheck**
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib/use-document-title.test.ts && pnpm typecheck && pnpm test:unit`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/lib/use-document-title.test.ts && pnpm typecheck && pnpm test:unit`
 Expected: PASS everywhere; `git diff apps/web/package.json` is empty.
 
 - [ ] **Step 9: Commit**
@@ -362,7 +362,7 @@ git commit -m "feat(web): add the page title hook, skeleton and menu primitives 
 `apps/web/src/lib/format-date-time.test.ts`:
 
 ```ts
-import { MINUTE_MS, SECOND_MS } from '@superdoc-history/types';
+import { MINUTE_MS, SECOND_MS } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { formatBinMoment, formatBinRange, formatVersionMoment } from './format-date-time';
 
@@ -442,7 +442,7 @@ Inert stubs: `format-date-time.ts` exports `formatBinMoment` returning `formatTi
 
 - [x] **Step 2: Run the tests to verify they fail** (6f68162, 11 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib/format-date-time.test.ts src/features/timeline/timeline-copy.test.ts src/features/timeline/streamgraph.test.tsx`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/lib/format-date-time.test.ts src/features/timeline/timeline-copy.test.ts src/features/timeline/streamgraph.test.tsx`
 Expected: FAIL on `expected null to have a length of 2` (no seconds today), on `expected '+1 words −0 words' to be '+1 word'`, on `'Budget, 1 characters'`, and on the tooltip's `'+120 characters'`.
 
 - [x] **Step 3: Commit the red tests** (6f68162)
@@ -457,7 +457,7 @@ git commit -m "test(web): pin bin ranges with one date and labelled edit units"
 `apps/web/src/lib/format-date-time.ts` (keep lane B's `formatTimestamp` as it is):
 
 ```ts
-import { MINUTE_MS } from '@superdoc-history/types';
+import { MINUTE_MS } from '@superdoc-collab/types';
 
 const TIMESTAMP_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const VERSION_TIME_FORMAT = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' });
@@ -600,7 +600,7 @@ export function bandNamed({ page, name }: { page: Page; name: string }): Locator
 
 - [x] **Step 6: Run the tests** (9c931ec, web 230/230)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib src/features/timeline src/features/versions && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/lib src/features/timeline src/features/versions && pnpm typecheck`
 Expected: PASS. `rg -n "wordsDeltaLabel|formatMoment\b" apps/web/src e2e` prints nothing.
 
 - [x] **Step 7: Commit** (9c931ec)
@@ -694,7 +694,7 @@ Inert stubs: `CHART_HINT`, `LEGEND_LABEL` constants and `export enum PanelState`
 
 - [x] **Step 2: Run the tests to verify they fail** (105efae, 5 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/streamgraph.test.tsx src/features/timeline/timeline-panel.test.tsx`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/streamgraph.test.tsx src/features/timeline/timeline-panel.test.tsx`
 Expected: FAIL on `Unable to find an element with the text` (time labels, hint), `Unable to find role="list"`, the pinned tooltip found, `expected 3 to have length 1` tab stops, and the separator still present.
 
 - [x] **Step 3: Commit the red tests** (105efae)
@@ -734,7 +734,7 @@ The rest of the header and body is unchanged in this task.
 `topic-swatch.tsx`:
 
 ```tsx
-import { TimelineBandKind, type TimelineBand } from '@superdoc-history/types';
+import { TimelineBandKind, type TimelineBand } from '@superdoc-collab/types';
 import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { saturationOf } from './streamgraph-layout';
@@ -763,7 +763,7 @@ export function TopicSwatch({ band, maxVolume }: { band: TimelineBand; maxVolume
 `streamgraph-legend.tsx`:
 
 ```tsx
-import type { TimelineBand } from '@superdoc-history/types';
+import type { TimelineBand } from '@superdoc-collab/types';
 import { LEGEND_LABEL } from './timeline-copy';
 import { TopicSwatch } from './topic-swatch';
 
@@ -863,7 +863,7 @@ The hooks (`useRef`, `useState`, `useMemo`) stay above the early return, as toda
 
 - [x] **Step 7: Run the tests** (eb360f3, web 236/236)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline && pnpm typecheck`
 Expected: PASS, including the existing focus, Escape and tooltip tests (they focus without a pointer, so the keyboard tooltip still shows).
 
 - [x] **Step 8: Commit** (eb360f3)
@@ -977,7 +977,7 @@ Inert stubs: `REGROUP_TOPICS_LABEL` exported with the old value `'Refresh topics
 
 - [x] **Step 2: Run the tests to verify they fail** (f859ee5, 7 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline`
 Expected: FAIL on document order (the card renders after Top edits), `scrollIntoView` never called, `TOPICS_PENDING_MESSAGE` found, the Top edits heading found, `regroup` enabled, `tagName` `P` instead of `INS`, chip text `Bruno` instead of `@Bruno`.
 
 - [x] **Step 3: Commit the red tests** (f859ee5)
@@ -1107,7 +1107,7 @@ The chip renders `chipText({ param: chip.param, value: chip.value! })` as its te
 
 - [x] **Step 8: Run the tests** (dd71f7c, web 242/242)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline && pnpm typecheck`
 Expected: PASS. `rg -n "REFRESH_TOPICS_LABEL" apps e2e` prints nothing.
 
 - [x] **Step 9: Commit** (dd71f7c)
@@ -1188,8 +1188,8 @@ Inert stubs: `HOME_LINK_LABEL` and `memberLabel` (returning `name`) exported fro
 
 - [x] **Step 2: Run the tests to verify they fail** (bb2cb9b, 4 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor/editor-header.test.tsx src/features/editor/document-page.test.tsx`
-Expected: FAIL on `Unable to find role="link"`, `Unable to find an element with the text: Ada, online`, and `expected 'SuperDoc History' to be 'Plan · SuperDoc History'`.
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/editor-header.test.tsx src/features/editor/document-page.test.tsx`
+Expected: FAIL on `Unable to find role="link"`, `Unable to find an element with the text: Ada, online`, and `expected 'SuperDoc Collab' to be 'Plan · SuperDoc Collab'`.
 
 - [x] **Step 3: Commit the red tests** (bb2cb9b)
 
@@ -1216,7 +1216,7 @@ export function memberLabel({ name, isOnline }: { name: string; isOnline: boolea
 `home-link.tsx`:
 
 ```tsx
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -1278,7 +1278,7 @@ call `useDocumentTitle(opened ? opened.document.title : null);` with the other h
 
 - [x] **Step 5: Run the tests** (64dfd80, web 223/223)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/editor && pnpm typecheck`
 Expected: PASS.
 
 - [x] **Step 6: Commit** (64dfd80)
@@ -1384,7 +1384,7 @@ Inert stubs: the new copy constants and enums exist; `COLUMN_LABELS` and `COLUMN
 
 - [x] **Step 2: Run the tests to verify they fail** (d06cb61, 5 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/documents`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/documents`
 Expected: FAIL on the missing app name and h1, headers `['Title','Owner','Updated','My role']` for Mine, the raw `editor` badge, no status while loading, the alert inside the button row, and no "Uploading…" status.
 
 - [x] **Step 3: Commit the red tests** (d06cb61)
@@ -1425,7 +1425,7 @@ export const NARROW_HIDDEN_COLUMNS: Record<DocumentListKind, DocumentColumn[]> =
 `documents-copy.ts` (delete `COLUMN_HEADERS`):
 
 ```ts
-import { DocumentRole, MAX_UPLOAD_MEGABYTES } from '@superdoc-history/types';
+import { DocumentRole, MAX_UPLOAD_MEGABYTES } from '@superdoc-collab/types';
 import { DocumentColumn } from './document-columns';
 
 export const DOCUMENTS_HEADING = 'Documents';
@@ -1449,7 +1449,7 @@ export const COLUMN_LABELS: Record<DocumentColumn, string> = {
 `document-table.tsx`:
 
 ```tsx
-import { documentPagePath, type DocumentSummary } from '@superdoc-history/types';
+import { documentPagePath, type DocumentSummary } from '@superdoc-collab/types';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
@@ -1517,7 +1517,7 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
 `use-create-document.ts`:
 
 ```ts
-import { documentPagePath, UNTITLED_DOCUMENT_TITLE, type DocumentSummary } from '@superdoc-history/types';
+import { documentPagePath, UNTITLED_DOCUMENT_TITLE, type DocumentSummary } from '@superdoc-collab/types';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { createBlankDocument, DOCUMENTS_QUERY_KEY } from './documents-api';
@@ -1622,7 +1622,7 @@ export function DocumentsPage() {
 
 - [x] **Step 6: Run the tests** (3cc560f, web 228/228, no COLUMN_HEADERS left)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/documents && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/documents && pnpm typecheck`
 Expected: PASS. `rg -n "COLUMN_HEADERS" apps e2e` prints nothing.
 
 - [x] **Step 7: Commit** (3cc560f)
@@ -1776,7 +1776,7 @@ Inert stubs: `superdoc-zoom.ts` exports the enum, constants, `initialZoomMode` r
 
 - [x] **Step 2: Run the tests to verify they fail** (0746356, 8 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/editor`
 Expected: FAIL on `expected 'manual' to be 'fit-width'`, `setZoomMode` never called, `onReady is not a function` (or `focus` not called), the missing `zoom` key, the Delete button still present, and no "More actions" button.
 
 - [x] **Step 3: Commit the red tests** (0746356)
@@ -1944,7 +1944,7 @@ await ana.page.getByRole('button', { name: DELETE_CONFIRM_LABEL }).click();
 
 - [x] **Step 7: Run the tests** (4c8e966, web 235/235)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features && pnpm typecheck`
 Expected: PASS.
 
 - [x] **Step 8: Commit** (4c8e966)
@@ -2045,7 +2045,7 @@ Inert stubs: the new copy constants and `COPIED_NOTICE_MS` exported; `RESET_LINK
 
 - [x] **Step 2: Run the tests to verify they fail** (bbcb0d8, 6 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor/editor-header.test.tsx src/features/editor/share-dialog.test.tsx`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/editor-header.test.tsx src/features/editor/share-dialog.test.tsx`
 Expected: FAIL on `Unable to find role="button" and name "Cancel"`, the description without "stops the old one", no loading status, an unhandled rejection or no status after a refused copy, and "Link copied" still present.
 
 - [x] **Step 3: Commit the red tests** (bbcb0d8)
@@ -2157,7 +2157,7 @@ If the shadcn `Input` in this repo does not forward `ref` (React 19 passes `ref`
 
 - [x] **Step 5: Run the tests** (228197c, web 241/241, no ROTATE_ constants left)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/editor && pnpm typecheck`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/features/editor && pnpm typecheck`
 Expected: PASS. `rg -n "ROTATE_LABEL|ROTATE_FAILED_MESSAGE" apps e2e` prints nothing.
 
 - [x] **Step 6: Commit** (228197c)
@@ -2191,7 +2191,7 @@ Runs after G1 is merged into the lane branch (its test reads the timeline senten
 `apps/web/src/lib/copy-rules.test.ts`:
 
 ```ts
-import * as types from '@superdoc-history/types';
+import * as types from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import * as authCopy from '@/features/auth/auth-copy';
 import * as documentsCopy from '@/features/documents/documents-copy';
@@ -2251,7 +2251,7 @@ Inert stubs: the new auth copy constants exist. If the three-dots test lists a s
 
 - [x] **Step 2: Run the tests to verify they fail** (4b65836, 9 red on their assertions)
 
-Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib/copy-rules.test.ts src/features/auth src/features/sharing`
+Run: `pnpm --filter @superdoc-collab/web exec vitest run src/lib/copy-rules.test.ts src/features/auth src/features/sharing`
 Expected: FAIL listing `'Signing in...'`, `'Creating account...'`, `'Loading document...'`, `'Opening...'`; the four `libs/types` sentences without a period; `document.title` not set; no `main` around the opening status.
 
 - [x] **Step 3: Commit the red tests** (4b65836)

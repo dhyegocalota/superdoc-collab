@@ -1,4 +1,4 @@
-import { RoomMode, versionCollaborationPath, type SessionUser } from '@superdoc-history/types';
+import { RoomMode, versionCollaborationPath, type SessionUser } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';

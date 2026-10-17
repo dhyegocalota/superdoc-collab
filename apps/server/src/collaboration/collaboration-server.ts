@@ -1,7 +1,7 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage } from 'node:http';
-import { materialize, type UpdateLog } from '@superdoc-history/history';
-import { ClientActor, DocumentRole, SECOND_MS } from '@superdoc-history/types';
+import { materialize, type UpdateLog } from '@superdoc-collab/history';
+import { ClientActor, DocumentRole, SECOND_MS } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';

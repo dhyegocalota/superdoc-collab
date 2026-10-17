@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, vi } from 'vitest';
-import { ApiPath, HttpStatus } from '@superdoc-history/types';
+import { ApiPath, HttpStatus } from '@superdoc-collab/types';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
 import { prebuiltProjectionWorkerFile, startTestServer } from './test-server';
 

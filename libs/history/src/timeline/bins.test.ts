@@ -1,4 +1,4 @@
-import { MINUTE_MS, SECOND_MS } from '@superdoc-history/types';
+import { MINUTE_MS, SECOND_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { MAX_BINS, binStartsCovering, buildBins, chooseBinMs } from './bins';
 import type { EditRun } from './runs';

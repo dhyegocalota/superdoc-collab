@@ -9,14 +9,14 @@ import {
   timelineEditsApiPath,
   TimelineBandKind,
   type DocumentTimeline,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { TimelinePipelineCache } from './timeline-pipeline-cache';
 import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks } from '../testing/timeline-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
-import { MAX_BINS } from '@superdoc-history/history';
+import { MAX_BINS } from '@superdoc-collab/history';
 
 const HOUR_MS = 60 * MINUTE_MS;
 const AFTER_LAST_BIN_COUNT = 5;

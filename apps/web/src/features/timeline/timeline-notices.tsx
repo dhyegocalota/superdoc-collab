@@ -6,7 +6,7 @@ import {
   TOPICS_UNAVAILABLE_MESSAGE,
   TopicState,
   type DocumentTimeline,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { Button } from '@/components/ui/button';
 import { lagBehindLabel, NO_EDITS_YET_MESSAGE, RETRY_TOPICS_LABEL } from './timeline-copy';
 

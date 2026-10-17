@@ -1,4 +1,4 @@
-import { presentOrNull } from '@superdoc-history/types';
+import { presentOrNull } from '@superdoc-collab/types';
 import { z } from 'zod';
 
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.

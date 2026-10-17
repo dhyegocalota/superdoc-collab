@@ -7,7 +7,7 @@ import { InvalidDocumentIdError } from './file-storage';
 import { createLocalDiskFileStorage } from './local-disk-file-storage';
 
 function storageInTemporaryDirectory() {
-  return createLocalDiskFileStorage(join(mkdtempSync(join(tmpdir(), 'superdoc-history-')), 'documents'));
+  return createLocalDiskFileStorage(join(mkdtempSync(join(tmpdir(), 'superdoc-collab-')), 'documents'));
 }
 
 test('put then read returns identical bytes', async () => {

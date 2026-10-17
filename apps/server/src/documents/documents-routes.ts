@@ -1,4 +1,4 @@
-import { buildSeedDocx, isDocx, type SeedParagraph } from '@superdoc-history/history';
+import { buildSeedDocx, isDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
   DOCUMENT_NOT_READY_ERROR,
   DOCX_EXTENSION,
@@ -13,7 +13,7 @@ import {
   UNTITLED_DOCUMENT_TITLE,
   UPLOAD_FIELD,
   UPLOAD_TOO_LARGE_MESSAGE,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';

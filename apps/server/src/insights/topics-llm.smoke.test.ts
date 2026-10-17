@@ -1,4 +1,4 @@
-import { MAX_TOPICS_ACCEPTED, topicsOutputSchema } from '@superdoc-history/history';
+import { MAX_TOPICS_ACCEPTED, topicsOutputSchema } from '@superdoc-collab/history';
 import { expect, test } from 'vitest';
 import { loadLlmSettings } from '../config/environment';
 import { generateStructured, chooseLanguageModel, LanguageModelAvailability } from './llm-client';

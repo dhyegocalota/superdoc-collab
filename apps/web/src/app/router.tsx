@@ -1,5 +1,7 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { AdminPage } from '@/features/admin/admin-page';
+import { RequireAdmin } from '@/features/admin/require-admin';
 import { ConnectedAppsPage } from '@/features/connected-apps/connected-apps-page';
 import { DocumentPage } from '@/features/editor/document-page';
 import { RedirectIfSession } from '@/features/auth/redirect-if-session';
@@ -77,6 +79,14 @@ export const routes: RouteObject[] = [
       <RequireSession>
         <ConnectedAppsPage />
       </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.Admin,
+    element: (
+      <RequireAdmin>
+        <AdminPage />
+      </RequireAdmin>
     ),
   },
   { path: UNKNOWN_PATH, element: <Navigate to={AppRoute.Documents} replace /> },

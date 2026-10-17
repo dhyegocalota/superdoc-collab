@@ -11,7 +11,7 @@ import {
   ShareLinkRole,
   type DocumentTimeline,
   type ShareLinks,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import JSZip from 'jszip';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';

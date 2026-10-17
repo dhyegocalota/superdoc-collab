@@ -27,9 +27,9 @@ Web on <http://localhost:5173>, server on <http://localhost:3000>. Demo users `a
 | Layer | Command | Notes |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | includes the E2E project |
-| `libs/types` unit | `pnpm --filter @superdoc-history/types test:unit` | 3 tests |
-| Server unit and integration | `pnpm --filter @superdoc-history/server test:unit` | 45 tests, real HTTP, real SQLite, real WebSocket |
-| Web unit | `pnpm --filter @superdoc-history/web test:unit` | 13 tests |
+| `libs/types` unit | `pnpm --filter @superdoc-collab/types test:unit` | 3 tests |
+| Server unit and integration | `pnpm --filter @superdoc-collab/server test:unit` | 45 tests, real HTTP, real SQLite, real WebSocket |
+| Web unit | `pnpm --filter @superdoc-collab/web test:unit` | 13 tests |
 | E2E | `pnpm test:e2e` | builds web and server, seeds, starts the server; needs `pnpm exec playwright install chromium` |
 | Docker | `ENV_FILE=.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true docker compose up --build -d` | served on <http://localhost:3000>; `docker compose down -v` resets |
 
@@ -66,7 +66,7 @@ Every "it works" is a hypothesis the tester tries to break.
 
 **Changed:** new `apps/web` (Vite + React + Tailwind + shadcn). Auth pages in `apps/web/src/features/auth/`, `documents-page.tsx` in `apps/web/src/routes/`, tokens in `apps/web/src/styles/globals.css`.
 
-**Run:** `pnpm dev` (server on 3000, web on Vite with `/api` and `/collaboration` proxied); `pnpm --filter @superdoc-history/web build` writes `apps/web/dist`. Unit: `pnpm --filter @superdoc-history/web test:unit`.
+**Run:** `pnpm dev` (server on 3000, web on Vite with `/api` and `/collaboration` proxied); `pnpm --filter @superdoc-collab/web build` writes `apps/web/dist`. Unit: `pnpm --filter @superdoc-collab/web test:unit`.
 
 **Red before, green after:** `safe-next-path.test.ts` (6 cases), `sign-in-page.test.tsx` (3 cases).
 

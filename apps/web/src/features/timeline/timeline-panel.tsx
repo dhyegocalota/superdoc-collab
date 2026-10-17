@@ -1,4 +1,4 @@
-import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-history/types';
+import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-collab/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useId, useState, type CSSProperties } from 'react';
 import { ErrorMessage } from '@/components/error-message';

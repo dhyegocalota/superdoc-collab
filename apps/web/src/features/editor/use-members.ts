@@ -1,4 +1,4 @@
-import type { DocumentMember } from '@superdoc-history/types';
+import type { DocumentMember } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { DocumentUnavailableError, pollWhileAvailable } from '@/lib/api';
 import { fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';

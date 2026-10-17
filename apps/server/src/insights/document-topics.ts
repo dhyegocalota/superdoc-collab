@@ -1,4 +1,4 @@
-import type { DocumentTopics } from '@superdoc-history/types';
+import type { DocumentTopics } from '@superdoc-collab/types';
 import type { AppServices } from '../http/app';
 
 export function documentTopics({ services, documentId }: { services: AppServices; documentId: string }): DocumentTopics {

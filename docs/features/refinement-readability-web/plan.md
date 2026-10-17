@@ -14,7 +14,7 @@
 **Branch:** `chore/refinement-readability-web`, cut from `main` after lane A (`refinement-ux-care`) and lane C1 (`refinement-readability-server`) are merged.
 **Seam:** module boundaries inside `apps/web/src`, plus the parameter type of `presentOrNull` in `libs/types/src/text.ts`.
 **Assumptions (decided, owner can override):**
-- Paths and names are as lane A and lane C1 leave them. Lane A: `lib/app-copy.ts`, `lib/use-document-title.ts`, `components/ui/{skeleton,dropdown-menu}.tsx`, `features/editor/{home-link.tsx,superdoc-zoom.ts}` (`initialZoomMode`, `followViewportZoom`), `features/documents/{use-create-document.ts,new-document-state.ts}`, `OpeningDocument` inside `document-page.tsx`, `regroupDisabledReason` and `REGROUP_TOPICS_LABEL` in the panel, the editor header's `DocumentActionsMenu`, the auth pages reading `auth-copy.ts`, `renderWithProviders(…, { state })`, and a `matchMedia` double that answers `matches: false`. Lane C1: `secondsRoundedUp`, `NON_NEGATIVE_INTEGER_PATTERN`, `presentOrNull` from `@superdoc-history/types`; `cellVolume`, `byVolumeDescending` from `@superdoc-history/history/timeline`. If a name differs, follow the merged code and keep the behaviour below.
+- Paths and names are as lane A and lane C1 leave them. Lane A: `lib/app-copy.ts`, `lib/use-document-title.ts`, `components/ui/{skeleton,dropdown-menu}.tsx`, `features/editor/{home-link.tsx,superdoc-zoom.ts}` (`initialZoomMode`, `followViewportZoom`), `features/documents/{use-create-document.ts,new-document-state.ts}`, `OpeningDocument` inside `document-page.tsx`, `regroupDisabledReason` and `REGROUP_TOPICS_LABEL` in the panel, the editor header's `DocumentActionsMenu`, the auth pages reading `auth-copy.ts`, `renderWithProviders(…, { state })`, and a `matchMedia` double that answers `matches: false`. Lane C1: `secondsRoundedUp`, `NON_NEGATIVE_INTEGER_PATTERN`, `presentOrNull` from `@superdoc-collab/types`; `cellVolume`, `byVolumeDescending` from `@superdoc-collab/history/timeline`. If a name differs, follow the merged code and keep the behaviour below.
 - Line numbers are deliberately absent because lane A and Prettier move them. Every step names the symbol.
 - Where a step shows only the changed lines of a lane-A file, the rest of that file stays as lane A left it.
 - A red test fails on its named assertion, not on an import error: each task lists the inert stub that is committed with it.
@@ -91,7 +91,7 @@ Covers 1.6, 1.14, 1.15, 1.16, 1.19, 1.20, 2.12, the `ResizeHandle` half of 2.3, 
   - `AUTH_RETRY_AFTER_HEADER` from `auth-failure.ts`.
   - `TimeTravel.shownVersion: VersionSummary | null` (was `shown`).
 
-- [x] **Step 1: Pin the 429 message.** Append to `sign-in-page.test.tsx` (add `HttpStatus` to the `@superdoc-history/types` import and `import { authFailureMessage, RETRY_AFTER_HEADER } from './auth-failure';`): Evidence: `fc4358e`. The mock uses `mockImplementationOnce`, because `beforeEach(() => signInEmail.mockReset())` returns the mock and Vitest calls it again as a cleanup hook with no arguments.
+- [x] **Step 1: Pin the 429 message.** Append to `sign-in-page.test.tsx` (add `HttpStatus` to the `@superdoc-collab/types` import and `import { authFailureMessage, RETRY_AFTER_HEADER } from './auth-failure';`): Evidence: `fc4358e`. The mock uses `mockImplementationOnce`, because `beforeEach(() => signInEmail.mockReset())` returns the mock and Vitest calls it again as a cleanup hook with no arguments.
 
 ```tsx
 const RETRY_SECONDS = '30';
@@ -128,14 +128,14 @@ export function requestFailedMessage({ subject, status }: { subject: string; sta
 
 Delete `DocumentUnavailableError` from `editor-api.ts` and `requestFailedMessage` from `timeline-copy.ts`. Repoint every import: `rg -l "DocumentUnavailableError|requestFailedMessage" apps/web/src` (today: `timeline-api.ts`, `use-selection-summary.ts`, `document-page.tsx`, `editor-api.ts`, `timeline-api.test.ts`) all import them from `@/lib/api`.
 
-- [x] **Step 3: One import path for `VERSION_FAILED_MESSAGE` (5.7).** Delete `export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';` from `timeline-copy.ts`. `version-view-page.tsx` and `version-view-page.test.tsx` import it from `@superdoc-history/types`. Evidence: `74ac4dd`.
+- [x] **Step 3: One import path for `VERSION_FAILED_MESSAGE` (5.7).** Delete `export { VERSION_FAILED_MESSAGE } from '@superdoc-collab/types';` from `timeline-copy.ts`. `version-view-page.tsx` and `version-view-page.test.tsx` import it from `@superdoc-collab/types`. Evidence: `74ac4dd`.
 
 - [x] **Step 4: One hook or component per file in the editor feature (2.12).** Cut from `document-page.tsx`, unchanged except for the return types: Evidence: `74ac4dd`.
 
 `features/editor/use-document-file.ts`:
 
 ```ts
-import type { RoomMode } from '@superdoc-history/types';
+import type { RoomMode } from '@superdoc-collab/types';
 import { skipToken, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { documentFileQueryKey, fetchDocumentFile } from './editor-api';
 
@@ -151,7 +151,7 @@ export function useDocumentFile({ documentId, roomMode }: { documentId: string; 
 `features/editor/use-members.ts`:
 
 ```ts
-import type { DocumentMember } from '@superdoc-history/types';
+import type { DocumentMember } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { DocumentUnavailableError } from '@/lib/api';
 import { fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';
@@ -290,7 +290,7 @@ Covers the web call sites of 4.17, 4.18, 4.19 and 4.8.
 - Test: `libs/types/src/text.test.ts`
 
 **Interfaces:**
-- Consumes: `cellVolume(cell: TimelineCell | undefined): number`, `byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number` from `@superdoc-history/history/timeline`; `NON_NEGATIVE_INTEGER_PATTERN`, `presentOrNull` from `@superdoc-history/types` (lane C1 Task 3).
+- Consumes: `cellVolume(cell: TimelineCell | undefined): number`, `byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number` from `@superdoc-collab/history/timeline`; `NON_NEGATIVE_INTEGER_PATTERN`, `presentOrNull` from `@superdoc-collab/types` (lane C1 Task 3).
 - Produces: `presentOrNull(value: string | null | undefined): string | null`.
 
 - [x] **Step 1: Write the failing test.** (fe93133) Append to `libs/types/src/text.test.ts`:
@@ -301,7 +301,7 @@ test('presentOrNull reads a missing search parameter as null', () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** (TS2345 seen) `pnpm --filter @superdoc-history/types typecheck`. Expected: `TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'`.
+- [x] **Step 2: Run it and see it fail.** (TS2345 seen) `pnpm --filter @superdoc-collab/types typecheck`. Expected: `TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'`.
 
 - [x] **Step 3: Commit the red test.** (fe93133)
 
@@ -312,9 +312,9 @@ git commit -m "test(types): pin presentOrNull for a missing search parameter"
 
 - [x] **Step 4: Implement and adopt.** (d6fdb58) `libs/types/src/text.ts`: the parameter becomes `value: string | null | undefined`.
 
-`use-timeline-search.ts`: delete the local `presentOrNull` and `BIN_START_PATTERN`; import `NON_NEGATIVE_INTEGER_PATTERN, presentOrNull` from `@superdoc-history/types`; `readBinStart` reads `if (!value || !NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;`.
+`use-timeline-search.ts`: delete the local `presentOrNull` and `BIN_START_PATTERN`; import `NON_NEGATIVE_INTEGER_PATTERN, presentOrNull` from `@superdoc-collab/types`; `readBinStart` reads `if (!value || !NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;`.
 
-`selection-summary.ts` `selectionVolume`: `.reduce((total, [, cell]) => total + cellVolume(cell), 0)`, with `import { cellVolume } from '@superdoc-history/history/timeline';`.
+`selection-summary.ts` `selectionVolume`: `.reduce((total, [, cell]) => total + cellVolume(cell), 0)`, with `import { cellVolume } from '@superdoc-collab/history/timeline';`.
 
 `timeline-tooltip.tsx`: the row filter becomes `.filter(({ cell }) => cellVolume(cell) > 0)`, same import.
 
@@ -326,7 +326,7 @@ const ranked = [...contributors]
   .slice(0, MAX_AVATARS);
 ```
 
-- [x] **Step 5: Run the gate.** (web 280 passed, types 11 passed) `pnpm format:check && pnpm typecheck && (cd apps/web && npx vitest run) && pnpm --filter @superdoc-history/types exec vitest run`. Expected: PASS; `selection-summary.test.ts`, `streamgraph.test.tsx` (tooltip rows), `top-edits.test.tsx` (avatars) and `use-timeline-search.test.ts` unchanged.
+- [x] **Step 5: Run the gate.** (web 280 passed, types 11 passed) `pnpm format:check && pnpm typecheck && (cd apps/web && npx vitest run) && pnpm --filter @superdoc-collab/types exec vitest run`. Expected: PASS; `selection-summary.test.ts`, `streamgraph.test.tsx` (tooltip rows), `top-edits.test.tsx` (avatars) and `use-timeline-search.test.ts` unchanged.
 
 - [x] **Step 6: Commit.** (d6fdb58)
 
@@ -397,7 +397,7 @@ git commit -m "test(web): pin the largest band volume and the joined author name
 `max-band-volume.ts`:
 
 ```ts
-import type { DocumentTimeline } from '@superdoc-history/types';
+import type { DocumentTimeline } from '@superdoc-collab/types';
 
 export function maxBandVolume(timeline: DocumentTimeline): number {
   return Math.max(0, ...timeline.bands.map((band) => band.volume));
@@ -619,7 +619,7 @@ Covers 4.20 and the rest of 4.21.
 - [x] **Step 1: Write the failing tests.** (172a332) `apps/web/src/lib/api.test.ts`:
 
 ```ts
-import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-history/types';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { ApiRequestError, assertDocumentAvailable, assertOk, DocumentUnavailableError, readJson, requestFailedMessage } from './api';
 
@@ -744,7 +744,7 @@ Covers 4.22.
 - [x] **Step 1: Pin today's keys and their scope.** (c21f651) Create `document-query-keys.test.ts`:
 
 ```ts
-import { DocumentResource, RoomMode, type EditSelection, type TimelineFilter } from '@superdoc-history/types';
+import { DocumentResource, RoomMode, type EditSelection, type TimelineFilter } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { expect, test } from 'vitest';
 import { documentFileQueryKey, membersQueryKey, openedDocumentQueryKey, shareLinksQueryKey } from '@/features/editor/editor-api';
@@ -961,7 +961,7 @@ Covers 1.17, 4.24 and the web site of 4.6.
 - Test: `apps/web/src/lib/use-reset-after-retry.test.ts` (new), `apps/web/src/features/timeline/timeline-api.test.ts`
 
 **Interfaces:**
-- Consumes: `secondsRoundedUp(milliseconds: number): number` from `@superdoc-history/types` (lane C1).
+- Consumes: `secondsRoundedUp(milliseconds: number): number` from `@superdoc-collab/types` (lane C1).
 - Produces: `RetryLaterError` (`new RetryLaterError({ message, retryAfterMs })`, `readonly retryAfterMs: number`) from `@/lib/api`; `TopicsRefreshTooSoonError` and `SummaryTooSoonError` extend it and keep their one-argument constructors (`retryAfterMs`); `useResetAfterRetry({ error, reset }: { error: Error | null; reset: () => void }): void`.
 
 - [x] **Step 1: Write the failing tests.** (ab16839) `use-reset-after-retry.test.ts`:
@@ -1071,7 +1071,7 @@ and in `requestSelectionSummary`: `throw new SummaryTooSoonError(readRetryAfterM
 if (error instanceof SummaryTooSoonError) return `${error.message} ${retryInLabel(secondsRoundedUp(error.retryAfterMs))}`;
 ```
 
-importing `secondsRoundedUp` from `@superdoc-history/types`. Check: `rg -n "retryAfterSeconds|\* SECOND_MS\)|/ SECOND_MS" apps/web/src/features/timeline` prints nothing.
+importing `secondsRoundedUp` from `@superdoc-collab/types`. Check: `rg -n "retryAfterSeconds|\* SECOND_MS\)|/ SECOND_MS" apps/web/src/features/timeline` prints nothing.
 
 - [x] **Step 5: Run the gate.** (web 286 passed) Expected: PASS; `timeline-panel.test.tsx` "a refresh that is too soon explains why", "the too-soon notice goes away when the cooldown ends", "a request too soon shows the seconds from Retry-After" and "the summary cooldown message goes away when the cooldown ends" unchanged.
 
@@ -1330,7 +1330,7 @@ git commit -m "test(web): pin the bin that contains a moment"
 `bin-containing.ts`:
 
 ```ts
-import type { DocumentTimeline, TimelineBin } from '@superdoc-history/types';
+import type { DocumentTimeline, TimelineBin } from '@superdoc-collab/types';
 
 export type IndexedBin = { index: number; bin: TimelineBin };
 
@@ -1372,7 +1372,7 @@ export function useVersionLoad({ documentId, sequence }: { documentId: string; s
 - [ ] **Step 5: Rewrite `use-time-travel.ts`.** The whole file:
 
 ```ts
-import { TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type VersionSummary } from '@superdoc-history/types';
+import { TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type VersionSummary } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
 import { isTypingInField } from '@/lib/keyboard';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
@@ -1533,7 +1533,7 @@ Covers the bin-selection half of 2.3, 3.4 and top-10 item 9. The proof is `timel
 
 ```ts
 import { act, renderHook } from '@testing-library/react';
-import type { DocumentTimeline } from '@superdoc-history/types';
+import type { DocumentTimeline } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { useBinSelection } from './use-bin-selection';
@@ -1595,7 +1595,7 @@ git commit -m "test(web): pin the timeline bin selection"
 - [ ] **Step 4: Implement.** `use-bin-selection.ts`:
 
 ```ts
-import type { DocumentTimeline, TimelineBin } from '@superdoc-history/types';
+import type { DocumentTimeline, TimelineBin } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
 import { binContaining } from './bin-containing';
 
@@ -1679,7 +1679,7 @@ Covers 4.26.
 - [x] **Step 1: Write the failing test.** (4f7f2f3; the options also take viewport (the viewer zooms by window.parent since lane A) and carry telemetry: SUPERDOC_TELEMETRY) `superdoc-options.test.ts`:
 
 ```ts
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-history/types';
+import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';
@@ -1738,7 +1738,7 @@ git commit -m "test(web): pin the SuperDoc options shared by the editor and the 
 - [x] **Step 4: Implement.** (1cbf6df) `superdoc-options.ts`:
 
 ```ts
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, type RoomMode, type SessionUser } from '@superdoc-history/types';
+import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import type { Config } from 'superdoc';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { initialZoomMode } from './superdoc-zoom';
@@ -1930,7 +1930,7 @@ Covers 2.11 and top-10 item 10.
 - [x] **Step 1: Pin the sign-up page.** No sign-up test exists today. Create `sign-up-page.test.tsx`: Evidence: `ec382a5`.
 
 ```tsx
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
@@ -1977,7 +1977,7 @@ git commit -m "test(web): pin the sign-up page"
 - [x] **Step 2: Write the failing test.** `auth-card.test.tsx`: Evidence: `b44df94`. `onSubmit` is `vi.fn(async (_values: ProbeValues) => undefined)` so `mock.calls[0]?.[0]` typechecks.
 
 ```tsx
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
@@ -2102,7 +2102,7 @@ export function AuthTextField<Values extends FieldValues>({
 `auth-card.tsx`:
 
 ```tsx
-import type { AppRoute } from '@superdoc-history/types';
+import type { AppRoute } from '@superdoc-collab/types';
 import type { ReactNode } from 'react';
 import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Link } from 'react-router';
@@ -2326,7 +2326,7 @@ Expected: only `canRefresh` inside `timeline-notices.tsx` and as the prop passed
 
 - [x] **Step 3: Write the tester briefing** (tester-briefing.md) at `docs/features/refinement-readability-web/tester-briefing.md` (template in `docs/features/_template/tester-briefing.md`): the commit list per task, the red-then-green test commits, the pinning tests, and each "nothing visible changed" claim as a hypothesis. It also states:
   - `fetchDocuments` and `fetchMe` now throw `ApiRequestError` instead of a plain `Error`. The message is identical and no code or test checks the class.
-  - Task 2's red commit fails only `pnpm --filter @superdoc-history/types typecheck` (TS2345); its Vitest run is green at red, because `presentOrNull(null)` already returns `null` at runtime.
+  - Task 2's red commit fails only `pnpm --filter @superdoc-collab/types typecheck` (TS2345); its Vitest run is green at red, because `presentOrNull(null)` already returns `null` at runtime.
   - Task 13 moved `DocumentMode` into `superdoc-options.ts` so the options file and `superdoc-editor.tsx` do not import each other; the two test files that import `DocumentMode` changed their import path only.
   - Tasks 6 and 13 edited existing test files: two `@/lib/api` mock factories (Task 6) and two `DocumentMode` import paths (Task 13).
 

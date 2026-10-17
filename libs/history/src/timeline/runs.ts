@@ -1,4 +1,4 @@
-import { ClientActor, type EventAuthor } from '@superdoc-history/types';
+import { ClientActor, type EventAuthor } from '@superdoc-collab/types';
 import { binStartOf } from './bins';
 
 const IMPORTED_AUTHOR_PREFIX = 'imported:';

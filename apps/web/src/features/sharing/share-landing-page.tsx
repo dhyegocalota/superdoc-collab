@@ -1,4 +1,4 @@
-import { AppRoute, documentPagePath } from '@superdoc-history/types';
+import { AppRoute, documentPagePath } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';

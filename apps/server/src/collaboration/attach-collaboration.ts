@@ -1,7 +1,7 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
+import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { VersionEndpoint } from '../history/versions-service';
 import { isAgentUpgrade, upgradePathname } from './upgrade-path';

@@ -1,4 +1,4 @@
-import { DocumentRole, HttpStatus } from '@superdoc-history/types';
+import { DocumentRole, HttpStatus } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';

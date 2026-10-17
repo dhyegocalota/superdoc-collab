@@ -1,4 +1,4 @@
-import { BIN_LADDER_MS, MAX_BINS } from '@superdoc-history/history';
+import { BIN_LADDER_MS, MAX_BINS } from '@superdoc-collab/history';
 import {
   AgentScope,
   AgentTool,
@@ -6,7 +6,7 @@ import {
   FILTER_MAX_LENGTH,
   RETRY_AFTER_SECONDS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { z } from 'zod';
 import { buildBinEdits, buildDocumentTimeline } from '../history/timeline-service';
 import { documentTopics } from '../insights/document-topics';

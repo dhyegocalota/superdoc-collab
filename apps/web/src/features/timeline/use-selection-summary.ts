@@ -1,4 +1,4 @@
-import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';

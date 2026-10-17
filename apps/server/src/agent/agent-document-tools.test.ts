@@ -7,7 +7,7 @@ import {
   ShareLinkRole,
   type DocumentMembers,
   type ShareLinks,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { existsSync } from 'node:fs';

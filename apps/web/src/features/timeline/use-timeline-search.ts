@@ -5,7 +5,7 @@ import {
   TimelineFilterKind,
   TimelineSearchParam,
   type TimelineFilter,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { useSearchParams } from 'react-router';
 
 export const AUTHOR_PREFIX = '@';

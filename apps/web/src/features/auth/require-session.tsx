@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { SessionSkeleton } from './session-skeleton';

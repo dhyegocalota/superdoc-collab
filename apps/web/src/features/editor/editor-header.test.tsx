@@ -6,7 +6,7 @@ import {
   HttpMethod,
   HttpStatus,
   READ_ONLY_BADGE_LABEL,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi, type MockInstance } from 'vitest';

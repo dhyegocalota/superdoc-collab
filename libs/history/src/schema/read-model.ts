@@ -1,4 +1,4 @@
-import { ClientActor } from '@superdoc-history/types';
+import { ClientActor } from '@superdoc-collab/types';
 import { blob, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const editEvents = sqliteTable(

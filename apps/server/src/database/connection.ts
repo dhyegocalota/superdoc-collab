@@ -1,4 +1,4 @@
-import { SECOND_MS } from '@superdoc-history/types';
+import { SECOND_MS } from '@superdoc-collab/types';
 import Database from 'better-sqlite3';
 import { accessSync, constants, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';

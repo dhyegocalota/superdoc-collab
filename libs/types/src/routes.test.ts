@@ -1,9 +1,12 @@
 import { expect, test } from 'vitest';
 import {
+  AdminResource,
+  adminApiPath,
   DocumentResource,
   documentApiPath,
   selectionSummaryApiPath,
   sharePagePath,
+  signUpPagePath,
   timelineEditsApiPath,
   topicsRefreshApiPath,
   VersionResource,
@@ -37,4 +40,10 @@ test('builds every path with its ids encoded', () => {
     '/api/documents/a%2Fb/summaries/selection',
     '/share/a%20b',
   ]);
+});
+
+test('invite and admin paths encode their parameters', () => {
+  expect(adminApiPath(AdminResource.Users)).toBe('/api/admin/users');
+  expect(adminApiPath(AdminResource.Invites)).toBe('/api/admin/invites');
+  expect(signUpPagePath('x/y')).toBe('/sign-up?invite=x%2Fy');
 });

@@ -1,17 +1,26 @@
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { capturedNames, composeVariables, readRepositoryFile, REPOSITORY_ROOT, repositoryPath } from './repository-files';
+import {
+  capturedNames,
+  composeVariables,
+  DOCUMENTED_FOLDERS,
+  readmes,
+  readRepositoryFile,
+  repositoryPath,
+  workspacePackages,
+} from './repository-files';
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
-const README_PATHSPEC = `*${README_FILE}`;
-const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
-const PACKAGE_MANIFEST = 'package.json';
-const DOCUMENTED_FOLDERS = ['e2e'];
-const LINE_SEPARATOR = '\n';
+const INSTALL_FILE = 'docs/install.md';
+const AGENT_SECTION_HEADING = '## Install with an agent';
+const CONFIGURATION_SECTION_HEADING = '## Configuration';
+const RECOVERY_SECTION_HEADING = '## Recovery';
+const SECTION_PATTERN = /^## /m;
+const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
+const ADMIN_PROMOTE_COMMAND = 'admin-promote';
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
 const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -21,6 +30,14 @@ const SPACE_PATTERN = / /g;
 const EXTERNAL_LINK_PATTERN = /^(https?:|mailto:|#)/;
 const ANCHOR_SEPARATOR = '#';
 const MARKDOWN_EXTENSION = '.md';
+
+function section({ text, heading }: { text: string; heading: string }): string {
+  const start = text.indexOf(`\n${heading}\n`);
+  if (start === -1) throw new Error(`The install guide has no section ${heading}`);
+  const [body] = text.slice(start + heading.length + 2).split(SECTION_PATTERN);
+  if (body === undefined) throw new Error(`The install guide section ${heading} is empty`);
+  return body;
+}
 
 function slugOf(heading: string): string {
   return heading.toLowerCase().replace(SLUG_DISALLOWED_PATTERN, '').replace(SPACE_PATTERN, '-');
@@ -45,24 +62,6 @@ function brokenTargets({ document, text }: { document: string; text: string }): 
   return capturedNames({ text: prose, pattern: LINK_PATTERN })
     .filter((target) => !EXTERNAL_LINK_PATTERN.test(target))
     .filter((target) => isBroken({ document, target }));
-}
-
-function readmes(): string[] {
-  const listing = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', README_PATHSPEC], {
-    cwd: REPOSITORY_ROOT,
-    encoding: 'utf8',
-  });
-  if (listing.status !== 0) throw new Error(`git ls-files failed: ${listing.stderr}`);
-  return listing.stdout.split(LINE_SEPARATOR).filter((path) => path && existsSync(repositoryPath(path)));
-}
-
-function workspacePackages(): string[] {
-  return WORKSPACE_PACKAGE_PARENTS.flatMap((parent) =>
-    readdirSync(repositoryPath(parent), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => posix.join(parent, entry.name))
-      .filter((path) => existsSync(repositoryPath(posix.join(path, PACKAGE_MANIFEST)))),
-  );
 }
 
 const LINKED_DOCUMENTS = [...readmes(), RUNBOOK_FILE, RAILWAY_RUNBOOK_FILE];
@@ -91,5 +90,19 @@ describe('delivery documents', () => {
   test('the runbook sets every variable the compose file reads', () => {
     const runbook = readRepositoryFile(RUNBOOK_FILE);
     expect(composeVariables().filter((name) => !runbook.includes(`\n${name}=`))).toEqual([]);
+  });
+
+  test('the install guide configuration table lists every variable the production compose reads', () => {
+    const configuration = section({ text: readRepositoryFile(INSTALL_FILE), heading: CONFIGURATION_SECTION_HEADING });
+    expect(composeVariables().filter((name) => !configuration.includes(`\`${name}\``))).toEqual([]);
+  });
+
+  test('the agent install prompt carries the variables and the claim instruction', () => {
+    const agent = section({ text: readRepositoryFile(INSTALL_FILE), heading: AGENT_SECTION_HEADING });
+    expect(AGENT_PROMPT_PHRASES.filter((phrase) => !agent.includes(phrase))).toEqual([]);
+  });
+
+  test('the install guide explains how to promote an administrator', () => {
+    expect(section({ text: readRepositoryFile(INSTALL_FILE), heading: RECOVERY_SECTION_HEADING })).toContain(ADMIN_PROMOTE_COMMAND);
   });
 });

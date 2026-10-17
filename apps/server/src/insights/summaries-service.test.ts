@@ -1,5 +1,5 @@
-import { DocumentRole, type TopicSummary } from '@superdoc-history/types';
-import { writeStory } from '@superdoc-history/history/testing';
+import { DocumentRole, type TopicSummary } from '@superdoc-collab/types';
+import { writeStory } from '@superdoc-collab/history/testing';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, expect, test, vi } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';

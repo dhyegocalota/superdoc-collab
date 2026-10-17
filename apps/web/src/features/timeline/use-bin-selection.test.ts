@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import type { DocumentTimeline } from '@superdoc-history/types';
+import type { DocumentTimeline } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { useBinSelection } from './use-bin-selection';

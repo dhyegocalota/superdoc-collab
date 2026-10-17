@@ -1,4 +1,4 @@
-import { ApiPath, ClientActor, DocumentRole } from '@superdoc-history/types';
+import { ApiPath, ClientActor, DocumentRole } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from '../agent/room-tokens';

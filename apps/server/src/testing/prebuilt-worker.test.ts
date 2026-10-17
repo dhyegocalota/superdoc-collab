@@ -2,7 +2,8 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, vi } from 'vitest';
 import { ApiPath, HttpStatus } from '@superdoc-history/types';
-import { prebuiltProjectionWorkerFile, PROJECTION_WORKER_FILE_VARIABLE, startTestServer } from './test-server';
+import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
+import { prebuiltProjectionWorkerFile, startTestServer } from './test-server';
 
 const WORKER_FILE_EXTENSION = '.js';
 const FILE_PROTOCOL = 'file:';

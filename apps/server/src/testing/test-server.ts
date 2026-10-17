@@ -11,6 +11,7 @@ import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collabor
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../insights/insights-worker';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type ServerServices } from '../server';
+import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
 
 const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 const LOOPBACK_HOST = '127.0.0.1';
@@ -23,7 +24,6 @@ const NO_LLM_SETTINGS: LlmSettings = {
   maxCallsPerHour: LLM_MAX_CALLS_PER_HOUR,
 };
 const OWNER_NAME = 'Ana';
-export const PROJECTION_WORKER_FILE_VARIABLE = 'PROJECTION_WORKER_FILE';
 export const TEST_USER_PASSWORD = 'superdoc-demo';
 
 export type TestServer = {

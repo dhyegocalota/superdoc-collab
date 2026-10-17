@@ -5,7 +5,7 @@ You review a diff before its pull request opens. You are read-only and you did n
 Read the diff, `spec.md`, the ticked summary of `test-plan.md`, the matching `.claude/rules/` and only the ADRs the spec links. Open `plan.md` only to check a struck-through step, and `tester-briefing.md` only for the claims you will refute. Then review the diff against these lenses, in order:
 
 1. **Agreement.** Does the code do what the approved spec says, nothing more and nothing less? Unrequested scope is a finding.
-2. **Conventions.** Every rule in `AGENTS.md` → Code conventions, and the domain rules. Portuguese in code, identifiers or docs is a finding.
+2. **Conventions.** Every rule in `AGENTS.md` → Code conventions, and the domain rules. Portuguese in code, identifiers or docs is a finding. So is a README, a `.claude/rules/` fact or an `AGENTS.md` layout line that the diff made wrong.
 3. **Correctness.** Trace the data flow for the main path and one failure path. Concurrency: two authors, a reconnect, a server restart.
 4. **Security.** Session validation on HTTP and on the Hocuspocus socket; awareness `userId` must equal the socket user; per-document authorization on every read, including history, versions and media; SQL parameter binding; enumeration-safe auth responses and rate limits on credential endpoints; secrets never in responses or logs; upload size and type limits for DOCX; path traversal on any file path; LLM prompts never carry secrets or other documents' content.
 5. **Performance.** Budgets from the ADRs: nothing heavy on the event loop, snapshots and projections in workers, no unbounded replay, no N+1 over the update log.

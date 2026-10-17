@@ -1,7 +1,7 @@
 import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-history/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Download, Ellipsis } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
@@ -66,7 +66,8 @@ function DeleteDocumentDialog({
   documentId,
   isOpen,
   onOpenChange,
-}: DocumentIdentity & { isOpen: boolean; onOpenChange: (isOpen: boolean) => void }) {
+  returnFocusRef,
+}: DocumentIdentity & { isOpen: boolean; onOpenChange: (isOpen: boolean) => void; returnFocusRef: RefObject<HTMLButtonElement | null> }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { mutate, isPending, isError } = useMutation({
@@ -79,7 +80,12 @@ function DeleteDocumentDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocusRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{DELETE_DIALOG_TITLE}</DialogTitle>
           <DialogDescription>{DELETE_DIALOG_DESCRIPTION}</DialogDescription>
@@ -100,12 +106,13 @@ function DeleteDocumentDialog({
 
 function DocumentActionsMenu({ documentId }: DocumentIdentity) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={MORE_ACTIONS_LABEL}>
+          <Button ref={triggerRef} variant="ghost" size="icon" aria-label={MORE_ACTIONS_LABEL}>
             <Ellipsis />
           </Button>
         </DropdownMenuTrigger>
@@ -115,7 +122,7 @@ function DocumentActionsMenu({ documentId }: DocumentIdentity) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <DeleteDocumentDialog documentId={documentId} isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} />
+      <DeleteDocumentDialog documentId={documentId} isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} returnFocusRef={triggerRef} />
     </>
   );
 }

@@ -1,10 +1,8 @@
 import { DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState } from '@superdoc-history/types';
 import { useRef, useState } from 'react';
-import { useLocation } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
 import { useSession } from '@/features/auth/use-session';
-import { isNewDocumentState } from '@/features/documents/new-document-state';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -26,7 +24,6 @@ const EDITOR_AREA_CLASS = 'relative flex min-h-[60dvh] min-w-0 flex-1 flex-col l
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
-  const location = useLocation();
   const { data: opened, error, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
@@ -72,7 +69,6 @@ export function DocumentPage() {
                 user={editorSetup.user}
                 file={editorSetup.file}
                 isInert={timeTravel.state === VersionViewerState.Viewing}
-                focusOnReady={isNewDocumentState(location.state)}
               />
             )}
             {!editorSetup && !fileError && (

@@ -60,7 +60,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
-      zoom: { mode: initialZoomMode() },
+      zoom: { mode: initialZoomMode(window.parent) },
       onCollaborationReady: () => {
         isReady = true;
         onReady(superdoc);
@@ -71,7 +71,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
       },
       onException: onFailed,
     });
-    const stopFollowingViewport = followViewportZoom(superdoc);
+    const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window.parent });
     return () => {
       stopFollowingViewport();
       superdoc.destroy();

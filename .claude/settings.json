@@ -48,6 +48,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.agents/hooks/remind-docs.sh"
+          }
+        ]
+      }
     ]
   }
 }

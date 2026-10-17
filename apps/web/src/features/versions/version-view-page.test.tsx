@@ -14,9 +14,11 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
+import { NARROW_VIEWPORT_QUERY, ZoomMode } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
+import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { useRunHighlights } from './use-run-highlights';
 import { VersionViewPage } from './version-view-page';
@@ -28,6 +30,7 @@ type SuperDocConfig = {
   onCollaborationReady: () => void;
   onException: (payload: { error: Error }) => void;
   onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
+  zoom: { mode: string };
 };
 
 const { SuperDoc } = vi.hoisted(() => ({
@@ -156,4 +159,19 @@ test('Escape inside the frame asks the parent to leave the version', async () =>
   await renderFrame();
   fireEvent.keyDown(document.body, { key: 'Escape' });
   expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Exit }, window.location.origin);
+});
+
+test('the version measures the page around its frame, not the frame, to pick its zoom', async () => {
+  const parentMatchMedia = vi.fn(
+    () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList,
+  );
+  vi.spyOn(window, 'parent', 'get').mockReturnValue({ matchMedia: parentMatchMedia } as unknown as Window);
+  const config = await renderFrame();
+  expect(config.zoom).toEqual({ mode: ZoomMode.FitWidth });
+  expect(parentMatchMedia).toHaveBeenCalledWith(NARROW_VIEWPORT_QUERY);
+});
+
+test('the version page names its tab after the document', async () => {
+  await renderFrame();
+  await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
 });

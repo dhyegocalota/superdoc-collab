@@ -7,6 +7,7 @@ import { useSession } from '@/features/auth/use-session';
 import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
 import { VersionViewer } from './version-viewer';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { useWindowMessage } from '@/lib/use-window-message';
@@ -24,6 +25,7 @@ export function VersionViewPage() {
   const isSequenceValid = Number.isInteger(sequence);
   const { user } = useSession();
   const { data: opened, error: openError } = useOpenedDocument(documentId);
+  useDocumentTitle(opened ? opened.document.title : null);
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [hasConnectionFailed, setHasConnectionFailed] = useState(false);
   const [runs, setRuns] = useState<EditRunView[]>(NO_RUNS);

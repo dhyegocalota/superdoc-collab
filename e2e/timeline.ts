@@ -19,7 +19,7 @@ import {
   type VersionMarks,
   type VersionText,
 } from '../libs/types/src';
-import { shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
+import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
 
@@ -174,8 +174,8 @@ export async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: 
   const documentId = await uploadSeed({ page: ana.page, paragraphs });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   await Promise.all([
-    typeInParagraph({ page: ana.page, paragraphText: paragraphs[0]!.slice(0, 7), text: ANA_TEXT }),
-    typeInParagraph({ page: bruno.page, paragraphText: paragraphs[1]!.slice(0, 7), text: BRUNO_TEXT }),
+    insertInParagraph({ page: ana.page, paragraphText: paragraphs[0]!.slice(0, 7), text: ANA_TEXT }),
+    insertInParagraph({ page: bruno.page, paragraphText: paragraphs[1]!.slice(0, 7), text: BRUNO_TEXT }),
   ]);
   return { ana, bruno, documentId };
 }

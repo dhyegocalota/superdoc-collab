@@ -57,6 +57,61 @@ expect_stderr "a plain comment next to an NB pointer is warned" "only '// NB ADR
 [[ -z "$(printf '%s' "$(claude_edit "$scratch/pointer.ts")" | "$here/warn-conventions.sh" 2>&1)" ]] || { echo "FAIL an NB ADR pointer produced a warning"; failures=$((failures + 1)); }
 rm -rf "$scratch"
 
+repository=$(mktemp -d)
+codex_stop() { printf '{"session_id":"s","turn_id":"t","transcript_path":null,"cwd":"%s","hook_event_name":"Stop","model":"m","permission_mode":"default","stop_hook_active":%s,"last_assistant_message":null}' "$repository" "$1"; }
+remind() { (cd "$repository" && printf '%s' "$(codex_stop "$1")" | "$here/remind-docs.sh" 2>&1); }
+in_repository() { git -C "$repository" -c user.name=hooks -c user.email=hooks@example.com "$@"; }
+expect_match() {
+  local name=$1 output=$2 pattern=$3
+  [[ "$output" =~ $pattern ]] && return
+  echo "FAIL $name: output did not match /$pattern/: $output"
+  failures=$((failures + 1))
+}
+expect_no_match() {
+  local name=$1 output=$2 pattern=$3
+  [[ "$output" =~ $pattern ]] || return
+  echo "FAIL $name: output matched /$pattern/: $output"
+  failures=$((failures + 1))
+}
+expect_silence() {
+  local name=$1 output=$2
+  [[ -z "$output" ]] && return
+  echo "FAIL $name: expected no output, got: $output"
+  failures=$((failures + 1))
+}
+expect_silence "outside a git repository the docs reminder stays silent" "$(remind false)"
+in_repository init -q
+mkdir -p "$repository/apps/web/src" "$repository/libs/plain" "$repository/.claude/rules"
+printf '# Root\n' > "$repository/README.md"
+printf '# Web\n' > "$repository/apps/web/README.md"
+printf -- '---\npaths:\n  - "apps/web/**"\n---\n\n# Web facts\n' > "$repository/.claude/rules/web.md"
+printf 'one\n' > "$repository/apps/web/src/main.tsx"
+in_repository add README.md apps .claude
+in_repository commit -q -m initial
+expect_silence "a clean tree raises no docs reminder" "$(remind false)"
+printf 'two\n' > "$repository/apps/web/src/main.tsx"
+expect_match "a code change names the nearest README and the rule whose globs match it" "$(remind false)" '"decision": "block".*`\.claude/rules/web\.md` `apps/web/README\.md`'
+expect_silence "the same documents are reminded once" "$(remind false)"
+printf '{}\n' > "$repository/package.json"
+expect_silence "a stop that is already continuing is never blocked" "$(remind true)"
+printf '# Web, updated\n' > "$repository/apps/web/README.md"
+reminder=$(remind false)
+expect_match "a file outside every documented folder names the root README" "$reminder" '`README\.md`'
+expect_no_match "a document already reminded since the last commit is not reminded again" "$reminder" 'rules/web'
+in_repository add package.json
+in_repository commit -qam second
+printf 'three\n' > "$repository/apps/web/src/main.tsx"
+expect_match "a commit starts the reminders over" "$(remind false)" 'apps/web/README\.md'
+in_repository commit -qam third
+mkdir -p "$repository/apps/web/src/my dir"
+printf 'x\n' > "$repository/apps/web/src/my dir/b c.ts"
+expect_match "a path with spaces names its folder's README" "$(remind false)" 'apps/web/README\.md'
+in_repository add apps
+in_repository commit -qm fourth
+in_repository mv apps/web/src/main.tsx libs/plain/main.tsx
+expect_match "a rename names the README of the folder the file left" "$(remind false)" 'apps/web/README\.md'
+rm -rf "$repository"
+
 [[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0
 echo "hooks: $failures check(s) failed"
 exit 1

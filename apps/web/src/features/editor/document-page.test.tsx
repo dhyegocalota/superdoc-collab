@@ -22,7 +22,6 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
-import { NEW_DOCUMENT_STATE } from '@/features/documents/new-document-state';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import {
@@ -47,7 +46,6 @@ const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, sum
 type SuperDocConfig = {
   telemetry: { enabled: boolean };
   onException: (payload: { error: Error }) => void;
-  onReady: (payload: { superdoc: { focus: () => void } }) => void;
   zoom: { mode: string };
 };
 
@@ -295,24 +293,6 @@ test('the browser tab names the open document', async () => {
   await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
 });
 
-test('a document created with New document gets the caret once the editor is ready', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID), state: NEW_DOCUMENT_STATE });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  const focus = vi.fn();
-  constructedConfig().onReady({ superdoc: { focus } });
-  expect(focus).toHaveBeenCalledTimes(1);
-});
-
-test('an existing document does not take the focus', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  const focus = vi.fn();
-  constructedConfig().onReady({ superdoc: { focus } });
-  expect(focus).not.toHaveBeenCalled();
-});
-
 test('below the large breakpoint the page fits the width', async () => {
   vi.spyOn(window, 'matchMedia').mockReturnValue({
     matches: true,
@@ -322,4 +302,11 @@ test('below the large breakpoint the page fits the width', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth } })));
+});
+
+test('the editor never takes the focus on its own', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(constructedConfig()).not.toHaveProperty('onReady');
 });

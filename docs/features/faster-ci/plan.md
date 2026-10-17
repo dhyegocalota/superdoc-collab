@@ -58,8 +58,8 @@ G1, G2 and G3 touch disjoint files and run in parallel. G3's test reads the work
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
-- [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
-- [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
-- [ ] **/check-ui:** not applicable, no UI touched.
+- [x] **Tester briefing:** the three developers wrote `tester-briefing.md` (G1, G2, G3) — 82fd4de.
+- [x] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md`: 28 boxes ticked with evidence, one defect (main's `format:check` and `test:hooks` gates missing after the merge) fixed in 69da03d — evidence in `test-plan.md`.
+- [x] **Reviewer:** a fresh `reviewer` sub-agent reviewed the diff (two IMPORTANT, five MINOR; 1 to 5 fixed in e3c6e47, 5595626, bc30596, 2b0cd0d; 6 benign under attack; 7 waits for the first CI run) and ran the three refutations: claims 1 and 3 held, claim 2 held for the shipped config and fails only under `--repeat-each`. Verdict: ship-ready YES.
+- [x] **/check-ui:** not applicable, no UI touched.
 - [ ] **/open-pr:** on hold; the owner asked for no push until they say so.

@@ -81,6 +81,9 @@ describe('signUpSchema', () => {
   ])('rejects the name "%s" that impersonates an AI', (name) => {
     expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
   });
+  test.each(['Li Ai', 'Tanaka Ai', 'Wang Al'])('accepts the real name "%s" that only ends in a space and two letters', (name) => {
+    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }).success).toBe(true);
+  });
   test('accepts a name that merely contains AI', () => {
     expect(
       signUpSchema.safeParse({ name: 'Aino Maia', email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success,

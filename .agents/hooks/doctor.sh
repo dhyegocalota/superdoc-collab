@@ -5,8 +5,9 @@ platform=${DOCTOR_UNAME:-$(uname -s)}
 lookup_path=${DOCTOR_PATH:-$PATH}
 home=${DOCTOR_HOME:-$HOME}
 skipped=" ${DOCTOR_SKIP:-} "
-wanted_node=$(sed -E 's/^v?([0-9]+).*/\1/' "$root/.nvmrc" | tr -d '[:space:]')
-wanted_pnpm=$(sed -nE 's/.*"packageManager": *"pnpm@([^"]+)".*/\1/p' "$root/package.json")
+nvmrc_file=${DOCTOR_NVMRC:-$root/.nvmrc}
+wanted_node=$(sed -nE '1s/^v?([0-9]+).*/\1/p' "$nvmrc_file")
+wanted_pnpm=$(sed -nE 's/.*"packageManager": *"pnpm@([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "$root/package.json")
 
 have() { PATH=$lookup_path command -v "$1" >/dev/null 2>&1; }
 run() { PATH=$lookup_path "$@"; }
@@ -75,10 +76,10 @@ browsers_dir() {
   echo "$home/.cache/ms-playwright"
 }
 
-node_major() { run node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/'; }
+node_major() { run node -v 2>/dev/null | sed -nE '1s/^v([0-9]+).*/\1/p'; }
 
-check_node() { have node && [[ "$(node_major)" -ge "$wanted_node" ]]; }
-check_pnpm() { have pnpm && [[ "$(run pnpm -v 2>/dev/null)" == "$wanted_pnpm" ]]; }
+check_node() { local installed_major; have node && installed_major=$(node_major) && [[ "$installed_major" =~ ^[0-9]+$ ]] && [[ "$installed_major" -ge "$wanted_node" ]]; }
+check_pnpm() { have pnpm && [[ "$(COREPACK_ENABLE_NETWORK=0 run pnpm -v 2>/dev/null)" == "$wanted_pnpm" ]]; }
 check_jq() { have jq; }
 check_gh() { have gh && run gh auth status >/dev/null 2>&1; }
 check_chromium() { ls -d "$(browsers_dir)"/chromium-* >/dev/null 2>&1; }
@@ -96,6 +97,9 @@ if [[ "${1:-}" == --fix ]]; then
   fix_for "$(fix_name_for "${2:-}")"
   exit 0
 fi
+
+[[ "$wanted_node" =~ ^[0-9]+$ ]] || { echo "doctor: .nvmrc is not a version" >&2; exit 1; }
+[[ -n "$wanted_pnpm" ]] || { echo "doctor: packageManager is not pnpm@x.y.z" >&2; exit 1; }
 
 missing_required=0
 missing_optional=0

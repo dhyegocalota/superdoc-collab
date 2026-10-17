@@ -186,15 +186,29 @@ stub_all; rm "$doctor_bin/jq"
 fix_line=$(DOCTOR_PATH="$doctor_bin" "$here/doctor.sh" --fix jq)
 [[ "$fix_line" == "brew install jq" ]] || { echo "FAIL doctor --fix prints the fix alone: $fix_line"; failures=$((failures + 1)); }
 
-empty_path=$(mktemp -d)
-guard_without_jq() { DOCTOR_PATH="$empty_path" "$here/$1" 2>&1 >/dev/null; }
+nvmrc_file=$(mktemp)
+doctor_nvmrc() { DOCTOR_NVMRC="$nvmrc_file" DOCTOR_PATH="$doctor_bin" DOCTOR_HOME="$doctor_home" "$here/doctor.sh" 2>&1; }
+stub_all
+printf '24.7.0\n' > "$nvmrc_file"
+expect_match "doctor: a full version in .nvmrc is read as its major" "$(doctor_nvmrc | grep '^node ')" '^node \| ok \|'
+rm -f /tmp/doctor-pwned
+printf 'root[$(touch${IFS}/tmp/doctor-pwned)]\n' > "$nvmrc_file"
+output=$(doctor_nvmrc); status=$?
+[[ "$status" == 1 ]] || { echo "FAIL doctor with a hostile .nvmrc: expected exit 1, got $status"; failures=$((failures + 1)); }
+expect_match "doctor: a hostile .nvmrc is refused" "$output" '^doctor: \.nvmrc is not a version$'
+[[ ! -e /tmp/doctor-pwned ]] || { echo "FAIL doctor evaluated the .nvmrc"; failures=$((failures + 1)); rm -f /tmp/doctor-pwned; }
+rm -f "$nvmrc_file"
+
+guard_path=$(mktemp -d)
+for tool in bash env cat dirname sed tr uname ls grep; do ln -s "$(command -v $tool)" "$guard_path/$tool"; done
+guard_without_jq() { PATH="$guard_path" "$here/$1" 2>&1 >/dev/null; }
 output=$(printf '%s' "$(claude_edit /repo/apps/web/src/main.tsx)" | guard_without_jq guard-secrets.sh); status=$?
 [[ "$status" == 2 ]] || { echo "FAIL guard-secrets without jq: expected exit 2, got $status"; failures=$((failures + 1)); }
 expect_match "guard-secrets without jq names the fix" "$output" '^Blocked: the hooks need jq\. fix: https://jqlang\.github\.io/jq/download/$'
 output=$(printf '%s' "$(bash_call 'git add README.md')" | guard_without_jq guard-git-add-all.sh); status=$?
 [[ "$status" == 2 ]] || { echo "FAIL guard-git-add-all without jq: expected exit 2, got $status"; failures=$((failures + 1)); }
 expect_match "guard-git-add-all without jq names the fix" "$output" '^Blocked: the hooks need jq\. fix: '
-rm -rf "$doctor_bin" "$doctor_home" "$empty_path"
+rm -rf "$doctor_bin" "$doctor_home" "$guard_path"
 
 [[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0
 echo "hooks: $failures check(s) failed"

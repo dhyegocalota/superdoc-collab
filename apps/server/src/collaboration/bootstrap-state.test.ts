@@ -94,3 +94,20 @@ test('isCommitted trusts the snapshot when a replay of the log never sees the co
   expect(createBootstrapState({ updateLog, readModel }).isCommitted(DOCUMENT_ID)).toBe(true);
   close();
 });
+
+test('an uncommitted answer resumes the scan after the rows it already read', () => {
+  const { updateLog, readModel, close } = stateOver();
+  const bootstrap = createBootstrapState({ updateLog, readModel });
+  const document = new Y.Doc();
+  const sequences = ['first', 'second', 'third'].map((text) =>
+    appendChange({ updateLog, document, change: () => document.getText(TEXT_NAME).insert(0, text) }),
+  );
+  expect(bootstrap.isCommitted(DOCUMENT_ID)).toBe(false);
+  const readBatch = vi.spyOn(updateLog, 'readBatch');
+  const lastScanned = sequences.at(-1)!;
+  const committedSequence = appendChange({ updateLog, document, change: () => commitBootstrap(document) });
+  expect(bootstrap.isCommitted(DOCUMENT_ID)).toBe(true);
+  expect(readBatch.mock.calls.map(([parameters]) => parameters.afterSequence)).toEqual([lastScanned]);
+  expect(committedSequence).toBe(lastScanned + 1);
+  close();
+});

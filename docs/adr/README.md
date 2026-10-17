@@ -40,3 +40,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0018](0018-fan-out-ci-and-prebuild-the-projection-worker.md) | Fan CI out into independent jobs and boot a prebuilt projection worker in tests | Accepted | 2026-10-17 |
 | [0019](0019-deploy-on-railway.md) | Deploy the demo on Railway | Accepted | 2026-10-17 |
 | [0022](0022-mechanical-security-gates-and-a-security-reviewer.md) | Mechanical security gates in CI and a dedicated security reviewer before every PR | Accepted | 2026-10-17 |
+| [0023](0023-agentic-scenario-runs-with-one-browser-per-author.md) | Agentic scenario runs with one Playwright MCP server per author | Accepted | 2026-10-17 |

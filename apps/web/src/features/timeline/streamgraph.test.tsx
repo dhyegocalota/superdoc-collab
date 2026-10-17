@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';
-import { formatBinRange, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
+import { formatBinRange, TooltipAlignment, tooltipAlignment, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
 
 const WIDTH = 600;
 const timeline = timelineWith({
@@ -78,11 +78,45 @@ test('a highlighted band keeps full opacity while the others fade', () => {
   expect(screen.getByLabelText('Hiring, 90 characters')).toHaveClass('opacity-40');
 });
 
-test('the tooltip follows the pointer and stays inside the chart', () => {
+test('the tooltip follows the pointer and aligns inward at the edges', () => {
   const { container } = renderGraph();
   const chart = container.querySelector('svg')!;
   fireEvent.pointerMove(chart, { clientX: 0, clientY: 100, buttons: 0 });
-  expect(screen.getByRole('tooltip')).toHaveStyle({ left: `${TOOLTIP_WIDTH / 2}px`, top: `${100 + TOOLTIP_POINTER_OFFSET}px` });
+  expect(screen.getByRole('tooltip')).toHaveStyle({ left: '0px', top: `${100 + TOOLTIP_POINTER_OFFSET}px` });
+  expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.Start);
   fireEvent.pointerMove(chart, { clientX: WIDTH, clientY: 100, buttons: 0 });
-  expect(screen.getByRole('tooltip')).toHaveStyle({ left: `${WIDTH - TOOLTIP_WIDTH / 2}px` });
+  expect(screen.getByRole('tooltip')).toHaveStyle({ left: `${WIDTH}px` });
+  expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.End);
+});
+
+function budgetBand(): Element {
+  return screen.getByLabelText(/^Budget/);
+}
+
+test('focusing a band shows the tooltip of the selected bin and blurring hides it', () => {
+  renderGraph({ selectedIndex: 1 });
+  fireEvent.focus(budgetBand());
+  expect(screen.getByRole('tooltip')).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  fireEvent.blur(budgetBand());
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('focusing a band without a selected bin shows no tooltip', () => {
+  renderGraph({ selectedIndex: null });
+  fireEvent.focus(budgetBand());
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('the tooltip aligns to the edge it is near', () => {
+  expect(tooltipAlignment({ left: 10, chartWidth: WIDTH })).toBe(TooltipAlignment.Start);
+  expect(tooltipAlignment({ left: WIDTH / 2, chartWidth: WIDTH })).toBe(TooltipAlignment.Center);
+  expect(tooltipAlignment({ left: WIDTH - 10, chartWidth: WIDTH })).toBe(TooltipAlignment.End);
+});
+
+test('the first and the last bins open their tooltip inward', () => {
+  const { rerender } = renderGraph({ selectedIndex: 0 });
+  fireEvent.focus(budgetBand());
+  expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.Start);
+  rerender(<Streamgraph timeline={timeline} width={WIDTH} selectedIndex={timeline.bins.length - 1} highlightedBandId={null} onSelectIndex={vi.fn()} onClearSelection={vi.fn()} />);
+  expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.End);
 });

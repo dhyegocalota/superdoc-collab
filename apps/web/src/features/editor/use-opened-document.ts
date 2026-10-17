@@ -62,3 +62,7 @@ export function useOpenedDocument(documentId: string) {
     retry,
   };
 }
+
+export function useOpenedDocumentWithoutPolling(documentId: string) {
+  return useOpenedDocument(documentId);
+}

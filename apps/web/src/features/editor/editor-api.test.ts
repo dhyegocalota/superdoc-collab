@@ -2,6 +2,7 @@ import { DOCUMENT_NOT_READY_ERROR, documentApiPath, HttpStatus } from '@superdoc
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
+import { DocumentUnavailableError } from '@/lib/api';
 import { DocumentNotReadyError, openDocument } from './editor-api';
 
 afterEach(() => vi.restoreAllMocks());
@@ -16,4 +17,10 @@ test('the open request targets the document path', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Ok }));
   await openDocument(DOCUMENT_ID);
   expect(fetchSpy).toHaveBeenCalledWith(documentApiPath({ documentId: DOCUMENT_ID }), expect.anything());
+});
+
+test('a 403 throws DocumentUnavailableError, so it never offers a retry', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Forbidden }));
+  const failure = await openDocument(DOCUMENT_ID).catch((caught: unknown) => caught);
+  expect(failure).toBeInstanceOf(DocumentUnavailableError);
 });

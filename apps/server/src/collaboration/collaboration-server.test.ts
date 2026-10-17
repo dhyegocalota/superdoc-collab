@@ -16,6 +16,27 @@ const KEYSTROKES_PER_DEBOUNCE = 4;
 
 type Scenario = { server: TestServer; documentId: string; owner: TestUser };
 
+describe('collaboration admission to an uncommitted room', () => {
+  test('a member is refused on an uncommitted room with no attempt', async () => {
+    const { server, documentId } = await documentWithOwner();
+    const member = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectToDocument({ server, cookie: member.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('an agent room token is refused on an uncommitted room with no attempt', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const token = signRoomToken({ secret: TEST_AUTH_SECRET, userId: owner.id, documentId, now: Date.now() });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    warn.mockRestore();
+    await server.stop();
+  });
+});
+
 describe('collaboration authentication', () => {
   test('accepts a valid session cookie', async () => {
     const { server, documentId, owner } = await documentWithOwner();

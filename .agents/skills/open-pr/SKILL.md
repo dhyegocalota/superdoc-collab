@@ -35,7 +35,9 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 
 ## Merge
 
-The automatic CI (`verify.yml`) does not run the E2E suite (ADR 0018). Suggest the manual E2E dispatch only when the diff touches a path listed in HARNESS §7 step 8; otherwise do not suggest it. Before the merge, read the `paths` front matter of every `docs/scenarios/*.md` and match the globs against `git diff --name-only main...HEAD`; name each scenario that matches and suggest `/scenario <slug>` to the owner, who decides (ADR 0023). When none matches, say so in one line. Never run a scenario before the PR opens. When the owner asks for the merge:
+The automatic CI (`verify.yml`) does not run the E2E suite (ADR 0018). Suggest the manual E2E dispatch only when the diff touches a path listed in HARNESS §7 step 8; otherwise do not suggest it. Never run a scenario before the PR opens. When the owner asks for the merge:
+
+0. Read the `paths` front matter of every `docs/scenarios/*.md` and match the globs against `gh pr diff <n> --name-only`; name each scenario that matches and suggest `/scenario <slug>` to the owner, who decides (ADR 0023). When none matches, say so in one line.
 
 1. Only if the owner asked for the E2E run: dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), find the run (`gh run list --workflow e2e --branch <branch> --limit 1`) and wait with `gh run watch <id> --exit-status`.
 2. Wait for the automatic `verify` run of the same head to be green (`gh pr checks <n> --watch`).

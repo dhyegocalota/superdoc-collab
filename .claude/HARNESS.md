@@ -7,7 +7,7 @@ AGENTS.md            facts and conventions, pointers to this file          (CLAU
 .claude/HARNESS.md   this file: the process
 .claude/rules/       domain facts; Claude Code loads them by path, every other tool opens the ones whose globs match
 .agents/roles/       agent role bodies (one source for .claude/agents and .codex/agents)
-.agents/skills/      skills: vendored superpowers subset + feature, adr, learning, verify, check-ui, open-pr
+.agents/skills/      skills: vendored superpowers subset + feature, adr, learning, verify, check-ui, open-pr, scenario
 .agents/hooks/       hook scripts (one source for .claude/settings.json and .codex/hooks.json)
 docs/features/<slug> spec.md + plan.md + test-plan.md for every feature or fix
 docs/adr/            decisions            docs/learnings/   dated traps

@@ -34,7 +34,7 @@ The E2E suite (`pnpm test:e2e`, ports 3100/3199) was run by the lead on this bra
 | `scenarios.test.ts::a scenario never needs more authors than there are Playwright servers` | one `playwright*` server in `.mcp.json` | two |
 | `scenarios.test.ts::…front matter…index row` (pin) | green at the red commit a854b36: the scenario file and the index were committed with the docs | keeps every future scenario well-formed and indexed |
 
-Red commit: `a854b36`.
+Red commit: `a854b36`. The red test expected `node e2e/scenario-stack.ts`; the green commit changed the script to `tsx e2e/scenario-stack.ts` and the test with it, because Node resolves no extension-less import on its own.
 
 ## Hypotheses to attack
 

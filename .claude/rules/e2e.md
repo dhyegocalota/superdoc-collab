@@ -8,7 +8,8 @@ paths:
 
 ## Runner
 - The app suite runs file-level parallel: 4 workers in CI, half the cores locally, never `fullyParallel`. The POC's `workers: 1` does not apply. (playwright.config.ts, ADR 0018)
-- The stack binds port 3100 and the fake model port 3199, both constants, and never reuses a running server: a second stack on the same machine needs a scratch config with other ports. (playwright.config.ts, e2e/fake-openrouter-origin.ts)
+- The stack binds port 3100 and the fake model port 3199, both constants, and never reuses a running server: a second stack on the same machine needs a scratch config with other ports, and 3200 and 3299 are taken by the scenario stack. (playwright.config.ts, e2e/fake-openrouter-origin.ts, e2e/scenario-stack.ts)
+- `e2e/stack.ts` is the one boot: the build-and-start command, the fake model command, the health paths and the server environment; `playwright.config.ts` and `e2e/scenario-stack.ts` both import it. (ADR 0023)
 - Specs share one server and one fake model per run. Never assert a process-wide counter without isolating it per document. (docs/learnings/2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md)
 
 ## Typing

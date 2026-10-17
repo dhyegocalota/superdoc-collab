@@ -34,6 +34,7 @@ The E2E suite already boots the whole stack (build, seed, fake model, server) on
 - The `playwright` MCP server moves from a persistent profile to `--isolated`; `/check-ui` and the tester already sign in through the form, so nothing changes for them except that nothing persists between sessions.
 - A scenario run writes screenshots and a report under the git-ignored `.pr-media/scenario-<slug>/`; defects become learnings or fix features, never inline fixes.
 - A session started before `.mcp.json` changed does not have `playwright-second`; the skill says so and stops rather than falling back to two tabs of one browser.
+- Known gap: Hono's `serve()` gets no hostname, so a scenario stack (like the E2E stack before it) listens on every interface with the public demo credentials for the length of the walk. Binding test stacks to 127.0.0.1 is a product change with its own fix feature.
 
 ## Evidence
 
@@ -42,8 +43,7 @@ The E2E suite already boots the whole stack (build, seed, fake model, server) on
 
 ## Revisit when
 
-- The server accepts a `HOST` to bind: today Hono's `serve()` gets no hostname, so a scenario stack (like the E2E stack before it) listens on every interface with the public demo credentials for the length of the walk. Binding the test stacks to 127.0.0.1 is a product change with its own fix feature.
-
+- The server accepts a bind host, so the test stacks can move to loopback.
 - A scenario needs three or more authors at once.
 - Playwright MCP exposes several contexts as first-class tools in one server.
 - Scenario runs become stable enough to run on a schedule rather than on suggestion.

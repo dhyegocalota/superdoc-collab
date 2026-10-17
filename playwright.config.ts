@@ -3,7 +3,14 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FAKE_OPENROUTER_ORIGIN, FAKE_OPENROUTER_PORT } from './e2e/fake-openrouter-origin';
-import { BUILD_AND_START_COMMAND, localOrigin, stackEnvironment } from './e2e/stack';
+import {
+  BUILD_AND_START_COMMAND,
+  FAKE_OPENROUTER_COMMAND,
+  FAKE_OPENROUTER_HEALTH_PATH,
+  localOrigin,
+  SERVER_HEALTH_PATH,
+  stackEnvironment,
+} from './e2e/stack';
 
 const PORT = 3100;
 const ORIGIN = localOrigin(PORT);
@@ -25,14 +32,14 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command: 'node e2e/fake-openrouter.ts',
-      url: `${FAKE_OPENROUTER_ORIGIN}/health`,
+      command: FAKE_OPENROUTER_COMMAND,
+      url: `${FAKE_OPENROUTER_ORIGIN}${FAKE_OPENROUTER_HEALTH_PATH}`,
       reuseExistingServer: false,
       env: { FAKE_OPENROUTER_PORT: String(FAKE_OPENROUTER_PORT) },
     },
     {
       command: BUILD_AND_START_COMMAND,
-      url: `${ORIGIN}/api/health`,
+      url: `${ORIGIN}${SERVER_HEALTH_PATH}`,
       reuseExistingServer: false,
       timeout: SERVER_START_TIMEOUT_MS,
       env: stackEnvironment({ port: PORT, databaseDir: DATABASE_DIR, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN }),

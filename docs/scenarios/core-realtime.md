@@ -3,14 +3,19 @@ name: core-realtime
 title: Core realtime — collaboration and history
 authors: 2
 paths:
+  - "apps/server/src/auth/**"
   - "apps/server/src/collaboration/**"
-  - "apps/server/src/history/**"
   - "apps/server/src/documents/**"
+  - "apps/server/src/history/**"
+  - "apps/server/src/http/**"
+  - "apps/server/src/insights/**"
+  - "apps/web/src/features/documents/**"
   - "apps/web/src/features/editor/**"
   - "apps/web/src/features/sharing/**"
   - "apps/web/src/features/timeline/**"
   - "apps/web/src/features/versions/**"
   - "libs/history/**"
+  - "libs/types/**"
 ---
 
 # Core realtime — collaboration and history

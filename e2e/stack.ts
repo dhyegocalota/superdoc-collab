@@ -7,6 +7,10 @@ const FAKE_API_PATH = '/api/v1';
 const LLM_MAX_CONCURRENT_JOBS = 2;
 const LLM_MAX_CALLS_PER_HOUR = 10_000;
 
+export const FAKE_OPENROUTER_COMMAND = 'node e2e/fake-openrouter.ts';
+export const FAKE_OPENROUTER_HEALTH_PATH = '/health';
+export const SERVER_HEALTH_PATH = '/api/health';
+
 export const BUILD_AND_START_COMMAND = [
   'pnpm --filter @superdoc-collab/web build',
   'pnpm --filter @superdoc-collab/server build',

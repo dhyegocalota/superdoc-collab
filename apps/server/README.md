@@ -22,12 +22,13 @@ Run from the repository root with `pnpm --filter @superdoc-history/server <scrip
 | [`src/http/`](src/http/) | the Hono app, health, `me`, the signed-in guard, client address behind a proxy, the static SPA |
 | [`src/auth/`](src/auth/) | Better Auth, sessions and the demo-user seed ([ADR 0005](../../docs/adr/0005-authentication-with-better-auth.md)) |
 | [`src/documents/`](src/documents/) | document routes and repository, roles, share links, DOCX storage on local disk |
+| [`src/agent/`](src/agent/) | the MCP server at `/api/mcp`: the tool registry with its scope and role checks, the SDK sessions that join live rooms, and OAuth token and room-token checks ([ADR 0021](../../docs/adr/0021-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)) |
 | [`src/collaboration/`](src/collaboration/) | Hocuspocus, member authentication on the socket, identity declarations, read-only version rooms |
 | [`src/history/`](src/history/) | the projection worker and its throttle, timeline, events and versions routes |
 | [`src/insights/`](src/insights/) | topics, per-topic sentences and selection summaries, the LLM client, prompts, cooldowns and the process-wide caps ([ADR 0011](../../docs/adr/0011-process-wide-llm-cost-caps.md)) |
 | [`src/database/`](src/database/) | the `auth.sqlite` connection, migrations and Drizzle schema; generated migrations live in [`drizzle/`](drizzle/) |
 | [`src/config/`](src/config/) | environment parsing and validation |
-| [`src/testing/`](src/testing/) | test server, collaboration, events and timeline clients, the mocked language model |
+| [`src/testing/`](src/testing/) | test server, collaboration, events, timeline and OAuth clients, the mocked language model |
 | [`src/repository-shape/`](src/repository-shape/) | checks on repository files: CI workflows, compose, Dockerfile, entrypoint and the links in every README |
 
 The update log, the projection and the read model live in [`libs/history`](../../libs/history/).

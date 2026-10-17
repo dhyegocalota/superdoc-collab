@@ -68,12 +68,13 @@ async function connect(token: string): Promise<Client> {
   return client;
 }
 
-function postWithoutToken(): Promise<Response> {
+function postWithToken(token: string | null): Promise<Response> {
+  const authorization: Record<string, string> = token === null ? {} : { authorization: `${BEARER_PREFIX}${token}` };
   return Promise.resolve(
     app.fetch(
       new Request(MCP_URL, {
         method: HttpMethod.Post,
-        headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+        headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', ...authorization },
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
       }),
     ),
@@ -81,7 +82,7 @@ function postWithoutToken(): Promise<Response> {
 }
 
 test('no token answers 401 with WWW-Authenticate', async () => {
-  const response = await postWithoutToken();
+  const response = await postWithToken(null);
   expect(response.status).toBe(HttpStatus.Unauthorized);
   expect(response.headers.get(CHALLENGE_HEADER)).toBe(CHALLENGE);
 });
@@ -93,11 +94,15 @@ test.each([
     token: HISTORY_ONLY_TOKEN,
     tools: [AgentTool.ListDocuments, AgentTool.GetTimeline, AgentTool.GetBinEdits, AgentTool.ListTopics, AgentTool.SummarizeSelection],
   },
-  { name: 'no scope', token: NO_SCOPE_TOKEN, tools: [] },
 ])('tools/list with $name lists the tools of the scopes', async ({ token, tools }) => {
   const client = await connect(token);
   const listed = await client.listTools();
   expect(listed.tools.map(({ name }) => name).sort()).toEqual([...tools].sort());
+});
+
+test('a token with no scope that opens a tool is refused with 403', async () => {
+  const response = await postWithToken(NO_SCOPE_TOKEN);
+  expect(response.status).toBe(HttpStatus.Forbidden);
 });
 
 test('every listed tool describes its input as an object schema', async () => {

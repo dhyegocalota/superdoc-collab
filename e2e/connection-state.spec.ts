@@ -147,8 +147,8 @@ test('a server restart shows reconnecting, recovered, then clears', async ({ bro
   expect(firstIndexes).not.toContain(-1);
   expect(firstIndexes).toEqual([...firstIndexes].sort((left, right) => left - right));
   const lostIndex = observed.indexOf(ConnectionState.Lost);
-  const isLostAfterReconnecting = lostIndex > firstIndexes[0]!;
-  expect(isLostAfterReconnecting).toBe(false);
+  const isLostAfterRecovered = lostIndex > firstIndexes[1]!;
+  expect(isLostAfterRecovered).toBe(false);
 });
 
 test('an edit typed while the server is down reaches the other author after reconnect', async ({ browser }) => {

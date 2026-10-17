@@ -4,7 +4,15 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from '@/features/auth/auth-client';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { APPROVE_LABEL, CONSENT_FAILED_MESSAGE, DENY_LABEL, INCOMPLETE_REQUEST_MESSAGE, SCOPE_LABELS } from './oauth-consent-copy';
+import {
+  APPROVE_LABEL,
+  CONSENT_FAILED_MESSAGE,
+  DENY_LABEL,
+  INCOMPLETE_REQUEST_MESSAGE,
+  OFFLINE_ACCESS_LABEL,
+  OFFLINE_ACCESS_SCOPE,
+  SCOPE_LABELS,
+} from './oauth-consent-copy';
 import { OAuthConsentPage } from './oauth-consent-page';
 
 vi.mock('@/features/auth/auth-client', () => ({ authClient: { oauth2: { publicClient: vi.fn(), consent: vi.fn() } } }));

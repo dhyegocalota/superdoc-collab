@@ -6,7 +6,7 @@ import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
 import { UpdateLog } from './update-log';
-import { clampToMark, versionSequenceAt, type VersionMarkSummary } from './version-marks';
+import { clampToMark, resolveMark, versionSequenceAt, type VersionMarkSummary } from './version-marks';
 
 const DOCUMENT = 'marks-room';
 const EDITS = 30;
@@ -65,4 +65,16 @@ test('clampToMark snaps down and lifts a sequence before the first mark', () => 
   expect(clampToMark({ marks: SUMMARIES, sequence: 12 })?.sequence).toBe(9);
   expect(clampToMark({ marks: SUMMARIES, sequence: 1 })?.sequence).toBe(3);
   expect(clampToMark({ marks: SUMMARIES, sequence: 99 })?.sequence).toBe(14);
+});
+
+test('a sequence whose mark was pruned resolves to the surviving mark of its minute', () => {
+  const prunedInSecondMinute = { sequence: 12, serverTime: 125, minuteStart: 120 };
+  expect(resolveMark({ marks: SUMMARIES, sequence: 12, serverTime: prunedInSecondMinute.serverTime })?.sequence).toBe(14);
+  expect(resolveMark({ marks: SUMMARIES, sequence: 9, serverTime: 70 })?.sequence).toBe(9);
+});
+
+test('a sequence the log does not know clamps down like before', () => {
+  expect(resolveMark({ marks: SUMMARIES, sequence: 12, serverTime: null })?.sequence).toBe(9);
+  expect(resolveMark({ marks: SUMMARIES, sequence: 1, serverTime: null })?.sequence).toBe(3);
+  expect(resolveMark({ marks: [], sequence: 1, serverTime: 5 })).toBeNull();
 });

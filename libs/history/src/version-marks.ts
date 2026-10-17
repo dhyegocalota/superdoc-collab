@@ -40,3 +40,11 @@ export function clampToMark({ marks, sequence }: { marks: VersionMarkSummary[]; 
   if (!atOrBefore) return first;
   return atOrBefore;
 }
+
+export function resolveMark(_options: {
+  marks: VersionMarkSummary[];
+  sequence: number;
+  serverTime: number | null;
+}): VersionMarkSummary | null {
+  throw new Error('resolveMark is not implemented');
+}

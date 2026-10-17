@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
-import { DOCUMENT_FILE_QUERY_KEY } from '@/features/documents/documents-api';
 import { useSession } from '@/features/auth/use-session';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
@@ -11,7 +10,7 @@ import { useDocumentTitle } from '@/lib/use-document-title';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
-import { openedDocumentQueryKey } from './editor-api';
+import { documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
 import { VersionBanner } from '@/features/versions/version-banner';
@@ -47,6 +46,7 @@ export function DocumentPage() {
     membersAnsweredAt,
   });
   const [editorGeneration, setEditorGeneration] = useState(0);
+  const [isReloading, setIsReloading] = useState(false);
   const superdocRef = useRef<SuperDoc | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
@@ -67,12 +67,17 @@ export function DocumentPage() {
   }
 
   async function reload(): Promise<void> {
-    await Promise.all([
-      queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId) }),
-      queryClient.refetchQueries({ queryKey: [...DOCUMENT_FILE_QUERY_KEY, documentId] }),
-    ]);
-    resetConnection();
-    setEditorGeneration((generation) => generation + 1);
+    setIsReloading(true);
+    try {
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true }),
+        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode: opened.roomMode }), exact: true }),
+      ]);
+      resetConnection();
+      setEditorGeneration((generation) => generation + 1);
+    } finally {
+      setIsReloading(false);
+    }
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
@@ -86,7 +91,7 @@ export function DocumentPage() {
         onDownload={editorSetup ? downloadLiveDocument : undefined}
       />
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
-      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={false} onReload={reload} />
+      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={isReloading} onReload={reload} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
         <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>
           <VersionBanner timeTravel={timeTravel} />

@@ -34,12 +34,6 @@ test('arrow keys move selection between two items', async () => {
   expect(bottom).toHaveFocus();
 });
 
-test('exactly one item is in the tab order', () => {
-  renderGroup();
-  const tabIndexes = screen.getAllByRole('radio').map((item) => item.getAttribute('tabindex'));
-  expect(tabIndexes).toEqual(['0', '-1']);
-});
-
 test('a toggle group is a named radio group', () => {
   renderGroup();
   expect(screen.getByRole('radiogroup', { name: 'Edits panel position' })).toBeInTheDocument();

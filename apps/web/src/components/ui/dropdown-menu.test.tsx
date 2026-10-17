@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { expect, test } from 'vitest';
 import {
   DropdownMenu,
@@ -11,20 +12,25 @@ import {
   DropdownMenuTrigger,
 } from './dropdown-menu';
 
-function renderMenu() {
-  render(
+function ThemeMenu() {
+  const [theme, setTheme] = useState('light');
+  return (
     <DropdownMenu>
       <DropdownMenuTrigger>Open</DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup defaultValue="light">
+        <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
           <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
-    </DropdownMenu>,
+    </DropdownMenu>
   );
+}
+
+function renderMenu() {
+  render(<ThemeMenu />);
 }
 
 test('exports a label, a separator and a radio group with radio items', async () => {

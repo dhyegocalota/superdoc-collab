@@ -1,6 +1,6 @@
 import { HOUR_MS, MINUTE_MS, SECOND_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { formatBinMoment, formatBinRange, formatTimestamp, formatVersionMoment } from './format-date-time';
+import { formatBinMoment, formatBinRange, formatTimestamp, formatTimeZoneOffset, formatVersionMoment } from './format-date-time';
 
 const SAO_PAULO = 'America/Sao_Paulo';
 const LISBON = 'Europe/Lisbon';
@@ -83,4 +83,14 @@ test('today is decided in the zone', () => {
   const nearMidnight = Date.UTC(2026, 9, 17, 3, 0);
   expect(formatVersionMoment({ time: nearMidnight, timeZone: LISBON })).not.toContain('Oct');
   expect(formatVersionMoment({ time: nearMidnight, timeZone: SAO_PAULO })).toContain('Oct');
+});
+
+test.each([
+  { time: MIDNIGHT_UTC, timeZone: SAO_PAULO, offset: 'UTC-03:00' },
+  { time: MIDNIGHT_UTC, timeZone: LISBON, offset: 'UTC+01:00' },
+  { time: Date.UTC(2026, 0, 15), timeZone: LISBON, offset: 'UTC+00:00' },
+  { time: MIDNIGHT_UTC, timeZone: UTC_TIME_ZONE, offset: 'UTC+00:00' },
+  { time: MIDNIGHT_UTC, timeZone: KIRITIMATI, offset: 'UTC+14:00' },
+])('the offset of $timeZone at the instant reads $offset', ({ time, timeZone, offset }) => {
+  expect(formatTimeZoneOffset({ time, timeZone })).toBe(offset);
 });

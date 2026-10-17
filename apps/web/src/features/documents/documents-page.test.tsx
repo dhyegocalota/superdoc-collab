@@ -19,6 +19,7 @@ import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import {
@@ -169,4 +170,10 @@ test('the header has no Admin link for a user', async () => {
   renderWithProviders(<DocumentsPage />);
   await screen.findByText(SESSION_USER.name);
   expect(screen.queryByRole('link', { name: ADMIN_LINK_LABEL })).not.toBeInTheDocument();
+});
+
+test('the header links to Settings', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  expect(await screen.findByRole('link', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
 });

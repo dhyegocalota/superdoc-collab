@@ -24,3 +24,7 @@ test('the account zone wins and is labelled as the account', () => {
 test('a null account zone falls back to the browser zone and says so', () => {
   expect(zoneFor({ ...USER, timeZone: null })).toEqual({ timeZone: BROWSER_ZONE, source: TimeZoneSource.Browser });
 });
+
+test('a stored zone the runtime does not resolve falls back to the browser zone', () => {
+  expect(zoneFor({ ...USER, timeZone: 'Mars/Olympus' })).toEqual({ timeZone: BROWSER_ZONE, source: TimeZoneSource.Browser });
+});

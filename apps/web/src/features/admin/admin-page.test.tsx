@@ -16,6 +16,7 @@ import {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -182,4 +183,10 @@ test('a pending row reads Pending with a Revoke button, an accepted row reads Ac
   expect(within(pendingRow).getByText(formatTimestamp({ time: PENDING_INVITE.expiresAt, timeZone: UTC_TIME_ZONE }))).toBeInTheDocument();
   expect(within(acceptedRow).queryByRole('button')).not.toBeInTheDocument();
   expect(within(acceptedRow).getByText(ACCEPTED_INVITE.acceptedBy!.name)).toBeInTheDocument();
+});
+
+test('the header links to Settings', async () => {
+  mockApi();
+  renderAdminPage();
+  expect(await screen.findByRole('link', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
 });

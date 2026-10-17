@@ -128,3 +128,43 @@ Failure texts are what the red run printed at the red commit. A row marked "chan
 - The account trigger has `aria-label` but no `Tooltip` yet (design section 2 lists one); the Tooltip primitive is ready for whoever wires the top bars.
 - `home-link.tsx` is untouched; G8 deletes it. `BrandLink` imports `HOME_LINK_LABEL` from `features/editor/editor-copy.ts`.
 - Nothing here was seen in a browser. Real Radix pointer, focus and animation behaviour, the contrast numbers and the first-paint theme are untested beyond jsdom.
+
+## G5 members and cursors (developer-5, branch `feat/final-visuals-g5`)
+
+### What changed
+
+- `apps/web/src/features/editor/use-member-cursors.ts`: `useMemberCursors({ superdoc, container })` returns `namesWithCursor` and `jumpTo(member)`; `JumpOutcome` is `Jumped` or `NotFound`. It reads `.v2-collaboration-overlay__remote-caret` elements whose `__remote-label` text equals the member name, follows the overlay with a `MutationObserver`, calls `scrollIntoView({ block: 'center' })` and adds `member-glow` to the `__remote-selection` elements inside the caret's parent for `CURSOR_GLOW_MS`.
+- `members.tsx`: `Members({ members, currentUserId, superdoc, isPastVersion })`. Reason order: past version, self, offline, online without caret, else enabled. Disabled buttons use `aria-disabled` and stay focusable. Above five members: four avatars and a `DropdownMenu` named `moreMembersLabel(rest)` whose disabled items show the reason as secondary text. A `role="status"` region reads `movedToCursorMessage` or `cursorNotFoundMessage`. A failed jump holds the tooltip open with the not-found text for `JUMP_FAILED_NOTICE_MS`.
+- `members-copy.ts` (new, one function `overflowCountLabel` for the visible "+N"); `globals.css` gets `.member-glow` (commit a8a1a2b, the lead keeps one copy with G1).
+- `Members` finds the editor container with `document.querySelector('[data-testid="document-editor"]')` once `superdoc` is non-null, so G2 only passes `superdoc` and `isPastVersion`.
+
+### How to run
+
+```bash
+pnpm --filter @superdoc-collab/web test:unit src/features/editor/use-member-cursors.test.ts
+pnpm --filter @superdoc-collab/web test:unit src/features/editor/members.test.tsx
+```
+
+### Red today, green after
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `use-member-cursors.test.ts` five tests (e222bc2) | `Error: useMemberCursors is not implemented` | hook implemented (394f101) |
+| `members.test.tsx` eight tests (9ccaf5b) | `TestingLibraryElementError: Unable to find role="button" and name "Go to Bruno’s cursor"`, `Unable to find an accessible element with the role "button" and name "Ana, online"`, `...with the role "button" and name "2 more people"` | component rewritten (4bf160a). One assertion in the last test was corrected in the green commit: the tooltip stays open on focus, so it now asserts the not-found text is gone, not the tooltip |
+
+### Hypotheses to attack
+
+1. Hypothesis: a click on an enabled avatar centres the remote caret and the selection glows for 1.2 s, with focus staying on the avatar. Break it by: two browsers, one far down a long document, then the second browser on a virtualized page.
+2. Hypothesis: the enabled state follows carets appearing and leaving. Break it by: the other user clicks in and out of the document, switches tab, or selects text.
+3. Hypothesis: every disabled avatar shows its reason on keyboard focus. Break it by: Tab through the header, a past version, and a user who is offline.
+4. Hypothesis: with six or more members the menu lists the rest with reasons and a jump from the menu works. Break it by: Escape, arrows, and a member whose caret left while the menu was open.
+5. Hypothesis: two members with the same name jump to the first caret found. Break it by: two accounts with identical names.
+
+### Known gaps
+
+- `editor-header.tsx` still calls `Members` without the two new props: typecheck and `editor-header.test.tsx` fail until G2's merge wires `superdoc` and `isPastVersion`.
+- The glow targets every `__remote-selection` inside the caret's parent element. If SuperDoc puts all users' selections in one shared layer, all of them glow; the real DOM needs the browser walk.
+- A failed jump from the "+N" menu is only announced in the status region; the menu has closed, so there is no tooltip.
+- A caret label equal to the member's name is the only link between awareness and the DOM; a name SuperDoc truncates or decorates would read as "not in the document".
+- Nothing here was seen in a browser; Radix tooltip and menu behaviour were exercised in jsdom only.
+- Found on the integration branch: `libs/types/src/constants.ts` declares the two document-ready constants twice; I removed the duplicates only in my worktree, uncommitted.

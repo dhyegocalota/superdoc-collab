@@ -23,7 +23,8 @@ const SLOW_TEXT = 'typed slowly while the paragraph disappears';
 const KEYSTROKE_DELAY_MS = 120;
 const REPLACEMENT_TEXT = 'Bruno starts over.';
 const RECOVERY_TEXT = ' Ana is back.';
-const EDITOR_INPUT = '[data-testid="document-editor"] textarea';
+const PROBE_KEY = 'x';
+const STATUS_PROBE_TIMEOUT_MS = 1_000;
 
 async function twoAuthorsType(browser: Parameters<typeof signedInContext>[0]['browser']) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -81,6 +82,7 @@ test('an edit rejected under a concurrent delete does not stop the editor', asyn
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: ['Paragraph owned by ana.', 'Paragraph owned by bruno.'] });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  const initialLength = (await readEditorText(ana.page)).length;
   await editorText(ana.page).filter({ hasText: 'owned by ana' }).first().click();
   await ana.page.keyboard.press('Home');
   const typing = ana.page.keyboard.type(SLOW_TEXT, { delay: KEYSTROKE_DELAY_MS });
@@ -88,15 +90,17 @@ test('an edit rejected under a concurrent delete does not stop the editor', asyn
   await bruno.page.keyboard.press('ControlOrMeta+a');
   await bruno.page.keyboard.press('Delete');
   await typing;
+  const rejectedStatus = ana.page.getByRole('status').filter({ hasText: EDIT_REJECTED_MESSAGE });
+  await expect(async () => {
+    await ana.page.keyboard.type(PROBE_KEY);
+    await expect(rejectedStatus).toBeVisible({ timeout: STATUS_PROBE_TIMEOUT_MS });
+  }).toPass({ timeout: CONVERGENCE_TIMEOUT_MS });
   await expect(ana.page.getByText(EDITOR_FAILED_MESSAGE)).toHaveCount(0);
-  await expect(ana.page.getByRole('status').filter({ hasText: EDIT_REJECTED_MESSAGE })).toBeVisible();
-  await bruno.page.locator(EDITOR_INPUT).first().focus();
   await bruno.page.keyboard.type(REPLACEMENT_TEXT, { delay: KEYSTROKE_DELAY_MS });
   await expect.poll(() => readEditorText(ana.page), { timeout: CONVERGENCE_TIMEOUT_MS }).toContain(REPLACEMENT_TEXT);
   await editorText(ana.page).filter({ hasText: REPLACEMENT_TEXT }).first().click();
-  await expect(ana.page.getByRole('status').filter({ hasText: EDIT_REJECTED_MESSAGE })).toHaveCount(0);
-  await ana.page.keyboard.press('End');
-  await ana.page.keyboard.type(RECOVERY_TEXT, { delay: KEYSTROKE_DELAY_MS });
+  await expect(rejectedStatus).toHaveCount(0);
+  await typeInParagraph({ page: ana.page, paragraphText: REPLACEMENT_TEXT, text: RECOVERY_TEXT });
   await expect
     .poll(
       async () => {
@@ -107,4 +111,9 @@ test('an edit rejected under a concurrent delete does not stop the editor', asyn
     )
     .toBe(true);
   await expect(ana.page.getByText(EDITOR_FAILED_MESSAGE)).toHaveCount(0);
+  const finalLength = (await readEditorText(ana.page)).length;
+  await expect(async () => {
+    const events = await readEvents({ page: ana.page, documentId });
+    expectEveryCharacterAccounted({ events: events.filter((event) => !event.imported), initialLength, finalLength });
+  }).toPass({ timeout: ATTRIBUTION_TIMEOUT_MS });
 });

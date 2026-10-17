@@ -53,6 +53,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       stopFollowingViewport();
       superdocRef.current = null;
       superdoc.destroy();
+      setHasRejectedEdit(false);
     };
   }, [superdocRef, documentId, roomMode, role, user, file]);
 
@@ -69,7 +70,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface} onPointerDown={clearRejectedEdit}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface} onClick={clearRejectedEdit}>
       {hasFailed && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
       {hasRejectedEdit && (
         <p role="status" className="px-4 py-1 text-xs text-muted-foreground">

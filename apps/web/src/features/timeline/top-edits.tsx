@@ -27,11 +27,15 @@ function calloutStyleOf({ band, maxVolume }: { band: TimelineBand; maxVolume: nu
   } as CSSProperties;
 }
 
-export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
-  const maxVolume = maxBandVolume(timeline);
-  const rows = timeline.bands
+export function bandsByVolume(timeline: DocumentTimeline): TimelineBand[] {
+  return timeline.bands
     .filter((band) => band.volume > 0)
     .sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
+}
+
+export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
+  const maxVolume = maxBandVolume(timeline);
+  const rows = bandsByVolume(timeline);
   if (rows.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">

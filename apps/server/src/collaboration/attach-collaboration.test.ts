@@ -31,6 +31,7 @@ const SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS = 15_000;
 const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
 const ORIGIN = 'http://app.test';
+const FOREIGN_ADDRESS = '203.0.113.9';
 
 function upgradeRequest({ path, origin, cookie }: { path: string; origin: string; cookie: string }): string {
   return [
@@ -240,12 +241,13 @@ describe('attachCollaboration', () => {
     expect(() => socket.emit('error', new Error(RESET_FAILURE))).not.toThrow();
     expect(socket.destroyed).toBe(true);
   });
-  test('an agent path upgrade from a non-loopback address is destroyed', () => {
+
+  test('an agent upgrade from a non-loopback address is refused', () => {
     const httpServer = new EventEmitter();
     attachCollaboration({
       httpServer: httpServer as unknown as Server,
       hocuspocus: {} as Hocuspocus,
-      versionRooms: {} as VersionRooms,
+      versionRooms: {} as unknown as VersionRooms,
       path: ApiPath.Collaboration,
       allowedOrigin: ORIGIN,
     });
@@ -253,7 +255,7 @@ describe('attachCollaboration', () => {
     const destroy = vi.spyOn(socket, 'destroy');
     httpServer.emit(
       'upgrade',
-      { url: ApiPath.AgentCollaboration, headers: {}, socket: { remoteAddress: '203.0.113.9' } },
+      { url: ApiPath.AgentCollaboration, headers: {}, socket: { remoteAddress: FOREIGN_ADDRESS } },
       socket,
       Buffer.alloc(0),
     );

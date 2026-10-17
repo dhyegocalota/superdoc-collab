@@ -1,4 +1,4 @@
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 import { AgentScope, DocumentRole } from '@superdoc-collab/types';
 import { z } from 'zod';
 import type { AgentPerson, AgentToolContext } from './agent-tool-context';
@@ -9,12 +9,16 @@ const UNKNOWN_PERSON_MESSAGE = 'The person behind this connection no longer exis
 export const documentInput = { documentId: z.string().min(1).describe('The document id from list_documents') };
 export const documentTargetSchema = z.object(documentInput);
 
+export const READ_ONLY_ANNOTATIONS: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };
+export const DESTRUCTIVE_ANNOTATIONS: ToolAnnotations = { readOnlyHint: false, destructiveHint: true, openWorldHint: false };
+
 type ToolHandler<Input> = (options: { input: Input; context: AgentToolContext }) => Promise<CallToolResult> | CallToolResult;
 
 export type AgentToolDefinition = {
   scope: AgentScope;
   minimumRole: DocumentRole;
   targetsDocument: boolean;
+  annotations: ToolAnnotations;
   description: string;
   inputSchema: z.ZodObject;
   handle: (options: { input: unknown; context: AgentToolContext }) => Promise<CallToolResult> | CallToolResult;
@@ -23,12 +27,14 @@ export type AgentToolDefinition = {
 export function defineDocumentTool<Shape extends z.ZodRawShape>({
   scope,
   minimumRole,
+  annotations,
   description,
   shape,
   handle,
 }: {
   scope: AgentScope;
   minimumRole: DocumentRole;
+  annotations: ToolAnnotations;
   description: string;
   shape: Shape;
   handle: ToolHandler<z.infer<z.ZodObject<Shape & typeof documentInput>>>;
@@ -38,6 +44,7 @@ export function defineDocumentTool<Shape extends z.ZodRawShape>({
     scope,
     minimumRole,
     targetsDocument: true,
+    annotations,
     description,
     inputSchema,
     handle: ({ input, context }) => handle({ input: inputSchema.parse(input), context }),
@@ -46,10 +53,12 @@ export function defineDocumentTool<Shape extends z.ZodRawShape>({
 
 export function definePersonTool({
   scope,
+  annotations,
   description,
   handle,
 }: {
   scope: AgentScope;
+  annotations: ToolAnnotations;
   description: string;
   handle: ToolHandler<object>;
 }): AgentToolDefinition {
@@ -58,6 +67,7 @@ export function definePersonTool({
     scope,
     minimumRole: DocumentRole.Reader,
     targetsDocument: false,
+    annotations,
     description,
     inputSchema,
     handle: ({ input, context }) => handle({ input: inputSchema.parse(input), context }),

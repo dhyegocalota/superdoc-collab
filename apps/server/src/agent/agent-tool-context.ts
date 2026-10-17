@@ -13,6 +13,7 @@ export type AgentDocumentSessions = {
 };
 export type RecordAgentAction = (action: { documentId: string; userId: string; kind: AgentActionKind }) => void;
 export type AgentToolContext = {
+  appOrigin: string;
   services: AppServices;
   principal: AgentToolPrincipal;
   sessions: AgentDocumentSessions;

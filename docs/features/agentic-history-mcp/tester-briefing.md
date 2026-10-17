@@ -229,7 +229,7 @@ Pins (green when they landed, written after the code because they need the L2 ro
 - Room tokens live five minutes and sessions can live longer; the SDK reconnect inside a long session would present an expired token. A failed call closes the session, so the next call opens with a fresh token. Not exercised.
 - A document that was never opened has its room created by the agent (`roomMode: create` from the stored file), so the bootstrap update is logged with the Agent actor of that person.
 - The embedded SDK host process is spawned at the first open; cold start time and a writable state directory in the Railway container were not measured.
-- `get_share_links` puts the link secrets in the model transcript by design (spec); the reveal is recorded on the timeline.
+- No tool returns a link secret: `get_share_links` returns the document page and an instruction, `rotate_share_link` returns the rotated role and the page. `AgentActionKind.ShareLinkRevealed` is gone end to end.
 - `HttpStatus` has no 405; `mcp-route.ts` declares `METHOD_NOT_ALLOWED_STATUS` locally because `libs/types/src/http.ts` is outside this lane.
 - There is no per-call timeout for a tool call on an open session other than the SDK's own.
 
@@ -356,7 +356,7 @@ Both tests were written after the product code landed, so neither was red first.
 | Test | Pin of |
 |------|--------|
 | an AI client connects, edits in tracked mode and is revoked | OAuth registration and consent, MCP route, tracked edit through the SDK room join, "Ana · AI" card, hatched layer, Connected apps, revoke then 401 |
-| a shared link revealed by the AI leaves a mark | `get_share_links`, `agent_actions`, the timeline mark and its tooltip |
+| a share link rotated by the AI leaves a mark and reveals no link | `rotate_share_link`, `agent_actions`, the timeline mark and its tooltip |
 
 ### Hypotheses to attack
 
@@ -378,6 +378,13 @@ Both tests were written after the product code landed, so neither was red first.
 
 - `edit_document` returns an error result (`isError`) with the receipt reasons and `status` when the receipt is `failed`, `partial` or `aborted` (red f52dcf5).
 - Known SDK behaviour: `insert_paragraphs` has no style argument in the toolkit (`action-descriptors.json` lists `text`, `texts`, `headingLevel`, `placement`, `changeMode`, `evidence`), so paragraphs inserted straight after `insert_heading` can take its style. The `edit_document` description says so. A workaround through `placement` was not tried.
+
+### L3 security review fixes
+
+- Annotations: `readOnlyHint` and `openWorldHint: false` on the read, inspect, export and share-listing tools; `destructiveHint` on `edit_document` and `rotate_share_link`. Checked in `mcp-route.test.ts::tools/list carries a read-only or destructive annotation…`.
+- One active SDK session per person: a second call of the same person queues behind the first and fails busy with `retryAfterSeconds` after the open timeout; calls behind it keep waiting for the real holder.
+- `POST /api/mcp` allows 120 calls per person per minute; the next answers 429 with `Retry-After`.
+- Hypotheses to add: an AI asked to "get the share links" returns the page URL only; two parallel MCP calls from one person run one after the other; 121 calls in a minute from one person get a 429 while another person is served.
 
 ### Merge of main (invite-only access, scenario runs, security gates, time zone preference)
 

@@ -5,7 +5,13 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { AgentToolContext } from './agent-tool-context';
 import { AgentChangeMode } from './agent-change-mode';
-import { defineDocumentTool, personOf, type AgentToolDefinition } from './agent-tool-definition';
+import {
+  DESTRUCTIVE_ANNOTATIONS,
+  defineDocumentTool,
+  personOf,
+  READ_ONLY_ANNOTATIONS,
+  type AgentToolDefinition,
+} from './agent-tool-definition';
 import { AgentToolError, jsonResult, required, type ToolErrorDetails } from './tool-results';
 
 type DocumentTool = AgentTool.InspectDocument | AgentTool.EditDocument | AgentTool.ExportDocx;
@@ -91,6 +97,7 @@ async function exportedBytes({ context, documentId }: { context: AgentToolContex
 
 export const DOCUMENT_TOOLS: Record<DocumentTool, AgentToolDefinition> = {
   [AgentTool.InspectDocument]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.DocumentEdit,
     minimumRole: DocumentRole.Editor,
     description: 'Inspect the live document: its paragraphs, revision and open tracked changes. Use findText to locate text.',
@@ -106,6 +113,7 @@ export const DOCUMENT_TOOLS: Record<DocumentTool, AgentToolDefinition> = {
     },
   }),
   [AgentTool.EditDocument]: defineDocumentTool({
+    annotations: DESTRUCTIVE_ANNOTATIONS,
     scope: AgentScope.DocumentEdit,
     minimumRole: DocumentRole.Editor,
     description:
@@ -123,6 +131,7 @@ export const DOCUMENT_TOOLS: Record<DocumentTool, AgentToolDefinition> = {
     },
   }),
   [AgentTool.ExportDocx]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.DocumentExport,
     minimumRole: DocumentRole.Reader,
     description: 'Export the live document, with its tracked changes, as a DOCX file.',

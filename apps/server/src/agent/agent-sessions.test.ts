@@ -135,8 +135,8 @@ test('a session with a call in flight is never evicted', async () => {
   });
   const inFlight = sessions.run({ person: ANA, documentId: 'busy', work: () => gate });
   await vi.waitFor(() => expect(opened.has('busy')).toBe(true));
-  await sessions.run({ person: ANA, documentId: 'other', work: async () => undefined });
-  await sessions.run({ person: ANA, documentId: 'another', work: async () => undefined });
+  await sessions.run({ person: BRUNO, documentId: 'other', work: async () => undefined });
+  await sessions.run({ person: BRUNO, documentId: 'another', work: async () => undefined });
   expect(opened.get('busy')!.close).not.toHaveBeenCalled();
   release();
   await inFlight;
@@ -297,5 +297,44 @@ test('a call that waits longer than the open timeout for a free room fails busy 
   await sessions.run({ person: ANA, documentId: 'third', work: async () => undefined });
   expect(work).not.toHaveBeenCalled();
   expect(client.open).toHaveBeenCalledTimes(2);
+  await sessions.close();
+});
+
+test('one person has one active session at a time, so parallel calls on two documents queue', async () => {
+  const { client, opened } = openedPerDocument();
+  const sessions = sessionsOn({ client });
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const first = sessions.run({ person: ANA, documentId: 'first', work: () => gate });
+  await vi.waitFor(() => expect(opened.has('first')).toBe(true));
+  const second = sessions.run({ person: ANA, documentId: 'second', work: async () => undefined });
+  const other = await sessions.run({ person: BRUNO, documentId: 'third', work: async () => 'served' });
+  expect(other).toBe('served');
+  expect(opened.has('second')).toBe(false);
+  release();
+  await Promise.all([first, second]);
+  expect(opened.has('second')).toBe(true);
+  await sessions.close();
+});
+
+test('a queued call gives up busy after the open timeout and calls behind it keep waiting for the holder', async () => {
+  const { client, opened } = openedPerDocument();
+  const sessions = sessionsOn({ client, openTimeoutMs: SHORT_MS });
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const holder = sessions.run({ person: ANA, documentId: 'first', work: () => gate });
+  await vi.waitFor(() => expect(opened.has('first')).toBe(true));
+  const work = vi.fn(async () => undefined);
+  const secondOutcome = await sessions.run({ person: ANA, documentId: 'second', work }).catch((error: unknown) => error);
+  const thirdOutcome = await sessions.run({ person: ANA, documentId: 'third', work }).catch((error: unknown) => error);
+  expect([secondOutcome, thirdOutcome].map((outcome) => outcome instanceof AgentSessionBusyError)).toEqual([true, true]);
+  release();
+  await holder;
+  expect(work).not.toHaveBeenCalled();
+  expect(opened.has('second')).toBe(false);
   await sessions.close();
 });

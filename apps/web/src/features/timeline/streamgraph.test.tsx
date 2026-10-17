@@ -348,7 +348,7 @@ test('pin: the tooltip lists the agent author once with the AI suffix', () => {
   expect(tooltip).not.toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} · AI`);
 });
 
-const ACTION_KINDS = [AgentActionKind.ShareLinkRevealed, AgentActionKind.DocumentExported];
+const ACTION_KINDS = [AgentActionKind.ShareLinkRotated, AgentActionKind.DocumentExported];
 const actionTimeline = timelineWith({
   volumes: [
     [100, 20],
@@ -397,7 +397,7 @@ test('focusing a mark shows its tooltip and blurring hides it', () => {
 
 test('a timeline without agent actions renders no marks', () => {
   renderGraph();
-  expect(screen.queryByRole('img', { name: new RegExp(AGENT_ACTION_LABELS[AgentActionKind.ShareLinkRevealed]) })).not.toBeInTheDocument();
+  expect(screen.queryByRole('img', { name: new RegExp(AGENT_ACTION_LABELS[AgentActionKind.ShareLinkRotated]) })).not.toBeInTheDocument();
 });
 
 test('a mark is a focusable image with the tooltip as its description, not a button', () => {

@@ -5,7 +5,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { admin } from 'better-auth/plugins';
 import type { InvitesRepository } from '../admin/invites';
 import type { Environment } from '../config/environment';
-import { createSignUpGate } from './sign-up-gate';
+import { createSignUpGate, SIGN_UP_PATH } from './sign-up-gate';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
@@ -13,7 +13,6 @@ import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
 const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 const SIGN_IN_PATH = '/sign-in/email';
-const SIGN_UP_PATH = '/sign-up/email';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
 
 const credentialSchemas: Record<string, typeof signInSchema> = {

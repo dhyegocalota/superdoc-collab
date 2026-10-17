@@ -1,6 +1,6 @@
 import { DAY_MS, INVITE_TTL_MS, InviteState } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { signedInUser, startTestServer } from '../testing/test-server';
+import { startTestServer } from '../testing/test-server';
 import { InvitesRepository, RevokeOutcome } from './invites';
 
 const NOW = Date.UTC(2026, 9, 17, 12, 0);
@@ -8,9 +8,8 @@ const ONE_SECOND_MS = 1000;
 
 async function repositoryWith(now: () => number) {
   const server = await startTestServer();
-  const creator = await signedInUser({ server, name: 'Creator' });
   const repository = new InvitesRepository({ database: server.database, appOrigin: server.baseUrl, now });
-  return { server, repository, creatorId: creator.id };
+  return { server, repository, creatorId: server.admin.id };
 }
 
 function tokenOf(url: string): string {
@@ -70,6 +69,6 @@ test('list names the creator and the acceptor', async () => {
   const { server, repository, creatorId } = await repositoryWith(() => NOW);
   const invite = repository.create({ createdBy: creatorId });
   repository.accept({ id: invite.id, userId: creatorId });
-  expect(repository.list()[0]).toMatchObject({ createdBy: { name: 'Creator' }, acceptedBy: { name: 'Creator' } });
+  expect(repository.list()[0]).toMatchObject({ createdBy: { name: 'Admin' }, acceptedBy: { name: 'Admin' } });
   await server.stop();
 });

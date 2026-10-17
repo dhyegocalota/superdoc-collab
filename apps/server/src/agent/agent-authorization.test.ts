@@ -1,6 +1,6 @@
 import { AgentScope, ApiPath, HttpStatus } from '@superdoc-history/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { deleteConsent, connectAgentClient } from '../testing/oauth-client';
+import { connectAgentClient, createDpopKey, deleteConsent, dpopProof } from '../testing/oauth-client';
 import { signedInUser, startTestServer, type TestServer, type TestUser } from '../testing/test-server';
 import { authorizeAgentRequest, unauthorizedAgentResponse } from './agent-authorization';
 
@@ -81,6 +81,45 @@ describe('agent authorization', () => {
 
   test('a token without a client is refused', async () => {
     const token = await forgedToken({ client_id: undefined });
+    expect(await authorizeAgentRequest({ auth: server.auth, request: bearerRequest(token) })).toBeNull();
+  });
+
+  test('a lowercase bearer scheme is accepted', async () => {
+    const client = await connectAgentClient({ server, user });
+    const request = new Request('http://localhost/api/mcp', { method: 'POST', headers: { authorization: `bearer ${client.accessToken}` } });
+    expect(await authorizeAgentRequest({ auth: server.auth, request })).toMatchObject({ userId: user.id, clientId: client.clientId });
+  });
+
+  test('a DPoP-bound token sent as a plain bearer is refused', async () => {
+    const client = await connectAgentClient({ server, user });
+    const token = await forgedToken({ client_id: client.clientId, cnf: { jkt: 'thumbprint-of-another-key' } });
+    expect(await authorizeAgentRequest({ auth: server.auth, request: bearerRequest(token) })).toBeNull();
+  });
+
+  test('a DPoP-bound token with a valid proof is accepted and without a proof is refused', async () => {
+    const dpopKey = createDpopKey();
+    const client = await connectAgentClient({ server, user, dpopKey });
+    const url = 'http://localhost/api/mcp';
+    const proof = dpopProof({ key: dpopKey, method: 'POST', url, accessToken: client.accessToken });
+    const proven = new Request(url, { method: 'POST', headers: { authorization: `DPoP ${client.accessToken}`, dpop: proof } });
+    const unproven = new Request(url, { method: 'POST', headers: { authorization: `DPoP ${client.accessToken}` } });
+    const asBearer = bearerRequest(client.accessToken);
+    expect(await authorizeAgentRequest({ auth: server.auth, request: proven })).toMatchObject({
+      userId: user.id,
+      clientId: client.clientId,
+    });
+    expect(await authorizeAgentRequest({ auth: server.auth, request: unproven })).toBeNull();
+    expect(await authorizeAgentRequest({ auth: server.auth, request: asBearer })).toBeNull();
+  });
+
+  test('a signed token that is not an access token type is refused even for a consented client', async () => {
+    const client = await connectAgentClient({ server, user });
+    const token = await forgedToken({ client_id: client.clientId });
+    expect(await authorizeAgentRequest({ auth: server.auth, request: bearerRequest(token) })).toBeNull();
+  });
+
+  test('the session token of a signed-in person is refused', async () => {
+    const { token } = await server.auth.api.getToken({ headers: new Headers({ cookie: user.cookie }) });
     expect(await authorizeAgentRequest({ auth: server.auth, request: bearerRequest(token) })).toBeNull();
   });
 

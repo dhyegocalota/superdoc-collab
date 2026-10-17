@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID, type KeyObject } from 'node:crypto';
 import { AgentScope, ApiPath } from '@superdoc-history/types';
 import type { Auth } from '../auth/auth';
 import type { TestServer, TestUser } from './test-server';
@@ -13,13 +13,57 @@ const CODE_RESPONSE_TYPE = 'code';
 const NO_CLIENT_SECRET = 'none';
 const CHALLENGE_METHOD = 'S256';
 const JSON_CONTENT_TYPE = 'application/json';
+const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
+const POST_METHOD = 'POST';
+const DIGEST = 'sha256';
+const DPOP_HEADER = 'dpop';
+const DPOP_PROOF_TYPE = 'dpop+jwt';
+const DPOP_ALGORITHM = 'ES256';
+const DPOP_CURVE = 'prime256v1';
+const SIGNATURE_ENCODING = 'ieee-p1363';
+const REGISTRATION_ADDRESS_PREFIX = '10.201.0';
+const TOKEN_ADDRESS_PREFIX = '10.202.0';
+const MILLISECONDS_PER_SECOND = 1000;
 
-let nextRegistrationAddress = 0;
+enum OAuthPath {
+  Register = '/oauth2/register',
+  Authorize = '/oauth2/authorize',
+  Consent = '/oauth2/consent',
+  Token = '/oauth2/token',
+  DeleteConsent = '/oauth2/delete-consent',
+}
+
+let nextAddress = 0;
 
 export class OAuthStepFailedError extends Error {
   constructor({ step, status, body }: { step: string; status: number; body: string }) {
     super(`OAuth step ${step} failed with status ${status}: ${body}`);
   }
+}
+
+export type DpopKey = { privateKey: KeyObject; publicJwk: JsonWebKey };
+
+export function createDpopKey(): DpopKey {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: DPOP_CURVE });
+  return { privateKey, publicJwk: publicKey.export({ format: 'jwk' }) };
+}
+
+function encodeSegment(value: object): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+export function dpopProof({ key, method, url, accessToken }: { key: DpopKey; method: string; url: string; accessToken?: string }): string {
+  const header = encodeSegment({ typ: DPOP_PROOF_TYPE, alg: DPOP_ALGORITHM, jwk: key.publicJwk });
+  const accessTokenHash = accessToken ? { ath: createHash(DIGEST).update(accessToken).digest('base64url') } : {};
+  const claims = encodeSegment({
+    htm: method,
+    htu: url,
+    iat: Math.floor(Date.now() / MILLISECONDS_PER_SECOND),
+    jti: randomUUID(),
+    ...accessTokenHash,
+  });
+  const signature = createSign(DIGEST).update(`${header}.${claims}`).sign({ key: key.privateKey, dsaEncoding: SIGNATURE_ENCODING });
+  return `${header}.${claims}.${signature.toString('base64url')}`;
 }
 
 export type ConnectedAgentClient = {
@@ -38,18 +82,19 @@ function authUrl({ server, path }: { server: TestServer; path: string }): string
   return `${server.baseUrl}${ApiPath.Auth}${path}`;
 }
 
-export async function registerAgentClient({ server }: { server: TestServer }): Promise<string> {
+export async function registerAgentClient({ server, dpopBound = false }: { server: TestServer; dpopBound?: boolean }): Promise<string> {
   const response = await requireOk({
     step: 'register',
-    response: await fetch(authUrl({ server, path: '/oauth2/register' }), {
-      method: 'POST',
-      headers: { 'content-type': JSON_CONTENT_TYPE, 'x-forwarded-for': `10.201.0.${nextRegistrationAddress++}` },
+    response: await fetch(authUrl({ server, path: OAuthPath.Register }), {
+      method: POST_METHOD,
+      headers: { 'content-type': JSON_CONTENT_TYPE, 'x-forwarded-for': `${REGISTRATION_ADDRESS_PREFIX}.${nextAddress++}` },
       body: JSON.stringify({
         client_name: CLIENT_NAME,
         redirect_uris: [REDIRECT_URI],
         token_endpoint_auth_method: NO_CLIENT_SECRET,
         grant_types: [AUTHORIZATION_CODE_GRANT, REFRESH_TOKEN_GRANT],
         response_types: [CODE_RESPONSE_TYPE],
+        dpop_bound_access_tokens: dpopBound,
       }),
     }),
   });
@@ -82,7 +127,7 @@ async function requestConsentQuery({
   });
   const response = await requireOk({
     step: 'authorize',
-    response: await fetch(`${authUrl({ server, path: '/oauth2/authorize' })}?${query}`, {
+    response: await fetch(`${authUrl({ server, path: OAuthPath.Authorize })}?${query}`, {
       headers: { cookie: user.cookie, origin: server.baseUrl },
     }),
   });
@@ -103,8 +148,8 @@ export async function approveConsent({
 }): Promise<string> {
   const response = await requireOk({
     step: 'consent',
-    response: await fetch(authUrl({ server, path: '/oauth2/consent' }), {
-      method: 'POST',
+    response: await fetch(authUrl({ server, path: OAuthPath.Consent }), {
+      method: POST_METHOD,
       headers: { 'content-type': JSON_CONTENT_TYPE, cookie: user.cookie, origin: server.baseUrl },
       body: JSON.stringify({ accept, oauth_query: consentQuery }),
     }),
@@ -118,17 +163,23 @@ async function exchangeCode({
   clientId,
   code,
   verifier,
+  dpopKey,
 }: {
   server: TestServer;
   clientId: string;
   code: string;
   verifier: string;
+  dpopKey?: DpopKey;
 }): Promise<string> {
+  const tokenUrl = authUrl({ server, path: OAuthPath.Token });
+  const dpopHeaders: Record<string, string> = dpopKey
+    ? { [DPOP_HEADER]: dpopProof({ key: dpopKey, method: POST_METHOD, url: tokenUrl }) }
+    : {};
   const response = await requireOk({
     step: 'token',
-    response: await fetch(authUrl({ server, path: '/oauth2/token' }), {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': `10.202.0.${nextRegistrationAddress++}` },
+    response: await fetch(tokenUrl, {
+      method: POST_METHOD,
+      headers: { ...dpopHeaders, 'content-type': FORM_CONTENT_TYPE, 'x-forwarded-for': `${TOKEN_ADDRESS_PREFIX}.${nextAddress++}` },
       body: new URLSearchParams({
         grant_type: AUTHORIZATION_CODE_GRANT,
         code,
@@ -154,19 +205,21 @@ export async function connectAgentClient({
   server,
   user,
   scopes = Object.values(AgentScope),
+  dpopKey,
 }: {
   server: TestServer;
   user: TestUser;
   scopes?: AgentScope[];
+  dpopKey?: DpopKey;
 }): Promise<ConnectedAgentClient> {
-  const clientId = await registerAgentClient({ server });
+  const clientId = await registerAgentClient({ server, dpopBound: Boolean(dpopKey) });
   const verifier = randomBytes(CODE_VERIFIER_BYTES).toString('base64url');
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const challenge = createHash(DIGEST).update(verifier).digest('base64url');
   const consentQuery = await requestConsentQuery({ server, user, clientId, scopes, challenge });
   const redirectUri = await approveConsent({ server, user, consentQuery, accept: true });
   const code = new URL(redirectUri).searchParams.get('code');
   if (!code) throw new OAuthStepFailedError({ step: 'code', status: 0, body: redirectUri });
-  const accessToken = await exchangeCode({ server, clientId, code, verifier });
+  const accessToken = await exchangeCode({ server, clientId, code, verifier, dpopKey });
   const consentId = await findConsentId({ auth: server.auth, user, clientId });
   return { accessToken, clientId, consentId, scopes };
 }
@@ -174,8 +227,8 @@ export async function connectAgentClient({
 export async function deleteConsent({ server, user, consentId }: { server: TestServer; user: TestUser; consentId: string }): Promise<void> {
   await requireOk({
     step: 'delete-consent',
-    response: await fetch(authUrl({ server, path: '/oauth2/delete-consent' }), {
-      method: 'POST',
+    response: await fetch(authUrl({ server, path: OAuthPath.DeleteConsent }), {
+      method: POST_METHOD,
       headers: { 'content-type': JSON_CONTENT_TYPE, cookie: user.cookie, origin: server.baseUrl },
       body: JSON.stringify({ id: consentId }),
     }),

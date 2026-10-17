@@ -1,10 +1,10 @@
-import { DAY_MS, SECOND_MS } from '@superdoc-collab/types';
+import { DAY_MS, HOUR_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
 
 const LOCALE = 'en-US';
 const HOURS_PER_DAY = 24;
 const FIRST_MONDAY_EPOCH_DAY = 4;
 const FIRST_MONDAY_LOCAL_MS = FIRST_MONDAY_EPOCH_DAY * DAY_MS;
-const NEXT_BIN_PROBE = 1.5;
+const LONGEST_SHIFT_MS = 2 * HOUR_MS;
 const partsFormats = new Map<string, Intl.DateTimeFormat>();
 
 function partsFormat(timeZone: string): Intl.DateTimeFormat {
@@ -49,20 +49,37 @@ export function offsetAt({ time, timeZone }: { time: number; timeZone: string })
   return localTime - wholeSecond;
 }
 
-function instantOfLocal({ localTime, assumedOffset, timeZone }: { localTime: number; assumedOffset: number; timeZone: string }): number {
-  const guess = localTime - assumedOffset;
-  const actualOffset = offsetAt({ time: guess, timeZone });
-  if (actualOffset === assumedOffset) return guess;
-  return localTime - actualOffset;
+function alignedLocal({ localTime, binMs }: { localTime: number; binMs: number }): number {
+  const anchor = binMs % WEEK_MS === 0 ? FIRST_MONDAY_LOCAL_MS : 0;
+  return Math.floor((localTime - anchor) / binMs) * binMs + anchor;
+}
+
+function firstInstantWithOffset({ offset, from, to, timeZone }: { offset: number; from: number; to: number; timeZone: string }): number {
+  if (to - from <= 1) return to;
+  const middle = Math.floor((from + to) / 2);
+  if (offsetAt({ time: middle, timeZone }) === offset) return firstInstantWithOffset({ offset, from, to: middle, timeZone });
+  return firstInstantWithOffset({ offset, from: middle, to, timeZone });
 }
 
 export function zonedBinStartOf({ time, binMs, timeZone }: { time: number; binMs: number; timeZone: string }): number {
   const offset = offsetAt({ time, timeZone });
-  const localTime = time + offset;
-  const flooredLocal = FIRST_MONDAY_LOCAL_MS + Math.floor((localTime - FIRST_MONDAY_LOCAL_MS) / binMs) * binMs;
-  return instantOfLocal({ localTime: flooredLocal, assumedOffset: offset, timeZone });
+  const flooredLocal = alignedLocal({ localTime: time + offset, binMs });
+  const candidate = flooredLocal - offset;
+  if (offsetAt({ time: candidate, timeZone }) === offset) return candidate;
+  const transition = firstInstantWithOffset({ offset, from: candidate, to: time, timeZone });
+  const offsetBefore = offsetAt({ time: transition - 1, timeZone });
+  if (flooredLocal - offsetBefore >= transition) return transition;
+  return zonedBinStartOf({ time: transition - 1, binMs, timeZone });
+}
+
+function steppedBack({ next, start, binMs, timeZone }: { next: number; start: number; binMs: number; timeZone: string }): number {
+  const previous = zonedBinStartOf({ time: next - 1, binMs, timeZone });
+  if (previous <= start) return next;
+  return steppedBack({ next: previous, start, binMs, timeZone });
 }
 
 export function nextZonedBinStart({ start, binMs, timeZone }: { start: number; binMs: number; timeZone: string }): number {
-  return zonedBinStartOf({ time: start + NEXT_BIN_PROBE * binMs, binMs, timeZone });
+  const probed = zonedBinStartOf({ time: start + binMs, binMs, timeZone });
+  const next = probed > start ? probed : zonedBinStartOf({ time: start + binMs + LONGEST_SHIFT_MS, binMs, timeZone });
+  return steppedBack({ next, start, binMs, timeZone });
 }

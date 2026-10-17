@@ -126,3 +126,8 @@ test.each(ALL_ZONES)('in %s every instant around the autumn change lands inside 
     });
   });
 });
+
+test.each([50, 999])('offsetAt in UTC at the year %i is zero, never shifted by a two digit year mapping', (year) => {
+  const time = new Date(0).setUTCFullYear(year, 5, 1);
+  expect(offsetAt({ time, timeZone: UTC })).toBe(0);
+});

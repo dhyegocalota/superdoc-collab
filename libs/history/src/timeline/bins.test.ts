@@ -1,12 +1,15 @@
 import { DAY_MS, HOUR_MS, MINUTE_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { MAX_BINS, binStartsCovering, buildBins, chooseBinMs } from './bins';
+import { MAX_BINS, NonAdvancingBinError, TooManyBinsError, binStartsCovering, buildBins, chooseBinMs } from './bins';
 import type { EditRun } from './runs';
 import { offsetAt, zonedBinStartOf } from './zoned-time';
 
 const UTC = 'UTC';
 const SAO_PAULO = 'America/Sao_Paulo';
 const LISBON = 'Europe/Lisbon';
+const NEW_YORK = 'America/New_York';
+const CHATHAM = 'Pacific/Chatham';
+const LORD_HOWE = 'Australia/Lord_Howe';
 const KATHMANDU = 'Asia/Kathmandu';
 const KIRITIMATI = 'Pacific/Kiritimati';
 const TEN_OCLOCK = Date.UTC(2026, 9, 16, 10, 0);
@@ -45,7 +48,7 @@ test('three years fall back to a whole number of weeks', () => {
 const BIN_OFFSETS_MS = [0, 5 * SECOND_MS, 59 * SECOND_MS];
 
 const LADDER_SPANS_MS = [30 * SECOND_MS, 30 * MINUTE_MS, 119 * MINUTE_MS, 5 * HOUR_MS, 30 * DAY_MS, 3 * 365 * DAY_MS];
-const COVERING_CASES = [UTC, SAO_PAULO, KATHMANDU, KIRITIMATI].flatMap((timeZone) =>
+const COVERING_CASES = [UTC, SAO_PAULO, LISBON, NEW_YORK, KATHMANDU, KIRITIMATI].flatMap((timeZone) =>
   LADDER_SPANS_MS.map((spanMs) => [timeZone, spanMs] as const),
 );
 
@@ -154,4 +157,35 @@ test('a week timeline in Kiritimati starts every bin on a local Monday', () => {
   expect(binStarts.map((start) => (start + offsetAt({ time: start, timeZone: KIRITIMATI })) % WEEK_MS)).toEqual(
     Array(binStarts.length).fill(4 * DAY_MS),
   );
+});
+
+test('Chatham 2 minute bins cover the fall-back without recursing forever', () => {
+  const binStarts = binStartsCovering({
+    firstTime: Date.UTC(2026, 3, 4, 13, 50),
+    lastTime: Date.UTC(2026, 3, 4, 14, 10),
+    binMs: 2 * MINUTE_MS,
+    timeZone: CHATHAM,
+  });
+  expect(binStarts.every((start, index) => index === 0 || start > binStarts[index - 1])).toBe(true);
+});
+
+test.each([
+  [CHATHAM, Date.UTC(2026, 3, 4, 14, 0), HOUR_MS],
+  [CHATHAM, Date.UTC(2026, 8, 26, 14, 0), HOUR_MS],
+  [CHATHAM, Date.UTC(2026, 8, 26, 14, 0), 2 * MINUTE_MS],
+  [LORD_HOWE, Date.UTC(2026, 9, 3, 15, 40), HOUR_MS],
+])('in %s an edit at %i in a bin of %i ms lands in one of the covering bins', (timeZone, time, binMs) => {
+  const binStarts = binStartsCovering({ firstTime: time - 3 * HOUR_MS, lastTime: time + 3 * HOUR_MS, binMs, timeZone });
+  expect(binStarts).toContain(zonedBinStartOf({ time, binMs, timeZone }));
+});
+
+test('a span that needs more than MAX_BINS bins is refused instead of walked', () => {
+  const firstTime = TEN_OCLOCK;
+  expect(() => binStartsCovering({ firstTime, lastTime: firstTime + 7 * DAY_MS, binMs: MINUTE_MS, timeZone: UTC })).toThrow(
+    TooManyBinsError,
+  );
+});
+
+test('the non advancing bin error names both instants', () => {
+  expect(new NonAdvancingBinError({ start: 5, next: 3 }).message).toContain('3');
 });

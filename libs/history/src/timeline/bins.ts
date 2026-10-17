@@ -6,6 +6,18 @@ import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 export const MAX_BINS = 120;
 const EDGE_BINS = 1;
 const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 1;
+
+export class NonAdvancingBinError extends Error {
+  constructor({ start, next }: { start: number; next: number }) {
+    super(`Bin after ${start} ends at ${next}, which is not after it.`);
+  }
+}
+
+export class TooManyBinsError extends Error {
+  constructor(limit: number) {
+    super(`The span needs more than ${limit} bins.`);
+  }
+}
 const SUB_MINUTE_BINS_MS = [10 * SECOND_MS, 30 * SECOND_MS];
 const BIN_LADDER_MINUTES = [1, 2, 5, 10, 15, 30, 60, 180, 360, 720, 1440];
 export const BIN_LADDER_MS = [...SUB_MINUTE_BINS_MS, ...BIN_LADDER_MINUTES.map((minutes) => minutes * MINUTE_MS), WEEK_MS];

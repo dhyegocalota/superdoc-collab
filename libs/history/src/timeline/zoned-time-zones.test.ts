@@ -29,8 +29,11 @@ const YEAR_END = Date.UTC(2027, 0, 1);
 const LONG_END = Date.UTC(2029, 0, 1);
 const TRANSITION_SCAN_STEP_MS = 15 * MINUTE_MS;
 const TRANSITION_WINDOW_MS = DAY_MS;
-const COARSE_SAMPLE_STEP_MS = 7 * MINUTE_MS + 13 * SECOND_MS;
-const FINE_SAMPLE_STEP_MS = 20 * SECOND_MS + 11;
+const COARSE_SAMPLE_STEP_MS = 53 * MINUTE_MS + 13 * SECOND_MS;
+const DAILY_SAMPLE_STEP_MS = 5 * HOUR_MS + 7 * SECOND_MS;
+const NEAR_TRANSITION_MS = 2 * HOUR_MS;
+const NEAR_TRANSITION_STEP_MS = 29 * SECOND_MS + 11;
+const FINE_SAMPLE_STEP_MS = 41 * SECOND_MS + 11;
 const MONDAY_ANCHOR_MS = 4 * DAY_MS;
 
 function transitionsOf(timeZone: string): number[] {
@@ -63,6 +66,12 @@ function windowsFor({ binMs, timeZone }: { binMs: number; timeZone: string }): [
   return transitionsOf(timeZone).map((transition) => [transition - TRANSITION_WINDOW_MS, transition + TRANSITION_WINDOW_MS]);
 }
 
+function sampleStepFor(binMs: number): number {
+  if (binMs >= DAY_MS) return DAILY_SAMPLE_STEP_MS;
+  if (binMs >= HOUR_MS) return COARSE_SAMPLE_STEP_MS;
+  return FINE_SAMPLE_STEP_MS;
+}
+
 const HARD_CASES = HARD_ZONES.flatMap((timeZone) => HARD_BIN_SIZES_MS.map((binMs) => [timeZone, binMs] as const));
 
 test.each(HARD_CASES)(
@@ -75,8 +84,17 @@ test.each(HARD_CASES)(
         expect(zonedBinStartOf({ time: start, binMs, timeZone })).toBe(start);
         expect(isOnGrid({ start, binMs, timeZone })).toBe(true);
       });
-      const step = binMs >= HOUR_MS ? COARSE_SAMPLE_STEP_MS : FINE_SAMPLE_STEP_MS;
-      const probes = Array.from({ length: Math.floor((to - from) / step) }, (_, index) => from + index * step);
+      const step = sampleStepFor(binMs);
+      const sweep = Array.from({ length: Math.floor((to - from) / step) }, (_, index) => from + index * step);
+      const nearTransitions = transitionsOf(timeZone)
+        .filter((transition) => transition > from && transition < to)
+        .flatMap((transition) =>
+          Array.from(
+            { length: (2 * NEAR_TRANSITION_MS) / NEAR_TRANSITION_STEP_MS },
+            (_, index) => transition - NEAR_TRANSITION_MS + index * NEAR_TRANSITION_STEP_MS,
+          ),
+        );
+      const probes = [...sweep, ...nearTransitions];
       const failures = probes.filter((time) => {
         const start = zonedBinStartOf({ time, binMs, timeZone });
         return !(startSet.has(start) && start <= time && time < nextZonedBinStart({ start, binMs, timeZone }));

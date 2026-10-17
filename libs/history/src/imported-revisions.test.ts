@@ -43,6 +43,9 @@ test.each([
   ['2026-03-01T15:30:00+05:45', Date.UTC(2026, 2, 1, 9, 45)],
   ['2026-03-01T15:30:00', Date.UTC(2026, 2, 1, 15, 30)],
   ['2026-03-01T15:30:00.250', Date.UTC(2026, 2, 1, 15, 30, 0, 250)],
+  ['2026-03-01 15:30:00', Date.UTC(2026, 2, 1, 15, 30)],
+  ['2026-03-01 15:30:00-03:00', Date.UTC(2026, 2, 1, 18, 30)],
+  ['1900-01-01T00:00:00Z', Date.UTC(1900, 0, 1)],
 ])('the revision date %s reads as %i whatever the process zone', (value, expected) => {
   expect(parseRevisionDate({ value, revisionId: 'r1' })).toBe(expected);
 });
@@ -56,3 +59,10 @@ test('a listed change without an offset in its date maps to UTC', () => {
   const [revision] = toImportedRevisions([{ ...INSERTION, date: '2026-03-01T15:30:00' }]);
   expect(revision?.serverTime).toBe(Date.UTC(2026, 2, 1, 15, 30));
 });
+
+test.each(['0001-01-01T00:00:00Z', '0099-06-01T00:00:00', '1899-12-31T23:59:59Z', '+275760-09-13T00:00:00Z', '+010000-01-01T00:00:00Z'])(
+  'the revision date %s is outside the supported years and throws',
+  (value) => {
+    expect(() => parseRevisionDate({ value, revisionId: 'r3' })).toThrow(InvalidRevisionDateError);
+  },
+);

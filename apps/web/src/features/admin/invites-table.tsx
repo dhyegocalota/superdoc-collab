@@ -5,6 +5,7 @@ import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatTimestamp } from '@/lib/format-date-time';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { createInvite, INVITES_QUERY_KEY, revokeInvite } from './admin-api';
 import {
   ACTION_FAILED_MESSAGE,
@@ -36,6 +37,7 @@ function RevokeButton({ invite }: { invite: InviteSummary }) {
 }
 
 function InvitesList({ invites }: { invites: InviteSummary[] }) {
+  const { timeZone } = useTimeZone();
   if (invites.length === 0) return <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">{NO_INVITES_MESSAGE}</p>;
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -51,8 +53,8 @@ function InvitesList({ invites }: { invites: InviteSummary[] }) {
           {invites.map((invite) => (
             <TableRow key={invite.id}>
               <TableCell>{INVITE_STATE_LABELS[invite.state]}</TableCell>
-              <TableCell>{formatTimestamp(invite.createdAt)}</TableCell>
-              <TableCell>{formatTimestamp(invite.expiresAt)}</TableCell>
+              <TableCell>{formatTimestamp({ time: invite.createdAt, timeZone })}</TableCell>
+              <TableCell>{formatTimestamp({ time: invite.expiresAt, timeZone })}</TableCell>
               <TableCell>{invite.createdBy.name}</TableCell>
               <TableCell>{invite.acceptedBy ? invite.acceptedBy.name : NOT_ACCEPTED_LABEL}</TableCell>
               <TableCell>{invite.state === InviteState.Pending && <RevokeButton invite={invite} />}</TableCell>

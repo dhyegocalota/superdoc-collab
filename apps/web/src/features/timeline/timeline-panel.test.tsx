@@ -98,6 +98,8 @@ beforeEach(() => {
   scrollIntoView.mockClear();
 });
 
+vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -346,7 +348,7 @@ test('an editor summarizes the filtered selection, waits on a disabled button an
   const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
   renderPanel({ route: `${ROUTE}?author=ana` });
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?timeZone=UTC&author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
   await waitFor(() =>
     expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
   );
@@ -393,7 +395,7 @@ test('an at outside every bin summarizes the whole selection', async () => {
   const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
   await waitFor(() => expect(button).toBeEnabled());
   await userEvent.click(button);
-  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([SELECTION_PATH]));
+  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC`]));
 });
 
 test('clicking a bin without a version mark summarizes that bin', async () => {
@@ -404,7 +406,7 @@ test('clicking a bin without a version mark summarizes that bin', async () => {
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   await userEvent.click(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
   await waitFor(() =>
-    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
+    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC&at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
   );
   expect(window.location.search).not.toContain('at=');
 });

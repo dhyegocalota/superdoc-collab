@@ -7,6 +7,7 @@ import {
   HttpStatus,
   InviteState,
   UserRole,
+  UTC_TIME_ZONE,
   type AdminUser,
   type CreatedInvite,
   type InviteSummary,
@@ -34,7 +35,7 @@ import {
 } from './admin-copy';
 import { AdminPage } from './admin-page';
 
-const ADMIN_SESSION: SessionUser = { id: 'admin-1', name: 'Ada', email: 'ada@example.com', role: UserRole.Admin, timeZone: 'UTC' };
+const ADMIN_SESSION: SessionUser = { id: 'admin-1', name: 'Ada', email: 'ada@example.com', role: UserRole.Admin, timeZone: UTC_TIME_ZONE };
 const ADMIN_USER: AdminUser = {
   id: 'admin-1',
   name: 'Ada',
@@ -110,7 +111,7 @@ test('lists users with their role and hides the role toggle on the signed-in adm
   expect(within(adminRow).queryByRole('button')).not.toBeInTheDocument();
   expect(within(memberRow).getByText(USER_ROLE_LABELS[UserRole.User])).toBeInTheDocument();
   expect(within(memberRow).getByRole('button', { name: MAKE_ADMIN_LABEL })).toBeInTheDocument();
-  expect(within(memberRow).getByText(formatTimestamp(MEMBER_USER.createdAt))).toBeInTheDocument();
+  expect(within(memberRow).getByText(formatTimestamp({ time: MEMBER_USER.createdAt, timeZone: UTC_TIME_ZONE }))).toBeInTheDocument();
 });
 
 test('generate invite shows the URL in a read-only field, copies it, toasts and refetches the list', async () => {
@@ -178,7 +179,7 @@ test('a pending row reads Pending with a Revoke button, an accepted row reads Ac
   const pendingRow = await rowOf({ table: INVITES_TABLE_LABEL, text: INVITE_STATE_LABELS[InviteState.Pending] });
   const acceptedRow = await rowOf({ table: INVITES_TABLE_LABEL, text: INVITE_STATE_LABELS[InviteState.Accepted] });
   expect(within(pendingRow).getByRole('button', { name: REVOKE_LABEL })).toBeInTheDocument();
-  expect(within(pendingRow).getByText(formatTimestamp(PENDING_INVITE.expiresAt))).toBeInTheDocument();
+  expect(within(pendingRow).getByText(formatTimestamp({ time: PENDING_INVITE.expiresAt, timeZone: UTC_TIME_ZONE }))).toBeInTheDocument();
   expect(within(acceptedRow).queryByRole('button')).not.toBeInTheDocument();
   expect(within(acceptedRow).getByText(ACCEPTED_INVITE.acceptedBy!.name)).toBeInTheDocument();
 });

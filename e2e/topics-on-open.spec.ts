@@ -6,7 +6,7 @@ import { BANDS_TIMEOUT_MS, bandNamed } from './timeline';
 const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
 const HIRING_PARAGRAPH = 'Hiring: we add two people.';
 
-test('topics are named for a document opened right after upload without any refresh', async ({ browser }) => {
+test('topics are named for a document opened right after upload without any click', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });

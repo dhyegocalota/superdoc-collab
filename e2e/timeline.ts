@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Browser, type FrameLocator, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Browser, type FrameLocator, type Locator, type Page, type Response } from '@playwright/test';
 import {
   bandAriaLabel,
   FILTER_LABEL,
@@ -11,6 +11,8 @@ import {
   DEMO_USERS,
   DocumentResource,
   documentApiPath,
+  HttpMethod,
+  selectionSummaryApiPath,
   ShareLinkRole,
   TimelineQueryParam,
   TimelineSearchParam,
@@ -21,7 +23,7 @@ import {
   type VersionMarks,
   type VersionText,
 } from '../libs/types/src';
-import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, uploadSeed } from './editor';
+import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, toolbarRow, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
 
@@ -208,8 +210,15 @@ export function summaryCard(page: Page): Locator {
   return page.getByRole('region', { name: SELECTION_SUMMARY_HEADING });
 }
 
+export function waitForSummarizeResponse({ page, documentId }: { page: Page; documentId: string }): Promise<Response> {
+  const summarizePath = selectionSummaryApiPath(documentId);
+  return page.waitForResponse(
+    (response) => response.request().method() === HttpMethod.Post && new URL(response.url()).pathname === summarizePath,
+  );
+}
+
 export function summarizeButton(page: Page): Locator {
-  return page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL });
+  return toolbarRow(page).getByRole('button', { name: SUMMARIZE_EDITS_LABEL });
 }
 
 async function timelineVolume({ page, documentId }: { page: Page; documentId: string }): Promise<string> {

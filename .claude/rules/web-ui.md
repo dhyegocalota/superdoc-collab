@@ -20,6 +20,11 @@ paths:
 - A sentinel that receives focus is visible while focused (`sr-only focus:not-sr-only`). (superdoc-editor.tsx)
 - A `keydown` inside an iframe never reaches the parent. Forward the intent with a typed `postMessage`, validated by origin and source. (apps/web/src/features/versions/version-view-page.tsx, docs/learnings/2026-10-17-keydown-inside-an-iframe-never-reaches-the-parent.md)
 
+## Theme and panel position
+- The theme applies before the first render: an inline script in `index.html` reads `superdoc-collab.theme` and adds `dark` to `html` before the bundle runs, and `useTheme()` listens to the `storage` event so another tab follows. The script cannot import, so a test pins its key to `THEME_STORAGE_KEY`. (apps/web/index.html, apps/web/src/lib/use-theme.ts, apps/web/src/lib/theme-script.test.ts)
+- The version frame is same-origin: it runs the same inline script and receives the same `storage` event, so it follows the theme with no message. (apps/web/src/features/versions/version-view-page.tsx)
+- The panel position lives under `superdoc-collab.edits-panel` as a `PanelPosition`. Below `LARGE_BREAKPOINT_PX` it is always `Bottom`; with no stored value it follows `WIDE_BREAKPOINT_PX` live; a stored value that is not a `PanelPosition` is removed. (apps/web/src/features/timeline/use-panel-position.ts, apps/web/src/lib/breakpoints.ts)
+
 ## Copy
 - Every string lives in a `*-copy.ts` file or `libs/types`, never inline in JSX. (apps/web/src/lib/app-copy.ts, features/*/…-copy.ts)
 - A message with a verb is a sentence and ends with a period; labels, headings and noun-phrase states ("No edits yet", "Link copied") do not. (refinement-ux-care spec P2-17)
@@ -34,3 +39,8 @@ paths:
 - Inside the same-origin version iframe, `window.matchMedia` measures the frame; pass `window.parent` as the viewport to measure the page. (superdoc-zoom.ts, apps/web/src/features/versions/version-viewer.tsx)
 - `ui: { comments: { layout: 'auto', responsive: { breakpoint } } }` moves the tracked-change and comment cards inline below the breakpoint; the default sidebar layer squeezes the page to a thumbnail at 375 px. (apps/web/src/features/editor/superdoc-options.ts)
 - Comment highlight colours come from `--sd-comment-highlight-internal` and `--sd-comment-highlight-external`. (apps/web/src/styles/globals.css)
+- The toolbar is `ui.toolbar` with a `container`, `responsiveTo: 'container'` and `excludeItems`; the list is declared `satisfies readonly ToolbarItemId[]` so a name SuperDoc does not know fails the typecheck. The container is `inert` while a past version shows, and the Summarize button sits outside it. (apps/web/src/features/editor/superdoc-options.ts, apps/web/src/features/editor/editor-toolbar-row.tsx)
+- The top-bar Find button calls `superdoc.emit('search:open')`, the event the toolbar's search item sends. `ui.search.open()` returns ok and mounts nothing. `ui.search: true` is what makes Cmd+F and Ctrl+F work. (apps/web/src/features/editor/find-button.tsx)
+- The print view is a non-collaborative viewing-mode SuperDoc with `layoutEngineOptions.virtualization.enabled: false`. Virtualization off still paints only the pages near the viewport, so its container is sized to the `.superdoc-page` count times 1056 px, and `window.print()` runs only after the last page has text, found with a bounded `requestAnimationFrame` loop, never a timer. (apps/web/src/features/versions/print-view.tsx, docs/features/final-visuals/spec.md)
+- `user.color` must be a six-digit hex: hsl, rgb and named colours are stored but the remote-caret overlay replaces them with a palette colour. The `--author-N` tokens are therefore declared as hex and read with `getComputedStyle`. (apps/web/src/features/editor/superdoc-editor.tsx, apps/web/src/styles/globals.css)
+- Awareness carries only user fields, no cursor and no block id, and `scrollToElement` returns false for every id. A jump to a member finds the `.v2-collaboration-overlay__remote-caret` whose label carries the name and calls `scrollIntoView`; no caret element means online but not in the document. (apps/web/src/features/editor/use-member-cursors.ts)

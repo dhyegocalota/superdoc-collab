@@ -2,6 +2,7 @@ import { toStackRows, type StackRow } from '@superdoc-history/history/timeline';
 import type { DocumentTimeline, TimelineBand } from '@superdoc-history/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
 import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series, type SeriesPoint } from 'd3-shape';
+import { maxBandVolume } from './max-band-volume';
 
 export const CHART_HEIGHT = 240;
 export const MIN_LABEL_HEIGHT = 16;
@@ -101,7 +102,7 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     .y0((point) => y(point[0]))
     .y1((point) => y(point[1]))
     .curve(curveBasis);
-  const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
+  const maxVolume = maxBandVolume(timeline);
   const placed: LabelBox[] = [];
   const shapes = [...series]
     .sort((left, right) => bandOf({ timeline, id: right.key }).volume - bandOf({ timeline, id: left.key }).volume)

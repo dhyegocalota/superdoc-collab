@@ -1,6 +1,7 @@
 import { versionViewPagePath, type EditRunView, type VersionSummary } from '@superdoc-history/types';
 import { useEffect, useRef, useState } from 'react';
 import { VERSION_FRAME_TITLE } from '@/features/timeline/timeline-copy';
+import { useWindowMessage } from '@/lib/use-window-message';
 import { cn } from '@/lib/utils';
 import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
 
@@ -31,31 +32,31 @@ type VersionFrameProps = {
 export function VersionFrame({ documentId, version, requestedSequence, runs, onFailed, onExit }: VersionFrameProps) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const elements = useRef(new Map<number, HTMLIFrameElement>());
-  const onFailedRef = useRef(onFailed);
-  const onExitRef = useRef(onExit);
   const isRequestedReady = frames.some((frame) => frame.isReady && frame.version.sequence === requestedSequence);
 
   useEffect(() => {
     setFrames((current) => framesAfterShowing({ frames: current, version }));
   }, [version]);
 
-  useEffect(() => {
-    onFailedRef.current = onFailed;
-    onExitRef.current = onExit;
-  }, [onFailed, onExit]);
+  useWindowMessage((event) => {
+    elements.current.forEach((element, sequence) => {
+      const message = readViewerMessage({ event, expectedSource: element.contentWindow });
+      if (message === null) return;
+      if (message.kind === ViewerMessageKind.Ready) setFrames((current) => framesAfterReady({ frames: current, sequence }));
+      if (message.kind === ViewerMessageKind.Failed) onFailed(sequence);
+      if (message.kind === ViewerMessageKind.Exit) onExit();
+    });
+  });
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent): void {
-      elements.current.forEach((element, sequence) => {
-        const message = readViewerMessage({ event, expectedSource: element.contentWindow });
-        if (message?.kind === ViewerMessageKind.Ready) setFrames((current) => framesAfterReady({ frames: current, sequence }));
-        if (message?.kind === ViewerMessageKind.Failed) onFailedRef.current(sequence);
-        if (message?.kind === ViewerMessageKind.Exit) onExitRef.current();
-      });
-    }
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  function registerFrame(sequence: number): (element: HTMLIFrameElement | null) => void {
+    return function setFrameElement(element: HTMLIFrameElement | null): void {
+      if (!element) {
+        elements.current.delete(sequence);
+        return;
+      }
+      elements.current.set(sequence, element);
+    };
+  }
 
   useEffect(() => {
     if (!isRequestedReady || requestedSequence === null) return;
@@ -71,13 +72,7 @@ export function VersionFrame({ documentId, version, requestedSequence, runs, onF
   return frames.map((frame) => (
     <iframe
       key={frame.version.sequence}
-      ref={(element) => {
-        if (!element) {
-          elements.current.delete(frame.version.sequence);
-          return;
-        }
-        elements.current.set(frame.version.sequence, element);
-      }}
+      ref={registerFrame(frame.version.sequence)}
       title={VERSION_FRAME_TITLE}
       src={versionViewPagePath({ documentId, sequence: frame.version.sequence })}
       aria-hidden={!frame.isReady}

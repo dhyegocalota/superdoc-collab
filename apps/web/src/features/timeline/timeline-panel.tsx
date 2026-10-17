@@ -1,6 +1,6 @@
 import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useEffect, useId, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ import {
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useElementWidth } from '@/lib/use-element-width';
+import { useBinSelection } from './use-bin-selection';
 import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP, usePanelWidth } from './use-panel-width';
 import { useSelectionSummary, useSummarizeEdits } from './use-selection-summary';
 import { useRefreshTopics } from './use-topics';
@@ -94,18 +95,13 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const { ref: chartRef, width: chartWidth } = useElementWidth();
   const { width, maxWidth, resizeTo, resizeBy } = usePanelWidth();
   const { search } = useTimelineSearch();
-  const [selectedTime, setSelectedTime] = useState<number | null>(search.at);
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen });
+  const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({ timeline, at: search.at, onTravel, onBackToLive });
   const { data: summaries } = useSummaries({ documentId, isOpen });
   const refresh = useRefreshTopics(documentId);
   const canRefresh = role !== DocumentRole.Reader;
   const ToggleIcon = isOpen ? PanelRightClose : PanelRightOpen;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
-  const selectedIndex =
-    timeline && selectedTime !== null
-      ? timeline.bins.findIndex((bin) => selectedTime >= bin.start && selectedTime < bin.start + timeline.binMs)
-      : -1;
-  const selectedBin = timeline && selectedIndex >= 0 ? timeline.bins[selectedIndex] : undefined;
   const selection: EditSelection = {
     term: search.filter.term,
     author: search.filter.author,
@@ -128,21 +124,6 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const regroupReasonId = useId();
   const regroupReason = regroupDisabledReason({ timeline, isPending: refresh.isPending });
   const summaryError = errorForSelection({ error: summarize.error, variables: summarize.variables, selection });
-
-  useEffect(() => {
-    setSelectedTime(search.at);
-  }, [search.at]);
-
-  function selectIndex(index: number): void {
-    const bin = timeline!.bins[index]!;
-    setSelectedTime(bin.start);
-    if (bin.versionSequence !== null) onTravel(bin.start);
-  }
-
-  function clearSelection(): void {
-    setSelectedTime(null);
-    onBackToLive();
-  }
 
   return (
     <aside
@@ -209,7 +190,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
                 <Streamgraph
                   timeline={timeline}
                   width={chartWidth}
-                  selectedIndex={selectedBin ? selectedIndex : null}
+                  selectedIndex={selectedIndex}
                   highlightedBandId={search.topic}
                   onSelectIndex={selectIndex}
                   onClearSelection={clearSelection}

@@ -5,8 +5,10 @@ const WORKFLOW_FILE = '.github/workflows/verify.yml';
 const JOB_LINE_PATTERN = /^ {2}[\w-]+:$/;
 const JOB_INDENT_LENGTH = 2;
 const NEXT_JOB_PATTERN = /\n {2}\S[^\n]*:\n/;
-const EXPECTED_JOBS = ['typecheck', 'unit', 'e2e', 'docker'];
-const NODE_JOBS = ['typecheck', 'unit', 'e2e'];
+const EXPECTED_JOBS = ['checks', 'unit', 'e2e', 'docker'];
+const NODE_JOBS = ['checks', 'unit', 'e2e'];
+const CHECKS_JOB = 'checks';
+const CHECKS_STEPS = ['run: pnpm format:check', 'run: pnpm typecheck', 'run: pnpm test:hooks'];
 const DOCKER_JOB = 'docker';
 const UNIT_JOB = 'unit';
 const END_TO_END_JOB = 'e2e';
@@ -119,8 +121,13 @@ describe('CI workflow', () => {
     expect(workflow.indexOf(WORKFLOW_PERMISSIONS)).toBeLessThan(workflow.indexOf(JOBS_START));
   });
 
-  test('the workflow runs exactly the typecheck, unit, e2e and docker jobs', () => {
+  test('the workflow runs exactly the checks, unit, e2e and docker jobs', () => {
     expect(jobNames()).toEqual(EXPECTED_JOBS);
+  });
+
+  test('the checks job checks the formatting, typechecks and tests the hooks', () => {
+    const checks = job(CHECKS_JOB);
+    expect(CHECKS_STEPS.filter((step) => !checks.includes(step))).toEqual([]);
   });
 
   test('no job waits for another job', () => {

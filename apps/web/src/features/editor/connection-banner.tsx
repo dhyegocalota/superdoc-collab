@@ -12,14 +12,14 @@ import {
   RELOAD_LABEL,
   RELOADING_LABEL,
   SIGN_IN_LABEL,
-  UNSYNCED_LOST_ON_RELOAD_DETAIL,
+  unsyncedDetailFor,
 } from './connection-copy';
 
 type ConnectionBannerProps = {
   state: ConnectionState;
   failureReason: ConnectionFailureReason | null;
   isReloading: boolean;
-  onReload: () => void;
+  onAction: () => void;
 };
 
 enum BannerRole {
@@ -73,10 +73,11 @@ const PRESENTATION: Record<BannerState, Presentation> = {
   },
 };
 
-export function ConnectionBanner({ state, failureReason, isReloading, onReload }: ConnectionBannerProps) {
+export function ConnectionBanner({ state, failureReason, isReloading, onAction }: ConnectionBannerProps) {
   if (state === ConnectionState.Online) return null;
-  const { role, toneClassName, Icon, iconClassName, title, detail } = PRESENTATION[state];
+  const { role, toneClassName, Icon, iconClassName, title, detail: stateDetail } = PRESENTATION[state];
   const isFailed = state === ConnectionState.Failed;
+  const detail = isFailed && failureReason ? unsyncedDetailFor(failureReason) : stateDetail;
   const actionLabel = failureReason === ConnectionFailureReason.SessionEnded ? SIGN_IN_LABEL : RELOAD_LABEL;
   const reasonLine = isFailed && failureReason ? FAILURE_REASON_COPY[failureReason] : null;
   const body = [reasonLine, detail].filter((line) => line !== null).join(' ');
@@ -93,7 +94,7 @@ export function ConnectionBanner({ state, failureReason, isReloading, onReload }
         {body && <p className="text-sm leading-5 text-muted-foreground">{body}</p>}
       </div>
       {isFailed && (
-        <Button type="button" variant="outline" size="sm" className="ml-auto" disabled={isReloading} onClick={onReload}>
+        <Button type="button" variant="outline" size="sm" className="ml-auto" disabled={isReloading} onClick={onAction}>
           {isReloading ? RELOADING_LABEL : actionLabel}
         </Button>
       )}

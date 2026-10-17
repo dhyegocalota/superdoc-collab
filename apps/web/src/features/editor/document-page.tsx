@@ -119,7 +119,7 @@ export function DocumentPage() {
         state={connectionState}
         failureReason={failureReason}
         isReloading={isReloading}
-        onReload={isSessionEndedFailure ? signInAgain : reload}
+        onAction={isSessionEndedFailure ? signInAgain : reload}
       />
       {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">

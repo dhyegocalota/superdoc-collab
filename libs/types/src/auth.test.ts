@@ -82,7 +82,7 @@ describe('signUpSchema', () => {
     expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
   });
   test.each(['Li Ai', 'Tanaka Ai', 'Wang Al'])('accepts the real name "%s" that only ends in a space and two letters', (name) => {
-    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }).success).toBe(true);
+    expect(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success).toBe(true);
   });
   test('accepts a name that merely contains AI', () => {
     expect(

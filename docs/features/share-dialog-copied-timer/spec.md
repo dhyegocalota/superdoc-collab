@@ -1,6 +1,6 @@
 # Share dialog copied timer
 
-**Status:** Building
+**Status:** Shipped 2026-10-17
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-17
 **Not changing:** `share-dialog.tsx`, the notice period, any other test

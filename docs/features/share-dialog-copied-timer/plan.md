@@ -8,7 +8,7 @@
 
 - [x] **Step 1:** reproduce deterministically: real lag after the second copy fails the original (2.5 s lag: 5 of 5 red).
 - [x] **Step 2:** rewrite the test on a clock that only the test moves (test 'copying again keeps Link copied for a full period from the second copy').
-- [ ] **Step 3:** ten runs of the file (10 of 10 green), the web unit suite (431 passed), `pnpm verify` by the lead.
+- [x] **Step 3:** ten runs of the file (10 of 10 green), the web unit suite (431 passed), `pnpm verify` by the lead. — evidence: the local gate at 843e220, 8 gates green (web unit 9 s, E2E 124 s)
 
 ## Failure modes
 

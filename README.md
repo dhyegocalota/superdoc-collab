@@ -20,6 +20,21 @@ The demo accounts' password comes with the delivery message. Every slice, its sp
 7. Click a moment on the chart to read the document as it was then; **Back to live** returns.
 8. **Summarize edits** writes one to three sentences about exactly the edits the panel shows.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Ana and Bruno editing the same document live](docs/media/readme/01-two-authors-editing.png) | ![The timeline panel beside the editor, one band per topic](docs/media/readme/02-timeline-topic-bands.png) |
+| Ana and Bruno edit the same document live, each seeing the other's cursor | The timeline panel: one band per topic, named by the model |
+| ![Top edits per topic](docs/media/readme/03-top-edits.png) | ![Filtering with @bruno](docs/media/readme/04-filter-by-author.png) |
+| Top edits: topic, word delta, contributors and one sentence about what changed | `@bruno` narrows the chart, the list and the highlights to one person |
+| ![Time travel: the document at an earlier moment](docs/media/readme/05-time-travel.png) | ![The summary card for the current selection](docs/media/readme/06-summary-card.png) |
+| Time travel: the document as it was at that moment, its edits highlighted, with Back to live | Summarize edits: one to three sentences about exactly the selection on screen |
+| ![A reader sees the summary card but no Summarize button](docs/media/readme/07-reader-view.png) | ![The editor and panel at 375 px](docs/media/readme/08-narrow-375.png) |
+| A reader joined through the read-only link sees the summary but cannot type or summarize | At 375 px the panel stacks under the editor |
+
+Each pull request also carries a video walk recorded with Playwright MCP, for example the [LLM insights walkthrough](https://github.com/dhyegocalota/superdoc-take-home/releases/download/pr-media-llm-insights/walkthrough.mp4); the full sets are embedded in the pull requests listed in the [roadmap](docs/features/README.md#roadmap).
+
 ## Features
 
 - **Documents.** Upload a `.docx` (up to 10 MB) or create a blank document; the list shows "Mine" and "Shared with me" with the owner, the last update and your role. Rename, download and delete from the editor header (delete is owner only).

@@ -273,3 +273,20 @@ test('a click after arrow keys hands the tooltip back to the pointer', () => {
   fireEvent.pointerLeave(chart);
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });
+
+test.each([
+  { key: 'ArrowRight', expected: 0 },
+  { key: 'ArrowLeft', expected: 2 },
+  { key: 'Home', expected: 0 },
+  { key: 'End', expected: 2 },
+])('$key without a selection selects bin $expected', ({ key, expected }) => {
+  const { onSelectIndex } = renderGraph({ selectedIndex: null });
+  fireEvent.keyDown(screen.getByLabelText('Budget, 340 characters'), { key });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(expected);
+});
+
+test('another key selects nothing', () => {
+  const { onSelectIndex } = renderGraph({ selectedIndex: 1 });
+  fireEvent.keyDown(screen.getByLabelText('Budget, 340 characters'), { key: 'a' });
+  expect(onSelectIndex).not.toHaveBeenCalled();
+});

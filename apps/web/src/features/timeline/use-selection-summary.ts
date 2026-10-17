@@ -1,19 +1,13 @@
-import { SECOND_MS, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
-import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import {
-  fetchSelectionSummary,
-  requestSelectionSummary,
-  selectionSummaryQueryKey,
-  SummaryTooSoonError,
-  TIMELINE_POLL_MS,
-} from './timeline-api';
+import { pollWhileAvailable } from '@/lib/api';
+import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
+import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
 function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
-  if (query.state.error instanceof DocumentUnavailableError) return false;
-  if (query.state.data?.state === SelectionSummaryState.Running) return TIMELINE_POLL_MS;
-  return false;
+  if (query.state.data?.state !== SelectionSummaryState.Running) return false;
+  return pollWhileAvailable(TIMELINE_POLL_MS)(query);
 }
 
 export function useSelectionSummary({
@@ -66,11 +60,7 @@ export function useSummarizeEdits({
   });
   const { error, reset } = mutation;
 
-  useEffect(() => {
-    if (!(error instanceof SummaryTooSoonError)) return;
-    const timer = setTimeout(reset, error.retryAfterSeconds * SECOND_MS);
-    return () => clearTimeout(timer);
-  }, [error, reset]);
+  useResetAfterRetry({ error, reset });
 
   return mutation;
 }

@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, type InitialEntry } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { apiGet } from '@/lib/api';
+import { jsonResponse } from '@/testing/json-response';
 import { authClient } from './auth-client';
 import { SIGN_OUT_LABEL } from './auth-copy';
 import { RedirectIfSession } from './redirect-if-session';
@@ -13,7 +14,7 @@ import { SignOutButton } from './sign-out-button';
 import { SIGNED_OUT_STATE } from './sign-out-state';
 import { SESSION_QUERY_KEY } from './use-session';
 
-vi.mock('@/lib/api', () => ({ apiGet: vi.fn() }));
+vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
@@ -23,7 +24,7 @@ let isSignedIn = true;
 
 beforeEach(() => {
   isSignedIn = true;
-  vi.mocked(apiGet).mockImplementation(async () => new Response(JSON.stringify({ user: isSignedIn ? ADA : null })));
+  vi.mocked(apiGet).mockImplementation(async () => jsonResponse({ body: { user: isSignedIn ? ADA : null } }));
   vi.mocked(authClient.signOut).mockImplementation(async () => {
     isSignedIn = false;
     return {} as Awaited<ReturnType<typeof authClient.signOut>>;

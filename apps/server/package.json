@@ -32,7 +32,7 @@
     "@better-auth/cli": "1.4.21",
     "@hocuspocus/provider": "2.15.3",
     "@types/better-sqlite3": "9.6.0",
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.5",
     "@types/ws": "8.18.2",
     "drizzle-kit": "0.31.11",
     "jszip": "3.10.2",

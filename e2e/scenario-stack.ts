@@ -1,14 +1,13 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
-import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  assertPortFree,
   BUILD_AND_START_COMMAND,
   FAKE_OPENROUTER_COMMAND,
   FAKE_OPENROUTER_HEALTH_PATH,
   localOrigin,
-  LOOPBACK_HOST,
   SERVER_HEALTH_PATH,
   stackEnvironment,
 } from './stack';
@@ -19,26 +18,11 @@ const HEALTH_POLL_INTERVAL_MS = 500;
 const STACK_START_TIMEOUT_MS = 300_000;
 const DATABASE_DIRECTORY_PREFIX = 'superdoc-collab-scenario-';
 const STOP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
-const CONNECTION_REFUSED = 'ECONNREFUSED';
 const NO_SUCH_PROCESS = 'ESRCH';
 
 const origin = localOrigin(SCENARIO_PORT);
 const fakeOpenRouterOrigin = localOrigin(SCENARIO_FAKE_OPENROUTER_PORT);
 const children: ChildProcess[] = [];
-
-function assertPortFree(port: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const probe = connect({ host: LOOPBACK_HOST, port });
-    probe.once('connect', () => {
-      probe.destroy();
-      reject(new Error(`Port ${port} is busy; stop the process that holds it before starting a scenario stack`));
-    });
-    probe.once('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === CONNECTION_REFUSED) return resolve();
-      reject(error);
-    });
-  });
-}
 
 function start({ command, environment }: { command: string; environment: Record<string, string> }): ChildProcess {
   const child = spawn(command, { shell: true, detached: true, stdio: 'inherit', env: { ...process.env, ...environment } });

@@ -1,6 +1,6 @@
 import { ReadModel } from '@superdoc-history/history';
 import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
-import { BlockChangeKind, DocumentResource, HttpStatus, DocumentRole, RETRY_AFTER_HEADER, documentApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
+import { BlockChangeKind, DocumentResource, HttpStatus, DocumentRole, HttpMethod, RETRY_AFTER_HEADER, documentApiPath, selectionSummaryApiPath, versionApiPath, type DocumentTimeline, type DocumentTopics, type SelectionSummaryView, type TopicSummaries, type VersionSummary } from '@superdoc-history/types';
 import { expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
@@ -24,8 +24,8 @@ export async function readTimeline({ server, documentId, cookie, query = '' }: {
   return response.json();
 }
 
-export async function twoAuthorsInTwoBlocks(): Promise<{ server: TestServer; documentId: string; owner: TestUser; editor: TestUser }> {
-  const { server, documentId, owner } = await documentWithOwner();
+export async function twoAuthorsInTwoBlocks({ languageModel }: { languageModel?: LanguageModelChoice } = {}): Promise<{ server: TestServer; documentId: string; owner: TestUser; editor: TestUser }> {
+  const { server, documentId, owner } = await documentWithOwner({ languageModel });
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
   const openClients: { close: () => void }[] = [ownerClient];
@@ -73,6 +73,16 @@ export async function readTopics({ server, documentId, cookie }: { server: TestS
   const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Topics })}`, { headers: { cookie } });
   expect(response.ok).toBe(true);
   return response.json();
+}
+
+export async function readSelectionSummary({ server, documentId, cookie, query = '' }: { server: TestServer; documentId: string; cookie: string; query?: string }): Promise<SelectionSummaryView> {
+  const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${query}`, { headers: { cookie } });
+  expect(response.ok).toBe(true);
+  return response.json();
+}
+
+export function postSelectionSummary({ server, documentId, cookie, query = '' }: { server: TestServer; documentId: string; cookie: string; query?: string }): Promise<Response> {
+  return fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${query}`, { method: HttpMethod.Post, headers: { cookie, origin: server.baseUrl } });
 }
 
 export async function readSummaries({ server, documentId, cookie }: { server: TestServer; documentId: string; cookie: string }): Promise<TopicSummaries> {

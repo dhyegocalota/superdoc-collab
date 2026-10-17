@@ -10,7 +10,7 @@ Lane D of the 2026-10-17 refinement. It lands after lane B (structure), so every
 
 ## Problem
 
-A read-only audit of the 738 tracked tests (audit-tests, 2026-10-17) found tests that pay CI time without guarding anything a sibling does not already guard:
+A read-only audit of the 742 tracked tests (audit-tests, 2026-10-17) found tests that pay CI time without guarding anything a sibling does not already guard:
 
 - Twenty repository-prose tests grep the README, the runbook, the test plan and the CI YAML for wording. Each was the red half of its own docs commit and none caught a later break.
 - Service tests duplicate their route twins one for one, and route tests duplicate the pure library tests underneath them. Every server test starts a real server (4 to 6 s in CI).
@@ -21,7 +21,7 @@ A read-only audit of the 738 tracked tests (audit-tests, 2026-10-17) found tests
 
 ## Goals
 
-1. Remove 84 tracked tests (from 738 to 654) with no loss of guarded behaviour: every removed test is either dropped for a stated reason or folded into a named surviving test that carries its assertion.
+1. Remove 84 tracked tests (from 742 to 658) with no loss of guarded behaviour: every removed test is either dropped for a stated reason or folded into a named surviving test that carries its assertion.
 2. Rewrite 9 tests so they assert behaviour through roles, ARIA, data attributes or outcomes instead of class strings, constants or real multi-second waits.
 3. Delete `libs/history/src/{edit-windows,single-flight}.ts` with their tests and record it in ADR 0001.
 4. Cut roughly 2.5 minutes from each CI run (E2E alone from about 9.6 to about 7 minutes).
@@ -31,9 +31,9 @@ A read-only audit of the 738 tracked tests (audit-tests, 2026-10-17) found tests
 | libs/types | 13 | 7 | 6 |
 | libs/history | 80 | 72 | 8 |
 | apps/server | 383 passed + 2 skipped | 336 passed + 2 skipped | 47 |
-| apps/web | 214 | 201 | 13 |
+| apps/web | 218 | 205 | 13 |
 | E2E (Playwright) | 48 | 38 | 10 |
-| **Total** | **738** | **654** | **84** |
+| **Total** | **742** | **658** | **84** |
 
 Counts are runtime tests (`test.each` rows expanded), as Vitest and `playwright test --list` report them. The two skipped server tests are the OpenRouter smoke tests and stay skipped without a key.
 
@@ -78,7 +78,7 @@ Counts are runtime tests (`test.each` rows expanded), as Vitest and `playwright 
 - REWRITE versions-routes "every version served equals a full replay at its mark": eight minutes of marks become three; same assertions.
 - REWRITE version-rooms "stop clears its timeout when destroying a room fails": from pairing `setTimeout`/`clearTimeout` spy calls to the outcome "after the rejected stop no timer is left" (`vi.getTimerCount()` is 0 under fake timers).
 
-**apps/web** (214 → 201)
+**apps/web** (218 → 205)
 - DROP highlight-edits "the comment and match APIs keep the shape the highlighter relies on": a runtime no-op `expectTypeOf`; `highlight-edits.ts` calls those APIs, so `pnpm typecheck` already fails on a shape change.
 - DROP the three timeline-api "a %s selection summary is returned as the server sent it" rows: they pass for any body; "reading a selection summary sends every part of the selection" already checks the round trip.
 - DROP versions/time-travel "below the wide layout the editor keeps a usable height and the panel stacks under it": asserts Tailwind class strings; the E2E "narrow viewport stacks the panel" measures the real layout.

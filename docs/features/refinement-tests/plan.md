@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove 84 tracked tests and rewrite 9 so the suites guard the same behaviour in less CI time (738 → 654 tests).
+**Goal:** Remove 84 tracked tests and rewrite 9 so the suites guard the same behaviour in less CI time (742 → 658 tests).
 
 **Architecture:** Four tasks, one per package (libs, server unit, web unit, E2E). Each removed test is dropped for a stated reason or folded into a named surviving test that carries its assertion. Each task ends with its suite green at an exact count, then one commit.
 
@@ -586,7 +586,7 @@ git commit -m "test(server): fold service and library copies into their route tw
 - Consumes: nothing from other tasks.
 - Produces: `data-faded="true" | "false"` on every streamgraph band `<path>`.
 
-**Counts:** 214 → 201.
+**Counts:** 218 → 205 (the plan was written against a 214 baseline; PR #8 had added four web tests).
 
 | File | Removed |
 |---|---|
@@ -599,7 +599,7 @@ git commit -m "test(server): fold service and library copies into their route tw
 - [ ] **Step 1: Record the before count**
 
 Run: `pnpm --filter @superdoc-history/web test:unit`
-Expected: `Tests  214 passed (214)`.
+Expected: `Tests  218 passed (218)`.
 
 - [ ] **Step 2: Write the failing fading test**
 

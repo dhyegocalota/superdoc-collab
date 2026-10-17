@@ -130,7 +130,16 @@ expect_line "a README typo" "$output" gates "$DOCS_GATES"
 expect_line "a README typo" "$output" packages -
 
 classify docs/install.md
-expect_line "docs/install.md" "$output" class docs
+expect_line "docs/install.md" "$output" class tooling
+
+classify docs/agent-install.md
+expect_line "docs/agent-install.md" "$output" class tooling
+
+classify docs/scenarios/x.md
+expect_line "a scenario" "$output" class tooling
+
+classify docs/adr/0001-x.md
+expect_line "an ADR" "$output" class docs
 
 classify apps/web/README.md
 expect_line "a package README" "$output" class docs
@@ -210,7 +219,7 @@ commit_change pnpm-lock.yaml
 STUB_DOCKER_DOWN=1
 run_verify
 expect_equal "the lockfile without Docker exits 0" "$status" 0
-expect_match "the lockfile without Docker skips the image" "$output" 'verify: docker skipped: Docker is not running; the image is proven only when docker/ or deploy/ change'
+expect_match "the lockfile without Docker skips the image" "$output" 'verify: docker skipped: Docker is not running; the image is proven only when its own files change \(docker/, deploy/, \.dockerignore, railway\.json, compose files\)'
 expect_equal "the lockfile without Docker writes a record" "$(record_count)" 1
 
 new_repository
@@ -375,6 +384,22 @@ rm "$stub_bin/gitleaks"
 run_verify
 expect_equal "only a planted gitleaks exits 1" "$status" 1
 expect_match "only a planted gitleaks counts as missing" "$output" 'verify: secrets failed: gitleaks is not installed'
+
+new_repository
+commit_change apps/web/vite.config.ts
+in_repository config remote.origin.fetch '+refs/heads/none:refs/remotes/origin/none'
+in_repository update-ref refs/remotes/origin/main HEAD
+run_verify --plan
+expect_line "a forged tracking ref" "$output" class product
+expect_line "a forged tracking ref" "$output" gates "doctor format secrets typecheck audit shape unit e2e"
+
+new_repository
+commit_change README.md
+in_repository remote set-url origin "$scratch/missing.git"
+run_verify
+expect_equal "a failed fetch still runs green" "$status" 0
+expect_match "a failed fetch says no record" "$output" 'verify: no record: origin main could not be fetched'
+expect_equal "a failed fetch writes no record" "$(record_count)" 0
 
 rm -rf "$scratch"
 

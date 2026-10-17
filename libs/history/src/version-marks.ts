@@ -40,3 +40,29 @@ export function clampToMark({ marks, sequence }: { marks: VersionMarkSummary[]; 
   if (!atOrBefore) return first;
   return atOrBefore;
 }
+
+function markWithSequence({ marks, sequence }: { marks: VersionMarkSummary[]; sequence: number }): VersionMarkSummary | null {
+  const found = marks.find((mark) => mark.sequence === sequence);
+  if (!found) return null;
+  return found;
+}
+
+export function resolveMark({
+  marks,
+  sequence,
+  serverTime,
+}: {
+  marks: VersionMarkSummary[];
+  sequence: number;
+  serverTime: number | null;
+}): VersionMarkSummary | null {
+  const first = marks[0];
+  if (!first) return null;
+  if (sequence <= first.sequence) return first;
+  const exact = markWithSequence({ marks, sequence });
+  if (exact) return exact;
+  if (serverTime === null) return clampToMark({ marks, sequence });
+  const minuteSequence = versionSequenceAt({ marks, time: serverTime });
+  if (minuteSequence === null) return null;
+  return markWithSequence({ marks, sequence: minuteSequence });
+}

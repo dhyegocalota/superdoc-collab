@@ -1,4 +1,4 @@
-import { clampToMark, readMainStoryText, type ReadModel } from '@superdoc-collab/history';
+import { minuteStartOf, readMainStoryText, type ReadModel, resolveMark, type UpdateLog } from '@superdoc-collab/history';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
@@ -27,10 +27,12 @@ import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService } from './versions-service';
 
 const MINUTES = 3;
+const unknownSequenceLog = { serverTimeOf: () => null } as unknown as UpdateLog;
 const SETTLE_ROUND_TRIPS = 5;
 const PROPERTY_SEED = 20261016;
 const SAMPLED_SEQUENCES = 20;
 const PROJECTION_TIMEOUT_MS = 15_000;
+const EXTRA_EDITS = 2;
 const SMALL_BUDGET_BYTES = 1024;
 const LARGE_STATE_BYTES = 600;
 
@@ -74,12 +76,37 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
         cookie: owner.cookie,
         path: versionApiPath({ documentId, sequence, resource: VersionResource.Text }),
       });
-      expect(resolved).toBe(clampToMark({ marks: server.services.readModel.marks(documentId), sequence })!.sequence);
+      const serverTime = server.services.updateLog.serverTimeOf({ documentName: documentId, sequence });
+      expect(resolved).toBe(resolveMark({ marks: server.services.readModel.marks(documentId), sequence, serverTime })!.sequence);
       expect(text).toBe(readMainStoryText(replay(server.services.updateLog.read({ documentName: documentId, untilSequence: resolved }))));
     }),
   );
   client.close();
   vi.useRealTimers();
+  await server.stop();
+});
+
+test('a logged sequence that is not a mark resolves to the mark that ends its minute', async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const latestLogged = () =>
+    server.services.updateLog.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER }).at(-1)!.sequence;
+  const loggedBefore = latestLogged();
+  writeStory({ document: client.document, texts: ['Pruned within the minute'] });
+  writeStory({ document: client.document, texts: ['Ends the minute'] });
+  await expect.poll(latestLogged, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThanOrEqual(loggedBefore + EXTRA_EDITS);
+  await expect
+    .poll(() => server.services.readModel.marks(documentId).at(-1)!.sequence, { timeout: PROJECTION_TIMEOUT_MS })
+    .toBe(latestLogged());
+  const marks = server.services.readModel.marks(documentId);
+  const newest = marks.at(-1)!;
+  const prunedInNewestMinute = server.services.updateLog
+    .read({ documentName: documentId, untilSequence: newest.sequence })
+    .filter((update) => update.sequence > marks[0]!.sequence && !marks.some((mark) => mark.sequence === update.sequence))
+    .find((update) => minuteStartOf(update.serverTime) === newest.minuteStart);
+  expect(prunedInNewestMinute).toBeDefined();
+  const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: prunedInNewestMinute!.sequence });
+  expect(version.sequence).toBe(newest.sequence);
+  client.close();
   await server.stop();
 });
 
@@ -210,7 +237,7 @@ test('the cache stays under its byte budget', async () => {
       text: '',
     }),
   } as unknown as ProjectionScheduler;
-  const versions = new VersionsService({ readModel, scheduler, maxBytes: SMALL_BUDGET_BYTES });
+  const versions = new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler, maxBytes: SMALL_BUDGET_BYTES });
   await versions.load({ documentId, sequence: 1 });
   await versions.load({ documentId, sequence: 2 });
   expect(versions.peek({ documentId, sequence: 2 }).kind).toBe(VersionLookupKind.Ready);
@@ -285,7 +312,10 @@ function stubbedVersions(version: (request: { documentId: string; sequence: numb
 } {
   const documentId = randomUUID();
   const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
-  return { versions: new VersionsService({ readModel, scheduler: { version } as unknown as ProjectionScheduler }), documentId };
+  return {
+    versions: new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler: { version } as unknown as ProjectionScheduler }),
+    documentId,
+  };
 }
 
 test('peeks that land while a load is in flight log one line when it fails', async () => {

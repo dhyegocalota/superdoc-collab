@@ -1,10 +1,27 @@
-import { AppRoute, DocumentRole, documentApiPath, documentPagePath, HttpMethod, HttpStatus, READ_ONLY_BADGE_LABEL } from '@superdoc-history/types';
+import {
+  AppRoute,
+  DocumentRole,
+  documentApiPath,
+  documentPagePath,
+  HttpMethod,
+  HttpStatus,
+  READ_ONLY_BADGE_LABEL,
+} from '@superdoc-history/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
-import { DELETE_CONFIRM_LABEL, DELETE_FAILED_MESSAGE, DELETE_LABEL, DOWNLOAD_LABEL, ONLINE_LABEL, RENAME_FAILED_MESSAGE, SHARE_LABEL, TITLE_LABEL } from './editor-copy';
+import {
+  DELETE_CONFIRM_LABEL,
+  DELETE_FAILED_MESSAGE,
+  DELETE_LABEL,
+  DOWNLOAD_LABEL,
+  ONLINE_LABEL,
+  RENAME_FAILED_MESSAGE,
+  SHARE_LABEL,
+  TITLE_LABEL,
+} from './editor-copy';
 import { EditorHeader } from './editor-header';
 
 const RENAMED_TITLE = 'Renamed';
@@ -55,7 +72,9 @@ test('an unchanged title sends nothing', async () => {
 
 test('the owner deletes after confirming and returns to the documents list', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.NoContent }));
-  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} onDownload={onDownload} />, { route: documentPagePath(DOCUMENT_ID) });
+  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} onDownload={onDownload} />, {
+    route: documentPagePath(DOCUMENT_ID),
+  });
   await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
   expect(fetchSpy).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
@@ -83,7 +102,9 @@ test('a failed rename shows an alert', async () => {
 
 test('a failed delete shows an alert and stays on the page', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
-  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} onDownload={onDownload} />, { route: documentPagePath(DOCUMENT_ID) });
+  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} onDownload={onDownload} />, {
+    route: documentPagePath(DOCUMENT_ID),
+  });
   await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
   await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(DELETE_FAILED_MESSAGE);

@@ -1,6 +1,11 @@
 import type { Block } from '@superdoc-history/history';
 import { MAX_TOPICS, MIN_TOPICS, SUMMARY_SENTENCE_MAX_LENGTH, TOPIC_NAME_MAX_LENGTH } from '@superdoc-history/history';
-import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS, SELECTION_SUMMARY_MAX_CHARACTERS } from '@superdoc-history/types';
+import {
+  FILTER_MAX_LENGTH,
+  SELECTION_PROMPT_MAX_CHARACTERS,
+  SELECTION_RUN_MAX_CHARACTERS,
+  SELECTION_SUMMARY_MAX_CHARACTERS,
+} from '@superdoc-history/types';
 
 export const PROMPT_BLOCK_MAX_CHARACTERS = 500;
 export const PROMPT_MAX_BLOCKS = 400;
@@ -52,7 +57,10 @@ export const SUMMARIES_SYSTEM_PROMPT = `<role>You summarize what changed in each
 <output>JSON: {summaries: [{topicId, sentence}]}</output>`;
 
 export function topicsPrompt(blocks: Block[]): string {
-  return `<blocks>\n${blocks.slice(0, PROMPT_MAX_BLOCKS).map((block) => `<block id="${escapeXml(block.blockId)}">${escapeXml(block.text.slice(0, PROMPT_BLOCK_MAX_CHARACTERS))}</block>`).join(LINE_SEPARATOR)}\n</blocks>`;
+  return `<blocks>\n${blocks
+    .slice(0, PROMPT_MAX_BLOCKS)
+    .map((block) => `<block id="${escapeXml(block.blockId)}">${escapeXml(block.text.slice(0, PROMPT_BLOCK_MAX_CHARACTERS))}</block>`)
+    .join(LINE_SEPARATOR)}\n</blocks>`;
 }
 
 function renderEdit(edit: PromptEdit): string {
@@ -81,7 +89,15 @@ function truncateTo<Edit extends BudgetedEdit>({ edit, characters }: { edit: Edi
   return { ...edit, inserted, deleted: prefixWithin({ text: edit.deleted, characters: characters - escapedLength(inserted) }) };
 }
 
-export function fitEdits<Edit extends BudgetedEdit>({ edits, maxCharacters, overheadOf }: { edits: Edit[]; maxCharacters: number; overheadOf: EditOverhead<Edit> }): Edit[] {
+export function fitEdits<Edit extends BudgetedEdit>({
+  edits,
+  maxCharacters,
+  overheadOf,
+}: {
+  edits: Edit[];
+  maxCharacters: number;
+  overheadOf: EditOverhead<Edit>;
+}): Edit[] {
   const fitted = edits.reduce<{ kept: Edit[]; left: number }>(
     (budget, edit) => {
       if (budget.left === 0) return budget;
@@ -102,7 +118,10 @@ function topicEditOverhead({ edit }: { edit: PromptEdit }): number {
 }
 
 export function summariesPrompt(topics: PromptTopic[]): string {
-  const rendered = topics.map((topic) => `<topic id="${escapeXml(topic.id)}" name="${escapeXml(topic.name)}">\n${fitEdits({ edits: topic.edits, maxCharacters: PROMPT_TOPIC_MAX_CHARACTERS, overheadOf: topicEditOverhead }).map(renderEdit).join(LINE_SEPARATOR)}\n</topic>`);
+  const rendered = topics.map(
+    (topic) =>
+      `<topic id="${escapeXml(topic.id)}" name="${escapeXml(topic.name)}">\n${fitEdits({ edits: topic.edits, maxCharacters: PROMPT_TOPIC_MAX_CHARACTERS, overheadOf: topicEditOverhead }).map(renderEdit).join(LINE_SEPARATOR)}\n</topic>`,
+  );
   return `<topics>\n${rendered.join(LINE_SEPARATOR)}\n</topics>`;
 }
 
@@ -155,7 +174,11 @@ function capRun(edit: SelectionEdit): SelectionEdit {
 }
 
 export function fitSelection(edits: SelectionEdit[]): SelectionEdit[] {
-  return fitEdits({ edits: edits.map(capRun), maxCharacters: SELECTION_PROMPT_MAX_CHARACTERS - SELECTION_OPEN.length - SELECTION_CLOSE.length, overheadOf: selectionEditOverhead });
+  return fitEdits({
+    edits: edits.map(capRun),
+    maxCharacters: SELECTION_PROMPT_MAX_CHARACTERS - SELECTION_OPEN.length - SELECTION_CLOSE.length,
+    overheadOf: selectionEditOverhead,
+  });
 }
 
 export function namesOf(edits: SelectionEdit[]): string[] {
@@ -168,6 +191,12 @@ export function authorsNamed({ returned, names }: { returned: string[]; names: s
 
 export function selectionPrompt(edits: SelectionEdit[]): string {
   const labels = [...new Set(edits.map(authorLabel))];
-  const groups = labels.map((label) => `${authorOpen(label)}${edits.filter((edit) => authorLabel(edit) === label).map(renderSelectionEdit).join(LINE_SEPARATOR)}${AUTHOR_CLOSE}`);
+  const groups = labels.map(
+    (label) =>
+      `${authorOpen(label)}${edits
+        .filter((edit) => authorLabel(edit) === label)
+        .map(renderSelectionEdit)
+        .join(LINE_SEPARATOR)}${AUTHOR_CLOSE}`,
+  );
   return `${SELECTION_OPEN}${groups.join(LINE_SEPARATOR)}${SELECTION_CLOSE}`;
 }

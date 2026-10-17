@@ -2,7 +2,11 @@
   "name": "@superdoc-history/history",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts", "./timeline": "./src/timeline/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts",
+    "./timeline": "./src/timeline/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",

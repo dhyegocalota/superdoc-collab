@@ -25,7 +25,12 @@ export const DEFAULT_VERSION_ROOM_POLICY: VersionRoomPolicy = { idleMs: VERSION_
 export function parseVersionPath(pathname: string): VersionEndpoint | null {
   if (!pathname.startsWith(VERSION_PATH_PREFIX)) return null;
   const [documentId, sequenceText, ...rest] = pathname.slice(VERSION_PATH_PREFIX.length).split(PATH_SEPARATOR);
-  const isVersionPath = rest.length === 0 && documentId !== undefined && DOCUMENT_ID_PATTERN.test(documentId) && sequenceText !== undefined && SEQUENCE_PATTERN.test(sequenceText);
+  const isVersionPath =
+    rest.length === 0 &&
+    documentId !== undefined &&
+    DOCUMENT_ID_PATTERN.test(documentId) &&
+    sequenceText !== undefined &&
+    SEQUENCE_PATTERN.test(sequenceText);
   if (!isVersionPath) return null;
   return { documentId, sequence: Number(sequenceText) };
 }
@@ -43,7 +48,17 @@ export class VersionRooms {
   private readonly versions: VersionsService;
   private readonly policy: VersionRoomPolicy;
 
-  constructor({ auth, documents, versions, policy }: { auth: Auth; documents: DocumentsRepository; versions: VersionsService; policy: VersionRoomPolicy }) {
+  constructor({
+    auth,
+    documents,
+    versions,
+    policy,
+  }: {
+    auth: Auth;
+    documents: DocumentsRepository;
+    versions: VersionsService;
+    policy: VersionRoomPolicy;
+  }) {
     this.auth = auth;
     this.documents = documents;
     this.versions = versions;
@@ -52,7 +67,12 @@ export class VersionRooms {
 
   async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<VersionAdmission> {
     try {
-      await authenticateMember({ auth: this.auth, documents: this.documents, cookie: request.headers.cookie, documentId: endpoint.documentId });
+      await authenticateMember({
+        auth: this.auth,
+        documents: this.documents,
+        cookie: request.headers.cookie,
+        documentId: endpoint.documentId,
+      });
     } catch {
       return VersionAdmission.Refused;
     }
@@ -94,7 +114,9 @@ export class VersionRooms {
     const room = existing ? existing : this.create({ key, endpoint });
     this.rooms.delete(key);
     this.rooms.set(key, room);
-    [...this.rooms.keys()].slice(0, Math.max(0, this.rooms.size - this.policy.limit)).forEach((evicted) => this.destroyInBackground(evicted));
+    [...this.rooms.keys()]
+      .slice(0, Math.max(0, this.rooms.size - this.policy.limit))
+      .forEach((evicted) => this.destroyInBackground(evicted));
     return room;
   }
 

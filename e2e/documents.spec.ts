@@ -14,7 +14,17 @@ import {
   documentPagePath,
   type DocumentSummary,
 } from '../libs/types/src';
-import { acceptShareLink, editorText, readEditorText, readEvents, readShareLinks, shareAndAccept, typeInParagraph, uploadSeed, insertedBy } from './editor';
+import {
+  acceptShareLink,
+  editorText,
+  readEditorText,
+  readEvents,
+  readShareLinks,
+  shareAndAccept,
+  typeInParagraph,
+  uploadSeed,
+  insertedBy,
+} from './editor';
 import { SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, DOWNLOAD_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { expect, signedInContext, test } from './fixtures';
@@ -43,7 +53,9 @@ test('upload, open, type and the events attribute the text to me', async ({ brow
   const documentId = await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
   await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: MINE_MARKER });
   await expect
-    .poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: ana.userId }), { timeout: EVENTS_TIMEOUT_MS })
+    .poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: ana.userId }), {
+      timeout: EVENTS_TIMEOUT_MS,
+    })
     .toBe(MINE_MARKER);
 });
 

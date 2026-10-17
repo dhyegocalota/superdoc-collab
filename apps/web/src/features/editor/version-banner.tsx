@@ -27,7 +27,12 @@ export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
   if (timeTravel.state === VersionViewerState.Live) return null;
   const message = bannerMessage(timeTravel);
   return (
-    <div role="status" data-testid="version-banner" data-sequence={timeTravel.shown?.sequence} className="flex items-center justify-between gap-2 border-b bg-muted px-4 py-2 text-sm">
+    <div
+      role="status"
+      data-testid="version-banner"
+      data-sequence={timeTravel.shown?.sequence}
+      className="flex items-center justify-between gap-2 border-b bg-muted px-4 py-2 text-sm"
+    >
       <p>{message}</p>
       <Button type="button" variant="outline" size="sm" onClick={timeTravel.backToLive}>
         {BACK_TO_LIVE_LABEL}

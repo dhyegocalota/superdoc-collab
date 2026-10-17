@@ -1,4 +1,12 @@
-import { DocumentRole, DOCX_MIME_TYPE, documentPagePath, HttpStatus, MAX_UPLOAD_BYTES, NOT_A_DOCX_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from '@superdoc-history/types';
+import {
+  DocumentRole,
+  DOCX_MIME_TYPE,
+  documentPagePath,
+  HttpStatus,
+  MAX_UPLOAD_BYTES,
+  NOT_A_DOCX_MESSAGE,
+  UPLOAD_TOO_LARGE_MESSAGE,
+} from '@superdoc-history/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';

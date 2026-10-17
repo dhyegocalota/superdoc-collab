@@ -22,7 +22,16 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
-import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE, EXPORT_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
+import {
+  BACK_TO_DOCUMENTS_LABEL,
+  DOCUMENT_LOAD_ERROR_MESSAGE,
+  DOWNLOAD_LABEL,
+  EDITOR_ESCAPE_HINT,
+  EDITOR_EXIT_LABEL,
+  EDITOR_FAILED_MESSAGE,
+  EXPORT_FAILED_MESSAGE,
+  TITLE_LABEL,
+} from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
@@ -34,7 +43,13 @@ type SuperDocConfig = { onException: (payload: { error: Error }) => void };
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
   const superDocExport = vi.fn(() => Promise.resolve(new Blob()));
-  return { superDocDestroy, superDocExport, SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: superDocDestroy, export: superDocExport }; }) };
+  return {
+    superDocDestroy,
+    superDocExport,
+    SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) {
+      return { destroy: superDocDestroy, export: superDocExport };
+    }),
+  };
 });
 
 vi.mock('superdoc', () => ({ SuperDoc }));
@@ -76,7 +91,8 @@ function mockDocumentApi({
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
     }
-    if (input === DOCUMENT_PATH) return new Response(JSON.stringify(openStatus === HttpStatus.Ok ? current : openBody), { status: openStatus });
+    if (input === DOCUMENT_PATH)
+      return new Response(JSON.stringify(openStatus === HttpStatus.Ok ? current : openBody), { status: openStatus });
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -101,14 +117,22 @@ test('a title rename does not re-create the editor', async () => {
 });
 
 test('a 409 not ready shows the owner message and never builds the editor', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Reader), openStatus: HttpStatus.Conflict, openBody: { error: DOCUMENT_NOT_READY_ERROR } });
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Reader),
+    openStatus: HttpStatus.Conflict,
+    openBody: { error: DOCUMENT_NOT_READY_ERROR },
+  });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   expect(await screen.findByText(DOCUMENT_NOT_READY_MESSAGE)).toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 
 test('a 404 shows the unavailable message and a link to the documents list', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Reader), openStatus: HttpStatus.NotFound, openBody: { error: DOCUMENT_UNAVAILABLE_MESSAGE } });
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Reader),
+    openStatus: HttpStatus.NotFound,
+    openBody: { error: DOCUMENT_UNAVAILABLE_MESSAGE },
+  });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
@@ -165,7 +189,11 @@ test('a cached create followed by a fresh join from the server builds the join s
   const fetchSpy = mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID), queryClient });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ documents: [expect.objectContaining({ v2Collaboration: expect.objectContaining({ roomMode: RoomMode.Join }) })] }));
+  expect(SuperDoc).toHaveBeenCalledWith(
+    expect.objectContaining({
+      documents: [expect.objectContaining({ v2Collaboration: expect.objectContaining({ roomMode: RoomMode.Join }) })],
+    }),
+  );
   expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain(DOWNLOAD_PATH);
 });
 

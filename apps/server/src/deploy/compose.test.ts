@@ -9,7 +9,14 @@ const CONTAINER_PORT = '3000';
 const DATA_DIRECTORY = '/data';
 const DATA_VOLUME = 'superdoc-data';
 const REQUIRED_VARIABLES = ['APP_ORIGIN', 'AUTH_SECRET', 'SEED_DEMO_USERS'];
-const OPTIONAL_VARIABLES = ['DEMO_PASSWORD', 'OPENROUTER_API_KEY', 'LLM_MODEL', 'OPENROUTER_BASE_URL', 'LLM_MAX_CONCURRENT_JOBS', 'LLM_MAX_CALLS_PER_HOUR'];
+const OPTIONAL_VARIABLES = [
+  'DEMO_PASSWORD',
+  'OPENROUTER_API_KEY',
+  'LLM_MODEL',
+  'OPENROUTER_BASE_URL',
+  'LLM_MAX_CONCURRENT_JOBS',
+  'LLM_MAX_CALLS_PER_HOUR',
+];
 const DOCUMENTED_VARIABLE_PATTERN = /^([A-Z_]+)=/gm;
 const EMPTY_OPENROUTER_KEY_PATTERN = /^OPENROUTER_API_KEY=$/m;
 const OPENROUTER_KEY_PATTERN = 'sk-or-v1-[A-Za-z0-9]{16,}';
@@ -44,13 +51,23 @@ type ComposeService = {
 type ComposeConfig = { services: Record<string, ComposeService> };
 type ComposeRun = { status: number | null; stdout: string; stderr: string };
 
-const isDockerComposeAvailable = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS }).status === 0;
+const isDockerComposeAvailable =
+  spawnSync('docker', ['compose', 'version'], { encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS }).status === 0;
 const isDockerComposeRequired = process.env[DOCKER_COMPOSE_REQUIREMENT_VARIABLE] === DOCKER_COMPOSE_REQUIRED;
 
 if (isDockerComposeRequired && !isDockerComposeAvailable) throw new Error(DOCKER_COMPOSE_REQUIRED_MESSAGE);
 
 function renderCompose(variables: Record<string, string>): ComposeRun {
-  const result = spawnSync('docker', ['compose', '--env-file', NO_ENVIRONMENT_FILE, '-f', DEPLOY_COMPOSE_FILE, 'config', '--format', 'json'], { cwd: REPOSITORY_ROOT, env: { PATH: process.env.PATH, HOME: process.env.HOME, ...variables }, encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS });
+  const result = spawnSync(
+    'docker',
+    ['compose', '--env-file', NO_ENVIRONMENT_FILE, '-f', DEPLOY_COMPOSE_FILE, 'config', '--format', 'json'],
+    {
+      cwd: REPOSITORY_ROOT,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, ...variables },
+      encoding: 'utf8',
+      timeout: COMMAND_TIMEOUT_MILLISECONDS,
+    },
+  );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
@@ -81,7 +98,13 @@ describe('Dokploy compose file', () => {
   });
 
   test('no OpenRouter key is committed', () => {
-    expect(spawnSync('git', ['grep', '-nE', OPENROUTER_KEY_PATTERN], { cwd: REPOSITORY_ROOT, encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS }).status).toBe(GIT_GREP_NO_MATCH_STATUS);
+    expect(
+      spawnSync('git', ['grep', '-nE', OPENROUTER_KEY_PATTERN], {
+        cwd: REPOSITORY_ROOT,
+        encoding: 'utf8',
+        timeout: COMMAND_TIMEOUT_MILLISECONDS,
+      }).status,
+    ).toBe(GIT_GREP_NO_MATCH_STATUS);
   });
 });
 
@@ -97,11 +120,15 @@ describe.skipIf(!isDockerComposeAvailable)('Dokploy compose file rendered by doc
   });
 
   test('keeps the data directory on a named volume', () => {
-    expect(renderedService(DOKPLOY_VALUES).volumes).toEqual([expect.objectContaining({ type: 'volume', source: DATA_VOLUME, target: DATA_DIRECTORY })]);
+    expect(renderedService(DOKPLOY_VALUES).volumes).toEqual([
+      expect.objectContaining({ type: 'volume', source: DATA_VOLUME, target: DATA_DIRECTORY }),
+    ]);
   });
 
   test('pins the production values that must match the image and the proxy', () => {
-    expect(renderedService(DOKPLOY_VALUES).environment).toEqual(expect.objectContaining({ PORT: CONTAINER_PORT, DATABASE_DIR: DATA_DIRECTORY, WEB_DIST_DIR: '/app/web', TRUST_PROXY: 'true' }));
+    expect(renderedService(DOKPLOY_VALUES).environment).toEqual(
+      expect.objectContaining({ PORT: CONTAINER_PORT, DATABASE_DIR: DATA_DIRECTORY, WEB_DIST_DIR: '/app/web', TRUST_PROXY: 'true' }),
+    );
   });
 
   test('reads every secret from the Dokploy environment', () => {

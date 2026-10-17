@@ -32,14 +32,21 @@ export function shareLinksQueryKey(documentId: string): string[] {
   return [...DOCUMENTS_QUERY_KEY, documentId, DocumentResource.ShareLinks];
 }
 
-export function documentFileQueryKey({ documentId, roomMode }: { documentId: string; roomMode: RoomMode | undefined }): (string | undefined)[] {
+export function documentFileQueryKey({
+  documentId,
+  roomMode,
+}: {
+  documentId: string;
+  roomMode: RoomMode | undefined;
+}): (string | undefined)[] {
   return ['document-file', documentId, roomMode];
 }
 
 export async function openDocument(documentId: string): Promise<OpenedDocument> {
   const response = await apiGet(documentApiPath({ documentId }));
   if (response.status === HttpStatus.NotFound) throw new ApiRequestError(DOCUMENT_UNAVAILABLE_MESSAGE);
-  if (response.status === HttpStatus.Conflict && (await response.json()).error === DOCUMENT_NOT_READY_ERROR) throw new ApiRequestError(DOCUMENT_NOT_READY_MESSAGE);
+  if (response.status === HttpStatus.Conflict && (await response.json()).error === DOCUMENT_NOT_READY_ERROR)
+    throw new ApiRequestError(DOCUMENT_NOT_READY_MESSAGE);
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);
   return response.json();
 }

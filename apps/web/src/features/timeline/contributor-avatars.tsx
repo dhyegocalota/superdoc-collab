@@ -12,8 +12,16 @@ export function AuthorAvatar({ name }: { name: string }) {
   );
 }
 
-export function ContributorAvatars({ contributors, authors }: { contributors: TimelineContributor[]; authors: Record<string, EventAuthor> }) {
-  const ranked = [...contributors].sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted) || left.authorKey.localeCompare(right.authorKey)).slice(0, MAX_AVATARS);
+export function ContributorAvatars({
+  contributors,
+  authors,
+}: {
+  contributors: TimelineContributor[];
+  authors: Record<string, EventAuthor>;
+}) {
+  const ranked = [...contributors]
+    .sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted) || left.authorKey.localeCompare(right.authorKey))
+    .slice(0, MAX_AVATARS);
   return (
     <ul className="flex items-center gap-1">
       {ranked.map((contributor) => (

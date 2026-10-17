@@ -1,4 +1,11 @@
-import { ApiPath, HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS, versionCollaborationPath } from '@superdoc-history/types';
+import {
+  ApiPath,
+  HttpStatus,
+  RETRY_AFTER_HEADER,
+  SECOND_MS,
+  VERSION_FAILURE_TTL_MS,
+  versionCollaborationPath,
+} from '@superdoc-history/types';
 import type { Hocuspocus } from '@hocuspocus/server';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -24,10 +31,33 @@ const RESET_FAILURE = 'ECONNRESET';
 const ORIGIN = 'http://app.test';
 
 function upgradeRequest({ path, origin, cookie }: { path: string; origin: string; cookie: string }): string {
-  return [`GET ${path} HTTP/1.1`, `Host: ${LOOPBACK_HOST}`, `Origin: ${origin}`, `Cookie: ${cookie}`, 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version: 13', '', ''].join('\r\n');
+  return [
+    `GET ${path} HTTP/1.1`,
+    `Host: ${LOOPBACK_HOST}`,
+    `Origin: ${origin}`,
+    `Cookie: ${cookie}`,
+    'Upgrade: websocket',
+    'Connection: Upgrade',
+    'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+    'Sec-WebSocket-Version: 13',
+    '',
+    '',
+  ].join('\r\n');
 }
 
-function exchange({ server, path, origin = server.baseUrl, cookie = '', followUp = null }: { server: TestServer; path: string; origin?: string; cookie?: string; followUp?: Buffer | null }): Promise<string> {
+function exchange({
+  server,
+  path,
+  origin = server.baseUrl,
+  cookie = '',
+  followUp = null,
+}: {
+  server: TestServer;
+  path: string;
+  origin?: string;
+  cookie?: string;
+  followUp?: Buffer | null;
+}): Promise<string> {
   const { port } = new URL(server.baseUrl);
   return new Promise((resolve) => {
     const socket = connect({ host: LOOPBACK_HOST, port: Number(port) });
@@ -75,13 +105,17 @@ describe('attachCollaboration', () => {
     expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
     await server.stop();
   });
-  test('an upgrade from a foreign origin with a valid session cookie is destroyed', { timeout: SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS }, async () => {
-    const server = await startTestServer();
-    const { cookie } = await signedInUser({ server, name: 'Carla' });
-    const response = await exchange({ server, path: ApiPath.Collaboration, origin: FOREIGN_ORIGIN, cookie });
-    expect(response).toBe('');
-    await server.stop();
-  });
+  test(
+    'an upgrade from a foreign origin with a valid session cookie is destroyed',
+    { timeout: SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS },
+    async () => {
+      const server = await startTestServer();
+      const { cookie } = await signedInUser({ server, name: 'Carla' });
+      const response = await exchange({ server, path: ApiPath.Collaboration, origin: FOREIGN_ORIGIN, cookie });
+      expect(response).toBe('');
+      await server.stop();
+    },
+  );
   test('an upgrade without an origin is destroyed', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: ApiPath.Collaboration, origin: '' });
@@ -90,7 +124,9 @@ describe('attachCollaboration', () => {
   });
   test('a socket that never authenticates is closed by the server', { timeout: UNAUTHENTICATED_TEST_TIMEOUT_MS }, async () => {
     const server = await startTestServer();
-    const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, { origin: server.baseUrl });
+    const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
+      origin: server.baseUrl,
+    });
     const startedAt = Date.now();
     await new Promise<void>((resolve) => socket.on('close', () => resolve()));
     await server.stop();
@@ -103,14 +139,20 @@ describe('attachCollaboration', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const authorize = vi.spyOn(server.services.versionRooms, 'authorize').mockImplementation(() => gate.then(() => VersionAdmission.Refused));
+    const authorize = vi
+      .spyOn(server.services.versionRooms, 'authorize')
+      .mockImplementation(() => gate.then(() => VersionAdmission.Refused));
     const uncaught = vi.fn();
     process.on('uncaughtException', uncaught);
     try {
       const { port } = new URL(server.baseUrl);
       const socket = connect({ host: LOOPBACK_HOST, port: Number(port) });
       socket.on('error', () => undefined);
-      socket.on('connect', () => socket.write(upgradeRequest({ path: versionCollaborationPath({ documentId: randomUUID(), sequence: 1 }), origin: server.baseUrl, cookie })));
+      socket.on('connect', () =>
+        socket.write(
+          upgradeRequest({ path: versionCollaborationPath({ documentId: randomUUID(), sequence: 1 }), origin: server.baseUrl, cookie }),
+        ),
+      );
       await expect.poll(() => authorize.mock.calls.length).toBe(1);
       socket.resetAndDestroy();
       expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
@@ -122,30 +164,45 @@ describe('attachCollaboration', () => {
     expect(uncaught).not.toHaveBeenCalled();
     await server.stop();
   });
-  test('a version that failed to load recently is refused with 503 before the upgrade', { timeout: SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS }, async () => {
-    const { server, documentId, owner, client } = await editedAfterBootstrap();
-    const [mark] = server.services.readModel.marks(documentId);
-    const endpoint = { documentId, sequence: mark!.sequence };
-    const version = vi.spyOn(server.services.scheduler, 'version').mockRejectedValue(new Error(DECODE_FAILURE));
-    await expect(server.services.versions.load(endpoint)).rejects.toThrow(DECODE_FAILURE);
-    const response = await firstChunk({ server, path: versionCollaborationPath(endpoint), cookie: owner.cookie });
-    expect(response.startsWith(`HTTP/1.1 ${HttpStatus.ServiceUnavailable}`)).toBe(true);
-    expect(response).toContain(`${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`);
-    expect(server.services.versionRooms.size()).toBe(0);
-    version.mockRestore();
-    client.close();
-    await server.stop();
-  });
+  test(
+    'a version that failed to load recently is refused with 503 before the upgrade',
+    { timeout: SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS },
+    async () => {
+      const { server, documentId, owner, client } = await editedAfterBootstrap();
+      const [mark] = server.services.readModel.marks(documentId);
+      const endpoint = { documentId, sequence: mark!.sequence };
+      const version = vi.spyOn(server.services.scheduler, 'version').mockRejectedValue(new Error(DECODE_FAILURE));
+      await expect(server.services.versions.load(endpoint)).rejects.toThrow(DECODE_FAILURE);
+      const response = await firstChunk({ server, path: versionCollaborationPath(endpoint), cookie: owner.cookie });
+      expect(response.startsWith(`HTTP/1.1 ${HttpStatus.ServiceUnavailable}`)).toBe(true);
+      expect(response).toContain(`${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`);
+      expect(server.services.versionRooms.size()).toBe(0);
+      version.mockRestore();
+      client.close();
+      await server.stop();
+    },
+  );
   test('a socket that resets while the 503 is still being flushed does not throw', async () => {
     const authorize = vi.fn().mockResolvedValue(VersionAdmission.Unavailable);
     const httpServer = new EventEmitter();
-    attachCollaboration({ httpServer: httpServer as unknown as Server, hocuspocus: {} as Hocuspocus, versionRooms: { authorize } as unknown as VersionRooms, path: ApiPath.Collaboration, allowedOrigin: ORIGIN });
+    attachCollaboration({
+      httpServer: httpServer as unknown as Server,
+      hocuspocus: {} as Hocuspocus,
+      versionRooms: { authorize } as unknown as VersionRooms,
+      path: ApiPath.Collaboration,
+      allowedOrigin: ORIGIN,
+    });
     const socket = new Duplex({
       read: () => undefined,
       write: () => undefined,
     });
     const end = vi.spyOn(socket, 'end');
-    httpServer.emit('upgrade', { url: versionCollaborationPath({ documentId: randomUUID(), sequence: 1 }), headers: { origin: ORIGIN } }, socket, Buffer.alloc(0));
+    httpServer.emit(
+      'upgrade',
+      { url: versionCollaborationPath({ documentId: randomUUID(), sequence: 1 }), headers: { origin: ORIGIN } },
+      socket,
+      Buffer.alloc(0),
+    );
     await vi.waitFor(() => expect(end).toHaveBeenCalledOnce());
     expect(() => socket.emit('error', new Error(RESET_FAILURE))).not.toThrow();
     expect(socket.destroyed).toBe(true);

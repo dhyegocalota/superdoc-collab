@@ -64,8 +64,27 @@ export function VersionViewPage() {
   }, [isSequenceValid, hasOpenFailed]);
 
   if (!isSequenceValid) return null;
-  if (openError) return <p role="alert" className="p-4 text-sm text-destructive">{openError.message}</p>;
-  if (hasConnectionFailed) return <p role="alert" className="p-4 text-sm text-destructive">{VERSION_FAILED_MESSAGE}</p>;
+  if (openError)
+    return (
+      <p role="alert" className="p-4 text-sm text-destructive">
+        {openError.message}
+      </p>
+    );
+  if (hasConnectionFailed)
+    return (
+      <p role="alert" className="p-4 text-sm text-destructive">
+        {VERSION_FAILED_MESSAGE}
+      </p>
+    );
   if (!user || !opened) return <SessionSkeleton />;
-  return <VersionViewer documentId={documentId} sequence={sequence} user={user} onReady={handleReady} onFailed={handleFailed} onConnectionFailed={handleConnectionFailed} />;
+  return (
+    <VersionViewer
+      documentId={documentId}
+      sequence={sequence}
+      user={user}
+      onReady={handleReady}
+      onFailed={handleFailed}
+      onConnectionFailed={handleConnectionFailed}
+    />
+  );
 }

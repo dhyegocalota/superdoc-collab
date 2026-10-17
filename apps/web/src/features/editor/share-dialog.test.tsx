@@ -1,4 +1,12 @@
-import { documentApiPath, DocumentResource, HttpMethod, HttpStatus, LINK_COPIED_MESSAGE, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
+import {
+  documentApiPath,
+  DocumentResource,
+  HttpMethod,
+  HttpStatus,
+  LINK_COPIED_MESSAGE,
+  ShareLinkRole,
+  type ShareLinks,
+} from '@superdoc-history/types';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -9,7 +17,10 @@ import { ShareDialog } from './share-dialog';
 
 const SHARE_LINKS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.ShareLinks });
 const ROTATE_EDIT_PATH = `${SHARE_LINKS_PATH}/${ShareLinkRole.Edit}/rotate`;
-const LINKS: ShareLinks = { [ShareLinkRole.Edit]: 'http://localhost/share/edit-token', [ShareLinkRole.Read]: 'http://localhost/share/read-token' };
+const LINKS: ShareLinks = {
+  [ShareLinkRole.Edit]: 'http://localhost/share/edit-token',
+  [ShareLinkRole.Read]: 'http://localhost/share/read-token',
+};
 const ROTATED_LINKS: ShareLinks = { ...LINKS, [ShareLinkRole.Edit]: 'http://localhost/share/rotated-token' };
 
 afterEach(() => vi.restoreAllMocks());

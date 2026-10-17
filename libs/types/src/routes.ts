@@ -67,7 +67,15 @@ export function timelineEditsApiPath(documentId: string): string {
   return `${documentApiPath({ documentId, resource: DocumentResource.Timeline })}/${EDITS_SEGMENT}`;
 }
 
-export function versionApiPath({ documentId, sequence, resource }: { documentId: string; sequence: number; resource?: VersionResource }): string {
+export function versionApiPath({
+  documentId,
+  sequence,
+  resource,
+}: {
+  documentId: string;
+  sequence: number;
+  resource?: VersionResource;
+}): string {
   const base = `${documentApiPath({ documentId, resource: DocumentResource.Versions })}/${sequence}`;
   if (!resource) return base;
   return `${base}/${resource}`;

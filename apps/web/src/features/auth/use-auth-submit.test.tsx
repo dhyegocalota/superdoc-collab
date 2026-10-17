@@ -8,7 +8,10 @@ import { useAuthSubmit } from './use-auth-submit';
 
 const navigate = vi.fn();
 
-vi.mock('react-router', async (importOriginal) => ({ ...(await importOriginal<typeof import('react-router')>()), useNavigate: () => navigate }));
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => navigate,
+}));
 
 const user = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
 

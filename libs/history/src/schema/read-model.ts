@@ -38,5 +38,8 @@ export const versionMarks = sqliteTable(
     isBootstrap: integer('is_bootstrap', { mode: 'boolean' }).notNull(),
     snapshot: blob('snapshot').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.documentName, table.sequence] }), index('version_marks_by_minute').on(table.documentName, table.minuteStart)],
+  (table) => [
+    primaryKey({ columns: [table.documentName, table.sequence] }),
+    index('version_marks_by_minute').on(table.documentName, table.minuteStart),
+  ],
 );

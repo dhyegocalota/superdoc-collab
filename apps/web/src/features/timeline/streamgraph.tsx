@@ -39,7 +39,15 @@ function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedInd
 
 type TooltipAnchor = { index: number; top: number };
 
-function tooltipAnchorOf({ hovered, selectedIndex, hasFocus }: { hovered: { index: number; y: number } | null; selectedIndex: number | null; hasFocus: boolean }): TooltipAnchor | null {
+function tooltipAnchorOf({
+  hovered,
+  selectedIndex,
+  hasFocus,
+}: {
+  hovered: { index: number; y: number } | null;
+  selectedIndex: number | null;
+  hasFocus: boolean;
+}): TooltipAnchor | null {
   if (hovered !== null) return { index: hovered.index, top: hovered.y + TOOLTIP_POINTER_OFFSET };
   if (!hasFocus || selectedIndex === null) return null;
   return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET };
@@ -97,7 +105,11 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         d={shape.path}
         tabIndex={0}
         aria-label={bandAriaLabel({ name: shape.band.name, volume: shape.band.volume })}
-        className={cn(isOther ? 'topic-band-other' : 'topic-band', 'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2', isFaded && 'opacity-40')}
+        className={cn(
+          isOther ? 'topic-band-other' : 'topic-band',
+          'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2',
+          isFaded && 'opacity-40',
+        )}
         style={bandStyle(shape.band, shape.saturation)}
         aria-describedby={hasFocus && tooltipAnchor !== null ? tooltipId : undefined}
         onKeyDown={handleKeyDown}
@@ -119,12 +131,39 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         onPointerLeave={() => setHovered(null)}
       >
         <title id={titleId}>{STREAMGRAPH_TITLE}</title>
-        <desc id={descriptionId}>{streamgraphDescription({ bandCount: timeline.bands.length, from: formatTimestamp(timeline.bins[0]!.start), to: formatTimestamp(timeline.bins[lastIndex]!.start + timeline.binMs) })}</desc>
+        <desc id={descriptionId}>
+          {streamgraphDescription({
+            bandCount: timeline.bands.length,
+            from: formatTimestamp(timeline.bins[0]!.start),
+            to: formatTimestamp(timeline.bins[lastIndex]!.start + timeline.binMs),
+          })}
+        </desc>
         {layout.shapes.map(renderBand)}
-        {layout.shapes.filter((shape) => shape.label !== null).map((shape) => <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />)}
-        {selectedIndex !== null && <line x1={layout.binX(selectedIndex)} x2={layout.binX(selectedIndex)} y1={0} y2={CHART_HEIGHT} className="pointer-events-none stroke-foreground" />}
+        {layout.shapes
+          .filter((shape) => shape.label !== null)
+          .map((shape) => (
+            <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />
+          ))}
+        {selectedIndex !== null && (
+          <line
+            x1={layout.binX(selectedIndex)}
+            x2={layout.binX(selectedIndex)}
+            y1={0}
+            y2={CHART_HEIGHT}
+            className="pointer-events-none stroke-foreground"
+          />
+        )}
       </svg>
-      {tooltipAnchor !== null && <TimelineTooltip id={tooltipId} timeline={timeline} index={tooltipAnchor.index} left={layout.binX(tooltipAnchor.index)} top={tooltipAnchor.top} chartWidth={width} />}
+      {tooltipAnchor !== null && (
+        <TimelineTooltip
+          id={tooltipId}
+          timeline={timeline}
+          index={tooltipAnchor.index}
+          left={layout.binX(tooltipAnchor.index)}
+          top={tooltipAnchor.top}
+          chartWidth={width}
+        />
+      )}
     </div>
   );
 }

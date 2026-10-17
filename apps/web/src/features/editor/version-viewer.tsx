@@ -1,4 +1,10 @@
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode, versionCollaborationPath, type SessionUser } from '@superdoc-history/types';
+import {
+  COLLABORATION_TOKEN_PLACEHOLDER,
+  DOCX_MIME_TYPE,
+  RoomMode,
+  versionCollaborationPath,
+  type SessionUser,
+} from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
@@ -12,7 +18,14 @@ enum ConnectionState {
   Failed = 'failed',
 }
 
-type VersionViewerProps = { documentId: string; sequence: number; user: SessionUser; onReady: (superdoc: SuperDoc) => void; onFailed: () => void; onConnectionFailed: () => void };
+type VersionViewerProps = {
+  documentId: string;
+  sequence: number;
+  user: SessionUser;
+  onReady: (superdoc: SuperDoc) => void;
+  onFailed: () => void;
+  onConnectionFailed: () => void;
+};
 
 export function VersionViewer({ documentId, sequence, user, onReady, onFailed, onConnectionFailed }: VersionViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);

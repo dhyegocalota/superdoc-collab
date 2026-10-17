@@ -16,7 +16,24 @@ const VOLUME_MOUNT = '-v superdoc-ci-data:/data';
 const SIGN_IN_ENDPOINT = '/api/auth/sign-in/email';
 const SIGN_IN_TIMEOUT = '--max-time 10';
 const LINE_SEPARATOR = '\n';
-const DOCKER_JOB_FRAGMENTS = ['actions/checkout@v4', 'docker/setup-buildx-action@v3', 'docker/build-push-action@v6', 'file: docker/Dockerfile', 'push: false', 'load: true', 'cache-from: type=gha', 'cache-to: type=gha,mode=max', "grep -q 'Missing environment variable: DEMO_PASSWORD'", '/api/health', '--max-time 5', '--retry-max-time 120', 'stat -c %u /data', '/api/auth/sign-in/email', 'docker rm -f app', "grep -q 'existing: ana@example.com' app.log"];
+const DOCKER_JOB_FRAGMENTS = [
+  'actions/checkout@v4',
+  'docker/setup-buildx-action@v3',
+  'docker/build-push-action@v6',
+  'file: docker/Dockerfile',
+  'push: false',
+  'load: true',
+  'cache-from: type=gha',
+  'cache-to: type=gha,mode=max',
+  "grep -q 'Missing environment variable: DEMO_PASSWORD'",
+  '/api/health',
+  '--max-time 5',
+  '--retry-max-time 120',
+  'stat -c %u /data',
+  '/api/auth/sign-in/email',
+  'docker rm -f app',
+  "grep -q 'existing: ana@example.com' app.log",
+];
 
 function dockerJob(): string {
   const workflow = readRepositoryFile(WORKFLOW_FILE);
@@ -44,12 +61,16 @@ describe('CI workflow', () => {
   });
 
   test('the redeploy runs the same image again on the same named volume', () => {
-    const mounts = dockerJob().split(LINE_SEPARATOR).filter((line) => line.includes(VOLUME_MOUNT));
+    const mounts = dockerJob()
+      .split(LINE_SEPARATOR)
+      .filter((line) => line.includes(VOLUME_MOUNT));
     expect(mounts).toHaveLength(2);
   });
 
   test('every sign-in request is bounded', () => {
-    const signIns = dockerJob().split(LINE_SEPARATOR).filter((line) => line.includes(SIGN_IN_ENDPOINT));
+    const signIns = dockerJob()
+      .split(LINE_SEPARATOR)
+      .filter((line) => line.includes(SIGN_IN_ENDPOINT));
     expect(signIns).toHaveLength(2);
     expect(signIns.filter((line) => !line.includes(SIGN_IN_TIMEOUT))).toEqual([]);
   });

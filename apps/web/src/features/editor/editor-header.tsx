@@ -50,7 +50,11 @@ function TitleInput({ documentId, title }: DocumentIdentity & { title: string })
         onBlur={(event) => commit(event.currentTarget)}
         onKeyDown={(event) => event.key === KeyboardKey.Enter && event.currentTarget.blur()}
       />
-      {isError && <p role="alert" className="text-sm text-destructive">{RENAME_FAILED_MESSAGE}</p>}
+      {isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {RENAME_FAILED_MESSAGE}
+        </p>
+      )}
     </>
   );
 }
@@ -76,7 +80,11 @@ function DeleteDocumentDialog({ documentId }: DocumentIdentity) {
           <DialogTitle>{DELETE_DIALOG_TITLE}</DialogTitle>
           <DialogDescription>{DELETE_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
-        {isError && <p role="alert" className="text-sm text-destructive">{DELETE_FAILED_MESSAGE}</p>}
+        {isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {DELETE_FAILED_MESSAGE}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="destructive" disabled={isPending} onClick={() => mutate()}>
             {DELETE_CONFIRM_LABEL}
@@ -87,7 +95,15 @@ function DeleteDocumentDialog({ documentId }: DocumentIdentity) {
   );
 }
 
-export function EditorHeader({ opened, members, onDownload }: { opened: OpenedDocument; members: DocumentMember[]; onDownload: (() => void) | null }) {
+export function EditorHeader({
+  opened,
+  members,
+  onDownload,
+}: {
+  opened: OpenedDocument;
+  members: DocumentMember[];
+  onDownload: (() => void) | null;
+}) {
   const { document, role } = opened;
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;

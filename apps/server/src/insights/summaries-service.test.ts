@@ -21,9 +21,22 @@ async function twoTopicDocument(): Promise<Awaited<ReturnType<typeof storyWithBl
   const story = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget', 'Hiring'] });
   const { server, documentId, owner, client } = story;
   writeStory({ document: client.document, texts: ['Budget up', 'Hiring up'] });
-  await expect.poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), { timeout: POLL_TIMEOUT_MS }).toEqual(expect.arrayContaining([' up']));
-  server.services.insightsRepository.saveTopics({ documentId, topics: [{ id: null, name: 'Budget', blockIds: ['b0'] }, { id: null, name: 'Hiring', blockIds: ['b1'] }], computedAtSequence: 1 });
-  stored.push(...server.services.insightsRepository.topics(documentId).map((topic) => ({ topicId: topic.id, sentence: `About ${topic.name}.` })));
+  await expect
+    .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), {
+      timeout: POLL_TIMEOUT_MS,
+    })
+    .toEqual(expect.arrayContaining([' up']));
+  server.services.insightsRepository.saveTopics({
+    documentId,
+    topics: [
+      { id: null, name: 'Budget', blockIds: ['b0'] },
+      { id: null, name: 'Hiring', blockIds: ['b1'] },
+    ],
+    computedAtSequence: 1,
+  });
+  stored.push(
+    ...server.services.insightsRepository.topics(documentId).map((topic) => ({ topicId: topic.id, sentence: `About ${topic.name}.` })),
+  );
   return { ...story, model };
 }
 
@@ -48,7 +61,10 @@ test('one call summarizes every stale topic', async () => {
   expect(model.doGenerateCalls).toHaveLength(1);
   const topicIds = server.services.insightsRepository.topics(documentId).map((topic) => topic.id);
   topicIds.forEach((topicId) => expect(JSON.stringify(model.doGenerateCalls[0]!.prompt)).toContain(topicId));
-  expect(sentencesOf((await readSummaries({ server, documentId, cookie: owner.cookie })).summaries)).toEqual(['About Budget.', 'About Hiring.']);
+  expect(sentencesOf((await readSummaries({ server, documentId, cookie: owner.cookie })).summaries)).toEqual([
+    'About Budget.',
+    'About Hiring.',
+  ]);
   client.close();
   await server.stop();
 });
@@ -69,7 +85,11 @@ test('a new edit inside the minimum interval waits', async () => {
   await readSummaries({ server, documentId, cookie: owner.cookie });
   await server.services.insights.worker.idle();
   writeStory({ document: client.document, texts: ['Budget up again', 'Hiring up'] });
-  await expect.poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), { timeout: POLL_TIMEOUT_MS }).toEqual(expect.arrayContaining([' again']));
+  await expect
+    .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), {
+      timeout: POLL_TIMEOUT_MS,
+    })
+    .toEqual(expect.arrayContaining([' again']));
   await readSummaries({ server, documentId, cookie: owner.cookie });
   await server.services.insights.worker.idle();
   expect(model.doGenerateCalls).toHaveLength(1);
@@ -90,7 +110,9 @@ test('summaries are skipped and logged when the process-wide LLM cap is full', a
   const held = new Promise<void>((resolve) => {
     open = resolve;
   });
-  Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) => server.services.insights.worker.run({ key: `held-${index}`, job: () => held }));
+  Array.from({ length: LLM_MAX_CONCURRENT_JOBS }).forEach((_, index) =>
+    server.services.insights.worker.run({ key: `held-${index}`, job: () => held }),
+  );
   await readSummaries({ server, documentId, cookie: owner.cookie });
   expect(model.doGenerateCalls).toHaveLength(0);
   await readSummaries({ server, documentId, cookie: owner.cookie });

@@ -19,7 +19,14 @@ function framesAfterReady({ frames, sequence }: { frames: Frame[]; sequence: num
   return frames.slice(readyIndex).map((frame) => ({ ...frame, isReady: frame.isReady || frame.version.sequence === sequence }));
 }
 
-type VersionFrameProps = { documentId: string; version: VersionSummary | null; requestedSequence: number | null; runs: EditRunView[]; onFailed: (sequence: number) => void; onExit: () => void };
+type VersionFrameProps = {
+  documentId: string;
+  version: VersionSummary | null;
+  requestedSequence: number | null;
+  runs: EditRunView[];
+  onFailed: (sequence: number) => void;
+  onExit: () => void;
+};
 
 export function VersionFrame({ documentId, version, requestedSequence, runs, onFailed, onExit }: VersionFrameProps) {
   const [frames, setFrames] = useState<Frame[]>([]);

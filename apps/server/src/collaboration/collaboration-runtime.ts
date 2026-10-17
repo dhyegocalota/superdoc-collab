@@ -19,12 +19,38 @@ export type DocumentRuntime = {
   forget: (documentId: string) => Promise<void>;
 };
 
-export function createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage, timelinePipelines, versions, versionRooms }: { hocuspocus: Hocuspocus; log: UpdateLog; readModel: ReadModel; scheduler: ProjectionScheduler; storage: DocumentFileStorage; timelinePipelines: TimelinePipelineCache; versions: VersionsService; versionRooms: VersionRooms }): DocumentRuntime {
+export function createCollaborationRuntime({
+  hocuspocus,
+  log,
+  readModel,
+  scheduler,
+  storage,
+  timelinePipelines,
+  versions,
+  versionRooms,
+}: {
+  hocuspocus: Hocuspocus;
+  log: UpdateLog;
+  readModel: ReadModel;
+  scheduler: ProjectionScheduler;
+  storage: DocumentFileStorage;
+  timelinePipelines: TimelinePipelineCache;
+  versions: VersionsService;
+  versionRooms: VersionRooms;
+}): DocumentRuntime {
   const bootstrapped = new Set<string>();
   function roomsOf(documentId: string): Document[] {
     return [...hocuspocus.documents.values()].filter((room) => documentIdFromRoomName(room.name) === documentId);
   }
-  function findCommittedBootstrap({ documentId, afterSequence, document }: { documentId: string; afterSequence: number; document: Y.Doc }): number | null {
+  function findCommittedBootstrap({
+    documentId,
+    afterSequence,
+    document,
+  }: {
+    documentId: string;
+    afterSequence: number;
+    document: Y.Doc;
+  }): number | null {
     const page = log.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
     const last = page.at(-1);
     if (!last) return null;
@@ -41,7 +67,12 @@ export function createCollaborationRuntime({ hocuspocus, log, readModel, schedul
   }
   return {
     roomMode: (documentId) => (hasCommittedBootstrap(documentId) ? RoomMode.Join : RoomMode.Create),
-    onlineUserIds: (documentId) => new Set(roomsOf(documentId).flatMap((room) => [...room.connections.values()].map(({ connection }) => (connection.context as CollaborationContext).userId))),
+    onlineUserIds: (documentId) =>
+      new Set(
+        roomsOf(documentId).flatMap((room) =>
+          [...room.connections.values()].map(({ connection }) => (connection.context as CollaborationContext).userId),
+        ),
+      ),
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));

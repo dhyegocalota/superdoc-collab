@@ -50,7 +50,21 @@ export function formatBinRange({ start, binMs }: { start: number; binMs: number 
   return `${formatTimestamp(start)}${RANGE_SEPARATOR}${formatTimestamp(start + binMs)}`;
 }
 
-export function TimelineTooltip({ id, timeline, index, left, top, chartWidth }: { id: string; timeline: DocumentTimeline; index: number; left: number; top: number; chartWidth: number }) {
+export function TimelineTooltip({
+  id,
+  timeline,
+  index,
+  left,
+  top,
+  chartWidth,
+}: {
+  id: string;
+  timeline: DocumentTimeline;
+  index: number;
+  left: number;
+  top: number;
+  chartWidth: number;
+}) {
   const bin = timeline.bins[index]!;
   const rows = timeline.bands
     .map((band) => ({ band, cell: bin.byBand[band.id] }))
@@ -62,12 +76,16 @@ export function TimelineTooltip({ id, timeline, index, left, top, chartWidth }: 
       role="tooltip"
       data-alignment={alignment}
       style={{ left: tooltipAnchorLeft({ left, chartWidth }), top, width: tooltipWidthIn(chartWidth) }}
-      className={cn('pointer-events-none absolute z-10 rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md', ALIGNMENT_CLASS[alignment])}
+      className={cn(
+        'pointer-events-none absolute z-10 rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md',
+        ALIGNMENT_CLASS[alignment],
+      )}
     >
       <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
-          {band.name} +{cell!.inserted} −{cell!.deleted} · {cell!.authorKeys.map((authorKey) => authorOf({ authors: timeline.authors, authorKey }).name).join(', ')}
+          {band.name} +{cell!.inserted} −{cell!.deleted} ·{' '}
+          {cell!.authorKeys.map((authorKey) => authorOf({ authors: timeline.authors, authorKey }).name).join(', ')}
         </p>
       ))}
     </div>

@@ -1,4 +1,15 @@
-import { DocumentRole, HttpStatus, RETRY_AFTER_HEADER, TimelineQueryParam, VERSION_FAILED_ERROR, VERSION_NOT_READY_ERROR, versionCollaborationPath, type VersionMarks, type VersionSummary, type VersionText } from '@superdoc-history/types';
+import {
+  DocumentRole,
+  HttpStatus,
+  RETRY_AFTER_HEADER,
+  TimelineQueryParam,
+  VERSION_FAILED_ERROR,
+  VERSION_NOT_READY_ERROR,
+  versionCollaborationPath,
+  type VersionMarks,
+  type VersionSummary,
+  type VersionText,
+} from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
@@ -25,7 +36,11 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     const marks = services.readModel.marks(documentId);
     const index = marks.findLastIndex((mark) => mark.sequence <= around);
     const centre = index === -1 ? 0 : index;
-    const body: VersionMarks = { marks: marks.slice(Math.max(0, centre - VERSION_MARKS_AROUND), centre + VERSION_MARKS_AROUND + 1).map(({ sequence, serverTime }) => ({ sequence, serverTime })) };
+    const body: VersionMarks = {
+      marks: marks
+        .slice(Math.max(0, centre - VERSION_MARKS_AROUND), centre + VERSION_MARKS_AROUND + 1)
+        .map(({ sequence, serverTime }) => ({ sequence, serverTime })),
+    };
     return context.json(body);
   });
 
@@ -35,12 +50,18 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     const sequenceText = context.req.param('sequence');
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const mark = services.versions.resolve({ documentId, sequence: Number(sequenceText) });
-    if (!mark && services.scheduler.isRebuilding(documentId)) return context.json({ sequence: Number(sequenceText) }, HttpStatus.Accepted, retryHeaders);
+    if (!mark && services.scheduler.isRebuilding(documentId))
+      return context.json({ sequence: Number(sequenceText) }, HttpStatus.Accepted, retryHeaders);
     if (!mark) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
     const lookup = services.versions.peek({ documentId, sequence: mark.sequence });
-    if (lookup.kind === VersionLookupKind.Failed) return context.json({ error: VERSION_FAILED_ERROR }, HttpStatus.ServiceUnavailable, retryHeaders);
+    if (lookup.kind === VersionLookupKind.Failed)
+      return context.json({ error: VERSION_FAILED_ERROR }, HttpStatus.ServiceUnavailable, retryHeaders);
     if (lookup.kind === VersionLookupKind.Pending) return context.json({ sequence: mark.sequence }, HttpStatus.Accepted, retryHeaders);
-    const summary: VersionSummary = { sequence: lookup.version.sequence, serverTime: lookup.version.serverTime, collaborationPath: versionCollaborationPath({ documentId, sequence: lookup.version.sequence }) };
+    const summary: VersionSummary = {
+      sequence: lookup.version.sequence,
+      serverTime: lookup.version.serverTime,
+      collaborationPath: versionCollaborationPath({ documentId, sequence: lookup.version.sequence }),
+    };
     return context.json(summary);
   });
 
@@ -49,7 +70,8 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
-    if (!services.versions.resolve({ documentId, sequence: Number(sequenceText) })) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
+    if (!services.versions.resolve({ documentId, sequence: Number(sequenceText) }))
+      return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
     try {
       const { sequence, text } = await services.versions.load({ documentId, sequence: Number(sequenceText) });
       const body: VersionText = { sequence, text };

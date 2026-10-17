@@ -33,7 +33,9 @@ export class ShareLinksRepository {
       missing.forEach((role) => this.writeNonce({ documentId, role }));
       return this.links(documentId);
     }
-    return Object.fromEntries(existing.map((row) => [row.role, `${this.appOrigin}${sharePagePath(deriveShareToken({ secret: this.secret, nonce: row.nonce }))}`])) as ShareLinks;
+    return Object.fromEntries(
+      existing.map((row) => [row.role, `${this.appOrigin}${sharePagePath(deriveShareToken({ secret: this.secret, nonce: row.nonce }))}`]),
+    ) as ShareLinks;
   }
 
   rotate({ documentId, role }: { documentId: string; role: ShareLinkRole }): ShareLinks {

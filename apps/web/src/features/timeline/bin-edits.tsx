@@ -34,7 +34,9 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
       <li key={`${run.blockId}-${run.bandId}`} className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
           <TopicChip band={band} maxVolume={maxVolume} />
-          <p className="text-xs text-muted-foreground">{run.authorKeys.map((authorKey) => authorOf({ authors: data!.authors, authorKey }).name).join(', ')}</p>
+          <p className="text-xs text-muted-foreground">
+            {run.authorKeys.map((authorKey) => authorOf({ authors: data!.authors, authorKey }).name).join(', ')}
+          </p>
         </div>
         {run.inserted && <p className="text-sm text-primary">{`+"${snippetOf(run.inserted)}"`}</p>}
         {run.deleted && <p className="text-sm text-destructive">{`−"${snippetOf(run.deleted)}"`}</p>}

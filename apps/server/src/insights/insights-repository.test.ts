@@ -9,11 +9,34 @@ const SENTENCE = 'Ana raised the budget.';
 test('a recompute keeps reused topic ids with their summaries and drops the rest', async () => {
   const { server, documentId } = await documentWithOwner();
   const insights = server.services.insightsRepository;
-  insights.saveTopics({ documentId, topics: [{ id: null, name: 'Budget', blockIds: ['b1', 'b2'] }, { id: null, name: 'Hiring', blockIds: ['b3'] }], computedAtSequence: 10 });
+  insights.saveTopics({
+    documentId,
+    topics: [
+      { id: null, name: 'Budget', blockIds: ['b1', 'b2'] },
+      { id: null, name: 'Hiring', blockIds: ['b3'] },
+    ],
+    computedAtSequence: 10,
+  });
   const [budget, hiring] = insights.topics(documentId);
-  insights.saveSummaries({ summaries: [{ topicId: budget!.id, sentence: 'Costs rose.' }, { topicId: hiring!.id, sentence: 'Two hires.' }], computedAtSequence: 10 });
-  insights.saveTopics({ documentId, topics: [{ id: budget!.id, name: 'Costs', blockIds: ['b1', 'b2', 'b4'] }, { id: null, name: 'Scope', blockIds: ['b5'] }], computedAtSequence: 20 });
-  expect(insights.topics(documentId).map((topic) => [topic.id === budget!.id, topic.name, topic.blockIds])).toEqual([[true, 'Costs', ['b1', 'b2', 'b4']], [false, 'Scope', ['b5']]]);
+  insights.saveSummaries({
+    summaries: [
+      { topicId: budget!.id, sentence: 'Costs rose.' },
+      { topicId: hiring!.id, sentence: 'Two hires.' },
+    ],
+    computedAtSequence: 10,
+  });
+  insights.saveTopics({
+    documentId,
+    topics: [
+      { id: budget!.id, name: 'Costs', blockIds: ['b1', 'b2', 'b4'] },
+      { id: null, name: 'Scope', blockIds: ['b5'] },
+    ],
+    computedAtSequence: 20,
+  });
+  expect(insights.topics(documentId).map((topic) => [topic.id === budget!.id, topic.name, topic.blockIds])).toEqual([
+    [true, 'Costs', ['b1', 'b2', 'b4']],
+    [false, 'Scope', ['b5']],
+  ]);
   expect(insights.summaries(documentId).map((summary) => summary.sentence)).toEqual(['Costs rose.']);
   expect(insights.status(documentId)).toEqual({ state: TopicState.Ready, failure: null, computedAtSequence: 20 });
   await server.stop();
@@ -78,7 +101,9 @@ test('a topic id from another document is saved as a new topic and leaves the ot
   const [foreign] = insights.topics(otherDocumentId);
   insights.saveTopics({ documentId, topics: [{ id: foreign!.id, name: 'Budget', blockIds: ['b1'] }], computedAtSequence: 2 });
   expect(insights.topics(documentId).map((topic) => [topic.id === foreign!.id, topic.name])).toEqual([[false, 'Budget']]);
-  expect(insights.topics(otherDocumentId).map((topic) => [topic.id, topic.name, topic.blockIds])).toEqual([[foreign!.id, 'Hiring', ['b9']]]);
+  expect(insights.topics(otherDocumentId).map((topic) => [topic.id, topic.name, topic.blockIds])).toEqual([
+    [foreign!.id, 'Hiring', ['b9']],
+  ]);
   await server.stop();
 });
 
@@ -86,25 +111,84 @@ test('a selection summary is saved and read back, and a later failure keeps its 
   const { server, documentId } = await documentWithOwner();
   const insights = server.services.insightsRepository;
   expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toBeNull();
-  insights.saveSelectionSummary({ documentId, key: SELECTION_KEY, sentence: SENTENCE, authors: ['Ana'], computedAtSequence: 7, topicsUpdatedAt: null });
-  expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({ key: SELECTION_KEY, sentence: SENTENCE, authors: ['Ana'], failure: null, computedAtSequence: 7, topicsUpdatedAt: null });
-  insights.saveSelectionFailure({ documentId, key: SELECTION_KEY, failure: SELECTION_SUMMARY_FAILED_MESSAGE, computedAtSequence: 9, topicsUpdatedAt: 5 });
-  expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({ key: SELECTION_KEY, sentence: SENTENCE, authors: ['Ana'], failure: SELECTION_SUMMARY_FAILED_MESSAGE, computedAtSequence: 7, topicsUpdatedAt: null });
-  insights.saveSelectionSummary({ documentId, key: SELECTION_KEY, sentence: 'Ana and Bruno changed the plan.', authors: ['Ana', 'Bruno'], computedAtSequence: 9, topicsUpdatedAt: 5 });
-  expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toMatchObject({ failure: null, authors: ['Ana', 'Bruno'], computedAtSequence: 9, topicsUpdatedAt: 5 });
+  insights.saveSelectionSummary({
+    documentId,
+    key: SELECTION_KEY,
+    sentence: SENTENCE,
+    authors: ['Ana'],
+    computedAtSequence: 7,
+    topicsUpdatedAt: null,
+  });
+  expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({
+    key: SELECTION_KEY,
+    sentence: SENTENCE,
+    authors: ['Ana'],
+    failure: null,
+    computedAtSequence: 7,
+    topicsUpdatedAt: null,
+  });
+  insights.saveSelectionFailure({
+    documentId,
+    key: SELECTION_KEY,
+    failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+    computedAtSequence: 9,
+    topicsUpdatedAt: 5,
+  });
+  expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({
+    key: SELECTION_KEY,
+    sentence: SENTENCE,
+    authors: ['Ana'],
+    failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+    computedAtSequence: 7,
+    topicsUpdatedAt: null,
+  });
+  insights.saveSelectionSummary({
+    documentId,
+    key: SELECTION_KEY,
+    sentence: 'Ana and Bruno changed the plan.',
+    authors: ['Ana', 'Bruno'],
+    computedAtSequence: 9,
+    topicsUpdatedAt: 5,
+  });
+  expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toMatchObject({
+    failure: null,
+    authors: ['Ana', 'Bruno'],
+    computedAtSequence: 9,
+    topicsUpdatedAt: 5,
+  });
   await server.stop();
 });
 
 test('a first attempt that fails is stored without a sentence', async () => {
   const { server, documentId } = await documentWithOwner();
-  server.services.insightsRepository.saveSelectionFailure({ documentId, key: SELECTION_KEY, failure: SELECTION_SUMMARY_FAILED_MESSAGE, computedAtSequence: 3, topicsUpdatedAt: null });
-  expect(server.services.insightsRepository.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({ key: SELECTION_KEY, sentence: null, authors: [], failure: SELECTION_SUMMARY_FAILED_MESSAGE, computedAtSequence: 3, topicsUpdatedAt: null });
+  server.services.insightsRepository.saveSelectionFailure({
+    documentId,
+    key: SELECTION_KEY,
+    failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+    computedAtSequence: 3,
+    topicsUpdatedAt: null,
+  });
+  expect(server.services.insightsRepository.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({
+    key: SELECTION_KEY,
+    sentence: null,
+    authors: [],
+    failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+    computedAtSequence: 3,
+    topicsUpdatedAt: null,
+  });
   await server.stop();
 });
 
 test('selection summaries are deleted with their document', async () => {
   const { server, documentId } = await documentWithOwner();
-  server.services.insightsRepository.saveSelectionSummary({ documentId, key: SELECTION_KEY, sentence: SENTENCE, authors: [], computedAtSequence: 1, topicsUpdatedAt: null });
+  server.services.insightsRepository.saveSelectionSummary({
+    documentId,
+    key: SELECTION_KEY,
+    sentence: SENTENCE,
+    authors: [],
+    computedAtSequence: 1,
+    topicsUpdatedAt: null,
+  });
   server.services.documents.remove(documentId);
   expect(server.services.insightsRepository.selectionSummary({ documentId, key: SELECTION_KEY })).toBeNull();
   await server.stop();

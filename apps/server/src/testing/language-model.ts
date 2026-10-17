@@ -6,7 +6,12 @@ const STOP = { unified: 'stop' as const, raw: undefined };
 const NO_USAGE = { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 0, text: 0, reasoning: 0 } };
 
 function generateResult(answer: unknown) {
-  return { content: [{ type: 'text' as const, text: typeof answer === 'string' ? answer : JSON.stringify(answer) }], finishReason: STOP, usage: NO_USAGE, warnings: [] };
+  return {
+    content: [{ type: 'text' as const, text: typeof answer === 'string' ? answer : JSON.stringify(answer) }],
+    finishReason: STOP,
+    usage: NO_USAGE,
+    warnings: [],
+  };
 }
 
 export function modelAnswering(...answers: unknown[]): MockLanguageModelV4 {

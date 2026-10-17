@@ -5,7 +5,16 @@ export enum TrackedChangeType {
   Deletion = 'deletion',
 }
 
-export type ListedTrackedChange = { id: string; type: TrackedChangeType; author: string; date: string; insertedText: string | null; deletedText: string | null; imported: boolean; navigationTarget: { blockId: string } };
+export type ListedTrackedChange = {
+  id: string;
+  type: TrackedChangeType;
+  author: string;
+  date: string;
+  insertedText: string | null;
+  deletedText: string | null;
+  imported: boolean;
+  navigationTarget: { blockId: string };
+};
 
 export class MissingTrackedChangeTextError extends Error {
   constructor(revisionId: string) {
@@ -22,6 +31,13 @@ export function toImportedRevisions(items: ListedTrackedChange[]): ImportedRevis
   return items.map((item) => {
     const isInsertion = item.type === TrackedChangeType.Insertion;
     const text = requireText({ text: isInsertion ? item.insertedText : item.deletedText, revisionId: item.id });
-    return { revisionId: item.id, authorName: item.author, serverTime: Date.parse(item.date), blockId: item.navigationTarget.blockId, inserted: isInsertion ? text : '', deleted: isInsertion ? '' : text };
+    return {
+      revisionId: item.id,
+      authorName: item.author,
+      serverTime: Date.parse(item.date),
+      blockId: item.navigationTarget.blockId,
+      inserted: isInsertion ? text : '',
+      deleted: isInsertion ? '' : text,
+    };
   });
 }

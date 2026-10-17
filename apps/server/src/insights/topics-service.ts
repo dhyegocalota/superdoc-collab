@@ -1,5 +1,12 @@
 import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@superdoc-history/history';
-import { MINUTE_MS, SECOND_MS, TOPIC_RECOMPUTE_NEW_BLOCKS, TOPICS_FAILED_MESSAGE, TopicState, type TopicStatus } from '@superdoc-history/types';
+import {
+  MINUTE_MS,
+  SECOND_MS,
+  TOPIC_RECOMPUTE_NEW_BLOCKS,
+  TOPICS_FAILED_MESSAGE,
+  TopicState,
+  type TopicStatus,
+} from '@superdoc-history/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import { describeError } from '../history/projection-messages';
@@ -22,7 +29,8 @@ export enum RefreshOutcome {
   TooSoon = 'too-soon',
 }
 
-export type RefreshResult = { outcome: RefreshOutcome.Started | RefreshOutcome.AlreadyRunning } | { outcome: RefreshOutcome.TooSoon; retryAfterSeconds: number };
+export type RefreshResult =
+  { outcome: RefreshOutcome.Started | RefreshOutcome.AlreadyRunning } | { outcome: RefreshOutcome.TooSoon; retryAfterSeconds: number };
 
 function topicsKey(documentId: string): string {
   return `topics:${documentId}`;
@@ -35,7 +43,17 @@ export class TopicsService {
   private readonly worker: InsightsWorker;
   readonly cooldown = new DocumentCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
 
-  constructor({ repository, scheduler, languageModel, worker }: { repository: InsightsRepository; scheduler: ProjectionScheduler; languageModel: LanguageModelChoice; worker: InsightsWorker }) {
+  constructor({
+    repository,
+    scheduler,
+    languageModel,
+    worker,
+  }: {
+    repository: InsightsRepository;
+    scheduler: ProjectionScheduler;
+    languageModel: LanguageModelChoice;
+    worker: InsightsWorker;
+  }) {
     this.repository = repository;
     this.scheduler = scheduler;
     this.languageModel = languageModel;
@@ -114,16 +132,32 @@ export class TopicsService {
     }
   }
 
-  private async recompute({ documentId, model, previous, isRefresh }: { documentId: string; model: LanguageModel; previous: TopicStatus | null; isRefresh: boolean }): Promise<void> {
+  private async recompute({
+    documentId,
+    model,
+    previous,
+    isRefresh,
+  }: {
+    documentId: string;
+    model: LanguageModel;
+    previous: TopicStatus | null;
+    isRefresh: boolean;
+  }): Promise<void> {
     const { blocks, sequence } = await this.scheduler.blocks(documentId);
     if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
     const named = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
     if (named.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
     this.consumeCooldown({ documentId, isRefresh });
     if (!this.worker.consumeCall()) throw new LanguageModelBusyError();
-    const output = await generateStructured({ model, schema: topicsOutputSchema, system: TOPICS_SYSTEM_PROMPT, prompt: topicsPrompt(named) });
+    const output = await generateStructured({
+      model,
+      schema: topicsOutputSchema,
+      system: TOPICS_SYSTEM_PROMPT,
+      prompt: topicsPrompt(named),
+    });
     const normalized = normalizeTopics({ output, knownBlockIds: new Set(named.map((block) => block.blockId)) });
-    if (normalized.unknownBlockIds.length > 0) console.warn(`${UNKNOWN_TOPIC_BLOCKS_MESSAGE} ${documentId}: ${normalized.unknownBlockIds.length}`);
+    if (normalized.unknownBlockIds.length > 0)
+      console.warn(`${UNKNOWN_TOPIC_BLOCKS_MESSAGE} ${documentId}: ${normalized.unknownBlockIds.length}`);
     const topics = matchPreviousTopics({ previous: this.repository.topics(documentId), next: normalized.topics });
     this.repository.saveTopics({ documentId, topics, computedAtSequence: sequence });
   }

@@ -9,7 +9,10 @@ function readOptionalWebDistDirectory(source: NodeJS.ProcessEnv): string | null 
   return null;
 }
 
-const running = await startServer({ environment: loadEnvironment(process.env), webDistDirectory: readOptionalWebDistDirectory(process.env) });
+const running = await startServer({
+  environment: loadEnvironment(process.env),
+  webDistDirectory: readOptionalWebDistDirectory(process.env),
+});
 console.log(`listening on :${running.port}`);
 process.on('SIGTERM', () => {
   void running.stop().then(() => process.exit(0));

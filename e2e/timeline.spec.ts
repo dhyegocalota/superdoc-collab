@@ -1,8 +1,32 @@
 import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
-import { bandAriaLabel, REFRESH_TOPICS_LABEL, removeFilterLabel, RETRY_TOPICS_LABEL, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
+import {
+  bandAriaLabel,
+  REFRESH_TOPICS_LABEL,
+  removeFilterLabel,
+  RETRY_TOPICS_LABEL,
+  TOP_EDITS_LABEL,
+} from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
-import { ANA, BRUNO, BUDGET, BUDGET_PARAGRAPH, bandNamed, bandVolume, BANDS_TIMEOUT_MS, currentAt, filterBy, HIRING, HIRING_PARAGRAPH, pressInChart, readTimeline, ruleX, twoAuthorsInTwoTopics, VERSION_TIMEOUT_MS, waitForBands } from './timeline';
+import {
+  ANA,
+  BRUNO,
+  BUDGET,
+  BUDGET_PARAGRAPH,
+  bandNamed,
+  bandVolume,
+  BANDS_TIMEOUT_MS,
+  currentAt,
+  filterBy,
+  HIRING,
+  HIRING_PARAGRAPH,
+  pressInChart,
+  readTimeline,
+  ruleX,
+  twoAuthorsInTwoTopics,
+  VERSION_TIMEOUT_MS,
+  waitForBands,
+} from './timeline';
 
 const RENAMED_PREFIX = 'Staff ';
 const FAILING_PARAGRAPH = 'FAIL-TOPICS: the plan costs 10.';
@@ -40,7 +64,9 @@ test('filter by username hides the other author', async ({ browser }) => {
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await filterBy({ page: ana.page, text: '@bruno' });
   await expect(ana.page).toHaveURL(new RegExp(`${TimelineSearchParam.Author}=bruno`));
-  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), { timeout: FILTER_TIMEOUT_MS });
+  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), {
+    timeout: FILTER_TIMEOUT_MS,
+  });
   await expect(topEdits(ana.page).filter({ hasText: HIRING })).toHaveCount(1);
   await expect(topEdits(ana.page).filter({ hasText: BUDGET })).toHaveCount(0);
 });
@@ -50,10 +76,14 @@ test('filter by term survives a reload', async ({ browser }) => {
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await filterBy({ page: ana.page, text: 'designer' });
   await expect(ana.page).toHaveURL(new RegExp(`${TimelineSearchParam.Term}=designer`));
-  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), { timeout: FILTER_TIMEOUT_MS });
+  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), {
+    timeout: FILTER_TIMEOUT_MS,
+  });
   await ana.page.reload();
   await expect(ana.page.getByRole('button', { name: removeFilterLabel('designer') })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
-  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), { timeout: FILTER_TIMEOUT_MS });
+  await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), {
+    timeout: FILTER_TIMEOUT_MS,
+  });
   await expect.poll(() => bandVolume({ page: ana.page, name: HIRING })).toBeGreaterThan(0);
 });
 
@@ -90,7 +120,9 @@ test('keyboard moves the selected bin', async ({ browser }) => {
   const navigations: string[] = [];
   ana.page.on('framenavigated', (frame) => navigations.push(frame.url()));
   await ana.page.keyboard.press('ArrowLeft');
-  await expect.poll(() => new URL(ana.page.url()).searchParams.get(TimelineSearchParam.At), { timeout: FILTER_TIMEOUT_MS }).not.toBe(lastAt);
+  await expect
+    .poll(() => new URL(ana.page.url()).searchParams.get(TimelineSearchParam.At), { timeout: FILTER_TIMEOUT_MS })
+    .not.toBe(lastAt);
   expect(await ruleX(ana.page)).toBeLessThan(lastRule);
   expect(navigations.filter((url) => url.includes(`${TimelineSearchParam.At}=`))).toHaveLength(1);
 });

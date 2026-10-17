@@ -19,16 +19,20 @@ Every box states the input and the exact expected outcome; ticked boxes carry ` 
 
 ## Prove it for real — Playwright MCP
 
-- [ ] As a user whose stored zone is America/Sao_Paulo, with the browser context in Europe/Lisbon: the timeline label reads "Times in America/Sao_Paulo"; `/settings` shows "Your browser reports Europe/Lisbon" with "Use this".
-- [ ] Choose Asia/Kathmandu, save: toast, the documents "Updated" column and the timeline labels change without a reload.
+- [x] As a user whose stored zone is America/Sao_Paulo, with the browser context in Europe/Lisbon: the timeline label reads "Times in America/Sao_Paulo"; `/settings` shows "Your browser reports Europe/Lisbon" with "Use this". — evidence: Phase A, local stack at 846b77a, Lisbon context: label "Times in America/Sao_Paulo", axis 3:30:30 PM for 18:30:30 UTC, /settings "Your browser reports Europe/Lisbon" with "Use this" (a UTC user's label read "Times in UTC"; Use this set the select to Europe/Lisbon without saving); docs/features/timezone-preference/media/timeline-label-sao-paulo-browser-lisbon.png, docs/features/timezone-preference/media/timeline-label-utc-browser-lisbon.png, docs/features/timezone-preference/media/settings-browser-lisbon-account-utc.png
+- [x] Choose Asia/Kathmandu, save: toast, the documents "Updated" column and the timeline labels change without a reload. — evidence: Phase A, SPA navigation with a window marker kept alive: saved Asia/Katmandu (the only spelling the select offers, see edge cases), toast "Time zone saved", documents Updated 3:30 PM to 12:15 AM next day (+8 h 45 min), label "Times in Asia/Katmandu", axis 12:15:30 AM; docs/features/timezone-preference/media/documents-updated-sao-paulo.png, docs/features/timezone-preference/media/documents-updated-kathmandu.png, docs/features/timezone-preference/media/settings-saved-toast.png
 - [ ] A document with edits spread over several days (seeded through the API with fixed `serverTime` is not possible; use the fake clock-free path: open a long-lived demo document) shows day bins starting at local midnight in the chosen zone: hover the first bin, its range starts at 12:00 AM.
-- [ ] A user whose stored zone is `null` (clear it through the database on the local stack) sees "(from this browser)" next to the label.
-- [ ] Narrow width 375: the settings select and buttons fit; the timeline label wraps without overflow.
-- [ ] Console and network clean; no request to `/timeline` without `timeZone`.
+- [x] A user whose stored zone is `null` (clear it through the database on the local stack) sees "(from this browser)" next to the label. — evidence: Phase A: bruno cleared with node:sqlite in the container, reload showed "Times in America/Sao_Paulo (from this browser)"; sign-out and sign-in then stored America/Sao_Paulo in auth.sqlite; docs/features/timezone-preference/media/timeline-label-from-this-browser.png, docs/features/timezone-preference/media/settings-null-zone-user.png
+- [x] Narrow width 375: the settings select and buttons fit; the timeline label wraps without overflow. — evidence: Phase A: no horizontal overflow on /settings or the document page; select 327 px wide, Save 65 px, label with America/Argentina/Rio_Gallegos fits on one line; docs/features/timezone-preference/media/settings-375.png, docs/features/timezone-preference/media/timeline-label-375.png
+- [x] Console and network clean; no request to `/timeline` without `timeZone`. — evidence: Phase A: zero console errors and zero 4xx/5xx across the Ana, Bruno and Caio walks; every /timeline and /summaries/selection request carried timeZone (percent-encoded); /summaries has none by design (UTC grouping)
 
 ## Edge cases found during execution
 
-Empty on purpose.
+- [x] Keyboard: select a zone, Tab to Save, Enter — toast "Time zone saved" appears in a polite live region and focus stays on the Save button — evidence: Phase A, Bruno at 375 px.
+- [x] A user whose stored zone is already UTC is not backfilled at sign-in (bruno stayed UTC after a fresh sign-in); only null is filled — evidence: Phase A, auth.sqlite read before and after.
+- [x] A null-zone user's /settings preselects the browser zone and hides "Your browser reports" and "Use this" because they would be redundant — evidence: docs/features/timezone-preference/media/settings-null-zone-user.png.
+- [ ] DEFECT (for the lead, not fixed): Chromium reports legacy names. A browser in Asia/Kathmandu reports "Asia/Katmandu"; the select lists "Asia/Katmandu", "Asia/Calcutta", "Europe/Kiev", "America/Godthab" and has no "Asia/Kathmandu"; "Use this" saves "Asia/Katmandu" and the label reads "Times in Asia/Katmandu". The test plan and the e2e spec name Asia/Kathmandu. Waiting for the canonical-names lane; re-run in Phase B.
+- [ ] Observation, unverified against main: uploading `apps/web/public/blank.docx` and typing into the editor textarea showed "The editor stopped working. Reload the page to continue." Almost certainly unrelated to time zones; not investigated.
 
 ## Adversarial review
 

@@ -13,7 +13,7 @@ Security was one lens of the general `reviewer` role, next to conventions, corre
 
 ## Decision
 
-1. CI gains a `security` job in `verify.yml`, independent of the others (ADR 0018): `pnpm security:audit` (`pnpm audit --prod --audit-level=high`) and a `gitleaks` scan of the full history. Dependabot opens weekly security updates for npm and GitHub Actions.
+1. CI gains a `security` job in `verify.yml`, independent of the others (ADR 0018): `pnpm security:audit` (`pnpm audit --prod --audit-level=high`) and a `gitleaks git` scan of every commit reachable from the head, run from a binary pinned by version and SHA-256 rather than the GitHub Action, which reads at most thirty pull-request commits and never walks into a merged lane. A probe step proves the rules fire on a fresh token and stay silent on a shipped placeholder. Dependabot opens weekly version updates for npm and GitHub Actions; security updates need the repository setting.
 2. The audit gate covers **production dependencies at `high` and above**. Dev-only advisories are not a gate; they are reviewed when the tool that pins them is updated. A production advisory with no fix lands in `pnpm.auditConfig.ignoreCves` with the CVE and the reason in the same commit, never silently.
 3. A dedicated `security-reviewer` role (fresh context, read-only, strongest model) runs on every diff before the PR opens, after the general reviewer, with this repository's threat model as its checklist. Its verdict (`CLEAR | FINDINGS | NOT APPLICABLE`) goes into the PR body under `## Security`.
 
@@ -29,7 +29,7 @@ Security was one lens of the general `reviewer` role, next to conventions, corre
 ## Consequences
 
 - `pnpm security:audit` runs locally in `/verify` and in CI; a new production advisory at `high` blocks the merge until the dependency is bumped or the CVE is listed with a reason.
-- `gitleaks` scans every commit reachable from the PR head; a leaked secret blocks the PR and must be rotated, not only removed.
+- `gitleaks` scans every commit reachable from the PR head; a leaked secret blocks the PR and must be rotated, not only removed. The allowlist holds exact anchored strings only; a pattern with a wildcard would let a random secret borrow a placeholder's name.
 - Dependabot PRs follow the same gates as any PR: `/verify`, reviewer, security reviewer.
 - `/open-pr` gains gate 3b: the `security-reviewer` verdict. `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build.
 - Three agent surfaces (`.agents/roles`, `.claude/agents`, `.codex/agents`) gain one role; the repository-shape test keeps them in step.

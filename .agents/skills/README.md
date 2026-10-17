@@ -13,7 +13,7 @@ Vendored from superpowers 6.4.1 (obra/superpowers, MIT). Cross-references are re
 This folder is the single source of skills: Claude Code reads it through the `.claude/skills` symlink, and Codex reads `.agents/skills` natively. In-house skills live alongside these:
 
 - feature, adr, learning — scaffold the feature folder, an ADR, a learning
-- verify — typecheck → unit → E2E, stop at the first failure
+- verify — typecheck → security audit → secret scan → unit → E2E, stop at the first failure
 - check-ui — Playwright MCP walk, screenshots, video, release upload
 - open-pr — the Ship gates, then the pull request
 

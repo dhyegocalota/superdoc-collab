@@ -9,7 +9,7 @@ Run the gate for `$ARGUMENTS` (default `all`) from the repo root, in this order,
 
 1. `pnpm typecheck`
 2. `pnpm security:audit` (production dependencies at `high`, ADR 0022)
-3. `gitleaks git --no-banner --redact` when `gitleaks` is on `PATH`; when it is not, the report says `gitleaks: not installed, CI runs it` and the gate continues
+3. `.github/scripts/secret-rules-probe.sh "$(command -v gitleaks)"` then `gitleaks git --no-banner --redact --exit-code 1 .` when `gitleaks` is on `PATH`; when it is not, the report says `gitleaks: not installed, CI runs it` and the gate continues
 4. `pnpm test:unit`
 5. `pnpm test:e2e` (skipped when the argument is `unit`)
 

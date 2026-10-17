@@ -11,7 +11,12 @@ const CHECKS_JOB = 'checks';
 const CHECKS_STEPS = ['run: pnpm format:check', 'run: pnpm typecheck', 'run: pnpm test:hooks'];
 const DOCKER_JOB = 'docker';
 const SECURITY_JOB = 'security';
-const SECURITY_STEPS = ['run: pnpm security:audit', 'uses: gitleaks/gitleaks-action@v2'];
+const SECURITY_STEPS = [
+  'run: pnpm security:audit',
+  'sha256sum --check --strict',
+  'run: .github/scripts/secret-rules-probe.sh ./gitleaks',
+  'run: ./gitleaks git --no-banner --redact --exit-code 1 .',
+];
 const FULL_HISTORY_CHECKOUT = 'fetch-depth: 0';
 const UNIT_JOB = 'unit';
 const INSTALL_ACTION = 'uses: ./.github/actions/install';
@@ -30,6 +35,7 @@ const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";
 const FAIL_FAST_DISABLED = 'fail-fast: false';
 const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.', 'docker restart'];
+const TOKEN_REFERENCE = 'secrets.';
 
 function job(name: string): string {
   const workflow = readRepositoryFile(WORKFLOW_FILE);
@@ -75,10 +81,11 @@ describe('CI workflow', () => {
     expect(CHECKS_STEPS.filter((step) => !checks.includes(step))).toEqual([]);
   });
 
-  test('the security job audits production dependencies and scans the full history for secrets', () => {
+  test('the security job audits production dependencies and scans the full history for secrets without a token', () => {
     const security = job(SECURITY_JOB);
     expect(SECURITY_STEPS.filter((step) => !security.includes(step))).toEqual([]);
     expect(security).toContain(FULL_HISTORY_CHECKOUT);
+    expect(security).not.toContain(TOKEN_REFERENCE);
   });
 
   test('no job waits for another job', () => {

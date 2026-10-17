@@ -37,7 +37,9 @@ push / pull_request
        └─ security (new)
             ├─ checkout with the full history
             ├─ pnpm security:audit        = pnpm audit --prod --audit-level=high
-            └─ gitleaks/gitleaks-action   scans every commit reachable from the head
+            ├─ gitleaks binary pinned by version and checksum
+            ├─ .github/scripts/secret-rules-probe.sh   a fresh token fires, a shipped placeholder stays silent
+            └─ gitleaks git                            scans every commit reachable from the head
 
 weekly
   └─ Dependabot: npm (root workspace) and github-actions, security updates grouped
@@ -51,9 +53,9 @@ weekly
 ### Interfaces
 
 - `package.json` scripts: `security:audit` = `pnpm audit --prod --audit-level=high`; `verify` runs it after `typecheck`.
-- `.github/workflows/verify.yml`: a fourth job `security`, `timeout-minutes` bounded, no `needs`, `fetch-depth: 0`, `GITHUB_TOKEN` passed to gitleaks for PR annotations under `contents: read`.
-- `.gitleaks.toml`: extends the default rules; allowlists only the public placeholders the repository ships on purpose (`.env.example`, the E2E and CI smoke secrets), each as a pattern anchored to the whole secret (`^…$`) so a real secret in the same file, or one that merely contains a placeholder, still fires.
-- `.github/dependabot.yml`: `npm` at `/` weekly, `github-actions` at `/` weekly, minor and patch updates grouped, security updates always.
+- `.github/workflows/verify.yml`: a fourth job `security`, `timeout-minutes` bounded, no `needs`, `fetch-depth: 0`, no token: the gitleaks binary is downloaded at a pinned version and verified by SHA-256 before it runs, because the gitleaks GitHub Action scans at most the first thirty commits of a pull request and never walks into a merged lane.
+- `.gitleaks.toml`: extends the default rules; allowlists only the placeholders the default rules actually report in the history (the RFC 6455 sample nonce and two test secrets), each as an exact string anchored to the whole secret (`^…$`), never a pattern with a wildcard, so a random secret that borrows a placeholder's prefix or suffix still fires. `.github/scripts/secret-rules-probe.sh` proves both directions on every CI run and in `/verify`.
+- `.github/dependabot.yml`: `npm` at `/` weekly, `github-actions` at `/` weekly, minor and patch updates grouped. Security updates and alerts are a repository setting the owner turns on by hand (the API answers 403 to the agent's token); until then the file yields version updates only.
 - `.agents/roles/security-reviewer.md`: the role body. Wrappers in `.claude/agents/security-reviewer.md` and `.codex/agents/security-reviewer.toml`; registered in `.codex/config.toml`. The role reads the diff, `spec.md` and the matching `.claude/rules/`, then attacks these surfaces in order: session validation on HTTP and on the Hocuspocus socket; awareness `userId` equals the socket user; per-document authorization on documents, history, versions, media and share links; share-link secret handling and reissue (ADR 0017); SQL binding; enumeration-safe auth responses and rate limits on credential endpoints; upload size, type and path handling for DOCX; secrets in responses, logs or prompts; LLM prompts never carry another document's content; new dependencies and their postinstall scripts; CI and hook changes that widen permissions. Output: numbered findings `CRITICAL | IMPORTANT | MINOR` with file:line, the attack, the consequence and a minimal fix; then `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE — <one line>`. `NOT APPLICABLE` is the answer only for a diff made of Markdown under `docs/` and READMEs; configuration, lockfiles, agent surfaces, hooks and CI count as code.
 - `/open-pr` gate 3b: dispatch `security-reviewer` after the reviewer; `FINDINGS` with any `CRITICAL` or `IMPORTANT` → back to Build; `MINOR` only → listed to the owner, continue. The verdict line goes verbatim into the PR body under a new `## Security` section of `.github/pull_request_template.md`.
 - `/verify`: step 2 is `pnpm security:audit`; when `gitleaks` is on `PATH`, `gitleaks git --no-banner --redact` runs as step 3 and its absence is stated in the report, never silent.
@@ -77,4 +79,4 @@ weekly
 
 ## Test strategy summary
 
-Repository-shape tests (Vitest, `apps/server/src/repository-shape/`): the `security` job exists with both steps, full-history checkout and a bounded timeout; `security:audit` is the production-at-high command and `verify` runs it; Dependabot lists both ecosystems weekly; `.gitleaks.toml` extends the defaults; every role under `.agents/roles/` has both wrappers and the Codex registration, `security-reviewer` included. Tester: runs `pnpm security:audit` (exit 0), `gitleaks` on the full history (zero leaks), and dispatches the `security-reviewer` on this very diff. No UI, no E2E change.
+Repository-shape tests (Vitest, `apps/server/src/repository-shape/`): the `security` job exists with the audit, the checksum check, the probe and the full-history scan, no token, full-history checkout and a bounded timeout; every role under `.agents/roles/` has both wrappers and the Codex registration, `security-reviewer` included. The config strings themselves (`security:audit`, Dependabot, the TOML) are proven by the CI job running them, not by tests that compare a string with itself. Tester: runs `pnpm security:audit` (exit 0), `gitleaks` on the full history (zero leaks), and dispatches the `security-reviewer` on this very diff. No UI, no E2E change.

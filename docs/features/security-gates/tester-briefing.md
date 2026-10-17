@@ -5,12 +5,12 @@ Written by the developer sub-agent when its steps are done. The developer does n
 ## What changed
 
 - `package.json` — `security:audit` script (`pnpm audit --prod --audit-level=high`); `verify` runs it after `typecheck`.
-- `.github/workflows/verify.yml` — fourth job `security`: full-history checkout, install, `pnpm security:audit`, `gitleaks/gitleaks-action@v2`.
+- `.github/workflows/verify.yml` — fourth job `security`: full-history checkout, install, `pnpm security:audit`, gitleaks 8.30.1 downloaded and checksum-verified, the probe script, `gitleaks git` over every commit; no token.
 - `.github/dependabot.yml` — npm and github-actions, weekly, minor and patch grouped.
-- `.gitleaks.toml` — default rules plus an allowlist of four placeholder patterns anchored to the whole secret (the RFC 6455 sample nonce, `*-test-secret-*`, `*-secret-with-at-least-32-characters`, the `.env.example` placeholder).
+- `.gitleaks.toml` — default rules plus an allowlist of the three exact placeholder strings the history contains, anchored; `.github/scripts/secret-rules-probe.sh` proves a fresh token fires and a placeholder stays silent.
 - `.agents/roles/security-reviewer.md` with wrappers in `.claude/agents/` and `.codex/agents/`, registered in `.codex/config.toml`.
 - `.agents/skills/open-pr/SKILL.md` gate 3b; `.agents/skills/verify/SKILL.md` steps 2 and 3; `## Security` in the PR template; HARNESS §6, §7, §9, §12.
-- `apps/server/src/repository-shape/`: `security-config.test.ts`, `agent-surfaces.test.ts`, `ci-workflow.test.ts` (security job cases).
+- `apps/server/src/repository-shape/`: `agent-surfaces.test.ts`, `ci-workflow.test.ts` (security job cases). `security-config.test.ts` from the red commit was deleted after review: its cases compared config strings with themselves (`.claude/rules/testing.md`); the CI job running the commands is the proof.
 - `docs/learnings/2026-10-17-pnpm-audit-is-red-because-a-dev-cli-pins-an-old-better-auth.md`.
 
 ## How to run
@@ -35,7 +35,7 @@ pnpm test:hooks && pnpm format:check && pnpm typecheck
 | `ci-workflow.test.ts::the workflow runs exactly the checks, unit, docker and security jobs` | three jobs | `security` appended after `docker` |
 | `ci-workflow.test.ts::the security job audits production dependencies and scans the full history for secrets` | no job | both steps and `fetch-depth: 0` |
 | `agent-surfaces.test.ts::the roles are exactly the expected ones` | five roles | `security-reviewer` role file |
-| `agent-surfaces.test.ts::every role …` (three cases) | wrappers and registration missing for the new role | both wrappers name the role file; `.codex/config.toml` has the entry |
+| `agent-surfaces.test.ts::every role …` (three cases) | pin: green at the red commit because they iterate over the role files that exist | they keep every future role in step across the three surfaces |
 
 Red commit: `9ffbffc`. The three `ci-workflow` cases that depended on the job list (`Node jobs install…`, `bounded timeout`) were red by consequence, not by design.
 

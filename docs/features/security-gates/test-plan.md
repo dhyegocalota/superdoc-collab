@@ -11,9 +11,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Unit
 
-- [x] `security-config.test.ts::verify runs the security audit right after the typecheck` — input: `scripts.verify`; expected: contains `pnpm typecheck && pnpm security:audit && pnpm test:unit` — evidence: HEAD 8144ce7, `cd apps/server && npx vitest run src/repository-shape/ --reporter=verbose` exit 0, `Test Files 8 passed (8)`, `Tests 60 passed (60)`; test ✓
-- [x] `security-config.test.ts::dependabot watches npm and github actions weekly` — input: `.github/dependabot.yml`; expected: both `package-ecosystem` values with `interval: weekly` — evidence: HEAD 8144ce7, `cd apps/server && npx vitest run src/repository-shape/ --reporter=verbose` exit 0, `Test Files 8 passed (8)`, `Tests 60 passed (60)`; test ✓
-- [x] `security-config.test.ts::gitleaks extends the default rules` — input: `.gitleaks.toml`; expected: contains `useDefault = true` — evidence: HEAD 8144ce7, `cd apps/server && npx vitest run src/repository-shape/ --reporter=verbose` exit 0, `Test Files 8 passed (8)`, `Tests 60 passed (60)`; test ✓
+~~`security-config.test.ts` (three boxes)~~ deleted after review finding 8: the cases compared config strings with themselves (`.claude/rules/testing.md`); the `security` job running `pnpm security:audit`, the checksum check and the probe script is the proof. Mutation check: none of the surviving unit tests catches a changed audit level; that gap is listed under Coverage honesty.
 - [x] `ci-workflow.test.ts::the security job audits production dependencies and scans the full history for secrets` — input: the `security` job; expected: contains `run: pnpm security:audit`, `uses: gitleaks/gitleaks-action@v2` and `fetch-depth: 0` — evidence: HEAD 8144ce7, `cd apps/server && npx vitest run src/repository-shape/ --reporter=verbose` exit 0, `Test Files 8 passed (8)`, `Tests 60 passed (60)`; test ✓
 - [x] `ci-workflow.test.ts::every job has a bounded timeout` — input: four jobs; expected: all ≤ 20 minutes — evidence: HEAD 8144ce7, `cd apps/server && npx vitest run src/repository-shape/ --reporter=verbose` exit 0, `Test Files 8 passed (8)`, `Tests 60 passed (60)`; test ✓
 - [x] `ci-workflow.test.ts::no job waits for another job` — input: the workflow; expected: no `needs:` — evidence: HEAD 8144ce7, `cd apps/server && npx vitest run src/repository-shape/ --reporter=verbose` exit 0, `Test Files 8 passed (8)`, `Tests 60 passed (60)`; test ✓
@@ -47,13 +45,15 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 The reviewer picks the three claims most likely to be wrong and tries to refute each.
 
-- [ ] Claim 1: the allowlist in `.gitleaks.toml` only matches the shipped placeholders — attack: plant a real-looking secret next to a placeholder in `.env.example` in a scratch copy; result: <refuted | held>
-- [ ] Claim 2: the production audit is clean because no production dependency is vulnerable, not because `--prod` hides a path — attack: compare the `--prod` and full advisory paths; result: <refuted | held>
-- [ ] Claim 3: `/open-pr` gate 3b cannot be skipped by a docs-only diff that also touches a hook — attack: read the path list in the skill against `.agents/hooks/`; result: <refuted | held>
+- [x] Claim 1: the allowlist in `.gitleaks.toml` only matches the shipped placeholders — attack: random secrets borrowing a placeholder prefix or suffix (`live-test-secret-<hex>`, `<hex>-secret-with-at-least-32-characters`, `prod-…-zzz`); result: **refuted** by the reviewer and the security reviewer against the wildcard patterns, even anchored — evidence: fixed in the review commit: the allowlist holds three exact anchored strings; `gitleaks dir` on the three probes reports 3 leaks, on the three placeholders reports none; `.github/scripts/secret-rules-probe.sh` passes
+- [x] Claim 2: the production audit is clean because no production dependency is vulnerable, not because `--prod` hides a path — attack: compare the `--prod` and full advisory paths against what `docker/Dockerfile` ships (`pnpm deploy --prod`); result: **held** — evidence: reviewer: the one `--prod` advisory is moderate esbuild under drizzle-kit; every high or critical path is under `@better-auth/cli`
+- [x] Claim 3: `/open-pr` gate 3b cannot be skipped by a diff that weakens a gate — attack: a diff touching only `.gitleaks.toml`, root `package.json`, `pnpm-lock.yaml`, `.mcp.json` or `.claude/settings.json`; result: **refuted** as first committed (path allowlist) — evidence: fixed in the review commit: gate 3b and the role exempt only Markdown under `docs/` and READMEs; HARNESS §6 and the spec say the same
+- [x] Claim 4 (reviewer and security reviewer): the CI scan covers every commit reachable from the head — attack: read `gitleaks/gitleaks-action@v2`: it lists at most thirty PR commits and runs `--first-parent`, so lane merges and commits past the thirtieth are skipped (PR #22: 25 of 51 scanned); result: **refuted** — evidence: fixed in the review commit: the job downloads gitleaks 8.30.1, verifies its SHA-256 and runs `gitleaks git` over the full checkout; no token
 
 ## Coverage honesty
 
 What is not tested and why.
 
-- Dependabot opening a PR — only GitHub runs it; the shape test pins the config, the first weekly run proves it.
+- Dependabot opening a PR — only GitHub runs it; the first weekly run proves the config. Security updates and alerts are a repository setting that is off today (API 403); the PR's human checklist carries it.
+- The audit level and the Dependabot schedule are not pinned by a unit test (review finding 8); a PR that lowers `security:audit` to `critical` is caught by gate 3b, which the security reviewer now runs on every non-docs diff.
 - gitleaks-action on CI against a planted secret — would require pushing a secret-looking string to the public repository; the local `gitleaks dir` run on a scratch file proves the rules, the green CI job proves the wiring.

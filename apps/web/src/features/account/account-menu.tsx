@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
-import { SignOutButton } from '@/features/auth/sign-out-button';
+import { SignOutMenuItem } from '@/features/auth/sign-out-menu-item';
 import { useSession } from '@/features/auth/use-session';
 import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
 import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
@@ -82,7 +82,7 @@ export function AccountMenu() {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <SignOutButton />
+        <SignOutMenuItem />
       </DropdownMenuContent>
     </DropdownMenu>
   );

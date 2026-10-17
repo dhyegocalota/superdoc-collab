@@ -436,3 +436,21 @@ test('a busy regroup shows failed with the busy message', async () => {
   client.close();
   await server.stop();
 });
+
+test('a regroup awaits the topics job that is already running and the model is called once', async () => {
+  let open: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  const model = gatedModel({ gate, answer: topicsAnswer({ blockIds: ['b0'] }) });
+  const { server, documentId, client } = await storyWithBlocks({ languageModel: readyModel(model), texts: ['Budget up'] });
+  const { topics } = server.services.insights;
+  topics.ensure(documentId);
+  const regroups = [topics.regroup(documentId), topics.regroup(documentId)];
+  open();
+  await Promise.all(regroups);
+  expect(model.doGenerateCalls).toHaveLength(1);
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
+  client.close();
+  await server.stop();
+});

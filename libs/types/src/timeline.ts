@@ -33,6 +33,10 @@ export enum TopicState {
   Ready = 'ready',
   Failed = 'failed',
 }
+export enum SummarizeScope {
+  Full = 'full',
+  SummaryOnly = 'summary-only',
+}
 export enum SummarizeOutcome {
   Started = 'started',
   Running = 'running',

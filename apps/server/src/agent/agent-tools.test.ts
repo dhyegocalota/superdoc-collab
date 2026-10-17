@@ -171,3 +171,26 @@ test.each(TOOLS_ON_A_DOCUMENT)('$tool without a documentId is a tool error that 
   expect(result.isError).toBe(true);
   expect(JSON.stringify(resultJson(result))).toContain('documentId');
 });
+
+test('summarize_selection never regroups the topics, even when they are stale', async () => {
+  const model = modelAnswering(SELECTION_ANSWER);
+  const own = await documentWithOwner({ languageModel: readyModel(model) });
+  commitBulkEvents({ server: own.server, documentId: own.documentId, userId: own.owner.id, count: EVENT_COUNT });
+  own.server.services.insightsRepository.saveTopics({
+    documentId: own.documentId,
+    topics: [{ id: null, name: 'Budget', blockIds: ['b0'] }],
+    computedAtSequence: 0,
+  });
+  const regroup = vi.spyOn(own.server.services.insights.topics, 'regroup');
+  const { context } = toolContext({ server: own.server, userId: own.owner.id });
+  const result = await callAgentTool({
+    tool: AgentTool.SummarizeSelection,
+    input: { documentId: own.documentId, ...OWNER_SELECTION },
+    context,
+  });
+  await own.server.services.insights.jobRunner.idle();
+  expect(result.isError).toBeUndefined();
+  expect(regroup).not.toHaveBeenCalled();
+  expect(model.doGenerateCalls).toHaveLength(1);
+  await own.server.stop();
+});

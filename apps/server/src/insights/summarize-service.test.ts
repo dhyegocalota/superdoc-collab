@@ -3,6 +3,7 @@ import {
   GROUPING_FAILED_MESSAGE,
   SelectionSummaryState,
   SummarizeOutcome,
+  SummarizeScope,
   SUMMARIZE_COOLDOWN_MS,
   SummarizeStep,
   TOPICS_FAILED_MESSAGE,
@@ -106,6 +107,18 @@ test('fresh topics are not regrouped', async () => {
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
   expect(modelCallsOf(model)).toEqual([ModelCall.Summary, ModelCall.Sentences]);
+  client.close();
+  await server.stop();
+});
+
+test('the summary-only scope writes the summary and leaves stale topics and sentences alone', async () => {
+  const { server, documentId, client, model, summarize } = await documentWithTopics({ isFresh: false, modelFor: modelAnsweringWith });
+  summarize.request({ documentId, selection: SELECTION, scope: SummarizeScope.SummaryOnly });
+  await server.services.insights.jobRunner.idle();
+  expect(modelCallsOf(model)).toEqual([ModelCall.Summary]);
+  expect(server.services.insights.summarize.request({ documentId, selection: SELECTION, scope: SummarizeScope.SummaryOnly }).outcome).toBe(
+    SummarizeOutcome.UpToDate,
+  );
   client.close();
   await server.stop();
 });

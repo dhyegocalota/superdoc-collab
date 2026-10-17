@@ -1,4 +1,4 @@
-import { DocumentRole, HttpStatus, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
+import { DocumentRole, HttpStatus, RETRY_AFTER_HEADER, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';
@@ -32,7 +32,7 @@ test('a second refresh by the same user inside the cooldown is 429 with Retry-Af
   const second = await refresh({ server, documentId, cookie: owner.cookie });
   expect(second.status).toBe(HttpStatus.TooManyRequests);
   expect(await second.json()).toEqual({ error: TOPICS_REFRESH_TOO_SOON_MESSAGE });
-  expect(Number(second.headers.get('retry-after'))).toBeGreaterThan(0);
+  expect(Number(second.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   expect((await refresh({ server, documentId: otherDocumentId, cookie: owner.cookie })).status).toBe(HttpStatus.Accepted);
   await server.services.insights.worker.idle();
   client.close();
@@ -63,7 +63,7 @@ test('a second editor on the same document inside the cooldown is 429 with Retry
   await server.services.insights.worker.idle();
   const second = await refresh({ server, documentId, cookie: editor.cookie });
   expect(second.status).toBe(HttpStatus.TooManyRequests);
-  expect(Number(second.headers.get('retry-after'))).toBeGreaterThan(0);
+  expect(Number(second.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   client.close();
   await server.stop();
 });

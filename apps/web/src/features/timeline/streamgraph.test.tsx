@@ -50,12 +50,13 @@ test('the svg is titled and described with the band count and the time range', (
   expect(description).toContain(formatTimestamp(timeline.bins[0]!.start));
 });
 
-test('every band is a focusable path labelled with its size', () => {
+test('every band is a path labelled with its size and only the first is in the tab order', () => {
   renderGraph();
-  [screen.getByLabelText('Budget, 340 characters'), screen.getByLabelText('Other, 15 characters')].forEach((band) => {
-    expect(band.tagName.toLowerCase()).toBe('path');
-    expect(band).toHaveAttribute('tabindex', '0');
-  });
+  const budget = screen.getByLabelText('Budget, 340 characters');
+  const other = screen.getByLabelText('Other, 15 characters');
+  [budget, other].forEach((band) => expect(band.tagName.toLowerCase()).toBe('path'));
+  expect(budget).toHaveAttribute('tabindex', '0');
+  expect(other).toHaveAttribute('tabindex', '-1');
 });
 
 test('arrow keys, End and Escape drive the selection', () => {

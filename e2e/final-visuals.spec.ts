@@ -25,6 +25,7 @@ import {
   movedToCursorMessage,
   offlineMemberReason,
   PREPARING_PDF_MESSAGE,
+  TIMELINE_TOGGLE_LABEL,
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
@@ -35,7 +36,6 @@ import {
   SUMMARIZING_EDITS_MESSAGE,
   SUMMARY_UP_TO_DATE_MESSAGE,
   TIMELINE_HEADING,
-  TIMELINE_TOGGLE_LABEL,
 } from '../apps/web/src/features/timeline/timeline-copy';
 import { PanelPosition, PANEL_POSITION_STORAGE_KEY } from '../apps/web/src/features/timeline/use-panel-position';
 import { THEME_STORAGE_KEY, ThemePreference } from '../apps/web/src/lib/use-theme';
@@ -60,6 +60,7 @@ import {
   BRUNO,
   BUDGET,
   BUDGET_PARAGRAPH,
+  HIRING,
   HIRING_PARAGRAPH,
   pressInChart,
   summarizeButton,
@@ -78,6 +79,7 @@ const ROADMAP = 'Roadmap';
 const ROADMAP_PARAGRAPH = 'Roadmap: we ship in March.';
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const WIDE_VIEWPORT = { width: 1536, height: 864 };
+const SHORT_VIEWPORT = { width: 1280, height: 480 };
 const PHONE_VIEWPORT = { width: 375, height: 812 };
 const VIEWPORT_WIDTHS = [320, 375, 768, 1024, 1280, 1536, 1920, 2560];
 const VIEWPORT_HEIGHT = 800;
@@ -359,7 +361,7 @@ test('Summarize on a selection that is fresh everywhere answers that the summary
 
 test('a member avatar scrolls the editor to that member’s caret and offline members say why they cannot', async ({ browser }) => {
   const lines = Array.from({ length: LONG_DOCUMENT_LINES }, (_, index) => `Line ${String(index + 1).padStart(2, '0')} of the plan.`);
-  const { ana, documentId } = await ownerOpensDocument({ browser, paragraphs: lines });
+  const { ana, documentId } = await ownerOpensDocument({ browser, paragraphs: lines, viewport: SHORT_VIEWPORT });
   const bruno = await signedInContext({ browser, user: brunoUser! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   await insertInParagraph({ page: bruno.page, paragraphText: LAST_LINE_PREFIX, text: BRUNO_EDIT });

@@ -128,3 +128,65 @@ Failure texts are what the red run printed at the red commit. A row marked "chan
 - The account trigger has `aria-label` but no `Tooltip` yet (design section 2 lists one); the Tooltip primitive is ready for whoever wires the top bars.
 - `home-link.tsx` is untouched; G8 deletes it. `BrandLink` imports `HOME_LINK_LABEL` from `features/editor/editor-copy.ts`.
 - Nothing here was seen in a browser. Real Radix pointer, focus and animation behaviour, the contrast numbers and the first-paint theme are untested beyond jsdom.
+
+## G8 E2E and docs (developer-8, branch `feat/final-visuals-g8`)
+
+### What changed
+
+- `e2e/final-visuals.spec.ts` (new, 22 tests): top bar and toolbar row, rename with Enter and Escape, Download docx, Download PDF with `window.print` stubbed, theme across reload, the version frame following the theme, panel position at 1280 and 1536, the collapsed bar at 375, Summarize (steps then `Try again in N s.`, and up to date), jump to a member's caret and the offline reason, the waiting page, the Use with AI dialog, and one test per width of 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 in light and dark.
+- `e2e/editor.ts`: `topBar`, `toolbarRow`, `brandLink`, `accountTrigger`, `titleButton`, `downloadButton`, `downloadOptionsButton`, `chooseTheme`, `signOut`, `REMOTE_CARET_SELECTOR`. `e2e/timeline.ts`: `summarizeButton` now lives inside the toolbar row; `waitForSummarizeResponse`.
+- Moved specs: `timeline.spec.ts` (the Regroup test became "Summarize edits regroups the topics from the current text"), `topics-on-open.spec.ts` (title only: it had no refresh to drop), `selection-summary.spec.ts` (the cached-summary test clicks Summarize and expects "The summary is up to date." with no new model call instead of a disabled button), `documents.spec.ts` (waiting page text, title button, Download button), `time-travel.spec.ts` (reader has no toolbar row, new test that the toolbar container is `inert` in a version while Summarize stays live), `auth.spec.ts` (Sign out through the account menu).
+- Docs: `.claude/rules/web-ui.md` (theme, panel position, toolbar, Find, print view, `user.color`, jump route), three `Revisited` lines, `docs/scenarios/core-realtime.md` (T4 says Summarize edits).
+- Commits: `627bc97` (new spec and helpers), `8cf3211` (moved specs), `df1cefb` (docs), then the viewport fix for the jump test and this briefing.
+- Step 59 is pending the G7 merge: `home-link.tsx` and `sign-out-button.tsx` are not deleted yet.
+
+### How to run
+
+Filter by the file path, not by the word `final-visuals`: the checkout path contains that word, so a bare filter selects the whole suite.
+
+```
+pnpm exec playwright test e2e/final-visuals.spec.ts
+```
+
+### Red today, green after (run on G1 + G6 only, `--timeout=30000`)
+
+| Test | Red text today | Goes green when |
+|------|----------------|-----------------|
+| top bar and toolbar row | `getByRole('banner').getByRole('button', { name: 'Rename Final visuals …' })` not found | G2 |
+| title renames on Enter, Escape restores | same locator, test timeout while waiting for the title button | G2 |
+| Download docx | waiting for `getByRole('button', { name: 'Download', exact: true })` | G2 |
+| Download PDF | waiting for `getByRole('button', { name: 'More download formats' })` | G2 |
+| Dark in the account menu, version frame follows | waiting for `getByRole('banner').getByRole('button', { name: 'Account, Ana' })` | G2 and G7 |
+| panel at the bottom at 1280, at the side at 1536 | `locator('aside[data-position]')` not found | G3 |
+| collapsed bar at 375 | `getByTestId('timeline-collapsed-bar')` not found | G3 |
+| Summarize steps and cooldown, up to date | waiting for `getByTestId('editor-toolbar-row').getByRole('button', { name: 'Summarize edits' })` | G2 and G4 |
+| jump to a member's caret | `.v2-collaboration-overlay__remote-caret` was in the viewport before the click (the precondition was wrong at 800 px height; fixed by a 480 px viewport, not rerun) | G5 |
+| waiting page enters on its own | `getByText('Preparing the document…')` not found | G2 |
+| Use with AI dialog | waiting for `getByRole('button', { name: 'Use with AI' })` | G2 and G7 |
+| eight width tests | `getByRole('banner').getByRole('button', { name: 'Account, Ana' })` not found | G2 and G7 |
+
+Moved specs, not run red on purpose; they depend on:
+
+- `timeline.spec.ts` (Summarize in the toolbar row), `selection-summary.spec.ts`, `time-travel.spec.ts` (toolbar row, inert container): G2 and G4.
+- `documents.spec.ts` (waiting text, title button, Download button): G2.
+- `auth.spec.ts` (Sign out in the account menu): G2 and G7.
+- `topics-on-open.spec.ts`: title only, stays green.
+
+The one full-suite attempt (killed early, first filter mistake) showed `auth.spec.ts` sign-out, `documents.spec.ts` rename and waiting, `selection-summary.spec.ts` summarize and `time-travel.spec.ts` inert failing, as expected.
+
+### Hypotheses to attack
+
+1. Hypothesis: after the merges every `final-visuals.spec.ts` test is green in one run with parallel workers. Break it by: running with `--workers=4` and a loaded machine.
+2. Hypothesis: the Summarize steps are observed in order when they are observed at all. Break it by: a slower fake model; the test accepts zero, one or both step messages because the fake model answers instantly.
+3. Hypothesis: the second Summarize click on a stale selection answers 429 with `Retry-After` and the card reads `Try again in N s.`. Break it by: waiting past 30 s before the second click.
+4. Hypothesis: the top bar's top edge is 0 on every animation frame from the first one with a header, at all eight widths and after Dark. Break it by: slow fonts, a cold cache.
+5. Hypothesis: the jump button scrolls Bruno's drawn caret into view in a 480 px tall window and the offline reason is the accessible description. Break it by: a 3-page document where Bruno's page is virtualized for Ana.
+
+### Known gaps
+
+- `e2e/tsconfig.json` has no `@/*` path, so `pnpm typecheck:e2e` fails on `apps/web/src/features/account/account-copy.ts` (`Cannot find module '@/lib/use-theme'`). Playwright resolves it at runtime. Fix is G1's: import `./../../lib/use-theme` relatively in `account-copy.ts`, or add the path to the e2e tsconfig.
+- `PANEL_POSITION_STORAGE_KEY` does not exist yet in `use-panel-position.ts` (G3); `pnpm typecheck:e2e` reports it until the merge.
+- No test reads the print view container height (page count times 1056 px): its selector is not in the tester briefing. The PDF test checks that `print` ran once, that the preparing toast showed, and that no `.superdoc-page` was empty at that moment.
+- The cooldown test takes two real model-backed clicks inside 30 s of each other; nothing isolates the fake model's process-wide counters, so none is asserted.
+- "Waiting page pauses and resumes" (test plan) is not an E2E here: it needs a five minute clock.
+- Nothing here was seen in a browser after the merges.

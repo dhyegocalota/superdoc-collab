@@ -269,3 +269,9 @@ Pins, green when they landed: the streamgraph tooltip lists the agent author onc
 - `AuthorAvatar` in the selection summary card derives the actor from the " · AI" suffix of the name, because summaries carry names only.
 - Nothing here was run in a browser; the redirect after Approve is the redirect plugin's behaviour and is only unit-tested through the mocked client.
 
+
+### L1 history, review fixes
+
+- Agent actions now widen the span that picks the bin width and the covering bins, so an action after the last edit, or in a document with no edits, gets a bin and a mark (hypothesis 5 above is superseded: nothing is dropped, bins grow instead). Red: `AssertionError: expected [] to deeply equal [ 1767225600000, 1767229200000 ]` (only actions) and `expected false to be true` (after the last edit). Tests: `timeline-routes.test.ts` "an action after the last edit…", "a document with only agent actions…".
+- `AgentActionsLog.list({ documentName, from, until })` reads a range and `span(documentName)` gives the bounds. Red: `expected [ 5, 10, 20, 30 ] to deeply equal [ 10, 20 ]` and `AgentActionsLog.span is not implemented`.
+- Marks follow the author filter (matching on merged authors, so a person's email keeps their AI's marks) and ignore the term filter. Red: `expected [ …(2) ] to deeply equal [ Array(1) ]`. Hypothesis: filtering by the editor hides the owner's AI marks.

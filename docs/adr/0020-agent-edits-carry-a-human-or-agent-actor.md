@@ -34,6 +34,8 @@ The [agentic-history-mcp](../features/agentic-history-mcp/spec.md) feature lets 
 - One migration in the history database and one in the read model.
 - `EventAuthor`, `TimelineCell` and the contributor views change shape; the web groups an agent contributor under its person.
 - Known limitation, inherited from 0002: if the server dies after broadcasting an agent update and a human socket relays it first, the clientId is observed on the human socket and, since the agent never declares, stays attributed to the human. Persist-before-broadcast closes it for both.
+- A run written by both a human and an agent (only possible through a relay or a reconnect sync) counts as human volume in a timeline cell, while the contributors list still credits the agent key.
+- The opposite case, a human clientId first observed through an agent socket, is unreachable today because the SDK host lives in the server process and never relays a browser's structs.
 
 ## Evidence
 

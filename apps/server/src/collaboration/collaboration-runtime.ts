@@ -7,18 +7,16 @@ import type { InsightsServices } from '../http/app';
 import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
-import type { CollaborationContext } from './collaboration-server';
+import type { CollaborationContext } from './collaboration-context';
 import type { BootstrapState } from './bootstrap-state';
-import type { CreatorReservations } from './creator-reservations';
+import type { CreatorReservations, CreatorTicket } from './creator-reservations';
 import { documentIdFromRoomName } from './room-name';
 
 export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
 
-type AttemptContext = { creatorAttempt: number | null };
-
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
-  reserveCreator: (parameters: { documentId: string; userId: string }) => number | null;
+  reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
   onlineUserIds: (documentId: string) => Set<string>;
   importRevisions: (documentId: string) => void;
   forget: (documentId: string) => Promise<void>;
@@ -55,12 +53,12 @@ export function createCollaborationRuntime({
   }
   return {
     reserveCreator: ({ documentId, userId }) => {
-      const attempt = reservations.reserve({ documentId, userId });
-      if (attempt === null) return null;
+      const ticket = reservations.reserve({ documentId, userId });
+      if (ticket === null) return null;
       connectionsOf(documentId)
-        .filter((connection) => (connection.context as AttemptContext).creatorAttempt !== attempt)
+        .filter((connection) => (connection.context as CollaborationContext).creatorAttempt !== ticket.attempt)
         .forEach((connection) => connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON }));
-      return attempt;
+      return ticket;
     },
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>

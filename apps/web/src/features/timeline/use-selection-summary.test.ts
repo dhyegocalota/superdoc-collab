@@ -1,6 +1,7 @@
 import { HttpStatus, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { TIMELINE_POLL_MS } from './timeline-api';
@@ -34,7 +35,7 @@ afterEach(() => {
 });
 
 test('a running summary is polled until it settles', async () => {
-  expect(await pollsAfterFirstRead(() => new Response(JSON.stringify(viewIn(SelectionSummaryState.Running))))).toBeGreaterThanOrEqual(
+  expect(await pollsAfterFirstRead(() => jsonResponse({ body: viewIn(SelectionSummaryState.Running) }))).toBeGreaterThanOrEqual(
     POLL_COUNT - 1,
   );
 });
@@ -42,7 +43,7 @@ test('a running summary is polled until it settles', async () => {
 test.each([SelectionSummaryState.None, SelectionSummaryState.Ready, SelectionSummaryState.Failed])(
   'a %s summary is not polled',
   async (state) => {
-    expect(await pollsAfterFirstRead(() => new Response(JSON.stringify(viewIn(state))))).toBe(0);
+    expect(await pollsAfterFirstRead(() => jsonResponse({ body: viewIn(state) }))).toBe(0);
   },
 );
 

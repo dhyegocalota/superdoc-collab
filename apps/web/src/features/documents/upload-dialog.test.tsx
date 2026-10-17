@@ -10,6 +10,7 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FILE_INPUT_LABEL, UPLOAD_FAILED_MESSAGE, UPLOAD_LABEL, UPLOADING_MESSAGE } from './documents-copy';
 import { UploadDialog } from './upload-dialog';
@@ -52,7 +53,7 @@ test('a 415 response shows the docx-only message', async () => {
 });
 
 test('a 201 response closes the dialog and opens the document', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(UPLOADED_DOCUMENT), { status: HttpStatus.Created }));
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: UPLOADED_DOCUMENT, status: HttpStatus.Created }));
   const { router } = renderWithProviders(<UploadDialog />);
   await chooseFile(docxFile({ name: 'plan.docx', size: 10 }));
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(UPLOADED_DOCUMENT.id)));

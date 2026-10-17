@@ -1,7 +1,6 @@
 import {
   ApiPath,
   DOCUMENT_NOT_READY_ERROR,
-  DOCUMENT_NOT_READY_MESSAGE,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   documentPagePath,
@@ -12,6 +11,7 @@ import {
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  SummarizeOutcome,
   SummarizeStep,
   type OpenedDocument,
   type SelectionSummaryView,
@@ -20,6 +20,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { PanelPosition, PANEL_POSITION_STORAGE_KEY } from '@/features/timeline/use-panel-position';
+import { GROUPING_TOPICS_MESSAGE, SUMMARIZE_EDITS_LABEL } from '@/features/timeline/timeline-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
@@ -43,6 +45,7 @@ import { DocumentPage } from './document-page';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
+import { PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = {
@@ -57,6 +60,7 @@ type SuperDocConfig = {
   telemetry: { enabled: boolean };
   onException: (payload: { code?: string; error: Error; editor: null }) => void;
   zoom: { mode: string };
+  ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
 };
 
@@ -101,13 +105,22 @@ function mockDocumentApi({
   currentMembersStatus?: () => HttpStatus;
 }) {
   let current = opened;
+  let summaryStep = SummarizeStep.Idle;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (input === MEMBERS_PATH) return jsonResponse({ body: { members: [] }, status: currentMembersStatus() });
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
     if (input === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
     if (input === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
-    if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID)) return jsonResponse({ body: NONE_VIEW });
+    if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) {
+      summaryStep = SummarizeStep.Grouping;
+      return jsonResponse({
+        body: { ...NONE_VIEW, step: summaryStep, outcome: SummarizeOutcome.Started },
+        status: HttpStatus.Accepted,
+      });
+    }
+    if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID))
+      return jsonResponse({ body: { ...NONE_VIEW, step: summaryStep } });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     if (input === DOCUMENT_PATH && init?.method === HttpMethod.Patch && renamedTitle) {
       current = { ...current, document: { ...current.document, title: renamedTitle } };
@@ -125,6 +138,7 @@ function constructedConfig(): SuperDocConfig {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   SuperDoc.mockClear();
   installAuthorPalette();
 });
@@ -153,14 +167,14 @@ test('a title rename does not re-create the editor', async () => {
   expect(superDocDestroy).not.toHaveBeenCalled();
 });
 
-test('a 409 not ready shows the owner message and never builds the editor', async () => {
+test('a 409 not ready shows the waiting page and never builds the editor', async () => {
   mockDocumentApi({
     opened: openedAs(DocumentRole.Reader),
     openStatus: HttpStatus.Conflict,
     openBody: { error: DOCUMENT_NOT_READY_ERROR },
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(DOCUMENT_NOT_READY_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 
@@ -342,4 +356,52 @@ test('the editor never takes the focus on its own', async () => {
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   expect(document.body).toHaveFocus();
+});
+
+function matchMediaAlwaysMatching(): void {
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList,
+  );
+}
+
+function panelElement(): HTMLElement {
+  const panel = document.querySelector<HTMLElement>('[data-position]');
+  if (!panel) throw new Error('the edits panel is not rendered');
+  return panel;
+}
+
+test('below 1024 the editor area comes before the panel in the DOM and data-position is bottom, and at 1536 with Side stored data-position is side', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const editorArea = await screen.findByTestId('editor-area');
+  await waitFor(() => expect(panelElement()).toHaveAttribute('data-position', PanelPosition.Bottom));
+  expect(editorArea.compareDocumentPosition(panelElement()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  cleanup();
+
+  localStorage.setItem(PANEL_POSITION_STORAGE_KEY, PanelPosition.Side);
+  matchMediaAlwaysMatching();
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(panelElement()).toHaveAttribute('data-position', PanelPosition.Side));
+});
+
+test('a click on Summarize with the panel collapsed opens it and the card shows Grouping', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
+  expect(await screen.findByText(GROUPING_TOPICS_MESSAGE)).toBeVisible();
+});
+
+test('an editor gets the toolbar container of the row and a reader gets none', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(constructedConfig().ui.toolbar?.container).toBe(screen.getByTestId('toolbar-container'));
+  cleanup();
+  SuperDoc.mockClear();
+
+  mockDocumentApi({ opened: openedAs(DocumentRole.Reader) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(constructedConfig().ui.toolbar).toBeUndefined();
+  expect(screen.queryByTestId('toolbar-container')).toBeNull();
 });

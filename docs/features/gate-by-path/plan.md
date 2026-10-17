@@ -30,8 +30,8 @@ G2's ADR, spec and plans land first. G1 builds red then green. G2's harness and 
 ### G2
 
 - [x] **Step 5:** ADR 0028, learning, spec, plan, test plan, features index. — evidence: c7d9caa
-- [ ] **Step 6:** `/verify` calls `pnpm verify`; `/open-pr` reads the class, the docs lane, the local merge.
-- [ ] **Step 7:** `HARNESS.md`: invariants 2–4, §1 docs lane, §5, §7, §10, §12.
+- [x] **Step 6:** `/verify` calls `pnpm verify`; `/open-pr` reads the class, the docs lane, the local merge. — evidence: 3fb1564, 79ba4de, 239e944
+- [x] **Step 7:** `HARNESS.md`: invariants 2–4, §1 docs lane, §5, §7, §10, §12. — evidence: cfa6b55, 79ba4de, 239e944
 
 ## Failure modes
 
@@ -46,8 +46,8 @@ G2's ADR, spec and plans land first. G1 builds red then green. G2's harness and 
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
-- [ ] **Test plan:** the lead ticked it with the gate output (tooling, ADR 0028).
-- [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict and refuted the three riskiest claims.
-- [ ] **Security reviewer:** verdict recorded.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`. — evidence: a709952, amended b63f99e, f9bb2b7
+- [x] **Test plan:** the lead ticked it with the gate output (tooling, ADR 0028). — evidence: c80c1b7
+- [x] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict and refuted the three riskiest claims. — evidence: NO (1 critical, 5 important) at 0386b0a → YES at de4997a; minors folded in 239e944, f9bb2b7
+- [x] **Security reviewer:** verdict recorded. — evidence: FINDINGS (2 important) → MINOR only at de4997a → one MINOR at f9bb2b7, pinned by e23bd6d
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened, local gate posted, merged.

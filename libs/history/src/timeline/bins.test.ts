@@ -99,7 +99,7 @@ test('a cell splits agent volume from the total', () => {
     deleted: 'y',
   };
   const [bin] = buildBins({ runs: [human, agent], binStarts: [TEN_OCLOCK], binMs: MINUTE_MS, versionSequenceAt: () => null });
-  expect(bin!.byBand.b1).toEqual({ inserted: 14, deleted: 3, agentInserted: 4, agentDeleted: 1, authorKeys: [AGENT_KEY, 'ana'] });
+  expect(bin!.byBand.b1).toEqual({ inserted: 14, deleted: 3, agentInserted: 4, agentDeleted: 1, authorKeys: ['ana', AGENT_KEY] });
 });
 
 test('a cell with no agent activity has zero agent volume', () => {

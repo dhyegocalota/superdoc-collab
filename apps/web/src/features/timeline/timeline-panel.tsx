@@ -1,6 +1,6 @@
 import { DocumentRole, type EditSelection } from '@superdoc-collab/types';
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
-import { type CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
@@ -99,6 +99,12 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
     topic: search.topic,
     at: selectedBin ? selectedBin.start : null,
   };
+  const selectionKey = JSON.stringify(selection);
+
+  useEffect(() => {
+    summarize.showSelection(selection);
+  }, [selectionKey]);
+
   const { timeZone: preferredTimeZone } = useTimeZone();
   const binMs = timeline ? timeline.binMs : null;
   const timeZone = timeline ? timeline.timeZone : preferredTimeZone;

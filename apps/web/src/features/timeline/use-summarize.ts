@@ -1,5 +1,5 @@
 import { secondsRoundedUp, SelectionSummaryState, SummarizeStep, type EditSelection, type SummarizeOutcome } from '@superdoc-collab/types';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RetryLaterError } from '@/lib/api';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
@@ -24,7 +24,9 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: false });
   const binMs = timeline ? timeline.binMs : null;
   const timeZone = timeline ? timeline.timeZone : preferredTimeZone;
-  const selection: EditSelection = { term: search.filter.term, author: search.filter.author, topic: search.topic, at: search.at };
+  const [shownSelection, showSelection] = useState<EditSelection | null>(null);
+  const urlSelection: EditSelection = { term: search.filter.term, author: search.filter.author, topic: search.topic, at: search.at };
+  const selection = shownSelection === null ? urlSelection : shownSelection;
   const queryKey = selectionSummaryQueryKey({ documentId, selection, timeZone });
   const { data: view } = useQuery({
     queryKey,
@@ -54,7 +56,7 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
     isRunning: mutation.isPending || isPolledRunning,
     outcome: mutation.data ? mutation.data.outcome : null,
     error,
-    showSelection: () => undefined,
+    showSelection,
     retryAfterSeconds: error instanceof RetryLaterError ? secondsRoundedUp(error.retryAfterMs) : null,
   };
 }

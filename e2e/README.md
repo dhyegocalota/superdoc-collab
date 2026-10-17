@@ -10,7 +10,7 @@ Playwright specs that drive the built app in headless Chromium from the user's s
 | `pnpm test:e2e e2e/timeline.spec.ts` | one spec |
 | `pnpm typecheck:e2e` | `tsc -p e2e --noEmit`; part of `pnpm typecheck` |
 
-CI runs the suite only on manual dispatch (`gh workflow run e2e.yml --ref <branch>`), before a merge ([ADR 0018](../docs/adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md)).
+CI runs the suite only on manual dispatch (`gh workflow run e2e.yml --ref <branch>`), suggested before a merge only when the diff can change what it exercises ([ADR 0018](../docs/adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md), [HARNESS §7](../.claude/HARNESS.md#7-ship)).
 
 ## Specs
 

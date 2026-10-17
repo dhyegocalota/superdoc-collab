@@ -4,7 +4,6 @@ import {
   RETRY_AFTER_SECONDS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
-  type DocumentTopics,
 } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { authorizedDocumentId } from '../documents/require-document-role';
@@ -12,18 +11,12 @@ import { INVALID_TIMELINE_QUERY_MESSAGE, selectionQuerySchema } from '../history
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater } from '../http/retry-later';
+import { documentTopics } from './document-topics';
 import { LLM_BUSY_MESSAGE } from './llm-client';
 import { SelectionRequestOutcome } from './selection-summaries-service';
 import { RefreshOutcome } from './topics-service';
 
 const SELECTION_PATH = '/:documentId/summaries/selection';
-
-function documentTopics({ services, documentId }: { services: AppServices; documentId: string }): DocumentTopics {
-  const topics = services.insightsRepository
-    .topics(documentId)
-    .map((topic) => ({ id: topic.id, name: topic.name, blockCount: topic.blockIds.length }));
-  return { status: services.insights.topics.status(documentId), topics };
-}
 
 export function createInsightsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();

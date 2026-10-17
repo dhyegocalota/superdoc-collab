@@ -1,6 +1,6 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import { materialize, type UpdateLog } from '@superdoc-history/history';
-import { DocumentRole, SECOND_MS } from '@superdoc-history/types';
+import { ClientActor, DocumentRole, SECOND_MS } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -58,7 +58,7 @@ export function createCollaborationServer({
     async onChange({ update, context, transactionOrigin }) {
       if (transactionOrigin === LOADING_ORIGIN) return;
       const { userId, documentId } = context as CollaborationContext;
-      updateLog.append({ documentName: documentId, connectionUserId: userId, update });
+      updateLog.append({ documentName: documentId, connectionUserId: userId, connectionActor: ClientActor.Human, update });
       onLogged(documentId);
     },
     async onStoreDocument({ documentName }) {

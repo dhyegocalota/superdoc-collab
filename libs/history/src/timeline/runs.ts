@@ -1,7 +1,8 @@
-import type { EventAuthor } from '@superdoc-history/types';
+import { ClientActor, type EventAuthor } from '@superdoc-history/types';
 import { binStartOf } from './bins';
 
 const IMPORTED_AUTHOR_PREFIX = 'imported:';
+const AGENT_AUTHOR_SUFFIX = '#agent';
 const RUN_KEY_SEPARATOR = '|';
 
 export type TimelineEvent = {
@@ -25,9 +26,19 @@ export type EditRun = {
   lastSequence: number;
 };
 
+// NB ADR 0020: the author key of an agent is `<userId>#agent`, so a person and their AI are separate authors with the same id.
 export function authorKey(author: EventAuthor): string {
   if (author.id === null) return `${IMPORTED_AUTHOR_PREFIX}${author.name}`;
+  if (author.actor === ClientActor.Agent) return `${author.id}${AGENT_AUTHOR_SUFFIX}`;
   return author.id;
+}
+
+export function isAgentAuthorKey(key: string): boolean {
+  return key.endsWith(AGENT_AUTHOR_SUFFIX);
+}
+
+export function isAgentRun(run: Pick<EditRun, 'authorKeys'>): boolean {
+  return run.authorKeys.every(isAgentAuthorKey);
 }
 
 export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binMs: number }): EditRun[] {

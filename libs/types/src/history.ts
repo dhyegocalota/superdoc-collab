@@ -1,3 +1,5 @@
+import type { AgentActionKind, ClientActor } from './agent';
+
 export enum BlockChangeKind {
   Created = 'created',
   Removed = 'removed',
@@ -5,7 +7,8 @@ export enum BlockChangeKind {
   Merged = 'merged',
 }
 
-export type EventAuthor = { id: string | null; name: string };
+export type AgentActionMark = { userId: string; kind: AgentActionKind; createdAt: number };
+export type EventAuthor = { id: string | null; name: string; actor: ClientActor };
 export type DocumentEditEvent = {
   id: number;
   sequence: number;

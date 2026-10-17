@@ -8,7 +8,13 @@ const NEXT_JOB_PATTERN = /\n {2}\S[^\n]*:\n/;
 const EXPECTED_JOBS = ['checks', 'unit', 'docker', 'security'];
 const NODE_JOBS = ['checks', 'unit', 'security'];
 const CHECKS_JOB = 'checks';
-const CHECKS_STEPS = ['run: pnpm format:check', 'run: pnpm typecheck', 'run: pnpm test:hooks', 'run: .agents/hooks/doctor.sh'];
+const CHECKS_STEPS = [
+  'run: pnpm format:check',
+  'run: pnpm typecheck',
+  'run: pnpm test:hooks',
+  'run: pnpm test:verify',
+  'run: .agents/hooks/doctor.sh',
+];
 const DOCKER_JOB = 'docker';
 const SECURITY_JOB = 'security';
 const SECURITY_STEPS = [
@@ -78,7 +84,7 @@ describe('CI workflow', () => {
     expect(jobNames()).toEqual(EXPECTED_JOBS);
   });
 
-  test('the checks job checks the formatting, typechecks, tests the hooks and runs the machine doctor script', () => {
+  test('the checks job checks the formatting, typechecks, tests the hooks and the gate script and runs the machine doctor script', () => {
     const checks = job(CHECKS_JOB);
     expect(CHECKS_STEPS.filter((step) => !checks.includes(step))).toEqual([]);
   });

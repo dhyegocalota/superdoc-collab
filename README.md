@@ -28,7 +28,7 @@ Topics and summaries need `OPENROUTER_API_KEY` in `.env`; without it the app wor
 
 ## Read more
 
-- [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team
+- [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team; [develop with an agent](docs/install.md#develop-with-an-agent)
 - [Architecture, features and limits](docs/architecture.md)
 - [Decisions](docs/adr/) and [features](docs/features/README.md#roadmap), one folder and one pull request each
 - [How the work is done](.claude/HARNESS.md) with Claude Code, and the [credits](docs/credits.md)

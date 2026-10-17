@@ -9,7 +9,7 @@ import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './d
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { JobOutcome } from './insights/insights-job-runner';
 import { startServer } from './server';
-import { prebuiltProjectionWorkerFile, TEST_TIME_ZONE, testEnvironment } from './testing/test-server';
+import { LOOPBACK_HOST, prebuiltProjectionWorkerFile, TEST_TIME_ZONE, testEnvironment } from './testing/test-server';
 
 const RESTART_CREDENTIALS = { name: 'Eva', email: 'eva@example.com', password: 'superdoc-demo' };
 
@@ -128,7 +128,7 @@ describe('startServer', () => {
 
 test('startServer rejects instead of hanging when the port is taken', async () => {
   const blocker = createServer();
-  await new Promise<void>((resolve) => blocker.listen(0, resolve));
+  await new Promise<void>((resolve) => blocker.listen(0, LOOPBACK_HOST, resolve));
   const { port } = blocker.address() as AddressInfo;
   const stopScheduler = vi.spyOn(ProjectionScheduler.prototype, 'stop');
   const closeDatabase = vi.spyOn(Database.prototype, 'close');

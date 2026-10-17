@@ -1,6 +1,18 @@
 {
   "description": "The same guards Claude Code runs from .claude/settings.json; the scripts live in .agents/hooks and read the tool input from stdin.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/doctor.sh\" || true",
+            "timeout": 30,
+            "statusMessage": "Checking the tools the harness needs"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "^(apply_patch|Edit|Write)$",

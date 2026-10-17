@@ -275,3 +275,10 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 ### G3 open-route rate limit
 
 - The open route counts, per user, every open of a document whose room is not committed (readers and refused editors included) in a one-minute window; the 61st answers 429 with `Retry-After` and logs the document id. Committed rooms are not counted. Hypothesis: an editor can open a committed room at any rate while 60 uncommitted opens in a minute exhaust the budget; another user is unaffected. The windows live in the route's memory and are never pruned per user.
+
+### G3 third review round
+
+- **Open limit before the scan:** `services.openLimits` is one `KeyedSlidingWindow` (60 per minute) shared by the open route and `onAuthenticate`. Both consult it before any scan unless `isKnownCommitted` says the process already knows the room is committed, and record only after a scan that found the room uncommitted. A creator's open plus its socket authentication costs two entries, and each reconnect costs one. Hypothesis: the 61st uncommitted open or socket of one user in a minute makes no `readBatch` call; another user is unaffected. Gap: the E2E socket count (a create from 10 MB opens one socket, 45 frames) is in the test plan and not run here.
+- **MCP rate limit** uses the same `KeyedSlidingWindow`; its tests are unchanged and green. The impossible empty-window default is gone.
+- **Session lookup at the upgrade:** a lookup that throws destroys the connection (the provider retries); only a null session closes with 4401 and the reason `Session expired`.
+- **Scan cache:** a pin test shows the scan progress is dropped when a snapshot answers.

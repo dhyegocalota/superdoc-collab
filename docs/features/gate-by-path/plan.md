@@ -29,7 +29,7 @@ G2's ADR, spec and plans land first. G1 builds red then green. G2's harness and 
 
 ### G2
 
-- [ ] **Step 5:** ADR 0028, learning, spec, plan, test plan, features index.
+- [x] **Step 5:** ADR 0028, learning, spec, plan, test plan, features index. — evidence: c7d9caa
 - [ ] **Step 6:** `/verify` calls `pnpm verify`; `/open-pr` reads the class, the docs lane, the local merge.
 - [ ] **Step 7:** `HARNESS.md`: invariants 2–4, §1 docs lane, §5, §7, §10, §12.
 

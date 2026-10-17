@@ -1,9 +1,10 @@
-import { DocumentRole, documentApiPath, HttpMethod, HttpStatus, RETRY_AFTER_HEADER, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SELECTION_SUMMARY_TOO_SOON_MESSAGE, SelectionSummaryState, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
+import { DocumentRole, documentApiPath, HttpMethod, HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SELECTION_SUMMARY_TOO_SOON_MESSAGE, SelectionSummaryState, selectionSummaryApiPath, TOPICS_REFRESH_TOO_SOON_MESSAGE, topicsRefreshApiPath } from '@superdoc-history/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, expect, test, vi } from 'vitest';
+import { RETRY_AFTER_SECONDS } from '../history/versions-routes';
 import { INVALID_TIMELINE_QUERY_MESSAGE } from '../history/timeline-query';
 import { readEvents } from '../testing/events-client';
 import { memberWithRole } from '../testing/collaboration-client';
@@ -17,10 +18,10 @@ const POLL_TIMEOUT_MS = 15_000;
 const MEMBER_QUERY = 'author=member';
 const NO_MATCH_QUERY = 'term=zzz-nothing';
 const SELECTION_ANSWER = { sentence: 'Member added a designer.', authors: ['Member'] };
-const COOLDOWN_SECONDS = SELECTION_SUMMARY_COOLDOWN_MS / 1000;
+const COOLDOWN_SECONDS = SELECTION_SUMMARY_COOLDOWN_MS / SECOND_MS;
 const PROVIDER_SECRET = 'sk-test-secret';
 const FOREIGN_ORIGIN = 'https://evil.example';
-const INVALID_QUERIES = ['at=-5', 'at=abc', 'at=1.5', `topic=${'t'.repeat(201)}`];
+const INVALID_QUERIES = ['at=-5', 'at=abc', 'at=1.5', `at=${'9'.repeat(20)}`, `topic=${'t'.repeat(201)}`];
 
 afterEach(() => {
   vi.useRealTimers();
@@ -198,6 +199,9 @@ test('topic and period narrow the selection', async () => {
   expect(prompt).toContain(' a designer');
   expect(prompt).not.toContain(' more money');
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: 'at=0' })).state).toBe(SelectionSummaryState.None);
+  const period = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: 'at=0' });
+  expect(period.status).toBe(HttpStatus.Ok);
+  expect(model.doGenerateCalls).toHaveLength(1);
   await server.stop();
 });
 
@@ -219,7 +223,7 @@ test('a topic that no longer exists selects nothing', async () => {
 
 test.each(INVALID_QUERIES)('an invalid selection query %s is 400 for the GET and the POST', async (query) => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  const get = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}/summaries/selection?${query}`, { headers: { cookie: editor.cookie } });
+  const get = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${query}`, { headers: { cookie: editor.cookie } });
   const post = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query });
   expect([get.status, post.status]).toEqual([HttpStatus.BadRequest, HttpStatus.BadRequest]);
   expect(await get.json()).toEqual({ error: INVALID_TIMELINE_QUERY_MESSAGE });
@@ -261,6 +265,7 @@ test('without a model the GET is failed with the reason and the POST is 503', as
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);
   expect(await response.json()).toEqual({ error: LLM_MODEL_MISSING_MESSAGE });
+  expect(response.headers.get(RETRY_AFTER_HEADER)).toBe(String(RETRY_AFTER_SECONDS));
   await server.stop();
 });
 
@@ -270,13 +275,14 @@ test('a full worker answers 503 busy', async () => {
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);
   expect(await response.json()).toEqual({ error: LLM_BUSY_MESSAGE });
+  expect(response.headers.get(RETRY_AFTER_HEADER)).toBe(String(RETRY_AFTER_SECONDS));
   expect(server.services.insights.selection.cooldown.size()).toBe(0);
   await server.stop();
 });
 
 test('a cross-site form post is refused', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
-  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}/summaries/selection?${MEMBER_QUERY}`, { method: HttpMethod.Post, headers: { cookie: editor.cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' } });
+  const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${MEMBER_QUERY}`, { method: HttpMethod.Post, headers: { cookie: editor.cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' } });
   expect(response.status).toBe(HttpStatus.Forbidden);
   await server.stop();
 });

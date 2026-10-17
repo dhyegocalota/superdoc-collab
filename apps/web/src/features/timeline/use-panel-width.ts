@@ -29,3 +29,16 @@ export function usePanelWidth(): { width: number; maxWidth: number; resizeTo: (n
     resizeBy: (delta) => setRequestedWidth(clampWidth({ width: width + delta, viewportWidth })),
   };
 }
+
+export const MIN_PANEL_HEIGHT = 240;
+export const DEFAULT_PANEL_HEIGHT_SHARE = 0.42;
+export const MIN_EDITOR_HEIGHT = 240;
+
+export function usePanelHeight({ areaHeight }: { areaHeight: number }): {
+  height: number;
+  maxHeight: number;
+  resizeTo: (next: number) => void;
+  resizeBy: (delta: number) => void;
+} {
+  throw new Error('usePanelHeight is not implemented');
+}

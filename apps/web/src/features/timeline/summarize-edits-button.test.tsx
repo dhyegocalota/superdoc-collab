@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { SummarizeEditsButton } from './summarize-edits-button';
 import { SUMMARIZE_EDITS_LABEL, SUMMARIZING_LABEL } from './timeline-copy';
 
-test('is never disabled, and while running reads Summarizing… with aria-busy', async () => {
+test('is enabled when idle, and while running is disabled, reads Summarizing… and has aria-busy', async () => {
   const user = userEvent.setup();
   const onSummarize = vi.fn();
   const { rerender } = render(<SummarizeEditsButton isRunning={false} onSummarize={onSummarize} />);
@@ -15,6 +15,6 @@ test('is never disabled, and while running reads Summarizing… with aria-busy',
   expect(onSummarize).toHaveBeenCalledTimes(1);
   rerender(<SummarizeEditsButton isRunning onSummarize={onSummarize} />);
   const running = screen.getByRole('button', { name: SUMMARIZING_LABEL });
-  expect(running).toBeEnabled();
+  expect(running).toBeDisabled();
   expect(running).toHaveAttribute('aria-busy', 'true');
 });

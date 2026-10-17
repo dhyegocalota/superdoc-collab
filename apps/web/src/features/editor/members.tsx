@@ -140,7 +140,7 @@ export function Members({
   isPastVersion: boolean;
 }) {
   const container = useMemo(() => (superdoc ? document.querySelector<HTMLElement>(EDITOR_CONTAINER_SELECTOR) : null), [superdoc]);
-  const { namesWithCursor, jumpTo } = useMemberCursors({ superdoc, container });
+  const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container });
   const [announcement, setAnnouncement] = useState('');
 
   function jump(member: DocumentMember): JumpOutcome {
@@ -151,7 +151,7 @@ export function Members({
 
   const states = members.map((member): JumpState => {
     const isSelf = member.user.id === currentUserId;
-    const hasCursor = namesWithCursor.has(member.user.name);
+    const hasCursor = hasCursor(member);
     return { member, isOnline: member.online || isSelf, reason: jumpReasonOf({ member, currentUserId, isPastVersion, hasCursor }) };
   });
   const hasMenu = states.length > MAX_MEMBERS_WITHOUT_MENU;

@@ -13,7 +13,7 @@ export enum JumpOutcome {
   NotFound = 'not-found',
 }
 
-type MemberCursors = { namesWithCursor: ReadonlySet<string>; jumpTo: (member: DocumentMember) => JumpOutcome };
+type MemberCursors = { hasCursor: (member: DocumentMember) => boolean; jumpTo: (member: DocumentMember) => JumpOutcome };
 
 function caretsIn(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(CARET_SELECTOR));
@@ -85,5 +85,11 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
     [container],
   );
 
-  return { namesWithCursor, jumpTo };
+  void namesWithCursor;
+  return {
+    hasCursor: () => {
+      throw new Error('hasCursor is not implemented');
+    },
+    jumpTo,
+  };
 }

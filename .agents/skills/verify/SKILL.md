@@ -7,7 +7,7 @@ allowed-tools: Bash(pnpm:*), Bash(gitleaks:*), Bash(.github/scripts/secret-rules
 
 Run the gate for `$ARGUMENTS` (default `all`) from the repo root, in this order, and **stop at the first failure**:
 
-0. `pnpm doctor`: the machine report. A missing required tool stops the gate with the report pasted verbatim; the agent asks before running any `fix:` line (ADR 0026). Missing optional tools are reported and the gate continues
+0. `.agents/hooks/doctor.sh` (never `pnpm doctor`, which is pnpm's own built-in and needs pnpm to run): the machine report. A missing required tool stops the gate with the report pasted verbatim; the agent asks before running any `fix:` line (ADR 0026). Missing optional tools are reported and the gate continues
 1. `pnpm typecheck`
 2. `pnpm security:audit` (production dependencies at `high`, ADR 0022)
 3. `.github/scripts/secret-rules-probe.sh "$(command -v gitleaks)"` then `gitleaks git --no-banner --redact --exit-code 1 .` when `gitleaks` is on `PATH`; when it is not, the report says `gitleaks: not installed, CI runs it` and the gate continues

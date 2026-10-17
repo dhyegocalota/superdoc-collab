@@ -9,8 +9,8 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `.agents/hooks/hooks.test.sh`: `doctor:` checks and the two guard checks
 - `package.json`: `doctor` script
 - `.claude/settings.json`, `.codex/hooks.json`: `SessionStart` runs the doctor with `|| true`
-- `.agents/skills/verify/SKILL.md`: gate 0 `pnpm doctor`
-- `.github/workflows/verify.yml`: `pnpm doctor` step in `checks` with `DOCTOR_SKIP: chromium`
+- `.agents/skills/verify/SKILL.md`: gate 0 `.agents/hooks/doctor.sh`
+- `.github/workflows/verify.yml`: `.agents/hooks/doctor.sh` step in `checks` with `DOCTOR_SKIP: chromium`
 - `.claude/HARNESS.md`: invariant 11, "Image proof without Docker", the ask-first line, the `doctor.sh` hook row and the guard sentence
 - `docs/install.md`, `README.md`, `docs/features/README.md`: "Develop with an agent", the Read more link, status `Building`
 
@@ -18,7 +18,7 @@ Written by the developer sub-agent when its steps are done. The developer does n
 
 ```bash
 bash .agents/hooks/hooks.test.sh
-pnpm doctor
+bash .agents/hooks/doctor.sh
 cd apps/server && node_modules/.bin/vitest run src/repository-shape
 claude   # a fresh session in a worktree of this branch
 ```
@@ -36,7 +36,7 @@ Every "it works" is a hypothesis the tester tries to break.
 
 1. Hypothesis: the `SessionStart` hook fires and the `doctor:` summary line is in the first turn's context. Break it by: open a fresh Claude Code session and a Codex session in a worktree, hide a tool through `PATH`, read the context.
 2. Hypothesis: `Edit` on `.env` is blocked with the fix line when `jq` is hidden. Break it by: run a session with `jq` off `PATH` and try `Edit`, `Write` and `git add -A`.
-3. Hypothesis: `pnpm doctor` on CI is green with `GH_TOKEN` from `github.token` and `chromium` skipped. Break it by: dispatch `verify.yml` on the branch and read the `checks` job.
+3. Hypothesis: `.agents/hooks/doctor.sh` on CI is green with `GH_TOKEN` from `github.token` and `chromium` skipped. Break it by: dispatch `verify.yml` on the branch and read the `checks` job.
 4. Hypothesis: the Linux fix lines are right. Break it by: run `DOCTOR_UNAME=Linux .agents/hooks/doctor.sh` with `DOCTOR_PATH` holding one package manager at a time, and compare each `fix:` with that manager's real syntax.
 5. Hypothesis: `/verify` stops at gate 0 on a missing required tool and continues on a missing optional one. Break it by: run `/verify unit` with `jq` hidden, then with `ffmpeg` hidden.
 

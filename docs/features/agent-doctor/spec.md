@@ -32,7 +32,7 @@ Developing in this repository is agentic: the developer opens it in Claude Code 
 `.agents/hooks/doctor.sh` runs with no input. It detects the platform (`uname -s`) and the first package manager on `PATH` among `brew`, `apt-get`, `dnf`, `apk`, `pacman`. For each tool it runs the check, then prints one line in a fixed shape:
 
 ```
-<tool> | ok|missing | required|optional | lost: <capability> | fix: <command or URL>
+<tool> | ok|missing|skipped | required|optional | lost: <capability> | fix: <command or URL>
 ```
 
 The exit code is 1 when any required tool is missing, 0 otherwise. Optional tools never change the exit code.
@@ -43,7 +43,7 @@ The exit code is 1 when any required tool is missing, 0 otherwise. Optional tool
 | pnpm | `pnpm -v` equals the version in `package.json` → `packageManager` | yes | everything |
 | jq | on `PATH` | yes | the four hooks; the two guards block |
 | gh | on `PATH` and `gh auth status` exits 0 | yes | `/open-pr`, the recorder's release upload; `gh auth login` is the human's step |
-| Playwright Chromium | `pnpm exec playwright --version` and the browser directory `playwright` reports exists | yes | `pnpm test:e2e`, both Playwright MCP servers, `/check-ui`, `/scenario`, the tester |
+| Playwright Chromium | a `chromium-*` directory in the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/Library/Caches/ms-playwright` on Darwin and `~/.cache/ms-playwright` elsewhere), so the check needs no `node_modules` | yes | `pnpm test:e2e`, both Playwright MCP servers, `/check-ui`, `/scenario`, the tester |
 | gitleaks | on `PATH` | optional | the local secret scan; CI runs it |
 | ffmpeg | on `PATH` | optional | the recorder's mp4 and gif; a PR that touches UI cannot ship |
 | docker | on `PATH` and the daemon answers `docker info` | optional | README → Run it and booting the image locally; every gate runs from source |
@@ -57,7 +57,7 @@ Wiring, one source and thin adapters (ADR 0014):
 - `.codex/hooks.json`: the same event, after the plan verifies Codex's event name; if Codex has none, `$verify` gate 0 is the Codex path.
 - `.agents/skills/verify/SKILL.md`: gate 0 is `.agents/hooks/doctor.sh`; a non-zero exit stops the gate with the report pasted verbatim.
 - `.github/workflows/verify.yml`: one step runs the doctor after `actions/install` in the `checks` job and fails the job on exit 1.
-- `package.json`: `doctor` script → `bash .agents/hooks/doctor.sh`.
+- No `package.json` script: `pnpm doctor` is pnpm's own built-in and would shadow it, and a script would need pnpm to report that pnpm is missing. Every caller runs `.agents/hooks/doctor.sh` directly.
 
 Guards fail closed: `touched-files.sh` and `guard-git-add-all.sh` start with a `jq` presence check that exits 2 with `Blocked: the hooks need jq. fix: <the doctor's line for jq>`.
 

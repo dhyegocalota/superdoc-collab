@@ -177,10 +177,10 @@ Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each 
 | `guard-secrets.sh` | PreToolUse Edit/Write | blocks edits to `.env*` except `*.example` |
 | `guard-git-add-all.sh` | PreToolUse Bash | blocks `git add -A`, `git add .`, `--no-verify` |
 | `warn-conventions.sh` | PostToolUse Edit/Write | warns on `?? `, `.js'` imports, `sleep`, comments other than `// NB ADR NNNN:`, `else {` in `.ts`/`.tsx` |
-| `remind-docs.sh` | Stop | names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change, when those documents did not change; once per set of documents |
+| `remind-docs.sh` | Stop | names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change, when those documents did not change; each document once until the next commit |
 
 The scripts live in `.agents/hooks/` and read the tool input from stdin, in the shape both tools send (`tool_input.file_path` from Claude Code, `apply_patch` headers in `tool_input.command` from Codex). Claude Code wires them in `.claude/settings.json`, Codex in `.codex/hooks.json`; `pnpm test:hooks` runs `.agents/hooks/hooks.test.sh` against both shapes and is part of `pnpm test:unit`.
 
-Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it blocks once per set of documents, never a stop that is already continuing, and the agent may answer that nothing applies.
+Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it names each document once until the next commit, never blocks a stop that is already continuing, and the agent may answer that nothing applies.
 
-CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package has no README.
+CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README.

@@ -12,6 +12,6 @@ Types, enums and constants shared by the web app, the server and the E2E suite. 
 | [`src/timeline.ts`](src/timeline.ts) | timeline, topics and selection summaries: page sizes, prompt caps, cooldowns and user-facing messages |
 | [`src/constants.ts`](src/constants.ts) | time units, version-room and cache limits, the minimum `Retry-After` |
 
-Generic constants (time units, limits, formats) live in `src/constants.ts`; search it before declaring one locally. A new file is re-exported from [`src/index.ts`](src/index.ts).
+Generic constants (time units, limits) live in `src/constants.ts`; search it before declaring one locally. A new file is re-exported from [`src/index.ts`](src/index.ts).
 
 `typecheck` (`tsc --noEmit`) and `test:unit` (Vitest) run through `pnpm --filter @superdoc-history/types <script>`.

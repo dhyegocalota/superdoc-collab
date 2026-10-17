@@ -9,6 +9,8 @@ const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
 const README_PATHSPEC = `*${README_FILE}`;
 const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
+const PACKAGE_MANIFEST = 'package.json';
+const DOCUMENTED_FOLDERS = ['e2e'];
 const LINE_SEPARATOR = '\n';
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
@@ -50,6 +52,7 @@ function readmes(): string[] {
     cwd: REPOSITORY_ROOT,
     encoding: 'utf8',
   });
+  if (listing.status !== 0) throw new Error(`git ls-files failed: ${listing.stderr}`);
   return listing.stdout.split(LINE_SEPARATOR).filter((path) => path && existsSync(repositoryPath(path)));
 }
 
@@ -57,7 +60,8 @@ function workspacePackages(): string[] {
   return WORKSPACE_PACKAGE_PARENTS.flatMap((parent) =>
     readdirSync(repositoryPath(parent), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
-      .map((entry) => posix.join(parent, entry.name)),
+      .map((entry) => posix.join(parent, entry.name))
+      .filter((path) => existsSync(repositoryPath(posix.join(path, PACKAGE_MANIFEST)))),
   );
 }
 
@@ -78,8 +82,10 @@ describe('delivery documents', () => {
     expect(brokenTargets({ document: README_FILE, text })).toEqual(['no-such-file.md']);
   });
 
-  test('every workspace package has a README', () => {
-    expect(workspacePackages().filter((path) => !existsSync(repositoryPath(posix.join(path, README_FILE))))).toEqual([]);
+  test('every workspace package and e2e has a README', () => {
+    expect(
+      [...workspacePackages(), ...DOCUMENTED_FOLDERS].filter((path) => !existsSync(repositoryPath(posix.join(path, README_FILE)))),
+    ).toEqual([]);
   });
 
   test('the runbook sets every variable the compose file reads', () => {

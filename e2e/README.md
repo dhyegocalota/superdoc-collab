@@ -18,7 +18,7 @@ CI runs the suite only on manual dispatch (`gh workflow run e2e.yml --ref <branc
 |---|---|
 | [`auth.spec.ts`](auth.spec.ts) | sign-up, sign-in, sign-out, the redirect back, rate limiting, narrow width |
 | [`documents.spec.ts`](documents.spec.ts) | upload, readers, share links, rename, delete, download, narrow width |
-| [`collaboration.spec.ts`](collaboration.spec.ts) | two authors converge and every character is attributed to its author |
+| [`collaboration.spec.ts`](collaboration.spec.ts) | two authors converge, every character is attributed to its author, identities are declared from awareness |
 | [`timeline.spec.ts`](timeline.spec.ts) | topic bands, refresh, filters, live bands, keyboard, narrow width |
 | [`topics-on-open.spec.ts`](topics-on-open.spec.ts) | topics named for a document opened right after upload |
 | [`time-travel.spec.ts`](time-travel.spec.ts) | versions from the chart, shared `at` links, local highlights, readers, Escape |

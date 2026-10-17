@@ -11,6 +11,7 @@
 - [x] **Step 3:** failing `delivery-docs.test.ts` cases: every README is link-checked, every workspace package has a README, inline code and fenced links are skipped.
 - [x] **Step 4:** fix `docs/adr/README.md`'s superseded link; write the five READMEs.
 - [x] **Step 5:** HARNESS, `AGENTS.md`, reviewer role, `open-pr` skill.
+- [x] **Step 6:** review round: failing checks for spaces, renames, a commit and a dismissed document (0f4ac9b); the hook reads `git diff` plus untracked files and remembers documents per `HEAD`; `delivery-docs` checks git's exit status, needs a `package.json` to call a folder a package and requires `e2e/README.md`; README facts corrected.
 
 ## Failure modes
 

@@ -4,7 +4,7 @@
 - Tier: green (documentation, one hook, one repository-shape test; no product code).
 - Owner approval: approved 2026-10-17 (the owner asked for "README nas subpastas necessárias + automated agentic rules pra atualizar static non-code things like README once the code change").
 - ADRs: none; [0014](../../adr/0014-one-source-per-agent-surface.md) governs where the hook lives.
-- Not changing: the root README's content, any product code, the existing hooks.
+- Not changing: the root README beyond its Tests row, any product code, the existing hooks.
 
 ## Problem
 
@@ -13,8 +13,8 @@ Only the root and four `docs/` folders had a README, so an agent opening `apps/s
 ## Goals
 
 - `apps/web`, `apps/server`, `libs/history`, `libs/types` and `e2e` each have a README with purpose, commands and layout, linking the folders they name.
-- A Stop hook (`.agents/hooks/remind-docs.sh`, wired for Claude Code and Codex) names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change when those documents did not change. It blocks once per set of documents and never a stop that is already continuing.
-- CI fails when any README links a missing file or heading, or a workspace package has no README.
+- A Stop hook (`.agents/hooks/remind-docs.sh`, wired for Claude Code and Codex) names the nearest README and the `.claude/rules/` files whose globs match each uncommitted change when those documents did not change. It names each document once until the next commit and never blocks a stop that is already continuing.
+- CI fails when any README links a missing file or heading, or a workspace package or `e2e/` has no README.
 - HARNESS (Build, Ship gate 5, Enforcement), `AGENTS.md`, the reviewer role and the `open-pr` skill state that docs move with the code.
 
 ## Non-goals
@@ -25,6 +25,6 @@ Only the root and four `docs/` folders had a README, so an agent opening `apps/s
 ## Design
 
 - Nearest README: walk up from the changed file's folder; the root `README.md` when none is found. README files and rules themselves never trigger.
-- Changed files: `git status --porcelain --untracked-files=all`, so committed work is considered handled.
-- Once per set: the last reminded set is stored in `$(git rev-parse --git-dir)/docs-reminder` (per worktree).
+- Changed files: `git diff --name-only --no-renames HEAD` plus untracked files, unquoted, both sides of a rename; committed work is considered handled.
+- Once per document: `HEAD` and every document reminded since are stored in `$(git rev-parse --git-dir)/docs-reminder` (per worktree); a new commit starts the list over.
 - Output: `{"decision":"block","reason":…}` on stdout, the Stop contract both Claude Code and Codex accept.

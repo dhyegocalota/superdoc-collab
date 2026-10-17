@@ -15,8 +15,17 @@
 
 ## Red before, green after
 
-- The commit `test(hooks): …` holds the hook checks without the script: 7 failures, "No such file or directory".
+- The commit `test(hooks): expect a Stop reminder …` holds the hook checks without the script: 6 failures, "No such file or directory".
+- The commit `test(hooks): cover spaces, renames, commits …` (0f4ac9b) fails 3 checks against the first hook: a dismissed document named again, a path with spaces resolving to the root README, a rename not naming the folder the file left.
 - The commit `test(server): …` holds the README checks without the READMEs: `docs/adr/README.md` reports `0018-deploy-on-railway.md`; the package check lists the four packages.
+
+## Second round (reviewer findings 1–3, 9, 11; tester edge cases)
+
+- The hook reads `git diff --name-only --no-renames HEAD` plus untracked files, so paths stay unquoted and both sides of a rename count.
+- `docs-reminder` stores `head <sha>` and every document reminded since; a document is named once until the next commit.
+- Rule globs are read once with awk and folders are walked with parameter expansion: 400 changed files take about 0.3 s.
+- `delivery-docs.test.ts` throws when `git ls-files` fails, ignores `apps/*` or `libs/*` folders without a `package.json`, and requires `e2e/README.md`.
+- README facts corrected: one worker thread in `apps/server`, how insights degrade without a model, Vite compiling `libs/history`, no formats in `libs/types` constants, the second collaboration spec.
 
 ## Hypotheses to attack
 

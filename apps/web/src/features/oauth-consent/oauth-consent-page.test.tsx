@@ -1,8 +1,9 @@
-import { AgentScope, AppRoute } from '@superdoc-history/types';
+import { AgentScope, AppRoute, OFFLINE_ACCESS_SCOPE } from '@superdoc-history/types';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from '@/features/auth/auth-client';
+import { EXPIRED_REQUEST_MESSAGE } from '@/features/auth/auth-copy';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   APPROVE_LABEL,
@@ -10,7 +11,7 @@ import {
   DENY_LABEL,
   INCOMPLETE_REQUEST_MESSAGE,
   OFFLINE_ACCESS_LABEL,
-  OFFLINE_ACCESS_SCOPE,
+  redirectNotice,
   SCOPE_LABELS,
 } from './oauth-consent-copy';
 import { OAuthConsentPage } from './oauth-consent-page';
@@ -21,13 +22,17 @@ const publicClient = vi.mocked(authClient.oauth2.publicClient);
 const consent = vi.mocked(authClient.oauth2.consent);
 const CLIENT_ID = 'client-1';
 const CLIENT_NAME = 'Claude Code';
+const REDIRECT_URI = 'https://client.example/callback';
+const REDIRECT_HOST = 'client.example';
 const REQUESTED_SCOPES = [AgentScope.HistoryRead, AgentScope.DocumentEdit];
 
 function consentRoute(parameters: Record<string, string>): string {
   return `${AppRoute.OAuthConsent}?${new URLSearchParams(parameters)}`;
 }
 
-function renderConsentPage(parameters: Record<string, string> = { client_id: CLIENT_ID, scope: REQUESTED_SCOPES.join(' ') }) {
+function renderConsentPage(
+  parameters: Record<string, string> = { client_id: CLIENT_ID, scope: REQUESTED_SCOPES.join(' '), redirect_uri: REDIRECT_URI },
+) {
   renderWithProviders(<OAuthConsentPage />, { route: consentRoute(parameters) });
   return userEvent.setup();
 }
@@ -68,14 +73,44 @@ test('a failed consent shows the error and lets the person try again', async () 
 });
 
 test('a request without a client id shows the incomplete message and calls nothing', () => {
-  renderConsentPage({ scope: AgentScope.HistoryRead });
+  renderConsentPage({ scope: AgentScope.HistoryRead, redirect_uri: REDIRECT_URI });
   expect(screen.getByText(INCOMPLETE_REQUEST_MESSAGE)).toBeInTheDocument();
   expect(publicClient).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: APPROVE_LABEL })).not.toBeInTheDocument();
 });
 
 test('the offline access scope is shown in plain words', async () => {
-  renderConsentPage({ client_id: CLIENT_ID, scope: [AgentScope.HistoryRead, OFFLINE_ACCESS_SCOPE].join(' ') });
+  renderConsentPage({ client_id: CLIENT_ID, scope: [AgentScope.HistoryRead, OFFLINE_ACCESS_SCOPE].join(' '), redirect_uri: REDIRECT_URI });
   expect(await screen.findByText(OFFLINE_ACCESS_LABEL)).toBeInTheDocument();
   expect(screen.queryByText(OFFLINE_ACCESS_SCOPE)).not.toBeInTheDocument();
+});
+
+test('shows the host the access will be sent to', async () => {
+  renderConsentPage();
+  expect(await screen.findByText(redirectNotice(REDIRECT_HOST))).toBeInTheDocument();
+});
+
+test.each([{ redirect_uri: 'not a url' }, { redirect_uri: '' }])(
+  'a redirect_uri of "$redirect_uri" shows the incomplete message',
+  ({ redirect_uri }) => {
+    renderConsentPage({ client_id: CLIENT_ID, scope: AgentScope.HistoryRead, redirect_uri });
+    expect(screen.getByText(INCOMPLETE_REQUEST_MESSAGE)).toBeInTheDocument();
+    expect(publicClient).not.toHaveBeenCalled();
+  },
+);
+
+test('a client without a name is shown by its redirect host and can still be answered', async () => {
+  publicClient.mockResolvedValue({ data: null, error: { status: 404 } } as never);
+  const user = renderConsentPage();
+  expect(await screen.findByText(new RegExp(REDIRECT_HOST))).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: APPROVE_LABEL }));
+  expect(consent).toHaveBeenCalledWith({ accept: true });
+});
+
+test('an expired signed query asks to start again from the AI client', async () => {
+  consent.mockResolvedValue({ data: null, error: { status: 400, error: 'invalid_signature' } } as never);
+  const user = renderConsentPage();
+  await screen.findByText(new RegExp(CLIENT_NAME));
+  await user.click(screen.getByRole('button', { name: APPROVE_LABEL }));
+  expect(await screen.findByText(EXPIRED_REQUEST_MESSAGE)).toBeInTheDocument();
 });

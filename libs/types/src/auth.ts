@@ -5,6 +5,7 @@ export const NAME_MIN_LENGTH = 2;
 export const AUTH_ERROR_MESSAGE = 'Invalid email or password.';
 export const EMAIL_INVALID_MESSAGE = 'Enter a valid email address.';
 export const PASSWORD_TOO_SHORT_MESSAGE = `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
+export const NAME_RESERVED_MESSAGE = 'This name is reserved for AI clients.';
 export const NAME_TOO_SHORT_MESSAGE = `Use at least ${NAME_MIN_LENGTH} characters.`;
 
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);

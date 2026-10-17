@@ -378,9 +378,7 @@ function renderActionGraph(source = actionTimeline) {
 
 test('every agent action is one mark and hovering it names the action', () => {
   renderActionGraph();
-  const marks = ACTION_KINDS.map((kind) =>
-    screen.getByRole('button', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind }) }),
-  );
+  const marks = ACTION_KINDS.map((kind) => screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind }) }));
   expect(marks).toHaveLength(ACTION_KINDS.length);
   fireEvent.pointerEnter(marks[0]!);
   expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
@@ -390,7 +388,7 @@ test('every agent action is one mark and hovering it names the action', () => {
 
 test('focusing a mark shows its tooltip and blurring hides it', () => {
   renderActionGraph();
-  const mark = screen.getByRole('button', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[1]! }) });
+  const mark = screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[1]! }) });
   fireEvent.focus(mark);
   expect(screen.getByRole('tooltip')).toHaveTextContent(AGENT_ACTION_LABELS[ACTION_KINDS[1]!]);
   fireEvent.blur(mark);
@@ -399,7 +397,31 @@ test('focusing a mark shows its tooltip and blurring hides it', () => {
 
 test('a timeline without agent actions renders no marks', () => {
   renderGraph();
-  expect(
-    screen.queryByRole('button', { name: new RegExp(AGENT_ACTION_LABELS[AgentActionKind.ShareLinkRevealed]) }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByRole('img', { name: new RegExp(AGENT_ACTION_LABELS[AgentActionKind.ShareLinkRevealed]) })).not.toBeInTheDocument();
+});
+
+test('a mark is a focusable image with the tooltip as its description, not a button', () => {
+  renderActionGraph();
+  const mark = screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[0]! }) });
+  expect(mark).toHaveAttribute('tabindex', '0');
+  fireEvent.focus(mark);
+  expect(mark).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id);
+  expect(screen.queryByRole('button', { name: /share link|exported/ })).not.toBeInTheDocument();
+});
+
+test('a tooltip for an action that disappears is gone with it', () => {
+  const view = renderActionGraph();
+  const mark = screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[0]! }) });
+  fireEvent.pointerEnter(mark);
+  view.rerender(
+    <Streamgraph
+      timeline={{ ...actionTimeline, agentActions: actionTimeline.agentActions.slice(1) }}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

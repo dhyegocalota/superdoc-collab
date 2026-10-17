@@ -1,5 +1,5 @@
 import { mcp } from '@better-auth/mcp';
-import { AgentScope, ApiPath, AppRoute, signInSchema, signUpSchema } from '@superdoc-history/types';
+import { AgentScope, ApiPath, AppRoute, OFFLINE_ACCESS_SCOPE, signInSchema, signUpSchema } from '@superdoc-history/types';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
@@ -14,8 +14,7 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
 const SIGN_IN_PATH = '/sign-in/email';
 const SIGN_UP_PATH = '/sign-up/email';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
-const REFRESH_SCOPE = 'offline_access';
-const OAUTH_SCOPES = [...Object.values(AgentScope), REFRESH_SCOPE];
+const OAUTH_SCOPES = [...Object.values(AgentScope), OFFLINE_ACCESS_SCOPE];
 
 const credentialSchemas: Record<string, typeof signInSchema> = {
   [SIGN_IN_PATH]: signInSchema,

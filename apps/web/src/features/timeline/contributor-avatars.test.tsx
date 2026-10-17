@@ -24,6 +24,6 @@ test('an agent author shows the AI badge and keeps the human initials', () => {
   render(<ContributorAvatars authors={authors} contributors={[{ authorKey: FIXTURE_AGENT_AUTHOR_KEY, ...contributor }]} />);
   const avatar = screen.getByTitle(FIXTURE_AGENT_AUTHOR_NAME);
   expect(authors[FIXTURE_AGENT_AUTHOR_KEY]!.actor).toBe(ClientActor.Agent);
-  expect(avatar).toContainElement(screen.getByLabelText(AI_BADGE_LABEL));
+  expect(avatar).toContainElement(screen.getByRole('img', { name: AI_BADGE_LABEL }));
   expect(avatar).toHaveTextContent(/^A/);
 });

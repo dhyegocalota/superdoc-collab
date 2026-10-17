@@ -15,7 +15,9 @@ const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
 const INSTALL_FILE = 'docs/install.md';
+const AGENT_INSTALL_FILE = 'docs/agent-install.md';
 const AGENT_SECTION_HEADING = '## Install with an agent';
+const QUICK_INSTALL_HEADING = '## Quick install';
 const CONFIGURATION_SECTION_HEADING = '## Configuration';
 const RECOVERY_SECTION_HEADING = '## Recovery';
 const SECTION_PATTERN = /^## /m;
@@ -33,9 +35,9 @@ const MARKDOWN_EXTENSION = '.md';
 
 function section({ text, heading }: { text: string; heading: string }): string {
   const start = text.indexOf(`\n${heading}\n`);
-  if (start === -1) throw new Error(`The install guide has no section ${heading}`);
+  if (start === -1) throw new Error(`There is no section ${heading}`);
   const [body] = text.slice(start + heading.length + 2).split(SECTION_PATTERN);
-  if (body === undefined) throw new Error(`The install guide section ${heading} is empty`);
+  if (body === undefined) throw new Error(`The section ${heading} is empty`);
   return body;
 }
 
@@ -97,9 +99,17 @@ describe('delivery documents', () => {
     expect(composeVariables().filter((name) => !configuration.includes(`\`${name}\``))).toEqual([]);
   });
 
-  test('the agent install prompt carries the variables and the claim instruction', () => {
-    const agent = section({ text: readRepositoryFile(INSTALL_FILE), heading: AGENT_SECTION_HEADING });
+  test('the agent install file carries the variables and the claim instruction', () => {
+    const agent = readRepositoryFile(AGENT_INSTALL_FILE);
     expect(AGENT_PROMPT_PHRASES.filter((phrase) => !agent.includes(phrase))).toEqual([]);
+  });
+
+  test('the README and the install guide hand the agent the agent install file', () => {
+    const prompts = [
+      section({ text: readRepositoryFile(README_FILE), heading: QUICK_INSTALL_HEADING }),
+      section({ text: readRepositoryFile(INSTALL_FILE), heading: AGENT_SECTION_HEADING }),
+    ];
+    expect(prompts.filter((prompt) => !prompt.includes(AGENT_INSTALL_FILE))).toEqual([]);
   });
 
   test('the install guide explains how to promote an administrator', () => {

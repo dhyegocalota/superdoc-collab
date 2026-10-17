@@ -178,7 +178,7 @@ stub_all; rm -rf "$doctor_home/Library/Caches/ms-playwright"
 expect_match "doctor: no chromium in the cache is missing" "$(doctor_line Darwin chromium)" '^chromium \| missing \| required \| lost: pnpm test:e2e, both Playwright MCP servers, /check-ui, /scenario, the tester \| fix: pnpm install && pnpm exec playwright install chromium$'
 
 stub_all; stub docker 'exit 1'
-expect_match "doctor: docker without a daemon is missing but optional" "$(doctor_line Darwin docker)" '^docker \| missing \| optional \| lost: README → Run it and booting the image locally; every gate runs from source \| fix: brew install --cask docker$'
+expect_match "doctor: docker without a daemon is missing but optional" "$(doctor_line Darwin docker)" '^docker \| missing \| optional \| lost: README → Quick install with Docker and booting the image locally; every gate runs from source \| fix: brew install --cask docker$'
 
 stub_all; rm -rf "$doctor_home/Library/Caches/ms-playwright"
 report=$(doctor Darwin chromium)

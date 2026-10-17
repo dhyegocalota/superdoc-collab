@@ -12,7 +12,7 @@ import { Streamgraph } from './streamgraph';
 import { REFRESH_TOPICS_LABEL, RESIZE_PANEL_LABEL, TIMELINE_HEADING } from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
-import { useElementWidth } from './use-element-width';
+import { useElementWidth } from '@/lib/use-element-width';
 import { MIN_PANEL_WIDTH, PANEL_RESIZE_STEP, usePanelWidth } from './use-panel-width';
 import { useSelectionSummary, useSummarizeEdits } from './use-selection-summary';
 import { useRefreshTopics } from './use-topics';

@@ -28,4 +28,4 @@ Five vertical slices, in build order ([ADR 0008](../adr/0008-vertical-slices.md)
 | 2 | [`documents-and-history`](documents-and-history/) | upload and list DOCX, SuperDoc with live collaboration, history capture and read model | Shipped 2026-10-16 ([PR #2](https://github.com/dhyegocalota/superdoc-take-home/pull/2)) |
 | 3 | [`timeline-and-time-travel`](timeline-and-time-travel/) | streamgraph by LLM topics, filters, top edits with per-topic summaries, time-travel viewer (spike first) | Building |
 | 4 | `llm-insights` | "Summarize edits" on demand for the filtered selection, polish | Shipped (PR #4) |
-| 5 | `deploy` | Compose on the owner's VPS through Dokploy, delivery README | Building |
+| 5 | [`deploy`](deploy/) | Compose on the owner's VPS through Dokploy, delivery README | Building |

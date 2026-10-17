@@ -6,6 +6,7 @@ import { RequireSession } from '@/features/auth/require-session';
 import { SignInPage } from '@/features/auth/sign-in-page';
 import { SignUpPage } from '@/features/auth/sign-up-page';
 import { DocumentsPage } from '@/features/documents/documents-page';
+import { OAuthConsentPage } from '@/features/oauth-consent/oauth-consent-page';
 import { ShareLandingPage } from '@/features/sharing/share-landing-page';
 import { VersionViewPage } from '@/features/versions/version-view-page';
 
@@ -58,6 +59,14 @@ export const routes: RouteObject[] = [
     element: (
       <RequireSession>
         <VersionViewPage />
+      </RequireSession>
+    ),
+  },
+  {
+    path: AppRoute.OAuthConsent,
+    element: (
+      <RequireSession>
+        <OAuthConsentPage />
       </RequireSession>
     ),
   },

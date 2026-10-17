@@ -9,7 +9,6 @@ export const CLIENT_LOADING_LABEL = 'Loading the client';
 export const CLIENT_LOAD_ERROR_MESSAGE = 'The client could not be loaded.';
 export const CONSENT_FAILED_MESSAGE = 'Your answer could not be sent. Try again.';
 export const INCOMPLETE_REQUEST_MESSAGE = 'This authorization request is incomplete.';
-export const CLIENT_SUBJECT = 'Client request';
 
 export function consentDescription(clientName: string): string {
   return `${clientName} asks to act on your behalf in your documents.`;

@@ -12,6 +12,7 @@ import {
   RECOVERED_TITLE,
   RELOAD_LABEL,
   RELOADING_LABEL,
+  SIGN_IN_LABEL,
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
 } from './connection-copy';
 
@@ -97,4 +98,13 @@ test('Failed is the title and one paragraph holding the reason and the unsynced 
 test('while reloading the button is disabled and says so', () => {
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown, isReloading: true });
   expect(screen.getByRole('button', { name: RELOADING_LABEL })).toBeDisabled();
+});
+
+test('a session that ended shows its reason and a Sign in button that calls onReload once', async () => {
+  const onReload = vi.fn();
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SessionEnded, onReload });
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.SessionEnded]);
+  expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: SIGN_IN_LABEL }));
+  expect(onReload).toHaveBeenCalledTimes(1);
 });

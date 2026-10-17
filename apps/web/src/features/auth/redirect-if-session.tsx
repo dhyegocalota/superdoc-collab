@@ -9,9 +9,9 @@ import { SESSION_QUERY_KEY, useSession } from './use-session';
 export function RedirectIfSession({ children }: { children: ReactNode }) {
   const { user, isLoading } = useSession();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isSigningOut = isSignedOutState(location.state);
 
   useEffect(() => {

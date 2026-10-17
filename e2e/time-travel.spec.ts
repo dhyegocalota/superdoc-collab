@@ -61,6 +61,7 @@ async function ownerWithEdit(browser: Browser) {
 }
 
 async function openEditBin({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
+  await waitForSettledTimeline({ page, documentId });
   const { bins } = await readTimeline({ page, documentId });
   const lastFilledIndex = bins.findLastIndex((bin) => Object.keys(bin.byBand).length > 0);
   const stepsBack = bins.length - 1 - lastFilledIndex;

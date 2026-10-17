@@ -19,4 +19,5 @@ paths:
 ## Waiting for the projection
 - Before summarizing or filtering on just-typed text, wait until the projected events contain it (`insertedBy` over `readEvents`) and the timeline has settled (`waitForSettledTimeline`). (e2e/editor.ts, e2e/timeline.ts)
 - `waitForBands` only proves the bands are drawn; it is never enough for the waits above. (e2e/timeline.ts)
+- Choose a bin by its index only after the timeline settles (`waitForSettledTimeline`): a stream of keystrokes can spill into the next bin after the first read, and stepping back from End by the stale count lands one bin early, on a version with half the edit. (e2e/time-travel.spec.ts `openEditBin`, CI runs of PR #23)
 - A version inside the live bin (the one that contains now) keeps moving while events arrive, and a member joining the room can add a newer version mark. Open a shared `?at=` link for a second member only after the timeline settles, then reload the first member so both pin the same settled version. (e2e/time-travel.spec.ts, commit 36aabe3)

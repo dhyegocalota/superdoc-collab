@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-history/types';
+import { MIN_RETRY_AFTER_MS, MINUTE_MS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import { InsightsWorker, JobOutcome, LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS, LLM_WINDOW_MS } from './insights-worker';
 
@@ -61,4 +61,15 @@ test('checking the call budget never spends it', () => {
   expect(worker.hasCallBudget()).toBe(true);
   expect(worker.consumeCall()).toBe(true);
   expect(worker.hasCallBudget()).toBe(false);
+});
+
+test('the wait for a call slot runs until the oldest call leaves the window and is never below the minimum', () => {
+  const clock = { time: 0 };
+  const worker = new InsightsWorker({ now: () => clock.time, maxCallsPerHour: 1 });
+  expect(worker.retryAfterMs()).toBe(MIN_RETRY_AFTER_MS);
+  worker.consumeCall();
+  clock.time = 10 * MINUTE_MS;
+  expect(worker.retryAfterMs()).toBe(LLM_WINDOW_MS - 10 * MINUTE_MS);
+  clock.time = LLM_WINDOW_MS - 1;
+  expect(worker.retryAfterMs()).toBe(MIN_RETRY_AFTER_MS);
 });

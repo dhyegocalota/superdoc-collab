@@ -280,6 +280,16 @@ test('a full worker answers 503 busy', async () => {
   await server.stop();
 });
 
+test('an exhausted hourly cap answers 503 with the seconds until a slot frees', async () => {
+  const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
+  vi.spyOn(server.services.insights.worker, 'hasCallBudget').mockReturnValue(false);
+  vi.spyOn(server.services.insights.worker, 'retryAfterMs').mockReturnValue(90 * SECOND_MS);
+  const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
+  expect(response.status).toBe(HttpStatus.ServiceUnavailable);
+  expect(response.headers.get(RETRY_AFTER_HEADER)).toBe('90');
+  await server.stop();
+});
+
 test('a cross-site form post is refused', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
   const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${MEMBER_QUERY}`, { method: HttpMethod.Post, headers: { cookie: editor.cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' } });

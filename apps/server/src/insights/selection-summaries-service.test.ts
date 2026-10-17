@@ -1,5 +1,5 @@
 import { type EditRun } from '@superdoc-history/history';
-import { MINUTE_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-history/types';
+import { HOUR_MS, MINUTE_MS, SECOND_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-history/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -14,6 +14,7 @@ const ANA = { id: 'user-ana', name: 'Ana' };
 const BRUNO = { id: 'user-bruno', name: 'Bruno' };
 const MALLORY = 'Mallory';
 const PROVIDER_FAILURE = 'provider exploded';
+const FOREIGN_KEY_FAILURE = 'FOREIGN KEY constraint failed';
 const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null };
 const TERM_SELECTION: RequestedSelection = { ...BRUNO_SELECTION, author: null, term: 'budget' };
 const ANSWER = { sentence: 'Bruno added a designer.', authors: [BRUNO.name] };
@@ -210,7 +211,7 @@ test('a request over the hourly cap is busy and writes nothing', async () => {
   const model = modelAnswering(ANSWER);
   const worker = new InsightsWorker({ maxCallsPerHour: 0 });
   const { server, documentId, service } = await serviceWith({ languageModel: readyModel(model), snapshot: snapshotOf({ runs: BRUNO_RUNS }), worker });
-  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Busy });
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: 1 });
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.None);
   await worker.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.None);
@@ -223,7 +224,7 @@ test('a full worker answers busy without a row', async () => {
   const model = modelAnswering(ANSWER);
   const worker = new InsightsWorker({ maxConcurrentJobs: 0 });
   const { server, documentId, service } = await serviceWith({ languageModel: readyModel(model), snapshot: snapshotOf({ runs: BRUNO_RUNS }), worker });
-  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Busy });
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: 1 });
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.None);
   expect(callsOf(model)).toBe(0);
   await server.stop();
@@ -276,5 +277,28 @@ test('after a failure at an unchanged stamp a request is retried once the cooldo
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await worker.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({ state: SelectionSummaryState.Ready, summary: { sentence: ANSWER.sentence } });
+  await server.stop();
+});
+
+test('an exhausted hourly cap answers busy with the time until a slot frees', async () => {
+  const clock = { time: 0 };
+  const worker = new InsightsWorker({ now: () => clock.time, maxCallsPerHour: 1 });
+  worker.consumeCall();
+  clock.time = 10 * MINUTE_MS;
+  const { server, documentId, service } = await serviceWith({ languageModel: readyModel(modelAnswering(ANSWER)), snapshot: snapshotOf({ runs: BRUNO_RUNS }), worker });
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: (HOUR_MS - 10 * MINUTE_MS) / SECOND_MS });
+  await server.stop();
+});
+
+test('a failure that cannot be stored is logged without the selection key', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { server, documentId, service, worker } = await serviceWith({ languageModel: readyModel(failingModel(new Error(PROVIDER_FAILURE))), snapshot: snapshotOf({ runs: BRUNO_RUNS }) });
+  vi.spyOn(server.services.insightsRepository, 'saveSelectionFailure').mockImplementation(() => {
+    throw new Error(FOREIGN_KEY_FAILURE);
+  });
+  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS });
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
+  await worker.idle();
+  expect(errors.mock.calls.map((call) => JSON.stringify(call)).join('')).not.toContain(key);
   await server.stop();
 });

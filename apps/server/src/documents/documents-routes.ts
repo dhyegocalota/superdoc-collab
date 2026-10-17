@@ -20,7 +20,7 @@ import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
-import { requireDocumentRole } from './require-document-role';
+import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
 
 const RENAME_BODY_MAX_BYTES = 4 * 1024;
 const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
@@ -122,9 +122,8 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
     }),
     async (context) => {
-      const documentId = context.req.param('documentId');
+      const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Editor });
       const userId = context.var.user.id;
-      requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Editor });
       const parsed = titleSchema.safeParse(await context.req.json().catch(() => null));
       if (!parsed.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
       documents.rename({ documentId, title: parsed.data.title });
@@ -133,8 +132,7 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   );
 
   routes.delete('/:documentId', async (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents, documentId, userId: context.var.user.id, minimumRole: DocumentRole.Owner });
+    const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Owner });
     documents.remove(documentId);
     await runtime.forget(documentId);
     services.insights.topics.forget(documentId);
@@ -145,9 +143,8 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   });
 
   routes.get('/:documentId/download', async (context) => {
-    const documentId = context.req.param('documentId');
+    const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
     const userId = context.var.user.id;
-    requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const { title } = documents.summary({ documentId, userId });
     return new Response(Buffer.from(await storage.read(documentId)), {
       headers: { 'content-type': DOCX_MIME_TYPE, 'content-disposition': contentDisposition(`${title}${DOCX_EXTENSION}`) },
@@ -155,8 +152,7 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   });
 
   routes.get('/:documentId/members', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents, documentId, userId: context.var.user.id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
     const online = runtime.onlineUserIds(documentId);
     return context.json({ members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })) });
   });

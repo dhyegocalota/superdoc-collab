@@ -13,7 +13,7 @@ import {
 } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireDocumentRole } from '../documents/require-document-role';
+import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater } from '../http/retry-later';
@@ -27,8 +27,7 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
   const routes = new Hono<SignedIn>();
 
   routes.get('/:documentId/versions', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = aroundSchema.safeParse(context.req.query(TimelineQueryParam.Around));
     if (!parsed.success) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const around = parsed.data;
@@ -44,8 +43,7 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
   });
 
   routes.get('/:documentId/versions/:sequence', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const mark = services.versions.resolve({ documentId, sequence: Number(sequenceText) });
@@ -81,8 +79,7 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
   });
 
   routes.get('/:documentId/versions/:sequence/text', async (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     if (!services.versions.resolve({ documentId, sequence: Number(sequenceText) }))

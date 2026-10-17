@@ -7,7 +7,7 @@ import {
   type DocumentTopics,
 } from '@superdoc-history/types';
 import { Hono } from 'hono';
-import { requireDocumentRole } from '../documents/require-document-role';
+import { authorizedDocumentId } from '../documents/require-document-role';
 import { INVALID_TIMELINE_QUERY_MESSAGE, queryOf, selectionQuerySchema } from '../history/timeline-query';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
@@ -32,14 +32,12 @@ function documentTopics({ services, documentId }: { services: AppServices; docum
 export function createInsightsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
   routes.get('/:documentId/topics', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     services.insights.topics.ensure(documentId);
     return context.json(documentTopics({ services, documentId }));
   });
   routes.post('/:documentId/topics/refresh', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Editor });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Editor });
     const result = services.insights.topics.refresh(documentId);
     if (result.outcome === RefreshOutcome.TooSoon)
       return retryLater({
@@ -51,21 +49,18 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
     return context.json(services.insights.topics.status(documentId), HttpStatus.Accepted);
   });
   routes.get('/:documentId/summaries', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     services.insights.summaries.refreshStale(documentId);
     return context.json(services.insights.summaries.read(documentId));
   });
   routes.get(SELECTION_PATH, (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = parseSelection((name) => context.req.query(name));
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     return context.json(services.insights.selection.read({ documentId, selection: parsed.data }));
   });
   routes.post(SELECTION_PATH, (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Editor });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Editor });
     const parsed = parseSelection((name) => context.req.query(name));
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const selection = parsed.data;

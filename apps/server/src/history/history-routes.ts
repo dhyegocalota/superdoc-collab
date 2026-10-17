@@ -8,7 +8,7 @@ import {
 } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireDocumentRole } from '../documents/require-document-role';
+import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { resolveEvents } from './resolved-events';
@@ -37,8 +37,7 @@ function readDocumentEvents({
 export function createHistoryRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
   routes.get('/:documentId/events', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = eventsQuerySchema.safeParse({
       [TimelineQueryParam.AfterSequence]: context.req.query(TimelineQueryParam.AfterSequence),
       [TimelineQueryParam.Limit]: context.req.query(TimelineQueryParam.Limit),

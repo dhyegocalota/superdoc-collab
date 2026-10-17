@@ -1,6 +1,6 @@
 import { DocumentRole, HttpStatus } from '@superdoc-history/types';
 import { Hono } from 'hono';
-import { requireDocumentRole } from '../documents/require-document-role';
+import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { editsQuerySchema, INVALID_TIMELINE_QUERY_MESSAGE, queryOf, timelineQuerySchema } from './timeline-query';
@@ -11,8 +11,7 @@ const EDITS_PATH = '/:documentId/timeline/edits';
 export function createTimelineRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
   routes.get('/:documentId/timeline', (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = timelineQuerySchema.safeParse(
       queryOf({ read: (name) => context.req.query(name), names: Object.keys(timelineQuerySchema.shape) }),
     );
@@ -27,8 +26,7 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     return context.json(timeline);
   });
   routes.get(EDITS_PATH, (context) => {
-    const documentId = context.req.param('documentId');
-    requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Reader });
+    const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = editsQuerySchema.safeParse(
       queryOf({ read: (name) => context.req.query(name), names: Object.keys(editsQuerySchema.shape) }),
     );

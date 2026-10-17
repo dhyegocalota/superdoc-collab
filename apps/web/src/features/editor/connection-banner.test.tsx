@@ -14,6 +14,7 @@ import {
   RELOADING_LABEL,
   SIGN_IN_LABEL,
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
+  UNSYNCED_LOST_ON_SIGN_IN_DETAIL,
 } from './connection-copy';
 
 afterEach(cleanup);
@@ -21,15 +22,15 @@ afterEach(cleanup);
 function renderBanner({
   state,
   failureReason = null,
-  onReload = vi.fn(),
+  onAction = vi.fn(),
   isReloading = false,
 }: {
   state: ConnectionState;
   failureReason?: ConnectionFailureReason | null;
-  onReload?: () => void;
+  onAction?: () => void;
   isReloading?: boolean;
 }) {
-  render(<ConnectionBanner state={state} failureReason={failureReason} isReloading={isReloading} onReload={onReload} />);
+  render(<ConnectionBanner state={state} failureReason={failureReason} isReloading={isReloading} onAction={onAction} />);
 }
 
 test.each([
@@ -80,11 +81,11 @@ test('Online renders nothing', () => {
   expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
 });
 
-test('Reload calls onReload once', async () => {
-  const onReload = vi.fn();
-  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown, onReload });
+test('Reload calls onAction once', async () => {
+  const onAction = vi.fn();
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown, onAction });
   await userEvent.click(screen.getByRole('button', { name: RELOAD_LABEL }));
-  expect(onReload).toHaveBeenCalledTimes(1);
+  expect(onAction).toHaveBeenCalledTimes(1);
 });
 
 test('Failed is the title and one paragraph holding the reason and the unsynced warning', () => {
@@ -100,11 +101,18 @@ test('while reloading the button is disabled and says so', () => {
   expect(screen.getByRole('button', { name: RELOADING_LABEL })).toBeDisabled();
 });
 
-test('a session that ended shows its reason and a Sign in button that calls onReload once', async () => {
-  const onReload = vi.fn();
-  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SessionEnded, onReload });
+test('a session that ended shows its reason and a Sign in button that calls onAction once', async () => {
+  const onAction = vi.fn();
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SessionEnded, onAction });
   expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.SessionEnded]);
   expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: SIGN_IN_LABEL }));
-  expect(onReload).toHaveBeenCalledTimes(1);
+  expect(onAction).toHaveBeenCalledTimes(1);
+});
+
+test('a session that ended warns about signing in, not about reloading', () => {
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SessionEnded });
+  const banner = screen.getByTestId('connection-banner');
+  expect(banner).toHaveTextContent(UNSYNCED_LOST_ON_SIGN_IN_DETAIL);
+  expect(banner).not.toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
 });

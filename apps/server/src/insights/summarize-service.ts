@@ -1,4 +1,4 @@
-import { secondsRoundedUp, SummarizeOutcome, SummarizeStep, TopicState } from '@superdoc-collab/types';
+import { secondsRoundedUp, SummarizeOutcome, SummarizeScope, SummarizeStep, TopicState } from '@superdoc-collab/types';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
 import type { RequestedSelection, SelectionSummariesService } from './selection-summaries-service';
@@ -49,18 +49,20 @@ export class SummarizeService {
   }
 
   // NB ADR 0031: a step runs only when it is stale, so a click on fresh work makes no model call.
-  request({ documentId, selection }: SummarizeRequest): SummarizeResult {
+  request({ documentId, selection, scope = SummarizeScope.Full }: SummarizeRequest & { scope?: SummarizeScope }): SummarizeResult {
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
       return { outcome: SummarizeRefusal.Unavailable, reason: this.languageModel.reason };
     const key = summarizeKey(documentId);
     if (this.jobRunner.isRunning(key)) return { outcome: SummarizeOutcome.Running };
-    const needsRegroup = this.topics.isStale(documentId);
-    const isAnythingStale = needsRegroup || this.selection.isStale({ documentId, selection }) || this.summaries.isStale(documentId);
+    const isFull = scope === SummarizeScope.Full;
+    const needsRegroup = isFull && this.topics.isStale(documentId);
+    const needsSentences = isFull && this.summaries.isStale(documentId);
+    const isAnythingStale = needsRegroup || this.selection.isStale({ documentId, selection }) || needsSentences;
     if (!isAnythingStale) return { outcome: SummarizeOutcome.UpToDate };
     const cooldownRemainingMs = this.selection.cooldown.remainingMs(documentId);
     const isWaiting = cooldownRemainingMs > 0 || !this.jobRunner.hasCallBudget();
     if (isWaiting) return this.busy(cooldownRemainingMs);
-    const outcome = this.jobRunner.run({ key, job: () => this.run({ documentId, selection, needsRegroup }) });
+    const outcome = this.jobRunner.run({ key, job: () => this.run({ documentId, selection, needsRegroup, isFull }) });
     if (outcome === JobOutcome.Busy) return this.busy(cooldownRemainingMs);
     return { outcome: SummarizeOutcome.Started };
   }
@@ -77,14 +79,19 @@ export class SummarizeService {
     this.selection.setGroupingFailure({ documentId, hasFailed });
   }
 
-  private async run({ documentId, selection, needsRegroup }: SummarizeRequest & { needsRegroup: boolean }): Promise<void> {
+  private async run({
+    documentId,
+    selection,
+    needsRegroup,
+    isFull,
+  }: SummarizeRequest & { needsRegroup: boolean; isFull: boolean }): Promise<void> {
     this.selection.cooldown.start(documentId);
     this.selection.setGroupingFailure({ documentId, hasFailed: false });
     try {
       if (needsRegroup) await this.regroup(documentId);
       this.selection.setStep({ documentId, step: SummarizeStep.Summarizing });
       await this.selection.write({ documentId, selection });
-      await this.summaries.rewriteStale(documentId);
+      if (isFull) await this.summaries.rewriteStale(documentId);
     } finally {
       this.selection.setStep({ documentId, step: SummarizeStep.Idle });
     }

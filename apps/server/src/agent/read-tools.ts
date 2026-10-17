@@ -9,6 +9,7 @@ import {
   isSupportedTimeZone,
   RETRY_AFTER_SECONDS,
   SUMMARIZE_BUSY_MESSAGE,
+  SummarizeScope,
 } from '@superdoc-collab/types';
 import { z } from 'zod';
 import { buildBinEdits, buildDocumentTimeline } from '../history/timeline-service';
@@ -120,7 +121,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
         timeZone: canonicalTimeZone(input.timeZone),
       };
       const { summarize, selection: summaries } = context.services.insights;
-      const result = summarize.request({ documentId, selection });
+      const result = summarize.request({ documentId, selection, scope: SummarizeScope.SummaryOnly });
       if (result.outcome === SummarizeRefusal.Busy)
         throw new AgentToolError({ message: SUMMARIZE_BUSY_MESSAGE, details: { retryAfterSeconds: result.retryAfterSeconds } });
       if (result.outcome === SummarizeRefusal.Unavailable)

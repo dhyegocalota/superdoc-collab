@@ -6,6 +6,7 @@ import type { AppServices } from '../http/app';
 import type { AgentDocumentSessions, AgentToolContext, AgentToolPrincipal, RecordAgentAction } from './agent-tool-context';
 import { AGENT_TOOLS, agentToolsFor, callAgentTool } from './agent-tools';
 
+export const MCP_BODY_MAX_BYTES = 256 * 1024;
 const MCP_SERVER_NAME = 'superdoc-history';
 const MCP_SERVER_VERSION = '1.0.0';
 const ALLOWED_METHOD_HEADER = { Allow: 'POST' };

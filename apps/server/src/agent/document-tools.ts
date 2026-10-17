@@ -20,6 +20,9 @@ enum ToolkitTool {
   PerformAction = 'superdoc_perform_action',
 }
 
+export const MAX_EDITS = 50;
+export const MAX_TEXTS = 100;
+export const MAX_TEXT_LENGTH = 10_000;
 const TRACKED_CHANGE_MODE = 'tracked';
 const MAXIMUM_HEADING_LEVEL = 6;
 const EXPORT_DIRECTORY_PREFIX = 'superdoc-history-export-';

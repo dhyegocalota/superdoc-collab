@@ -11,6 +11,7 @@ import { AgentToolError, errorResult } from './tool-results';
 
 export const FORBIDDEN_TOOL_MESSAGE = 'The connected app is not allowed to use this tool';
 export const DOCUMENT_NOT_FOUND_MESSAGE = 'Document not found';
+export const TOOL_FAILED_MESSAGE = 'The tool failed; try again later';
 
 const documentTargetSchema = z.object({ documentId: z.string() });
 

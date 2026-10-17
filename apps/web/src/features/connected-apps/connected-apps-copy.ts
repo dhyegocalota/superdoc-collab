@@ -37,5 +37,5 @@ export const MCP_CLIENT_LABELS: Record<McpClient, string> = {
 export const MCP_SNIPPETS: Record<McpClient, (url: string) => string> = {
   [McpClient.ClaudeCode]: (url) => `claude mcp add --transport http history ${url}`,
   [McpClient.Cursor]: (url) => JSON.stringify({ mcpServers: { history: { url } } }, null, 2),
-  [McpClient.ChatGpt]: (url) => `Settings → Connectors → Add custom connector → ${url}`,
+  [McpClient.ChatGpt]: (url) => url,
 };

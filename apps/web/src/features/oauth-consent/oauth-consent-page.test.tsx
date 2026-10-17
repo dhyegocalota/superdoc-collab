@@ -7,6 +7,7 @@ import { EXPIRED_REQUEST_MESSAGE } from '@/features/auth/auth-copy';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   APPROVE_LABEL,
+  consentDescription,
   CONSENT_FAILED_MESSAGE,
   DENY_LABEL,
   INCOMPLETE_REQUEST_MESSAGE,
@@ -102,7 +103,7 @@ test.each([{ redirect_uri: 'not a url' }, { redirect_uri: '' }])(
 test('a client without a name is shown by its redirect host and can still be answered', async () => {
   publicClient.mockResolvedValue({ data: null, error: { status: 404 } } as never);
   const user = renderConsentPage();
-  expect(await screen.findByText(new RegExp(REDIRECT_HOST))).toBeInTheDocument();
+  expect(await screen.findByText(consentDescription(REDIRECT_HOST))).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: APPROVE_LABEL }));
   expect(consent).toHaveBeenCalledWith({ accept: true });
 });

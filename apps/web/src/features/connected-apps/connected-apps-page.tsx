@@ -17,6 +17,7 @@ import {
   LOADING_CONNECTED_APPS_LABEL,
   REVOKE_LABEL,
   revokeLabel,
+  UNNAMED_CLIENT_LABEL,
 } from './connected-apps-copy';
 import { ConnectSnippets } from './connect-snippets';
 import { useConnectedApps } from './use-connected-apps';
@@ -26,11 +27,12 @@ const SKELETON_ROWS = 2;
 
 function ConnectedAppRow({ app }: { app: ConnectedApp }) {
   const revoke = useRevokeConnectedApp();
+  const displayName = app.clientName ? app.clientName : UNNAMED_CLIENT_LABEL;
 
   return (
     <li className="flex flex-wrap items-start justify-between gap-4 rounded-md border p-4">
       <div className="space-y-2">
-        <p className="font-medium">{app.clientName}</p>
+        <p className="font-medium">{displayName}</p>
         <p className="text-sm text-muted-foreground">
           {CONNECTED_ON_LABEL} {formatTimestamp(app.connectedAt)}
         </p>
@@ -40,7 +42,7 @@ function ConnectedAppRow({ app }: { app: ConnectedApp }) {
           ))}
         </ul>
       </div>
-      <Button variant="outline" aria-label={revokeLabel(app.clientName)} disabled={revoke.isPending} onClick={() => revoke.mutate(app.id)}>
+      <Button variant="outline" aria-label={revokeLabel(displayName)} disabled={revoke.isPending} onClick={() => revoke.mutate(app.id)}>
         {REVOKE_LABEL}
       </Button>
       {revoke.isError && <ErrorMessage className="w-full">{revoke.error.message}</ErrorMessage>}

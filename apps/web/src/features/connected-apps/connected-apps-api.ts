@@ -5,7 +5,7 @@ import { CONNECTED_APPS_LOAD_ERROR_MESSAGE, REVOKE_ERROR_MESSAGE } from './conne
 
 export const CONNECTED_APPS_QUERY_KEY = ['connected-apps'];
 
-export type ConnectedApp = { id: string; clientName: string; scopes: string[]; connectedAt: number };
+export type ConnectedApp = { id: string; clientName: string | null; scopes: string[]; connectedAt: number };
 
 export async function fetchConnectedApps(): Promise<ConnectedApp[]> {
   const { data: consents, error } = await authClient.oauth2.getConsents();

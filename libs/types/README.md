@@ -8,7 +8,7 @@ Types, enums and constants shared by the web app, the server and the E2E suite. 
 | [`src/http.ts`](src/http.ts) | HTTP statuses, methods and the `Retry-After` header |
 | [`src/auth.ts`](src/auth.ts), [`src/demo-users.ts`](src/demo-users.ts) | sign-in and sign-up schemas, limits and messages, the session user, the four demo accounts |
 | [`src/documents.ts`](src/documents.ts) | roles, share-link roles, room modes, upload limits and the documents' user-facing messages |
-| [`src/history.ts`](src/history.ts) | edit events, their kinds and authors |
+| [`src/history.ts`](src/history.ts) | edit events, their kinds, authors with their actor and agent action marks |
 | [`src/timeline.ts`](src/timeline.ts) | timeline, topics and selection summaries: page sizes, prompt caps, cooldowns and user-facing messages |
 | [`src/constants.ts`](src/constants.ts) | time units, version-room and cache limits, the minimum `Retry-After` |
 

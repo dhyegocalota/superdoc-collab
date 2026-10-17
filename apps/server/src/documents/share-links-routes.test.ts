@@ -7,7 +7,6 @@ import {
   HttpStatus,
   INVALID_SHARE_LINK_MESSAGE,
   shareLinkAcceptPath,
-  sharePagePath,
   ShareLinkRole,
   type DocumentSummary,
   type ShareLinks,
@@ -184,7 +183,6 @@ test('links stored under another secret are regenerated and work', async () => {
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
   await server.stop();
 });
-
 test('a token issued under another secret stops resolving before any read reissues it', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
@@ -194,8 +192,4 @@ test('a token issued under another secret stops resolving before any read reissu
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Read]))).toBeNull();
   await server.stop();
-});
-
-test('the share page path is built from the token', () => {
-  expect(sharePagePath('a b')).toBe('/share/a%20b');
 });

@@ -15,7 +15,7 @@
 **Assumptions (decided, owner can override):**
 
 - The invite token travels in the `x-invite-token` header, not in the sign-up body.
-- Admin is decided by "is the created user the earliest row", never by the presence of the header; a token on an unclaimed instance is ignored.
+- Admin is decided by a conditional update (`set role = 'admin' where id = ? and no admin exists`), never by the header or by `createdAt` order (an earliest-row rule lost 3 rounds in 1000 to same-millisecond ties in the plan review's probe); a token on an unclaimed instance is ignored.
 - Roles are written with Drizzle in the hook and in the admin route; Better Auth's `admin` endpoints (`/api/auth/admin/*`: impersonate, create-user, set-role, set-user-password, remove-user, ban, …) are answered 404 before `auth.handler`, and the web never installs `adminClient`.
 - The E2E suite runs against a seeded, claimed stack; the claim is pinned by real-HTTP server tests and by the Playwright MCP walk on the deployed instance.
 - The test server claims itself with `admin@example.com` only when the database has no user, and signs the existing admin in otherwise, so restart tests keep working.
@@ -25,7 +25,7 @@
 ## Global Constraints
 
 - No comments except `// NB ADR NNNN:` pointers; flat `if`s; early returns; no `else`; no `?? default`; enums over literals; constants at the top of the file or in `libs/types`; named parameters for more than one parameter; array methods over loops; no `.js` imports.
-- Every task commits its failing test first (red commit, after Step 2) and the implementation second (green commit, after Step 4); Conventional Commits; never commit from `main`; branch `feat/invite-only-access`.
+- Every task commits its failing test first (the red commit right after the test is seen failing) and the implementation second (the green commit after the tests pass); Conventional Commits; never commit from `main`; branch `feat/invite-only-access`.
 - Errors are `{ error: string }` with `HttpStatus`; creation answers `201`; deletion answers `204`.
 - Times are epoch milliseconds end to end; the web renders them with `formatTimestamp` in the reader's zone.
 - Copy in English; messages and labels are exported constants, never inline strings in JSX or handlers.
@@ -34,7 +34,7 @@
 ## Review Focus
 
 1. A sign-up whose `x-invite-token` was pending at page load but consumed before the `after` hook must answer 403 and leave no user row (Task 4, deterministic test with `accept` mocked to `false`, plus the concurrent test).
-2. Two sign-ups racing on an empty instance must yield exactly one admin, and a token sent on an unclaimed instance must not turn the claim into a 403 (Task 4).
+2. Two sign-ups racing on an empty instance must yield exactly one admin even on a same-millisecond `createdAt` tie, and a token sent on an unclaimed instance must not turn the claim into a 403 (Task 4).
 3. No request, signed in as admin or not, can reach Better Auth's `/api/auth/admin/*` endpoints, and neither the sign-up body nor `/update-user` can set `role` (Task 5).
 4. The last admin cannot be demoted by anyone, including through concurrent demotions (Task 5).
 5. The sign-up page opened with a dead link must never render the form; a 403 on submit must show the server's sentence; the generated invite URL must be visible even without a clipboard (Tasks 7 and 8).
@@ -742,12 +742,16 @@ test('a token used by two concurrent sign-ups admits exactly one', async () => {
   await server.stop();
 });
 
-test('two concurrent first sign-ups leave exactly one admin', async () => {
-  const server = await startTestServer({ claim: false });
-  await Promise.all([signUp({ server, email: 'a@example.com' }), signUp({ server, email: 'b@example.com' })]);
-  const roles = server.database.sqlite.prepare('select role from user').all() as { role: string }[];
-  expect(roles.filter((row) => row.role === UserRole.Admin)).toHaveLength(1);
-  await server.stop();
+test('two concurrent first sign-ups leave exactly one admin and one user, ten rounds', async () => {
+  await Array.from({ length: 10 }).reduce(async (previous, _value, round) => {
+    await previous;
+    const server = await startTestServer({ claim: false });
+    const [first, second] = await Promise.all([signUp({ server, email: `a${round}@example.com` }), signUp({ server, email: `b${round}@example.com` })]);
+    expect([first.status, second.status].sort()).toEqual([HttpStatus.Ok, HttpStatus.Forbidden]);
+    const roles = server.database.sqlite.prepare('select role from user').all() as { role: string }[];
+    expect(roles).toEqual([{ role: UserRole.Admin }]);
+    await server.stop();
+  }, Promise.resolve());
 });
 
 test('a sign-up with an unknown time zone is refused before the gate and claims nothing', async () => {
@@ -760,9 +764,10 @@ test('a sign-up with an unknown time zone is refused before the gate and claims 
 test('a sign-up body cannot grant itself the admin role', async () => {
   const server = await startTestServer();
   const invite = server.services.invites.create({ createdBy: server.admin.id });
-  await signUp({ server, email: 'eve@example.com', token: tokenOf(invite.url), extra: { role: UserRole.Admin } });
+  const response = await signUp({ server, email: 'eve@example.com', token: tokenOf(invite.url), extra: { role: UserRole.Admin } });
+  expect(response.status).toBe(HttpStatus.BadRequest);
   const row = server.database.sqlite.prepare('select role from user where email = ?').get('eve@example.com') as { role: string } | undefined;
-  expect(row?.role === UserRole.Admin).toBe(false);
+  expect(row).toBeUndefined();
   await server.stop();
 });
 
@@ -806,7 +811,7 @@ test('the seed claims the instance with the admin and admits the demo users by i
 import { INVITE_TOKEN_HEADER, SIGN_UP_BY_INVITATION_MESSAGE, UserRole } from '@superdoc-history/types';
 import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthMiddleware, type HookEndpointContext } from 'better-auth/api';
-import { asc, eq } from 'drizzle-orm';
+import { and, eq, notExists } from 'drizzle-orm';
 import type { InvitesRepository } from '../admin/invites';
 import type { AuthDatabase } from '../database/connection';
 import { user } from '../database/schema/auth';
@@ -832,9 +837,14 @@ function createdUserOf(returned: unknown): CreatedUser | null {
   return candidate as CreatedUser;
 }
 
-function isEarliestUser({ database, userId }: { database: AuthDatabase; userId: string }): boolean {
-  const earliest = database.drizzle.select({ id: user.id }).from(user).orderBy(asc(user.createdAt), asc(user.id)).limit(1).get();
-  return earliest !== undefined && earliest.id === userId;
+function claimAdmin({ database, userId }: { database: AuthDatabase; userId: string }): boolean {
+  const noAdminExists = notExists(database.drizzle.select({ id: user.id }).from(user).where(eq(user.role, UserRole.Admin)));
+  const result = database.drizzle
+    .update(user)
+    .set({ role: UserRole.Admin })
+    .where(and(eq(user.id, userId), noAdminExists))
+    .run();
+  return result.changes === 1;
 }
 
 function refuse({ database, userId }: { database: AuthDatabase; userId: string }): never {
@@ -853,10 +863,7 @@ export function createSignUpGate({ invites, database }: { invites: InvitesReposi
   const after = createAuthMiddleware(async (context) => {
     const created = createdUserOf(context.context.returned);
     if (!created) return;
-    if (isEarliestUser({ database, userId: created.id })) {
-      database.drizzle.update(user).set({ role: UserRole.Admin }).where(eq(user.id, created.id)).run();
-      return;
-    }
+    if (claimAdmin({ database, userId: created.id })) return;
     const token = inviteTokenOf(context.headers);
     if (!token) refuse({ database, userId: created.id });
     const pending = invites.resolvePending(token);
@@ -874,7 +881,7 @@ export function createSignUpGate({ invites, database }: { invites: InvitesReposi
 }
 ```
 
-Why a plugin and not `hooks.before`/`hooks.after` composition: Better Auth calls each hook with `returnHeaders: true`, so a composed middleware always receives a `{ headers, response }` wrapper and short-circuits every endpoint (probed by the plan review on 1.7.10). User hooks run before plugin hooks, so `normalizeCredentials` still runs first and the `after` hook sees `returned = { user }` with the token already stripped by `omitSessionToken`. Note on the 403 after creation: the session cookie Better Auth already set points at a deleted user; the session row cascades, so the cookie is dead.
+Why a plugin and not `hooks.before`/`hooks.after` composition: Better Auth calls each hook with `returnHeaders: true`, so a composed middleware always receives a `{ headers, response }` wrapper and short-circuits every endpoint (probed by the plan review on 1.7.10). User hooks run before plugin hooks, so `normalizeCredentials` still runs first and the `after` hook sees `returned = { user }` with the token already stripped by `omitSessionToken`. The conditional update is one statement, so two racing claimants cannot both see "no admin" and both write; the loser falls through to the invite path, has no token, and is deleted with 403 (probed 1000 of 1000 rounds in the plan review). Note on the 403 after creation: the session cookie Better Auth already set points at a deleted user; the session row cascades, so the cookie is dead.
 
 `auth.ts`: keep `hooks: { before: normalizeCredentials, after: omitSessionToken }` as is and add the plugin:
 
@@ -1105,11 +1112,12 @@ test.each(PLUGIN_ADMIN_PATHS)('/api/auth/admin/%s is 404 even for the admin', as
 test('update-user cannot change the role', async () => {
   const server = await startTestServer();
   const eve = await signedInUser({ server, name: 'Eve' });
-  await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
+  const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
     method: 'POST',
     headers: { cookie: eve.cookie, 'content-type': 'application/json', origin: server.baseUrl },
     body: JSON.stringify({ role: UserRole.Admin }),
   });
+  expect(response.status).toBe(HttpStatus.BadRequest);
   const row = server.database.sqlite.prepare('select role from user where id = ?').get(eve.id) as { role: string };
   expect(row.role).toBe(UserRole.User);
   await server.stop();
@@ -1444,7 +1452,7 @@ export function SignUpPage() {
 
 `invite-created-dialog.tsx`: shadcn `Dialog` opened with the `CreatedInvite`; an `Input` `readOnly` with `value={invite.url}` and `aria-label={INVITE_CREATED_TITLE}`; a `COPY_LINK_LABEL` button whose click awaits `navigator.clipboard.writeText(url)` inside `try`; on success `toast(INVITE_COPIED_TOAST)`, on failure sets a local `copyFailed` state that renders `COPY_FAILED_MESSAGE`. Generation itself never depends on the clipboard.
 
-`invites-table.tsx`: `GENERATE_INVITE_LABEL` button → `useMutation({ mutationFn: createInvite, onSuccess: async (created) => { setCreated(created); await queryClient.invalidateQueries({ queryKey: INVITES_QUERY_KEY }); } })`; `isError` renders `ACTION_FAILED_MESSAGE` next to the button. Columns State (`INVITE_STATE_LABELS[invite.state]`), Created, Expires (`formatTimestamp`), Created by, Accepted by, Action (`REVOKE_LABEL` for pending only; its mutation invalidates `INVITES_QUERY_KEY`, `isError` renders `ACTION_FAILED_MESSAGE` in the row). Empty state: `NO_INVITES_MESSAGE` in the same paragraph style as `document-table.tsx`.
+`invites-table.tsx` (the `<Table>` carries `aria-label={INVITES_TABLE_LABEL}` = `'Invites'`; `users-table.tsx` carries `USERS_TABLE_LABEL` = `'Users'`, so tests and E2E scope by table): `GENERATE_INVITE_LABEL` button → `useMutation({ mutationFn: createInvite, onSuccess: async (created) => { setCreated(created); await queryClient.invalidateQueries({ queryKey: INVITES_QUERY_KEY }); } })`; `isError` renders `ACTION_FAILED_MESSAGE` next to the button. Columns State (`INVITE_STATE_LABELS[invite.state]`), Created, Expires (`formatTimestamp`), Created by, Accepted by, Action (`REVOKE_LABEL` for pending only; its mutation invalidates `INVITES_QUERY_KEY`, `isError` renders `ACTION_FAILED_MESSAGE` in the row). Empty state: `NO_INVITES_MESSAGE` in the same paragraph style as `document-table.tsx`.
 
 `users-table.tsx`: Name, Email, Role, Joined (`formatTimestamp`), Action (`MAKE_ADMIN_LABEL`/`MAKE_USER_LABEL`, omitted for the signed-in user; mutation invalidates `ADMIN_USERS_QUERY_KEY`; `isError` renders `ACTION_FAILED_MESSAGE`).
 
@@ -1494,22 +1502,22 @@ test('sign-up without an invite is refused once the instance is claimed', async 
 });
 ```
 
-`admin.spec.ts` (`test.describe.configure({ mode: 'serial' })`; the newest invite is the first body row, so locators scope to `page.getByRole('row').nth(1)` right after generating):
+`admin.spec.ts` (`test.describe.configure({ mode: 'serial' })`; the page renders Users above Invites, so every invite locator scopes to `const invites = page.getByRole('table', { name: 'Invites' })`, and the newest invite is `invites.getByRole('row').nth(1)`, row 0 being the header):
 
 ```ts
 test('an admin invites a user who joins; the admin link shows only on the admin side', async ({ browser, clientAddress }) => {
   const admin = await signedInAdmin({ browser, clientAddress });
   await admin.page.goto(AppRoute.Admin);
   const url = await generateInvite({ page: admin.page });
-  const newest = admin.page.getByRole('row').nth(1);
+  const newest = admin.page.getByRole('table', { name: 'Invites' }).getByRole('row').nth(1);
   await expect(newest.getByRole('cell', { name: 'Pending' })).toBeVisible();
   const email = `eve-${Date.now()}@example.com`;
   const invited = await acceptInvite({ browser, url, name: 'Eve', email });
   await expectSignedInAs({ page: invited.page, name: 'Eve' });
   await expect(invited.page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
   await admin.page.reload();
-  await expect(admin.page.getByRole('row').nth(1).getByRole('cell', { name: 'Accepted' })).toBeVisible();
-  await expect(admin.page.getByRole('row', { name: new RegExp(email) })).toBeVisible();
+  await expect(admin.page.getByRole('table', { name: 'Invites' }).getByRole('row').nth(1).getByRole('cell', { name: 'Accepted' })).toBeVisible();
+  await expect(admin.page.getByRole('table', { name: 'Users' }).getByRole('row', { name: new RegExp(email) })).toBeVisible();
 });
 
 test('an invite link cannot be used twice', async ({ browser, clientAddress }) => {
@@ -1526,8 +1534,8 @@ test('a revoked invite shows the invalid message', async ({ browser, clientAddre
   const admin = await signedInAdmin({ browser, clientAddress });
   await admin.page.goto(AppRoute.Admin);
   const url = await generateInvite({ page: admin.page });
-  await admin.page.getByRole('row').nth(1).getByRole('button', { name: 'Revoke' }).click();
-  await expect(admin.page.getByRole('row').nth(1).getByRole('cell', { name: 'Revoked' })).toBeVisible();
+  await admin.page.getByRole('table', { name: 'Invites' }).getByRole('row').nth(1).getByRole('button', { name: 'Revoke' }).click();
+  await expect(admin.page.getByRole('table', { name: 'Invites' }).getByRole('row').nth(1).getByRole('cell', { name: 'Revoked' })).toBeVisible();
   const visitor = await openedContext({ browser });
   await visitor.page.goto(url);
   await expect(visitor.page.getByText(INVITE_INVALID_MESSAGE)).toBeVisible();
@@ -1598,7 +1606,7 @@ Install https://github.com/dhyegocalota/superdoc-take-home for me.
 | 2 migration | drizzle-kit rebuilds `user` instead of altering it | the SQL contains `__new_user` | hand-write `0004` as `ALTER TABLE … ADD` lines plus `CREATE TABLE invites`; `drizzle-kit generate --custom` for the snapshot |
 | 2 plugin | `session.user.role` empty at runtime | `SessionUserWithoutRoleError` in `session.test.ts` | confirm the plugin is in `plugins`, the default applied, the migration ran |
 | 4 plugin hooks | the gate never runs or runs on every path | sign-in tests fail, or the claim test gets 403 | check `matcher` compares `context.path === '/sign-up/email'` and the plugin is listed after `admin()` |
-| 4 after hook | the user row is not yet visible to Drizzle in `after` | `isEarliestUser` finds no row and every claim is deleted with 403 | move the role write and the invite consumption to `databaseHooks.user.create.after` |
+| 4 after hook | the user row is not yet visible to Drizzle in `after` | `claimAdmin` updates no row and every claim is deleted with 403 | move the role write and the invite consumption to `databaseHooks.user.create.after` |
 | 4 test server | restart tests get 403 on the claim | `TestSignInFailedError({ step: 'claim' })` in the five restart suites | `claimOrSignInAdmin` must check `hasAnyUser()` first |
 | 4 retry | `claim`/`now` lost on `EADDRINUSE` | a flaky `NoTestAdminError` under parallel suites | forward both options in the retry call |
 | 5 CSRF | admin POSTs answer 403 from `csrf` | every admin mutation test fails with 403 and no `error` body | send `origin: server.baseUrl` from `call` |

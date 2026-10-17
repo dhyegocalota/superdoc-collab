@@ -12,6 +12,7 @@ import { AGENT_TOOLS, agentToolsFor, callAgentTool } from './agent-tools';
 export const MCP_BODY_MAX_BYTES = 256 * 1024;
 export const MCP_RATE_LIMIT: McpRateLimit = { maxCalls: 120, windowMs: MINUTE_MS };
 const RATE_LIMITED_MESSAGE = 'Too many requests; slow down';
+const BATCH_REFUSED_MESSAGE = 'JSON-RPC batches are not supported; send one message per request';
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const MCP_SERVER_NAME = 'superdoc-history';
 const MCP_SERVER_VERSION = '1.0.0';
@@ -79,6 +80,11 @@ export function createMcpRoutes({
         });
       }
       window.record();
+      const body: unknown = await honoContext.req.raw
+        .clone()
+        .json()
+        .catch(() => null);
+      if (Array.isArray(body)) return honoContext.json({ error: BATCH_REFUSED_MESSAGE }, HttpStatus.BadRequest);
       if (agentToolsFor(principal.scopes).length === 0) return honoContext.body(null, HttpStatus.Forbidden);
       const server = createMcpServer({ appOrigin, services, principal, sessions, toolkit, recordAction });
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

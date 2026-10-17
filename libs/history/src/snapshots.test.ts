@@ -1,3 +1,4 @@
+import { ClientActor } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import { expect, test } from 'vitest';
 import { MigrationSet } from './migrations';
@@ -16,7 +17,7 @@ function seededLog(): { log: UpdateLog; close: () => void } {
   authors.forEach((author) =>
     author.on('update', (update: Uint8Array, origin: unknown) => {
       if (origin === REMOTE_ORIGIN) return;
-      log.append({ documentName: DOCUMENT, connectionUserId: `user-${author.clientID}`, update });
+      log.append({ documentName: DOCUMENT, connectionUserId: `user-${author.clientID}`, connectionActor: ClientActor.Human, update });
       authors.filter((other) => other !== author).forEach((other) => Y.applyUpdate(other, update, REMOTE_ORIGIN));
     }),
   );

@@ -5,7 +5,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
-import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
+import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
@@ -116,6 +116,7 @@ function createServices({
   const insightsRepository = new InsightsRepository(database);
   insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
   const updateLog = new UpdateLog(historySqlite);
+  const agentActions = new AgentActionsLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const auth = createAuth({ database, environment });
@@ -176,6 +177,7 @@ function createServices({
     documents,
     storage,
     updateLog,
+    agentActions,
     hocuspocus,
     readModel,
     scheduler,

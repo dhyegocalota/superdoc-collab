@@ -1,5 +1,6 @@
 import type { Document } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-history/history';
+import { ClientActor } from '@superdoc-history/types';
 import type { CollaborationContext } from './collaboration-server';
 
 type PresenceState = { userId?: string };
@@ -16,7 +17,7 @@ export function createClientDeclarer(updateLog: UpdateLog) {
         const isContested = (clientId: number) => holders.filter((holder) => holder === clientId).length > 1;
         return [...clients]
           .filter((clientId: number) => states.get(clientId)?.userId === userId && !isContested(clientId))
-          .map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId }));
+          .map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId, actor: ClientActor.Human }));
       });
       const signature = JSON.stringify(declarations.map(({ yjsClientId, userId }) => `${yjsClientId}:${userId}`).sort());
       if (lastDeclared.get(document.name) === signature) return;

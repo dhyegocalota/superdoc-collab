@@ -148,8 +148,8 @@ function matchingAuthorKeys({
   const searchText = author.toLocaleLowerCase();
   const entries = Object.entries(pipeline.authors);
   const contacts = services.documents.userContacts(entries.flatMap(([, eventAuthor]) => (eventAuthor.id === null ? [] : [eventAuthor.id])));
-  const matches = entries.filter(([key, eventAuthor]) => {
-    const contact = contacts.get(key);
+  const matches = entries.filter(([, eventAuthor]) => {
+    const contact = eventAuthor.id === null ? undefined : contacts.get(eventAuthor.id);
     const emailMatches = contact !== undefined && contact.email.toLocaleLowerCase().includes(searchText);
     return eventAuthor.name.toLocaleLowerCase().includes(searchText) || emailMatches;
   });
@@ -233,6 +233,7 @@ export function buildDocumentTimeline({
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
     authors: pipeline.authors,
+    agentActions: [],
     topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
   };

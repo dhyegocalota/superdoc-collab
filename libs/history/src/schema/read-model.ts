@@ -1,3 +1,4 @@
+import { ClientActor } from '@superdoc-history/types';
 import { blob, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const editEvents = sqliteTable(
@@ -10,6 +11,7 @@ export const editEvents = sqliteTable(
     serverTime: integer('server_time').notNull(),
     yjsClientIds: text('yjs_client_ids'),
     connectionUserId: text('connection_user_id'),
+    connectionActor: text('connection_actor').notNull().default(ClientActor.Human),
     authorName: text('author_name'),
     blockId: text('block_id').notNull(),
     kind: text('kind').notNull(),

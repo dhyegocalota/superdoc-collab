@@ -1,4 +1,6 @@
 import {
+  AgentActionKind,
+  ClientActor,
   type BinEdits,
   DocumentResource,
   MINUTE_MS,
@@ -204,4 +206,21 @@ test('the pipeline cache evicts the least recently read document', () => {
   expect(cache.builds).toBe(3);
   read('d2');
   expect(cache.builds).toBe(4);
+});
+
+test('agent actions inside the span come back with the agent author, and the others are left out', async () => {
+  const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
+  const quiet = await readTimeline({ server, documentId, cookie: owner.cookie });
+  expect(quiet.agentActions).toEqual([]);
+  expect(quiet.bins.every((bin) => Object.values(bin.byBand).every((cell) => cell.agentInserted === 0))).toBe(true);
+  const inside = quiet.bins[1]!.start;
+  const outside = quiet.bins.at(-1)!.start + quiet.binMs;
+  const record = (createdAt: number) =>
+    server.services.agentActions.record({ documentName: documentId, userId: owner.id, kind: AgentActionKind.DocumentExported, createdAt });
+  [outside, inside, quiet.bins[0]!.start - 1].forEach(record);
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  const agentKey = `${owner.id}#agent`;
+  expect(timeline.agentActions).toEqual([{ authorKey: agentKey, kind: AgentActionKind.DocumentExported, createdAt: inside }]);
+  expect(timeline.authors[agentKey]).toEqual({ id: owner.id, name: 'Ana · AI', actor: ClientActor.Agent });
+  await server.stop();
 });

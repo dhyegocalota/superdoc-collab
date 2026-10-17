@@ -1,3 +1,4 @@
+import { InvitesRepository } from './admin/invites';
 import { MissingDemoPasswordError, seedDemoUsers } from './auth/seed-demo-users';
 import { createAuth } from './auth/auth';
 import { loadEnvironment } from './config/environment';
@@ -19,7 +20,9 @@ async function seed(): Promise<void> {
   const database = openDatabase({ directory: environment.databaseDirectory, fileName: AUTH_DATABASE_FILE });
   try {
     runMigrations(database);
-    const result = await seedDemoUsers({ auth: createAuth({ database, environment }), database, password });
+    const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now: Date.now });
+    const auth = createAuth({ database, environment, invites });
+    const result = await seedDemoUsers({ auth, database, invites, password });
     console.log(`created: ${result.created.join(', ')}`);
     console.log(`existing: ${result.existing.join(', ')}`);
   } finally {

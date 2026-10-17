@@ -7,6 +7,7 @@ import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
+import { InvitesRepository } from './admin/invites';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
@@ -43,7 +44,7 @@ import { TimelinePipelineCache } from './history/timeline-pipeline-cache';
 import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
 
-export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
+export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle; invites: InvitesRepository };
 
 export type RunningServer = {
   httpServer: ServerType;
@@ -103,6 +104,7 @@ function createServices({
   languageModel,
   versionRoomPolicy,
   projectionWorkerFile,
+  now,
 }: {
   environment: Environment;
   databases: Databases;
@@ -110,6 +112,7 @@ function createServices({
   languageModel: LanguageModelChoice;
   versionRoomPolicy: VersionRoomPolicy;
   projectionWorkerFile: URL | null;
+  now: () => number;
 }): { auth: Auth; services: ServerServices } {
   const { database, historySqlite, readModelSqlite } = databases;
   const documents = new DocumentsRepository(database);
@@ -118,7 +121,8 @@ function createServices({
   const updateLog = new UpdateLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
-  const auth = createAuth({ database, environment });
+  const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
+  const auth = createAuth({ database, environment, invites });
   const versions = new VersionsService({ readModel, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
@@ -187,6 +191,7 @@ function createServices({
     insights,
     versions,
     versionRooms,
+    invites,
   };
   return { auth, services };
 }
@@ -233,12 +238,14 @@ export async function startServer({
   languageModel = chooseLanguageModel(environment.llm),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   projectionWorkerFile = null,
+  now = Date.now,
 }: {
   environment: Environment;
   webDistDirectory: string | null;
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   projectionWorkerFile?: URL | null;
+  now?: () => number;
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
   const databases = openDatabases({ databaseDirectory: environment.databaseDirectory, documentFilesDirectory });
@@ -249,6 +256,7 @@ export async function startServer({
     languageModel,
     versionRoomPolicy,
     projectionWorkerFile,
+    now,
   });
   resumeProjections({ databases, services });
   const app = createApp({ auth, environment, services });

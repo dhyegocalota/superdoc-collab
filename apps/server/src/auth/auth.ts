@@ -3,7 +3,9 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { admin } from 'better-auth/plugins';
+import type { InvitesRepository } from '../admin/invites';
 import type { Environment } from '../config/environment';
+import { createSignUpGate } from './sign-up-gate';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
@@ -35,14 +37,22 @@ const omitSessionToken = createAuthMiddleware(async (context) => {
   return context.json(body);
 });
 
-export function createAuth({ database, environment }: { database: AuthDatabase; environment: Environment }) {
+export function createAuth({
+  database,
+  environment,
+  invites,
+}: {
+  database: AuthDatabase;
+  environment: Environment;
+  invites: InvitesRepository;
+}) {
   return betterAuth({
     secret: environment.authSecret,
     baseURL: environment.appOrigin,
     trustedOrigins: [environment.appOrigin],
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),
     emailAndPassword: { enabled: true },
-    plugins: [admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] })],
+    plugins: [admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] }), createSignUpGate({ invites, database })],
     user: { additionalFields: { timeZone: { type: 'string', required: true, input: true } } },
     hooks: { before: normalizeCredentials, after: omitSessionToken },
     advanced: { ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },

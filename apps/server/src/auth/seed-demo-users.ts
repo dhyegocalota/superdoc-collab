@@ -1,5 +1,6 @@
 import { DEMO_USERS, UTC_TIME_ZONE } from '@superdoc-history/types';
 import { eq } from 'drizzle-orm';
+import type { InvitesRepository } from '../admin/invites';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import type { Auth } from './auth';
@@ -19,6 +20,7 @@ export async function seedDemoUsers({
 }: {
   auth: Auth;
   database: AuthDatabase;
+  invites: InvitesRepository;
   password: string;
 }): Promise<SeedResult> {
   const result: SeedResult = { created: [], existing: [] };

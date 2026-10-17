@@ -1,5 +1,6 @@
 import { CREATOR_RESERVATION_MAX_MS, type CreatorTicket } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 
 export type CreatorReservation = { documentId: string; userId: string; attempt: number; reservedAt: number; expiresAt: number };
 
@@ -12,6 +13,7 @@ export class CreatorReservations {
   private readonly committedAttempts = new Map<string, number>();
   private readonly reservationMs: number;
   private readonly maxLifetimeMs: number;
+  private readonly lapses: KeyedCooldown;
   private readonly now: () => number;
 
   constructor({
@@ -25,14 +27,23 @@ export class CreatorReservations {
   }) {
     this.reservationMs = reservationMs;
     this.maxLifetimeMs = maxLifetimeMs;
+    this.lapses = new KeyedCooldown({ durationMs: reservationMs, now });
     this.now = now;
   }
 
   reserve({ documentId, userId }: { documentId: string; userId: string }): CreatorTicket | null {
+    const lapseKey = `${documentId}:${userId}`;
+    if (this.lapses.remainingMs(lapseKey) > 0) return null;
     const current = this.held.get(documentId);
     const isLive = current !== undefined && current.expiresAt > this.now();
     if (isLive && current.userId === userId) return { attempt: current.attempt, epoch: this.epoch };
     if (isLive) return null;
+    const hasLapsedAtCap = current !== undefined && current.userId === userId && this.now() >= current.reservedAt + this.maxLifetimeMs;
+    if (hasLapsedAtCap) {
+      this.lapses.start(lapseKey);
+      this.held.delete(documentId);
+      return null;
+    }
     const attempt = this.latestAttemptOf(documentId) + 1;
     this.held.set(documentId, { documentId, userId, attempt, reservedAt: this.now(), expiresAt: this.now() + this.reservationMs });
     this.latestAttempts.set(documentId, attempt);
@@ -83,6 +94,10 @@ export class CreatorReservations {
 
   forget(documentId: string): void {
     this.held.delete(documentId);
+    this.lapses
+      .keys()
+      .filter((key) => key.startsWith(`${documentId}:`))
+      .forEach((key) => this.lapses.forget(key));
     this.latestAttempts.delete(documentId);
     this.committedAttempts.delete(documentId);
   }

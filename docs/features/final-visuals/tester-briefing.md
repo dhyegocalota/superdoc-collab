@@ -128,3 +128,46 @@ Failure texts are what the red run printed at the red commit. A row marked "chan
 - The account trigger has `aria-label` but no `Tooltip` yet (design section 2 lists one); the Tooltip primitive is ready for whoever wires the top bars.
 - `home-link.tsx` is untouched; G8 deletes it. `BrandLink` imports `HOME_LINK_LABEL` from `features/editor/editor-copy.ts`.
 - Nothing here was seen in a browser. Real Radix pointer, focus and animation behaviour, the contrast numbers and the first-paint theme are untested beyond jsdom.
+
+## G7 pages and Use with AI (developer-7, branch `feat/final-visuals-g7`)
+
+### What changed
+
+- `documents-page.tsx`, `settings-page.tsx`, `connected-apps-page.tsx` and `admin-page.tsx` use `AppTopBar` with `AccountMenu`. The loose links, the user name, the "Documents" back link and `SignOutButton` left every header.
+- Documents header right slot: `UseWithAiDialog` (title `null`, so the library prompts) then `AccountMenu`. In the Mine section "Upload .docx" is the default `Button` (primary) and "New document" is `variant="outline"`.
+- `use-with-ai-dialog.tsx` is new. Props: `{ title: string | null; canEdit: boolean; trigger?: ReactNode }`. `title === null` shows `LIBRARY_PROMPTS`; otherwise `documentPrompts({ title, canEdit })`. Without `trigger` it renders an outline `Button` with `Bot` and `USE_WITH_AI_LABEL`; with `trigger` that node is the `DialogTrigger` child (it must forward a ref and props, so a plain element or a `Button`, never a function component that drops them).
+- `connect-snippets.tsx` exports `ClientSnippet({ client })`, used by the dialog's tab panels and by the page's `ConnectSnippets`.
+- Focus returns to the trigger through Radix's own `DialogTrigger`; no `onCloseAutoFocus` was needed. G2 must add one only if its trigger lives in More actions and unmounts when the menu closes.
+- `sign-out-flow.test.tsx` signs out through the account menu.
+
+### How to run
+
+One file at a time: `pnpm exec vitest run src/features/<path>.test.tsx` from `apps/web`.
+
+### Red today, green after
+
+| Step | Test | Red text | Red | Green |
+|---|---|---|---|---|
+| 51 | `documents-page.test.tsx` header and Use with AI | `Unable to find role="button" and name "Account, Ada"` | f050f13 | 7e45459 |
+| 52 | `settings-page.test.tsx` header | `Unable to find an accessible element with the role "button" and name "Account, Ada"` | 24ff1b8 | c0af70a |
+| 52 | `connected-apps-page.test.tsx` header | `Unable to find an accessible element with the role "link" and name "SuperDoc Collab, back to documents"` | 24ff1b8 | bcee930 |
+| 53 | `admin-page.test.tsx` header | `Unable to find role="button" and name "Account, Ada"` | 66e2900 | b35e00d |
+| 54 | `use-with-ai-dialog.test.tsx` | stub threw `UseWithAiDialog is not implemented`; 6 of 7 failed with `Unable to find role="dialog" and name "Use this document with your AI"` | fafec05 | 6c0a3ae |
+| 55 | `connected-apps-copy.test.ts` | pin, green on landing | 5e3a015 | |
+| | `sign-out-flow.test.tsx` through the account menu | pin | 76bb92d | |
+
+### Hypotheses to attack
+
+1. Hypothesis: the documents header is one row from 320 to 2560 px and nothing is pushed off screen. Break it by: resizing through 320, 375, 639, 640 and 1280 with a long user name.
+2. Hypothesis: the dialog is never wider than the viewport minus 32 px, is 560 px from `sm`, and scrolls inside the viewport at 375 (Claude Code snippet tab, then Cursor, whose JSON is the tallest). Break it by: 375 x 667, and a 320 x 480 viewport in landscape.
+3. Hypothesis: opening the dialog focuses the first tab and Escape returns focus to the Use with AI button. Break it by: keyboard only, then a pointer open and a Close button click.
+4. Hypothesis: "Manage connected apps" navigates to the Connected apps page and the dialog is gone there. Break it by: clicking it, then browser Back.
+5. Hypothesis: the account menu is the only way to Sign out, Settings, Connected apps and Admin from these four pages. Break it by: signing in as an admin and as a user.
+6. Hypothesis: Upload .docx is visibly the primary action and New document the outline one, in light and dark. Break it by: measuring contrast of the primary fill in dark mode.
+
+### Known gaps
+
+- `libs/types/src/constants.ts` on the integration base declared `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice, which made every test that imports `@superdoc-collab/types` fail to parse. I removed the duplicate lines only in my working tree to run the loop and did not commit it; the lead owns the fix.
+- `BACK_TO_DOCUMENTS_LABEL` in `connected-apps-copy.ts` and `SignOutButton`, `HomeLink` are now unused; G8 deletes them (copy file was additions-only for G7).
+- The dialog shows no MCP URL snippet of its own; the ChatGPT tab is the URL. The Connected apps page still lists the URL snippet.
+- Nothing here was seen in a browser; widths, scrolling and real focus are untested beyond jsdom.

@@ -1,7 +1,7 @@
-import { AppRoute } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { safeNextPath } from './safe-next-path';
 import { SessionSkeleton } from './session-skeleton';
 import { isSignedOutState } from './sign-out-state';
 import { SESSION_QUERY_KEY, useSession } from './use-session';
@@ -11,6 +11,7 @@ export function RedirectIfSession({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isSigningOut = isSignedOutState(location.state);
 
   useEffect(() => {
@@ -21,6 +22,6 @@ export function RedirectIfSession({ children }: { children: ReactNode }) {
 
   if (isSigningOut) return children;
   if (isLoading) return <SessionSkeleton />;
-  if (user) return <Navigate to={AppRoute.Documents} replace />;
+  if (user) return <Navigate to={safeNextPath(searchParams.get('next'))} replace />;
   return children;
 }

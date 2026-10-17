@@ -69,7 +69,7 @@ function SummarySection({ view, error, canRequest, isPending, onRetry }: Selecti
           <div className="flex items-center justify-between gap-2">
             <ul className="flex items-center gap-1">
               {summary.authors.map((author, index) => (
-                <AuthorAvatar key={`${index}-${author.name}`} name={author.name} actor={author.actor} />
+                <AuthorAvatar key={`${index}-${author.name}`} author={{ id: null, ...author }} />
               ))}
             </ul>
             {summary.isStale && <Badge variant="secondary">{EARLIER_STATE_LABEL}</Badge>}

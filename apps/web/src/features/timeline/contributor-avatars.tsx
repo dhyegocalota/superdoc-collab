@@ -6,7 +6,8 @@ import { authorOf } from './author-of';
 
 const MAX_AVATARS = 3;
 
-export function AuthorAvatar({ name, actor }: { name: string; actor: ClientActor }) {
+export function AuthorAvatar({ author }: { author: Pick<EventAuthor, 'id' | 'name' | 'actor'> }) {
+  const { name, actor } = author;
   return (
     <li title={name} className="relative flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
       {initialsOf(name)}
@@ -33,7 +34,7 @@ export function ContributorAvatars({
     <ul className="flex items-center gap-1">
       {ranked.map((contributor) => {
         const author = authorOf({ authors, authorKey: contributor.authorKey });
-        return <AuthorAvatar key={contributor.authorKey} name={author.name} actor={author.actor} />;
+        return <AuthorAvatar key={contributor.authorKey} author={author} />;
       })}
     </ul>
   );

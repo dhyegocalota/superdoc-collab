@@ -9,9 +9,11 @@ import {
   DOCX_MIME_TYPE,
   HttpMethod,
   HttpStatus,
+  MAX_SOCKET_MESSAGE_BYTES,
   MINUTE_MS,
   RoomMode,
   SECOND_MS,
+  SUPERSEDED_ATTEMPT_CLOSE_CODE,
   ShareLinkRole,
   UPLOAD_FIELD,
   documentApiPath,
@@ -28,13 +30,19 @@ import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
 
 const EDITOR_TEST_ID = 'document-editor';
+const CONNECTION_BANNER_TEST_ID = 'connection-banner';
+const CONNECTION_STATE_ATTRIBUTE = 'data-state';
+const RECONNECTING_STATE = 'reconnecting';
+const WAITING_VIEWPORTS = [
+  { name: '375 px', viewport: { width: 375, height: 812 } },
+  { name: '1280 px', viewport: { width: 1280, height: 800 } },
+];
 const ORIGIN_HEADER = 'origin';
 const SEED_PARAGRAPH = 'Paragraph written by the creator.';
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const COMMIT_TIMEOUT_MS = 60_000;
 const LARGE_COMMIT_TIMEOUT_MS = 120_000;
 const LARGE_TEST_TIMEOUT_MS = 240_000;
-const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
 const RESERVATION_EXPIRY_WAIT_MS = MINUTE_MS + SECOND_MS;
 const SLOW_TEST_TIMEOUT_MS = RESERVATION_EXPIRY_WAIT_MS + 120_000;
 const MINIMUM_FLUSHED_FRAMES = 3;
@@ -200,24 +208,28 @@ test('the holder opens a fresh document in two pages at once and the room holds 
   expect(occurrencesOf({ text: await readEditorText(ana.page), fragment: SEED_PARAGRAPH })).toBe(1);
 });
 
-test("the second editor's open is answered 200 Join once the creator commits", async ({ browser }) => {
-  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
-  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
-  const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
-  await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
-  expect((await openDocument({ page: ana.page, documentId })).roomMode).toBe(RoomMode.Create);
-  const firstOpen = bruno.page.waitForResponse(isOpenResponse(documentId));
-  await bruno.page.goto(documentPagePath(documentId));
-  expect((await firstOpen).status()).toBe(HttpStatus.Conflict);
-  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
-  await ana.page.goto(documentPagePath(documentId));
-  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
-  await expect
-    .poll(() => openDocument({ page: bruno.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
-    .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
-  await bruno.page.reload();
-  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
-});
+for (const { name, viewport } of WAITING_VIEWPORTS) {
+  test(`the second editor's open is answered 200 Join once the creator commits at ${name}`, async ({ browser }) => {
+    const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+    const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+    const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
+    await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
+    expect((await openDocument({ page: ana.page, documentId })).roomMode).toBe(RoomMode.Create);
+    await bruno.page.setViewportSize(viewport);
+    const firstOpen = bruno.page.waitForResponse(isOpenResponse(documentId));
+    await bruno.page.goto(documentPagePath(documentId));
+    expect((await firstOpen).status()).toBe(HttpStatus.Conflict);
+    await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
+    await expect.poll(() => bruno.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+    await ana.page.goto(documentPagePath(documentId));
+    await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
+    await expect
+      .poll(() => openDocument({ page: bruno.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
+      .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
+    await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: COMMIT_TIMEOUT_MS });
+    await expect.poll(() => bruno.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+  });
+}
 
 test('a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -243,11 +255,23 @@ test('a 10 MB DOCX commits and reopens as Join', async ({ browser }) => {
   test.setTimeout(LARGE_TEST_TIMEOUT_MS);
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const documentId = await uploadDocument({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
+  const sentFrameBytes: number[] = [];
+  ana.page.on('websocket', (socket) =>
+    socket.on('framesent', ({ payload }) => sentFrameBytes.push(typeof payload === 'string' ? Buffer.byteLength(payload) : payload.length)),
+  );
+  const banner = ana.page.getByTestId(CONNECTION_BANNER_TEST_ID);
   await ana.page.goto(documentPagePath(documentId));
   await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
   await expect
     .poll(() => openDocument({ page: ana.page, documentId }), { timeout: LARGE_COMMIT_TIMEOUT_MS })
     .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
+  expect(sentFrameBytes.length).toBeGreaterThan(0);
+  expect(Math.max(...sentFrameBytes)).toBeLessThan(MAX_SOCKET_MESSAGE_BYTES);
+  await expect
+    .poll(async () => ((await banner.count()) === 0 ? null : banner.getAttribute(CONNECTION_STATE_ATTRIBUTE)), {
+      timeout: COMMIT_TIMEOUT_MS,
+    })
+    .not.toBe(RECONNECTING_STATE);
   await ana.page.reload();
   await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
   await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });

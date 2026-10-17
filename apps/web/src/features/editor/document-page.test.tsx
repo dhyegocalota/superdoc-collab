@@ -111,7 +111,7 @@ function mockDocumentApi({
   let openRequests = 0;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
-    if (input === MEMBERS_PATH) {
+    if (String(input).startsWith(MEMBERS_PATH)) {
       return jsonResponse({ body: { members: [], isCurrentUserOnline: isCurrentUserOnline() }, status: currentMembersStatus() });
     }
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });

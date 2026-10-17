@@ -34,6 +34,7 @@ import {
   USERS_TABLE_LABEL,
 } from './admin-copy';
 import { AdminPage } from './admin-page';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 
 const ADMIN_SESSION: SessionUser = { id: 'admin-1', name: 'Ada', email: 'ada@example.com', role: UserRole.Admin, timeZone: UTC_TIME_ZONE };
 const ADMIN_USER: AdminUser = {
@@ -182,4 +183,10 @@ test('a pending row reads Pending with a Revoke button, an accepted row reads Ac
   expect(within(pendingRow).getByText(formatTimestamp({ time: PENDING_INVITE.expiresAt, timeZone: UTC_TIME_ZONE }))).toBeInTheDocument();
   expect(within(acceptedRow).queryByRole('button')).not.toBeInTheDocument();
   expect(within(acceptedRow).getByText(ACCEPTED_INVITE.acceptedBy!.name)).toBeInTheDocument();
+});
+
+test('the header links to Settings', async () => {
+  mockApi();
+  renderAdminPage();
+  expect(await screen.findByRole('link', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
 });

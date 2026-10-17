@@ -14,7 +14,7 @@ test.each([
   { now: JANUARY, zone: 'America/Sao_Paulo', label: 'America/Sao_Paulo (UTC-03:00)' },
   { now: JANUARY, zone: 'Europe/Lisbon', label: 'Europe/Lisbon (UTC+00:00)' },
   { now: JULY, zone: 'Europe/Lisbon', label: 'Europe/Lisbon (UTC+01:00)' },
-  { now: JANUARY, zone: 'Asia/Kathmandu', label: 'Asia/Kathmandu (UTC+05:45)' },
+  { now: JANUARY, zone: 'Asia/Kolkata', label: 'Asia/Kolkata (UTC+05:30)' },
   { now: JANUARY, zone: UTC_TIME_ZONE, label: 'UTC (UTC+00:00)' },
 ])('labels $zone with its offset at the given instant', ({ now, zone, label }) => {
   expect(labelOf({ now, zone })).toBe(label);

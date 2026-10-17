@@ -1,4 +1,5 @@
 import {
+  AppRoute,
   documentApiPath,
   documentPagePath,
   DocumentResource,
@@ -32,6 +33,8 @@ import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from './timeline-api';
+import { timesInLabel } from '@/features/settings/settings-copy';
+import { browserTimeZone } from '@/lib/browser-time-zone';
 import {
   EARLIER_STATE_LABEL,
   FILTER_LABEL,
@@ -687,4 +690,13 @@ test('reopening the panel brings the chart back', async () => {
   await userEvent.click(toggle);
   reportSizes();
   expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
+});
+
+test('the header names the zone times are shown in and links to settings', async () => {
+  mockTimelineApi({ timeline: baseTimeline });
+  renderPanel();
+  expect(await screen.findByRole('link', { name: new RegExp(`^${timesInLabel(browserTimeZone())}`) })).toHaveAttribute(
+    'href',
+    AppRoute.Settings,
+  );
 });

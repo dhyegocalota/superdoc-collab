@@ -80,6 +80,8 @@ listening on :3000
 
 Later deploys list the four emails under `existing:` instead.
 
+Dokploy reports the deploy as done as soon as `up -d` returns, not when the container is healthy. Check **Logs** for `listening on :3000` and expect the domain to answer 404 for about 20 s.
+
 | What you see | Cause | Fix |
 |---|---|---|
 | `required variable AUTH_SECRET is missing a value` (or `APP_ORIGIN`, `SEED_DEMO_USERS`) in the deploy log | The Environment tab was not saved, or Dokploy wrote its `.env` outside the compose file's folder | Save the Environment tab and deploy again. If it persists, open the service's **Advanced** tab and set a custom compose command that adds `--env-file` with the path of the `.env` Dokploy writes, for example `--env-file ./.env` when it writes at the repository root (from memory, verify in the UI). Do not move the compose file: the repository root already holds the local `docker-compose.yml`. |
@@ -124,13 +126,19 @@ Then, in a browser:
    git log --all -p | grep -cE 'sk-or-v1-[A-Za-z0-9]{16,}'
    ```
 
-   prints `0`, and
+   prints `0`,
 
    ```bash
    git log --all --oneline -- .env deploy/.env
    ```
 
-   prints nothing. Then GitHub → **Settings** → **General** → **Danger Zone** → **Change visibility**.
+   prints nothing, and
+
+   ```bash
+   git log --all -p | grep -E '^\+ *(AUTH_SECRET|DEMO_PASSWORD)=' | sort -u
+   ```
+
+   prints only the four placeholder lines: `AUTH_SECRET=change-me-32-characters-minimum-secret` and `DEMO_PASSWORD=superdoc-demo` from `.env.example`, and the two angle-bracket lines of the runbook's environment block. Any other value is a leaked secret: stop and rotate it. Then GitHub → **Settings** → **General** → **Danger Zone** → **Change visibility**.
 3. Send the delivery message: the demo URL, the GitHub link, the four demo emails and the demo password.
 4. Optional: turn on **Autodeploy** in the **General** tab (from memory, verify in the UI) so every push to `main` deploys.
 
@@ -138,7 +146,7 @@ Then, in a browser:
 
 Data stays on the volume across deploys and rollbacks. Migrations so far only add tables and columns, so an older release runs on a database that a newer one migrated.
 
-**Revert (preferred).** Revert the bad pull request's merge commit on a branch, merge it, and deploy:
+**Revert (preferred).** Revert the bad pull request's merge commit on a branch, merge it, and deploy (drop `-m 1` for a squash merge, which leaves a single parent):
 
 ```bash
 git switch main && git pull
@@ -165,13 +173,13 @@ Dokploy prefixes the volume with the service's app name (from memory, verify in 
 docker volume ls --filter name=superdoc-data
 ```
 
-**Back up.** **Stop** the service in Dokploy so SQLite is not writing, then:
+**Back up.** **Stop** the service in Dokploy (from memory, verify in the UI) so SQLite is not writing, then:
 
 ```bash
 docker run --rm -v <volume name>:/data:ro -v "$PWD":/backup busybox tar czf /backup/superdoc-data.tgz -C /data .
 ```
 
-**Deploy** again to start it.
+**Deploy** again to start it (from memory, verify in the UI).
 
 **Restore.** Stop the service, then:
 

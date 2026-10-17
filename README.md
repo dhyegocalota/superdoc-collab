@@ -118,7 +118,7 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 ## Limits
 
 - **One instance.** SQLite files, the projection worker and the language-model caps live in one process ([ADR 0004](docs/adr/0004-stack.md)). The app does not scale horizontally, and a restart forgets the in-memory cooldowns.
-- **Language-model caps.** At most 2 model jobs at once and 60 model calls per rolling hour for the whole server ([ADR 0011](docs/adr/0011-process-wide-llm-cost-caps.md)). Past them, topics show "The topics could not be named. Try again." and summaries show "The edits could not be summarized. Try again.", and editing keeps working.
+- **Language-model caps.** At most 2 model jobs at once and 60 model calls per rolling hour for the whole server ([ADR 0011](docs/adr/0011-process-wide-llm-cost-caps.md)). Past them topics show "The language model is busy; try again later." and a summary request gets a 503 that consumes no cooldown. A model error or a missing key shows "The topics could not be named. Try again." or "The edits could not be summarized. Try again." instead. Editing keeps working in every case.
 - **No email.** Accounts have no verification and no password reset; the demo accounts share one password.
 - **DOCX only.** Up to 10 MB per file; no PDF or image import.
 - **Manual backups.** The [runbook](docs/features/deploy/runbook.md#8-back-up-and-reset) shows how to copy the data volume.
@@ -126,6 +126,16 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 ## Credits
 
 **LLM use.** This codebase is developed with Claude Code (Anthropic) driving the harness in this repository. Every pull request is built by developer sub-agents, tested by a separate tester sub-agent with Playwright MCP and reviewed by a reviewer sub-agent; decisions are recorded in ADRs. The product itself calls a model in three places: topic names for a document, one sentence per topic and the sentence for a selection of edits, through the Vercel AI SDK and OpenRouter with `openai/gpt-6-luna` ([ADR 0006](docs/adr/0006-llm-via-vercel-ai-sdk.md)). Only author names and edit text are sent (names only, no emails), capped at 500 characters per block and 6000 characters per selection prompt, and the prompts treat that text as data, not instructions; without a key the features degrade to a `failed` state instead of failing the page.
+
+**Libraries.**
+
+- SuperDoc editor `superdoc` and `@superdoc/sdk` (AGPL-3.0)
+- Hocuspocus server and provider (MIT) and Yjs (MIT) for real-time collaboration
+- Better Auth (MIT) for accounts and sessions
+- Drizzle ORM (Apache-2.0) over better-sqlite3 (MIT)
+- Hono (MIT) for the API
+- React (MIT) and Vite (MIT) for the web app, with `d3-scale` and `d3-shape` (ISC) for the streamgraph
+- Vercel AI SDK `ai` and the OpenRouter provider (Apache-2.0), calling `openai/gpt-6-luna` through OpenRouter
 
 **Starter code.**
 
@@ -135,4 +145,4 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 ## License
 
-No license yet. The repository is private until delivery.
+The repository is public from delivery. All rights reserved; source published for evaluation.

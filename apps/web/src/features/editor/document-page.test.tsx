@@ -214,3 +214,16 @@ test('Escape inside the editor moves focus past it so Tab can leave', async () =
   expect(document.activeElement).toBe(screen.getByText(EDITOR_EXIT_LABEL));
   expect(screen.getByText(EDITOR_ESCAPE_HINT)).toBeInTheDocument();
 });
+
+test('Escape on the reading surface of a viewer moves focus past the editor too', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Reader, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const container = await screen.findByTestId('document-editor');
+  const readingSurface = document.createElement('div');
+  readingSurface.setAttribute('role', 'document');
+  readingSurface.tabIndex = 0;
+  container.append(readingSurface);
+  readingSurface.focus();
+  fireEvent.keyDown(readingSurface, { key: 'Escape' });
+  expect(document.activeElement).toBe(screen.getByText(EDITOR_EXIT_LABEL));
+});

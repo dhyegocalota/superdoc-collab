@@ -160,6 +160,9 @@ test('a reader opens the timeline and a version, cannot refresh, and the room dr
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
   await waitForBands({ page: caio.page, names: [BAND_NAME] });
   await expect(caio.page.getByRole('button', { name: REFRESH_TOPICS_LABEL })).toHaveCount(0);
+  await editorText(caio.page).first().click();
+  await caio.page.keyboard.press('Escape');
+  await expect.poll(() => caio.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
   await openEditBin({ page: caio.page, documentId });
   const serverText = await expectViewerMatchesServer({ page: caio.page, documentId });
   await waitForProjection({ page: ana.page, documentId });

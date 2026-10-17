@@ -6,7 +6,7 @@ import { KeyboardKey } from '@/lib/keyboard';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 
-const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"]';
+const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
 export enum DocumentMode {
   Viewing = 'viewing',
@@ -46,7 +46,8 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
-    const isOnEditingSurface = event.target instanceof HTMLElement && event.target.closest(EDITING_SURFACE_SELECTOR) !== null;
+    const surface = event.target instanceof HTMLElement ? event.target.closest(EDITING_SURFACE_SELECTOR) : null;
+    const isOnEditingSurface = surface !== null && event.currentTarget.contains(surface);
     if (!isOnEditingSurface) return;
     exitRef.current?.focus();
   }

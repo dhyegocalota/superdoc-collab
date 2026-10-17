@@ -1,11 +1,12 @@
 import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { render, screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, parsePath, RouterProvider } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { apiGet } from '@/lib/api';
 import { jsonResponse } from '@/testing/json-response';
 import { RedirectIfSession } from './redirect-if-session';
+import { SIGNED_OUT_STATE } from './sign-out-state';
 
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 
@@ -19,20 +20,21 @@ function respondWithUser(user: SessionUser | null): void {
   vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user } }));
 }
 
-function renderSignInRoute(initialEntry: string = AppRoute.SignIn) {
+function renderSignInRoute(initialEntry: string = AppRoute.SignIn, state: unknown = null) {
   const router = createMemoryRouter(
     [
       { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
       { path: AppRoute.Documents, element: DOCUMENTS_TEXT },
       { path: AppRoute.Admin, element: ADMIN_TEXT },
     ],
-    { initialEntries: [initialEntry] },
+    { initialEntries: [{ ...parsePath(initialEntry), state }] },
   );
   render(
     <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return router;
 }
 
 beforeEach(() => vi.mocked(apiGet).mockReset());
@@ -60,4 +62,13 @@ test('a next pointing at another origin falls back to documents', async () => {
   respondWithUser(ADA);
   renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(EXTERNAL_NEXT)}`);
   expect(await screen.findByText(DOCUMENTS_TEXT)).toBeInTheDocument();
+});
+
+test('the signed-out landing keeps the next query for the form', async () => {
+  respondWithUser(ADA);
+  const nextSearch = `?next=${encodeURIComponent(AppRoute.Admin)}`;
+  const router = renderSignInRoute(`${AppRoute.SignIn}${nextSearch}`, SIGNED_OUT_STATE);
+  expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
+  await waitFor(() => expect(router.state.location.state).toBeNull());
+  expect(router.state.location.search).toBe(nextSearch);
 });

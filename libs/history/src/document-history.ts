@@ -13,3 +13,7 @@ export function findBootstrapSequence({ updates, document = new Y.Doc() }: { upd
   if (!committed) return null;
   return committed.sequence;
 }
+
+export function isBootstrapCommitted({ document }: { document: Y.Doc }): boolean {
+  throw new Error('isBootstrapCommitted is not implemented');
+}

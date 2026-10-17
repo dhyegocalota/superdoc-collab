@@ -16,6 +16,7 @@ import {
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  SummarizeStep,
   TimelineBandKind,
   timelineEditsApiPath,
   TOPICS_PENDING_MESSAGE,
@@ -72,13 +73,20 @@ const DRAGGED_WIDTH = 500;
 const SHRUNK_WINDOW_WIDTH = 800;
 const REFRESH_STATUS = { state: TopicState.Pending, failure: null, computedAtSequence: null };
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
-const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const NONE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.None,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const READY_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
   summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_SUMMARY_AUTHOR], computedAtSequence: 3, isStale: false },
   failure: null,
   isModelAvailable: true,
+  step: SummarizeStep.Idle,
 };
 const STALE_VIEW: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, isStale: true } };
 const FAILED_VIEW: SelectionSummaryView = {
@@ -86,12 +94,14 @@ const FAILED_VIEW: SelectionSummaryView = {
   summary: null,
   failure: SELECTION_SUMMARY_FAILED_MESSAGE,
   isModelAvailable: true,
+  step: SummarizeStep.Idle,
 };
 const UNAVAILABLE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Failed,
   summary: null,
   failure: 'The language model is unavailable: LLM_MODEL is not set on the server.',
   isModelAvailable: false,
+  step: SummarizeStep.Idle,
 };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
 

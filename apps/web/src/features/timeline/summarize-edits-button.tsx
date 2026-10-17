@@ -6,7 +6,7 @@ type SummarizeEditsButtonProps = { isRunning: boolean; onSummarize: () => void }
 
 export function SummarizeEditsButton({ isRunning, onSummarize }: SummarizeEditsButtonProps) {
   return (
-    <Button type="button" variant="default" size="sm" aria-busy={isRunning} onClick={onSummarize}>
+    <Button type="button" variant="default" size="sm" disabled={isRunning} aria-busy={isRunning} onClick={onSummarize}>
       <Sparkles aria-hidden />
       {isRunning ? SUMMARIZING_LABEL : SUMMARIZE_EDITS_LABEL}
     </Button>

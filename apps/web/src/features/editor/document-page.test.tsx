@@ -12,6 +12,7 @@ import {
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  SummarizeStep,
   type OpenedDocument,
   type SelectionSummaryView,
 } from '@superdoc-collab/types';
@@ -43,7 +44,13 @@ import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
-const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const NONE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.None,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 
 type SuperDocConfig = {
   telemetry: { enabled: boolean };

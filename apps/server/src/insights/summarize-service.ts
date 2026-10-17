@@ -1,22 +1,19 @@
-import { secondsRoundedUp, SummarizeStep } from '@superdoc-collab/types';
+import { secondsRoundedUp, SummarizeOutcome, SummarizeStep, TopicState } from '@superdoc-collab/types';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
 import type { RequestedSelection, SelectionSummariesService } from './selection-summaries-service';
 import type { SummariesService } from './summaries-service';
 import type { TopicsService } from './topics-service';
 
-export enum SummarizeOutcome {
-  Started = 'started',
-  AlreadyRunning = 'already-running',
-  UpToDate = 'up-to-date',
+export enum SummarizeRefusal {
   Busy = 'busy',
   Unavailable = 'unavailable',
 }
 
 export type SummarizeResult =
-  | { outcome: SummarizeOutcome.Started | SummarizeOutcome.AlreadyRunning | SummarizeOutcome.UpToDate }
-  | { outcome: SummarizeOutcome.Busy; retryAfterSeconds: number }
-  | { outcome: SummarizeOutcome.Unavailable; reason: string };
+  | { outcome: SummarizeOutcome }
+  | { outcome: SummarizeRefusal.Busy; retryAfterSeconds: number }
+  | { outcome: SummarizeRefusal.Unavailable; reason: string };
 
 type SummarizeRequest = { documentId: string; selection: RequestedSelection };
 
@@ -54,9 +51,9 @@ export class SummarizeService {
   // NB ADR 0031: a step runs only when it is stale, so a click on fresh work makes no model call.
   request({ documentId, selection }: SummarizeRequest): SummarizeResult {
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
-      return { outcome: SummarizeOutcome.Unavailable, reason: this.languageModel.reason };
+      return { outcome: SummarizeRefusal.Unavailable, reason: this.languageModel.reason };
     const key = summarizeKey(documentId);
-    if (this.jobRunner.isRunning(key)) return { outcome: SummarizeOutcome.AlreadyRunning };
+    if (this.jobRunner.isRunning(key)) return { outcome: SummarizeOutcome.Running };
     const needsRegroup = this.topics.isStale(documentId);
     const isAnythingStale = needsRegroup || this.selection.isStale({ documentId, selection }) || this.summaries.isStale(documentId);
     if (!isAnythingStale) return { outcome: SummarizeOutcome.UpToDate };
@@ -70,16 +67,19 @@ export class SummarizeService {
 
   private busy(cooldownRemainingMs: number): SummarizeResult {
     const waitMs = Math.max(cooldownRemainingMs, this.jobRunner.retryAfterMs());
-    return { outcome: SummarizeOutcome.Busy, retryAfterSeconds: secondsRoundedUp(waitMs) };
+    return { outcome: SummarizeRefusal.Busy, retryAfterSeconds: secondsRoundedUp(waitMs) };
   }
 
   private async regroup(documentId: string): Promise<void> {
     this.selection.setStep({ documentId, step: SummarizeStep.Grouping });
     await this.topics.regroup(documentId);
+    const hasFailed = this.topics.status(documentId).state === TopicState.Failed;
+    this.selection.setGroupingFailure({ documentId, hasFailed });
   }
 
   private async run({ documentId, selection, needsRegroup }: SummarizeRequest & { needsRegroup: boolean }): Promise<void> {
     this.selection.cooldown.start(documentId);
+    this.selection.setGroupingFailure({ documentId, hasFailed: false });
     try {
       if (needsRegroup) await this.regroup(documentId);
       this.selection.setStep({ documentId, step: SummarizeStep.Summarizing });

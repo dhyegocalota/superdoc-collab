@@ -103,3 +103,16 @@ pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/summari
 - The selection summary only goes stale on a regroup for topic selections, because only they stamp `topicsUpdatedAt`.
 - The agent tool `summarize_selection` still calls `selection.request` and keeps its own too-soon message; it does not run the Summarize job.
 - No test drives the full browser flow; the tester walks it.
+
+### G4 update after the plan review (commits 9fd322d red, d969633 red, next green)
+
+- The POST body is the selection view plus `outcome` (`started`, `running`, `up-to-date`); 202 for `started` and `running`, 200 for `up-to-date`. Refusals stay 429 and 503. `SummarizeOutcome` and `SummarizeResponse` live in `libs/types/src/timeline.ts`; the service-only refusals are `SummarizeRefusal` in `summarize-service.ts`.
+- Sentences are stale when older than the topic set (their `computedAtSequence` is below the topic set's); a rewrite stamps the topic set's sequence. The spec's "newest run" wording is dropped.
+- A failed regroup sets the view failure to `GROUPING_FAILED_MESSAGE` (in libs/types, not `timeline-copy.ts`, because the server writes it) until the next Summarize; a failed selection summary keeps `SELECTION_SUMMARY_FAILED_MESSAGE`. There is no separate `SUMMARIZING_FAILED_MESSAGE`.
+- The MCP tool `summarize_selection` now calls the Summarize service and answers `SUMMARIZE_BUSY_MESSAGE`.
+- New hook `apps/web/src/features/timeline/use-summarize.ts` (`useSummarize({ documentId })` returning `summarize`, `isRunning`, `outcome`, `error`, `retryAfterSeconds`). `useSummarizeEdits` and `summarizeDisabledReason` are gone; `timeline-panel.tsx` (G3) still imports them, so `timeline-panel.test.tsx`, `document-page.test.tsx` and `time-travel.test.tsx` fail at render until G3 lands.
+- The button is enabled when idle; while running it is disabled, reads Summarizing…, has `aria-busy`.
+- `step: SummarizeStep.Idle` added to every view fixture in web tests.
+- Kept for G3: `SELECTION_SUMMARY_COOLDOWN_MS`, `use-topics.ts`, `refreshTopics`, `topicsRefreshApiPath`, `REFRESH_SEGMENT`, `TOPICS_REFRESH_TOO_SOON_MESSAGE`.
+- Wiring edits outside my list: `apps/server/src/http/app.ts` (`summarize` in `InsightsServices`), `apps/server/src/server.ts` (builds the service), `apps/server/src/collaboration/collaboration-runtime.ts` (removed the topics and summaries `forget` calls).
+- Gap: `SelectionSummariesService.request` and its tests remain although no route or tool calls it any more.

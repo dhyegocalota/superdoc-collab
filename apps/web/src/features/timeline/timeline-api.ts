@@ -17,6 +17,7 @@ import {
   type DocumentTimeline,
   type EditSelection,
   type SelectionSummaryView,
+  type SummarizeResponse,
   type TimelineFilter,
   type TopicStatus,
   type TopicSummaries,
@@ -210,7 +211,7 @@ export async function requestSelectionSummary({
   selection: EditSelection;
   binMs: number | null;
   timeZone: string;
-}): Promise<SelectionSummaryView> {
+}): Promise<SummarizeResponse> {
   const response = await apiSend({
     path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs, timeZone }) }),
     method: HttpMethod.Post,
@@ -219,7 +220,7 @@ export async function requestSelectionSummary({
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(readRetryAfterMs(response));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
-  return readJson<SelectionSummaryView>({ response, subject: SUMMARIZE_EDITS_SUBJECT });
+  return readJson<SummarizeResponse>({ response, subject: SUMMARIZE_EDITS_SUBJECT });
 }
 
 export async function fetchBinEdits({

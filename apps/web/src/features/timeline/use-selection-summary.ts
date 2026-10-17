@@ -1,9 +1,8 @@
 import { SelectionSummaryState, SummarizeStep, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useEffect, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
-import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
-import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
+import { fetchSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
 function pollWhileSummarizing(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
   const view = query.state.data;
@@ -46,28 +45,4 @@ export function useSelectionSummary({
   }, [timelineStamp]);
 
   return query;
-}
-
-export function useSummarizeEdits({
-  documentId,
-  binMs,
-  timeZone,
-}: {
-  documentId: string;
-  binMs: number | null;
-  timeZone: string;
-}): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
-  const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection, binMs, timeZone }),
-    onSuccess: async (view, selection) => {
-      queryClient.setQueryData(selectionSummaryQueryKey({ documentId, selection, timeZone }), view);
-      await queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection, timeZone }) });
-    },
-  });
-  const { error, reset } = mutation;
-
-  useResetAfterRetry({ error, reset });
-
-  return mutation;
 }

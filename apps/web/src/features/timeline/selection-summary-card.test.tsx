@@ -1,16 +1,23 @@
-import { ClientActor, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
+import { ClientActor, SelectionSummaryState, SummarizeStep, type SelectionSummaryView } from '@superdoc-collab/types';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR } from '@/testing/timeline-fixtures';
 import { SelectionSummaryCard } from './selection-summary-card';
 import { agentMarkLabel } from './timeline-copy';
 
-const RUNNING_VIEW: SelectionSummaryView = { state: SelectionSummaryState.Running, summary: null, failure: null, isModelAvailable: true };
+const RUNNING_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.Running,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 const FIRST_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
   summary: { key: 'first', sentence: 'Ana raised the budget.', authors: [FIXTURE_SUMMARY_AUTHOR], computedAtSequence: 3, isStale: false },
   failure: null,
   isModelAvailable: true,
+  step: SummarizeStep.Idle,
 };
 const SECOND_VIEW: SelectionSummaryView = { ...FIRST_VIEW, summary: { ...FIRST_VIEW.summary!, key: 'second', sentence: 'Ana hired.' } };
 const scrollIntoView = vi.fn();

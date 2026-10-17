@@ -1,5 +1,6 @@
 import { runVolume, selectionSummaryOutputSchema, type EditRun } from '@superdoc-collab/history';
 import {
+  GROUPING_FAILED_MESSAGE,
   secondsRoundedUp,
   SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
@@ -98,6 +99,7 @@ export class SelectionSummariesService {
   private readonly jobRunner: InsightsJobRunner;
   private readonly readSelection: ReadSelection;
   private readonly steps = new Map<string, SummarizeStep>();
+  private readonly failures = new Map<string, string>();
 
   constructor({
     repository,
@@ -125,6 +127,9 @@ export class SelectionSummariesService {
     if (isRunning) return this.view({ documentId, state: SelectionSummaryState.Running, summary, failure: null });
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
       return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: this.languageModel.reason });
+    const groupingFailure = this.failures.get(documentId);
+    if (groupingFailure !== undefined)
+      return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: groupingFailure });
     if (stored === null) return this.view({ documentId, state: SelectionSummaryState.None, summary: null, failure: null });
     if (stored.failure !== null) return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: stored.failure });
     return this.view({ documentId, state: SelectionSummaryState.Ready, summary, failure: null });
@@ -168,9 +173,15 @@ export class SelectionSummariesService {
     this.steps.set(documentId, step);
   }
 
+  setGroupingFailure({ documentId, hasFailed }: { documentId: string; hasFailed: boolean }): void {
+    if (hasFailed) this.failures.set(documentId, GROUPING_FAILED_MESSAGE);
+    else this.failures.delete(documentId);
+  }
+
   forget(documentId: string): void {
     this.cooldown.forget(documentId);
     this.steps.delete(documentId);
+    this.failures.delete(documentId);
   }
 
   private step(documentId: string): SummarizeStep {

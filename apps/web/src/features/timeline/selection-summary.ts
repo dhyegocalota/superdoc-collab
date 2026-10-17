@@ -1,11 +1,5 @@
 import { cellVolume } from '@superdoc-collab/history/timeline';
-import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
-import {
-  NO_EDITS_TO_SUMMARIZE_MESSAGE,
-  SUMMARIES_UNAVAILABLE_MESSAGE,
-  SUMMARIZING_EDITS_MESSAGE,
-  SUMMARY_UP_TO_DATE_MESSAGE,
-} from './timeline-copy';
+import type { DocumentTimeline, EditSelection } from '@superdoc-collab/types';
 
 export function selectionVolume({ timeline, selection }: { timeline: DocumentTimeline; selection: EditSelection }): number {
   return timeline.bins
@@ -13,25 +7,6 @@ export function selectionVolume({ timeline, selection }: { timeline: DocumentTim
     .flatMap((bin) => Object.entries(bin.byBand))
     .filter(([bandId]) => selection.topic === null || bandId === selection.topic)
     .reduce((total, [, cell]) => total + cellVolume(cell), 0);
-}
-
-export function summarizeDisabledReason({
-  volume,
-  view,
-  isPending,
-}: {
-  volume: number;
-  view: SelectionSummaryView | undefined;
-  isPending: boolean;
-}): string | null {
-  if (volume === 0) return NO_EDITS_TO_SUMMARIZE_MESSAGE;
-  if (isPending) return SUMMARIZING_EDITS_MESSAGE;
-  if (view === undefined) return null;
-  if (view.state === SelectionSummaryState.Running) return SUMMARIZING_EDITS_MESSAGE;
-  if (!view.isModelAvailable) return SUMMARIES_UNAVAILABLE_MESSAGE;
-  const isUpToDate = view.state === SelectionSummaryState.Ready && view.summary !== null && !view.summary.isStale;
-  if (isUpToDate) return SUMMARY_UP_TO_DATE_MESSAGE;
-  return null;
 }
 
 export function isSameSelection({ left, right }: { left: EditSelection; right: EditSelection }): boolean {

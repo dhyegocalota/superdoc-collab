@@ -40,6 +40,8 @@ import { chooseLanguageModel, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
 const MEMBER_QUERY = 'author=member';
 const NO_MATCH_QUERY = 'term=zzz-nothing';
 const SELECTION_ANSWER = { sentence: 'Member added a designer.', authors: ['Member'] };
+const TOPICS_ANSWER = { topics: [{ name: 'Budget', blockIds: ['b0'] }] };
+const FRESH_TOPICS_SEQUENCE = Number.MAX_SAFE_INTEGER;
 const COOLDOWN_SECONDS = SUMMARIZE_COOLDOWN_MS / SECOND_MS;
 const PROVIDER_SECRET = 'sk-test-secret';
 const FOREIGN_ORIGIN = 'https://evil.example';
@@ -179,13 +181,21 @@ test('a topic that no longer exists selects nothing', async () => {
     (event) => event.inserted === ' a designer',
   )!.blockId;
   const repository = server.services.insightsRepository;
-  repository.saveTopics({ documentId, topics: [{ id: null, name: 'Hiring', blockIds: [blockId] }], computedAtSequence: 1 });
+  repository.saveTopics({
+    documentId,
+    topics: [{ id: null, name: 'Hiring', blockIds: [blockId] }],
+    computedAtSequence: FRESH_TOPICS_SEQUENCE,
+  });
   const oldId = repository.topics(documentId)[0]!.id;
   expect((await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).status).toBe(
     HttpStatus.Accepted,
   );
   await server.services.insights.jobRunner.idle();
-  repository.saveTopics({ documentId, topics: [{ id: null, name: 'Staff', blockIds: [blockId] }], computedAtSequence: 2 });
+  repository.saveTopics({
+    documentId,
+    topics: [{ id: null, name: 'Staff', blockIds: [blockId] }],
+    computedAtSequence: FRESH_TOPICS_SEQUENCE,
+  });
   const newId = repository.topics(documentId)[0]!.id;
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: `topic=${oldId}` })).state).toBe(
     SelectionSummaryState.None,
@@ -236,9 +246,10 @@ test('a whole-document selection summarized in one zone is served in another fro
 
 test('a period selection summarized in one zone is not served for another', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
-  const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
+  const model = modelAnswering(TOPICS_ANSWER, SELECTION_ANSWER, SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
   const timeline = await readTimeline({ server, documentId, cookie: editor.cookie, timeZone: UTC_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
   const query = `${MEMBER_QUERY}&at=${timeline.bins.find((bin) => Object.keys(bin.byBand).length > 0)!.start}`;
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: UTC_TIME_ZONE });
   await server.services.insights.jobRunner.idle();

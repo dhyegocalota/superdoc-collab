@@ -1,4 +1,11 @@
-import { DocumentRole, HttpStatus, RETRY_AFTER_SECONDS, SUMMARIZE_BUSY_MESSAGE } from '@superdoc-collab/types';
+import {
+  DocumentRole,
+  HttpStatus,
+  RETRY_AFTER_SECONDS,
+  SUMMARIZE_BUSY_MESSAGE,
+  SummarizeOutcome,
+  type SummarizeResponse,
+} from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { authorizedDocumentId } from '../documents/require-document-role';
 import { INVALID_TIMELINE_QUERY_MESSAGE, selectionQuerySchema } from '../history/timeline-query';
@@ -6,7 +13,7 @@ import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater } from '../http/retry-later';
 import { documentTopics } from './document-topics';
-import { SummarizeOutcome } from './summarize-service';
+import { SummarizeRefusal } from './summarize-service';
 
 const SELECTION_PATH = '/:documentId/summaries/selection';
 
@@ -33,24 +40,24 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const selection = parsed.data;
     const result = services.insights.summarize.request({ documentId, selection });
-    if (result.outcome === SummarizeOutcome.Busy)
+    if (result.outcome === SummarizeRefusal.Busy)
       return retryLater({
         context,
         body: { error: SUMMARIZE_BUSY_MESSAGE },
         status: HttpStatus.TooManyRequests,
         retryAfterSeconds: result.retryAfterSeconds,
       });
-    if (result.outcome === SummarizeOutcome.Unavailable)
+    if (result.outcome === SummarizeRefusal.Unavailable)
       return retryLater({
         context,
         body: { error: result.reason },
         status: HttpStatus.ServiceUnavailable,
         retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
-    const view = services.insights.selection.read({ documentId, selection });
-    const isRunning = result.outcome === SummarizeOutcome.Started || result.outcome === SummarizeOutcome.AlreadyRunning;
-    if (isRunning) return context.json(view, HttpStatus.Accepted);
-    return context.json(view);
+    const response: SummarizeResponse = { ...services.insights.selection.read({ documentId, selection }), outcome: result.outcome };
+    const isRunning = result.outcome === SummarizeOutcome.Started || result.outcome === SummarizeOutcome.Running;
+    if (isRunning) return context.json(response, HttpStatus.Accepted);
+    return context.json(response);
   });
   return routes;
 }

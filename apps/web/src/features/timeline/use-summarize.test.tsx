@@ -9,11 +9,12 @@ import {
   UTC_TIME_ZONE,
   type SummarizeResponse,
 } from '@superdoc-collab/types';
+import { QueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
-import { createTestQueryClient, renderHookWithRouter } from '@/testing/render-with-providers';
+import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { selectionSummaryQueryKey, SummaryTooSoonError, timelineQueryKey } from './timeline-api';
 import { useSummarize } from './use-summarize';
@@ -29,12 +30,16 @@ function responseWith({ outcome, step }: { outcome: SummarizeOutcome; step: Summ
   return { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step, outcome };
 }
 
+function newQueryClient(): QueryClient {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 test('posts the selection of the URL in the zone and bin width of the cached timeline', async () => {
-  const queryClient = createTestQueryClient();
+  const queryClient = newQueryClient();
   const timeline = timelineWith({ volumes: [[1]], names: ['Budget'], timeZone: SAO_PAULO_TIME_ZONE });
   queryClient.setQueryData(
     timelineQueryKey({ documentId: DOCUMENT_ID, filter: { term: SELECTION.term, author: SELECTION.author }, timeZone: UTC_TIME_ZONE }),
@@ -58,7 +63,7 @@ test('posts the selection of the URL in the zone and bin width of the cached tim
 });
 
 test('is running from the click until the polled step returns to idle, and reports the outcome', async () => {
-  const queryClient = createTestQueryClient();
+  const queryClient = newQueryClient();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
     jsonResponse({ body: responseWith({ outcome: SummarizeOutcome.Started, step: SummarizeStep.Grouping }), status: HttpStatus.Accepted }),
   );

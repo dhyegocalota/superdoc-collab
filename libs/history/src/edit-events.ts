@@ -72,7 +72,7 @@ export function resolveAuthorIds({
   return [...new Set(structAuthors)].sort();
 }
 
-export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
+export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId' | 'connectionActor'>;
 
 export type ProjectedBatch = { events: ProjectedEdit[]; marks: VersionMark[] };
 
@@ -87,8 +87,8 @@ export function projectEditEvents({ baselineState, updates }: { baselineState: U
     const changes = diffBlocks({ before: previous, after: current });
     previous = current;
     if (endsItsMinute({ update, next: updates[index + 1] })) marks.push(markOf({ update, document, isBootstrap: false }));
-    const { sequence, serverTime, yjsClientIds, connectionUserId } = update;
-    return changes.map((change) => ({ ...change, sequence, serverTime, yjsClientIds, connectionUserId }));
+    const { sequence, serverTime, yjsClientIds, connectionUserId, connectionActor } = update;
+    return changes.map((change) => ({ ...change, sequence, serverTime, yjsClientIds, connectionUserId, connectionActor }));
   });
   return { events, marks };
 }

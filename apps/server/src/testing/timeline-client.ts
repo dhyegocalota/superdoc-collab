@@ -112,6 +112,7 @@ export function commitBulkEvents({
       serverTime: BULK_BASE_TIME + index * stepMs,
       yjsClientIds: [BULK_CLIENT_ID],
       connectionUserId: userId,
+      connectionActor: ClientActor.Human,
       blockId: `b${index % blockCount}`,
       kind: BlockChangeKind.Modified,
       inserted: 'x',

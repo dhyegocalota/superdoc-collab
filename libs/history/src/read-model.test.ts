@@ -1,4 +1,4 @@
-import { BlockChangeKind } from '@superdoc-history/types';
+import { BlockChangeKind, ClientActor } from '@superdoc-history/types';
 import * as Y from 'yjs';
 import { expect, test, vi } from 'vitest';
 import { MigrationSet } from './migrations';
@@ -20,6 +20,7 @@ function editAt(sequence: number, blockId = 'block') {
     deleted: '',
     yjsClientIds: [1],
     connectionUserId: 'ana',
+    connectionActor: ClientActor.Human,
   };
 }
 
@@ -66,4 +67,16 @@ test('forget clears the marks', () => {
   expect(readModel.marks(DOCUMENT)).toHaveLength(1);
   readModel.forget(DOCUMENT);
   expect(readModel.marks(DOCUMENT)).toEqual([]);
+});
+
+test('a projected event keeps the actor', () => {
+  const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
+  readModel.commit({
+    documentName: DOCUMENT,
+    events: [{ ...editAt(FIRST_SEQUENCE), connectionActor: ClientActor.Agent }],
+    marks: [],
+    lastSequence: FIRST_SEQUENCE,
+  });
+  const [stored] = readModel.read({ documentName: DOCUMENT, afterSequence: null });
+  expect(stored!.connectionActor).toBe(ClientActor.Agent);
 });

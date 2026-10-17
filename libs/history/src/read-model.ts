@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { BlockChangeKind } from '@superdoc-history/types';
+import { BlockChangeKind, type ClientActor } from '@superdoc-history/types';
 import type { ProjectedEdit } from './edit-events';
 import type { VersionMark, VersionMarkSummary } from './version-marks';
 
@@ -36,6 +36,7 @@ type EventRow = {
   server_time: number;
   yjs_client_ids: string | null;
   connection_user_id: string | null;
+  connection_actor: ClientActor;
   author_name: string | null;
   block_id: string;
   kind: BlockChangeKind;
@@ -51,6 +52,7 @@ function toStoredEvent(row: EventRow): StoredEditEvent {
     serverTime: row.server_time,
     yjsClientIds: row.yjs_client_ids === null ? null : JSON.parse(row.yjs_client_ids),
     connectionUserId: row.connection_user_id,
+    connectionActor: row.connection_actor,
     authorName: row.author_name,
     blockId: row.block_id,
     kind: row.kind,

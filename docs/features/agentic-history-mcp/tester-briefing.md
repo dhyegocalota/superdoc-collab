@@ -139,3 +139,64 @@ The red test for attach-collaboration first waited for the socket to close, whic
 - Rotating `AUTH_SECRET` invalidates JWT signing keys and room tokens together, as the ADR says; not exercised.
 - `/.well-known/openid-configuration` answers 404 because `openid` is not a requested scope.
 - Discovery is mounted without the client address header, so Better Auth rate-limits by whatever address it resolves for those requests.
+
+## L3 agent and MCP
+
+Lane `developer-agent`, branch `feat/agentic-history-mcp-agent`, plan Steps 13 to 19. L1 and L2 were merged before the wiring.
+
+### What changed
+
+- `apps/server/src/agent/agent-tools.ts`: `AGENT_TOOLS` is a record keyed by `AgentTool`; `callAgentTool` checks the scope, then the role through `requireDocumentRole`, then runs the handler. A missing scope is a tool error "not allowed", a non-member gets "Document not found", a role below the minimum gets an error naming the person's role. Handlers live in `read-tools.ts`, `document-tools.ts` and `share-tools.ts`; `agent-tool-definition.ts` holds `defineTool` (parses the input once) and `personOf`; `tool-results.ts` holds the result and error helpers.
+- `apps/server/src/agent/agent-sessions.ts`: one SDK client for the process, sessions keyed `userId:documentId` in an `LruMap` (cap 8), idle close after 5 minutes, open guarded by a 30 second `withTimeout`, calls on one key serialized, a session leaves the map while a call runs so it is never evicted, a failed call closes its session.
+- `apps/server/src/agent/mcp-route.ts`: `POST /api/mcp`, stateless Streamable HTTP in JSON response mode with a fresh `McpServer` and transport per request, tools listed by the token scopes; `GET` and `DELETE` answer 405.
+- `apps/server/src/http/app.ts` mounts the route outside the CSRF and cookie middleware; `apps/server/src/server.ts` builds the toolkit and `AgentSessions` and closes the sessions first in `stop`.
+- `apps/server/src/insights/document-topics.ts`: `documentTopics` extracted from the insights routes.
+- `apps/server/src/agent/agent-tool-fixtures.ts`: test fixtures for tool contexts and a seeded document.
+
+### How to run
+
+```bash
+pnpm --filter @superdoc-history/server exec vitest run src/agent
+pnpm typecheck
+```
+
+### Red today, green after
+
+Red text is what the red run printed.
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `agent/agent-tools.test.ts` and `agent/agent-document-tools.test.ts` (53 tests) | `Error: callAgentTool is not implemented` | the registry and the eleven handlers (b015c45 red, 1a444b7 green) |
+| `agent/mcp-route.test.ts::no token answers 401 with WWW-Authenticate` and the other eight | `AssertionError: expected 404 to be 401`, `expected 404 to be 405`, `Streamable HTTP error: Error POSTing to endpoint: 404 Not Found` (empty route) | the route (f886132 red, 0db74a8 green; the no-scope case changed to 403 in the green commit) |
+| `agent/agent-sessions.test.ts` (10 tests) | `Error: AgentSessions.run is not implemented` | the sessions (c6b462d red, d41fbf7 green) |
+| `agent/mcp-over-oauth.test.ts` (7 tests) | `Error: Streamable HTTP error: Error POSTing to endpoint: {"error":"Not found"}` in `beforeAll`, all 7 skipped | the route is mounted (5c2308e red, e4c0e4c green); the edit, export and mark tests also needed the L2 agent path |
+
+Pins (green when they landed, written after the code because they need the L2 room-token path): `agent/agent-sessions-room.test.ts::a session opened for Ana signs tracked changes as Ana · AI` and `::a second person on the same host keeps their own name` (6401bd5).
+
+### Hypotheses to attack
+
+1. Hypothesis: a client reaches a tool only if its token scope allows it, both in `tools/list` and in `tools/call`. Break it by: a token with only `history:read` calling `rotate_share_link` by name, and a token whose scope string lists only `offline_access` (expected 403 on the POST).
+2. Hypothesis: every document tool answers "Document not found" for a non-member exactly as for an unknown id. Break it by: compare the two error bodies for each tool.
+3. Hypothesis: `edit_document` can only produce tracked changes and cannot accept, reject or delete. Break it by: `action` values `accept_tracked_changes`, `reject_tracked_changes`, `trackChanges.decide`, `changeMode: 'direct'` and extra unknown fields; read the document in the browser.
+4. Hypothesis: two people on one server keep their own "Name · AI" even when their calls overlap. Break it by: two MCP clients editing the same document in parallel, then read the review cards.
+5. Hypothesis: the session cap never closes a room that is in use. Break it by: nine documents edited in parallel from one person, watching for a failed call.
+6. Hypothesis: `export_docx` removes its temporary file on success and on failure. Break it by: list the OS temp directory for `superdoc-history-export-*` after an export of a closed room and after killing a call.
+7. Hypothesis: after Revoke the next call is 401 and the app has no open SDK session left that keeps editing. Break it by: revoke while an edit call is in flight and check the session ends at idle close.
+8. Hypothesis: a document nobody has opened yet is created by the first agent call from its stored file. Break it by: upload a DOCX, call `inspect_document` without opening the browser, then open it in the browser and compare text and history.
+
+### Known gaps
+
+- `summarize_selection` needs the Editor role, like `POST /summaries/selection`; the spec table says Reader. The cost-bearing action keeps the HTTP rule. Say so if the owner wants Reader.
+- Room tokens live five minutes and sessions can live longer; the SDK reconnect inside a long session would present an expired token. A failed call closes the session, so the next call opens with a fresh token. Not exercised.
+- A document that was never opened has its room created by the agent (`roomMode: create` from the stored file), so the bootstrap update is logged with the Agent actor of that person.
+- The embedded SDK host process is spawned at the first open; cold start time and a writable state directory in the Railway container were not measured.
+- `get_share_links` puts the link secrets in the model transcript by design (spec); the reveal is recorded on the timeline.
+- `HttpStatus` has no 405; `mcp-route.ts` declares `METHOD_NOT_ALLOWED_STATUS` locally because `libs/types/src/http.ts` is outside this lane.
+- There is no per-call timeout for a tool call on an open session other than the SDK's own.
+
+### For the E2E lane
+
+- Token in a browser flow: register a client (`POST /api/auth/oauth2/register`), open the authorize URL signed in, approve on `AppRoute.OAuthConsent`, exchange the code at `/api/auth/oauth2/token` with `resource=${APP_ORIGIN}/api/mcp`; `apps/server/src/testing/oauth-client.ts` does it without a browser (`connectAgentClient`).
+- Call with `Authorization: Bearer <access token>` and `Accept: application/json, text/event-stream` on `POST /api/mcp`; the official `Client` with `StreamableHTTPClientTransport` does this.
+- Argument shapes: `list_documents {}`; `get_timeline {documentId, term?, author?}`; `get_bin_edits {documentId, binStart, binMs?, term?, author?}`; `list_topics {documentId}`; `summarize_selection {documentId, term?, author?, topic?, at?, binMs?}`; `inspect_document {documentId, findText?}`; `edit_document {documentId, action: replace_text | insert_paragraphs | insert_heading, edits: [{find, replace}] | texts: string[] | text + level}`; `export_docx {documentId}` returns an embedded resource with the DOCX mime type; `list_members {documentId}`; `get_share_links {documentId}`; `rotate_share_link {documentId, role: edit | read}`.
+- Errors come back as `isError` results whose text is JSON `{error, retryAfterSeconds?}`.

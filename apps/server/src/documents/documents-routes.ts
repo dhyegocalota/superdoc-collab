@@ -6,8 +6,11 @@ import {
   DocumentRole,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  MINUTE_MS,
   NOT_A_DOCX_MESSAGE,
+  OPEN_UNCOMMITTED_PER_MINUTE,
   RoomMode,
+  secondsRoundedUp,
   TITLE_MAX_LENGTH,
   titleSchema,
   UNTITLED_DOCUMENT_TITLE,
@@ -19,6 +22,8 @@ import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
+import { retryLater } from '../http/retry-later';
+import { SlidingWindow } from '../limits/sliding-window';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
 
@@ -29,6 +34,7 @@ const BLANK_DOCUMENT: SeedParagraph[] = [{ text: '', trackedChanges: [] }];
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const INVALID_TITLE_MESSAGE = 'The title must not be blank';
 const DOCX_EXTENSION_PATTERN = /\.docx$/i;
+const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 const CREATOR_REFUSED_MESSAGE = 'Open refused: no creator ticket for document';
 const MALFORMED_UPLOAD_MESSAGE = 'The upload could not be read';
 const RFC_5987_RESERVED = /['()*]/g;
@@ -83,6 +89,15 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     return storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title: parsed.data.title, importRevisions: false });
   }
 
+  const uncommittedOpens = new Map<string, SlidingWindow>();
+  function uncommittedOpensOf(userId: string): SlidingWindow {
+    const existing = uncommittedOpens.get(userId);
+    if (existing !== undefined) return existing;
+    const created = new SlidingWindow({ windowMs: MINUTE_MS });
+    uncommittedOpens.set(userId, created);
+    return created;
+  }
+
   function notReady({ context, documentId }: { context: Context<SignedIn>; documentId: string }): Response {
     console.warn(`${CREATOR_REFUSED_MESSAGE} ${documentId}`);
     return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
@@ -118,6 +133,19 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const summary = documents.summary({ documentId, userId });
     const roomMode = runtime.roomMode(documentId);
     if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
+    const opens = uncommittedOpensOf(userId);
+    if (opens.count() >= OPEN_UNCOMMITTED_PER_MINUTE) {
+      console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);
+      const oldest = opens.oldest();
+      const waitMs = oldest === null ? MINUTE_MS : MINUTE_MS - (Date.now() - oldest);
+      return retryLater({
+        context,
+        body: { error: OPEN_RATE_LIMITED_MESSAGE },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: secondsRoundedUp(waitMs),
+      });
+    }
+    opens.record();
     if (role === DocumentRole.Reader) return notReady({ context, documentId });
     const ticket = runtime.reserveCreator({ documentId, userId });
     if (ticket === null) return notReady({ context, documentId });

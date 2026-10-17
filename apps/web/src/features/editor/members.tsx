@@ -1,8 +1,17 @@
 import type { DocumentMember } from '@superdoc-collab/types';
+import type { SuperDoc } from 'superdoc';
 import { initialsOf } from '@/lib/initials';
 import { memberLabel } from './editor-copy';
 
-export function Members({ members, currentUserId }: { members: DocumentMember[]; currentUserId: string | null }) {
+export function Members({
+  members,
+  currentUserId,
+}: {
+  members: DocumentMember[];
+  currentUserId: string | null;
+  superdoc?: SuperDoc | null;
+  isPastVersion?: boolean;
+}) {
   return (
     <ul className="flex items-center gap-1">
       {members.map((member) => {

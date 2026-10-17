@@ -96,6 +96,16 @@ Empty on purpose. The tester adds one checkbox per new case (input, exact expect
 - [x] E10 the session JWT from `/api/auth/token` (its audience is the MCP resource) presented on `/api/mcp`. Expected: 401. Observed 401, refused because it carries no client consent, not because of its audience — evidence: curl session
 - [x] E11 dynamic registration rate limit. Expected: the sixth registration in a minute is refused. Observed: five 201 then 429 — evidence: curl session
 
+Second pass after merging `feat/agentic-history-mcp` (head 46b53ec): typecheck exit 0, unit 16 + 93 + 354 + 557 passed (/private/tmp/claude-501/-Users-dhyegocalota-orca-workspaces-superdoc-take-home-future-optimizations/8219e99e-1c31-4aa9-a3e9-115a9fd24aaf/scratchpad/tester-logs/unit2.log), full E2E 44 passed (/private/tmp/claude-501/-Users-dhyegocalota-orca-workspaces-superdoc-take-home-future-optimizations/8219e99e-1c31-4aa9-a3e9-115a9fd24aaf/scratchpad/tester-logs/e2e-full2.log).
+
+- [x] E12 consent URL older than 10 minutes (exp forged to 1). Expected: "This request expired. Start again from your AI client." on consent after Approve and on sign-in after submitting, never "Try again". Observed exactly that on both, Approve and Deny still shown on consent — evidence: .pr-media/agentic-history-mcp/expired-consent-1280.png, .pr-media/agentic-history-mcp/expired-sign-in-1280.png
+- [x] E13 signed out, open the authorize URL, sign in. Expected: lands on `/oauth/consent`, Approve redirects with a code. Observed: consent, then `walk-callback?code=...&state=...` — evidence: scratchpad run, code exchanged for a token
+- [x] E14 signed out, open `/settings/connected-apps`, sign in. Expected: lands on Connected apps. Observed: `/settings/connected-apps` — evidence: scratchpad run
+- [x] E15 consent card names the destination. Expected: "Access will be sent to <redirect host>". Observed: "Access will be sent to 127.0.0.1:3140." — evidence: .pr-media/agentic-history-mcp/consent-redirect-host-1280.png
+- [x] E16 sign up with the name `Eve · AI`. Expected: refused. Observed: stays on sign-up, field error "This name is reserved for AI clients." — evidence: .pr-media/agentic-history-mcp/sign-up-ai-name-1280.png
+- [x] E17 a Reader's session was opened read-only (`export_docx`), then the person is promoted to Editor through the edit link, then `edit_document`. Expected: the edit works within five minutes. Observed: refused as reader before, applied after, card signed `Bruno · AI` in Ana's editor — evidence: scratchpad run
+- [x] E18 server restart while Ana's editor is open and her AI session is warm, then an AI edit. Expected: the edit reaches the open browser. Observed: card `Ana · AI` appeared in the page that was open across the restart — evidence: scratchpad run
+
 ## Adversarial review
 
 The reviewer picks the three claims most likely to be wrong and tries to refute each.

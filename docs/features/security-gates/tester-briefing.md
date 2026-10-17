@@ -45,5 +45,5 @@ Red commit: `9ffbffc`. The three `ci-workflow` cases that depended on the job li
 
 ## Known gaps
 
-- The `security` job has not run on GitHub yet; the gitleaks action's licence behaviour on a personal public repository is documented, not observed, until the PR's first run.
+- The `security` job has not run on GitHub yet; its first run is the proof that the pinned-binary download, the checksum check and the two scans are wired as the workflow says.
 - Dependabot alerts and automated security fixes were turned on through the API on 2026-10-17; the first weekly run is the proof that the config file is read.

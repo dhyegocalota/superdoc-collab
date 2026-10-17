@@ -6,7 +6,7 @@ import {
   MIN_RETRY_AFTER_MS,
   RETRY_AFTER_HEADER,
   SECOND_MS,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SUMMARIZE_BUSY_MESSAGE,
   selectionSummaryApiPath,
   TimelineQueryParam,
   timelineEditsApiPath,
@@ -17,6 +17,7 @@ import {
   type DocumentTimeline,
   type EditSelection,
   type SelectionSummaryView,
+  type SummarizeResponse,
   type TimelineFilter,
   type TopicStatus,
   type TopicSummaries,
@@ -41,7 +42,7 @@ export class TopicsRefreshTooSoonError extends RetryLaterError {
 
 export class SummaryTooSoonError extends RetryLaterError {
   constructor(retryAfterMs: number) {
-    super({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterMs });
+    super({ message: SUMMARIZE_BUSY_MESSAGE, retryAfterMs });
   }
 }
 
@@ -210,7 +211,7 @@ export async function requestSelectionSummary({
   selection: EditSelection;
   binMs: number | null;
   timeZone: string;
-}): Promise<SelectionSummaryView> {
+}): Promise<SummarizeResponse> {
   const response = await apiSend({
     path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs, timeZone }) }),
     method: HttpMethod.Post,
@@ -219,7 +220,7 @@ export async function requestSelectionSummary({
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(readRetryAfterMs(response));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));
-  return readJson<SelectionSummaryView>({ response, subject: SUMMARIZE_EDITS_SUBJECT });
+  return readJson<SummarizeResponse>({ response, subject: SUMMARIZE_EDITS_SUBJECT });
 }
 
 export async function fetchBinEdits({

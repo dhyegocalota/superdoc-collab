@@ -1,38 +1,20 @@
 import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@superdoc-collab/history';
-import {
-  MINUTE_MS,
-  SECOND_MS,
-  secondsRoundedUp,
-  TOPIC_RECOMPUTE_NEW_BLOCKS,
-  TOPICS_FAILED_MESSAGE,
-  TopicState,
-  type TopicStatus,
-} from '@superdoc-collab/types';
+import { MINUTE_MS, TOPIC_RECOMPUTE_NEW_BLOCKS, TOPICS_FAILED_MESSAGE, TopicState, type TopicStatus } from '@superdoc-collab/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
-import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { InsightsRepository } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
+import { lastSequenceOf } from './last-sequence';
 import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type LanguageModelChoice } from './llm-client';
 import { TOPICS_SYSTEM_PROMPT, topicsPrompt } from './prompts';
 
 export const UNKNOWN_TOPIC_BLOCKS_MESSAGE = 'The model named block ids that are not in the document, for document';
 export const TOPICS_COMPUTE_FAILED_MESSAGE = 'Naming topics failed for document';
 export const TOPIC_RECOMPUTE_MIN_INTERVAL_MS = MINUTE_MS;
-export const TOPIC_REFRESH_COOLDOWN_MS = 30 * SECOND_MS;
 
 class LanguageModelBusyError extends Error {}
-
-export enum RefreshOutcome {
-  Started = 'started',
-  AlreadyRunning = 'already-running',
-  TooSoon = 'too-soon',
-}
-
-export type RefreshResult =
-  { outcome: RefreshOutcome.Started | RefreshOutcome.AlreadyRunning } | { outcome: RefreshOutcome.TooSoon; retryAfterSeconds: number };
 
 function topicsKey(documentId: string): string {
   return `topics:${documentId}`;
@@ -48,7 +30,6 @@ export class TopicsService {
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;
   private readonly readPipeline: (documentId: string) => TimelinePipeline;
-  readonly cooldown = new KeyedCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
 
   constructor({
     repository,
@@ -78,19 +59,19 @@ export class TopicsService {
 
   ensure(documentId: string): void {
     if (this.repository.status(documentId) !== null) return;
-    this.start({ documentId, isRefresh: false });
+    this.start({ documentId, isRegroup: false });
   }
 
-  refresh(documentId: string): RefreshResult {
-    if (this.jobRunner.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning };
-    const remainingMs = this.cooldown.remainingMs(documentId);
-    if (remainingMs > 0) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: secondsRoundedUp(remainingMs) };
-    this.start({ documentId, isRefresh: true });
-    return { outcome: RefreshOutcome.Started };
+  isStale(documentId: string): boolean {
+    const status = this.repository.status(documentId);
+    if (status === null || status.state === TopicState.Pending) return false;
+    if (status.state === TopicState.Failed) return true;
+    if (status.computedAtSequence === null) return false;
+    return status.computedAtSequence < lastSequenceOf(this.readPipeline(documentId).events.map((event) => event.sequence));
   }
 
-  forget(documentId: string): void {
-    this.cooldown.forget(documentId);
+  regroup(documentId: string): Promise<void> {
+    return this.compute({ documentId, isRegroup: true });
   }
 
   onTimelineRead(documentId: string): void {
@@ -105,41 +86,35 @@ export class TopicsService {
     });
     if (newBlocks < TOPIC_RECOMPUTE_NEW_BLOCKS) return;
     if (Date.now() - updatedAt < TOPIC_RECOMPUTE_MIN_INTERVAL_MS) return;
-    this.start({ documentId, isRefresh: false });
+    this.start({ documentId, isRegroup: false });
   }
 
-  private start({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
-    const outcome = this.jobRunner.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRefresh }) });
+  private start({ documentId, isRegroup }: { documentId: string; isRegroup: boolean }): void {
+    const outcome = this.jobRunner.run({ key: topicsKey(documentId), job: () => this.compute({ documentId, isRegroup }) });
     if (outcome !== JobOutcome.Busy) return;
-    if (this.keepsReadyTopics({ previous: this.repository.status(documentId), isRefresh })) return;
+    if (this.keepsReadyTopics({ previous: this.repository.status(documentId), isRegroup })) return;
     this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
   }
 
-  // NB ADR 0015: a busy automatic recompute keeps ready topics; a Refresh, or a first computation with nothing to keep, reports busy.
-  private keepsReadyTopics({ previous, isRefresh }: { previous: TopicStatus | null; isRefresh: boolean }): boolean {
-    return !isRefresh && previous !== null && previous.state === TopicState.Ready;
+  // NB ADR 0015: a busy automatic recompute keeps ready topics; a Summarize regroup, or a first computation with nothing to keep, reports busy.
+  private keepsReadyTopics({ previous, isRegroup }: { previous: TopicStatus | null; isRegroup: boolean }): boolean {
+    return !isRegroup && previous !== null && previous.state === TopicState.Ready;
   }
 
-  private settleBusy({ documentId, previous, isRefresh }: { documentId: string; previous: TopicStatus | null; isRefresh: boolean }): void {
-    if (this.keepsReadyTopics({ previous, isRefresh })) return this.repository.restoreStatus({ documentId, previous });
+  private settleBusy({ documentId, previous, isRegroup }: { documentId: string; previous: TopicStatus | null; isRegroup: boolean }): void {
+    if (this.keepsReadyTopics({ previous, isRegroup })) return this.repository.restoreStatus({ documentId, previous });
     this.repository.markFailed({ documentId, failure: LLM_BUSY_MESSAGE });
   }
 
-  private consumeCooldown({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
-    if (isRefresh) this.cooldown.start(documentId);
-  }
-
-  private async compute({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): Promise<void> {
-    if (this.languageModel.availability === LanguageModelAvailability.Unavailable) {
-      this.consumeCooldown({ documentId, isRefresh });
+  private async compute({ documentId, isRegroup }: { documentId: string; isRegroup: boolean }): Promise<void> {
+    if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
       return this.repository.markFailed({ documentId, failure: this.languageModel.reason });
-    }
     const previous = this.repository.status(documentId);
     this.repository.markPending(documentId);
     try {
-      await this.recompute({ documentId, model: this.languageModel.model, previous, isRefresh });
+      await this.recompute({ documentId, model: this.languageModel.model, previous });
     } catch (error) {
-      if (error instanceof LanguageModelBusyError) return this.settleBusy({ documentId, previous, isRefresh });
+      if (error instanceof LanguageModelBusyError) return this.settleBusy({ documentId, previous, isRegroup });
       console.error(`${TOPICS_COMPUTE_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
       this.repository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
     }
@@ -149,18 +124,15 @@ export class TopicsService {
     documentId,
     model,
     previous,
-    isRefresh,
   }: {
     documentId: string;
     model: LanguageModel;
     previous: TopicStatus | null;
-    isRefresh: boolean;
   }): Promise<void> {
     const { blocks, sequence } = await this.scheduler.blocks(documentId);
     if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
     const blocksWithText = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
     if (blocksWithText.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
-    this.consumeCooldown({ documentId, isRefresh });
     if (!this.jobRunner.consumeCall()) throw new LanguageModelBusyError();
     const output = await generateStructured({
       model,

@@ -10,6 +10,7 @@ import {
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  SummarizeStep,
   timelineEditsApiPath,
   UTC_TIME_ZONE,
   VERSION_FAILED_MESSAGE,
@@ -61,7 +62,13 @@ const { SuperDoc, superDocDestroy } = vi.hoisted(() => {
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
 
-const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const NONE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.None,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 const SEQUENCES = [41, 42, 50, 51, 52];
 const PAGE_ROUTE = documentPagePath(DOCUMENT_ID);
 const SERVER_TIME = Date.UTC(2026, 9, 16, 14, 2);

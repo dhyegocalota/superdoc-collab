@@ -7,19 +7,24 @@ import {
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
   VERSION_FAILURE_TTL_MS,
 } from '@superdoc-collab/types';
-import { WebSocket, WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
-import { terminateAfterGrace } from './terminate-after-grace';
 import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
+const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
+  noServer: true,
+  maxPayload: MAX_SOCKET_MESSAGE_BYTES,
+  closeTimeout: SOCKET_CLOSE_GRACE_MS,
+};
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
 
@@ -34,7 +39,7 @@ const UNAVAILABLE_UPGRADE_RESPONSE = [
 
 function terminateOnError(this: WebSocket, error: Error): void {
   console.warn(`${SOCKET_ERROR_MESSAGE}: ${describeError(error)}`);
-  if (this.readyState === WebSocket.CLOSING) return terminateAfterGrace(this);
+  if (this.readyState === WebSocket.CLOSING) return;
   this.terminate();
 }
 
@@ -57,14 +62,13 @@ export function attachCollaboration({
   path: string;
   allowedOrigin: string;
 }): WebSocketServer {
-  const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_SOCKET_MESSAGE_BYTES });
+  const sockets = new WebSocketServer(SOCKET_SERVER_OPTIONS);
   const messageLimit = new SocketMessageLimit();
   function closeOnBreach(this: WebSocket): void {
     if (!messageLimit.breached(this)) return;
     console.warn(SOCKET_RATE_LIMIT_LOG);
     this.removeAllListeners('message');
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
-    terminateAfterGrace(this);
   }
   function upgrade({
     request,

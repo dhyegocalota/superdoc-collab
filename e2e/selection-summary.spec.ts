@@ -1,6 +1,6 @@
 import { SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SELECTION_SUMMARY_TOO_SOON_MESSAGE, DEMO_USERS, SECOND_MS, ShareLinkRole } from '../libs/types/src';
 import { EARLIER_STATE_LABEL, NO_EDITS_TO_SUMMARIZE_MESSAGE, RETRY_SUMMARY_LABEL, SUMMARIZE_EDITS_LABEL, SUMMARY_UP_TO_DATE_MESSAGE } from '../apps/web/src/features/timeline/timeline-copy';
-import { shareAndAccept, typeInParagraph } from './editor';
+import { insertedBy, readEvents, shareAndAccept, typeInParagraph } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import { ANA, BRUNO, BUDGET, BUDGET_PARAGRAPH, filterBy, HIRING, HIRING_PARAGRAPH, readSelectionCalls, summarizeButton, summaryCard, twoAuthorsInTwoTopics, waitForBands, waitForSettledTimeline } from './timeline';
 
@@ -110,6 +110,7 @@ test('a failed summary explains itself and offers a retry', async ({ browser }) 
   const { ana, bruno, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await typeInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: FAILING_TEXT });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await expect.poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: bruno.userId }), { timeout: SUMMARY_TIMEOUT_MS }).toContain(FAILING_TEXT);
   await waitForSettledTimeline({ page: ana.page, documentId });
   await filterBy({ page: ana.page, text: BRUNO_FILTER });
   await summarizeButton(ana.page).click();

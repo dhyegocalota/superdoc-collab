@@ -65,6 +65,7 @@ export function DocumentPage() {
                 superdocRef={superdocRef}
                 documentId={documentId}
                 roomMode={editorSetup.roomMode}
+                creatorTicket={editorSetup.creatorTicket}
                 role={editorSetup.role}
                 user={editorSetup.user}
                 file={editorSetup.file}

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
 import { isRecoverableException } from './superdoc-exceptions';
+import type { CreatorTicket } from './collaboration-config';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
@@ -16,13 +17,14 @@ type SuperDocEditorProps = {
   superdocRef: RefObject<SuperDoc | null>;
   documentId: string;
   roomMode: RoomMode;
+  creatorTicket: CreatorTicket | null;
   role: DocumentRole;
   user: SessionUser;
   file: Blob;
   isInert: boolean;
 };
 
-export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
+export function SuperDocEditor({ superdocRef, documentId, roomMode, creatorTicket, role, user, file, isInert }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
@@ -39,6 +41,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
         collaborationPath: ApiPath.Collaboration,
         roomMode,
+        creatorTicket,
         user,
         viewport: window,
       }),
@@ -55,7 +58,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       superdoc.destroy();
       setHasRejectedEdit(false);
     };
-  }, [superdocRef, documentId, roomMode, role, user, file]);
+  }, [superdocRef, documentId, roomMode, creatorTicket, role, user, file]);
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);

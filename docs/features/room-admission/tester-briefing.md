@@ -104,6 +104,15 @@ Written by the developer sub-agents when their steps are done. The developer doe
 
 The cap leaves 4.2 times headroom. The image travels as one frame right after about 24 small frames, and the commit marker follows in three small frames. The probe was a throwaway Playwright spec outside the repository. The same generator lives in the spec as `buildLargeDocx`.
 
+## G4: the open route, the agent session and the web ticket
+
+### What changed
+
+- `libs/types/src/routes.ts`: `CREATOR_ATTEMPT_QUERY_KEY` and `CREATOR_EPOCH_QUERY_KEY`, the G3 mirror (8405168). The lead keeps one copy.
+- `apps/server/src/documents/documents-routes.ts`: the open route answers `Join` with `creatorAttempt: null, creatorEpoch: null` on a committed room. On an uncommitted room a reader gets 409 `NOT_READY`, an editor calls `runtime.reserveCreator` and gets 200 `Create` with the ticket, or 409 when another user holds a live reservation. Every 409 is logged with the document id (`console.warn`).
+- `apps/server/src/agent/agent-sessions.ts`: an uncommitted room throws `AgentToolError` with `DOCUMENT_NOT_READY_ERROR` before `connected()`. The `seed` branch is gone.
+- `apps/web/src/features/editor/collaboration-config.ts`: `collaborationUrl({ path, creatorTicket })` appends `?attempt=&epoch=`; `creatorTicketOf` builds the ticket from the open answer. `superdoc-options.ts` takes an optional `creatorTicket`. `use-editor-setup.ts` captures `creatorTicket` in `EditorSetup`. `use-opened-document.ts` gets `staleTime: Infinity`.
+
 ### How to run
 
 ```bash
@@ -141,3 +150,29 @@ Failure text is what the run printed on commit `ed459e0`, on the tree before G1 
 - `SUPERSEDED_ATTEMPT_CLOSE_CODE` is a local constant in the spec because G1 has not landed in this lane. Replace it with the import from `libs/types` after the merge.
 - The spec holds the DOCX generator and the raw socket helper. Moving them to `e2e/` helper files is a mechanical follow-up the lead can order.
 - The two-window waiting page at 375 and 1280 px from the spec's E2E list is not covered here, because the waiting page belongs to final-visuals.
+pnpm --filter @superdoc-collab/server exec vitest run src/documents/documents-routes.test.ts src/agent/agent-sessions-room.test.ts
+pnpm --filter @superdoc-collab/web exec vitest run src/features/editor
+```
+
+### Red today, green after
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `documents-routes.test.ts` (four new tests, Steps 15 to 17) | `expected [ 'create', undefined, undefined ] to deeply equal [ 'create', 1, ... ]`; `expected undefined to be 1`; `expected [ 200, ... ] to deeply equal [ 409, { error: 'NOT_READY' } ]`; the committed-room test failed on undefined creator fields (9327ca3) | 7ddab71 |
+| `agent-sessions-room.test.ts::an agent opening an uncommitted room ...` (Step 18) | `expected { status: 'ok', ... } to be an instance of AgentToolError` (the call resolved) (f2ba41d) | 7faf94b |
+| `collaboration-config.test.ts`, `use-editor-setup.test.ts`, `use-opened-document.test.tsx`, `superdoc-options.test.ts::the options put the creator ticket ...` (Step 18a) | `TypeError: creatorTicketOf is not a function`, `expected 'ws://localhost:3000[object Object]' ...`, `expected undefined to deeply equal { attempt: 1, ... }`, stale query (eaaa5b4) | the web green commit after it |
+
+The four open-route tests share one red and one green commit: the editor 409 is only reachable once the ticket exists, so splitting them would have made Step 16 a pin. The web red commit has no stubs, so `typecheck` is red at that commit and green at the lane tip.
+
+### Hypotheses to attack
+
+1. Hypothesis: two editors opening an uncommitted room at once never both get 200. Break it by: firing both requests in the same tick.
+2. Hypothesis: the holder's second open returns the same attempt and epoch and does not extend the expiry. Break it by: an open at 30 s, then another editor at 61 s.
+3. Hypothesis: a focus refetch never re-reserves. Break it by: blurring and focusing the tab on a Create room and reading the attempt in the socket URL.
+4. Hypothesis: an agent on an uncommitted room is refused before any socket opens and writes nothing. Break it by: an MCP call on a fresh upload.
+
+### Known gaps
+
+- Pending G3's committed-room fixture: `agent-sessions-room.test.ts` (its `beforeAll` and `roomCreatedByOwner`) and `mcp-over-oauth.test.ts` build rooms through `seededDocument`, which relied on the agent seeding the room. They fail with `NOT_READY` until they open a committed room, which needs a real creator because the agent toolkit reads the DOCX content.
+- `use-opened-document.ts` also sets `refetchOnMount: 'always'`: with `staleTime: Infinity` alone a cached open answer would never be refetched on mount, which broke `document-page.test.tsx::a cached create followed by a fresh join`. The holder's refetch returns the same ticket.
+- Follow-up: `superdoc-editor.tsx` and `document-page.tsx` pass the ticket (6fc34d0 red); `LocatedRoom.filePath` and its wiring are removed; `agent-sessions.test.ts` now pins `a document nobody has opened answers NOT_READY and seeds nothing`.

@@ -45,3 +45,22 @@ test('the options open the file in its room as the signed-in user at the viewpor
     ui: { comments: { layout: 'auto', responsive: { breakpoint: 480 } } },
   });
 });
+
+test('the options put the creator ticket on the socket url', () => {
+  const options = superdocOptions({
+    container: document.createElement('div'),
+    documentId: DOCUMENT_ID,
+    file: new Blob(),
+    documentMode: DocumentMode.Editing,
+    collaborationPath: COLLABORATION_PATH,
+    roomMode: RoomMode.Create,
+    creatorTicket: { attempt: 1, epoch: 'epoch-1' },
+    user: { ...SESSION_USER },
+    viewport: window,
+  });
+  expect(options.documents).toEqual([
+    expect.objectContaining({
+      v2Collaboration: expect.objectContaining({ serverUrl: `ws://localhost:3000${COLLABORATION_PATH}?attempt=1&epoch=epoch-1` }),
+    }),
+  ]);
+});

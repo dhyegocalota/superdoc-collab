@@ -1,11 +1,10 @@
-import { agentAuthorName, DocumentRole, RoomMode } from '@superdoc-collab/types';
+import { agentAuthorName, DOCUMENT_NOT_READY_ERROR, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import type { SuperDocDocument } from '@superdoc/sdk';
 import { afterEach, expect, test, vi } from 'vitest';
 import { AgentSessionBusyError, AgentSessionOpenTimeoutError, AgentSessions, type AgentSessionsClient } from './agent-sessions';
 import type { AgentPerson } from './agent-tool-context';
 
 const COLLABORATION_URL = 'ws://127.0.0.1:1/collaboration/agent';
-const FILE_PATH = '/documents/file.docx';
 const ROOM_TOKEN = 'room-token';
 const SHORT_MS = 30;
 const TOKEN_LIFETIME_MS = 1000;
@@ -46,7 +45,7 @@ function sessionsOn({
   return new AgentSessions({
     issueRoomToken: () => ROOM_TOKEN,
     collaborationUrl: () => COLLABORATION_URL,
-    locateRoom: () => ({ roomMode, filePath: FILE_PATH }),
+    locateRoom: () => ({ roomMode }),
     roleOf: () => role.current,
     createClient: () => client,
     ...limits,
@@ -88,14 +87,11 @@ test('a session opens the live room as the person with a room token and the agen
   await sessions.close();
 });
 
-test('a document nobody has opened is created from its stored file', async () => {
+test('a document nobody has opened answers NOT_READY and seeds nothing', async () => {
   const { client } = openedPerDocument();
   const sessions = sessionsOn({ client, roomMode: RoomMode.Create });
-  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
-  expect(client.open).toHaveBeenCalledWith(
-    expect.objectContaining({ doc: FILE_PATH, collaboration: expect.objectContaining({ roomMode: RoomMode.Create }) }),
-    expect.anything(),
-  );
+  await expect(sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined })).rejects.toThrow(DOCUMENT_NOT_READY_ERROR);
+  expect(client.open).not.toHaveBeenCalled();
   await sessions.close();
 });
 

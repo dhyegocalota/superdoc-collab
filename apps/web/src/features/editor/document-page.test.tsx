@@ -238,6 +238,21 @@ test('a cached create followed by a fresh join from the server builds the join s
   expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain(DOWNLOAD_PATH);
 });
 
+test('the editor builds the socket url from the creator ticket of the open answer', async () => {
+  mockDocumentApi({ opened: { ...openedAs(DocumentRole.Editor, RoomMode.Create), creatorAttempt: 1, creatorEpoch: 'epoch-1' } });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(SuperDoc).toHaveBeenCalledWith(
+    expect.objectContaining({
+      documents: [
+        expect.objectContaining({
+          v2Collaboration: expect.objectContaining({ serverUrl: expect.stringContaining('?attempt=1&epoch=epoch-1') }),
+        }),
+      ],
+    }),
+  );
+});
+
 test('a members 404 after the editor mounted shows the unavailable message, destroys the editor and stops polling', async () => {
   let membersStatus = HttpStatus.Ok;
   mockDocumentApi({ opened: openedAs(DocumentRole.Editor), currentMembersStatus: () => membersStatus });

@@ -103,7 +103,12 @@ test('a summary is computed once and then served from the cache', async () => {
     state: SelectionSummaryState.Ready,
     failure: null,
     isModelAvailable: true,
-    summary: { sentence: ANSWER.sentence, authors: [BRUNO.name], computedAtSequence: FIRST_CURSOR, isStale: false },
+    summary: {
+      sentence: ANSWER.sentence,
+      authors: [{ name: BRUNO.name, actor: ClientActor.Human }],
+      computedAtSequence: FIRST_CURSOR,
+      isStale: false,
+    },
   });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Cached });
   expect(callsOf(model)).toBe(1);
@@ -230,6 +235,22 @@ test('the prompt carries the newest run first, escaped', async () => {
   await server.stop();
 });
 
+test('an AI author is named "<name>\'s AI" in the prompt and stored with its actor', async () => {
+  const aiLabel = `${ANA.name}'s AI`;
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: [aiLabel] });
+  const agentKey = `${ANA.id}#agent`;
+  const snapshot = {
+    ...snapshotOf({ runs: [{ ...runBy({ author: ANA, inserted: ' a designer', lastServerTime: 2 }), authorKeys: [agentKey] }] }),
+    authors: { [agentKey]: { id: ANA.id, name: ANA.name, actor: ClientActor.Agent } },
+  };
+  const { server, documentId, service, jobRunner } = await serviceWith({ languageModel: readyModel(model), snapshot });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await jobRunner.idle();
+  expect(JSON.stringify(model.doGenerateCalls[0]!.prompt)).toContain(`<author name=\\"${aiLabel}\\">`);
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([{ name: ANA.name, actor: ClientActor.Agent }]);
+  await server.stop();
+});
+
 test('names the model invents are dropped', async () => {
   const model = modelAnswering({ sentence: ANSWER.sentence, authors: [BRUNO.name, MALLORY, BRUNO.name] });
   const { server, documentId, service, jobRunner } = await serviceWith({
@@ -238,7 +259,9 @@ test('names the model invents are dropped', async () => {
   });
   service.request({ documentId, selection: BRUNO_SELECTION });
   await jobRunner.idle();
-  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([BRUNO.name]);
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([
+    { name: BRUNO.name, actor: ClientActor.Human },
+  ]);
   await server.stop();
 });
 
@@ -251,7 +274,9 @@ test('a name containing a comma survives the model splitting it', async () => {
   const { server, documentId, service, jobRunner } = await serviceWith({ languageModel: readyModel(model), snapshot });
   service.request({ documentId, selection: TERM_SELECTION });
   await jobRunner.idle();
-  expect(service.read({ documentId, selection: TERM_SELECTION }).summary?.authors).toEqual([SILVA.name]);
+  expect(service.read({ documentId, selection: TERM_SELECTION }).summary?.authors).toEqual([
+    { name: SILVA.name, actor: ClientActor.Human },
+  ]);
   await server.stop();
 });
 

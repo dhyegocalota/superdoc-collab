@@ -240,7 +240,7 @@ test('an action between the edits comes back with the agent author', async () =>
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
   const agentKey = `${owner.id}#agent`;
   expect(timeline.agentActions).toEqual([{ authorKey: agentKey, kind: AgentActionKind.DocumentExported, createdAt }]);
-  expect(timeline.authors[agentKey]).toEqual({ id: owner.id, name: 'Ana · AI', actor: ClientActor.Agent });
+  expect(timeline.authors[agentKey]).toEqual({ id: owner.id, name: 'Ana', actor: ClientActor.Agent });
   await server.stop();
 });
 

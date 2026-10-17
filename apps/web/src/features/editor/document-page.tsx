@@ -10,6 +10,7 @@ import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
+import { signInPathFor } from '@/features/auth/sign-in-path';
 import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -98,11 +99,11 @@ export function DocumentPage() {
   }
 
   function signInAgain(): void {
-    const next = encodeURIComponent(location.pathname + location.search);
-    navigate(`${AppRoute.SignIn}?next=${next}`, { state: SIGNED_OUT_STATE });
+    navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
+  const isFileUnavailable = fileError !== null && editorSetup === null;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
   return (
@@ -118,7 +119,7 @@ export function DocumentPage() {
         state={connectionState}
         failureReason={failureReason}
         isReloading={isReloading}
-        onReload={isSessionEndedFailure ? signInAgain : reload}
+        onAction={isSessionEndedFailure ? signInAgain : reload}
       />
       {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible">
@@ -143,7 +144,7 @@ export function DocumentPage() {
                 {LOADING_DOCUMENT_MESSAGE}
               </p>
             )}
-            {fileError && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
+            {isFileUnavailable && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
             <VersionFrame
               documentId={documentId}
               version={timeTravel.shownVersion}

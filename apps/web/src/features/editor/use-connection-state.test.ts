@@ -280,3 +280,9 @@ test('a Failed Unknown stays Unknown when the session has not ended', () => {
   connection.report(readingReport(TransportReading.Failed, ConnectionFailureReason.Unknown));
   expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.Unknown);
 });
+
+test('a Failed report refetches members so a 401 resolves at once', () => {
+  const connection = renderConnection();
+  connection.report(readingReport(TransportReading.Failed, ConnectionFailureReason.Unknown));
+  expect(connection.invalidateQueries).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) });
+});

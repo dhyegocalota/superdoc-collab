@@ -170,7 +170,8 @@ export function useConnectionState({
       const queryKey = membersQueryKey(documentId);
       const isOutageReport = report.reading === TransportReading.Lost || report.reading === TransportReading.Reconnecting;
       if (isOutageReport) queryClient.cancelQueries({ queryKey });
-      if (isOutageReport || report.hasSynced) queryClient.invalidateQueries({ queryKey });
+      const isFailedReport = report.reading === TransportReading.Failed;
+      if (isOutageReport || isFailedReport || report.hasSynced) queryClient.invalidateQueries({ queryKey });
       dispatch({ type: ConnectionAction.Report, report, now: Date.now() });
     },
     [queryClient, documentId],

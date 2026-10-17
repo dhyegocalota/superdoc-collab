@@ -100,6 +100,7 @@ function mockDocumentApi({
   openedAfterReload = opened,
   reloadGate = Promise.resolve(),
   isReloadUnreachable = false,
+  reloadFileResponse,
 }: {
   opened: OpenedDocument;
   renamedTitle?: string;
@@ -111,6 +112,7 @@ function mockDocumentApi({
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
   isReloadUnreachable?: boolean;
+  reloadFileResponse?: () => Response;
 }) {
   let current = opened;
   let openRequests = 0;
@@ -119,6 +121,7 @@ function mockDocumentApi({
     if (String(input).startsWith(MEMBERS_PATH)) {
       return jsonResponse({ body: { members: [], isCurrentUserOnline: isCurrentUserOnline() }, status: currentMembersStatus() });
     }
+    if (input === DOWNLOAD_PATH && openRequests > 1 && reloadFileResponse) return reloadFileResponse();
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
     if (input === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
     if (input === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
@@ -487,19 +490,37 @@ test('Reload disables its button while the refetch runs and remounts once', asyn
   expect(superDocDestroy).toHaveBeenCalledTimes(1);
 });
 
-test('Reload while the server is unreachable keeps the page, the Failed banner and a usable button', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Create), isReloadUnreachable: true });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
-  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
-  expect(await screen.findByText(RELOAD_FAILED_MESSAGE)).toBeInTheDocument();
-  expect(screen.getByTestId('connection-banner')).toHaveAttribute('data-state', ConnectionState.Failed);
-  expect(screen.getByRole('button', { name: RELOAD_LABEL })).toBeEnabled();
-  expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
-  expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
-  expect(SuperDoc).toHaveBeenCalledTimes(1);
-});
+const RELOAD_FILE_FAILURES = [
+  { name: 'a 401', failure: () => new Response(null, { status: HttpStatus.Unauthorized }) },
+  {
+    name: 'a network error',
+    failure: (): Response => {
+      throw new TypeError('Failed to fetch');
+    },
+  },
+];
+
+test.each(RELOAD_FILE_FAILURES)(
+  'Reload while the server is unreachable and the file fails with $name keeps the page with one error',
+  async ({ failure }) => {
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Create),
+      isReloadUnreachable: true,
+      reloadFileResponse: failure,
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+    await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+    expect(await screen.findByText(RELOAD_FAILED_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByTestId('connection-banner')).toHaveAttribute('data-state', ConnectionState.Failed);
+    expect(screen.getByRole('button', { name: RELOAD_LABEL })).toBeEnabled();
+    expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
+    expect(screen.queryByText(DOCUMENT_LOAD_ERROR_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
+    expect(SuperDoc).toHaveBeenCalledTimes(1);
+  },
+);
 
 test('an ended session names its reason and sends the author to sign in with the way back', async () => {
   let membersStatus = HttpStatus.Ok;

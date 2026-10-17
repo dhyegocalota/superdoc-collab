@@ -45,7 +45,7 @@ Added by the connection-state plan.
 
 - A unit test of the exception narrowing: a warn diagnostic is logged, `collaborationReason` and `worker-transport-failed` are failures.
 - A unit test of the merge table, callback state against server presence.
-- A Playwright test that restarts the server mid-session and checks lost, then reconnecting, then a cleared banner.
+- A Playwright test that restarts the server mid-session and checks reconnecting (lost is optional), then a cleared banner.
 
 ## Revisit when
 

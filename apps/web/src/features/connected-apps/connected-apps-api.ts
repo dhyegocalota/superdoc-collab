@@ -1,3 +1,4 @@
+import { HttpStatus } from '@superdoc-history/types';
 import { ApiRequestError } from '@/lib/api';
 import { authClient } from '@/features/auth/auth-client';
 import { fetchOAuthClientName } from '@/features/oauth-consent/oauth-consent-api';
@@ -22,5 +23,5 @@ export async function fetchConnectedApps(): Promise<ConnectedApp[]> {
 
 export async function revokeConnectedApp(id: string): Promise<void> {
   const { error } = await authClient.oauth2.deleteConsent({ id });
-  if (error) throw new ApiRequestError(REVOKE_ERROR_MESSAGE);
+  if (error && error.status !== HttpStatus.NotFound) throw new ApiRequestError(REVOKE_ERROR_MESSAGE);
 }

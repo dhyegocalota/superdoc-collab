@@ -1,24 +1,27 @@
 import { DocumentRole } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
-import { ErrorMessage } from '@/components/error-message';
 import { Input } from '@/components/ui/input';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { KeyboardKey } from '@/lib/keyboard';
 import { renameDocument } from './editor-api';
-import { RENAME_FAILED_MESSAGE, renameTitleLabel, TITLE_LABEL } from './editor-copy';
+import { renameTitleLabel, TITLE_LABEL } from './editor-copy';
 
 const TITLE_TEXT_CLASS = 'h-8 max-w-[360px] min-w-0 truncate px-2 text-left leading-8 font-medium';
 const TITLE_BUTTON_CLASS = `${TITLE_TEXT_CLASS} rounded-md hover:bg-accent`;
 
-export function DocumentTitle({ documentId, title, role }: { documentId: string; title: string; role: DocumentRole }) {
+type DocumentTitleProps = { documentId: string; title: string; role: DocumentRole; onFailureChange: (hasFailed: boolean) => void };
+
+export function DocumentTitle({ documentId, title, role, onFailureChange }: DocumentTitleProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const titleButtonRef = useRef<HTMLButtonElement>(null);
   const isCancelledRef = useRef(false);
   const shouldRestoreFocusRef = useRef(false);
-  const { mutate, isError, isPending, variables } = useMutation({
+  const { mutate, isPending, variables } = useMutation({
     mutationFn: renameDocument,
+    onMutate: () => onFailureChange(false),
+    onError: () => onFailureChange(true),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY }),
   });
   const shownTitle = isPending ? variables.title : title;
@@ -76,7 +79,6 @@ export function DocumentTitle({ documentId, title, role }: { documentId: string;
           {shownTitle}
         </button>
       )}
-      {isError && <ErrorMessage>{RENAME_FAILED_MESSAGE}</ErrorMessage>}
     </>
   );
 }

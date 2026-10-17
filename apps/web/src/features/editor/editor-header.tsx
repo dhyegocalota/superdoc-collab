@@ -25,6 +25,7 @@ import {
   DELETE_LABEL,
   DOWNLOAD_FORMAT_LABELS,
   MORE_ACTIONS_LABEL,
+  RENAME_FAILED_MESSAGE,
 } from './editor-copy';
 import { DocumentTitle } from './document-title';
 import { DownloadFormat } from './download-format';
@@ -158,6 +159,7 @@ export function EditorHeader({
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;
   const { download, printView } = useDownload({ superdoc, onDownloadDocx });
+  const [hasRenameFailed, setHasRenameFailed] = useState(false);
 
   return (
     <>
@@ -165,7 +167,7 @@ export function EditorHeader({
         left={
           <>
             <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
-            <DocumentTitle documentId={document.id} title={document.title} role={role} />
+            <DocumentTitle documentId={document.id} title={document.title} role={role} onFailureChange={setHasRenameFailed} />
             {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
           </>
         }
@@ -189,6 +191,7 @@ export function EditorHeader({
           </>
         }
       />
+      {hasRenameFailed && <ErrorMessage className="px-4 py-2">{RENAME_FAILED_MESSAGE}</ErrorMessage>}
       {printView}
     </>
   );

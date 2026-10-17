@@ -46,3 +46,20 @@ export const topicSummaries = sqliteTable('topic_summaries', {
   sentence: text('sentence').notNull(),
   computedAtSequence: integer('computed_at_sequence').notNull(),
 });
+
+export const selectionSummaries = sqliteTable(
+  'selection_summaries',
+  {
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    filterKey: text('filter_key').notNull(),
+    sentence: text('sentence'),
+    authors: text('authors', { mode: 'json' }).$type<string[]>().notNull(),
+    failure: text('failure'),
+    computedAtSequence: integer('computed_at_sequence').notNull(),
+    topicsUpdatedAt: integer('topics_updated_at'),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.documentId, table.filterKey] })],
+);

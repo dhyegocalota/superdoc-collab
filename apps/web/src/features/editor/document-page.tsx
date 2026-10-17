@@ -103,6 +103,7 @@ export function DocumentPage() {
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
+  const isFileUnavailable = fileError !== null && editorSetup === null;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
   return (
@@ -143,7 +144,7 @@ export function DocumentPage() {
                 {LOADING_DOCUMENT_MESSAGE}
               </p>
             )}
-            {fileError && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
+            {isFileUnavailable && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
             <VersionFrame
               documentId={documentId}
               version={timeTravel.shownVersion}

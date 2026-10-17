@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { apiGet } from '@/lib/api';
+import { jsonResponse } from '@/testing/json-response';
 import { RedirectIfSession } from './redirect-if-session';
 
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
@@ -13,7 +14,7 @@ const FORM_TEXT = 'sign-in form';
 const DOCUMENTS_TEXT = 'documents page';
 
 function respondWithUser(user: SessionUser | null): void {
-  vi.mocked(apiGet).mockResolvedValue(new Response(JSON.stringify({ user })));
+  vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user } }));
 }
 
 function renderSignInRoute() {

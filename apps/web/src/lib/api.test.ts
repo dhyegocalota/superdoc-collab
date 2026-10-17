@@ -1,5 +1,6 @@
 import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
+import { jsonResponse } from '@/testing/json-response';
 import {
   ApiRequestError,
   assertDocumentAvailable,
@@ -15,7 +16,7 @@ const BODY = { members: [] };
 const INTERVAL_MS = 5000;
 
 test('readJson returns the body of a successful response', async () => {
-  await expect(readJson({ response: new Response(JSON.stringify(BODY)), subject: SUBJECT })).resolves.toEqual(BODY);
+  await expect(readJson({ response: jsonResponse({ body: BODY }), subject: SUBJECT })).resolves.toEqual(BODY);
 });
 
 test('readJson names the subject and the status of a failed response', async () => {

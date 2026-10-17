@@ -6,33 +6,41 @@ Written by the developer sub-agents when their steps are done. The developers do
 
 ### What changed
 
-- `libs/history/src/document-history.ts`: exports `isBootstrapCommitted({ document })`; `findBootstrapSequence` uses it.
-- `libs/types/src/constants.ts`, `libs/types/src/documents.ts`: reservation, rate-limit and close-code constants; `MAX_SOCKET_MESSAGE_BYTES`; `OpenedDocument.creatorAttempt`.
-- `apps/web/src/testing/opened-document.ts`: `openedAs` returns `creatorAttempt: null`.
-- `apps/server/src/collaboration/creator-reservations.ts`: in-memory reservation with a latest-attempt fence.
-- `apps/server/src/collaboration/bootstrap-state.ts`: commit cache moved out of the runtime, plus `markCommitted` writing a snapshot of the live room.
-- `apps/server/src/collaboration/collaboration-runtime.ts`: `reserveCreator`; `roomMode` reads `bootstrap.isCommitted`; `forget` clears reservation and bootstrap cache. `ROOM_MODE_SCAN_BATCH_SIZE` now lives in `bootstrap-state.ts` and is re-exported from the runtime so `documents-routes.test.ts` imports keep working.
-- `apps/server/src/server.ts`: builds `reservations` (clock is the server's `now`) and `bootstrap`, passes both to the runtime, exposes `services.reservations`.
+- `libs/history/src/document-history.ts`: `isBootstrapCommitted({ document })` and `findCommittedSnapshot({ log, documentName })`, the first snapshot whose state is committed.
+- `libs/history/src/update-log.ts`: `appendCommitted` (committing update and snapshot in one transaction, snapshot sequence equals the appended sequence) and `snapshotAfter`.
+- `libs/history/src/projection.ts`: the projection starts at the first committed snapshot and falls back to the log scan.
+- `libs/types`: reservation, rate-limit and close-code constants, `MAX_SOCKET_MESSAGE_BYTES`, and `OpenedDocument.creatorAttempt` and `creatorEpoch`. `apps/web/src/testing/opened-document.ts` returns both as null.
+- `apps/server/src/collaboration/creator-reservations.ts`: process `epoch`; `reserve` answers `{ attempt, epoch }`; fence, commit record, `touch` (silence expiry) and `release` (expires at once, `attemptOf` still answers the holder).
+- `apps/server/src/collaboration/bootstrap-state.ts`: snapshot-first `isCommitted`, paged log scan only without a snapshot, `commit` (append plus snapshot of the live room). `ROOM_MODE_SCAN_BATCH_SIZE` lives here and is re-exported by the runtime for `documents-routes.test.ts`.
+- `apps/server/src/collaboration/collaboration-context.ts`: the `CollaborationContext` type with `creatorAttempt` and `creatorEpoch`. `collaboration-server.ts` still declares its own copy until G3 imports this one.
+- `apps/server/src/collaboration/collaboration-runtime.ts`: `reserveCreator` answers the ticket and closes superseded connections; `roomMode` reads `bootstrap.isCommitted`; `forget` clears reservation and bootstrap.
+- `apps/server/src/server.ts`: builds `reservations` (server `now` as clock) and `bootstrap`, passes both to the runtime, exposes `services.reservations`.
 
 ### Shapes for G3 and G4
 
 ```ts
-CreatorReservations: reserve({ documentId, userId }): number | null
+CreatorTicket = { attempt: number; epoch: string }
+CreatorReservations: epoch: string
+                     reserve({ documentId, userId }): CreatorTicket | null
                      attemptOf({ documentId, userId }): number | null
-                     mayWrite({ documentId, attempt }): boolean
+                     mayWrite({ documentId, attempt, epoch, isCommitted }): boolean
+                     commit({ documentId, attempt }): void
+                     touch({ documentId, attempt }): void
                      release({ documentId, attempt }): void
                      forget(documentId): void
 BootstrapState:      isCommitted(documentId): boolean
-                     markCommitted({ documentId, sequence, document }): void
+                     commit({ documentId, connectionUserId, connectionActor, update, document }): LoggedUpdate
                      forget(documentId): void
-runtime.reserveCreator({ documentId, userId }): number | null
+runtime.reserveCreator({ documentId, userId }): CreatorTicket | null
 services.reservations: CreatorReservations
 ```
 
-- G3 must thread `reservations` and `bootstrap` into `createCollaborationServer` in `server.ts`. Both are already built there, before the call (`reservations` and `bootstrap` constants in `createServices`); G3 adds the two arguments to that call.
-- `collaboration-runtime.ts` reads `creatorAttempt` through a local `AttemptContext` type because `CollaborationContext` has no such field yet. After G3 adds it, that local type can become `CollaborationContext`.
-- G4's open route calls `runtime.reserveCreator` and returns its value as `creatorAttempt`. `markCommitted` is G3's `onChange` call, with `sequence` from the appended update.
-- The server's open route did not build an `OpenedDocument` literal that failed typecheck, so no compile fix was needed there.
+- **`mayWrite` has an extra `isCommitted` argument** beyond the lead's signature. Without it the class cannot tell a Join socket on a committed room (allowed) from a socket with no attempt on an uncommitted room (refused), especially after a restart wiped its memory. G3 passes `bootstrap.isCommitted(documentId)`.
+- **G3 order in `onChange`:** fence with `mayWrite`; if the live room is committed (`isBootstrapCommitted` on the room) and the room was not yet, call `bootstrap.commit` instead of `updateLog.append`, then `reservations.commit({ documentId, attempt })`; otherwise `updateLog.append` then `reservations.touch`. `commit` already appends, so G3 must not append that update twice.
+- **G3 release:** call `reservations.release` only when no other connection of the room still has that attempt. Hocuspocus removes the closing connection from the document before `onDisconnect`, so count the remaining ones.
+- **G3 arguments:** `reservations` and `bootstrap` are already built in `createServices` before the `createCollaborationServer` call. G3 adds the two arguments to that call and imports `CollaborationContext` from `collaboration-context.ts`.
+- **G3 manual unload:** dropped as the lead decided. Hocuspocus 2.15.3 unloads on the last close by default.
+- **G4:** the open route calls `runtime.reserveCreator` and returns `attempt` and `epoch` as `creatorAttempt` and `creatorEpoch`.
 
 ### How to run
 
@@ -46,24 +54,32 @@ pnpm typecheck
 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
-| `libs/history/src/document-history.test.ts::isBootstrapCommitted is true only for a document whose meta marks the bootstrap committed` | `Error: isBootstrapCommitted is not implemented` (commit a13b64d) | marker read through `isBootstrapCommitted` (66da02f) |
-| `libs/history/src/document-history.test.ts::isBootstrapCommitted is false for a document with no meta marker` | same failure | same fix |
-| `pnpm typecheck` (Step 2) | `apps/web/src/testing/opened-document.ts(13,3): error TS2741: Property 'creatorAttempt' is missing` (commit f482490) | `openedAs` returns `creatorAttempt: null` (0a93d58) |
-| `creator-reservations.test.ts` (7 rows of one table) | `Error: CreatorReservations is not implemented` (9452149) | class implemented (ce8e506) |
-| `collaboration-runtime.test.ts::a takeover closes the superseded creator's socket with 4403 and the reason` | `Error: reserveCreator is not implemented`, not the planned `is not a function`, because the stub keeps typecheck green (a066885) | `reserveCreator` implemented (cccc695) |
-| `bootstrap-state.test.ts::markCommitted writes a snapshot of the live room at the commit sequence` and `::isCommitted reads a committed room once and caches it` | `Error: createBootstrapState is not implemented` (db60480) | implemented (cc98525) |
-| `documents-routes.test.ts::roomMode stays create until the bootstrap commits` and `::roomMode scans a long log in pages until the first committed bootstrap` | pin: green before and after the wiring (e1b8fc4) | |
+| `document-history.test.ts::isBootstrapCommitted ...` (2 tests) | `Error: isBootstrapCommitted is not implemented` (a13b64d) | 66da02f |
+| `pnpm typecheck` (Step 2) | `opened-document.ts(13,3): error TS2741: Property 'creatorAttempt' is missing` (f482490) | 0a93d58 |
+| `update-log.test.ts::appendCommitted ...` (2 tests), `::snapshotAfter ...` | `Error: appendCommitted is not implemented`, `Error: snapshotAfter is not implemented` (071c3cf) | 0312442 |
+| `document-history.test.ts::findCommittedSnapshot ...` (2 tests) | `Error: findCommittedSnapshot is not implemented` (a190fce) | 9c646ef |
+| `projection.test.ts::a commit snapshot starts the projection although a replay of the whole log never sees the commit` | `AssertionError: expected null to be 3` (59746f2) | ac96bf2 |
+| `creator-reservations.test.ts` (first 7 rows) | `CreatorReservations is not implemented` (9452149) | ce8e506 |
+| `creator-reservations.test.ts` (16 rows after the review changes) | 11 of 16 fail on the old API (23ed472) | f15fb4b |
+| `bootstrap-state.test.ts::commit appends ...` and `::isCommitted trusts the snapshot ...` | `TypeError: bootstrap.commit is not a function`, `AssertionError: expected false to be true` (f5baab8) | 135a07d |
+| `collaboration-runtime.test.ts::a takeover closes ...` | first red `Error: reserveCreator is not implemented` (a066885); after the review `expected "vi.fn()" to not be called at all, but actually been called 1 times` (bb5fa73) | cccc695, 8e8e46f |
+| `documents-routes.test.ts::roomMode stays create ...` and `::roomMode scans a long log in pages ...` | pin: green before and after the wiring (e1b8fc4) | |
+| `isCommitted reads a committed room once and caches it` | pin after the rewrite: green when it landed | |
+
+Red commits after the review (23ed472, f5baab8, bb5fa73) change a test against an implementation that still has the old API, so `pnpm typecheck` was red between each red and its green. The lane tip typechecks.
 
 ### Hypotheses to attack
 
-1. Hypothesis: the same user opening twice keeps attempt n and does not extend the expiry. Break it by: reserving, waiting past the first expiry after a second open, and checking another editor gets n + 1.
-2. Hypothesis: a released reservation never reuses an attempt number. Break it by: release, reserve as another user, and check the old attempt cannot write.
-3. Hypothesis: a takeover closes only connections of the taken-over room whose attempt differs. Break it by: two tabs of the new holder in the same room and a connection in a different room.
-4. Hypothesis: the commit snapshot holds the live room, not the log. Break it by: appending an abandoned partial, committing from a clean live room, then materializing and checking the partial is absent after the snapshot sequence.
-5. Hypothesis: `forget` of a document clears reservation, bootstrap cache and closes sockets. Break it by: deleting a document with a live reservation and reopening a fresh one.
+1. Hypothesis: an abandoned partial by a higher client id can never hide the winner's commit from `roomMode` or the projection. Break it by: trying other client ids and orders, with and without a snapshot, and checking that without a snapshot the old log scan still decides.
+2. Hypothesis: the same user opening twice keeps attempt n without extending the expiry. Break it by: a second open at 30 s, then another editor at 61 s.
+3. Hypothesis: a released reservation lets the next editor in at once, while the dropped holder keeps its attempt until that happens. Break it by: release, `attemptOf` for the holder, then another reserve and `attemptOf` again.
+4. Hypothesis: after the commit only the committing attempt and attempt-less sockets may write. Break it by: committing attempt 2 after a takeover and writing as attempt 1 and as a foreign epoch.
+5. Hypothesis: `appendCommitted` leaves no update row when the snapshot write fails. Break it by: failing the snapshot insert through a constraint instead of a spy.
+6. Hypothesis: a takeover closes only the superseded connections of that room. Break it by: two tabs of the new holder and a connection in another room.
 
 ### Known gaps
 
-- Nothing yet calls `markCommitted`, `attemptOf`, `mayWrite` or `release` in production code; G3 wires them.
-- The runtime test uses a fake `Hocuspocus` room map, not a real socket. The real 4403 close is covered by G3's and G5's tests.
-- `services.reservations` shares the server's `now`, so tests that pass a fake clock to `startServer` move reservation expiry too.
+- Nothing in production code calls `attemptOf`, `mayWrite`, `commit`, `touch`, `release` or `bootstrap.commit` yet; G3 wires them.
+- The runtime test uses a fake room map, not a real socket. The real 4403 close is covered by G3's and G5's tests.
+- `services.reservations` shares the server's `now`, so a fake clock passed to `startServer` also moves reservation expiry.
+- The projection fallback to the log scan keeps the old trap for documents committed before this feature that have no snapshot before their first projection; only documents with a commit snapshot are immune.

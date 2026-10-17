@@ -233,6 +233,7 @@ export function buildDocumentTimeline({
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
     authors: pipeline.authors,
+    agentActions: [],
     topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
   };

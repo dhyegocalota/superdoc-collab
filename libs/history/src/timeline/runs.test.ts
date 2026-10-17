@@ -99,3 +99,11 @@ test('narrowing by a band or a bin nobody edited yields nothing', () => {
 test('runVolume counts inserted and deleted characters', () => {
   expect(runVolume({ inserted: 'ab', deleted: 'c' })).toBe(3);
 });
+
+test.each([
+  [{ id: 'ana', name: 'Ana', actor: ClientActor.Human }, 'ana'],
+  [{ id: 'ana', name: 'Ana · AI', actor: ClientActor.Agent }, 'ana#agent'],
+  [{ id: null, name: 'Chris Crawford', actor: ClientActor.Human }, 'imported:Chris Crawford'],
+])('the author key of %o is %s', (author, expected) => {
+  expect(authorKey(author)).toBe(expected);
+});

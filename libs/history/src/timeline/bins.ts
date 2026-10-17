@@ -27,10 +27,13 @@ export function binStartsCovering({ firstTime, lastTime, binMs }: { firstTime: n
 }
 
 function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun }): TimelineCell {
-  if (!cell) return { inserted: run.inserted.length, deleted: run.deleted.length, authorKeys: run.authorKeys };
+  if (!cell)
+    return { inserted: run.inserted.length, deleted: run.deleted.length, agentInserted: 0, agentDeleted: 0, authorKeys: run.authorKeys };
   return {
     inserted: cell.inserted + run.inserted.length,
     deleted: cell.deleted + run.deleted.length,
+    agentInserted: cell.agentInserted,
+    agentDeleted: cell.agentDeleted,
     authorKeys: [...new Set([...cell.authorKeys, ...run.authorKeys])].sort(),
   };
 }

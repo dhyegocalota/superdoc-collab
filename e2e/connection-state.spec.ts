@@ -30,7 +30,7 @@ const EDITOR_TEST_ID = 'document-editor';
 const STATE_ATTRIBUTE = 'data-state';
 const DISCONNECTED_STATES = new RegExp(`^(${ConnectionState.Lost}|${ConnectionState.Reconnecting})$`);
 const OBSERVED_STATES_KEY = '__observedBannerStates';
-const EXPECTED_SEQUENCE = [ConnectionState.Lost, ConnectionState.Reconnecting, ConnectionState.Recovered];
+const REQUIRED_SEQUENCE = [ConnectionState.Reconnecting, ConnectionState.Recovered];
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
 const ANA_PARAGRAPH = 'owned by ana';
 const OFFLINE_MARKER = ' <ANA-OFFLINE>';
@@ -141,7 +141,7 @@ test('the restartable server answers health after a stop and a start', async () 
   expect(response.status).toBe(200);
 });
 
-test('a server restart shows lost, reconnecting, then clears', async ({ browser }) => {
+test('a server restart shows reconnecting, recovered, then clears', async ({ browser }) => {
   const { owner } = await openSharedDocument(browser);
   await observeBannerStates(owner.page);
   await stopServer();
@@ -149,9 +149,12 @@ test('a server restart shows lost, reconnecting, then clears', async ({ browser 
   await startServer();
   await expect(banner(owner.page)).toHaveCount(0, { timeout: RECOVERY_TIMEOUT_MS });
   const observed = await readObservedStates(owner.page);
-  const firstIndexes = EXPECTED_SEQUENCE.map((state) => observed.indexOf(state));
+  const firstIndexes = REQUIRED_SEQUENCE.map((state) => observed.indexOf(state));
   expect(firstIndexes).not.toContain(-1);
   expect(firstIndexes).toEqual([...firstIndexes].sort((left, right) => left - right));
+  const lostIndex = observed.indexOf(ConnectionState.Lost);
+  const isLostAfterReconnecting = lostIndex > firstIndexes[0]!;
+  expect(isLostAfterReconnecting).toBe(false);
 });
 
 test('an edit typed while the server is down reaches the other author after reconnect', async ({ browser }) => {

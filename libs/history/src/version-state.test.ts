@@ -1,4 +1,4 @@
-import { VERSION_MARK_MS } from '@superdoc-collab/types';
+import { ClientActor, VERSION_MARK_MS } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
 import { MigrationSet } from './migrations';
@@ -25,7 +25,9 @@ function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadMode
   const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
   const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
   const ana = new Y.Doc();
-  ana.on('update', (update: Uint8Array) => log.append({ documentName: DOCUMENT, connectionUserId: 'ana', update }));
+  ana.on('update', (update: Uint8Array) =>
+    log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update }),
+  );
   writeStory({ document: ana, texts });
   commitBootstrap(ana);
   return { log, readModel, ana };

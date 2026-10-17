@@ -1,5 +1,5 @@
 import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-collab/history';
-import { HOUR_MS, MINUTE_MS, type TopicSummaries } from '@superdoc-collab/types';
+import { HOUR_MS, MINUTE_MS, UTC_TIME_ZONE, type TopicSummaries } from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
@@ -84,7 +84,12 @@ export class SummariesService {
     pipeline: TimelinePipeline;
   }): StaleTopic[] {
     const topicIds = new Set(topics.map((topic) => topic.id));
-    const runs = groupIntoRuns({ events: pipeline.events.filter((event) => topicIds.has(event.bandId)), binMs: SUMMARY_RUN_BIN_MS });
+    // NB ADR 0024: runs only bound the prompt size here, so the zone does not change what the sentences say.
+    const runs = groupIntoRuns({
+      events: pipeline.events.filter((event) => topicIds.has(event.bandId)),
+      binMs: SUMMARY_RUN_BIN_MS,
+      timeZone: UTC_TIME_ZONE,
+    });
     const summarized = new Map(this.repository.summaries(documentId).map((summary) => [summary.topicId, summary.computedAtSequence]));
     return topics
       .map((topic) => ({ topic, runs: runs.filter((run) => run.bandId === topic.id) }))

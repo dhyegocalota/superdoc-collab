@@ -15,9 +15,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
+import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
+import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import {
@@ -48,7 +51,6 @@ const SHARED_DOCUMENT: DocumentSummary = {
   role: DocumentRole.Editor,
 };
 const CREATED_DOCUMENT: DocumentSummary = { ...OWNED_DOCUMENT, id: 'doc-2', title: UNTITLED_DOCUMENT_TITLE };
-const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 function mockApi(list: DocumentsList, sessionUser = SESSION_USER) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -66,6 +68,13 @@ function headersOf(table: HTMLElement): (string | null)[] {
 
 afterEach(() => vi.restoreAllMocks());
 
+test('the header links to the connected apps page', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  const link = await screen.findByRole('link', { name: CONNECTED_APPS_HEADING });
+  expect(link).toHaveAttribute('href', AppRoute.ConnectedApps);
+});
+
 test('empty lists show both empty messages', async () => {
   mockApi({ mine: [], shared: [] });
   renderWithProviders(<DocumentsPage />);
@@ -79,7 +88,9 @@ test('a row of Mine shows the title and the formatted date', async () => {
   renderWithProviders(<DocumentsPage />);
   const row = (await screen.findByText(OWNED_DOCUMENT.title)).closest('tr');
   if (!row) throw new Error('row not found');
-  expect(within(row).getByText(DATE_FORMAT.format(OWNED_DOCUMENT.updatedAt))).toBeInTheDocument();
+  expect(
+    await within(row).findByText(formatTimestamp({ time: OWNED_DOCUMENT.updatedAt, timeZone: SESSION_USER.timeZone })),
+  ).toBeInTheDocument();
 });
 
 test('the page names the app and the list, and the tab says Documents', async () => {
@@ -167,4 +178,10 @@ test('the header has no Admin link for a user', async () => {
   renderWithProviders(<DocumentsPage />);
   await screen.findByText(SESSION_USER.name);
   expect(screen.queryByRole('link', { name: ADMIN_LINK_LABEL })).not.toBeInTheDocument();
+});
+
+test('the header links to Settings', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  expect(await screen.findByRole('link', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
 });

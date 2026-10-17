@@ -1,4 +1,4 @@
-# 0028. The local gate runs what the diff can break
+# 0030. The local gate runs what the diff can break
 
 - Status: Accepted
 - Date: 2026-10-17

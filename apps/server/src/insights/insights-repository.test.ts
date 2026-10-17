@@ -1,4 +1,4 @@
-import { SELECTION_SUMMARY_FAILED_MESSAGE, TOPICS_INTERRUPTED_MESSAGE, TopicState } from '@superdoc-collab/types';
+import { ClientActor, SELECTION_SUMMARY_FAILED_MESSAGE, TOPICS_INTERRUPTED_MESSAGE, TopicState } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';
@@ -115,14 +115,14 @@ test('a selection summary is saved and read back, and a later failure keeps its 
     documentId,
     key: SELECTION_KEY,
     sentence: SENTENCE,
-    authors: ['Ana'],
+    authors: [{ name: 'Ana', actor: ClientActor.Human }],
     computedAtSequence: 7,
     topicsUpdatedAt: null,
   });
   expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({
     key: SELECTION_KEY,
     sentence: SENTENCE,
-    authors: ['Ana'],
+    authors: [{ name: 'Ana', actor: ClientActor.Human }],
     failure: null,
     computedAtSequence: 7,
     topicsUpdatedAt: null,
@@ -137,7 +137,7 @@ test('a selection summary is saved and read back, and a later failure keeps its 
   expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toEqual({
     key: SELECTION_KEY,
     sentence: SENTENCE,
-    authors: ['Ana'],
+    authors: [{ name: 'Ana', actor: ClientActor.Human }],
     failure: SELECTION_SUMMARY_FAILED_MESSAGE,
     computedAtSequence: 7,
     topicsUpdatedAt: null,
@@ -146,13 +146,19 @@ test('a selection summary is saved and read back, and a later failure keeps its 
     documentId,
     key: SELECTION_KEY,
     sentence: 'Ana and Bruno changed the plan.',
-    authors: ['Ana', 'Bruno'],
+    authors: [
+      { name: 'Ana', actor: ClientActor.Human },
+      { name: 'Bruno', actor: ClientActor.Human },
+    ],
     computedAtSequence: 9,
     topicsUpdatedAt: 5,
   });
   expect(insights.selectionSummary({ documentId, key: SELECTION_KEY })).toMatchObject({
     failure: null,
-    authors: ['Ana', 'Bruno'],
+    authors: [
+      { name: 'Ana', actor: ClientActor.Human },
+      { name: 'Bruno', actor: ClientActor.Human },
+    ],
     computedAtSequence: 9,
     topicsUpdatedAt: 5,
   });

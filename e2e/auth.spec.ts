@@ -1,3 +1,5 @@
+import { CONNECTED_APPS_HEADING } from '../apps/web/src/features/connected-apps/connected-apps-copy';
+import { MINE_EMPTY_MESSAGE } from '../apps/web/src/features/documents/documents-copy';
 import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS, documentPagePath, ShareLinkRole } from '../libs/types/src';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readShareLinks, uploadSeed } from './editor';
 import {
@@ -41,6 +43,14 @@ test('visiting documents signed out redirects to sign-in and returns after login
   await expect(page).toHaveURL(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.Documents)}`);
   await signIn({ page, email: ana!.email, password: DEMO_PASSWORD });
   await expectSignedInAs({ page, name: ana!.name });
+});
+
+test('visiting connected apps signed out returns to connected apps after login', async ({ page }) => {
+  await page.goto(AppRoute.ConnectedApps);
+  await expect(page).toHaveURL(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.ConnectedApps)}`);
+  await signIn({ page, email: ana!.email, password: DEMO_PASSWORD });
+  await expect(page).toHaveURL(AppRoute.ConnectedApps);
+  await expect(page.getByRole('heading', { name: CONNECTED_APPS_HEADING })).toBeVisible();
 });
 
 test('a signed-out member who opens a share link lands on the document after signing in', async ({ browser, page }) => {

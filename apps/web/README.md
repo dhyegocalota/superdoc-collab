@@ -1,5 +1,5 @@
 # @superdoc-collab/web
 
-The single-page app: React, Vite, TanStack Query and React Router, styled with Tailwind and shadcn/ui ([ADR 0009](../../docs/adr/0009-design-system.md)). SuperDoc renders the live editor and, inside an iframe, the read-only version viewer. An admin page lets the administrator invite people and change roles.
+The single-page app: React, Vite, TanStack Query and React Router, styled with Tailwind and shadcn/ui ([ADR 0009](../../docs/adr/0009-design-system.md)). SuperDoc renders the live editor and, inside an iframe, the read-only version viewer. Pages for approving an AI client and for revoking its access sit next to the document list. An admin page lets the administrator invite people and change roles.
 
 The server serves the built bundle on its own port.

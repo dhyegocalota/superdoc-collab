@@ -4,6 +4,7 @@ import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatTimestamp } from '@/lib/format-date-time';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { ADMIN_USERS_QUERY_KEY, setUserRole } from './admin-api';
 import {
   ACTION_FAILED_MESSAGE,
@@ -38,6 +39,7 @@ function RoleToggle({ user }: { user: AdminUser }) {
 }
 
 export function UsersTable({ users, signedInUserId }: { users: AdminUser[]; signedInUserId: string }) {
+  const { timeZone } = useTimeZone();
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table aria-label={USERS_TABLE_LABEL}>
@@ -54,7 +56,7 @@ export function UsersTable({ users, signedInUserId }: { users: AdminUser[]; sign
               <TableCell>{user.name}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>{USER_ROLE_LABELS[user.role]}</TableCell>
-              <TableCell>{formatTimestamp(user.createdAt)}</TableCell>
+              <TableCell>{formatTimestamp({ time: user.createdAt, timeZone })}</TableCell>
               <TableCell>{user.id !== signedInUserId && <RoleToggle user={user} />}</TableCell>
             </TableRow>
           ))}

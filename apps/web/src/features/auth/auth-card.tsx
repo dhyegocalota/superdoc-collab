@@ -1,4 +1,3 @@
-import type { AppRoute } from '@superdoc-collab/types';
 import type { ReactNode } from 'react';
 import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Link } from 'react-router';
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form } from '@/components/ui/form';
 
-export type AuthCardLink = { prompt: string; label: string; to: AppRoute };
+export type AuthCardLink = { prompt: string; label: string; to: string };
 
 type AuthCardProps<Values extends FieldValues> = {
   form: UseFormReturn<Values>;

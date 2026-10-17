@@ -50,6 +50,8 @@ Clone the repository and open it in Claude Code or Codex. The first session repo
 
 Open the URL the install printed. An unclaimed instance shows "Claim this instance": create your account there. You are the administrator and sign-up closes behind you. Until you claim it anyone who finds the URL could, so do it right after the deploy.
 
+Times follow your account's time zone: it is taken from your browser at sign-up (or at your next sign-in for older accounts), shown next to the timeline as "Times in <zone>", and changed under **Settings**. Timeline bins of an hour or longer start on your local clock, so a day runs from your local midnight.
+
 ## Invite your team
 
 1. Open `/admin` and choose **Generate invite**.

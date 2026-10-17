@@ -1,5 +1,12 @@
-import { BIN_LADDER_MS } from '@superdoc-collab/history';
-import { FILTER_MAX_LENGTH, NON_NEGATIVE_INTEGER_PATTERN, TimelineQueryParam } from '@superdoc-collab/types';
+import { BIN_LADDER_MS, MAX_BIN_MS } from '@superdoc-collab/history';
+import {
+  canonicalTimeZone,
+  FILTER_MAX_LENGTH,
+  isSupportedTimeZone,
+  NON_NEGATIVE_INTEGER_PATTERN,
+  TimelineQueryParam,
+  WEEK_MS,
+} from '@superdoc-collab/types';
 import { z } from 'zod';
 
 export const INVALID_TIMELINE_QUERY_MESSAGE = 'The timeline query is invalid';
@@ -9,16 +16,21 @@ const filterText = z
   .max(FILTER_MAX_LENGTH)
   .optional()
   .transform((value) => (value ? value : null));
+function isSupportedBinMs(value: number): boolean {
+  return BIN_LADDER_MS.includes(value) || (value > 0 && value <= MAX_BIN_MS && value % WEEK_MS === 0);
+}
+
 const binMsParameter = z.coerce
   .number()
   .int()
-  .refine((value) => BIN_LADDER_MS.includes(value))
+  .refine(isSupportedBinMs)
   .optional()
   .transform((value) => (value === undefined ? null : value));
 export const timelineQuerySchema = z.object({
   [TimelineQueryParam.Term]: filterText,
   [TimelineQueryParam.Author]: filterText,
   [TimelineQueryParam.BinMs]: binMsParameter,
+  [TimelineQueryParam.TimeZone]: z.string().refine(isSupportedTimeZone).transform(canonicalTimeZone),
 });
 function isOptionalSafeInteger(value: string | undefined): boolean {
   if (!value) return true;

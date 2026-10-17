@@ -16,6 +16,8 @@ config_file = ".codex/agents/reviewer.toml"
 config_file = ".codex/agents/recorder.toml"
 [agents.security-reviewer]
 config_file = ".codex/agents/security-reviewer.toml"
+[agents.frontend-designer]
+config_file = ".codex/agents/frontend-designer.toml"
 
 [mcp_servers.playwright]
 command = "npx"

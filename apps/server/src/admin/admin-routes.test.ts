@@ -54,7 +54,12 @@ function setRole({ server, id, role, cookie }: { server: TestServer; id: string;
 function signUpWithToken({ server, email, token }: { server: TestServer; email: string; token: string }): Promise<Response> {
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, {
     method: HttpMethod.Post,
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.202.0.${clientAddress++}`, [INVITE_TOKEN_HEADER]: token },
+    headers: {
+      'content-type': 'application/json',
+      'x-forwarded-for': `10.202.0.${clientAddress++}`,
+      origin: server.baseUrl,
+      [INVITE_TOKEN_HEADER]: token,
+    },
     body: JSON.stringify({ name: 'Eve', email, password: TEST_USER_PASSWORD, timeZone: UTC_TIME_ZONE }),
   });
 }

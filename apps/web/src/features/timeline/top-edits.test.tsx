@@ -1,4 +1,4 @@
-import { documentPagePath, type TopicSummaries } from '@superdoc-collab/types';
+import { ClientActor, documentPagePath, type TopicSummaries } from '@superdoc-collab/types';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
@@ -20,10 +20,10 @@ const [budget, hiring] = base.bands;
 const timeline = {
   ...base,
   authors: {
-    ana: { id: '1', name: 'Ana Souza' },
-    bruno: { id: '2', name: 'Bruno Lima' },
-    carla: { id: '3', name: 'Carla Dias' },
-    diego: { id: '4', name: 'Diego Reis' },
+    ana: { id: '1', name: 'Ana Souza', actor: ClientActor.Human },
+    bruno: { id: '2', name: 'Bruno Lima', actor: ClientActor.Human },
+    carla: { id: '3', name: 'Carla Dias', actor: ClientActor.Human },
+    diego: { id: '4', name: 'Diego Reis', actor: ClientActor.Human },
   },
   contributorsByBand: {
     [budget!.id]: [

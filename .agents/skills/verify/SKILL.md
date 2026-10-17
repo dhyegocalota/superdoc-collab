@@ -5,7 +5,7 @@ argument-hint: [auto|all] [--plan]
 allowed-tools: Bash(pnpm verify:*), Bash(git status:*), Read
 ---
 
-Run `pnpm verify $ARGUMENTS` from the repo root (default `auto`). `scripts/verify.sh` is the only list of gates and `scripts/verify-gates.tsv` the only map from paths to gates ([ADR 0028](../../../docs/adr/0028-the-local-gate-runs-what-the-diff-can-break.md)); never run the steps by hand or repeat them here.
+Run `pnpm verify $ARGUMENTS` from the repo root (default `auto`). `scripts/verify.sh` is the only list of gates and `scripts/verify-gates.tsv` the only map from paths to gates ([ADR 0030](../../../docs/adr/0030-the-local-gate-runs-what-the-diff-can-break.md)); never run the steps by hand or repeat them here.
 
 - `auto` runs what the diff from the last green commit (or the merge base with `origin/main`, fetched first) can break; a commit that is already green runs only the secret scan and the audit. `all` runs every gate. `--plan` prints the base, the class of the whole branch against `origin/main` (`docs`, `tooling` or `product`), the gates and the unit packages, and runs nothing.
 - A missing required tool stops the doctor gate; paste the report verbatim and ask before running any `fix:` line (ADR 0026). A missing `gitleaks`, or Docker when the image changed, fails its gate the same way.

@@ -3,7 +3,7 @@
 **Status:** Building
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17
-**ADRs:** [0028](../../adr/0028-the-local-gate-runs-what-the-diff-can-break.md), [0018](../../adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)
+**ADRs:** [0030](../../adr/0030-the-local-gate-runs-what-the-diff-can-break.md), [0018](../../adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)
 **Not changing:** the gates themselves (typecheck, audit, secret scan, unit, E2E, image build), `.github/workflows/` beyond one added step, the tester's role for product changes, the reviewer and security reviewer for product changes, scenarios
 
 ## Problem

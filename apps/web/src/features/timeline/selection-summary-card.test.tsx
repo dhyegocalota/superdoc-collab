@@ -1,13 +1,14 @@
-import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
-import { render } from '@testing-library/react';
+import { ClientActor, SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { FIXTURE_AUTHOR_NAME } from '@/testing/timeline-fixtures';
+import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR } from '@/testing/timeline-fixtures';
 import { SelectionSummaryCard } from './selection-summary-card';
+import { agentMarkLabel } from './timeline-copy';
 
 const RUNNING_VIEW: SelectionSummaryView = { state: SelectionSummaryState.Running, summary: null, failure: null, isModelAvailable: true };
 const FIRST_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
-  summary: { key: 'first', sentence: 'Ana raised the budget.', authors: [FIXTURE_AUTHOR_NAME], computedAtSequence: 3, isStale: false },
+  summary: { key: 'first', sentence: 'Ana raised the budget.', authors: [FIXTURE_SUMMARY_AUTHOR], computedAtSequence: 3, isStale: false },
   failure: null,
   isModelAvailable: true,
 };
@@ -36,4 +37,20 @@ test('moving between cached summaries never scrolls', () => {
   rerender(card(SECOND_VIEW));
   rerender(card(FIRST_VIEW));
   expect(scrollIntoView).not.toHaveBeenCalled();
+});
+
+test('an agent author is marked from the actor, a human named like one is not', () => {
+  const view: SelectionSummaryView = {
+    ...FIRST_VIEW,
+    summary: {
+      ...FIRST_VIEW.summary!,
+      authors: [
+        { name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Agent },
+        { name: 'Bob · AI', actor: ClientActor.Human },
+      ],
+    },
+  };
+  render(card(view));
+  expect(screen.getAllByRole('img', { name: agentMarkLabel(FIXTURE_AUTHOR_NAME) })).toHaveLength(1);
+  expect(screen.getByTitle('Bob · AI')).not.toContainElement(screen.getByRole('img'));
 });

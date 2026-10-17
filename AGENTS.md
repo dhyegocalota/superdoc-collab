@@ -16,6 +16,7 @@ apps/web          React 19 + Vite + TanStack Query + React Router (SuperDoc runs
 apps/server       Hono + Hocuspocus in one process; SQLite; worker threads
 libs/history      Yjs update log, authorship, projection, windows, snapshots
 libs/types        shared types, enums and constants
+spikes/           throwaway feasibility spikes, standalone installs; answers, not product code
 docs/adr          architecture decision records
 docs/learnings    dated traps, with what inspired them and when they were revisited
 docs/features     one folder per feature: spec.md + plan.md + test-plan.md

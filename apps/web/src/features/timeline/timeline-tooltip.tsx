@@ -2,7 +2,7 @@ import { cellVolume } from '@superdoc-collab/history/timeline';
 import type { DocumentTimeline } from '@superdoc-collab/types';
 import { formatBinRange } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
-import { authorNames } from './author-of';
+import { AuthorNames } from './author-names';
 import { editDeltaLabel, EditUnit } from './timeline-copy';
 
 export const TOOLTIP_WIDTH = 256;
@@ -15,7 +15,7 @@ export enum TooltipAlignment {
   End = 'end',
 }
 
-const ALIGNMENT_CLASS: Record<TooltipAlignment, string> = {
+export const ALIGNMENT_CLASS: Record<TooltipAlignment, string> = {
   [TooltipAlignment.Start]: 'translate-x-0',
   [TooltipAlignment.Center]: '-translate-x-1/2',
   [TooltipAlignment.End]: '-translate-x-full',
@@ -58,6 +58,7 @@ export function TimelineTooltip({
   top: number;
   chartWidth: number;
 }) {
+  const { timeZone } = timeline;
   const bin = timeline.bins[index]!;
   const rows = timeline.bands.map((band) => ({ band, cell: bin.byBand[band.id] })).filter(({ cell }) => cellVolume(cell) > 0);
   const alignment = tooltipAlignment({ left, chartWidth });
@@ -72,11 +73,11 @@ export function TimelineTooltip({
         ALIGNMENT_CLASS[alignment],
       )}
     >
-      <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>
+      <p className="font-medium">{formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone })}</p>
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
           {band.name} {editDeltaLabel({ inserted: cell!.inserted, deleted: cell!.deleted, unit: EditUnit.Character })} ·{' '}
-          {authorNames({ authors: timeline.authors, authorKeys: cell!.authorKeys })}
+          <AuthorNames authors={timeline.authors} authorKeys={cell!.authorKeys} />
         </p>
       ))}
     </div>

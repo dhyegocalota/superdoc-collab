@@ -1,0 +1,1 @@
+ALTER TABLE `edit_events` ADD `connection_actor` text DEFAULT 'human' NOT NULL;

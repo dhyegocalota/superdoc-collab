@@ -1,14 +1,20 @@
 import { byVolumeDescending } from '@superdoc-collab/history/timeline';
-import type { EventAuthor, TimelineContributor } from '@superdoc-collab/types';
+import { ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-collab/types';
 import { initialsOf } from '@/lib/initials';
+import { AgentMark } from './agent-mark';
 import { authorOf } from './author-of';
 
 const MAX_AVATARS = 3;
 
-export function AuthorAvatar({ name }: { name: string }) {
+export function AuthorAvatar({ name, actor }: { name: string; actor: ClientActor }) {
   return (
-    <li title={name} className="flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+    <li title={name} className="relative flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
       {initialsOf(name)}
+      {actor === ClientActor.Agent && (
+        <span className="absolute -right-1 -bottom-1 rounded-full bg-primary p-0.5 text-primary-foreground">
+          <AgentMark name={name} />
+        </span>
+      )}
     </li>
   );
 }
@@ -25,9 +31,10 @@ export function ContributorAvatars({
     .slice(0, MAX_AVATARS);
   return (
     <ul className="flex items-center gap-1">
-      {ranked.map((contributor) => (
-        <AuthorAvatar key={contributor.authorKey} name={authorOf({ authors, authorKey: contributor.authorKey }).name} />
-      ))}
+      {ranked.map((contributor) => {
+        const author = authorOf({ authors, authorKey: contributor.authorKey });
+        return <AuthorAvatar key={contributor.authorKey} name={author.name} actor={author.actor} />;
+      })}
     </ul>
   );
 }

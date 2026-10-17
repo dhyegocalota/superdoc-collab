@@ -1,3 +1,4 @@
+export * from './agent-actions';
 export * from './document-content';
 export * from './document-history';
 export * from './docx-signature';

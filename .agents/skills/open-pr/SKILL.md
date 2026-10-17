@@ -17,7 +17,7 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 ## Gates, in order, stop at the first failure
 
 1. **Verify.** Run `/verify`. Any failure → stop.
-2. **Test plan.** Docs lane → skip. Otherwise every box in `test-plan.md` is ticked with ` — evidence: ` or marked `BLOCKED: <why>`. Any bare `- [ ]` → stop and name them. Class `product`: the ticks must have been written by the `tester` sub-agent; if the plan was ticked by whoever built it, stop and dispatch the tester. Class `tooling` (and a behaviour-preserving refactor): the lead ticks with the gate output as evidence and the reviewer refutes them (ADR 0028).
+2. **Test plan.** Docs lane → skip. Otherwise every box in `test-plan.md` is ticked with ` — evidence: ` or marked `BLOCKED: <why>`. Any bare `- [ ]` → stop and name them. Class `product`: the ticks must have been written by the `tester` sub-agent; if the plan was ticked by whoever built it, stop and dispatch the tester. Class `tooling` (and a behaviour-preserving refactor): the lead ticks with the gate output as evidence and the reviewer refutes them (ADR 0030).
 3. **Review.** Dispatch the `reviewer` sub-agent on `git diff origin/main...HEAD` with the feature folder as context; on the mid model in the docs lane. Verdict `NO` → fix the findings through the plan and rerun from gate 1. `WITH RESERVATIONS` → list them to the owner and wait for an explicit go. `YES` → continue. Keep the reviewer's `Blast radius` and `Merge sensitivity` lines for the PR body.
 3b. **Security review.** Docs lane (the spec says `**Lane:** docs` and the class is `docs`) → write `Security verdict: NOT APPLICABLE — docs lane: <the paths checked>` yourself. Otherwise dispatch the `security-reviewer` sub-agent on `git diff origin/main...HEAD` with `spec.md` as context. `FINDINGS` with any `CRITICAL` or `IMPORTANT` → fix through the plan and rerun from gate 1. `MINOR` only → list them to the owner and continue. Keep the verdict line for the PR body.
 4. **Media.** If the diff touches `apps/web/**` or any user-visible behaviour: `.pr-media/<slug>/` must contain at least one screenshot and `walkthrough.mp4`; otherwise run `/check-ui <route> <slug> --video` first. Dispatch the `recorder` role to upload to the `pr-media-<slug>` pre-release and return the Markdown block.
@@ -36,7 +36,7 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 
 ## Merge
 
-The gate is local (ADR 0028): hosted runs are not waited for. Never run a scenario before the PR opens. When the owner asks for the merge:
+The gate is local (ADR 0030): hosted runs are not waited for. Never run a scenario before the PR opens. When the owner asks for the merge:
 
 0. Read the `paths` front matter of every `docs/scenarios/*.md` and match the globs against `gh pr diff <n> --name-only`; name each scenario that matches and suggest `/scenario <slug>` to the owner, who decides (ADR 0023). When none matches, say so in one line.
 1. `git fetch origin`, merge `origin/main` into the branch (never rebase) and run `/verify`. It runs only what `origin/main` brought in that the branch's last green commit did not cover.

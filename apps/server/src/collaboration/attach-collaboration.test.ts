@@ -14,6 +14,7 @@ import { connect } from 'node:net';
 import { Duplex } from 'node:stream';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
+import { CollaborationRefusedError, connectAgentToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { attachCollaboration } from './attach-collaboration';
@@ -30,6 +31,7 @@ const SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS = 15_000;
 const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
 const ORIGIN = 'http://app.test';
+const FOREIGN_ADDRESS = '203.0.113.9';
 
 function upgradeRequest({ path, origin, cookie }: { path: string; origin: string; cookie: string }): string {
   return [
@@ -73,11 +75,21 @@ function exchange({
   });
 }
 
-function firstChunk({ server, path, cookie }: { server: TestServer; path: string; cookie: string }): Promise<string> {
+function firstChunk({
+  server,
+  path,
+  cookie,
+  origin = server.baseUrl,
+}: {
+  server: TestServer;
+  path: string;
+  cookie: string;
+  origin?: string;
+}): Promise<string> {
   const { port } = new URL(server.baseUrl);
   return new Promise((resolve) => {
     const socket = connect({ host: LOOPBACK_HOST, port: Number(port) });
-    socket.on('connect', () => socket.write(upgradeRequest({ path, origin: server.baseUrl, cookie })));
+    socket.on('connect', () => socket.write(upgradeRequest({ path, origin, cookie })));
     socket.once('data', (chunk) => {
       resolve(chunk.toString());
       socket.destroy();
@@ -117,9 +129,27 @@ describe('attachCollaboration', () => {
       await server.stop();
     },
   );
-  test('an upgrade without an origin is destroyed', async () => {
+  test('the browser path still refuses a missing origin', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: ApiPath.Collaboration, origin: '' });
+    expect(response).toBe('');
+    await server.stop();
+  });
+  test('an agent path upgrade without an origin reaches authentication', async () => {
+    const server = await startTestServer();
+    const response = await firstChunk({ server, path: ApiPath.AgentCollaboration, cookie: '', origin: '' });
+    expect(response.startsWith('HTTP/1.1 101')).toBe(true);
+    expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    await server.stop();
+  });
+  test('an agent path connection with an empty token is refused by authentication', async () => {
+    const { server, documentId } = await documentWithOwner();
+    await expect(connectAgentToDocument({ server, token: '', documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    await server.stop();
+  });
+  test('an upgrade on a path that only extends the agent path is destroyed', async () => {
+    const server = await startTestServer();
+    const response = await exchange({ server, path: `${ApiPath.AgentCollaboration}/other`, origin: '' });
     expect(response).toBe('');
     await server.stop();
   });
@@ -210,5 +240,25 @@ describe('attachCollaboration', () => {
     await vi.waitFor(() => expect(end).toHaveBeenCalledOnce());
     expect(() => socket.emit('error', new Error(RESET_FAILURE))).not.toThrow();
     expect(socket.destroyed).toBe(true);
+  });
+
+  test('an agent upgrade from a non-loopback address is refused', () => {
+    const httpServer = new EventEmitter();
+    attachCollaboration({
+      httpServer: httpServer as unknown as Server,
+      hocuspocus: {} as Hocuspocus,
+      versionRooms: {} as unknown as VersionRooms,
+      path: ApiPath.Collaboration,
+      allowedOrigin: ORIGIN,
+    });
+    const socket = new Duplex({ read: () => undefined, write: () => undefined });
+    const destroy = vi.spyOn(socket, 'destroy');
+    httpServer.emit(
+      'upgrade',
+      { url: ApiPath.AgentCollaboration, headers: {}, socket: { remoteAddress: FOREIGN_ADDRESS } },
+      socket,
+      Buffer.alloc(0),
+    );
+    expect(destroy).toHaveBeenCalledOnce();
   });
 });

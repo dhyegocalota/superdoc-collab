@@ -1,6 +1,6 @@
 # Test plan: Gate by path
 
-Every checkbox states the input and the exact expected outcome. A ticked box carries evidence after ` — evidence: ` (commit hash, log path, counts). Tooling change: the lead ticks with the gate output and the reviewer refutes (ADR 0028).
+Every checkbox states the input and the exact expected outcome. A ticked box carries evidence after ` — evidence: ` (commit hash, log path, counts). Tooling change: the lead ticks with the gate output and the reviewer refutes (ADR 0030).
 
 Evidence key: **T** = `bash scripts/verify.test.sh` at `f9bb2b7`, `verify: all checks passed` (the named check in quotes); **H** = `bash .agents/hooks/hooks.test.sh` at `f9bb2b7`, `hooks: all checks passed`. Boxes whose expectation changed during review are struck through and restated; the reviewer re-ran its attacks against each restatement.
 

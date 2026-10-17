@@ -1,3 +1,5 @@
+import { AgentActionKind } from '@superdoc-collab/types';
+
 export const TIMELINE_HEADING = 'Timeline';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
@@ -27,6 +29,20 @@ export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date.';
 export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
+export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
+
+export const AGENT_ACTION_LABELS: Record<AgentActionKind, string> = {
+  [AgentActionKind.ShareLinkRotated]: 'rotated a share link',
+  [AgentActionKind.DocumentExported]: 'exported the document',
+};
+
+export function agentMarkLabel(name: string): string {
+  return `Edited by ${name}'s AI`;
+}
+
+export function agentActionLabel({ name, kind }: { name: string; kind: AgentActionKind }): string {
+  return `${name}'s AI ${AGENT_ACTION_LABELS[kind]}`;
+}
 
 const INSERTED_SIGN = '+';
 const DELETED_SIGN = '−';

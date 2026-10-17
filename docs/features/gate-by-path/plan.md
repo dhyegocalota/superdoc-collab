@@ -25,11 +25,11 @@ G2's ADR, spec and plans land first. G1 builds red then green. G2's harness and 
 - [x] **Step 1:** red: `scripts/verify.test.sh` with every case of `test-plan.md`, `scripts/verify.sh` a stub that prints `verify.sh is not implemented` and exits 1; commit alone. — evidence: 9564661
 - [x] **Step 2:** `scripts/verify-gates.tsv` and `scripts/verify.sh` until the test is green. — evidence: 593d895
 - [x] **Step 3:** `package.json` scripts, `verify.yml` `checks` step and its repository-shape pin, the doctor's `gitleaks` line and its hook test. — evidence: 410bf1e
-- [x] **Step 4:** tester briefing (the lead ticks the test plan; tooling has no tester, ADR 0028). — evidence: the commit that adds tester-briefing.md
+- [x] **Step 4:** tester briefing (the lead ticks the test plan; tooling has no tester, ADR 0030). — evidence: the commit that adds tester-briefing.md
 
 ### G2
 
-- [x] **Step 5:** ADR 0028, learning, spec, plan, test plan, features index. — evidence: c7d9caa
+- [x] **Step 5:** ADR 0030, learning, spec, plan, test plan, features index. — evidence: c7d9caa
 - [x] **Step 6:** `/verify` calls `pnpm verify`; `/open-pr` reads the class, the docs lane, the local merge. — evidence: 3fb1564, 79ba4de, 239e944
 - [x] **Step 7:** `HARNESS.md`: invariants 2–4, §1 docs lane, §5, §7, §10, §12. — evidence: cfa6b55, 79ba4de, 239e944
 
@@ -47,7 +47,7 @@ G2's ADR, spec and plans land first. G1 builds red then green. G2's harness and 
 ## Z. Prove and ship
 
 - [x] **Tester briefing:** a developer wrote `tester-briefing.md`. — evidence: a709952, amended b63f99e, f9bb2b7
-- [x] **Test plan:** the lead ticked it with the gate output (tooling, ADR 0028). — evidence: c80c1b7
+- [x] **Test plan:** the lead ticked it with the gate output (tooling, ADR 0030). — evidence: c80c1b7
 - [x] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict and refuted the three riskiest claims. — evidence: NO (1 critical, 5 important) at 0386b0a → YES at de4997a; minors folded in 239e944, f9bb2b7
 - [x] **Security reviewer:** verdict recorded. — evidence: FINDINGS (2 important) → MINOR only at de4997a → one MINOR at f9bb2b7, pinned by e23bd6d
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened, local gate posted, merged.

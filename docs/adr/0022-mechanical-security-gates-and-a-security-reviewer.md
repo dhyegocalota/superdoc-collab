@@ -29,7 +29,7 @@ Security was one lens of the general `reviewer` role, next to conventions, corre
 ## Consequences
 
 - `pnpm security:audit` runs locally in `/verify` and in CI; a new production advisory at `high` blocks the merge until the dependency is bumped or the CVE is listed with a reason.
-- `gitleaks` scans every commit reachable from the PR head; a leaked secret blocks the PR and must be rotated, not only removed. The allowlist holds exact anchored strings only; a pattern with a wildcard would let a random secret borrow a placeholder's name.
+- `gitleaks git` scans every commit reachable from the PR head and `gitleaks dir` scans the checked-out tree, because `git log -p` prints no patch for a merge commit and a secret first added while resolving a merge would otherwise pass; the tree scan runs before the dependencies are installed so `node_modules` is never scanned. A leaked secret blocks the PR and must be rotated, not only removed. Local `/verify` runs the history scan only; the tree scan is CI's. The allowlist holds exact anchored strings only; a pattern with a wildcard would let a random secret borrow a placeholder's name.
 - Dependabot PRs follow the same gates as any PR: `/verify`, reviewer, security reviewer.
 - `/open-pr` gains gate 3b: the `security-reviewer` verdict. `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build.
 - Three agent surfaces (`.agents/roles`, `.claude/agents`, `.codex/agents`) gain one role; the repository-shape test keeps them in step.

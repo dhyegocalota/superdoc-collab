@@ -16,7 +16,9 @@ const SECURITY_STEPS = [
   'sha256sum --check --strict',
   'run: .github/scripts/secret-rules-probe.sh ./gitleaks',
   'run: ./gitleaks git --no-banner --redact --exit-code 1 .',
+  'run: ./gitleaks dir --no-banner --redact --exit-code 1 .',
 ];
+const TREE_SCAN_STEP = 'run: ./gitleaks dir --no-banner --redact --exit-code 1 .';
 const FULL_HISTORY_CHECKOUT = 'fetch-depth: 0';
 const UNIT_JOB = 'unit';
 const INSTALL_ACTION = 'uses: ./.github/actions/install';
@@ -86,6 +88,11 @@ describe('CI workflow', () => {
     expect(SECURITY_STEPS.filter((step) => !security.includes(step))).toEqual([]);
     expect(security).toContain(FULL_HISTORY_CHECKOUT);
     expect(security).not.toContain(TOKEN_REFERENCE);
+  });
+
+  test('the security job scans the tree before the dependencies are installed', () => {
+    const security = job(SECURITY_JOB);
+    expect(security.indexOf(TREE_SCAN_STEP)).toBeLessThan(security.indexOf(INSTALL_ACTION));
   });
 
   test('no job waits for another job', () => {

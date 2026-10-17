@@ -113,8 +113,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/install
-      - run: pnpm security:audit
       - name: Install gitleaks at a pinned version, verified by checksum
         run: |
           set -euo pipefail
@@ -125,3 +123,7 @@ jobs:
         run: .github/scripts/secret-rules-probe.sh ./gitleaks
       - name: Every commit reachable from the head is free of secrets
         run: ./gitleaks git --no-banner --redact --exit-code 1 .
+      - name: The checked-out tree is free of secrets, merge commits included
+        run: ./gitleaks dir --no-banner --redact --exit-code 1 .
+      - uses: ./.github/actions/install
+      - run: pnpm security:audit

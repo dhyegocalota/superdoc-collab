@@ -1,15 +1,54 @@
+import { MINUTE_MS } from '@superdoc-history/types';
+
 const TIMESTAMP_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-const TIME_OF_DAY_FORMAT = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' });
-const RANGE_SEPARATOR = ' – ';
+const VERSION_TIME_FORMAT = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' });
+const DATED_VERSION_TIME_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
+const MINUTE_PARTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+const SECOND_PARTS: Intl.DateTimeFormatOptions = { ...MINUTE_PARTS, second: '2-digit' };
+const YEAR_PART: Intl.DateTimeFormatOptions = { year: 'numeric' };
+
+export enum TimePrecision {
+  Minute = 'minute',
+  Second = 'second',
+}
+
+const PARTS_BY_PRECISION: Record<TimePrecision, Intl.DateTimeFormatOptions> = {
+  [TimePrecision.Minute]: MINUTE_PARTS,
+  [TimePrecision.Second]: SECOND_PARTS,
+};
+
+export function precisionOf(binMs: number): TimePrecision {
+  if (binMs < MINUTE_MS) return TimePrecision.Second;
+  return TimePrecision.Minute;
+}
+
+function isThisYear(time: number): boolean {
+  return new Date(time).getFullYear() === new Date().getFullYear();
+}
+
+function isToday(time: number): boolean {
+  return new Date(time).toDateString() === new Date().toDateString();
+}
+
+function binFormat({ time, binMs }: { time: number; binMs: number }): Intl.DateTimeFormat {
+  const parts = PARTS_BY_PRECISION[precisionOf(binMs)];
+  if (isThisYear(time)) return new Intl.DateTimeFormat(undefined, parts);
+  return new Intl.DateTimeFormat(undefined, { ...parts, ...YEAR_PART });
+}
 
 export function formatTimestamp(time: number): string {
   return TIMESTAMP_FORMAT.format(time);
 }
 
-export function formatTimeOfDay(time: number): string {
-  return TIME_OF_DAY_FORMAT.format(time);
+export function formatBinMoment({ time, binMs }: { time: number; binMs: number }): string {
+  return binFormat({ time, binMs }).format(time);
 }
 
-export function formatBinRange({ start, end }: { start: number; end: number }): string {
-  return `${formatTimestamp(start)}${RANGE_SEPARATOR}${formatTimestamp(end)}`;
+export function formatBinRange({ start, binMs }: { start: number; binMs: number }): string {
+  return binFormat({ time: start, binMs }).formatRange(start, start + binMs);
+}
+
+export function formatVersionMoment(time: number): string {
+  if (isToday(time)) return VERSION_TIME_FORMAT.format(time);
+  return DATED_VERSION_TIME_FORMAT.format(time);
 }

@@ -1,7 +1,7 @@
 import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
 import {
   bandAriaLabel,
-  REFRESH_TOPICS_LABEL,
+  REGROUP_TOPICS_LABEL,
   removeFilterLabel,
   RETRY_TOPICS_LABEL,
   TOP_EDITS_LABEL,
@@ -55,7 +55,7 @@ test('Refresh topics recomputes the names from the current text', async ({ brows
   await ana.page.keyboard.press('Home');
   await ana.page.keyboard.type(RENAMED_PREFIX);
   await expect.poll(() => bandVolume({ page: ana.page, name: HIRING }), { timeout: BANDS_TIMEOUT_MS }).toBeGreaterThan(volumeBefore);
-  await ana.page.getByRole('button', { name: REFRESH_TOPICS_LABEL }).click();
+  await ana.page.getByRole('button', { name: REGROUP_TOPICS_LABEL }).click();
   await waitForBands({ page: ana.page, names: [`${RENAMED_PREFIX}${HIRING}`] });
 });
 

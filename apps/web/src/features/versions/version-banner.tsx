@@ -2,22 +2,17 @@ import { VersionViewerState, VERSION_FAILED_MESSAGE } from '@superdoc-history/ty
 import { Button } from '@/components/ui/button';
 import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, versionAtLabel } from '@/features/timeline/timeline-copy';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
-import { formatTimeOfDay, formatTimestamp } from '@/lib/format-date-time';
-
-function formatMoment(time: number): string {
-  const isToday = new Date(time).toDateString() === new Date().toDateString();
-  return (isToday ? formatTimeOfDay : formatTimestamp)(time);
-}
+import { formatVersionMoment } from '@/lib/format-date-time';
 
 function loadingMessage(timeTravel: TimeTravel): string {
   if (timeTravel.requestedBinEnd === null) return LOADING_VERSION_MESSAGE;
-  return `${LOADING_VERSION_MESSAGE} ${formatTimestamp(timeTravel.requestedBinEnd)}`;
+  return `${LOADING_VERSION_MESSAGE} ${formatVersionMoment(timeTravel.requestedBinEnd)}`;
 }
 
 function bannerMessage(timeTravel: TimeTravel): string {
   if (timeTravel.hasFailed) return VERSION_FAILED_MESSAGE;
   if (timeTravel.isLoading || !timeTravel.shown) return loadingMessage(timeTravel);
-  return versionAtLabel(formatMoment(timeTravel.shown.serverTime));
+  return versionAtLabel(formatVersionMoment(timeTravel.shown.serverTime));
 }
 
 export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {

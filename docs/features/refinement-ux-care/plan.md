@@ -357,7 +357,7 @@ git commit -m "feat(web): add the page title hook, skeleton and menu primitives 
   - `formatVersionMoment(time: number): string`
   - `enum EditUnit { Word = 'word', Character = 'character' }`, `countLabel({ count, unit }: { count: number; unit: EditUnit }): string`, `editDeltaLabel({ inserted, deleted, unit }: { inserted: number; deleted: number; unit: EditUnit }): string`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (6f68162)
 
 `apps/web/src/lib/format-date-time.test.ts`:
 
@@ -440,19 +440,19 @@ In `streamgraph.test.tsx`, change the hover test's `'+120 −0'` expectation to 
 
 Inert stubs: `format-date-time.ts` exports `formatBinMoment` returning `formatTimestamp(time)` and `formatVersionMoment` returning `formatTimestamp(time)`; `timeline-copy.ts` exports `EditUnit` and `editDeltaLabel` returning `wordsDeltaLabel({ inserted, deleted })`.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (6f68162, 11 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib/format-date-time.test.ts src/features/timeline/timeline-copy.test.ts src/features/timeline/streamgraph.test.tsx`
 Expected: FAIL on `expected null to have a length of 2` (no seconds today), on `expected '+1 words −0 words' to be '+1 word'`, on `'Budget, 1 characters'`, and on the tooltip's `'+120 characters'`.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (6f68162)
 
 ```bash
 git add apps/web/src/lib/format-date-time.ts apps/web/src/lib/format-date-time.test.ts apps/web/src/features/timeline/timeline-copy.ts apps/web/src/features/timeline/timeline-copy.test.ts apps/web/src/features/timeline/streamgraph.test.tsx
 git commit -m "test(web): pin bin ranges with one date and labelled edit units"
 ```
 
-- [ ] **Step 4: Implement the formatters**
+- [x] **Step 4: Implement the formatters** (9c931ec)
 
 `apps/web/src/lib/format-date-time.ts` (keep lane B's `formatTimestamp` as it is):
 
@@ -515,7 +515,7 @@ export function formatVersionMoment(time: number): string {
 
 If lane B moved `RANGE_SEPARATOR` here, delete it: `formatRange` owns the separator.
 
-- [ ] **Step 5: Implement the units**
+- [x] **Step 5: Implement the units** (9c931ec)
 
 `apps/web/src/features/timeline/timeline-copy.ts`: delete `wordsDeltaLabel`, rewrite `bandAriaLabel`, add:
 
@@ -598,12 +598,12 @@ export function bandNamed({ page, name }: { page: Page; name: string }): Locator
 }
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests** (9c931ec, web 230/230)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/lib src/features/timeline src/features/versions && pnpm typecheck`
 Expected: PASS. `rg -n "wordsDeltaLabel|formatMoment\b" apps/web/src e2e` prints nothing.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit** (9c931ec)
 
 ```bash
 git add apps/web/src/lib/format-date-time.ts apps/web/src/features/timeline/timeline-copy.ts apps/web/src/features/timeline/timeline-tooltip.tsx apps/web/src/features/timeline/top-edits.tsx apps/web/src/features/timeline/streamgraph.test.tsx apps/web/src/features/versions/version-banner.tsx apps/web/src/features/versions/time-travel.test.tsx e2e/timeline.ts
@@ -631,7 +631,7 @@ git commit -m "fix(web): name the date once in bin ranges and label every edit c
   - `StreamgraphLegend({ bands, maxVolume }: { bands: TimelineBand[]; maxVolume: number })`.
   - `CHART_HINT`, `LEGEND_LABEL` in `timeline-copy.ts`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (105efae)
 
 Append to `streamgraph.test.tsx` (add `within` to the Testing Library import, `formatBinMoment` from `@/lib/format-date-time`, `CHART_HINT, LEGEND_LABEL` from `./timeline-copy`):
 
@@ -692,19 +692,19 @@ test('collapsing the panel drops its width and the resize handle', async () => {
 
 Inert stubs: `CHART_HINT`, `LEGEND_LABEL` constants and `export enum PanelState` exist, unused.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (105efae, 5 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/streamgraph.test.tsx src/features/timeline/timeline-panel.test.tsx`
 Expected: FAIL on `Unable to find an element with the text` (time labels, hint), `Unable to find role="list"`, the pinned tooltip found, `expected 3 to have length 1` tab stops, and the separator still present.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (105efae)
 
 ```bash
 git add apps/web/src/features/timeline/streamgraph.test.tsx apps/web/src/features/timeline/timeline-panel.test.tsx apps/web/src/features/timeline/timeline-copy.ts apps/web/src/features/timeline/timeline-panel.tsx
 git commit -m "test(web): pin the explained chart and the collapsed rail"
 ```
 
-- [ ] **Step 4: Implement the collapsed rail**
+- [x] **Step 4: Implement the collapsed rail** (eb360f3)
 
 `timeline-panel.tsx` (import `cn` from `@/lib/utils`):
 
@@ -729,7 +729,7 @@ export enum PanelState {
 
 The rest of the header and body is unchanged in this task.
 
-- [ ] **Step 5: Implement the swatch, legend and chip ring**
+- [x] **Step 5: Implement the swatch, legend and chip ring** (eb360f3)
 
 `topic-swatch.tsx`:
 
@@ -788,7 +788,7 @@ export const CHART_HINT = 'Click the chart or use ← → to see the document at
 export const LEGEND_LABEL = 'Topics';
 ```
 
-- [ ] **Step 6: Implement the chart changes**
+- [x] **Step 6: Implement the chart changes** (eb360f3)
 
 `streamgraph.tsx`:
 
@@ -861,12 +861,12 @@ The path gets `tabIndex={shape.band.id === focusableBandId ? 0 : -1}`, `onFocus=
 
 The hooks (`useRef`, `useState`, `useMemo`) stay above the early return, as today.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests** (eb360f3, web 236/236)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline && pnpm typecheck`
 Expected: PASS, including the existing focus, Escape and tooltip tests (they focus without a pointer, so the keyboard tooltip still shows).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit** (eb360f3)
 
 ```bash
 git add apps/web/src/features/timeline/timeline-panel.tsx apps/web/src/features/timeline/streamgraph.tsx apps/web/src/features/timeline/streamgraph-legend.tsx apps/web/src/features/timeline/topic-swatch.tsx apps/web/src/features/timeline/topic-chip.tsx apps/web/src/features/timeline/timeline-copy.ts
@@ -893,7 +893,7 @@ git commit -m "fix(web): explain the chart, collapse the panel to a rail and kee
 - Consumes: `bg-inserted`, `bg-deleted` from Task 1.
 - Produces: `REGROUP_TOPICS_LABEL` (replaces `REFRESH_TOPICS_LABEL`), `REGROUPING_TOPICS_MESSAGE`, `NOTHING_TO_GROUP_MESSAGE`, exported `AUTHOR_PREFIX`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests** (f859ee5)
 
 `timeline-panel.test.tsx` (rename every `REFRESH_TOPICS_LABEL` import and use to `REGROUP_TOPICS_LABEL`; import `NOTHING_TO_GROUP_MESSAGE`, `TOP_EDITS_LABEL`, and `beforeEach` from `vitest`):
 
@@ -975,19 +975,19 @@ test('no band with edits renders nothing, not an empty heading', () => {
 
 Inert stubs: `REGROUP_TOPICS_LABEL` exported with the old value `'Refresh topics'`, `NOTHING_TO_GROUP_MESSAGE` and `REGROUPING_TOPICS_MESSAGE` exported, `AUTHOR_PREFIX` exported. Update `e2e/timeline.spec.ts` and `e2e/time-travel.spec.ts` to import `REGROUP_TOPICS_LABEL`.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail** (f859ee5, 7 red on their assertions)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline`
 Expected: FAIL on document order (the card renders after Top edits), `scrollIntoView` never called, `TOPICS_PENDING_MESSAGE` found, the Top edits heading found, `regroup` enabled, `tagName` `P` instead of `INS`, chip text `Bruno` instead of `@Bruno`.
 
-- [ ] **Step 3: Commit the red tests**
+- [x] **Step 3: Commit the red tests** (f859ee5)
 
 ```bash
 git add apps/web/src/features/timeline/timeline-panel.test.tsx apps/web/src/features/timeline/filter-box.test.tsx apps/web/src/features/timeline/top-edits.test.tsx apps/web/src/features/timeline/timeline-copy.ts apps/web/src/features/timeline/use-timeline-search.ts apps/web/src/features/timeline/timeline-panel.tsx e2e/timeline.spec.ts e2e/time-travel.spec.ts
 git commit -m "test(web): pin the summary card position and a consistent empty panel"
 ```
 
-- [ ] **Step 4: Implement the copy**
+- [x] **Step 4: Implement the copy** (dd71f7c)
 
 `timeline-copy.ts`:
 
@@ -1001,7 +1001,7 @@ export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 
 (`REFRESH_TOPICS_LABEL` is deleted.)
 
-- [ ] **Step 5: Implement the panel**
+- [x] **Step 5: Implement the panel** (dd71f7c)
 
 `timeline-panel.tsx`:
 
@@ -1036,7 +1036,7 @@ The body order:
 {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
 ```
 
-- [ ] **Step 6: Implement the card**
+- [x] **Step 6: Implement the card** (dd71f7c)
 
 `selection-summary-card.tsx`:
 
@@ -1062,7 +1062,7 @@ useRevealOnChange({ revealKey: isRunning ? RUNNING_REVEAL_KEY : summary?.key, ta
 
 and the section becomes `<section ref={sectionRef} aria-labelledby={headingId} className="flex flex-col gap-2 rounded-md border p-3">`.
 
-- [ ] **Step 7: Implement the empty states, snippets and chips**
+- [x] **Step 7: Implement the empty states, snippets and chips** (dd71f7c)
 
 `timeline-notices.tsx`:
 
@@ -1105,12 +1105,12 @@ function chipText({ param, value }: { param: TimelineSearchParam; value: string 
 
 The chip renders `chipText({ param: chip.param, value: chip.value! })` as its text and in `removeFilterLabel(...)`.
 
-- [ ] **Step 8: Run the tests**
+- [x] **Step 8: Run the tests** (dd71f7c, web 242/242)
 
 Run: `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline && pnpm typecheck`
 Expected: PASS. `rg -n "REFRESH_TOPICS_LABEL" apps e2e` prints nothing.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit** (dd71f7c)
 
 ```bash
 git add apps/web/src/features/timeline/timeline-panel.tsx apps/web/src/features/timeline/selection-summary-card.tsx apps/web/src/features/timeline/timeline-notices.tsx apps/web/src/features/timeline/top-edits.tsx apps/web/src/features/timeline/bin-edits.tsx apps/web/src/features/timeline/filter-box.tsx apps/web/src/features/timeline/timeline-copy.ts

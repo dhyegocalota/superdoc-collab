@@ -1,5 +1,5 @@
 import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
-import { useId } from 'react';
+import { useEffect, useId, useRef, type RefObject } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AuthorAvatar } from './contributor-avatars';
@@ -11,6 +11,8 @@ import {
   SELECTION_SUMMARY_HEADING,
   SUMMARIZING_EDITS_MESSAGE,
 } from './timeline-copy';
+
+const RUNNING_REVEAL_KEY = 'running';
 
 type SelectionSummaryCardProps = {
   view: SelectionSummaryView | undefined;
@@ -25,15 +27,26 @@ function errorMessage(error: Error): string {
   return error.message;
 }
 
+function useRevealOnChange({ revealKey, targetRef }: { revealKey: string | undefined; targetRef: RefObject<HTMLElement | null> }): void {
+  const lastRevealKey = useRef(revealKey);
+  useEffect(() => {
+    if (lastRevealKey.current === revealKey) return;
+    lastRevealKey.current = revealKey;
+    targetRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [revealKey, targetRef]);
+}
+
 function SummarySection({ view, error, canRequest, isPending, onRetry }: SelectionSummaryCardProps & { view: SelectionSummaryView }) {
   const headingId = useId();
   const { summary } = view;
   const isRunning = view.state === SelectionSummaryState.Running;
   const isRetryableFailure = view.state === SelectionSummaryState.Failed && view.isModelAvailable;
   const hasContent = summary !== null || isRunning || isRetryableFailure || error !== null;
+  const sectionRef = useRef<HTMLElement>(null);
+  useRevealOnChange({ revealKey: isRunning ? RUNNING_REVEAL_KEY : summary?.key, targetRef: sectionRef });
   if (!hasContent) return null;
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
+    <section ref={sectionRef} aria-labelledby={headingId} className="flex flex-col gap-2 rounded-md border p-3">
       <h3 id={headingId} className="text-sm font-medium">
         {SELECTION_SUMMARY_HEADING}
       </h3>

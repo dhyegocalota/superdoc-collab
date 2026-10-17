@@ -1,15 +1,22 @@
-import { DocumentRole, type EditSelection } from '@superdoc-history/types';
+import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
+import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
 import { FilterBox } from './filter-box';
 import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';
 import { SelectionSummaryCard } from './selection-summary-card';
 import { SummarizeEditsButton } from './summarize-edits-button';
 import { Streamgraph } from './streamgraph';
-import { REFRESH_TOPICS_LABEL, RESIZE_PANEL_LABEL, TIMELINE_HEADING } from './timeline-copy';
+import {
+  NOTHING_TO_GROUP_MESSAGE,
+  REGROUP_TOPICS_LABEL,
+  REGROUPING_TOPICS_MESSAGE,
+  RESIZE_PANEL_LABEL,
+  TIMELINE_HEADING,
+} from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useElementWidth } from '@/lib/use-element-width';
@@ -26,6 +33,11 @@ enum ResizeKey {
 }
 
 const PRIMARY_BUTTON_PRESSED = 1;
+
+export enum PanelState {
+  Open = 'open',
+  Collapsed = 'collapsed',
+}
 
 type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
@@ -71,6 +83,12 @@ function ResizeHandle({
   );
 }
 
+function regroupDisabledReason({ timeline, isPending }: { timeline: DocumentTimeline | undefined; isPending: boolean }): string | null {
+  if (isPending) return REGROUPING_TOPICS_MESSAGE;
+  if (timeline && timeline.bins.length === 0) return NOTHING_TO_GROUP_MESSAGE;
+  return null;
+}
+
 export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: TimelinePanelProps) {
   const [isOpen, setIsOpen] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -108,6 +126,8 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const disabledReason = timeline
     ? summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending })
     : null;
+  const regroupReasonId = useId();
+  const regroupReason = regroupDisabledReason({ timeline, isPending: refresh.isPending });
   const summaryError = errorForSelection({ error: summarize.error, variables: summarize.variables, selection });
 
   useEffect(() => {
@@ -127,20 +147,31 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
 
   return (
     <aside
-      className="flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l"
+      data-state={isOpen ? PanelState.Open : PanelState.Collapsed}
+      className={cn(
+        'flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:border-t-0 lg:border-l',
+        isOpen ? 'lg:w-[var(--panel-width)]' : 'lg:w-auto',
+      )}
       style={{ '--panel-width': `${width}px` } as CSSProperties}
     >
-      <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />
+      {isOpen && <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2">
-          <h2 className="px-2 text-sm font-medium">{TIMELINE_HEADING}</h2>
+        <header className={cn('flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2', !isOpen && 'lg:flex-col')}>
+          <h2 className={cn('px-2 text-sm font-medium', !isOpen && 'lg:sr-only')}>{TIMELINE_HEADING}</h2>
           <div className="flex flex-wrap items-center justify-end gap-1">
             {isOpen && canRefresh && timeline && (
               <SummarizeEditsButton disabledReason={disabledReason} reasonId={reasonId} onSummarize={() => summarize.mutate(selection)} />
             )}
             {isOpen && canRefresh && (
-              <Button type="button" variant="outline" size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate()}>
-                {REFRESH_TOPICS_LABEL}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={regroupReason !== null}
+                aria-describedby={regroupReason === null ? undefined : regroupReasonId}
+                onClick={() => refresh.mutate()}
+              >
+                {REGROUP_TOPICS_LABEL}
               </Button>
             )}
             <Button
@@ -156,6 +187,11 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
           {isOpen && canRefresh && disabledReason !== null && (
             <p id={reasonId} className="basis-full px-2 text-xs text-muted-foreground">
               {disabledReason}
+            </p>
+          )}
+          {isOpen && canRefresh && regroupReason !== null && (
+            <p id={regroupReasonId} className="basis-full px-2 text-xs text-muted-foreground">
+              {regroupReason}
             </p>
           )}
         </header>
@@ -182,8 +218,6 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               )}
             </div>
             <FilterBox />
-            {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
-            {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
             <SelectionSummaryCard
               view={selectionSummary}
               error={summaryError}
@@ -191,6 +225,8 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               isPending={summarize.isPending}
               onRetry={() => summarize.mutate(selection)}
             />
+            {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
+            {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
           </div>
         )}
       </div>

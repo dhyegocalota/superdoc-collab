@@ -5,12 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KeyboardKey } from '@/lib/keyboard';
 import { CLEAR_FILTERS_LABEL, FILTER_LABEL, FILTER_PLACEHOLDER, removeFilterLabel } from './timeline-copy';
-import { parseFilterInput, useTimelineSearch } from './use-timeline-search';
+import { AUTHOR_PREFIX, parseFilterInput, useTimelineSearch } from './use-timeline-search';
 
 const PARAM_BY_KIND: Record<TimelineFilterKind, TimelineSearchParam> = {
   [TimelineFilterKind.Term]: TimelineSearchParam.Term,
   [TimelineFilterKind.Author]: TimelineSearchParam.Author,
 };
+
+function chipText({ param, value }: { param: TimelineSearchParam; value: string }): string {
+  if (param === TimelineSearchParam.Author) return `${AUTHOR_PREFIX}${value}`;
+  return value;
+}
 
 export function FilterBox() {
   const { search, update } = useTimelineSearch();
@@ -55,10 +60,10 @@ export function FilterBox() {
               type="button"
               variant="secondary"
               size="sm"
-              aria-label={removeFilterLabel(chip.value!)}
+              aria-label={removeFilterLabel(chipText({ param: chip.param, value: chip.value! }))}
               onClick={() => update({ changes: { [chip.param]: null }, replace: true })}
             >
-              {chip.value}
+              {chipText({ param: chip.param, value: chip.value! })}
               <X />
             </Button>
           ))}

@@ -5,6 +5,7 @@ import { expect, test } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
+import { TOP_EDITS_LABEL } from './timeline-copy';
 import { TopEdits } from './top-edits';
 
 const ROUTE = documentPagePath(DOCUMENT_ID);
@@ -86,4 +87,9 @@ test('equal volumes and equal contributions are ordered by id', () => {
       .getAllByTitle(/.+/)
       .map((avatar) => avatar.getAttribute('title')),
   ).toEqual(['Ana Souza', 'Bruno Lima', 'Carla Dias']);
+});
+
+test('no band with edits renders nothing, not an empty heading', () => {
+  renderWithProviders(<TopEdits timeline={timelineWith({ volumes: [[0]], names: ['Budget'] })} summaries={undefined} />, { route: ROUTE });
+  expect(screen.queryByRole('heading', { name: TOP_EDITS_LABEL })).not.toBeInTheDocument();
 });

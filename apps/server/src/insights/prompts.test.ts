@@ -1,8 +1,10 @@
 import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { fitEdits, fitSelection, namesOf, PROMPT_TOPIC_MAX_CHARACTERS, selectionPrompt, summariesPrompt, type SelectionEdit } from './prompts';
+import { fitEdits, fitSelection, namesOf, PROMPT_TOPIC_MAX_CHARACTERS, SELECTION_SYSTEM_PROMPT, selectionPrompt, summariesPrompt, type SelectionEdit } from './prompts';
 
 const RUN_COUNT = 100;
+const HOSTILE_AUTHOR_COUNT = 50;
+const SEPARATE_PEOPLE_RULE = 'List each person separately, exactly as written in the author tags.';
 const AUTHOR_TAG_PATTERN = /<author name=/g;
 const TOPIC_BODY_PATTERN = /<topic [^>]*>\n([\s\S]*)\n<\/topic>/;
 const NO_OVERHEAD = () => 0;
@@ -62,6 +64,7 @@ test('a hostile selection of quotes, ampersands and long names still renders wit
   const fitted = fitSelection(edits);
   expect(selectionPrompt(fitted).length).toBeLessThanOrEqual(SELECTION_PROMPT_MAX_CHARACTERS);
   expect(fitted.length).toBeGreaterThan(0);
+  expect(fitted[0]!.authors[0]!.startsWith('"&0')).toBe(true);
 });
 
 test('the selection prompt groups edits by author and escapes their text', () => {
@@ -74,4 +77,17 @@ test('the selection prompt groups edits by author and escapes their text', () =>
 
 test('the names sent are the distinct people of the fitted edits', () => {
   expect(namesOf([edit({ authors: ['Ana', 'Bruno'], inserted: 'a' }), edit({ authors: ['Ana'], inserted: 'b' })])).toEqual(['Ana', 'Bruno']);
+});
+
+test('an edit by a hostile crowd of long author names is still kept within the prompt budget', () => {
+  const crowd = Array.from({ length: HOSTILE_AUTHOR_COUNT }, (_, index) => `"&${index}`.padEnd(FILTER_MAX_LENGTH, '"'));
+  const fitted = fitSelection([edit({ authors: crowd, inserted: 'newest' }), edit({ inserted: 'older' })]);
+  expect(fitted).toHaveLength(1);
+  expect(fitted[0]!.inserted).toBe('newest');
+  expect(selectionPrompt(fitted).length).toBeLessThanOrEqual(SELECTION_PROMPT_MAX_CHARACTERS);
+});
+
+test('the system prompt tells the model to list each person separately', () => {
+  expect(SELECTION_SYSTEM_PROMPT).toContain(SEPARATE_PEOPLE_RULE);
+  expect(SELECTION_SYSTEM_PROMPT).toContain('<author name="Maria, João">');
 });

@@ -67,7 +67,7 @@ const SMALL_LAG_MS = 2000;
 const DRAGGED_WIDTH = 500;
 const SHRUNK_WINDOW_WIDTH = 800;
 const AREA_HEIGHT = 1000;
-const DEFAULT_HEIGHT = 420;
+const DEFAULT_HEIGHT = 580;
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
 const NONE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.None,

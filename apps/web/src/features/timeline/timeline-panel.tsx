@@ -20,7 +20,7 @@ import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useBinSelection } from './use-bin-selection';
 import { PanelPosition, usePanelPosition } from './use-panel-position';
-import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, useAreaHeight, usePanelHeight, usePanelWidth } from './use-panel-width';
+import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, useAreaHeight, useIsCompact, usePanelHeight, usePanelWidth } from './use-panel-width';
 import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
 import { useTimeline } from './use-timeline';
@@ -92,7 +92,8 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   const { ref: chartRef, width: chartWidth } = useElementWidth();
   const { ref: areaRef, height: areaHeight } = useAreaHeight();
   const sideSize = usePanelWidth();
-  const bottomSize = usePanelHeight({ areaHeight, isCompact: false });
+  const isCompact = useIsCompact();
+  const bottomSize = usePanelHeight({ areaHeight, isCompact });
   const { search } = useTimelineSearch();
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
   const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({ timeline, at: search.at, onTravel, onBackToLive });

@@ -45,7 +45,7 @@ Refinement after the five slices:
 | [`refinement-readability-web`](refinement-readability-web/) | `useTimeTravel` and `TimelinePanel` split, one web API layer for pollers and query keys, both auth pages rebuilt on shared parts | Building |
 | [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
-| [`invite-only-access`](invite-only-access/) | First sign-up claims the instance as admin, single-use invite links, `/admin`, no seed in production, newcomer README with an agent install prompt | In review ([PR #23](https://github.com/dhyegocalota/superdoc-collab/pull/23)) |
+| [`invite-only-access`](invite-only-access/) | First sign-up claims the instance as admin, single-use invite links, `/admin`, no seed in production, newcomer README with an agent install prompt | Shipped 2026-10-17 ([PR #23](https://github.com/dhyegocalota/superdoc-collab/pull/23)) |
 | [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Building |
 | [`cleanup-docs`](cleanup-docs/) | `poc/` removed, the root README down to one screen and one screenshot, package READMEs without source references | Shipped 2026-10-17 |
 | [`readme-purpose-only`](readme-purpose-only/) | READMEs carry purpose only; the root Run it block is pinned to package.json, .env.example and the workspace by a repository-shape test | Shipped 2026-10-17 |

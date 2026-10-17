@@ -1624,6 +1624,6 @@ Install https://github.com/dhyegocalota/superdoc-take-home for me.
 - [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [x] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [x] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
-- [ ] **/check-ui:** screenshots and video recorded and uploaded (claim, invited sign-up, admin page with the invite dialog, invalid invite).
-- [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.
+- [x] **/check-ui:** screenshots and video recorded and uploaded (claim, invited sign-up, admin page with the invite dialog, invalid invite).
+- [x] **/open-pr:** gates passed, learnings sweep stated, PR opened.
 - [ ] **Deploy, in this order:** `railway variables --set SEED_DEMO_USERS=false --skip-deploys` (the live service still has `true`; with it the seed would fail on the claimed database and the container would never start); merge; `railway up`; the migration applies on the volume; then promote the owner's account with `railway ssh -- node dist/admin-promote.js <email>`, or reset the volume and claim fresh (owner's call; the instance already holds Ana and Bruno from the first walk).

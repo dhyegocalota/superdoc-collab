@@ -54,6 +54,6 @@ The reviewer picks the three claims most likely to be wrong and tries to refute 
 
 What is not tested and why.
 
-- Dependabot opening a PR — only GitHub runs it; the first weekly run proves the config. Security updates and alerts are a repository setting that is off today (API 403); the PR's human checklist carries it.
+- Dependabot opening a PR — only GitHub runs it; the first weekly run proves the config. Alerts and automated security fixes were turned on through the API on 2026-10-17 (`GET /vulnerability-alerts` answers 204).
 - The audit level and the Dependabot schedule are not pinned by a unit test (review finding 8); a PR that lowers `security:audit` to `critical` is caught by gate 3b, which the security reviewer now runs on every non-docs diff.
 - gitleaks-action on CI against a planted secret — would require pushing a secret-looking string to the public repository; the local `gitleaks dir` run on a scratch file proves the rules, the green CI job proves the wiring.

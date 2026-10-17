@@ -49,4 +49,4 @@ Red commit: `9ffbffc`. The three `ci-workflow` cases that depended on the job li
 ## Known gaps
 
 - The `security` job has not run on GitHub yet; the gitleaks action's licence behaviour on a personal public repository is documented, not observed, until the PR's first run.
-- Dependabot alerts are disabled on the repository (the API answered 403); enabling them needs the owner's admin token or the Settings page.
+- Dependabot alerts and automated security fixes were turned on through the API on 2026-10-17; the first weekly run is the proof that the config file is read.

@@ -12,6 +12,10 @@ export const TIMELINE_PIPELINE_CACHE_SIZE = 32;
 export const VERSION_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 export const VERSION_FAILURE_TTL_MS = 30 * SECOND_MS;
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
+export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;
+export const DOCUMENT_READY_GIVE_UP_MS = 5 * MINUTE_MS;
+export const CURSOR_GLOW_MS = 1.2 * SECOND_MS;
+export const JUMP_FAILED_NOTICE_MS = 3 * SECOND_MS;
 export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 
 export function secondsRoundedUp(milliseconds: number): number {

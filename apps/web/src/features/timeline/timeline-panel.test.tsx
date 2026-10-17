@@ -1,4 +1,5 @@
 import {
+  ClientActor,
   documentApiPath,
   documentPagePath,
   DocumentResource,
@@ -13,12 +14,12 @@ import {
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  TimelineBandKind,
   timelineEditsApiPath,
   TOPICS_PENDING_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   TOPICS_UNAVAILABLE_MESSAGE,
   topicsRefreshApiPath,
-  TimelineBandKind,
   TopicState,
   type BinEdits,
   type DocumentTimeline,
@@ -246,7 +247,7 @@ test('a selected bin lists its runs with cut snippets', async () => {
         lastServerTime: 1,
       },
     ],
-    authors: { ana: { id: '1', name: 'Ana' } },
+    authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
   };
   mockTimelineApi({ edits });
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
@@ -630,7 +631,7 @@ test('bin edits mark insertions and deletions without quotes or padding', async 
         lastServerTime: 1,
       },
     ],
-    authors: { ana: { id: '1', name: 'Ana' } },
+    authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
   };
   mockTimelineApi({ edits });
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });

@@ -1,0 +1,164 @@
+import { DocumentRole, type DocumentMember } from '@superdoc-collab/types';
+import { act, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { SuperDoc } from 'superdoc';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import {
+  BACK_TO_LIVE_TO_JUMP_REASON,
+  cursorNotFoundMessage,
+  goToCursorLabel,
+  memberLabel,
+  moreMembersLabel,
+  movedToCursorMessage,
+  notInDocumentReason,
+  offlineMemberReason,
+  SELF_MEMBER_REASON,
+} from './editor-copy';
+import { Members } from './members';
+
+const CURRENT_USER_ID = 'u1';
+const JUMP_FAILED_MS = 3000;
+const superdoc = {} as SuperDoc;
+const scrollIntoView = vi.fn();
+
+function memberNamed({ id, name, online }: { id: string; name: string; online: boolean }): DocumentMember {
+  return { user: { id, name }, role: DocumentRole.Editor, online };
+}
+
+const ana = memberNamed({ id: CURRENT_USER_ID, name: 'Ana', online: true });
+const bruno = memberNamed({ id: 'u2', name: 'Bruno', online: true });
+const clara = memberNamed({ id: 'u3', name: 'Clara', online: false });
+const dario = memberNamed({ id: 'u4', name: 'Dario', online: true });
+
+let editor: HTMLElement;
+
+function addCaret(name: string): void {
+  const caret = document.createElement('div');
+  const label = document.createElement('div');
+  caret.className = 'v2-collaboration-overlay__remote-caret';
+  label.className = 'v2-collaboration-overlay__remote-label';
+  label.textContent = name;
+  caret.append(label);
+  caret.scrollIntoView = scrollIntoView;
+  editor.append(caret);
+}
+
+function renderMembers({ members, isPastVersion = false }: { members: DocumentMember[]; isPastVersion?: boolean }) {
+  return render(<Members members={members} currentUserId={CURRENT_USER_ID} superdoc={superdoc} isPastVersion={isPastVersion} />);
+}
+
+function manyMembers(count: number): DocumentMember[] {
+  return Array.from({ length: count }, (_, index) => memberNamed({ id: `m${index}`, name: `Person ${index}`, online: false }));
+}
+
+beforeEach(() => {
+  editor = document.createElement('div');
+  editor.dataset.testid = 'document-editor';
+  document.body.append(editor);
+});
+
+afterEach(() => {
+  editor.remove();
+  scrollIntoView.mockClear();
+  vi.useRealTimers();
+});
+
+test('a member with a live position is a button named Go to Bruno’s cursor', async () => {
+  addCaret('Bruno');
+  renderMembers({ members: [ana, bruno] });
+  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  expect(button).not.toHaveAttribute('aria-disabled', 'true');
+});
+
+test('an online member with no position, an offline member and the current user are aria-disabled with their reason', async () => {
+  renderMembers({ members: [ana, bruno, clara] });
+  const user = userEvent.setup();
+  const reasons = [
+    { member: ana, reason: SELF_MEMBER_REASON, isOnline: true },
+    { member: bruno, reason: notInDocumentReason('Bruno'), isOnline: true },
+    { member: clara, reason: offlineMemberReason('Clara'), isOnline: false },
+  ];
+  for (const { member, reason, isOnline } of reasons) {
+    const button = screen.getByRole('button', { name: memberLabel({ name: member.user.name, isOnline }) });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    await user.tab();
+    expect(button).toHaveFocus();
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
+  }
+});
+
+test('while a past version is shown every member is aria-disabled with Go back to live to jump to a cursor', async () => {
+  addCaret('Bruno');
+  renderMembers({ members: [ana, bruno], isPastVersion: true });
+  const buttons = screen.getAllByRole('button');
+  expect(buttons.map((button) => button.getAttribute('aria-disabled'))).toEqual(['true', 'true']);
+  await userEvent.setup().tab();
+  expect(await screen.findByRole('tooltip')).toHaveTextContent(BACK_TO_LIVE_TO_JUMP_REASON);
+});
+
+test('with five members there is no +N menu, and with six there are four avatars and a button named 2 more people', () => {
+  const { unmount } = renderMembers({ members: manyMembers(5) });
+  expect(screen.getAllByRole('button')).toHaveLength(5);
+  expect(screen.queryByRole('button', { name: /more people/ })).not.toBeInTheDocument();
+  unmount();
+  renderMembers({ members: manyMembers(6) });
+  expect(screen.getAllByRole('button')).toHaveLength(5);
+  expect(screen.getByRole('button', { name: moreMembersLabel(2) })).toBeInTheDocument();
+});
+
+test('with seven members it shows four avatars and a button named 3 more people whose menu lists the rest', async () => {
+  renderMembers({ members: manyMembers(7) });
+  const triggers = screen.getAllByRole('button');
+  expect(triggers).toHaveLength(5);
+  await userEvent.click(screen.getByRole('button', { name: moreMembersLabel(3) }));
+  const menu = await screen.findByRole('menu');
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent),
+  ).toEqual([expect.stringContaining('Person 4'), expect.stringContaining('Person 5'), expect.stringContaining('Person 6')]);
+});
+
+test('the +N menu items for members who cannot be jumped to are aria-disabled with their reasons', async () => {
+  addCaret('Dario');
+  const members = [
+    ana,
+    bruno,
+    clara,
+    memberNamed({ id: 'u9', name: 'Eva', online: true }),
+    dario,
+    memberNamed({ id: 'u8', name: 'Fabio', online: true }),
+  ];
+  renderMembers({ members });
+  await userEvent.click(screen.getByRole('button', { name: moreMembersLabel(2) }));
+  const menu = await screen.findByRole('menu');
+  const darioItem = within(menu).getByRole('menuitem', { name: /Dario/ });
+  const fabio = within(menu).getByRole('menuitem', { name: /Fabio/ });
+  expect(darioItem).not.toHaveAttribute('aria-disabled', 'true');
+  expect(fabio).toHaveAttribute('aria-disabled', 'true');
+  expect(fabio).toHaveTextContent(notInDocumentReason('Fabio'));
+});
+
+test('after a jump a status region reads Moved to Bruno’s cursor.', async () => {
+  addCaret('Bruno');
+  renderMembers({ members: [ana, bruno] });
+  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  await userEvent.click(button);
+  expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'center' });
+  expect(screen.getByRole('status')).toHaveTextContent(movedToCursorMessage('Bruno'));
+  expect(button).toHaveFocus();
+});
+
+test('a jump whose caret left shows the not-found message in the tooltip for three seconds', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  addCaret('Bruno');
+  renderMembers({ members: [ana, bruno] });
+  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  editor.replaceChildren();
+  await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(button);
+  expect(await screen.findByRole('tooltip')).toHaveTextContent(cursorNotFoundMessage('Bruno'));
+  await act(async () => {
+    vi.advanceTimersByTime(JUMP_FAILED_MS);
+  });
+  expect(screen.getByRole('tooltip')).not.toHaveTextContent(cursorNotFoundMessage('Bruno'));
+});

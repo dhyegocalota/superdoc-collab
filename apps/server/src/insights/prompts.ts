@@ -25,7 +25,8 @@ const AUTHOR_CLOSE = '\n</author>';
 
 export type PromptEdit = { author: string; inserted: string; deleted: string };
 export type PromptTopic = { id: string; name: string; edits: PromptEdit[] };
-export type SelectionEdit = { authors: SummaryAuthor[]; inserted: string; deleted: string };
+export type PromptAuthor = SummaryAuthor & { key: string; label: string };
+export type SelectionEdit = { authors: PromptAuthor[]; inserted: string; deleted: string };
 
 export const TOPICS_SYSTEM_PROMPT = `<role>You name the topics of one document.</role>
 <task>Group the blocks into ${MIN_TOPICS} to ${MAX_TOPICS} topics; a short document may have fewer. Give each topic a name of at most ${TOPIC_NAME_MAX_LENGTH} characters and the ids of its blocks.</task>
@@ -99,7 +100,7 @@ export function promptNameOf(author: SummaryAuthor): string {
 }
 
 export function authorLabel(edit: SelectionEdit): string {
-  return edit.authors.map(promptNameOf).join(AUTHOR_SEPARATOR);
+  return edit.authors.map((author) => author.label).join(AUTHOR_SEPARATOR);
 }
 
 function authorOpen(label: string): string {
@@ -140,22 +141,38 @@ export function fitSelection(edits: SelectionEdit[]): SelectionEdit[] {
   });
 }
 
+function uniqueLabelsOf({ runs, authors }: { runs: EditRun[]; authors: Record<string, EventAuthor> }): Map<string, string> {
+  const keys = [...new Set(runs.flatMap((run) => run.authorKeys))].sort();
+  return keys.reduce((labels, key) => {
+    const { name, actor } = authors[key]!;
+    const base = promptNameOf({ name: name.slice(0, FILTER_MAX_LENGTH), actor });
+    const taken = new Set(labels.values());
+    const label = [base, ...Array.from({ length: keys.length }, (_, index) => `${base} (${index + 2})`)].find(
+      (candidate) => !taken.has(candidate),
+    )!;
+    return labels.set(key, label);
+  }, new Map<string, string>());
+}
+
 export function promptEditsOf({ runs, authors }: { runs: EditRun[]; authors: Record<string, EventAuthor> }): SelectionEdit[] {
+  const labels = uniqueLabelsOf({ runs, authors });
   return [...runs]
     .sort((left, right) => right.lastServerTime - left.lastServerTime)
     .map((run) => ({
-      authors: run.authorKeys.map((key) => ({ name: authors[key]!.name, actor: authors[key]!.actor })),
+      authors: run.authorKeys.map((key) => ({ key, name: authors[key]!.name, actor: authors[key]!.actor, label: labels.get(key)! })),
       inserted: run.inserted,
       deleted: run.deleted,
     }));
 }
 
 export function namesOf(edits: SelectionEdit[]): string[] {
-  return [...new Set(edits.flatMap((edit) => edit.authors.map(promptNameOf)))];
+  return [...new Set(edits.flatMap((edit) => edit.authors.map((author) => author.label)))];
 }
 
 export function authorsMentioned({ edits, mentioned }: { edits: SelectionEdit[]; mentioned: string[] }): SummaryAuthor[] {
-  const byLabel = new Map(edits.flatMap((edit) => edit.authors).map((author) => [promptNameOf(author), author]));
+  const byLabel = new Map(
+    edits.flatMap((edit) => edit.authors).map((author) => [author.label, { name: author.name, actor: author.actor }]),
+  );
   return mentioned.map((label) => byLabel.get(label)!);
 }
 

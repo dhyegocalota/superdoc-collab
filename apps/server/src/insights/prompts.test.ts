@@ -19,7 +19,7 @@ const NO_OVERHEAD = () => 0;
 const ESCAPED_QUOTE_LENGTH = '&quot;'.length;
 
 function edit({ authors = ['Ana'], inserted, deleted = '' }: { authors?: string[]; inserted: string; deleted?: string }): SelectionEdit {
-  return { authors: authors.map((name) => ({ name, actor: ClientActor.Human })), inserted, deleted };
+  return { authors: authors.map((name) => ({ key: name, name, actor: ClientActor.Human, label: name })), inserted, deleted };
 }
 
 test('the newest edits are kept and the oldest kept edit is truncated to the budget', () => {

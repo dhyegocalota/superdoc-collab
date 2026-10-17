@@ -32,6 +32,7 @@ const SETTLE_ROUND_TRIPS = 5;
 const PROPERTY_SEED = 20261016;
 const SAMPLED_SEQUENCES = 20;
 const PROJECTION_TIMEOUT_MS = 15_000;
+const EXTRA_EDITS = 2;
 const SMALL_BUDGET_BYTES = 1024;
 const LARGE_STATE_BYTES = 600;
 
@@ -87,10 +88,12 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
 
 test('a logged sequence that is not a mark resolves to the mark that ends its minute', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
-  writeStory({ document: client.document, texts: ['Pruned within the minute'] });
-  writeStory({ document: client.document, texts: ['Ends the minute'] });
   const latestLogged = () =>
     server.services.updateLog.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER }).at(-1)!.sequence;
+  const loggedBefore = latestLogged();
+  writeStory({ document: client.document, texts: ['Pruned within the minute'] });
+  writeStory({ document: client.document, texts: ['Ends the minute'] });
+  await expect.poll(latestLogged, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThanOrEqual(loggedBefore + EXTRA_EDITS);
   await expect
     .poll(() => server.services.readModel.marks(documentId).at(-1)!.sequence, { timeout: PROJECTION_TIMEOUT_MS })
     .toBe(latestLogged());

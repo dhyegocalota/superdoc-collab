@@ -15,6 +15,7 @@ import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
+import { terminateAfterGrace } from './terminate-after-grace';
 import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
@@ -33,7 +34,7 @@ const UNAVAILABLE_UPGRADE_RESPONSE = [
 
 function terminateOnError(this: WebSocket, error: Error): void {
   console.warn(`${SOCKET_ERROR_MESSAGE}: ${describeError(error)}`);
-  if (this.readyState === WebSocket.CLOSING) return;
+  if (this.readyState === WebSocket.CLOSING) return terminateAfterGrace(this);
   this.terminate();
 }
 
@@ -63,6 +64,7 @@ export function attachCollaboration({
     console.warn(SOCKET_RATE_LIMIT_LOG);
     this.removeAllListeners('message');
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+    terminateAfterGrace(this);
   }
   function upgrade({
     request,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { readRepositoryFile } from '../testing/repository-files';
+import { readRepositoryFile } from './repository-files';
 
 const WORKFLOW_FILE = '.github/workflows/verify.yml';
 const DOCKER_JOB_START = '\n  docker:\n';

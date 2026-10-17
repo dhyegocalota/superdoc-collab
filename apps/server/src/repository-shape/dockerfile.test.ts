@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { readRepositoryFile, repositoryPath } from '../testing/repository-files';
+import { readRepositoryFile, repositoryPath } from './repository-files';
 
 const DOCKERFILE = 'docker/Dockerfile';
 const BUILD_WORKSPACE = '/workspace';

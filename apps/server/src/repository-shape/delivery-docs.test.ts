@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { capturedNames, composeVariables, readRepositoryFile, repositoryPath } from '../testing/repository-files';
+import { capturedNames, composeVariables, readRepositoryFile, repositoryPath } from './repository-files';
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';

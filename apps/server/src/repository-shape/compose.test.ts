@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { describe, expect, test } from 'vitest';
-import { composeVariables, capturedNames, DEPLOY_COMPOSE_FILE, readRepositoryFile, REPOSITORY_ROOT } from '../testing/repository-files';
+import { composeVariables, capturedNames, DEPLOY_COMPOSE_FILE, readRepositoryFile, REPOSITORY_ROOT } from './repository-files';
 
 const ENVIRONMENT_EXAMPLE_FILE = '.env.example';
 const NO_ENVIRONMENT_FILE = '/dev/null';

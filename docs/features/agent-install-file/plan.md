@@ -35,6 +35,6 @@ One group; tests first, then the documents.
 
 ## Z. Prove and ship
 
-- [ ] **Tester run:** a fresh `tester` executed `test-plan.md`.
-- [ ] **Reviewer:** a fresh `reviewer` returned a verdict.
-- [ ] **/open-pr:** gates passed, PR opened, merged.
+- [x] **Tester run:** a fresh `tester` executed `test-plan.md`.
+- [x] **Reviewer:** a fresh `reviewer` returned a verdict.
+- [x] ~~**/open-pr:** gates passed, PR opened, merged.~~ The owner asked for a direct push to main; reviewer WITH RESERVATIONS (finding 1 fixed in 7decfb8), tester 3/3, repository-shape 114/114 and three mutations red.

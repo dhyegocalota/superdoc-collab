@@ -1,6 +1,6 @@
 # Agent install file
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-17
 **ADRs:** [0019](../../adr/0019-deploy-on-railway.md), [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md)

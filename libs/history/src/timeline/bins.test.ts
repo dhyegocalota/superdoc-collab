@@ -61,7 +61,13 @@ test('a single edit yields three bins, the middle one filled', () => {
   const time = TEN_OCLOCK + 30 * SECOND_MS;
   const binStarts = binStartsCovering({ firstTime: time, lastTime: time, binMs: MINUTE_MS, timeZone: UTC });
   expect(binStarts).toEqual([TEN_OCLOCK - MINUTE_MS, TEN_OCLOCK, TEN_OCLOCK + MINUTE_MS]);
-  const bins = buildBins({ runs: [runAt({ time, binMs: MINUTE_MS })], binStarts, binMs: MINUTE_MS, versionSequenceAt: () => null });
+  const bins = buildBins({
+    runs: [runAt({ time, binMs: MINUTE_MS })],
+    binStarts,
+    binMs: MINUTE_MS,
+    timeZone: UTC,
+    versionSequenceAt: () => null,
+  });
   expect(bins.map((bin) => Object.keys(bin.byBand).length)).toEqual([0, 1, 0]);
 });
 
@@ -73,6 +79,7 @@ test('bins between edits stay empty and carry the version before their end', () 
     runs: [runAt({ time: first, binMs: MINUTE_MS }), runAt({ time: last, binMs: MINUTE_MS })],
     binStarts,
     binMs: MINUTE_MS,
+    timeZone: UTC,
     versionSequenceAt: (time) => time,
   });
   expect(bins).toHaveLength(6);
@@ -87,6 +94,7 @@ test('a bin ending on a minute boundary resolves to the mark of its own minute',
     runs: [],
     binStarts: [TEN_OCLOCK, nextMinute],
     binMs: MINUTE_MS,
+    timeZone: UTC,
     versionSequenceAt: (time) => (time >= nextMinute ? 9 : 5),
   });
   expect(bins.map((bin) => bin.versionSequence)).toEqual([5, 9]);
@@ -101,7 +109,7 @@ test('a day timeline in Sao Paulo starts every bin at local midnight and chains 
     binMs: DAY_MS,
     timeZone: SAO_PAULO,
   });
-  const bins = buildBins({ runs: [], binStarts, binMs: DAY_MS, versionSequenceAt: () => null });
+  const bins = buildBins({ runs: [], binStarts, binMs: DAY_MS, timeZone: SAO_PAULO, versionSequenceAt: () => null });
   expect(bins).toHaveLength(8);
   expect(bins.map((bin) => (bin.start + offsetAt({ time: bin.start, timeZone: SAO_PAULO })) % DAY_MS)).toEqual(Array(8).fill(0));
   bins.slice(1).forEach((bin, index) => expect(bins.at(index)?.end).toBe(bin.start));
@@ -110,7 +118,7 @@ test('a day timeline in Sao Paulo starts every bin at local midnight and chains 
 test('padding is one empty bin each side of the first and last edit', () => {
   const time = Date.UTC(2026, 9, 17, 12, 0);
   const binStarts = binStartsCovering({ firstTime: time, lastTime: time, binMs: DAY_MS, timeZone: SAO_PAULO });
-  expect(binStarts).toEqual([Date.UTC(2026, 9, 15, 3, 0), Date.UTC(2026, 9, 16, 3, 0), Date.UTC(2026, 9, 17, 3, 0)]);
+  expect(binStarts).toEqual([Date.UTC(2026, 9, 16, 3, 0), Date.UTC(2026, 9, 17, 3, 0), Date.UTC(2026, 9, 18, 3, 0)]);
 });
 
 test('a Lisbon autumn day bin is 25 hours long and resolves its version at end - 1', () => {
@@ -125,6 +133,7 @@ test('a Lisbon autumn day bin is 25 hours long and resolves its version at end -
     runs: [],
     binStarts,
     binMs: DAY_MS,
+    timeZone: LISBON,
     versionSequenceAt: (time) => {
       resolvedAt.push(time);
       return null;

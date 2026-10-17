@@ -1,5 +1,5 @@
 import type { EventAuthor } from '@superdoc-collab/types';
-import { binStartOf } from './bins';
+import { zonedBinStartOf } from './zoned-time';
 
 const IMPORTED_AUTHOR_PREFIX = 'imported:';
 const RUN_KEY_SEPARATOR = '|';
@@ -30,12 +30,12 @@ export function authorKey(author: EventAuthor): string {
   return author.id;
 }
 
-export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binMs: number; timeZone: string }): EditRun[] {
+export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEvent[]; binMs: number; timeZone: string }): EditRun[] {
   const runs = new Map<string, EditRun>();
   [...events]
     .sort((left, right) => left.sequence - right.sequence || left.serverTime - right.serverTime)
     .forEach((event) => {
-      const binStart = binStartOf({ time: event.serverTime, binMs });
+      const binStart = zonedBinStartOf({ time: event.serverTime, binMs, timeZone });
       const key = [binStart, event.blockId, event.authorKeys.join(',')].join(RUN_KEY_SEPARATOR);
       const run = runs.get(key);
       if (!run) {

@@ -45,6 +45,18 @@ describe('signUpSchema', () => {
     'Bob · ＡＩ',
     'Bob·AI',
     'Bob · Al',
+    'Bob · A\u0399',
+    'Bob · \u0410I',
+    'Bob · \u0391\u0399',
+    'Bob · AI\u200b',
+    'Bob · A\u200bI',
+    'Bob · AI\u2060',
+    'Bob \u2027 AI',
+    'Bob \ua78f AI',
+    'Bob \u02d9 AI',
+    'Bob \u2e31 AI',
+    'Bob · A1',
+    'Bob · A|',
   ])('rejects the name "%s" that impersonates an AI', (name) => {
     expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
   });

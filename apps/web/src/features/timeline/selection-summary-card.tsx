@@ -10,7 +10,7 @@ import { useEffect, useId, useRef, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { authorNamed } from './author-of';
+import { authorByName } from './author-of';
 import { AuthorAvatar } from './contributor-avatars';
 import {
   EARLIER_STATE_LABEL,
@@ -120,9 +120,11 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
             <ul className="flex items-center gap-1">
-              {summary.authors.map((author, index) => (
-                <AuthorAvatar key={`${index}-${author.name}`} author={authorNamed({ authors, name: author.name, actor: author.actor })} />
-              ))}
+              {summary.authors.map((author, index) => {
+                const known = authorByName({ authors, name: author.name, actor: author.actor });
+                const avatarAuthor = known ? known : { id: null, name: author.name, actor: author.actor };
+                return <AuthorAvatar key={`${index}-${author.name}`} author={avatarAuthor} />;
+              })}
             </ul>
             {summary.isStale && <Badge variant="secondary">{EARLIER_STATE_LABEL}</Badge>}
           </div>

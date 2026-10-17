@@ -199,7 +199,7 @@ The panel tests that drove the removed header buttons (Summarize disabled reason
 
 ### Known gaps
 
-- The summary card finds a summary author by name and actor among `timeline.authors` (`authorNamed`), because `SummaryAuthor` carries no id. Two people with the same name resolve to the first one, and a name missing from the timeline throws `MissingAuthorError`. The clean fix is an `id` on `SummaryAuthor` from G4, with stored rows migrated. The panel only renders the card once the timeline has loaded.
+- The summary card resolves a summary author by name and actor among `timeline.authors` (`authorByName`, owner decision). A name not found is coloured and titled as an imported author, never a throw. Two people with the same name resolve to the first one. An `id` on `SummaryAuthor` would remove the lookup.
 - The chart hint ("Click the chart or use ← → …") is still drawn by `Streamgraph` under the chart, not on one line with the filter. `streamgraph.tsx` is not in my list.
 - The bottom panel is 42 % of the area at every width. The 58 % at 375 px of design section 1.1 is not implemented.
 - `useAreaHeight` measures the parent of the `aside`. G2 must give that parent a definite height that holds the editor and the panel (a flex column with `min-h-0`), or the panel stays at 240 px.

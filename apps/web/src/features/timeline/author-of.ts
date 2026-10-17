@@ -8,7 +8,7 @@ export function authorOf({ authors, authorKey }: { authors: Record<string, Event
   return author;
 }
 
-export function authorNamed({
+export function authorByName({
   authors,
   name,
   actor,
@@ -16,8 +16,8 @@ export function authorNamed({
   authors: Record<string, EventAuthor>;
   name: string;
   actor: ClientActor;
-}): EventAuthor {
+}): EventAuthor | null {
   const author = Object.values(authors).find((candidate) => candidate.name === name && candidate.actor === actor);
-  if (!author) throw new MissingAuthorError(name);
+  if (!author) return null;
   return author;
 }

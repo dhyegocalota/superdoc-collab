@@ -24,7 +24,7 @@ G1 first (the stack must boot before the skill can run), then G2, then the proof
 ### G1
 
 - [ ] **Step 1:** `scenario-stack.test.ts` committed red: `stackEnvironment` from `e2e/stack.ts` returns the exact environment keys the E2E config set, with the port, database directory and fake-model origin it is given; `playwright.config.ts` imports `./e2e/stack`; `package.json` has `scenario:stack`.
-- [ ] **Step 2:** `e2e/stack.ts` (build-and-start command, `stackEnvironment`, the fixed test secrets and limits), `playwright.config.ts` importing it with unchanged behaviour, `e2e/scenario-stack.ts` (fake model + server on 3299/3200, fresh database directory, `seed.docx` with the fixture paragraphs, `ORIGIN=` and `SEED_DOCX=` on stdout, children killed on SIGINT and SIGTERM, a busy port named in the error), `scenario:stack` script; tests green; `pnpm test:e2e` still green.
+- [ ] **Step 2:** `e2e/stack.ts` (build-and-start command, `stackEnvironment`, the fixed test secrets and limits), `playwright.config.ts` importing it with unchanged behaviour, `e2e/scenario-stack.ts` (fake model + server on 3299/3200, fresh database directory, `ORIGIN=` and `DATABASE_DIR=` on stdout, process groups killed on SIGINT and SIGTERM, a busy port named in the error), `scenario:stack` script through `tsx`; tests green; `pnpm test:e2e` still green.
 
 ### G2
 
@@ -37,7 +37,7 @@ G1 first (the stack must boot before the skill can run), then G2, then the proof
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
 | 2 | `playwright.config.ts` behaviour drifts after the extraction | `pnpm test:e2e` red, or the server env differs in `scenario-stack.test.ts` | restore the inline constants; the shape test pins the keys |
-| 2 | ports 3200/3299 collide with a running stack | the stack script exits naming the port | stop the other process or pass other ports through `SCENARIO_PORT` |
+| 2 | ports 3200/3299 collide with a running stack | the stack script exits naming the port before starting anything | stop the other process |
 | 4 | the `playwright` server losing its persistent profile breaks `/check-ui` | sign-in required on every run | that is already how the skill works; nothing to back out |
 | 5 | `playwright-second` is not loaded in this session | its tools are absent | use `playwright-isolated` for author B and record it in the test plan |
 | 5 | a scenario test fails on a real product defect | the Expect does not hold with a screenshot | record it as a defect with reproduction, never fix inline |

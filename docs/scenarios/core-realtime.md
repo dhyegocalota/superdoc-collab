@@ -19,9 +19,9 @@ Two authors, Ana and Bruno, work on one document at the same time while the hist
 
 ## Setup
 
-- Stack: `pnpm scenario:stack` (prints `ORIGIN` and `SEED_DOCX`), fake model, fresh database, demo users seeded with password `superdoc-demo`.
-- Author A = Ana on the `playwright` server; Author B = Bruno on the `playwright-second` server. Both sign in through the form at `/sign-in`.
-- Ana uploads `SEED_DOCX` (two paragraphs: `Budget: the plan costs 10.` and `Hiring: we add two people.`) through **Upload .docx** and lands on the document page. Ana opens **Share**, copies the edit link; Bruno opens it and lands on the same document.
+- Stack: `pnpm scenario:stack` (prints `ORIGIN`), fake model, fresh database, demo users seeded with password `superdoc-demo`.
+- Author A = Ana (`ana@example.com`) on the `playwright` server; Author B = Bruno (`bruno@example.com`) on the `playwright-second` server. Both sign in through the form at `/sign-in`.
+- Ana clicks **New document** and lands on the editor; she types two paragraphs, each as one input event: `Budget: the plan costs 10.` and `Hiring: we add two people.` (the fake model names topics from the text before the colon). Ana opens **Share**, copies the edit link; Bruno opens it and lands on the same document.
 - Screenshots go to `.pr-media/scenario-core-realtime/<nn>-<test>-<author>.png`.
 
 ## Tests

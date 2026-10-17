@@ -11,6 +11,7 @@ AGENTS.md            facts and conventions, pointers to this file          (CLAU
 .agents/hooks/       hook scripts (one source for .claude/settings.json and .codex/hooks.json)
 docs/features/<slug> spec.md + plan.md + test-plan.md for every feature or fix
 docs/adr/            decisions            docs/learnings/   dated traps
+docs/scenarios/      agentic walks of the product core, one file per flow, run with /scenario
 <package>/README.md  apps/*, libs/* and e2e: purpose, commands, layout
 ```
 
@@ -85,7 +86,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 ## 5. Prove
 
 - A `tester` sub-agent, never the developer, with a fresh context, executes `test-plan.md` end to end and ticks boxes with evidence (commit hash, log path, counts, screenshot path).
-- Browser work runs through **Playwright MCP** from the user's perspective: walk the whole flow, not the changed screen; assert what the user sees; take the unhappy paths on purpose; read console and network; cover empty, single and many; both desktop and narrow widths; multi-author flows open one browser context per author.
+- Browser work runs through **Playwright MCP** from the user's perspective: walk the whole flow, not the changed screen; assert what the user sees; take the unhappy paths on purpose; read console and network; cover empty, single and many; both desktop and narrow widths; multi-author flows drive each author through its own Playwright MCP server (`playwright`, `playwright-second`, both `--isolated`), never two tabs of one browser, which share the session ([ADR 0023](../docs/adr/0023-agentic-scenario-runs-with-one-browser-per-author.md)).
 - **Playwright MCP down.** The tester drives a throwaway spec, `e2e/_walk-<slug>.spec.ts`, with a scratch copy of `playwright.config.ts` whose `PORT` and fake model port (`e2e/fake-openrouter-origin.ts`) differ from any stack already running. It takes screenshots at 1280 and 375, compares them with the screenshots taken before the change, then deletes the spec and the config. `e2e/_*.spec.ts` is never committed.
 - A change that folds or deletes tests is proven with **mutation checks**: break the behaviour the dropped test covered, confirm a surviving test goes red, restore. Record each mutation and the test that caught it.
 - Edge cases are hunted during execution, not only listed upfront. New ones found go into `test-plan.md` and get a regression test.
@@ -115,6 +116,8 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
 7. Conventional Commit, push, `gh pr create` with `.github/pull_request_template.md`.
 8. **E2E on CI only when it can catch something.** The automatic workflow (`verify.yml`) runs `checks`, `unit`, `docker` and `security` only; the E2E suite lives in `e2e.yml` and runs on manual dispatch (ADR 0018). Suggest the dispatch to the owner only when the diff can change what the suite exercises: product source under `apps/` or `libs/`, E2E specs or helpers, `playwright.config.ts`, `.github/workflows/e2e.yml`, `.github/actions/`, `.nvmrc`, dependencies or build configuration. Docs, agent tooling, unit tests and repository-shape tests merge on the green automatic run and the local `/verify`; never suggest the dispatch for them, even when they live under `apps/` or `libs/`. When the owner asks for it, dispatch it for the branch head (`gh workflow run e2e.yml --ref <branch>`), wait for it (`gh run watch <id> --exit-status`) and merge only when it and the automatic run are green. A red E2E run goes back to Build.
+
+9. **Scenarios before the merge.** `/open-pr` matches the diff against the `paths` of every `docs/scenarios/*.md` and names the scenarios to run with `/scenario <slug>`; the owner decides. A scenario boots the whole stack on its own ports with the fake model and walks the product's core with one browser per author, hunting edge cases; a defect it finds goes back to Build with a regression test, never an inline fix (ADR 0023).
 
 **CI runs.** GitHub sometimes creates no `verify` run for a push or a pull request. When the head has no run, dispatch one (`gh workflow run verify.yml --ref <branch>`) instead of pushing an empty commit. Never poll the GitHub API in a loop: tight polling trips the secondary rate limit. Wait with `gh run watch <id> --exit-status`, one call per run, or a scheduled wakeup.
 
@@ -186,6 +189,7 @@ Routing: bulk reading and sweeps → cheapest model; implementing a decided desi
 | `/verify` | skill | typecheck → security audit → secret scan → unit → E2E, stop at first failure |
 | `/check-ui` | skill | Playwright MCP walk, screenshots, video, release upload |
 | `/open-pr` | skill | the Ship gates, then the PR |
+| `/scenario` | skill | boots the stack on 3200/3299 and walks one `docs/scenarios/<slug>.md` with one Playwright MCP server per author |
 
 Vendored skills come from superpowers 6.4.1 (MIT); the `metadata` block in each `SKILL.md` says what was changed. Claude Code invokes a skill as `/<name>` with `$ARGUMENTS`; Codex as `$<name>` followed by the arguments in plain text.
 

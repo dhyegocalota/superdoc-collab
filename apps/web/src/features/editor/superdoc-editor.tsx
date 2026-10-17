@@ -1,27 +1,15 @@
-import {
-  ApiPath,
-  COLLABORATION_TOKEN_PLACEHOLDER,
-  DOCX_MIME_TYPE,
-  DocumentRole,
-  type RoomMode,
-  type SessionUser,
-} from '@superdoc-history/types';
+import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-history/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
-import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
-import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
+import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
-import { FITTED_PAGE_CLASS, followViewportZoom, initialZoomMode } from './superdoc-zoom';
+import { FITTED_PAGE_CLASS, followViewportZoom } from './superdoc-zoom';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
-
-export enum DocumentMode {
-  Viewing = 'viewing',
-  Editing = 'editing',
-}
 
 type SuperDocEditorProps = {
   superdocRef: RefObject<SuperDoc | null>;
@@ -42,25 +30,16 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
     const container = containerRef.current;
     if (!container) return;
     const superdoc = new SuperDoc({
-      selector: container,
-      documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
-      documents: [
-        {
-          id: documentId,
-          type: DOCX_MIME_TYPE,
-          data: file,
-          v2Collaboration: {
-            providerType: HOCUSPOCUS_PROVIDER,
-            documentId,
-            serverUrl: collaborationUrl(ApiPath.Collaboration),
-            roomMode,
-            token: COLLABORATION_TOKEN_PLACEHOLDER,
-          },
-        },
-      ],
-      user: { id: user.id, name: user.name, email: user.email },
-      telemetry: SUPERDOC_TELEMETRY,
-      zoom: { mode: initialZoomMode(window) },
+      ...superdocOptions({
+        container,
+        documentId,
+        file,
+        documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
+        collaborationPath: ApiPath.Collaboration,
+        roomMode,
+        user,
+        viewport: window,
+      }),
       onException: () => setHasFailed(true),
     });
     superdocRef.current = superdoc;
@@ -82,11 +61,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface}>
-      {hasFailed && (
-        <p role="alert" className="p-4 text-sm text-destructive">
-          {EDITOR_FAILED_MESSAGE}
-        </p>
-      )}
+      {hasFailed && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div
         ref={containerRef}

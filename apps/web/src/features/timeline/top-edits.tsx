@@ -1,5 +1,6 @@
 import type { DocumentTimeline, TimelineContributor, TopicSummaries } from '@superdoc-history/types';
 import { ContributorAvatars } from './contributor-avatars';
+import { maxBandVolume } from './max-band-volume';
 import { editDeltaLabel, EditUnit, TOP_EDITS_LABEL } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
@@ -11,7 +12,7 @@ function sumWords(contributors: TimelineContributor[]): { inserted: number; dele
 }
 
 export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
-  const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
+  const maxVolume = maxBandVolume(timeline);
   const rows = timeline.bands
     .filter((band) => band.volume > 0)
     .sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));

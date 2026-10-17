@@ -34,6 +34,7 @@ import {
   STREAMGRAPH_TITLE,
   VERSION_FRAME_TITLE,
 } from '@/features/timeline/timeline-copy';
+import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
@@ -83,7 +84,7 @@ function readyReply(sequence: number): VersionReply {
 }
 
 function reply({ status, body, headers }: VersionReply): Response {
-  if (body) return new Response(JSON.stringify(body), { status });
+  if (body) return jsonResponse({ body, status });
   return new Response(null, { status, headers });
 }
 
@@ -116,19 +117,19 @@ function mockDocumentApi({
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const path = String(input).split('?')[0]!;
     if (isGone() && path !== ApiPath.Me && path !== BLANK_DOCX_PATH) return new Response(null, { status: HttpStatus.NotFound });
-    if (path === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
-    if (path === documentApiPath({ documentId: DOCUMENT_ID })) return new Response(JSON.stringify(opened), { status: openedStatus });
+    if (path === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
+    if (path === documentApiPath({ documentId: DOCUMENT_ID })) return jsonResponse({ body: opened, status: openedStatus });
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members }))
-      return new Response(JSON.stringify({ members: [] }));
+      return jsonResponse({ body: { members: [] } });
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline })) {
       if (holdTimeline) return new Promise<Response>(() => undefined);
       await timelineGate;
-      return new Response(JSON.stringify(timelineQueue.length > 1 ? timelineQueue.shift() : timelineQueue[0]));
+      return jsonResponse({ body: timelineQueue.length > 1 ? timelineQueue.shift() : timelineQueue[0] });
     }
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries }))
-      return new Response(JSON.stringify({ summaries: [] }));
-    if (path === selectionSummaryApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(NONE_VIEW));
-    if (path === timelineEditsApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(edits));
+      return jsonResponse({ body: { summaries: [] } });
+    if (path === selectionSummaryApiPath(DOCUMENT_ID)) return jsonResponse({ body: NONE_VIEW });
+    if (path === timelineEditsApiPath(DOCUMENT_ID)) return jsonResponse({ body: edits });
     if (path === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     const queue = queues.get(path);
     if (!queue) throw new Error(`unexpected request ${path}`);

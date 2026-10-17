@@ -1,10 +1,10 @@
-export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';
-
 export const TIMELINE_HEADING = 'Timeline';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
 export const NOTHING_TO_GROUP_MESSAGE = 'No edits to group into topics yet';
 export const RETRY_TOPICS_LABEL = 'Retry';
+export const TOPICS_REFRESH_SUBJECT = 'Topics refresh';
+export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 export const FILTER_LABEL = 'Filter';
 export const FILTER_PLACEHOLDER = 'Filter by text or @person';
 export const CLEAR_FILTERS_LABEL = 'Clear filters';
@@ -41,10 +41,6 @@ const UNIT_LABELS: Record<EditUnit, { one: string; many: string }> = {
   [EditUnit.Word]: { one: 'word', many: 'words' },
   [EditUnit.Character]: { one: 'character', many: 'characters' },
 };
-
-export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
-  return `${subject} failed with status ${status}.`;
-}
 
 export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
   return `${name}, ${countLabel({ count: volume, unit: EditUnit.Character })}`;

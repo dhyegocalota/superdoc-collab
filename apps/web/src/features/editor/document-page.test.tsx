@@ -20,6 +20,7 @@ import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { pageTitle } from '@/lib/use-document-title';
+import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
@@ -36,7 +37,7 @@ import {
   TITLE_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
-import { DocumentMode } from './superdoc-editor';
+import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
@@ -88,19 +89,18 @@ function mockDocumentApi({
 }) {
   let current = opened;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
-    if (input === MEMBERS_PATH) return new Response(JSON.stringify({ members: [] }), { status: currentMembersStatus() });
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
+    if (input === MEMBERS_PATH) return jsonResponse({ body: { members: [] }, status: currentMembersStatus() });
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
-    if (input === TIMELINE_PATH) return new Response(JSON.stringify(EMPTY_TIMELINE));
-    if (input === SUMMARIES_PATH) return new Response(JSON.stringify({ summaries: [] }));
-    if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(NONE_VIEW));
+    if (input === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
+    if (input === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
+    if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID)) return jsonResponse({ body: NONE_VIEW });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     if (input === DOCUMENT_PATH && init?.method === HttpMethod.Patch && renamedTitle) {
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
     }
-    if (input === DOCUMENT_PATH)
-      return new Response(JSON.stringify(openStatus === HttpStatus.Ok ? current : openBody), { status: openStatus });
+    if (input === DOCUMENT_PATH) return jsonResponse({ body: openStatus === HttpStatus.Ok ? current : openBody, status: openStatus });
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -279,7 +279,7 @@ test('Escape on the reading surface of a viewer moves focus past the editor too'
 
 test('the header stays while the document opens', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     return new Promise<Response>(() => undefined);
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });

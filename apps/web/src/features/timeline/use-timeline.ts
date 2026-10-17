@@ -1,6 +1,7 @@
 import type { DocumentTimeline, TimelineFilter } from '@superdoc-history/types';
 import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { fetchTimeline, pollWhileAvailable, timelineQueryKey } from './timeline-api';
+import { pollWhileAvailable } from '@/lib/api';
+import { fetchTimeline, TIMELINE_POLL_MS, timelineQueryKey } from './timeline-api';
 
 export function useTimeline({
   documentId,
@@ -15,7 +16,7 @@ export function useTimeline({
     queryKey: timelineQueryKey({ documentId, filter }),
     queryFn: () => fetchTimeline({ documentId, filter }),
     enabled: isOpen,
-    refetchInterval: pollWhileAvailable,
+    refetchInterval: pollWhileAvailable(TIMELINE_POLL_MS),
     placeholderData: keepPreviousData,
     retry: false,
   });

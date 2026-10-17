@@ -12,6 +12,11 @@ Playwright MCP rules:
 - Read console messages at error level and the network requests of the feature; both must be clean, and every key call must return 2xx.
 - Check desktop and a narrow width.
 - Save screenshots under `.pr-media/<slug>/` with lowercase, dash-separated names.
+- Compare each screen with the screenshot of the same state taken before the change, at 1280 and 375.
+
+When Playwright MCP is down, write a throwaway spec `e2e/_walk-<slug>.spec.ts` that walks the same flow and takes the same screenshots. Run it from a scratch copy of `playwright.config.ts` whose `PORT` and fake model port (`e2e/fake-openrouter-origin.ts`) differ from any stack already running. Delete the spec and the config when done; never commit `e2e/_*.spec.ts`. Say in the summary that the walk was scripted.
+
+When the change folds or deletes tests, prove nothing was lost with mutation checks: break the behaviour each dropped test covered, confirm a surviving test goes red, restore the code; a mutation is never committed. Record each mutation, the test that caught it and the restore.
 
 Tick each box only with evidence appended after ` — evidence: ` (commit hash, log path, counts, screenshot path). An untestable box is marked `BLOCKED: <why>`, never ticked.
 

@@ -39,6 +39,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 |------|-------|------|----------------|
 | 2026-10-15 | Keystrokes land on BODY and typed text is silently missing, only under concurrency | [2026-10-15-click-steals-editor-focus-under-load.md](2026-10-15-click-steals-editor-focus-under-load.md) | 2026-10-16 |
 | 2026-10-17 | A spec that reads a call counter off the fake upstream passes alone and fails as soon as its file runs in parallel | [2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md](2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md) | 2026-10-17 |
+| 2026-10-17 | Text typed keystroke by keystroke can land in two runs | [2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md](2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md) | 2026-10-17 |
 
 ### tooling
 
@@ -46,15 +47,19 @@ Every learning touched by a change gets a `Revisited` line appended.
 |------|-------|------|----------------|
 | 2026-10-15 | SuperDoc never becomes ready under `vite dev` and the worker fails to load | [2026-10-15-vite-dev-breaks-superdoc-worker.md](2026-10-15-vite-dev-breaks-superdoc-worker.md) | 2026-10-16 |
 | 2026-10-16 | A red-first claim cannot be verified when test and code share a commit | [2026-10-16-commit-the-failing-test-first.md](2026-10-16-commit-the-failing-test-first.md) | 2026-10-16 |
-| 2026-10-16 | A commit from one lane sweeps in files another lane staged | [2026-10-16-parallel-lanes-share-one-git-index.md](2026-10-16-parallel-lanes-share-one-git-index.md) | 2026-10-16 |
+| 2026-10-16 | A commit from one lane sweeps in files another lane staged | [2026-10-16-parallel-lanes-share-one-git-index.md](2026-10-16-parallel-lanes-share-one-git-index.md) | 2026-10-17 |
 | 2026-10-16 | A worker_threads exception with no 'error' listener exits the server | [2026-10-16-worker-threads-need-an-error-listener.md](2026-10-16-worker-threads-need-an-error-listener.md) | 2026-10-16 |
 | 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-16 |
 | 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-16 |
 | 2026-10-16 | AI SDK 7 deprecates generateObject; structured output is generateText + Output.object | [2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md](2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md) | 2026-10-16 |
 | 2026-10-17 | A repository folder named `deploy/` breaks `pnpm deploy` inside the image build | [2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md](2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md) | 2026-10-17 |
-| 2026-10-16 | A red-first commit must fail on the named assertion, not on a missing module | [2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md](2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md) | 2026-10-16 |
+| 2026-10-16 | A red-first commit must fail on the named assertion, not on a missing module | [2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md](2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md) | 2026-10-17 |
 | 2026-10-17 | A disabled button never shows its title, so the reason must be visible text | [2026-10-17-a-disabled-button-never-shows-its-title.md](2026-10-17-a-disabled-button-never-shows-its-title.md) | 2026-10-17 |
 | 2026-10-17 | A keydown inside an iframe never reaches the parent document's listeners | [2026-10-17-keydown-inside-an-iframe-never-reaches-the-parent.md](2026-10-17-keydown-inside-an-iframe-never-reaches-the-parent.md) | 2026-10-17 |
 | 2026-10-17 | SuperDoc sends usage telemetry to its vendor unless the config turns it off | [2026-10-17-superdoc-telemetry-is-on-by-default.md](2026-10-17-superdoc-telemetry-is-on-by-default.md) | 2026-10-17 |
 | 2026-10-17 | A guard hook blocks a harmless command because the forbidden flag appears in quoted prose | [2026-10-17-a-guard-hook-matches-the-flag-inside-quoted-prose.md](2026-10-17-a-guard-hook-matches-the-flag-inside-quoted-prose.md) | 2026-10-17 |
+| 2026-10-17 | A key handler that reads React state sees the previous keystroke | [2026-10-17-a-key-handler-that-reads-react-state-sees-the-previous-keystroke.md](2026-10-17-a-key-handler-that-reads-react-state-sees-the-previous-keystroke.md) | 2026-10-17 |
+| 2026-10-17 | A Radix dialog without a trigger drops focus to body on close | [2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md](2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md) | 2026-10-17 |
+| 2026-10-17 | GitHub Actions may create no run for a push or PR, and tight API polling trips the secondary rate limit | [2026-10-17-github-actions-may-create-no-run-and-tight-polling-trips-the-rate-limit.md](2026-10-17-github-actions-may-create-no-run-and-tight-polling-trips-the-rate-limit.md) | 2026-10-17 |
+| 2026-10-17 | Focusing a new SuperDoc document before the first click crashes the first keystroke | [2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md](2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md) | 2026-10-17 |
 | 2026-10-17 | A hook that parses `git status --porcelain` maps a path with a space to the wrong folder | [2026-10-17-git-status-porcelain-quotes-paths-with-spaces.md](2026-10-17-git-status-porcelain-quotes-paths-with-spaces.md) | 2026-10-17 |

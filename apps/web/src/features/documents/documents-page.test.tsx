@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
+import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
@@ -48,9 +49,9 @@ const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', ti
 
 function mockApi(list: DocumentsList) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
-    if (init?.method === HttpMethod.Post) return new Response(JSON.stringify(CREATED_DOCUMENT), { status: HttpStatus.Created });
-    return new Response(JSON.stringify(list));
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
+    if (init?.method === HttpMethod.Post) return jsonResponse({ body: CREATED_DOCUMENT, status: HttpStatus.Created });
+    return jsonResponse({ body: list });
   });
 }
 
@@ -98,7 +99,7 @@ test('Mine shows title and date, Shared adds the owner and a readable access lab
 
 test('the lists show skeleton rows while they load, under the heading', () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     return new Promise<Response>(() => undefined);
   });
   renderWithProviders(<DocumentsPage />);
@@ -108,9 +109,9 @@ test('the lists show skeleton rows while they load, under the heading', () => {
 
 test('a failed New document shows its alert under the heading, outside the button row', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
+    if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (init?.method === HttpMethod.Post) return new Response(null, { status: HttpStatus.InternalServerError });
-    return new Response(JSON.stringify({ mine: [], shared: [] }));
+    return jsonResponse({ body: { mine: [], shared: [] } });
   });
   renderWithProviders(<DocumentsPage />);
   const button = await screen.findByRole('button', { name: NEW_DOCUMENT_LABEL });

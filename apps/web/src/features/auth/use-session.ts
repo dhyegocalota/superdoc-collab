@@ -1,13 +1,12 @@
 import { ApiPath, type SessionUser } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/lib/api';
+import { apiGet, readJson } from '@/lib/api';
 
 export const SESSION_QUERY_KEY = ['me'];
 
 async function fetchMe(): Promise<SessionUser | null> {
   const response = await apiGet(ApiPath.Me);
-  if (!response.ok) throw new Error(`Session request failed with status ${response.status}`);
-  const body: { user: SessionUser | null } = await response.json();
+  const body = await readJson<{ user: SessionUser | null }>({ response, subject: 'Session request' });
   return body.user;
 }
 

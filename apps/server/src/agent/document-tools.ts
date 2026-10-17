@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { AgentToolContext } from './agent-tool-context';
 import { AgentChangeMode } from './agent-change-mode';
 import { defineDocumentTool, personOf, type AgentToolDefinition } from './agent-tool-definition';
-import { jsonResult, required } from './tool-results';
+import { AgentToolError, jsonResult, required, type ToolErrorDetails } from './tool-results';
 
 type DocumentTool = AgentTool.InspectDocument | AgentTool.EditDocument | AgentTool.ExportDocx;
 
@@ -25,6 +25,13 @@ export const MAX_EDITS = 50;
 export const MAX_TEXTS = 100;
 export const MAX_TEXT_LENGTH = 10_000;
 const MAXIMUM_HEADING_LEVEL = 6;
+const OK_RECEIPT_STATUS = 'ok';
+const UNREADABLE_RECEIPT_MESSAGE = 'The edit returned a receipt that could not be read';
+const receiptSchema = z.object({
+  status: z.string(),
+  errors: z.array(z.object({ code: z.string(), message: z.string() })).optional(),
+  nextStep: z.string().optional(),
+});
 const EXPORT_DIRECTORY_PREFIX = 'superdoc-history-export-';
 const EXPORT_FILE_NAME = 'document.docx';
 const EXPORT_URI_PREFIX = 'superdoc-history://documents/';
@@ -57,6 +64,17 @@ const ACTION_ARGUMENTS: Record<EditAction, (input: EditInput) => Record<string, 
     level: required({ value: level, field: 'level', tool: EditAction.InsertHeading }),
   }),
 };
+
+function requireAppliedReceipt(receipt: unknown): void {
+  const parsed = receiptSchema.safeParse(receipt);
+  if (!parsed.success) throw new AgentToolError({ message: UNREADABLE_RECEIPT_MESSAGE });
+  const { status, errors, nextStep } = parsed.data;
+  if (status === OK_RECEIPT_STATUS) return;
+  const reasons = errors ? errors.map(({ code, message }) => `${code}: ${message}`).join('; ') : '';
+  const message = reasons ? `The edit ${status}: ${reasons}` : `The edit ${status}`;
+  const details: ToolErrorDetails = nextStep ? { status, nextStep } : { status };
+  throw new AgentToolError({ message, details });
+}
 
 async function exportedBytes({ context, documentId }: { context: AgentToolContext; documentId: string }): Promise<Uint8Array> {
   const { runtime, storage } = context.services;
@@ -91,7 +109,7 @@ export const DOCUMENT_TOOLS: Record<DocumentTool, AgentToolDefinition> = {
     scope: AgentScope.DocumentEdit,
     minimumRole: DocumentRole.Editor,
     description:
-      'Edit the live document. Every change is a tracked change signed as the person plus AI; the person accepts or rejects it in the app.',
+      'Edit the live document. Every change is a tracked change signed as the person plus AI; the person accepts or rejects it in the app. A receipt that is not ok is returned as an error. Paragraphs inserted straight after a heading take its style, because the SDK offers no paragraph style argument.',
     shape: editShape,
     handle: async ({ input, context }) => {
       const args = { action: input.action, ...ACTION_ARGUMENTS[input.action](input), changeMode: AgentChangeMode.Tracked };
@@ -100,6 +118,7 @@ export const DOCUMENT_TOOLS: Record<DocumentTool, AgentToolDefinition> = {
         documentId: input.documentId,
         work: (document) => context.toolkit.dispatch(document, ToolkitTool.PerformAction, args),
       });
+      requireAppliedReceipt(receipt);
       return jsonResult(receipt);
     },
   }),

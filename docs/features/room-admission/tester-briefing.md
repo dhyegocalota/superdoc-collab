@@ -250,3 +250,11 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 - **Terminate after breach or 1009:** `terminateAfterGrace` terminates a socket still open `SOCKET_CLOSE_GRACE_MS` after `close()`. Unit-tested with fake timers; not tested against a real peer that ignores the close frame. The 121st frame reaches the room handler and none after it does (pinned by a test with a stand-in room handler counting 121 frames).
 - **Agent refusal:** an agent on an uncommitted room is refused before any ticket check, also with the owner's valid ticket.
 - **Reservation lifetime cap:** `CREATOR_RESERVATION_MAX_MS` is 5 minutes. The constructor takes it as an optional argument defaulting to the constant, so `server.ts` needs no change. Hypothesis: touches every 59 s stop extending at five minutes and the next editor takes over.
+
+### G3 review round
+
+- **Agent seed fixture:** `commitSeededRoom` opens a scratch Hocuspocus with the SDK client in create mode, no `AgentSessions`. `agent-sessions-room.test.ts` and `mcp-over-oauth.test.ts` run green. G4's "uncommitted room seeds nothing" test compares log counts before and after, because the fixture leaves one committed row.
+- **Fence:** `isCommitted` for the fence is the live marker or the server's answer. Hypothesis: a member that overwrites `meta.bootstrapState` on a committed room does not stop other members' writes.
+- **Scan cache:** `bootstrap.isCommitted` resumes an uncommitted scan after the rows already read. The partial `Y.Doc` of every uncommitted document stays in memory until it commits or is forgotten; the memory is as large as the partial seed. Hypothesis: repeated opens of an uncommitted room read only the new rows.
+- **Reservation liveness:** `reserveCreator` and the `connected` hook call `touch` for the attempts of connected sockets. The lifetime cap still bounds it, so a holder with a connected socket can be taken over after `CREATOR_RESERVATION_MAX_MS`. The real-socket takeover close is no longer reachable inside the silence window; the takeover close is covered by the runtime unit test with fake connections.
+- **Refactor:** `isWriteAllowed` carries the fence pointer, `isAdmittedCreator` names the admission condition, and `CreatorTicket` is imported from `libs/types` on the server.

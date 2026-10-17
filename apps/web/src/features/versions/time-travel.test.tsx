@@ -24,7 +24,7 @@ import {
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { ViewerMessageKind } from '@/features/editor/viewer-messages';
+import { ViewerMessageKind } from './viewer-messages';
 import { formatTimestamp } from '@/features/timeline/timeline-tooltip';
 import { SCRUB_DEBOUNCE_MS } from '@/features/timeline/use-time-travel';
 import {
@@ -37,11 +37,11 @@ import {
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
-import { MEMBERS_REFRESH_MS } from './editor-api';
+import { MEMBERS_REFRESH_MS } from '@/features/editor/editor-api';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
-import { BLANK_DOCX_PATH } from './editor-api';
-import { TITLE_LABEL } from './editor-copy';
-import { DocumentPage } from './document-page';
+import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
+import { TITLE_LABEL } from '@/features/editor/editor-copy';
+import { DocumentPage } from '@/features/editor/document-page';
 
 type VersionReply = { status: HttpStatus; body?: VersionSummary; headers?: Record<string, string> };
 

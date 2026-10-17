@@ -13,7 +13,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
-import { ViewerMessageKind } from '@/features/editor/viewer-messages';
+import { ViewerMessageKind } from './viewer-messages';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';

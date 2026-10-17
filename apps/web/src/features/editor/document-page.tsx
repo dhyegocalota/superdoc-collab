@@ -18,8 +18,8 @@ import {
 } from './editor-api';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
-import { VersionBanner } from './version-banner';
-import { VersionFrame } from './version-frame';
+import { VersionBanner } from '@/features/versions/version-banner';
+import { VersionFrame } from '@/features/versions/version-frame';
 import { SuperDocEditor } from './superdoc-editor';
 import { useEditorSetup } from './use-editor-setup';
 import { useOpenedDocument } from './use-opened-document';

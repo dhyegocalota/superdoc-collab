@@ -9,9 +9,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
-import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
-import { documentFileQueryKey, fetchDocumentFile } from './editor-api';
-import { DocumentMode } from './superdoc-editor';
+import { collaborationUrl, HOCUSPOCUS_PROVIDER } from '@/features/editor/collaboration-config';
+import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
+import { DocumentMode } from '@/features/editor/superdoc-editor';
 
 enum ConnectionState {
   Degraded = 'degraded',

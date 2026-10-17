@@ -17,6 +17,7 @@ const LOOPBACK_HOST = '127.0.0.1';
 const UNIQUE_EMAIL_SUFFIX_LENGTH = 8;
 const NO_LLM_SETTINGS: LlmSettings = { model: null, apiKey: null, baseUrl: null, maxConcurrentJobs: LLM_MAX_CONCURRENT_JOBS, maxCallsPerHour: LLM_MAX_CALLS_PER_HOUR };
 const OWNER_NAME = 'Ana';
+export const PROJECTION_WORKER_FILE_VARIABLE = 'PROJECTION_WORKER_FILE';
 export const TEST_USER_PASSWORD = 'superdoc-demo';
 
 export type TestServer = { baseUrl: string; auth: Auth; database: AuthDatabase; services: ServerServices; databaseDirectory: string; stop: () => Promise<void> };
@@ -33,6 +34,12 @@ export function testEnvironment({ databaseDirectory = mkdtempSync(join(tmpdir(),
   return { port: 0, appOrigin: `http://${LOOPBACK_HOST}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy: true, llm: NO_LLM_SETTINGS };
 }
 
+export function prebuiltProjectionWorkerFile(): URL | null {
+  const value = process.env[PROJECTION_WORKER_FILE_VARIABLE];
+  if (!value) return null;
+  return new URL(value);
+}
+
 const ADDRESS_IN_USE_CODE = 'EADDRINUSE';
 const START_ATTEMPTS = 5;
 
@@ -44,7 +51,7 @@ export async function startTestServer({ trustProxy = true, databaseDirectory = m
   const port = await reserveFreePort();
   const environment: Environment = { port, appOrigin: `http://${LOOPBACK_HOST}:${port}`, authSecret: TEST_AUTH_SECRET, databaseDirectory, trustProxy, llm: NO_LLM_SETTINGS };
   try {
-    const running = await startServer({ environment, webDistDirectory: null, languageModel, versionRoomPolicy });
+    const running = await startServer({ environment, webDistDirectory: null, languageModel, versionRoomPolicy, projectionWorkerFile: prebuiltProjectionWorkerFile() });
     return { baseUrl: environment.appOrigin, auth: running.auth, database: running.database, services: running.services, databaseDirectory, stop: running.stop };
   } catch (error) {
     if (!isAddressInUse(error) || attemptsLeft <= 1) throw error;

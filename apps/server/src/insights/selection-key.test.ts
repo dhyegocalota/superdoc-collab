@@ -39,8 +39,12 @@ test('term, person, topic and period each give a different key', () => {
   expect(new Set(keys).size).toBe(keys.length);
 });
 
-test('the zone changes the key', () => {
-  expect(selectionKeyOf({ selection: NO_SELECTION, binMs: BIN_MS, timeZone: UTC_TIME_ZONE })).not.toBe(
+test('the zone changes the key only when a period is selected', () => {
+  const period = { ...NO_SELECTION, at: 0 };
+  expect(selectionKeyOf({ selection: NO_SELECTION, binMs: BIN_MS, timeZone: UTC_TIME_ZONE })).toBe(
     selectionKeyOf({ selection: NO_SELECTION, binMs: BIN_MS, timeZone: SAO_PAULO_TIME_ZONE }),
+  );
+  expect(selectionKeyOf({ selection: period, binMs: BIN_MS, timeZone: UTC_TIME_ZONE })).not.toBe(
+    selectionKeyOf({ selection: period, binMs: BIN_MS, timeZone: SAO_PAULO_TIME_ZONE }),
   );
 });

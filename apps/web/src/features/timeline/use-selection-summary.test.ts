@@ -1,4 +1,10 @@
-import { HttpStatus, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
+import {
+  HttpStatus,
+  SelectionSummaryState,
+  TimelineQueryParam,
+  type EditSelection,
+  type SelectionSummaryView,
+} from '@superdoc-collab/types';
 import { waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
@@ -11,6 +17,7 @@ vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', s
 
 const SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
 const POLL_COUNT = 3;
+const TIMELINE_TIME_ZONE = 'America/Sao_Paulo';
 
 function viewIn(state: SelectionSummaryState): SelectionSummaryView {
   return { state, summary: null, failure: null, isModelAvailable: true };
@@ -24,7 +31,14 @@ async function pollsAfterFirstRead(status: () => Response): Promise<number> {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const fetchSpy = respondWith(status);
   const { result } = renderHookWithRouter(() =>
-    useSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, isOpen: true, timelineStamp: null }),
+    useSelectionSummary({
+      documentId: DOCUMENT_ID,
+      selection: SELECTION,
+      binMs: null,
+      timeZone: TIMELINE_TIME_ZONE,
+      isOpen: true,
+      timelineStamp: null,
+    }),
   );
   await waitFor(() => expect(result.current.isFetched).toBe(true));
   await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * POLL_COUNT);
@@ -51,4 +65,21 @@ test.each([SelectionSummaryState.None, SelectionSummaryState.Ready, SelectionSum
 
 test('a document that is gone stops the polling', async () => {
   expect(await pollsAfterFirstRead(() => new Response('{}', { status: HttpStatus.NotFound }))).toBe(0);
+});
+
+test('the summary is requested in the zone the timeline was built in', async () => {
+  const fetchSpy = respondWith(() => jsonResponse({ body: viewIn(SelectionSummaryState.None) }));
+  const { result } = renderHookWithRouter(() =>
+    useSelectionSummary({
+      documentId: DOCUMENT_ID,
+      selection: SELECTION,
+      binMs: null,
+      timeZone: TIMELINE_TIME_ZONE,
+      isOpen: true,
+      timelineStamp: null,
+    }),
+  );
+  await waitFor(() => expect(result.current.isFetched).toBe(true));
+  const requested = new URL(String(fetchSpy.mock.calls[0]![0]), 'http://localhost');
+  expect(requested.searchParams.get(TimelineQueryParam.TimeZone)).toBe(TIMELINE_TIME_ZONE);
 });

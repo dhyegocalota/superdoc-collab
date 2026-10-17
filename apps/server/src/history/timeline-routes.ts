@@ -4,7 +4,7 @@ import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { editsQuerySchema, INVALID_TIMELINE_QUERY_MESSAGE, timelineQuerySchema } from './timeline-query';
-import { buildBinEdits, buildDocumentTimeline } from './timeline-service';
+import { buildBinEdits, buildDocumentTimeline, exceedsBinLimit } from './timeline-service';
 
 const EDITS_PATH = '/:documentId/timeline/edits';
 
@@ -15,6 +15,9 @@ export function createTimelineRoutes({ services }: { services: AppServices }): H
     const parsed = timelineQuerySchema.safeParse(context.req.query());
     if (!parsed.success) return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
     const { term, author, binMs, timeZone } = parsed.data;
+    if (binMs !== null && exceedsBinLimit({ services, documentId, binMs })) {
+      return context.json({ error: INVALID_TIMELINE_QUERY_MESSAGE }, HttpStatus.BadRequest);
+    }
     services.insights.topics.ensure(documentId);
     const timeline = buildDocumentTimeline({ services, documentId, filter: { term, author }, binMs, timeZone });
     services.insights.topics.onTimelineRead(documentId);

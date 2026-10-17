@@ -4,6 +4,8 @@ import {
   HOUR_MS,
   DAY_MS,
   MINUTE_MS,
+  SECOND_MS,
+  WEEK_MS,
   documentApiPath,
   HttpStatus,
   selectionSummaryApiPath,
@@ -28,6 +30,7 @@ const BULK_EVENTS = 10_000;
 const BULK_BLOCKS = 600;
 const OFF_LADDER_BIN_MS = 61_000;
 const TWO_MINUTE_BIN_MS = 2 * MINUTE_MS;
+const MULTI_WEEK_BIN_MS = 3 * WEEK_MS;
 
 function timelineUrl({ server, documentId, query }: { server: { baseUrl: string }; documentId: string; query: string }): string {
   return `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${zonedQuery({ query })}`;
@@ -298,5 +301,31 @@ test('a case variant of a zone reads the same bins as its canonical name', async
   const canonical = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
   const variant = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE.toLowerCase() });
   expect(variant.bins).toEqual(canonical.bins);
+  expect(variant.timeZone).toBe(SAO_PAULO_TIME_ZONE);
+  await server.stop();
+});
+
+test.each([
+  ['timeline', (documentId: string) => documentApiPath({ documentId, resource: DocumentResource.Timeline })],
+  ['edits', (documentId: string) => `${timelineEditsApiPath(documentId)}?binStart=0`],
+  ['selection', (documentId: string) => selectionSummaryApiPath(documentId)],
+] as const)('the %s route accepts a multi-week bin size that chooseBinMs can return', async (_name, pathOf) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const path = `${server.baseUrl}${pathOf(documentId)}`;
+  const separator = path.includes('?') ? '&' : '?';
+  const response = await fetch(`${path}${separator}${zonedQuery({ query: `binMs=${MULTI_WEEK_BIN_MS}` })}`, {
+    headers: { cookie: owner.cookie },
+  });
+  expect(response.status).toBe(HttpStatus.Ok);
+  await server.stop();
+});
+
+test('a bin size that would cover too many bins for the span answers 400', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
+  const response = await fetch(timelineUrl({ server, documentId, query: `binMs=${10 * SECOND_MS}` }), {
+    headers: { cookie: owner.cookie },
+  });
+  expect(response.status).toBe(HttpStatus.BadRequest);
   await server.stop();
 });

@@ -1,7 +1,6 @@
 import { cellVolume } from '@superdoc-collab/history/timeline';
 import type { DocumentTimeline } from '@superdoc-collab/types';
 import { formatBinRange } from '@/lib/format-date-time';
-import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
 import { authorNames } from './author-of';
 import { editDeltaLabel, EditUnit } from './timeline-copy';
@@ -59,7 +58,7 @@ export function TimelineTooltip({
   top: number;
   chartWidth: number;
 }) {
-  const { timeZone } = useTimeZone();
+  const { timeZone } = timeline;
   const bin = timeline.bins[index]!;
   const rows = timeline.bands.map((band) => ({ band, cell: bin.byBand[band.id] })).filter(({ cell }) => cellVolume(cell) > 0);
   const alignment = tooltipAlignment({ left, chartWidth });

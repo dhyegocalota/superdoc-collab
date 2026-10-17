@@ -15,6 +15,11 @@ function periodBinMs({ selection, binMs }: { selection: EditSelection; binMs: nu
   return binMs;
 }
 
+function periodTimeZone({ selection, timeZone }: { selection: EditSelection; timeZone: string }): string | null {
+  if (selection.at === null) return null;
+  return timeZone;
+}
+
 export function selectionKeyOf({ selection, binMs, timeZone }: { selection: EditSelection; binMs: number; timeZone: string }): string {
   const normalized = [
     normalizedText(selection.term),
@@ -22,7 +27,7 @@ export function selectionKeyOf({ selection, binMs, timeZone }: { selection: Edit
     selection.topic,
     selection.at,
     periodBinMs({ selection, binMs }),
-    timeZone,
+    periodTimeZone({ selection, timeZone }),
   ];
   return createHash(SELECTION_KEY_ALGORITHM).update(JSON.stringify(normalized)).digest(SELECTION_KEY_ENCODING);
 }

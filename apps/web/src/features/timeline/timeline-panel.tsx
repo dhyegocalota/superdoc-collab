@@ -5,6 +5,7 @@ import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
 import { FilterBox } from './filter-box';
@@ -57,15 +58,18 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
     topic: search.topic,
     at: selectedBin ? selectedBin.start : null,
   };
+  const { timeZone: preferredTimeZone } = useTimeZone();
   const binMs = timeline ? timeline.binMs : null;
+  const timeZone = timeline ? timeline.timeZone : preferredTimeZone;
   const { data: selectionSummary } = useSelectionSummary({
     documentId,
     selection,
     binMs,
+    timeZone,
     isOpen,
     timelineStamp: timeline ? timelineStamp(timeline) : null,
   });
-  const summarize = useSummarizeEdits({ documentId, binMs });
+  const summarize = useSummarizeEdits({ documentId, binMs, timeZone });
   const reasonId = useId();
   const disabledReason = timeline
     ? summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending })

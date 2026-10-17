@@ -24,7 +24,14 @@ import { INVALID_TIMELINE_QUERY_MESSAGE } from '../history/timeline-query';
 import { readEvents } from '../testing/events-client';
 import { memberWithRole } from '../testing/collaboration-client';
 import { gatedModel, modelAnswering, readyModel } from '../testing/language-model';
-import { postSelectionSummary, readSelectionSummary, storyWithBlocks, twoAuthorsInTwoBlocks, zonedQuery } from '../testing/timeline-client';
+import {
+  postSelectionSummary,
+  readSelectionSummary,
+  readTimeline,
+  storyWithBlocks,
+  twoAuthorsInTwoBlocks,
+  zonedQuery,
+} from '../testing/timeline-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
 import { JobOutcome } from './insights-job-runner';
 import { chooseLanguageModel, LLM_BUSY_MESSAGE, LLM_MODEL_MISSING_MESSAGE } from './llm-client';
@@ -246,12 +253,17 @@ test.each(INVALID_QUERIES)('an invalid selection query %s is 400 for the GET and
   await server.stop();
 });
 
-test('a selection summarized for one zone is not served for another', async () => {
-  const model = modelAnswering(SELECTION_ANSWER);
+function selectionRowCount(server: TestServer): number {
+  const row = server.database.sqlite.prepare('select count(*) as total from selection_summaries').get() as { total: number };
+  return row.total;
+}
+
+test('a whole-document selection summarized in one zone is served in another from the same row', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
   await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY, timeZone: UTC_TIME_ZONE });
   await server.services.insights.jobRunner.idle();
-  const sameZone = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY, timeZone: UTC_TIME_ZONE });
   const otherZone = await readSelectionSummary({
     server,
     documentId,
@@ -259,8 +271,28 @@ test('a selection summarized for one zone is not served for another', async () =
     query: MEMBER_QUERY,
     timeZone: SAO_PAULO_TIME_ZONE,
   });
-  expect(sameZone.state).toBe(SelectionSummaryState.Ready);
+  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY, timeZone: SAO_PAULO_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
+  expect(otherZone.state).toBe(SelectionSummaryState.Ready);
+  expect(selectionRowCount(server)).toBe(1);
+  await server.stop();
+});
+
+test('a period selection summarized in one zone is not served for another', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const model = modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER);
+  const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
+  const timeline = await readTimeline({ server, documentId, cookie: editor.cookie, timeZone: UTC_TIME_ZONE });
+  const query = `${MEMBER_QUERY}&at=${timeline.bins.find((bin) => Object.keys(bin.byBand).length > 0)!.start}`;
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: UTC_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
+  const otherZone = await readSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
+  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
+  await server.services.insights.jobRunner.idle();
   expect(otherZone.state).toBe(SelectionSummaryState.None);
+  expect(selectionRowCount(server)).toBe(2);
   await server.stop();
 });
 

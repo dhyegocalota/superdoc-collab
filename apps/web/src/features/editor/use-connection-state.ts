@@ -129,14 +129,24 @@ function reduceMachine(machine: Machine, action: Action): Machine {
   return reducer(machine, action);
 }
 
-export function resolveFailureReason(_input: {
+export function resolveFailureReason({
+  failureReason,
+  isSessionEnded,
+}: {
   failureReason: ConnectionFailureReason | null;
   isSessionEnded: boolean;
 }): ConnectionFailureReason | null {
-  throw new Error('resolveFailureReason is not implemented');
+  const isUnexplained = failureReason === ConnectionFailureReason.Unknown;
+  if (isUnexplained && isSessionEnded) return ConnectionFailureReason.SessionEnded;
+  return failureReason;
 }
 
-export function useConnectionState({ documentId, isCurrentUserOnline, membersAnsweredAt }: ConnectionStateInput): ConnectionStateView {
+export function useConnectionState({
+  documentId,
+  isCurrentUserOnline,
+  membersAnsweredAt,
+  isSessionEnded,
+}: ConnectionStateInput): ConnectionStateView {
   const queryClient = useQueryClient();
   const [machine, dispatch] = useReducer(reduceMachine, INITIAL_MACHINE);
   const { reading, failureReason, lostAt, isNoticeShown } = machine;
@@ -168,5 +178,5 @@ export function useConnectionState({ documentId, isCurrentUserOnline, membersAns
 
   const resetConnection = useCallback((): void => dispatch({ type: ConnectionAction.Reset }), []);
 
-  return { state, failureReason, reportTransport, resetConnection };
+  return { state, failureReason: resolveFailureReason({ failureReason, isSessionEnded }), reportTransport, resetConnection };
 }

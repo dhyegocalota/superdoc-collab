@@ -21,7 +21,12 @@ export function FilterBox() {
   ].filter((chip) => chip.value !== null);
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === KeyboardKey.Escape) setDraft('');
+    const isClearingDraft = event.key === KeyboardKey.Escape && draft !== '';
+    if (isClearingDraft) {
+      event.preventDefault();
+      setDraft('');
+      return;
+    }
     if (event.key !== KeyboardKey.Enter) return;
     const parsed = parseFilterInput(draft);
     if (!parsed) return;

@@ -50,7 +50,7 @@ export function VersionViewPage() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key !== KeyboardKey.Escape) return;
+      if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
       postToParent(ViewerMessageKind.Exit);
     }
     document.addEventListener('keydown', handleKeyDown);

@@ -1,7 +1,7 @@
 import type { Browser, Page } from '@playwright/test';
 import { DEMO_USERS, DOCUMENT_UNAVAILABLE_MESSAGE, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath } from '../libs/types/src';
 import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
-import { BACK_TO_LIVE_LABEL, REFRESH_TOPICS_LABEL, RETRY_TOPICS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
+import { BACK_TO_LIVE_LABEL, FILTER_LABEL, REFRESH_TOPICS_LABEL, RETRY_TOPICS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
 import { acceptShareLink, EDITOR_INPUT_SELECTOR, editorText, readEvents, shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import {
@@ -34,6 +34,7 @@ const FAILING_PARAGRAPHS = ['FAIL-TOPICS: the plan costs 10.', 'Hiring: we add t
 const STABLE_WINDOW_MS = 4_500;
 const ANA = DEMO_USERS[0]!.name;
 const READ_ONLY_ATTEMPT = ' reader typed this';
+const DRAFT_TEXT = 'bud';
 
 async function ownerWithEdit(browser: Browser) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -184,10 +185,16 @@ test('a reader sees failed topics without a Retry button while the owner has one
   await expect(caio.page.getByRole('button', { name: RETRY_TOPICS_LABEL })).toHaveCount(0);
 });
 
-test('Escape inside the version frame returns to live', async ({ browser }) => {
+test('Escape clears a filled filter box first and leaves the version from inside the frame', async ({ browser }) => {
   const { ana } = await ownerWithEdit(browser);
   await pressInChart({ page: ana.page, name: BAND_NAME, keys: ['Home'] });
   await expect(versionBanner(ana.page)).toHaveAttribute('data-sequence', /\d+/, { timeout: VERSION_TIMEOUT_MS });
+  const at = currentAt(ana.page);
+  const filter = ana.page.getByRole('textbox', { name: FILTER_LABEL });
+  await filter.fill(DRAFT_TEXT);
+  await ana.page.keyboard.press('Escape');
+  await expect(filter).toHaveValue('');
+  expect(currentAt(ana.page)).toBe(at);
   await viewerFrame(ana.page).locator(TEXT_RUN_SELECTOR).first().click();
   await ana.page.keyboard.press('Escape');
   await expect.poll(() => currentAt(ana.page)).toBeNull();
@@ -202,5 +209,5 @@ test('Escape in the live editor moves focus past it and Tab reaches the timeline
   await ana.page.keyboard.press('Escape');
   await expect.poll(() => ana.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
   await ana.page.keyboard.press('Tab');
-  expect(await ana.page.evaluate(() => document.activeElement?.closest('aside') !== null)).toBe(true);
+  await expect.poll(() => ana.page.evaluate(() => document.activeElement?.closest('aside') !== null)).toBe(true);
 });

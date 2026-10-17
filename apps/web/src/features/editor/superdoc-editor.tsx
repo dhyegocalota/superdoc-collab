@@ -45,8 +45,9 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   }, [superdocRef, documentId, roomMode, role, user, file]);
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
-    if (event.key !== KeyboardKey.Escape) return;
-    if (!(event.target instanceof HTMLElement) || event.target.closest(EDITING_SURFACE_SELECTOR) === null) return;
+    if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
+    const isOnEditingSurface = event.target instanceof HTMLElement && event.target.closest(EDITING_SURFACE_SELECTOR) !== null;
+    if (!isOnEditingSurface) return;
     exitRef.current?.focus();
   }
 
@@ -55,7 +56,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
       {hasFailed && <p role="alert" className="p-4 text-sm text-destructive">{EDITOR_FAILED_MESSAGE}</p>}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div ref={containerRef} data-testid="document-editor" inert={isInert} className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto" />
-      <p ref={exitRef} tabIndex={-1} className="sr-only">{EDITOR_EXIT_LABEL}</p>
+      <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">{EDITOR_EXIT_LABEL}</p>
     </div>
   );
 }

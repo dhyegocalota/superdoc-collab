@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { KeyboardKey } from '@/lib/keyboard';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { deleteDocument, renameDocument } from './editor-api';
 import {
@@ -47,7 +48,7 @@ function TitleInput({ documentId, title }: DocumentIdentity & { title: string })
         defaultValue={title}
         className="max-w-sm font-medium"
         onBlur={(event) => commit(event.currentTarget)}
-        onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
+        onKeyDown={(event) => event.key === KeyboardKey.Enter && event.currentTarget.blur()}
       />
       {isError && <p role="alert" className="text-sm text-destructive">{RENAME_FAILED_MESSAGE}</p>}
     </>

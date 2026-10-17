@@ -34,6 +34,7 @@ import { timelineWith } from '@/test/timeline-fixtures';
 import { MEMBERS_REFRESH_MS } from './editor-api';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from './editor-api';
+import { TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
 
 type VersionReply = { status: HttpStatus; body?: VersionSummary; headers?: Record<string, string> };
@@ -380,6 +381,14 @@ test('Escape leaves the version from anywhere but a field being typed in', async
   fireEvent.keyDown(filter, { key: 'Escape' });
   await waitFor(() => expect(router.state.location.search).toBe(''));
   expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
+});
+
+test('Escape in the title input keeps the version', async () => {
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTitle(VERSION_FRAME_TITLE);
+  fireEvent.keyDown(screen.getByLabelText(TITLE_LABEL), { key: 'Escape' });
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
 });
 
 test('Escape inside the version frame leaves the version and a foreign frame cannot', async () => {

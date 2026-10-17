@@ -163,7 +163,7 @@ export function namesOf(edits: SelectionEdit[]): string[] {
 }
 
 export function authorsNamed({ returned, names }: { returned: string[]; names: string[] }): string[] {
-  return names.filter((name) => name.split(AUTHOR_SEPARATOR).every((part) => returned.includes(part)));
+  return names.filter((name) => returned.includes(name) || name.split(AUTHOR_SEPARATOR).every((part) => returned.includes(part)));
 }
 
 export function selectionPrompt(edits: SelectionEdit[]): string {

@@ -95,4 +95,5 @@ test('a name the model split at its comma is matched back to the sent name', () 
   expect(authorsNamed({ returned: ['Silva', 'Ana', 'Mallory'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Silva, Ana']);
   expect(authorsNamed({ returned: ['Bruno', 'Bruno'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Bruno']);
   expect(authorsNamed({ returned: ['Ana'], names: ['Silva, Ana'] })).toEqual([]);
+  expect(authorsNamed({ returned: ['Silva, Ana'], names: ['Silva, Ana'] })).toEqual(['Silva, Ana']);
 });

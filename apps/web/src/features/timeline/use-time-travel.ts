@@ -29,8 +29,8 @@ export type TimeTravel = {
 function isTypingInField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
-  if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) return false;
-  return target.value !== '';
+  const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+  return isTextField && target.value !== '';
 }
 
 function binContaining({ timeline, time }: { timeline: DocumentTimeline | undefined; time: number | null }): TimelineBin | undefined {

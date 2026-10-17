@@ -10,6 +10,7 @@ import {
   filterRuns,
   groupIntoRuns,
   IdentitySource,
+  MAX_BINS,
   narrowRuns,
   topicBandId,
   versionSequenceAt,
@@ -186,6 +187,11 @@ function binMsOf({ binMs, pipeline }: { binMs: number | null; pipeline: Timeline
   return binMs;
 }
 
+export function exceedsBinLimit({ services, documentId, binMs }: { services: AppServices; documentId: string; binMs: number }): boolean {
+  const { events } = readTimelinePipeline({ services, documentId });
+  return Math.ceil(spanOf(events) / binMs) > MAX_BINS;
+}
+
 function matchedRunsOf({
   services,
   pipeline,
@@ -237,6 +243,7 @@ export function buildDocumentTimeline({
           timeZone,
         });
   return {
+    timeZone,
     binMs: chosenBinMs,
     bins: buildBins({
       runs: matchedRuns,

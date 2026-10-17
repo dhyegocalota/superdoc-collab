@@ -5,6 +5,7 @@ import {
   isSupportedTimeZone,
   NON_NEGATIVE_INTEGER_PATTERN,
   TimelineQueryParam,
+  WEEK_MS,
 } from '@superdoc-collab/types';
 import { z } from 'zod';
 
@@ -15,10 +16,14 @@ const filterText = z
   .max(FILTER_MAX_LENGTH)
   .optional()
   .transform((value) => (value ? value : null));
+function isSupportedBinMs(value: number): boolean {
+  return BIN_LADDER_MS.includes(value) || (value > 0 && value % WEEK_MS === 0);
+}
+
 const binMsParameter = z.coerce
   .number()
   .int()
-  .refine((value) => BIN_LADDER_MS.includes(value))
+  .refine(isSupportedBinMs)
   .optional()
   .transform((value) => (value === undefined ? null : value));
 export const timelineQuerySchema = z.object({

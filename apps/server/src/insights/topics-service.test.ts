@@ -85,6 +85,7 @@ test('no LLM fails with the configuration reason on read and on refresh without 
     state: TopicState.Failed,
     failure: LLM_MODEL_MISSING_MESSAGE,
   });
+  await server.services.insights.worker.idle();
   expect((await readTimeline({ server, documentId, cookie: owner.cookie })).bands.map((band) => band.kind)).toEqual([
     TimelineBandKind.Author,
   ]);
@@ -94,6 +95,7 @@ test('no LLM fails with the configuration reason on read and on refresh without 
     headers: { cookie: owner.cookie, origin: server.baseUrl },
   });
   expect(refreshed.status).toBe(HttpStatus.Accepted);
+  await server.services.insights.worker.idle();
   await expect
     .poll(async () => (await readTopics({ server, documentId, cookie: owner.cookie })).status, { timeout: POLL_TIMEOUT_MS })
     .toMatchObject({ state: TopicState.Failed, failure: LLM_MODEL_MISSING_MESSAGE });

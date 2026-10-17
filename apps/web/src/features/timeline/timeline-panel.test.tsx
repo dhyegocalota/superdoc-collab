@@ -54,7 +54,7 @@ import { PanelColumn, PanelState, TimelinePanel, type SummarizeHandle } from './
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import { PANEL_POSITION_STORAGE_KEY, PanelPosition } from './use-panel-position';
-import { MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
+import { MIN_EDITOR_HEIGHT, MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
@@ -66,6 +66,8 @@ const LAG_MS = 12_000;
 const SMALL_LAG_MS = 2000;
 const DRAGGED_WIDTH = 500;
 const SHRUNK_WINDOW_WIDTH = 800;
+const AREA_HEIGHT = 1000;
+const DEFAULT_HEIGHT = 420;
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
 const NONE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.None,
@@ -265,17 +267,20 @@ test('the bottom panel has a chart column with the filter and a list column with
 });
 
 test('the bottom panel has a row resize handle on its top edge that grows with the arrow keys', async () => {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ height: AREA_HEIGHT } as DOMRect);
   mockTimelineApi();
   renderPanel({ position: PanelPosition.Bottom });
   const separator = await screen.findByRole('separator', { name: RESIZE_PANEL_LABEL });
   expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
-  expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_HEIGHT));
+  expect(separator).toHaveAttribute('aria-valuenow', String(DEFAULT_HEIGHT));
+  expect(separator).toHaveAttribute('aria-valuemin', String(MIN_PANEL_HEIGHT));
+  expect(separator).toHaveAttribute('aria-valuemax', String(AREA_HEIGHT - MIN_EDITOR_HEIGHT));
   fireEvent.keyDown(separator, { key: 'ArrowUp' });
-  expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_HEIGHT + PANEL_RESIZE_STEP));
-  expect(screen.getByRole('complementary')).toHaveStyle({ height: `${MIN_PANEL_HEIGHT + PANEL_RESIZE_STEP}px` });
+  expect(separator).toHaveAttribute('aria-valuenow', String(DEFAULT_HEIGHT + PANEL_RESIZE_STEP));
+  expect(screen.getByRole('complementary')).toHaveStyle({ height: `${DEFAULT_HEIGHT + PANEL_RESIZE_STEP}px` });
   fireEvent.keyDown(separator, { key: 'ArrowDown' });
   fireEvent.keyDown(separator, { key: 'ArrowDown' });
-  expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_HEIGHT));
+  expect(separator).toHaveAttribute('aria-valuenow', String(DEFAULT_HEIGHT - PANEL_RESIZE_STEP));
 });
 
 test('collapsed at the bottom the panel is a bar with the largest topic chips, and a chip click filters and opens it', async () => {

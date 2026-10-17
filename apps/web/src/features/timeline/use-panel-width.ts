@@ -55,3 +55,18 @@ export function usePanelHeight({ areaHeight }: { areaHeight: number }): {
     resizeBy: (delta) => setRequestedHeight(height + delta),
   };
 }
+
+export function useAreaHeight(): { ref: (element: HTMLElement | null) => void; height: number } {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    const area = element ? element.parentElement : null;
+    if (!area) return;
+    const observer = new ResizeObserver(() => setHeight(Math.round(area.getBoundingClientRect().height)));
+    observer.observe(area);
+    return () => observer.disconnect();
+  }, [element]);
+
+  return { ref: setElement, height };
+}

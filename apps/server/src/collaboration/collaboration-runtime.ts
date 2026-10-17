@@ -9,12 +9,14 @@ import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { CollaborationContext } from './collaboration-server';
+import type { CreatorReservations } from './creator-reservations';
 import { documentIdFromRoomName } from './room-name';
 
 export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
 
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
+  reserveCreator: (parameters: { documentId: string; userId: string }) => number | null;
   onlineUserIds: (documentId: string) => Set<string>;
   importRevisions: (documentId: string) => void;
   forget: (documentId: string) => Promise<void>;
@@ -30,6 +32,7 @@ export function createCollaborationRuntime({
   versions,
   versionRooms,
   insights,
+  reservations,
 }: {
   hocuspocus: Hocuspocus;
   updateLog: UpdateLog;
@@ -40,6 +43,7 @@ export function createCollaborationRuntime({
   versions: VersionsService;
   versionRooms: VersionRooms;
   insights: InsightsServices;
+  reservations: CreatorReservations;
 }): DocumentRuntime {
   const bootstrapped = new Set<string>();
   function roomsOf(documentId: string): Document[] {
@@ -69,6 +73,9 @@ export function createCollaborationRuntime({
     return committed;
   }
   return {
+    reserveCreator: ({ documentId, userId }) => {
+      throw new Error('reserveCreator is not implemented');
+    },
     roomMode: (documentId) => (hasCommittedBootstrap(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(

@@ -70,7 +70,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 
 - `updates.connection_actor` and `client_identities.actor`, both `NOT NULL`, backfilled `human`.
 - `UpdateLog.append({ documentName, connectionUserId, connectionActor, update })`.
-- A declaration overrides an `Observed` row only when user and actor both match ([0020](../../adr/0020-agent-edits-carry-a-human-or-agent-actor.md)).
+- A declaration overrides an `Observed` row only when the actors match; the user may differ, as in the relay correction of 0002 ([0020](../../adr/0020-agent-edits-carry-a-human-or-agent-actor.md)).
 - Read model events carry `actor`; the timeline splits cell volume by actor.
 - `agent_actions(document_name, user_id, kind, created_at)`, read into timeline marks next to version marks.
 

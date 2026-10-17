@@ -100,14 +100,16 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - A commit that claims to be formatting only is re-diffed with whitespace and quotes normalised (`git diff -w`, then Prettier on both sides) before "no behaviour change" is trusted.
 - Red-first claims are spot-checked in a throwaway worktree: check out the red commit, run the named test, compare the failure with the text the test plan records.
 - Findings are delivered in chat and fixed before the PR. The reviewer never posts to GitHub.
+- A `security-reviewer` sub-agent, fresh and read-only, then attacks the same diff with the repository's threat model (sessions, per-document authorization, share links, credentials, storage, secrets in prompts and logs, supply chain) and answers `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE` ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)). It runs on every diff except one made only of Markdown under `docs/` and READMEs; a `CRITICAL` or `IMPORTANT` finding goes back to Build.
 
 ## 7. Ship
 
 `/open-pr` runs the gates in order and stops at the first failure:
 
-1. `/verify`: typecheck → unit → E2E.
+1. `/verify`: typecheck → security audit → secret scan → unit → E2E.
 2. `test-plan.md` fully ticked by the tester, with evidence.
 3. Reviewer verdict `YES` (or `WITH RESERVATIONS` acknowledged by the owner).
+3b. Security verdict `CLEAR` or `NOT APPLICABLE`; `FINDINGS` at `CRITICAL` or `IMPORTANT` goes back to Build. The verdict line goes into the PR body under `## Security`.
 4. UI touched → `/check-ui` recorded: the `recorder` role captures screenshots and a `recordVideo` walk, converts with ffmpeg to `.mp4` and `.gif`, uploads to the GitHub Release `pr-media-<slug>` (pre-release) and embeds the `releases/download/...` URLs. Media stays in the git-ignored `.pr-media/`.
 5. Learnings and docs sweep (section 8, and the documents that describe every path in `git diff --name-only main...HEAD`). "Nothing learned" and "no doc affected" are valid answers, stated out loud.
 6. Merge sensitivity. The reviewer's blast radius and verdict go into the PR body verbatim; a sensitive PR gets its human checklist written before the PR opens.
@@ -163,6 +165,7 @@ Role bodies live in `.agents/roles/<role>.md`, one source. Claude Code reads the
 | `developer` | writes | disjoint paths named in the plan, unit tests, tester briefing | runs the test plan, claims it works |
 | `tester` | fresh | executes `test-plan.md`, Playwright MCP walks, evidence, edge-case hunting | fixes product code |
 | `reviewer` | fresh, read-only | conventions, security, refutation, verdict | posts to GitHub |
+| `security-reviewer` | fresh, read-only | attacks the diff: sessions, authorization, share links, credentials, storage, secrets, supply chain | posts to GitHub, fixes code |
 | `recorder` | writes media only | screenshots, video, ffmpeg, release upload, PR embeds | touches code |
 
 Routing: bulk reading and sweeps → cheapest model; implementing a decided design → mid model; architecture, security review, "is this right" → strongest model. Small tasks that fit in three tool calls run inline.
@@ -205,4 +208,4 @@ The scripts live in `.agents/hooks/` and read the tool input from stdin, in the 
 
 Only unambiguous rules block. Judgment calls warn; a hook that fires on judgment calls trains you to ignore hooks. `remind-docs.sh` is the one judgment hook that blocks, because a warning at Stop never reaches the model: it names each document once until the next commit, never blocks a stop that is already continuing, and the agent may answer that nothing applies.
 
-CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README.
+CI holds the mechanical half: `apps/server/src/repository-shape/delivery-docs.test.ts` fails when any README links a file or heading that no longer exists, or when a workspace package or `e2e/` has no README; `agent-surfaces.test.ts` fails when a role under `.agents/roles/` lacks its Claude Code wrapper, its Codex wrapper or its Codex registration. The `security` job of `verify.yml` audits production dependencies at `high` (`pnpm security:audit`) and scans every commit for secrets with gitleaks (`.gitleaks.toml` allowlists the exact placeholder strings the repository ships); Dependabot opens weekly security updates ([ADR 0022](../docs/adr/0022-mechanical-security-gates-and-a-security-reviewer.md)).

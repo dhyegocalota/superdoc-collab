@@ -23,14 +23,14 @@ G1 first (tests red, then the files that turn them green), then G2. Both run inl
 
 ### G1
 
-- [ ] **Step 1:** `security-config.test.ts` and the `security` job cases in `ci-workflow.test.ts` committed red: `pnpm security:audit` script, `verify` ordering, the `security` job with audit and gitleaks steps, `fetch-depth: 0`, bounded timeout, Dependabot ecosystems, `.gitleaks.toml` extending the defaults.
-- [ ] **Step 2:** `package.json` scripts, `verify.yml` job, `.github/dependabot.yml`, `.gitleaks.toml`; the tests go green; `pnpm security:audit` exits 0; `gitleaks git` on the full history reports zero leaks.
+- [x] **Step 1:** `security-config.test.ts` and the `security` job cases in `ci-workflow.test.ts` committed red: `pnpm security:audit` script, `verify` ordering, the `security` job with audit and gitleaks steps, `fetch-depth: 0`, bounded timeout, Dependabot ecosystems, `.gitleaks.toml` extending the defaults.
+- [x] **Step 2:** `package.json` scripts, `verify.yml` job, `.github/dependabot.yml`, `.gitleaks.toml`; the tests go green; `pnpm security:audit` exits 0; `gitleaks git` on the full history reports zero leaks.
 
 ### G2
 
-- [ ] **Step 3:** `agent-surfaces.test.ts` committed red: every role under `.agents/roles/` has a `.claude/agents/<role>.md` wrapper that names the role file, a `.codex/agents/<role>.toml` wrapper and a `.codex/config.toml` registration; `security-reviewer` is in the expected list.
-- [ ] **Step 4:** the role body and the three registrations; the test goes green.
-- [ ] **Step 5:** `/open-pr` gate 3b, `/verify` steps 2 and 3, `## Security` in the PR template, HARNESS §6 §7 §9 §12, learning on the dev-only audit noise.
+- [x] **Step 3:** `agent-surfaces.test.ts` committed red: every role under `.agents/roles/` has a `.claude/agents/<role>.md` wrapper that names the role file, a `.codex/agents/<role>.toml` wrapper and a `.codex/config.toml` registration; `security-reviewer` is in the expected list.
+- [x] **Step 4:** the role body and the three registrations; the test goes green.
+- [x] **Step 5:** `/open-pr` gate 3b, `/verify` steps 2 and 3, `## Security` in the PR template, HARNESS §6 §7 §9 §12, learning on the dev-only audit noise.
 
 ## Failure modes
 
@@ -46,7 +46,7 @@ G1 first (tests red, then the files that turn them green), then G2. Both run inl
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **Security reviewer:** a fresh `security-reviewer` sub-agent returned a verdict on this diff.

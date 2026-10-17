@@ -36,3 +36,15 @@ export const clientIdentities = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.documentName, table.yjsClientId] })],
 );
+
+export const agentActions = sqliteTable(
+  'agent_actions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    documentName: text('document_name').notNull(),
+    userId: text('user_id').notNull(),
+    kind: text('kind').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('agent_actions_by_document').on(table.documentName, table.createdAt)],
+);

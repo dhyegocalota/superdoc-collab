@@ -1,4 +1,4 @@
-import { ClientActor } from '@superdoc-history/types';
+import { AgentActionKind, ClientActor } from '@superdoc-history/types';
 import Database from 'better-sqlite3';
 import * as Y from 'yjs';
 import { expect, test } from 'vitest';
@@ -6,6 +6,7 @@ import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { AgentActionsLog } from './agent-actions';
 import { MigrationSet, runMigrationSet } from './migrations';
 import { openTestDatabase, temporaryDatabasePath } from './testing';
 import { UpdateLog, compact } from './update-log';
@@ -103,4 +104,12 @@ test('rows logged before the actor migration read as human', () => {
   const updateActor = migrated.prepare('SELECT connection_actor FROM updates').get() as { connection_actor: ClientActor };
   const identityActor = migrated.prepare('SELECT actor FROM client_identities').get() as { actor: ClientActor };
   expect([updateActor.connection_actor, identityActor.actor]).toEqual([ClientActor.Human, ClientActor.Human]);
+});
+
+test('forget removes the agent actions of the document', () => {
+  const sqlite = openTestDatabase({ set: MigrationSet.History });
+  const actions = new AgentActionsLog(sqlite);
+  actions.record({ documentName: DOCUMENT, userId: 'ana', kind: AgentActionKind.DocumentExported, createdAt: 1 });
+  new UpdateLog(sqlite).forget(DOCUMENT);
+  expect(actions.list(DOCUMENT)).toEqual([]);
 });

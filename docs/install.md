@@ -33,6 +33,10 @@ Install https://github.com/dhyegocalota/superdoc-take-home for me.
 6. Print the URL and stop. Tell me to open it and claim the instance: the first account created becomes the administrator, and sign-up closes behind it. Then tell me that /admin generates single-use invite links for my team.
 ```
 
+## Develop with an agent
+
+Clone the repository and open it in Claude Code or Codex. The first session reports which tools the harness needs and are missing on this machine, with the install command for your platform; approve the installs you want, then ask for `/verify`. The list lives in `.agents/hooks/doctor.sh` and nowhere else.
+
 ## First login
 
 Open the URL the install printed. An unclaimed instance shows "Claim this instance": create your account there. You are the administrator and sign-up closes behind you. Until you claim it anyone who finds the URL could, so do it right after the deploy.

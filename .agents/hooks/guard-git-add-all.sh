@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-command=$(jq -r '.tool_input.command // ""')
+source "$(dirname "$0")/touched-files.sh"
+command=$(jq -r '.tool_input.command // ""' <<<"$hook_input")
 if [[ "$command" =~ git[[:space:]]+add[[:space:]]+(-A|--all|\.)([[:space:]]|$) ]]; then
   echo "Blocked: stage files by name, never git add -A / --all / ." >&2
   exit 2

@@ -38,6 +38,10 @@ export const AGENT_ACTION_LABELS: Record<AgentActionKind, string> = {
   [AgentActionKind.DocumentExported]: 'exported the document',
 };
 
+export function agentMarkLabel(name: string): string {
+  return `Edited by ${name}'s AI`;
+}
+
 export function agentActionLabel({ name, kind }: { name: string; kind: AgentActionKind }): string {
   return `${name} ${AGENT_ACTION_LABELS[kind]}`;
 }

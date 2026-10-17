@@ -1,5 +1,4 @@
 import {
-  agentAuthorName,
   type AgentActionView,
   ClientActor,
   MINUTE_MS,
@@ -16,7 +15,8 @@ const HUE_END = 25;
 export const FIXTURE_AUTHOR_KEY = 'ana';
 export const FIXTURE_AUTHOR_NAME = 'Ana';
 export const FIXTURE_AGENT_AUTHOR_KEY = `${FIXTURE_AUTHOR_KEY}#agent`;
-export const FIXTURE_AGENT_AUTHOR_NAME = agentAuthorName(FIXTURE_AUTHOR_NAME);
+export const FIXTURE_AGENT_AUTHOR_NAME = FIXTURE_AUTHOR_NAME;
+export const FIXTURE_SUMMARY_AUTHOR = { name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human };
 
 function bandOf({
   name,

@@ -3,7 +3,6 @@ import { useEffect, useId, useRef, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { actorOfName } from './author-of';
 import { AuthorAvatar } from './contributor-avatars';
 import { SummaryTooSoonError } from './timeline-api';
 import {
@@ -69,8 +68,8 @@ function SummarySection({ view, error, canRequest, isPending, onRetry }: Selecti
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
             <ul className="flex items-center gap-1">
-              {summary.authors.map((name, index) => (
-                <AuthorAvatar key={`${index}-${name}`} name={name} actor={actorOfName(name)} />
+              {summary.authors.map((author, index) => (
+                <AuthorAvatar key={`${index}-${author.name}`} name={author.name} actor={author.actor} />
               ))}
             </ul>
             {summary.isStale && <Badge variant="secondary">{EARLIER_STATE_LABEL}</Badge>}

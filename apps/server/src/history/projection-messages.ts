@@ -57,7 +57,11 @@ export class ProjectionStoppedError extends Error {
   }
 }
 
-export class ProjectionRequestCrashedError extends Error {}
+export class ProjectionRequestCrashedError extends Error {
+  constructor() {
+    super('The projection worker crashed twice while serving this request.');
+  }
+}
 
 export class ProjectionDegradedError extends Error {
   constructor() {

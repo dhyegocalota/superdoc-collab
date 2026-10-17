@@ -224,7 +224,7 @@ export class ProjectionScheduler {
 
   private repostWaiting(): void {
     [...this.waiting].forEach(([key, waiting]) => {
-      if (waiting.posts >= MAX_REQUEST_POSTS) return this.rejectWaiters({ key, error: new ProjectionRequestCrashedError(key) });
+      if (waiting.posts >= MAX_REQUEST_POSTS) return this.rejectWaiters({ key, error: new ProjectionRequestCrashedError() });
       waiting.posts += 1;
       this.currentWorker.postMessage(waiting.request);
     });

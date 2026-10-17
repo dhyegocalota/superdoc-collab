@@ -42,7 +42,7 @@ export class InsightsWorker {
   }
 
   hasCallBudget(): boolean {
-    return true;
+    return this.callsInWindow() < this.maxCallsPerHour;
   }
 
   isRunning(key: string): boolean {

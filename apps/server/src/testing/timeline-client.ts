@@ -27,7 +27,8 @@ import { join } from 'node:path';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
-import { connectToDocument, documentWithOwner, memberWithRole, type CollaborationClient } from './collaboration-client';
+import { connectToDocument, documentWithOwner, memberWithRole, reserveOwner, type CollaborationClient } from './collaboration-client';
+import { waitForCommit } from './committed-room';
 import { readEvents } from './events-client';
 import type { TestServer, TestUser } from './test-server';
 
@@ -76,6 +77,7 @@ export async function twoAuthorsInTwoBlocks({ languageModel }: { languageModel?:
   try {
     writeStory({ document: ownerClient.document, texts: ['Budget:', 'Hiring:'] });
     commitBootstrap(ownerClient.document);
+    await waitForCommit({ services: server.services, documentId });
     writeStory({ document: ownerClient.document, texts: ['Budget: more money', 'Hiring:'] });
     const editorClient = await connectToDocument({ server, cookie: editor.cookie, documentId });
     openClients.push(editorClient);
@@ -147,6 +149,7 @@ export async function storyWithBlocks({
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: texts.map((text, index) => (index === texts.length - 1 ? `${text} ` : text)) });
   await expect
     .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).length, { timeout: PROJECTION_TIMEOUT_MS })
@@ -261,6 +264,7 @@ export async function editedAfterBootstrap({ versionRoomPolicy }: { versionRoomP
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: [EDITED_TEXT] });
   await expect
     .poll(() => server.services.readModel.marks(documentId).some((mark) => !mark.isBootstrap), { timeout: PROJECTION_TIMEOUT_MS })
@@ -277,6 +281,7 @@ export async function bootstrappedDocument({
 }): Promise<{ documentId: string; sequence: number }> {
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: ANOTHER_DOCUMENT_TITLE, ownerUserId: owner.id });
+  reserveOwner({ server, documentId, owner });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
   commitBootstrap(client.document);

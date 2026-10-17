@@ -26,6 +26,7 @@ import {
   type ProjectionRequest,
 } from './projection-messages';
 import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, ProjectionScheduler } from './projection-scheduler';
+import { waitForCommit } from '../testing/committed-room';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
 const IMPORT_TEST_TIMEOUT_MS = 40_000;
@@ -43,6 +44,7 @@ test('a terminated worker is restarted and completes without duplicates', async 
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   Array.from({ length: EDIT_COUNT }).forEach((_, index) => writeStory({ document: client.document, texts: ['y'.repeat(index + 1)] }));
   await expect
     .poll(() => server.services.updateLog.readBatch({ documentName: documentId, afterSequence: 0, limit: LOG_BATCH_LIMIT }).length)
@@ -150,6 +152,7 @@ test('a failing document is logged once and does not stop other documents', asyn
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: ['ok'] });
   await expect
     .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted).join(''), {
@@ -192,6 +195,7 @@ test('startup projects a document with unprojected updates', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: ['late'] });
   await expect
     .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted).join(''), {
@@ -227,6 +231,7 @@ async function projectedDocument() {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(0);
   return { server, documentId, owner, client, sequence: server.services.readModel.marks(documentId)[0]!.sequence };
 }
@@ -252,6 +257,7 @@ test('a hanging import does not delay the projection of another document', { tim
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['a'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: ['ab'] });
   await expect
     .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted).join(''), {
@@ -275,6 +281,7 @@ test('a document projected before marks existed is rebuilt at startup', { timeou
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: ['a'] });
   writeStory({ document: client.document, texts: ['ab'] });
   const importedAndInserted = async () =>

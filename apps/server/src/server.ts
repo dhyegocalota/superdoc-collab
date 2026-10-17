@@ -150,6 +150,8 @@ function createServices({
     auth,
     documents,
     updateLog,
+    reservations,
+    bootstrap,
     onLogged: (documentId) => throttle.request(documentId),
     onStored: (documentId) => {
       documents.touch(documentId);

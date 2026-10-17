@@ -116,6 +116,18 @@ The Playwright socket listener sees the worker socket, so no server-side measure
 - `apps/server/src/agent/agent-sessions.ts`: an uncommitted room throws `AgentToolError` with `DOCUMENT_NOT_READY_ERROR` before `connected()`. The `seed` branch is gone.
 - `apps/web/src/features/editor/collaboration-config.ts`: `collaborationUrl({ path, creatorTicket })` appends `?attempt=&epoch=`; `creatorTicketOf` builds the ticket from the open answer. `superdoc-options.ts` takes an optional `creatorTicket`. `use-editor-setup.ts` captures `creatorTicket` in `EditorSetup`. `use-opened-document.ts` gets `staleTime: Infinity`.
 
+## Group G3 (collaboration hooks and socket limits)
+
+### What changed
+
+- `apps/server/src/collaboration/socket-message-limit.ts`: one `SlidingWindow` per socket in a `WeakMap`, `breached(socket)` is true from the 121st frame in a rolling second.
+- `apps/server/src/collaboration/attach-collaboration.ts`: `maxPayload` is `MAX_SOCKET_MESSAGE_BYTES`; `terminateOnError` logs and returns early on a CLOSING socket so the 1009 frame is delivered; a `message` listener counts every frame from the first one, before authentication, and on a breach logs without payload, removes the message listeners and closes with 1008 and the reason.
+- `apps/server/src/collaboration/collaboration-server.ts`: `onAuthenticate` reads `attempt` and `epoch` from the upgrade URL, refuses an uncommitted room without a matching ticket (log with the document id, permission denied), makes a committed-room socket with a foreign ticket read-only; the `connected` hook closes that socket with 4403; `onChange` fences, commits through `bootstrap.commit` plus `reservations.commit` on the first committed update of the latest attempt, appends and `touch`es otherwise; `onDisconnect` releases when no other connection carries the attempt; `onLoadDocument` restores nothing while uncommitted. `CollaborationContext` is re-exported from here because `client-declarations.ts` imports it from this module.
+- `libs/types/src/routes.ts`: `CREATOR_ATTEMPT_QUERY_KEY` and `CREATOR_EPOCH_QUERY_KEY`. `apps/server/src/server.ts`: the two new arguments.
+- Test support: `testing/collaboration-client.ts` (`reserveOwner`, ticket registry keyed by cookie and document, `ticket` option, `closed` promise with code and reason, `CollaborationRefusedError.closeCode`), `testing/committed-room.ts` (`commitBootstrap` writes a committed snapshot straight into the log, `waitForCommit`), `agent/agent-tool-fixtures.ts` (`seededDocument` seeds a real committed room through a scratch Hocuspocus, then waits for the first projection).
+- Existing tests moved: `collaboration-server.test.ts` (agent, reader and removed-member rows), `collaboration-history.test.ts` (reader, restart), `testing/timeline-client.ts` (`bootstrappedDocument` reserves; three helpers wait for the commit before the next write), `topics-service.test.ts`, `versions-routes.test.ts`, `history-routes.test.ts`, `projection-scheduler.test.ts` (a `waitForCommit` after each `commitBootstrap`), and the two agent files through the seeded fixture.
+- `.claude/rules/collaboration.md`: fence, post-commit rule, close codes and both limits.
+
 ### How to run
 
 ```bash
@@ -160,6 +172,10 @@ Failure text is what the run printed on commit `ed459e0`, on the tree before G1 
 - The two-window waiting page at 375 and 1280 px from the spec's E2E list is not covered here, because the waiting page belongs to final-visuals.
 pnpm --filter @superdoc-collab/server exec vitest run src/documents/documents-routes.test.ts src/agent/agent-sessions-room.test.ts
 pnpm --filter @superdoc-collab/web exec vitest run src/features/editor
+pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/collaboration-server.test.ts
+pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/attach-collaboration.test.ts
+pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/socket-message-limit.test.ts
+pnpm typecheck
 ```
 
 ### Red today, green after
@@ -184,3 +200,42 @@ The four open-route tests share one red and one green commit: the editor 409 is 
 - Pending G3's committed-room fixture: `agent-sessions-room.test.ts` (its `beforeAll` and `roomCreatedByOwner`) and `mcp-over-oauth.test.ts` build rooms through `seededDocument`, which relied on the agent seeding the room. They fail with `NOT_READY` until they open a committed room, which needs a real creator because the agent toolkit reads the DOCX content.
 - `use-opened-document.ts` also sets `refetchOnMount: 'always'`: with `staleTime: Infinity` alone a cached open answer would never be refetched on mount, which broke `document-page.test.tsx::a cached create followed by a fresh join`. The holder's refetch returns the same ticket.
 - Follow-up: `superdoc-editor.tsx` and `document-page.tsx` pass the ticket (6fc34d0 red); `LocatedRoom.filePath` and its wiring are removed; `agent-sessions.test.ts` now pins `a document nobody has opened answers NOT_READY and seeds nothing`.
+| `socket-message-limit.test.ts` (3 tests) | `Error: SocketMessageLimit is not implemented` (f950884) | 5b292f3 |
+| `attach-collaboration.test.ts::a frame over the payload cap closes with 1009 ...` | `AssertionError: expected 4401 to be 1009` after the 10 s idle timeout (7651bdb) | 5e4458d |
+| `attach-collaboration.test.ts::a valid update padded to the cap is accepted` | pin: green when it landed | |
+| `attach-collaboration.test.ts::121 frames before authentication ...` | `expected { code: 4401, reason: 'Unauthorized' } to deeply equal { code: 1008, ... }` (ec4910f) | 3c397e6 |
+| `attach-collaboration.test.ts::121 valid awareness frames ...` | `Test timed out in 20000ms` (ec4910f) | 3c397e6 |
+| `collaboration-server.test.ts::a member is refused ...`, `::an agent room token is refused ...` | `promise resolved "{ document: Doc{ ... } }" instead of rejecting` (1bc4c91) | cf04805 |
+| `collaboration-server.test.ts` existing rows (7 tests, for example `accepts a valid session cookie`) | `The collaboration server refused the connection.` (CollaborationRefusedError) at cf04805, because the helper sent no ticket | ae0c62f (4 rows needed the committed-room fixture and moved in the same commit and in bf02863) |
+| `collaboration-server.test.ts::a superseded attempt's update is not appended ...`, `::a fenced committing update does not mark the room committed` | `expected [ { sequence: 1, ... } ] to have a length of +0 but got 1` (a5263e4) | 21ae0e3 |
+| `::a stale attempt's refusal is logged once ...` | `expected "warn" to be called once, but got 0 times` (a5263e4) | 21ae0e3 |
+| `::the committing update is appended once with its snapshot ...` | `expected undefined to be 1` (a5263e4) | 21ae0e3 |
+| `::a creator returning after another editor committed is closed with 4403 ...` | `promise resolved "{ document: Doc{ ... } }" instead of rejecting` (4d80f9e). The first half (takeover close of 4403 with the reason) already passed, because `reserveCreator` is G2's | 1543d4b |
+| `::the next attempt starts from an empty room ...` | `expected null to deeply equal { attempt: 2, ... }`: the reservation was never released (a0b6f4d) | 9121cba |
+| `::a room load after a commit excludes an abandoned partial seed` | `The collaboration server refused the connection.`: the second editor could not reserve (a0b6f4d) | 9121cba |
+| `::closing the last tab releases the reservation for another editor` | `expected null not to be null` (a0b6f4d) | 9121cba |
+| `::the holder's reconnect is accepted`, `::closing one of two tabs keeps the reservation ...` | pins: green when they landed | |
+
+The step 12 abandoned-partial test failed at the reservation, not at the "received the abandoned paragraph" assertion the plan predicted, so its last assertion was only seen green. A mutation check is left to the tester: make `onLoadDocument` always restore and confirm that test goes red.
+
+### Hypotheses to attack
+
+1. Hypothesis: a socket without a ticket is refused on every uncommitted room, for members, readers and agents, and accepted on every committed room. Break it by: a reader, an agent and a member on a fresh room, then the same after the creator commits; a ticket query with `attempt=0`, `attempt=1.5`, `attempt=abc` or an empty `epoch` must behave as no ticket.
+2. Hypothesis: a ticket for another user's attempt is refused on an uncommitted room. Break it by: user B connecting with user A's `attempt` and `epoch`.
+3. Hypothesis: after a restart every old ticket is refused (uncommitted) or closed with 4403 (committed). Break it by: restarting the test server on the same database directory with an old `epoch`.
+4. Hypothesis: the frame past 120 per second closes with 1008 before authentication and counts awareness frames. Break it by: 120 frames then a pause of 1.1 s then more, two sockets from one client, and a flood after the breach (the log must show one warning).
+5. Hypothesis: a frame one byte over `MAX_SOCKET_MESSAGE_BYTES` closes with 1009 and the client sees 1009, never 1006. Break it by: sending it from a real `HocuspocusProvider` and from raw `ws`.
+6. Hypothesis: closing one of two tabs of the holder keeps the reservation and another editor still gets `null` from `reserveCreator`. Break it by: three tabs, closing in every order.
+7. Hypothesis: the committing update is appended once. Break it by: counting log rows and snapshots after a creator seeds a room and commits.
+
+### Known gaps and notes for the lead
+
+- **Snapshot can be ahead of the commit.** `bootstrap.commit` snapshots the live room when `onChange` runs. If the creator's next edit reaches the server in the same tick as the commit, the snapshot already holds that edit, so the bootstrap version shows it and the projection sees no event for it. The spec accepts a snapshot slightly ahead; I moved the test helpers to `waitForCommit` before the next write. A real creator cannot edit in the same tick as the seed commit.
+- **The 121st frame still reaches Hocuspocus.** Node's emitter runs every listener of the breaching `message` event. Later frames are dropped because the listeners are removed. The 121st is a normal frame, so one extra frame can be applied.
+- **`onChange` calls `bootstrap.isCommitted` only when the live room is already committed and the socket claims an attempt**, so an uncommitted creator does not trigger a log scan per update. The fence passes `isBootstrapCommitted({ document })` as `isCommitted`.
+- **A stale ticket on a committed room is accepted by `onAuthenticate` as read-only and closed in the `connected` hook**, because a throw in `onAuthenticate` sends permission-denied without a close code. The client sees the close 4403 or, if the close races the first sync, an authentication failure.
+- **`documents-routes.test.ts` (G4's file) has two tests that break under the new rule and were left alone:** `roomMode scans a long log in pages until the first committed bootstrap` needs a wait for the commit before it counts rows, and `delete removes the row, the file, the log and the events, and closes the room` connects the owner of a blank document without a ticket. The second needs the ticket from the open response after G4 reserves in the route.
+- **Takeover close is not logged.** The spec says the takeover close is logged with the document id. That close lives in `collaboration-runtime.ts` (G2's file) and has no log line. The 409 log is the route's (G4).
+- **Web.** `collaboration-config.ts` must pass `attempt` and `epoch` as socket URL queries from `OpenedDocument.creatorAttempt` and `creatorEpoch`, using `CREATOR_ATTEMPT_QUERY_KEY` and `CREATOR_EPOCH_QUERY_KEY`. It is not in G3's files.
+- **`agent-tool-fixtures.ts` builds an `AgentSessions` against a scratch Hocuspocus.** If G4 changes the `AgentSessions` constructor or its create-mode path, the fixture's `commitSeededRoom` needs the same change.
+- **Not run:** the full server suite (the throughput rule). Run: the files under `src/agent`, `src/insights`, `src/history`, `src/collaboration` and `src/testing` together once at the end (458 passed, 2 skipped), and `pnpm typecheck` (clean).

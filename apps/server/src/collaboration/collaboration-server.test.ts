@@ -1,4 +1,13 @@
-import { ApiPath, ClientActor, DocumentRole } from '@superdoc-collab/types';
+import { commitBootstrap as markBootstrapCommitted, writeStory } from '@superdoc-collab/history/testing';
+import {
+  ApiPath,
+  ClientActor,
+  DocumentRole,
+  RoomMode,
+  SUPERSEDED_ATTEMPT_CLOSE_CODE,
+  SUPERSEDED_ATTEMPT_REASON,
+} from '@superdoc-collab/types';
+import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from '../agent/room-tokens';
@@ -9,12 +18,237 @@ import {
   documentWithOwner,
   memberWithRole,
 } from '../testing/collaboration-client';
+import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
 import { MAX_STORE_DEBOUNCE_MS } from './collaboration-server';
+import type { CollaborationContext } from './collaboration-context';
+import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
 const KEYSTROKES_PER_DEBOUNCE = 4;
 
+type ChangePayload = Parameters<NonNullable<TestServer['services']['hocuspocus']['configuration']['onChange']>>[0];
+
 type Scenario = { server: TestServer; documentId: string; owner: TestUser };
+
+const SECRET_PAYLOAD_TEXT = 'secret-payload-text';
+
+function updateWith({ committed }: { committed: boolean }): { document: Y.Doc; update: Uint8Array } {
+  const document = new Y.Doc();
+  document.getText('t').insert(0, SECRET_PAYLOAD_TEXT);
+  if (committed) markBootstrapCommitted(document);
+  return { document, update: Y.encodeStateAsUpdate(document) };
+}
+
+function contextOf({
+  userId,
+  documentId,
+  attempt,
+  epoch,
+}: {
+  userId: string;
+  documentId: string;
+  attempt: number;
+  epoch: string;
+}): CollaborationContext {
+  return { userId, documentId, actor: ClientActor.Human, creatorAttempt: attempt, creatorEpoch: epoch };
+}
+
+function sendChange({
+  server,
+  context,
+  document,
+  update,
+}: {
+  server: TestServer;
+  context: CollaborationContext;
+  document: Y.Doc;
+  update: Uint8Array;
+}): Promise<void> {
+  const payload = {
+    update,
+    context,
+    document,
+    documentName: `${SUPERDOC_ROOM_PREFIX}${context.documentId}`,
+    transactionOrigin: {},
+  } as unknown as ChangePayload;
+  const { onChange } = server.services.hocuspocus.configuration;
+  if (!onChange) throw new Error('The collaboration server has no onChange hook.');
+  return onChange(payload) as Promise<void>;
+}
+
+function loggedRows(scenario: Pick<Scenario, 'server' | 'documentId'>) {
+  return scenario.server.services.updateLog.read({ documentName: scenario.documentId, untilSequence: Number.MAX_SAFE_INTEGER });
+}
+
+async function supersededScenario() {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const { reservations } = server.services;
+  const first = reservations.reserve({ documentId, userId: owner.id })!;
+  reservations.release({ documentId, attempt: first.attempt });
+  const second = reservations.reserve({ documentId, userId: editor.id })!;
+  const superseded = contextOf({ userId: owner.id, documentId, attempt: first.attempt, epoch: first.epoch });
+  const latest = contextOf({ userId: editor.id, documentId, attempt: second.attempt, epoch: second.epoch });
+  return { server, documentId, superseded, latest };
+}
+
+describe('collaboration write fence', () => {
+  test("a superseded attempt's update is not appended to the log", async () => {
+    const { server, documentId, superseded, latest } = await supersededScenario();
+    await sendChange({ server, context: superseded, ...updateWith({ committed: false }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(0);
+    await sendChange({ server, context: latest, ...updateWith({ committed: false }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(1);
+    await server.stop();
+  });
+  test("a stale attempt's refusal is logged once per connection, with the document id and without the payload", async () => {
+    const { server, documentId, superseded } = await supersededScenario();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const change = updateWith({ committed: false });
+    await sendChange({ server, context: superseded, ...change });
+    await sendChange({ server, context: superseded, ...change });
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(SECRET_PAYLOAD_TEXT);
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('a fenced committing update does not mark the room committed', async () => {
+    const { server, documentId, superseded } = await supersededScenario();
+    await sendChange({ server, context: superseded, ...updateWith({ committed: true }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(0);
+    expect(server.services.runtime.roomMode(documentId)).toBe(RoomMode.Create);
+    await server.stop();
+  });
+  test('the committing update is appended once with its snapshot and the room becomes committed', async () => {
+    const { server, documentId, latest } = await supersededScenario();
+    await sendChange({ server, context: latest, ...updateWith({ committed: true }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(1);
+    expect(server.services.updateLog.latestSnapshot({ documentName: documentId, atOrBefore: Number.MAX_SAFE_INTEGER })?.sequence).toBe(1);
+    expect(server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    await server.stop();
+  });
+});
+
+describe('collaboration takeover and the committed room', () => {
+  test('a creator returning after another editor committed is closed with 4403 and writes nothing', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const { reservations, runtime } = server.services;
+    const abandoned = reservations.attemptOf({ documentId, userId: owner.id })!;
+    const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    reservations.release({ documentId, attempt: abandoned });
+    const takeover = runtime.reserveCreator({ documentId, userId: editor.id })!;
+    expect(await creator.closed).toEqual({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
+    const winner = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket: takeover });
+    writeStory({ document: winner.document, texts: ['committed by the winner'] });
+    markBootstrapCommitted(winner.document);
+    await expect.poll(() => runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    const rowsBeforeReturn = loggedRows({ server, documentId }).length;
+    const returning = connectToDocument({
+      server,
+      cookie: owner.cookie,
+      documentId,
+      ticket: { attempt: abandoned, epoch: takeover.epoch },
+    });
+    await expect(returning).rejects.toMatchObject({ closeCode: SUPERSEDED_ATTEMPT_CLOSE_CODE });
+    expect(loggedRows({ server, documentId })).toHaveLength(rowsBeforeReturn);
+    winner.close();
+    await server.stop();
+  });
+});
+
+function roomsUnloaded(server: TestServer): boolean {
+  return server.services.hocuspocus.documents.size === 0;
+}
+
+describe('collaboration room lifecycle', () => {
+  test('the next attempt starts from an empty room after the creator closes its tab', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    creator.document.getText('t').insert(0, 'abandoned paragraph');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
+    creator.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const ticket = server.services.runtime.reserveCreator({ documentId, userId: editor.id });
+    expect(ticket).toEqual({ attempt: 2, epoch: server.services.reservations.epoch });
+    const next = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket });
+    expect(next.document.getText('t').toString()).toBe('');
+    next.close();
+    await server.stop();
+  });
+  test('a room load after a commit excludes an abandoned partial seed', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const abandoned = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    abandoned.document.getText('t').insert(0, 'abandoned partial seed');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
+    abandoned.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const ticket = server.services.runtime.reserveCreator({ documentId, userId: editor.id })!;
+    const winner = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket });
+    writeStory({ document: winner.document, texts: ['committed story'] });
+    markBootstrapCommitted(winner.document);
+    await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    winner.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const reader = await connectToDocument({ server, cookie: owner.cookie, documentId, ticket: null });
+    expect(reader.document.getText('t').toString()).not.toContain('abandoned partial seed');
+    expect(reader.document.getMap('content').size).toBeGreaterThan(0);
+    reader.close();
+    await server.stop();
+  });
+  test("the holder's reconnect is accepted", async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const first = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    first.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const second = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    second.close();
+    await server.stop();
+  });
+  test('closing the last tab releases the reservation for another editor', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    creator.close();
+    await expect.poll(() => server.services.runtime.reserveCreator({ documentId, userId: editor.id })).not.toBeNull();
+    await server.stop();
+  });
+  test('closing one of two tabs keeps the reservation and another editor still gets 409', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const firstTab = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    const secondTab = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    firstTab.close();
+    await expect.poll(() => server.services.hocuspocus.documents.values().next().value?.getConnectionsCount()).toBe(1);
+    expect(server.services.runtime.reserveCreator({ documentId, userId: editor.id })).toBeNull();
+    secondTab.close();
+    await server.stop();
+  });
+});
+
+describe('collaboration admission to an uncommitted room', () => {
+  test('a member is refused on an uncommitted room with no attempt', async () => {
+    const { server, documentId } = await documentWithOwner();
+    const member = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectToDocument({ server, cookie: member.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('an agent room token is refused on an uncommitted room with no attempt', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const token = signRoomToken({ secret: TEST_AUTH_SECRET, userId: owner.id, documentId, now: Date.now() });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    warn.mockRestore();
+    await server.stop();
+  });
+});
 
 describe('collaboration authentication', () => {
   test('accepts a valid session cookie', async () => {
@@ -102,6 +336,7 @@ describe('collaboration credentials by path', () => {
     },
   ])('$name is accepted: $accepted', async ({ connect, accepted }) => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const outcome = connect({ server, documentId, owner });
     if (!accepted) await expect(outcome).rejects.toBeInstanceOf(CollaborationRefusedError);
     if (accepted) (await outcome).close();
@@ -110,6 +345,7 @@ describe('collaboration credentials by path', () => {
 
   test('an agent update is logged with the Agent actor', async () => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const agent = await connectAgentToDocument({ server, token: roomToken({ userId: owner.id, documentId }), documentId });
     agent.document.getText('t').insert(0, 'tracked by the agent');
     await expect
@@ -118,13 +354,14 @@ describe('collaboration credentials by path', () => {
           .read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER })
           .map((row) => row.connectionActor),
       )
-      .toEqual([ClientActor.Agent]);
+      .toEqual([ClientActor.Human, ClientActor.Agent]);
     agent.close();
     await server.stop();
   });
 
   test('a browser update is logged with the Human actor', async () => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const browser = await connectToDocument({ server, cookie: owner.cookie, documentId });
     browser.document.getText('t').insert(0, 'typed by the person');
     await expect
@@ -139,7 +376,8 @@ describe('collaboration credentials by path', () => {
   });
 
   test('a room token for a member who was removed is refused', async () => {
-    const { server, documentId } = await documentWithOwner();
+    const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const member = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
     const token = roomToken({ userId: member.id, documentId });
     server.database.sqlite.prepare('DELETE FROM document_members WHERE user_id = ?').run(member.id);
@@ -149,6 +387,7 @@ describe('collaboration credentials by path', () => {
 
   test('a reader room token connects read-only and no update is logged', async () => {
     const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
     const agent = await connectAgentToDocument({ server, token: roomToken({ userId: reader.id, documentId }), documentId });
     agent.document.getText('t').insert(0, 'reader');

@@ -8,6 +8,7 @@ export enum ThemePreference {
 
 export const THEME_STORAGE_KEY = 'superdoc-collab.theme';
 
+const THEME_CHANGE_EVENT = 'superdoc-collab.theme-change';
 const DARK_CLASS = 'dark';
 const DARK_SYSTEM_QUERY = '(prefers-color-scheme: dark)';
 
@@ -58,13 +59,21 @@ export function useTheme(): { preference: ThemePreference; choosePreference: (pr
       if (isOtherKey) return;
       setPreference(readPreference());
     }
+    function adoptSameTabChoice(event: Event): void {
+      if (!(event instanceof CustomEvent) || !isThemePreference(event.detail)) return;
+      setPreference(event.detail);
+    }
     window.addEventListener('storage', adoptOtherTabChoice);
-    return () => window.removeEventListener('storage', adoptOtherTabChoice);
+    window.addEventListener(THEME_CHANGE_EVENT, adoptSameTabChoice);
+    return () => {
+      window.removeEventListener('storage', adoptOtherTabChoice);
+      window.removeEventListener(THEME_CHANGE_EVENT, adoptSameTabChoice);
+    };
   }, []);
 
   function choosePreference(next: ThemePreference): void {
     writePreference(next);
-    setPreference(next);
+    window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: next }));
   }
 
   return { preference, choosePreference };

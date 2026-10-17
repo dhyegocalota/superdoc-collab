@@ -260,6 +260,7 @@ test('the chart is one tab stop on the active band', () => {
   const { container, rerender } = renderGraph();
   expect(container.querySelectorAll('path[tabindex="0"]')).toHaveLength(1);
   expect(budgetBand()).toHaveAttribute('tabindex', '0');
+  expect(screen.getByLabelText(/^Other/)).toHaveAttribute('tabindex', '-1');
   rerender(
     <Streamgraph
       timeline={timeline}

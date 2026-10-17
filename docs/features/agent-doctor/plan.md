@@ -334,6 +334,8 @@ git commit -m "feat(hooks): doctor.sh reports the tools the harness needs; guard
 
 ### Task 2 (G2): wire the doctor into the sessions, `/verify` and CI
 
+> Corrected after the tester's run (defect D1): every `pnpm doctor` in this plan resolves to pnpm's own built-in and checks nothing. The `doctor` script was removed from `package.json`; CI and gate 0 run `.agents/hooks/doctor.sh` (commits 5db9b1d, 6d04ca8).
+
 **Files:**
 - Modify: `.claude/settings.json`
 - Modify: `.codex/hooks.json`
@@ -380,7 +382,7 @@ The `|| true` is deliberate: Claude Code adds a hook's stdout to the context onl
 - [x] **Step 3: `/verify` gate 0.** In `.agents/skills/verify/SKILL.md`: extend `allowed-tools` with `Bash(.agents/hooks/doctor.sh:*)`; renumber the list so it starts with:
 
 ```
-0. `pnpm doctor`: the machine report. A missing required tool stops the gate with the report pasted verbatim; the agent asks before running any `fix:` line (ADR 0026). Missing optional tools are reported and the gate continues
+~~0. `pnpm doctor`: the machine report. A missing required tool stops the gate with the report pasted verbatim; the agent asks before running any `fix:` line (ADR 0026). Missing optional tools are reported and the gate continues~~ — wrong: `pnpm doctor` is pnpm's built-in (defect D1); gate 0 is `.agents/hooks/doctor.sh`, commit 6d04ca8
 1. `pnpm typecheck`
 ```
 
@@ -389,7 +391,7 @@ and add to the success report: `doctor clean (or the optional tools missing)`.
 - [x] **Step 4: CI step.** In `.github/workflows/verify.yml` → `checks` job, after `- run: pnpm test:hooks`:
 
 ```yaml
-      - run: pnpm doctor
+      - run: .agents/hooks/doctor.sh
         env:
           GH_TOKEN: ${{ github.token }}
           DOCTOR_SKIP: chromium

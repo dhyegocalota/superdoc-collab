@@ -42,7 +42,7 @@ The exit code is 1 when any required tool is missing, 0 otherwise. Optional tool
 | node | `node -v` major ≥ `.nvmrc` | yes | everything |
 | pnpm | `pnpm -v` equals the version in `package.json` → `packageManager` | yes | everything |
 | jq | on `PATH` | yes | the four hooks; the two guards block |
-| gh | on `PATH` and `gh auth status` exits 0 | yes | `/open-pr`, the recorder's release upload; `gh auth login` is the human's step |
+| gh | on `PATH` and `gh auth token` exits 0 (local, no network) | yes | `/open-pr`, the recorder's release upload; `gh auth login` is the human's step |
 | Playwright Chromium | a `chromium-*` directory in the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/Library/Caches/ms-playwright` on Darwin and `~/.cache/ms-playwright` elsewhere), so the check needs no `node_modules` | yes | `pnpm test:e2e`, both Playwright MCP servers, `/check-ui`, `/scenario`, the tester |
 | gitleaks | on `PATH` | optional | the local secret scan; CI runs it |
 | ffmpeg | on `PATH` | optional | the recorder's mp4 and gif; a PR that touches UI cannot ship |

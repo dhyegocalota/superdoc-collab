@@ -7,7 +7,6 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `.agents/hooks/doctor.sh`: new; one line per tool (`node pnpm jq gh chromium skills gitleaks ffmpeg docker`), `--fix <tool>`, exit 1 when a required tool is missing; reads `DOCTOR_UNAME`, `DOCTOR_PATH`, `DOCTOR_HOME`, `DOCTOR_SKIP`
 - `.agents/hooks/touched-files.sh`, `.agents/hooks/guard-git-add-all.sh`: `require_jq` makes the guards exit 2 with the doctor's fix line when `jq` is absent
 - `.agents/hooks/hooks.test.sh`: `doctor:` checks and the two guard checks
-- `package.json`: `doctor` script
 - `.claude/settings.json`, `.codex/hooks.json`: `SessionStart` runs the doctor with `|| true`
 - `.agents/skills/verify/SKILL.md`: gate 0 `.agents/hooks/doctor.sh`
 - `.github/workflows/verify.yml`: `.agents/hooks/doctor.sh` step in `checks` with `DOCTOR_SKIP: chromium`

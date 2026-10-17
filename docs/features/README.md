@@ -61,3 +61,4 @@ Refinement after the five slices:
 | [`gate-by-path`](gate-by-path/) | `pnpm verify` runs what the diff can break, once per commit; a docs lane; the gate is local ([ADR 0030](../adr/0030-the-local-gate-runs-what-the-diff-can-break.md)) | Shipped 2026-10-17 |
 | [`test-setup-and-dependabot`](test-setup-and-dependabot/) | The Vitest setup file joins `apps/web/src/testing/`; a pnpm override lifts the deprecated `@esbuild-kit` loader under `drizzle-kit` to `esbuild 0.25`; the spike-only `braces` alert is dismissed as tolerable risk | Building |
 | [`remove-spikes`](remove-spikes/) | `spikes/` leaves the tree; the SDK room-join results and screenshots move into the agentic history feature folder; a repository-shape test keeps prototype code out | Shipped 2026-10-17 |
+| [`share-dialog-copied-timer`](share-dialog-copied-timer/) | The share dialog's second-copy timer test stops depending on real elapsed time | Building |

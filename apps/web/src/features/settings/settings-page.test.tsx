@@ -12,8 +12,10 @@ import {
   browserReportsMessage,
   SAVE_TIME_ZONE_FAILED_MESSAGE,
   SAVE_TIME_ZONE_LABEL,
+  SAVING_TIME_ZONE_LABEL,
   TIME_ZONE_FIELD_LABEL,
   TIME_ZONE_SAVED_TOAST,
+  unsupportedTimeZoneLabel,
   USE_BROWSER_TIME_ZONE_LABEL,
 } from './settings-copy';
 import { SettingsPage } from './settings-page';
@@ -25,7 +27,9 @@ vi.mock('@/features/auth/auth-client', () => ({ authClient: { updateUser: vi.fn(
 const ACCOUNT_ZONE = 'America/Sao_Paulo';
 const BROWSER_ZONE = 'Europe/Lisbon';
 const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: ACCOUNT_ZONE };
-const CHOSEN_ZONE = 'Asia/Katmandu';
+const CHOSEN_ZONE = 'Asia/Tokyo';
+const UNLISTED_ALIAS = Intl.supportedValuesOf('timeZone').includes('Asia/Kolkata') ? 'Asia/Calcutta' : 'Asia/Kolkata';
+const LISTED_ALIAS = UNLISTED_ALIAS === 'Asia/Kolkata' ? 'Asia/Calcutta' : 'Asia/Kolkata';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -86,11 +90,42 @@ test('shows an inline error and keeps the selection when saving fails', async ()
   expect(toast).not.toHaveBeenCalled();
 });
 
-test('preselects an alias zone and treats the browser spelling of it as the same zone', () => {
-  vi.mocked(browserTimeZone).mockReturnValue('Asia/Calcutta');
+test('preselects an alias zone and treats the listed spelling of it as the same zone', () => {
+  vi.mocked(browserTimeZone).mockReturnValue(LISTED_ALIAS);
   const queryClient = new QueryClient();
-  queryClient.setQueryData(SESSION_QUERY_KEY, { ...USER, timeZone: 'Asia/Kolkata' });
+  queryClient.setQueryData(SESSION_QUERY_KEY, { ...USER, timeZone: UNLISTED_ALIAS });
   renderWithProviders(<SettingsPage />, { queryClient });
-  expect(zoneSelect()).toHaveValue('Asia/Kolkata');
+  expect(zoneSelect()).toHaveValue(UNLISTED_ALIAS);
   expect(screen.queryByRole('button', { name: USE_BROWSER_TIME_ZONE_LABEL })).not.toBeInTheDocument();
+});
+
+test('shows an unresolvable stored zone as not recognized and selects the browser zone', () => {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(SESSION_QUERY_KEY, { ...USER, timeZone: 'Mars/Olympus' });
+  renderWithProviders(<SettingsPage />, { queryClient });
+  expect(screen.getByRole('option', { name: unsupportedTimeZoneLabel('Mars/Olympus') })).toBeInTheDocument();
+  expect(zoneSelect()).toHaveValue(BROWSER_ZONE);
+});
+
+test('keeps Save focusable while saving and ignores a second press', async () => {
+  vi.mocked(authClient.updateUser).mockReturnValue(new Promise(() => undefined));
+  renderPage();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: SAVE_TIME_ZONE_LABEL }));
+  const saving = await screen.findByRole('button', { name: SAVING_TIME_ZONE_LABEL });
+  await user.click(saving);
+  expect(saving).toBeEnabled();
+  expect(saving).toHaveAttribute('aria-disabled', 'true');
+  expect(authClient.updateUser).toHaveBeenCalledTimes(1);
+});
+
+test('clears the inline error when the selection changes', async () => {
+  vi.mocked(authClient.updateUser).mockResolvedValue({ data: null, error: { status: 500, statusText: 'Internal Server Error' } });
+  renderPage();
+  const user = userEvent.setup();
+  await user.selectOptions(zoneSelect(), CHOSEN_ZONE);
+  await user.click(screen.getByRole('button', { name: SAVE_TIME_ZONE_LABEL }));
+  expect(await screen.findByRole('alert')).toBeInTheDocument();
+  await user.selectOptions(zoneSelect(), ACCOUNT_ZONE);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });

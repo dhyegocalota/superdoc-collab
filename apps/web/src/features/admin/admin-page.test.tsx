@@ -16,6 +16,7 @@ import {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -34,7 +35,6 @@ import {
   USERS_TABLE_LABEL,
 } from './admin-copy';
 import { AdminPage } from './admin-page';
-import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 
 const ADMIN_SESSION: SessionUser = { id: 'admin-1', name: 'Ada', email: 'ada@example.com', role: UserRole.Admin, timeZone: UTC_TIME_ZONE };
 const ADMIN_USER: AdminUser = {

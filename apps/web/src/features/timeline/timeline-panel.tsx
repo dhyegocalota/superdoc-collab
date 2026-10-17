@@ -135,7 +135,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
             <FilterBox />
             {timeline && selectedBin && <BinEdits documentId={documentId} timeline={timeline} bin={selectedBin} filter={search.filter} />}
             {timeline && !selectedBin && <TopEdits timeline={timeline} summaries={summaries} />}
-            <SelectionSummaryCard view={selectionSummary} error={summaryError} canRequest={canRefresh} onRetry={() => summarize.mutate(selection)} />
+            <SelectionSummaryCard view={selectionSummary} error={summaryError} canRequest={canRefresh} isPending={summarize.isPending} onRetry={() => summarize.mutate(selection)} />
           </div>
         )}
       </div>

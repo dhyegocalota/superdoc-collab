@@ -3,12 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, TriangleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
+import { AppTopBar } from '@/components/app-top-bar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AccountMenu } from '@/features/account/account-menu';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
-import { HomeLink } from './home-link';
 import { DocumentReadiness } from './use-opened-document';
 import {
   KEEP_WAITING_LABEL,
@@ -141,11 +142,15 @@ export function WaitingForDocument({ documentId, readiness, onKeepWaiting, onRet
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex items-center gap-2 border-b px-4 py-2">
-        <HomeLink />
-        {title && <span className="truncate text-sm font-medium">{title}</span>}
-        {!title && <Skeleton data-testid={TITLE_SKELETON_TEST_ID} className="h-9 w-full max-w-sm" />}
-      </header>
+      <AppTopBar
+        left={
+          <>
+            {title && <span className="truncate text-sm font-medium">{title}</span>}
+            {!title && <Skeleton data-testid={TITLE_SKELETON_TEST_ID} className="h-8 w-full max-w-sm" />}
+          </>
+        }
+        right={<AccountMenu />}
+      />
       <div aria-hidden="true" className="flex border-b px-4 py-2">
         <Skeleton className="h-8 w-full max-w-md" />
       </div>

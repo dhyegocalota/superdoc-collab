@@ -1,4 +1,5 @@
 import { ShareLinkRole } from '@superdoc-history/types';
+import { APP_NAME } from '../../lib/app-copy';
 
 export const TITLE_LABEL = 'Title';
 export const SHARE_LABEL = 'Share';
@@ -30,3 +31,9 @@ export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
   [ShareLinkRole.Read]: 'Read-only link',
 };
 export const HIGHLIGHT_COMMENT_TEXT = 'Edited in this period';
+export const HOME_LINK_LABEL = `${APP_NAME}, back to documents`;
+
+export function memberLabel({ name, isOnline }: { name: string; isOnline: boolean }): string {
+  if (!isOnline) return name;
+  return `${name}, ${ONLINE_LABEL}`;
+}

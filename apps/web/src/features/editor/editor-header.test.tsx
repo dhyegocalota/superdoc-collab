@@ -10,14 +10,15 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
-import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   DELETE_CONFIRM_LABEL,
   DELETE_FAILED_MESSAGE,
   DELETE_LABEL,
   DOWNLOAD_LABEL,
-  ONLINE_LABEL,
+  HOME_LINK_LABEL,
+  memberLabel,
   RENAME_FAILED_MESSAGE,
   SHARE_LABEL,
   TITLE_LABEL,
@@ -44,7 +45,9 @@ function onlyRequestWithMethod(fetchSpy: MockInstance<typeof fetch>, method: Htt
 }
 
 test('a reader sees the read-only badge and neither Delete nor Share', () => {
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} onDownload={onDownload} />);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
   expect(screen.getByText(READ_ONLY_BADGE_LABEL)).toBeVisible();
   expect(screen.queryByRole('button', { name: DELETE_LABEL })).toBeNull();
   expect(screen.queryByRole('button', { name: SHARE_LABEL })).toBeNull();
@@ -53,7 +56,9 @@ test('a reader sees the read-only badge and neither Delete nor Share', () => {
 
 test('an editor renames on Enter and exactly one PATCH carries the title', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.NoContent }));
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} onDownload={onDownload} />);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
   const title = screen.getByRole('textbox', { name: TITLE_LABEL });
   await userEvent.clear(title);
   await userEvent.type(title, `${RENAMED_TITLE}{Enter}`);
@@ -65,16 +70,21 @@ test('an editor renames on Enter and exactly one PATCH carries the title', async
 
 test('an unchanged title sends nothing', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch');
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} onDownload={onDownload} />);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
   await userEvent.type(screen.getByRole('textbox', { name: TITLE_LABEL }), '{Enter}');
   expect(fetchSpy).not.toHaveBeenCalled();
 });
 
 test('the owner deletes after confirming and returns to the documents list', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.NoContent }));
-  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} onDownload={onDownload} />, {
-    route: documentPagePath(DOCUMENT_ID),
-  });
+  const { router } = renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+    {
+      route: documentPagePath(DOCUMENT_ID),
+    },
+  );
   await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
   expect(fetchSpy).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
@@ -82,18 +92,35 @@ test('the owner deletes after confirming and returns to the documents list', asy
   expect(onlyRequestWithMethod(fetchSpy, HttpMethod.Delete).path).toBe(documentApiPath({ documentId: DOCUMENT_ID }));
 });
 
-test('an online member renders a dot and an offline member does not', () => {
+test('the home link opens the documents list', async () => {
+  const { router } = renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+    { route: documentPagePath(DOCUMENT_ID) },
+  );
+  await userEvent.click(screen.getByRole('link', { name: HOME_LINK_LABEL }));
+  expect(router.state.location.pathname).toBe(AppRoute.Documents);
+});
+
+test('members announce their presence and the current user is online at once', () => {
   const members = [
-    { user: { id: 'user-1', name: 'Ada' }, role: DocumentRole.Owner, online: true },
+    { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false },
     { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false },
+    { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true },
   ];
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={members} onDownload={onDownload} />);
-  expect(screen.getAllByLabelText(ONLINE_LABEL)).toHaveLength(1);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Owner)} members={members} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
+  expect(screen.getByText(memberLabel({ name: 'Ada', isOnline: true }))).toBeInTheDocument();
+  expect(screen.getByText(memberLabel({ name: 'Carla', isOnline: true }))).toBeInTheDocument();
+  expect(screen.getByText(memberLabel({ name: 'Bruno', isOnline: false }))).toBeInTheDocument();
+  expect(memberLabel({ name: 'Carla', isOnline: true })).toBe('Carla, online');
 });
 
 test('a failed rename shows an alert', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.BadRequest }));
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} onDownload={onDownload} />);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Editor)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
   const title = screen.getByRole('textbox', { name: TITLE_LABEL });
   await userEvent.clear(title);
   await userEvent.type(title, `${RENAMED_TITLE}{Enter}`);
@@ -102,9 +129,12 @@ test('a failed rename shows an alert', async () => {
 
 test('a failed delete shows an alert and stays on the page', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
-  const { router } = renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} onDownload={onDownload} />, {
-    route: documentPagePath(DOCUMENT_ID),
-  });
+  const { router } = renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+    {
+      route: documentPagePath(DOCUMENT_ID),
+    },
+  );
   await userEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
   await userEvent.click(screen.getByRole('button', { name: DELETE_CONFIRM_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(DELETE_FAILED_MESSAGE);
@@ -112,12 +142,16 @@ test('a failed delete shows an alert and stays on the page', async () => {
 });
 
 test('the download button asks for the live export', async () => {
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} onDownload={onDownload} />);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_LABEL }));
   expect(onDownload).toHaveBeenCalledTimes(1);
 });
 
 test('the download button is disabled until the editor is ready', () => {
-  renderWithProviders(<EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} onDownload={null} />);
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={null} />,
+  );
   expect(screen.getByRole('button', { name: DOWNLOAD_LABEL })).toBeDisabled();
 });

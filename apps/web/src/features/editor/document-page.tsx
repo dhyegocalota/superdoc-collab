@@ -85,7 +85,12 @@ export function DocumentPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <EditorHeader opened={opened} members={members} onDownload={setup ? downloadLiveDocument : null} />
+      <EditorHeader
+        opened={opened}
+        members={members}
+        currentUserId={user ? user.id : null}
+        onDownload={setup ? downloadLiveDocument : null}
+      />
       {hasExportFailed && (
         <p role="alert" className="px-4 py-2 text-sm text-destructive">
           {EXPORT_FAILED_MESSAGE}

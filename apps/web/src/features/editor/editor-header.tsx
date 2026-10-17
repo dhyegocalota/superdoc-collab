@@ -98,10 +98,12 @@ function DeleteDocumentDialog({ documentId }: DocumentIdentity) {
 export function EditorHeader({
   opened,
   members,
+  currentUserId,
   onDownload,
 }: {
   opened: OpenedDocument;
   members: DocumentMember[];
+  currentUserId: string | null;
   onDownload: (() => void) | null;
 }) {
   const { document, role } = opened;
@@ -113,7 +115,7 @@ export function EditorHeader({
       {isReader ? <h1 className="font-medium">{document.title}</h1> : <TitleInput documentId={document.id} title={document.title} />}
       {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <Members members={members} />
+        <Members members={members} currentUserId={currentUserId} />
         <Button variant="outline" disabled={!onDownload} onClick={onDownload === null ? undefined : onDownload}>
           {DOWNLOAD_LABEL}
         </Button>

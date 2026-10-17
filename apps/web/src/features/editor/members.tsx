@@ -2,7 +2,7 @@ import type { DocumentMember } from '@superdoc-history/types';
 import { initialsOf } from '@/lib/initials';
 import { ONLINE_LABEL } from './editor-copy';
 
-export function Members({ members }: { members: DocumentMember[] }) {
+export function Members({ members }: { members: DocumentMember[]; currentUserId: string | null }) {
   return (
     <ul className="flex items-center gap-1">
       {members.map((member) => (

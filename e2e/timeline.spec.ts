@@ -1,42 +1,16 @@
-import type { Browser } from '@playwright/test';
-import { DEMO_USERS, ShareLinkRole, TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
-import { bandAriaLabel, FILTER_LABEL, REFRESH_TOPICS_LABEL, removeFilterLabel, RETRY_TOPICS_LABEL, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
-import { shareAndAccept, typeInParagraph, uploadSeed } from './editor';
-import { expect, signedInContext, test } from './fixtures';
-import { bandNamed, bandVolume, BANDS_TIMEOUT_MS, currentAt, pressInChart, readTimeline, ruleX, VERSION_TIMEOUT_MS, waitForBands } from './timeline';
+import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
+import { bandAriaLabel, REFRESH_TOPICS_LABEL, removeFilterLabel, RETRY_TOPICS_LABEL, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
+import { typeInParagraph } from './editor';
+import { expect, test } from './fixtures';
+import { ANA, BRUNO, BUDGET, BUDGET_PARAGRAPH, bandNamed, bandVolume, BANDS_TIMEOUT_MS, currentAt, filterBy, HIRING, HIRING_PARAGRAPH, pressInChart, readTimeline, ruleX, twoAuthorsInTwoTopics, VERSION_TIMEOUT_MS, waitForBands } from './timeline';
 
-const ANA = DEMO_USERS[0]!.name;
-const BRUNO = DEMO_USERS[1]!.name;
-const BUDGET = 'Budget';
-const HIRING = 'Hiring';
 const RENAMED_PREFIX = 'Staff ';
-const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
-const HIRING_PARAGRAPH = 'Hiring: we add two people.';
 const FAILING_PARAGRAPH = 'FAIL-TOPICS: the plan costs 10.';
-const ANA_TEXT = ' More money';
-const BRUNO_TEXT = ' A designer';
 const LONG_TYPING_LENGTH = 80;
 const LONG_TYPING_DELAY_MS = 100;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const VERSION_REQUEST_PATTERN = /\/versions\/\d+$/;
 const FILTER_TIMEOUT_MS = 30_000;
-
-async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: Browser; paragraphs: string[] }) {
-  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
-  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
-  const documentId = await uploadSeed({ page: ana.page, paragraphs });
-  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
-  await Promise.all([
-    typeInParagraph({ page: ana.page, paragraphText: paragraphs[0]!.slice(0, 7), text: ANA_TEXT }),
-    typeInParagraph({ page: bruno.page, paragraphText: paragraphs[1]!.slice(0, 7), text: BRUNO_TEXT }),
-  ]);
-  return { ana, bruno, documentId };
-}
-
-async function filterBy({ page, text }: { page: Parameters<typeof waitForBands>[0]['page']; text: string }): Promise<void> {
-  await page.getByLabel(FILTER_LABEL).fill(text);
-  await page.getByLabel(FILTER_LABEL).press('Enter');
-}
 
 function topEdits(page: Parameters<typeof waitForBands>[0]['page']) {
   return page.getByRole('heading', { name: TOP_EDITS_LABEL }).locator('..').getByRole('listitem');

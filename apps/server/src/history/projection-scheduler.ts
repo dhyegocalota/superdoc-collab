@@ -1,12 +1,13 @@
+import { MINUTE_MS } from '@superdoc-history/types';
 import { Worker } from 'node:worker_threads';
-import { describeError, IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestKind, ProjectionStoppedError, type BlocksReply, type ProjectionDoneReply, type ProjectionFailedReply, type ProjectionReply, type ProjectionRequest, type VersionReply } from './projection-messages';
+import { describeError, IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestCrashedError, ProjectionRequestKind, ProjectionStoppedError, type BlocksReply, type ProjectionDoneReply, type ProjectionFailedReply, type ProjectionReply, type ProjectionRequest, type VersionReply } from './projection-messages';
 
 const SOURCE_EXTENSION = '.ts';
 const TSX_REGISTER_SPECIFIER = 'tsx/esm/api';
 const WORKER_ERROR_MESSAGE = 'Projection worker error';
 const WORKER_DEGRADED_MESSAGE = 'Projection worker keeps failing; projection is disabled until the server restarts';
 export const MAX_WORKER_RESTARTS_PER_WINDOW = 5;
-export const WORKER_RESTART_WINDOW_MS = 60_000;
+export const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
 
 function createWorker(databaseDirectory: string): Worker {
   const workerData = { databaseDirectory };
@@ -17,8 +18,10 @@ function createWorker(databaseDirectory: string): Worker {
 }
 
 type ServedReply = VersionReply | BlocksReply;
+export const MAX_REQUEST_POSTS = 2;
+
 type Waiter = { resolve: (reply: ServedReply) => void; reject: (error: Error) => void };
-type WaitingRequest = { request: ProjectionRequest; waiters: Waiter[] };
+type WaitingRequest = { request: ProjectionRequest; waiters: Waiter[]; posts: number };
 
 function versionKey({ documentId, sequence }: { documentId: string; sequence: number }): string {
   return `${ProjectionRequestKind.Version}:${documentId}@${sequence}`;
@@ -125,7 +128,7 @@ export class ProjectionScheduler {
         existing.waiters.push({ resolve, reject });
         return;
       }
-      this.waiting.set(key, { request, waiters: [{ resolve, reject }] });
+      this.waiting.set(key, { request, waiters: [{ resolve, reject }], posts: 1 });
       this.currentWorker.postMessage(request);
     });
   }
@@ -216,7 +219,15 @@ export class ProjectionScheduler {
     pending.forEach((documentId) => this.schedule(documentId));
     this.pendingImports.forEach((filePath, documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }));
     [...this.forgetting.keys()].forEach((documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId }));
-    this.waiting.forEach(({ request }) => this.currentWorker.postMessage(request));
+    this.repostWaiting();
+  }
+
+  private repostWaiting(): void {
+    [...this.waiting].forEach(([key, waiting]) => {
+      if (waiting.posts >= MAX_REQUEST_POSTS) return this.rejectWaiters({ key, error: new ProjectionRequestCrashedError() });
+      waiting.posts += 1;
+      this.currentWorker.postMessage(waiting.request);
+    });
   }
 
   private withinRestartBudget(): boolean {

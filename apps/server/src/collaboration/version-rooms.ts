@@ -1,5 +1,5 @@
 import { Hocuspocus } from '@hocuspocus/server';
-import { ApiPath, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-history/types';
+import { ApiPath, SECOND_MS, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-history/types';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -13,7 +13,7 @@ import { DOCUMENT_ID_PATTERN, documentIdFromRoomName } from './room-name';
 const SEQUENCE_PATTERN = /^[1-9]\d{0,15}$/;
 const VERSION_PATH_PREFIX = `${ApiPath.Collaboration}/versions/`;
 const PATH_SEPARATOR = '/';
-const STOP_TIMEOUT_MS = 5000;
+export const STOP_TIMEOUT_MS = 5 * SECOND_MS;
 const ROOM_DESTROY_FAILED_MESSAGE = 'Destroying a version instance failed for';
 
 export type { VersionEndpoint };
@@ -30,6 +30,12 @@ export function parseVersionPath(pathname: string): VersionEndpoint | null {
   return { documentId, sequence: Number(sequenceText) };
 }
 
+export enum VersionAdmission {
+  Allowed = 'allowed',
+  Refused = 'refused',
+  Unavailable = 'unavailable',
+}
+
 export class VersionRooms {
   private readonly rooms = new Map<string, VersionRoom>();
   private readonly auth: Auth;
@@ -44,14 +50,16 @@ export class VersionRooms {
     this.policy = policy;
   }
 
-  async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<boolean> {
+  async authorize({ endpoint, request }: { endpoint: VersionEndpoint; request: IncomingMessage }): Promise<VersionAdmission> {
     try {
       await authenticateMember({ auth: this.auth, documents: this.documents, cookie: request.headers.cookie, documentId: endpoint.documentId });
     } catch {
-      return false;
+      return VersionAdmission.Refused;
     }
     const mark = this.versions.resolve(endpoint);
-    return mark !== null && mark.sequence === endpoint.sequence;
+    if (mark === null || mark.sequence !== endpoint.sequence) return VersionAdmission.Refused;
+    if (this.versions.hasFailedRecently(endpoint)) return VersionAdmission.Unavailable;
+    return VersionAdmission.Allowed;
   }
 
   handle({ endpoint, webSocket, request }: { endpoint: VersionEndpoint; webSocket: WebSocket; request: IncomingMessage }): void {
@@ -73,8 +81,11 @@ export class VersionRooms {
     const timeout = new Promise<void>((resolve) => {
       timer.handle = setTimeout(resolve, STOP_TIMEOUT_MS);
     });
-    await Promise.race([destroyed, timeout]);
-    if (timer.handle) clearTimeout(timer.handle);
+    try {
+      await Promise.race([destroyed, timeout]);
+    } finally {
+      if (timer.handle) clearTimeout(timer.handle);
+    }
   }
 
   private roomFor(endpoint: VersionEndpoint): VersionRoom {

@@ -4,7 +4,7 @@ A collaborative DOCX editor that records every edit and turns that record into a
 
 ## Status
 
-Slices 1 and 2 shipped: workspace, Docker, CI, Better Auth, documents, sharing, live collaboration and history capture. Slice 3 is being built on `feat/timeline-and-time-travel`: the timeline panel, time travel and the LLM topics and summaries. The on-demand summary and the deploy follow. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
+Slices 1 and 2 shipped: workspace, Docker, CI, Better Auth, documents, sharing, live collaboration and history capture. Slice 3 is being built on `feat/timeline-and-time-travel`: the timeline panel, time travel and the LLM topics and summaries. Slice 4 is being built on `feat/llm-insights`: the on-demand "Summarize edits" summary and the timeline polish. The deploy follows. See the roadmap in [`docs/features/README.md`](docs/features/README.md).
 
 ## Features
 
@@ -21,9 +21,20 @@ Slices 1 and 2 shipped: workspace, Docker, CI, Better Auth, documents, sharing, 
 
 Data lives under `DATABASE_DIR`: `auth.sqlite` (users, sessions, documents, members, share links, topics and summaries), `history.sqlite` (update log, snapshots, identities), `read-model.sqlite` (edit events, version marks and the projection cursor) and `documents/<id>.docx`. Documents projected before version marks existed are rebuilt at startup, and their versions answer 202 until then.
 
+### Summarize edits
+
+The timeline panel header has a **Summarize edits** button, shown to owners and editors; readers read an existing summary but cannot request one. It summarizes exactly what the panel shows: the text filter, `@person`, the highlighted topic and the selected period. The result is one to three sentences naming who edited and what changed, with an avatar for each author.
+
+- **One call per selection and document state.** The summary is cached and shared with every member of the document. Asking again, or another member asking with the same selection, reads the cache instead of calling the model.
+- **Cooldown.** A new model call is allowed once per document every 30 seconds. A request inside the cooldown is refused with 429 and `Retry-After`, and the panel shows "Try again in N s." until it ends.
+- **Earlier state.** When edits arrive after a summary was written, the card keeps the sentence, shows a "For an earlier state" badge and re-enables the button.
+- **Disabled with a reason.** The button explains itself when the selection has no edits, a summary is running or up to date, or no model is configured.
+- **Process-wide caps.** At most `LLM_MAX_CONCURRENT_JOBS` jobs run at once and `LLM_MAX_CALLS_PER_HOUR` calls per rolling hour across all documents ([ADR 0011](docs/adr/0011-process-wide-llm-cost-caps.md)); beyond either the request answers 503 and consumes no cooldown. Caching is described in [ADR 0012](docs/adr/0012-selection-summaries-cached-per-filter-and-cursor.md).
+- **Keyboard.** Focusing a band in the streamgraph shows the tooltip of the selected period, and the tooltip opens inward at the chart's edges.
+
 ### LLM configuration
 
-Topics and the per-topic sentences go through the Vercel AI SDK and OpenRouter. Set `LLM_MODEL` (`.env.example` uses `openai/gpt-6-luna`) and `OPENROUTER_API_KEY`; `OPENROUTER_BASE_URL` is optional and points the client at another compatible endpoint. Without a key the app keeps working: the topics state becomes `failed` with the reason, and the chart shows one band per author. The prompts carry document text and author names only, never emails; each block is cut at 500 characters, markup in the text is escaped, and the prompts tell the model that block and edit content is data, not instructions. The test suite mocks the model; the one real call is a smoke test that is skipped without a key:
+Topics, the per-topic sentences and the selection summaries go through the Vercel AI SDK and OpenRouter. Set `LLM_MODEL` (`.env.example` uses `openai/gpt-6-luna`) and `OPENROUTER_API_KEY`; `OPENROUTER_BASE_URL` is optional and points the client at another compatible endpoint. `LLM_MAX_CONCURRENT_JOBS` (default 2) and `LLM_MAX_CALLS_PER_HOUR` (default 60) cap spend for the whole server. Without a key the app keeps working: the topics state becomes `failed` with the reason, and the chart shows one band per author. The prompts carry document text and author names only, never emails; each block is cut at 500 characters, markup in the text is escaped, a selection prompt never exceeds 6000 characters once escaped, and the prompts tell the model that block and edit content is data, not instructions. The test suite mocks the model; the one real call is a smoke test that is skipped without a key:
 
 ```bash
 scripts/with-env.sh pnpm --filter @superdoc-history/server exec vitest run src/insights/topics-llm.smoke.test.ts
@@ -90,7 +101,7 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 ## Citations
 
-**LLM use.** This codebase is developed with Claude Code (Anthropic) driving the harness in this repository. Every pull request is built by developer sub-agents, tested by a separate tester sub-agent with Playwright MCP and reviewed by a reviewer sub-agent; decisions are recorded in ADRs. The product itself calls a model in two places: topic names for a document and one sentence per topic, through the Vercel AI SDK and OpenRouter with `openai/gpt-6-luna` ([ADR 0006](docs/adr/0006-llm-via-vercel-ai-sdk.md)). Only author names and block text are sent, capped at 500 characters per block; without a key the features degrade to a `failed` state instead of failing the page.
+**LLM use.** This codebase is developed with Claude Code (Anthropic) driving the harness in this repository. Every pull request is built by developer sub-agents, tested by a separate tester sub-agent with Playwright MCP and reviewed by a reviewer sub-agent; decisions are recorded in ADRs. The product itself calls a model in three places: topic names for a document, one sentence per topic and the sentence for a selection of edits, through the Vercel AI SDK and OpenRouter with `openai/gpt-6-luna` ([ADR 0006](docs/adr/0006-llm-via-vercel-ai-sdk.md)). Only author names and edit text are sent (names only, no emails), capped at 500 characters per block and 6000 characters per selection prompt, and the prompts treat that text as data, not instructions; without a key the features degrade to a `failed` state instead of failing the page.
 
 **Starter code.**
 

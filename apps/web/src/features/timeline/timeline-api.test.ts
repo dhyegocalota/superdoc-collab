@@ -1,13 +1,38 @@
-import { documentApiPath, DocumentResource, HttpMethod, HttpStatus, TOPICS_REFRESH_TOO_SOON_MESSAGE, TopicState, topicsRefreshApiPath, type TopicStatus, type VersionSummary } from '@superdoc-history/types';
+import {
+  documentApiPath,
+  DocumentResource,
+  HttpMethod,
+  HttpStatus,
+  MIN_RETRY_AFTER_MS,
+  MINUTE_MS,
+  RETRY_AFTER_HEADER,
+  SECOND_MS,
+  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  selectionSummaryApiPath,
+  SelectionSummaryState,
+  TOPICS_REFRESH_TOO_SOON_MESSAGE,
+  TopicState,
+  topicsRefreshApiPath,
+  type EditSelection,
+  type SelectionSummaryView,
+  type TopicStatus,
+  type VersionSummary,
+} from '@superdoc-history/types';
 import { afterEach, expect, test, vi } from 'vitest';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { fetchTimeline, fetchVersion, MIN_RETRY_AFTER_MS, refreshTopics, TopicsRefreshTooSoonError, VersionLoadKind } from './timeline-api';
+import { ApiRequestError } from '@/lib/api';
+import { fetchSelectionSummary, fetchTimeline, fetchVersion, refreshTopics, requestSelectionSummary, SummaryTooSoonError, SUMMARIZE_EDITS_SUBJECT, TopicsRefreshTooSoonError, VersionLoadKind } from './timeline-api';
+import { requestFailedMessage } from './timeline-copy';
 
 const DOCUMENT_ID = 'doc-1';
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
-const RETRY_AFTER_HEADER = 'Retry-After';
 const VERSION: VersionSummary = { sequence: 7, serverTime: 1, collaborationPath: '/collaboration/versions/doc-1/7' };
 const STATUS: TopicStatus = { state: TopicState.Pending, failure: null, computedAtSequence: null };
+const SELECTION: EditSelection = { term: 'budget', author: 'ana', topic: 'band-0', at: 1_792_165_200_000 };
+const EMPTY_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
+const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
+const UNAVAILABLE_REASON = 'The language model is unavailable: LLM_MODEL is not set on the server.';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -60,4 +85,73 @@ test('refreshTopics returns the status on 202 and explains a 429', async () => {
   const error = await refreshTopics(DOCUMENT_ID).catch((caught: unknown) => caught);
   expect(error).toBeInstanceOf(TopicsRefreshTooSoonError);
   expect(error).toMatchObject({ message: TOPICS_REFRESH_TOO_SOON_MESSAGE, retryAfterMs: 7000 });
+});
+
+test('reading a selection summary sends every part of the selection', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
+  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(NONE_VIEW);
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`, expect.anything());
+});
+
+test('a selection at a period sends the bin size of that period', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
+  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: MINUTE_MS });
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}&binMs=${MINUTE_MS}`, expect.objectContaining({ method: HttpMethod.Post }));
+});
+
+test('a selection without a period never sends a bin size', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
+  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION, binMs: MINUTE_MS });
+  expect(fetchSpy).toHaveBeenCalledWith(SELECTION_PATH, expect.anything());
+});
+
+test('an empty selection is read from the bare path', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW)));
+  await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: EMPTY_SELECTION, binMs: null });
+  expect(fetchSpy).toHaveBeenCalledWith(SELECTION_PATH, expect.anything());
+});
+
+test('requesting a summary posts the same selection', async () => {
+  const fetchSpy = respondWith(new Response(JSON.stringify(NONE_VIEW), { status: HttpStatus.Accepted }));
+  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null });
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`, expect.objectContaining({ method: HttpMethod.Post }));
+});
+
+test('a summary requested too soon carries the seconds from Retry-After', async () => {
+  respondWith(new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '12' } }));
+  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null }).catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(SummaryTooSoonError);
+  expect(error).toMatchObject({ message: SELECTION_SUMMARY_TOO_SOON_MESSAGE, retryAfterSeconds: 12 });
+});
+
+test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async (header) => {
+  const headers = header === null ? undefined : { [RETRY_AFTER_HEADER]: header };
+  respondWith(new Response('{}', { status: HttpStatus.TooManyRequests, headers }));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toMatchObject({ retryAfterSeconds: MIN_RETRY_AFTER_MS / SECOND_MS });
+});
+
+test('an unavailable model surfaces the server reason', async () => {
+  respondWith(new Response(JSON.stringify({ error: UNAVAILABLE_REASON }), { status: HttpStatus.ServiceUnavailable }));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(UNAVAILABLE_REASON));
+});
+
+test('a 503 without a JSON error falls back to the status message', async () => {
+  respondWith(new Response('<html>busy</html>', { status: HttpStatus.ServiceUnavailable }));
+  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })));
+});
+
+test('a selection summary of a document that is gone is unavailable', async () => {
+  respondWith(new Response('{}', { status: HttpStatus.NotFound }));
+  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toBeInstanceOf(DocumentUnavailableError);
+});
+
+test.each([SelectionSummaryState.Running, SelectionSummaryState.Ready, SelectionSummaryState.Failed])('a %s selection summary is returned as the server sent it', async (state) => {
+  const view: SelectionSummaryView = { ...NONE_VIEW, state };
+  respondWith(new Response(JSON.stringify(view)));
+  expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).toEqual(view);
+});
+
+test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])('reading a selection summary answered with %s fails with the status message', async (status) => {
+  respondWith(new Response('{}', { status }));
+  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })));
 });

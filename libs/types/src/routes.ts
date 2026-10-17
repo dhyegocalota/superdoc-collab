@@ -33,6 +33,7 @@ export enum VersionResource {
 
 const REFRESH_SEGMENT = 'refresh';
 const EDITS_SEGMENT = 'edits';
+const SELECTION_SEGMENT = 'selection';
 const COLLABORATION_VERSIONS_SEGMENT = 'versions';
 const VERSION_VIEW_SEGMENT = 'view';
 
@@ -56,6 +57,10 @@ export function shareLinkAcceptPath(token: string): string {
 
 export function topicsRefreshApiPath(documentId: string): string {
   return `${documentApiPath({ documentId, resource: DocumentResource.Topics })}/${REFRESH_SEGMENT}`;
+}
+
+export function selectionSummaryApiPath(documentId: string): string {
+  return `${documentApiPath({ documentId, resource: DocumentResource.Summaries })}/${SELECTION_SEGMENT}`;
 }
 
 export function timelineEditsApiPath(documentId: string): string {

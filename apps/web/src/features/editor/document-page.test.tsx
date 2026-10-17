@@ -10,7 +10,10 @@ import {
   HttpMethod,
   HttpStatus,
   RoomMode,
+  selectionSummaryApiPath,
+  SelectionSummaryState,
   type OpenedDocument,
+  type SelectionSummaryView,
 } from '@superdoc-history/types';
 import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, screen, waitFor } from '@testing-library/react';
@@ -23,6 +26,8 @@ import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, E
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
+
+const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 
 type SuperDocConfig = { onException: (payload: { error: Error }) => void };
 
@@ -65,6 +70,7 @@ function mockDocumentApi({
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
     if (input === TIMELINE_PATH) return new Response(JSON.stringify(EMPTY_TIMELINE));
     if (input === SUMMARIES_PATH) return new Response(JSON.stringify({ summaries: [] }));
+    if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(NONE_VIEW));
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     if (input === DOCUMENT_PATH && init?.method === HttpMethod.Patch && renamedTitle) {
       current = { ...current, document: { ...current.document, title: renamedTitle } };

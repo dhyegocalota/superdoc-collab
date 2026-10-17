@@ -3,8 +3,10 @@ import { TopicState, type TopicStatus, type TopicSummary } from '@superdoc-histo
 import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
-import { documentTopics, topicBlocks, topicSets, topicSummaries } from '../database/schema/insights';
+import { documentTopics, selectionSummaries, topicBlocks, topicSets, topicSummaries } from '../database/schema/insights';
 
+export type StoredSelectionSummary = { key: string; sentence: string | null; authors: string[]; failure: string | null; computedAtSequence: number; topicsUpdatedAt: number | null };
+type SelectionStamp = { documentId: string; key: string; computedAtSequence: number; topicsUpdatedAt: number | null };
 export type StoredTopic = { id: string; name: string; position: number; blockIds: string[] };
 
 export class InsightsRepository {
@@ -92,6 +94,30 @@ export class InsightsRepository {
       .insert(topicSets)
       .values({ documentId, state, failure, computedAtSequence: null, updatedAt })
       .onConflictDoUpdate({ target: topicSets.documentId, set: { state, failure, updatedAt } })
+      .run();
+  }
+
+  selectionSummary({ documentId, key }: { documentId: string; key: string }): StoredSelectionSummary | null {
+    const row = this.database.drizzle.select().from(selectionSummaries).where(and(eq(selectionSummaries.documentId, documentId), eq(selectionSummaries.filterKey, key))).get();
+    if (!row) return null;
+    return { key: row.filterKey, sentence: row.sentence, authors: row.authors, failure: row.failure, computedAtSequence: row.computedAtSequence, topicsUpdatedAt: row.topicsUpdatedAt };
+  }
+
+  saveSelectionSummary({ documentId, key, sentence, authors, computedAtSequence, topicsUpdatedAt }: SelectionStamp & { sentence: string; authors: string[] }): void {
+    const values = { sentence, authors, failure: null, computedAtSequence, topicsUpdatedAt, updatedAt: new Date() };
+    this.database.drizzle
+      .insert(selectionSummaries)
+      .values({ documentId, filterKey: key, ...values })
+      .onConflictDoUpdate({ target: [selectionSummaries.documentId, selectionSummaries.filterKey], set: values })
+      .run();
+  }
+
+  saveSelectionFailure({ documentId, key, failure, computedAtSequence, topicsUpdatedAt }: SelectionStamp & { failure: string }): void {
+    const updatedAt = new Date();
+    this.database.drizzle
+      .insert(selectionSummaries)
+      .values({ documentId, filterKey: key, sentence: null, authors: [], failure, computedAtSequence, topicsUpdatedAt, updatedAt })
+      .onConflictDoUpdate({ target: [selectionSummaries.documentId, selectionSummaries.filterKey], set: { failure, updatedAt } })
       .run();
   }
 }

@@ -1,8 +1,20 @@
-import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
-import { bandAriaLabel, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
-import { DocumentResource, documentApiPath, TimelineQueryParam, TimelineSearchParam, VersionResource, versionApiPath, type DocumentTimeline, type VersionMarks, type VersionText } from '../libs/types/src';
-import { TEXT_RUN_SELECTOR } from './editor';
+import { expect, type APIRequestContext, type Browser, type FrameLocator, type Locator, type Page } from '@playwright/test';
+import { bandAriaLabel, FILTER_LABEL, SELECTION_SUMMARY_HEADING, SUMMARIZE_EDITS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
+import { DEMO_USERS, DocumentResource, documentApiPath, ShareLinkRole, TimelineQueryParam, TimelineSearchParam, VersionResource, versionApiPath, type DocumentTimeline, type VersionMarks, type VersionText } from '../libs/types/src';
+import { shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
+import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
+import { signedInContext } from './fixtures';
 
+export const ANA = DEMO_USERS[0]!.name;
+export const BRUNO = DEMO_USERS[1]!.name;
+export const BUDGET = 'Budget';
+export const HIRING = 'Hiring';
+export const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
+export const HIRING_PARAGRAPH = 'Hiring: we add two people.';
+export const ANA_TEXT = ' More money';
+export const BRUNO_TEXT = ' A designer';
+const FAKE_CALLS_PATH = '/calls';
+const SETTLE_WINDOW_MS = 1_500;
 export const HIGHLIGHT_CLASS = 'superdoc-comment-highlight';
 export const BANDS_TIMEOUT_MS = 60_000;
 export const VERSION_TIMEOUT_MS = 60_000;
@@ -116,4 +128,46 @@ export async function expectStableFor({ read, expected, durationMs }: { read: ()
     )
     .toBe(true);
   expect([...observed]).toEqual([expected]);
+}
+
+export async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: Browser; paragraphs: string[] }) {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  const documentId = await uploadSeed({ page: ana.page, paragraphs });
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  await Promise.all([
+    typeInParagraph({ page: ana.page, paragraphText: paragraphs[0]!.slice(0, 7), text: ANA_TEXT }),
+    typeInParagraph({ page: bruno.page, paragraphText: paragraphs[1]!.slice(0, 7), text: BRUNO_TEXT }),
+  ]);
+  return { ana, bruno, documentId };
+}
+
+export async function filterBy({ page, text }: { page: Page; text: string }): Promise<void> {
+  const input = page.getByRole('textbox', { name: FILTER_LABEL });
+  await input.fill(text);
+  await input.press('Enter');
+}
+
+export async function readSelectionCalls(request: APIRequestContext): Promise<number> {
+  const response = await request.get(`${FAKE_OPENROUTER_ORIGIN}${FAKE_CALLS_PATH}`);
+  return ((await response.json()) as { selection: number }).selection;
+}
+
+export function summaryCard(page: Page): Locator {
+  return page.getByRole('region', { name: SELECTION_SUMMARY_HEADING });
+}
+
+export function summarizeButton(page: Page): Locator {
+  return page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL });
+}
+
+async function timelineVolume({ page, documentId }: { page: Page; documentId: string }): Promise<string> {
+  const { bins } = await readTimeline({ page, documentId });
+  const volume = bins.flatMap((bin) => Object.values(bin.byBand)).reduce((total, cell) => total + cell.inserted + cell.deleted, 0);
+  return String(volume);
+}
+
+export async function waitForSettledTimeline({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
+  await waitForProjection({ page, documentId });
+  await expectStableFor({ read: () => timelineVolume({ page, documentId }), expected: await timelineVolume({ page, documentId }), durationMs: SETTLE_WINDOW_MS });
 }

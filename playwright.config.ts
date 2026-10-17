@@ -2,10 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { FAKE_OPENROUTER_ORIGIN, FAKE_OPENROUTER_PORT } from './e2e/fake-openrouter-origin';
 
 const PORT = 3100;
-const FAKE_OPENROUTER_PORT = 3199;
-const FAKE_OPENROUTER_ORIGIN = `http://127.0.0.1:${FAKE_OPENROUTER_PORT}`;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;

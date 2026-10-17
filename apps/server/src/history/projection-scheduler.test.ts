@@ -4,13 +4,14 @@ import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { readEvents } from '../testing/events-client';
 import { signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
-import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, IMPORT_TIMEOUT_MS, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
-import { MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
+import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, IMPORT_TIMEOUT_MS, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestCrashedError, ProjectionRequestKind, ProjectionStoppedError, type ProjectionRequest } from './projection-messages';
+import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
 const IMPORT_TEST_TIMEOUT_MS = 40_000;
@@ -280,6 +281,35 @@ test('a terminated worker re-posts a waiting version', async () => {
   await firstWorker.terminate();
   postMessage.mockRestore();
   expect((await version).sequence).toBe(sequence);
+  client.close();
+  await server.stop();
+});
+
+async function crashWorker(scheduler: ProjectionScheduler): Promise<void> {
+  const crashed = scheduler.currentWorker;
+  await crashed.terminate();
+  await expect.poll(() => scheduler.currentWorker !== crashed).toBe(true);
+}
+
+function isVersionRequest(message: unknown): boolean {
+  return (message as ProjectionRequest).kind === ProjectionRequestKind.Version;
+}
+
+test('a version still waiting after two worker crashes is rejected instead of posted a third time', async () => {
+  const { server, documentId, client, sequence } = await projectedDocument();
+  const { scheduler } = server.services;
+  const post = Worker.prototype.postMessage;
+  const posts = vi.spyOn(Worker.prototype, 'postMessage').mockImplementation(function (this: Worker, message: unknown) {
+    if (isVersionRequest(message)) return;
+    post.call(this, message);
+  });
+  const version = scheduler.version({ documentId, sequence });
+  version.catch(() => undefined);
+  await crashWorker(scheduler);
+  await crashWorker(scheduler);
+  await expect(version).rejects.toBeInstanceOf(ProjectionRequestCrashedError);
+  expect(posts.mock.calls.filter(([message]) => isVersionRequest(message))).toHaveLength(MAX_REQUEST_POSTS);
+  posts.mockRestore();
   client.close();
   await server.stop();
 });

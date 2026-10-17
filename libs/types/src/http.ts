@@ -21,3 +21,5 @@ export enum HttpMethod {
   Patch = 'PATCH',
   Delete = 'DELETE',
 }
+
+export const RETRY_AFTER_HEADER = 'Retry-After';

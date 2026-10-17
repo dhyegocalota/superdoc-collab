@@ -40,3 +40,11 @@ export function filterRuns({ runs, term, authorKeys }: { runs: EditRun[]; term: 
     return matchesTerm && matchesAuthor;
   });
 }
+
+export function narrowRuns({ runs, bandId, binStart }: { runs: EditRun[]; bandId: string | null; binStart: number | null }): EditRun[] {
+  return runs.filter((run) => {
+    const matchesBand = bandId === null || run.bandId === bandId;
+    const matchesBin = binStart === null || run.binStart === binStart;
+    return matchesBand && matchesBin;
+  });
+}

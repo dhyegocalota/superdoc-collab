@@ -1,6 +1,7 @@
 import type { Block } from '@superdoc-history/history';
+import { SECOND_MS } from '@superdoc-history/types';
 
-export const IMPORT_TIMEOUT_MS = 30_000;
+export const IMPORT_TIMEOUT_MS = 30 * SECOND_MS;
 export const SNAPSHOT_EVERY_UPDATES = 1000;
 export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document';
 export const IMPORT_SKIPPED_MESSAGE = 'Skipped importing Word revisions, projection is disabled, for document';
@@ -53,6 +54,12 @@ export class MissingVersionMarkError extends Error {
 export class ProjectionStoppedError extends Error {
   constructor() {
     super('Projection is stopping.');
+  }
+}
+
+export class ProjectionRequestCrashedError extends Error {
+  constructor() {
+    super('The projection worker crashed twice while serving this request.');
   }
 }
 

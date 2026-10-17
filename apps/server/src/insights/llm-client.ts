@@ -4,9 +4,9 @@ import { generateText, Output, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 import type { LlmSettings } from '../config/environment';
 
-export const LLM_MODEL_MISSING_MESSAGE = 'Topics are unavailable: LLM_MODEL is not set on the server.';
+export const LLM_MODEL_MISSING_MESSAGE = 'The language model is unavailable: LLM_MODEL is not set on the server.';
 export const LLM_BUSY_MESSAGE = 'The language model is busy; try again later.';
-export const LLM_KEY_MISSING_MESSAGE = 'Topics are unavailable: OPENROUTER_API_KEY is not set on the server.';
+export const LLM_KEY_MISSING_MESSAGE = 'The language model is unavailable: OPENROUTER_API_KEY is not set on the server.';
 const LLM_TIMEOUT_MS = 30 * SECOND_MS;
 const LLM_MAX_RETRIES = 1;
 

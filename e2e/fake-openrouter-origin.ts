@@ -1,0 +1,2 @@
+export const FAKE_OPENROUTER_PORT = 3199;
+export const FAKE_OPENROUTER_ORIGIN = `http://127.0.0.1:${FAKE_OPENROUTER_PORT}`;

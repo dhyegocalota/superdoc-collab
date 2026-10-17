@@ -1,6 +1,7 @@
-import { ALL_SEQUENCES, assignBlocks, authorKey, binStartsCovering, buildBands, buildBins, chooseBinMs, contributorsByBand, filterRuns, groupIntoRuns, IdentitySource, topicBandId, versionSequenceAt, type BandIdentity, type EditRun, type TimelineEvent } from '@superdoc-history/history';
+import { ALL_SEQUENCES, assignBlocks, authorKey, binStartsCovering, buildBands, buildBins, chooseBinMs, contributorsByBand, filterRuns, groupIntoRuns, IdentitySource, narrowRuns, topicBandId, versionSequenceAt, type BandIdentity, type EditRun, type TimelineEvent } from '@superdoc-history/history';
 import { BlockChangeKind, OTHER_BAND_ID, OTHER_BAND_NAME, TimelineBandKind, type BinEdits, type DocumentEditEvent, type DocumentTimeline, type EventAuthor, type ProjectionStatus, type TimelineFilter } from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
+import type { RequestedSelection, SelectionSnapshot } from '../insights/selection-summaries-service';
 import { resolveEvents } from './resolved-events';
 import type { TimelinePipeline } from './timeline-pipeline-cache';
 
@@ -28,12 +29,12 @@ function bandIdentities({ services, documentId, events }: { services: AppService
 }
 
 function buildPipeline({ services, documentId }: { services: AppServices; documentId: string }): TimelinePipeline {
-  const { events: stored } = services.readModel.readWithCursor({ documentName: documentId, afterSequence: null });
+  const { events: stored, cursor } = services.readModel.readWithCursor({ documentName: documentId, afterSequence: null });
   const events = resolveEvents({ services, documentId, stored });
   const { identities, bandOf, hasTopics } = bandIdentities({ services, documentId, events });
   const timelineEvents = events.map((event): TimelineEvent => ({ sequence: event.sequence, serverTime: event.serverTime, blockId: event.blockId, bandId: bandOf(event), authorKeys: event.authors.map(authorKey), inserted: event.inserted, deleted: event.deleted }));
   const unassignedEvents = events.filter((event, index) => event.kind !== BlockChangeKind.Removed && (!hasTopics || timelineEvents[index]!.bandId === OTHER_BAND_ID));
-  return { events: timelineEvents, identities, authors: authorsOf(events), hasTopics, unassignedFirstSequences: firstSequencesOf(unassignedEvents) };
+  return { events: timelineEvents, identities, authors: authorsOf(events), hasTopics, unassignedFirstSequences: firstSequencesOf(unassignedEvents), cursor };
 }
 
 function authorsOf(events: DocumentEditEvent[]): Record<string, EventAuthor> {
@@ -127,4 +128,22 @@ export function buildBinEdits({ services, documentId, filter, binStart, binMs }:
   const authorKeys = new Set(runs.flatMap((run) => run.authorKeys));
   const authors = Object.fromEntries(Object.entries(pipeline.authors).filter(([key]) => authorKeys.has(key)));
   return { binStart, binMs: chosenBinMs, runs, authors };
+}
+
+function topicStampOf({ services, documentId, selection }: { services: AppServices; documentId: string; selection: RequestedSelection }): number | null {
+  if (selection.topic === null) return null;
+  return services.insightsRepository.updatedAt(documentId);
+}
+
+export function buildSelectionSnapshot({ services, documentId, selection }: { services: AppServices; documentId: string; selection: RequestedSelection }): SelectionSnapshot {
+  const pipeline = readTimelinePipeline({ services, documentId });
+  const binMs = binMsOf({ binMs: selection.binMs, pipeline });
+  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs });
+  return {
+    runs: narrowRuns({ runs: matchedRuns, bandId: selection.topic, binStart: selection.at }),
+    authors: pipeline.authors,
+    binMs,
+    cursor: pipeline.cursor,
+    topicsUpdatedAt: topicStampOf({ services, documentId, selection }),
+  };
 }

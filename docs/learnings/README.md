@@ -31,6 +31,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-15 | After a server crash, text typed by one author is attributed to whoever reconnected first | [2026-10-15-relayed-updates-misattribute-after-a-crash.md](2026-10-15-relayed-updates-misattribute-after-a-crash.md) | 2026-10-16 |
 | 2026-10-16 | Shrinking the snapshot interval barely moves open-room latency | [2026-10-16-yjs-decode-not-sqlite-is-the-load-cost.md](2026-10-16-yjs-decode-not-sqlite-is-the-load-cost.md) | 2026-10-16 |
 | 2026-10-16 | Keystroke-level events must be grouped into runs before any term search | [2026-10-16-keystroke-events-need-runs-before-search.md](2026-10-16-keystroke-events-need-runs-before-search.md) | 2026-10-16 |
+| 2026-10-17 | A spend budget must count only jobs that reach the model | [2026-10-17-count-only-real-model-calls-toward-a-budget.md](2026-10-17-count-only-real-model-calls-toward-a-budget.md) | 2026-10-17 |
 
 ### testing
 
@@ -50,3 +51,4 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-16 |
 | 2026-10-16 | AI SDK 7 deprecates generateObject; structured output is generateText + Output.object | [2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md](2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md) | 2026-10-16 |
 | 2026-10-16 | A red-first commit must fail on the named assertion, not on a missing module | [2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md](2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md) | 2026-10-16 |
+| 2026-10-17 | A disabled button never shows its title, so the reason must be visible text | [2026-10-17-a-disabled-button-never-shows-its-title.md](2026-10-17-a-disabled-button-never-shows-its-title.md) | 2026-10-17 |

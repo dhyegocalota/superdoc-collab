@@ -17,6 +17,7 @@ import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import { createInsightsRoutes } from '../insights/insights-routes';
 import type { InsightsWorker } from '../insights/insights-worker';
+import type { SelectionSummariesService } from '../insights/selection-summaries-service';
 import type { SummariesService } from '../insights/summaries-service';
 import type { TopicsService } from '../insights/topics-service';
 import type { InsightsRepository } from '../insights/insights-repository';
@@ -34,7 +35,7 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 
-export type InsightsServices = { topics: TopicsService; summaries: SummariesService; worker: InsightsWorker };
+export type InsightsServices = { topics: TopicsService; summaries: SummariesService; selection: SelectionSummariesService; worker: InsightsWorker };
 
 export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache; insights: InsightsServices; versions: VersionsService; versionRooms: VersionRooms };
 

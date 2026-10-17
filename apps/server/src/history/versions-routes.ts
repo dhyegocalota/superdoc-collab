@@ -1,4 +1,4 @@
-import { DocumentRole, HttpStatus, TimelineQueryParam, VERSION_FAILED_ERROR, VERSION_NOT_READY_ERROR, versionCollaborationPath, type VersionMarks, type VersionSummary, type VersionText } from '@superdoc-history/types';
+import { DocumentRole, HttpStatus, RETRY_AFTER_HEADER, TimelineQueryParam, VERSION_FAILED_ERROR, VERSION_NOT_READY_ERROR, versionCollaborationPath, type VersionMarks, type VersionSummary, type VersionText } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
@@ -8,7 +8,6 @@ import { VersionLookupKind } from './versions-service';
 
 export const VERSION_MARKS_AROUND = 10;
 export const RETRY_AFTER_SECONDS = 1;
-const RETRY_AFTER_HEADER = 'Retry-After';
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);

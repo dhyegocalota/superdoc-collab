@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
-import { summariesOutputSchema, topicsOutputSchema } from './topic-schema';
+import { SELECTION_SUMMARY_MAX_CHARACTERS } from '@superdoc-history/types';
+import { selectionSummaryOutputSchema, summariesOutputSchema, topicsOutputSchema } from './topic-schema';
 
 const NAME_LIMIT = 40;
 const SENTENCE_LIMIT = 200;
@@ -36,4 +37,11 @@ test('accepts up to the accepted limit and rejects beyond it', () => {
 test('summaries reject a long sentence and accept none', () => {
   expect(summariesOutputSchema.safeParse({ summaries: [{ topicId: 't1', sentence: 'x'.repeat(SENTENCE_LIMIT + 1) }] }).success).toBe(false);
   expect(summariesOutputSchema.safeParse({ summaries: [] }).success).toBe(true);
+});
+
+test('a selection summary needs a non-blank sentence within the limit', () => {
+  expect(selectionSummaryOutputSchema.safeParse({ sentence: 'Ana raised the budget.', authors: ['Ana'] }).success).toBe(true);
+  expect(selectionSummaryOutputSchema.safeParse({ sentence: '   ', authors: [] }).success).toBe(false);
+  expect(selectionSummaryOutputSchema.safeParse({ sentence: 'x'.repeat(SELECTION_SUMMARY_MAX_CHARACTERS + 1), authors: [] }).success).toBe(false);
+  expect(selectionSummaryOutputSchema.safeParse({ sentence: 'Ana raised the budget.' }).success).toBe(false);
 });

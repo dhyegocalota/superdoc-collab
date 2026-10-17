@@ -110,6 +110,12 @@ export class VersionsService {
     return generation;
   }
 
+  hasFailedRecently(endpoint: VersionEndpoint): boolean {
+    const mark = this.resolve(endpoint);
+    if (!mark) return false;
+    return this.isFailedRecently(versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence }));
+  }
+
   private isFailedRecently(key: string): boolean {
     const failedAt = this.failedAt.get(key);
     if (failedAt === undefined) return false;

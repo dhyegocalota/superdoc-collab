@@ -208,3 +208,38 @@ test.each([
   expect(JSON.stringify(resultJson(result))).toContain(field);
   expect(dispatch).not.toHaveBeenCalled();
 });
+
+test.each(['failed', 'partial', 'aborted'])('edit_document turns a %s receipt into a tool error carrying the reason', async (status) => {
+  const receipt = {
+    status,
+    errors: [{ code: 'MATCH_NOT_FOUND', message: 'The text to replace is not in the document' }],
+    nextStep: 'Inspect the document and retry with text it contains',
+  };
+  const { context } = toolContext({ server, userId: editor.id, sessions: sessionsOn({}), dispatch: vi.fn().mockResolvedValue(receipt) });
+  const result = await callAgentTool({
+    tool: AgentTool.EditDocument,
+    input: { documentId, action: 'replace_text', edits: EDITS },
+    context,
+  });
+  expect(result.isError).toBe(true);
+  expect(resultJson(result)).toEqual({
+    error: expect.stringContaining('MATCH_NOT_FOUND'),
+    status,
+    nextStep: receipt.nextStep,
+  });
+});
+
+test('edit_document without errors in a failed receipt still names the status', async () => {
+  const { context } = toolContext({
+    server,
+    userId: editor.id,
+    sessions: sessionsOn({}),
+    dispatch: vi.fn().mockResolvedValue({ status: 'failed' }),
+  });
+  const result = await callAgentTool({
+    tool: AgentTool.EditDocument,
+    input: { documentId, action: 'replace_text', edits: EDITS },
+    context,
+  });
+  expect([result.isError, resultJson(result)]).toEqual([true, { error: expect.stringContaining('failed'), status: 'failed' }]);
+});

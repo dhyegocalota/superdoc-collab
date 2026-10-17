@@ -1,8 +1,9 @@
-import { HttpStatus } from '@superdoc-collab/types';
+import { HttpStatus, TAB_QUERY_KEY } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { jsonResponse } from '@/testing/json-response';
 import { membersQueryKey } from './editor-api';
@@ -54,4 +55,32 @@ test('isCurrentUserOnline is null after a failed poll', async () => {
   await waitFor(() => expect(result.current.isCurrentUserOnline).toBe(true));
   await poll();
   await waitFor(() => expect(result.current.isCurrentUserOnline).toBeNull());
+});
+
+test('membersAnsweredAt is null before the first answer and the answer time afterwards', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(membersAnswer(true));
+  const { result } = renderMembers();
+  expect(result.current.membersAnsweredAt).toBeNull();
+  const requestedAt = Date.now();
+  await waitFor(() => expect(result.current.membersAnsweredAt).not.toBeNull());
+  expect(result.current.membersAnsweredAt).toBeGreaterThanOrEqual(requestedAt);
+  expect(result.current.membersAnsweredAt).toBeLessThanOrEqual(Date.now());
+});
+
+test('membersAnsweredAt is null after a failed poll', async () => {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(membersAnswer(true))
+    .mockResolvedValueOnce(jsonResponse({ body: {}, status: HttpStatus.InternalServerError }));
+  const { result, poll } = renderMembers();
+  await waitFor(() => expect(result.current.membersAnsweredAt).not.toBeNull());
+  await poll();
+  await waitFor(() => expect(result.current.membersAnsweredAt).toBeNull());
+});
+
+test('the members request carries the tab id', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(membersAnswer(true));
+  renderMembers();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[0]![0]), window.location.origin);
+  expect(requestedUrl.searchParams.get(TAB_QUERY_KEY)).toBe(tabId());
 });

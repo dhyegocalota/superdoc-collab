@@ -1,4 +1,4 @@
-import { ApiPath, ClientActor, DocumentRole } from '@superdoc-collab/types';
+import { ApiPath, ClientActor, DocumentRole, TAB_QUERY_KEY } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from '../agent/room-tokens';
@@ -162,4 +162,19 @@ describe('collaboration credentials by path', () => {
     [agent, ownerClient].forEach((client) => client.close());
     await server.stop();
   });
+});
+
+test("a connection's tab id is in the room's online tab ids and leaves with the socket", async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const tabId = randomUUID();
+  const client = await connectToDocument({
+    server,
+    cookie: owner.cookie,
+    documentId,
+    path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${tabId}`,
+  });
+  expect(server.services.runtime.onlineTabIds(documentId)).toEqual(new Set([tabId]));
+  client.close();
+  await expect.poll(() => server.services.runtime.onlineTabIds(documentId)).toEqual(new Set());
+  await server.stop();
 });

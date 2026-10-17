@@ -91,6 +91,14 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 - [x] **Step 9:** red. `apps/web/src/features/versions/version-viewer.test.tsx` (new), mocking `superdoc` as `document-page.test.tsx` does and stubbing `fetchDocumentFile`: `a warn diagnostic calls neither onFailed nor onConnectionFailed` (expected both zero), `a collaboration reason calls onConnectionFailed and not onFailed` (expected 1 and 0), `a fatal payload calls onFailed` (expected 1), `edit-rejected calls neither` (expected zero). Red text: `expected "onFailed" to not be called at all, but actually been called 1 times`.
 - [x] **Step 10:** green. `version-viewer.tsx` maps `onException` through `exceptionOutcome`: Logged and Recoverable do nothing, ConnectionFailed calls `onConnectionFailed`, Fatal calls `onFailed`. The local `ConnectionState` enum becomes `ViewerConnectionState`. `.claude/rules/collaboration.md` gets the narrowing rule in this commit. Expected: Step 9 green; `version-view-page.test.tsx` and `time-travel.test.tsx` still green.
 
+### G3a: per-tab presence and the members answer time
+
+- [x] **Step G3a-1:** red `tabId returns the same id within a page load` (dec8e69, `tabId is not implemented`), green aae89a5.
+- [x] **Step G3a-2:** red `the collaboration URL carries the tab id as the tab query` (50f30ad, `expected null to be '<uuid>'`), green 24ebf29.
+- [x] **Step G3a-3:** red `a connection's tab id is in the room's online tab ids and leaves with the socket` (a742683, `onlineTabIds is not implemented`), green 3190979.
+- [x] **Step G3a-4:** red `members answers isCurrentUserOnline for the tab that asks, not for another tab of the same user` (7ba3a71, `expected true to be false`), green a26d1b8 with the `collaboration.md` sentence.
+- [x] **Step G3a-5:** red `membersAnsweredAt` and `the members request carries the tab id` (ca4bccd), green cef4b7d.
+
 ### G3: hook, banner and page wiring (after G1 and G2 are merged)
 
 - [ ] **Step 11:** red. `apps/web/src/features/editor/use-connection-state.test.ts`, `mergeConnectionState` as a test.each over every row of spec Merge plus `Clear` with `false` and `null`: input e.g. `{ reading: Lost, isCurrentUserOnline: true }`; expected `Recovered`. Red text: `mergeConnectionState is not a function`.

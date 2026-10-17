@@ -8,6 +8,7 @@ import {
   MAX_UPLOAD_BYTES,
   NOT_A_DOCX_MESSAGE,
   RoomMode,
+  TAB_QUERY_KEY,
   TITLE_MAX_LENGTH,
   titleSchema,
   UNTITLED_DOCUMENT_TITLE,
@@ -151,9 +152,11 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   routes.get('/:documentId/members', (context) => {
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
     const online = runtime.onlineUserIds(documentId);
+    const tab = context.req.query(TAB_QUERY_KEY);
+    const isCurrentUserOnline = tab === undefined ? online.has(context.var.user.id) : runtime.onlineTabIds(documentId).has(tab);
     return context.json({
       members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
-      isCurrentUserOnline: online.has(context.var.user.id),
+      isCurrentUserOnline,
     });
   });
 

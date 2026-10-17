@@ -16,6 +16,7 @@ export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   onlineUserIds: (documentId: string) => Set<string>;
+  onlineTabIds: (documentId: string) => Set<string>;
   importRevisions: (documentId: string) => void;
   forget: (documentId: string) => Promise<void>;
 };
@@ -75,6 +76,12 @@ export function createCollaborationRuntime({
         roomsOf(documentId).flatMap((room) =>
           [...room.connections.values()].map(({ connection }) => (connection.context as CollaborationContext).userId),
         ),
+      ),
+    onlineTabIds: (documentId) =>
+      new Set(
+        roomsOf(documentId)
+          .flatMap((room) => [...room.connections.values()].map(({ connection }) => (connection.context as CollaborationContext).tabId))
+          .filter((tabId) => tabId !== null),
       ),
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {

@@ -3,7 +3,10 @@ import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, READ_MODEL_DATABASE_FILE } from '../database/connection';
@@ -11,7 +14,7 @@ import { connectToDocument, documentWithOwner } from '../testing/collaboration-c
 import { readEvents } from '../testing/events-client';
 import { signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 import { IMPORT_FAILED_MESSAGE, IMPORT_SKIPPED_MESSAGE, IMPORT_TIMEOUT_MS, PROJECTION_FAILED_MESSAGE, ProjectionDegradedError, ProjectionReplyKind, ProjectionRequestCrashedError, ProjectionRequestKind, ProjectionStoppedError, type ProjectionRequest } from './projection-messages';
-import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
+import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, ProjectionScheduler } from './projection-scheduler';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
 const IMPORT_TEST_TIMEOUT_MS = 40_000;
@@ -19,6 +22,8 @@ const SCHEDULE_CALLS = 5;
 const EDIT_COUNT = 50;
 const SUCCESSIVE_LOG_ENTRIES = EDIT_COUNT + 2;
 const LOG_BATCH_LIMIT = 100;
+const PROBE_SEQUENCE = 4242;
+const PROBE_WORKER_FILE_NAME = 'probe-worker.js';
 
 test('a terminated worker is restarted and completes without duplicates', async () => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -355,4 +360,19 @@ test('rebuilding a degraded scheduler leaves nothing rebuilding', async () => {
   expect(server.services.scheduler.isRebuilding(documentId)).toBe(false);
   server.services.scheduler.degraded = false;
   await server.stop();
+});
+
+test('a given worker file is the one spawned', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-history-probe-'));
+  const probeSource = `import { parentPort } from 'node:worker_threads';
+parentPort.on('message', (request) => {
+  if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
+  if (request.kind === '${ProjectionRequestKind.Blocks}') parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: ${PROBE_SEQUENCE}, blocks: [] });
+});
+`;
+  writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), probeSource);
+  const scheduler = new ProjectionScheduler({ databaseDirectory: directory, projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)) });
+  const reply = await scheduler.blocks(randomUUID());
+  expect(reply.sequence).toBe(PROBE_SEQUENCE);
+  await scheduler.stop();
 });

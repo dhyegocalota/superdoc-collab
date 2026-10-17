@@ -9,6 +9,8 @@ import {
   SECOND_MS,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
+  UNAUTHORIZED_CLOSE_CODE,
+  UNAUTHORIZED_CLOSE_REASON,
   VERSION_FAILURE_TTL_MS,
 } from '@superdoc-collab/types';
 import { WebSocket, WebSocketServer, type ServerOptions } from 'ws';
@@ -112,13 +114,19 @@ export function attachCollaboration({
     }
     upgrade({ request, socket, head, endpoint });
   }
+  function refuseSession({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): void {
+    sockets.handleUpgrade(request, socket, head, (webSocket) => {
+      webSocket.on('error', terminateOnError);
+      webSocket.close(UNAUTHORIZED_CLOSE_CODE, UNAUTHORIZED_CLOSE_REASON);
+    });
+  }
   async function upgradeMember({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): Promise<void> {
     const { cookie } = request.headers;
     if (!cookie) return void socket.destroy();
     socket.on('error', destroyOnSocketError);
     const session = await readSession({ auth, headers: new Headers({ cookie }) }).catch(() => null);
     socket.removeListener('error', destroyOnSocketError);
-    if (!session) return void socket.destroy();
+    if (!session) return refuseSession({ request, socket, head });
     upgrade({ request, socket, head, endpoint: null });
   }
   httpServer.on('upgrade', (request, socket, head) => {

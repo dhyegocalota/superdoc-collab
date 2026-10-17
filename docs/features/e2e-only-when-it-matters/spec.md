@@ -1,6 +1,6 @@
 # E2E on CI only when it can catch something — spec
 
-- Status: Building
+- Status: Shipped 2026-10-17
 - Tier: green (process docs only).
 - Owner approval: approved 2026-10-17 ("é pra vc alterar os arquivos de harness engineering que sugere rodar e2e no github antes de merge um pr … só é pra sugerir se fizer sentido").
 - ADRs: [0018](../../adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md), unchanged: it already makes the CI E2E run the one the owner asks for.

@@ -47,9 +47,7 @@ const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 export const AUTH_BODY_MAX_BYTES = 16 * 1024;
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const FORBIDDEN_MESSAGE = 'Forbidden';
-const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 export const NOT_FOUND_MESSAGE = 'Not found';
-export const AUTH_BODY_MAX_BYTES = 16 * 1024;
 const AUTH_ADMIN_PATH = `${ApiPath.Auth}/admin/*`;
 const PROTECTED_PATHS = [ApiPath.Documents, `${ApiPath.Documents}/*`, `${ApiPath.ShareLinks}/*`];
 
@@ -102,19 +100,11 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   );
   app.get(ApiPath.Health, health);
   app.all(AUTH_ADMIN_PATH, (context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
-  app.on(
-    ['GET', 'POST'],
-    `${ApiPath.Auth}/*`,
-    bodyLimit({
-      maxSize: AUTH_BODY_MAX_BYTES,
-      onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
-    }),
-    async (context) => {
-      const remoteAddress = getConnInfo(context).remote.address;
-      if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
-      return auth.handler(withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy }));
-    },
-  );
+  app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, async (context) => {
+    const remoteAddress = getConnInfo(context).remote.address;
+    if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
+    return auth.handler(withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy }));
+  });
   mountOAuthDiscovery({ app, auth });
   app.route(
     ApiPath.Mcp,

@@ -96,3 +96,15 @@ test('a busy answer is an error that carries the seconds to wait', async () => {
   expect(result.current.retryAfterSeconds).toBe(RETRY_AFTER_SECONDS);
   expect(result.current.isRunning).toBe(false);
 });
+
+test('the outcome belongs to the selection: another bin does not inherit it', async () => {
+  const queryClient = newQueryClient();
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+    jsonResponse({ body: responseWith({ outcome: SummarizeOutcome.UpToDate, step: SummarizeStep.Idle }) }),
+  );
+  const { result, router } = renderHookWithRouter(() => useSummarize({ documentId: DOCUMENT_ID }), { route: ROUTE, queryClient });
+  act(() => result.current.summarize());
+  await waitFor(() => expect(result.current.outcome).toBe(SummarizeOutcome.UpToDate));
+  await act(() => router.navigate(`${documentPagePath(DOCUMENT_ID)}?at=${SELECTION.at + 1}`));
+  await waitFor(() => expect(result.current.outcome).toBeNull());
+});

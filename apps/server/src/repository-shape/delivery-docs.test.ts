@@ -7,6 +7,12 @@ import { capturedNames, composeVariables, readRepositoryFile, REPOSITORY_ROOT, r
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
+const AGENT_SECTION_HEADING = '## Install with an agent';
+const CONFIGURATION_SECTION_HEADING = '## Configuration';
+const LIMITS_SECTION_HEADING = '## Limits';
+const SECTION_PATTERN = /^## /m;
+const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
+const ADMIN_PROMOTE_COMMAND = 'admin-promote';
 const README_PATHSPEC = `*${README_FILE}`;
 const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
 const PACKAGE_MANIFEST = 'package.json';
@@ -65,6 +71,13 @@ function workspacePackages(): string[] {
   );
 }
 
+function section({ text, heading }: { text: string; heading: string }): string {
+  const start = text.indexOf(`\n${heading}\n`);
+  if (start === -1) throw new Error(`README has no section ${heading}`);
+  const body = text.slice(start + heading.length + 2);
+  return body.split(SECTION_PATTERN)[0] ?? '';
+}
+
 const LINKED_DOCUMENTS = [...readmes(), RUNBOOK_FILE, RAILWAY_RUNBOOK_FILE];
 
 describe('delivery documents', () => {
@@ -91,5 +104,21 @@ describe('delivery documents', () => {
   test('the runbook sets every variable the compose file reads', () => {
     const runbook = readRepositoryFile(RUNBOOK_FILE);
     expect(composeVariables().filter((name) => !runbook.includes(`\n${name}=`))).toEqual([]);
+  });
+
+  test('the README configuration table lists every variable the production compose reads', () => {
+    const configuration = section({ text: readRepositoryFile(README_FILE), heading: CONFIGURATION_SECTION_HEADING });
+    expect(composeVariables().filter((name) => !configuration.includes(`\`${name}\``))).toEqual([]);
+  });
+
+  test('the agent install prompt carries the variables and the claim instruction', () => {
+    const agent = section({ text: readRepositoryFile(README_FILE), heading: AGENT_SECTION_HEADING });
+    const prompt = agent.match(FENCED_BLOCK_PATTERN)?.[0];
+    if (!prompt) throw new Error('The agent section has no fenced prompt');
+    expect(AGENT_PROMPT_PHRASES.filter((phrase) => !prompt.includes(phrase))).toEqual([]);
+  });
+
+  test('the README limits explain how to promote an administrator', () => {
+    expect(section({ text: readRepositoryFile(README_FILE), heading: LIMITS_SECTION_HEADING })).toContain(ADMIN_PROMOTE_COMMAND);
   });
 });

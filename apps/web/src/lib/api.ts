@@ -27,3 +27,11 @@ export function apiSend({ path, method, body }: { path: string; method: HttpMeth
   const headers = typeof body === 'string' ? { 'content-type': JSON_CONTENT_TYPE } : undefined;
   return fetch(path, { method, body, headers, credentials: 'same-origin' });
 }
+
+export function assertDocumentAvailable(response: Response): void {}
+
+export function assertOk({ response, subject }: { response: Response; subject: string }): void {}
+
+export function readJson<Body>({ response, subject }: { response: Response; subject: string }): Promise<Body> {
+  return response.json();
+}

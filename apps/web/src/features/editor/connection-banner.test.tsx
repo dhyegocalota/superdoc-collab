@@ -56,20 +56,20 @@ test.each([
 
 test('Failed names the reason and warns that unsynced edits are lost on reload', () => {
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SyncTimeout });
-  expect(screen.getByText(FAILURE_REASON_COPY[ConnectionFailureReason.SyncTimeout])).toBeInTheDocument();
-  expect(screen.getByText(UNSYNCED_LOST_ON_RELOAD_DETAIL)).toBeInTheDocument();
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.SyncTimeout]);
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
 });
 
 test('an Unknown reason shows the generic failure line', () => {
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown });
-  expect(screen.getByText(FAILURE_REASON_COPY[ConnectionFailureReason.Unknown])).toBeInTheDocument();
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Unknown]);
 });
 
 test.each([ConnectionState.Lost, ConnectionState.Reconnecting, ConnectionState.Recovered])(
   '%s neither warns about reload nor offers it',
   (state) => {
     renderBanner({ state });
-    expect(screen.queryByText(UNSYNCED_LOST_ON_RELOAD_DETAIL)).not.toBeInTheDocument();
+    expect(screen.getByTestId('connection-banner')).not.toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
     expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
   },
 );

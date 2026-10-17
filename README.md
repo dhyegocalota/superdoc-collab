@@ -4,7 +4,7 @@ A collaborative DOCX editor that records every edit and turns that record into a
 
 ## Live demo
 
-- **Demo:** not deployed yet; the owner adds the URL after the first deploy ([runbook, step 6](docs/features/deploy/runbook.md#6-hand-it-over)).
+- **Demo:** <https://superdoc-collab.up.railway.app> (Railway, [ADR 0019](docs/adr/0019-deploy-on-railway.md)).
 - **Repository:** <https://github.com/dhyegocalota/superdoc-take-home>
 
 The demo accounts' password comes with the delivery message. Every slice, its spec and its pull request are listed in the [roadmap](docs/features/README.md#roadmap).
@@ -98,9 +98,9 @@ The sign-in smoke check must print `200`.
 
 One image serves the SPA and the API on <http://localhost:3000>; the healthcheck calls `/api/health`. Reset all data with `docker compose down -v`. The image carries both history migration sets (`libs/history/drizzle`) and `@superdoc/sdk`'s native binary, which imports tracked changes from uploads; the server creates `/data/documents` at boot. The entrypoint requires `SEED_DEMO_USERS` to be exactly `true` or `false`, and `DEMO_PASSWORD` when it is `true`.
 
-## Deploy (Dokploy)
+## Deploy (Railway)
 
-Production runs [`deploy/docker-compose.yml`](deploy/docker-compose.yml) as a Dokploy compose service built from this repository: one container behind Traefik with HTTPS, its data on a named volume at `/data`, and every secret in the Dokploy environment ([ADR 0013](docs/adr/0013-deploy-with-dokploy-compose.md)). The compose file pins `TRUST_PROXY=true`, which is safe only behind that proxy. The [runbook](docs/features/deploy/runbook.md) creates the service, sets the environment, attaches the domain, checks the deploy, seeds the demo accounts and rolls back. CI builds and boots the image on every pull request (job `docker` in [`verify.yml`](.github/workflows/verify.yml)).
+The demo runs on Railway as one service built from [`docker/Dockerfile`](docker/Dockerfile), with a volume at `/data`, one replica, the health check on `/api/health` and Railway's TLS domain ([ADR 0019](docs/adr/0019-deploy-on-railway.md)); [`railway.json`](railway.json) declares the builder and the health check. The environment is the one [`deploy/docker-compose.yml`](deploy/docker-compose.yml) documents for any compose host, with `TRUST_PROXY=true`, which is safe only behind a proxy. The [Railway runbook](docs/features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, seeds the demo accounts and rolls back. CI builds and boots the image on every pull request (job `docker` in [`verify.yml`](.github/workflows/verify.yml)).
 
 ## Demo users
 
@@ -173,7 +173,7 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 - **Language-model caps.** At most 2 model jobs at once and 60 model calls per rolling hour for the whole server ([ADR 0011](docs/adr/0011-process-wide-llm-cost-caps.md)). Past them topics show "The language model is busy; try again later." and a summary request gets a 503 that consumes no cooldown. A model error or a missing key shows "The topics could not be named. Try again." or "The edits could not be summarized. Try again." instead. Editing keeps working in every case.
 - **No email.** Accounts have no verification and no password reset; the demo accounts share one password.
 - **DOCX only.** Up to 10 MB per file; no PDF or image import.
-- **Manual backups.** The [runbook](docs/features/deploy/runbook.md#8-back-up-and-reset) shows how to copy the data volume.
+- **Manual backups.** The [runbook](docs/features/deploy/runbook-railway.md#8-back-up-and-reset) shows how to copy the data volume.
 
 ## Credits
 
@@ -181,7 +181,7 @@ Work follows a written harness: agree on a spec, record decisions as ADRs, plan,
 
 **Libraries.**
 
-- SuperDoc editor `superdoc` and `@superdoc/sdk` (AGPL-3.0)
+- SuperDoc editor `superdoc` and `@superdoc/sdk` (AGPL-3.0); the editor's usage telemetry is disabled, so the page talks to no host but this server and the LLM provider through it
 - Hocuspocus server and provider (MIT) and Yjs (MIT) for real-time collaboration
 - Better Auth (MIT) for accounts and sessions
 - Drizzle ORM (Apache-2.0) over better-sqlite3 (MIT)

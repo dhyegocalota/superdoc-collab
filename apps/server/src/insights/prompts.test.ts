@@ -1,15 +1,15 @@
 import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import {
-  authorsNamed,
-  fitEdits,
   fitSelection,
+  mentionedAuthors,
   namesOf,
   PROMPT_TOPIC_MAX_CHARACTERS,
   selectionPrompt,
   summariesPrompt,
   type SelectionEdit,
 } from './prompts';
+import { fitEdits } from './prompt-budget';
 
 const RUN_COUNT = 100;
 const HOSTILE_AUTHOR_COUNT = 50;
@@ -141,8 +141,8 @@ test('an edit by a hostile crowd of long author names is still kept within the p
 });
 
 test('a name the model split at its comma is matched back to the sent name', () => {
-  expect(authorsNamed({ returned: ['Silva', 'Ana', 'Mallory'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Silva, Ana']);
-  expect(authorsNamed({ returned: ['Bruno', 'Bruno'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Bruno']);
-  expect(authorsNamed({ returned: ['Ana'], names: ['Silva, Ana'] })).toEqual([]);
-  expect(authorsNamed({ returned: ['Silva, Ana'], names: ['Silva, Ana'] })).toEqual(['Silva, Ana']);
+  expect(mentionedAuthors({ returned: ['Silva', 'Ana', 'Mallory'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Silva, Ana']);
+  expect(mentionedAuthors({ returned: ['Bruno', 'Bruno'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Bruno']);
+  expect(mentionedAuthors({ returned: ['Ana'], names: ['Silva, Ana'] })).toEqual([]);
+  expect(mentionedAuthors({ returned: ['Silva, Ana'], names: ['Silva, Ana'] })).toEqual(['Silva, Ana']);
 });

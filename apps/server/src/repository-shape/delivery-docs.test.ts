@@ -5,7 +5,8 @@ import { capturedNames, composeVariables, readRepositoryFile, repositoryPath } f
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
-const LINKED_DOCUMENTS = [README_FILE, RUNBOOK_FILE];
+const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
+const LINKED_DOCUMENTS = [README_FILE, RUNBOOK_FILE, RAILWAY_RUNBOOK_FILE];
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
 const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g;

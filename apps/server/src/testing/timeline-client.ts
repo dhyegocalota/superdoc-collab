@@ -7,6 +7,7 @@ import {
   DocumentRole,
   HttpMethod,
   RETRY_AFTER_HEADER,
+  RETRY_AFTER_SECONDS,
   documentApiPath,
   selectionSummaryApiPath,
   versionApiPath,
@@ -20,7 +21,6 @@ import { expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { RETRY_AFTER_SECONDS } from '../history/versions-routes';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
@@ -98,7 +98,7 @@ export function commitBulkEvents({
   blockCount?: number;
   stepMs?: number;
 }): void {
-  server.services.log.observeClientIdentity({ documentName: documentId, yjsClientId: BULK_CLIENT_ID, userId });
+  server.services.updateLog.observeClientIdentity({ documentName: documentId, yjsClientId: BULK_CLIENT_ID, userId });
   const events = Array.from({ length: count }, (_, offset) => {
     const index = startIndex + offset;
     return {

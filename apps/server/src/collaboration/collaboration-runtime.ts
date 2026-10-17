@@ -4,6 +4,7 @@ import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc
 import { RoomMode } from '@superdoc-history/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
+import type { InsightsServices } from '../http/app';
 import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
@@ -21,22 +22,24 @@ export type DocumentRuntime = {
 
 export function createCollaborationRuntime({
   hocuspocus,
-  log,
+  updateLog,
   readModel,
   scheduler,
   storage,
   timelinePipelines,
   versions,
   versionRooms,
+  insights,
 }: {
   hocuspocus: Hocuspocus;
-  log: UpdateLog;
+  updateLog: UpdateLog;
   readModel: ReadModel;
   scheduler: ProjectionScheduler;
   storage: DocumentFileStorage;
   timelinePipelines: TimelinePipelineCache;
   versions: VersionsService;
   versionRooms: VersionRooms;
+  insights: InsightsServices;
 }): DocumentRuntime {
   const bootstrapped = new Set<string>();
   function roomsOf(documentId: string): Document[] {
@@ -51,7 +54,7 @@ export function createCollaborationRuntime({
     afterSequence: number;
     document: Y.Doc;
   }): number | null {
-    const page = log.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
+    const page = updateLog.readBatch({ documentName: documentId, afterSequence, limit: ROOM_MODE_SCAN_BATCH_SIZE });
     const last = page.at(-1);
     if (!last) return null;
     const found = findBootstrapSequence({ updates: page, document });
@@ -76,12 +79,15 @@ export function createCollaborationRuntime({
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));
-      log.forget(documentId);
+      updateLog.forget(documentId);
       bootstrapped.delete(documentId);
       timelinePipelines.forget(documentId);
       versions.forget(documentId);
       await versionRooms.forget(documentId);
       await scheduler.forget(documentId);
+      insights.topics.forget(documentId);
+      insights.summaries.forget(documentId);
+      insights.selection.forget(documentId);
     },
   };
 }

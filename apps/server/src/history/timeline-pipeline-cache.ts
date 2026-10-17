@@ -1,5 +1,6 @@
 import type { BandIdentity, TimelineEvent } from '@superdoc-history/history';
 import { TIMELINE_PIPELINE_CACHE_SIZE, type EventAuthor } from '@superdoc-history/types';
+import { LruMap } from '../limits/lru-map';
 
 export type TimelinePipeline = {
   events: TimelineEvent[];
@@ -10,15 +11,14 @@ export type TimelinePipeline = {
   cursor: number | null;
 };
 
-type CacheEntry = { key: string; pipeline: TimelinePipeline };
+type CacheEntry = { cacheKey: string; pipeline: TimelinePipeline };
 
 export class TimelinePipelineCache {
   builds = 0;
-  private readonly entries = new Map<string, CacheEntry>();
-  private readonly maxEntries: number;
+  private readonly entries: LruMap<CacheEntry>;
 
   constructor({ maxEntries = TIMELINE_PIPELINE_CACHE_SIZE }: { maxEntries?: number } = {}) {
-    this.maxEntries = maxEntries;
+    this.entries = new LruMap({ isOverBudget: (entries) => entries.size > maxEntries });
   }
 
   forget(documentId: string): void {
@@ -27,22 +27,10 @@ export class TimelinePipelineCache {
 
   get({ documentId, key, build }: { documentId: string; key: string; build: () => TimelinePipeline }): TimelinePipeline {
     const cached = this.entries.get(documentId);
-    if (cached && cached.key === key) {
-      this.entries.delete(documentId);
-      this.entries.set(documentId, cached);
-      return cached.pipeline;
-    }
+    if (cached && cached.cacheKey === key) return cached.pipeline;
     this.builds += 1;
     const pipeline = build();
-    this.entries.delete(documentId);
-    this.entries.set(documentId, { key, pipeline });
-    this.trim();
+    this.entries.set({ key: documentId, value: { cacheKey: key, pipeline } });
     return pipeline;
-  }
-
-  private trim(): void {
-    if (this.entries.size <= this.maxEntries) return;
-    this.entries.delete(this.entries.keys().next().value!);
-    this.trim();
   }
 }

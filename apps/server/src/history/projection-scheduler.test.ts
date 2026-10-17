@@ -45,7 +45,7 @@ test('a terminated worker is restarted and completes without duplicates', async 
   commitBootstrap(client.document);
   Array.from({ length: EDIT_COUNT }).forEach((_, index) => writeStory({ document: client.document, texts: ['y'.repeat(index + 1)] }));
   await expect
-    .poll(() => server.services.log.readBatch({ documentName: documentId, afterSequence: 0, limit: LOG_BATCH_LIMIT }).length)
+    .poll(() => server.services.updateLog.readBatch({ documentName: documentId, afterSequence: 0, limit: LOG_BATCH_LIMIT }).length)
     .toBe(SUCCESSIVE_LOG_ENTRIES);
   const firstWorker = server.services.scheduler.currentWorker;
   server.services.scheduler.schedule(documentId);
@@ -168,7 +168,7 @@ test('exceeding the restart budget stops respawning and logs one line', async ()
     await terminateCurrentWorker(server.services.scheduler);
   }, Promise.resolve());
   const lastWorker = server.services.scheduler.currentWorker;
-  expect(server.services.scheduler.degraded).toBe(true);
+  expect(server.services.scheduler.isDegraded).toBe(true);
   expect(consoleError).toHaveBeenCalledTimes(1);
   server.services.scheduler.schedule(randomUUID());
   await server.services.scheduler.forget(randomUUID());
@@ -220,7 +220,7 @@ test('startup projects a document with unprojected updates', async () => {
 const UNKNOWN_SEQUENCE = 999_999;
 const REBUILD_TEST_TIMEOUT_MS = 60_000;
 
-type SchedulerInternals = { inFlight: Set<string>; rerun: Set<string>; settle: (reply: unknown) => void };
+type SchedulerInternals = { inFlight: Set<string>; documentsNeedingRerun: Set<string>; settle: (reply: unknown) => void };
 
 async function projectedDocument() {
   const { server, documentId, owner } = await documentWithOwner();
@@ -314,7 +314,7 @@ test('a failed version never touches the projection bookkeeping', async () => {
     sequence: UNKNOWN_SEQUENCE,
   });
   await expect(version).rejects.toThrow('boom');
-  expect([internals.inFlight.has(documentId), internals.rerun.has(documentId)]).toEqual([true, true]);
+  expect([internals.inFlight.has(documentId), internals.documentsNeedingRerun.has(documentId)]).toEqual([true, true]);
   expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining(PROJECTION_FAILED_MESSAGE));
   consoleError.mockRestore();
   restore();
@@ -352,11 +352,11 @@ test('blocks returns the story at the projection cursor', async () => {
 
 test('a degraded scheduler rejects versions at once', async () => {
   const { server, documentId } = await documentWithOwner();
-  server.services.scheduler.degraded = true;
+  server.services.scheduler.isDegraded = true;
   await expect(server.services.scheduler.version({ documentId, sequence: UNKNOWN_SEQUENCE })).rejects.toBeInstanceOf(
     ProjectionDegradedError,
   );
-  server.services.scheduler.degraded = false;
+  server.services.scheduler.isDegraded = false;
   await server.stop();
 });
 
@@ -437,10 +437,58 @@ test('stopping rejects waiting versions', async () => {
 
 test('rebuilding a degraded scheduler leaves nothing rebuilding', async () => {
   const { server, documentId } = await documentWithOwner();
-  server.services.scheduler.degraded = true;
+  server.services.scheduler.isDegraded = true;
   await server.services.scheduler.rebuild({ documentId, filePath: 'unused.docx' });
   expect(server.services.scheduler.isRebuilding(documentId)).toBe(false);
-  server.services.scheduler.degraded = false;
+  server.services.scheduler.isDegraded = false;
+  await server.stop();
+});
+
+test('a blocks reply resolves its waiter whatever cursor it carries', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const internals = server.services.scheduler as unknown as SchedulerInternals;
+  const blocks = server.services.scheduler.blocks(documentId);
+  internals.settle({ kind: ProjectionRequestKind.Blocks, documentId, sequence: 7, blocks: [] });
+  await expect(blocks).resolves.toMatchObject({ sequence: 7 });
+  postMessage.mockRestore();
+  await server.stop();
+});
+
+test('a version failure rejects only the waiter of that sequence', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const internals = server.services.scheduler as unknown as SchedulerInternals;
+  const [first, second] = [1, 2].map((sequence) => server.services.scheduler.version({ documentId, sequence }));
+  internals.settle({
+    kind: ProjectionReplyKind.Failed,
+    documentId,
+    message: 'boom',
+    requestKind: ProjectionRequestKind.Version,
+    sequence: 1,
+  });
+  internals.settle({ kind: ProjectionRequestKind.Version, documentId, sequence: 2, serverTime: 0, state: new Uint8Array(), text: '' });
+  await expect(first).rejects.toThrow('boom');
+  await expect(second).resolves.toMatchObject({ sequence: 2 });
+  postMessage.mockRestore();
+  await server.stop();
+});
+
+test('a rebuild imports after forgetting, projects after importing, and ends after projecting', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const postMessage = vi.spyOn(server.services.scheduler.currentWorker, 'postMessage').mockImplementation(() => undefined);
+  const internals = server.services.scheduler as unknown as SchedulerInternals;
+  const done = (kind: ProjectionRequestKind) => internals.settle({ kind, documentId, cursor: null, importError: null });
+  const rebuilt = server.services.scheduler.rebuild({ documentId, filePath: 'plan.docx' });
+  done(ProjectionRequestKind.Forget);
+  await rebuilt;
+  expect(postMessage).toHaveBeenLastCalledWith({ kind: ProjectionRequestKind.Import, documentId, filePath: 'plan.docx' });
+  done(ProjectionRequestKind.Import);
+  expect(postMessage).toHaveBeenLastCalledWith({ kind: ProjectionRequestKind.Project, documentId });
+  expect(server.services.scheduler.isRebuilding(documentId)).toBe(true);
+  done(ProjectionRequestKind.Project);
+  expect(server.services.scheduler.isRebuilding(documentId)).toBe(false);
+  postMessage.mockRestore();
   await server.stop();
 });
 
@@ -471,8 +519,8 @@ test('a missing worker file crashes the first request then degrades the schedule
   });
   await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionRequestCrashedError);
   expect(consoleError).toHaveBeenCalledTimes(MISSING_FILE_ERRORS_BEFORE_CRASH);
-  expect(scheduler.degraded).toBe(false);
-  await expect.poll(() => scheduler.degraded).toBe(true);
+  expect(scheduler.isDegraded).toBe(false);
+  await expect.poll(() => scheduler.isDegraded).toBe(true);
   await expect.poll(() => consoleError.mock.calls.length).toBe(MAX_WORKER_RESTARTS_PER_WINDOW + 2);
   await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionDegradedError);
   consoleError.mockRestore();

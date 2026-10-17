@@ -44,6 +44,7 @@ import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './edit
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 
 type SuperDocConfig = {
+  telemetry: { enabled: boolean };
   onException: (payload: { error: Error }) => void;
   onReady: (payload: { superdoc: { focus: () => void } }) => void;
   zoom: { mode: string };
@@ -117,6 +118,13 @@ afterEach(() => {
   vi.restoreAllMocks();
   superDocDestroy.mockClear();
   superDocExport.mockClear();
+});
+
+test('the editor opens SuperDoc with its telemetry disabled', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(SuperDoc.mock.calls[0]![0].telemetry).toEqual({ enabled: false });
 });
 
 test('a title rename does not re-create the editor', async () => {

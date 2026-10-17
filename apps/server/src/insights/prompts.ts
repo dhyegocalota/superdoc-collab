@@ -1,11 +1,14 @@
-import type { Block } from '@superdoc-history/history';
+import type { Block, EditRun } from '@superdoc-history/history';
 import { MAX_TOPICS, MIN_TOPICS, SUMMARY_SENTENCE_MAX_LENGTH, TOPIC_NAME_MAX_LENGTH } from '@superdoc-history/history';
 import {
   FILTER_MAX_LENGTH,
   SELECTION_PROMPT_MAX_CHARACTERS,
   SELECTION_RUN_MAX_CHARACTERS,
   SELECTION_SUMMARY_MAX_CHARACTERS,
+  type EventAuthor,
 } from '@superdoc-history/types';
+import { escapeXml } from './escape-xml';
+import { fitEdits } from './prompt-budget';
 
 export const PROMPT_BLOCK_MAX_CHARACTERS = 500;
 export const PROMPT_MAX_BLOCKS = 400;
@@ -20,15 +23,6 @@ const AUTHOR_CLOSE = '\n</author>';
 export type PromptEdit = { author: string; inserted: string; deleted: string };
 export type PromptTopic = { id: string; name: string; edits: PromptEdit[] };
 export type SelectionEdit = { authors: string[]; inserted: string; deleted: string };
-export type EditOverhead<Edit> = (options: { edit: Edit; kept: Edit[] }) => number;
-type BudgetedEdit = { inserted: string; deleted: string };
-
-const XML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-const XML_SPECIAL_CHARACTERS = /[&<>"]/g;
-
-export function escapeXml(text: string): string {
-  return text.replace(XML_SPECIAL_CHARACTERS, (character) => XML_ESCAPES[character]!);
-}
 
 export const TOPICS_SYSTEM_PROMPT = `<role>You name the topics of one document.</role>
 <task>Group the blocks into ${MIN_TOPICS} to ${MAX_TOPICS} topics; a short document may have fewer. Give each topic a name of at most ${TOPIC_NAME_MAX_LENGTH} characters and the ids of its blocks.</task>
@@ -67,52 +61,6 @@ function renderEdit(edit: PromptEdit): string {
   return `<edit author="${escapeXml(edit.author)}">+${escapeXml(edit.inserted)} −${escapeXml(edit.deleted)}</edit>`;
 }
 
-function escapedLength(text: string): number {
-  return escapeXml(text).length;
-}
-
-function prefixWithin({ text, characters }: { text: string; characters: number }): string {
-  const fitted = [...text].reduce<{ prefix: string; used: number; isFull: boolean }>(
-    (state, character) => {
-      if (state.isFull) return state;
-      const size = escapedLength(character);
-      if (state.used + size > characters) return { ...state, isFull: true };
-      return { prefix: state.prefix + character, used: state.used + size, isFull: false };
-    },
-    { prefix: '', used: 0, isFull: false },
-  );
-  return fitted.prefix;
-}
-
-function truncateTo<Edit extends BudgetedEdit>({ edit, characters }: { edit: Edit; characters: number }): Edit {
-  const inserted = prefixWithin({ text: edit.inserted, characters });
-  return { ...edit, inserted, deleted: prefixWithin({ text: edit.deleted, characters: characters - escapedLength(inserted) }) };
-}
-
-export function fitEdits<Edit extends BudgetedEdit>({
-  edits,
-  maxCharacters,
-  overheadOf,
-}: {
-  edits: Edit[];
-  maxCharacters: number;
-  overheadOf: EditOverhead<Edit>;
-}): Edit[] {
-  const fitted = edits.reduce<{ kept: Edit[]; left: number }>(
-    (budget, edit) => {
-      if (budget.left === 0) return budget;
-      const overhead = overheadOf({ edit, kept: budget.kept });
-      const size = overhead + escapedLength(edit.inserted) + escapedLength(edit.deleted);
-      if (size <= budget.left) return { kept: [...budget.kept, edit], left: budget.left - size };
-      const room = budget.left - overhead;
-      if (room <= 0) return { kept: budget.kept, left: 0 };
-      return { kept: [...budget.kept, truncateTo({ edit, characters: room })], left: 0 };
-    },
-    { kept: [], left: maxCharacters },
-  );
-  return fitted.kept;
-}
-
 function topicEditOverhead({ edit }: { edit: PromptEdit }): number {
   return renderEdit({ ...edit, inserted: '', deleted: '' }).length + LINE_SEPARATOR.length;
 }
@@ -141,7 +89,7 @@ export const SELECTION_SYSTEM_PROMPT = `<role>You summarize a selection of edits
 </examples>
 <output>JSON: {sentence, authors}</output>`;
 
-function authorLabel(edit: SelectionEdit): string {
+export function authorLabel(edit: SelectionEdit): string {
   return edit.authors.join(AUTHOR_SEPARATOR);
 }
 
@@ -165,7 +113,7 @@ function selectionEditOverhead({ edit, kept }: { edit: SelectionEdit; kept: Sele
   return EMPTY_SELECTION_EDIT_LENGTH + LINE_SEPARATOR.length + authorGroupOverhead({ edit, kept });
 }
 
-function capRun(edit: SelectionEdit): SelectionEdit {
+function capEdit(edit: SelectionEdit): SelectionEdit {
   return {
     authors: edit.authors.slice(0, SELECTION_MAX_AUTHORS_PER_EDIT).map((name) => name.slice(0, FILTER_MAX_LENGTH)),
     inserted: edit.inserted.slice(0, SELECTION_RUN_MAX_CHARACTERS),
@@ -175,17 +123,23 @@ function capRun(edit: SelectionEdit): SelectionEdit {
 
 export function fitSelection(edits: SelectionEdit[]): SelectionEdit[] {
   return fitEdits({
-    edits: edits.map(capRun),
+    edits: edits.map(capEdit),
     maxCharacters: SELECTION_PROMPT_MAX_CHARACTERS - SELECTION_OPEN.length - SELECTION_CLOSE.length,
     overheadOf: selectionEditOverhead,
   });
+}
+
+export function promptEditsOf({ runs, authors }: { runs: EditRun[]; authors: Record<string, EventAuthor> }): SelectionEdit[] {
+  return [...runs]
+    .sort((left, right) => right.lastServerTime - left.lastServerTime)
+    .map((run) => ({ authors: run.authorKeys.map((key) => authors[key]!.name), inserted: run.inserted, deleted: run.deleted }));
 }
 
 export function namesOf(edits: SelectionEdit[]): string[] {
   return [...new Set(edits.flatMap((edit) => edit.authors))];
 }
 
-export function authorsNamed({ returned, names }: { returned: string[]; names: string[] }): string[] {
+export function mentionedAuthors({ returned, names }: { returned: string[]; names: string[] }): string[] {
   return names.filter((name) => returned.includes(name) || name.split(AUTHOR_SEPARATOR).every((part) => returned.includes(part)));
 }
 

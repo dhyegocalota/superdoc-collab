@@ -11,6 +11,7 @@ import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { KeyboardKey } from '@/lib/keyboard';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
+import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { followViewportZoom, initialZoomMode } from './superdoc-zoom';
 
@@ -58,6 +59,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
+      telemetry: SUPERDOC_TELEMETRY,
       zoom: { mode: initialZoomMode() },
       onReady: ({ superdoc: ready }) => {
         if (!focusOnReady) return;

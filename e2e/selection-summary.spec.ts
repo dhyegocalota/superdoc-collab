@@ -1,6 +1,6 @@
 import { SELECTION_SUMMARY_FAILED_MESSAGE } from '../libs/types/src';
 import { EARLIER_STATE_LABEL, RETRY_SUMMARY_LABEL, SUMMARY_UP_TO_DATE_MESSAGE } from '../apps/web/src/features/timeline/timeline-copy';
-import { insertedBy, readEvents, typeInParagraph } from './editor';
+import { insertedBy, insertInParagraph, readEvents, typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
 import {
   ANA,
@@ -69,7 +69,7 @@ test('an edit outside the filter marks the summary as for an earlier state and e
 
 test('a failed summary explains itself and offers a retry', async ({ browser }) => {
   const { ana, bruno, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
-  await typeInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: FAILING_TEXT });
+  await insertInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: FAILING_TEXT });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await expect
     .poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: bruno.userId }), {

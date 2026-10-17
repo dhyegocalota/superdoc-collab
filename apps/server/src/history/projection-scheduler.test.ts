@@ -35,6 +35,8 @@ const SUCCESSIVE_LOG_ENTRIES = EDIT_COUNT + 2;
 const LOG_BATCH_LIMIT = 100;
 const PROBE_SEQUENCE = 4242;
 const PROBE_WORKER_FILE_NAME = 'probe-worker.js';
+const MISSING_WORKER_FILE_NAME = 'missing-worker.js';
+const MISSING_FILE_ERRORS_BEFORE_CRASH = 2;
 
 test('a terminated worker is restarted and completes without duplicates', async () => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -457,5 +459,22 @@ parentPort.on('message', (request) => {
   });
   const reply = await scheduler.blocks(randomUUID());
   expect(reply.sequence).toBe(PROBE_SEQUENCE);
+  await scheduler.stop();
+});
+
+test('a missing worker file crashes the first request then degrades the scheduler', async () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-history-missing-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, MISSING_WORKER_FILE_NAME)),
+  });
+  await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionRequestCrashedError);
+  expect(consoleError).toHaveBeenCalledTimes(MISSING_FILE_ERRORS_BEFORE_CRASH);
+  expect(scheduler.degraded).toBe(false);
+  await expect.poll(() => scheduler.degraded).toBe(true);
+  await expect.poll(() => consoleError.mock.calls.length).toBe(MAX_WORKER_RESTARTS_PER_WINDOW + 2);
+  await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionDegradedError);
+  consoleError.mockRestore();
   await scheduler.stop();
 });

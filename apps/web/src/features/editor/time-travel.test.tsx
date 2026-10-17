@@ -7,6 +7,8 @@ import {
   DocumentRole,
   HttpStatus,
   RoomMode,
+  selectionSummaryApiPath,
+  SelectionSummaryState,
   timelineEditsApiPath,
   VERSION_FAILED_MESSAGE,
   versionApiPath,
@@ -16,6 +18,7 @@ import {
   type DocumentTimeline,
   type EditRunView,
   type OpenedDocument,
+  type SelectionSummaryView,
   type VersionSummary,
 } from '@superdoc-history/types';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -43,6 +46,7 @@ const { SuperDoc, superDocDestroy } = vi.hoisted(() => {
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
 
+const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 const SEQUENCES = [41, 42, 50, 51, 52];
 const PAGE_ROUTE = documentPagePath(DOCUMENT_ID);
 const SERVER_TIME = Date.UTC(2026, 9, 16, 14, 2);
@@ -90,6 +94,7 @@ function mockDocumentApi({
       return new Response(JSON.stringify(timelineQueue.length > 1 ? timelineQueue.shift() : timelineQueue[0]));
     }
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries })) return new Response(JSON.stringify({ summaries: [] }));
+    if (path === selectionSummaryApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(NONE_VIEW));
     if (path === timelineEditsApiPath(DOCUMENT_ID)) return new Response(JSON.stringify(edits));
     if (path === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     const queue = queues.get(path);

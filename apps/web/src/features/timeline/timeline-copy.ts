@@ -15,6 +15,14 @@ export const BACK_TO_LIVE_LABEL = 'Back to live';
 export const LOADING_VERSION_MESSAGE = 'Loading this version…';
 export const VERSION_FRAME_TITLE = 'Document version';
 export const RESIZE_PANEL_LABEL = 'Resize timeline panel';
+export const SUMMARIZE_EDITS_LABEL = 'Summarize edits';
+export const SELECTION_SUMMARY_HEADING = 'Summary of these edits';
+export const EARLIER_STATE_LABEL = 'For an earlier state';
+export const RETRY_SUMMARY_LABEL = 'Retry summary';
+export const SUMMARIZING_EDITS_MESSAGE = 'Summarizing edits…';
+export const NO_EDITS_TO_SUMMARIZE_MESSAGE = 'No edits to summarize';
+export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date';
+export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable';
 
 export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
   return `${subject} failed with status ${status}`;
@@ -42,4 +50,8 @@ export function lagBehindLabel(seconds: number): string {
 
 export function versionAtLabel(moment: string): string {
   return `Version at ${moment}`;
+}
+
+export function retryInLabel(seconds: number): string {
+  return `Try again in ${seconds} s.`;
 }

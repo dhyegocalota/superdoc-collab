@@ -47,7 +47,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   if (!data) return null;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, end: bin.start + timeline.binMs })}</h3>
+      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</h3>
       {data.runs.length === 0 && <p role="status">{NO_EDITS_IN_BIN_MESSAGE}</p>}
       <ul className="flex flex-col gap-3">{data.runs.map(renderRun)}</ul>
     </section>

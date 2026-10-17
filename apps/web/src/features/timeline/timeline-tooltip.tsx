@@ -72,7 +72,7 @@ export function TimelineTooltip({
         ALIGNMENT_CLASS[alignment],
       )}
     >
-      <p className="font-medium">{formatBinRange({ start: bin.start, end: bin.start + timeline.binMs })}</p>
+      <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
           {band.name} +{cell!.inserted} −{cell!.deleted} ·{' '}

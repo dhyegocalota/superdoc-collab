@@ -10,6 +10,14 @@ export function formatTimeOfDay(time: number): string {
   return TIME_OF_DAY_FORMAT.format(time);
 }
 
-export function formatBinRange({ start, end }: { start: number; end: number }): string {
-  return `${formatTimestamp(start)}${RANGE_SEPARATOR}${formatTimestamp(end)}`;
+export function formatBinMoment({ time }: { time: number; binMs: number }): string {
+  return formatTimestamp(time);
+}
+
+export function formatBinRange({ start, binMs }: { start: number; binMs: number }): string {
+  return `${formatTimestamp(start)}${RANGE_SEPARATOR}${formatTimestamp(start + binMs)}`;
+}
+
+export function formatVersionMoment(time: number): string {
+  return formatTimestamp(time);
 }

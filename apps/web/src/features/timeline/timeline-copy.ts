@@ -44,6 +44,15 @@ export function wordsDeltaLabel({ inserted, deleted }: { inserted: number; delet
   return `+${inserted} words −${deleted} words`;
 }
 
+export enum EditUnit {
+  Word = 'word',
+  Character = 'character',
+}
+
+export function editDeltaLabel({ inserted, deleted }: { inserted: number; deleted: number; unit: EditUnit }): string {
+  return wordsDeltaLabel({ inserted, deleted });
+}
+
 export function lagBehindLabel(seconds: number): string {
   return `${seconds} s behind`;
 }

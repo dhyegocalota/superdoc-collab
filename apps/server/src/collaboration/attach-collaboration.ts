@@ -4,9 +4,9 @@ import type { Duplex } from 'node:stream';
 import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { VersionEndpoint } from '../history/versions-service';
+import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
-const PARSE_BASE_URL = 'http://localhost';
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
   `${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`,
@@ -81,8 +81,10 @@ export function attachCollaboration({
   }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
+    const pathname = upgradePathname(request.url);
+    if (isAgentUpgrade(request.url) && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
+    if (isAgentUpgrade(request.url)) return upgrade({ request, socket, head, endpoint: null });
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
-    const { pathname } = new URL(request.url, PARSE_BASE_URL);
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });
     if (pathname !== path) return socket.destroy();

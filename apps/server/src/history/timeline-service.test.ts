@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-collab/types';
+import { MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { twoAuthorsInTwoBlocks } from '../testing/timeline-client';
 import { buildSelectionSnapshot } from './timeline-service';
@@ -16,7 +16,7 @@ test('a selection snapshot is stamped with the cursor its events were read at', 
   const snapshot = buildSelectionSnapshot({
     services: server.services,
     documentId,
-    selection: { term: null, author: null, topic: null, at: null, binMs: MINUTE_MS },
+    selection: { term: null, author: null, topic: null, at: null, binMs: MINUTE_MS, timeZone: UTC_TIME_ZONE },
   });
   expect(snapshot.cursor).toBe(builtAt);
   vi.restoreAllMocks();

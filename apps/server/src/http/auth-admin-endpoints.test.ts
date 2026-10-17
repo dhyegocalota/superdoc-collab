@@ -44,7 +44,8 @@ test('update-user cannot change the role', async () => {
 
 test.each([
   ['an unknown zone', 'Mars/Olympus', HttpStatus.BadRequest],
-  ['an oversized value', 'x'.repeat(200_000), HttpStatus.BadRequest],
+  ['an oversized value', 'x'.repeat(1_000), HttpStatus.BadRequest],
+  ['a body above the auth body limit', 'x'.repeat(200_000), HttpStatus.PayloadTooLarge],
   ['a known zone', 'America/Sao_Paulo', HttpStatus.Ok],
 ])('update-user with %s answers the right status', async (_name, timeZone, expected) => {
   const server = await startTestServer();
@@ -55,5 +56,18 @@ test.each([
     body: JSON.stringify({ timeZone }),
   });
   expect(response.status).toBe(expected);
+  await server.stop();
+});
+
+test('update-user stores the canonical spelling of a time zone alias', async () => {
+  const server = await startTestServer();
+  const eve = await signedInUser({ server, name: 'Eve' });
+  await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
+    method: HttpMethod.Post,
+    headers: { cookie: eve.cookie, 'content-type': 'application/json', origin: server.baseUrl },
+    body: JSON.stringify({ timeZone: 'us/eastern' }),
+  });
+  const row = server.database.sqlite.prepare('select time_zone as timeZone from user where id = ?').get(eve.id) as { timeZone: string };
+  expect(row.timeZone).toBe('America/New_York');
   await server.stop();
 });

@@ -1,4 +1,4 @@
-import { VERSION_MARK_MS } from '@superdoc-collab/types';
+import { ClientActor, VERSION_MARK_MS } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
 import { MigrationSet } from './migrations';
@@ -6,7 +6,7 @@ import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
 import { UpdateLog } from './update-log';
-import { clampToMark, versionSequenceAt, type VersionMarkSummary } from './version-marks';
+import { clampToMark, resolveMark, versionSequenceAt, type VersionMarkSummary } from './version-marks';
 
 const DOCUMENT = 'marks-room';
 const EDITS = 30;
@@ -30,7 +30,9 @@ test('keeps the bootstrap mark and one mark per minute', () => {
   const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
   const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
   const ana = new Y.Doc();
-  ana.on('update', (update: Uint8Array) => log.append({ documentName: DOCUMENT, connectionUserId: 'ana', update }));
+  ana.on('update', (update: Uint8Array) =>
+    log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update }),
+  );
   writeStory({ document: ana, texts: ['Plan'] });
   commitBootstrap(ana);
   Array.from({ length: EDITS }).forEach((_, index) => {
@@ -65,4 +67,28 @@ test('clampToMark snaps down and lifts a sequence before the first mark', () => 
   expect(clampToMark({ marks: SUMMARIES, sequence: 12 })?.sequence).toBe(9);
   expect(clampToMark({ marks: SUMMARIES, sequence: 1 })?.sequence).toBe(3);
   expect(clampToMark({ marks: SUMMARIES, sequence: 99 })?.sequence).toBe(14);
+});
+
+test('a sequence whose mark was pruned resolves to the surviving mark of its minute', () => {
+  const prunedInThirdMinute = { sequence: 12, serverTime: 125 * SECOND };
+  expect(
+    resolveMark({ marks: MINUTES, sequence: prunedInThirdMinute.sequence, serverTime: prunedInThirdMinute.serverTime })?.sequence,
+  ).toBe(14);
+  expect(resolveMark({ marks: MINUTES, sequence: 9, serverTime: 70 * SECOND })?.sequence).toBe(9);
+});
+
+test('a sequence pruned in the bootstrap minute resolves to the mark that ends that minute, not the bootstrap', () => {
+  const bootstrapMinute = [MINUTES[0]!, { sequence: 5, serverTime: 50 * SECOND, minuteStart: 0, isBootstrap: false }];
+  expect(resolveMark({ marks: bootstrapMinute, sequence: 4, serverTime: 30 * SECOND })?.sequence).toBe(5);
+});
+
+test('a sequence before the first mark resolves to the first mark even when later marks share its minute', () => {
+  const sameMinute = [MINUTES[0]!, { sequence: 5, serverTime: 20 * SECOND, minuteStart: 0, isBootstrap: false }];
+  expect(resolveMark({ marks: sameMinute, sequence: 1, serverTime: 2 * SECOND })?.sequence).toBe(3);
+});
+
+test('a sequence the log does not know clamps down like before', () => {
+  expect(resolveMark({ marks: SUMMARIES, sequence: 12, serverTime: null })?.sequence).toBe(9);
+  expect(resolveMark({ marks: SUMMARIES, sequence: 1, serverTime: null })?.sequence).toBe(3);
+  expect(resolveMark({ marks: [], sequence: 1, serverTime: 5 })).toBeNull();
 });

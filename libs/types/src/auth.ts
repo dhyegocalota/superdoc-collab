@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DATE_TIME_LOCALE } from './constants';
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const NAME_MIN_LENGTH = 2;
@@ -18,21 +19,50 @@ export enum UserRole {
   User = 'user',
 }
 
+export enum TimeZoneSource {
+  Account = 'account',
+  Browser = 'browser',
+}
+
+export const TIME_ZONE_MAX_LENGTH = 64;
+const OFFSET_TIME_ZONE_PATTERN = /^[+-]/;
+
+function isResolvableTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat(DATE_TIME_LOCALE, { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isSupportedTimeZone(value: string): boolean {
-  return value === UTC_TIME_ZONE || Intl.supportedValuesOf('timeZone').includes(value);
+  if (value.length > TIME_ZONE_MAX_LENGTH) return false;
+  if (OFFSET_TIME_ZONE_PATTERN.test(value)) return false;
+  return isResolvableTimeZone(value);
+}
+
+export function canonicalTimeZone(value: string): string {
+  return new Intl.DateTimeFormat(DATE_TIME_LOCALE, { timeZone: value }).resolvedOptions().timeZone;
 }
 
 const email = z.string().trim().toLowerCase().email(EMAIL_INVALID_MESSAGE);
 const password = z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE);
 
 export const signInSchema = z.object({ email, password });
+
+const personName = z.string().trim().min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE);
+
 export const signUpSchema = signInSchema.extend({
-  name: z.string().trim().min(NAME_MIN_LENGTH, NAME_TOO_SHORT_MESSAGE),
-  timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE),
+  name: personName,
+  timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone),
 });
 
 export const updateUserSchema = z
-  .object({ timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).optional() })
+  .object({
+    name: personName.optional(),
+    timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).transform(canonicalTimeZone).optional(),
+  })
   .passthrough();
 
 export type SignInInput = z.infer<typeof signInSchema>;

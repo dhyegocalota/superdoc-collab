@@ -41,7 +41,7 @@ describe('seedDemoUsers', () => {
     await seed(server);
     const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/sign-in/email`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': SIGN_IN_CLIENT_ADDRESS },
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': SIGN_IN_CLIENT_ADDRESS, origin: server.baseUrl },
       body: JSON.stringify({ email: SIGN_IN_EMAIL, password: DEMO_PASSWORD }),
     });
     expect(response.status).toBe(200);

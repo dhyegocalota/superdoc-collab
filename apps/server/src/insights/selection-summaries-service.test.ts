@@ -1,5 +1,12 @@
 import { type EditRun } from '@superdoc-collab/history';
-import { MINUTE_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-collab/types';
+import {
+  ClientActor,
+  MINUTE_MS,
+  SELECTION_SUMMARY_COOLDOWN_MS,
+  SELECTION_SUMMARY_FAILED_MESSAGE,
+  SelectionSummaryState,
+  UTC_TIME_ZONE,
+} from '@superdoc-collab/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -16,13 +23,13 @@ import {
   type SelectionSnapshot,
 } from './selection-summaries-service';
 
-const ANA = { id: 'user-ana', name: 'Ana' };
-const BRUNO = { id: 'user-bruno', name: 'Bruno' };
+const ANA = { id: 'user-ana', name: 'Ana', actor: ClientActor.Human };
+const BRUNO = { id: 'user-bruno', name: 'Bruno', actor: ClientActor.Human };
 const MALLORY = 'Mallory';
-const SILVA = { id: 'user-silva', name: 'Silva, Ana' };
+const SILVA = { id: 'user-silva', name: 'Silva, Ana', actor: ClientActor.Human };
 const PROVIDER_FAILURE = 'provider exploded';
 const FOREIGN_KEY_FAILURE = 'FOREIGN KEY constraint failed';
-const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null };
+const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null, timeZone: UTC_TIME_ZONE };
 const TERM_SELECTION: RequestedSelection = { ...BRUNO_SELECTION, author: null, term: 'budget' };
 const ANSWER = { sentence: 'Bruno added a designer.', authors: [BRUNO.name] };
 const FIRST_CURSOR = 10;
@@ -97,7 +104,12 @@ test('a summary is computed once and then served from the cache', async () => {
     state: SelectionSummaryState.Ready,
     failure: null,
     isModelAvailable: true,
-    summary: { sentence: ANSWER.sentence, authors: [BRUNO.name], computedAtSequence: FIRST_CURSOR, isStale: false },
+    summary: {
+      sentence: ANSWER.sentence,
+      authors: [{ name: BRUNO.name, actor: ClientActor.Human }],
+      computedAtSequence: FIRST_CURSOR,
+      isStale: false,
+    },
   });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Cached });
   expect(callsOf(model)).toBe(1);
@@ -224,6 +236,70 @@ test('the prompt carries the newest run first, escaped', async () => {
   await server.stop();
 });
 
+test('an AI author is named "<name>\'s AI" in the prompt and stored with its actor', async () => {
+  const aiLabel = `${ANA.name}'s AI`;
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: [aiLabel] });
+  const agentKey = `${ANA.id}#agent`;
+  const snapshot = {
+    ...snapshotOf({ runs: [{ ...runBy({ author: ANA, inserted: ' a designer', lastServerTime: 2 }), authorKeys: [agentKey] }] }),
+    authors: { [agentKey]: { id: ANA.id, name: ANA.name, actor: ClientActor.Agent } },
+  };
+  const { server, documentId, service, jobRunner } = await serviceWith({ languageModel: readyModel(model), snapshot });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await jobRunner.idle();
+  expect(JSON.stringify(model.doGenerateCalls[0]!.prompt)).toContain(`<author name=\\"${aiLabel}\\">`);
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([{ name: ANA.name, actor: ClientActor.Agent }]);
+  await server.stop();
+});
+
+const HUMAN_NAMED_LIKE_AN_AI = { id: 'user-h', name: `${ANA.name}'s AI`, actor: ClientActor.Human };
+const ANAS_AGENT = { id: 'user-ana', name: ANA.name, actor: ClientActor.Agent };
+const TWIN_ONE = { id: 'user-1', name: ANA.name, actor: ClientActor.Human };
+const TWIN_TWO = { id: 'user-2', name: ANA.name, actor: ClientActor.Human };
+
+test.each([
+  { order: 'human first', keys: ['user-h', 'user-ana#agent'] },
+  { order: 'agent first', keys: ['user-ana#agent', 'user-h'] },
+])('a person named like an AI and the AI itself stay two authors with the right actors, $order', async ({ keys }) => {
+  const authors = { 'user-h': HUMAN_NAMED_LIKE_AN_AI, 'user-ana#agent': ANAS_AGENT };
+  const runs = keys.map((key, index) => ({
+    ...runBy({ author: ANA, inserted: ` edit ${index}`, lastServerTime: index + 2 }),
+    authorKeys: [key],
+  }));
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: [`${ANA.name}'s AI`, `${ANA.name}'s AI (2)`] });
+  const { server, documentId, service, jobRunner } = await serviceWith({
+    languageModel: readyModel(model),
+    snapshot: { ...snapshotOf({ runs }), authors },
+  });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await jobRunner.idle();
+  const stored = service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors;
+  expect(stored).toHaveLength(2);
+  expect(stored).toEqual(
+    expect.arrayContaining([
+      { name: HUMAN_NAMED_LIKE_AN_AI.name, actor: ClientActor.Human },
+      { name: ANA.name, actor: ClientActor.Agent },
+    ]),
+  );
+  await server.stop();
+});
+
+test('two people with the same name stay two authors', async () => {
+  const runs = [TWIN_ONE, TWIN_TWO].map((author, index) => ({
+    ...runBy({ author, inserted: ` edit ${index}`, lastServerTime: index + 2 }),
+  }));
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: [ANA.name, `${ANA.name} (2)`] });
+  const authors = { [TWIN_ONE.id]: TWIN_ONE, [TWIN_TWO.id]: TWIN_TWO };
+  const { server, documentId, service, jobRunner } = await serviceWith({
+    languageModel: readyModel(model),
+    snapshot: { ...snapshotOf({ runs }), authors },
+  });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await jobRunner.idle();
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toHaveLength(2);
+  await server.stop();
+});
+
 test('names the model invents are dropped', async () => {
   const model = modelAnswering({ sentence: ANSWER.sentence, authors: [BRUNO.name, MALLORY, BRUNO.name] });
   const { server, documentId, service, jobRunner } = await serviceWith({
@@ -232,7 +308,9 @@ test('names the model invents are dropped', async () => {
   });
   service.request({ documentId, selection: BRUNO_SELECTION });
   await jobRunner.idle();
-  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([BRUNO.name]);
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([
+    { name: BRUNO.name, actor: ClientActor.Human },
+  ]);
   await server.stop();
 });
 
@@ -245,7 +323,9 @@ test('a name containing a comma survives the model splitting it', async () => {
   const { server, documentId, service, jobRunner } = await serviceWith({ languageModel: readyModel(model), snapshot });
   service.request({ documentId, selection: TERM_SELECTION });
   await jobRunner.idle();
-  expect(service.read({ documentId, selection: TERM_SELECTION }).summary?.authors).toEqual([SILVA.name]);
+  expect(service.read({ documentId, selection: TERM_SELECTION }).summary?.authors).toEqual([
+    { name: SILVA.name, actor: ClientActor.Human },
+  ]);
   await server.stop();
 });
 
@@ -315,7 +395,7 @@ test('a throw while preparing the prompt is a stored failure and the selection k
     languageModel: readyModel(model),
     snapshot: snapshotOf({ runs: [orphanRun] }),
   });
-  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS });
+  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS, timeZone: UTC_TIME_ZONE });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
@@ -371,7 +451,7 @@ test('a failure that cannot be stored is logged without the selection key', asyn
   vi.spyOn(server.services.insightsRepository, 'saveSelectionFailure').mockImplementation(() => {
     throw new Error(FOREIGN_KEY_FAILURE);
   });
-  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS });
+  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS, timeZone: UTC_TIME_ZONE });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(errors.mock.calls.map((call) => JSON.stringify(call)).join('')).not.toContain(key);

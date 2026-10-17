@@ -30,7 +30,11 @@ function signUp({
   timeZone?: string;
   extra?: Record<string, string>;
 }): Promise<Response> {
-  const headers: Record<string, string> = { 'content-type': 'application/json', 'x-forwarded-for': `10.201.0.${clientAddress++}` };
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'x-forwarded-for': `10.201.0.${clientAddress++}`,
+    origin: server.baseUrl,
+  };
   if (token) headers[INVITE_TOKEN_HEADER] = token;
   const body = { name: 'Eve', email, password: TEST_USER_PASSWORD, timeZone, ...extra };
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -153,5 +157,12 @@ test('a sign-in is still normalised by the credentials hook', async () => {
   const server = await startTestServer();
   const cookie = await signInExisting({ server, email: server.admin.email.toUpperCase(), password: TEST_USER_PASSWORD });
   expect(await currentUserId({ server, cookie })).toBe(server.admin.id);
+  await server.stop();
+});
+
+test('a sign-up stores the canonical spelling of its time zone', async () => {
+  const server = await startTestServer({ claim: false });
+  expect((await signUp({ server, email: 'eve@example.com', timeZone: 'america/sao_paulo' })).status).toBe(HttpStatus.Ok);
+  expect(await meOf({ server, email: 'eve@example.com' })).toMatchObject({ timeZone: TIME_ZONE });
   await server.stop();
 });

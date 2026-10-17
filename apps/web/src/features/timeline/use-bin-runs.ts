@@ -18,7 +18,7 @@ export function useBinRuns({
   bin: TimelineBin | undefined;
   filter: TimelineFilter;
 }): EditRunView[] {
-  const request = bin && timeline ? { documentId, binStart: bin.start, binMs: timeline.binMs, filter } : null;
+  const request = bin && timeline ? { documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone: timeline.timeZone } : null;
   const { data } = useQuery({
     queryKey: request ? binEditsQueryKey(request) : NO_BIN_EDITS_KEY,
     queryFn: request ? () => fetchBinEdits(request) : skipToken,

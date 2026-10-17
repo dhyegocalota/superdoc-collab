@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppRoute, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, signUpSchema, type SignUpInput } from '@superdoc-collab/types';
 import { useForm } from 'react-hook-form';
-import { useSearchParams } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -23,6 +23,7 @@ import {
   SIGN_UP_PENDING_LABEL,
   SETUP_FAILED_MESSAGE,
 } from './auth-copy';
+import { signedQuerySearch } from './signed-query-search';
 import { AuthFieldType, AuthTextField } from './auth-text-field';
 import { SessionSkeleton } from './session-skeleton';
 import { useAuthSubmit } from './use-auth-submit';
@@ -30,7 +31,9 @@ import { useInvite } from './use-invite';
 import { useSetup } from './use-setup';
 import { InviteInvalidCard } from './invite-invalid-card';
 
-const SIGN_IN_LINK: AuthCardLink = { prompt: HAVE_ACCOUNT_PROMPT, label: SIGN_IN_LABEL, to: AppRoute.SignIn };
+function signInLinkOf(search: string): AuthCardLink {
+  return { prompt: HAVE_ACCOUNT_PROMPT, label: SIGN_IN_LABEL, to: `${AppRoute.SignIn}${signedQuerySearch(search)}` };
+}
 const signUpFormSchema = signUpSchema.omit({ timeZone: true });
 type SignUpFormInput = Omit<SignUpInput, 'timeZone'>;
 
@@ -41,6 +44,7 @@ function SignUpCard({ title, description, token }: { title: string; description:
     request: (values, responseCapture) => authClient.signUp.email({ ...values, timeZone: browserTimeZone() }, responseCapture),
     headers: token === null ? undefined : { [INVITE_TOKEN_HEADER]: token },
   });
+  const { search } = useLocation();
 
   return (
     <AuthCard
@@ -50,7 +54,7 @@ function SignUpCard({ title, description, token }: { title: string; description:
       description={description}
       submitLabel={SIGN_UP_LABEL}
       pendingLabel={SIGN_UP_PENDING_LABEL}
-      link={SIGN_IN_LINK}
+      link={signInLinkOf(search)}
     >
       <AuthTextField control={form.control} name="name" label={NAME_FIELD_LABEL} type={AuthFieldType.Text} autoComplete="name" />
       <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />

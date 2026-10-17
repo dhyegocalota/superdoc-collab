@@ -2,6 +2,7 @@ node_modules
 dist
 coverage
 pnpm-lock.yaml
+spikes
 .pr-media
 .superpowers
 test-results

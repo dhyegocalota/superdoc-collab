@@ -1,13 +1,24 @@
-import { TimelineBandKind } from '@superdoc-collab/types';
+import { AgentActionKind, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
-import { CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
+import {
+  AGENT_ACTION_LABELS,
+  AGENT_LEGEND_LABEL,
+  agentActionLabel,
+  agentMarkLabel,
+  CHART_HINT,
+  LEGEND_LABEL,
+  STREAMGRAPH_TITLE,
+} from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
+vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
+
 const WIDTH = 600;
+const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
 const WHITESPACE = /\s+/g;
 const timeline = timelineWith({
   volumes: [
@@ -47,7 +58,7 @@ test('the svg is titled and described with the band count and the time range', (
   expect(container.querySelector('title')!.textContent).toBe(STREAMGRAPH_TITLE);
   const description = container.querySelector('desc')!.textContent!;
   expect(description).toContain('3 bands');
-  expect(description).toContain(formatTimestamp(timeline.bins[0]!.start));
+  expect(description).toContain(formatTimestamp({ time: timeline.bins[0]!.start, timeZone: UTC_TIME_ZONE }));
 });
 
 test('every band is a path labelled with its size and only the first is in the tab order', () => {
@@ -86,7 +97,7 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })));
+  expect(tooltip).toHaveTextContent(asRendered(formatBinRange({ ...timeline.bins[1]!, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE })));
   expect(tooltip).toHaveTextContent('Budget');
   expect(tooltip).toHaveTextContent('+120 characters');
   expect(tooltip).not.toHaveTextContent('−0');
@@ -122,7 +133,7 @@ test('focusing a band shows the tooltip of the selected bin and blurring hides i
   renderGraph({ selectedIndex: 1 });
   fireEvent.focus(budgetBand());
   expect(screen.getByRole('tooltip')).toHaveTextContent(
-    asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })),
+    asRendered(formatBinRange({ ...timeline.bins[1]!, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE })),
   );
   fireEvent.blur(budgetBand());
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
@@ -197,8 +208,10 @@ const LABELLED_TIMELINE = timelineWith({ volumes: Array.from({ length: 60 }, () 
 
 test('the chart shows its first and last moment and how to travel in time', () => {
   renderGraph();
-  expect(screen.getByText(formatBinMoment({ time: timeline.bins[0]!.start, binMs: timeline.binMs }))).toBeVisible();
-  expect(screen.getByText(formatBinMoment({ time: timeline.bins[2]!.start + timeline.binMs, binMs: timeline.binMs }))).toBeVisible();
+  expect(
+    screen.getByText(formatBinMoment({ time: timeline.bins[0]!.start, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE })),
+  ).toBeVisible();
+  expect(screen.getByText(formatBinMoment({ time: timeline.bins[2]!.end, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE }))).toBeVisible();
   expect(screen.getByText(CHART_HINT)).toBeVisible();
 });
 
@@ -289,4 +302,147 @@ test('another key selects nothing', () => {
   const { onSelectIndex } = renderGraph({ selectedIndex: 1 });
   fireEvent.keyDown(screen.getByLabelText('Budget, 340 characters'), { key: 'a' });
   expect(onSelectIndex).not.toHaveBeenCalled();
+});
+
+const AGENT_SELECTOR = '[data-actor="agent"]';
+const agentTimeline = timelineWith({
+  volumes: [
+    [100, 20],
+    [120, 30],
+    [120, 40],
+  ],
+  names: ['Budget', 'Hiring'],
+  agentVolumes: [
+    [0, 0],
+    [60, 0],
+    [30, 0],
+  ],
+});
+
+function renderAgentGraph() {
+  return render(
+    <Streamgraph
+      timeline={agentTimeline}
+      width={WIDTH}
+      selectedIndex={1}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+}
+
+test('a band with agent volume renders a hatched agent layer and no other band does', () => {
+  const { container } = renderAgentGraph();
+  const layers = container.querySelectorAll(AGENT_SELECTOR);
+  expect(layers).toHaveLength(1);
+  const patternId = container.querySelector('defs pattern')!.id;
+  expect(layers[0]).toHaveAttribute('fill', `url(#${patternId})`);
+  expect(container.querySelectorAll('defs pattern')).toHaveLength(1);
+});
+
+test('no agent volume renders no agent layer, no pattern and no legend row', () => {
+  const { container } = renderGraph();
+  expect(container.querySelector(AGENT_SELECTOR)).toBeNull();
+  expect(container.querySelector('defs pattern')).toBeNull();
+  expect(screen.queryByText(AGENT_LEGEND_LABEL)).not.toBeInTheDocument();
+});
+
+test('agent volume adds the hatched legend row', () => {
+  renderAgentGraph();
+  expect(screen.getByText(AGENT_LEGEND_LABEL)).toBeInTheDocument();
+});
+
+test('the tooltip marks the agent author with the AI icon, by the plain name', () => {
+  const { container } = renderAgentGraph();
+  fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
+  const tooltip = screen.getByRole('tooltip');
+  expect(within(tooltip).getAllByRole('img', { name: agentMarkLabel(FIXTURE_AGENT_AUTHOR_NAME) })).toHaveLength(1);
+  expect(tooltip).not.toHaveTextContent('· AI');
+});
+
+const ACTION_KINDS = [AgentActionKind.ShareLinkRotated, AgentActionKind.DocumentExported];
+const actionTimeline = timelineWith({
+  volumes: [
+    [100, 20],
+    [120, 30],
+    [120, 40],
+  ],
+  names: ['Budget', 'Hiring'],
+  agentActions: ACTION_KINDS.map((kind, index) => ({
+    authorKey: FIXTURE_AGENT_AUTHOR_KEY,
+    kind,
+    createdAt: timeline.bins[index]!.start + index * 1000,
+  })),
+});
+
+function renderActionGraph(source = actionTimeline) {
+  return render(
+    <Streamgraph
+      timeline={source}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+}
+
+test('every agent action is one mark and hovering it names the action', () => {
+  renderActionGraph();
+  const marks = ACTION_KINDS.map((kind) => screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind }) }));
+  expect(marks).toHaveLength(ACTION_KINDS.length);
+  fireEvent.pointerEnter(marks[0]!);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
+  fireEvent.pointerLeave(marks[0]!);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('focusing a mark shows its tooltip and blurring hides it', () => {
+  renderActionGraph();
+  const mark = screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[1]! }) });
+  fireEvent.focus(mark);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(AGENT_ACTION_LABELS[ACTION_KINDS[1]!]);
+  fireEvent.blur(mark);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('a timeline without agent actions renders no marks', () => {
+  renderGraph();
+  expect(screen.queryByRole('img', { name: new RegExp(AGENT_ACTION_LABELS[AgentActionKind.ShareLinkRotated]) })).not.toBeInTheDocument();
+});
+
+test('a mark is a focusable image with the tooltip as its description, not a button', () => {
+  renderActionGraph();
+  const mark = screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[0]! }) });
+  expect(mark).toHaveAttribute('tabindex', '0');
+  fireEvent.focus(mark);
+  expect(mark).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id);
+  expect(screen.queryByRole('button', { name: /share link|exported/ })).not.toBeInTheDocument();
+});
+
+test('a tooltip for an action that disappears is gone with it', () => {
+  const view = renderActionGraph();
+  const mark = screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: ACTION_KINDS[0]! }) });
+  fireEvent.pointerEnter(mark);
+  view.rerender(
+    <Streamgraph
+      timeline={{ ...actionTimeline, agentActions: actionTimeline.agentActions.slice(1) }}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('the bins are labelled in the zone the timeline was built in, not the current preference', () => {
+  const saoPaulo = timelineWith({ volumes: [[100]], names: ['Budget'], timeZone: SAO_PAULO_TIME_ZONE });
+  const props = { width: WIDTH, selectedIndex: 0, highlightedBandId: null, onSelectIndex: vi.fn(), onClearSelection: vi.fn() };
+  render(<Streamgraph timeline={saoPaulo} {...props} />);
+  const first = saoPaulo.bins[0]!;
+  expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();
 });

@@ -2,7 +2,7 @@ import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from 
 import { useQuery } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';
-import { authorNames } from './author-of';
+import { AuthorNames } from './author-names';
 import { maxBandVolume } from './max-band-volume';
 import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
 import { NO_EDITS_IN_BIN_MESSAGE } from './timeline-copy';
@@ -21,9 +21,10 @@ function snippetOf(text: string): string {
 type BinEditsProps = { documentId: string; timeline: DocumentTimeline; bin: TimelineBin; filter: TimelineFilter };
 
 export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
+  const { timeZone } = timeline;
   const { data } = useQuery({
-    queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
-    queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
+    queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone }),
+    queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone }),
     refetchInterval: pollWhileAvailable(TIMELINE_POLL_MS),
     retry: false,
   });
@@ -38,7 +39,9 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
       <li key={`${run.blockId}-${run.bandId}`} className="flex flex-col items-start gap-1">
         <div className="flex w-full items-center justify-between gap-2">
           <TopicChip band={band} maxVolume={maxVolume} />
-          <p className="text-xs text-muted-foreground">{authorNames({ authors: data!.authors, authorKeys: run.authorKeys })}</p>
+          <p className="text-xs text-muted-foreground">
+            <AuthorNames authors={data!.authors} authorKeys={run.authorKeys} />
+          </p>
         </div>
         {inserted && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
         {deleted && <del className="rounded-sm bg-deleted px-1 text-sm">{snippetOf(deleted)}</del>}
@@ -49,7 +52,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   if (!data) return null;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</h3>
+      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone })}</h3>
       {data.runs.length === 0 && (
         <p role="status" className="text-sm text-muted-foreground">
           {NO_EDITS_IN_BIN_MESSAGE}

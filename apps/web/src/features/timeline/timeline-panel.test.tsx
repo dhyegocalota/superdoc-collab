@@ -1,4 +1,7 @@
 import {
+  ClientActor,
+  UTC_TIME_ZONE,
+  AppRoute,
   documentApiPath,
   documentPagePath,
   DocumentResource,
@@ -13,12 +16,12 @@ import {
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  TimelineBandKind,
   timelineEditsApiPath,
   TOPICS_PENDING_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   TOPICS_UNAVAILABLE_MESSAGE,
   topicsRefreshApiPath,
-  TimelineBandKind,
   TopicState,
   type BinEdits,
   type DocumentTimeline,
@@ -30,8 +33,9 @@ import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest'
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR, timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from './timeline-api';
+import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
   FILTER_LABEL,
@@ -72,7 +76,7 @@ const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, sum
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const READY_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
-  summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_AUTHOR_NAME], computedAtSequence: 3, isStale: false },
+  summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_SUMMARY_AUTHOR], computedAtSequence: 3, isStale: false },
   failure: null,
   isModelAvailable: true,
 };
@@ -97,6 +101,8 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = scrollIntoView;
   scrollIntoView.mockClear();
 });
+
+vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -246,7 +252,7 @@ test('a selected bin lists its runs with cut snippets', async () => {
         lastServerTime: 1,
       },
     ],
-    authors: { ana: { id: '1', name: 'Ana' } },
+    authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
   };
   mockTimelineApi({ edits });
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
@@ -346,7 +352,7 @@ test('an editor summarizes the filtered selection, waits on a disabled button an
   const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
   renderPanel({ route: `${ROUTE}?author=ana` });
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
+  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?timeZone=UTC&author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
   await waitFor(() =>
     expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
   );
@@ -393,7 +399,7 @@ test('an at outside every bin summarizes the whole selection', async () => {
   const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
   await waitFor(() => expect(button).toBeEnabled());
   await userEvent.click(button);
-  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([SELECTION_PATH]));
+  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC`]));
 });
 
 test('clicking a bin without a version mark summarizes that bin', async () => {
@@ -404,7 +410,7 @@ test('clicking a bin without a version mark summarizes that bin', async () => {
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   await userEvent.click(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
   await waitFor(() =>
-    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
+    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC&at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
   );
   expect(window.location.search).not.toContain('at=');
 });
@@ -514,7 +520,7 @@ test('the summary card sits in a polite live region that exists before it has co
 test('two authors with the same name each get an avatar', async () => {
   const twins: SelectionSummaryView = {
     ...READY_VIEW,
-    summary: { ...READY_VIEW.summary!, authors: [FIXTURE_AUTHOR_NAME, FIXTURE_AUTHOR_NAME] },
+    summary: { ...READY_VIEW.summary!, authors: [FIXTURE_SUMMARY_AUTHOR, FIXTURE_SUMMARY_AUTHOR] },
   };
   mockTimelineApi({ selectionViews: [twins] });
   renderPanel();
@@ -630,7 +636,7 @@ test('bin edits mark insertions and deletions without quotes or padding', async 
         lastServerTime: 1,
       },
     ],
-    authors: { ana: { id: '1', name: 'Ana' } },
+    authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
   };
   mockTimelineApi({ edits });
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
@@ -687,4 +693,13 @@ test('reopening the panel brings the chart back', async () => {
   await userEvent.click(toggle);
   reportSizes();
   expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
+});
+
+test('the header names the zone times are shown in and links to settings', async () => {
+  mockTimelineApi({ timeline: baseTimeline });
+  renderPanel();
+  expect(await screen.findByRole('link', { name: new RegExp(`^${timesInLabel(UTC_TIME_ZONE)}`) })).toHaveAttribute(
+    'href',
+    AppRoute.Settings,
+  );
 });

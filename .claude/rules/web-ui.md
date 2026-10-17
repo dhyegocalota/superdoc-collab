@@ -10,7 +10,7 @@ paths:
 - A handler that consumes a key calls `event.preventDefault()`; document-level handlers check `event.defaultPrevented` and stand down. (filter-box.tsx, apps/web/src/features/timeline/use-time-travel.ts, apps/web/src/features/editor/superdoc-editor.tsx)
 - A container that unmounts and remounts (a collapsed panel) is measured through a callback ref, never a ref object read once in an effect. (apps/web/src/lib/use-element-width.ts)
 - `scrollIntoView` runs on state transitions only (running → result), never on every key change and never on the first render with a cached result. (apps/web/src/features/timeline/selection-summary-card.tsx)
-- `Intl.DateTimeFormat` instances are module constants, built once. (apps/web/src/lib/format-date-time.ts)
+- Every time on screen goes through `apps/web/src/lib/format-date-time.ts` with the effective zone from `useTimeZone()` and the `en-US` locale; its `Intl.DateTimeFormat` instances are cached per zone and options. Nothing else formats a time. (ADR 0024)
 
 ## Focus and keyboard
 - A Radix `Dialog` opened without a `DialogTrigger` returns focus to `body` on close. Pass `onCloseAutoFocus` that prevents the default and focuses the opener. (apps/web/src/features/editor/editor-header.tsx, docs/learnings/2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md)
@@ -29,6 +29,8 @@ paths:
 ## SuperDoc 2.23.0 in the browser
 - The editing surface is a `textarea`, not a contenteditable; in viewing mode it is a `role="document"` element. (`EDITING_SURFACE_SELECTOR` in superdoc-editor.tsx, `EDITOR_INPUT_SELECTOR` in e2e/editor.ts)
 - A programmatic `focus()` on a fresh blank document before the user's first click, from `onReady` or `onCollaborationReady`, leaves the composition textarea focused without a selection, and the first keystroke throws "This edit couldn't be completed". Never auto-focus a new document. (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md)
+- `onException` reports `code: 'edit-rejected'` once per rejected document-surface event (key, paste, cut, drop, pointer up), for example a keystroke aimed at a paragraph another author deleted; the instance keeps syncing, so the editor shows a status line instead of the fatal message (`isRecoverableException` in superdoc-exceptions.ts). (docs/features/editor-survives-rejected-edits/)
 - `zoom: { mode: 'fit-width' }` in the config, and `setZoomMode`, `setZoom` and `focus()` on the instance, exist. (apps/web/src/features/editor/superdoc-zoom.ts)
 - Inside the same-origin version iframe, `window.matchMedia` measures the frame; pass `window.parent` as the viewport to measure the page. (superdoc-zoom.ts, apps/web/src/features/versions/version-viewer.tsx)
+- `ui: { comments: { layout: 'auto', responsive: { breakpoint } } }` moves the tracked-change and comment cards inline below the breakpoint; the default sidebar layer squeezes the page to a thumbnail at 375 px. (apps/web/src/features/editor/superdoc-options.ts)
 - Comment highlight colours come from `--sd-comment-highlight-internal` and `--sd-comment-highlight-external`. (apps/web/src/styles/globals.css)

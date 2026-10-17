@@ -93,8 +93,8 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
 
 test('a highlighted band keeps full opacity while the others fade', () => {
   renderGraph({ highlightedBandId: timeline.bands[0]!.id });
-  expect(screen.getByLabelText('Budget, 340 characters')).not.toHaveClass('opacity-40');
-  expect(screen.getByLabelText('Hiring, 90 characters')).toHaveClass('opacity-40');
+  expect(screen.getByLabelText('Budget, 340 characters')).toHaveAttribute('data-faded', 'false');
+  expect(screen.getByLabelText('Hiring, 90 characters')).toHaveAttribute('data-faded', 'true');
 });
 
 test('the tooltip follows the pointer and aligns inward at the edges', () => {

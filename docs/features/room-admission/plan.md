@@ -17,7 +17,7 @@
 ## Global Constraints
 
 - `CREATOR_RESERVATION_MS = MINUTE_MS` (60 s). `MAX_SOCKET_MESSAGES_PER_SECOND = 120`.
-- `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`, with `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 4` (40 MiB).
+- `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`, with `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8` (raised from 4 after Step 0) (40 MiB).
 - `POLICY_VIOLATION_CLOSE_CODE = 1008`, `SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403`, `SOCKET_RATE_LIMIT_REASON = 'Too many messages per second'`, `SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded'`. A payload breach keeps `ws`'s 1009.
 - Constants go in `libs/types/src/constants.ts` and `libs/types/src/documents.ts`. Reuse `SECOND_MS` and `MINUTE_MS`; never redeclare them.
 - Logs use `console.warn` or `console.error` with a message constant, the document id and `describeError`, as the insights services do. Never log a payload.
@@ -119,7 +119,7 @@ Red first. Each step names its test file, test name and the failure the red run 
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
-| 0 | Largest frame reaches the cap | Probe frame size at or above 41,943,040 bytes | Stop; owner decides the multiple |
+| 0 | Largest frame reaches the cap | Probe frame size at or above the cap (83,886,080 bytes after the multiple became 8) | Stop; the lead decides the multiple |
 | 3 | Reservation rules differ from the state table | Unit table row fails | Revert G2 reservation files |
 | 4 | Takeover leaves a stale socket writing | Close code test fails; writes still logged | Revert `reserveCreator` |
 | 6 | Wiring changes `roomMode` | Existing roomMode tests fail | Revert `server.ts` |

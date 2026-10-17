@@ -3,7 +3,7 @@ import { ApiPath, HttpStatus } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
-import type { ReadModel, UpdateLog } from '@superdoc-history/history';
+import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-history/history';
 import type { Auth } from '../auth/auth';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
 import type { Environment } from '../config/environment';
@@ -50,6 +50,7 @@ export type AppServices = {
   runtime: DocumentRuntime;
   shareLinks: ShareLinksRepository;
   updateLog: UpdateLog;
+  agentActions: AgentActionsLog;
   readModel: ReadModel;
   insightsRepository: InsightsRepository;
   scheduler: ProjectionScheduler;

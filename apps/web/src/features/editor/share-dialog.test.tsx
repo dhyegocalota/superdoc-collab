@@ -137,3 +137,22 @@ test('Link copied clears after a few seconds', async () => {
   expect(within(readRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
   vi.useRealTimers();
 });
+
+test('copying again keeps Link copied for a full period from the second copy', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockShareApi();
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  await openDialog();
+  const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  const copyButton = within(readRow).getByRole('button', { name: COPY_LABEL });
+  await user.click(copyButton);
+  expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
+  await user.click(copyButton);
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
+  expect(within(readRow).getByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS / 2));
+  expect(within(readRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
+  vi.useRealTimers();
+});

@@ -57,6 +57,48 @@ expect_stderr "a plain comment next to an NB pointer is warned" "only '// NB ADR
 [[ -z "$(printf '%s' "$(claude_edit "$scratch/pointer.ts")" | "$here/warn-conventions.sh" 2>&1)" ]] || { echo "FAIL an NB ADR pointer produced a warning"; failures=$((failures + 1)); }
 rm -rf "$scratch"
 
+repository=$(mktemp -d)
+stop_call() { printf '{"hook_event_name":"Stop","stop_hook_active":%s}' "$1"; }
+remind() { (cd "$repository" && printf '%s' "$(stop_call "$1")" | "$here/remind-docs.sh" 2>&1); }
+expect_reminder() {
+  local name=$1 active=$2 pattern=$3
+  local output
+  output=$(remind "$active")
+  [[ "$output" =~ $pattern ]] && return
+  echo "FAIL $name: output did not match /$pattern/: $output"
+  failures=$((failures + 1))
+}
+expect_silence() {
+  local name=$1 active=$2
+  local output
+  output=$(remind "$active")
+  [[ -z "$output" ]] && return
+  echo "FAIL $name: expected no output, got: $output"
+  failures=$((failures + 1))
+}
+expect_silence "outside a git repository the docs reminder stays silent" false
+git -C "$repository" init -q
+mkdir -p "$repository/apps/web/src" "$repository/.claude/rules"
+printf '# Root\n' > "$repository/README.md"
+printf '# Web\n' > "$repository/apps/web/README.md"
+printf -- '---\npaths:\n  - "apps/web/**"\n---\n\n# Web facts\n' > "$repository/.claude/rules/web.md"
+printf 'one\n' > "$repository/apps/web/src/main.tsx"
+git -C "$repository" add README.md apps .claude
+git -C "$repository" -c user.name=hooks -c user.email=hooks@example.com commit -q -m initial
+expect_silence "a clean tree raises no docs reminder" false
+printf 'two\n' > "$repository/apps/web/src/main.tsx"
+expect_reminder "a code change names the nearest README and the rule whose globs match it" false '"decision": "block".*`\.claude/rules/web\.md` `apps/web/README\.md`'
+printf 'two\n' > "$repository/apps/web/src/main.tsx"
+expect_silence "the same set of documents is reminded once" false
+printf '{}\n' > "$repository/package.json"
+expect_silence "a stop that is already continuing is never blocked" true
+printf '# Web, updated\n' > "$repository/apps/web/README.md"
+printf -- '---\npaths:\n  - "apps/web/**"\n---\n\n# Web facts, updated\n' > "$repository/.claude/rules/web.md"
+reminder=$(remind false)
+[[ "$reminder" =~ \`README\.md\` ]] || { echo "FAIL a file outside every documented folder did not name the root README: $reminder"; failures=$((failures + 1)); }
+[[ "$reminder" =~ apps/web/README|rules/web ]] && { echo "FAIL an updated document is still reminded: $reminder"; failures=$((failures + 1)); }
+rm -rf "$repository"
+
 [[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0
 echo "hooks: $failures check(s) failed"
 exit 1

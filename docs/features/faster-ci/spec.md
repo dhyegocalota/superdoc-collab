@@ -33,8 +33,10 @@ A pull request waits 15 to 16 minutes for the `verify` job: 9m15s of E2E specs r
 verify.yml
   typecheck ─ composite install ─ pnpm typecheck
   unit[libs|web|server] ─ composite install ─ pnpm --filter <package> test:unit   (server: REQUIRE_DOCKER_COMPOSE=true)
-  e2e ─ composite install ─ playwright version ─ browsers cache ─ playwright install --with-deps chromium ─ pnpm test:e2e ─ artifacts on failure
   docker ─ unchanged
+
+e2e.yml (workflow_dispatch only, never on push or pull request)
+  e2e ─ composite install ─ playwright version ─ browsers cache ─ playwright install --with-deps chromium ─ pnpm test:e2e ─ artifacts on failure
 
 apps/server vitest run
   globalSetup: tsup build(projection-worker.ts, serverBuildOptions) → node_modules/.cache/superdoc-history-vitest/projection-worker.js
@@ -46,7 +48,7 @@ apps/server vitest run
 ### Interfaces
 
 - `.github/actions/install/action.yml`: composite action; pnpm, Node from `.nvmrc` with the pnpm cache, `pnpm install --frozen-lockfile`. Callers check out first.
-- `.github/workflows/verify.yml`: jobs `checks` (`timeout-minutes: 5`; `pnpm format:check`, `pnpm typecheck`, `pnpm test:hooks`, the gates main added while the branch was open), `unit` (`timeout-minutes: 10`; matrix `include` of `name` and `filter`: `libs` → `./libs/*`, `web` → `@superdoc-history/web`, `server` → `@superdoc-history/server`; `fail-fast: false`; step `pnpm --filter "${{ matrix.filter }}" test:unit`, the filter quoted so the shell never expands the glob; step env `REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}`, which renders `true` or `false`), `e2e` (`timeout-minutes: 15`; keeps today's version step, the browsers cache keyed by it, `playwright install --with-deps chromium` and the failure artifacts), `docker` (unchanged, `timeout-minutes: 20`).
+- `.github/workflows/verify.yml`: jobs `checks` (`timeout-minutes: 5`; `pnpm format:check`, `pnpm typecheck`, `pnpm test:hooks`, the gates main added while the branch was open), `unit` (`timeout-minutes: 10`; matrix `include` of `name` and `filter`: `libs` → `./libs/*`, `web` → `@superdoc-history/web`, `server` → `@superdoc-history/server`; `fail-fast: false`; step `pnpm --filter "${{ matrix.filter }}" test:unit`, the filter quoted so the shell never expands the glob; step env `REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}`, which renders `true` or `false`), `docker` (unchanged, `timeout-minutes: 20`). The `e2e` job moved to `.github/workflows/e2e.yml` (owner's decision on 2026-10-17): `on: workflow_dispatch` only, the same steps (version step, browsers cache keyed by it, `playwright install --with-deps chromium`, `pnpm test:e2e`, failure artifacts), `timeout-minutes: 15`, read-only token; run on request with `gh workflow run e2e.yml --ref <branch>` before a merge.
 - `playwright.config.ts`: file-level parallelism only, no `fullyParallel`. Measured 2026-10-17: `--fully-parallel --workers=4` ran in 1.9 min but failed `selection-summary.spec.ts:49` because `readSelectionCalls` reads a process-wide counter on the fake OpenRouter that the file's other specs move concurrently; file-level parallelism keeps a file's specs in one worker and ran in 2.3 min. `workers` is `CONTINUOUS_INTEGRATION_WORKERS` (4) when `process.env.CI` is set and `LOCAL_WORKERS` (`'50%'`) otherwise. A later change may opt single files into parallel tests once their shared counters are per document.
 - `e2e/fixtures.ts` `expectSignedInAs`: asserts the documents URL and the banner name. `e2e/auth.spec.ts` sign-up spec asserts `MINE_EMPTY_MESSAGE` imported from `../apps/web/src/features/documents/documents-copy`, as `documents.spec.ts` already does, for its brand-new user.
 - `apps/server/tsup.config.ts`: exports `serverBuildOptions: Options` and `export default defineConfig(serverBuildOptions)`.
@@ -69,6 +71,7 @@ apps/server vitest run
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
 | Build the three lanes (parallel E2E, job fan-out, prebuilt worker)? | yes / subset | yes, keep it local, no push yet | 2026-10-17 |
+| Run the E2E suite on every push and pull request? | automatic job / manual dispatch only | manual only: "é muito demorado e caro"; run on request before the actual merge | 2026-10-17 |
 | Shard E2E across two runners? | two runners (wall ~3 min, ~16 billed) / one runner (wall ~4.5 min, ~14 billed) | not answered; one runner taken as the cheaper default (ADR 0018), owner can override | 2026-10-17 |
 
 ## Test strategy summary

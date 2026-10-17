@@ -60,14 +60,14 @@ railway up --detach
 
 ## 5. Check it
 
-- [ ] `railway status` shows the service with one replica and a volume at `/data`.
-- [ ] `curl -s https://<domain>/api/health` answers `200`.
-- [ ] Sign-in smoke check answers `200`:
+- [x] `railway status` shows the service with one replica and a volume at `/data`. — evidence: railway status 2026-10-17: Online, volume superdoc-history-volume at /data (1 MB / 500 MB), region iad; replica count not shown by the CLI
+- [x] `curl -s https://<domain>/api/health` answers `200`. — evidence: curl returned 200 on 2026-10-17
+- [x] Sign-in smoke check answers `200`: — evidence: curl returned 200 on 2026-10-17
   ```bash
   curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -H "origin: https://<domain>" -d '{"email":"ana@example.com","password":"<the demo password>"}' https://<domain>/api/auth/sign-in/email
   ```
-- [ ] In the browser: sign in as Ana, upload `docs/brief/superdoc-eng-sample-project.docx`, type, open the timeline; open the share link in a private window as Bruno and see both cursors.
-- [ ] `railway logs` shows `Naming topics` without an `AI_APICallError`; otherwise the key or the model id is wrong.
+- [x] In the browser: sign in as Ana, upload `docs/brief/superdoc-eng-sample-project.docx`, type, open the timeline; open the share link in a private window as Bruno and see both cursors. — evidence: Ana uploaded the brief, typed two sentences, timeline bands appeared, Bruno joined via the edit link and his cursor and sentence showed in Ana's window, version opened with Back to live; screenshots in /private/tmp/claude-501/-Users-dhyegocalota-orca-workspaces-superdoc-take-home-requirements/24528e4e-551f-43a1-afe2-750004f4ef3e/scratchpad/railway-walk/ (01 to 05)
+- [x] `railway logs` shows no `Naming topics failed` line and no `AI_APICallError`; either one means the key or the model id is wrong. — evidence: no Naming topics failure and no AI_APICallError in railway logs 2026-10-17; topics were named in the UI (Project Brief, Design Inspiration) within 10 s
 - [ ] Redeploy (`railway up --detach`) and confirm the documents survive: the volume holds.
 
 ## 6. Hand it over

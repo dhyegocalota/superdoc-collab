@@ -13,7 +13,7 @@ import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-c
 import { startServer, type ServerServices } from '../server';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
 
-const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
+export const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 const LOOPBACK_HOST = '127.0.0.1';
 const UNIQUE_EMAIL_SUFFIX_LENGTH = 8;
 const NO_LLM_SETTINGS: LlmSettings = {

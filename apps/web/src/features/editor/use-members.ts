@@ -5,7 +5,7 @@ import { fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api'
 
 const NO_MEMBERS: DocumentMember[] = [];
 
-export function useMembers(documentId: string): { members: DocumentMember[]; isUnavailable: boolean } {
+export function useMembers(documentId: string): { members: DocumentMember[]; isUnavailable: boolean; isCurrentUserOnline: boolean | null } {
   const { data, error } = useQuery({
     queryKey: membersQueryKey(documentId),
     queryFn: () => fetchMembers(documentId),
@@ -13,6 +13,7 @@ export function useMembers(documentId: string): { members: DocumentMember[]; isU
     retry: false,
   });
   const isUnavailable = error instanceof DocumentUnavailableError;
-  if (!data) return { members: NO_MEMBERS, isUnavailable };
-  return { members: data.members, isUnavailable };
+  if (!data) return { members: NO_MEMBERS, isUnavailable, isCurrentUserOnline: null };
+  if (error) return { members: data.members, isUnavailable, isCurrentUserOnline: null };
+  return { members: data.members, isUnavailable, isCurrentUserOnline: data.isCurrentUserOnline };
 }

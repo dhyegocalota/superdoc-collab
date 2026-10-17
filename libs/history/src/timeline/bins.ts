@@ -19,7 +19,16 @@ export function binStartOf({ time, binMs }: { time: number; binMs: number }): nu
   return Math.floor(time / binMs) * binMs;
 }
 
-export function binStartsCovering({ firstTime, lastTime, binMs }: { firstTime: number; lastTime: number; binMs: number }): number[] {
+export function binStartsCovering({
+  firstTime,
+  lastTime,
+  binMs,
+}: {
+  firstTime: number;
+  lastTime: number;
+  binMs: number;
+  timeZone: string;
+}): number[] {
   const first = binStartOf({ time: firstTime, binMs }) - EDGE_BINS * binMs;
   const last = binStartOf({ time: lastTime, binMs }) + EDGE_BINS * binMs;
   return Array.from({ length: (last - first) / binMs + 1 }, (_, index) => first + index * binMs);

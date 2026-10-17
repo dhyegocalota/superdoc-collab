@@ -1,16 +1,19 @@
-import { MINUTE_MS, SECOND_MS } from '@superdoc-collab/types';
+import { DAY_MS, HOUR_MS, MINUTE_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { MAX_BINS, binStartsCovering, buildBins, chooseBinMs } from './bins';
 import type { EditRun } from './runs';
+import { offsetAt, zonedBinStartOf } from './zoned-time';
 
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
-const WEEK_MS = 7 * DAY_MS;
+const UTC = 'UTC';
+const SAO_PAULO = 'America/Sao_Paulo';
+const LISBON = 'Europe/Lisbon';
+const KATHMANDU = 'Asia/Kathmandu';
+const KIRITIMATI = 'Pacific/Kiritimati';
 const TEN_OCLOCK = Date.UTC(2026, 9, 16, 10, 0);
 
 function runAt({ time, binMs }: { time: number; binMs: number }): EditRun {
   return {
-    binStart: Math.floor(time / binMs) * binMs,
+    binStart: zonedBinStartOf({ time, binMs, timeZone: UTC }),
     blockId: 'b1',
     bandId: 'b1',
     authorKeys: ['ana'],
@@ -41,20 +44,22 @@ test('three years fall back to a whole number of weeks', () => {
 
 const BIN_OFFSETS_MS = [0, 5 * SECOND_MS, 59 * SECOND_MS];
 
-test.each([30 * SECOND_MS, 30 * MINUTE_MS, 119 * MINUTE_MS, 5 * HOUR_MS, 30 * DAY_MS, 3 * 365 * DAY_MS])(
-  'a span of %i ms never draws more than MAX_BINS bins',
-  (spanMs) => {
-    const binMs = chooseBinMs(spanMs);
-    BIN_OFFSETS_MS.forEach((offset) => {
-      const firstTime = TEN_OCLOCK + offset;
-      expect(binStartsCovering({ firstTime, lastTime: firstTime + spanMs, binMs }).length).toBeLessThanOrEqual(MAX_BINS);
-    });
-  },
+const LADDER_SPANS_MS = [30 * SECOND_MS, 30 * MINUTE_MS, 119 * MINUTE_MS, 5 * HOUR_MS, 30 * DAY_MS, 3 * 365 * DAY_MS];
+const COVERING_CASES = [UTC, SAO_PAULO, KATHMANDU, KIRITIMATI].flatMap((timeZone) =>
+  LADDER_SPANS_MS.map((spanMs) => [timeZone, spanMs] as const),
 );
+
+test.each(COVERING_CASES)('in %s a span of %i ms never draws more than MAX_BINS bins', (timeZone, spanMs) => {
+  const binMs = chooseBinMs(spanMs);
+  BIN_OFFSETS_MS.forEach((offset) => {
+    const firstTime = TEN_OCLOCK + offset;
+    expect(binStartsCovering({ firstTime, lastTime: firstTime + spanMs, binMs, timeZone }).length).toBeLessThanOrEqual(MAX_BINS);
+  });
+});
 
 test('a single edit yields three bins, the middle one filled', () => {
   const time = TEN_OCLOCK + 30 * SECOND_MS;
-  const binStarts = binStartsCovering({ firstTime: time, lastTime: time, binMs: MINUTE_MS });
+  const binStarts = binStartsCovering({ firstTime: time, lastTime: time, binMs: MINUTE_MS, timeZone: UTC });
   expect(binStarts).toEqual([TEN_OCLOCK - MINUTE_MS, TEN_OCLOCK, TEN_OCLOCK + MINUTE_MS]);
   const bins = buildBins({ runs: [runAt({ time, binMs: MINUTE_MS })], binStarts, binMs: MINUTE_MS, versionSequenceAt: () => null });
   expect(bins.map((bin) => Object.keys(bin.byBand).length)).toEqual([0, 1, 0]);
@@ -63,7 +68,7 @@ test('a single edit yields three bins, the middle one filled', () => {
 test('bins between edits stay empty and carry the version before their end', () => {
   const first = TEN_OCLOCK;
   const last = TEN_OCLOCK + 3 * MINUTE_MS;
-  const binStarts = binStartsCovering({ firstTime: first, lastTime: last, binMs: MINUTE_MS });
+  const binStarts = binStartsCovering({ firstTime: first, lastTime: last, binMs: MINUTE_MS, timeZone: UTC });
   const bins = buildBins({
     runs: [runAt({ time: first, binMs: MINUTE_MS }), runAt({ time: last, binMs: MINUTE_MS })],
     binStarts,
@@ -85,4 +90,59 @@ test('a bin ending on a minute boundary resolves to the mark of its own minute',
     versionSequenceAt: (time) => (time >= nextMinute ? 9 : 5),
   });
   expect(bins.map((bin) => bin.versionSequence)).toEqual([5, 9]);
+});
+
+const LOCAL_DAY_START = Date.UTC(2026, 9, 14, 3, 0);
+
+test('a day timeline in Sao Paulo starts every bin at local midnight and chains them', () => {
+  const binStarts = binStartsCovering({
+    firstTime: LOCAL_DAY_START + HOUR_MS,
+    lastTime: LOCAL_DAY_START + 5 * DAY_MS + HOUR_MS,
+    binMs: DAY_MS,
+    timeZone: SAO_PAULO,
+  });
+  const bins = buildBins({ runs: [], binStarts, binMs: DAY_MS, versionSequenceAt: () => null });
+  expect(bins).toHaveLength(8);
+  expect(bins.map((bin) => (bin.start + offsetAt({ time: bin.start, timeZone: SAO_PAULO })) % DAY_MS)).toEqual(Array(8).fill(0));
+  bins.slice(1).forEach((bin, index) => expect(bins.at(index)?.end).toBe(bin.start));
+});
+
+test('padding is one empty bin each side of the first and last edit', () => {
+  const time = Date.UTC(2026, 9, 17, 12, 0);
+  const binStarts = binStartsCovering({ firstTime: time, lastTime: time, binMs: DAY_MS, timeZone: SAO_PAULO });
+  expect(binStarts).toEqual([Date.UTC(2026, 9, 15, 3, 0), Date.UTC(2026, 9, 16, 3, 0), Date.UTC(2026, 9, 17, 3, 0)]);
+});
+
+test('a Lisbon autumn day bin is 25 hours long and resolves its version at end - 1', () => {
+  const binStarts = binStartsCovering({
+    firstTime: Date.UTC(2026, 9, 25, 12, 0),
+    lastTime: Date.UTC(2026, 9, 25, 12, 0),
+    binMs: DAY_MS,
+    timeZone: LISBON,
+  });
+  const resolvedAt: number[] = [];
+  const bins = buildBins({
+    runs: [],
+    binStarts,
+    binMs: DAY_MS,
+    versionSequenceAt: (time) => {
+      resolvedAt.push(time);
+      return null;
+    },
+  });
+  const autumn = bins.find((bin) => bin.start === Date.UTC(2026, 9, 24, 23, 0));
+  expect(autumn?.end).toBe(Date.UTC(2026, 9, 26, 0, 0));
+  expect(resolvedAt).toContain(Date.UTC(2026, 9, 26, 0, 0) - 1);
+});
+
+test('a week timeline in Kiritimati starts every bin on a local Monday', () => {
+  const binStarts = binStartsCovering({
+    firstTime: Date.UTC(2026, 9, 12, 12, 0),
+    lastTime: Date.UTC(2026, 9, 12, 12, 0) + 3 * WEEK_MS,
+    binMs: WEEK_MS,
+    timeZone: KIRITIMATI,
+  });
+  expect(binStarts.map((start) => (start + offsetAt({ time: start, timeZone: KIRITIMATI })) % WEEK_MS)).toEqual(
+    Array(binStarts.length).fill(4 * DAY_MS),
+  );
 });

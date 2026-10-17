@@ -30,7 +30,7 @@ export function authorKey(author: EventAuthor): string {
   return author.id;
 }
 
-export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binMs: number }): EditRun[] {
+export function groupIntoRuns({ events, binMs }: { events: TimelineEvent[]; binMs: number; timeZone: string }): EditRun[] {
   const runs = new Map<string, EditRun>();
   [...events]
     .sort((left, right) => left.sequence - right.sequence || left.serverTime - right.serverTime)

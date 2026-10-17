@@ -89,7 +89,7 @@ export function mergeConnectionState({
 
 function failureReasonAfter({ current, incoming }: { current: ConnectionFailureReason | null; incoming: ConnectionFailureReason | null }) {
   const isCurrentSpecific = current !== null && current !== ConnectionFailureReason.Unknown;
-  if (isCurrentSpecific) return current;
+  if (isCurrentSpecific || incoming === null) return current;
   return incoming;
 }
 
@@ -110,7 +110,11 @@ function reportedMachine({ machine, report, now }: { machine: Machine; report: T
 
 const REDUCERS: { [Type in ConnectionAction]: (machine: Machine, action: Extract<Action, { type: Type }>) => Machine } = {
   [ConnectionAction.Report]: (machine, { report, now }) => reportedMachine({ machine, report, now }),
-  [ConnectionAction.Recovered]: (machine) => ({ ...machine, reading: TransportReading.Clear, lostAt: null, isNoticeShown: true }),
+  [ConnectionAction.Recovered]: (machine) => {
+    const isOutage = machine.reading === TransportReading.Lost || machine.reading === TransportReading.Reconnecting;
+    if (!isOutage) return machine;
+    return { ...machine, reading: TransportReading.Clear, lostAt: null, isNoticeShown: true };
+  },
   [ConnectionAction.NoticeEnded]: (machine) => ({ ...machine, isNoticeShown: false }),
   [ConnectionAction.Reset]: () => INITIAL_MACHINE,
 };
@@ -130,13 +134,6 @@ export function useConnectionState({ documentId, isCurrentUserOnline, membersAns
   const state = isNoticeShown && reading === TransportReading.Clear ? ConnectionState.Recovered : mergedState;
 
   useEffect(() => {
-    if (lostAt === null) return;
-    const queryKey = membersQueryKey(documentId);
-    queryClient.cancelQueries({ queryKey });
-    queryClient.invalidateQueries({ queryKey });
-  }, [queryClient, documentId, lostAt]);
-
-  useEffect(() => {
     if (isRecoveredNow) dispatch({ type: ConnectionAction.Recovered });
   }, [isRecoveredNow]);
 
@@ -148,7 +145,10 @@ export function useConnectionState({ documentId, isCurrentUserOnline, membersAns
 
   const reportTransport = useCallback(
     (report: TransportReport): void => {
-      if (report.hasSynced) queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) });
+      const queryKey = membersQueryKey(documentId);
+      const isOutageReport = report.reading === TransportReading.Lost || report.reading === TransportReading.Reconnecting;
+      if (isOutageReport) queryClient.cancelQueries({ queryKey });
+      if (isOutageReport || report.hasSynced) queryClient.invalidateQueries({ queryKey });
       dispatch({ type: ConnectionAction.Report, report, now: Date.now() });
     },
     [queryClient, documentId],

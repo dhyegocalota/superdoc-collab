@@ -131,7 +131,7 @@ The red test for attach-collaboration first waited for the socket to close, whic
 ### Hypotheses to attack
 
 1. Hypothesis: deleting a consent makes the next `authorizeAgentRequest` return null even though the JWT is unexpired. Break it by: delete the consent through `POST /api/auth/oauth2/delete-consent` and call again; also restore a consent for the same client by approving again and check the old token works again (it should, the consent is the gate).
-2. Hypothesis: only OAuth access tokens verify. Break it by: present a session JWT from `/api/auth/token`, an ID token, a token whose `aud` is `APP_ORIGIN`, and a token signed by another instance; each must return null.
+2. Hypothesis (first version refuted by the security review, fixed): only OAuth access tokens verify. The first version accepted a DPoP-bound token as a plain bearer and ignored the `typ` header. Now the Better Auth resource verifier runs first, then the `at+jwt` type and the consent lookup. Break it by: a session JWT from `/api/auth/token`, an ID token, a token whose `aud` is `APP_ORIGIN`, a DPoP-bound token with and without a proof, a token signed by another instance; each must return null.
 3. Hypothesis: neither collaboration path accepts the other's credential. Break it by: browser path with a room token and no cookie; agent path with a cookie and the placeholder token; agent path with a cookie and a valid room token for another person (the person in the token wins, the cookie is ignored).
 4. Hypothesis: a room token cannot be replayed across documents or after five minutes. Break it by: reuse after `ROOM_TOKEN_TTL_MS`, change one byte of the payload or of the signature, swap the document in the room name.
 5. Hypothesis: registration of Cursor-style and Claude Code style clients works. Break it by: register with `redirect_uris` of `http://localhost:PORT/callback`, `http://127.0.0.1:PORT/callback` and a custom scheme with no `application_type`; register a web client with an `http` loopback URI and `application_type: web` (refused by design).
@@ -145,6 +145,23 @@ The red test for attach-collaboration first waited for the socket to close, whic
 - Rotating `AUTH_SECRET` invalidates JWT signing keys and room tokens together, as the ADR says; not exercised.
 - `/.well-known/openid-configuration` answers 404 because `openid` is not a requested scope.
 - Discovery is mounted without the client address header, so Better Auth rate-limits by whatever address it resolves for those requests.
+
+### Review fixes (second pass)
+
+| Test | Red before the fix because | Green after because |
+|------|-----------------------------|----------------------|
+| `agent/agent-authorization.test.ts` DPoP-bound token as a plain bearer | `expected { userId, clientId, scopes } to be null` | `verifyAccessTokenRequest` enforces the binding |
+| `agent/agent-authorization.test.ts` signed token of another type | `expected { ... } to be null` | `typ` must be `at+jwt` |
+| `agent/agent-authorization.test.ts` lowercase bearer, valid DPoP proof | `expected null to match object` | scheme parsing by the verifier |
+| `agent/agent-authorization.test.ts` client that omits `resource` | `expected null to match object` (opaque token) | a hook adds the MCP resource on authorize and token |
+| `auth/oauth.test.ts` consent post from a foreign origin | `expected 400 to be 403` (Vitest skips the origin check) | `advanced.disableOriginCheck: false` |
+| `agent/room-tokens.test.ts` signature from the raw secret | `expected { userId: 'user-ana' } to deeply equal null` | key derived with a fixed label |
+
+- Pins: session token refused, no-proof DPoP refused, app origin consent row, empty agent token refused in `attach-collaboration.test.ts`.
+- Mutation check: deleting `connection.readOnly = true` in `collaboration-server.ts` turns `a reader room token connects read-only and no update is logged` red (`expected [ ... ] to not include '<reader id>'`); restored.
+- `attachCollaboration` no longer takes `agentPath`; `isAgentUpgrade` in `collaboration/upgrade-path.ts` serves the upgrade handler and `onAuthenticate`.
+- With the origin check on, requests that post credentials must carry `Origin`. Test helpers and three test files now send it. Browsers always do. Cookie-less OAuth calls (register, token) need none.
+- Gap: the replay store for DPoP proofs is the process-local default, fine for one replica.
 
 ## L3 agent and MCP
 

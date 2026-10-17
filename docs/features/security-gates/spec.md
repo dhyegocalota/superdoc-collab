@@ -1,6 +1,6 @@
 # Security gates
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 (decisions taken in chat: audit + gitleaks + Dependabot, no CodeQL; a dedicated `security-reviewer` role rather than a longer reviewer lens)
 **ADRs:** [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)

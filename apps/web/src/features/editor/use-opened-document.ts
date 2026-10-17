@@ -8,5 +8,6 @@ export function useOpenedDocument(documentId: string) {
     retry: false,
     gcTime: 0,
     staleTime: Infinity,
+    refetchOnMount: 'always',
   });
 }

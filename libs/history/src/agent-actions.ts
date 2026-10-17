@@ -30,14 +30,20 @@ export class AgentActionsLog {
       .run(documentName, userId, kind, createdAt);
   }
 
-  span(_documentName: string): { first: number; last: number } | null {
-    throw new Error('AgentActionsLog.span is not implemented');
+  span(documentName: string): { first: number; last: number } | null {
+    const row = this.database
+      .prepare('SELECT MIN(created_at) AS first, MAX(created_at) AS last FROM agent_actions WHERE document_name = ?')
+      .get(documentName) as { first: number | null; last: number | null };
+    if (row.first === null || row.last === null) return null;
+    return { first: row.first, last: row.last };
   }
 
   list({ documentName, from, until }: { documentName: string; from: number; until: number }): AgentActionMark[] {
     const rows = this.database
-      .prepare('SELECT user_id, kind, created_at FROM agent_actions WHERE document_name = ? ORDER BY created_at, id')
-      .all(documentName) as AgentActionRow[];
+      .prepare(
+        'SELECT user_id, kind, created_at FROM agent_actions WHERE document_name = ? AND created_at >= ? AND created_at < ? ORDER BY created_at, id',
+      )
+      .all(documentName, from, until) as AgentActionRow[];
     return rows.map((row) => ({ userId: row.user_id, kind: row.kind, createdAt: row.created_at }));
   }
 }

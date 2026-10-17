@@ -1,7 +1,7 @@
 import { MINUTE_MS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import type { EditRun, TimelineEvent } from './runs';
-import { authorKey, filterRuns, groupIntoRuns } from './runs';
+import { authorKey, filterRuns, groupIntoRuns, narrowRuns } from './runs';
 
 const BIN_MS = MINUTE_MS;
 
@@ -29,4 +29,22 @@ test('matching is case-insensitive and finds backspaced deletions', () => {
   expect(filterRuns({ runs, term: 'Budget', authorKeys: null })).toHaveLength(2);
   expect(filterRuns({ runs, term: 'Budget', authorKeys: new Set(['bruno']) }).map((run) => run.authorKeys)).toEqual([['bruno']]);
   expect(authorKey({ id: null, name: 'Chris Crawford' })).toBe('imported:Chris Crawford');
+});
+
+function placed({ inserted, bandId, binStart }: { inserted: string; bandId: string; binStart: number }): EditRun {
+  return { ...runOf({ author: 'ana', inserted, deleted: '' }), bandId, binStart };
+}
+
+const PLACED_RUNS = [placed({ inserted: 'a', bandId: 'budget', binStart: 0 }), placed({ inserted: 'b', bandId: 'budget', binStart: BIN_MS }), placed({ inserted: 'c', bandId: 'hiring', binStart: 0 })];
+
+test('narrowing by band and bin keeps only the runs of that band in that bin', () => {
+  expect(narrowRuns({ runs: PLACED_RUNS, bandId: 'budget', binStart: 0 }).map((run) => run.inserted)).toEqual(['a']);
+  expect(narrowRuns({ runs: PLACED_RUNS, bandId: null, binStart: 0 }).map((run) => run.inserted)).toEqual(['a', 'c']);
+  expect(narrowRuns({ runs: PLACED_RUNS, bandId: 'budget', binStart: null }).map((run) => run.inserted)).toEqual(['a', 'b']);
+  expect(narrowRuns({ runs: PLACED_RUNS, bandId: null, binStart: null })).toEqual(PLACED_RUNS);
+});
+
+test('narrowing by a band or a bin nobody edited yields nothing', () => {
+  expect(narrowRuns({ runs: PLACED_RUNS, bandId: 'gone', binStart: null })).toEqual([]);
+  expect(narrowRuns({ runs: PLACED_RUNS, bandId: null, binStart: 7 * BIN_MS })).toEqual([]);
 });

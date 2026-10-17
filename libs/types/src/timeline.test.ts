@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { VersionResource, timelineEditsApiPath, topicsRefreshApiPath, versionApiPath, versionCollaborationPath, versionViewPagePath } from './routes';
+import { MIN_RETRY_AFTER_MS, SECOND_MS } from './constants';
+import { RETRY_AFTER_HEADER } from './http';
+import { TimelineQueryParam, TimelineSearchParam } from './timeline';
+import { VersionResource, selectionSummaryApiPath, timelineEditsApiPath, topicsRefreshApiPath, versionApiPath, versionCollaborationPath, versionViewPagePath } from './routes';
 
 describe('timeline contracts', () => {
   test('builds version and topics paths with encoded ids', () => {
@@ -13,5 +16,16 @@ describe('timeline contracts', () => {
   });
   test('puts each version on its own collaboration endpoint', () => {
     expect(versionCollaborationPath({ documentId: 'a/b', sequence: 42 })).toBe('/collaboration/versions/a%2Fb/42');
+  });
+  test('builds the selection summary path under summaries', () => {
+    expect(selectionSummaryApiPath('a/b')).toBe('/api/documents/a%2Fb/summaries/selection');
+  });
+  test('the selection query parameters are the page search parameters', () => {
+    expect(TimelineQueryParam.Topic).toBe(TimelineSearchParam.Topic);
+    expect(TimelineQueryParam.At).toBe(TimelineSearchParam.At);
+  });
+  test('the retry header and the shortest retry keep their values', () => {
+    expect(RETRY_AFTER_HEADER).toBe('Retry-After');
+    expect(MIN_RETRY_AFTER_MS).toBe(SECOND_MS);
   });
 });

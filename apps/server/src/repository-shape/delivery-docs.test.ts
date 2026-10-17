@@ -1,17 +1,19 @@
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { capturedNames, composeVariables, readRepositoryFile, REPOSITORY_ROOT, repositoryPath } from './repository-files';
+import {
+  capturedNames,
+  composeVariables,
+  DOCUMENTED_FOLDERS,
+  readmes,
+  readRepositoryFile,
+  repositoryPath,
+  workspacePackages,
+} from './repository-files';
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const RAILWAY_RUNBOOK_FILE = 'docs/features/deploy/runbook-railway.md';
-const README_PATHSPEC = `*${README_FILE}`;
-const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
-const PACKAGE_MANIFEST = 'package.json';
-const DOCUMENTED_FOLDERS = ['e2e'];
-const LINE_SEPARATOR = '\n';
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
 const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -45,24 +47,6 @@ function brokenTargets({ document, text }: { document: string; text: string }): 
   return capturedNames({ text: prose, pattern: LINK_PATTERN })
     .filter((target) => !EXTERNAL_LINK_PATTERN.test(target))
     .filter((target) => isBroken({ document, target }));
-}
-
-function readmes(): string[] {
-  const listing = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', README_PATHSPEC], {
-    cwd: REPOSITORY_ROOT,
-    encoding: 'utf8',
-  });
-  if (listing.status !== 0) throw new Error(`git ls-files failed: ${listing.stderr}`);
-  return listing.stdout.split(LINE_SEPARATOR).filter((path) => path && existsSync(repositoryPath(path)));
-}
-
-function workspacePackages(): string[] {
-  return WORKSPACE_PACKAGE_PARENTS.flatMap((parent) =>
-    readdirSync(repositoryPath(parent), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => posix.join(parent, entry.name))
-      .filter((path) => existsSync(repositoryPath(posix.join(path, PACKAGE_MANIFEST)))),
-  );
 }
 
 const LINKED_DOCUMENTS = [...readmes(), RUNBOOK_FILE, RAILWAY_RUNBOOK_FILE];

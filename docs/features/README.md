@@ -46,3 +46,4 @@ Refinement after the five slices:
 | [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
 | [`cleanup-docs`](cleanup-docs/) | `poc/` removed, the root README down to one screen and one screenshot, package READMEs without source references | Shipped 2026-10-17 |
+| [`readme-purpose-only`](readme-purpose-only/) | READMEs carry purpose only; the root Run it block is pinned to package.json, .env.example and the workspace by a repository-shape test | Shipped 2026-10-17 |

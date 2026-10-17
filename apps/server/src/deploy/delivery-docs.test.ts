@@ -8,6 +8,17 @@ const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
 const ENVIRONMENT_EXAMPLE_FILE = '.env.example';
 const LINE_SEPARATOR = '\n';
 const SECRET_NOTE_PREFIX = '# Secret';
+const LICENSE_FILE = 'LICENSE';
+const CREDITS_HEADING = '## Credits';
+const LICENSE_HEADING = '## License';
+const LICENSE_SECTION_PATTERN = /## License\n([\s\S]*)$/;
+const STALE_LICENSE_TEXT = 'private until delivery';
+const CREDITED_LIBRARIES = ['SuperDoc', 'Hocuspocus', 'Yjs', 'Better Auth', 'Drizzle', 'Hono', 'React', 'Vite', 'd3', 'Vercel AI SDK', 'OpenRouter', 'shadcn/ui', 'superpowers'];
+const CAPS_BUSY_TEXT = 'The language model is busy; try again later.';
+const STALE_CAPS_TEXT = 'Past them, topics show';
+const SECRET_SCAN_PATTERNS = ['AUTH_SECRET=', 'DEMO_PASSWORD='];
+const SQUASH_MERGE_NOTE = 'drop `-m 1` for a squash merge';
+const DEPLOY_REPORTED_NOTE = 'as soon as `up -d` returns';
 const SECRET_VARIABLES = ['AUTH_SECRET', 'DEMO_PASSWORD', 'OPENROUTER_API_KEY'];
 const LINKED_DOCUMENTS = [README_FILE, RUNBOOK_FILE];
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
@@ -84,5 +95,34 @@ describe('delivery documents', () => {
 
   test.each(SECRET_VARIABLES)('the example file marks %s as a secret', (name) => {
     expect(lineAbove({ lines: readRepositoryFile(ENVIRONMENT_EXAMPLE_FILE).split(LINE_SEPARATOR), name })).toMatch(new RegExp(`^${SECRET_NOTE_PREFIX}`));
+  });
+
+  test('the README license section matches the license files of the repository', () => {
+    const license = LICENSE_SECTION_PATTERN.exec(readRepositoryFile(README_FILE))?.[1];
+    expect(license).toBeDefined();
+    expect(license).not.toContain(STALE_LICENSE_TEXT);
+    expect(license?.includes(LICENSE_FILE)).toBe(existsSync(repositoryPath(LICENSE_FILE)));
+  });
+
+  test('the README credits every library the product is built on', () => {
+    const readme = readRepositoryFile(README_FILE);
+    const credits = readme.slice(readme.indexOf(CREDITS_HEADING), readme.indexOf(LICENSE_HEADING));
+    expect(CREDITED_LIBRARIES.filter((library) => !credits.includes(library))).toEqual([]);
+  });
+
+  test('the README limits quote what users see when the language-model caps are reached', () => {
+    const readme = readRepositoryFile(README_FILE);
+    expect(readme).toContain(CAPS_BUSY_TEXT);
+    expect(readme).not.toContain(STALE_CAPS_TEXT);
+  });
+
+  test('the runbook scans the history for the generated secrets too', () => {
+    const runbook = readRepositoryFile(RUNBOOK_FILE);
+    expect(SECRET_SCAN_PATTERNS.filter((pattern) => !runbook.includes(pattern, runbook.indexOf('git log --all')))).toEqual([]);
+  });
+
+  test('the runbook covers squash merges and the early deploy report', () => {
+    const runbook = readRepositoryFile(RUNBOOK_FILE);
+    expect([SQUASH_MERGE_NOTE, DEPLOY_REPORTED_NOTE].filter((note) => !runbook.includes(note))).toEqual([]);
   });
 });

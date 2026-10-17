@@ -20,6 +20,7 @@ export const LOADING_VERSION_MESSAGE = 'Loading this version…';
 export const VERSION_FRAME_TITLE = 'Document version';
 export const RESIZE_PANEL_LABEL = 'Resize timeline panel';
 export const SUMMARIZE_EDITS_LABEL = 'Summarize edits';
+export const SUMMARIZING_LABEL = 'Summarizing…';
 export const SELECTION_SUMMARY_HEADING = 'Summary of these edits';
 export const EARLIER_STATE_LABEL = 'For an earlier state';
 export const RETRY_SUMMARY_LABEL = 'Retry summary';

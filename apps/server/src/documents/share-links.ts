@@ -26,7 +26,7 @@ export class ShareLinksRepository {
     this.appOrigin = appOrigin;
   }
 
-  // NB ADR 0016: a link whose nonce was not derived from the current signing secret is reissued, so rotating the secret replaces every link.
+  // NB ADR 0016: a link whose stored token hash does not match the current signing secret never resolves and is reissued on read.
   links(documentId: string): ShareLinks {
     const existing = this.database.drizzle.select().from(documentShareLinks).where(eq(documentShareLinks.documentId, documentId)).all();
     const missing = Object.values(ShareLinkRole).filter((role) => !existing.some((row) => row.role === role && this.isIssuedBySecret(row)));

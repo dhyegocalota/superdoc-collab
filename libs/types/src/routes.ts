@@ -5,6 +5,8 @@ export enum AppRoute {
   Document = '/documents/:documentId',
   Share = '/share/:token',
   VersionView = '/documents/:documentId/versions/:sequence/view',
+  OAuthConsent = '/oauth/consent',
+  ConnectedApps = '/settings/connected-apps',
 }
 
 export enum ApiPath {
@@ -14,6 +16,8 @@ export enum ApiPath {
   Collaboration = '/collaboration',
   Documents = '/api/documents',
   ShareLinks = '/api/share-links',
+  Mcp = '/api/mcp',
+  AgentCollaboration = '/collaboration/agent',
 }
 
 export enum DocumentResource {

@@ -1,11 +1,14 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
-import { WebSocketServer, type WebSocket } from 'ws';
+import { HttpStatus, MAX_SOCKET_MESSAGE_BYTES, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
+import { WebSocket, WebSocketServer } from 'ws';
+import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
 import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
+
+const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
@@ -16,7 +19,9 @@ const UNAVAILABLE_UPGRADE_RESPONSE = [
   '',
 ].join('\r\n');
 
-function terminateOnError(this: WebSocket): void {
+function terminateOnError(this: WebSocket, error: Error): void {
+  console.warn(`${SOCKET_ERROR_MESSAGE}: ${describeError(error)}`);
+  if (this.readyState === WebSocket.CLOSING) return;
   this.terminate();
 }
 
@@ -37,7 +42,7 @@ export function attachCollaboration({
   path: string;
   allowedOrigin: string;
 }): WebSocketServer {
-  const sockets = new WebSocketServer({ noServer: true });
+  const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_SOCKET_MESSAGE_BYTES });
   function upgrade({
     request,
     socket,

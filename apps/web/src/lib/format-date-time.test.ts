@@ -50,10 +50,10 @@ test('a minute bin shows minutes and the date once', () => {
 });
 
 test('a bin range ends where the bin ends, not one bin size after its start', () => {
-  const dayStart = Date.UTC(2026, 9, 25, 23, 0);
+  const dayStart = Date.UTC(2026, 9, 24, 23, 0);
   const range = plain(formatBinRange({ start: dayStart, end: dayStart + 25 * HOUR_MS, binMs: 24 * HOUR_MS, timeZone: LISBON }));
+  expect(range).toContain('Oct 25');
   expect(range).toContain('Oct 26');
-  expect(range).toContain('Oct 27');
 });
 
 test('a bin from an earlier year carries its year', () => {

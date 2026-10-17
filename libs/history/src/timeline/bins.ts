@@ -5,7 +5,20 @@ import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
 export const MAX_BINS = 120;
 const EDGE_BINS = 1;
-const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 1;
+const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 2;
+const MAX_COVERING_BINS = MAX_BINS + COVERING_EXTRA_BINS;
+
+export class NonAdvancingBinError extends Error {
+  constructor({ start, next }: { start: number; next: number }) {
+    super(`Bin after ${start} ends at ${next}, which is not after it.`);
+  }
+}
+
+export class TooManyBinsError extends Error {
+  constructor(limit: number) {
+    super(`The span needs more than ${limit} bins.`);
+  }
+}
 const SUB_MINUTE_BINS_MS = [10 * SECOND_MS, 30 * SECOND_MS];
 const BIN_LADDER_MINUTES = [1, 2, 5, 10, 15, 30, 60, 180, 360, 720, 1440];
 export const BIN_LADDER_MS = [...SUB_MINUTE_BINS_MS, ...BIN_LADDER_MINUTES.map((minutes) => minutes * MINUTE_MS), WEEK_MS];
@@ -16,9 +29,10 @@ export function chooseBinMs(spanMs: number): number {
   return Math.ceil(spanMs / (MAX_BINS - COVERING_EXTRA_BINS) / WEEK_MS) * WEEK_MS;
 }
 
-function startsFrom({ start, last, binMs, timeZone }: { start: number; last: number; binMs: number; timeZone: string }): number[] {
-  if (start >= last) return [start];
-  return [start, ...startsFrom({ start: nextZonedBinStart({ start, binMs, timeZone }), last, binMs, timeZone })];
+function advancedStart({ start, binMs, timeZone }: { start: number; binMs: number; timeZone: string }): number {
+  const next = nextZonedBinStart({ start, binMs, timeZone });
+  if (next <= start) throw new NonAdvancingBinError({ start, next });
+  return next;
 }
 
 export function binStartsCovering({
@@ -34,12 +48,15 @@ export function binStartsCovering({
 }): number[] {
   const firstStart = zonedBinStartOf({ time: firstTime, binMs, timeZone });
   const lastStart = zonedBinStartOf({ time: lastTime, binMs, timeZone });
-  return startsFrom({
-    start: zonedBinStartOf({ time: firstStart - 1, binMs, timeZone }),
-    last: nextZonedBinStart({ start: lastStart, binMs, timeZone }),
-    binMs,
-    timeZone,
-  });
+  const lastEnd = nextZonedBinStart({ start: lastStart, binMs, timeZone });
+  let start = zonedBinStartOf({ time: firstStart - 1, binMs, timeZone });
+  const starts = [start];
+  while (start < lastEnd) {
+    if (starts.length >= MAX_COVERING_BINS) throw new TooManyBinsError(MAX_COVERING_BINS);
+    start = advancedStart({ start, binMs, timeZone });
+    starts.push(start);
+  }
+  return starts;
 }
 
 function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun }): TimelineCell {

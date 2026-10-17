@@ -1,15 +1,18 @@
 import { SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SELECTION_SUMMARY_TOO_SOON_MESSAGE, DEMO_USERS, SECOND_MS, ShareLinkRole } from '../libs/types/src';
-import { NO_EDITS_TO_SUMMARIZE_MESSAGE, RETRY_SUMMARY_LABEL, SUMMARIZE_EDITS_LABEL, SUMMARY_UP_TO_DATE_MESSAGE } from '../apps/web/src/features/timeline/timeline-copy';
+import { EARLIER_STATE_LABEL, NO_EDITS_TO_SUMMARIZE_MESSAGE, RETRY_SUMMARY_LABEL, SUMMARIZE_EDITS_LABEL, SUMMARY_UP_TO_DATE_MESSAGE } from '../apps/web/src/features/timeline/timeline-copy';
 import { shareAndAccept, typeInParagraph } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import { ANA, BRUNO, BUDGET, BUDGET_PARAGRAPH, filterBy, HIRING, HIRING_PARAGRAPH, readSelectionCalls, summarizeButton, summaryCard, twoAuthorsInTwoTopics, waitForBands } from './timeline';
 
 const CAIO = DEMO_USERS[2]!;
 const SUMMARY_TIMEOUT_MS = 30_000;
+const COOLDOWN_PASS_TIMEOUT_MS = SELECTION_SUMMARY_COOLDOWN_MS + 30_000;
+const PROBE_TIMEOUT_MS = 5_000;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const HIRING_PREFIX = 'Hiring:';
 const BRUNO_FILTER = `@${BRUNO}`;
 const ANA_FILTER = `@${ANA}`;
+const WRITER_TEXT = ' and a writer';
 const FAILING_TEXT = ' FAIL-SUMMARY';
 const NOTHING_FILTER = 'zzz-nothing';
 const RETRY_SECONDS_PATTERN = /Try again in (\d+) s\./;
@@ -39,6 +42,22 @@ test('another member with the same filter reads the cached summary without a mod
   expect(await readSelectionCalls(bruno.page.request)).toBe(callsAfterSummary);
   await expect(summarizeButton(bruno.page)).toBeDisabled();
   await expect(summarizeButton(bruno.page)).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE);
+});
+
+test('a new edit marks the summary as for an earlier state and Summarize refreshes it after the cooldown', async ({ browser }) => {
+  const { ana, bruno } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await filterBy({ page: ana.page, text: BRUNO_FILTER });
+  const before = await readSelectionCalls(ana.page.request);
+  await summarizeButton(ana.page).click();
+  await expect(summaryCard(ana.page)).toContainText(`${BRUNO} edited`, { timeout: SUMMARY_TIMEOUT_MS });
+  await typeInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: WRITER_TEXT });
+  await expect(summaryCard(ana.page)).toContainText(EARLIER_STATE_LABEL, { timeout: SUMMARY_TIMEOUT_MS });
+  await expect(async () => {
+    await summarizeButton(ana.page).click({ timeout: PROBE_TIMEOUT_MS });
+    await expect(summaryCard(ana.page)).not.toContainText(EARLIER_STATE_LABEL, { timeout: PROBE_TIMEOUT_MS });
+  }).toPass({ timeout: COOLDOWN_PASS_TIMEOUT_MS });
+  expect(await readSelectionCalls(ana.page.request)).toBe(before + 2);
 });
 
 test('a second filter inside the cooldown shows when to retry', async ({ browser }) => {

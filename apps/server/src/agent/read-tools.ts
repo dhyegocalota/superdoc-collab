@@ -2,8 +2,11 @@ import { BIN_LADDER_MS, MAX_BINS } from '@superdoc-collab/history';
 import {
   AgentScope,
   AgentTool,
+  canonicalTimeZone,
   DocumentRole,
   FILTER_MAX_LENGTH,
+  INVALID_TIME_ZONE_MESSAGE,
+  isSupportedTimeZone,
   RETRY_AFTER_SECONDS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
 } from '@superdoc-collab/types';
@@ -18,7 +21,12 @@ import { absentAsNull, AgentToolError, jsonResult } from './tool-results';
 type ReadTool =
   AgentTool.ListDocuments | AgentTool.GetTimeline | AgentTool.GetBinEdits | AgentTool.ListTopics | AgentTool.SummarizeSelection;
 
+const timeZoneInput = z
+  .string()
+  .refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE)
+  .describe('The IANA time zone the bins are aligned to, for example UTC or America/Sao_Paulo');
 const filterInput = {
+  timeZone: timeZoneInput,
   term: z.string().min(1).max(FILTER_MAX_LENGTH).optional().describe('Only edits whose text contains this term'),
   author: z.string().min(1).max(FILTER_MAX_LENGTH).optional().describe('Only edits by authors whose name or email contains this text'),
 };
@@ -50,6 +58,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
         documentId: input.documentId,
         filter: { term: absentAsNull(input.term), author: absentAsNull(input.author) },
         binMs: null,
+        timeZone: canonicalTimeZone(input.timeZone),
       });
       services.insights.topics.onTimelineRead(input.documentId);
       return jsonResult(timeline);
@@ -73,6 +82,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
           filter: { term: absentAsNull(input.term), author: absentAsNull(input.author) },
           binStart: input.binStart,
           binMs: absentAsNull(input.binMs),
+          timeZone: canonicalTimeZone(input.timeZone),
         }),
       ),
   }),
@@ -107,6 +117,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
         topic: absentAsNull(input.topic),
         at: absentAsNull(input.at),
         binMs: absentAsNull(input.binMs),
+        timeZone: canonicalTimeZone(input.timeZone),
       };
       const { selection: summaries } = context.services.insights;
       const result = summaries.request({ documentId, selection });

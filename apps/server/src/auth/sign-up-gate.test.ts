@@ -159,3 +159,10 @@ test('a sign-in is still normalised by the credentials hook', async () => {
   expect(await currentUserId({ server, cookie })).toBe(server.admin.id);
   await server.stop();
 });
+
+test('a sign-up stores the canonical spelling of its time zone', async () => {
+  const server = await startTestServer({ claim: false });
+  expect((await signUp({ server, email: 'eve@example.com', timeZone: 'america/sao_paulo' })).status).toBe(HttpStatus.Ok);
+  expect(await meOf({ server, email: 'eve@example.com' })).toMatchObject({ timeZone: TIME_ZONE });
+  await server.stop();
+});

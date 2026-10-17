@@ -111,12 +111,13 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   });
 
   const requestedBinStart = pendingBinStart !== null ? pendingBinStart : at;
+  const requestedBin = timeline?.bins.find((candidate) => candidate.start === requestedBinStart);
   const isShownFailed = shownVersion !== null && shownVersion.sequence === failedFrameSequence;
 
   return {
     state,
     requestedBinStart,
-    requestedBinEnd: requestedBinStart !== null && timeline ? requestedBinStart + timeline.binMs : null,
+    requestedBinEnd: requestedBin ? requestedBin.end : null,
     requestedSequence,
     shownVersion: at === null || isShownFailed ? null : shownVersion,
     isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,

@@ -10,6 +10,7 @@ export enum AppRoute {
   OAuthConsent = '/oauth/consent',
   ConnectedApps = '/settings/connected-apps',
   Admin = '/admin',
+  Settings = '/settings',
 }
 
 export enum ApiPath {

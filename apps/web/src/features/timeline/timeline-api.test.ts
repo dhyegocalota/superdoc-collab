@@ -41,6 +41,8 @@ const SELECTION: EditSelection = { term: 'budget', author: 'ana', topic: 'band-0
 const EMPTY_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
+const TIME_ZONE = 'America/Sao_Paulo';
+const ZONE_QUERY = `timeZone=${encodeURIComponent(TIME_ZONE)}`;
 const UNAVAILABLE_REASON = 'The language model is unavailable: LLM_MODEL is not set on the server.';
 
 afterEach(() => vi.restoreAllMocks());
@@ -49,20 +51,20 @@ function respondWith(response: Response) {
   return vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
 }
 
-test('fetchTimeline sends only the present filters', async () => {
+test('fetchTimeline always sends the zone and only the present filters', async () => {
   const filteredSpy = respondWith(jsonResponse({ body: { bins: [] } }));
-  await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: 'a b', author: null } });
-  expect(filteredSpy).toHaveBeenLastCalledWith(`${TIMELINE_PATH}?term=a+b`, expect.anything());
+  await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: 'a b', author: null }, timeZone: TIME_ZONE });
+  expect(filteredSpy).toHaveBeenLastCalledWith(`${TIMELINE_PATH}?${ZONE_QUERY}&term=a+b`, expect.anything());
   const bareSpy = respondWith(jsonResponse({ body: { bins: [] } }));
-  await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null } });
-  expect(bareSpy).toHaveBeenLastCalledWith(TIMELINE_PATH, expect.anything());
+  await fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null }, timeZone: TIME_ZONE });
+  expect(bareSpy).toHaveBeenLastCalledWith(`${TIMELINE_PATH}?${ZONE_QUERY}`, expect.anything());
 });
 
 test('fetchTimeline throws DocumentUnavailableError on 404', async () => {
   respondWith(new Response(null, { status: HttpStatus.NotFound }));
-  await expect(fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null } })).rejects.toBeInstanceOf(
-    DocumentUnavailableError,
-  );
+  await expect(
+    fetchTimeline({ documentId: DOCUMENT_ID, filter: { term: null, author: null }, timeZone: TIME_ZONE }),
+  ).rejects.toBeInstanceOf(DocumentUnavailableError);
 });
 
 test('fetchVersion maps 202, 200 and 503 and throws on 404', async () => {
@@ -108,15 +110,15 @@ const SELECTION_QUERY = `term=budget&author=ana&topic=band-0&at=${SELECTION.at}`
 
 test('a selection summary URL carries the present parts and a bin size only with a period', async () => {
   const cases: { selection: EditSelection; binMs: number | null; path: string }[] = [
-    { selection: SELECTION, binMs: null, path: `${SELECTION_PATH}?${SELECTION_QUERY}` },
-    { selection: SELECTION, binMs: MINUTE_MS, path: `${SELECTION_PATH}?${SELECTION_QUERY}&binMs=${MINUTE_MS}` },
-    { selection: EMPTY_SELECTION, binMs: MINUTE_MS, path: SELECTION_PATH },
-    { selection: EMPTY_SELECTION, binMs: null, path: SELECTION_PATH },
+    { selection: SELECTION, binMs: null, path: `${SELECTION_PATH}?${ZONE_QUERY}&${SELECTION_QUERY}` },
+    { selection: SELECTION, binMs: MINUTE_MS, path: `${SELECTION_PATH}?${ZONE_QUERY}&${SELECTION_QUERY}&binMs=${MINUTE_MS}` },
+    { selection: EMPTY_SELECTION, binMs: MINUTE_MS, path: `${SELECTION_PATH}?${ZONE_QUERY}` },
+    { selection: EMPTY_SELECTION, binMs: null, path: `${SELECTION_PATH}?${ZONE_QUERY}` },
   ];
   const requested = await cases.reduce<Promise<string[]>>(async (previous, { selection, binMs }) => {
     const paths = await previous;
     const fetchSpy = respondWith(jsonResponse({ body: NONE_VIEW }));
-    expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection, binMs })).toEqual(NONE_VIEW);
+    expect(await fetchSelectionSummary({ documentId: DOCUMENT_ID, selection, binMs, timeZone: TIME_ZONE })).toEqual(NONE_VIEW);
     return [...paths, String(fetchSpy.mock.lastCall![0])];
   }, Promise.resolve([]));
   expect(requested).toEqual(cases.map(({ path }) => path));
@@ -124,9 +126,9 @@ test('a selection summary URL carries the present parts and a bin size only with
 
 test('requesting a summary posts the same selection', async () => {
   const fetchSpy = respondWith(jsonResponse({ body: NONE_VIEW, status: HttpStatus.Accepted }));
-  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null });
+  await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE });
   expect(fetchSpy).toHaveBeenCalledWith(
-    `${SELECTION_PATH}?term=budget&author=ana&topic=band-0&at=${SELECTION.at}`,
+    `${SELECTION_PATH}?${ZONE_QUERY}&${SELECTION_QUERY}`,
     expect.objectContaining({ method: HttpMethod.Post }),
   );
 });
@@ -139,7 +141,7 @@ test('a summary requested too soon carries the wait from Retry-After', async () 
       headers: { [RETRY_AFTER_HEADER]: '12' },
     }),
   );
-  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null }).catch(
+  const error = await requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE }).catch(
     (caught: unknown) => caught,
   );
   expect(error).toBeInstanceOf(SummaryTooSoonError);
@@ -149,38 +151,40 @@ test('a summary requested too soon carries the wait from Retry-After', async () 
 test.each([null, 'soon'])('a Retry-After of %s waits the shortest retry', async (header) => {
   const headers = header === null ? undefined : { [RETRY_AFTER_HEADER]: header };
   respondWith(new Response('{}', { status: HttpStatus.TooManyRequests, headers }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toMatchObject({
+  await expect(
+    requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE }),
+  ).rejects.toMatchObject({
     retryAfterMs: MIN_RETRY_AFTER_MS,
   });
 });
 
 test('an unavailable model surfaces the server reason', async () => {
   respondWith(jsonResponse({ body: { error: UNAVAILABLE_REASON }, status: HttpStatus.ServiceUnavailable }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
-    new ApiRequestError(UNAVAILABLE_REASON),
-  );
+  await expect(
+    requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE }),
+  ).rejects.toEqual(new ApiRequestError(UNAVAILABLE_REASON));
 });
 
 test('a 503 without a JSON error falls back to the status message', async () => {
   respondWith(new Response('<html>busy</html>', { status: HttpStatus.ServiceUnavailable }));
-  await expect(requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
-    new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })),
-  );
+  await expect(
+    requestSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE }),
+  ).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: SUMMARIZE_EDITS_SUBJECT, status: HttpStatus.ServiceUnavailable })));
 });
 
 test('a selection summary of a document that is gone is unavailable', async () => {
   respondWith(new Response('{}', { status: HttpStatus.NotFound }));
-  await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toBeInstanceOf(
-    DocumentUnavailableError,
-  );
+  await expect(
+    fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE }),
+  ).rejects.toBeInstanceOf(DocumentUnavailableError);
 });
 
 test.each([HttpStatus.Forbidden, HttpStatus.ServiceUnavailable])(
   'reading a selection summary answered with %s fails with the status message',
   async (status) => {
     respondWith(new Response('{}', { status }));
-    await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null })).rejects.toEqual(
-      new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })),
-    );
+    await expect(
+      fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION, binMs: null, timeZone: TIME_ZONE }),
+    ).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status })));
   },
 );

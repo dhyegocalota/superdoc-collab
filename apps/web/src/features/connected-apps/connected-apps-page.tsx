@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CLIENT_LOAD_ERROR_MESSAGE, scopeLabel } from '@/features/oauth-consent/oauth-consent-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { useTimeZone } from '@/lib/use-time-zone';
 import type { ConnectedApp } from './connected-apps-api';
 import {
   BACK_TO_DOCUMENTS_LABEL,
@@ -27,6 +28,7 @@ const SKELETON_ROWS = 2;
 
 function ConnectedAppRow({ app }: { app: ConnectedApp }) {
   const revoke = useRevokeConnectedApp();
+  const { timeZone } = useTimeZone();
   const displayName = app.clientName ? app.clientName : UNNAMED_CLIENT_LABEL;
 
   return (
@@ -35,7 +37,7 @@ function ConnectedAppRow({ app }: { app: ConnectedApp }) {
         <p className="font-medium">{displayName}</p>
         {app.isNameUnavailable && <ErrorMessage>{CLIENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         <p className="text-sm text-muted-foreground">
-          {CONNECTED_ON_LABEL} {formatTimestamp(app.connectedAt)}
+          {CONNECTED_ON_LABEL} {formatTimestamp({ time: app.connectedAt, timeZone })}
         </p>
         <ul className="list-disc space-y-1 pl-5 text-sm">
           {app.scopes.map((scope) => (

@@ -5,6 +5,7 @@ import {
   SELECTION_SUMMARY_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
+  UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
@@ -28,7 +29,7 @@ const MALLORY = 'Mallory';
 const SILVA = { id: 'user-silva', name: 'Silva, Ana', actor: ClientActor.Human };
 const PROVIDER_FAILURE = 'provider exploded';
 const FOREIGN_KEY_FAILURE = 'FOREIGN KEY constraint failed';
-const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null };
+const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null, timeZone: UTC_TIME_ZONE };
 const TERM_SELECTION: RequestedSelection = { ...BRUNO_SELECTION, author: null, term: 'budget' };
 const ANSWER = { sentence: 'Bruno added a designer.', authors: [BRUNO.name] };
 const FIRST_CURSOR = 10;
@@ -394,7 +395,7 @@ test('a throw while preparing the prompt is a stored failure and the selection k
     languageModel: readyModel(model),
     snapshot: snapshotOf({ runs: [orphanRun] }),
   });
-  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS });
+  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS, timeZone: UTC_TIME_ZONE });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
@@ -450,7 +451,7 @@ test('a failure that cannot be stored is logged without the selection key', asyn
   vi.spyOn(server.services.insightsRepository, 'saveSelectionFailure').mockImplementation(() => {
     throw new Error(FOREIGN_KEY_FAILURE);
   });
-  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS });
+  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS, timeZone: UTC_TIME_ZONE });
   expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
   await jobRunner.idle();
   expect(errors.mock.calls.map((call) => JSON.stringify(call)).join('')).not.toContain(key);

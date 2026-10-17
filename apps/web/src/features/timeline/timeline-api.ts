@@ -56,8 +56,16 @@ export type VersionLoad =
   | { kind: VersionLoadKind.Pending; retryAfterMs: number }
   | { kind: VersionLoadKind.Failed };
 
-export function timelineQueryKey({ documentId, filter }: { documentId: string; filter: TimelineFilter }): unknown[] {
-  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, filter] });
+export function timelineQueryKey({
+  documentId,
+  filter,
+  timeZone,
+}: {
+  documentId: string;
+  filter: TimelineFilter;
+  timeZone: string;
+}): unknown[] {
+  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, filter, timeZone] });
 }
 
 export function summariesQueryKey(documentId: string): unknown[] {
@@ -73,21 +81,31 @@ export function binEditsQueryKey({
   binStart,
   binMs,
   filter,
+  timeZone,
 }: {
   documentId: string;
   binStart: number;
   binMs: number;
   filter: TimelineFilter;
+  timeZone: string;
 }): unknown[] {
-  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter] });
+  return documentQueryKey({ documentId, segments: [DocumentResource.Timeline, EDITS_SEGMENT, binStart, binMs, filter, timeZone] });
 }
 
 export function versionQueryKey({ documentId, sequence }: { documentId: string; sequence: number | null }): unknown[] {
   return documentQueryKey({ documentId, segments: [DocumentResource.Versions, sequence] });
 }
 
-export function selectionSummaryQueryKey({ documentId, selection }: { documentId: string; selection: EditSelection }): unknown[] {
-  return [...summariesQueryKey(documentId), SELECTION_SEGMENT, selection];
+export function selectionSummaryQueryKey({
+  documentId,
+  selection,
+  timeZone,
+}: {
+  documentId: string;
+  selection: EditSelection;
+  timeZone: string;
+}): unknown[] {
+  return [...summariesQueryKey(documentId), SELECTION_SEGMENT, selection, timeZone];
 }
 
 function withQuery({ path, params }: { path: string; params: URLSearchParams }): string {
@@ -96,15 +114,24 @@ function withQuery({ path, params }: { path: string; params: URLSearchParams }):
   return `${path}?${query}`;
 }
 
-function filterParams(filter: TimelineFilter): URLSearchParams {
+function filterParams({ filter, timeZone }: { filter: TimelineFilter; timeZone: string }): URLSearchParams {
   const params = new URLSearchParams();
+  params.set(TimelineQueryParam.TimeZone, timeZone);
   if (filter.term) params.set(TimelineQueryParam.Term, filter.term);
   if (filter.author) params.set(TimelineQueryParam.Author, filter.author);
   return params;
 }
 
-function selectionParams({ selection, binMs }: { selection: EditSelection; binMs: number | null }): URLSearchParams {
-  const params = filterParams(selection);
+function selectionParams({
+  selection,
+  binMs,
+  timeZone,
+}: {
+  selection: EditSelection;
+  binMs: number | null;
+  timeZone: string;
+}): URLSearchParams {
+  const params = filterParams({ filter: selection, timeZone });
   if (selection.topic) params.set(TimelineQueryParam.Topic, selection.topic);
   if (selection.at !== null) params.set(TimelineQueryParam.At, String(selection.at));
   if (selection.at !== null && binMs !== null) params.set(TimelineQueryParam.BinMs, String(binMs));
@@ -127,9 +154,17 @@ function readRetryAfterMs(response: Response): number {
   return Math.max(MIN_RETRY_AFTER_MS, retryAfterMs);
 }
 
-export async function fetchTimeline({ documentId, filter }: { documentId: string; filter: TimelineFilter }): Promise<DocumentTimeline> {
+export async function fetchTimeline({
+  documentId,
+  filter,
+  timeZone,
+}: {
+  documentId: string;
+  filter: TimelineFilter;
+  timeZone: string;
+}): Promise<DocumentTimeline> {
   const path = documentApiPath({ documentId, resource: DocumentResource.Timeline });
-  const response = await apiGet(withQuery({ path, params: filterParams(filter) }));
+  const response = await apiGet(withQuery({ path, params: filterParams({ filter, timeZone }) }));
   assertDocumentAvailable(response);
   return readJson<DocumentTimeline>({ response, subject: 'Timeline request' });
 }
@@ -151,12 +186,16 @@ export async function fetchSelectionSummary({
   documentId,
   selection,
   binMs,
+  timeZone,
 }: {
   documentId: string;
   selection: EditSelection;
   binMs: number | null;
+  timeZone: string;
 }): Promise<SelectionSummaryView> {
-  const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }));
+  const response = await apiGet(
+    withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs, timeZone }) }),
+  );
   assertDocumentAvailable(response);
   return readJson<SelectionSummaryView>({ response, subject: 'Selection summary request' });
 }
@@ -165,13 +204,15 @@ export async function requestSelectionSummary({
   documentId,
   selection,
   binMs,
+  timeZone,
 }: {
   documentId: string;
   selection: EditSelection;
   binMs: number | null;
+  timeZone: string;
 }): Promise<SelectionSummaryView> {
   const response = await apiSend({
-    path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }),
+    path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs, timeZone }) }),
     method: HttpMethod.Post,
     body: null,
   });
@@ -186,13 +227,15 @@ export async function fetchBinEdits({
   binStart,
   binMs,
   filter,
+  timeZone,
 }: {
   documentId: string;
   binStart: number;
   binMs: number;
   filter: TimelineFilter;
+  timeZone: string;
 }): Promise<BinEdits> {
-  const params = filterParams(filter);
+  const params = filterParams({ filter, timeZone });
   params.set(TimelineQueryParam.BinStart, String(binStart));
   params.set(TimelineQueryParam.BinMs, String(binMs));
   const response = await apiGet(withQuery({ path: timelineEditsApiPath(documentId), params }));

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from '@/features/auth/auth-client';
 import { CLIENT_LOAD_ERROR_MESSAGE, SCOPE_LABELS } from '@/features/oauth-consent/oauth-consent-copy';
+import { browserTimeZone } from '@/lib/browser-time-zone';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
@@ -50,7 +51,9 @@ test('lists each client with its name, connected date and scopes', async () => {
   renderWithProviders(<ConnectedAppsPage />);
   const row = (await screen.findByText(CLIENT_NAME)).closest('li');
   if (!row) throw new Error('row not found');
-  expect(within(row).getByText(formatTimestamp(new Date(CONSENT.createdAt).getTime()), { exact: false })).toBeInTheDocument();
+  expect(
+    within(row).getByText(formatTimestamp({ time: new Date(CONSENT.createdAt).getTime(), timeZone: browserTimeZone() }), { exact: false }),
+  ).toBeInTheDocument();
   CONSENT.scopes.forEach((scope) => expect(within(row).getByText(SCOPE_LABELS[scope])).toBeInTheDocument());
   expect(publicClient).toHaveBeenCalledWith({ query: { client_id: CONSENT.clientId } });
 });

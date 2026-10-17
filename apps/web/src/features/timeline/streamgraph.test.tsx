@@ -1,4 +1,4 @@
-import { AgentActionKind, TimelineBandKind } from '@superdoc-collab/types';
+import { AgentActionKind, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
@@ -15,7 +15,10 @@ import {
 } from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
+vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
+
 const WIDTH = 600;
+const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
 const WHITESPACE = /\s+/g;
 const timeline = timelineWith({
   volumes: [
@@ -55,7 +58,7 @@ test('the svg is titled and described with the band count and the time range', (
   expect(container.querySelector('title')!.textContent).toBe(STREAMGRAPH_TITLE);
   const description = container.querySelector('desc')!.textContent!;
   expect(description).toContain('3 bands');
-  expect(description).toContain(formatTimestamp(timeline.bins[0]!.start));
+  expect(description).toContain(formatTimestamp({ time: timeline.bins[0]!.start, timeZone: UTC_TIME_ZONE }));
 });
 
 test('every band is a path labelled with its size and only the first is in the tab order', () => {
@@ -94,7 +97,7 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })));
+  expect(tooltip).toHaveTextContent(asRendered(formatBinRange({ ...timeline.bins[1]!, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE })));
   expect(tooltip).toHaveTextContent('Budget');
   expect(tooltip).toHaveTextContent('+120 characters');
   expect(tooltip).not.toHaveTextContent('−0');
@@ -130,7 +133,7 @@ test('focusing a band shows the tooltip of the selected bin and blurring hides i
   renderGraph({ selectedIndex: 1 });
   fireEvent.focus(budgetBand());
   expect(screen.getByRole('tooltip')).toHaveTextContent(
-    asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })),
+    asRendered(formatBinRange({ ...timeline.bins[1]!, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE })),
   );
   fireEvent.blur(budgetBand());
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
@@ -205,8 +208,10 @@ const LABELLED_TIMELINE = timelineWith({ volumes: Array.from({ length: 60 }, () 
 
 test('the chart shows its first and last moment and how to travel in time', () => {
   renderGraph();
-  expect(screen.getByText(formatBinMoment({ time: timeline.bins[0]!.start, binMs: timeline.binMs }))).toBeVisible();
-  expect(screen.getByText(formatBinMoment({ time: timeline.bins[2]!.start + timeline.binMs, binMs: timeline.binMs }))).toBeVisible();
+  expect(
+    screen.getByText(formatBinMoment({ time: timeline.bins[0]!.start, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE })),
+  ).toBeVisible();
+  expect(screen.getByText(formatBinMoment({ time: timeline.bins[2]!.end, binMs: timeline.binMs, timeZone: UTC_TIME_ZONE }))).toBeVisible();
   expect(screen.getByText(CHART_HINT)).toBeVisible();
 });
 
@@ -432,4 +437,12 @@ test('a tooltip for an action that disappears is gone with it', () => {
     />,
   );
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+test('the bins are labelled in the zone the timeline was built in, not the current preference', () => {
+  const saoPaulo = timelineWith({ volumes: [[100]], names: ['Budget'], timeZone: SAO_PAULO_TIME_ZONE });
+  const props = { width: WIDTH, selectedIndex: 0, highlightedBandId: null, onSelectIndex: vi.fn(), onClearSelection: vi.fn() };
+  render(<Streamgraph timeline={saoPaulo} {...props} />);
+  const first = saoPaulo.bins[0]!;
+  expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();
 });

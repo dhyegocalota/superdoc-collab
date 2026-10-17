@@ -5,7 +5,7 @@
 **Spec:** spec.md
 **Tier:** 🔴
 **Goal:** a remote MCP server inside `apps/server` that any AI client reaches through OAuth as a real person, reads the history, edits the live room in tracked mode, exports and shares, with every AI edit marked "Name · AI".
-**Architecture:** Better Auth becomes the OAuth authorization server and the MCP route the protected resource ([0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)). One `@superdoc/sdk` host opens one session per person and document over a dedicated agent socket path with a room token. The update log, read model and timeline carry a `ClientActor` next to the user ([0024](../../adr/0024-agent-edits-carry-a-human-or-agent-actor.md)).
+**Architecture:** Better Auth becomes the OAuth authorization server and the MCP route the protected resource ([0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)). One `@superdoc/sdk` host opens one session per person and document over a dedicated agent socket path with a room token. The update log, read model and timeline carry a `ClientActor` next to the user ([0029](../../adr/0029-agent-edits-carry-a-human-or-agent-actor.md)).
 **Tech Stack:** Hono 4.13, Hocuspocus 2.15.3, better-auth 1.7.10 with `@better-auth/oauth-provider` and `@better-auth/mcp` 1.7.10, `@modelcontextprotocol/sdk` 1.32.1, `@superdoc/sdk` 2.21.0, drizzle-kit 0.31.11, Vitest, Playwright, React 19 with TanStack Query.
 **Seam:** `UpdateLog.append` and `CollaborationContext` (identity), `createAuth` (OAuth), the HTTP upgrade handler (agent path), `createApp` (MCP route), the timeline pipeline (actor split and marks), the web router (two pages).
 **Assumptions (decided, owner can override):**

@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: [ADR 0024](0024-agent-edits-carry-a-human-or-agent-actor.md), the security review of the reserved "· AI" name rule
+- Inspired by: [ADR 0029](0029-agent-edits-carry-a-human-or-agent-actor.md), the security review of the reserved "· AI" name rule
 
 ## Context
 

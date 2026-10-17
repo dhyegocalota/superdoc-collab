@@ -11,18 +11,18 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 ## Log schema
 - `updates(sequence INTEGER PRIMARY KEY AUTOINCREMENT, document_name, connection_user_id, connection_actor, yjs_client_ids JSON text, server_time INTEGER ms, update_bytes BLOB)`, indexed on `(document_name, sequence)`. (poc/lib/update-log.ts, ADR 0001)
 - `snapshots(document_name, sequence, state BLOB)`, primary key `(document_name, sequence)`. (poc/lib/update-log.ts)
-- `client_identities(document_name, yjs_client_id, user_id, source, actor)`, primary key `(document_name, yjs_client_id)`. (libs/history/src/schema/history.ts, ADR 0002, ADR 0024)
-- `connection_actor` and `actor` are `human` or `agent`, `NOT NULL DEFAULT 'human'`; the migration backfilled every earlier row as `human`. (libs/history/drizzle/history, ADR 0024)
-- `agent_actions(id, document_name, user_id, kind, created_at)` holds actions with no Yjs update; `forget` deletes them with the document. (libs/history/src/agent-actions.ts, ADR 0024)
+- `client_identities(document_name, yjs_client_id, user_id, source, actor)`, primary key `(document_name, yjs_client_id)`. (libs/history/src/schema/history.ts, ADR 0002, ADR 0029)
+- `connection_actor` and `actor` are `human` or `agent`, `NOT NULL DEFAULT 'human'`; the migration backfilled every earlier row as `human`. (libs/history/drizzle/history, ADR 0029)
+- `agent_actions(id, document_name, user_id, kind, created_at)` holds actions with no Yjs update; `forget` deletes them with the document. (libs/history/src/agent-actions.ts, ADR 0029)
 - SQLite runs with `journal_mode = WAL` and `synchronous = NORMAL`. (poc/lib/update-log.ts)
 - `yjs_client_ids` is the sorted, deduplicated set of struct clientIds decoded from the update with `Y.decodeUpdate`. (poc/lib/update-log.ts)
 - Hocuspocus `onChange` is serialized per document and appends every update, except those whose transaction origin is `update-log-replay`. (poc/server/collaboration-server.ts)
 
 ## Identity tiers
 - `Observed`: first socket that carried a struct from the clientId, `INSERT OR IGNORE`. (poc/lib/update-log.ts, ADR 0002)
-- `Declared`: awareness `userId` equals the authenticated socket user, read from `document.connections[*].clients`. It overrides `Observed` only, never another `Declared`, and only when the observed row has the same actor, so a human declaration never claims an agent clientId. (poc/server/collaboration-server.ts, libs/history/src/update-log.ts, ADR 0002, ADR 0024)
-- `resolveAuthorIds` maps struct clientIds to `{ userId, actor }`, returns them deduplicated and sorted by user then actor, and throws when a clientId has no identity. (libs/history/src/edit-events.ts, ADR 0024)
-- An update with no structs (deletion-only) is attributed to the sending connection's user and actor. (libs/history/src/edit-events.ts, ADR 0002, ADR 0024)
+- `Declared`: awareness `userId` equals the authenticated socket user, read from `document.connections[*].clients`. It overrides `Observed` only, never another `Declared`, and only when the observed row has the same actor, so a human declaration never claims an agent clientId. (poc/server/collaboration-server.ts, libs/history/src/update-log.ts, ADR 0002, ADR 0029)
+- `resolveAuthorIds` maps struct clientIds to `{ userId, actor }`, returns them deduplicated and sorted by user then actor, and throws when a clientId has no identity. (libs/history/src/edit-events.ts, ADR 0029)
+- An update with no structs (deletion-only) is attributed to the sending connection's user and actor. (libs/history/src/edit-events.ts, ADR 0002, ADR 0029)
 
 ## Projection
 - `projectEditEvents` applies the baseline merged, then each update in order, diffs block states before and after, and emits `EditEvent{sequence, serverTime, authorIds, blockId, kind, inserted, deleted}`. (poc/lib/edit-events.ts)
@@ -32,8 +32,8 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - Projection costs 0.13-0.17 ms per update. (poc/RESULTS.md, ADR 0001)
 
 ## Agent volume
-- A timeline cell counts a run as agent volume only when every author key of the run is an agent key (`<userId>#agent`); a mixed human and agent run (a relay or reconnect sync) counts as human, while contributors still credit the agent key. (libs/history/src/timeline/runs.ts, ADR 0024)
-- A human clientId first observed through an agent socket is unreachable today: the SDK host lives in the server process. (ADR 0024)
+- A timeline cell counts a run as agent volume only when every author key of the run is an agent key (`<userId>#agent`); a mixed human and agent run (a relay or reconnect sync) counts as human, while contributors still credit the agent key. (libs/history/src/timeline/runs.ts, ADR 0029)
+- A human clientId first observed through an agent socket is unreachable today: the SDK host lives in the server process. (ADR 0029)
 - Agent actions widen the timeline span: the bounds that pick the bin width and the covering bins include the first and last action time, and the marks follow the author filter but not the term filter. (apps/server/src/history/timeline-service.ts)
 
 ## Bootstrap detection
@@ -67,3 +67,7 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - SuperDoc's own room state is 4.45 MB; the log adds about 3%. (poc/RESULTS.md, ADR 0001)
 - Full replay about 900 ms; snapshot + tail replay about 95 ms; append about 33k updates/s. (poc/RESULTS.md)
 - Yjs decode (98 ms) dominates a roughly 100 ms load; the SQLite read is 13 ms. (ADR 0003)
+
+## Timeline bins and time zones
+- Bins are aligned to the reader's zone, not to UTC: a bin starts on a multiple of its size in local wall time, a day bin at local midnight, a week bin on local Monday 00:00, and each bin ends where the next starts, so a day across a DST change is 23 or 25 hours. (libs/history/src/timeline/zoned-time.ts, ADR 0024)
+- `timeZone` is a required query parameter on `/timeline`, `/timeline/edits` and `/summaries/selection`; a missing or unknown zone answers 400. Storage stays epoch milliseconds. (ADR 0024)

@@ -8,6 +8,7 @@ import {
   DEMO_USERS,
   HttpStatus,
   ShareLinkRole,
+  UTC_TIME_ZONE,
 } from '../libs/types/src';
 import {
   callTool,
@@ -64,7 +65,7 @@ test('an AI client connects, edits in tracked mode and is revoked', async ({ bro
   const connectedApps = await ana.context.newPage();
   await openConnectedApps({ page: connectedApps, clientName: connection.clientName });
   await revokeConnectedApp({ page: connectedApps, clientName: connection.clientName });
-  const revokedCall = callTool({ connection, tool: AgentTool.GetTimeline, args: { documentId } });
+  const revokedCall = callTool({ connection, tool: AgentTool.GetTimeline, args: { documentId, timeZone: UTC_TIME_ZONE } });
   expect(await rejectedStatus(revokedCall)).toBe(HttpStatus.Unauthorized);
 });
 

@@ -128,11 +128,11 @@ The reviewer picks the three claims most likely to be wrong and tries to refute 
 
 - [x] Claim 1: Revoke cuts the next call — attack: keep a token, delete consent through the API, call `tools/call`; result: held — evidence: held: after Revoke the kept token answered 401 on tools/list and tools/call, and a second client of another user kept working
 - [x] Claim 2: the agent path exposes no ambient credential — attack: open the agent path from a foreign origin with ana's cookie; result: held — evidence: held: agent path with a foreign origin, ana's cookie and the placeholder token, with no origin, with a forged room token, all `permission-denied`; no credential at all closed; browser path with a foreign origin closed; control from the same origin synced (scratchpad ws-attack.mjs)
-- [ ] Claim 3: AI edits are never attributed to the human — attack: relay an agent update through a human socket before the agent's is logged; result: not run live (needs a hand-built relay of an agent update through a human socket); unit evidence only: relay-attribution.test.ts red at 8fe33ae then green; known limitation in ADR 0024
+- [ ] Claim 3: AI edits are never attributed to the human — attack: relay an agent update through a human socket before the agent's is logged; result: not run live (needs a hand-built relay of an agent update through a human socket); unit evidence only: relay-attribution.test.ts red at 8fe33ae then green; known limitation in ADR 0029
 
 ## Coverage honesty
 
 - ChatGPT as a client is not automated: it needs a public HTTPS URL; covered by the human checklist on Railway.
 - Cursor is not automated: same protocol as Claude Code.
 - Multi-replica behaviour is out of scope (one replica, ADR 0019).
-- Adversarial claim 3 (an agent update relayed through a human socket) is not exercised end to end: it needs a hand-built relay and is a known limitation in ADR 0024. Only the unit tests cover it.
+- Adversarial claim 3 (an agent update relayed through a human socket) is not exercised end to end: it needs a hand-built relay and is a known limitation in ADR 0029. Only the unit tests cover it.

@@ -5,6 +5,7 @@ import {
   OTHER_BAND_ID,
   TimelineBandKind,
   TopicState,
+  UTC_TIME_ZONE,
   type DocumentTimeline,
   type TimelineBand,
 } from '@superdoc-collab/types';
@@ -42,18 +43,21 @@ export function timelineWith({
   kinds = names.map(() => TimelineBandKind.Topic),
   agentVolumes = volumes.map((row) => row.map(() => 0)),
   agentActions = [],
+  timeZone = UTC_TIME_ZONE,
 }: {
   volumes: number[][];
   names: string[];
   kinds?: TimelineBandKind[];
   agentVolumes?: number[][];
   agentActions?: AgentActionView[];
+  timeZone?: string;
 }): DocumentTimeline {
   const bands = names.map((name, index) =>
     bandOf({ name, kind: kinds[index]!, index, count: names.length, volume: volumes.reduce((sum, row) => sum + row[index]!, 0) }),
   );
   const bins = volumes.map((row, binIndex) => ({
     start: FIRST_BIN_START + binIndex * MINUTE_MS,
+    end: FIRST_BIN_START + (binIndex + 1) * MINUTE_MS,
     versionSequence: null,
     byBand: Object.fromEntries(
       bands.map((band, index) => [
@@ -69,6 +73,7 @@ export function timelineWith({
     ),
   }));
   return {
+    timeZone,
     binMs: MINUTE_MS,
     bins,
     bands,

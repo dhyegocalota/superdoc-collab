@@ -388,7 +388,7 @@ Both tests were written after the product code landed, so neither was red first.
 
 ### Merge of main (invite-only access, scenario runs, security gates, time zone preference)
 
-- ADRs 0020 and 0021 of this feature became 0024 and 0025, because main took 0020 for invite-only accounts and 0022 and 0023 for the security gates and scenario runs. Code pointers `NB ADR 0024` and `NB ADR 0025` name this feature's decisions; `NB ADR 0020` in the sign-up gate is main's.
+- ADRs 0020 and 0021 of this feature became 0029 and 0025 (0024 is the time zone ADR of main), because main took 0020 for invite-only accounts and 0022 and 0023 for the security gates and scenario runs. Code pointers `NB ADR 0029` and `NB ADR 0025` name this feature's decisions; `NB ADR 0020` in the sign-up gate is main's.
 - The OAuth tables moved from migration 0004 to `apps/server/drizzle/0005_shocking_doctor_spectrum.sql`; migration 0004 is main's invite-only one. The new migration holds only `CREATE TABLE` and `CREATE INDEX` for the eight OAuth tables.
 - `apps/server/src/auth/auth.ts` keeps one `before` and one `after` hook (credential parsing and token omission) and adds behaviour as plugins, as `docs/learnings/2026-10-17-better-auth-hooks-cannot-be-composed-by-hand.md` says: the admin plugin, the sign-up gate, `jwt`, the resource-defaulting plugin and `mcp`.
 - `/update-user` is no longer disabled, because the sign-in page writes the browser time zone through it. The AI-name protection moved into `updateUserSchema`: a `name` ending in a dot-like separator and `AI` is refused with the reserved-name message, like at sign-up.
@@ -408,3 +408,15 @@ Hypotheses to attack:
 - Names are free-form: "Bob · AI" is accepted at sign-up and update-user and shows no icon. Only the SuperDoc session name keeps " · AI" (tracked-change cards).
 - Hypotheses: a human named "Bob · AI" never shows the icon; an agent edit shows "Ana" plus the icon in avatars, tooltip and top edits; an existing selection summary is recomputed after deploy. Break it by: renaming a person to "Ana · AI" mid-session; opening a document with an old cached summary.
 - E2E selectors: avatar `li[title="<Name>"]` containing `getByRole('img', { name: "Edited by <Name>'s AI" })`; marks `getByRole('img', { name: "<Name>'s AI revealed a share link" })`.
+
+### Merge of main (time zone preference, PR 33)
+
+- Main took ADR 0024 for the time zone decision, so this feature's actor ADR is now 0029; 0025 to 0028 are unchanged. `NB ADR 0029` in the timeline runs names the actor decision.
+- Bins are zone-aware on top of the actor volume: a cell keeps `agentInserted` and `agentDeleted`, a bin has `end`, and agent actions widen the span that the bins cover. The span of the agent marks ends at the zoned end of the last bin.
+- The MCP tools `get_timeline`, `get_bin_edits` and `summarize_selection` take a required `timeZone` (an IANA name), because an AI client has no browser zone. The server canonicalizes it like the HTTP routes do.
+- The Connected apps page formats its dates with the reader's zone.
+
+Hypotheses to attack:
+
+1. Hypothesis: `get_timeline` with `timeZone` `America/Sao_Paulo` returns bins that start at local midnight for a day bin, and an agent action in the last local hour still shows. Break it by: a document whose last action sits in the tail of a daylight saving bin.
+2. Hypothesis: a tool call without `timeZone` is a tool error naming the field.

@@ -67,6 +67,7 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
 }
 
 export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
+  const { timeZone } = timeline;
   const titleId = useId();
   const descriptionId = useId();
   const tooltipId = useId();
@@ -83,7 +84,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   const hasAgentLayer = agentShapes.length > 0;
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
   const firstMoment = timeline.bins[0]!.start;
-  const lastMoment = timeline.bins[lastIndex]!.start + timeline.binMs;
+  const lastMoment = timeline.bins[lastIndex]!.end;
 
   function offsetOf(event: PointerEvent<SVGSVGElement>): number {
     return event.clientX - event.currentTarget.getBoundingClientRect().left;
@@ -191,8 +192,8 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         <desc id={descriptionId}>
           {streamgraphDescription({
             bandCount: timeline.bands.length,
-            from: formatTimestamp(firstMoment),
-            to: formatTimestamp(lastMoment),
+            from: formatTimestamp({ time: firstMoment, timeZone }),
+            to: formatTimestamp({ time: lastMoment, timeZone }),
           })}
         </desc>
         {hasAgentLayer && (
@@ -228,8 +229,10 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         <AgentActionMarks actions={timeline.agentActions} authors={timeline.authors} timeX={layout.timeX} chartWidth={width} />
       )}
       <div className="flex justify-between text-xs text-muted-foreground">
-        <time dateTime={new Date(firstMoment).toISOString()}>{formatBinMoment({ time: firstMoment, binMs: timeline.binMs })}</time>
-        <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs })}</time>
+        <time dateTime={new Date(firstMoment).toISOString()}>
+          {formatBinMoment({ time: firstMoment, binMs: timeline.binMs, timeZone })}
+        </time>
+        <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs, timeZone })}</time>
       </div>
       {hasUnlabelledBand && <StreamgraphLegend bands={layout.shapes.map((shape) => shape.band)} maxVolume={maxVolume} />}
       {hasAgentLayer && <AgentLegend />}

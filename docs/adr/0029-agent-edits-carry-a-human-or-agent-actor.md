@@ -1,4 +1,4 @@
-# 0024. Agent edits carry an actor next to the user they act for
+# 0029. Agent edits carry an actor next to the user they act for
 
 - Status: Accepted
 - Date: 2026-10-17

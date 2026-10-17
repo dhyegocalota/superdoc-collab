@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FAKE_OPENROUTER_ORIGIN, FAKE_OPENROUTER_PORT } from './e2e/fake-openrouter-origin';
+import { E2E_TIME_ZONE } from './e2e/time-zone';
 import {
   BUILD_AND_START_COMMAND,
   FAKE_OPENROUTER_COMMAND,
@@ -28,7 +29,7 @@ export default defineConfig({
   workers: process.env.CI ? CONTINUOUS_INTEGRATION_WORKERS : LOCAL_WORKERS,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
-  use: { baseURL: ORIGIN, trace: 'retain-on-failure' },
+  use: { baseURL: ORIGIN, trace: 'retain-on-failure', timezoneId: E2E_TIME_ZONE },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {

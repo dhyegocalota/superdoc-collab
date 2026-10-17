@@ -4,6 +4,7 @@ import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
 import { SignOutButton } from '@/features/auth/sign-out-button';
 import { useSession } from '@/features/auth/use-session';
+import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
 import { APP_NAME } from '@/lib/app-copy';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { ErrorMessage } from '@/components/error-message';
@@ -44,6 +45,9 @@ export function DocumentsPage() {
               {ADMIN_LINK_LABEL}
             </Link>
           )}
+          <Link to={AppRoute.Settings} className="text-sm hover:underline">
+            {SETTINGS_LINK_LABEL}
+          </Link>
           <SignOutButton />
         </div>
       </header>

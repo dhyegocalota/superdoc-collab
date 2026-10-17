@@ -3,6 +3,7 @@ import {
   assignBlocks,
   authorKey,
   binStartsCovering,
+  nextZonedBinStart,
   buildBands,
   buildBins,
   chooseBinMs,
@@ -183,11 +184,19 @@ function timeBoundsOf({
   return { first: Math.min(editBounds.first, actionBounds.first), last: Math.max(editBounds.last, actionBounds.last) };
 }
 
-function spanOfBins({ binStarts, binMs }: { binStarts: number[]; binMs: number }): { from: number; until: number } | null {
+function spanOfBins({
+  binStarts,
+  binMs,
+  timeZone,
+}: {
+  binStarts: number[];
+  binMs: number;
+  timeZone: string;
+}): { from: number; until: number } | null {
   const first = binStarts[0];
   const last = binStarts.at(-1);
   if (first === undefined || last === undefined) return null;
-  return { from: first, until: last + binMs };
+  return { from: first, until: nextZonedBinStart({ start: last, binMs, timeZone }) };
 }
 
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
@@ -213,13 +222,15 @@ function matchedRunsOf({
   pipeline,
   filter,
   binMs,
+  timeZone,
 }: {
   services: AppServices;
   pipeline: TimelinePipeline;
   filter: TimelineFilter;
   binMs: number;
+  timeZone: string;
 }): { allRuns: EditRun[]; matchedRuns: EditRun[] } {
-  const allRuns = groupIntoRuns({ events: pipeline.events, binMs });
+  const allRuns = groupIntoRuns({ events: pipeline.events, binMs, timeZone });
   return {
     allRuns,
     matchedRuns: filterRuns({
@@ -235,28 +246,38 @@ export function buildDocumentTimeline({
   documentId,
   filter,
   binMs,
+  timeZone,
 }: {
   services: AppServices;
   documentId: string;
   filter: TimelineFilter;
   binMs: number | null;
+  timeZone: string;
 }): DocumentTimeline {
   const pipeline = readTimelinePipeline({ services, documentId });
   const bounds = timeBoundsOf({ services, documentId, pipeline });
   const chosenBinMs = binMsOf({ binMs, bounds });
-  const { allRuns, matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
+  const { allRuns, matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const marks = services.readModel.marks(documentId);
-  const binStarts = bounds === null ? [] : binStartsCovering({ firstTime: bounds.first, lastTime: bounds.last, binMs: chosenBinMs });
+  const binStarts =
+    bounds === null ? [] : binStartsCovering({ firstTime: bounds.first, lastTime: bounds.last, binMs: chosenBinMs, timeZone });
   const agentActions = readAgentActions({
     services,
     documentId,
-    span: spanOfBins({ binStarts, binMs: chosenBinMs }),
+    span: spanOfBins({ binStarts, binMs: chosenBinMs, timeZone }),
   });
   const authors = { ...pipeline.authors, ...agentActions.authors };
   const matchingKeys = matchingAuthorKeys({ services, authors, author: filter.author });
   return {
+    timeZone,
     binMs: chosenBinMs,
-    bins: buildBins({ runs: matchedRuns, binStarts, binMs: chosenBinMs, versionSequenceAt: (time) => versionSequenceAt({ marks, time }) }),
+    bins: buildBins({
+      runs: matchedRuns,
+      binStarts,
+      binMs: chosenBinMs,
+      timeZone,
+      versionSequenceAt: (time) => versionSequenceAt({ marks, time }),
+    }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
     authors,
@@ -272,16 +293,18 @@ export function buildBinEdits({
   filter,
   binStart,
   binMs,
+  timeZone,
 }: {
   services: AppServices;
   documentId: string;
   filter: TimelineFilter;
   binStart: number;
   binMs: number | null;
+  timeZone: string;
 }): BinEdits {
   const pipeline = readTimelinePipeline({ services, documentId });
   const chosenBinMs = binMsOf({ binMs, bounds: timeBoundsOf({ services, documentId, pipeline }) });
-  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
+  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const runs = matchedRuns
     .filter((run) => run.binStart === binStart)
     .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }) => ({
@@ -321,7 +344,7 @@ export function buildSelectionSnapshot({
 }): SelectionSnapshot {
   const pipeline = readTimelinePipeline({ services, documentId });
   const binMs = binMsOf({ binMs: selection.binMs, bounds: timeBoundsOf({ services, documentId, pipeline }) });
-  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs });
+  const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs, timeZone: selection.timeZone });
   return {
     runs: narrowRuns({ runs: matchedRuns, bandId: selection.topic, binStart: selection.at }),
     authors: pipeline.authors,

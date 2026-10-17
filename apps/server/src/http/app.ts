@@ -37,6 +37,7 @@ import { createHistoryRoutes } from '../history/history-routes';
 import { createVersionsRoutes } from '../history/versions-routes';
 import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from '../collaboration/version-rooms';
+import { timelineErrorResponse } from '../history/timeline-errors';
 import { createTimelineRoutes } from '../history/timeline-routes';
 import { withClientAddress } from './client-address';
 import { health } from './health';
@@ -91,6 +92,8 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     if (error instanceof DocumentRoleTooLowError) return context.json({ error: FORBIDDEN_MESSAGE }, HttpStatus.Forbidden);
     if (error instanceof AgentVerificationUnavailableError) return context.body(null, HttpStatus.ServiceUnavailable);
     if (error instanceof HTTPException) return error.getResponse();
+    const timelineResponse = timelineErrorResponse({ error, context });
+    if (timelineResponse) return timelineResponse;
     throw error;
   });
   app.use(

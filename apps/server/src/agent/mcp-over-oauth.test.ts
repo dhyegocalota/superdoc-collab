@@ -11,6 +11,7 @@ import {
   ShareLinkRole,
   type DocumentTimeline,
   type ShareLinks,
+  UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import JSZip from 'jszip';
 import { afterAll, beforeAll, expect, test } from 'vitest';
@@ -71,7 +72,7 @@ test('a client with every scope lists every tool', async () => {
 });
 
 test('get_timeline returns what the timeline API returns', async () => {
-  const timeline = (await callJson({ name: AgentTool.GetTimeline, args: { documentId } })) as DocumentTimeline;
+  const timeline = (await callJson({ name: AgentTool.GetTimeline, args: { documentId, timeZone: UTC_TIME_ZONE } })) as DocumentTimeline;
   expect(timeline).toEqual(await readTimeline({ server, documentId, cookie: owner.cookie }));
 });
 

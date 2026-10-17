@@ -5,6 +5,7 @@ import {
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   type DocumentsList,
   type DocumentTopics,
+  UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
@@ -37,8 +38,8 @@ const ROLE_BELOW: Record<DocumentRole, DocumentRole> = {
   [DocumentRole.Reader]: DocumentRole.Reader,
 };
 const SELECTION_ANSWER = { sentence: 'Ana added text.', authors: ['Ana'] };
-const OWNER_SELECTION = { author: 'ana' };
-const OTHER_SELECTION = { term: 'x' };
+const OWNER_SELECTION = { author: 'ana', timeZone: UTC_TIME_ZONE };
+const OTHER_SELECTION = { term: 'x', timeZone: UTC_TIME_ZONE };
 const EVENT_COUNT = 3;
 
 let server: TestServer;
@@ -103,7 +104,7 @@ test.each([
   { input: { term: 'x' }, query: 'term=x' },
 ])('get_timeline returns what the HTTP timeline returns for $input', async ({ input, query }) => {
   const { context } = toolContext({ server, userId: reader.id });
-  const result = await callAgentTool({ tool: AgentTool.GetTimeline, input: { documentId, ...input }, context });
+  const result = await callAgentTool({ tool: AgentTool.GetTimeline, input: { documentId, timeZone: UTC_TIME_ZONE, ...input }, context });
   expect(resultJson(result)).toEqual(await readTimeline({ server, documentId, cookie: reader.cookie, query }));
 });
 
@@ -114,7 +115,7 @@ test('get_bin_edits returns the edit runs of a bin of the timeline', async () =>
   const { context } = toolContext({ server, userId: reader.id });
   const result = await callAgentTool({
     tool: AgentTool.GetBinEdits,
-    input: { documentId, binStart: editedBin!.start, binMs: timeline.binMs },
+    input: { documentId, timeZone: UTC_TIME_ZONE, binStart: editedBin!.start, binMs: timeline.binMs },
     context,
   });
   expect(resultJson(result)).toMatchObject({

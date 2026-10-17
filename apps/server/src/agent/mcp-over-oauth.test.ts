@@ -1,6 +1,5 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { buildSeedDocx } from '@superdoc-history/history';
 import {
   AgentActionKind,
   AgentScope,
@@ -14,14 +13,13 @@ import {
   type ShareLinks,
 } from '@superdoc-history/types';
 import JSZip from 'jszip';
-import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { memberWithRole } from '../testing/collaboration-client';
 import { connectAgentClient, deleteConsent, type ConnectedAgentClient } from '../testing/oauth-client';
 import { readTimeline } from '../testing/timeline-client';
+import { seededDocument } from './agent-tool-fixtures';
 import { signedInOwner, type TestServer, type TestUser } from '../testing/test-server';
 
-const SEED_TEXT = 'Budget is approved.';
 const REPLACEMENT = 'Plan';
 const OWNER_AGENT_NAME = 'Ana · AI';
 const PROJECTION_TIMEOUT_MS = 30_000;
@@ -56,18 +54,11 @@ async function callJson({ name, args }: { name: AgentTool; args: Record<string, 
 
 beforeAll(async () => {
   ({ server, owner } = await signedInOwner());
-  reader = await memberWithRole({ server, documentId: await seededDocument(), role: DocumentRole.Reader });
+  documentId = await seededDocument({ server, owner });
+  reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   connected = await connectAgentClient({ server, user: owner });
   client = await connectMcpClient(connected.accessToken);
 });
-
-async function seededDocument(): Promise<string> {
-  documentId = randomUUID();
-  server.services.documents.create({ id: documentId, title: 'Plan', ownerUserId: owner.id });
-  await server.services.storage.put({ documentId, bytes: await buildSeedDocx([{ text: SEED_TEXT, trackedChanges: [] }]) });
-  server.services.runtime.importRevisions(documentId);
-  return documentId;
-}
 
 afterAll(async () => {
   await Promise.all(clients.map((mcpClient) => mcpClient.close().catch(() => undefined)));
@@ -107,7 +98,7 @@ test('export_docx returns the live document with its tracked change as a DOCX re
   expect(await archive.file('word/document.xml')!.async('string')).toContain(REPLACEMENT);
 });
 
-test('rotating a share link leaves a mark on the timeline and the old link stops resolving', async () => {
+test('exporting and rotating a share link leave marks on the timeline', async () => {
   const before = server.services.shareLinks.links(documentId);
   const rotated = (await callJson({ name: AgentTool.RotateShareLink, args: { documentId, role: ShareLinkRole.Read } })) as ShareLinks;
   expect(rotated[ShareLinkRole.Read]).not.toBe(before[ShareLinkRole.Read]);

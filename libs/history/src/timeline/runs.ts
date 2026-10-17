@@ -27,9 +27,13 @@ export type EditRun = {
 };
 
 // NB ADR 0020: the author key of an agent is `<userId>#agent`, so a person and their AI are separate authors with the same id.
+export function agentAuthorKey(userId: string): string {
+  return `${userId}${AGENT_AUTHOR_SUFFIX}`;
+}
+
 export function authorKey(author: EventAuthor): string {
   if (author.id === null) return `${IMPORTED_AUTHOR_PREFIX}${author.name}`;
-  if (author.actor === ClientActor.Agent) return `${author.id}${AGENT_AUTHOR_SUFFIX}`;
+  if (author.actor === ClientActor.Agent) return agentAuthorKey(author.id);
   return author.id;
 }
 

@@ -14,6 +14,7 @@ const DOCUMENTED_VARIABLE_PATTERN = /^([A-Z_]+)=/gm;
 const EMPTY_OPENROUTER_KEY_PATTERN = /^OPENROUTER_API_KEY=$/m;
 const OPENROUTER_KEY_PATTERN = 'sk-or-v1-[A-Za-z0-9]{16,}';
 const GIT_GREP_NO_MATCH_STATUS = 1;
+const COMMAND_TIMEOUT_MILLISECONDS = 30_000;
 const DOCKER_COMPOSE_REQUIREMENT_VARIABLE = 'REQUIRE_DOCKER_COMPOSE';
 const DOCKER_COMPOSE_REQUIRED = 'true';
 const DOCKER_COMPOSE_REQUIRED_MESSAGE = 'Docker Compose v2 is required in CI';
@@ -43,13 +44,13 @@ type ComposeService = {
 type ComposeConfig = { services: Record<string, ComposeService> };
 type ComposeRun = { status: number | null; stdout: string; stderr: string };
 
-const isDockerComposeAvailable = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8' }).status === 0;
+const isDockerComposeAvailable = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS }).status === 0;
 const isDockerComposeRequired = process.env[DOCKER_COMPOSE_REQUIREMENT_VARIABLE] === DOCKER_COMPOSE_REQUIRED;
 
 if (isDockerComposeRequired && !isDockerComposeAvailable) throw new Error(DOCKER_COMPOSE_REQUIRED_MESSAGE);
 
 function renderCompose(variables: Record<string, string>): ComposeRun {
-  const result = spawnSync('docker', ['compose', '--env-file', NO_ENVIRONMENT_FILE, '-f', DEPLOY_COMPOSE_FILE, 'config', '--format', 'json'], { cwd: REPOSITORY_ROOT, env: { PATH: process.env.PATH, HOME: process.env.HOME, ...variables }, encoding: 'utf8' });
+  const result = spawnSync('docker', ['compose', '--env-file', NO_ENVIRONMENT_FILE, '-f', DEPLOY_COMPOSE_FILE, 'config', '--format', 'json'], { cwd: REPOSITORY_ROOT, env: { PATH: process.env.PATH, HOME: process.env.HOME, ...variables }, encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
@@ -80,7 +81,7 @@ describe('Dokploy compose file', () => {
   });
 
   test('no OpenRouter key is committed', () => {
-    expect(spawnSync('git', ['grep', '-nE', OPENROUTER_KEY_PATTERN], { cwd: REPOSITORY_ROOT, encoding: 'utf8' }).status).toBe(GIT_GREP_NO_MATCH_STATUS);
+    expect(spawnSync('git', ['grep', '-nE', OPENROUTER_KEY_PATTERN], { cwd: REPOSITORY_ROOT, encoding: 'utf8', timeout: COMMAND_TIMEOUT_MILLISECONDS }).status).toBe(GIT_GREP_NO_MATCH_STATUS);
   });
 });
 

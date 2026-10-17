@@ -6,7 +6,7 @@
 **Assumptions (decided, owner can override):**
 - Behaviour-preserving refactor plus a dependency override: no tester; the lead ticks the test plan with the gate output and the reviewer refutes it ([ADR 0030](../../adr/0030-the-local-gate-runs-what-the-diff-can-break.md)).
 - The override is scoped to `@esbuild-kit/core-utils>esbuild`, never to `esbuild` globally, so Vite's and tsx's own esbuild resolution is untouched. `drizzle-kit` never loads the loader it declares; the override is proven by exercising `core-utils` directly.
-- The spike's alert is dismissed rather than fixed: there is no fixed `braces`, and the spike is throwaway and never deployed (`CLAUDE.md` → Layout). [PR #41](https://github.com/dhyegocalota/superdoc-collab/pull/41) removes the whole `spikes/` tree, manifest included.
+- The spike's alert is dismissed rather than fixed: there is no fixed `braces`, and the spike is throwaway and never deployed; [PR #41](https://github.com/dhyegocalota/superdoc-collab/pull/41) removed the whole `spikes/` tree, manifest included.
 
 ## File map
 

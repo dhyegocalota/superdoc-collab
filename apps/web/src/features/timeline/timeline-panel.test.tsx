@@ -155,7 +155,15 @@ function timelineRequests(fetchSpy: ReturnType<typeof mockTimelineApi>): number 
 }
 
 function idleSummarize(overrides: Partial<SummarizeControl> = {}): SummarizeControl {
-  return { summarize: vi.fn(), isRunning: false, outcome: null, error: null, retryAfterSeconds: null, ...overrides };
+  return {
+    summarize: vi.fn(),
+    isRunning: false,
+    outcome: null,
+    error: null,
+    retryAfterSeconds: null,
+    showSelection: vi.fn(),
+    ...overrides,
+  };
 }
 
 type PanelOptions = {
@@ -682,5 +690,17 @@ test('the header names the zone times are shown in and links to settings', async
   expect(await screen.findByRole('link', { name: new RegExp(`^${timesInLabel(UTC_TIME_ZONE)}`) })).toHaveAttribute(
     'href',
     AppRoute.Settings,
+  );
+});
+
+test('the panel tells the summarize control which selection it shows, including a bin without a version', async () => {
+  const summarize = idleSummarize();
+  mockTimelineApi();
+  renderPanel({ summarize });
+  const band = await screen.findByLabelText('Budget, 30 characters');
+  fireEvent.keyDown(band, { key: 'ArrowRight' });
+  fireEvent.keyDown(band, { key: 'ArrowRight' });
+  await waitFor(() =>
+    expect(summarize.showSelection).toHaveBeenLastCalledWith({ term: null, author: null, topic: null, at: baseTimeline.bins[1]!.start }),
   );
 });

@@ -63,7 +63,15 @@ beforeEach(() => {
 });
 
 function idleSummarize(overrides: Partial<SummarizeControl> = {}): SummarizeControl {
-  return { summarize: vi.fn(), isRunning: false, outcome: null, error: null, retryAfterSeconds: null, ...overrides };
+  return {
+    summarize: vi.fn(),
+    isRunning: false,
+    outcome: null,
+    error: null,
+    retryAfterSeconds: null,
+    showSelection: vi.fn(),
+    ...overrides,
+  };
 }
 
 function card({

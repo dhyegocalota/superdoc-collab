@@ -14,6 +14,7 @@ export type SummarizeControl = {
   outcome: SummarizeOutcome | null;
   error: Error | null;
   retryAfterSeconds: number | null;
+  showSelection: (selection: EditSelection) => void;
 };
 
 export function useSummarize({ documentId }: { documentId: string }): SummarizeControl {
@@ -53,6 +54,7 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
     isRunning: mutation.isPending || isPolledRunning,
     outcome: mutation.data ? mutation.data.outcome : null,
     error,
+    showSelection: () => undefined,
     retryAfterSeconds: error instanceof RetryLaterError ? secondsRoundedUp(error.retryAfterMs) : null,
   };
 }

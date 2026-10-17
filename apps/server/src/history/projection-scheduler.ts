@@ -25,8 +25,15 @@ const WORKER_DEGRADED_MESSAGE = 'Projection worker keeps failing; projection is 
 export const MAX_WORKER_RESTARTS_PER_WINDOW = 5;
 export const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
 
-function createWorker(databaseDirectory: string): Worker {
+function createWorker({
+  databaseDirectory,
+  projectionWorkerFile,
+}: {
+  databaseDirectory: string;
+  projectionWorkerFile: URL | null;
+}): Worker {
   const workerData = { databaseDirectory };
+  if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData });
   if (!import.meta.url.endsWith(SOURCE_EXTENSION)) return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData });
   const entry = JSON.stringify(new URL('./projection-worker.ts', import.meta.url).href);
   const registerEntry = JSON.stringify(import.meta.resolve(TSX_REGISTER_SPECIFIER));
@@ -67,6 +74,7 @@ function keyOfFailure(reply: ProjectionFailedReply): string {
 export class ProjectionScheduler {
   currentWorker: Worker;
   private readonly databaseDirectory: string;
+  private readonly projectionWorkerFile: URL | null;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
   private readonly rerun = new Set<string>();
@@ -81,8 +89,9 @@ export class ProjectionScheduler {
   private readonly loggedImportFailures = new Set<string>();
   private stopping: Promise<void> | null = null;
 
-  constructor({ databaseDirectory }: { databaseDirectory: string }) {
+  constructor({ databaseDirectory, projectionWorkerFile = null }: { databaseDirectory: string; projectionWorkerFile?: URL | null }) {
     this.databaseDirectory = databaseDirectory;
+    this.projectionWorkerFile = projectionWorkerFile;
     this.currentWorker = this.spawn();
   }
 
@@ -156,7 +165,7 @@ export class ProjectionScheduler {
   }
 
   private spawn(): Worker {
-    const worker = createWorker(this.databaseDirectory);
+    const worker = createWorker({ databaseDirectory: this.databaseDirectory, projectionWorkerFile: this.projectionWorkerFile });
     this.alive = true;
     worker.on('message', (reply: ProjectionReply) => this.settle(reply));
     worker.on('error', (error) => console.error(`${WORKER_ERROR_MESSAGE}: ${describeError(error)}`));

@@ -3,7 +3,10 @@ import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, READ_MODEL_DATABASE_FILE } from '../database/connection';
@@ -22,7 +25,7 @@ import {
   ProjectionStoppedError,
   type ProjectionRequest,
 } from './projection-messages';
-import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, type ProjectionScheduler } from './projection-scheduler';
+import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, ProjectionScheduler } from './projection-scheduler';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
 const IMPORT_TEST_TIMEOUT_MS = 40_000;
@@ -30,6 +33,10 @@ const SCHEDULE_CALLS = 5;
 const EDIT_COUNT = 50;
 const SUCCESSIVE_LOG_ENTRIES = EDIT_COUNT + 2;
 const LOG_BATCH_LIMIT = 100;
+const PROBE_SEQUENCE = 4242;
+const PROBE_WORKER_FILE_NAME = 'probe-worker.js';
+const MISSING_WORKER_FILE_NAME = 'missing-worker.js';
+const MISSING_FILE_ERRORS_BEFORE_CRASH = 2;
 
 test('a terminated worker is restarted and completes without duplicates', async () => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -435,4 +442,39 @@ test('rebuilding a degraded scheduler leaves nothing rebuilding', async () => {
   expect(server.services.scheduler.isRebuilding(documentId)).toBe(false);
   server.services.scheduler.degraded = false;
   await server.stop();
+});
+
+test('a given worker file is the one spawned', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-history-probe-'));
+  const probeSource = `import { parentPort } from 'node:worker_threads';
+parentPort.on('message', (request) => {
+  if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
+  if (request.kind === '${ProjectionRequestKind.Blocks}') parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: ${PROBE_SEQUENCE}, blocks: [] });
+});
+`;
+  writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), probeSource);
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+  });
+  const reply = await scheduler.blocks(randomUUID());
+  expect(reply.sequence).toBe(PROBE_SEQUENCE);
+  await scheduler.stop();
+});
+
+test('a missing worker file crashes the first request then degrades the scheduler', async () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-history-missing-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, MISSING_WORKER_FILE_NAME)),
+  });
+  await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionRequestCrashedError);
+  expect(consoleError).toHaveBeenCalledTimes(MISSING_FILE_ERRORS_BEFORE_CRASH);
+  expect(scheduler.degraded).toBe(false);
+  await expect.poll(() => scheduler.degraded).toBe(true);
+  await expect.poll(() => consoleError.mock.calls.length).toBe(MAX_WORKER_RESTARTS_PER_WINDOW + 2);
+  await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionDegradedError);
+  consoleError.mockRestore();
+  await scheduler.stop();
 });

@@ -1,6 +1,6 @@
 # Spec-only rulings — spec
 
-- Status: In review
+- Status: Shipped 2026-10-17
 - Tier: green (one arithmetic fix in `libs/history`, documentation, one convention).
 - Owner approval: approved 2026-10-17 (the owner asked for the audit's corrections and for ADRs on the rules that lived only in specs: "aplica as correções; os que não têm merecem ADR", plus `NB` pointers from code to ADRs).
 - ADRs: [0015](../../adr/0015-topics-recompute-trigger-and-identity.md), [0016](../../adr/0016-timeline-bin-budget.md), [0017](../../adr/0017-share-links-reissued-when-the-secret-changes.md); [0011](../../adr/0011-process-wide-llm-cost-caps.md) refined.

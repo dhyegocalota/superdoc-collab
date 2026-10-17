@@ -43,6 +43,7 @@ export function createBootstrapState({ updateLog, readModel }: { updateLog: Upda
     if (readModel.cursor(documentId) !== null) return true;
     const snapshot = updateLog.latestSnapshot({ documentName: documentId, atOrBefore: Number.MAX_SAFE_INTEGER });
     if (!snapshot) return scanForward(documentId);
+    scans.delete(documentId);
     const fromSnapshot = new Y.Doc();
     Y.applyUpdate(fromSnapshot, snapshot.state);
     return isBootstrapCommitted({ document: fromSnapshot });

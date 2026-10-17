@@ -8,6 +8,7 @@ import {
   SECOND_MS,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
+  UNAUTHORIZED_CLOSE_CODE,
   SOCKET_SINGLE_DOCUMENT_REASON,
   VERSION_FAILURE_TTL_MS,
   versionCollaborationPath,
@@ -37,7 +38,6 @@ const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
 const SHORT_SOCKET_TIMEOUT_MS = 300;
 const UNAUTHENTICATED_CLOSE_DEADLINE_MS = 8_000;
-const UNAUTHORIZED_CLOSE_CODE = 4401;
 const SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS = 15_000;
 const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
@@ -257,6 +257,17 @@ describe('attachCollaboration', () => {
     const response = await exchange({ server, path: ApiPath.Collaboration });
     expect(response).toBe('');
     expect(handleConnection).not.toHaveBeenCalled();
+    await server.stop();
+  });
+  test('a browser whose session expired is closed with 4401 and never reaches Hocuspocus', async () => {
+    const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    server.database.sqlite.prepare('DELETE FROM session').run();
+    const handleConnection = vi.spyOn(server.services.hocuspocus, 'handleConnection');
+    const { socket, closed } = openFloodSocket({ server, cookie });
+    expect((await closed).code).toBe(UNAUTHORIZED_CLOSE_CODE);
+    expect(handleConnection).not.toHaveBeenCalled();
+    socket.terminate();
     await server.stop();
   });
   test('an upgrade on another path is destroyed and the server keeps answering', async () => {

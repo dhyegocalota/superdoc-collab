@@ -36,7 +36,7 @@ const PARSE_BASE_URL = 'http://localhost';
 const FIRST_ATTEMPT = 1;
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
-const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket on an uncommitted room without the creator attempt';
+const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
 
 export class CollaborationSupersededError extends Error {
   readonly code = SUPERSEDED_ATTEMPT_CLOSE_CODE;
@@ -56,7 +56,6 @@ export class CollaborationSingleDocumentError extends Error {
   }
 }
 
-// NB ADR 0033: only the latest attempt writes while uncommitted, and a committed room accepts the committing attempt or a socket with none.
 function isWriteAllowed({
   reservations,
   bootstrap,
@@ -69,8 +68,8 @@ function isWriteAllowed({
   document: Y.Doc;
 }): boolean {
   const { documentId, creatorAttempt, creatorEpoch } = context;
-  const isRoomCommitted = isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId);
-  return reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: isRoomCommitted });
+  if (creatorAttempt === null) return isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId);
+  return reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: false });
 }
 
 function warnOncePerConnection({ context, warned }: { context: CollaborationContext; warned: WeakSet<CollaborationContext> }): void {
@@ -143,11 +142,8 @@ export function createCollaborationServer({
       const isCommitted = bootstrap.isCommitted(documentId);
       const isHolder = attempt !== null && reservations.attemptOf({ documentId, userId }) === attempt;
       const mayWrite = reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
-      if (!isCommitted && actor === ClientActor.Agent) {
-        console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
-        throw new CollaborationAuthenticationError();
-      }
-      if (!isCommitted && attempt === null) {
+      const isTicketless = actor === ClientActor.Agent || attempt === null;
+      if (!isCommitted && isTicketless) {
         console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationAuthenticationError();
       }
@@ -162,7 +158,6 @@ export function createCollaborationServer({
     async connected({ context, connectionInstance }) {
       const { documentId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
       const isAdmitted = reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: true });
-      if (isAdmitted && creatorAttempt !== null) return reservations.touch({ documentId, attempt: creatorAttempt });
       if (isAdmitted) return;
       console.warn(`${SUPERSEDED_CLOSE_LOG} ${documentId}`);
       connectionInstance.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });

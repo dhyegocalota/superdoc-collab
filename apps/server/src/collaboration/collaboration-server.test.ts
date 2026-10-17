@@ -123,12 +123,13 @@ describe('collaboration write fence', () => {
   });
 });
 
-test('a connected socket refreshes its reservation', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  const touch = vi.spyOn(server.services.reservations, 'touch');
-  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
-  expect(touch).toHaveBeenCalledWith({ documentId, attempt: 1 });
-  client.close();
+test('a creator update on an uncommitted room never queries the log or the snapshots', async () => {
+  const { server, documentId, latest } = await supersededScenario();
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const latestSnapshot = vi.spyOn(server.services.updateLog, 'latestSnapshot');
+  await sendChange({ server, context: latest, ...updateWith({ committed: false }) });
+  expect(loggedRows({ server, documentId })).toHaveLength(1);
+  expect([readBatch.mock.calls.length, latestSnapshot.mock.calls.length]).toEqual([0, 0]);
   await server.stop();
 });
 

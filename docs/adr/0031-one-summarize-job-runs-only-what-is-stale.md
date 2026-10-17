@@ -18,7 +18,7 @@ Three model jobs exist today. Topics are computed and refreshed with a 30 s cool
 - **Selection summary.** Write the summary for the selection in the request when it is missing or stale.
 - **Topic sentences.** Rewrite them when they are older than the topic set.
 - A fresh step is skipped with no model call. A job whose steps are all fresh makes no call and ends as Done.
-- Progress is a step enum the client polls: Grouping, Summarizing, Done, and Failed at a step. The card shows "Grouping edits into topics…" and then "Summarizing edits…" from it.
+- Progress is a step enum the client polls: Idle, Grouping, Summarizing. A failed step returns the step to Idle and the view carries the failure text. The card shows "Grouping edits into topics…" and then "Summarizing edits…" from it.
 - The job answers busy or cooling down with one message and one retry-after, the longest of the underlying cooldowns.
 - A failed regroup keeps the previous ready topics. The busy rule of 0015 stays.
 - The automatic topic recompute trigger of 0015 (five new blocks, one minute) stays as it is.

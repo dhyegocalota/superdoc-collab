@@ -10,8 +10,8 @@ import {
 } from '@superdoc-history/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
-import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type LanguageModelChoice } from './llm-client';
@@ -42,7 +42,7 @@ export class TopicsService {
   private readonly scheduler: ProjectionScheduler;
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;
-  readonly cooldown = new DocumentCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
+  readonly cooldown = new KeyedCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
 
   constructor({
     repository,

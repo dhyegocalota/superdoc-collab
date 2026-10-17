@@ -1,4 +1,4 @@
-export class DocumentCooldown {
+export class KeyedCooldown {
   private readonly startedAt = new Map<string, number>();
   private readonly durationMs: number;
   private readonly now: () => number;
@@ -8,21 +8,25 @@ export class DocumentCooldown {
     this.now = now;
   }
 
-  start(documentId: string): void {
-    this.startedAt.set(documentId, this.now());
+  start(key: string): void {
+    this.startedAt.set(key, this.now());
   }
 
-  remainingMs(documentId: string): number {
-    const startedAt = this.startedAt.get(documentId);
+  remainingMs(key: string): number {
+    const startedAt = this.startedAt.get(key);
     if (startedAt === undefined) return 0;
     const remaining = this.durationMs - (this.now() - startedAt);
     if (remaining > 0) return remaining;
-    this.startedAt.delete(documentId);
+    this.startedAt.delete(key);
     return 0;
   }
 
-  forget(documentId: string): void {
-    this.startedAt.delete(documentId);
+  forget(key: string): void {
+    this.startedAt.delete(key);
+  }
+
+  keys(): string[] {
+    throw new Error('KeyedCooldown.keys is not implemented');
   }
 
   size(): number {

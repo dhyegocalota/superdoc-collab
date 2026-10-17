@@ -10,8 +10,8 @@ import {
   type SelectionSummaryView,
 } from '@superdoc-history/types';
 import type { LanguageModel } from 'ai';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
-import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
@@ -85,7 +85,7 @@ function editsOf(snapshot: SelectionSnapshot): SelectionEdit[] {
 }
 
 export class SelectionSummariesService {
-  readonly cooldown = new DocumentCooldown({ durationMs: SELECTION_SUMMARY_COOLDOWN_MS });
+  readonly cooldown = new KeyedCooldown({ durationMs: SELECTION_SUMMARY_COOLDOWN_MS });
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;

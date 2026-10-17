@@ -1,8 +1,8 @@
 import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-history/history';
 import { HOUR_MS, MINUTE_MS, type TopicSummaries } from '@superdoc-history/types';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
-import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
@@ -24,7 +24,7 @@ export class SummariesService {
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;
   private readonly readPipeline: (documentId: string) => TimelinePipeline;
-  readonly cooldown = new DocumentCooldown({ durationMs: SUMMARY_MIN_INTERVAL_MS });
+  readonly cooldown = new KeyedCooldown({ durationMs: SUMMARY_MIN_INTERVAL_MS });
 
   constructor({
     repository,

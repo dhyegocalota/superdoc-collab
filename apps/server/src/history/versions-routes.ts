@@ -17,9 +17,8 @@ import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater } from '../http/retry-later';
-import { VersionLookupKind } from './versions-service';
+import { VERSION_MARKS_AROUND, VersionLookupKind } from './versions-service';
 
-export const VERSION_MARKS_AROUND = 10;
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 

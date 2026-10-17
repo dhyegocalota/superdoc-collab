@@ -7,6 +7,7 @@ import type { ProjectionScheduler } from './projection-scheduler';
 
 export const VERSION_LOAD_FAILED_MESSAGE = 'Loading a version failed for';
 export const VERSION_KEY_SEPARATOR = '/';
+export const VERSION_MARKS_AROUND = 10;
 
 export type VersionEndpoint = { documentId: string; sequence: number };
 export type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
@@ -38,6 +39,14 @@ export function versionKeyOf({ documentId, sequence }: VersionEndpoint): string 
 
 export function versionKeyPrefixOf(documentId: string): string {
   return `${documentId}${VERSION_KEY_SEPARATOR}`;
+}
+
+export function keysOfDocument({ documentId }: { keys: Iterable<string>; documentId: string }): string[] {
+  throw new Error(`keysOfDocument is not implemented: ${documentId}`);
+}
+
+export function marksAround({ sequence }: { marks: VersionMarkSummary[]; sequence: number }): VersionMarkSummary[] {
+  throw new Error(`marksAround is not implemented: ${sequence}`);
 }
 
 function isOverVersionBudget({

@@ -22,6 +22,7 @@ import {
 import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
+import { E2E_TIME_ZONE } from './time-zone';
 
 export const ANA = DEMO_USERS[0]!.name;
 export const BRUNO = DEMO_USERS[1]!.name;
@@ -128,7 +129,8 @@ export async function ruleX(page: Page): Promise<number> {
 }
 
 export async function readTimeline({ page, documentId }: { page: Page; documentId: string }): Promise<DocumentTimeline> {
-  const response = await page.request.get(documentApiPath({ documentId, resource: DocumentResource.Timeline }));
+  const path = documentApiPath({ documentId, resource: DocumentResource.Timeline });
+  const response = await page.request.get(`${path}?${TimelineQueryParam.TimeZone}=${encodeURIComponent(E2E_TIME_ZONE)}`);
   return (await response.json()) as DocumentTimeline;
 }
 

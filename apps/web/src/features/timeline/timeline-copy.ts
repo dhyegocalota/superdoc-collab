@@ -26,7 +26,6 @@ export const TOPICS_GROUPED_LABEL = 'Topics grouped';
 export const NEXT_SUMMARIZING_LABEL = 'Then summarizing edits';
 export const SUMMARIZING_LABEL = 'Summarizing…';
 export const SUMMARIZE_EDITS_LABEL = 'Summarize edits';
-export const SUMMARIZING_LABEL = 'Summarizing…';
 export const SELECTION_SUMMARY_HEADING = 'Summary of these edits';
 export const EARLIER_STATE_LABEL = 'For an earlier state';
 export const RETRY_SUMMARY_LABEL = 'Retry summary';

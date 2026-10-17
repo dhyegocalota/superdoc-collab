@@ -1,6 +1,7 @@
 import {
   ApiPath,
   HttpStatus,
+  MAX_SOCKET_MESSAGE_BYTES,
   RETRY_AFTER_HEADER,
   SECOND_MS,
   VERSION_FAILURE_TTL_MS,
@@ -14,7 +15,7 @@ import { connect } from 'node:net';
 import { Duplex } from 'node:stream';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import { CollaborationRefusedError, connectAgentToDocument, documentWithOwner } from '../testing/collaboration-client';
+import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { attachCollaboration } from './attach-collaboration';
@@ -32,6 +33,19 @@ const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
 const ORIGIN = 'http://app.test';
 const FOREIGN_ADDRESS = '203.0.113.9';
+const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
+const FRAME_OVERHEAD_BYTES = 1024;
+const PADDED_UPDATE_TEST_TIMEOUT_MS = 60_000;
+
+function closeCodeAfterSending({ server, frame }: { server: TestServer; frame: Buffer }): Promise<number> {
+  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
+    origin: server.baseUrl,
+    maxPayload: 2 * MAX_SOCKET_MESSAGE_BYTES,
+  });
+  socket.on('error', () => undefined);
+  socket.on('open', () => socket.send(frame));
+  return new Promise((resolve) => socket.on('close', (code) => resolve(code)));
+}
 
 function upgradeRequest({ path, origin, cookie }: { path: string; origin: string; cookie: string }): string {
   return [
@@ -104,6 +118,23 @@ async function healthStatus(server: TestServer): Promise<number> {
 }
 
 describe('attachCollaboration', () => {
+  test('a frame over the payload cap closes with 1009 that the client receives', { timeout: PADDED_UPDATE_TEST_TIMEOUT_MS }, async () => {
+    const server = await startTestServer();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const closeCode = await closeCodeAfterSending({ server, frame: Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES + 1) });
+    expect(closeCode).toBe(PAYLOAD_TOO_BIG_CLOSE_CODE);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('a valid update padded to the cap is accepted', { timeout: PADDED_UPDATE_TEST_TIMEOUT_MS }, async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    client.document.getText('t').insert(0, 'x'.repeat(MAX_SOCKET_MESSAGE_BYTES - FRAME_OVERHEAD_BYTES));
+    await expect.poll(() => server.services.updateLog.hasUpdates(documentId), { timeout: PADDED_UPDATE_TEST_TIMEOUT_MS }).toBe(true);
+    client.close();
+    await server.stop();
+  });
   test('a malformed frame after the upgrade does not crash the server', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: ApiPath.Collaboration, followUp: UNMASKED_BINARY_FRAME });

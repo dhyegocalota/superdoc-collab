@@ -274,3 +274,12 @@ test('the chart is one tab stop on the active band', () => {
   expect(screen.getByLabelText(/^Hiring/)).toHaveAttribute('tabindex', '0');
   expect(budgetBand()).toHaveAttribute('tabindex', '-1');
 });
+
+test('a press that focuses no band leaves the next keyboard focus its tooltip', () => {
+  const { container } = renderGraph({ selectedIndex: 1 });
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerDown(chart, { clientX: WIDTH / 2, buttons: 1 });
+  fireEvent.pointerUp(chart);
+  fireEvent.focus(budgetBand());
+  expect(budgetBand()).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id);
+});

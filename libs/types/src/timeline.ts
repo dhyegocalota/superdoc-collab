@@ -15,7 +15,6 @@ export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
 export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_BUSY_MESSAGE = 'Summaries are busy. Try again in a moment.';
-export const SELECTION_SUMMARY_TOO_SOON_MESSAGE = 'Edits were summarized a moment ago.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
 export const GROUPING_FAILED_MESSAGE = 'The edits could not be grouped into topics. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
@@ -32,6 +31,10 @@ export enum TopicState {
   Pending = 'pending',
   Ready = 'ready',
   Failed = 'failed',
+}
+export enum SummarizeScope {
+  Full = 'full',
+  SummaryOnly = 'summary-only',
 }
 export enum SummarizeOutcome {
   Started = 'started',

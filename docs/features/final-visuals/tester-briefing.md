@@ -525,3 +525,10 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - A caret label equal to the member's name is the only link between awareness and the DOM; a name SuperDoc truncates or decorates would read as "not in the document".
 - Nothing here was seen in a browser; Radix tooltip and menu behaviour were exercised in jsdom only.
 - Found on the integration branch: `libs/types/src/constants.ts` declares the two document-ready constants twice; I removed the duplicates only in my worktree, uncommitted.
+
+### G4 security minors (red 5293de5)
+
+- `summarize_selection` (MCP, `history:read` token) runs `SummarizeScope.SummaryOnly`: it writes the selection summary and never regroups topics or rewrites sentences. Tests: `agent-tools.test.ts::summarize_selection never regroups the topics, even when they are stale` and `summarize-service.test.ts::the summary-only scope writes the summary and leaves stale topics and sentences alone`. Red was `expected "regroup" to not be called at all` and `[topics, summary, sentences]` instead of `[summary]`.
+- `TopicsService.regroup` goes through the `topics:<id>` job key: it starts the job when none runs and awaits `InsightsJobRunner.settled(key)` either way, so an editor's Summarize and an automatic recompute share one model call. Test: `topics-service.test.ts::a regroup awaits the topics job that is already running and the model is called once` (red: 3 calls).
+- Side effect: the regroup now holds a second process-wide job slot while the Summarize job waits on it, so a full worker answers the regroup busy sooner than before.
+- `SELECTION_SUMMARY_TOO_SOON_MESSAGE` deleted from `libs/types` (no consumer).

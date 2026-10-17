@@ -70,8 +70,10 @@ export class TopicsService {
     return status.computedAtSequence < lastSequenceOf(this.readPipeline(documentId).events.map((event) => event.sequence));
   }
 
-  regroup(documentId: string): Promise<void> {
-    return this.compute({ documentId, isRegroup: true });
+  async regroup(documentId: string): Promise<void> {
+    const key = topicsKey(documentId);
+    if (!this.jobRunner.isRunning(key)) this.start({ documentId, isRegroup: true });
+    await this.jobRunner.settled(key);
   }
 
   onTimelineRead(documentId: string): void {

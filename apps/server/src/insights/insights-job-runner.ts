@@ -57,6 +57,12 @@ export class InsightsJobRunner {
     return Math.max(MIN_RETRY_AFTER_MS, oldest + LLM_WINDOW_MS - this.now());
   }
 
+  settled(key: string): Promise<void> {
+    const running = this.running.get(key);
+    if (running === undefined) return Promise.resolve();
+    return running;
+  }
+
   isRunning(key: string): boolean {
     return this.running.has(key);
   }

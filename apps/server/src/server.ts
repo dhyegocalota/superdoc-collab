@@ -8,6 +8,7 @@ import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { createAgentToolkit } from '@superdoc/sdk';
+import { AgentChangeMode } from './agent/agent-change-mode';
 import { AgentSessions } from './agent/agent-sessions';
 import { signRoomToken } from './agent/room-tokens';
 import { createAuth, type Auth } from './auth/auth';
@@ -48,7 +49,6 @@ import { mountStaticWeb } from './http/static-web';
 
 const AGENT_TOOLKIT_PROVIDER = 'vercel';
 const AGENT_TOOLKIT_PRESET = 'core';
-const AGENT_CHANGE_MODE = 'tracked';
 const LOOPBACK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1';
 
 export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
@@ -268,7 +268,7 @@ export async function startServer({
   const agentToolkit = await createAgentToolkit({
     provider: AGENT_TOOLKIT_PROVIDER,
     preset: AGENT_TOOLKIT_PRESET,
-    enforceChangeMode: AGENT_CHANGE_MODE,
+    enforceChangeMode: AgentChangeMode.Tracked,
   });
   const listeningPort = { value: environment.port };
   const { auth, services } = createServices({

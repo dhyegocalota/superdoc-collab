@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from 'vitest';
-import css from './globals.css?raw';
+
+const GLOBALS_PATH = join(import.meta.dirname, 'globals.css');
+const css = readFileSync(GLOBALS_PATH, 'utf8');
 
 const AUTHOR_SLOTS = [1, 2, 3, 4, 5, 6];
 const AUTHOR_HEX_VALUES = ['#2e39b8', '#5a2eb8', '#912eb8', '#b82ea8', '#b82e70', '#b82e39'];

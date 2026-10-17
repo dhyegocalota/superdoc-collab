@@ -3,6 +3,7 @@ import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
+import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
 import { FilterBox } from './filter-box';
 import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';
@@ -132,13 +133,17 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
 
   return (
     <aside
-      className="flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l"
+      data-state={isOpen ? PanelState.Open : PanelState.Collapsed}
+      className={cn(
+        'flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:border-t-0 lg:border-l',
+        isOpen ? 'lg:w-[var(--panel-width)]' : 'lg:w-auto',
+      )}
       style={{ '--panel-width': `${width}px` } as CSSProperties}
     >
-      <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />
+      {isOpen && <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2">
-          <h2 className="px-2 text-sm font-medium">{TIMELINE_HEADING}</h2>
+        <header className={cn('flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2', !isOpen && 'lg:flex-col')}>
+          <h2 className={cn('px-2 text-sm font-medium', !isOpen && 'lg:sr-only')}>{TIMELINE_HEADING}</h2>
           <div className="flex flex-wrap items-center justify-end gap-1">
             {isOpen && canRefresh && timeline && (
               <SummarizeEditsButton disabledReason={disabledReason} reasonId={reasonId} onSummarize={() => summarize.mutate(selection)} />

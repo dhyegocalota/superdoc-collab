@@ -1,6 +1,6 @@
 # Agent doctor
 
-**Status:** Building
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17
 **ADRs:** [0026](../../adr/0026-the-agent-repairs-its-own-machine-doctor-reports-never-installs.md), [0014](../../adr/0014-one-source-per-agent-surface.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)

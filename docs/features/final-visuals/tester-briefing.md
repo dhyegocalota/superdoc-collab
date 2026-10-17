@@ -77,3 +77,10 @@ Every "it works" is a hypothesis the tester tries to break.
 - The header is a placeholder until G2 swaps in `AppTopBar`; the account menu is absent until then.
 - The use-opened-document tests settle fake timers with a 100 ms advance after each step; changing TanStack's notify scheduling could need a bigger value.
 - No test measures layout (widths, 120 px and 64 px offsets); those need the browser walk.
+
+### G6 addendum: version view and 403 (Step 49a)
+
+- `version-view-page.tsx` uses `useOpenedDocumentWithoutPolling`. A 409, 404, 403 or failed open shows the unavailable message (a failed open shows its own message), posts Failed to the parent and never builds SuperDoc. `Opening` keeps the session skeleton.
+- A 403 on the open route is unavailable, like 404: no Try again.
+- Red `c9ad092` (`Unable to find role="alert"`; `expected "fetch" to be called 1 times, but got 2 times`; `expected Error: The document could not be loaded. to be an instance of DocumentUnavailableError`), green `238b70f`.
+- Hypothesis: a version opened for a document that was never committed shows the unavailable notice in the frame and never polls. Break it by: opening a version URL for a reader before the owner's first sync and watching the network for repeated document requests.

@@ -1,11 +1,12 @@
 import type { Document } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-history/history';
+import { ClientActor } from '@superdoc-history/types';
 import { expect, test, vi } from 'vitest';
 import { createClientDeclarer } from './client-declarations';
 
 const DOCUMENT_ID = 'document-1';
 
-type FakeConnection = { userId: string; clients: number[]; readOnly?: boolean };
+type FakeConnection = { userId: string; clients: number[]; readOnly?: boolean; actor?: ClientActor };
 
 function fakeDocument(connections: FakeConnection[]): Document {
   const states = new Map(
@@ -15,9 +16,9 @@ function fakeDocument(connections: FakeConnection[]): Document {
     name: DOCUMENT_ID,
     awareness: { getStates: () => states },
     connections: new Map(
-      connections.map(({ userId, clients, readOnly = false }, index) => [
+      connections.map(({ userId, clients, readOnly = false, actor = ClientActor.Human }, index) => [
         index,
-        { clients: new Set(clients), connection: { readOnly, context: { userId, documentId: DOCUMENT_ID } } },
+        { clients: new Set(clients), connection: { readOnly, context: { userId, documentId: DOCUMENT_ID, actor } } },
       ]),
     ),
   } as unknown as Document;
@@ -31,6 +32,21 @@ function declaredBy(connections: FakeConnection[]): string[] {
 
 test('a writable connection declares the clients that carry its user id', () => {
   expect(declaredBy([{ userId: 'ana', clients: [1] }])).toEqual(['1:ana']);
+});
+
+test('an agent connection declares nothing', () => {
+  expect(declaredBy([{ userId: 'ana', clients: [1], actor: ClientActor.Agent }])).toEqual([]);
+});
+
+test('a human declaration carries the human actor', () => {
+  const declareClientIdentity = vi.fn();
+  createClientDeclarer({ declareClientIdentity } as unknown as UpdateLog).declare(fakeDocument([{ userId: 'ana', clients: [1] }]));
+  expect(declareClientIdentity).toHaveBeenCalledWith({
+    documentName: DOCUMENT_ID,
+    yjsClientId: 1,
+    userId: 'ana',
+    actor: ClientActor.Human,
+  });
 });
 
 test('a read-only connection declares nothing', () => {

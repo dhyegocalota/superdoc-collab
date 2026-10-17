@@ -6,7 +6,7 @@ The history engine: the append-only Yjs update log with authorship, the projecti
 
 | Import | Exposes |
 |---|---|
-| `@superdoc-history/history` | update log, document history, projection, read model, version marks and state, imported revisions, DOCX helpers, timeline and topics |
+| `@superdoc-history/history` | update log, agent actions, document history, projection, read model, version marks and state, imported revisions, DOCX helpers, timeline and topics |
 | `@superdoc-history/history/timeline` | bins, runs, bands, stacking and word counts for the streamgraph |
 | `@superdoc-history/history/testing` | test databases and room fixtures |
 
@@ -14,7 +14,7 @@ The history engine: the append-only Yjs update log with authorship, the projecti
 
 | File | Tables | Schema | Migrations |
 |---|---|---|---|
-| `history.sqlite` | update log, snapshots, client identities | [`src/schema/history.ts`](src/schema/history.ts) | [`drizzle/history/`](drizzle/history/) |
+| `history.sqlite` | update log, snapshots, client identities, agent actions | [`src/schema/history.ts`](src/schema/history.ts) | [`drizzle/history/`](drizzle/history/) |
 | `read-model.sqlite` | edit events, version marks, projection cursor | [`src/schema/read-model.ts`](src/schema/read-model.ts) | [`drizzle/read-model/`](drizzle/read-model/) |
 
 After a schema change, `pnpm --filter @superdoc-history/history generate` writes the migrations for both databases. The Docker image ships both sets.
@@ -23,7 +23,8 @@ After a schema change, `pnpm --filter @superdoc-history/history generate` writes
 
 | Path | Holds |
 |---|---|
-| [`src/update-log.ts`](src/update-log.ts) | append, snapshots, identities and materialize |
+| [`src/update-log.ts`](src/update-log.ts) | append, snapshots, identities with their actor and materialize |
+| [`src/agent-actions.ts`](src/agent-actions.ts) | the actions an AI took that leave no Yjs update ([ADR 0020](../../docs/adr/0020-agent-edits-carry-a-human-or-agent-actor.md)) |
 | [`src/document-history.ts`](src/document-history.ts), [`src/document-content.ts`](src/document-content.ts) | bootstrap detection and reading the main story's blocks |
 | [`src/projection.ts`](src/projection.ts), [`src/edit-events.ts`](src/edit-events.ts) | replaying updates into edit events with their authors |
 | [`src/read-model.ts`](src/read-model.ts) | the projected events and the cursor |

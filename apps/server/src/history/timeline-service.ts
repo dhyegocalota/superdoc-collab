@@ -31,6 +31,7 @@ import {
 } from '@superdoc-history/types';
 import type { AppServices } from '../http/app';
 import type { RequestedSelection, SelectionSnapshot } from '../insights/selection-summaries-service';
+import { readAgentActions } from './agent-action-views';
 import { resolveEvents } from './resolved-events';
 import type { TimelinePipeline } from './timeline-pipeline-cache';
 
@@ -169,6 +170,13 @@ function lastTimeOf(events: TimelineEvent[]): number {
   return events.reduce((latest, event) => Math.max(latest, event.serverTime), Number.NEGATIVE_INFINITY);
 }
 
+function spanOfBins({ binStarts, binMs }: { binStarts: number[]; binMs: number }): { from: number; until: number } | null {
+  const first = binStarts[0];
+  const last = binStarts.at(-1);
+  if (first === undefined || last === undefined) return null;
+  return { from: first, until: last + binMs };
+}
+
 function projectionStatus({ services, documentId }: { services: AppServices; documentId: string }): ProjectionStatus {
   const cursor = services.readModel.cursor(documentId);
   const [next] = services.updateLog.readBatch({
@@ -227,13 +235,18 @@ export function buildDocumentTimeline({
     pipeline.events.length === 0
       ? []
       : binStartsCovering({ firstTime: firstTimeOf(pipeline.events), lastTime: lastTimeOf(pipeline.events), binMs: chosenBinMs });
+  const agentActions = readAgentActions({
+    services,
+    documentId,
+    span: spanOfBins({ binStarts, binMs: chosenBinMs }),
+  });
   return {
     binMs: chosenBinMs,
     bins: buildBins({ runs: matchedRuns, binStarts, binMs: chosenBinMs, versionSequenceAt: (time) => versionSequenceAt({ marks, time }) }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
-    authors: pipeline.authors,
-    agentActions: [],
+    authors: { ...pipeline.authors, ...agentActions.authors },
+    agentActions: agentActions.actions,
     topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
   };

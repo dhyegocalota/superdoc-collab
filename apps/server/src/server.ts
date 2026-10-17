@@ -5,8 +5,11 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
-import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
+import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
+import { createAgentToolkit } from '@superdoc/sdk';
+import { AgentSessions } from './agent/agent-sessions';
+import { signRoomToken } from './agent/room-tokens';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
@@ -42,6 +45,11 @@ import { ProjectionScheduler } from './history/projection-scheduler';
 import { TimelinePipelineCache } from './history/timeline-pipeline-cache';
 import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
+
+const AGENT_TOOLKIT_PROVIDER = 'vercel';
+const AGENT_TOOLKIT_PRESET = 'core';
+const AGENT_CHANGE_MODE = 'tracked';
+const LOOPBACK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1';
 
 export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
 
@@ -103,6 +111,8 @@ function createServices({
   languageModel,
   versionRoomPolicy,
   projectionWorkerFile,
+  agentToolkit,
+  listeningPort,
 }: {
   environment: Environment;
   databases: Databases;
@@ -110,12 +120,15 @@ function createServices({
   languageModel: LanguageModelChoice;
   versionRoomPolicy: VersionRoomPolicy;
   projectionWorkerFile: URL | null;
+  agentToolkit: ServerServices['agentToolkit'];
+  listeningPort: { value: number };
 }): { auth: Auth; services: ServerServices } {
   const { database, historySqlite, readModelSqlite } = databases;
   const documents = new DocumentsRepository(database);
   const insightsRepository = new InsightsRepository(database);
   insightsRepository.failInterrupted(TOPICS_INTERRUPTED_MESSAGE);
   const updateLog = new UpdateLog(historySqlite);
+  const agentActions = new AgentActionsLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const auth = createAuth({ database, environment });
@@ -172,10 +185,18 @@ function createServices({
     versionRooms,
     insights,
   });
+  const agentSessions = new AgentSessions({
+    issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),
+    collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.AgentCollaboration}`,
+    locateRoom: (documentId) => ({ roomMode: runtime.roomMode(documentId), filePath: storage.pathOf(documentId) }),
+  });
   const services: ServerServices = {
     documents,
     storage,
     updateLog,
+    agentActions,
+    agentSessions,
+    agentToolkit,
     hocuspocus,
     readModel,
     scheduler,
@@ -201,6 +222,7 @@ function resumeProjections({ databases, services }: { databases: Databases; serv
 }
 
 async function closeCollaboration(services: ServerServices): Promise<void> {
+  await services.agentSessions.close();
   await services.versionRooms.stop();
   await services.hocuspocus.destroy();
   services.throttle.stop();
@@ -242,6 +264,12 @@ export async function startServer({
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
   const databases = openDatabases({ databaseDirectory: environment.databaseDirectory, documentFilesDirectory });
+  const agentToolkit = await createAgentToolkit({
+    provider: AGENT_TOOLKIT_PROVIDER,
+    preset: AGENT_TOOLKIT_PRESET,
+    enforceChangeMode: AGENT_CHANGE_MODE,
+  });
+  const listeningPort = { value: environment.port };
   const { auth, services } = createServices({
     environment,
     databases,
@@ -249,6 +277,8 @@ export async function startServer({
     languageModel,
     versionRoomPolicy,
     projectionWorkerFile,
+    agentToolkit,
+    listeningPort,
   });
   resumeProjections({ databases, services });
   const app = createApp({ auth, environment, services });
@@ -260,6 +290,7 @@ export async function startServer({
     throw error;
   });
   const { port } = httpServer.address() as AddressInfo;
+  listeningPort.value = port;
   const sockets = attachCollaboration({
     httpServer: httpServer as Server,
     hocuspocus: services.hocuspocus,

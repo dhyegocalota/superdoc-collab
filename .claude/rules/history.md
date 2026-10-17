@@ -8,18 +8,20 @@ paths:
 # History capture and projection
 
 ## Log schema
-- `updates(sequence INTEGER PRIMARY KEY AUTOINCREMENT, document_name, connection_user_id, yjs_client_ids JSON text, server_time INTEGER ms, update_bytes BLOB)`, indexed on `(document_name, sequence)`. (poc/lib/update-log.ts, ADR 0001)
+- `updates(sequence INTEGER PRIMARY KEY AUTOINCREMENT, document_name, connection_user_id, connection_actor, yjs_client_ids JSON text, server_time INTEGER ms, update_bytes BLOB)`, indexed on `(document_name, sequence)`. (poc/lib/update-log.ts, ADR 0001)
 - `snapshots(document_name, sequence, state BLOB)`, primary key `(document_name, sequence)`. (poc/lib/update-log.ts)
-- `client_identities(document_name, yjs_client_id, user_id, source)`, primary key `(document_name, yjs_client_id)`. (poc/lib/update-log.ts, ADR 0002)
+- `client_identities(document_name, yjs_client_id, user_id, source, actor)`, primary key `(document_name, yjs_client_id)`. (libs/history/src/schema/history.ts, ADR 0002, ADR 0020)
+- `connection_actor` and `actor` are `human` or `agent`, `NOT NULL DEFAULT 'human'`; the migration backfilled every earlier row as `human`. (libs/history/drizzle/history, ADR 0020)
+- `agent_actions(id, document_name, user_id, kind, created_at)` holds actions with no Yjs update; `forget` deletes them with the document. (libs/history/src/agent-actions.ts, ADR 0020)
 - SQLite runs with `journal_mode = WAL` and `synchronous = NORMAL`. (poc/lib/update-log.ts)
 - `yjs_client_ids` is the sorted, deduplicated set of struct clientIds decoded from the update with `Y.decodeUpdate`. (poc/lib/update-log.ts)
 - Hocuspocus `onChange` is serialized per document and appends every update, except those whose transaction origin is `update-log-replay`. (poc/server/collaboration-server.ts)
 
 ## Identity tiers
 - `Observed`: first socket that carried a struct from the clientId, `INSERT OR IGNORE`. (poc/lib/update-log.ts, ADR 0002)
-- `Declared`: awareness `userId` equals the authenticated socket user, read from `document.connections[*].clients`. It overrides `Observed` only, never another `Declared`. (poc/server/collaboration-server.ts, poc/lib/update-log.ts, ADR 0002)
-- `resolveAuthorIds` maps struct clientIds to users, returns them deduplicated and sorted, and throws when a clientId has no identity. (poc/lib/edit-events.ts)
-- An update with no structs (deletion-only) is attributed to the sending connection's user. (poc/lib/edit-events.ts, ADR 0002)
+- `Declared`: awareness `userId` equals the authenticated socket user, read from `document.connections[*].clients`. It overrides `Observed` only, never another `Declared`, and only when the observed row has the same actor, so a human declaration never claims an agent clientId. (poc/server/collaboration-server.ts, libs/history/src/update-log.ts, ADR 0002, ADR 0020)
+- `resolveAuthorIds` maps struct clientIds to `{ userId, actor }`, returns them deduplicated and sorted by user then actor, and throws when a clientId has no identity. (libs/history/src/edit-events.ts, ADR 0020)
+- An update with no structs (deletion-only) is attributed to the sending connection's user and actor. (libs/history/src/edit-events.ts, ADR 0002, ADR 0020)
 
 ## Projection
 - `projectEditEvents` applies the baseline merged, then each update in order, diffs block states before and after, and emits `EditEvent{sequence, serverTime, authorIds, blockId, kind, inserted, deleted}`. (poc/lib/edit-events.ts)

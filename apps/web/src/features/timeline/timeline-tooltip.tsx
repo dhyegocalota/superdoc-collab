@@ -34,7 +34,7 @@ export function formatBinRange({ start, binMs }: { start: number; binMs: number 
   return `${formatTimestamp(start)}${RANGE_SEPARATOR}${formatTimestamp(start + binMs)}`;
 }
 
-export function TimelineTooltip({ timeline, index, left, top, chartWidth }: { timeline: DocumentTimeline; index: number; left: number; top: number; chartWidth: number }) {
+export function TimelineTooltip({ id, timeline, index, left, top, chartWidth }: { id: string; timeline: DocumentTimeline; index: number; left: number; top: number; chartWidth: number }) {
   const bin = timeline.bins[index]!;
   const rows = timeline.bands
     .map((band) => ({ band, cell: bin.byBand[band.id] }))
@@ -42,9 +42,10 @@ export function TimelineTooltip({ timeline, index, left, top, chartWidth }: { ti
   const alignment = tooltipAlignment({ left, chartWidth });
   return (
     <div
+      id={id}
       role="tooltip"
       data-alignment={alignment}
-      style={{ left, top, width: TOOLTIP_WIDTH }}
+      style={{ left, top, width: Math.min(TOOLTIP_WIDTH, chartWidth) }}
       className={cn('pointer-events-none absolute z-10 rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md', ALIGNMENT_CLASS[alignment])}
     >
       <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>

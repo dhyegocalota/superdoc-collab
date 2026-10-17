@@ -54,6 +54,7 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
 export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const tooltipId = useId();
   const [hovered, setHovered] = useState<{ index: number; y: number } | null>(null);
   const [hasFocus, setHasFocus] = useState(false);
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
@@ -98,6 +99,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         aria-label={bandAriaLabel({ name: shape.band.name, volume: shape.band.volume })}
         className={cn(isOther ? 'topic-band-other' : 'topic-band', 'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2', isFaded && 'opacity-40')}
         style={bandStyle(shape.band, shape.saturation)}
+        aria-describedby={hasFocus && tooltipAnchor !== null ? tooltipId : undefined}
         onKeyDown={handleKeyDown}
         onFocus={() => setHasFocus(true)}
         onBlur={() => setHasFocus(false)}
@@ -122,7 +124,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         {layout.shapes.filter((shape) => shape.label !== null).map((shape) => <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />)}
         {selectedIndex !== null && <line x1={layout.binX(selectedIndex)} x2={layout.binX(selectedIndex)} y1={0} y2={CHART_HEIGHT} className="pointer-events-none stroke-foreground" />}
       </svg>
-      {tooltipAnchor !== null && <TimelineTooltip timeline={timeline} index={tooltipAnchor.index} left={layout.binX(tooltipAnchor.index)} top={tooltipAnchor.top} chartWidth={width} />}
+      {tooltipAnchor !== null && <TimelineTooltip id={tooltipId} timeline={timeline} index={tooltipAnchor.index} left={layout.binX(tooltipAnchor.index)} top={tooltipAnchor.top} chartWidth={width} />}
     </div>
   );
 }

@@ -113,7 +113,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
 | Where the connection state shows | banner under the top bar; status pill beside Members | Banner (design 6.12) | 2026-10-17 |
-| Does Reload keep edits that had not synced (design row 7.25) | keep them; discard them; warn before Reload | Spike pending. Until the lead fills this row, the Failed copy makes no claim about unsynced edits. | 2026-10-17 |
+| Does Reload keep edits that had not synced (design row 7.25) | keep them; discard them; warn before Reload | Spike answered 2026-10-17: Reload loses them. The bundle has no IndexedDB persistence; a sentence typed during an outage was gone after a reload, while the same sentence synced when the page stayed open until the server returned. So the Failed banner's detail says, after the reason: "Edits that have not synced are lost when you reload. Download the document first to keep them." (`UNSYNCED_LOST_ON_RELOAD_DETAIL` in `connection-copy.ts`). Decided by the lead within the approved scope. | 2026-10-17 |
 | Does Reload show "Loading document…" as design 1.14 says | show it; remount in place | Remount in place. The open and file queries are invalidated and the editor remounts under a new key; the brief asks only that the document reopens and re-authenticates, which the new socket does. Decided by the lead within the approved scope. | 2026-10-17 |
 | Version viewer edit rejection | fail time travel as today; log and ignore | Log and ignore: the viewer is inert and cannot take a user edit. Decided by the lead within the approved scope. | 2026-10-17 |
 

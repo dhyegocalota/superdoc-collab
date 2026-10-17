@@ -74,6 +74,8 @@ The open route is synchronous, and so is reservation. Node's single thread there
 - **Takeover.** `reserveCreator` closes every connection whose attempt is not the new one with `SUPERSEDED_ATTEMPT_CLOSE_CODE` and the reason.
 - **Release.** `onDisconnect` releases the reservation when the closing connection's attempt matches it. A second tab of the same attempt keeps writing, because the latest attempt is unchanged.
 - **Room load.** While uncommitted, `onLoadDocument` restores nothing, so a new attempt starts empty and abandoned partials stay out of the live room. Once committed, it materializes as today, starting from the commit snapshot.
+- **Room unload.** An uncommitted room whose last connection closes is unloaded at once (`hocuspocus.unloadDocument`), so a new attempt that opens inside Hocuspocus's store debounce never reuses the in-memory room with the abandoned partial. A committed room keeps today's unload. Added by the lead on 2026-10-17 from the plan's review focus.
+- **Commit snapshot.** The snapshot holds the live room's state (`Y.encodeStateAsUpdate(document)`), never a `materialize` of the log, because the log still holds the abandoned partials. It is written through the existing `UpdateLog.writeSnapshot`; no new `snapshot` method is added.
 - **Socket limits.** The socket server caps frames at `MAX_SOCKET_MESSAGE_BYTES`. A per-connection `SlidingWindow` in the `beforeHandleMessage` hook counts messages. The message that exceeds the rate closes the connection with `POLICY_VIOLATION_CLOSE_CODE` and `SOCKET_RATE_LIMIT_REASON`, and logs the document name.
 
 ### Interfaces
@@ -137,7 +139,7 @@ export class CreatorReservations {
 **`libs/history`**
 
 - `isBootstrapCommitted(document: Y.Doc): boolean` is exported from `document-history.ts`, and `findBootstrapSequence` uses it.
-- `UpdateLog.snapshot({ documentName, sequence, state }): void` inserts into the existing `snapshots` table with `INSERT OR IGNORE`. The log format does not change.
+- The commit snapshot goes through the existing `UpdateLog.writeSnapshot`. The log format does not change.
 
 **`apps/server/src/documents/documents-routes.ts`** implements the open route described under Data flow. **`agent-sessions`** answers `DOCUMENT_NOT_READY_ERROR` through `AgentToolError` when the room is uncommitted, and never reserves.
 

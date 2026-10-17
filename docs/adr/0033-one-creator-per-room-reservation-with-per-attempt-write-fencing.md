@@ -35,6 +35,9 @@ The room mode is Create until the update log holds a committed bootstrap. Today 
 - Partial updates from an abandoned attempt remain in the log, so the log grows slightly and the projection must keep ignoring everything before the committed bootstrap.
 - The reservation lives in memory and resets on restart, which is acceptable on a single instance.
 - End-to-end tests need two browsers opening a fresh document at once.
+- The commit snapshot encodes the live room on the main thread (0.6 to 1.5 s for a 36 MB room) inside the append transaction: an exception to the worker budget for snapshots, accepted because it runs once per document and atomicity needs the live document.
+- `isCommitted` answers from the server's state (snapshot first), never from the live room's marker alone, because any member can write that marker; the fence takes the server's answer for attempt-less sockets.
+- A reservation stays live while any socket of its attempt is connected, and only silence after the last close expires it.
 
 ## Evidence
 

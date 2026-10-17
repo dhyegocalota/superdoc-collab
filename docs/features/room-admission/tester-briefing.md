@@ -79,6 +79,9 @@ Red commits after the review (23ed472, f5baab8, bb5fa73) change a test against a
 
 ### Known gaps
 
+- Step 21 imports server internals: `findBootstrapSequence` from `libs/history` and a read-write `better-sqlite3` handle on `history.sqlite`, plus the `updates` table columns. A schema change breaks it. It is kept because it is the only deterministic cut.
+- The 10 MB test asserts the largest sent frame is below `MAX_SOCKET_MESSAGE_BYTES` and that the connection banner, when present, is not reconnecting. The banner exists only after connection-state merges. The second-editor test runs at 375 and 1280 px and expects the editor to enter without a reload, which needs the waiting page from final-visuals.
+
 - Nothing in production code calls `attemptOf`, `mayWrite`, `commit`, `touch`, `release` or `bootstrap.commit` yet; G3 wires them.
 - The runtime test uses a fake room map, not a real socket. The real 4403 close is covered by G3's and G5's tests.
 - `services.reservations` shares the server's `now`, so a fake clock passed to `startServer` also moves reservation expiry.

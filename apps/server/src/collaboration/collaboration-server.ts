@@ -35,6 +35,7 @@ export const LOADING_ORIGIN = 'update-log-replay';
 
 const PARSE_BASE_URL = 'http://localhost';
 const FIRST_ATTEMPT = 1;
+const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
 const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
@@ -142,7 +143,13 @@ export function createCollaborationServer({
           : await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
       if (role === DocumentRole.Reader) connection.readOnly = true;
       const { attempt, epoch } = claimedTicketOf(request);
+      const waitMs = bootstrap.isKnownCommitted(documentId) ? null : openLimits.waitMs(userId);
+      if (waitMs !== null) {
+        console.warn(`${OPEN_BUDGET_LOG} ${documentId}`);
+        throw new CollaborationAuthenticationError();
+      }
       const isCommitted = bootstrap.isCommitted(documentId);
+      if (!isCommitted) openLimits.record(userId);
       const isHolder = attempt !== null && reservations.attemptOf({ documentId, userId }) === attempt;
       const mayWrite = reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
       const isTicketless = actor === ClientActor.Agent || attempt === null;

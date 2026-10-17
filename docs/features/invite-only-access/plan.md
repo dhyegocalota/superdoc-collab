@@ -76,7 +76,7 @@ G1 first. G2 and G3 in parallel after G1 (G3 mocks `fetch`). G4 after G2 and G3 
 - routes: `AppRoute.Admin = '/admin'`; `ApiPath.Setup = '/api/setup'`, `ApiPath.Invites = '/api/invites'`, `ApiPath.Admin = '/api/admin'`; `enum AdminResource { Users = 'users', Invites = 'invites' }`; `inviteApiPath(token)`, `adminApiPath(resource)`, `signUpPagePath(token)`
 - `DEMO_ADMIN = { name: 'Admin', email: 'admin@example.com' }` next to `DEMO_USERS`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `libs/types/src/invites.test.ts`:
 
@@ -131,19 +131,19 @@ test('sign-up requires a known IANA time zone', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm --filter @superdoc-collab/types exec vitest run`
 Expected: FAIL with `Cannot find module './invites'`, `inviteApiPath is not defined`, and the time-zone assertion.
 
-- [ ] **Step 3: Commit red**
+- [x] **Step 3: Commit red**
 
 ```bash
 git add libs/types/src/invites.test.ts libs/types/src/routes.test.ts libs/types/src/auth.test.ts
 git commit -m "test(types): pin invite states, invite paths and the sign-up time zone"
 ```
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `libs/types/src/invites.ts`:
 
@@ -242,12 +242,12 @@ export function signUpPagePath(token: string): string {
 
 `constants.ts`: `export const DAY_MS = 24 * HOUR_MS;`. `demo-users.ts`: `export const DEMO_ADMIN = { name: 'Admin', email: 'admin@example.com' };`. `index.ts`: `export * from './invites';`.
 
-- [ ] **Step 5: Run the tests and typecheck the package**
+- [x] **Step 5: Run the tests and typecheck the package**
 
 Run: `pnpm --filter @superdoc-collab/types exec vitest run && pnpm --filter @superdoc-collab/types typecheck`
 Expected: PASS. (`pnpm typecheck` at the root now lists the `SessionUser` consumers in server and web; record them in the commit body.)
 
-- [ ] **Step 6: Commit green**
+- [x] **Step 6: Commit green**
 
 ```bash
 git add libs/types/src/auth.ts libs/types/src/invites.ts libs/types/src/routes.ts libs/types/src/constants.ts libs/types/src/demo-users.ts libs/types/src/index.ts
@@ -269,7 +269,7 @@ git commit -m "feat(types): user roles, invite states, admin and invite paths, t
 - `hashToken(token: string): string` (sha256 hex) in `auth/token-hash.ts`; `share-links.ts` imports it.
 - `readSession` returns `role` and `timeZone`; throws `SessionUserWithoutRoleError` when the role is missing.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `apps/server/src/auth/token-hash.test.ts`:
 
@@ -308,11 +308,11 @@ test('a session whose user has no role is an error, never a default', async () =
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail** — `Cannot find module './token-hash'`; `role` undefined.
+- [x] **Step 2: Run the tests to verify they fail** — `Cannot find module './token-hash'`; `role` undefined.
 
-- [ ] **Step 3: Commit red** — `test(server): pin the shared token hash and the session role and time zone`.
+- [x] **Step 3: Commit red** — `test(server): pin the shared token hash and the session role and time zone`.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Schema: add the columns to `user` and `session` as in Interfaces (`UserRole` from `@superdoc-collab/types`). `schema/invites.ts`:
 
@@ -389,12 +389,12 @@ export function hashToken(token: string): string {
 
 `share-links.ts`: remove `hashShareToken`, import `hashToken`, replace the three call sites; keep `deriveShareToken`. Move the hash test out of `share-links.test.ts`.
 
-- [ ] **Step 5: Run the tests and typecheck the server**
+- [x] **Step 5: Run the tests and typecheck the server**
 
 Run: `pnpm --filter @superdoc-collab/server exec vitest run src/auth src/documents/share-links.test.ts src/documents/share-links-routes.test.ts && pnpm --filter @superdoc-collab/server typecheck`
 Expected: PASS (the existing `/api/me` `toEqual` assertions in `app.test.ts` and `server.test.ts` are updated in Task 4, when sign-up changes).
 
-- [ ] **Step 6: Commit green** — `feat(server): user roles via the admin plugin, time zone on the user, invites table, shared token hash`.
+- [x] **Step 6: Commit green** — `feat(server): user roles via the admin plugin, time zone on the user, invites table, shared token hash`.
 
 ---
 
@@ -419,7 +419,7 @@ export class InvitesRepository {
 }
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { DAY_MS, INVITE_TTL_MS, InviteState } from '@superdoc-collab/types';
@@ -498,9 +498,9 @@ test('list names the creator and the acceptor', async () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `Cannot find module './invites'`.
-- [ ] **Step 3: Commit red** — `test(server): pin the invites repository`.
-- [ ] **Step 4: Implement**
+- [x] **Step 2: Run to verify they fail** — `Cannot find module './invites'`.
+- [x] **Step 3: Commit red** — `test(server): pin the invites repository`.
+- [x] **Step 4: Implement**
 
 ```ts
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -619,8 +619,8 @@ export class InvitesRepository {
 }
 ```
 
-- [ ] **Step 5: Run the tests** — PASS (5).
-- [ ] **Step 6: Commit green** — `feat(server): invites repository with hashed single-use tokens`.
+- [x] **Step 5: Run the tests** — PASS (5).
+- [x] **Step 6: Commit green** — `feat(server): invites repository with hashed single-use tokens`.
 
 ---
 
@@ -640,7 +640,7 @@ export class InvitesRepository {
 - `signInAndGetCookie` adds `timeZone: TEST_TIME_ZONE` to every sign-up body and, when `server.hasAdmin`, the `x-invite-token` header from `server.services.invites.create({ createdBy: server.admin.id })`.
 - `seedDemoUsers({ auth, database, invites, password })`: `DEMO_ADMIN` first (claim), then `DEMO_USERS` through invites created only for missing accounts; every body carries `timeZone: SEED_TIME_ZONE = 'UTC'`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `apps/server/src/auth/sign-up-gate.test.ts`:
 
@@ -799,11 +799,11 @@ test('the seed claims the instance with the admin and admits the demo users by i
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail** — the claimed-instance test gets 200 where 403 is expected; `startTestServer({ claim: false })` is a type error until implemented (run with `--typecheck` off: vitest ignores the option at runtime).
+- [x] **Step 2: Run to verify they fail** — the claimed-instance test gets 200 where 403 is expected; `startTestServer({ claim: false })` is a type error until implemented (run with `--typecheck` off: vitest ignores the option at runtime).
 
-- [ ] **Step 3: Commit red** — `test(server): pin the sign-up gate, the claim and the seed order`.
+- [x] **Step 3: Commit red** — `test(server): pin the sign-up gate, the claim and the seed order`.
 
-- [ ] **Step 4: Implement the gate as a plugin**
+- [x] **Step 4: Implement the gate as a plugin**
 
 `apps/server/src/auth/sign-up-gate.ts`:
 
@@ -894,7 +894,7 @@ export function createAuth({ database, environment, invites }: { database: AuthD
 
 `server.ts`: `startServer({ environment, webDistDirectory, languageModel = ..., now = Date.now, ... })`; after the auth database opens: `const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });` then `createAuth({ database, environment, invites })`; add `invites` to `services`.
 
-- [ ] **Step 5: Test server, seed, existing tests**
+- [x] **Step 5: Test server, seed, existing tests**
 
 `test-server.ts`:
 
@@ -954,12 +954,12 @@ export async function seedDemoUsers({ auth, database, invites, password }): Prom
 
 Existing tests: `app.test.ts` sign-ups go through `signInAndGetCookie`/`signedInUser`; the `/api/me` exact objects gain `role: UserRole.User, timeZone: TEST_TIME_ZONE`; the concurrent sign-up test creates two invites and expects two users. `server.test.ts` the same for `/api/me`. `seed-demo-users.test.ts` passes `invites` and expects `existing[0]` to be `admin@example.com` on a second run.
 
-- [ ] **Step 6: Run the whole server suite and typecheck**
+- [x] **Step 6: Run the whole server suite and typecheck**
 
 Run: `pnpm --filter @superdoc-collab/server test:unit && pnpm --filter @superdoc-collab/server typecheck`
 Expected: PASS, including the five restart tests (`collaboration-history.test.ts`, `projection-scheduler.test.ts` ×2, `topics-service.test.ts`, `history-routes.test.ts`) which reopen a claimed database.
 
-- [ ] **Step 7: Commit green** — `feat(server): first sign-up claims the instance, later ones need a pending invite`.
+- [x] **Step 7: Commit green** — `feat(server): first sign-up claims the instance, later ones need a pending invite`.
 
 ---
 
@@ -972,7 +972,7 @@ Expected: PASS, including the five restart tests (`collaboration-history.test.ts
 
 **Interfaces (produces):** the spec's route table; `requireAdmin()` (after `requireUser`) → 403 `{ error: ADMINS_ONLY_MESSAGE }`; `AdminUsersRepository { list(): AdminUser[]; countAdmins(): number; setRole({ id, role }): SetRoleOutcome }`, `enum SetRoleOutcome { Updated, NotFound, LastAdmin }`; `${ApiPath.Auth}/admin/*` answers 404 `{ error: NOT_FOUND_MESSAGE }` for every method before `auth.handler`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `setup-routes.test.ts`:
 
@@ -1124,9 +1124,9 @@ test('update-user cannot change the role', async () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail** — 404 where 200/401/403 are expected; the plugin admin paths answer 200/401 instead of 404.
-- [ ] **Step 3: Commit red** — `test(server): pin setup, invite lookup, admin routes and the closed plugin endpoints`.
-- [ ] **Step 4: Implement**
+- [x] **Step 2: Run to verify they fail** — 404 where 200/401/403 are expected; the plugin admin paths answer 200/401 instead of 404.
+- [x] **Step 3: Commit red** — `test(server): pin setup, invite lookup, admin routes and the closed plugin endpoints`.
+- [x] **Step 4: Implement**
 
 `require-admin.ts`:
 
@@ -1213,8 +1213,8 @@ const AUTH_ADMIN_PATH = `${ApiPath.Auth}/admin/*`;
 
 (`NOT_FOUND_MESSAGE` from `libs/types` if it exists, else add `'Not found.'` next to the other messages.) The web never installs `adminClient`.
 
-- [ ] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-collab/server exec vitest run src/admin src/http && pnpm --filter @superdoc-collab/server typecheck`: PASS.
-- [ ] **Step 6: Commit green** — `feat(server): setup status, invite lookup, admin routes; the plugin's admin endpoints are closed`.
+- [x] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-collab/server exec vitest run src/admin src/http && pnpm --filter @superdoc-collab/server typecheck`: PASS.
+- [x] **Step 6: Commit green** — `feat(server): setup status, invite lookup, admin routes; the plugin's admin endpoints are closed`.
 
 ---
 
@@ -1225,7 +1225,7 @@ const AUTH_ADMIN_PATH = `${ApiPath.Auth}/admin/*`;
 - Modify: `apps/server/tsup.config.ts` (entry `'admin-promote': 'src/admin/promote.ts'`), `apps/server/package.json` (`"admin:promote": "node dist/admin-promote.js"`)
 - Test: `apps/server/src/admin/promote.test.ts`, `apps/server/src/repository-shape/entrypoint.test.ts` (or the nearest build-shape test: the tsup entries include `admin-promote`)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test('promote sets the role of an existing email and reports unknown emails', async () => {
@@ -1242,9 +1242,9 @@ test('the build emits the promote entry', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `Cannot find module './promote'`; the entry is missing.
-- [ ] **Step 3: Commit red** — `test(server): pin admin:promote`.
-- [ ] **Step 4: Implement**
+- [x] **Step 2: Run to verify they fail** — `Cannot find module './promote'`; the entry is missing.
+- [x] **Step 3: Commit red** — `test(server): pin admin:promote`.
+- [x] **Step 4: Implement**
 
 ```ts
 import { pathToFileURL } from 'node:url';
@@ -1290,8 +1290,8 @@ function main(): void {
 if (import.meta.url === pathToFileURL(process.argv[1] as string).href) main();
 ```
 
-- [ ] **Step 5: Run the tests** — PASS.
-- [ ] **Step 6: Commit green** — `feat(server): admin:promote recovers an instance without an admin`.
+- [x] **Step 5: Run the tests** — PASS.
+- [x] **Step 6: Commit green** — `feat(server): admin:promote recovers an instance without an admin`.
 
 ---
 
@@ -1310,7 +1310,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] as string).href) main();
 - the sign-up form sends `{ ...values, timeZone: browserTimeZone() }`; the sign-in page's `afterSuccess` fetches the session and, when `user.timeZone === null`, calls `authClient.updateUser({ timeZone: browserTimeZone() })` once, then invalidates `SESSION_QUERY_KEY`
 - copy: `CLAIM_TITLE = 'Claim this instance'`, `CLAIM_DESCRIPTION = 'The first account becomes the administrator.'`, `INVITED_TITLE = 'You were invited'`, `INVITED_DESCRIPTION = 'Create your account to join.'`, `INVITE_INVALID_MESSAGE = 'This invite is not valid. Ask an admin for a new link.'`, `CLAIM_LINK_LABEL = 'Claim this instance'`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `sign-up-page.test.tsx` (mock `fetch` as `documents-page.test.tsx` does; mock `./auth-client` as `sign-in-page.test.tsx` does, exposing `signUpEmail`):
 
@@ -1380,9 +1380,9 @@ test('submitting sends the token in the header and the zone in the body; a forbi
 
 `sign-in-page.test.tsx`, add: "shows the claim link while unclaimed and no sign-up link once claimed" and "a sign-in whose session has no time zone writes the browser zone once" (the `/api/me` mock answers `timeZone: null` first; assert `updateUser` called once with `{ timeZone: <browser zone> }`; a second test with a zone present asserts it is not called).
 
-- [ ] **Step 2: Run to verify they fail** — `CLAIM_TITLE` undefined, headings missing.
-- [ ] **Step 3: Commit red** — `test(web): pin the claim and invited sign-up states, the zone capture and the forbidden message`.
-- [ ] **Step 4: Implement**
+- [x] **Step 2: Run to verify they fail** — `CLAIM_TITLE` undefined, headings missing.
+- [x] **Step 3: Commit red** — `test(web): pin the claim and invited sign-up states, the zone capture and the forbidden message`.
+- [x] **Step 4: Implement**
 
 `browser-time-zone.ts`: `export function browserTimeZone(): string { return Intl.DateTimeFormat().resolvedOptions().timeZone; }`.
 
@@ -1413,8 +1413,8 @@ export function SignUpPage() {
 
 `sign-in-page.tsx`: `useSetup()`; the footer shows the claim link only when `setup.data?.claimed === false`, and nothing while loading or when claimed. `afterSuccess`: `const me = await fetchSession(); if (me.user && me.user.timeZone === null) await authClient.updateUser({ timeZone: browserTimeZone() });` (`fetchSession` is the existing `/api/me` fetcher behind `useSession`; export it from `use-session.ts` if it is local).
 
-- [ ] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-collab/web test:unit && pnpm typecheck`: PASS, workspace green.
-- [ ] **Step 6: Commit green** — `feat(web): claim and invited sign-up, browser time zone on sign-up and first sign-in, setup-aware sign-in`.
+- [x] **Step 5: Run the tests and typecheck** — `pnpm --filter @superdoc-collab/web test:unit && pnpm typecheck`: PASS, workspace green.
+- [x] **Step 6: Commit green** — `feat(web): claim and invited sign-up, browser time zone on sign-up and first sign-in, setup-aware sign-in`.
 
 ---
 
@@ -1429,7 +1429,7 @@ export function SignUpPage() {
 - copy: `ADMIN_LINK_LABEL = 'Admin'`, `ADMINS_ONLY_TOAST = 'Admins only'`, `GENERATE_INVITE_LABEL = 'Generate invite'`, `INVITE_CREATED_TITLE = 'Invite link'`, `INVITE_CREATED_DESCRIPTION = 'Send this link to one person. It works once and expires in seven days. It is shown only now.'`, `COPY_LINK_LABEL = 'Copy link'`, `INVITE_COPIED_TOAST = 'Invite link copied'`, `COPY_FAILED_MESSAGE = 'Copy failed. Select the link and copy it.'`, `REVOKE_LABEL = 'Revoke'`, `MAKE_ADMIN_LABEL = 'Make admin'`, `MAKE_USER_LABEL = 'Make user'`, `ACTION_FAILED_MESSAGE = 'That did not work. Try again.'`, `INVITE_STATE_LABELS: Record<InviteState, string> = { pending: 'Pending', accepted: 'Accepted', revoked: 'Revoked', expired: 'Expired' }`, `NO_INVITES_MESSAGE = 'No invites yet.'`
 - query keys `ADMIN_USERS_QUERY_KEY = ['admin', 'users']`, `INVITES_QUERY_KEY = ['admin', 'invites']`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `admin-page.test.tsx` (fetch mock: `/api/me` admin, users list, invites list, POST invites → 201 `{ id, url, expiresAt }`, DELETE → 204, POST role → 200; `vi.spyOn(navigator.clipboard, 'writeText')`):
 
@@ -1444,9 +1444,9 @@ export function SignUpPage() {
 
 `documents-page.test.tsx`, add: "the header shows the Admin link only for admins".
 
-- [ ] **Step 2: Run to verify they fail** — modules missing.
-- [ ] **Step 3: Commit red** — `test(web): pin the admin page, the invite dialog and the role guard`.
-- [ ] **Step 4: Implement**
+- [x] **Step 2: Run to verify they fail** — modules missing.
+- [x] **Step 3: Commit red** — `test(web): pin the admin page, the invite dialog and the role guard`.
+- [x] **Step 4: Implement**
 
 `admin-api.ts`: `fetchAdminUsers`, `fetchInvites`, `createInvite(): Promise<CreatedInvite>` (expects 201), `revokeInvite(id)` (expects 204), `setUserRole({ id, role })` (expects 200); each throws `ApiRequestError` otherwise, using `apiGet`/`apiSend`.
 
@@ -1477,8 +1477,8 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
 
 `router.tsx`: `{ path: AppRoute.Admin, element: <RequireAdmin><AdminPage /></RequireAdmin> }`. `documents-page.tsx` header: `{user?.role === UserRole.Admin && <Link to={AppRoute.Admin}>{ADMIN_LINK_LABEL}</Link>}` before `SignOutButton`. `render-with-providers.tsx`: render `<Toaster />` inside the providers.
 
-- [ ] **Step 5: Run the tests and typecheck** — PASS.
-- [ ] **Step 6: Commit green** — `feat(web): admin page with users, invites, the invite link dialog and the role guard`.
+- [x] **Step 5: Run the tests and typecheck** — PASS.
+- [x] **Step 6: Commit green** — `feat(web): admin page with users, invites, the invite link dialog and the role guard`.
 
 ---
 
@@ -1490,7 +1490,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
 
 **Interfaces (produces):** fixtures `signedInAdmin({ browser, clientAddress })` (context with `permissions: ['clipboard-read', 'clipboard-write']`, random `x-forwarded-for`, registered in `openedContexts`, signed in as `admin@example.com` with `DEMO_PASSWORD`); `generateInvite({ page }): Promise<string>` (clicks Generate invite, reads the URL from the dialog's read-only textbox, closes the dialog); `acceptInvite({ browser, url, name, email })` (new context with its own random address, registered for closing, opens the URL, fills the form, submits, returns `{ context, page }`).
 
-- [ ] **Step 1: Write the failing specs**
+- [x] **Step 1: Write the failing specs**
 
 `auth.spec.ts`: replace "a new user signs up and lands on documents" with:
 
@@ -1551,10 +1551,10 @@ test('a user opening /admin is sent to documents with the admins-only toast', as
 
 (`openedContext({ browser })` is a fixture helper that creates a context with a random client address and registers it for closing; `signedInContext` already does this for a known user.)
 
-- [ ] **Step 2: Run the two specs** — against the pre-build bundle they fail (no `/admin`, open sign-up); against the branch they must pass in Step 4.
-- [ ] **Step 3: Commit red** — `test(e2e): pin invite-only sign-up and the admin page`.
-- [ ] **Step 4: Fixtures, then the whole suite** — `pnpm test:e2e`: PASS (seeded users still sign in; the stack is claimed by `admin@example.com` because the seed runs before `main`).
-- [ ] **Step 5: Commit green** — `test(e2e): fixtures for the admin and invited contexts`.
+- [x] **Step 2: Run the two specs** — against the pre-build bundle they fail (no `/admin`, open sign-up); against the branch they must pass in Step 4.
+- [x] **Step 3: Commit red** — `test(e2e): pin invite-only sign-up and the admin page`.
+- [x] **Step 4: Fixtures, then the whole suite** — `pnpm test:e2e`: PASS (seeded users still sign in; the stack is claimed by `admin@example.com` because the seed runs before `main`).
+- [x] **Step 5: Commit green** — `test(e2e): fixtures for the admin and invited contexts`.
 
 ---
 
@@ -1565,13 +1565,13 @@ test('a user opening /admin is sent to documents with the admins-only toast', as
 - Modify (G2 files, by developer-4, stated in the commit): `apps/server/src/repository-shape/compose.test.ts`, `delivery-docs.test.ts`
 - CI: `.github/workflows/verify.yml` is **unchanged**: the smoke container keeps `SEED_DEMO_USERS=true`, the seed claims the instance, Ana's sign-in keeps answering 200.
 
-- [ ] **Step 1: Write the failing repository-shape tests**
+- [x] **Step 1: Write the failing repository-shape tests**
 
 `compose.test.ts`: the production compose sets `SEED_DEMO_USERS` to `"false"` and never reads `DEMO_PASSWORD`; `REQUIRED_VARIABLES` drops `SEED_DEMO_USERS`. `delivery-docs.test.ts`: the README's `## Configuration` table lists every variable the production compose reads; the fenced block under `## Install with an agent` contains `AUTH_SECRET`, `APP_ORIGIN`, `SEED_DEMO_USERS=false` and the words `claim the instance`; the README's `## Limits` mentions `admin-promote`.
 
-- [ ] **Step 2: Run them** — FAIL on the README.
-- [ ] **Step 3: Commit red** — `test(repository-shape): pin the production compose and the newcomer README`.
-- [ ] **Step 4: Implement**
+- [x] **Step 2: Run them** — FAIL on the README.
+- [x] **Step 3: Commit red** — `test(repository-shape): pin the production compose and the newcomer README`.
+- [x] **Step 4: Implement**
 
 - `deploy/docker-compose.yml`: `SEED_DEMO_USERS: "false"`; drop `DEMO_PASSWORD`. Root `docker-compose.yml`: keep `SEED_DEMO_USERS: ${SEED_DEMO_USERS:?}` (tests and local demos). `.env.example`: `SEED_DEMO_USERS=false`; `DEMO_PASSWORD` kept under its existing note, reworded "tests only".
 - `runbook-railway.md`: step 3 sets `SEED_DEMO_USERS=false` and drops `DEMO_PASSWORD`; new step **6. Claim the instance** (open the URL, "Claim this instance", create the admin; `/admin` → Generate invite → send links); **Hand it over** sends the URL plus invite links, never a shared password; the reset paragraph says "the volume is empty, open the URL and claim again" instead of "seeds the demo users again". `runbook.md` (Dokploy, historical): one line at the top, the seed is test-only since ADR 0020.
@@ -1594,8 +1594,8 @@ Install https://github.com/dhyegocalota/superdoc-take-home for me.
 ```
 ````
 
-- [ ] **Step 5: Run the repository-shape tests, format and typecheck** — PASS.
-- [ ] **Step 6: Commit green** — `docs: newcomer README with an agent install prompt; production seeds nothing`.
+- [x] **Step 5: Run the repository-shape tests, format and typecheck** — PASS.
+- [x] **Step 6: Commit green** — `docs: newcomer README with an agent install prompt; production seeds nothing`.
 
 ---
 
@@ -1621,9 +1621,9 @@ Install https://github.com/dhyegocalota/superdoc-take-home for me.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
-- [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
-- [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
+- [x] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/check-ui:** screenshots and video recorded and uploaded (claim, invited sign-up, admin page with the invite dialog, invalid invite).
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.
 - [ ] **Deploy, in this order:** `railway variables --set SEED_DEMO_USERS=false --skip-deploys` (the live service still has `true`; with it the seed would fail on the claimed database and the container would never start); merge; `railway up`; the migration applies on the volume; then promote the owner's account with `railway ssh -- node dist/admin-promote.js <email>`, or reset the volume and claim fresh (owner's call; the instance already holds Ana and Bruno from the first walk).

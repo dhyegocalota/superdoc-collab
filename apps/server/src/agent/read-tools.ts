@@ -12,7 +12,7 @@ import { buildBinEdits, buildDocumentTimeline } from '../history/timeline-servic
 import { documentTopics } from '../insights/document-topics';
 import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
 import { SelectionRequestOutcome, type RequestedSelection } from '../insights/selection-summaries-service';
-import { defineDocumentTool, definePersonTool, type AgentToolDefinition } from './agent-tool-definition';
+import { defineDocumentTool, definePersonTool, READ_ONLY_ANNOTATIONS, type AgentToolDefinition } from './agent-tool-definition';
 import { absentAsNull, AgentToolError, jsonResult } from './tool-results';
 
 type ReadTool =
@@ -31,11 +31,13 @@ const binMsInput = z
 
 export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
   [AgentTool.ListDocuments]: definePersonTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.HistoryRead,
     description: 'List the documents the person is a member of, with their role on each.',
     handle: ({ context }) => jsonResult(context.services.documents.list(context.principal.userId)),
   }),
   [AgentTool.GetTimeline]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Reader,
     description: `Read how a document evolved: time bins, topic or author bands, contributors and authors. At most ${MAX_BINS} bins.`,
@@ -54,6 +56,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
     },
   }),
   [AgentTool.GetBinEdits]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Reader,
     description: 'Read the edit runs of one timeline bin with their authors. Pass the bin start and binMs from get_timeline.',
@@ -74,6 +77,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
       ),
   }),
   [AgentTool.ListTopics]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Reader,
     description: 'List the topics of a document and the status of the topic analysis.',
@@ -84,6 +88,7 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
     },
   }),
   [AgentTool.SummarizeSelection]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Editor,
     description:

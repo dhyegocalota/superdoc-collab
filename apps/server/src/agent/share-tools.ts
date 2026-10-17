@@ -1,12 +1,16 @@
-import { AgentActionKind, AgentScope, AgentTool, DocumentRole, ShareLinkRole } from '@superdoc-history/types';
+import { AgentActionKind, AgentScope, AgentTool, DocumentRole, documentPagePath, ShareLinkRole } from '@superdoc-history/types';
 import { z } from 'zod';
-import { defineDocumentTool, type AgentToolDefinition } from './agent-tool-definition';
+import { DESTRUCTIVE_ANNOTATIONS, defineDocumentTool, READ_ONLY_ANNOTATIONS, type AgentToolDefinition } from './agent-tool-definition';
 import { jsonResult } from './tool-results';
+
+const SHARE_INSTRUCTION =
+  'Open this document in the app and choose Share to copy the edit or read link. Link secrets are never sent to AI clients.';
 
 type ShareTool = AgentTool.ListMembers | AgentTool.GetShareLinks | AgentTool.RotateShareLink;
 
 export const SHARE_TOOLS: Record<ShareTool, AgentToolDefinition> = {
   [AgentTool.ListMembers]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.DocumentShare,
     minimumRole: DocumentRole.Reader,
     description: 'List the members of a document with their role and whether they are online.',
@@ -20,25 +24,29 @@ export const SHARE_TOOLS: Record<ShareTool, AgentToolDefinition> = {
     },
   }),
   [AgentTool.GetShareLinks]: defineDocumentTool({
+    annotations: READ_ONLY_ANNOTATIONS,
     scope: AgentScope.DocumentShare,
     minimumRole: DocumentRole.Owner,
-    description: 'Reveal the edit and read share links of a document. The reveal is recorded on the document timeline.',
+    description: 'Point to the Share dialog of a document, where the person copies the edit or read link. No link secret is returned.',
     shape: {},
-    handle: ({ input, context }) => {
-      const links = context.services.shareLinks.links(input.documentId);
-      context.recordAction({ documentId: input.documentId, userId: context.principal.userId, kind: AgentActionKind.ShareLinkRevealed });
-      return jsonResult(links);
-    },
+    handle: ({ input, context }) =>
+      jsonResult({ documentUrl: `${context.appOrigin}${documentPagePath(input.documentId)}`, instruction: SHARE_INSTRUCTION }),
   }),
   [AgentTool.RotateShareLink]: defineDocumentTool({
+    annotations: DESTRUCTIVE_ANNOTATIONS,
     scope: AgentScope.DocumentShare,
     minimumRole: DocumentRole.Owner,
-    description: 'Rotate the edit or read share link of a document, which revokes the old link. The rotation is recorded on the timeline.',
+    description:
+      'Rotate the edit or read share link of a document, which revokes the old link. No link secret is returned. The rotation is recorded on the timeline.',
     shape: { role: z.enum(ShareLinkRole).describe('Which link to rotate: edit or read') },
     handle: ({ input, context }) => {
-      const links = context.services.shareLinks.rotate({ documentId: input.documentId, role: input.role });
+      context.services.shareLinks.rotate({ documentId: input.documentId, role: input.role });
       context.recordAction({ documentId: input.documentId, userId: context.principal.userId, kind: AgentActionKind.ShareLinkRotated });
-      return jsonResult(links);
+      return jsonResult({
+        rotated: input.role,
+        documentUrl: `${context.appOrigin}${documentPagePath(input.documentId)}`,
+        instruction: SHARE_INSTRUCTION,
+      });
     },
   }),
 };

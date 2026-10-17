@@ -1,13 +1,17 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import { HttpStatus } from '@superdoc-history/types';
+import { HttpStatus, MINUTE_MS, secondsRoundedUp } from '@superdoc-history/types';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { SlidingWindow } from '../limits/sliding-window';
 import type { AppServices } from '../http/app';
+import { retryLater } from '../http/retry-later';
 import type { AgentDocumentSessions, AgentToolContext, AgentToolPrincipal, RecordAgentAction } from './agent-tool-context';
 import { AGENT_TOOLS, agentToolsFor, callAgentTool } from './agent-tools';
 
 export const MCP_BODY_MAX_BYTES = 256 * 1024;
+export const MCP_RATE_LIMIT: McpRateLimit = { maxCalls: 120, windowMs: MINUTE_MS };
+const RATE_LIMITED_MESSAGE = 'Too many requests; slow down';
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const MCP_SERVER_NAME = 'superdoc-history';
 const MCP_SERVER_VERSION = '1.0.0';
@@ -29,14 +33,31 @@ export type McpRouteOptions = {
 function createMcpServer(context: AgentToolContext): McpServer {
   const server = new McpServer({ name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION });
   agentToolsFor(context.principal.scopes).forEach((tool) => {
-    const { description, inputSchema } = AGENT_TOOLS[tool];
-    server.registerTool(tool, { description, inputSchema }, (input) => callAgentTool({ tool, input, context }));
+    const { description, inputSchema, annotations } = AGENT_TOOLS[tool];
+    server.registerTool(tool, { description, inputSchema, annotations }, (input) => callAgentTool({ tool, input, context }));
   });
   return server;
 }
 
-export function createMcpRoutes({ appOrigin, services, authorize, unauthorized, sessions, toolkit, recordAction }: McpRouteOptions): Hono {
+export function createMcpRoutes({
+  appOrigin,
+  rateLimit = MCP_RATE_LIMIT,
+  services,
+  authorize,
+  unauthorized,
+  sessions,
+  toolkit,
+  recordAction,
+}: McpRouteOptions): Hono {
   const routes = new Hono();
+  const windows = new Map<string, SlidingWindow>();
+  function windowOf(userId: string): SlidingWindow {
+    const existing = windows.get(userId);
+    if (existing) return existing;
+    const created = new SlidingWindow({ windowMs: rateLimit.windowMs });
+    windows.set(userId, created);
+    return created;
+  }
   routes.post(
     '/',
     bodyLimit({
@@ -46,6 +67,18 @@ export function createMcpRoutes({ appOrigin, services, authorize, unauthorized, 
     async (honoContext) => {
       const principal = await authorize(honoContext.req.raw);
       if (!principal) return unauthorized();
+      const window = windowOf(principal.userId);
+      if (window.count() >= rateLimit.maxCalls) {
+        const oldest = window.oldest();
+        const waitMs = oldest === null ? rateLimit.windowMs : rateLimit.windowMs - (Date.now() - oldest);
+        return retryLater({
+          context: honoContext,
+          body: { error: RATE_LIMITED_MESSAGE },
+          status: HttpStatus.TooManyRequests,
+          retryAfterSeconds: secondsRoundedUp(waitMs),
+        });
+      }
+      window.record();
       if (agentToolsFor(principal.scopes).length === 0) return honoContext.body(null, HttpStatus.Forbidden);
       const server = createMcpServer({ appOrigin, services, principal, sessions, toolkit, recordAction });
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

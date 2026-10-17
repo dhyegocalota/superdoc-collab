@@ -103,20 +103,20 @@ export class AgentSessions implements AgentDocumentSessions {
     this.openTimeoutMs = openTimeoutMs;
   }
 
-  async run<Result>(options: SessionWork<Result>): Promise<Result> {
-    const key = `${options.person.userId}:${options.documentId}`;
-    const previous = this.turns.get(key);
-    const turn = previous ? previous.then(() => this.runOnSession(options)) : this.runOnSession(options);
-    const settled = turn.then(
+  run<Result>(options: SessionWork<Result>): Promise<Result> {
+    const { userId } = options.person;
+    const previous = this.turns.get(userId);
+    const turn = previous ? this.untilTurn(previous).then(() => this.runOnSession(options)) : this.runOnSession(options);
+    const turnEnded = turn.then(
       () => undefined,
       () => undefined,
     );
-    this.turns.set(key, settled);
-    try {
-      return await turn;
-    } finally {
-      if (this.turns.get(key) === settled) this.turns.delete(key);
-    }
+    const tail = previous ? Promise.all([previous, turnEnded]).then(() => undefined) : turnEnded;
+    this.turns.set(userId, tail);
+    void tail.then(() => {
+      if (this.turns.get(userId) === tail) this.turns.delete(userId);
+    });
+    return turn;
   }
 
   async close(): Promise<void> {
@@ -125,6 +125,16 @@ export class AgentSessions implements AgentDocumentSessions {
     this.idle.keys().forEach((key) => this.idle.delete(key));
     await Promise.all(sessions.map((session) => this.release(session)));
     await this.client.dispose();
+  }
+
+  private untilTurn(previous: Promise<void>): Promise<void> {
+    return withTimeout({
+      work: previous,
+      milliseconds: this.openTimeoutMs,
+      onTimeout: () => {
+        throw new AgentSessionBusyError(secondsRoundedUp(this.openTimeoutMs));
+      },
+    });
   }
 
   private async runOnSession<Result>(options: SessionWork<Result>): Promise<Result> {

@@ -135,8 +135,8 @@ test('a session with a call in flight is never evicted', async () => {
   });
   const inFlight = sessions.run({ person: ANA, documentId: 'busy', work: () => gate });
   await vi.waitFor(() => expect(opened.has('busy')).toBe(true));
-  await sessions.run({ person: ANA, documentId: 'other', work: async () => undefined });
-  await sessions.run({ person: ANA, documentId: 'another', work: async () => undefined });
+  await sessions.run({ person: BRUNO, documentId: 'other', work: async () => undefined });
+  await sessions.run({ person: BRUNO, documentId: 'another', work: async () => undefined });
   expect(opened.get('busy')!.close).not.toHaveBeenCalled();
   release();
   await inFlight;

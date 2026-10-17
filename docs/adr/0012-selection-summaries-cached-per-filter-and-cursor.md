@@ -12,7 +12,7 @@ The brief asks for a summary of the edits that is interactive and filterable. On
 ## Decision
 
 - The cache key is the raw normalized filter text, hashed with SHA-256. Resolved author keys are not part of the key, so a rename does not multiply rows.
-- There is one row per (document, key), stamped with the read-model cursor and the topic set's `updatedAt`.
+- There is one row per (document, key), stamped with the read-model cursor and, only when a topic is selected, the topic set's `updatedAt`.
 - Any edit anywhere marks every selection summary stale. The stale badge keeps the old sentence visible, which is the honest "as of now".
 - Any topic compute attempt marks the topic selections stale.
 - Summaries run as `202` plus polling on the existing `InsightsWorker`, never as a synchronous `POST`.

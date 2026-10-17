@@ -5,15 +5,22 @@ import { fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api'
 
 const NO_MEMBERS: DocumentMember[] = [];
 
-export function useMembers(documentId: string): { members: DocumentMember[]; isUnavailable: boolean; isCurrentUserOnline: boolean | null } {
-  const { data, error } = useQuery({
+type MembersView = {
+  members: DocumentMember[];
+  isUnavailable: boolean;
+  isCurrentUserOnline: boolean | null;
+  membersAnsweredAt: number | null;
+};
+
+export function useMembers(documentId: string): MembersView {
+  const { data, error, dataUpdatedAt } = useQuery({
     queryKey: membersQueryKey(documentId),
     queryFn: () => fetchMembers(documentId),
     refetchInterval: pollWhileAvailable(MEMBERS_REFRESH_MS),
     retry: false,
   });
   const isUnavailable = error instanceof DocumentUnavailableError;
-  if (!data) return { members: NO_MEMBERS, isUnavailable, isCurrentUserOnline: null };
-  if (error) return { members: data.members, isUnavailable, isCurrentUserOnline: null };
-  return { members: data.members, isUnavailable, isCurrentUserOnline: data.isCurrentUserOnline };
+  if (!data) return { members: NO_MEMBERS, isUnavailable, isCurrentUserOnline: null, membersAnsweredAt: null };
+  if (error) return { members: data.members, isUnavailable, isCurrentUserOnline: null, membersAnsweredAt: null };
+  return { members: data.members, isUnavailable, isCurrentUserOnline: data.isCurrentUserOnline, membersAnsweredAt: dataUpdatedAt };
 }

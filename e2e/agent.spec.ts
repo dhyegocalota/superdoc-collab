@@ -1,18 +1,30 @@
-import { AgentTool, agentAuthorName, ClientActor, DEMO_USERS, HttpStatus } from '../libs/types/src';
+import { AgentActionKind, AgentTool, agentAuthorName, ClientActor, DEMO_USERS, HttpStatus } from '../libs/types/src';
 import {
   callTool,
   connectAiClient,
   openConnectedApps,
   readTimelineThroughAgent,
+  revealShareLinksThroughAgent,
   replaceTextThroughAgent,
   rejectedStatus,
   revokeConnectedApp,
   toolJson,
   trackedChangeCards,
 } from './agent';
-import { uploadSeed } from './editor';
+import { insertInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
-import { BANDS_TIMEOUT_MS, BUDGET_PARAGRAPH, HIRING, HIRING_PARAGRAPH, waitForBands, waitForSettledTimeline } from './timeline';
+import { agentActionLabel } from '../apps/web/src/features/timeline/timeline-copy';
+import {
+  ANA_TEXT,
+  BANDS_TIMEOUT_MS,
+  BUDGET,
+  BUDGET_PARAGRAPH,
+  HIRING,
+  HIRING_PARAGRAPH,
+  readTimeline,
+  waitForBands,
+  waitForSettledTimeline,
+} from './timeline';
 
 const ANA = DEMO_USERS[0]!;
 const AGENT_LAYER_SELECTOR = `[data-actor="${ClientActor.Agent}"]`;
@@ -38,4 +50,25 @@ test('an AI client connects, edits in tracked mode and is revoked', async ({ bro
   await revokeConnectedApp({ page: connectedApps, clientName: connection.clientName });
   const revokedCall = callTool({ connection, tool: AgentTool.GetTimeline, args: { documentId } });
   expect(await rejectedStatus(revokedCall)).toBe(HttpStatus.Unauthorized);
+});
+
+test('a shared link revealed by the AI leaves a mark', async ({ browser, request }) => {
+  const ana = await signedInContext({ browser, user: ANA });
+  const documentId = await uploadSeed({ page: ana.page, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  await insertInParagraph({ page: ana.page, paragraphText: BUDGET_PARAGRAPH.slice(0, 7), text: ANA_TEXT });
+  await waitForBands({ page: ana.page, names: [BUDGET] });
+  await waitForSettledTimeline({ page: ana.page, documentId });
+  const connection = await connectAiClient({ page: await ana.context.newPage(), request });
+
+  await revealShareLinksThroughAgent({ connection, documentId });
+
+  await expect
+    .poll(async () => (await readTimeline({ page: ana.page, documentId })).agentActions.map((action) => action.kind))
+    .toEqual([AgentActionKind.ShareLinkRevealed]);
+  await ana.page.reload();
+  const label = agentActionLabel({ name: agentAuthorName(ANA.name), kind: AgentActionKind.ShareLinkRevealed });
+  const mark = ana.page.getByRole('button', { name: label });
+  await expect(mark).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
+  await mark.hover();
+  await expect(ana.page.getByRole('tooltip')).toHaveText(label);
 });

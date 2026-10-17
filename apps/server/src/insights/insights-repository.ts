@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
 import { documentTopics, topicBlocks, topicSets, topicSummaries } from '../database/schema/insights';
 
+export type StoredSelectionSummary = { key: string; sentence: string | null; authors: string[]; failure: string | null; computedAtSequence: number; topicsUpdatedAt: number | null };
 export type StoredTopic = { id: string; name: string; position: number; blockIds: string[] };
 
 export class InsightsRepository {
@@ -94,4 +95,12 @@ export class InsightsRepository {
       .onConflictDoUpdate({ target: topicSets.documentId, set: { state, failure, updatedAt } })
       .run();
   }
+
+  selectionSummary(_options: { documentId: string; key: string }): StoredSelectionSummary | null {
+    return null;
+  }
+
+  saveSelectionSummary(_options: { documentId: string; key: string; sentence: string; authors: string[]; computedAtSequence: number; topicsUpdatedAt: number | null }): void {}
+
+  saveSelectionFailure(_options: { documentId: string; key: string; failure: string; computedAtSequence: number; topicsUpdatedAt: number | null }): void {}
 }

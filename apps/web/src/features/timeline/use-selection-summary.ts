@@ -2,7 +2,6 @@ import { SelectionSummaryState, type EditSelection, type SelectionSummaryView } 
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
-import { useTimeZone } from '@/lib/use-time-zone';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
@@ -15,17 +14,18 @@ export function useSelectionSummary({
   documentId,
   selection,
   binMs,
+  timeZone,
   isOpen,
   timelineStamp,
 }: {
   documentId: string;
   selection: EditSelection;
   binMs: number | null;
+  timeZone: string;
   isOpen: boolean;
   timelineStamp: string | null;
 }): UseQueryResult<SelectionSummaryView> {
   const queryClient = useQueryClient();
-  const { timeZone } = useTimeZone();
   const seenStamp = useRef(timelineStamp);
   const query = useQuery({
     queryKey: selectionSummaryQueryKey({ documentId, selection, timeZone }),
@@ -48,12 +48,13 @@ export function useSelectionSummary({
 export function useSummarizeEdits({
   documentId,
   binMs,
+  timeZone,
 }: {
   documentId: string;
   binMs: number | null;
+  timeZone: string;
 }): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
   const queryClient = useQueryClient();
-  const { timeZone } = useTimeZone();
   const mutation = useMutation({
     mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection, binMs, timeZone }),
     onSuccess: async (view, selection) => {

@@ -1,4 +1,12 @@
-import { MINUTE_MS, OTHER_BAND_ID, TimelineBandKind, TopicState, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
+import {
+  MINUTE_MS,
+  OTHER_BAND_ID,
+  TimelineBandKind,
+  TopicState,
+  UTC_TIME_ZONE,
+  type DocumentTimeline,
+  type TimelineBand,
+} from '@superdoc-collab/types';
 
 const FIRST_BIN_START = 1_792_165_200_000;
 const HUE_START = 205;
@@ -28,10 +36,12 @@ export function timelineWith({
   volumes,
   names,
   kinds = names.map(() => TimelineBandKind.Topic),
+  timeZone = UTC_TIME_ZONE,
 }: {
   volumes: number[][];
   names: string[];
   kinds?: TimelineBandKind[];
+  timeZone?: string;
 }): DocumentTimeline {
   const bands = names.map((name, index) =>
     bandOf({ name, kind: kinds[index]!, index, count: names.length, volume: volumes.reduce((sum, row) => sum + row[index]!, 0) }),
@@ -45,6 +55,7 @@ export function timelineWith({
     ),
   }));
   return {
+    timeZone,
     binMs: MINUTE_MS,
     bins,
     bands,

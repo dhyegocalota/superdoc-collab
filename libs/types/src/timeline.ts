@@ -84,6 +84,7 @@ export type TimelineContributor = { authorKey: string; inserted: number; deleted
 export type TopicStatus = { state: TopicState; failure: string | null; computedAtSequence: number | null };
 export type ProjectionStatus = { isBehind: boolean; lagMs: number | null; isDegraded: boolean; cursor: number | null };
 export type DocumentTimeline = {
+  timeZone: string;
   binMs: number;
   bins: TimelineBin[];
   bands: TimelineBand[];

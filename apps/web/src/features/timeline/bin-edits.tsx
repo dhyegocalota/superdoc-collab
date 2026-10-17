@@ -2,7 +2,6 @@ import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from 
 import { useQuery } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';
-import { useTimeZone } from '@/lib/use-time-zone';
 import { authorNames } from './author-of';
 import { maxBandVolume } from './max-band-volume';
 import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
@@ -22,7 +21,7 @@ function snippetOf(text: string): string {
 type BinEditsProps = { documentId: string; timeline: DocumentTimeline; bin: TimelineBin; filter: TimelineFilter };
 
 export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
-  const { timeZone } = useTimeZone();
+  const { timeZone } = timeline;
   const { data } = useQuery({
     queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone }),
     queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter, timeZone }),

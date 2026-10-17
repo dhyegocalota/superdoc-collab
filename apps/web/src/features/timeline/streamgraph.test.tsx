@@ -10,6 +10,7 @@ import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_
 vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
 
 const WIDTH = 600;
+const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
 const WHITESPACE = /\s+/g;
 const timeline = timelineWith({
   volumes: [
@@ -293,4 +294,12 @@ test('another key selects nothing', () => {
   const { onSelectIndex } = renderGraph({ selectedIndex: 1 });
   fireEvent.keyDown(screen.getByLabelText('Budget, 340 characters'), { key: 'a' });
   expect(onSelectIndex).not.toHaveBeenCalled();
+});
+
+test('the bins are labelled in the zone the timeline was built in, not the current preference', () => {
+  const saoPaulo = timelineWith({ volumes: [[100]], names: ['Budget'], timeZone: SAO_PAULO_TIME_ZONE });
+  const props = { width: WIDTH, selectedIndex: 0, highlightedBandId: null, onSelectIndex: vi.fn(), onClearSelection: vi.fn() };
+  render(<Streamgraph timeline={saoPaulo} {...props} />);
+  const first = saoPaulo.bins[0]!;
+  expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();
 });

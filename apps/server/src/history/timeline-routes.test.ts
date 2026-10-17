@@ -301,6 +301,7 @@ test('a case variant of a zone reads the same bins as its canonical name', async
   const canonical = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE });
   const variant = await readTimeline({ server, documentId, cookie: owner.cookie, query, timeZone: SAO_PAULO_TIME_ZONE.toLowerCase() });
   expect(variant.bins).toEqual(canonical.bins);
+  expect(variant.timeZone).toBe(SAO_PAULO_TIME_ZONE);
   await server.stop();
 });
 

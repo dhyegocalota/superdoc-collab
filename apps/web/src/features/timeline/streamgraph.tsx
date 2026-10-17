@@ -1,7 +1,6 @@
 import { TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
 import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
-import { useTimeZone } from '@/lib/use-time-zone';
 import { KeyboardKey } from '@/lib/keyboard';
 import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { cn } from '@/lib/utils';
@@ -65,7 +64,7 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
 }
 
 export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
-  const { timeZone } = useTimeZone();
+  const { timeZone } = timeline;
   const titleId = useId();
   const descriptionId = useId();
   const tooltipId = useId();

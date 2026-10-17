@@ -6,7 +6,15 @@ import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import { ApiPath, CREATOR_RESERVATION_MS, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  CREATOR_RESERVATION_MS,
+  HttpStatus,
+  MINUTE_MS,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  TOPICS_INTERRUPTED_MESSAGE,
+} from '@superdoc-collab/types';
+import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
 import { AdminUsersRepository } from './admin/users';
@@ -146,12 +154,14 @@ function createServices({
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now });
   const bootstrap = createBootstrapState({ updateLog, readModel });
+  const openLimits = new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: OPEN_UNCOMMITTED_PER_MINUTE, now });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
     updateLog,
     reservations,
     bootstrap,
+    openLimits,
     onLogged: (documentId) => throttle.request(documentId),
     onStored: (documentId) => {
       documents.touch(documentId);
@@ -221,6 +231,7 @@ function createServices({
     insightsRepository,
     throttle,
     reservations,
+    openLimits,
     timelinePipelines,
     insights,
     versions,

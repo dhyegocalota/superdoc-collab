@@ -15,6 +15,7 @@ import {
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
+import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
@@ -106,6 +107,7 @@ export function createCollaborationServer({
   updateLog,
   reservations,
   bootstrap,
+  openLimits,
   onLogged,
   onStored,
 }: {
@@ -114,6 +116,7 @@ export function createCollaborationServer({
   updateLog: UpdateLog;
   reservations: CreatorReservations;
   bootstrap: BootstrapState;
+  openLimits: KeyedSlidingWindow;
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
 }): Hocuspocus {

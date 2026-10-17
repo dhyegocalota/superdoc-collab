@@ -8,6 +8,7 @@ export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
 type ScanProgress = { afterSequence: number; document: Y.Doc };
 
 export type BootstrapState = {
+  isKnownCommitted: (documentId: string) => boolean;
   isCommitted: (documentId: string) => boolean;
   commit: (parameters: {
     documentId: string;
@@ -49,6 +50,7 @@ export function createBootstrapState({ updateLog, readModel }: { updateLog: Upda
     return isBootstrapCommitted({ document: fromSnapshot });
   }
   return {
+    isKnownCommitted: (documentId) => committed.has(documentId),
     isCommitted: (documentId) => {
       if (committed.has(documentId)) return true;
       if (!hasCommittedBootstrap(documentId)) return false;

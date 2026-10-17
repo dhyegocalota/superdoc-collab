@@ -21,7 +21,7 @@ import {
   type TopicStatus,
   type TopicSummaries,
   type VersionSummary,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, readJson, requestFailedMessage, RetryLaterError } from '@/lib/api';
 import { documentQueryKey } from '@/features/documents/documents-api';
 import { SUMMARIZE_EDITS_SUBJECT, TOPICS_REFRESH_SUBJECT } from './timeline-copy';

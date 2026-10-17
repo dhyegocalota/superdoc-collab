@@ -46,8 +46,8 @@ Lane `developer-history`, branch `feat/agentic-history-mcp-history`, plan Steps 
 ### How to run
 
 ```bash
-pnpm --filter @superdoc-history/history test:unit
-pnpm --filter @superdoc-history/server test:unit
+pnpm --filter @superdoc-collab/history test:unit
+pnpm --filter @superdoc-collab/server test:unit
 pnpm typecheck
 ```
 
@@ -97,7 +97,7 @@ Pins (green when they landed): `timeline/bands.test.ts::contributors list a pers
 
 - `apps/server/src/auth/auth.ts`: `createAuth` adds the `jwt` plugin (issuer `APP_ORIGIN`, audience the MCP resource, session JWT header off) and `mcp` (the OAuth provider: dynamic registration, scopes are the four `AgentScope` values plus `offline_access`, login page `AppRoute.SignIn`, consent page `AppRoute.OAuthConsent`, native loopback clients inferred). `mcpResourceOf(appOrigin)` builds `${APP_ORIGIN}/api/mcp`. The `omitSessionToken` hook still only touches the two email paths.
 - `apps/server/src/auth/oauth-discovery.ts`: `mountOAuthDiscovery({ app, auth })` forwards `GET /.well-known/*` to Better Auth. One line added to `apps/server/src/http/app.ts` calls it.
-- `apps/server/src/database/schema/auth.ts` and `apps/server/drizzle/0004_lying_hawkeye.sql`: eight new tables (`jwks`, `oauth_client`, `oauth_resource`, `oauth_client_resource`, `oauth_refresh_token`, `oauth_access_token`, `oauth_consent`, `oauth_client_assertion`). Additive only.
+- `apps/server/src/database/schema/auth.ts` and `apps/server/drizzle/0005_shocking_doctor_spectrum.sql`: eight new tables (`jwks`, `oauth_client`, `oauth_resource`, `oauth_client_resource`, `oauth_refresh_token`, `oauth_access_token`, `oauth_consent`, `oauth_client_assertion`). Additive only.
 - `apps/server/src/agent/agent-authorization.ts`: `authorizeAgentRequest` and `unauthorizedAgentResponse`.
 - `apps/server/src/agent/room-tokens.ts`: `signRoomToken`, `verifyRoomToken`, `ROOM_TOKEN_TTL_MS`.
 - `apps/server/src/collaboration/`: second upgrade path without the origin check (`attach-collaboration.ts`), `authenticate-agent.ts`, `upgrade-path.ts`, `CollaborationContext.actor`, `onChange` passes `connectionActor`, `client-declarations.ts` skips agent connections.
@@ -107,7 +107,7 @@ Pins (green when they landed): `timeline/bands.test.ts::contributors list a pers
 ### How to run
 
 ```bash
-pnpm --filter @superdoc-history/server exec vitest run src/auth src/agent src/collaboration
+pnpm --filter @superdoc-collab/server exec vitest run src/auth src/agent src/collaboration
 pnpm typecheck
 ```
 
@@ -179,7 +179,7 @@ Lane `developer-agent`, branch `feat/agentic-history-mcp-agent`, plan Steps 13 t
 ### How to run
 
 ```bash
-pnpm --filter @superdoc-history/server exec vitest run src/agent
+pnpm --filter @superdoc-collab/server exec vitest run src/agent
 pnpm typecheck
 ```
 
@@ -369,3 +369,18 @@ Both tests were written after the product code landed, so neither was red first.
 - One active SDK session per person: a second call of the same person queues behind the first and fails busy with `retryAfterSeconds` after the open timeout; calls behind it keep waiting for the real holder.
 - `POST /api/mcp` allows 120 calls per person per minute; the next answers 429 with `Retry-After`.
 - Hypotheses to add: an AI asked to "get the share links" returns the page URL only; two parallel MCP calls from one person run one after the other; 121 calls in a minute from one person get a 429 while another person is served.
+
+### Merge of main (invite-only access, scenario runs, security gates, time zone preference)
+
+- ADRs 0020 and 0021 of this feature became 0024 and 0025, because main took 0020 for invite-only accounts and 0022 and 0023 for the security gates and scenario runs. Code pointers `NB ADR 0024` and `NB ADR 0025` name this feature's decisions; `NB ADR 0020` in the sign-up gate is main's.
+- The OAuth tables moved from migration 0004 to `apps/server/drizzle/0005_shocking_doctor_spectrum.sql`; migration 0004 is main's invite-only one. The new migration holds only `CREATE TABLE` and `CREATE INDEX` for the eight OAuth tables.
+- `apps/server/src/auth/auth.ts` keeps one `before` and one `after` hook (credential parsing and token omission) and adds behaviour as plugins, as `docs/learnings/2026-10-17-better-auth-hooks-cannot-be-composed-by-hand.md` says: the admin plugin, the sign-up gate, `jwt`, the resource-defaulting plugin and `mcp`.
+- `/update-user` is no longer disabled, because the sign-in page writes the browser time zone through it. The AI-name protection moved into `updateUserSchema`: a `name` ending in a dot-like separator and `AI` is refused with the reserved-name message, like at sign-up.
+- Origin check stays explicit (`disableOriginCheck: false`), so the sign-up tests of main now send an `Origin` header.
+- The sign-in and sign-up cards link to each other with a typed `to` string, so the signed OAuth query survives: the claim link on an unclaimed instance carries it, a claimed instance shows no sign-up link.
+
+Hypotheses to attack:
+
+1. Hypothesis: a signed-in person cannot take the AI suffix through `/update-user`. Break it by: post `{ "name": "Eve ・ＡＩ" }` and `{ "name": "Eve" }` to `/api/auth/update-user`; the first answers 400, the second 200.
+2. Hypothesis: an AI client can still authorize on an instance where sign-up is invite-only. Break it by: start with no session, follow the authorize redirect to sign-in, sign in as an invited user, and finish consent.
+3. Hypothesis: the two migrations apply in order on a copy of a database that already ran main's 0004. Break it by: copy a production-like `auth.sqlite`, start the server, and list the OAuth tables.

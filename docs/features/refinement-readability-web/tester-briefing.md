@@ -23,7 +23,7 @@ Leftovers after the last sweep, all expected:
 Facts the plan asks to state:
 
 - `fetchDocuments` and `fetchMe` now throw `ApiRequestError` instead of a plain `Error`. No code or test checks the class. Their message gains the trailing period described below.
-- Task 2's red commit fails only `pnpm --filter @superdoc-history/types typecheck` (TS2345). Its Vitest run is green at red, because `presentOrNull(null)` already returned `null` at runtime.
+- Task 2's red commit fails only `pnpm --filter @superdoc-collab/types typecheck` (TS2345). Its Vitest run is green at red, because `presentOrNull(null)` already returned `null` at runtime.
 - Tasks 6 and 13 edited existing test files: two `@/lib/api` mock factories in Task 6 and two `DocumentMode` import paths in Task 13.
 - `superdoc-options.test.ts` failed at red 4f7f2f3 on `expected {} to deeply equal { selector: … }` and passes from 1cbf6df.
 
@@ -45,7 +45,7 @@ Branch `chore/refinement-readability-web-api`. It merges `chore/refinement-reada
 ```bash
 pnpm format:check && pnpm typecheck
 cd apps/web && npx vitest run
-pnpm --filter @superdoc-history/types exec vitest run
+pnpm --filter @superdoc-collab/types exec vitest run
 ```
 
 ### Red before, green after

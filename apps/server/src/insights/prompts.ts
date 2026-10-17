@@ -1,12 +1,12 @@
-import type { Block, EditRun } from '@superdoc-history/history';
-import { MAX_TOPICS, MIN_TOPICS, SUMMARY_SENTENCE_MAX_LENGTH, TOPIC_NAME_MAX_LENGTH } from '@superdoc-history/history';
+import type { Block, EditRun } from '@superdoc-collab/history';
+import { MAX_TOPICS, MIN_TOPICS, SUMMARY_SENTENCE_MAX_LENGTH, TOPIC_NAME_MAX_LENGTH } from '@superdoc-collab/history';
 import {
   FILTER_MAX_LENGTH,
   SELECTION_PROMPT_MAX_CHARACTERS,
   SELECTION_RUN_MAX_CHARACTERS,
   SELECTION_SUMMARY_MAX_CHARACTERS,
   type EventAuthor,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { escapeXml } from './escape-xml';
 import { fitEdits } from './prompt-budget';
 

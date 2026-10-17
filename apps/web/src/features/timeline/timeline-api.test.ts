@@ -17,7 +17,7 @@ import {
   type SelectionSummaryView,
   type TopicStatus,
   type VersionSummary,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { afterEach, expect, test, vi } from 'vitest';
 import { ApiRequestError, DocumentUnavailableError, requestFailedMessage } from '@/lib/api';
 import { jsonResponse } from '@/testing/json-response';

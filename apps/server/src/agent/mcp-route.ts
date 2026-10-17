@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import { HttpStatus, MINUTE_MS, secondsRoundedUp } from '@superdoc-history/types';
+import { HttpStatus, MINUTE_MS, secondsRoundedUp } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { SlidingWindow } from '../limits/sliding-window';

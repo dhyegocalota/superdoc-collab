@@ -1,3 +1,5 @@
+import { INVITE_QUERY_PARAMETER } from './invites';
+
 export enum AppRoute {
   SignIn = '/sign-in',
   SignUp = '/sign-up',
@@ -7,6 +9,7 @@ export enum AppRoute {
   VersionView = '/documents/:documentId/versions/:sequence/view',
   OAuthConsent = '/oauth/consent',
   ConnectedApps = '/settings/connected-apps',
+  Admin = '/admin',
 }
 
 export enum ApiPath {
@@ -18,6 +21,14 @@ export enum ApiPath {
   ShareLinks = '/api/share-links',
   Mcp = '/api/mcp',
   AgentCollaboration = '/collaboration/agent',
+  Setup = '/api/setup',
+  Invites = '/api/invites',
+  Admin = '/api/admin',
+}
+
+export enum AdminResource {
+  Users = 'users',
+  Invites = 'invites',
 }
 
 export enum DocumentResource {
@@ -91,4 +102,12 @@ export function versionCollaborationPath({ documentId, sequence }: { documentId:
 
 export function versionViewPagePath({ documentId, sequence }: { documentId: string; sequence: number }): string {
   return `${documentPagePath(documentId)}/${COLLABORATION_VERSIONS_SEGMENT}/${sequence}/${VERSION_VIEW_SEGMENT}`;
+}
+
+export function adminApiPath(resource: AdminResource): string {
+  return `${ApiPath.Admin}/${resource}`;
+}
+
+export function signUpPagePath(token: string): string {
+  return `${AppRoute.SignUp}?${INVITE_QUERY_PARAMETER}=${encodeURIComponent(token)}`;
 }

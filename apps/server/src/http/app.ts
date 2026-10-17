@@ -1,9 +1,14 @@
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { ApiPath, HttpStatus } from '@superdoc-history/types';
+import { ApiPath, HttpStatus } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
-import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-history/history';
+import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-collab/history';
+import { createAdminRoutes } from '../admin/admin-routes';
+import { createInviteRoutes } from '../admin/invite-routes';
+import type { InvitesRepository } from '../admin/invites';
+import { createSetupRoutes } from '../admin/setup-routes';
+import type { AdminUsersRepository } from '../admin/users';
 import type { Auth } from '../auth/auth';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
 import { AgentVerificationUnavailableError, authorizeAgentRequest, unauthorizedAgentResponse } from '../agent/agent-authorization';
@@ -34,11 +39,13 @@ import { createTimelineRoutes } from '../history/timeline-routes';
 import { withClientAddress } from './client-address';
 import { health } from './health';
 import { createMeHandler } from './me';
+import { requireAdmin } from './require-admin';
 import { requireUser } from './require-user';
 
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 export const NOT_FOUND_MESSAGE = 'Not found';
+const AUTH_ADMIN_PATH = `${ApiPath.Auth}/admin/*`;
 const PROTECTED_PATHS = [ApiPath.Documents, `${ApiPath.Documents}/*`, `${ApiPath.ShareLinks}/*`];
 
 export type InsightsServices = {
@@ -65,6 +72,8 @@ export type AppServices = {
   versions: VersionsService;
   versionRooms: VersionRooms;
   jwksUrl: () => string;
+  invites: InvitesRepository;
+  adminUsers: AdminUsersRepository;
 };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
@@ -80,6 +89,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     throw error;
   });
   app.get(ApiPath.Health, health);
+  app.all(AUTH_ADMIN_PATH, (context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
   app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, async (context) => {
     const remoteAddress = getConnInfo(context).remote.address;
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
@@ -100,6 +110,10 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     }),
   );
   app.get(ApiPath.Me, createMeHandler({ auth }));
+  app.route('/', createSetupRoutes({ services }));
+  app.route('/', createInviteRoutes({ services }));
+  app.use(`${ApiPath.Admin}/*`, sameOriginOnly, signedIn, requireAdmin());
+  app.route(ApiPath.Admin, createAdminRoutes({ services }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));

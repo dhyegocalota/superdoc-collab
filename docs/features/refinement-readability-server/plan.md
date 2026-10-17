@@ -124,7 +124,7 @@ export function describeError(error: unknown): string {
 
 Delete it from `history/projection-messages.ts` and repoint the 7 importers (`rg -l describeError apps/server/src`: projection-worker, projection-scheduler, versions-service, insights-worker, summaries-service, selection-summaries-service, topics-service). In `version-rooms.ts`, `destroyInBackground` switches from `${String(error)}` to `${describeError(error)}`. That is the only log-text change in the lane: a multi-line error now logs on one line, like every other server log.
 
-- [x] **Step 6: Verify.** `rg -n "from '\.\./server'" apps/server/src/http` prints nothing. `rg -n "from '\.\./insights" apps/server/src/config` prints nothing. `pnpm typecheck` is green. `pnpm --filter @superdoc-history/server test:unit` is green.
+- [x] **Step 6: Verify.** `rg -n "from '\.\./server'" apps/server/src/http` prints nothing. `rg -n "from '\.\./insights" apps/server/src/config` prints nothing. `pnpm typecheck` is green. `pnpm --filter @superdoc-collab/server test:unit` is green.
 
 - [x] **Step 7: Commit.** — evidence: `1220627`
 
@@ -217,7 +217,7 @@ export function pipelineCacheKey({ services, documentId }: { services: AppServic
   - `rg -w 'InsightsWorker|insightsWorker|topicStampOf|pipelineKey|needle|capRun|authorsNamed|sdkConnection|connectSdk|connectedSdk' apps/server/src libs/history/src` prints nothing.
   - `rg 'services\.log\b' apps/server/src` prints nothing.
   - `pnpm typecheck` is green.
-  - `pnpm --filter @superdoc-history/server test:unit` and `pnpm --filter @superdoc-history/history test:unit` are green.
+  - `pnpm --filter @superdoc-collab/server test:unit` and `pnpm --filter @superdoc-collab/history test:unit` are green.
 
 - [x] **Step 9: Commit.** — evidence: `1365e1a`
 
@@ -236,7 +236,7 @@ Covers 4.6, 4.8, 4.17, 4.18 and 4.19.
 - Test: `libs/history/src/timeline/runs.test.ts`, `libs/history/src/timeline/bands.test.ts`
 
 **Interfaces:**
-- Produces: `secondsRoundedUp(milliseconds: number): number`, `NON_NEGATIVE_INTEGER_PATTERN: RegExp` and `presentOrNull(value: string | undefined): string | null` from `@superdoc-history/types`. `runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number`, `cellVolume(cell: TimelineCell | undefined): number` and `byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number` from `@superdoc-history/history/timeline`. Lane C2 adopts these on the web.
+- Produces: `secondsRoundedUp(milliseconds: number): number`, `NON_NEGATIVE_INTEGER_PATTERN: RegExp` and `presentOrNull(value: string | undefined): string | null` from `@superdoc-collab/types`. `runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number`, `cellVolume(cell: TimelineCell | undefined): number` and `byVolumeDescending(left: TimelineContributor, right: TimelineContributor): number` from `@superdoc-collab/history/timeline`. Lane C2 adopts these on the web.
 
 - [x] **Step 1: Write the failing tests.**
 
@@ -296,7 +296,7 @@ test('byVolumeDescending puts the largest contributor first and keeps ties in or
 });
 ```
 
-- [x] **Step 2: Run the tests and see them fail.** `pnpm --filter @superdoc-history/types exec vitest run` and `pnpm --filter @superdoc-history/history exec vitest run src/timeline`. They fail on missing exports such as `secondsRoundedUp is not a function` and `presentOrNull` not exported.
+- [x] **Step 2: Run the tests and see them fail.** `pnpm --filter @superdoc-collab/types exec vitest run` and `pnpm --filter @superdoc-collab/history exec vitest run src/timeline`. They fail on missing exports such as `secondsRoundedUp is not a function` and `presentOrNull` not exported.
 
 - [x] **Step 3: Commit the red tests.** Add only the test files listed under Files, then `git commit -m "test(types,history): pin the shared volume, seconds and presence helpers"`. — evidence: `af4929c`
 
@@ -342,13 +342,13 @@ export function byVolumeDescending(left: TimelineContributor, right: TimelineCon
 Then use the helpers in `bands.ts`: in `buildBands`, `volume: runsOf({ runs: matchedRuns, bandId: band.id }).reduce((sum, run) => sum + runVolume(run), 0)`; in `contributorsByBand`, `[...byAuthor.values()].sort(byVolumeDescending)`.
 
 - [x] **Step 5: Adopt on the server.**
-  - `environment.ts`: delete the local `presentOrNull` and import it from `@superdoc-history/types`.
-  - `selection-summaries-service.ts` `readNonEmptySelection`: `snapshot.runs.filter((run) => runVolume(run) > 0)`, imported from `@superdoc-history/history`, which re-exports the timeline module.
+  - `environment.ts`: delete the local `presentOrNull` and import it from `@superdoc-collab/types`.
+  - `selection-summaries-service.ts` `readNonEmptySelection`: `snapshot.runs.filter((run) => runVolume(run) > 0)`, imported from `@superdoc-collab/history`, which re-exports the timeline module.
   - `selection-summaries-service.ts`, two sites, and `topics-service.ts`, one site: `Math.ceil(x / SECOND_MS)` → `secondsRoundedUp(x)`.
   - `versions-routes.ts` and `history-routes.ts`: delete the local `NON_NEGATIVE_INTEGER_PATTERN` and import it.
   - `timeline-query.ts`: delete `DIGITS_PATTERN` and use `NON_NEGATIVE_INTEGER_PATTERN`.
 
-- [x] **Step 6: Run the tests and see them pass.** Run the two library suites from Step 2, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/insights src/history src/config`.
+- [x] **Step 6: Run the tests and see them pass.** Run the two library suites from Step 2, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/insights src/history src/config`.
 
 - [x] **Step 7: Commit.** Add the files listed under Files, then `git commit -m "refactor(types,history,server): share the volume, seconds and presence helpers"`. — evidence: `b249b1c`
 
@@ -361,12 +361,12 @@ Covers 4.5.
 - Modify: `libs/types/src/http.ts`, `apps/server/src/insights/insights-routes.ts`, `apps/server/src/history/versions-routes.ts`, `apps/server/src/testing/timeline-client.ts`
 
 **Interfaces:**
-- Produces: `retryLater({ context, body, status, retryAfterSeconds }: { context: Context; body: Record<string, string | number>; status: RetryStatus; retryAfterSeconds: number }): Response`, where `RetryStatus = HttpStatus.Accepted | HttpStatus.TooManyRequests | HttpStatus.ServiceUnavailable`. Also `RETRY_AFTER_SECONDS = 1` from `@superdoc-history/types`.
+- Produces: `retryLater({ context, body, status, retryAfterSeconds }: { context: Context; body: Record<string, string | number>; status: RetryStatus; retryAfterSeconds: number }): Response`, where `RetryStatus = HttpStatus.Accepted | HttpStatus.TooManyRequests | HttpStatus.ServiceUnavailable`. Also `RETRY_AFTER_SECONDS = 1` from `@superdoc-collab/types`.
 
 - [x] **Step 1: Write the failing test** `apps/server/src/http/retry-later.test.ts`:
 
 ```ts
-import { HttpStatus, RETRY_AFTER_HEADER } from '@superdoc-history/types';
+import { HttpStatus, RETRY_AFTER_HEADER } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { expect, test } from 'vitest';
 import { retryLater } from './retry-later';
@@ -384,14 +384,14 @@ test('an accepted body keeps its shape', async () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/server exec vitest run src/http/retry-later.test.ts` fails with "Failed to resolve import ./retry-later".
+- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/http/retry-later.test.ts` fails with "Failed to resolve import ./retry-later".
 
 - [x] **Step 3: Commit the red test.** `git add apps/server/src/http/retry-later.test.ts && git commit -m "test(server): pin the Retry-After response helper"`. — evidence: `d2874d3`
 
 - [x] **Step 4: Implement** `apps/server/src/http/retry-later.ts`:
 
 ```ts
-import { RETRY_AFTER_HEADER, type HttpStatus } from '@superdoc-history/types';
+import { RETRY_AFTER_HEADER, type HttpStatus } from '@superdoc-collab/types';
 import type { Context } from 'hono';
 
 type RetryStatus = HttpStatus.Accepted | HttpStatus.TooManyRequests | HttpStatus.ServiceUnavailable;
@@ -416,9 +416,9 @@ if (result.outcome === SelectionRequestOutcome.Busy) return retryLater({ context
 
 `versions-routes.ts`: delete `retryHeaders` and the local `RETRY_AFTER_SECONDS`. The two `202 { sequence }` responses, the `503 VERSION_FAILED_ERROR` from `peek`, and the `503` from the `/text` catch all become `retryLater({ ..., retryAfterSeconds: RETRY_AFTER_SECONDS })`.
 
-Repoint `RETRY_AFTER_SECONDS` in `testing/timeline-client.ts` and `insights-routes.ts` to `@superdoc-history/types`. Before the change, `rg -w RETRY_AFTER_SECONDS apps/server/src` gives 9 references in 4 files.
+Repoint `RETRY_AFTER_SECONDS` in `testing/timeline-client.ts` and `insights-routes.ts` to `@superdoc-collab/types`. Before the change, `rg -w RETRY_AFTER_SECONDS apps/server/src` gives 9 references in 4 files.
 
-- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/http src/insights src/history/versions-routes.test.ts src/history/timeline-routes.test.ts`.
+- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/http src/insights src/history/versions-routes.test.ts src/history/timeline-routes.test.ts`.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): answer every retry through one helper"` with the files listed under Files. — evidence: `1ec8170`
 
@@ -436,7 +436,7 @@ Covers 4.4.
 - [x] **Step 1: Write the failing test** `apps/server/src/documents/require-document-role.test.ts`:
 
 ```ts
-import { DocumentRole, type SessionUser } from '@superdoc-history/types';
+import { DocumentRole, type SessionUser } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { expect, test, vi } from 'vitest';
 import type { SignedIn } from '../http/require-user';
@@ -473,7 +473,7 @@ test('a stranger is refused with the not-found error', async () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/server exec vitest run src/documents/require-document-role.test.ts` fails because `authorizedDocumentId` is not exported.
+- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/documents/require-document-role.test.ts` fails because `authorizedDocumentId` is not exported.
 
 - [x] **Step 3: Commit the red test.** `git commit -m "test(server): pin the authorized document prelude"` with the test file only. — evidence: `4d8c921`
 
@@ -518,7 +518,7 @@ The handlers and their minimum roles:
 
 Handlers that still need the user id read `context.var.user.id`. `GET /:documentId` in `documents-routes.ts` keeps `requireDocumentRole` because it uses the returned role. After the change, `rg -n "context.get\('user'\)" apps/server/src` prints nothing, and `rg -c requireDocumentRole apps/server/src --type ts -g '!*.test.ts'` shows only `require-document-role.ts` and `documents-routes.ts`.
 
-- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/documents src/insights src/history src/http`.
+- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/documents src/insights src/history src/http`.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): read the authorized document id through one prelude"`. — evidence: `1f855d9`
 
@@ -590,7 +590,7 @@ test('a missing key reads as null and deletes as false', () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/server exec vitest run src/limits/lru-map.test.ts` fails with "Failed to resolve import ./lru-map".
+- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/limits/lru-map.test.ts` fails with "Failed to resolve import ./lru-map".
 
 - [x] **Step 3: Commit the red test.** `git commit -m "test(server): pin the least recently used map"`. — evidence: `b1547e8`
 
@@ -730,7 +730,7 @@ private async destroyRoom(room: VersionRoom): Promise<void> {
 
 The two idle-timer call sites become `this.destroyInBackground({ key, destroying: this.destroy(key) })`. `forget` and `stop` iterate `this.rooms.keys()`. `size()` returns `this.rooms.size()`.
 
-- [x] **Step 8: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/limits src/history/timeline-routes.test.ts src/history/versions-routes.test.ts src/collaboration`. Three existing tests must pass unchanged:
+- [x] **Step 8: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/limits src/history/timeline-routes.test.ts src/history/versions-routes.test.ts src/collaboration`. Three existing tests must pass unchanged:
   - "the pipeline cache evicts the least recently read document"
   - "the cache stays under its byte budget"
   - "the limit evicts the least recently used instance"
@@ -797,7 +797,7 @@ test('marksAround before the first mark starts at the first mark', () => {
 
 Index 14 holds sequence 150, the last mark at or before 155. If the slice expectation disagrees with today's route by one, the route is the truth: fix the test to match `versions-routes.ts` before moving the math.
 
-- [x] **Step 3: Run the tests and see them fail.** `pnpm --filter @superdoc-history/server exec vitest run src/limits/keyed-cooldown.test.ts src/history/versions-service.test.ts` fails because `keys`, `keysOfDocument` and `marksAround` do not exist.
+- [x] **Step 3: Run the tests and see them fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/limits/keyed-cooldown.test.ts src/history/versions-service.test.ts` fails because `keys`, `keysOfDocument` and `marksAround` do not exist.
 
 - [x] **Step 4: Commit the red tests together with the move.** `git add` both renamed files and the new test, then `git commit -m "test(server): pin cooldown keys, document keys and the marks window"`. — evidence: `1a263a9`
 
@@ -878,7 +878,7 @@ const body: VersionMarks = { marks: marksAround({ marks: services.readModel.mark
 
 and the route's `VERSION_MARKS_AROUND` is deleted.
 
-- [x] **Step 6: Run the tests and see them pass.** Run the Step 3 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/history src/insights src/collaboration`.
+- [x] **Step 6: Run the tests and see them pass.** Run the Step 3 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/history src/insights src/collaboration`.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): one keyed cooldown for insights and version failures"`. — evidence: `707376f`
 
@@ -916,7 +916,7 @@ test('an entry counts until exactly one window has passed', () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/server exec vitest run src/limits/sliding-window.test.ts` fails with "Failed to resolve import ./sliding-window".
+- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/limits/sliding-window.test.ts` fails with "Failed to resolve import ./sliding-window".
 
 - [x] **Step 3: Commit the red test.** `git commit -m "test(server): pin the sliding window counter"`. — evidence: `0f9357d`
 
@@ -989,7 +989,7 @@ private withinRestartBudget(): boolean {
 }
 ```
 
-- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/limits src/insights src/history/projection-scheduler.test.ts src/server.test.ts`. The scheduler test "degrades after too many restarts in one window" and the job runner budget tests stay green unchanged.
+- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/limits src/insights src/history/projection-scheduler.test.ts src/server.test.ts`. The scheduler test "degrades after too many restarts in one window" and the job runner budget tests stay green unchanged.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): count calls and restarts with one sliding window"`. — evidence: `9991a81`
 
@@ -1044,7 +1044,7 @@ test('hanging work rejects with the error onTimeout throws', async () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/server exec vitest run src/limits/with-timeout.test.ts` fails with "Failed to resolve import ./with-timeout".
+- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/limits/with-timeout.test.ts` fails with "Failed to resolve import ./with-timeout".
 
 - [x] **Step 3: Commit the red test.** `git commit -m "test(server): pin the shared timeout race"`. — evidence: `2360112`
 
@@ -1083,7 +1083,7 @@ async stop(): Promise<void> {
 }
 ```
 
-- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/limits src/collaboration src/history/projection-scheduler.test.ts`. "stop clears its timeout when destroying a room fails" and "a hanging import does not delay the projection of another document" stay green unchanged.
+- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/limits src/collaboration src/history/projection-scheduler.test.ts`. "stop clears its timeout when destroying a room fails" and "a hanging import does not delay the projection of another document" stay green unchanged.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): share one timeout race between the worker and version rooms"`. — evidence: `b77d818`
 
@@ -1112,7 +1112,7 @@ test('a same-origin read without a session is unauthorized on every protected pa
 });
 ```
 
-- [x] **Step 2: Run the pins and see them green on today's code.** `pnpm --filter @superdoc-history/server exec vitest run src/http/app.test.ts`. If the share-link path answers 404 instead of 401, record the observed status as the expectation, because the pin fixes today's behaviour.
+- [x] **Step 2: Run the pins and see them green on today's code.** `pnpm --filter @superdoc-collab/server exec vitest run src/http/app.test.ts`. If the share-link path answers 404 instead of 401, record the observed status as the expectation, because the pin fixes today's behaviour.
 
 - [x] **Step 3: Commit the pins.** `git commit -m "test(server): pin the forgery-then-session middleware order"`. — evidence: `b274006`
 
@@ -1161,7 +1161,7 @@ return context.json(readDocumentEvents({ services, documentId, afterSequence, li
 
 The `undefined → null` transform is the boundary normalisation the conventions allow, and it mirrors `binMsParameter`.
 
-- [x] **Step 7: Run the tests and see them pass.** `pnpm typecheck`, then `pnpm --filter @superdoc-history/server exec vitest run src/http src/history src/insights`. The existing tests for invalid `afterSequence`, invalid `limit`, invalid `binStart` and the selection query stay green unchanged.
+- [x] **Step 7: Run the tests and see them pass.** `pnpm typecheck`, then `pnpm --filter @superdoc-collab/server exec vitest run src/http src/history src/insights`. The existing tests for invalid `afterSequence`, invalid `limit`, invalid `binStart` and the selection query stay green unchanged.
 
 - [x] **Step 8: Commit.** `git commit -m "refactor(server): parse whole queries and loop the protected paths"`. — evidence: `5f6b9ef`
 
@@ -1256,7 +1256,7 @@ async function upgradeVersion({ request, socket, head, endpoint }: { request: In
 
 The upgrade handler calls it with `if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });`.
 
-- [x] **Step 6: Run the tests.** `pnpm typecheck`, then `pnpm --filter @superdoc-history/server exec vitest run src/history src/insights src/collaboration`. The recompute tests "five new unassigned blocks trigger a recompute once" and "blocks the model leaves out do not retrigger the recompute" stay green unchanged, wherever lane D left them. So do the attach-collaboration refused, unavailable and origin tests.
+- [x] **Step 6: Run the tests.** `pnpm typecheck`, then `pnpm --filter @superdoc-collab/server exec vitest run src/history src/insights src/collaboration`. The recompute tests "five new unassigned blocks trigger a recompute once" and "blocks the model leaves out do not retrigger the recompute" stay green unchanged, wherever lane D left them. So do the attach-collaboration refused, unavailable and origin tests.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): name the conditions in the timeline, insights and upgrade paths"`. — evidence: `8a124f7`
 
@@ -1291,7 +1291,7 @@ Export `authorLabel`.
   - In `selection-summaries-service.ts`, delete `editsOf` and call `fitSelection(promptEditsOf({ runs: resolved.snapshot.runs, authors: resolved.snapshot.authors }))`.
   - In `summaries-service.ts` `promptTopics`, `edits` becomes `promptEditsOf({ runs, authors: pipeline.authors }).map((edit) => ({ author: authorLabel(edit), inserted: edit.inserted, deleted: edit.deleted }))`. The separator is `', '` in both the old and new versions.
 
-- [x] **Step 4: Run the tests.** `pnpm typecheck`, then `pnpm --filter @superdoc-history/server exec vitest run src/insights`. `prompts.test.ts` stays green with only its import line changed.
+- [x] **Step 4: Run the tests.** `pnpm typecheck`, then `pnpm --filter @superdoc-collab/server exec vitest run src/insights`. `prompts.test.ts` stays green with only its import line changed.
 
 - [x] **Step 5: Commit.** `git commit -m "refactor(server): split prompt escaping and budgeting from the prompts"`. — evidence: `954ca16`
 
@@ -1309,7 +1309,7 @@ Covers 2.5 and 3.3.
 - [x] **Step 1: Write the failing test** `apps/server/src/history/projection-handler.test.ts`:
 
 ```ts
-import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } from '@superdoc-history/history';
+import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } from '@superdoc-collab/history';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -1363,14 +1363,14 @@ test('a version without a mark fails with the missing mark error', async () => {
 });
 ```
 
-- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-history/server exec vitest run src/history/projection-handler.test.ts` fails with "Failed to resolve import ./projection-handler".
+- [x] **Step 2: Run it and see it fail.** `pnpm --filter @superdoc-collab/server exec vitest run src/history/projection-handler.test.ts` fails with "Failed to resolve import ./projection-handler".
 
 - [x] **Step 3: Commit the red test.** `git commit -m "test(server): pin the projection handler per request kind"`. — evidence: `50aa400`
 
 - [x] **Step 4: Implement** `apps/server/src/history/projection-handler.ts`, with the bodies moved verbatim from the worker:
 
 ```ts
-import { compact, materialize, projectPending, readMainStoryBlocks, readMainStoryText, type GcFreeReplays, type ReadModel, type UpdateLog } from '@superdoc-history/history';
+import { compact, materialize, projectPending, readMainStoryBlocks, readMainStoryText, type GcFreeReplays, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
 import * as Y from 'yjs';
 import { MissingVersionMarkError, ProjectionRequestKind, SNAPSHOT_EVERY_UPDATES, type AnsweredReply, type AnsweredRequest, type BlocksReply, type ProjectionDoneReply, type VersionReply } from './projection-messages';
 
@@ -1431,7 +1431,7 @@ const handle = createProjectionHandler({ updateLog, readModel, replays, importRe
 
 `answer` keeps `return await handle(request);` inside its `try`. `tsup.config.ts` needs no change, because the worker entry bundles its imports.
 
-- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/history src/collaboration src/documents`. Also run `pnpm --filter @superdoc-history/server build` and confirm `dist/projection-worker.js` exists. Production loads that file.
+- [x] **Step 6: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/history src/collaboration src/documents`. Also run `pnpm --filter @superdoc-collab/server build` and confirm `dist/projection-worker.js` exists. Production loads that file.
 
 - [x] **Step 7: Commit.** `git commit -m "refactor(server): one projection handler per request kind"`. — evidence: `a1fbe71`
 
@@ -1545,7 +1545,7 @@ test('rejecting all gives each key its own error', () => {
 });
 ```
 
-- [x] **Step 3: Run both test files.** `pnpm --filter @superdoc-history/server exec vitest run src/history/projection-scheduler.test.ts src/history/waiting-requests.test.ts`. The three pins pass on today's code. `waiting-requests.test.ts` fails with "Failed to resolve import ./waiting-requests".
+- [x] **Step 3: Run both test files.** `pnpm --filter @superdoc-collab/server exec vitest run src/history/projection-scheduler.test.ts src/history/waiting-requests.test.ts`. The three pins pass on today's code. `waiting-requests.test.ts` fails with "Failed to resolve import ./waiting-requests".
 
 - [x] **Step 4: Commit both test files.** `git commit -m "test(server): pin scheduler reply routing and waiting requests"`. — evidence: `dc037f2`
 
@@ -1675,7 +1675,7 @@ private settleProject({ documentId }: ProjectionDoneReply): void {
 
   A Project reply always carries `importError: null`, because Task 13's `handleProject` builds it that way. So dropping today's import-error early return on the Project path changes nothing.
 
-- [x] **Step 8: Run the tests and see them pass.** Run the Step 3 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/history src/collaboration src/insights`.
+- [x] **Step 8: Run the tests and see them pass.** Run the Step 3 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/history src/collaboration src/insights`.
 
 - [x] **Step 9: Commit.** `git commit -m "refactor(server): settle each projection reply kind in its own method"`. — evidence: `1099750`
 
@@ -1725,7 +1725,7 @@ expect(stopScheduler.mock.invocationCallOrder[0]).toBeLessThan(closeDatabase.moc
 vi.restoreAllMocks();
 ```
 
-- [x] **Step 2: Run them and see them green on today's code.** `pnpm --filter @superdoc-history/server exec vitest run src/server.test.ts`.
+- [x] **Step 2: Run them and see them green on today's code.** `pnpm --filter @superdoc-collab/server exec vitest run src/server.test.ts`.
 
 - [x] **Step 3: Commit the pins.** `git commit -m "test(server): pin the shutdown order and the listen failure cleanup"`. — evidence: `98fcf23`
 
@@ -1815,7 +1815,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
 
 Import `type WebSocketServer` from `ws` and `type Database` from `better-sqlite3`.
 
-- [x] **Step 5: Run the tests.** `pnpm typecheck`, then `pnpm --filter @superdoc-history/server test:unit`, the whole server suite, because every integration test starts a server.
+- [x] **Step 5: Run the tests.** `pnpm typecheck`, then `pnpm --filter @superdoc-collab/server test:unit`, the whole server suite, because every integration test starts a server.
 
 - [x] **Step 6: Commit.** `git commit -m "refactor(server): split startServer into open, create, resume and stop"`. — evidence: `196cb14`
 
@@ -1860,7 +1860,7 @@ test('deleting a document forgets it once through the runtime, then removes the 
 
 Use the fixture helpers the file already has for "documentWithOwner" and an uploaded or created document. Match their real names when writing the test.
 
-- [x] **Step 2: Run them.** `pnpm --filter @superdoc-history/server exec vitest run src/documents/documents-routes.test.ts`. The first fails with cooldown sizes `[1, 1, 1]`, because today the route, not the runtime, clears them. The second passes, pinning the route order.
+- [x] **Step 2: Run them.** `pnpm --filter @superdoc-collab/server exec vitest run src/documents/documents-routes.test.ts`. The first fails with cooldown sizes `[1, 1, 1]`, because today the route, not the runtime, clears them. The second passes, pinning the route order.
 
 - [x] **Step 3: Commit both tests.** `git commit -m "test(server): pin the document-forget fan-out"`. — evidence: `fb10f8c`
 
@@ -1884,7 +1884,7 @@ routes.delete('/:documentId', async (context) => {
 });
 ```
 
-- [x] **Step 5: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-history/server exec vitest run src/documents src/insights src/history src/collaboration`. The existing insights-routes test that checks deletion clears the cooldowns stays green unchanged.
+- [x] **Step 5: Run the tests and see them pass.** Run the Step 2 command, then `pnpm typecheck`. Then `pnpm --filter @superdoc-collab/server exec vitest run src/documents src/insights src/history src/collaboration`. The existing insights-routes test that checks deletion clears the cooldowns stays green unchanged.
 
 - [x] **Step 6: Commit.** `git commit -m "refactor(server): forget a document through the runtime alone"`. — evidence: `53497ef`
 
@@ -1922,7 +1922,7 @@ rg -n 'describeError' apps/server/src/history/projection-messages.ts
 | 10.6 | `limit` omitted is no longer 50 | The events route tests paging with no `limit` fail | Check zod 4 `.default` on `z.coerce`; fall back to today's two returns |
 | 11.5 | A refused upgrade leaks a socket error listener, or an unavailable one loses it | attach-collaboration tests fail, or a socket error crashes the process in E2E | Restore the `.then(onFulfilled, onRejected)` form |
 | 13.4 | Forget order or import cursor timing changes | `projection-handler.test.ts` call-order assertions fail | Move the bodies verbatim from the pre-task worker |
-| 13.5 | The production worker cannot load its new import | `pnpm --filter @superdoc-history/server build` passes, but the E2E projection walks never project | `tsup` bundles imports into `projection-worker.js`; check `dist/` and the `external` list |
+| 13.5 | The production worker cannot load its new import | `pnpm --filter @superdoc-collab/server build` passes, but the E2E projection walks never project | `tsup` bundles imports into `projection-worker.js`; check `dist/` and the `external` list |
 | 14.7 | A Blocks reply misses its waiter because the key used the reply's cursor | The pin "a blocks reply resolves its waiter whatever cursor it carries" times out | `requestKeyOf` must ignore `sequence` for Blocks |
 | 14.7 | A rebuild never ends | The pin "a rebuild imports after forgetting..." sees `isRebuilding` stay true | Compare `settleImport` and `settleProject` against the pre-task `settleDone` |
 | 15.4 | A database opens before the documents directory check | "fails with a named error when the documents directory is not writable" fails, or leaks a handle | `ensureWritableDirectory` for both directories stays first in `openDatabases` |

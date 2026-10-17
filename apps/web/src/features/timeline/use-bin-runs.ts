@@ -1,4 +1,4 @@
-import { DocumentResource, type DocumentTimeline, type EditRunView, type TimelineBin, type TimelineFilter } from '@superdoc-history/types';
+import { DocumentResource, type DocumentTimeline, type EditRunView, type TimelineBin, type TimelineFilter } from '@superdoc-collab/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
 import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';

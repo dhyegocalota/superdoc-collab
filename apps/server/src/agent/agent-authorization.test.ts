@@ -1,4 +1,4 @@
-import { AgentScope, ApiPath, HttpStatus } from '@superdoc-history/types';
+import { AgentScope, ApiPath, HttpStatus } from '@superdoc-collab/types';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { connectAgentClient, createDpopKey, deleteConsent, dpopProof } from '../testing/oauth-client';
 import { signedInUser, startTestServer, type TestServer, type TestUser } from '../testing/test-server';

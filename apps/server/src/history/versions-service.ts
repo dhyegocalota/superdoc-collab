@@ -1,5 +1,5 @@
-import { clampToMark, type ReadModel, type VersionMarkSummary } from '@superdoc-history/history';
-import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
+import { clampToMark, type ReadModel, type VersionMarkSummary } from '@superdoc-collab/history';
+import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { LruMap } from '../limits/lru-map';
 import { describeError } from '../logging/describe-error';

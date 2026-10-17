@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { HISTORY_MIGRATIONS_PATH, runMigrationSet, type MigrationSet } from '@superdoc-history/history';
+import { HISTORY_MIGRATIONS_PATH, runMigrationSet, type MigrationSet } from '@superdoc-collab/history';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';

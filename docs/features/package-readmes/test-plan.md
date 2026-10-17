@@ -8,7 +8,7 @@
 ## Unit
 
 - [x] `pnpm test:hooks` — expected: "hooks: all checks passed". — evidence: a197819: `hooks: all checks passed`
-- [x] `pnpm --filter @superdoc-history/server exec vitest run src/repository-shape/delivery-docs.test.ts` — expected: every README's links resolve; a link in inline code or a fenced block is skipped. — evidence: a197819: `Test Files 1 passed (1)`, `Tests 16 passed (16)`; verbose run lists one link test per README (apps/server, apps/web, e2e, libs/history, libs/types, root, docs/adr, docs/features, docs/learnings, .agents/skills, two runbooks) plus `a link written as inline code or inside a fenced block is not checked` and `every workspace package has a README`, all green
+- [x] `pnpm --filter @superdoc-collab/server exec vitest run src/repository-shape/delivery-docs.test.ts` — expected: every README's links resolve; a link in inline code or a fenced block is skipped. — evidence: a197819: `Test Files 1 passed (1)`, `Tests 16 passed (16)`; verbose run lists one link test per README (apps/server, apps/web, e2e, libs/history, libs/types, root, docs/adr, docs/features, docs/learnings, .agents/skills, two runbooks) plus `a link written as inline code or inside a fenced block is not checked` and `every workspace package has a README`, all green
 
 ## Prove it for real
 

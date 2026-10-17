@@ -1,5 +1,5 @@
 {
-  "name": "superdoc-history",
+  "name": "superdoc-collab",
   "private": true,
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@8.15.9",
@@ -16,13 +16,15 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck && pnpm typecheck:e2e",
     "typecheck:e2e": "tsc -p e2e --noEmit",
+    "security:audit": "pnpm audit --prod --audit-level=high",
     "test:unit": "pnpm -r test:unit && pnpm test:hooks",
     "test:hooks": "bash .agents/hooks/hooks.test.sh",
     "test:e2e": "playwright test",
-    "seed": "pnpm --filter @superdoc-history/server seed",
+    "scenario:stack": "tsx e2e/scenario-stack.ts",
+    "seed": "pnpm --filter @superdoc-collab/server seed",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm typecheck && pnpm test:unit && pnpm test:e2e"
+    "verify": "pnpm typecheck && pnpm security:audit && pnpm test:unit && pnpm test:e2e"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
@@ -30,6 +32,7 @@
     "@types/node": "24.19.2",
     "better-sqlite3": "13.0.3",
     "prettier": "3.9.10",
+    "tsx": "4.23.15",
     "typescript": "7.0.2"
   }
 }

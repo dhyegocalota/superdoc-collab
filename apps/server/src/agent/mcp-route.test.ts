@@ -9,7 +9,7 @@ import {
   HttpStatus,
   RETRY_AFTER_HEADER,
   type DocumentsList,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';

@@ -1,4 +1,4 @@
-import type { AgentActionKind, AgentScope } from '@superdoc-history/types';
+import type { AgentActionKind, AgentScope } from '@superdoc-collab/types';
 import type { AgentToolkit, SuperDocDocument } from '@superdoc/sdk';
 import type { AppServices } from '../http/app';
 

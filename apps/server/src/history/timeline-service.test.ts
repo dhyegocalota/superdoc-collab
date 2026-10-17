@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-history/types';
+import { MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { twoAuthorsInTwoBlocks } from '../testing/timeline-client';
 import { buildSelectionSnapshot } from './timeline-service';

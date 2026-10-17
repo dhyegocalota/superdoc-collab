@@ -1,4 +1,4 @@
-import { documentPagePath, UNTITLED_DOCUMENT_TITLE, type DocumentSummary } from '@superdoc-history/types';
+import { documentPagePath, UNTITLED_DOCUMENT_TITLE, type DocumentSummary } from '@superdoc-collab/types';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { createBlankDocument, DOCUMENTS_QUERY_KEY } from './documents-api';

@@ -1,4 +1,4 @@
-import { agentAuthorName, DocumentRole, RoomMode } from '@superdoc-history/types';
+import { agentAuthorName, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import type { SuperDocDocument } from '@superdoc/sdk';
 import { afterEach, expect, test, vi } from 'vitest';
 import { AgentSessionBusyError, AgentSessionOpenTimeoutError, AgentSessions, type AgentSessionsClient } from './agent-sessions';

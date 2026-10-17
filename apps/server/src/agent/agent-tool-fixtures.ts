@@ -1,6 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { buildSeedDocx } from '@superdoc-history/history';
-import { AgentScope, type AgentActionKind } from '@superdoc-history/types';
+import { buildSeedDocx } from '@superdoc-collab/history';
+import { AgentScope, type AgentActionKind } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import type { SuperDocDocument } from '@superdoc/sdk';
 import { vi } from 'vitest';

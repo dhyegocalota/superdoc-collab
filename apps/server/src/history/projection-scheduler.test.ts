@@ -1,5 +1,5 @@
-import { buildSeedDocx, TrackedChangeKind } from '@superdoc-history/history';
-import { commitBootstrap, writeStory } from '@superdoc-history/history/testing';
+import { buildSeedDocx, TrackedChangeKind } from '@superdoc-collab/history';
+import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -493,7 +493,7 @@ test('a rebuild imports after forgetting, projects after importing, and ends aft
 });
 
 test('a given worker file is the one spawned', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'superdoc-history-probe-'));
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-probe-'));
   const probeSource = `import { parentPort } from 'node:worker_threads';
 parentPort.on('message', (request) => {
   if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
@@ -512,7 +512,7 @@ parentPort.on('message', (request) => {
 
 test('a missing worker file crashes the first request then degrades the scheduler', async () => {
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  const directory = mkdtempSync(join(tmpdir(), 'superdoc-history-missing-'));
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-missing-'));
   const scheduler = new ProjectionScheduler({
     databaseDirectory: directory,
     projectionWorkerFile: pathToFileURL(join(directory, MISSING_WORKER_FILE_NAME)),

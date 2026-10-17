@@ -1,4 +1,4 @@
-import type { DocumentRole } from '@superdoc-history/types';
+import type { DocumentRole } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import type { DocumentsRepository } from '../documents/documents-repository';

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form } from '@/components/ui/form';
 
+export type AuthCardLink = { prompt: string; label: string; to: string };
+
 type AuthCardProps<Values extends FieldValues> = {
   form: UseFormReturn<Values>;
   onSubmit: (values: Values) => Promise<void>;
@@ -13,9 +15,7 @@ type AuthCardProps<Values extends FieldValues> = {
   description: string;
   submitLabel: string;
   pendingLabel: string;
-  prompt: string;
-  linkLabel: string;
-  linkTo: string;
+  link: AuthCardLink | null;
   children: ReactNode;
 };
 
@@ -26,9 +26,7 @@ export function AuthCard<Values extends FieldValues>({
   description,
   submitLabel,
   pendingLabel,
-  prompt,
-  linkLabel,
-  linkTo,
+  link,
   children,
 }: AuthCardProps<Values>) {
   const rootError = form.formState.errors.root;
@@ -48,12 +46,14 @@ export function AuthCard<Values extends FieldValues>({
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? pendingLabel : submitLabel}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                {prompt}{' '}
-                <Link to={linkTo} className="text-primary underline-offset-4 hover:underline">
-                  {linkLabel}
-                </Link>
-              </p>
+              {link && (
+                <p className="text-center text-sm text-muted-foreground">
+                  {link.prompt}{' '}
+                  <Link to={link.to} className="text-primary underline-offset-4 hover:underline">
+                    {link.label}
+                  </Link>
+                </p>
+              )}
             </form>
           </Form>
         </CardContent>

@@ -1,4 +1,4 @@
-import { DOCUMENT_ROLE_RANK, DocumentRole, type DocumentsList, type DocumentSummary, type UserReference } from '@superdoc-history/types';
+import { DOCUMENT_ROLE_RANK, DocumentRole, type DocumentsList, type DocumentSummary, type UserReference } from '@superdoc-collab/types';
 import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { user } from '../database/schema/auth';

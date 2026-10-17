@@ -1,4 +1,4 @@
-import type { TimelineBand, TimelineBin, TimelineCell } from '@superdoc-history/types';
+import type { TimelineBand, TimelineBin, TimelineCell } from '@superdoc-collab/types';
 
 export const TOPIC_HUE_START = 205;
 export const TOPIC_HUE_END = 25;

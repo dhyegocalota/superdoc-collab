@@ -76,11 +76,11 @@ Then Z.
 - Test: `libs/types/src/documents.test.ts`
 
 **Interfaces:**
-- Produces: `DocumentRole`, `ShareLinkRole`, `RoomMode`, `BlockChangeKind`, `DOCUMENT_ROLE_RANK`, `SHARE_LINK_GRANTS`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_MEGABYTES`, `DOCX_MIME_TYPE`, `DOCX_EXTENSION`, `UPLOAD_FIELD`, `UPLOAD_TOO_LARGE_MESSAGE`, `NOT_A_DOCX_MESSAGE`, `INVALID_SHARE_LINK_MESSAGE`, `TIMELINE_PLACEHOLDER_MESSAGE`, `UNTITLED_DOCUMENT_TITLE`, `COLLABORATION_TOKEN_PLACEHOLDER`, `DOCUMENT_NOT_READY_ERROR`, `DOCUMENT_NOT_READY_MESSAGE`, `DOCUMENT_UNAVAILABLE_MESSAGE`, `READ_ONLY_BADGE_LABEL`, `LINK_COPIED_MESSAGE`, `titleSchema`; types `UserReference`, `DocumentSummary`, `DocumentsList`, `OpenedDocument`, `DocumentMember`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `EventAuthor`, `DocumentEditEvent`, `DocumentEditEvents`; `AppRoute.Document`, `AppRoute.Share`, `ApiPath.Documents`, `ApiPath.ShareLinks`, `DocumentResource`, `documentPagePath(documentId)`, `documentApiPath({ documentId, resource? })`, `shareLinkAcceptPath(token)`; `HttpStatus.Created | NoContent | Forbidden | Conflict | PayloadTooLarge | UnsupportedMediaType`; `HttpMethod`; the package `@superdoc-history/history` (empty) and every dependency of the slice, installed.
+- Produces: `DocumentRole`, `ShareLinkRole`, `RoomMode`, `BlockChangeKind`, `DOCUMENT_ROLE_RANK`, `SHARE_LINK_GRANTS`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_MEGABYTES`, `DOCX_MIME_TYPE`, `DOCX_EXTENSION`, `UPLOAD_FIELD`, `UPLOAD_TOO_LARGE_MESSAGE`, `NOT_A_DOCX_MESSAGE`, `INVALID_SHARE_LINK_MESSAGE`, `TIMELINE_PLACEHOLDER_MESSAGE`, `UNTITLED_DOCUMENT_TITLE`, `COLLABORATION_TOKEN_PLACEHOLDER`, `DOCUMENT_NOT_READY_ERROR`, `DOCUMENT_NOT_READY_MESSAGE`, `DOCUMENT_UNAVAILABLE_MESSAGE`, `READ_ONLY_BADGE_LABEL`, `LINK_COPIED_MESSAGE`, `titleSchema`; types `UserReference`, `DocumentSummary`, `DocumentsList`, `OpenedDocument`, `DocumentMember`, `DocumentMembers`, `ShareLinks`, `AcceptedShareLink`, `EventAuthor`, `DocumentEditEvent`, `DocumentEditEvents`; `AppRoute.Document`, `AppRoute.Share`, `ApiPath.Documents`, `ApiPath.ShareLinks`, `DocumentResource`, `documentPagePath(documentId)`, `documentApiPath({ documentId, resource? })`, `shareLinkAcceptPath(token)`; `HttpStatus.Created | NoContent | Forbidden | Conflict | PayloadTooLarge | UnsupportedMediaType`; `HttpMethod`; the package `@superdoc-collab/history` (empty) and every dependency of the slice, installed.
 
 - [x] **Step 0: Dependencies, one install** — resolve the two floating majors once: `pnpm view diff@^8 version | tail -1` and `pnpm view jszip@^3 version | tail -1`, and pin what they print, exactly. Then write, all exact:
-  - `libs/history/package.json`: name `@superdoc-history/history`, `"type": "module"`, `"exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, `generate: drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts`; dependencies `@superdoc-history/types workspace:*`, `better-sqlite3 13.0.3`, `drizzle-orm 0.45.4`, `yjs 13.6.33`, `diff <resolved 8.x>`, `jszip <resolved 3.x>`; devDependencies `@types/better-sqlite3 9.6.0`, `drizzle-kit 0.31.11`, `tsx 4.23.15`, `vitest 5.0.5` (`diff` 8 ships its own types, so no `@types/diff`; add it only if `tsc` reports a missing declaration). `tsconfig.json` and `vitest.config.ts` copy `libs/types`'s.
-  - `apps/server/package.json` dependencies: `@superdoc-history/history workspace:*`, `@superdoc/sdk 2.20.0`; devDependencies: `jszip <resolved 3.x>`.
+  - `libs/history/package.json`: name `@superdoc-collab/history`, `"type": "module"`, `"exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" }`, scripts `typecheck: tsc --noEmit`, `test:unit: vitest run`, `generate: drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts`; dependencies `@superdoc-collab/types workspace:*`, `better-sqlite3 13.0.3`, `drizzle-orm 0.45.4`, `yjs 13.6.33`, `diff <resolved 8.x>`, `jszip <resolved 3.x>`; devDependencies `@types/better-sqlite3 9.6.0`, `drizzle-kit 0.31.11`, `tsx 4.23.15`, `vitest 5.0.5` (`diff` 8 ships its own types, so no `@types/diff`; add it only if `tsc` reports a missing declaration). `tsconfig.json` and `vitest.config.ts` copy `libs/types`'s.
+  - `apps/server/package.json` dependencies: `@superdoc-collab/history workspace:*`, `@superdoc/sdk 2.20.0`; devDependencies: `jszip <resolved 3.x>`.
   - `apps/web/package.json` dependencies: `superdoc 2.23.0`, `@hocuspocus/provider 2.15.3`, `yjs 13.6.33`.
   - root `package.json` devDependencies: `better-sqlite3 13.0.3`, `@types/better-sqlite3 9.6.0` (the E2E identity check reads `history.sqlite`).
   Run `pnpm install` once; `pnpm-lock.yaml` changes in this task only.
@@ -101,7 +101,7 @@ describe('documents contracts', () => {
   });
 });
 ```
-- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/types test:unit` → FAIL: cannot find `./documents`. Commit the failing tests alone: `test(types): pin the documents and history contracts`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/types test:unit` → FAIL: cannot find `./documents`. Commit the failing tests alone: `test(types): pin the documents and history contracts`; `git show` of that commit plus this failing run is the red evidence.
 - [x] **Step 3: Implement** — `documents.ts`
 ```ts
 import { z } from 'zod';
@@ -188,7 +188,7 @@ _Done — evidence: commits fd9fdc2 (tests), eefc59b (deps), 6b25147; task revie
 - Produces: `readMainStoryBlocks(document: Y.Doc): Block[]`, `readMainStoryText(document)`, `groupIntoWindows({ events, rules }): EditWindow[]`, `SingleFlight<Value>`, `EditEvent = { sequence; serverTime; authorIds: string[]; blockId; kind: BlockChangeKind; inserted; deleted }` (resolved, for windows), `ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` (raw, for storage), `projectEditEvents({ baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedEdit[]`, `resolveAuthorIds({ update, identities }: { update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>; identities: Map<number, string> }): string[]`, `findBootstrapSequence(updates: LoggedUpdate[]): number | null`, `TrackedChangeKind { Insert, Delete }`, `SeedParagraph`, `buildSeedDocx(paragraphs): Promise<Buffer>`, `isDocx(bytes: Uint8Array): Promise<boolean>`.
 
 - [x] **Step 1: Package** — `libs/history` and its dependencies exist from Task 1; this task runs no `pnpm add`.
-- [x] **Step 2: Lift unchanged** — `cp poc/lib/{document-content,edit-windows,single-flight}.ts libs/history/src/` and `cp poc/tests/node/{edit-windows,single-flight}.test.ts libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-history/types`.
+- [x] **Step 2: Lift unchanged** — `cp poc/lib/{document-content,edit-windows,single-flight}.ts libs/history/src/` and `cp poc/tests/node/{edit-windows,single-flight}.test.ts libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-collab/types`.
 - [x] **Step 3: Failing test** — `docx-signature.test.ts`
 ```ts
 async function zipWith(entry: string): Promise<Uint8Array> {
@@ -204,7 +204,7 @@ test.each([
   ['a truncated zip', async () => (await zipWith('word/document.xml')).slice(0, 40), false],
 ])('isDocx: %s → %s', async (_, bytes, expected) => expect(await isDocx(await bytes())).toBe(expected));
 ```
-- [x] **Step 4: Run, expect failure** — `pnpm --filter @superdoc-history/history test:unit` → FAIL: cannot find `./docx-signature`. Commit the failing tests alone: `test(history): pin docx detection and the lifted POC suites`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 4: Run, expect failure** — `pnpm --filter @superdoc-collab/history test:unit` → FAIL: cannot find `./docx-signature`. Commit the failing tests alone: `test(history): pin docx detection and the lifted POC suites`; `git show` of that commit plus this failing run is the red evidence.
 - [x] **Step 5: Implement** — `docx-signature.ts`
 ```ts
 import JSZip from 'jszip';
@@ -223,7 +223,7 @@ export async function isDocx(bytes: Uint8Array): Promise<boolean> {
   }
 }
 ```
-`seed-docx.ts`: copy `poc/lib/seed-docx.ts`; add `export enum TrackedChangeKind { Insert = 'insert', Delete = 'delete' }`, type `kind: TrackedChangeKind`, compare with `TrackedChangeKind.Insert`. `edit-events.ts`: copy `poc/lib/edit-events.ts`; import `BlockChangeKind` from `@superdoc-history/types` (delete the local enum) and `LoggedUpdate` from `./update-log` (Task 3); the projector starts from state bytes, because the product projects from a materialized cursor, and it emits the update's raw identity facts instead of resolved authors, because authors are resolved at read time. `resolveAuthorIds` keeps its POC body; only its `update` parameter narrows to `Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` so a stored event can be resolved too. The projector becomes:
+`seed-docx.ts`: copy `poc/lib/seed-docx.ts`; add `export enum TrackedChangeKind { Insert = 'insert', Delete = 'delete' }`, type `kind: TrackedChangeKind`, compare with `TrackedChangeKind.Insert`. `edit-events.ts`: copy `poc/lib/edit-events.ts`; import `BlockChangeKind` from `@superdoc-collab/types` (delete the local enum) and `LoggedUpdate` from `./update-log` (Task 3); the projector starts from state bytes, because the product projects from a materialized cursor, and it emits the update's raw identity facts instead of resolved authors, because authors are resolved at read time. `resolveAuthorIds` keeps its POC body; only its `update` parameter narrows to `Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` so a stored event can be resolved too. The projector becomes:
 ```ts
 export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
 
@@ -261,17 +261,17 @@ _Done — evidence: commits 53e0cfe (tests), 889b883; task review approved_
 - Test: `libs/history/src/{relay-attribution,snapshots,update-log}.test.ts`
 
 **Interfaces:**
-- Produces: `MigrationSet { History = 'history', ReadModel = 'read-model' }`, `HISTORY_MIGRATIONS_PATH = join('libs', 'history', 'drizzle')`, `runMigrationSet({ sqlite, migrationsFolder })`; `UpdateLog` constructed with `Database.Database`: `append`, `observeClientIdentity`, `declareClientIdentity`, `identitySources`, `clientIdentities`, `read`, `readRange` (POC signatures), plus `readBatch({ documentName, afterSequence, limit }): LoggedUpdate[]`, `hasUpdates(documentName): boolean`, `forget(documentName): void`; `materialize`, `compact`, `replay`, `extractStructClientIds`, `IdentitySource`, `LoggedUpdate`; from `@superdoc-history/history/testing`: `openTestDatabase({ set, path? }): Database.Database`, `temporaryDatabasePath(set): string`, `writeStory({ document, texts })`, `commitBootstrap(document)`.
+- Produces: `MigrationSet { History = 'history', ReadModel = 'read-model' }`, `HISTORY_MIGRATIONS_PATH = join('libs', 'history', 'drizzle')`, `runMigrationSet({ sqlite, migrationsFolder })`; `UpdateLog` constructed with `Database.Database`: `append`, `observeClientIdentity`, `declareClientIdentity`, `identitySources`, `clientIdentities`, `read`, `readRange` (POC signatures), plus `readBatch({ documentName, afterSequence, limit }): LoggedUpdate[]`, `hasUpdates(documentName): boolean`, `forget(documentName): void`; `materialize`, `compact`, `replay`, `extractStructClientIds`, `IdentitySource`, `LoggedUpdate`; from `@superdoc-collab/history/testing`: `openTestDatabase({ set, path? }): Database.Database`, `temporaryDatabasePath(set): string`, `writeStory({ document, texts })`, `commitBootstrap(document)`.
 
 - [x] **Step 1: Schema and migration** — `schema/history.ts` declares, with `sqliteTable` and the POC's exact columns:
   - `updates`: `sequence` integer primary key autoincrement, `document_name` text, `connection_user_id` text, `yjs_client_ids` text, `server_time` integer, `update_bytes` blob, all not null; `index('updates_by_document').on(documentName, sequence)`.
   - `snapshots`: `document_name` text, `sequence` integer, `state` blob, not null; primary key `(document_name, sequence)`.
   - `client_identities`: `document_name` text, `yjs_client_id` integer, `user_id` text, `source` text, not null; primary key `(document_name, yjs_client_id)`.
 
-`drizzle.history.config.ts`: `defineConfig({ dialect: 'sqlite', schema: './src/schema/history.ts', out: './drizzle/history' })`; `pnpm --filter @superdoc-history/history exec drizzle-kit generate --config drizzle.history.config.ts`; the SQL contains ``CREATE INDEX `updates_by_document` ON `updates` (`document_name`,`sequence`)``. `migrations.ts` exports `MigrationSet`, `HISTORY_MIGRATIONS_PATH = join('libs', 'history', 'drizzle')` and `runMigrationSet({ sqlite, migrationsFolder })`, whose body is `migrate(drizzle(sqlite), { migrationsFolder })` (`drizzle-orm/better-sqlite3` and its `migrator`). `testing/test-database.ts`
+`drizzle.history.config.ts`: `defineConfig({ dialect: 'sqlite', schema: './src/schema/history.ts', out: './drizzle/history' })`; `pnpm --filter @superdoc-collab/history exec drizzle-kit generate --config drizzle.history.config.ts`; the SQL contains ``CREATE INDEX `updates_by_document` ON `updates` (`document_name`,`sequence`)``. `migrations.ts` exports `MigrationSet`, `HISTORY_MIGRATIONS_PATH = join('libs', 'history', 'drizzle')` and `runMigrationSet({ sqlite, migrationsFolder })`, whose body is `migrate(drizzle(sqlite), { migrationsFolder })` (`drizzle-orm/better-sqlite3` and its `migrator`). `testing/test-database.ts`
 ```ts
 export function temporaryDatabasePath(set: MigrationSet): string {
-  return join(mkdtempSync(join(tmpdir(), 'superdoc-history-lib-')), `${set}.sqlite`);
+  return join(mkdtempSync(join(tmpdir(), 'superdoc-collab-lib-')), `${set}.sqlite`);
 }
 
 export function openTestDatabase({ set, path = temporaryDatabasePath(set) }: { set: MigrationSet; path?: string }): Database.Database {
@@ -432,7 +432,7 @@ Also in `projection.test.ts`, each input → expected:
 - [x] **Step 4: Implement** — `read-model.ts`
 ```ts
 import type Database from 'better-sqlite3';
-import { BlockChangeKind } from '@superdoc-history/types';
+import { BlockChangeKind } from '@superdoc-collab/types';
 import type { ProjectedEdit } from './edit-events';
 
 const IMPORTED_SEQUENCE = 0;
@@ -573,7 +573,7 @@ Also in `documents-repository.test.ts`, each input → expected:
 - `removing a document cascades its members`: `remove(documentId)` → `findRole` is `null` for both users.
 
 `local-disk-file-storage.test.ts`: put then read returns identical bytes; `remove` of a missing id resolves; `pathOf('../auth')` throws `InvalidDocumentIdError`. `connection.test.ts`: the migrated auth file lists `documents`, `document_members`, `document_share_links`; `PRAGMA synchronous` returns `1` and `PRAGMA foreign_keys` returns `1` on an `openSqliteFile` handle. `migrate.test.ts` calls become `findMigrationsFolder({ startUrl: bundle, relativePath: 'drizzle' })`.
-- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server test:unit`. Commit the failing tests alone: `test(server): pin documents membership and file storage`; `git show` of that commit plus this failing run is the red evidence.
+- [x] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server test:unit`. Commit the failing tests alone: `test(server): pin documents membership and file storage`; `git show` of that commit plus this failing run is the red evidence.
 - [x] **Step 3: Implement** — `connection.ts`
 ```ts
 const BUSY_TIMEOUT_MS = 5000;
@@ -697,7 +697,7 @@ _Done — evidence: commits 3423e26 (tests), 5f8ab41; task review approved_
 - Test: `apps/server/src/collaboration/{room-name,collaboration-history}.test.ts`
 
 **Interfaces:**
-- Consumes: `DocumentsRepository.findRole`, `UpdateLog`, `materialize`, `compact`, `openSqliteFile`, `runHistoryMigrations`, `COLLABORATION_TOKEN_PLACEHOLDER` (now imported from `@superdoc-history/types`; delete the server constant).
+- Consumes: `DocumentsRepository.findRole`, `UpdateLog`, `materialize`, `compact`, `openSqliteFile`, `runHistoryMigrations`, `COLLABORATION_TOKEN_PLACEHOLDER` (now imported from `@superdoc-collab/types`; delete the server constant).
 - Produces: `SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/'`, `documentIdFromRoomName(roomName): string | null`; `createCollaborationServer({ auth, documents, log, onStored }: { auth: Auth; documents: DocumentsRepository; log: UpdateLog; onStored: (documentId: string) => void }): Hocuspocus`; `CollaborationContext = { userId: string; documentId: string }`; `LOADING_ORIGIN`; `createClientDeclarer(log)`; `services.log`, `services.hocuspocus`; test helpers `connectToDocument({ server, cookie, documentId, document? }): Promise<CollaborationClient>` (`{ document: Y.Doc; provider: HocuspocusProvider; close(): void }`, rejects with `CollaborationRefusedError`), `documentWithOwner(): Promise<{ server: TestServer; documentId: string; owner: TestUser }>`, `memberWithRole({ server, documentId, role }): Promise<TestUser>` (both built on Task 5's `signedInOwner` and `signedInUser`).
 
 - [x] **Step 1: Failing tests** — `room-name.test.ts` pins the room format observed in the POC and the spike (`sd2/v2.1/awareness`), so a SuperDoc change fails here:
@@ -1187,8 +1187,8 @@ function readDocumentEvents({ services, documentId, afterSequence }: { services:
   return { events, cursor: services.readModel.cursor(documentId) };
 }
 ```
-`IncompleteEditEventError` and `UnknownAuthorError` are declared in the same file (users cascade their documents, so an unknown name is a real inconsistency). `app.ts`: `createApp({ auth, environment, services })`; `const signedIn = requireUser({ auth })` is mounted with `app.use(ApiPath.Documents, signedIn)`, ``app.use(`${ApiPath.Documents}/*`, signedIn)`` and ``app.use(`${ApiPath.ShareLinks}/*`, signedIn)`` only, so `/api/health`, `/api/me` and `/api/auth/*` keep their slice 1 behaviour; `app.onError` maps `DocumentNotFoundError` → 404 `{ error: NOT_FOUND_MESSAGE }` (now exported from `server.ts`, the body slice 1's `notFound` uses), `DocumentRoleTooLowError` → 403, and rethrows anything else. `server.ts` order: open and migrate the three files; `UpdateLog`; `ReadModel` on the main-thread read-model handle (reads only; the worker is the only writer); `ProjectionScheduler`; collaboration server with `onStored: (documentId) => { documents.touch(documentId); scheduler.schedule(documentId); }`; runtime (`createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage })`); app; `listen`; `attachCollaboration`; `stop()` adds `await scheduler.stop()` and closes the two history handles. `tsup.config.ts`: `entry: { main: 'src/main.ts', seed: 'src/seed.ts', 'projection-worker': 'src/history/projection-worker.ts' }`, `external: ['better-sqlite3', '@superdoc/sdk']`, `noExternal: ['@superdoc-history/types', '@superdoc-history/history']`.
-- [x] **Step 4: Run, expect pass** — then `pnpm --filter @superdoc-history/server build && test -f apps/server/dist/projection-worker.js`.
+`IncompleteEditEventError` and `UnknownAuthorError` are declared in the same file (users cascade their documents, so an unknown name is a real inconsistency). `app.ts`: `createApp({ auth, environment, services })`; `const signedIn = requireUser({ auth })` is mounted with `app.use(ApiPath.Documents, signedIn)`, ``app.use(`${ApiPath.Documents}/*`, signedIn)`` and ``app.use(`${ApiPath.ShareLinks}/*`, signedIn)`` only, so `/api/health`, `/api/me` and `/api/auth/*` keep their slice 1 behaviour; `app.onError` maps `DocumentNotFoundError` → 404 `{ error: NOT_FOUND_MESSAGE }` (now exported from `server.ts`, the body slice 1's `notFound` uses), `DocumentRoleTooLowError` → 403, and rethrows anything else. `server.ts` order: open and migrate the three files; `UpdateLog`; `ReadModel` on the main-thread read-model handle (reads only; the worker is the only writer); `ProjectionScheduler`; collaboration server with `onStored: (documentId) => { documents.touch(documentId); scheduler.schedule(documentId); }`; runtime (`createCollaborationRuntime({ hocuspocus, log, readModel, scheduler, storage })`); app; `listen`; `attachCollaboration`; `stop()` adds `await scheduler.stop()` and closes the two history handles. `tsup.config.ts`: `entry: { main: 'src/main.ts', seed: 'src/seed.ts', 'projection-worker': 'src/history/projection-worker.ts' }`, `external: ['better-sqlite3', '@superdoc/sdk']`, `noExternal: ['@superdoc-collab/types', '@superdoc-collab/history']`.
+- [x] **Step 4: Run, expect pass** — then `pnpm --filter @superdoc-collab/server build && test -f apps/server/dist/projection-worker.js`.
 - [x] **Step 5: Commit** — `feat(server): project edit events in a worker and serve them`
 
 ---
@@ -1463,7 +1463,7 @@ export async function uploadDocument(file: File): Promise<DocumentSummary> {
 }
 ```
 `api.ts`: `apiGet` widens to `string`; `apiSend` calls `fetch(path, { method, body, credentials: 'same-origin' })` and adds `content-type: application/json` only when `body` is a string. `upload-dialog.tsx`: shadcn `Dialog` with a labelled file input (`accept=".docx"`), `validateUpload` on change, `useMutation(uploadDocument)` whose `onSuccess` runs `queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY })` then navigates; errors render in `role="alert"`. `document-table.tsx`: shadcn `Table` (Title, Owner, Updated via `Intl.DateTimeFormat` with `dateStyle: 'medium', timeStyle: 'short'`, My role), an empty row with the given empty message, the table wrapped in `overflow-x-auto` for 375 px. `documents-page.tsx` keeps the slice 1 header (name + sign-out) and renders "Mine" and "Shared with me" with the two buttons. `router.tsx` imports it from `@/features/documents/documents-page`. Tokens only (ADR 0009), no raw colours.
-- [x] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/web test:unit`.
+- [x] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/web test:unit`.
 - [x] **Step 5: Commit** — `feat(web): add the documents list with upload and new document`
 
 ---
@@ -1507,7 +1507,7 @@ test('a title rename does not re-create the editor', async () => {
 ```
 Same file: a 409 `{ error: DOCUMENT_NOT_READY_ERROR }` shows `DOCUMENT_NOT_READY_MESSAGE` and never constructs `SuperDoc`; a 404 shows `DOCUMENT_UNAVAILABLE_MESSAGE` with a link to `/documents`; `roomMode: 'join'` fetches `BLANK_DOCX_PATH`, never the download URL.
 - [x] **Step 2: Run, expect failure.** Commit the failing tests alone: `test(web): pin the editor header, sharing and the share landing`; `git show` of that commit plus this failing run is the red evidence.
-- [x] **Step 3: Implement** — generate the joiners' blank once: `pnpm --filter @superdoc-history/history exec tsx -e "import('./src/seed-docx.ts').then(async ({ buildSeedDocx }) => (await import('node:fs')).writeFileSync('../../apps/web/public/blank.docx', await buildSeedDocx([{ text: '', trackedChanges: [] }])))"` and commit the file. `superdoc-editor.tsx`
+- [x] **Step 3: Implement** — generate the joiners' blank once: `pnpm --filter @superdoc-collab/history exec tsx -e "import('./src/seed-docx.ts').then(async ({ buildSeedDocx }) => (await import('node:fs')).writeFileSync('../../apps/web/public/blank.docx', await buildSeedDocx([{ text: '', trackedChanges: [] }])))"` and commit the file. `superdoc-editor.tsx`
 ```tsx
 const HOCUSPOCUS_PROVIDER = 'hocuspocus';
 const READER_DOCUMENT_MODE = 'viewing';
@@ -1549,7 +1549,7 @@ export function useEditorSetup({ opened, user, file }: { opened: OpenedDocument 
 }
 ```
 `document-page.tsx`: `useOpenedDocument` (404 → `DOCUMENT_UNAVAILABLE_MESSAGE` with a link to `/documents`; 409 `DOCUMENT_NOT_READY_ERROR` → `DOCUMENT_NOT_READY_MESSAGE`), `useSession`, the file query keyed by `[documentId, roomMode]` and enabled once the first `roomMode` is known, `useEditorSetup`, and `SuperDocEditor` rendered from the captured setup only, members `useQuery` with `refetchInterval: MEMBERS_REFRESH_MS` (5000), layout `flex h-dvh flex-col` → `EditorHeader` → `flex min-h-0 flex-1` holding `SuperDocEditor` and `TimelinePanelPlaceholder` (a collapsible `aside` showing `TIMELINE_PLACEHOLDER_MESSAGE`, collapsed below `md`). `editor-header.tsx`: the title is an input for owner and editor (PATCH on Enter or blur when changed, then `invalidateQueries` for `DOCUMENTS_QUERY_KEY`), a heading for readers; `Members` (initials and an online dot); `Badge` `READ_ONLY_BADGE_LABEL` for readers; Share (owner) opens `ShareDialog`; "Download .docx" is `<a href={documentApiPath({ documentId, resource: DocumentResource.Download })} download>`; Delete (owner) confirms in a `Dialog`, DELETEs, invalidates, navigates to `AppRoute.Documents`. `share-landing-page.tsx` POSTs `shareLinkAcceptPath(token)` once (a ref guards StrictMode's double effect). `vite.config.ts`: `build: { outDir: 'dist', target: 'esnext' }`, `optimizeDeps: { esbuildOptions: { target: 'esnext' } }`.
-- [x] **Step 4: Run, expect pass** — unit tests; `pnpm --filter @superdoc-history/web build` succeeds and `dist/blank.docx` exists.
+- [x] **Step 4: Run, expect pass** — unit tests; `pnpm --filter @superdoc-collab/web build` succeeds and `dist/blank.docx` exists.
 - [x] **Step 5: Commit** — `feat(web): add the collaborative editor page and sharing`
 
 ---

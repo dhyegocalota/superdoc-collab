@@ -10,7 +10,7 @@ import {
   type VersionMarks,
   type VersionSummary,
   type VersionText,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { authorizedDocumentId } from '../documents/require-document-role';

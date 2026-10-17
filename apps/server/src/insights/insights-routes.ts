@@ -4,7 +4,8 @@ import {
   RETRY_AFTER_SECONDS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
-} from '@superdoc-history/types';
+  type DocumentTopics,
+} from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { authorizedDocumentId } from '../documents/require-document-role';
 import { INVALID_TIMELINE_QUERY_MESSAGE, selectionQuerySchema } from '../history/timeline-query';

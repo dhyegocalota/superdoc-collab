@@ -9,7 +9,7 @@ COPY libs/types/package.json libs/types/package.json
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
-RUN pnpm deploy --prod --filter @superdoc-history/server /workspace/release
+RUN pnpm deploy --prod --filter @superdoc-collab/server /workspace/release
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app

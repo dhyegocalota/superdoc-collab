@@ -2,10 +2,12 @@ import { describe, expect, test } from 'vitest';
 import {
   EMAIL_INVALID_MESSAGE,
   NAME_RESERVED_MESSAGE,
+  INVALID_TIME_ZONE_MESSAGE,
   NAME_TOO_SHORT_MESSAGE,
   PASSWORD_TOO_SHORT_MESSAGE,
   signInSchema,
   signUpSchema,
+  updateUserSchema,
 } from './auth';
 
 function firstMessage(result: { success: boolean; error?: { issues: { message: string }[] } }): string | undefined {
@@ -47,6 +49,35 @@ describe('signUpSchema', () => {
     expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
   });
   test('accepts a name that merely contains AI', () => {
-    expect(signUpSchema.safeParse({ name: 'Aino Maia', email: 'ana@example.com', password: 'superdoc-demo' }).success).toBe(true);
+    expect(
+      signUpSchema.safeParse({ name: 'Aino Maia', email: 'ana@example.com', password: 'superdoc-demo', timeZone: 'UTC' }).success,
+    ).toBe(true);
   });
+});
+
+const SIGN_UP_BASE = { name: 'Eve', email: 'eve@example.com', password: 'long-enough-password' };
+
+test('sign-up accepts a known IANA time zone', () => {
+  expect(signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'America/Sao_Paulo' }).success).toBe(true);
+});
+
+test('sign-up accepts UTC, which browsers report but Intl.supportedValuesOf omits', () => {
+  expect(signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'UTC' }).success).toBe(true);
+});
+
+test('sign-up rejects an unknown time zone with its message', () => {
+  const rejected = signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'Mars/Olympus' });
+  expect(rejected.error?.issues[0]?.message).toBe(INVALID_TIME_ZONE_MESSAGE);
+});
+
+test('sign-up requires a time zone', () => {
+  expect(signUpSchema.safeParse(SIGN_UP_BASE).success).toBe(false);
+});
+
+test('update-user rejects a name that impersonates an AI', () => {
+  expect(firstMessage(updateUserSchema.safeParse({ name: 'Ana · AI' }))).toBe(NAME_RESERVED_MESSAGE);
+});
+
+test('update-user accepts a time zone alone', () => {
+  expect(updateUserSchema.safeParse({ timeZone: 'UTC' }).success).toBe(true);
 });

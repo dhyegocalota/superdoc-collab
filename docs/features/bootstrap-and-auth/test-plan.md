@@ -2,7 +2,7 @@
 
 Executed by the `tester` sub-agent after `tester-briefing.md` exists. Every box states the input and the exact expected outcome; ticked boxes carry ` — evidence: <commit | log path | count | screenshot path>`. A box that cannot run is marked `BLOCKED: <why>`, never ticked.
 
-Environment for the Playwright MCP walk: `pnpm build && WEB_DIST_DIR=apps/web/dist DATABASE_DIR=<temp> PORT=3100 pnpm --filter @superdoc-history/server start` after `pnpm seed`, so the walk runs against the production-shaped server, not the Vite dev server.
+Environment for the Playwright MCP walk: `pnpm build && WEB_DIST_DIR=apps/web/dist DATABASE_DIR=<temp> PORT=3100 pnpm --filter @superdoc-collab/server start` after `pnpm seed`, so the walk runs against the production-shaped server, not the Vite dev server.
 
 ## The failing test first
 

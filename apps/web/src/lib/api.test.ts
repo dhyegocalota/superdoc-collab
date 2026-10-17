@@ -1,4 +1,4 @@
-import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-history/types';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import {

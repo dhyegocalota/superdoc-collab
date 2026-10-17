@@ -1,4 +1,4 @@
-import { AgentActionKind } from '@superdoc-history/types';
+import { AgentActionKind } from '@superdoc-collab/types';
 
 export const TIMELINE_HEADING = 'Timeline';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';

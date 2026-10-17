@@ -1,5 +1,5 @@
 {
-  "name": "@superdoc-history/history",
+  "name": "@superdoc-collab/history",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,7 +13,7 @@
     "generate": "drizzle-kit generate --config drizzle.history.config.ts && drizzle-kit generate --config drizzle.read-model.config.ts"
   },
   "dependencies": {
-    "@superdoc-history/types": "workspace:*",
+    "@superdoc-collab/types": "workspace:*",
     "better-sqlite3": "13.0.3",
     "diff": "8.0.4",
     "drizzle-orm": "0.45.4",

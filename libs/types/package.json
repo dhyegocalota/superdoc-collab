@@ -1,5 +1,5 @@
 {
-  "name": "@superdoc-history/types",
+  "name": "@superdoc-collab/types",
   "private": true,
   "type": "module",
   "exports": {

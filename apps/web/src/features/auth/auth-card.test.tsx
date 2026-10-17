@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
@@ -29,9 +29,7 @@ function Probe({ onSubmit, rootError }: { onSubmit: (values: ProbeValues) => Pro
       description="Use your email."
       submitLabel={SUBMIT_LABEL}
       pendingLabel="Signing in…"
-      prompt="No account yet?"
-      linkLabel="Sign up"
-      linkTo={AppRoute.SignUp}
+      link={{ prompt: 'No account yet?', label: 'Sign up', to: AppRoute.SignUp }}
     >
       <AuthTextField control={form.control} name="email" label="Email" type={AuthFieldType.Email} autoComplete="email" />
     </AuthCard>

@@ -1,4 +1,4 @@
-import { AgentActionKind, ClientActor } from '@superdoc-history/types';
+import { AgentActionKind, ClientActor } from '@superdoc-collab/types';
 import Database from 'better-sqlite3';
 import * as Y from 'yjs';
 import { expect, test } from 'vitest';

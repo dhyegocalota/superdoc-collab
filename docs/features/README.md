@@ -38,15 +38,16 @@ Refinement after the five slices:
 | [`refinement-structure`](refinement-structure/) | Prettier, the version viewer in `features/versions`, one date-time formatter, `repository-shape` and `testing` folder names | Shipped 2026-10-17 ([PR #9](https://github.com/dhyegocalota/superdoc-take-home/pull/9)) |
 | [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Shipped 2026-10-17 ([PR #10](https://github.com/dhyegocalota/superdoc-take-home/pull/10)) |
 | [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Shipped 2026-10-17 ([PR #12](https://github.com/dhyegocalota/superdoc-take-home/pull/12)) |
+| [`security-gates`](security-gates/) | Production dependency audit and secret scan in CI, Dependabot security updates, a `security-reviewer` role as `/open-pr` gate 3b ([ADR 0022](../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)) | In review |
+| [`scenario-runs`](scenario-runs/) | `/scenario <slug>`: the stack on its own ports, one Playwright MCP server per author, `docs/scenarios/core-realtime.md`, suggestion before the merge ([ADR 0023](../adr/0023-agentic-scenario-runs-with-one-browser-per-author.md)) | In review |
 | [`refinement-tests`](refinement-tests/) | 84 tests removed or folded with nothing lost, 9 rewritten to assert outcomes instead of classes, constants or real waits, two dead library modules deleted | Shipped 2026-10-17 ([PR #11](https://github.com/dhyegocalota/superdoc-take-home/pull/11), evidence [PR #13](https://github.com/dhyegocalota/superdoc-take-home/pull/13)) |
 | [`refinement-readability-server`](refinement-readability-server/) | Server names, a split `startServer`, one handler per projection request kind, shared `LruMap`, `KeyedCooldown`, `SlidingWindow`, `withTimeout` and `retryLater` | Shipped 2026-10-17 ([PR #17](https://github.com/dhyegocalota/superdoc-take-home/pull/17)) |
 | [`refinement-ux-care`](refinement-ux-care/) | The UX audit's P1 and P2 items and five P3 items: home link, explained chart, collapsed rail, one-date bin ranges, labelled units, phone header, loading states, dialog care, copy rules | Shipped 2026-10-17 ([PR #18](https://github.com/dhyegocalota/superdoc-take-home/pull/18)) |
 | [`refinement-readability-web`](refinement-readability-web/) | `useTimeTravel` and `TimelinePanel` split, one web API layer for pollers and query keys, both auth pages rebuilt on shared parts | Building |
 | [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
-
-After the refinement:
-
-| Feature | Delivers | Status |
-|---------|----------|--------|
+| [`invite-only-access`](invite-only-access/) | First sign-up claims the instance as admin, single-use invite links, `/admin`, no seed in production, newcomer README with an agent install prompt | Shipped 2026-10-17 ([PR #23](https://github.com/dhyegocalota/superdoc-collab/pull/23)) |
+| [`faster-ci`](faster-ci/) | CI wall time from 15 min to about 4: parallel E2E, independent jobs, prebuilt projection worker in tests | Building |
+| [`cleanup-docs`](cleanup-docs/) | `poc/` removed, the root README down to one screen and one screenshot, package READMEs without source references | Shipped 2026-10-17 |
+| [`readme-purpose-only`](readme-purpose-only/) | READMEs carry purpose only; the root Run it block is pinned to package.json, .env.example and the workspace by a repository-shape test | Shipped 2026-10-17 |
 | [`agentic-history-mcp`](agentic-history-mcp/) | A remote MCP server any AI client connects to as a real person through OAuth: read the history, edit in tracked mode, export, share; every AI edit marked "Name · AI"; revocable connected apps | Approved |

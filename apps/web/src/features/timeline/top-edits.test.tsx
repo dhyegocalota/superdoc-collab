@@ -1,4 +1,4 @@
-import { ClientActor, documentPagePath, type TopicSummaries } from '@superdoc-history/types';
+import { ClientActor, documentPagePath, type TopicSummaries } from '@superdoc-collab/types';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';

@@ -7,7 +7,7 @@ import {
   documentPagePath,
   ShareLinkRole,
   type DocumentMembers,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { existsSync } from 'node:fs';

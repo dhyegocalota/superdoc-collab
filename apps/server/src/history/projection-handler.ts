@@ -7,7 +7,7 @@ import {
   type GcFreeReplays,
   type ReadModel,
   type UpdateLog,
-} from '@superdoc-history/history';
+} from '@superdoc-collab/history';
 import * as Y from 'yjs';
 import {
   MissingVersionMarkError,

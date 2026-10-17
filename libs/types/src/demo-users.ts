@@ -1,5 +1,7 @@
 export type DemoUser = { name: string; email: string };
 
+export const DEMO_ADMIN: DemoUser = { name: 'Admin', email: 'admin@example.com' };
+
 export const DEMO_USERS: readonly DemoUser[] = [
   { name: 'Ana', email: 'ana@example.com' },
   { name: 'Bruno', email: 'bruno@example.com' },

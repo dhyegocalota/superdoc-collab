@@ -1,5 +1,5 @@
-import type { StoredEditEvent } from '@superdoc-history/history';
-import { BlockChangeKind, ClientActor } from '@superdoc-history/types';
+import type { StoredEditEvent } from '@superdoc-collab/history';
+import { BlockChangeKind, ClientActor } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { resolveEvents, type ResolvedEventsServices } from './resolved-events';
 

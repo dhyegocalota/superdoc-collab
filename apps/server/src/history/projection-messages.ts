@@ -1,5 +1,5 @@
-import type { Block } from '@superdoc-history/history';
-import { SECOND_MS } from '@superdoc-history/types';
+import type { Block } from '@superdoc-collab/history';
+import { SECOND_MS } from '@superdoc-collab/types';
 
 export const IMPORT_TIMEOUT_MS = 30 * SECOND_MS;
 export const SNAPSHOT_EVERY_UPDATES = 1000;

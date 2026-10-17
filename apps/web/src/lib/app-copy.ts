@@ -1,1 +1,1 @@
-export const APP_NAME = 'SuperDoc History';
+export const APP_NAME = 'SuperDoc Collab';

@@ -1,4 +1,4 @@
-import { SECOND_MS } from '@superdoc-history/types';
+import { SECOND_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { KeyedCooldown } from './keyed-cooldown';
 

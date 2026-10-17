@@ -150,7 +150,7 @@ test('narrowing by a band or a bin nobody edited yields nothing', () => {
   expect(narrowRuns({ runs: PLACED_RUNS, bandId: null, binStart: 7 * BIN_MS })).toEqual([]);
 });
 ```
-- [ ] **Step 3: Run, expect failure** — `pnpm --filter @superdoc-history/types exec vitest run src/timeline.test.ts` and `pnpm --filter @superdoc-history/history exec vitest run src/topics/topic-schema.test.ts src/timeline/runs.test.ts` → FAIL: `selectionSummaryApiPath is not a function` / `does not provide an export named 'narrowRuns'` / `selectionSummaryOutputSchema` undefined. Commit the tests alone:
+- [ ] **Step 3: Run, expect failure** — `pnpm --filter @superdoc-collab/types exec vitest run src/timeline.test.ts` and `pnpm --filter @superdoc-collab/history exec vitest run src/topics/topic-schema.test.ts src/timeline/runs.test.ts` → FAIL: `selectionSummaryApiPath is not a function` / `does not provide an export named 'narrowRuns'` / `selectionSummaryOutputSchema` undefined. Commit the tests alone:
 ```bash
 git add libs/types/src/timeline.test.ts libs/history/src/topics/topic-schema.test.ts libs/history/src/timeline/runs.test.ts && git commit -m "test(types): pin the selection summary contracts and narrowRuns"
 ```
@@ -175,7 +175,7 @@ export function selectionSummaryApiPath(documentId: string): string {
 export const selectionSummaryOutputSchema = z.object({ sentence: z.string().trim().min(1).max(SELECTION_SUMMARY_MAX_CHARACTERS), authors: z.array(z.string().trim().min(1)) });
 export type SelectionSummaryOutput = z.infer<typeof selectionSummaryOutputSchema>;
 ```
-(`SELECTION_SUMMARY_MAX_CHARACTERS` imported from `@superdoc-history/types`.)
+(`SELECTION_SUMMARY_MAX_CHARACTERS` imported from `@superdoc-collab/types`.)
 `libs/history/src/timeline/runs.ts`:
 ```ts
 export function narrowRuns({ runs, bandId, binStart }: { runs: EditRun[]; bandId: string | null; binStart: number | null }): EditRun[] {
@@ -186,7 +186,7 @@ export function narrowRuns({ runs, bandId, binStart }: { runs: EditRun[]; bandId
   });
 }
 ```
-- [ ] **Step 5: Run, expect pass** — the two commands of Step 3, then `pnpm --filter @superdoc-history/types typecheck && pnpm --filter @superdoc-history/history typecheck`.
+- [ ] **Step 5: Run, expect pass** — the two commands of Step 3, then `pnpm --filter @superdoc-collab/types typecheck && pnpm --filter @superdoc-collab/history typecheck`.
 - [ ] **Step 6: Commit**
 ```bash
 git add docs/adr/0012-selection-summaries-cached-per-filter-and-cursor.md libs/types/src/timeline.ts libs/types/src/routes.ts libs/types/src/http.ts libs/types/src/constants.ts libs/history/src/topics/topic-schema.ts libs/history/src/timeline/runs.ts && git commit -m "feat(types): add selection summary contracts, the output schema and narrowRuns"
@@ -213,18 +213,18 @@ test('the unavailable reasons name the language model, not one feature', () => {
   [LLM_MODEL_MISSING_MESSAGE, LLM_KEY_MISSING_MESSAGE].forEach((message) => expect(message.startsWith(UNAVAILABLE_PREFIX)).toBe(true));
 });
 ```
-In `insights-routes.test.ts` replace `second.headers.get('retry-after')` with `second.headers.get(RETRY_AFTER_HEADER)` (import from `@superdoc-history/types`).
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/llm-client.test.ts` → FAIL `expected false to be true` (the messages start with "Topics are unavailable"). Commit:
+In `insights-routes.test.ts` replace `second.headers.get('retry-after')` with `second.headers.get(RETRY_AFTER_HEADER)` (import from `@superdoc-collab/types`).
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/llm-client.test.ts` → FAIL `expected false to be true` (the messages start with "Topics are unavailable"). Commit:
 ```bash
 git add apps/server/src/insights/llm-client.test.ts apps/server/src/insights/insights-routes.test.ts && git commit -m "test(server): pin the generic language model unavailable copy"
 ```
 - [ ] **Step 3: Implement**
 - `llm-client.ts`: the two messages of Interfaces.
-- `insights-routes.ts` and `versions-routes.ts`: delete the local `RETRY_AFTER_HEADER` and import it from `@superdoc-history/types`.
+- `insights-routes.ts` and `versions-routes.ts`: delete the local `RETRY_AFTER_HEADER` and import it from `@superdoc-collab/types`.
 - `testing/timeline-client.ts`: `const RETRY_AFTER_SECONDS_TEXT = String(RETRY_AFTER_SECONDS);` (import `RETRY_AFTER_SECONDS` from `../history/versions-routes`) and `response.headers.get(RETRY_AFTER_HEADER)`.
 - Literals: `summaries-service.ts` `SUMMARY_RUN_BIN_MS = HOUR_MS`; `projection-scheduler.ts` `WORKER_RESTART_WINDOW_MS = MINUTE_MS`; `projection-worker.ts` `STOP_DISPOSE_TIMEOUT_MS = SECOND_MS`; `projection-messages.ts` `IMPORT_TIMEOUT_MS = 30 * SECOND_MS`; `collaboration-server.ts` `COLLABORATION_SOCKET_TIMEOUT_MS = 10 * SECOND_MS`, `STORE_DEBOUNCE_MS = 2 * SECOND_MS`, `MAX_STORE_DEBOUNCE_MS = 4 * SECOND_MS`; `version-rooms.ts` `export const STOP_TIMEOUT_MS = 5 * SECOND_MS`; `database/connection.ts` `BUSY_TIMEOUT_MS = 5 * SECOND_MS`. `PROJECTION_THROTTLE_MS` (1500) stays: it is a spec value, not a unit conversion.
 - Check: `rg -n "= [0-9][0-9_]*;" apps/server/src --glob '!*.test.ts' --glob '!**/testing/**' | rg -i "_MS\b|timeout"` lists only `PROJECTION_THROTTLE_MS`.
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/server exec vitest run src/insights src/history/versions-routes.test.ts` and `pnpm --filter @superdoc-history/server typecheck`.
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights src/history/versions-routes.test.ts` and `pnpm --filter @superdoc-collab/server typecheck`.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/insights/llm-client.ts apps/server/src/insights/insights-routes.ts apps/server/src/insights/summaries-service.ts apps/server/src/history/versions-routes.ts apps/server/src/history/projection-scheduler.ts apps/server/src/history/projection-worker.ts apps/server/src/history/projection-messages.ts apps/server/src/collaboration/collaboration-server.ts apps/server/src/collaboration/version-rooms.ts apps/server/src/database/connection.ts apps/server/src/testing/timeline-client.ts && git commit -m "refactor(server): share the retry header, derive timeouts from time units and word the LLM copy generically"
@@ -245,7 +245,7 @@ git add apps/server/src/insights/llm-client.ts apps/server/src/insights/insights
 
 - [ ] **Step 1: Write the failing tests** — `document-cooldown.test.ts`:
 ```ts
-import { SECOND_MS } from '@superdoc-history/types';
+import { SECOND_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { DocumentCooldown } from './document-cooldown';
 
@@ -305,7 +305,7 @@ test('deleting a document forgets its refresh and summary cooldowns', async () =
 });
 ```
 (The default test server has no model, so the refresh fails fast and still consumes the cooldown, as `compute` does today.)
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/document-cooldown.test.ts src/insights/insights-routes.test.ts` → FAIL: cannot find `./document-cooldown`; `cooldown` is undefined. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/document-cooldown.test.ts src/insights/insights-routes.test.ts` → FAIL: cannot find `./document-cooldown`; `cooldown` is undefined. Commit:
 ```bash
 git add apps/server/src/insights/document-cooldown.test.ts apps/server/src/insights/insights-routes.test.ts && git commit -m "test(server): pin a per-document cooldown that is forgotten on delete"
 ```
@@ -355,7 +355,7 @@ export class DocumentCooldown {
     services.insights.topics.forget(documentId);
     services.insights.summaries.forget(documentId);
 ```
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/server exec vitest run src/insights src/documents` (the existing cooldown, interval and backoff tests stay green).
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights src/documents` (the existing cooldown, interval and backoff tests stay green).
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/insights/document-cooldown.ts apps/server/src/insights/topics-service.ts apps/server/src/insights/summaries-service.ts apps/server/src/documents/documents-routes.ts && git commit -m "refactor(server): share one per-document cooldown and forget it when a document is deleted"
@@ -491,7 +491,7 @@ test('a version still waiting after two worker crashes is rejected instead of po
 });
 ```
 (`Worker` from `node:worker_threads`; `ProjectionRequest` and `ProjectionRequestCrashedError` from `./projection-messages`; `MAX_REQUEST_POSTS` from `./projection-scheduler`.)
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/collaboration/version-rooms.test.ts src/collaboration/attach-collaboration.test.ts src/history/projection-scheduler.test.ts` → FAIL: `cleared` not called with the stop timer; the first chunk starts with `HTTP/1.1 101` and `size()` is 1; `MAX_REQUEST_POSTS`/`ProjectionRequestCrashedError` not exported. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/version-rooms.test.ts src/collaboration/attach-collaboration.test.ts src/history/projection-scheduler.test.ts` → FAIL: `cleared` not called with the stop timer; the first chunk starts with `HTTP/1.1 101` and `size()` is 1; `MAX_REQUEST_POSTS`/`ProjectionRequestCrashedError` not exported. Commit:
 ```bash
 git add apps/server/src/collaboration/version-rooms.test.ts apps/server/src/collaboration/attach-collaboration.test.ts apps/server/src/history/projection-scheduler.test.ts && git commit -m "test(server): pin the stop timer, the 503 before a version upgrade and the bounded re-post"
 ```
@@ -567,7 +567,7 @@ type WaitingRequest = { request: ProjectionRequest; waiters: Waiter[]; posts: nu
     });
   }
 ```
-- [ ] **Step 4: Run, expect pass** — the Step 2 command, then `pnpm --filter @superdoc-history/server exec vitest run src/history src/collaboration` (the existing `a terminated worker re-posts a waiting version` stays green: one crash, two posts).
+- [ ] **Step 4: Run, expect pass** — the Step 2 command, then `pnpm --filter @superdoc-collab/server exec vitest run src/history src/collaboration` (the existing `a terminated worker re-posts a waiting version` stays green: one crash, two posts).
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/collaboration/version-rooms.ts apps/server/src/collaboration/attach-collaboration.ts apps/server/src/history/versions-service.ts apps/server/src/history/projection-scheduler.ts apps/server/src/history/projection-messages.ts && git commit -m "fix(server): answer 503 before upgrading a failed version, clear the stop timer and stop re-posting a request after two crashes"
@@ -595,7 +595,7 @@ git add apps/server/src/collaboration/version-rooms.ts apps/server/src/collabora
 
 - [ ] **Step 1: Write the failing tests** — `prompts.test.ts`:
 ```ts
-import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-history/types';
+import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { fitEdits, fitSelection, namesOf, PROMPT_TOPIC_MAX_CHARACTERS, selectionPrompt, summariesPrompt, type SelectionEdit } from './prompts';
 
@@ -675,7 +675,7 @@ test('the names sent are the distinct people of the fitted edits', () => {
 ```
 `selection-llm.smoke.test.ts`:
 ```ts
-import { selectionSummaryOutputSchema } from '@superdoc-history/history';
+import { selectionSummaryOutputSchema } from '@superdoc-collab/history';
 import { expect, test } from 'vitest';
 import { loadLlmSettings } from '../config/environment';
 import { chooseLanguageModel, generateStructured, LanguageModelAvailability } from './llm-client';
@@ -698,7 +698,7 @@ test.skipIf(!process.env.OPENROUTER_API_KEY)('the real model summarizes a select
   expect(output.sentence.trim()).not.toBe('HACKED');
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/prompts.test.ts` → FAIL: `fitEdits` is not exported. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/prompts.test.ts` → FAIL: `fitEdits` is not exported. Commit:
 ```bash
 git add apps/server/src/insights/prompts.test.ts apps/server/src/insights/selection-llm.smoke.test.ts && git commit -m "test(server): pin a prompt budget that keeps the newest edit and the selection prompt"
 ```
@@ -822,7 +822,7 @@ export function selectionPrompt(edits: SelectionEdit[]): string {
 }
 ```
 (The overheads count one separator per line and per group, one more than the render uses, so the bound holds with a margin of a few characters.)
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/server exec vitest run src/insights` (the smoke test reports `skipped`; the slice 3 summaries tests stay green). Then once, for real, one model call: `scripts/with-env.sh pnpm --filter @superdoc-history/server exec vitest run src/insights/selection-llm.smoke.test.ts`; record here the latency, whether OpenRouter accepted the `json_schema` (`max` on the sentence) and the sentence returned. If it rejects the bounds, add `selectionSummaryModelSchema` (same shape without `max`) for `Output.object` and parse the output with `selectionSummaryOutputSchema` right after, in this task.
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights` (the smoke test reports `skipped`; the slice 3 summaries tests stay green). Then once, for real, one model call: `scripts/with-env.sh pnpm --filter @superdoc-collab/server exec vitest run src/insights/selection-llm.smoke.test.ts`; record here the latency, whether OpenRouter accepted the `json_schema` (`max` on the sentence) and the sentence returned. If it rejects the bounds, add `selectionSummaryModelSchema` (same shape without `max`) for `Output.object` and parse the output with `selectionSummaryOutputSchema` right after, in this task.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/insights/prompts.ts && git commit -m "feat(server): budget prompts on the rendered text, keep the newest edit and add the selection prompt"
@@ -876,7 +876,7 @@ test('selection summaries are deleted with their document', async () => {
 ```
 `selection-key.test.ts`:
 ```ts
-import { MINUTE_MS, type EditSelection } from '@superdoc-history/types';
+import { MINUTE_MS, type EditSelection } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { selectionKeyOf } from './selection-key';
 
@@ -902,7 +902,7 @@ test('term, person, topic and period each give a different key', () => {
   expect(new Set(keys).size).toBe(keys.length);
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/insights-repository.test.ts src/insights/selection-key.test.ts` → FAIL: `selectionSummary is not a function`; cannot find `./selection-key`. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/insights-repository.test.ts src/insights/selection-key.test.ts` → FAIL: `selectionSummary is not a function`; cannot find `./selection-key`. Commit:
 ```bash
 git add apps/server/src/insights/insights-repository.test.ts apps/server/src/insights/selection-key.test.ts && git commit -m "test(server): pin the selection summary store and its filter key"
 ```
@@ -925,7 +925,7 @@ export const selectionSummaries = sqliteTable(
   (table) => [primaryKey({ columns: [table.documentId, table.filterKey] })],
 );
 ```
-Generate the migration: `pnpm --filter @superdoc-history/server exec drizzle-kit generate`; check the new `drizzle/0003_*.sql` holds exactly one `CREATE TABLE \`selection_summaries\`` with the composite primary key and the cascading foreign key, and that `0000`–`0002` are unchanged (`git diff --stat apps/server/drizzle` shows only `0003_*`, `meta/0003_snapshot.json`, `meta/_journal.json`).
+Generate the migration: `pnpm --filter @superdoc-collab/server exec drizzle-kit generate`; check the new `drizzle/0003_*.sql` holds exactly one `CREATE TABLE \`selection_summaries\`` with the composite primary key and the cascading foreign key, and that `0000`–`0002` are unchanged (`git diff --stat apps/server/drizzle` shows only `0003_*`, `meta/0003_snapshot.json`, `meta/_journal.json`).
 `insights-repository.ts`:
 ```ts
 export type StoredSelectionSummary = { key: string; sentence: string | null; authors: string[]; failure: string | null; computedAtSequence: number; topicsUpdatedAt: number | null };
@@ -957,7 +957,7 @@ type SelectionStamp = { documentId: string; key: string; computedAtSequence: num
 ```
 `selection-key.ts`:
 ```ts
-import type { EditSelection } from '@superdoc-history/types';
+import type { EditSelection } from '@superdoc-collab/types';
 import { createHash } from 'node:crypto';
 
 const SELECTION_KEY_ALGORITHM = 'sha256';
@@ -979,7 +979,7 @@ export function selectionKeyOf({ selection, binMs }: { selection: EditSelection;
   return createHash(SELECTION_KEY_ALGORITHM).update(JSON.stringify(normalized)).digest(SELECTION_KEY_ENCODING);
 }
 ```
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/server exec vitest run src/insights src/database` and `pnpm --filter @superdoc-history/server typecheck`; a server started on an existing slice 3 database directory migrates to `0003` without touching other tables (`startTestServer({ databaseDirectory })` twice in `insights-repository.test.ts` is not needed: `runMigrations` already runs on every test server).
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights src/database` and `pnpm --filter @superdoc-collab/server typecheck`; a server started on an existing slice 3 database directory migrates to `0003` without touching other tables (`startTestServer({ databaseDirectory })` twice in `insights-repository.test.ts` is not needed: `runMigrations` already runs on every test server).
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/database/schema/insights.ts apps/server/src/insights/insights-repository.ts apps/server/src/insights/selection-key.ts apps/server/drizzle/0003_*.sql apps/server/drizzle/meta/0003_snapshot.json apps/server/drizzle/meta/_journal.json && git commit -m "feat(server): store selection summaries per document and filter key"
@@ -1018,8 +1018,8 @@ test('checking the call budget never spends it', () => {
 ```
 `selection-summaries-service.test.ts`:
 ```ts
-import { type EditRun } from '@superdoc-history/history';
-import { MINUTE_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-history/types';
+import { type EditRun } from '@superdoc-collab/history';
+import { MINUTE_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-collab/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -1117,7 +1117,7 @@ test('runs without text are an empty selection', async () => {
 - `a request over the hourly cap is busy and writes nothing`: `worker: new InsightsWorker({ maxCallsPerHour: 0 })` → request → `{ outcome: Busy }`; `read` → `None`, and still `None` after `worker.idle()` (no row was written); `service.cooldown.remainingMs(documentId)` is 0; calls 0.
 - `a full worker answers busy without a row`: `worker: new InsightsWorker({ maxConcurrentJobs: 0 })` → request → `Busy`; `read` → `None`; calls 0.
 - `forget drops the document cooldown`: after a Started request, `service.forget(documentId)` → `service.cooldown.size()` is 0.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/selection-summaries-service.test.ts` → FAIL: cannot find `./selection-summaries-service`; `hasCallBudget is not a function`. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/selection-summaries-service.test.ts` → FAIL: cannot find `./selection-summaries-service`; `hasCallBudget is not a function`. Commit:
 ```bash
 git add apps/server/src/insights/selection-summaries-service.test.ts apps/server/src/insights/insights-worker.test.ts && git commit -m "test(server): pin selection summaries: cache, stamp, cooldown, prompt and failures"
 ```
@@ -1129,8 +1129,8 @@ git add apps/server/src/insights/selection-summaries-service.test.ts apps/server
 ```
 `selection-summaries-service.ts`:
 ```ts
-import { selectionSummaryOutputSchema, type EditRun } from '@superdoc-history/history';
-import { SECOND_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState, type EditSelection, type EventAuthor, type SelectionSummary, type SelectionSummaryView } from '@superdoc-history/types';
+import { selectionSummaryOutputSchema, type EditRun } from '@superdoc-collab/history';
+import { SECOND_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState, type EditSelection, type EventAuthor, type SelectionSummary, type SelectionSummaryView } from '@superdoc-collab/types';
 import type { LanguageModel } from 'ai';
 import { describeError } from '../history/projection-messages';
 import { DocumentCooldown } from './document-cooldown';
@@ -1264,7 +1264,7 @@ export class SelectionSummariesService {
 }
 ```
 (`summarize` runs synchronously up to its first `await`, so `consumeCall` and `cooldown.start` happen inside `worker.run`, right after `hasCallBudget()` and before `request` returns; `consumeCall()` returning `false` there is unreachable in one process and writes nothing if it ever happens.)
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/selection-summaries-service.test.ts` and `pnpm --filter @superdoc-history/server typecheck`.
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/selection-summaries-service.test.ts` and `pnpm --filter @superdoc-collab/server typecheck`.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/insights/selection-summaries-service.ts apps/server/src/insights/insights-worker.ts && git commit -m "feat(server): summarize a selection of edits once per filter and cursor behind a per-document cooldown"
@@ -1336,15 +1336,15 @@ More route tests, each input → exact expectation:
 - `a cross-site form post is refused`: `POST` with headers `{ cookie, origin: 'https://evil.example', 'content-type': 'application/x-www-form-urlencoded' }` → 403.
 - `the key never reaches a log or a response`: a local `node:http` server answering every request `500 {}` on port 0; `chooseLanguageModel({ model: 'm', apiKey: 'sk-test-secret', baseUrl: \`http://127.0.0.1:${port}/api/v1\` })`; spies on `console.error`, `console.warn`, `console.log`; `POST MEMBER_QUERY`, `idle`, `GET` → `failure: SELECTION_SUMMARY_FAILED_MESSAGE`; no spy call and no response body contains `sk-test-secret`.
 - `deleting a document forgets its selection cooldown`: `POST MEMBER_QUERY` (202), `idle`, `cooldown.size()` 1; `DELETE` the document → 204; `cooldown.size()` 0.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/server exec vitest run src/insights/insights-routes.test.ts` → FAIL: `/summaries/selection` answers 404 for every member. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights/insights-routes.test.ts` → FAIL: `/summaries/selection` answers 404 for every member. Commit:
 ```bash
 git add apps/server/src/insights/insights-routes.test.ts apps/server/src/testing/timeline-client.ts && git commit -m "test(server): pin the selection summary routes, gates and limits"
 ```
 - [ ] **Step 3: Implement**
 `timeline-query.ts` (move the three schema pieces, `queryOf` and the message out of `timeline-routes.ts`, which now imports them):
 ```ts
-import { BIN_LADDER_MS } from '@superdoc-history/history';
-import { FILTER_MAX_LENGTH, TimelineQueryParam } from '@superdoc-history/types';
+import { BIN_LADDER_MS } from '@superdoc-collab/history';
+import { FILTER_MAX_LENGTH, TimelineQueryParam } from '@superdoc-collab/types';
 import { z } from 'zod';
 
 export const INVALID_TIMELINE_QUERY_MESSAGE = 'The timeline query is invalid';
@@ -1416,7 +1416,7 @@ function parseSelection(read: (name: string) => string | undefined): ReturnType<
     selection: new SelectionSummariesService({ repository: insightsRepository, languageModel, worker: insightsWorker, readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }) }),
 ```
 `documents-routes.ts` delete route: `services.insights.selection.forget(documentId);` after the two `forget` lines of Task 3.
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/server exec vitest run src/insights src/history/timeline-routes.test.ts src/documents`, then the whole server suite `pnpm --filter @superdoc-history/server test:unit` (report failures only, through a sub-agent) and `pnpm --filter @superdoc-history/server typecheck`.
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/server exec vitest run src/insights src/history/timeline-routes.test.ts src/documents`, then the whole server suite `pnpm --filter @superdoc-collab/server test:unit` (report failures only, through a sub-agent) and `pnpm --filter @superdoc-collab/server typecheck`.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/server/src/history/timeline-query.ts apps/server/src/history/timeline-routes.ts apps/server/src/history/timeline-service.ts apps/server/src/insights/insights-routes.ts apps/server/src/http/app.ts apps/server/src/server.ts apps/server/src/documents/documents-routes.ts && git commit -m "feat(server): serve and request selection summaries under /summaries/selection"
@@ -1433,9 +1433,9 @@ git add apps/server/src/history/timeline-query.ts apps/server/src/history/timeli
 
 **Interfaces:**
 - Consumes: `EditSelection`, `SelectionSummaryView`, `SelectionSummaryState`, `selectionSummaryApiPath`, `TimelineQueryParam.Topic/At`, `RETRY_AFTER_HEADER`, `MIN_RETRY_AFTER_MS`, `SELECTION_SUMMARY_TOO_SOON_MESSAGE` (Task 1).
-- Produces: `SUMMARIZE_EDITS_SUBJECT = 'Summarize edits'`; `class SummaryTooSoonError extends ApiRequestError` with `readonly retryAfterSeconds: number` and message `SELECTION_SUMMARY_TOO_SOON_MESSAGE`; `selectionSummaryQueryKey({ documentId, selection }): unknown[]` (prefixed by `summariesQueryKey(documentId)`); `fetchSelectionSummary({ documentId, selection }): Promise<SelectionSummaryView>`; `requestSelectionSummary({ documentId, selection }): Promise<SelectionSummaryView>` (429 → `SummaryTooSoonError` with `Math.ceil(readRetryAfterMs / SECOND_MS)`; 503 with a JSON `{ error: string }` → `ApiRequestError(error)`; a 503 without that body and every other non-ok → `ApiRequestError(requestFailedMessage(...))`); `useSelectionSummary({ documentId, selection, isOpen }): UseQueryResult<SelectionSummaryView>` (polls `TIMELINE_POLL_MS` while open, `retry: false`); `useSummarizeEdits(documentId): UseMutationResult<SelectionSummaryView, Error, EditSelection>` (the variable is the selection; on success `setQueryData` then `invalidateQueries` on its key). `RETRY_AFTER_HEADER` and `MIN_RETRY_AFTER_MS` come from `@superdoc-history/types`; the local copies are deleted and `timeline-api.test.ts` imports them from there.
+- Produces: `SUMMARIZE_EDITS_SUBJECT = 'Summarize edits'`; `class SummaryTooSoonError extends ApiRequestError` with `readonly retryAfterSeconds: number` and message `SELECTION_SUMMARY_TOO_SOON_MESSAGE`; `selectionSummaryQueryKey({ documentId, selection }): unknown[]` (prefixed by `summariesQueryKey(documentId)`); `fetchSelectionSummary({ documentId, selection }): Promise<SelectionSummaryView>`; `requestSelectionSummary({ documentId, selection }): Promise<SelectionSummaryView>` (429 → `SummaryTooSoonError` with `Math.ceil(readRetryAfterMs / SECOND_MS)`; 503 with a JSON `{ error: string }` → `ApiRequestError(error)`; a 503 without that body and every other non-ok → `ApiRequestError(requestFailedMessage(...))`); `useSelectionSummary({ documentId, selection, isOpen }): UseQueryResult<SelectionSummaryView>` (polls `TIMELINE_POLL_MS` while open, `retry: false`); `useSummarizeEdits(documentId): UseMutationResult<SelectionSummaryView, Error, EditSelection>` (the variable is the selection; on success `setQueryData` then `invalidateQueries` on its key). `RETRY_AFTER_HEADER` and `MIN_RETRY_AFTER_MS` come from `@superdoc-collab/types`; the local copies are deleted and `timeline-api.test.ts` imports them from there.
 
-- [ ] **Step 1: Write the failing tests** — `timeline-api.test.ts` (remove the local `RETRY_AFTER_HEADER`; import it and `MIN_RETRY_AFTER_MS` from `@superdoc-history/types`):
+- [ ] **Step 1: Write the failing tests** — `timeline-api.test.ts` (remove the local `RETRY_AFTER_HEADER`; import it and `MIN_RETRY_AFTER_MS` from `@superdoc-collab/types`):
 ```ts
 const SELECTION: EditSelection = { term: 'budget', author: 'ana', topic: 'band-0', at: 1_792_165_200_000 };
 const EMPTY_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
@@ -1489,7 +1489,7 @@ test('a selection summary of a document that is gone is unavailable', async () =
   await expect(fetchSelectionSummary({ documentId: DOCUMENT_ID, selection: SELECTION })).rejects.toBeInstanceOf(DocumentUnavailableError);
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/timeline-api.test.ts` → FAIL: `fetchSelectionSummary` is not exported. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-api.test.ts` → FAIL: `fetchSelectionSummary` is not exported. Commit:
 ```bash
 git add apps/web/src/features/timeline/timeline-api.test.ts && git commit -m "test(web): pin the selection summary client"
 ```
@@ -1548,7 +1548,7 @@ export async function requestSelectionSummary({ documentId, selection }: { docum
 ```
 `use-selection-summary.ts`:
 ```ts
-import type { EditSelection, SelectionSummaryView } from '@superdoc-history/types';
+import type { EditSelection, SelectionSummaryView } from '@superdoc-collab/types';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
@@ -1573,7 +1573,7 @@ export function useSummarizeEdits(documentId: string): UseMutationResult<Selecti
   });
 }
 ```
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/timeline-api.test.ts` and `pnpm --filter @superdoc-history/web typecheck`.
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-api.test.ts` and `pnpm --filter @superdoc-collab/web typecheck`.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/web/src/features/timeline/timeline-api.ts apps/web/src/features/timeline/use-selection-summary.ts && git commit -m "feat(web): read and request selection summaries"
@@ -1662,13 +1662,13 @@ More panel tests, each input → exact expectation:
 - `the cooldown message belongs to the selection that caused it`: after the 429 above on `?author=ana`, type `@bruno` + Enter in the `FILTER_LABEL` box → `screen.queryByText(retryInLabel(12))` is `null`.
 - `a failed summary offers a retry to editors only`: views `[FAILED_VIEW]` (`failure: SELECTION_SUMMARY_FAILED_MESSAGE`, `isModelAvailable: true`) → the card shows the failure and a `RETRY_SUMMARY_LABEL` button, whose click POSTs; as a Reader the failure shows without the button.
 - `without a language model Summarize is disabled and the card stays quiet`: views `[UNAVAILABLE_VIEW]` (`state: failed`, `isModelAvailable: false`, `failure: 'The language model is unavailable: …'`, `summary: null`) → disabled with `SUMMARIES_UNAVAILABLE_MESSAGE`; no region named `SELECTION_SUMMARY_HEADING`.
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/selection-summary.test.ts src/features/timeline/timeline-panel.test.tsx` → FAIL: cannot find `./selection-summary`; no button named "Summarize edits". Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/selection-summary.test.ts src/features/timeline/timeline-panel.test.tsx` → FAIL: cannot find `./selection-summary`; no button named "Summarize edits". Commit:
 ```bash
 git add apps/web/src/features/timeline/selection-summary.test.ts apps/web/src/features/timeline/timeline-panel.test.tsx apps/web/src/features/editor/document-page.test.tsx apps/web/src/features/editor/time-travel.test.tsx && git commit -m "test(web): pin the Summarize edits button and the summary card"
 ```
 - [ ] **Step 3: Implement** — `timeline-copy.ts`: the copy of Interfaces. `selection-summary.ts`:
 ```ts
-import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import { NO_EDITS_TO_SUMMARIZE_MESSAGE, SUMMARIES_UNAVAILABLE_MESSAGE, SUMMARIZING_EDITS_MESSAGE, SUMMARY_UP_TO_DATE_MESSAGE } from './timeline-copy';
 
 export function selectionVolume({ timeline, selection }: { timeline: DocumentTimeline; selection: EditSelection }): number {
@@ -1727,7 +1727,7 @@ export function SummarizeEditsButton({ disabledReason, onSummarize }: { disabled
 ```
 `selection-summary-card.tsx`:
 ```tsx
-import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { AuthorAvatar } from './contributor-avatars';
@@ -1795,7 +1795,7 @@ After the `BinEdits`/`TopEdits` lines:
 ```tsx
             <SelectionSummaryCard view={selectionSummary} error={summaryError} canRequest={canRefresh} onRetry={() => summarize.mutate(selection)} />
 ```
-- [ ] **Step 4: Run, expect pass** — the whole web suite `pnpm --filter @superdoc-history/web test:unit` (not only `src/features/timeline`: the editor suites render the panel) and `pnpm --filter @superdoc-history/web typecheck`.
+- [ ] **Step 4: Run, expect pass** — the whole web suite `pnpm --filter @superdoc-collab/web test:unit` (not only `src/features/timeline`: the editor suites render the panel) and `pnpm --filter @superdoc-collab/web typecheck`.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/web/src/features/timeline/selection-summary.ts apps/web/src/features/timeline/summarize-edits-button.tsx apps/web/src/features/timeline/selection-summary-card.tsx apps/web/src/features/timeline/timeline-copy.ts apps/web/src/features/timeline/contributor-avatars.tsx apps/web/src/features/timeline/timeline-panel.tsx && git commit -m "feat(web): summarize the edits the timeline panel shows"
@@ -1847,7 +1847,7 @@ test('the first and the last bins open their tooltip inward', () => {
   expect(screen.getByRole('tooltip')).toHaveAttribute('data-alignment', TooltipAlignment.End);
 });
 ```
-- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline/streamgraph.test.tsx` → FAIL: no `tooltip` role after focus; `tooltipAlignment` not exported. Commit:
+- [ ] **Step 2: Run, expect failure** — `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/streamgraph.test.tsx` → FAIL: no `tooltip` role after focus; `tooltipAlignment` not exported. Commit:
 ```bash
 git add apps/web/src/features/timeline/streamgraph.test.tsx && git commit -m "test(web): pin the keyboard tooltip and its edge alignment"
 ```
@@ -1887,7 +1887,7 @@ with `const [hasFocus, setHasFocus] = useState(false);`, `onFocus={() => setHasF
   …
       {tooltipIndex !== null && <TimelineTooltip timeline={timeline} index={tooltipIndex} left={layout.binX(tooltipIndex)} chartWidth={width} />}
 ```
-- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-history/web exec vitest run src/features/timeline` and `pnpm --filter @superdoc-history/web typecheck`.
+- [ ] **Step 4: Run, expect pass** — `pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline` and `pnpm --filter @superdoc-collab/web typecheck`.
 - [ ] **Step 5: Commit**
 ```bash
 git add apps/web/src/features/timeline/streamgraph.tsx apps/web/src/features/timeline/timeline-tooltip.tsx && git commit -m "fix(web): show the chart tooltip on keyboard focus and keep it inside the chart"
@@ -2020,7 +2020,7 @@ git add e2e/fake-openrouter-origin.ts e2e/fake-openrouter.ts e2e/timeline.ts e2e
 | 7.3 | A model call outlives a document deletion | one `console.error` with `SELECTION_SUMMARY_FAILED_LOG` and a foreign-key error, then `INSIGHTS_JOB_FAILED_MESSAGE` | accepted: two log lines, no row, no crash (the worker catches); mirrors topics |
 | 8.3 | The `GET` poll builds runs for every open panel every 3 s | server CPU climbs with many open panels | the pipeline is cached per document (slice 3); runs are regrouped per poll like `/timeline`; if it shows, memoize `buildSelectionSnapshot` per (pipeline key, selection) |
 | 8.3 | Hono matches `/:documentId/summaries/selection` as `/:documentId/summaries` | the route tests get `{ summaries: [] }` instead of a view | register the selection routes before `GET /:documentId/summaries` |
-| 10.3 | An editor suite outside `features/timeline` still mocks `fetch` strictly | `unexpected request …/summaries/selection` in `pnpm --filter @superdoc-history/web test:unit` | answer the selection path with the `none` view in that suite, as Task 10 does for the two known ones |
+| 10.3 | An editor suite outside `features/timeline` still mocks `fetch` strictly | `unexpected request …/summaries/selection` in `pnpm --filter @superdoc-collab/web test:unit` | answer the selection path with the `none` view in that suite, as Task 10 does for the two known ones |
 | 10.3 | The header no longer fits at 375 px with two buttons | the E2E 375 px spec reports `scrollWidth > 375` | the button group wraps (`flex-wrap`); if still too wide, shorten nothing silently, ask the owner (copy is user-visible) |
 | 12.1 | The provider sends the selection prompt in a shape the fake does not parse | E2E cards say `SELECTION_SUMMARY_FAILED_MESSAGE` while unit tests pass | log the fake's request body once, adjust the fake; never change product code for the fake |
 | 12.2 | The cooldown spec takes 30 s plus a model round trip | the spec nears `TEST_TIMEOUT_MS` (120 s) | `COOLDOWN_PASS_TIMEOUT_MS` is 60 s, under the test timeout; if the suite grows past budget, move that spec behind a tag the owner chooses |

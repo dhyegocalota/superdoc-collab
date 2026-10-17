@@ -6,8 +6,8 @@ import {
   toImportedRevisions,
   UpdateLog,
   type ListedTrackedChange,
-} from '@superdoc-history/history';
-import { SECOND_MS } from '@superdoc-history/types';
+} from '@superdoc-collab/history';
+import { SECOND_MS } from '@superdoc-collab/types';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { withTimeout } from '../limits/with-timeout';

@@ -1,4 +1,4 @@
-import { DOCUMENT_ROLE_RANK, type DocumentRole } from '@superdoc-history/types';
+import { DOCUMENT_ROLE_RANK, type DocumentRole } from '@superdoc-collab/types';
 import type { Context } from 'hono';
 import type { SignedIn } from '../http/require-user';
 import type { DocumentsRepository } from './documents-repository';

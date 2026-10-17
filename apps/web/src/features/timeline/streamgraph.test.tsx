@@ -1,4 +1,4 @@
-import { AgentActionKind, TimelineBandKind } from '@superdoc-history/types';
+import { AgentActionKind, TimelineBandKind } from '@superdoc-collab/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';

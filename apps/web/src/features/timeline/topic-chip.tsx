@@ -1,4 +1,4 @@
-import { TimelineSearchParam, type TimelineBand } from '@superdoc-history/types';
+import { TimelineSearchParam, type TimelineBand } from '@superdoc-collab/types';
 import { cn } from '@/lib/utils';
 import { TopicSwatch } from './topic-swatch';
 import { useTimelineSearch } from './use-timeline-search';

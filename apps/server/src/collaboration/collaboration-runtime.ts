@@ -1,7 +1,7 @@
 import type { Document, Hocuspocus } from '@hocuspocus/server';
 import * as Y from 'yjs';
-import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc-history/history';
-import { RoomMode } from '@superdoc-history/types';
+import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
+import { RoomMode } from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';

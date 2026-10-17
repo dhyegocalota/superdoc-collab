@@ -1,4 +1,4 @@
-import { AgentActionKind, AgentScope, AgentTool, DocumentRole, documentPagePath, ShareLinkRole } from '@superdoc-history/types';
+import { AgentActionKind, AgentScope, AgentTool, DocumentRole, documentPagePath, ShareLinkRole } from '@superdoc-collab/types';
 import { z } from 'zod';
 import { DESTRUCTIVE_ANNOTATIONS, defineDocumentTool, READ_ONLY_ANNOTATIONS, type AgentToolDefinition } from './agent-tool-definition';
 import { jsonResult } from './tool-results';

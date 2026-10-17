@@ -1,4 +1,4 @@
-import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-history/types';
+import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';

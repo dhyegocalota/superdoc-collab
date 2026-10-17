@@ -10,12 +10,11 @@ One service built from `docker/Dockerfile`, one volume at `/data`, one replica, 
 
 - `brew install railway` (or `npm i -g @railway/cli`), then `railway login` (opens the browser; the owner does this, never an agent).
 - An OpenRouter key and a model id (`.env.example` shows the names).
-- Decide the demo password: letters, digits, `-` and `_` only.
 
 ## 1. Create the project and the service
 
 ```bash
-railway init --name superdoc-history
+railway init --name superdoc-collab
 railway up --detach
 ```
 
@@ -37,8 +36,7 @@ railway variables \
   --set TRUST_PROXY=true \
   --set RAILWAY_RUN_UID=0 \
   --set RAILWAY_DOCKERFILE_PATH=docker/Dockerfile \
-  --set SEED_DEMO_USERS=true \
-  --set DEMO_PASSWORD=<the demo password> \
+  --set SEED_DEMO_USERS=false \
   --set AUTH_SECRET="$(openssl rand -base64 48)" \
   --set LLM_MODEL=<model id> \
   --set LLM_MAX_CONCURRENT_JOBS=4 \
@@ -46,7 +44,20 @@ railway variables \
 scripts/with-env.sh sh -c 'railway variables --set "OPENROUTER_API_KEY=$OPENROUTER_API_KEY"'
 ```
 
-The last line passes the key from `.env` without printing it. `RAILWAY_RUN_UID=0` runs the container as root because Railway mounts the volume owned by root while the image switches to `node`; without it the server exits with `Database directory is not writable: /data`. `RAILWAY_DOCKERFILE_PATH` pins the Dockerfile even when `railway.json` is missing from the upload (`railway up` sends tracked files only). The caps above are demo-day values; ADR 0011's defaults are 2 and 60.
+The last line passes the key from `.env` without printing it. `RAILWAY_RUN_UID=0` runs the container as root because Railway mounts the volume owned by root while the image switches to `node`; without it the server exits with `Database directory is not writable: /data`. `RAILWAY_DOCKERFILE_PATH` pins the Dockerfile even when `railway.json` is missing from the upload (`railway up` sends tracked files only). The caps above are demo-day values; ADR 0011's defaults are 2 and 60. The seed is test-only ([ADR 0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md)), so production sets `SEED_DEMO_USERS=false` and no `DEMO_PASSWORD`.
+
+**Upgrading a running service.** A service that already runs with `SEED_DEMO_USERS=true` must switch it to `false` BEFORE deploying the invite-only version: the seed would fail on a claimed database and the container would not start.
+
+The invite-only migration turns every existing account into a plain user. The instance is claimed (it has users) but has no administrator, so step 5's `{"claimed":false}` check and step 6 cannot pass. Pick one path after the deploy:
+
+- **Keep the data.** Promote your own account; the earlier accounts stay as plain users with the passwords they had, and removing accounts is not in the product yet. Choose this only when those passwords are private: the seeded demo accounts share `DEMO_PASSWORD`, so if it was ever published, take the clean path instead.
+
+  ```bash
+  railway ssh -- node dist/admin-promote.js <your email>
+  ```
+
+  Skip step 5's claim check and step 6; open `/admin` signed in as that account.
+- **Start clean** (recommended for a public demo that was seeded). Back up (step 9), delete the volume in the dashboard, recreate it at `/data`, redeploy, and continue with step 5 and the claim in step 6.
 
 ## 4. Domain and origin
 
@@ -60,36 +71,42 @@ railway up --detach
 
 ## 5. Check it
 
-- [x] `railway status` shows the service with one replica and a volume at `/data`. — evidence: railway status 2026-10-17: Online, volume superdoc-history-volume at /data (1 MB / 500 MB), region iad; replica count not shown by the CLI
+- [x] `railway status` shows the service with one replica and a volume at `/data`. — evidence: railway status 2026-10-17: Online, volume superdoc-collab-volume at /data (1 MB / 500 MB), region iad; replica count not shown by the CLI
 - [x] `curl -s https://<domain>/api/health` answers `200`. — evidence: curl returned 200 on 2026-10-17
-- [x] Sign-in smoke check answers `200`: — evidence: curl returned 200 on 2026-10-17
-  ```bash
-  curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -H "origin: https://<domain>" -d '{"email":"ana@example.com","password":"<the demo password>"}' https://<domain>/api/auth/sign-in/email
-  ```
-- [x] In the browser: sign in as Ana, upload `docs/brief/superdoc-eng-sample-project.docx`, type, open the timeline; open the share link in a private window as Bruno and see both cursors. — evidence: Ana uploaded the brief, typed two sentences, timeline bands appeared, Bruno joined via the edit link and his cursor and sentence showed in Ana's window, version opened with Back to live; screenshots in /private/tmp/claude-501/-Users-dhyegocalota-orca-workspaces-superdoc-take-home-requirements/24528e4e-551f-43a1-afe2-750004f4ef3e/scratchpad/railway-walk/ (01 to 05)
+- [ ] `curl -s https://<domain>/api/setup` answers `{"claimed":false}` before step 6.
+- [x] In the browser, after step 6: upload `docs/brief/superdoc-eng-sample-project.docx`, type, open the timeline; open the share link in a private window as an invited user and see both cursors. — evidence: first walk 2026-10-17 with the former demo accounts; repeat after the claim
 - [x] `railway logs` shows no `Naming topics failed` line and no `AI_APICallError`; either one means the key or the model id is wrong. — evidence: no Naming topics failure and no AI_APICallError in railway logs 2026-10-17; topics were named in the UI (Project Brief, Design Inspiration) within 10 s
 - [ ] Redeploy (`railway up --detach`) and confirm the documents survive: the volume holds.
 
-## 6. Hand it over
+## 6. Claim the instance
 
-Fill the Live demo URL in `README.md` and send the URL, the repository link and the demo password in the delivery message.
+1. Open `https://<domain>`: the page offers "Claim this instance".
+2. Create the administrator account. The first account becomes the administrator and sign-up closes behind it.
+3. Open `/admin` → **Generate invite**, copy the link from the dialog and send it. Each link is single use and expires in 7 days.
+4. `curl -s https://<domain>/api/setup` now answers `{"claimed":true}`.
 
-## 7. Roll back
+## 7. Hand it over
+
+Fill the Live demo URL in `README.md` and send the URL, the repository link and the invite links in the delivery message. Never send a shared password.
+
+## 8. Roll back
 
 `railway redeploy` on the previous deployment in the dashboard, or `git revert` and `railway up`. The volume is untouched by a redeploy.
 
-## 8. Back up and reset
+## 9. Back up and reset
 
-Backup: `railway ssh -- tar czf - /data > backup.tgz` while the service runs. Reset: delete the volume in the dashboard and redeploy; the entrypoint seeds the demo users again.
+Backup: `railway ssh -- tar czf - /data > backup.tgz` while the service runs. Reset: delete the volume in the dashboard and redeploy; the volume is empty, open the URL and claim again.
 
 ## Failure table
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | Build ok, health check fails, logs say `SEED_DEMO_USERS must be true or false` | variables not set yet | step 3, then `railway up` |
+| Container exits at start, logs show the seed refusing a claimed database | `SEED_DEMO_USERS=true` on a service that was already claimed | `railway variables --set SEED_DEMO_USERS=false`, then `railway up` |
 | Sign-in answers 403 | `APP_ORIGIN` differs from the URL in the browser | step 4 |
 | Editor loads, no cursors from the other window | WebSocket blocked or two replicas | one replica only; check `railway status` |
 | Topics show "could not be named" | key or model id wrong | `railway logs`, fix the variable |
 | Documents vanish after a deploy | volume not mounted at `/data` | step 2 |
+| `/api/setup` says claimed and nobody can open `/admin` after an upgrade | the migration made every existing account a plain user | promote yourself with `railway ssh -- node dist/admin-promote.js <email>`, or reset the volume and claim |
 | Crash loop, logs say `Database directory is not writable: /data` | the volume is root-owned and the image runs as `node` | `RAILWAY_RUN_UID=0` (step 3) |
 | Build log says `railpack prepare exited with an error` | Railway autodetected instead of using the Dockerfile | commit `railway.json` or set `RAILWAY_DOCKERFILE_PATH` (step 3) |

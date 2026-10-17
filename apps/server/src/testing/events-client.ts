@@ -4,7 +4,7 @@ import {
   TimelineQueryParam,
   type DocumentEditEvent,
   type DocumentEditEvents,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import type { TestServer } from './test-server';
 
 export class TestRequestFailedError extends Error {

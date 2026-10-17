@@ -12,7 +12,7 @@ import {
   type OpenedDocument,
   type ShareLinkRole,
   type ShareLinks,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, assertOk, readJson } from '@/lib/api';
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';

@@ -1,4 +1,4 @@
-import { ApiPath, HttpStatus, INVITE_NOT_FOUND_MESSAGE, InviteState } from '@superdoc-history/types';
+import { ApiPath, HttpStatus, INVITE_NOT_FOUND_MESSAGE, InviteState } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import type { AppServices } from '../http/app';
 

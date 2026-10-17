@@ -1,4 +1,4 @@
-import { UserRole, type AdminUser } from '@superdoc-history/types';
+import { UserRole, type AdminUser } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';

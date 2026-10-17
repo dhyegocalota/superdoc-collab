@@ -1,4 +1,4 @@
-import { UserRole, type AdminUser } from '@superdoc-history/types';
+import { UserRole, type AdminUser } from '@superdoc-collab/types';
 import { asc, eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { user } from '../database/schema/auth';

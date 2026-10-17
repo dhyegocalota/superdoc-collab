@@ -1,4 +1,4 @@
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { signInAndGetCookie, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 

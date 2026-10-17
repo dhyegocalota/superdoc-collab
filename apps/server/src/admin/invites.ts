@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { INVITE_TTL_MS, inviteStateOf, signUpPagePath, type CreatedInvite, type InviteSummary } from '@superdoc-history/types';
+import { INVITE_TTL_MS, inviteStateOf, signUpPagePath, type CreatedInvite, type InviteSummary } from '@superdoc-collab/types';
 import { and, asc, desc, eq, gt, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { hashToken } from '../auth/token-hash';

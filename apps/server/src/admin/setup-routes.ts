@@ -1,4 +1,4 @@
-import { ApiPath } from '@superdoc-history/types';
+import { ApiPath } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import type { AppServices } from '../http/app';
 

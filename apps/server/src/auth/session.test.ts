@@ -1,4 +1,4 @@
-import { UserRole } from '@superdoc-history/types';
+import { UserRole } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { readSession, SessionUserWithoutRoleError } from './session';
 import { signedInOwner, startTestServer, TEST_TIME_ZONE } from '../testing/test-server';

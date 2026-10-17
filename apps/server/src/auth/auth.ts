@@ -1,4 +1,4 @@
-import { signInSchema, signUpSchema, UserRole } from '@superdoc-collab/types';
+import { signInSchema, signUpSchema, updateUserSchema, UserRole } from '@superdoc-collab/types';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
@@ -13,6 +13,7 @@ import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
 const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 const SIGN_IN_PATH = '/sign-in/email';
+const UPDATE_USER_PATH = '/update-user';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
 
 const credentialSchemas: Record<string, typeof signInSchema> = {
@@ -20,8 +21,13 @@ const credentialSchemas: Record<string, typeof signInSchema> = {
   [SIGN_UP_PATH]: signUpSchema,
 };
 
+const bodySchemas: Record<string, typeof signInSchema | typeof updateUserSchema> = {
+  ...credentialSchemas,
+  [UPDATE_USER_PATH]: updateUserSchema,
+};
+
 const normalizeCredentials = createAuthMiddleware(async (context) => {
-  const schema = credentialSchemas[context.path];
+  const schema = bodySchemas[context.path];
   if (!schema) return;
   const parsed = schema.safeParse(context.body);
   if (!parsed.success) throw new APIError('BAD_REQUEST', { message: INVALID_INPUT_MESSAGE });

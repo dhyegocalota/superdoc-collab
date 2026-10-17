@@ -1,4 +1,4 @@
-import { AppRoute, UserRole } from '@superdoc-history/types';
+import { AppRoute, UserRole } from '@superdoc-collab/types';
 import { Link } from 'react-router';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { SignOutButton } from '@/features/auth/sign-out-button';

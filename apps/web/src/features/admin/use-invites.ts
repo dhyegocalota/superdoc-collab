@@ -1,4 +1,4 @@
-import type { InviteSummary } from '@superdoc-history/types';
+import type { InviteSummary } from '@superdoc-collab/types';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { fetchInvites, INVITES_QUERY_KEY } from './admin-api';
 

@@ -11,7 +11,7 @@ import {
   type CreatedInvite,
   type InviteSummary,
   type SessionUser,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';

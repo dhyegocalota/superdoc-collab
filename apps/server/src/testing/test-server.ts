@@ -1,4 +1,4 @@
-import { ApiPath, DEMO_ADMIN, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type SessionUser } from '@superdoc-collab/types';
+import { ApiPath, DEMO_ADMIN, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type SessionUser, inviteTokenOf } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
@@ -146,10 +146,6 @@ function buildTestServer({
     },
     stop: running.stop,
   };
-}
-
-function inviteTokenOf(url: string): string {
-  return new URL(url).searchParams.get(INVITE_QUERY_PARAMETER) as string;
 }
 
 function inviteHeaders(server: TestServer): Record<string, string> {

@@ -2,14 +2,14 @@ import {
   ApiPath,
   DAY_MS,
   HttpStatus,
-  INVITE_QUERY_PARAMETER,
   INVITE_TOKEN_HEADER,
   INVITE_TTL_MS,
   InviteState,
   SIGN_UP_BY_INVITATION_MESSAGE,
   UserRole,
   type SessionUser,
-} from '@superdoc-history/types';
+  inviteTokenOf,
+} from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { currentUserId, signInExisting, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
 
@@ -34,10 +34,6 @@ function signUp({
   if (token) headers[INVITE_TOKEN_HEADER] = token;
   const body = { name: 'Eve', email, password: TEST_USER_PASSWORD, timeZone, ...extra };
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers, body: JSON.stringify(body) });
-}
-
-function tokenOf(url: string): string {
-  return new URL(url).searchParams.get(INVITE_QUERY_PARAMETER) as string;
 }
 
 function userCount({ server, emails }: { server: TestServer; emails: string[] }): number {
@@ -80,8 +76,8 @@ test('a sign-up without a token on a claimed instance is refused and creates no 
 test('a pending token admits a user once, marks the invite accepted, and the user is not admin', async () => {
   const server = await startTestServer();
   const invite = server.services.invites.create({ createdBy: server.admin.id });
-  expect((await signUp({ server, email: 'eve@example.com', token: tokenOf(invite.url) })).status).toBe(HttpStatus.Ok);
-  expect((await signUp({ server, email: 'eve2@example.com', token: tokenOf(invite.url) })).status).toBe(HttpStatus.Forbidden);
+  expect((await signUp({ server, email: 'eve@example.com', token: inviteTokenOf(invite.url) })).status).toBe(HttpStatus.Ok);
+  expect((await signUp({ server, email: 'eve2@example.com', token: inviteTokenOf(invite.url) })).status).toBe(HttpStatus.Forbidden);
   expect(server.services.invites.list()[0]).toMatchObject({ state: InviteState.Accepted, acceptedBy: { name: 'Eve' } });
   expect((await meOf({ server, email: 'eve@example.com' })).role).toBe(UserRole.User);
   await server.stop();
@@ -93,7 +89,7 @@ test.each(['revoked', 'expired', 'unknown'] as const)('a %s token is refused', a
   const invite = server.services.invites.create({ createdBy: server.admin.id });
   if (kind === 'revoked') server.services.invites.revoke(invite.id);
   if (kind === 'expired') clock.now += INVITE_TTL_MS + DAY_MS;
-  const token = kind === 'unknown' ? 'not-a-token' : tokenOf(invite.url);
+  const token = kind === 'unknown' ? 'not-a-token' : inviteTokenOf(invite.url);
   expect((await signUp({ server, email: 'eve@example.com', token })).status).toBe(HttpStatus.Forbidden);
   expect(userCount({ server, emails: ['eve@example.com'] })).toBe(0);
   await server.stop();
@@ -103,7 +99,7 @@ test('an invite that stops being pending after the gate creates no user', async 
   const server = await startTestServer();
   const invite = server.services.invites.create({ createdBy: server.admin.id });
   vi.spyOn(server.services.invites, 'accept').mockReturnValueOnce(false);
-  const response = await signUp({ server, email: 'eve@example.com', token: tokenOf(invite.url) });
+  const response = await signUp({ server, email: 'eve@example.com', token: inviteTokenOf(invite.url) });
   expect(response.status).toBe(HttpStatus.Forbidden);
   expect(userCount({ server, emails: ['eve@example.com'] })).toBe(0);
   await server.stop();
@@ -111,7 +107,7 @@ test('an invite that stops being pending after the gate creates no user', async 
 
 test('a token used by two concurrent sign-ups admits exactly one', async () => {
   const server = await startTestServer();
-  const token = tokenOf(server.services.invites.create({ createdBy: server.admin.id }).url);
+  const token = inviteTokenOf(server.services.invites.create({ createdBy: server.admin.id }).url);
   const [first, second] = await Promise.all([
     signUp({ server, email: 'a@example.com', token }),
     signUp({ server, email: 'b@example.com', token }),
@@ -145,7 +141,7 @@ test('a sign-up with an unknown time zone is refused before the gate and claims 
 
 test('a sign-up body cannot grant itself the admin role', async () => {
   const server = await startTestServer();
-  const token = tokenOf(server.services.invites.create({ createdBy: server.admin.id }).url);
+  const token = inviteTokenOf(server.services.invites.create({ createdBy: server.admin.id }).url);
   const response = await signUp({ server, email: 'eve@example.com', token, extra: { role: UserRole.Admin } });
   expect(response.status).toBe(HttpStatus.BadRequest);
   expect(userCount({ server, emails: ['eve@example.com'] })).toBe(0);

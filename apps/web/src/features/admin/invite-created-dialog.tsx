@@ -1,4 +1,4 @@
-import type { CreatedInvite } from '@superdoc-history/types';
+import type { CreatedInvite } from '@superdoc-collab/types';
 import { useState, type RefObject } from 'react';
 import { toast } from 'sonner';
 import { ErrorMessage } from '@/components/error-message';

@@ -1,12 +1,4 @@
-import {
-  ApiPath,
-  DOCX_MIME_TYPE,
-  HttpStatus,
-  INVITE_QUERY_PARAMETER,
-  INVITE_TOKEN_HEADER,
-  UPLOAD_FIELD,
-  UserRole,
-} from '@superdoc-collab/types';
+import { ApiPath, DOCX_MIME_TYPE, HttpStatus, INVITE_TOKEN_HEADER, UPLOAD_FIELD, UserRole, inviteTokenOf } from '@superdoc-collab/types';
 import { buildSeedDocx } from '@superdoc-collab/history';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { signedInUser, startTestServer, TEST_TIME_ZONE, type TestServer } from '../testing/test-server';
@@ -27,7 +19,7 @@ function freshClientAddress(): string {
 }
 function freshInviteToken(): string {
   const { url } = server.services.invites.create({ createdBy: server.admin.id });
-  return new URL(url).searchParams.get(INVITE_QUERY_PARAMETER) as string;
+  return inviteTokenOf(url);
 }
 async function signUp(body: typeof credentials): Promise<Response> {
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, {

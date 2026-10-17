@@ -21,3 +21,7 @@ Written by the lead from the four developer reports. Nobody on the build side ra
 - Unit: `pnpm typecheck && pnpm test:unit`.
 - E2E: `pnpm exec playwright install chromium && pnpm test:e2e` (builds and seeds its own stack; the stack is claimed by `admin@example.com` with `superdoc-demo`).
 - Fresh, unclaimed stack for the MCP walk: `ENV_FILE=.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=false docker compose up --build -d` on an empty volume (`docker compose down -v` first), then open <http://localhost:3000>. Use the Playwright context option `timezoneId: 'America/Sao_Paulo'`.
+
+## Process note
+
+Some red commits in the server lane (`4199408`, `9bebe96`, `3d69afa` and their siblings) carry a `pin` subject; the reviewer re-ran them and confirmed each failed on its named assertion. History is not rewritten.

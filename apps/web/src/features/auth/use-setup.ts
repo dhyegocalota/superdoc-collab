@@ -1,4 +1,4 @@
-import type { SetupStatus } from '@superdoc-history/types';
+import type { SetupStatus } from '@superdoc-collab/types';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { fetchSetup, SETUP_QUERY_KEY } from './setup-api';
 

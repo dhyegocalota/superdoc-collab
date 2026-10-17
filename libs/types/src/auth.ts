@@ -31,6 +31,10 @@ export const signUpSchema = signInSchema.extend({
   timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE),
 });
 
+export const updateUserSchema = z
+  .object({ timeZone: z.string().refine(isSupportedTimeZone, INVALID_TIME_ZONE_MESSAGE).optional() })
+  .passthrough();
+
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SessionUser = { id: string; name: string; email: string; role: UserRole; timeZone: string | null };

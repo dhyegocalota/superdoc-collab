@@ -1,4 +1,4 @@
-import { InviteState, UserRole } from '@superdoc-history/types';
+import { InviteState, UserRole } from '@superdoc-collab/types';
 
 export const ADMIN_LINK_LABEL = 'Admin';
 export const ADMIN_HEADING = 'Admin';

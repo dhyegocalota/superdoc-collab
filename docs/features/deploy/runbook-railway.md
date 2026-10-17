@@ -48,6 +48,17 @@ The last line passes the key from `.env` without printing it. `RAILWAY_RUN_UID=0
 
 **Upgrading a running service.** A service that already runs with `SEED_DEMO_USERS=true` must switch it to `false` BEFORE deploying the invite-only version: the seed would fail on a claimed database and the container would not start.
 
+The invite-only migration turns every existing account into a plain user. The instance is claimed (it has users) but has no administrator, so step 5's `{"claimed":false}` check and step 6 cannot pass. Pick one path after the deploy:
+
+- **Keep the data.** Promote your own account; the earlier accounts stay as plain users with the passwords they had (removing accounts is not in the product yet):
+
+  ```bash
+  railway ssh -- node dist/admin-promote.js <your email>
+  ```
+
+  Skip step 5's claim check and step 6; open `/admin` signed in as that account.
+- **Start clean.** Back up (step 9), delete the volume in the dashboard, recreate it at `/data`, redeploy, and continue with step 5 and the claim in step 6.
+
 ## 4. Domain and origin
 
 ```bash
@@ -96,5 +107,6 @@ Backup: `railway ssh -- tar czf - /data > backup.tgz` while the service runs. Re
 | Editor loads, no cursors from the other window | WebSocket blocked or two replicas | one replica only; check `railway status` |
 | Topics show "could not be named" | key or model id wrong | `railway logs`, fix the variable |
 | Documents vanish after a deploy | volume not mounted at `/data` | step 2 |
+| `/api/setup` says claimed and nobody can open `/admin` after an upgrade | the migration made every existing account a plain user | promote yourself with `railway ssh -- node dist/admin-promote.js <email>`, or reset the volume and claim |
 | Crash loop, logs say `Database directory is not writable: /data` | the volume is root-owned and the image runs as `node` | `RAILWAY_RUN_UID=0` (step 3) |
 | Build log says `railpack prepare exited with an error` | Railway autodetected instead of using the Dockerfile | commit `railway.json` or set `RAILWAY_DOCKERFILE_PATH` (step 3) |

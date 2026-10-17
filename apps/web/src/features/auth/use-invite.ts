@@ -1,4 +1,4 @@
-import type { InviteStatus } from '@superdoc-history/types';
+import type { InviteStatus } from '@superdoc-collab/types';
 import { skipToken, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { fetchInvite, INVITE_QUERY_KEY } from './setup-api';
 

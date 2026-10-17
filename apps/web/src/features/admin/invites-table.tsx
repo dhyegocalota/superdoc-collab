@@ -1,4 +1,4 @@
-import { InviteState, type CreatedInvite, type InviteSummary } from '@superdoc-history/types';
+import { InviteState, type CreatedInvite, type InviteSummary } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ErrorMessage } from '@/components/error-message';

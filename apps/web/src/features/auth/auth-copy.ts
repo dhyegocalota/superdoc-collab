@@ -18,3 +18,4 @@ export const INVITE_INVALID_MESSAGE = 'This invite is not valid. Ask an admin fo
 export const CLAIM_LINK_LABEL = 'Claim this instance';
 export const SETUP_SUBJECT = 'Setup request';
 export const INVITE_SUBJECT = 'Invite request';
+export const SETUP_FAILED_MESSAGE = 'This instance could not be reached. Reload the page.';

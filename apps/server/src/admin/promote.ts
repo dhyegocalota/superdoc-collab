@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { UserRole } from '@superdoc-history/types';
+import { UserRole } from '@superdoc-collab/types';
 import { eq } from 'drizzle-orm';
 import { loadEnvironment } from '../config/environment';
 import { AUTH_DATABASE_FILE, openDatabase, type AuthDatabase } from '../database/connection';
@@ -16,7 +16,7 @@ export enum PromoteOutcome {
 }
 
 export function promoteByEmail({ database, email }: { database: AuthDatabase; email: string }): PromoteOutcome {
-  const result = database.drizzle.update(user).set({ role: UserRole.Admin }).where(eq(user.email, email)).run();
+  const result = database.drizzle.update(user).set({ role: UserRole.Admin }).where(eq(user.email, email.trim().toLowerCase())).run();
   if (result.changes === 1) return PromoteOutcome.Promoted;
   return PromoteOutcome.NotFound;
 }

@@ -6,7 +6,7 @@ import {
   type CreatedInvite,
   type InviteSummary,
   type UserRole,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { apiGet, apiSend, assertOk, readJson } from '@/lib/api';
 import { ADMIN_USERS_SUBJECT, CREATE_INVITE_SUBJECT, INVITES_SUBJECT, REVOKE_INVITE_SUBJECT, SET_ROLE_SUBJECT } from './admin-copy';
 

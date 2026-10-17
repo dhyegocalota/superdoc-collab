@@ -1,4 +1,4 @@
-import { ApiPath, HttpStatus, inviteApiPath, type InviteStatus, type SetupStatus } from '@superdoc-history/types';
+import { ApiPath, HttpStatus, inviteApiPath, type InviteStatus, type SetupStatus } from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, readJson } from '@/lib/api';
 import { INVITE_SUBJECT, SETUP_SUBJECT } from './auth-copy';
 

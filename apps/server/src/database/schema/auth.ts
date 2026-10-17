@@ -1,4 +1,4 @@
-import { UserRole } from '@superdoc-history/types';
+import { UserRole } from '@superdoc-collab/types';
 import { relations, sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 

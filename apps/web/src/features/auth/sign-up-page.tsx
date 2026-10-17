@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AppRoute, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, signUpSchema, type SignUpInput } from '@superdoc-collab/types';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router';
+import { ErrorMessage } from '@/components/error-message';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { AuthCard, type AuthCardLink } from './auth-card';
@@ -20,6 +21,7 @@ import {
   SIGN_UP_HEADING,
   SIGN_UP_LABEL,
   SIGN_UP_PENDING_LABEL,
+  SETUP_FAILED_MESSAGE,
 } from './auth-copy';
 import { AuthFieldType, AuthTextField } from './auth-text-field';
 import { SessionSkeleton } from './session-skeleton';
@@ -70,6 +72,7 @@ export function SignUpPage() {
   const invite = useInvite(token);
   useDocumentTitle(SIGN_UP_HEADING);
 
+  if (setup.isError) return <ErrorMessage className="p-4">{SETUP_FAILED_MESSAGE}</ErrorMessage>;
   if (!setup.data) return <SessionSkeleton />;
   if (!setup.data.claimed) return <SignUpCard title={CLAIM_TITLE} description={CLAIM_DESCRIPTION} token={null} />;
   if (token === null) return <InviteInvalidCard />;

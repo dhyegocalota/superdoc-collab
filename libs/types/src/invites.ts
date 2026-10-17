@@ -25,6 +25,18 @@ export type InviteSummary = {
   acceptedBy: { name: string } | null;
 };
 
+export class MissingInviteTokenError extends Error {
+  constructor(url: string) {
+    super(`No invite token in ${url}.`);
+  }
+}
+
+export function inviteTokenOf(url: string): string {
+  const token = new URL(url).searchParams.get(INVITE_QUERY_PARAMETER);
+  if (!token) throw new MissingInviteTokenError(url);
+  return token;
+}
+
 export function inviteStateOf({
   now,
   expiresAt,

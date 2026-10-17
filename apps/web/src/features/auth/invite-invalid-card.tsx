@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { Link } from 'react-router';
 import { Card, CardContent } from '@/components/ui/card';
 import { INVITE_INVALID_MESSAGE, SIGN_IN_LABEL } from './auth-copy';

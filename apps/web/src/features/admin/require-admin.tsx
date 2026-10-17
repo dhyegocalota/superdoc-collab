@@ -1,4 +1,4 @@
-import { AppRoute, UserRole } from '@superdoc-history/types';
+import { AppRoute, UserRole } from '@superdoc-collab/types';
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { toast } from 'sonner';

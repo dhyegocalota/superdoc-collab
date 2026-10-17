@@ -1,4 +1,4 @@
-import { ADMINS_ONLY_MESSAGE, HttpStatus, UserRole } from '@superdoc-history/types';
+import { ADMINS_ONLY_MESSAGE, HttpStatus, UserRole } from '@superdoc-collab/types';
 import { createMiddleware } from 'hono/factory';
 import type { SignedIn } from './require-user';
 

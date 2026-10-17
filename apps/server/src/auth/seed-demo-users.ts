@@ -1,4 +1,4 @@
-import { DEMO_ADMIN, DEMO_USERS, INVITE_QUERY_PARAMETER, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type DemoUser } from '@superdoc-collab/types';
+import { DEMO_ADMIN, DEMO_USERS, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type DemoUser, inviteTokenOf } from '@superdoc-collab/types';
 import { eq } from 'drizzle-orm';
 import type { InvitesRepository } from '../admin/invites';
 import type { AuthDatabase } from '../database/connection';
@@ -16,7 +16,7 @@ export class MissingDemoPasswordError extends Error {
 function inviteHeaders({ invites, adminId }: { invites: InvitesRepository; adminId: string | null }): Headers {
   if (adminId === null) return new Headers();
   const { url } = invites.create({ createdBy: adminId });
-  return new Headers({ [INVITE_TOKEN_HEADER]: new URL(url).searchParams.get(INVITE_QUERY_PARAMETER) as string });
+  return new Headers({ [INVITE_TOKEN_HEADER]: inviteTokenOf(url) });
 }
 
 async function seedOne({

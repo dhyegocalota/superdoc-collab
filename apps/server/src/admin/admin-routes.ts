@@ -5,7 +5,7 @@ import {
   INVITE_NOT_FOUND_MESSAGE,
   LAST_ADMIN_MESSAGE,
   UserRole,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppServices } from '../http/app';

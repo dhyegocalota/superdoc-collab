@@ -1,4 +1,4 @@
-import { DAY_MS, INVITE_TTL_MS, InviteState } from '@superdoc-history/types';
+import { DAY_MS, INVITE_TTL_MS, InviteState, inviteTokenOf } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { startTestServer } from '../testing/test-server';
 import { InvitesRepository, RevokeOutcome } from './invites';
@@ -12,14 +12,10 @@ async function repositoryWith(now: () => number) {
   return { server, repository, creatorId: server.admin.id };
 }
 
-function tokenOf(url: string): string {
-  return new URL(url).searchParams.get('invite') as string;
-}
-
 test('create returns a sign-up URL once and stores only the hash', async () => {
   const { server, repository, creatorId } = await repositoryWith(() => NOW);
   const invite = repository.create({ createdBy: creatorId });
-  const token = tokenOf(invite.url);
+  const token = inviteTokenOf(invite.url);
   expect(invite.url.startsWith(`${server.baseUrl}/sign-up?invite=`)).toBe(true);
   expect(invite.expiresAt).toBe(NOW + INVITE_TTL_MS);
   const rows = server.database.sqlite.prepare('select token_hash from invites').all() as { token_hash: string }[];
@@ -34,7 +30,7 @@ test('an accepted invite stops resolving and accept is single use', async () => 
   const invite = repository.create({ createdBy: creatorId });
   expect(repository.accept({ id: invite.id, userId: creatorId })).toBe(true);
   expect(repository.accept({ id: invite.id, userId: creatorId })).toBe(false);
-  expect(repository.resolvePending(tokenOf(invite.url))).toBeNull();
+  expect(repository.resolvePending(inviteTokenOf(invite.url))).toBeNull();
   expect(repository.list()[0]?.state).toBe(InviteState.Accepted);
   await server.stop();
 });
@@ -58,10 +54,10 @@ test('an invite expires after seven days', async () => {
   const { server, repository, creatorId } = await repositoryWith(() => clock.now);
   const invite = repository.create({ createdBy: creatorId });
   clock.now = NOW + INVITE_TTL_MS;
-  expect(repository.resolvePending(tokenOf(invite.url))).toBeNull();
+  expect(repository.resolvePending(inviteTokenOf(invite.url))).toBeNull();
   expect(repository.list()[0]?.state).toBe(InviteState.Expired);
   clock.now = NOW + INVITE_TTL_MS - DAY_MS;
-  expect(repository.resolvePending(tokenOf(invite.url))).toEqual({ id: invite.id });
+  expect(repository.resolvePending(inviteTokenOf(invite.url))).toEqual({ id: invite.id });
   await server.stop();
 });
 

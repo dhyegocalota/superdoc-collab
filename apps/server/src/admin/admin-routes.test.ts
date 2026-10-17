@@ -13,7 +13,8 @@ import {
   type AdminUser,
   type CreatedInvite,
   type InviteSummary,
-} from '@superdoc-history/types';
+  inviteTokenOf,
+} from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { signedInUser, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
 
@@ -89,7 +90,7 @@ describe('admin routes', () => {
     const listed = await call({ server, method: HttpMethod.Get, path: INVITES_PATH, cookie: server.admin.cookie });
     const list = (await listed.json()) as InviteSummary[];
     expect(list[0]).toMatchObject({ id: invite.id, state: InviteState.Pending, createdBy: { name: 'Admin' }, acceptedBy: null });
-    const token = new URL(invite.url).searchParams.get(INVITE_QUERY_PARAMETER) as string;
+    const token = inviteTokenOf(invite.url);
     const first = await signUpWithToken({ server, email: 'one@example.com', token });
     const second = await signUpWithToken({ server, email: 'two@example.com', token });
     expect([first.status, second.status]).toEqual([HttpStatus.Ok, HttpStatus.Forbidden]);

@@ -3,6 +3,7 @@ import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router';
 import { authFailureMessage, AUTH_RETRY_AFTER_HEADER } from './auth-failure';
 import { safeNextPath } from './safe-next-path';
+import { SETUP_QUERY_KEY } from './setup-api';
 import { SESSION_QUERY_KEY } from './use-session';
 
 type ResponseCapture = { headers?: Record<string, string>; onResponse: (context: { response: Response }) => void };
@@ -39,6 +40,7 @@ export function useAuthSubmit<Values extends FieldValues>({
       return;
     }
     if (afterSuccess) await afterSuccess();
+    await queryClient.invalidateQueries({ queryKey: SETUP_QUERY_KEY });
     await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY, refetchType: 'all' });
     await navigate(safeNextPath(searchParams.get('next')));
   };

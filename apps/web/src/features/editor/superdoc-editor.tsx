@@ -1,11 +1,10 @@
-import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import { ApiPath, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
 import { isRecoverableException } from './superdoc-exceptions';
-import type { CreatorTicket } from './collaboration-config';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';

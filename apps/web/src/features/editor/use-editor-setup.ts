@@ -1,6 +1,6 @@
-import type { DocumentRole, OpenedDocument, RoomMode, SessionUser } from '@superdoc-collab/types';
+import type { CreatorTicket, DocumentRole, OpenedDocument, RoomMode, SessionUser } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
-import { type CreatorTicket, creatorTicketOf } from './collaboration-config';
+import { creatorTicketOf } from './collaboration-config';
 
 export type EditorSetup = { roomMode: RoomMode; role: DocumentRole; creatorTicket: CreatorTicket | null; user: SessionUser; file: Blob };
 

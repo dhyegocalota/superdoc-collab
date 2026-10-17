@@ -19,6 +19,7 @@ test('the options open the file in its room as the signed-in user at the viewpor
     documentMode: DocumentMode.Viewing,
     collaborationPath: COLLABORATION_PATH,
     roomMode: RoomMode.Join,
+    creatorTicket: null,
     user: { ...SESSION_USER },
     viewport: window,
   });

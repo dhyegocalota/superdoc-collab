@@ -60,7 +60,7 @@ type HeaderOptions = {
 };
 
 function renderHeader({ role = DocumentRole.Editor, members = [], superdoc = null, isPastVersion = false, route }: HeaderOptions = {}) {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   queryClient.setQueryData(SESSION_QUERY_KEY, SESSION_USER);
   return renderWithProviders(
     <EditorHeader

@@ -1,17 +1,21 @@
 import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, Ellipsis } from 'lucide-react';
-import { useRef, useState, type RefObject } from 'react';
+import { Bot, Ellipsis } from 'lucide-react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
+import type { SuperDoc } from 'superdoc';
+import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { KeyboardKey } from '@/lib/keyboard';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AccountMenu } from '@/features/account/account-menu';
+import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { deleteDocument, renameDocument } from './editor-api';
+import { cn } from '@/lib/utils';
+import { deleteDocument } from './editor-api';
 import {
   CANCEL_LABEL,
   DELETE_CONFIRM_LABEL,
@@ -19,48 +23,17 @@ import {
   DELETE_DIALOG_TITLE,
   DELETE_FAILED_MESSAGE,
   DELETE_LABEL,
-  DOWNLOAD_LABEL,
+  DOWNLOAD_FORMAT_LABELS,
   MORE_ACTIONS_LABEL,
-  RENAME_FAILED_MESSAGE,
-  TITLE_LABEL,
 } from './editor-copy';
-import { HomeLink } from './home-link';
+import { DocumentTitle } from './document-title';
+import { DownloadFormat } from './download-format';
+import { DownloadMenu, useDownload } from './download-menu';
+import { FindButton } from './find-button';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
 
 type DocumentIdentity = { documentId: string };
-
-function TitleInput({ documentId, title }: DocumentIdentity & { title: string }) {
-  const queryClient = useQueryClient();
-  const { mutate, isError } = useMutation({
-    mutationFn: renameDocument,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY }),
-  });
-
-  function commit(input: HTMLInputElement): void {
-    const nextTitle = input.value.trim();
-    if (nextTitle === title) return;
-    if (!nextTitle) {
-      input.value = title;
-      return;
-    }
-    mutate({ documentId, title: nextTitle });
-  }
-
-  return (
-    <>
-      <Input
-        key={title}
-        aria-label={TITLE_LABEL}
-        defaultValue={title}
-        className="min-w-0 flex-1 font-medium sm:max-w-sm"
-        onBlur={(event) => commit(event.currentTarget)}
-        onKeyDown={(event) => event.key === KeyboardKey.Enter && event.currentTarget.blur()}
-      />
-      {isError && <ErrorMessage>{RENAME_FAILED_MESSAGE}</ErrorMessage>}
-    </>
-  );
-}
 
 function DeleteDocumentDialog({
   documentId,
@@ -104,22 +77,51 @@ function DeleteDocumentDialog({
   );
 }
 
-function DocumentActionsMenu({ documentId }: DocumentIdentity) {
+type DocumentActionsMenuProps = DocumentIdentity & {
+  isOwner: boolean;
+  isReady: boolean;
+  onDownload: (format: DownloadFormat) => void;
+  renderUseWithAi: (trigger?: ReactNode) => ReactNode;
+};
+
+function keepMenuOpen(event: Event): void {
+  event.preventDefault();
+}
+
+function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderUseWithAi }: DocumentActionsMenuProps) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button ref={triggerRef} variant="ghost" size="icon" aria-label={MORE_ACTIONS_LABEL}>
-            <Ellipsis />
-          </Button>
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button ref={triggerRef} variant="ghost" size="icon" aria-label={MORE_ACTIONS_LABEL} className={cn(!isOwner && 'sm:hidden')}>
+                <Ellipsis aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{MORE_ACTIONS_LABEL}</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem variant="destructive" onSelect={() => setIsDeleteOpen(true)}>
-            {DELETE_LABEL}
-          </DropdownMenuItem>
+          {renderUseWithAi(
+            <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
+              <Bot aria-hidden />
+              {USE_WITH_AI_LABEL}
+            </DropdownMenuItem>,
+          )}
+          {Object.values(DownloadFormat).map((format) => (
+            <DropdownMenuItem key={format} className="sm:hidden" disabled={!isReady} onSelect={() => onDownload(format)}>
+              {DOWNLOAD_FORMAT_LABELS[format]}
+            </DropdownMenuItem>
+          ))}
+          {isOwner && (
+            <DropdownMenuItem variant="destructive" onSelect={() => setIsDeleteOpen(true)}>
+              {DELETE_LABEL}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <DeleteDocumentDialog documentId={documentId} isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} returnFocusRef={triggerRef} />
@@ -127,39 +129,61 @@ function DocumentActionsMenu({ documentId }: DocumentIdentity) {
   );
 }
 
+type EditorHeaderProps = {
+  opened: OpenedDocument;
+  members: DocumentMember[];
+  currentUserId: string | null;
+  superdoc: SuperDoc | null;
+  isPastVersion: boolean;
+  onDownloadDocx: () => void;
+  renderUseWithAi: (trigger?: ReactNode) => ReactNode;
+};
+
 export function EditorHeader({
   opened,
   members,
   currentUserId,
-  onDownload,
-}: {
-  opened: OpenedDocument;
-  members: DocumentMember[];
-  currentUserId: string | null;
-  onDownload: (() => void) | undefined;
-}) {
+  superdoc,
+  isPastVersion,
+  onDownloadDocx,
+  renderUseWithAi,
+}: EditorHeaderProps) {
   const { document, role } = opened;
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;
+  const { download, printView } = useDownload({ superdoc, onDownloadDocx });
 
   return (
-    <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
-      <HomeLink />
-      {isReader ? (
-        <h1 className="min-w-0 flex-1 truncate font-medium">{document.title}</h1>
-      ) : (
-        <TitleInput documentId={document.id} title={document.title} />
-      )}
-      {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
-      <div className="ml-auto flex items-center gap-2">
-        <Members members={members} currentUserId={currentUserId} />
-        <Button variant="outline" aria-label={DOWNLOAD_LABEL} disabled={onDownload === undefined} onClick={onDownload}>
-          <Download />
-          <span className="hidden sm:inline">{DOWNLOAD_LABEL}</span>
-        </Button>
-        {isOwner && <ShareDialog documentId={document.id} />}
-        {isOwner && <DocumentActionsMenu documentId={document.id} />}
-      </div>
-    </header>
+    <>
+      <AppTopBar
+        left={
+          <>
+            <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
+            <DocumentTitle documentId={document.id} title={document.title} role={role} />
+            {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
+          </>
+        }
+        right={
+          <>
+            <div className="hidden sm:block">
+              <Members members={members} currentUserId={currentUserId} superdoc={superdoc} isPastVersion={isPastVersion} />
+            </div>
+            <FindButton superdoc={superdoc} />
+            <div className="hidden sm:block">{renderUseWithAi()}</div>
+            {isOwner && <ShareDialog documentId={document.id} />}
+            <DownloadMenu isDisabled={superdoc === null} onDownload={download} />
+            <DocumentActionsMenu
+              documentId={document.id}
+              isOwner={isOwner}
+              isReady={superdoc !== null}
+              onDownload={download}
+              renderUseWithAi={renderUseWithAi}
+            />
+            <AccountMenu />
+          </>
+        }
+      />
+      {printView}
+    </>
   );
 }

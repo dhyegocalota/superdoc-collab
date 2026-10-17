@@ -357,3 +357,8 @@ Both tests were written after the product code landed, so neither was red first.
 ### Known gaps
 
 - None known for the lane; all three tests are pins, not red-first.
+
+### L3 tester findings
+
+- `edit_document` returns an error result (`isError`) with the receipt reasons and `status` when the receipt is `failed`, `partial` or `aborted` (red f52dcf5).
+- Known SDK behaviour: `insert_paragraphs` has no style argument in the toolkit (`action-descriptors.json` lists `text`, `texts`, `headingLevel`, `placement`, `changeMode`, `evidence`), so paragraphs inserted straight after `insert_heading` can take its style. The `edit_document` description says so. A workaround through `placement` was not tried.

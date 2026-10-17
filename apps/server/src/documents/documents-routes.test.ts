@@ -11,6 +11,8 @@ import {
   HttpMethod,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  RETRY_AFTER_HEADER,
   TITLE_MAX_LENGTH,
   RoomMode,
   UPLOAD_FIELD,
@@ -349,6 +351,23 @@ test('a second editor opening a live reservation gets 409 NOT_READY', async () =
   await openedBy({ server, user: owner, documentId });
   const refused = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
   expect([refused.status, await refused.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
+  await server.stop();
+});
+
+test('the 61st open of uncommitted documents by one user within a minute answers 429 and another user is still served', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const statuses = await Promise.all(
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE + 1 }, () => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })),
+  );
+  const limited = statuses.filter((response) => response.status === HttpStatus.TooManyRequests);
+  expect([limited.length, statuses.filter((response) => response.status === HttpStatus.Ok).length]).toEqual([
+    1,
+    OPEN_UNCOMMITTED_PER_MINUTE,
+  ]);
+  expect(Number(limited[0]!.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
+  const other = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
+  expect(other.status).toBe(HttpStatus.Conflict);
   await server.stop();
 });
 

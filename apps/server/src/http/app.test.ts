@@ -57,15 +57,15 @@ function cookieOf(response: Response): string {
 }
 
 describe('auth body limit', () => {
-  test('a body above the limit to dynamic client registration is refused with 413 and sign-in still works', async () => {
+  test('a body above the limit to dynamic client registration is refused with 413 and sign-up still works', async () => {
     const oversized = await fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/register`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress(), origin: server.baseUrl },
       body: JSON.stringify({ client_name: 'x'.repeat(AUTH_BODY_MAX_BYTES + 1) }),
     });
     expect(oversized.status).toBe(HttpStatus.PayloadTooLarge);
-    const signedIn = await signIn({ body: { email: server.admin.email, password: server.admin.password } });
-    expect(signedIn.status).toBe(HttpStatus.Ok);
+    const signedUp = await signUp({ name: 'Bia', email: 'bia@example.com', password: 'superdoc-demo' });
+    expect(signedUp.status).toBe(HttpStatus.Ok);
   });
 });
 

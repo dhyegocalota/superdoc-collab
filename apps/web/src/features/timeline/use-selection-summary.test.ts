@@ -1,8 +1,8 @@
 import { HttpStatus, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderHookWithRouter } from '@/test/render-with-providers';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { TIMELINE_POLL_MS } from './timeline-api';
 import { useSelectionSummary } from './use-selection-summary';
 

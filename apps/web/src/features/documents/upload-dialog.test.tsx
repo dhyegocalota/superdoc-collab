@@ -10,7 +10,7 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from './documents-copy';
 import { UploadDialog } from './upload-dialog';
 

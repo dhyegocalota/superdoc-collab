@@ -1,8 +1,8 @@
 import { documentPagePath, TimelineFilterKind } from '@superdoc-history/types';
 import { act } from '@testing-library/react';
 import { expect, test } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderHookWithRouter } from '@/test/render-with-providers';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { parseFilterInput, useTimelineSearch } from './use-timeline-search';
 
 test('reads the filter, the moment and the topic from the URL and ignores a malformed at', () => {

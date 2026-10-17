@@ -19,9 +19,9 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
-import { timelineWith } from '@/test/timeline-fixtures';
+import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { timelineWith } from '@/testing/timeline-fixtures';
 import {
   BACK_TO_DOCUMENTS_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,

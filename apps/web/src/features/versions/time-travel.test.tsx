@@ -34,9 +34,9 @@ import {
   STREAMGRAPH_TITLE,
   VERSION_FRAME_TITLE,
 } from '@/features/timeline/timeline-copy';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
-import { timelineWith } from '@/test/timeline-fixtures';
+import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { timelineWith } from '@/testing/timeline-fixtures';
 import { MEMBERS_REFRESH_MS } from '@/features/editor/editor-api';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';

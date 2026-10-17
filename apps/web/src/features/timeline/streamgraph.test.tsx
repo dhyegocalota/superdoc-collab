@@ -1,7 +1,7 @@
 import { TimelineBandKind } from '@superdoc-history/types';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
+import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinRange } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
 import { STREAMGRAPH_TITLE } from './timeline-copy';

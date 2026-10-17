@@ -11,7 +11,7 @@ import {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import { COLUMN_HEADERS, MINE_EMPTY_MESSAGE, NEW_DOCUMENT_LABEL, SHARED_EMPTY_MESSAGE } from './documents-copy';
 import { DocumentsPage } from './documents-page';

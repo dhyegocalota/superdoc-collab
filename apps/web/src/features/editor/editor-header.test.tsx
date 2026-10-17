@@ -10,8 +10,8 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
-import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   DELETE_CONFIRM_LABEL,
   DELETE_FAILED_MESSAGE,

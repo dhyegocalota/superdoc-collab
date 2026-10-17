@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { timelineWith } from '@/test/timeline-fixtures';
+import { timelineWith } from '@/testing/timeline-fixtures';
 import { layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
 
 test('one filled bin renders a closed band with its label hidden', () => {

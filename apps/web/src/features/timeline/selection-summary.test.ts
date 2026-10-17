@@ -1,6 +1,6 @@
 import { SelectionSummaryState, TopicState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { timelineWith } from '@/test/timeline-fixtures';
+import { timelineWith } from '@/testing/timeline-fixtures';
 import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';
 import {
   NO_EDITS_TO_SUMMARIZE_MESSAGE,

@@ -27,9 +27,9 @@ import {
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from './timeline-api';
 import {
   EARLIER_STATE_LABEL,

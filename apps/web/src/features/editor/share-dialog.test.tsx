@@ -10,8 +10,8 @@ import {
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { COPY_LABEL, ROTATE_FAILED_MESSAGE, ROTATE_LABEL, SHARE_LABEL, SHARE_LINK_LABELS } from './editor-copy';
 import { ShareDialog } from './share-dialog';
 

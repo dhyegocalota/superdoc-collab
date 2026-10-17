@@ -9,7 +9,7 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { ShareLandingPage } from './share-landing-page';
 

@@ -2,8 +2,8 @@ import { documentPagePath, FILTER_MAX_LENGTH } from '@superdoc-history/types';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { FilterBox } from './filter-box';
 import { CLEAR_FILTERS_LABEL, FILTER_LABEL, REMOVE_FILTER_LABEL } from './timeline-copy';
 

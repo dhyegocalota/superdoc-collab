@@ -2,9 +2,9 @@ import { documentPagePath, type TopicSummaries } from '@superdoc-history/types';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
-import { timelineWith } from '@/test/timeline-fixtures';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { timelineWith } from '@/testing/timeline-fixtures';
 import { TopEdits } from './top-edits';
 
 const ROUTE = documentPagePath(DOCUMENT_ID);

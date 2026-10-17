@@ -8,6 +8,7 @@ import type { WebSocketServer } from 'ws';
 import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-history/history';
 import { ApiPath, HttpStatus, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-history/types';
 import { InvitesRepository } from './admin/invites';
+import { AdminUsersRepository } from './admin/users';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
@@ -44,7 +45,7 @@ import { TimelinePipelineCache } from './history/timeline-pipeline-cache';
 import { PROJECTION_THROTTLE_MS, ProjectionThrottle } from './history/projection-throttle';
 import { mountStaticWeb } from './http/static-web';
 
-export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle; invites: InvitesRepository };
+export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
 
 export type RunningServer = {
   httpServer: ServerType;
@@ -192,6 +193,7 @@ function createServices({
     versions,
     versionRooms,
     invites,
+    adminUsers: new AdminUsersRepository(database),
   };
   return { auth, services };
 }

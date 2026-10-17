@@ -1,8 +1,7 @@
 import type { StoredEditEvent } from '@superdoc-history/history';
 import { BlockChangeKind, ClientActor } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import type { AppServices } from '../http/app';
-import { resolveEvents } from './resolved-events';
+import { resolveEvents, type ResolvedEventsServices } from './resolved-events';
 
 const DOCUMENT = 'document-1';
 const ANA = 'user-ana';
@@ -27,11 +26,11 @@ function storedEvent(overrides: Partial<StoredEditEvent>): StoredEditEvent {
   };
 }
 
-function servicesWith(actor: ClientActor): AppServices {
+function servicesWith(actor: ClientActor): ResolvedEventsServices {
   return {
     updateLog: { clientIdentities: () => new Map([[ANA_CLIENT_ID, { userId: ANA, actor }]]) },
     documents: { userNames: () => new Map([[ANA, 'Ana']]) },
-  } as unknown as AppServices;
+  };
 }
 
 test.each([

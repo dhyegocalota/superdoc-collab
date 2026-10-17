@@ -138,16 +138,16 @@ export function readTimelinePipeline({ services, documentId }: { services: AppSe
 
 function matchingAuthorKeys({
   services,
-  pipeline,
+  authors,
   author,
 }: {
   services: AppServices;
-  pipeline: TimelinePipeline;
+  authors: Record<string, EventAuthor>;
   author: string | null;
 }): Set<string> | null {
   if (author === null) return null;
   const searchText = author.toLocaleLowerCase();
-  const entries = Object.entries(pipeline.authors);
+  const entries = Object.entries(authors);
   const contacts = services.documents.userContacts(entries.flatMap(([, eventAuthor]) => (eventAuthor.id === null ? [] : [eventAuthor.id])));
   const matches = entries.filter(([, eventAuthor]) => {
     const contact = eventAuthor.id === null ? undefined : contacts.get(eventAuthor.id);
@@ -157,17 +157,30 @@ function matchingAuthorKeys({
   return new Set(matches.map(([key]) => key));
 }
 
-function spanOf(events: TimelineEvent[]): number {
-  if (events.length === 0) return 0;
-  return lastTimeOf(events) - firstTimeOf(events);
+type TimeBounds = { first: number; last: number };
+
+function boundsOfEvents(events: TimelineEvent[]): TimeBounds | null {
+  if (events.length === 0) return null;
+  return {
+    first: events.reduce((earliest, event) => Math.min(earliest, event.serverTime), Number.POSITIVE_INFINITY),
+    last: events.reduce((latest, event) => Math.max(latest, event.serverTime), Number.NEGATIVE_INFINITY),
+  };
 }
 
-function firstTimeOf(events: TimelineEvent[]): number {
-  return events.reduce((earliest, event) => Math.min(earliest, event.serverTime), Number.POSITIVE_INFINITY);
-}
-
-function lastTimeOf(events: TimelineEvent[]): number {
-  return events.reduce((latest, event) => Math.max(latest, event.serverTime), Number.NEGATIVE_INFINITY);
+function timeBoundsOf({
+  services,
+  documentId,
+  pipeline,
+}: {
+  services: AppServices;
+  documentId: string;
+  pipeline: TimelinePipeline;
+}): TimeBounds | null {
+  const editBounds = boundsOfEvents(pipeline.events);
+  const actionBounds = services.agentActions.span(documentId);
+  if (editBounds === null) return actionBounds;
+  if (actionBounds === null) return editBounds;
+  return { first: Math.min(editBounds.first, actionBounds.first), last: Math.max(editBounds.last, actionBounds.last) };
 }
 
 function spanOfBins({ binStarts, binMs }: { binStarts: number[]; binMs: number }): { from: number; until: number } | null {
@@ -189,9 +202,10 @@ function projectionStatus({ services, documentId }: { services: AppServices; doc
   return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded, cursor };
 }
 
-function binMsOf({ binMs, pipeline }: { binMs: number | null; pipeline: TimelinePipeline }): number {
-  if (binMs === null) return chooseBinMs(spanOf(pipeline.events));
-  return binMs;
+function binMsOf({ binMs, bounds }: { binMs: number | null; bounds: TimeBounds | null }): number {
+  if (binMs !== null) return binMs;
+  if (bounds === null) return chooseBinMs(0);
+  return chooseBinMs(bounds.last - bounds.first);
 }
 
 function matchedRunsOf({
@@ -211,7 +225,7 @@ function matchedRunsOf({
     matchedRuns: filterRuns({
       runs: allRuns,
       term: filter.term,
-      authorKeys: matchingAuthorKeys({ services, pipeline, author: filter.author }),
+      authorKeys: matchingAuthorKeys({ services, authors: pipeline.authors, author: filter.author }),
     }),
   };
 }
@@ -228,25 +242,25 @@ export function buildDocumentTimeline({
   binMs: number | null;
 }): DocumentTimeline {
   const pipeline = readTimelinePipeline({ services, documentId });
-  const chosenBinMs = binMsOf({ binMs, pipeline });
+  const bounds = timeBoundsOf({ services, documentId, pipeline });
+  const chosenBinMs = binMsOf({ binMs, bounds });
   const { allRuns, matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
   const marks = services.readModel.marks(documentId);
-  const binStarts =
-    pipeline.events.length === 0
-      ? []
-      : binStartsCovering({ firstTime: firstTimeOf(pipeline.events), lastTime: lastTimeOf(pipeline.events), binMs: chosenBinMs });
+  const binStarts = bounds === null ? [] : binStartsCovering({ firstTime: bounds.first, lastTime: bounds.last, binMs: chosenBinMs });
   const agentActions = readAgentActions({
     services,
     documentId,
     span: spanOfBins({ binStarts, binMs: chosenBinMs }),
   });
+  const authors = { ...pipeline.authors, ...agentActions.authors };
+  const matchingKeys = matchingAuthorKeys({ services, authors, author: filter.author });
   return {
     binMs: chosenBinMs,
     bins: buildBins({ runs: matchedRuns, binStarts, binMs: chosenBinMs, versionSequenceAt: (time) => versionSequenceAt({ marks, time }) }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
-    authors: { ...pipeline.authors, ...agentActions.authors },
-    agentActions: agentActions.actions,
+    authors,
+    agentActions: agentActions.actions.filter((action) => matchingKeys === null || matchingKeys.has(action.authorKey)),
     topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
   };
@@ -266,7 +280,7 @@ export function buildBinEdits({
   binMs: number | null;
 }): BinEdits {
   const pipeline = readTimelinePipeline({ services, documentId });
-  const chosenBinMs = binMsOf({ binMs, pipeline });
+  const chosenBinMs = binMsOf({ binMs, bounds: timeBoundsOf({ services, documentId, pipeline }) });
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs });
   const runs = matchedRuns
     .filter((run) => run.binStart === binStart)
@@ -306,7 +320,7 @@ export function buildSelectionSnapshot({
   selection: RequestedSelection;
 }): SelectionSnapshot {
   const pipeline = readTimelinePipeline({ services, documentId });
-  const binMs = binMsOf({ binMs: selection.binMs, pipeline });
+  const binMs = binMsOf({ binMs: selection.binMs, bounds: timeBoundsOf({ services, documentId, pipeline }) });
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter: selection, binMs });
   return {
     runs: narrowRuns({ runs: matchedRuns, bandId: selection.topic, binStart: selection.at }),

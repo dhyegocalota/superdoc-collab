@@ -30,6 +30,11 @@ paths:
 - A merge emits a `merged` event with empty `inserted` and `deleted`, followed by a text change if the text also changed. (poc/lib/edit-events.ts)
 - Projection costs 0.13-0.17 ms per update. (poc/RESULTS.md, ADR 0001)
 
+## Agent volume
+- A timeline cell counts a run as agent volume only when every author key of the run is an agent key (`<userId>#agent`); a mixed human and agent run (a relay or reconnect sync) counts as human, while contributors still credit the agent key. (libs/history/src/timeline/runs.ts, ADR 0020)
+- A human clientId first observed through an agent socket is unreachable today: the SDK host lives in the server process. (ADR 0020)
+- Agent actions widen the timeline span: the bounds that pick the bin width and the covering bins include the first and last action time, and the marks follow the author filter but not the term filter. (apps/server/src/history/timeline-service.ts)
+
 ## Bootstrap detection
 - The baseline is every update up to the first one after which `meta.bootstrapState === 'committed'`; events are projected only from later updates. (poc/lib/document-history.ts)
 - A log in which the bootstrap never committed throws. (poc/lib/document-history.ts)

@@ -1,6 +1,11 @@
-import { resolveAuthorIds, type ClientBinding, type StoredEditEvent } from '@superdoc-history/history';
+import { resolveAuthorIds, type ClientBinding, type StoredEditEvent, type UpdateLog } from '@superdoc-history/history';
 import { agentAuthorName, ClientActor, type DocumentEditEvent, type EventAuthor } from '@superdoc-history/types';
-import type { AppServices } from '../http/app';
+import type { DocumentsRepository } from '../documents/documents-repository';
+
+export type ResolvedEventsServices = {
+  updateLog: Pick<UpdateLog, 'clientIdentities'>;
+  documents: Pick<DocumentsRepository, 'userNames'>;
+};
 
 export class IncompleteEditEventError extends Error {
   constructor(eventId: number) {
@@ -43,7 +48,7 @@ export function resolveEvents({
   documentId,
   stored,
 }: {
-  services: AppServices;
+  services: ResolvedEventsServices;
   documentId: string;
   stored: StoredEditEvent[];
 }): DocumentEditEvent[] {

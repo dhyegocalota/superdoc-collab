@@ -17,7 +17,7 @@
 ## Global Constraints
 
 - `CREATOR_RESERVATION_MS = MINUTE_MS` (60 s). `MAX_SOCKET_MESSAGES_PER_SECOND = 120`.
-- `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`, with `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8` (raised from 4 after Step 0) (40 MiB).
+- `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`, with `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8` (raised from 4 after Step 0; the cap is 80 MiB) (40 MiB).
 - `POLICY_VIOLATION_CLOSE_CODE = 1008`, `SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403`, `SOCKET_RATE_LIMIT_REASON = 'Too many messages per second'`, `SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded'`. A payload breach keeps `ws`'s 1009.
 - Constants go in `libs/types/src/constants.ts` and `libs/types/src/documents.ts`. Reuse `SECOND_MS` and `MINUTE_MS`; never redeclare them.
 - Logs use `console.warn` or `console.error` with a message constant, the document id and `describeError`, as the insights services do. Never log a payload.

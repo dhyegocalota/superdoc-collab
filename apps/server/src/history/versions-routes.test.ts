@@ -1,4 +1,4 @@
-import { readMainStoryText, resolveMark, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
+import { minuteStartOf, readMainStoryText, type ReadModel, resolveMark, type UpdateLog } from '@superdoc-collab/history';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
@@ -87,15 +87,22 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
 
 test('a logged sequence that is not a mark resolves to the mark that ends its minute', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
-  const newestMark = server.services.readModel.marks(documentId).at(-1)!;
-  const loggedBetween = server.services.updateLog
-    .read({ documentName: documentId, untilSequence: newestMark.sequence })
-    .map((update) => update.sequence)
-    .filter((sequence) => sequence > newestMark.sequence - 1 || sequence < newestMark.sequence)
-    .find((sequence) => sequence !== newestMark.sequence && sequence > server.services.readModel.marks(documentId)[0]!.sequence);
-  expect(loggedBetween).toBeDefined();
-  const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: loggedBetween! });
-  expect(version.sequence).toBe(newestMark.sequence);
+  writeStory({ document: client.document, texts: ['Pruned within the minute'] });
+  writeStory({ document: client.document, texts: ['Ends the minute'] });
+  const latestLogged = () =>
+    server.services.updateLog.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER }).at(-1)!.sequence;
+  await expect
+    .poll(() => server.services.readModel.marks(documentId).at(-1)!.sequence, { timeout: PROJECTION_TIMEOUT_MS })
+    .toBe(latestLogged());
+  const marks = server.services.readModel.marks(documentId);
+  const newest = marks.at(-1)!;
+  const prunedInNewestMinute = server.services.updateLog
+    .read({ documentName: documentId, untilSequence: newest.sequence })
+    .filter((update) => update.sequence > marks[0]!.sequence && !marks.some((mark) => mark.sequence === update.sequence))
+    .find((update) => minuteStartOf(update.serverTime) === newest.minuteStart);
+  expect(prunedInNewestMinute).toBeDefined();
+  const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: prunedInNewestMinute!.sequence });
+  expect(version.sequence).toBe(newest.sequence);
   client.close();
   await server.stop();
 });

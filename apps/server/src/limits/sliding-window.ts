@@ -1,19 +1,32 @@
 export class SlidingWindow {
-  readonly windowMs: number;
+  private readonly times: number[] = [];
+  private readonly windowMs: number;
+  private readonly now: () => number;
 
-  constructor({ windowMs }: { windowMs: number; now?: () => number }) {
+  constructor({ windowMs, now = () => Date.now() }: { windowMs: number; now?: () => number }) {
     this.windowMs = windowMs;
+    this.now = now;
   }
 
   record(): void {
-    throw new Error('SlidingWindow.record is not implemented');
+    this.times.push(this.now());
   }
 
   count(): number {
-    throw new Error('SlidingWindow.count is not implemented');
+    this.prune();
+    return this.times.length;
   }
 
   oldest(): number | null {
-    throw new Error('SlidingWindow.oldest is not implemented');
+    this.prune();
+    const [oldest] = this.times;
+    if (oldest === undefined) return null;
+    return oldest;
+  }
+
+  private prune(): void {
+    const windowStart = this.now() - this.windowMs;
+    const recent = this.times.filter((time) => time > windowStart);
+    this.times.splice(0, this.times.length, ...recent);
   }
 }

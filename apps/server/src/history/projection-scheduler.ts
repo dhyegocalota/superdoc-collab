@@ -1,5 +1,6 @@
 import { MINUTE_MS } from '@superdoc-history/types';
 import { Worker } from 'node:worker_threads';
+import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
 import {
   IMPORT_FAILED_MESSAGE,
@@ -74,7 +75,7 @@ export class ProjectionScheduler {
   private readonly reimportedDocuments = new Set<string>();
   private readonly waiting = new Map<string, WaitingRequest>();
   private readonly forgetting = new Map<string, (() => void)[]>();
-  private readonly restartTimes: number[] = [];
+  private readonly restarts = new SlidingWindow({ windowMs: WORKER_RESTART_WINDOW_MS });
   private readonly loggedProjectionFailures = new Set<string>();
   private isAlive = true;
   isDegraded = false;
@@ -256,11 +257,8 @@ export class ProjectionScheduler {
   }
 
   private withinRestartBudget(): boolean {
-    const now = Date.now();
-    this.restartTimes.push(now);
-    const recent = this.restartTimes.filter((time) => now - time < WORKER_RESTART_WINDOW_MS);
-    this.restartTimes.splice(0, this.restartTimes.length, ...recent);
-    return recent.length <= MAX_WORKER_RESTARTS_PER_WINDOW;
+    this.restarts.record();
+    return this.restarts.count() <= MAX_WORKER_RESTARTS_PER_WINDOW;
   }
 
   private degrade(): void {

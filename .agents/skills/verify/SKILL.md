@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Local gate — typecheck, security audit, secret scan, unit tests, E2E — stopping at the first failure. Run before any "done", before /open-pr, and after every merge from main.
+description: Local gate — machine doctor, typecheck, security audit, secret scan, unit tests, E2E — stopping at the first failure. Run before any "done", before /open-pr, and after every merge from main.
 argument-hint: [unit|e2e|all]
 allowed-tools: Bash(pnpm:*), Bash(gitleaks:*), Bash(.github/scripts/secret-rules-probe.sh:*), Bash(.agents/hooks/doctor.sh:*), Bash(git status:*), Read
 ---

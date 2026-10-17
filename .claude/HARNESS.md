@@ -189,7 +189,7 @@ Routing: bulk reading and sweeps → cheapest model; implementing a decided desi
 | `feature` | skill | scaffolds `docs/features/<slug>/` |
 | `adr` | skill | scaffolds a numbered ADR |
 | `learning` | skill | records or revisits a learning |
-| `/verify` | skill | typecheck → security audit → secret scan → unit → E2E, stop at first failure |
+| `/verify` | skill | machine doctor → typecheck → security audit → secret scan → unit → E2E, stop at first failure |
 | `/check-ui` | skill | Playwright MCP walk, screenshots, video, release upload |
 | `/open-pr` | skill | the Ship gates, then the PR |
 | `/scenario` | skill | boots the stack on 3200/3299 and walks one `docs/scenarios/<slug>.md` with one Playwright MCP server per author |

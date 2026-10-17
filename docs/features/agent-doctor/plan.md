@@ -64,7 +64,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 **Interfaces:**
 - Produces: `.agents/hooks/doctor.sh` with no arguments → report on stdout, exit 0/1; `.agents/hooks/doctor.sh --fix <tool>` → the fix text alone on stdout, exit 0; environment `DOCTOR_UNAME`, `DOCTOR_PATH`, `DOCTOR_HOME`, `DOCTOR_SKIP` (space-separated tool names). Tool names: `node pnpm jq gh chromium skills gitleaks ffmpeg docker`. `pnpm doctor` runs it.
 
-- [ ] **Step 1: Write the failing tests.** Append to `.agents/hooks/hooks.test.sh` immediately before the line `[[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0`:
+- [x] **Step 1: Write the failing tests.** Append to `.agents/hooks/hooks.test.sh` immediately before the line `[[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0`:
 
 ```bash
 doctor_bin=$(mktemp -d)
@@ -154,9 +154,9 @@ rm -rf "$doctor_bin" "$doctor_home" "$empty_path"
 
 Stubs use `#!/bin/bash`, not `env`: the doctor runs them with `PATH` reduced to the stub directory, where `env` would not find `bash`. Per-tool assertions go through `doctor_line`, because bash's `=~` anchors `^` and `$` to the whole string, not to a line.
 
-- [ ] **Step 2: Run the tests and confirm they fail for the right reason.** `bash .agents/hooks/hooks.test.sh`. Expected: lines starting `FAIL doctor:` because `doctor.sh` does not exist (`No such file or directory`), `FAIL guard-secrets without jq: expected exit 2, got 0`, `FAIL guard-git-add-all without jq: expected exit 2, got 0`; the earlier checks still pass.
+- [x] **Step 2: Run the tests and confirm they fail for the right reason.** `bash .agents/hooks/hooks.test.sh`. Expected: lines starting `FAIL doctor:` because `doctor.sh` does not exist (`No such file or directory`), `FAIL guard-secrets without jq: expected exit 2, got 0`, `FAIL guard-git-add-all without jq: expected exit 2, got 0`; the earlier checks still pass.
 
-- [ ] **Step 3: Write `.agents/hooks/doctor.sh`** and `chmod +x` it:
+- [x] **Step 3: Write `.agents/hooks/doctor.sh`** and `chmod +x` it:
 
 ```bash
 #!/usr/bin/env bash
@@ -285,7 +285,7 @@ echo "doctor: $missing_required missing required, $missing_optional missing opti
 [[ "$missing_required" == 0 ]]
 ```
 
-- [ ] **Step 4: Make the guards fail closed.** Replace the whole of `.agents/hooks/touched-files.sh` with:
+- [x] **Step 4: Make the guards fail closed.** Replace the whole of `.agents/hooks/touched-files.sh` with:
 
 ```bash
 #!/usr/bin/env bash
@@ -317,15 +317,15 @@ source "$(dirname "$0")/touched-files.sh"
 command=$(jq -r '.tool_input.command // ""' <<<"$hook_input")
 ```
 
-- [ ] **Step 5: Add the script to `package.json`**, after `"test:hooks"`:
+- [x] **Step 5: Add the script to `package.json`**, after `"test:hooks"`:
 
 ```json
     "doctor": "bash .agents/hooks/doctor.sh",
 ```
 
-- [ ] **Step 6: Run the tests.** `bash .agents/hooks/hooks.test.sh`. Expected: `hooks: all checks passed`, exit 0. Then `pnpm doctor` on the real machine: every line `ok` (or an honest `missing` for a tool this machine lacks), exit code matches the summary. Then `pnpm exec prettier --check package.json`.
+- [x] **Step 6: Run the tests.** `bash .agents/hooks/hooks.test.sh`. Expected: `hooks: all checks passed`, exit 0. Then `pnpm doctor` on the real machine: every line `ok` (or an honest `missing` for a tool this machine lacks), exit code matches the summary. Then `pnpm exec prettier --check package.json`.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add .agents/hooks/doctor.sh .agents/hooks/touched-files.sh .agents/hooks/guard-git-add-all.sh .agents/hooks/hooks.test.sh package.json
@@ -343,7 +343,7 @@ git commit -m "feat(hooks): doctor.sh reports the tools the harness needs; guard
 **Interfaces:**
 - Consumes: `.agents/hooks/doctor.sh` (exit 1 on a missing required tool; `DOCTOR_SKIP`), `pnpm doctor`.
 
-- [ ] **Step 1: Claude Code session hook.** In `.claude/settings.json` → `hooks`, add before `"PreToolUse"`:
+- [x] **Step 1: Claude Code session hook.** In `.claude/settings.json` → `hooks`, add before `"PreToolUse"`:
 
 ```json
     "SessionStart": [
@@ -360,7 +360,7 @@ git commit -m "feat(hooks): doctor.sh reports the tools the harness needs; guard
 
 The `|| true` is deliberate: Claude Code adds a hook's stdout to the context only on exit 0, and the report is the point.
 
-- [ ] **Step 2: Codex session hook.** In `.codex/hooks.json` → `hooks`, add before `"PreToolUse"`:
+- [x] **Step 2: Codex session hook.** In `.codex/hooks.json` → `hooks`, add before `"PreToolUse"`:
 
 ```json
     "SessionStart": [
@@ -377,7 +377,7 @@ The `|| true` is deliberate: Claude Code adds a hook's stdout to the context onl
     ],
 ```
 
-- [ ] **Step 3: `/verify` gate 0.** In `.agents/skills/verify/SKILL.md`: extend `allowed-tools` with `Bash(.agents/hooks/doctor.sh:*)`; renumber the list so it starts with:
+- [x] **Step 3: `/verify` gate 0.** In `.agents/skills/verify/SKILL.md`: extend `allowed-tools` with `Bash(.agents/hooks/doctor.sh:*)`; renumber the list so it starts with:
 
 ```
 0. `pnpm doctor`: the machine report. A missing required tool stops the gate with the report pasted verbatim; the agent asks before running any `fix:` line (ADR 0026). Missing optional tools are reported and the gate continues
@@ -386,7 +386,7 @@ The `|| true` is deliberate: Claude Code adds a hook's stdout to the context onl
 
 and add to the success report: `doctor clean (or the optional tools missing)`.
 
-- [ ] **Step 4: CI step.** In `.github/workflows/verify.yml` → `checks` job, after `- run: pnpm test:hooks`:
+- [x] **Step 4: CI step.** In `.github/workflows/verify.yml` → `checks` job, after `- run: pnpm test:hooks`:
 
 ```yaml
       - run: pnpm doctor
@@ -395,9 +395,9 @@ and add to the success report: `doctor clean (or the optional tools missing)`.
           DOCTOR_SKIP: chromium
 ```
 
-- [ ] **Step 5: Verify locally.** `pnpm exec prettier --check .claude/settings.json .codex/hooks.json .agents/skills/verify/SKILL.md .github/workflows/verify.yml`; `GH_TOKEN=$(gh auth token) DOCTOR_SKIP=chromium pnpm doctor` exits 0 on a machine where `jq`, `gh`, node and pnpm are right. Confirm the Claude Code hook fires: open a new Claude Code session in the repository and check that the first turn's context contains the `doctor:` summary line (the tester repeats this with evidence).
+- [x] **Step 5: Verify locally.** `pnpm exec prettier --check .claude/settings.json .codex/hooks.json .agents/skills/verify/SKILL.md .github/workflows/verify.yml`; `GH_TOKEN=$(gh auth token) DOCTOR_SKIP=chromium pnpm doctor` exits 0 on a machine where `jq`, `gh`, node and pnpm are right. Confirm the Claude Code hook fires: open a new Claude Code session in the repository and check that the first turn's context contains the `doctor:` summary line (the tester repeats this with evidence).
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add .claude/settings.json .codex/hooks.json .agents/skills/verify/SKILL.md .github/workflows/verify.yml
@@ -416,21 +416,21 @@ git commit -m "chore(harness): run the doctor at session start, as /verify gate 
 **Interfaces:**
 - Consumes: the names `doctor.sh`, `pnpm doctor`, `DOCTOR_SKIP`, the fail-closed guards (Task 1), gate 0 and the CI step (Task 2).
 
-- [ ] **Step 1: HARNESS §0.** Append invariant 11 after invariant 10:
+- [x] **Step 1: HARNESS §0.** Append invariant 11 after invariant 10:
 
 ```markdown
 11. The agent repairs its own machine before it works, and never works with a blocking hook off. `.agents/hooks/doctor.sh` is the only list of the tools the harness needs; it runs at session start, as `/verify` gate 0 and on CI, and prose never repeats it. It reports; the agent asks before installing ([ADR 0026](../docs/adr/0026-the-agent-repairs-its-own-machine-doctor-reports-never-installs.md)).
 ```
 
-- [ ] **Step 2: HARNESS §7.** After the paragraph that starts `**Merge on green.**`, add:
+- [x] **Step 2: HARNESS §7.** After the paragraph that starts `**Merge on green.**`, add:
 
 ```markdown
 **Image proof without Docker.** When the diff touches `docker/` or `deploy/` and the doctor reports Docker missing, the agent either asks to install it or writes in the PR body that the image was proven by the `docker` job of CI only. Never silently.
 ```
 
-- [ ] **Step 3: HARNESS §11.** In the **Ask first** line, after `dependencies added,` insert `installing a tool on the machine (the doctor's fix: lines),`.
+- [x] **Step 3: HARNESS §11.** In the **Ask first** line, after `dependencies added,` insert `installing a tool on the machine (the doctor's fix: lines),`.
 
-- [ ] **Step 4: HARNESS §12.** Add a row to the hook table after `guard-git-add-all.sh`:
+- [x] **Step 4: HARNESS §12.** Add a row to the hook table after `guard-git-add-all.sh`:
 
 ```markdown
 | `doctor.sh` | SessionStart; `/verify` gate 0; CI `checks` | prints one line per tool the harness needs (`ok`, `missing` or `skipped`, required or optional, what is lost, the `fix:` for this platform's package manager); exit 1 when a required tool is missing. The session hooks force exit 0 so the report reaches the context |
@@ -438,7 +438,7 @@ git commit -m "chore(harness): run the doctor at session start, as /verify gate 
 
 and, in the paragraph after the table, extend the sentence about `pnpm test:hooks` with: `The two guards exit 2 with the doctor's fix line when jq is absent; a guard that becomes a no-op is not a guard.`
 
-- [ ] **Step 5: `docs/install.md`.** After the "Install with an agent" section (before `## First login`), add:
+- [x] **Step 5: `docs/install.md`.** After the "Install with an agent" section (before `## First login`), add:
 
 ```markdown
 ## Develop with an agent
@@ -446,19 +446,19 @@ and, in the paragraph after the table, extend the sentence about `pnpm test:hook
 Clone the repository and open it in Claude Code or Codex. The first session reports which tools the harness needs and are missing on this machine, with the install command for your platform; approve the installs you want, then ask for `/verify`. The list lives in `.agents/hooks/doctor.sh` and nowhere else.
 ```
 
-- [ ] **Step 6: README Read more.** Change the first bullet to:
+- [x] **Step 6: README Read more.** Change the first bullet to:
 
 ```markdown
 - [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team; [develop with an agent](docs/install.md#develop-with-an-agent)
 ```
 
-- [ ] **Step 7: Features index.** In `docs/features/README.md`, change the `agent-doctor` row's status from `Draft` to `Building`.
+- [x] **Step 7: Features index.** In `docs/features/README.md`, change the `agent-doctor` row's status from `Draft` to `Building`.
 
-- [ ] **Step 8: Tester briefing.** Fill `docs/features/agent-doctor/tester-briefing.md`: what changed (one line per file from the three tasks), how to run (`bash .agents/hooks/hooks.test.sh`, `pnpm doctor`, a fresh Claude Code session in a worktree), the red/green table (the `doctor:` checks, the two guard checks), hypotheses (the session hook fires and the report is in context; `Edit` on `.env` is blocked with the fix line when `jq` is hidden; `pnpm doctor` on CI is green; the Linux fix lines are right), known gaps (no Linux machine at hand: Linux is pinned by `DOCTOR_UNAME` only).
+- [x] **Step 8: Tester briefing.** Fill `docs/features/agent-doctor/tester-briefing.md`: what changed (one line per file from the three tasks), how to run (`bash .agents/hooks/hooks.test.sh`, `pnpm doctor`, a fresh Claude Code session in a worktree), the red/green table (the `doctor:` checks, the two guard checks), hypotheses (the session hook fires and the report is in context; `Edit` on `.env` is blocked with the fix line when `jq` is hidden; `pnpm doctor` on CI is green; the Linux fix lines are right), known gaps (no Linux machine at hand: Linux is pinned by `DOCTOR_UNAME` only).
 
-- [ ] **Step 9: Verify.** `pnpm exec prettier --write .claude/HARNESS.md docs/install.md README.md docs/features/README.md docs/features/agent-doctor/tester-briefing.md`; `pnpm --filter @superdoc-collab/server exec vitest run src/repository-shape` → `delivery-docs.test.ts` and `readme-run-block.test.ts` green.
+- [x] **Step 9: Verify.** `pnpm exec prettier --write .claude/HARNESS.md docs/install.md README.md docs/features/README.md docs/features/agent-doctor/tester-briefing.md`; `pnpm --filter @superdoc-collab/server exec vitest run src/repository-shape` → `delivery-docs.test.ts` and `readme-run-block.test.ts` green.
 
-- [ ] **Step 10: Commit.**
+- [x] **Step 10: Commit.**
 
 ```bash
 git add .claude/HARNESS.md docs/install.md README.md docs/features/README.md docs/features/agent-doctor/tester-briefing.md

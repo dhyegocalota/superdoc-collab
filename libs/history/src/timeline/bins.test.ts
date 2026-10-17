@@ -29,8 +29,14 @@ test('three years fall back to a whole number of weeks', () => {
   expect(binMs % WEEK_MS).toBe(0);
 });
 
-test.each([30 * SECOND_MS, 30 * MINUTE_MS, 5 * HOUR_MS, 30 * DAY_MS, 3 * 365 * DAY_MS])('a span of %i ms never exceeds the bin budget', (spanMs) => {
-  expect(Math.ceil(spanMs / chooseBinMs(spanMs)) + 1).toBeLessThanOrEqual(MAX_BINS);
+const BIN_OFFSETS_MS = [0, 5 * SECOND_MS, 59 * SECOND_MS];
+
+test.each([30 * SECOND_MS, 30 * MINUTE_MS, 119 * MINUTE_MS, 5 * HOUR_MS, 30 * DAY_MS, 3 * 365 * DAY_MS])('a span of %i ms never draws more than MAX_BINS bins', (spanMs) => {
+  const binMs = chooseBinMs(spanMs);
+  BIN_OFFSETS_MS.forEach((offset) => {
+    const firstTime = TEN_OCLOCK + offset;
+    expect(binStartsCovering({ firstTime, lastTime: firstTime + spanMs, binMs }).length).toBeLessThanOrEqual(MAX_BINS);
+  });
 });
 
 test('a single edit yields three bins, the middle one filled', () => {

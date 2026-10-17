@@ -8,6 +8,7 @@ export const KEPT_AND_DATED_DETAIL = 'Your edits stay in this browser and are da
 export const UNSYNCED_LOST_ON_RELOAD_DETAIL = 'Unsynced edits are lost on reload. Download first to keep them.';
 export const RELOAD_LABEL = 'Reload';
 export const RELOADING_LABEL = 'Reloading…';
+export const RELOAD_FAILED_MESSAGE = 'The server could not be reached. Try again.';
 
 export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.AccessDenied]: 'Your access was removed.',

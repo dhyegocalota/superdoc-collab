@@ -3,6 +3,7 @@ import { MINUTE_MS, SECOND_MS, TOPIC_RECOMPUTE_NEW_BLOCKS, TOPICS_FAILED_MESSAGE
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import { describeError } from '../history/projection-messages';
+import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository } from './insights-repository';
 import { JobOutcome, type InsightsWorker } from './insights-worker';
 import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type LanguageModelChoice } from './llm-client';
@@ -32,7 +33,7 @@ export class TopicsService {
   private readonly scheduler: ProjectionScheduler;
   private readonly languageModel: LanguageModelChoice;
   private readonly worker: InsightsWorker;
-  private readonly refreshedAt = new Map<string, number>();
+  readonly cooldown = new DocumentCooldown({ durationMs: TOPIC_REFRESH_COOLDOWN_MS });
 
   constructor({ repository, scheduler, languageModel, worker }: { repository: InsightsRepository; scheduler: ProjectionScheduler; languageModel: LanguageModelChoice; worker: InsightsWorker }) {
     this.repository = repository;
@@ -54,11 +55,14 @@ export class TopicsService {
 
   refresh(documentId: string): RefreshResult {
     if (this.worker.isRunning(topicsKey(documentId))) return { outcome: RefreshOutcome.AlreadyRunning };
-    const last = this.refreshedAt.get(documentId);
-    const waitedMs = last === undefined ? TOPIC_REFRESH_COOLDOWN_MS : Date.now() - last;
-    if (waitedMs < TOPIC_REFRESH_COOLDOWN_MS) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: Math.ceil((TOPIC_REFRESH_COOLDOWN_MS - waitedMs) / SECOND_MS) };
+    const remainingMs = this.cooldown.remainingMs(documentId);
+    if (remainingMs > 0) return { outcome: RefreshOutcome.TooSoon, retryAfterSeconds: Math.ceil(remainingMs / SECOND_MS) };
     this.start({ documentId, isRefresh: true });
     return { outcome: RefreshOutcome.Started };
+  }
+
+  forget(documentId: string): void {
+    this.cooldown.forget(documentId);
   }
 
   onTimelineRead({ documentId, unassignedFirstSequences }: { documentId: string; unassignedFirstSequences: number[] }): void {
@@ -90,7 +94,7 @@ export class TopicsService {
   }
 
   private consumeCooldown({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): void {
-    if (isRefresh) this.refreshedAt.set(documentId, Date.now());
+    if (isRefresh) this.cooldown.start(documentId);
   }
 
   private async compute({ documentId, isRefresh }: { documentId: string; isRefresh: boolean }): Promise<void> {

@@ -1,15 +1,31 @@
 export class DocumentCooldown {
-  constructor(_options: { durationMs: number; now?: () => number }) {}
+  private readonly startedAt = new Map<string, number>();
+  private readonly durationMs: number;
+  private readonly now: () => number;
 
-  start(_documentId: string): void {}
+  constructor({ durationMs, now = () => Date.now() }: { durationMs: number; now?: () => number }) {
+    this.durationMs = durationMs;
+    this.now = now;
+  }
 
-  remainingMs(_documentId: string): number {
+  start(documentId: string): void {
+    this.startedAt.set(documentId, this.now());
+  }
+
+  remainingMs(documentId: string): number {
+    const startedAt = this.startedAt.get(documentId);
+    if (startedAt === undefined) return 0;
+    const remaining = this.durationMs - (this.now() - startedAt);
+    if (remaining > 0) return remaining;
+    this.startedAt.delete(documentId);
     return 0;
   }
 
-  forget(_documentId: string): void {}
+  forget(documentId: string): void {
+    this.startedAt.delete(documentId);
+  }
 
   size(): number {
-    return 0;
+    return this.startedAt.size;
   }
 }

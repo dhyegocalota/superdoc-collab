@@ -6,7 +6,7 @@ Written by the developer sub-agent when its steps are done. The developer does n
 
 - `package.json` — `security:audit` script (`pnpm audit --prod --audit-level=high`); `verify` runs it after `typecheck`.
 - `.github/workflows/verify.yml` — fourth job `security`: full-history checkout, install, `pnpm security:audit`, gitleaks 8.30.1 downloaded and checksum-verified, the probe script, `gitleaks git` over every commit; no token.
-- `.github/dependabot.yml` — npm and github-actions, weekly, minor and patch grouped.
+- `.github/dependabot.yml` — removed 2026-10-17; only the repository setting for security updates remains.
 - `.gitleaks.toml` — default rules plus an allowlist of the three exact placeholder strings the history contains, anchored; `.github/scripts/secret-rules-probe.sh` proves a fresh token fires and a placeholder stays silent.
 - `.agents/roles/security-reviewer.md` with wrappers in `.claude/agents/` and `.codex/agents/`, registered in `.codex/config.toml`.
 - `.agents/skills/open-pr/SKILL.md` gate 3b; `.agents/skills/verify/SKILL.md` steps 2 and 3; `## Security` in the PR template; HARNESS §6, §7, §9, §12.

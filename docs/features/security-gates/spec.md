@@ -13,7 +13,7 @@ Security in this repository is one lens of a generalist reviewer and nothing mec
 ## Goals
 
 - Every pull request runs a mechanical dependency audit and a secret scan in CI, independent of the other jobs.
-- Dependabot opens security updates weekly for npm packages and GitHub Actions.
+- Dependabot opens a PR only for a vulnerable dependency with a fixed version (version updates are off since 2026-10-17, see ADR 0022).
 - Every pull request gets a dedicated security review by a sub-agent whose only job is to attack the diff with this repository's threat model, and the verdict is in the PR body.
 - The local `/verify` gate runs the same audit so a red CI is never a surprise.
 
@@ -43,7 +43,7 @@ push / pull_request
             └─ gitleaks dir                            scans the checked-out tree (merge commits carry no patch), before pnpm install
 
 weekly
-  └─ Dependabot: npm (root workspace) and github-actions, security updates grouped
+  └─ Dependabot: security updates only, a repository setting
 
 /open-pr
   gate 1  /verify            (typecheck → security:audit → unit → E2E)
@@ -56,7 +56,7 @@ weekly
 - `package.json` scripts: `security:audit` = `pnpm audit --prod --audit-level=high`; `verify` runs it after `typecheck`.
 - `.github/workflows/verify.yml`: a fourth job `security`, `timeout-minutes` bounded, no `needs`, `fetch-depth: 0`, no token: the gitleaks binary is downloaded at a pinned version and verified by SHA-256 before it runs, because the gitleaks GitHub Action scans at most the first thirty commits of a pull request and never walks into a merged lane.
 - `.gitleaks.toml`: extends the default rules; allowlists only the placeholders the default rules actually report in the history (the RFC 6455 sample nonce and two test secrets), each as an exact string anchored to the whole secret (`^…$`), never a pattern with a wildcard, so a random secret that borrows a placeholder's prefix or suffix still fires. `.github/scripts/secret-rules-probe.sh` proves both directions on every CI run and in `/verify`.
-- `.github/dependabot.yml`: `npm` at `/` weekly, `github-actions` at `/` weekly, minor and patch updates grouped. Dependabot alerts and automated security fixes are a repository setting, turned on 2026-10-17 through the API (`PUT /repos/{owner}/{repo}/vulnerability-alerts` and `/automated-security-fixes`).
+- No `.github/dependabot.yml`: version updates are off (removed 2026-10-17 after the first weekly run opened five bump PRs). Dependabot alerts and automated security fixes are a repository setting, turned on 2026-10-17 through the API (`PUT /repos/{owner}/{repo}/vulnerability-alerts` and `/automated-security-fixes`).
 - `.agents/roles/security-reviewer.md`: the role body. Wrappers in `.claude/agents/security-reviewer.md` and `.codex/agents/security-reviewer.toml`; registered in `.codex/config.toml`. The role reads the diff, `spec.md` and the matching `.claude/rules/`, then attacks these surfaces in order: session validation on HTTP and on the Hocuspocus socket; awareness `userId` equals the socket user; per-document authorization on documents, history, versions, media and share links; share-link secret handling and reissue (ADR 0017); SQL binding; enumeration-safe auth responses and rate limits on credential endpoints; upload size, type and path handling for DOCX; secrets in responses, logs or prompts; LLM prompts never carry another document's content; new dependencies and their postinstall scripts; CI and hook changes that widen permissions. Output: numbered findings `CRITICAL | IMPORTANT | MINOR` with file:line, the attack, the consequence and a minimal fix; then `Security verdict: CLEAR | FINDINGS | NOT APPLICABLE — <one line>`. `NOT APPLICABLE` is the answer only for a diff made of Markdown under `docs/` and READMEs; configuration, lockfiles, agent surfaces, hooks and CI count as code.
 - `/open-pr` gate 3b: dispatch `security-reviewer` after the reviewer; `FINDINGS` with any `CRITICAL` or `IMPORTANT` → back to Build; `MINOR` only → listed to the owner, continue. The verdict line goes verbatim into the PR body under a new `## Security` section of `.github/pull_request_template.md`.
 - `/verify`: step 2 is `pnpm security:audit`; when `gitleaks` is on `PATH`, step 3 runs `.github/scripts/secret-rules-probe.sh` and then `gitleaks git --no-banner --redact --exit-code 1 .`, and its absence is stated in the report, never silent.

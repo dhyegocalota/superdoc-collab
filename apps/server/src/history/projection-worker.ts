@@ -36,7 +36,7 @@ const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName:
 const updateLog = new UpdateLog(historySqlite);
 const readModel = new ReadModel(readModelSqlite);
 const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
-let superdocClient: Promise<SuperDocClient> | null = null;
+let superdocClientConnection: Promise<SuperDocClient> | null = null;
 let queue = Promise.resolve();
 let importQueue = Promise.resolve();
 
@@ -47,11 +47,11 @@ async function connectSuperdocClient(): Promise<SuperDocClient> {
 }
 
 function connectedSuperdocClient(): Promise<SuperDocClient> {
-  if (superdocClient) return superdocClient;
+  if (superdocClientConnection) return superdocClientConnection;
   const connecting = connectSuperdocClient();
-  superdocClient = connecting;
+  superdocClientConnection = connecting;
   connecting.catch(() => {
-    superdocClient = null;
+    superdocClientConnection = null;
   });
   return connecting;
 }
@@ -99,9 +99,9 @@ async function answer(request: AnsweredRequest): Promise<ProjectionReply> {
 }
 
 async function stopWorker(): Promise<void> {
-  if (superdocClient)
+  if (superdocClientConnection)
     await withTimeout({
-      work: superdocClient.then(
+      work: superdocClientConnection.then(
         (client) => client.dispose(),
         () => undefined,
       ),

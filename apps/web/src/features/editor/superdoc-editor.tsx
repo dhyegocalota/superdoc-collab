@@ -1,14 +1,15 @@
 import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
-import { SuperDoc } from 'superdoc';
+import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
-import { isRecoverableException } from './superdoc-exceptions';
+import { ExceptionOutcome, exceptionOutcome, failureReasonOf } from './superdoc-exceptions';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS, followViewportZoom } from './superdoc-zoom';
+import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
@@ -20,9 +21,10 @@ type SuperDocEditorProps = {
   user: SessionUser;
   file: Blob;
   isInert: boolean;
+  onTransportReport: (report: TransportReport) => void;
 };
 
-export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
+export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert, onTransportReport }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
@@ -31,6 +33,17 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    let isActive = true;
+    const exceptionHandlers: Record<ExceptionOutcome, (payload: SuperDocExceptionPayload) => void> = {
+      [ExceptionOutcome.Logged]: (payload) => {
+        if (!('message' in payload)) return;
+        console.warn(payload.message);
+      },
+      [ExceptionOutcome.Recoverable]: () => setHasRejectedEdit(true),
+      [ExceptionOutcome.ConnectionFailed]: (payload) =>
+        onTransportReport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
+      [ExceptionOutcome.Fatal]: () => setHasFailed(true),
+    };
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
@@ -42,20 +55,25 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         user,
         viewport: window,
       }),
+      onCollaborationConnectionChange: (payload) => {
+        if (!isActive) return;
+        onTransportReport(transportReportOf(payload));
+      },
       onException: (payload) => {
-        if (isRecoverableException(payload)) return setHasRejectedEdit(true);
-        setHasFailed(true);
+        if (!isActive) return;
+        exceptionHandlers[exceptionOutcome(payload)](payload);
       },
     });
     superdocRef.current = superdoc;
     const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window });
     return () => {
+      isActive = false;
       stopFollowingViewport();
       superdocRef.current = null;
       superdoc.destroy();
       setHasRejectedEdit(false);
     };
-  }, [superdocRef, documentId, roomMode, role, user, file]);
+  }, [superdocRef, documentId, roomMode, role, user, file, onTransportReport]);
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);

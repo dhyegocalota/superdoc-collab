@@ -25,10 +25,6 @@ function codeOf(payload: SuperDocExceptionPayload): string | undefined {
   return 'code' in payload ? payload.code : undefined;
 }
 
-export function isRecoverableException(payload: SuperDocExceptionPayload): boolean {
-  return codeOf(payload) === SuperDocExceptionCode.EditRejected;
-}
-
 export function failureReasonOf(payload: SuperDocExceptionPayload): ConnectionFailureReason {
   if (codeOf(payload) === SuperDocExceptionCode.WorkerTransportFailed) return ConnectionFailureReason.WorkerTransportFailed;
   if (!('collaborationReason' in payload)) return ConnectionFailureReason.Unknown;
@@ -40,7 +36,7 @@ export function failureReasonOf(payload: SuperDocExceptionPayload): ConnectionFa
 export function exceptionOutcome(payload: SuperDocExceptionPayload): ExceptionOutcome {
   const isWarnDiagnostic = 'diagnosticCode' in payload && payload.severity === WARN_SEVERITY;
   if (isWarnDiagnostic) return ExceptionOutcome.Logged;
-  if (isRecoverableException(payload)) return ExceptionOutcome.Recoverable;
+  if (codeOf(payload) === SuperDocExceptionCode.EditRejected) return ExceptionOutcome.Recoverable;
   const isConnectionFailure = 'collaborationReason' in payload || codeOf(payload) === SuperDocExceptionCode.WorkerTransportFailed;
   if (isConnectionFailure) return ExceptionOutcome.ConnectionFailed;
   return ExceptionOutcome.Fatal;

@@ -1,5 +1,7 @@
 import {
   ApiPath,
+  ConnectionFailureReason,
+  ConnectionState,
   DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_NOT_READY_MESSAGE,
   DOCUMENT_UNAVAILABLE_MESSAGE,
@@ -24,6 +26,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
+import { FAILURE_REASON_COPY, RELOAD_LABEL } from './connection-copy';
 import {
   BACK_TO_DOCUMENTS_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,
@@ -45,9 +48,20 @@ import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './edit
 
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 
+type ExceptionPayload = {
+  code?: string;
+  collaborationReason?: string;
+  diagnosticCode?: string;
+  severity?: string;
+  message?: string;
+  error: Error;
+  editor: null;
+};
+
 type SuperDocConfig = {
   telemetry: { enabled: boolean };
-  onException: (payload: { code?: string; error: Error; editor: null }) => void;
+  onException: (payload: ExceptionPayload) => void;
+  onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
   zoom: { mode: string };
 };
 
@@ -81,6 +95,8 @@ function mockDocumentApi({
   openBody = opened,
   downloadStatus = HttpStatus.Ok,
   currentMembersStatus = () => HttpStatus.Ok,
+  isCurrentUserOnline = () => true,
+  openedAfterReload = opened,
 }: {
   opened: OpenedDocument;
   renamedTitle?: string;
@@ -88,11 +104,16 @@ function mockDocumentApi({
   openBody?: unknown;
   downloadStatus?: HttpStatus;
   currentMembersStatus?: () => HttpStatus;
+  isCurrentUserOnline?: () => boolean;
+  openedAfterReload?: OpenedDocument;
 }) {
   let current = opened;
+  let openRequests = 0;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
-    if (input === MEMBERS_PATH) return jsonResponse({ body: { members: [] }, status: currentMembersStatus() });
+    if (String(input).startsWith(MEMBERS_PATH)) {
+      return jsonResponse({ body: { members: [], isCurrentUserOnline: isCurrentUserOnline() }, status: currentMembersStatus() });
+    }
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
     if (input === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
     if (input === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
@@ -102,7 +123,11 @@ function mockDocumentApi({
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
     }
-    if (input === DOCUMENT_PATH) return jsonResponse({ body: openStatus === HttpStatus.Ok ? current : openBody, status: openStatus });
+    if (input === DOCUMENT_PATH) {
+      openRequests += 1;
+      const isReload = openRequests > 1;
+      return jsonResponse({ body: openStatus === HttpStatus.Ok ? (isReload ? openedAfterReload : current) : openBody, status: openStatus });
+    }
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -111,6 +136,29 @@ function constructedConfig(): SuperDocConfig {
   const firstCall = SuperDoc.mock.calls.at(0);
   if (!firstCall) throw new Error('SuperDoc was not constructed');
   return firstCall[0];
+}
+
+const VIEWED_AT = 1_700_000_000_000;
+const RENDER_WARNING = 'render hiccup';
+const LOST_CALLBACK = { state: 'degraded', kind: 'lost' };
+const FAILED_CALLBACK = { state: 'failed', kind: 'failed' };
+
+function warnDiagnostic(): ExceptionPayload {
+  return { diagnosticCode: 'RENDER_ERROR', severity: 'warn', message: RENDER_WARNING, error: new Error(RENDER_WARNING), editor: null };
+}
+
+async function reloadAfterFailure(): Promise<SuperDocConfig> {
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Owner, RoomMode.Create),
+    openedAfterReload: openedAs(DocumentRole.Owner, RoomMode.Join),
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const firstInstanceConfig = constructedConfig();
+  act(() => firstInstanceConfig.onCollaborationConnectionChange(FAILED_CALLBACK));
+  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  return firstInstanceConfig;
 }
 
 beforeEach(() => SuperDoc.mockClear());
@@ -329,4 +377,68 @@ test('the editor never takes the focus on its own', async () => {
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   expect(constructedConfig()).not.toHaveProperty('onReady');
+});
+
+test('a lost callback shows the banner above the version banner', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner), isCurrentUserOnline: () => false });
+  renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=${VIEWED_AT}` });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
+  const connectionBanner = await screen.findByTestId('connection-banner');
+  const versionBanner = await screen.findByTestId('version-banner');
+  expect(connectionBanner).toHaveAttribute('data-state', ConnectionState.Lost);
+  expect(connectionBanner.compareDocumentPosition(versionBanner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test('a warn diagnostic keeps the editor usable and logs with console.warn', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onException(warnDiagnostic()));
+  expect(warn).toHaveBeenCalledWith(RENDER_WARNING);
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).not.toHaveAttribute('inert');
+});
+
+test('a failed callback makes the editor inert, dims it and names the reason', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  const banner = await screen.findByRole('alert');
+  expect(banner).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Unknown]);
+  expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
+  expect(screen.getByTestId('editor-area')).toHaveClass('opacity-60');
+});
+
+test('a connection exception fails the connection with its reason and not the editor', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onException(payload));
+  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('Reload remounts the editor with the refetched join setup and the current file', async () => {
+  await reloadAfterFailure();
+  expect(superDocDestroy).toHaveBeenCalledTimes(1);
+  expect(SuperDoc.mock.calls[1]![0]).toEqual(
+    expect.objectContaining({
+      documents: [expect.objectContaining({ v2Collaboration: expect.objectContaining({ roomMode: RoomMode.Join }) })],
+    }),
+  );
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).not.toHaveAttribute('inert');
+});
+
+test('a callback from the first instance after Reload shows no banner', async () => {
+  const firstInstanceConfig = await reloadAfterFailure();
+  act(() => firstInstanceConfig.onCollaborationConnectionChange(LOST_CALLBACK));
+  act(() => firstInstanceConfig.onException(warnDiagnostic()));
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
 });

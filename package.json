@@ -13,6 +13,8 @@
     "test:unit": "pnpm -r test:unit",
     "test:e2e": "playwright test",
     "seed": "pnpm --filter @superdoc-history/server seed",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "verify": "pnpm typecheck && pnpm test:unit && pnpm test:e2e"
   },
   "devDependencies": {
@@ -20,6 +22,7 @@
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.19.2",
     "better-sqlite3": "13.0.3",
+    "prettier": "3.9.10",
     "typescript": "7.0.2"
   }
 }

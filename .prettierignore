@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+poc
+.pr-media
+.superpowers
+test-results
+*.md
+*.yml
+*.yaml
+*.sql
+apps/web/public
+drizzle
+.agents/skills

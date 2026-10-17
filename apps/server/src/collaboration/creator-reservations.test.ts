@@ -1,4 +1,4 @@
-import { CREATOR_RESERVATION_MS, SECOND_MS } from '@superdoc-collab/types';
+import { CREATOR_RESERVATION_MAX_MS, CREATOR_RESERVATION_MS, SECOND_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { CreatorReservations } from './creator-reservations';
 
@@ -182,4 +182,17 @@ test('reserve answers the process epoch, which differs between processes', () =>
   const ticket = first.reservations.reserve({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
   expect(ticket?.epoch).toBe(first.reservations.epoch);
   expect(first.reservations.epoch).not.toBe(second.reservations.epoch);
+});
+
+test('touches at 59 second intervals stop extending after the lifetime cap and the next editor takes over', () => {
+  const context = contextAt(0);
+  const touchInterval = CREATOR_RESERVATION_MS - SECOND_MS;
+  context.reserveAs(FIRST_EDITOR);
+  const touches = Math.ceil(CREATOR_RESERVATION_MAX_MS / touchInterval);
+  Array.from({ length: touches }).forEach(() => {
+    context.advance(touchInterval);
+    context.reservations.touch({ documentId: DOCUMENT_ID, attempt: FIRST_ATTEMPT });
+  });
+  context.advance(touchInterval);
+  expect(context.reserveAs(SECOND_EDITOR)).toBe(SECOND_ATTEMPT);
 });

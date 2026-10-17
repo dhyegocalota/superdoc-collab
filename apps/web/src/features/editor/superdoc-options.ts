@@ -1,8 +1,11 @@
 import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, type RoomMode, type SessionUser } from '@superdoc-history/types';
-import type { Config } from 'superdoc';
+import type { CommentsLayout, Config } from 'superdoc';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { initialZoomMode } from './superdoc-zoom';
+
+const COMMENTS_LAYOUT_BY_WIDTH: CommentsLayout = 'auto';
+const COMMENTS_INLINE_BELOW_PX = 480;
 
 export enum DocumentMode {
   Viewing = 'viewing',
@@ -48,5 +51,6 @@ export function superdocOptions({
     user: { id: user.id, name: user.name, email: user.email },
     telemetry: SUPERDOC_TELEMETRY,
     zoom: { mode: initialZoomMode(viewport) },
+    ui: { comments: { layout: COMMENTS_LAYOUT_BY_WIDTH, responsive: { breakpoint: COMMENTS_INLINE_BELOW_PX } } },
   };
 }

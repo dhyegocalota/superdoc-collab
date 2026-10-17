@@ -81,8 +81,8 @@ export function offlineMemberReason(name: string): string {
   return `${name} is offline`;
 }
 
-export function notInDocumentReason(name: string): string {
-  return `${name} is online but not in the document`;
+export function cursorOffScreenReason(_name: string): string {
+  throw new Error('cursorOffScreenReason is not implemented');
 }
 
 export function moreMembersLabel(count: number): string {

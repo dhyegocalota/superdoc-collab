@@ -5,7 +5,8 @@ import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
 import { DocumentMode, superdocOptions } from '@/features/editor/superdoc-options';
-import { followViewportZoom } from '@/features/editor/superdoc-zoom';
+import { FITTED_PAGE_CLASS, followViewportZoom } from '@/features/editor/superdoc-zoom';
+import { cn } from '@/lib/utils';
 
 enum ConnectionState {
   Degraded = 'degraded',
@@ -61,5 +62,5 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
     };
   }, [documentId, sequence, blank, user, onReady, onFailed, onConnectionFailed]);
 
-  return <div ref={containerRef} data-testid="version-viewer" className="h-dvh min-w-0 overflow-auto" />;
+  return <div ref={containerRef} data-testid="version-viewer" className={cn('h-dvh min-w-0 overflow-auto', FITTED_PAGE_CLASS)} />;
 }

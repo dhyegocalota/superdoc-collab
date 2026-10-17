@@ -132,6 +132,16 @@ test('a connected socket refreshes its reservation', async () => {
   await server.stop();
 });
 
+test('a creator update on an uncommitted room never queries the log or the snapshots', async () => {
+  const { server, documentId, latest } = await supersededScenario();
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const latestSnapshot = vi.spyOn(server.services.updateLog, 'latestSnapshot');
+  await sendChange({ server, context: latest, ...updateWith({ committed: false }) });
+  expect(loggedRows({ server, documentId })).toHaveLength(1);
+  expect([readBatch.mock.calls.length, latestSnapshot.mock.calls.length]).toEqual([0, 0]);
+  await server.stop();
+});
+
 describe('collaboration fence on a committed room', () => {
   test("a member overwriting the room's bootstrap marker does not stop later Join writes", async () => {
     const { server, documentId, owner } = await documentWithOwner();

@@ -251,6 +251,54 @@ test('an AI author is named "<name>\'s AI" in the prompt and stored with its act
   await server.stop();
 });
 
+const HUMAN_NAMED_LIKE_AN_AI = { id: 'user-h', name: `${ANA.name}'s AI`, actor: ClientActor.Human };
+const ANAS_AGENT = { id: 'user-ana', name: ANA.name, actor: ClientActor.Agent };
+const TWIN_ONE = { id: 'user-1', name: ANA.name, actor: ClientActor.Human };
+const TWIN_TWO = { id: 'user-2', name: ANA.name, actor: ClientActor.Human };
+
+test.each([
+  { order: 'human first', keys: ['user-h', 'user-ana#agent'] },
+  { order: 'agent first', keys: ['user-ana#agent', 'user-h'] },
+])('a person named like an AI and the AI itself stay two authors with the right actors, $order', async ({ keys }) => {
+  const authors = { 'user-h': HUMAN_NAMED_LIKE_AN_AI, 'user-ana#agent': ANAS_AGENT };
+  const runs = keys.map((key, index) => ({
+    ...runBy({ author: ANA, inserted: ` edit ${index}`, lastServerTime: index + 2 }),
+    authorKeys: [key],
+  }));
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: [`${ANA.name}'s AI`, `${ANA.name}'s AI (2)`] });
+  const { server, documentId, service, jobRunner } = await serviceWith({
+    languageModel: readyModel(model),
+    snapshot: { ...snapshotOf({ runs }), authors },
+  });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await jobRunner.idle();
+  const stored = service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors;
+  expect(stored).toHaveLength(2);
+  expect(stored).toEqual(
+    expect.arrayContaining([
+      { name: HUMAN_NAMED_LIKE_AN_AI.name, actor: ClientActor.Human },
+      { name: ANA.name, actor: ClientActor.Agent },
+    ]),
+  );
+  await server.stop();
+});
+
+test('two people with the same name stay two authors', async () => {
+  const runs = [TWIN_ONE, TWIN_TWO].map((author, index) => ({
+    ...runBy({ author, inserted: ` edit ${index}`, lastServerTime: index + 2 }),
+  }));
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: [ANA.name, `${ANA.name} (2)`] });
+  const authors = { [TWIN_ONE.id]: TWIN_ONE, [TWIN_TWO.id]: TWIN_TWO };
+  const { server, documentId, service, jobRunner } = await serviceWith({
+    languageModel: readyModel(model),
+    snapshot: { ...snapshotOf({ runs }), authors },
+  });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await jobRunner.idle();
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toHaveLength(2);
+  await server.stop();
+});
+
 test('names the model invents are dropped', async () => {
   const model = modelAnswering({ sentence: ANSWER.sentence, authors: [BRUNO.name, MALLORY, BRUNO.name] });
   const { server, documentId, service, jobRunner } = await serviceWith({

@@ -19,6 +19,7 @@
     "security:audit": "pnpm audit --prod --audit-level=high",
     "test:unit": "pnpm -r test:unit && pnpm test:hooks",
     "test:hooks": "bash .agents/hooks/hooks.test.sh",
+    "doctor": "bash .agents/hooks/doctor.sh",
     "test:e2e": "playwright test",
     "scenario:stack": "tsx e2e/scenario-stack.ts",
     "seed": "pnpm --filter @superdoc-collab/server seed",

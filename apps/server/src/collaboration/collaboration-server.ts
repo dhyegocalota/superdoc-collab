@@ -163,7 +163,7 @@ export function createCollaborationServer({
         documentId,
         attempt: creatorAttempt,
         epoch: creatorEpoch,
-        isCommitted: isBootstrapCommitted({ document }),
+        isCommitted: isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId),
       });
       if (!isWriteAllowed) return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
       const isCommittingUpdate = creatorAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);

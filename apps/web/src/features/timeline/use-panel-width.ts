@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { minWidthQuery } from '@/lib/breakpoints';
 
 export const MIN_PANEL_WIDTH = 420;
 export const DEFAULT_PANEL_SHARE = 0.4;
@@ -34,19 +35,21 @@ export const MIN_PANEL_HEIGHT = 240;
 export const DEFAULT_PANEL_HEIGHT_SHARE = 0.42;
 export const COMPACT_PANEL_HEIGHT_SHARE = 0.58;
 export const MIN_EDITOR_HEIGHT = 240;
+export const SMALL_BREAKPOINT_PX = 640;
 
 function clampHeight({ height, areaHeight }: { height: number; areaHeight: number }): number {
   return Math.round(Math.max(MIN_PANEL_HEIGHT, Math.min(height, areaHeight - MIN_EDITOR_HEIGHT)));
 }
 
-export function usePanelHeight({ areaHeight }: { areaHeight: number }): {
+export function usePanelHeight({ areaHeight, isCompact }: { areaHeight: number; isCompact: boolean }): {
   height: number;
   maxHeight: number;
   resizeTo: (next: number) => void;
   resizeBy: (delta: number) => void;
 } {
   const [requestedHeight, setRequestedHeight] = useState<number | null>(null);
-  const wantedHeight = requestedHeight === null ? areaHeight * DEFAULT_PANEL_HEIGHT_SHARE : requestedHeight;
+  const defaultShare = isCompact ? COMPACT_PANEL_HEIGHT_SHARE : DEFAULT_PANEL_HEIGHT_SHARE;
+  const wantedHeight = requestedHeight === null ? areaHeight * defaultShare : requestedHeight;
   const height = clampHeight({ height: wantedHeight, areaHeight });
 
   return {
@@ -70,4 +73,20 @@ export function useAreaHeight(): { ref: (element: HTMLElement | null) => void; h
   }, [element]);
 
   return { ref: setElement, height };
+}
+
+export function useIsCompact(): boolean {
+  const [isCompact, setIsCompact] = useState(() => !window.matchMedia(minWidthQuery(SMALL_BREAKPOINT_PX)).matches);
+
+  useEffect(() => {
+    const query = window.matchMedia(minWidthQuery(SMALL_BREAKPOINT_PX));
+    function update(): void {
+      setIsCompact(!query.matches);
+    }
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  return isCompact;
 }

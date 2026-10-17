@@ -22,9 +22,10 @@ import { createApp, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
 import { InsightsWorker } from './insights/insights-worker';
+import { SelectionSummariesService } from './insights/selection-summaries-service';
 import { SummariesService } from './insights/summaries-service';
 import { TopicsService } from './insights/topics-service';
-import { readTimelinePipeline } from './history/timeline-service';
+import { buildSelectionSnapshot, readTimelinePipeline } from './history/timeline-service';
 import { InsightsRepository } from './insights/insights-repository';
 import { chooseLanguageModel, type LanguageModelChoice } from './insights/llm-client';
 import { ProjectionScheduler } from './history/projection-scheduler';
@@ -90,6 +91,7 @@ export async function startServer({ environment, webDistDirectory, languageModel
     worker: insightsWorker,
     topics: new TopicsService({ repository: insightsRepository, scheduler, languageModel, worker: insightsWorker }),
     summaries: new SummariesService({ repository: insightsRepository, languageModel, worker: insightsWorker, readPipeline: (documentId) => readTimelinePipeline({ services, documentId }) }),
+    selection: new SelectionSummariesService({ repository: insightsRepository, languageModel, worker: insightsWorker, readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }) }),
   };
   const services: ServerServices = { documents, storage, log, hocuspocus, readModel, scheduler, runtime, shareLinks, insightsRepository, throttle, timelinePipelines, insights, versions, versionRooms };
   const app = createApp({ auth, environment, services });

@@ -157,7 +157,7 @@ test('a second POST with the same filter is 200 from the cache and another filte
   const cached = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(cached.status).toBe(HttpStatus.Ok);
   expect(await cached.json()).toMatchObject({ state: SelectionSummaryState.Ready });
-  const tooSoon = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: 'term=budget' });
+  const tooSoon = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: 'term=designer' });
   expect(tooSoon.status).toBe(HttpStatus.TooManyRequests);
   expect(await tooSoon.json()).toEqual({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE });
   const retryAfter = Number(tooSoon.headers.get(RETRY_AFTER_HEADER));

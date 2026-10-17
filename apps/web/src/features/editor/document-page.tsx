@@ -1,9 +1,10 @@
 import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, VersionViewerState, type DocumentMember, type RoomMode } from '@superdoc-history/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
+import { isNewDocumentState } from '@/features/documents/new-document-state';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -77,6 +78,7 @@ function OpeningDocument() {
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
+  const location = useLocation();
   const { data: opened, error, isFetchedAfterMount } = useOpenedDocument(documentId);
   const freshOpened = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: freshOpened?.roomMode });
@@ -126,6 +128,7 @@ export function DocumentPage() {
                 user={setup.user}
                 file={setup.file}
                 isInert={timeTravel.state === VersionViewerState.Viewing}
+                focusOnReady={isNewDocumentState(location.state)}
               />
             )}
             {!setup && !fileError && (

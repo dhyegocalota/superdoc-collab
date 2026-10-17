@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 
 import { KeyboardKey } from '@/lib/keyboard';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
+import { followViewportZoom, initialZoomMode } from './superdoc-zoom';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
@@ -28,9 +29,10 @@ type SuperDocEditorProps = {
   user: SessionUser;
   file: Blob;
   isInert: boolean;
+  focusOnReady: boolean;
 };
 
-export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert }: SuperDocEditorProps) {
+export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, file, isInert, focusOnReady }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
@@ -56,14 +58,21 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
+      zoom: { mode: initialZoomMode() },
+      onReady: ({ superdoc: ready }) => {
+        if (!focusOnReady) return;
+        ready.focus();
+      },
       onException: () => setHasFailed(true),
     });
     superdocRef.current = superdoc;
+    const stopFollowingViewport = followViewportZoom(superdoc);
     return () => {
+      stopFollowingViewport();
       superdocRef.current = null;
       superdoc.destroy();
     };
-  }, [superdocRef, documentId, roomMode, role, user, file]);
+  }, [superdocRef, documentId, roomMode, role, user, file, focusOnReady]);
 
   function leaveEditingSurface(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
@@ -85,7 +94,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
         ref={containerRef}
         data-testid="document-editor"
         inert={isInert}
-        className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto"
+        className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted [&_.superdoc-page]:bg-background [&_.superdoc-page]:shadow-sm"
       />
       <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">
         {EDITOR_EXIT_LABEL}

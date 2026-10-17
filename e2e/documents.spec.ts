@@ -26,7 +26,13 @@ import {
   insertedBy,
 } from './editor';
 import { ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
-import { DELETE_CONFIRM_LABEL, DELETE_LABEL, DOWNLOAD_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
+import {
+  DELETE_CONFIRM_LABEL,
+  DELETE_LABEL,
+  DOWNLOAD_LABEL,
+  MORE_ACTIONS_LABEL,
+  TITLE_LABEL,
+} from '../apps/web/src/features/editor/editor-copy';
 import { expect, signedInContext, test } from './fixtures';
 
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
@@ -132,7 +138,8 @@ test('delete removes the document for everyone', async ({ browser }) => {
   const fileName = uniqueFileName('delete');
   const documentId = await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
   await shareAndAccept({ owner: ana.page, member: dani.page, documentId, role: ShareLinkRole.Edit });
-  await ana.page.getByRole('button', { name: DELETE_LABEL, exact: true }).click();
+  await ana.page.getByRole('button', { name: MORE_ACTIONS_LABEL }).click();
+  await ana.page.getByRole('menuitem', { name: DELETE_LABEL }).click();
   await ana.page.getByRole('button', { name: DELETE_CONFIRM_LABEL }).click();
   await expect(ana.page).toHaveURL(AppRoute.Documents);
   await expect(dani.page.getByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: UNAVAILABLE_TIMEOUT_MS });

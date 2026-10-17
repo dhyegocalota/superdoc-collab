@@ -1,5 +1,6 @@
 import { LINK_COPIED_MESSAGE, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Share2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -73,7 +74,10 @@ export function ShareDialog({ documentId }: { documentId: string }) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">{SHARE_LABEL}</Button>
+        <Button variant="outline" aria-label={SHARE_LABEL}>
+          <Share2 />
+          <span className="hidden sm:inline">{SHARE_LABEL}</span>
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

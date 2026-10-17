@@ -9,9 +9,19 @@ export const NARROW_VIEWPORT_QUERY = '(width < 64rem)';
 export const FULL_ZOOM_PERCENT = 100;
 
 export function initialZoomMode(): ZoomMode {
+  if (window.matchMedia(NARROW_VIEWPORT_QUERY).matches) return ZoomMode.FitWidth;
   return ZoomMode.Manual;
 }
 
-export function followViewportZoom(_superdoc: SuperDoc): () => void {
-  return () => undefined;
+export function followViewportZoom(superdoc: SuperDoc): () => void {
+  const narrowViewport = window.matchMedia(NARROW_VIEWPORT_QUERY);
+  function applyZoom(event: MediaQueryListEvent): void {
+    if (event.matches) {
+      superdoc.setZoomMode(ZoomMode.FitWidth);
+      return;
+    }
+    superdoc.setZoom(FULL_ZOOM_PERCENT);
+  }
+  narrowViewport.addEventListener('change', applyZoom);
+  return () => narrowViewport.removeEventListener('change', applyZoom);
 }

@@ -7,6 +7,8 @@ import { EXPIRED_REQUEST_MESSAGE } from '@/features/auth/auth-copy';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   APPROVE_LABEL,
+  appRedirectNotice,
+  CLIENT_LOAD_ERROR_MESSAGE,
   consentDescription,
   CONSENT_FAILED_MESSAGE,
   DENY_LABEL,
@@ -101,11 +103,23 @@ test.each([{ redirect_uri: 'not a url' }, { redirect_uri: '' }])(
 );
 
 test('a client without a name is shown by its redirect host and can still be answered', async () => {
-  publicClient.mockResolvedValue({ data: null, error: { status: 404 } } as never);
+  publicClient.mockResolvedValue({ data: { client_id: CLIENT_ID }, error: null } as never);
   const user = renderConsentPage();
   expect(await screen.findByText(consentDescription(REDIRECT_HOST))).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: APPROVE_LABEL }));
   expect(consent).toHaveBeenCalledWith({ accept: true });
+});
+
+test('a failed client lookup shows the load error and offers no Approve', async () => {
+  publicClient.mockResolvedValue({ data: null, error: { status: 500 } } as never);
+  renderConsentPage();
+  expect(await screen.findByText(CLIENT_LOAD_ERROR_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: APPROVE_LABEL })).not.toBeInTheDocument();
+});
+
+test('a private-use scheme redirect names the app by its scheme', async () => {
+  renderConsentPage({ client_id: CLIENT_ID, scope: AgentScope.HistoryRead, redirect_uri: 'com.example.app:/callback' });
+  expect(await screen.findByText(appRedirectNotice('com.example.app'))).toBeInTheDocument();
 });
 
 test('an expired signed query asks to start again from the AI client', async () => {

@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from '@/features/auth/auth-client';
-import { SCOPE_LABELS } from '@/features/oauth-consent/oauth-consent-copy';
+import { CLIENT_LOAD_ERROR_MESSAGE, SCOPE_LABELS } from '@/features/oauth-consent/oauth-consent-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
@@ -74,11 +74,20 @@ test('a failed revoke keeps the row and shows the error', async () => {
   expect(screen.getByText(CLIENT_NAME)).toBeInTheDocument();
 });
 
-test('a client whose name cannot be loaded keeps its row with Revoke', async () => {
-  publicClient.mockResolvedValue({ data: null, error: { status: 404 } } as never);
+test('a client without a name keeps its row with Revoke', async () => {
+  publicClient.mockResolvedValue({ data: { client_id: CONSENT.clientId }, error: null } as never);
   const user = userEvent.setup();
   renderWithProviders(<ConnectedAppsPage />);
   await user.click(await screen.findByRole('button', { name: revokeLabel(UNNAMED_CLIENT_LABEL) }));
+  expect(deleteConsent).toHaveBeenCalledWith({ id: CONSENT.id });
+});
+
+test('a failed name lookup shows a row error and keeps Revoke', async () => {
+  publicClient.mockResolvedValue({ data: null, error: { status: 500 } } as never);
+  const user = userEvent.setup();
+  renderWithProviders(<ConnectedAppsPage />);
+  expect(await screen.findByText(CLIENT_LOAD_ERROR_MESSAGE)).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: revokeLabel(UNNAMED_CLIENT_LABEL) }));
   expect(deleteConsent).toHaveBeenCalledWith({ id: CONSENT.id });
 });
 

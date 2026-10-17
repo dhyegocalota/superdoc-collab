@@ -30,6 +30,9 @@ docker-compose*.yml	product	docker
 AGENTS.md	tooling	-
 CLAUDE.md	tooling	-
 GEMINI.md	tooling	-
+docs/install.md	tooling	-
+docs/agent-install.md	tooling	-
+docs/scenarios/*	tooling	-
 docs/*.md	docs	-
 docs/media/*	docs	-
 *.md	docs	-

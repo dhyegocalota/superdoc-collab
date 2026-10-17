@@ -48,6 +48,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] A changed `apps/web/src/my file.ts` — expected: Prettier receives the path whole
 - [ ] `gitleaks` only under `node_modules/.bin` — expected: `verify: secrets failed`, the planted binary never runs
 - [ ] `guard-verify-records.sh` — expected: exit 2 for `.git/verify` in a command, in `git-common-dir` plus `verify`, in an Edit or patch path; exit 0 for `pnpm verify --plan`
+- [ ] A tracking ref forged to `HEAD` with a fetch refspec that does not update it — expected: the base comes from `FETCH_HEAD`, the plan is still `product` with full gates
+- [ ] A green run with `origin` unreachable — expected: `verify: no record: origin main could not be fetched`, exit 0, no record
+- [ ] `docs/install.md`, `docs/agent-install.md`, `docs/scenarios/x.md` — expected: `class: tooling`; `docs/adr/0001-x.md` — `class: docs`
+- [ ] The guard on `ls .git/verify`, `cat .git/verify/x`, `rg -n git-common-dir scripts/verify.sh`, a commit message naming `.git/verify` — expected: exit 0; on `rm -rf .git/verify`, `cp a .git/verify/b`, a relative patch path and a `..` path into `.git/verify` — exit 2
 - [ ] `all` — expected: `pnpm format:check`, `pnpm test:unit` and `pnpm test:e2e` called, records ignored for the base
 
 ## Harness

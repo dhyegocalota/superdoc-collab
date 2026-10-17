@@ -21,6 +21,13 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `.agents/hooks/guard-verify-records.sh` is wired in `.claude/settings.json` and `.codex/hooks.json`.
 - Red text printed before the amendment: `verify: 30 check(s) failed` and `hooks: 7 check(s) failed`.
 
+## Minor amendments (second review)
+
+- The base tip is `FETCH_HEAD` after a successful fetch, so a forged tracking ref changes nothing; a failed fetch uses `origin/main`, runs the gates and writes no record. Red before: 8 failing checks in `scripts/verify.test.sh` and 7 in `hooks.test.sh` (commit efafe0d).
+- The guard blocks only commands that write (`>`, `tee`, `cp`, `mv`, `rm`, `touch`, `mkdir`, `ln`, `install`, `dd`, `truncate`, `sed -i`) beside `.git/verify`; touched paths are normalised for `..` before matching.
+- `docs/install.md`, `docs/agent-install.md` and `docs/scenarios/*` are class `tooling`.
+- The Docker skip line names the image's own files.
+
 ## How to run
 
 ```bash

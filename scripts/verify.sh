@@ -13,7 +13,8 @@ readonly EVERYTHING_GATES=all
 readonly NO_GATES=-
 readonly SERVER_PACKAGE=@superdoc-collab/server
 readonly IMAGE_TAG=superdoc-collab:verify
-readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when docker/ or deploy/ change"
+readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when its own files change (docker/, deploy/, .dockerignore, railway.json, compose files)"
+readonly NO_RECORD_UNFETCHED="verify: no record: origin main could not be fetched"
 readonly USAGE="usage: verify.sh [auto|all] [--plan]"
 
 mode=auto
@@ -35,6 +36,7 @@ failure_reason=""
 clean_path=$(tr ':' '\n' <<< "$PATH" | grep -v '/node_modules/\.bin$' | paste -sd: -)
 gitleaks_binary=$(PATH=$clean_path command -v gitleaks)
 started_clean=false
+is_main_unfetched=false
 
 have() { command -v "$1" >/dev/null 2>&1; }
 has_word() { [[ " $1 " == *" $2 "* ]]; }
@@ -170,9 +172,10 @@ write_record() {
   mv "$temporary_file" "$records_directory/$head_sha"
 }
 
-git fetch -q "$REMOTE_NAME" "$MAIN_BRANCH" 2>/dev/null || echo "$FETCH_FAILED"
+main_tip=$MAIN_REF
+git fetch -q "$REMOTE_NAME" "$MAIN_BRANCH" 2>/dev/null && main_tip=$(git rev-parse FETCH_HEAD) || { echo "$FETCH_FAILED"; is_main_unfetched=true; }
 is_tree_clean && started_clean=true
-merge_base=$(git merge-base HEAD "$MAIN_REF") || exit 1
+merge_base=$(git merge-base HEAD "$main_tip") || exit 1
 base=$merge_base
 base_source="merge base"
 recorded_base=""
@@ -234,5 +237,6 @@ done
 
 is_untouched_run=false
 [[ $started_clean == true && "$(git rev-parse HEAD)" == "$head_sha" ]] && is_tree_clean && is_untouched_run=true
+[[ $is_untouched_run == true && $is_main_unfetched == true ]] && { echo "$NO_RECORD_UNFETCHED"; is_untouched_run=false; }
 [[ $is_untouched_run == true ]] && write_record
 echo "verify: $gate_count gates green at $short_sha ($class)"

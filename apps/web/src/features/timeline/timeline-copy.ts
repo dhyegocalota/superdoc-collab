@@ -1,5 +1,3 @@
-export { VERSION_FAILED_MESSAGE } from '@superdoc-history/types';
-
 export const TIMELINE_HEADING = 'Timeline';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
@@ -41,10 +39,6 @@ const UNIT_LABELS: Record<EditUnit, { one: string; many: string }> = {
   [EditUnit.Word]: { one: 'word', many: 'words' },
   [EditUnit.Character]: { one: 'character', many: 'characters' },
 };
-
-export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
-  return `${subject} failed with status ${status}.`;
-}
 
 export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
   return `${name}, ${countLabel({ count: volume, unit: EditUnit.Character })}`;

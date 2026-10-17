@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from './auth-client';
-import { authFailureMessage, RETRY_AFTER_HEADER } from './auth-failure';
+import { authFailureMessage, AUTH_RETRY_AFTER_HEADER } from './auth-failure';
 import { pageTitle } from '@/lib/use-document-title';
 import { NO_ACCOUNT_PROMPT, SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL, SIGN_UP_LABEL } from './auth-copy';
 import { SignInPage } from './sign-in-page';
@@ -85,7 +85,7 @@ test('the sign-in page names its tab and links to sign-up from copy', async () =
 
 test('a 429 says how many seconds to wait', async () => {
   signInEmail.mockImplementationOnce((async (_values: unknown, capture: { onResponse: (context: { response: Response }) => void }) => {
-    const headers = { [RETRY_AFTER_HEADER]: RETRY_SECONDS };
+    const headers = { [AUTH_RETRY_AFTER_HEADER]: RETRY_SECONDS };
     capture.onResponse({ response: new Response(null, { status: HttpStatus.TooManyRequests, headers }) });
     return { data: null, error: { status: HttpStatus.TooManyRequests } };
   }) as never);

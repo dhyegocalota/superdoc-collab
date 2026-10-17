@@ -23,10 +23,8 @@ import {
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-history/types';
-import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
+import { ApiRequestError, apiGet, apiSend, DocumentUnavailableError, requestFailedMessage } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { requestFailedMessage } from './timeline-copy';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
 

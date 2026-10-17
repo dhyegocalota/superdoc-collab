@@ -13,7 +13,7 @@ import {
   type ShareLinkRole,
   type ShareLinks,
 } from '@superdoc-history/types';
-import { ApiRequestError, apiGet, apiSend } from '@/lib/api';
+import { ApiRequestError, apiGet, apiSend, DocumentUnavailableError } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
@@ -57,8 +57,6 @@ export async function fetchDocumentFile({ documentId, roomMode }: { documentId: 
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);
   return response.blob();
 }
-
-export class DocumentUnavailableError extends ApiRequestError {}
 
 export async function fetchMembers(documentId: string): Promise<DocumentMembers> {
   const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Members }));

@@ -19,8 +19,7 @@ import {
   type VersionSummary,
 } from '@superdoc-history/types';
 import { afterEach, expect, test, vi } from 'vitest';
-import { DocumentUnavailableError } from '@/features/editor/editor-api';
-import { ApiRequestError } from '@/lib/api';
+import { ApiRequestError, DocumentUnavailableError, requestFailedMessage } from '@/lib/api';
 import {
   fetchSelectionSummary,
   fetchTimeline,
@@ -32,7 +31,6 @@ import {
   TopicsRefreshTooSoonError,
   VersionLoadKind,
 } from './timeline-api';
-import { requestFailedMessage } from './timeline-copy';
 
 const DOCUMENT_ID = 'doc-1';
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });

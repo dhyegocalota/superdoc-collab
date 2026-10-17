@@ -1,11 +1,10 @@
-import type { EditRunView } from '@superdoc-history/types';
+import { VERSION_FAILED_MESSAGE, type EditRunView } from '@superdoc-history/types';
 import { useCallback, useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
 import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
 import { VersionViewer } from './version-viewer';
-import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useRequiredParam } from '@/lib/use-required-param';

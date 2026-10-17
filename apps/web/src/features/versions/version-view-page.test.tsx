@@ -7,6 +7,7 @@ import {
   versionCollaborationPath,
   versionViewPagePath,
   RoomMode,
+  VERSION_FAILED_MESSAGE,
   type EditRunView,
 } from '@superdoc-history/types';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -16,7 +17,6 @@ import { DocumentMode } from '@/features/editor/superdoc-editor';
 import { ViewerMessageKind } from './viewer-messages';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useRunHighlights } from './use-run-highlights';
 import { VersionViewPage } from './version-view-page';
 

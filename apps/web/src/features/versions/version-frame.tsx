@@ -9,8 +9,8 @@ type Frame = { version: VersionSummary; isReady: boolean };
 
 function framesAfterShowing({ frames, version }: { frames: Frame[]; version: VersionSummary | null }): Frame[] {
   if (version === null) return [];
-  const existing = frames.findIndex((frame) => frame.version.sequence === version.sequence);
-  if (existing >= 0) return frames.slice(0, existing + 1);
+  const existingIndex = frames.findIndex((frame) => frame.version.sequence === version.sequence);
+  if (existingIndex >= 0) return frames.slice(0, existingIndex + 1);
   return [...frames, { version, isReady: false }];
 }
 

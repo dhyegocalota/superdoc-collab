@@ -1,7 +1,7 @@
 import { SECOND_MS, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
-import { DocumentUnavailableError } from '@/features/editor/editor-api';
+import { DocumentUnavailableError } from '@/lib/api';
 import {
   fetchSelectionSummary,
   requestSelectionSummary,

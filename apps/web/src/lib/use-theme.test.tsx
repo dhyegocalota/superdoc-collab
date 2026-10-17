@@ -113,3 +113,12 @@ test('a throwing storage leaves System and still applies a choice', () => {
   act(() => result.current.choosePreference(ThemePreference.Dark));
   expect(isDark()).toBe(true);
 });
+
+test('two hook instances stay in step when one chooses', () => {
+  const first = renderHook(useTheme);
+  const second = renderHook(useTheme);
+  act(() => first.result.current.choosePreference(ThemePreference.Dark));
+  expect(second.result.current.preference).toBe(ThemePreference.Dark);
+  changeSystemTheme(false);
+  expect(isDark()).toBe(true);
+});

@@ -129,6 +129,88 @@ Failure texts are what the red run printed at the red commit. A row marked "chan
 - `home-link.tsx` is untouched; G8 deletes it. `BrandLink` imports `HOME_LINK_LABEL` from `features/editor/editor-copy.ts`.
 - Nothing here was seen in a browser. Real Radix pointer, focus and animation behaviour, the contrast numbers and the first-paint theme are untested beyond jsdom.
 
+## G3 Edits panel (developer-3, branch `feat/final-visuals-g3`)
+
+### What changed
+
+- `features/timeline/use-panel-position.ts`: `PanelPosition`, `PANEL_POSITION_STORAGE_KEY` (`superdoc-collab.edits-panel`), `usePanelPosition()` returning `{ position, choosePosition, canChoose }`, `isPanelOpenByDefault()`. Below 1024 px the position is Bottom and `canChoose` is false. From 1024 px a stored value wins; with nothing stored it is Side from 1536 px and Bottom below, following `matchMedia` live. An unknown stored value is removed. Every storage call is in try/catch. A choice is written, then announced on a window event, so every hook instance in the tab follows (the panel and `document-page` each call the hook).
+- `panel-position-toggle.tsx`: `PanelPositionToggle({ position, onChoose })`, a single-select `ToggleGroup` with `PanelBottom` and `PanelRight`. Pressing the chosen item again does not call `onChoose`.
+- `timeline-panel.tsx`: new props `{ documentId, role, position, isOpen, onOpenChange, summarize, onTravel, onBackToLive }`. Exports `PanelState`, `PanelColumn` (`data-column` on the two bottom columns), and `SummarizeHandle` (`{ summarize, isRunning, outcome, error, retryAfterSeconds }`, mirrors G4's `SummarizeControl`). The header is the heading "Edits", the time zone label (hidden below `sm`), a spacer, the position toggle (open and `canChoose`) and the collapse button named `TIMELINE_TOGGLE_LABEL`. `data-position` and `data-state` are on the `aside`. Bottom open: `border-t`, height from `usePanelHeight`, row handle on the top edge, grid `minmax(0,1fr) 380px` from `md` (one scrolling column below), chart column (notices, filter, streamgraph) and list column (summary card, then bin edits or Top edits). Side keeps today's one column, 40 % width, min 420 px, and the rail when collapsed. Bottom collapsed renders `TimelineCollapsedBar` in place of header and body.
+- `timeline-collapsed-bar.tsx`: 44 px bar with "Edits", the three largest topic chips (`bandsByVolume`, exported from `top-edits.tsx`) and an expand button. A chip sets the topic filter (it does not toggle) and calls `onExpand`.
+- `use-panel-width.ts`: `usePanelHeight({ areaHeight })` (42 %, min 240, max area minus 240, follows the area until the first resize) and `useAreaHeight()`, a callback ref that measures the parent element of the `aside`.
+- `resize-handle.tsx`: `ResizeHandle({ position, size, minSize, maxSize, resizeTo, resizeBy })`. Bottom is a row separator (`aria-orientation="horizontal"`, ArrowUp grows, ArrowDown shrinks, pointer size is window height minus `clientY`). Side is the old column handle.
+- `contributor-avatars.tsx`: `AuthorAvatar({ author })` renders `UserAvatar` at 24 px with `authorColorSlot(authorColorKeyOf(author))`, the agent badge, title `importedAuthorLabel(name)` for a null id. `top-edits.tsx`: the topic sentence is a `topic-tint` callout (`bg-muted` for the Other band).
+- `selection-summary-card.tsx`: props `{ view, summarize, canRequest, authors }`. Grouping shows a spinner, `GROUPING_TOPICS_MESSAGE` and muted `NEXT_SUMMARIZING_LABEL`. Summarizing shows a check, `TOPICS_GROUPED_LABEL`, a spinner and `SUMMARIZING_EDITS_MESSAGE`. `outcome === UpToDate` adds `SUMMARY_UP_TO_DATE_MESSAGE`. An error shows its message, with `retryInLabel(retryAfterSeconds)` appended when a cooldown is set (no Retry button during a cooldown). `author-of.ts` gained `authorNamed`.
+- `timeline-notices.tsx` is unchanged: the panel passes `summarize.summarize` as `onRetry`.
+- Mirrors for G4, to drop at the merge: `libs/types/src/timeline.ts` gained `SummarizeOutcome` and an optional `step` on `SelectionSummaryView` (0f0f8ce). G4 makes `step` required.
+- Outside my list: `apps/web/src/lib/keyboard.ts` gained `ArrowUp` and `ArrowDown` (5a58dc1, its own commit).
+
+### How to run
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/use-panel-position.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/panel-position-toggle.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/use-panel-width.test.ts
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/resize-handle.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/contributor-avatars.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/top-edits.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-collapsed-bar.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/selection-summary-card.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-panel.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/timeline-notices.test.tsx
+```
+
+### Red today, green after
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `use-panel-position.test.tsx` six tests (658fe49) | `Error: usePanelPosition is not implemented` | hook implemented (3baf323) |
+| `…::the panel starts collapsed below 1024 px and open from it` (ae0d012) | `Error: isPanelOpenByDefault is not implemented` | 51f1715 |
+| `panel-position-toggle.test.tsx` two tests (cb9c8bb) | `Failed to resolve import "./panel-position-toggle" … Does the file exist?` | component added (c290301) |
+| `use-panel-width.test.ts` two tests (428abac) | `Error: usePanelHeight is not implemented` | hook implemented (b181062) |
+| `resize-handle.test.tsx::the row handle is a separator with aria-orientation horizontal…` (bbce3b6) | `Expected the element to have attribute: aria-orientation="horizontal"` `Received: aria-orientation="vertical"` | 114ec7b |
+| `…::the row handle measures the pointer from the bottom of the window` | `expected "vi.fn()" to be called once with arguments: [ 300 ]`, got `1024` | 114ec7b |
+| `…::the column handle stays vertical…` | pin, green when it landed | |
+| `contributor-avatars.test.tsx::AuthorAvatar renders UserAvatar in the author colour…` (8ae842a) | `received value must be an HTMLElement or an SVGElement. Received has value: null` | cd506b1. Changed: the green run first printed `Expected element to have text content: CC  Received: C` for the name `' Chris Crawford '`, a code bug (untrimmed name), fixed in the same commit |
+| `…::an agent shares its person colour` | `Expected the element to have class: bg-author-4  Received: absolute -right-1 -bottom-1 rounded-full bg-primary p-0.5 text-primary-foreground` | cd506b1 |
+| `top-edits.test.tsx::each topic callout has the tinted background token` | `Expected the element to have class: topic-tint  Received: text-sm` | cd506b1 |
+| `timeline-collapsed-bar.test.tsx` four tests (9424c90) | `Failed to resolve import "./timeline-collapsed-bar"` | component added (0b38d62) |
+| `selection-summary-card.test.tsx` seven of fifteen (067dd28): the avatar title and colour, grouping and summarizing steps, request in flight, up to date, error with Retry summary, cooldown | `Unable to find an element with the title: Bob · AI.`, `…with the text: Grouping edits into topics….`, `…with the text: The summary is up to date.`, `Unable to find an accessible element with the role "button" and name "Retry summary"` | 0a73007 |
+| `timeline-panel.test.tsx` eleven of thirty-nine (79c12a7): heading and no header buttons, collapse button, Side attributes, bottom columns, row handle, collapsed bar chip, position toggle stores, Side rail, Retry runs the job, failed summary retry, two same-name avatars | `expected document not to contain element, found <button`, `Unable to find role="alert"`, `Expected the element to have attribute: data-position="side"`, `expected null not to be null`, `aria-orientation="horizontal"`, `expected "vi.fn()" to be called once with arguments: [ true ]`, `Unable to find role="radiogroup" and name "Panel position"`, `expected "vi.fn()" to be called 1 times, but got 0 times`, `Unable to find an element with the title: Ana.` | c8ba6b6. Changed: the row-handle test stubs `getBoundingClientRect` to give the area a height, because an area of 0 px has no room to grow |
+| `timeline-panel.test.tsx` the other 28 tests (79c12a7) | pins of behaviour kept: they were ported to the new props and passed on arrival | |
+| `timeline-notices.test.tsx` two tests (342344a) | pin, green when it landed | |
+
+The panel tests that drove the removed header buttons (Summarize disabled reasons, Regroup, topic refresh, cooldown notices) were deleted with the code. The cooldown and error cases live on the card tests, and the never-disabled button belongs to G4.
+
+### Hypotheses to attack
+
+1. Hypothesis: from 1024 px the toggle stores the choice at once and a reload keeps it; below 1024 px the panel is always at the bottom even with Side stored, and the toggle is hidden. Break it by: choose Side at 1280, reload, shrink to 900, grow back; store `floating` in localStorage by hand; block storage in a private window.
+2. Hypothesis: with nothing stored the panel is beside the page from 1536 px and below it under the page, following the window live. Break it by: dragging the window across 1536 with nothing stored, then with a stored choice.
+3. Hypothesis: the bottom panel's height is 42 % of its parent, never below 240 or above the parent minus 240, and the row handle moves it with the pointer and with ↑ ↓. Break it by: heights of 400, 667 and 1440 px; dragging past both limits; resizing the window while dragged.
+4. Hypothesis: from 320 to 2560 px nothing scrolls horizontally: the grid is one column below 768 px, chips in the collapsed bar truncate, the filter box fills the width below 768 px and is 18 rem wide above. Break it by: 320, 375, 767, 768, 1023, 1024, 1535, 1536, 2560, in light and dark, with long topic names and long author names.
+5. Hypothesis: each bottom column scrolls on its own from 768 px; below it the whole body scrolls as one. Break it by: many topics with a long summary and a selected bin with many runs.
+6. Hypothesis: collapsed at the bottom the bar shows the three largest topics by edit volume, a chip click filters by that topic and opens the panel, and the expand button opens it. Break it by: a document with one topic, none, two topics of equal volume, a topic that is already filtered, a document that loads slowly.
+7. Hypothesis: collapsed at the side the rail is as before and shows no chips. Break it by: collapsing at 1600 px and reloading.
+8. Hypothesis: every avatar is the person's colour, the same in the header, Top edits, the bin edits and the summary card; an AI shares its person's colour and keeps the badge; a DOCX author with no account reads "Name, imported from the DOCX". Break it by: two people with the same name, an AI and its person in one summary, a person who has since left the document.
+9. Hypothesis: the tinted callout is readable in light and dark and follows the topic hue. Break it by: measuring contrast of the text on the tint in both themes, for the yellow and orange topics.
+10. Hypothesis: the card shows the grouping step and then the summarizing step, "up to date" with the sentence, an error with Retry summary, and a cooldown with the seconds and no Retry. Break it by: running Summarize with the model slow, with nothing stale, with the model failing, twice within the cooldown.
+11. Hypothesis: the card is announced once per change (`aria-live="polite"`) and a cached summary never scrolls the page. Break it by: a screen reader pass and by opening the panel with a cached summary.
+
+### Known gaps
+
+- The summary card resolves a summary author by name and actor among `timeline.authors` (`authorByName`, owner decision). A name not found is coloured and titled as an imported author, never a throw. Two people with the same name resolve to the first one. An `id` on `SummaryAuthor` would remove the lookup.
+- The chart hint ("Click the chart or use ← → …") is still drawn by `Streamgraph` under the chart, not on one line with the filter. `streamgraph.tsx` is not in my list.
+- The bottom panel is 42 % of the area at every width. The 58 % at 375 px of design section 1.1 is not implemented.
+- `useAreaHeight` measures the parent of the `aside`. G2 must give that parent a definite height that holds the editor and the panel (a flex column with `min-h-0`), or the panel stays at 240 px.
+- While the panel is collapsed at the bottom the timeline is still fetched and polled, because the chips need it. Side collapsed stops the polling as before.
+- `isPanelOpenByDefault()` is the answer for G2's initial `isOpen` (`useState(isPanelOpenByDefault)`); I do not own the state.
+- `top-edits.tsx` has its own `calloutStyleOf` that repeats the swatch's hue and saturation style. `topic-swatch.tsx` is not mine; one shared helper would remove it.
+- `SummarizeHandle` in `timeline-panel.tsx` and G4's `SummarizeControl` are the same shape; G2 passes G4's hook result as is.
+- Dead after this lane, for G4 Step 39: `useSummarizeEdits` in `use-selection-summary.ts`, `summarizeDisabledReason`, `errorForSelection` and `selectionVolume` in `selection-summary.ts`, `use-topics.ts`, `SummaryTooSoonError` in `timeline-api.ts` and the unused copy constants.
+- `apps/web/src/features/editor/document-page.tsx` does not typecheck until G2 passes `position`, `isOpen`, `onOpenChange` and `summarize`; it is the only typecheck error.
+- On the integration base, `libs/types/src/constants.ts` declared `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice, which stopped every run that imports `@superdoc-collab/types`; I removed the second pair in my working tree only and did not commit it.
+- Nothing here was seen in a browser. Real layout, scrolling, the 42 % height, pointer dragging, focus rings and contrast are untested beyond jsdom.
 ## G7 pages and Use with AI (developer-7, branch `feat/final-visuals-g7`)
 
 ### What changed

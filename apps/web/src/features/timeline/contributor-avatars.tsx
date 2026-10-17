@@ -1,20 +1,27 @@
 import { byVolumeDescending } from '@superdoc-collab/history/timeline';
-import { ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-collab/types';
-import { initialsOf } from '@/lib/initials';
-import { AgentMark } from './agent-mark';
+import { authorColorKeyOf, authorColorSlot, ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-collab/types';
+import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { authorOf } from './author-of';
+import { importedAuthorLabel } from './timeline-copy';
 
 const MAX_AVATARS = 3;
 
-export function AuthorAvatar({ name, actor }: { name: string; actor: ClientActor }) {
+function titleOf({ id, name }: { id: string | null; name: string }): string {
+  if (id === null) return importedAuthorLabel(name);
+  return name;
+}
+
+export function AuthorAvatar({ author }: { author: Pick<EventAuthor, 'id' | 'name' | 'actor'> }) {
+  const name = author.name.trim();
   return (
-    <li title={name} className="relative flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-      {initialsOf(name)}
-      {actor === ClientActor.Agent && (
-        <span className="absolute -right-1 -bottom-1 rounded-full bg-primary p-0.5 text-primary-foreground">
-          <AgentMark name={name} />
-        </span>
-      )}
+    <li title={titleOf({ id: author.id, name })}>
+      <UserAvatar
+        name={name}
+        colorSlot={authorColorSlot(authorColorKeyOf(author))}
+        size={UserAvatarSize.Small}
+        isAgent={author.actor === ClientActor.Agent}
+        isOnline={false}
+      />
     </li>
   );
 }
@@ -31,10 +38,9 @@ export function ContributorAvatars({
     .slice(0, MAX_AVATARS);
   return (
     <ul className="flex items-center gap-1">
-      {ranked.map((contributor) => {
-        const author = authorOf({ authors, authorKey: contributor.authorKey });
-        return <AuthorAvatar key={contributor.authorKey} name={author.name} actor={author.actor} />;
-      })}
+      {ranked.map((contributor) => (
+        <AuthorAvatar key={contributor.authorKey} author={authorOf({ authors, authorKey: contributor.authorKey })} />
+      ))}
     </ul>
   );
 }

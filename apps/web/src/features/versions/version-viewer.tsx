@@ -1,19 +1,11 @@
-import {
-  COLLABORATION_TOKEN_PLACEHOLDER,
-  DOCX_MIME_TYPE,
-  RoomMode,
-  versionCollaborationPath,
-  type SessionUser,
-} from '@superdoc-history/types';
+import { RoomMode, versionCollaborationPath, type SessionUser } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
-import { collaborationUrl, HOCUSPOCUS_PROVIDER } from '@/features/editor/collaboration-config';
-import { SUPERDOC_TELEMETRY } from '@/features/editor/superdoc-telemetry';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
-import { DocumentMode } from '@/features/editor/superdoc-options';
-import { followViewportZoom, initialZoomMode } from '@/features/editor/superdoc-zoom';
+import { DocumentMode, superdocOptions } from '@/features/editor/superdoc-options';
+import { followViewportZoom } from '@/features/editor/superdoc-zoom';
 
 enum ConnectionState {
   Degraded = 'degraded',
@@ -42,25 +34,16 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
     if (!container || !blank) return;
     let isReady = false;
     const superdoc = new SuperDoc({
-      selector: container,
-      documentMode: DocumentMode.Viewing,
-      telemetry: SUPERDOC_TELEMETRY,
-      documents: [
-        {
-          id: documentId,
-          type: DOCX_MIME_TYPE,
-          data: blank,
-          v2Collaboration: {
-            providerType: HOCUSPOCUS_PROVIDER,
-            documentId,
-            serverUrl: collaborationUrl(versionCollaborationPath({ documentId, sequence })),
-            roomMode: RoomMode.Join,
-            token: COLLABORATION_TOKEN_PLACEHOLDER,
-          },
-        },
-      ],
-      user: { id: user.id, name: user.name, email: user.email },
-      zoom: { mode: initialZoomMode(window.parent) },
+      ...superdocOptions({
+        container,
+        documentId,
+        file: blank,
+        documentMode: DocumentMode.Viewing,
+        collaborationPath: versionCollaborationPath({ documentId, sequence }),
+        roomMode: RoomMode.Join,
+        user,
+        viewport: window.parent,
+      }),
       onCollaborationReady: () => {
         isReady = true;
         onReady(superdoc);

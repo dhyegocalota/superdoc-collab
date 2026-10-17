@@ -1,5 +1,8 @@
-import type { RoomMode, SessionUser } from '@superdoc-history/types';
+import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, type RoomMode, type SessionUser } from '@superdoc-history/types';
 import type { Config } from 'superdoc';
+import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
+import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
+import { initialZoomMode } from './superdoc-zoom';
 
 export enum DocumentMode {
   Viewing = 'viewing',
@@ -25,5 +28,25 @@ export function superdocOptions({
   user: SessionUser;
   viewport: Window;
 }): Config {
-  return {} as Config;
+  return {
+    selector: container,
+    documentMode,
+    documents: [
+      {
+        id: documentId,
+        type: DOCX_MIME_TYPE,
+        data: file,
+        v2Collaboration: {
+          providerType: HOCUSPOCUS_PROVIDER,
+          documentId,
+          serverUrl: collaborationUrl(collaborationPath),
+          roomMode,
+          token: COLLABORATION_TOKEN_PLACEHOLDER,
+        },
+      },
+    ],
+    user: { id: user.id, name: user.name, email: user.email },
+    telemetry: SUPERDOC_TELEMETRY,
+    zoom: { mode: initialZoomMode(viewport) },
+  };
 }

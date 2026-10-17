@@ -1,20 +1,11 @@
-import {
-  ApiPath,
-  COLLABORATION_TOKEN_PLACEHOLDER,
-  DOCX_MIME_TYPE,
-  DocumentRole,
-  type RoomMode,
-  type SessionUser,
-} from '@superdoc-history/types';
+import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-history/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { KeyboardKey } from '@/lib/keyboard';
-import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
-import { DocumentMode } from './superdoc-options';
-import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
+import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
-import { followViewportZoom, initialZoomMode } from './superdoc-zoom';
+import { followViewportZoom } from './superdoc-zoom';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
@@ -37,25 +28,16 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
     const container = containerRef.current;
     if (!container) return;
     const superdoc = new SuperDoc({
-      selector: container,
-      documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
-      documents: [
-        {
-          id: documentId,
-          type: DOCX_MIME_TYPE,
-          data: file,
-          v2Collaboration: {
-            providerType: HOCUSPOCUS_PROVIDER,
-            documentId,
-            serverUrl: collaborationUrl(ApiPath.Collaboration),
-            roomMode,
-            token: COLLABORATION_TOKEN_PLACEHOLDER,
-          },
-        },
-      ],
-      user: { id: user.id, name: user.name, email: user.email },
-      telemetry: SUPERDOC_TELEMETRY,
-      zoom: { mode: initialZoomMode(window) },
+      ...superdocOptions({
+        container,
+        documentId,
+        file,
+        documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
+        collaborationPath: ApiPath.Collaboration,
+        roomMode,
+        user,
+        viewport: window,
+      }),
       onException: () => setHasFailed(true),
     });
     superdocRef.current = superdoc;

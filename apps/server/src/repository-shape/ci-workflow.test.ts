@@ -5,11 +5,14 @@ const WORKFLOW_FILE = '.github/workflows/verify.yml';
 const JOB_LINE_PATTERN = /^ {2}[\w-]+:$/;
 const JOB_INDENT_LENGTH = 2;
 const NEXT_JOB_PATTERN = /\n {2}\S[^\n]*:\n/;
-const EXPECTED_JOBS = ['checks', 'unit', 'docker'];
-const NODE_JOBS = ['checks', 'unit'];
+const EXPECTED_JOBS = ['checks', 'unit', 'docker', 'security'];
+const NODE_JOBS = ['checks', 'unit', 'security'];
 const CHECKS_JOB = 'checks';
 const CHECKS_STEPS = ['run: pnpm format:check', 'run: pnpm typecheck', 'run: pnpm test:hooks'];
 const DOCKER_JOB = 'docker';
+const SECURITY_JOB = 'security';
+const SECURITY_STEPS = ['run: pnpm security:audit', 'uses: gitleaks/gitleaks-action@v2'];
+const FULL_HISTORY_CHECKOUT = 'fetch-depth: 0';
 const UNIT_JOB = 'unit';
 const INSTALL_ACTION = 'uses: ./.github/actions/install';
 const NEEDS_KEY = 'needs:';
@@ -63,13 +66,19 @@ describe('CI workflow', () => {
     expect(workflow.indexOf(WORKFLOW_PERMISSIONS)).toBeLessThan(workflow.indexOf(JOBS_START));
   });
 
-  test('the workflow runs exactly the checks, unit and docker jobs', () => {
+  test('the workflow runs exactly the checks, unit, docker and security jobs', () => {
     expect(jobNames()).toEqual(EXPECTED_JOBS);
   });
 
   test('the checks job checks the formatting, typechecks and tests the hooks', () => {
     const checks = job(CHECKS_JOB);
     expect(CHECKS_STEPS.filter((step) => !checks.includes(step))).toEqual([]);
+  });
+
+  test('the security job audits production dependencies and scans the full history for secrets', () => {
+    const security = job(SECURITY_JOB);
+    expect(SECURITY_STEPS.filter((step) => !security.includes(step))).toEqual([]);
+    expect(security).toContain(FULL_HISTORY_CHECKOUT);
   });
 
   test('no job waits for another job', () => {

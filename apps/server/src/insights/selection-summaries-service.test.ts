@@ -13,6 +13,7 @@ import { SELECTION_SUMMARY_FAILED_LOG, SelectionRequestOutcome, SelectionSummari
 const ANA = { id: 'user-ana', name: 'Ana' };
 const BRUNO = { id: 'user-bruno', name: 'Bruno' };
 const MALLORY = 'Mallory';
+const SILVA = { id: 'user-silva', name: 'Silva, Ana' };
 const PROVIDER_FAILURE = 'provider exploded';
 const FOREIGN_KEY_FAILURE = 'FOREIGN KEY constraint failed';
 const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null };
@@ -169,6 +170,16 @@ test('names the model invents are dropped', async () => {
   service.request({ documentId, selection: BRUNO_SELECTION });
   await worker.idle();
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.authors).toEqual([BRUNO.name]);
+  await server.stop();
+});
+
+test('a name containing a comma survives the model splitting it', async () => {
+  const model = modelAnswering({ sentence: ANSWER.sentence, authors: ['Silva', 'Ana'] });
+  const snapshot = { ...snapshotOf({ runs: [runBy({ author: SILVA, inserted: ' a designer', lastServerTime: 2 })] }), authors: { [SILVA.id]: SILVA } };
+  const { server, documentId, service, worker } = await serviceWith({ languageModel: readyModel(model), snapshot });
+  service.request({ documentId, selection: TERM_SELECTION });
+  await worker.idle();
+  expect(service.read({ documentId, selection: TERM_SELECTION }).summary?.authors).toEqual([SILVA.name]);
   await server.stop();
 });
 

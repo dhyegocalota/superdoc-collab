@@ -85,6 +85,15 @@ test('bins carry the version of their end', async () => {
   await server.stop();
 });
 
+test('projection status carries the cursor the timeline was built from', async () => {
+  const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
+  await expect.poll(async () => (await readTimeline({ server, documentId, cookie: owner.cookie })).projection.isBehind).toBe(false);
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  expect(timeline.projection.cursor).not.toBeNull();
+  expect(timeline.projection.cursor).toBe(server.services.readModel.cursor(documentId));
+  await server.stop();
+});
+
 test('projection status reports a lag', async () => {
   const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
   server.services.scheduler.degraded = true;

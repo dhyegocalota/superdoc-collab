@@ -63,6 +63,17 @@ test('a new edit marks the summary as for an earlier state and Summarize refresh
   expect(await readSelectionCalls(ana.page.request)).toBe(before + 2);
 });
 
+test('an edit outside the filter also marks the summary as for an earlier state', async ({ browser }) => {
+  const { ana, bruno, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  await waitForBands({ page: bruno.page, names: [BUDGET, HIRING] });
+  await waitForSettledTimeline({ page: bruno.page, documentId });
+  await filterBy({ page: bruno.page, text: ANA_FILTER });
+  await summarizeButton(bruno.page).click();
+  await expect(summaryCard(bruno.page)).toContainText(`${ANA} edited`, { timeout: SUMMARY_TIMEOUT_MS });
+  await typeInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: WRITER_TEXT });
+  await expect(summaryCard(bruno.page)).toContainText(EARLIER_STATE_LABEL, { timeout: SUMMARY_TIMEOUT_MS });
+});
+
 test('a second filter inside the cooldown shows when to retry', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });

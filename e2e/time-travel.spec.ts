@@ -1,7 +1,8 @@
 import type { Browser, Page } from '@playwright/test';
 import { DEMO_USERS, DOCUMENT_UNAVAILABLE_MESSAGE, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath } from '../libs/types/src';
-import { BACK_TO_LIVE_LABEL, REFRESH_TOPICS_LABEL, RETRY_TOPICS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
-import { acceptShareLink, readEvents, shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
+import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
+import { BACK_TO_LIVE_LABEL, FILTER_LABEL, REFRESH_TOPICS_LABEL, RETRY_TOPICS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
+import { acceptShareLink, EDITOR_INPUT_SELECTOR, editorText, readEvents, shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import {
   countViewerHighlights,
@@ -33,6 +34,7 @@ const FAILING_PARAGRAPHS = ['FAIL-TOPICS: the plan costs 10.', 'Hiring: we add t
 const STABLE_WINDOW_MS = 4_500;
 const ANA = DEMO_USERS[0]!.name;
 const READ_ONLY_ATTEMPT = ' reader typed this';
+const DRAFT_TEXT = 'bud';
 
 async function ownerWithEdit(browser: Browser) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -181,4 +183,31 @@ test('a reader sees failed topics without a Retry button while the owner has one
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
   await expect(caio.page.getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: VERSION_TIMEOUT_MS });
   await expect(caio.page.getByRole('button', { name: RETRY_TOPICS_LABEL })).toHaveCount(0);
+});
+
+test('Escape clears a filled filter box first and leaves the version from inside the frame', async ({ browser }) => {
+  const { ana } = await ownerWithEdit(browser);
+  await pressInChart({ page: ana.page, name: BAND_NAME, keys: ['Home'] });
+  await expect(versionBanner(ana.page)).toHaveAttribute('data-sequence', /\d+/, { timeout: VERSION_TIMEOUT_MS });
+  const at = currentAt(ana.page);
+  const filter = ana.page.getByRole('textbox', { name: FILTER_LABEL });
+  await filter.fill(DRAFT_TEXT);
+  await ana.page.keyboard.press('Escape');
+  await expect(filter).toHaveValue('');
+  expect(currentAt(ana.page)).toBe(at);
+  await viewerFrame(ana.page).locator(TEXT_RUN_SELECTOR).first().click();
+  await ana.page.keyboard.press('Escape');
+  await expect.poll(() => currentAt(ana.page)).toBeNull();
+  await expect(ana.page.getByTitle(VERSION_FRAME_TITLE)).toHaveCount(0);
+});
+
+test('Escape in the live editor moves focus past it and Tab reaches the timeline', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
+  await editorText(ana.page).first().click();
+  await expect.poll(() => ana.page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR)).toBe(true);
+  await ana.page.keyboard.press('Escape');
+  await expect.poll(() => ana.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
+  await ana.page.keyboard.press('Tab');
+  await expect.poll(() => ana.page.evaluate(() => document.activeElement?.closest('aside') !== null)).toBe(true);
 });

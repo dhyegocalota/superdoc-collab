@@ -1,14 +1,13 @@
 import { DocumentResource, TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type TimelineFilter, type VersionSummary, type DocumentTimeline } from '@superdoc-history/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { KeyboardKey } from '@/lib/keyboard';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { binEditsQueryKey, fetchBinEdits, fetchVersion, pollWhileAvailable, versionQueryKey, VersionLoadKind } from './timeline-api';
 import { useTimeline } from './use-timeline';
 import { useTimelineSearch } from './use-timeline-search';
 
 export const SCRUB_DEBOUNCE_MS = 300;
-const ESCAPE_KEY = 'Escape';
-const TEXT_ENTRY_SELECTOR = 'input, textarea, select';
 const NO_RUNS: EditRunView[] = [];
 const NO_BIN_SEGMENT = 'no-bin';
 const NO_BIN_EDITS_KEY = [DocumentResource.Timeline, NO_BIN_SEGMENT];
@@ -27,9 +26,11 @@ export type TimeTravel = {
   reportFailure: (sequence: number) => void;
 };
 
-function isTextEntry(target: EventTarget | null): boolean {
+function isTypingInField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  return target.matches(TEXT_ENTRY_SELECTOR) || target.isContentEditable;
+  if (target.isContentEditable) return true;
+  const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+  return isTextField && target.value !== '';
 }
 
 function binContaining({ timeline, time }: { timeline: DocumentTimeline | undefined; time: number | null }): TimelineBin | undefined {
@@ -133,7 +134,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   useEffect(() => {
     if (state !== VersionViewerState.Viewing) return;
     function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key !== ESCAPE_KEY || event.defaultPrevented || isTextEntry(event.target)) return;
+      if (event.key !== KeyboardKey.Escape || event.defaultPrevented || isTypingInField(event.target)) return;
       backToLiveRef.current();
     }
     document.addEventListener('keydown', handleKeyDown);

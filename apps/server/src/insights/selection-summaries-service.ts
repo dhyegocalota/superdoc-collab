@@ -6,7 +6,7 @@ import { DocumentCooldown } from './document-cooldown';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import { JobOutcome, type InsightsWorker } from './insights-worker';
 import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
-import { fitSelection, namesOf, SELECTION_SYSTEM_PROMPT, selectionPrompt, type SelectionEdit } from './prompts';
+import { authorsNamed, fitSelection, namesOf, SELECTION_SYSTEM_PROMPT, selectionPrompt, type SelectionEdit } from './prompts';
 import { selectionKeyOf } from './selection-key';
 
 export const SELECTION_SUMMARY_FAILED_LOG = 'Summarizing a selection failed for document';
@@ -127,7 +127,7 @@ export class SelectionSummariesService {
       const edits = fitSelection(editsOf(resolved.snapshot));
       const names = namesOf(edits);
       const output = await generateStructured({ model, schema: selectionSummaryOutputSchema, system: SELECTION_SYSTEM_PROMPT, prompt: selectionPrompt(edits) });
-      const authors = [...new Set(output.authors.filter((name) => names.includes(name)))];
+      const authors = authorsNamed({ returned: output.authors, names });
       this.repository.saveSelectionSummary({ documentId, key, sentence: output.sentence, authors, computedAtSequence: cursor, topicsUpdatedAt });
     } catch (error) {
       console.error(`${SELECTION_SUMMARY_FAILED_LOG} ${documentId}: ${describeError(error)}`);

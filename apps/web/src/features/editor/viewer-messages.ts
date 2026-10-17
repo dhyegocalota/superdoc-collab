@@ -5,13 +5,15 @@ export enum ViewerMessageKind {
   Failed = 'failed',
   Highlight = 'highlight',
   Clear = 'clear',
+  Exit = 'exit',
 }
 
 export type ViewerMessage =
   | { kind: ViewerMessageKind.Ready }
   | { kind: ViewerMessageKind.Failed }
   | { kind: ViewerMessageKind.Highlight; runs: EditRunView[] }
-  | { kind: ViewerMessageKind.Clear };
+  | { kind: ViewerMessageKind.Clear }
+  | { kind: ViewerMessageKind.Exit };
 
 const VIEWER_MESSAGE_KINDS: string[] = Object.values(ViewerMessageKind);
 

@@ -15,7 +15,7 @@ import { describeError } from '../logging/describe-error';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
-import { fitSelection, mentionedAuthors, namesOf, SELECTION_SYSTEM_PROMPT, selectionPrompt, type SelectionEdit } from './prompts';
+import { fitSelection, mentionedAuthors, namesOf, promptEditsOf, SELECTION_SYSTEM_PROMPT, selectionPrompt } from './prompts';
 import { selectionKeyOf } from './selection-key';
 
 export const SELECTION_SUMMARY_FAILED_LOG = 'Summarizing a selection failed for document';
@@ -80,12 +80,6 @@ function summaryOf({ stored, stamp }: { stored: StoredSelectionSummary | null; s
     computedAtSequence: stored.computedAtSequence,
     isStale: !matchesStamp({ stored, stamp }),
   };
-}
-
-function editsOf(snapshot: SelectionSnapshot): SelectionEdit[] {
-  return [...snapshot.runs]
-    .sort((left, right) => right.lastServerTime - left.lastServerTime)
-    .map((run) => ({ authors: run.authorKeys.map((key) => snapshot.authors[key]!.name), inserted: run.inserted, deleted: run.deleted }));
 }
 
 export class SelectionSummariesService {
@@ -196,7 +190,7 @@ export class SelectionSummariesService {
     if (!this.jobRunner.consumeCall()) return;
     this.cooldown.start(documentId);
     try {
-      const edits = fitSelection(editsOf(resolved.snapshot));
+      const edits = fitSelection(promptEditsOf({ runs: resolved.snapshot.runs, authors: resolved.snapshot.authors }));
       const names = namesOf(edits);
       const output = await generateStructured({
         model,

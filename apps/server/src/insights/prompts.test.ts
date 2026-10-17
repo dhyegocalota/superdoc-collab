@@ -1,7 +1,6 @@
 import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
 import {
-  fitEdits,
   fitSelection,
   mentionedAuthors,
   namesOf,
@@ -11,6 +10,7 @@ import {
   summariesPrompt,
   type SelectionEdit,
 } from './prompts';
+import { fitEdits } from './prompt-budget';
 
 const RUN_COUNT = 100;
 const HOSTILE_AUTHOR_COUNT = 50;

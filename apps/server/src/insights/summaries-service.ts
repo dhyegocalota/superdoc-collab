@@ -6,7 +6,7 @@ import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
 import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
-import { SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
+import { authorLabel, promptEditsOf, SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
 
 export const SUMMARY_MIN_INTERVAL_MS = MINUTE_MS;
 export const SUMMARIES_BUSY_MESSAGE = 'Skipped summarizing topics, the language model is busy, for document';
@@ -99,13 +99,11 @@ export class SummariesService {
     return stale.map(({ topic, runs }) => ({
       id: topic.id,
       name: topic.name,
-      edits: [...runs]
-        .sort((left, right) => right.lastServerTime - left.lastServerTime)
-        .map((run) => ({
-          author: run.authorKeys.map((key) => pipeline.authors[key]!.name).join(', '),
-          inserted: run.inserted,
-          deleted: run.deleted,
-        })),
+      edits: promptEditsOf({ runs, authors: pipeline.authors }).map((edit) => ({
+        author: authorLabel(edit),
+        inserted: edit.inserted,
+        deleted: edit.deleted,
+      })),
     }));
   }
 

@@ -39,5 +39,6 @@ SuperDoc facts about the browser UI (editing surface, focus, zoom, iframes) live
 - Use `new Hocuspocus({...})`; the exported `Server` is a singleton. (poc/RESULTS.md, poc/server/collaboration-server.ts)
 - `onAwarenessUpdate` receives the document creator's context, not the sender's; tie awareness clientIds to sockets through `document.connections[*].clients`. (poc/RESULTS.md, ADR 0002)
 - `onAuthenticate` returns `{ userId }` as the connection context. (poc/server/collaboration-server.ts)
+- In `apps/server` it returns `{ userId, documentId, actor }`. The upgrade path in `request.url` picks the credential: `/collaboration` takes the session cookie only, `/collaboration/agent` takes a room token in the `token` field only and skips the `Origin` check. (apps/server/src/collaboration/collaboration-server.ts, ADR 0021)
 - Load the room with `Y.applyUpdate(document, state, 'update-log-replay')`; `onChange` skips that origin. (poc/server/collaboration-server.ts)
 - `onCollaborationConnectionChange` reported `synced -> degraded -> degraded` across a server restart and never a recovery state, though sync resumed; do not rely on it for recovery. (poc/RESULTS.md)

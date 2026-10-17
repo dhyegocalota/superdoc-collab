@@ -3,17 +3,17 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: [SDK room-join spike](../../spikes/sdk-room-join/RESULTS.md), [0005](0005-authentication-with-better-auth.md), [0010](0010-documents-ownership-and-share-links.md), [0017](0017-share-links-reissued-when-the-secret-changes.md), [0019](0019-deploy-on-railway.md), Better Auth `@better-auth/oauth-provider` and `@better-auth/mcp` docs
+- Inspired by: [SDK room-join spike](../../spikes/sdk-room-join/RESULTS.md), [0005](0005-authentication-with-better-auth.md), [0010](0010-documents-ownership-and-share-links.md), [0017](0017-share-links-reissued-when-the-secret-changes.md), [0019](0019-deploy-on-railway.md), Better Auth `@better-auth/mcp` and `@better-auth/oauth-provider` docs
 
 ## Context
 
 The [agentic-history-mcp](../features/agentic-history-mcp/spec.md) feature exposes the app as a remote MCP server that any client connects to as a real person: Claude Code, Cursor, ChatGPT. Today the app authenticates by Better Auth session cookie only, on HTTP and on the collaboration socket. ChatGPT and claude.ai accept only OAuth for remote MCP servers; the owner wants every client, and wants each connected client to be revocable by the person.
 
-Two further facts shape the decision. `delete-consent` in `@better-auth/oauth-provider` removes the consent row but leaves issued tokens valid. The collaboration upgrade handler destroys any socket whose `Origin` is not the app's, and the SDK host runs in Node without that header.
+Two further facts shape the decision. `delete-consent` in the Better Auth OAuth provider removes the consent row but leaves issued tokens valid. The collaboration upgrade handler destroys any socket whose `Origin` is not the app's, and the SDK host runs in Node without that header.
 
 ## Decision
 
-- The app is both the OAuth 2.1 authorization server and the protected resource, through `@better-auth/oauth-provider`, `@better-auth/mcp` and the `jwt` plugin. Discovery (RFC 8414 and RFC 9728) and dynamic client registration are on. The resource is `${APP_ORIGIN}/api/mcp`.
+- The app is both the OAuth 2.1 authorization server and the protected resource, through the `@better-auth/mcp` plugin, which is Better Auth's OAuth provider configured for MCP and cannot be combined with `oauthProvider`, and the `jwt` plugin. Discovery (RFC 8414 and RFC 9728) and dynamic client registration are on. The resource is `${APP_ORIGIN}/api/mcp`.
 - Scopes come from `AgentScope { HistoryRead, DocumentEdit, DocumentExport, DocumentShare }`, one per tool family. A tool checks the token scope first and the person's document role second, with the existing role rules.
 - The MCP route verifies the JWT against the local JWKS, requires the resource as audience, and requires the `(userId, clientId)` consent to still exist on every request. A missing consent answers 401 with the RFC 9728 `WWW-Authenticate` header. This check is what makes Revoke take effect on the next call.
 - OAuth tokens never reach the collaboration socket. To edit, the server signs a room token with the auth secret: `{ userId, documentId, actor: Agent, expiresAt }`, valid for minutes, and hands it to the SDK in `collaborationAuth`.
@@ -32,7 +32,8 @@ Two further facts shape the decision. `delete-consent` in `@better-auth/oauth-pr
 
 ## Consequences
 
-- New Better Auth tables (`oauthClient`, `oauthConsent`, `oauthAccessToken`, `oauthRefreshToken`, `jwks`) in the auth database.
+- Eight new Better Auth tables in the auth database (`jwks`, `oauth_client`, `oauth_resource`, `oauth_client_resource`, `oauth_refresh_token`, `oauth_access_token`, `oauth_consent`, `oauth_client_assertion`), additive only.
+- Native clients that register without `application_type` and use loopback `http` redirects need `clientRegistrationDefaultApplicationType: 'infer'`.
 - Rotating `AUTH_SECRET` invalidates room tokens and JWT signing keys together, as it already does for share links ([0017](0017-share-links-reissued-when-the-secret-changes.md)); clients re-run OAuth.
 - The issuer is the Railway URL ([0019](0019-deploy-on-railway.md)); local development uses `http://localhost`, which the MCP clients accept for loopback.
 - One replica keeps the in-memory SDK hosts and the consent check consistent; a second replica would need shared state.

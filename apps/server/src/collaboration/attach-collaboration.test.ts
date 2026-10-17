@@ -73,11 +73,21 @@ function exchange({
   });
 }
 
-function firstChunk({ server, path, cookie }: { server: TestServer; path: string; cookie: string }): Promise<string> {
+function firstChunk({
+  server,
+  path,
+  cookie,
+  origin = server.baseUrl,
+}: {
+  server: TestServer;
+  path: string;
+  cookie: string;
+  origin?: string;
+}): Promise<string> {
   const { port } = new URL(server.baseUrl);
   return new Promise((resolve) => {
     const socket = connect({ host: LOOPBACK_HOST, port: Number(port) });
-    socket.on('connect', () => socket.write(upgradeRequest({ path, origin: server.baseUrl, cookie })));
+    socket.on('connect', () => socket.write(upgradeRequest({ path, origin, cookie })));
     socket.once('data', (chunk) => {
       resolve(chunk.toString());
       socket.destroy();
@@ -117,9 +127,22 @@ describe('attachCollaboration', () => {
       await server.stop();
     },
   );
-  test('an upgrade without an origin is destroyed', async () => {
+  test('the browser path still refuses a missing origin', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: ApiPath.Collaboration, origin: '' });
+    expect(response).toBe('');
+    await server.stop();
+  });
+  test('an agent path upgrade without an origin reaches authentication', async () => {
+    const server = await startTestServer();
+    const response = await firstChunk({ server, path: ApiPath.AgentCollaboration, cookie: '', origin: '' });
+    expect(response.startsWith('HTTP/1.1 101')).toBe(true);
+    expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
+    await server.stop();
+  });
+  test('an upgrade on a path that only extends the agent path is destroyed', async () => {
+    const server = await startTestServer();
+    const response = await exchange({ server, path: `${ApiPath.AgentCollaboration}/other`, origin: '' });
     expect(response).toBe('');
     await server.stop();
   });

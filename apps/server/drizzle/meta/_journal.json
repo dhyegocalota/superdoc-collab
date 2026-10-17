@@ -29,6 +29,13 @@
       "when": 1792200190632,
       "tag": "0003_short_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792251402511,
+      "tag": "0004_lying_hawkeye",
+      "breakpoints": true
     }
   ]
 }

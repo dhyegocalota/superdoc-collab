@@ -1,12 +1,12 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
+import { ApiPath, HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-history/types';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { VersionEndpoint } from '../history/versions-service';
+import { upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
-const PARSE_BASE_URL = 'http://localhost';
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
   `${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`,
@@ -29,12 +29,14 @@ export function attachCollaboration({
   hocuspocus,
   versionRooms,
   path,
+  agentPath = ApiPath.AgentCollaboration,
   allowedOrigin,
 }: {
   httpServer: Server;
   hocuspocus: Hocuspocus;
   versionRooms: VersionRooms;
   path: string;
+  agentPath?: string;
   allowedOrigin: string;
 }): WebSocketServer {
   const sockets = new WebSocketServer({ noServer: true });
@@ -81,8 +83,9 @@ export function attachCollaboration({
   }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
+    const pathname = upgradePathname(request.url);
+    if (pathname === agentPath) return upgrade({ request, socket, head, endpoint: null });
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
-    const { pathname } = new URL(request.url, PARSE_BASE_URL);
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });
     if (pathname !== path) return socket.destroy();

@@ -37,7 +37,7 @@ A person who works on a document in SuperDoc History cannot ask their own AI cli
 ### Data flow
 
 ```
-MCP client ──OAuth 2.1──▶ /api/auth (oauth-provider, mcp, jwt plugins) ──▶ consent page (SPA)
+MCP client ──OAuth 2.1──▶ /api/auth (mcp and jwt plugins)         ──▶ consent page (SPA)
 MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ tool registry
                                                   │
               ┌───────────────────────────────────┼─────────────────────────────┐
@@ -76,7 +76,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 
 **Server (`apps/server/src`)**
 
-- `auth/auth.ts`: `jwt`, `oauthProvider` and `mcp` plugins; scopes from `AgentScope`; consent page `AppRoute.OAuthConsent`; login page `AppRoute.SignIn`.
+- `auth/auth.ts`: `jwt` and `mcp` plugins (`mcp` is the OAuth provider); scopes from `AgentScope`; consent page `AppRoute.OAuthConsent`; login page `AppRoute.SignIn`.
 - `collaboration/collaboration-server.ts`: `CollaborationContext` gains `actor`. `onAuthenticate` dispatches on the upgrade path: cookie for the browser path, room token for the agent path.
 - `collaboration/attach-collaboration.ts`: the agent path skips the `Origin` check; the browser path keeps it.
 - `agent/` (new):

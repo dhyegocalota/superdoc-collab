@@ -58,5 +58,9 @@ test('the options put the creator ticket on the socket url', () => {
     user: { ...SESSION_USER },
     viewport: window,
   });
-  expect(options.documents?.[0]?.v2Collaboration?.serverUrl).toBe(`ws://localhost:3000${COLLABORATION_PATH}?attempt=1&epoch=epoch-1`);
+  expect(options.documents).toEqual([
+    expect.objectContaining({
+      v2Collaboration: expect.objectContaining({ serverUrl: `ws://localhost:3000${COLLABORATION_PATH}?attempt=1&epoch=epoch-1` }),
+    }),
+  ]);
 });

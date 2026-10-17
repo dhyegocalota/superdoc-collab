@@ -83,3 +83,43 @@ Red commits after the review (23ed472, f5baab8, bb5fa73) change a test against a
 - The runtime test uses a fake room map, not a real socket. The real 4403 close is covered by G3's and G5's tests.
 - `services.reservations` shares the server's `now`, so a fake clock passed to `startServer` also moves reservation expiry.
 - The projection fallback to the log scan keeps the old trap for documents committed before this feature that have no snapshot before their first projection; only documents with a commit snapshot are immune.
+
+## G4: the open route, the agent session and the web ticket
+
+### What changed
+
+- `libs/types/src/routes.ts`: `CREATOR_ATTEMPT_QUERY_KEY` and `CREATOR_EPOCH_QUERY_KEY`, the G3 mirror (8405168). The lead keeps one copy.
+- `apps/server/src/documents/documents-routes.ts`: the open route answers `Join` with `creatorAttempt: null, creatorEpoch: null` on a committed room. On an uncommitted room a reader gets 409 `NOT_READY`, an editor calls `runtime.reserveCreator` and gets 200 `Create` with the ticket, or 409 when another user holds a live reservation. Every 409 is logged with the document id (`console.warn`).
+- `apps/server/src/agent/agent-sessions.ts`: an uncommitted room throws `AgentToolError` with `DOCUMENT_NOT_READY_ERROR` before `connected()`. The `seed` branch is gone.
+- `apps/web/src/features/editor/collaboration-config.ts`: `collaborationUrl({ path, creatorTicket })` appends `?attempt=&epoch=`; `creatorTicketOf` builds the ticket from the open answer. `superdoc-options.ts` takes an optional `creatorTicket`. `use-editor-setup.ts` captures `creatorTicket` in `EditorSetup`. `use-opened-document.ts` gets `staleTime: Infinity`.
+
+### How to run
+
+```bash
+pnpm --filter @superdoc-collab/server exec vitest run src/documents/documents-routes.test.ts src/agent/agent-sessions-room.test.ts
+pnpm --filter @superdoc-collab/web exec vitest run src/features/editor
+```
+
+### Red today, green after
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `documents-routes.test.ts` (four new tests, Steps 15 to 17) | `expected [ 'create', undefined, undefined ] to deeply equal [ 'create', 1, ... ]`; `expected undefined to be 1`; `expected [ 200, ... ] to deeply equal [ 409, { error: 'NOT_READY' } ]`; the committed-room test failed on undefined creator fields (9327ca3) | 7ddab71 |
+| `agent-sessions-room.test.ts::an agent opening an uncommitted room ...` (Step 18) | `expected { status: 'ok', ... } to be an instance of AgentToolError` (the call resolved) (f2ba41d) | 7faf94b |
+| `collaboration-config.test.ts`, `use-editor-setup.test.ts`, `use-opened-document.test.tsx`, `superdoc-options.test.ts::the options put the creator ticket ...` (Step 18a) | `TypeError: creatorTicketOf is not a function`, `expected 'ws://localhost:3000[object Object]' ...`, `expected undefined to deeply equal { attempt: 1, ... }`, stale query (eaaa5b4) | the web green commit after it |
+
+The four open-route tests share one red and one green commit: the editor 409 is only reachable once the ticket exists, so splitting them would have made Step 16 a pin. The web red commit has no stubs, so `typecheck` is red at that commit and green at the lane tip.
+
+### Hypotheses to attack
+
+1. Hypothesis: two editors opening an uncommitted room at once never both get 200. Break it by: firing both requests in the same tick.
+2. Hypothesis: the holder's second open returns the same attempt and epoch and does not extend the expiry. Break it by: an open at 30 s, then another editor at 61 s.
+3. Hypothesis: a focus refetch never re-reserves. Break it by: blurring and focusing the tab on a Create room and reading the attempt in the socket URL.
+4. Hypothesis: an agent on an uncommitted room is refused before any socket opens and writes nothing. Break it by: an MCP call on a fresh upload.
+
+### Known gaps
+
+- `apps/web/src/features/editor/superdoc-editor.tsx` still calls `superdocOptions` without the ticket, because the parameter is optional and that file is not G4's. Until the lead passes `setup.creatorTicket` through it, the socket URL carries no ticket in the browser.
+- `LocatedRoom.filePath` in `agent-sessions.ts` and the `locateRoom` wiring in `server.ts` are now unused.
+- `agent-sessions.test.ts::a document nobody has opened is created from its stored file` asserts the seed that was removed, so it fails. It is not in G4's ownership.
+- `agent-sessions-room.test.ts` (its `beforeAll` and `roomCreatedByOwner`) and `mcp-over-oauth.test.ts` build rooms through `seededDocument`, which relied on the agent seeding the room. They now fail with `NOT_READY` until they open a committed room, which needs a real creator because the agent toolkit reads the DOCX content. That belongs with G3's Step 10.

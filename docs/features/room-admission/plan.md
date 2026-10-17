@@ -100,13 +100,14 @@ Red first. Each step names its test file, test name and the failure the red run 
 
 ### Group G4
 
-- [ ] **Step 15 (G4):** `documents-routes.test.ts`, `the first editor to open a fresh room is reserved as creator with attempt 1`, and `a second open by the holder keeps attempt 1`. Red: `expected undefined to be 1`. Implement `runtime.reserveCreator` in the editor branch of the open route, and return `creatorAttempt` and `creatorEpoch`. Add `staleTime: Infinity` to the open query after final-visuals merges.
-- [ ] **Step 16 (G4):** `documents-routes.test.ts`, `a second editor opening a live reservation gets 409 NOT_READY`. Red: `expected 200 to equal 409`. Implement the 409 for editors, with readers unchanged, and log it with the document id.
-- [ ] **Step 17 (G4):** `documents-routes.test.ts`, `a committed room answers Join with creatorAttempt null for a reader and an editor`. Red: `expected undefined to be null`.
-- [ ] **Step 18 (G4):** `agent-sessions-room.test.ts`, `an agent opening an uncommitted room is answered NOT_READY and seeds nothing`. Red: `promise resolved instead of rejecting`. Implement the check before `connected()`, throwing `AgentToolError` with `DOCUMENT_NOT_READY_ERROR`, and remove the now-dead `seed` branch in the same commit.
+- [x] **Step 15 (G4, 9327ca3 red, 7ddab71 green; the web `staleTime` in eaaa5b4 red, 10d1b22 green):** `documents-routes.test.ts`, `the first editor to open a fresh room is reserved as creator with attempt 1`, and `a second open by the holder keeps attempt 1`. Red: `expected undefined to be 1`. Implement `runtime.reserveCreator` in the editor branch of the open route, and return `creatorAttempt` and `creatorEpoch`. Add `staleTime: Infinity` to the open query after final-visuals merges.
+- [x] **Step 16 (G4, 9327ca3 red, 7ddab71 green):** `documents-routes.test.ts`, `a second editor opening a live reservation gets 409 NOT_READY`. Red: `expected 200 to equal 409`. Implement the 409 for editors, with readers unchanged, and log it with the document id.
+- [x] **Step 17 (G4, 9327ca3 red, 7ddab71 green):** `documents-routes.test.ts`, `a committed room answers Join with creatorAttempt null for a reader and an editor`. Red: `expected undefined to be null`.
+- [x] **Step 18 (G4, f2ba41d red, 7faf94b green):** `agent-sessions-room.test.ts`, `an agent opening an uncommitted room is answered NOT_READY and seeds nothing`. Red: `promise resolved instead of rejecting`. Implement the check before `connected()`, throwing `AgentToolError` with `DOCUMENT_NOT_READY_ERROR`, and remove the now-dead `seed` branch in the same commit.
 
 ### Group G5
 
+- [x] **Step 18a (G4, eaaa5b4 red, 10d1b22 green):** web: the socket URL carries `attempt` and `epoch` from the open answer through `useEditorSetup` and `superdocOptions`; `superdoc-editor.tsx` still has to pass `setup.creatorTicket`.
 - [ ] **Step 19 (G5):** `e2e/room-admission.spec.ts`, `two editors open a fresh document at once and only the first is answered Create`. Count Create answers per browser context. Red until G2 to G4 merge: `expected 1 Create, received 2`.
 - [ ] **Step 20 (G5):** same spec, `the second editor's open is answered 200 Join once the creator commits`, asserted on the network response and not on text, polling through the test's request context. Red: the poll times out with no 200.
 - [ ] **Step 21 (G5):** same spec, `a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor`. Red only with the large fixture and the page closed on the first sent frame: `expected 1 paragraph, received 2`. Otherwise it is a `pin`.

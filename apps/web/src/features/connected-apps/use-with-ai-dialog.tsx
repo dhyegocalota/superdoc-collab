@@ -1,6 +1,6 @@
 import { AppRoute } from '@superdoc-collab/types';
 import { Bot } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +35,9 @@ function promptsFor({ title, canEdit }: { title: string | null; canEdit: boolean
   return documentPrompts({ title, canEdit });
 }
 
-export function UseWithAiDialog({ title, canEdit, trigger }: { title: string | null; canEdit: boolean; trigger?: ReactNode }) {
+export type UseWithAiSlot = { trigger?: ReactNode; returnFocusRef?: RefObject<HTMLElement | null> };
+
+export function UseWithAiDialog({ title, canEdit, trigger }: UseWithAiSlot & { title: string | null; canEdit: boolean }) {
   return (
     <Dialog>
       <DialogTrigger asChild>

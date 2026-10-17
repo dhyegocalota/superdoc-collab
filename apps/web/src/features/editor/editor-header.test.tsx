@@ -16,7 +16,8 @@ import type { SuperDoc } from 'superdoc';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
-import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
+import { USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/connected-apps-copy';
+import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -48,8 +49,8 @@ const RENAMED_TITLE = 'Renamed';
 const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true };
 const onDownloadDocx = vi.fn();
 
-function renderUseWithAi(trigger?: ReactNode): ReactNode {
-  return trigger ?? <button type="button">{USE_WITH_AI_LABEL}</button>;
+function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
+  return <UseWithAiDialog title={DOCUMENT_TITLE} canEdit {...slot} />;
 }
 
 type HeaderOptions = {
@@ -124,6 +125,16 @@ test('at 1280 the right slot order is Members, Find, Use with AI, Share, Downloa
     .sort(([, first], [, second]) => (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
     .map(([label]) => label);
   expect(labelsInDocumentOrder).toEqual(['Members', 'Find', 'Use with AI', 'Share', 'Download', 'More actions', 'Account']);
+});
+
+test('closing Use with AI opened from More actions returns focus to the More actions button', async () => {
+  renderHeader();
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL }));
+  expect(await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE })).toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: MORE_ACTIONS_LABEL })).toHaveFocus();
 });
 
 test('EditorHeader passes superdoc and isPastVersion to Members', () => {

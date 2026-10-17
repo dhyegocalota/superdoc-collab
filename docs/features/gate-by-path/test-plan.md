@@ -53,6 +53,6 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 ## Harness
 
 - [ ] `pnpm test:hooks` green with the new doctor line
-- [ ] `pnpm verify --plan` on this branch — expected: `class: product` (the map and `package.json` changed), every gate
+- [ ] `pnpm verify --plan` on this branch — expected: `class: product` (the map and `package.json` changed), every gate but `shape` and `hooks`, which `pnpm test:unit` runs
 - [ ] `pnpm verify all` on the branch head merged with `main` — expected: every gate green; summary posted on the PR
 - [ ] The skills and `HARNESS.md` never list the gate steps (reviewer reads them)

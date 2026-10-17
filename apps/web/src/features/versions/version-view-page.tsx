@@ -7,8 +7,9 @@ import { readViewerMessage, ViewerMessageKind } from './viewer-messages';
 import { VersionViewer } from './version-viewer';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useOpenedDocument } from '@/features/editor/use-opened-document';
-import { KeyboardKey } from '@/lib/keyboard';
+import { useEscapeKey } from '@/lib/use-escape-key';
 import { useRequiredParam } from '@/lib/use-required-param';
+import { useWindowMessage } from '@/lib/use-window-message';
 import { useRunHighlights } from './use-run-highlights';
 
 const NO_RUNS: EditRunView[] = [];
@@ -38,24 +39,13 @@ export function VersionViewPage() {
     postToParent(ViewerMessageKind.Failed);
   }, []);
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent): void {
-      const message = readViewerMessage({ event, expectedSource: window.parent });
-      if (message?.kind === ViewerMessageKind.Highlight) setRuns(message.runs);
-      if (message?.kind === ViewerMessageKind.Clear) setRuns(NO_RUNS);
-    }
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key !== KeyboardKey.Escape || event.defaultPrevented) return;
-      postToParent(ViewerMessageKind.Exit);
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  useWindowMessage((event) => {
+    const message = readViewerMessage({ event, expectedSource: window.parent });
+    if (message === null) return;
+    if (message.kind === ViewerMessageKind.Highlight) setRuns(message.runs);
+    if (message.kind === ViewerMessageKind.Clear) setRuns(NO_RUNS);
+  });
+  useEscapeKey({ isEnabled: true, onEscape: () => postToParent(ViewerMessageKind.Exit) });
 
   const hasOpenFailed = openError !== null;
 

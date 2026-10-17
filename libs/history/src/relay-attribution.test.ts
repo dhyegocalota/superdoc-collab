@@ -76,6 +76,15 @@ test('a declaration never overrides another declaration', () => {
   const { log, close } = openLog();
   log.declareClientIdentity({ documentName: DOCUMENT, yjsClientId: 42, userId: ANA, actor: ClientActor.Human });
   log.declareClientIdentity({ documentName: DOCUMENT, yjsClientId: 42, userId: BRUNO, actor: ClientActor.Human });
-  expect(log.clientIdentities(DOCUMENT).get(42)).toBe(ANA);
+  expect(log.clientIdentities(DOCUMENT).get(42)).toEqual({ userId: ANA, actor: ClientActor.Human });
+  close();
+});
+
+test('a human declaration never claims an agent clientId', () => {
+  const { log, close } = openLog();
+  log.observeClientIdentity({ documentName: DOCUMENT, yjsClientId: 42, userId: ANA, actor: ClientActor.Agent });
+  log.declareClientIdentity({ documentName: DOCUMENT, yjsClientId: 42, userId: ANA, actor: ClientActor.Human });
+  expect(log.identitySources(DOCUMENT).get(42)).toBe(IdentitySource.Observed);
+  expect(log.clientIdentities(DOCUMENT).get(42)).toEqual({ userId: ANA, actor: ClientActor.Agent });
   close();
 });

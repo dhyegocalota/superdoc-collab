@@ -43,6 +43,7 @@ export const DETACHED_VIEWER_TEXT = '<viewer frame detached>';
 const DETACHED_FRAME_MESSAGE = 'Frame was detached';
 const VOLUME_PLACEHOLDER = 987654321;
 const VOLUME_PATTERN = '\\d+';
+const SINGLE_CHARACTER_VOLUME = 1;
 const STABLE_SAMPLE_MS = 500;
 const REGEX_ESCAPE_PATTERN = /[.*+?^${}()|[\]\\]/g;
 const VISIBLE_FRAME_SELECTOR = `iframe[title="${VERSION_FRAME_TITLE}"]:not([aria-hidden="true"])`;
@@ -52,8 +53,9 @@ function escapeRegex(text: string): string {
 }
 
 export function bandNamed({ page, name }: { page: Page; name: string }): Locator {
-  const pattern = escapeRegex(bandAriaLabel({ name, volume: VOLUME_PLACEHOLDER })).replace(String(VOLUME_PLACEHOLDER), VOLUME_PATTERN);
-  return page.getByLabel(new RegExp(`^${pattern}$`));
+  const many = escapeRegex(bandAriaLabel({ name, volume: VOLUME_PLACEHOLDER })).replace(String(VOLUME_PLACEHOLDER), VOLUME_PATTERN);
+  const one = escapeRegex(bandAriaLabel({ name, volume: SINGLE_CHARACTER_VOLUME }));
+  return page.getByLabel(new RegExp(`^(${many}|${one})$`));
 }
 
 export async function bandVolume({ page, name }: { page: Page; name: string }): Promise<number> {

@@ -2,6 +2,7 @@ import type { DocumentTimeline } from '@superdoc-history/types';
 import { formatBinRange } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { authorOf } from './author-of';
+import { editDeltaLabel, EditUnit } from './timeline-copy';
 
 export const TOOLTIP_WIDTH = 256;
 export const TOOLTIP_POINTER_OFFSET = 12;
@@ -75,7 +76,7 @@ export function TimelineTooltip({
       <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
-          {band.name} +{cell!.inserted} −{cell!.deleted} ·{' '}
+          {band.name} {editDeltaLabel({ inserted: cell!.inserted, deleted: cell!.deleted, unit: EditUnit.Character })} ·{' '}
           {cell!.authorKeys.map((authorKey) => authorOf({ authors: timeline.authors, authorKey }).name).join(', ')}
         </p>
       ))}

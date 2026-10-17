@@ -24,12 +24,26 @@ export const NO_EDITS_TO_SUMMARIZE_MESSAGE = 'No edits to summarize';
 export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date';
 export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable';
 
+const INSERTED_SIGN = '+';
+const DELETED_SIGN = '−';
+const SINGLE_COUNT = 1;
+
+export enum EditUnit {
+  Word = 'word',
+  Character = 'character',
+}
+
+const UNIT_LABELS: Record<EditUnit, { one: string; many: string }> = {
+  [EditUnit.Word]: { one: 'word', many: 'words' },
+  [EditUnit.Character]: { one: 'character', many: 'characters' },
+};
+
 export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
   return `${subject} failed with status ${status}`;
 }
 
 export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
-  return `${name}, ${volume} characters`;
+  return `${name}, ${countLabel({ count: volume, unit: EditUnit.Character })}`;
 }
 
 export function streamgraphDescription({ bandCount, from, to }: { bandCount: number; from: string; to: string }): string {
@@ -40,17 +54,18 @@ export function removeFilterLabel(value: string): string {
   return `${REMOVE_FILTER_LABEL} ${value}`;
 }
 
-export function wordsDeltaLabel({ inserted, deleted }: { inserted: number; deleted: number }): string {
-  return `+${inserted} words −${deleted} words`;
+export function countLabel({ count, unit }: { count: number; unit: EditUnit }): string {
+  if (count === SINGLE_COUNT) return `${count} ${UNIT_LABELS[unit].one}`;
+  return `${count} ${UNIT_LABELS[unit].many}`;
 }
 
-export enum EditUnit {
-  Word = 'word',
-  Character = 'character',
-}
-
-export function editDeltaLabel({ inserted, deleted }: { inserted: number; deleted: number; unit: EditUnit }): string {
-  return wordsDeltaLabel({ inserted, deleted });
+export function editDeltaLabel({ inserted, deleted, unit }: { inserted: number; deleted: number; unit: EditUnit }): string {
+  const sides = [
+    { sign: INSERTED_SIGN, count: inserted },
+    { sign: DELETED_SIGN, count: deleted },
+  ].filter((side) => side.count > 0);
+  if (sides.length === 0) return countLabel({ count: 0, unit });
+  return sides.map((side) => `${side.sign}${countLabel({ count: side.count, unit })}`).join(' ');
 }
 
 export function lagBehindLabel(seconds: number): string {

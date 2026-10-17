@@ -8,6 +8,7 @@ import { STREAMGRAPH_TITLE } from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
+const WHITESPACE = /\s+/g;
 const timeline = timelineWith({
   volumes: [
     [100, 20, 5],
@@ -17,6 +18,10 @@ const timeline = timelineWith({
   names: ['Budget', 'Hiring', 'Other'],
   kinds: [TimelineBandKind.Topic, TimelineBandKind.Topic, TimelineBandKind.Other],
 });
+
+function asRendered(text: string): string {
+  return text.replace(WHITESPACE, ' ');
+}
 
 function renderGraph({
   selectedIndex = 1,
@@ -81,7 +86,7 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  expect(tooltip).toHaveTextContent(asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })));
   expect(tooltip).toHaveTextContent('Budget');
   expect(tooltip).toHaveTextContent('+120 characters');
   expect(tooltip).not.toHaveTextContent('−0');
@@ -114,7 +119,9 @@ function budgetBand(): Element {
 test('focusing a band shows the tooltip of the selected bin and blurring hides it', () => {
   renderGraph({ selectedIndex: 1 });
   fireEvent.focus(budgetBand());
-  expect(screen.getByRole('tooltip')).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs }));
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })),
+  );
   fireEvent.blur(budgetBand());
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

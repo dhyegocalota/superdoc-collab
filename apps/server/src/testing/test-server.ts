@@ -1,4 +1,4 @@
-import { ApiPath, type SessionUser } from '@superdoc-history/types';
+import { ApiPath, UTC_TIME_ZONE, type SessionUser } from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
@@ -25,6 +25,7 @@ const NO_LLM_SETTINGS: LlmSettings = {
 };
 const OWNER_NAME = 'Ana';
 export const TEST_USER_PASSWORD = 'superdoc-demo';
+export const TEST_TIME_ZONE = UTC_TIME_ZONE;
 
 export type TestServer = {
   baseUrl: string;
@@ -164,7 +165,7 @@ export async function signInAndGetCookie({
   server: TestServer;
   credentials: { name: string; email: string; password: string };
 }): Promise<string> {
-  const signedUp = await postCredentials({ server, path: '/sign-up/email', body: credentials });
+  const signedUp = await postCredentials({ server, path: '/sign-up/email', body: { ...credentials, timeZone: TEST_TIME_ZONE } });
   if (!signedUp.ok) throw new TestSignInFailedError({ step: 'sign-up', status: signedUp.status });
   return signInExisting({ server, email: credentials.email, password: credentials.password });
 }

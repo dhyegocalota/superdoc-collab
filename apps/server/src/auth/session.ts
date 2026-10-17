@@ -6,3 +6,5 @@ export async function readSession({ auth, headers }: { auth: Auth; headers: Head
   if (!session) return null;
   return { id: session.user.id, name: session.user.name, email: session.user.email };
 }
+
+export class SessionUserWithoutRoleError extends Error {}

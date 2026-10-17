@@ -18,6 +18,7 @@ import {
   RENAME_FAILED_MESSAGE,
   TITLE_LABEL,
 } from './editor-copy';
+import { HomeLink } from './home-link';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
 
@@ -112,6 +113,7 @@ export function EditorHeader({
 
   return (
     <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+      <HomeLink />
       {isReader ? <h1 className="font-medium">{document.title}</h1> : <TitleInput documentId={document.id} title={document.title} />}
       {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
       <div className="ml-auto flex flex-wrap items-center gap-2">

@@ -25,3 +25,5 @@ Written by the lead from the four developer reports. Nobody on the build side ra
 ## Process note
 
 Some red commits in the server lane (`4199408`, `9bebe96`, `3d69afa` and their siblings) carry a `pin` subject; the reviewer re-ran them and confirmed each failed on its named assertion. History is not rewritten.
+
+The merge `0c1b36b` and the red commit `2fc03ec` do not build from a clean install: the merge left some new files importing `@superdoc-collab`'s former name `@superdoc-history/types`, fixed in `3bd9c52`. Their tests are red for that reason as well as for their named assertions.

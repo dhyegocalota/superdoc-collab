@@ -13,3 +13,9 @@ export function authFailureMessage({ status, retryAfterSeconds }: { status: numb
   if (status === HttpStatus.TooManyRequests) return tooManyAttemptsMessage(retryAfterSeconds);
   return GENERIC_AUTH_FAILURE_MESSAGE;
 }
+
+const EXPIRED_REQUEST_CODE = 'invalid_signature';
+
+export function isExpiredRequest(error: object): boolean {
+  return 'error' in error && error.error === EXPIRED_REQUEST_CODE;
+}

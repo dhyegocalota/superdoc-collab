@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router';
-import { authFailureMessage, AUTH_RETRY_AFTER_HEADER } from './auth-failure';
+import { EXPIRED_REQUEST_MESSAGE } from './auth-copy';
+import { authFailureMessage, AUTH_RETRY_AFTER_HEADER, isExpiredRequest } from './auth-failure';
 import { safeNextPath } from './safe-next-path';
 import { SESSION_QUERY_KEY } from './use-session';
 
@@ -27,6 +28,10 @@ export function useAuthSubmit<Values extends FieldValues>({
       },
     };
     const { error } = await request(values, responseCapture);
+    if (error && isExpiredRequest(error)) {
+      form.setError('root', { message: EXPIRED_REQUEST_MESSAGE });
+      return;
+    }
     if (error) {
       form.setError('root', { message: authFailureMessage({ status: error.status, retryAfterSeconds: captured.retryAfterSeconds }) });
       return;

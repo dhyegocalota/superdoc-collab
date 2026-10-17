@@ -1,4 +1,3 @@
-import type { AppRoute } from '@superdoc-history/types';
 import type { ReactNode } from 'react';
 import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Link } from 'react-router';
@@ -16,7 +15,7 @@ type AuthCardProps<Values extends FieldValues> = {
   pendingLabel: string;
   prompt: string;
   linkLabel: string;
-  linkTo: AppRoute;
+  linkTo: string;
   children: ReactNode;
 };
 

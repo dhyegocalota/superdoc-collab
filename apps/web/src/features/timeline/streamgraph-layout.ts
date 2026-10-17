@@ -1,7 +1,7 @@
 import { cellVolume, toStackRows, type StackRow } from '@superdoc-history/history/timeline';
 import type { DocumentTimeline, TimelineBand, TimelineCell } from '@superdoc-history/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
-import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series, type SeriesPoint } from 'd3-shape';
+import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series } from 'd3-shape';
 import { maxBandVolume } from './max-band-volume';
 
 export const CHART_HEIGHT = 240;
@@ -121,12 +121,7 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
   const y = scaleLinear()
     .domain([lowest, highest])
     .range([CHART_HEIGHT - CHART_PADDING, CHART_PADDING]);
-  const shapeOf = area<SeriesPoint<StackRow>>()
-    .x((_, index) => x(index))
-    .y0((point) => y(point[0]))
-    .y1((point) => y(point[1]))
-    .curve(curveBasis);
-  const agentShapeOf = area<[number, number]>()
+  const shapeOf = area<[number, number]>()
     .x((_, index) => x(index))
     .y0((point) => y(point[0]))
     .y1((point) => y(point[1]))
@@ -135,7 +130,7 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
   function agentPathOf({ band, points }: { band: TimelineBand; points: StackSeries }): string | null {
     const fractions = timeline.bins.map((bin) => agentFractionOf(bin.byBand[band.id]));
     if (fractions.every((fraction) => fraction === 0)) return null;
-    const agentPath = agentShapeOf(points.map((point, index) => [point[0], point[0] + (point[1] - point[0]) * fractions[index]!]));
+    const agentPath = shapeOf(points.map((point, index) => [point[0], point[0] + (point[1] - point[0]) * fractions[index]!]));
     if (!agentPath) throw new EmptyBandPathError(band.id);
     return `${agentPath}Z`;
   }
@@ -145,7 +140,7 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     .sort((left, right) => bandOf({ timeline, id: right.key }).volume - bandOf({ timeline, id: left.key }).volume)
     .map((points) => {
       const band = bandOf({ timeline, id: points.key });
-      const path = shapeOf(points);
+      const path = shapeOf(points.map((point): [number, number] => [point[0], point[1]]));
       if (!path) throw new EmptyBandPathError(band.id);
       return {
         band,

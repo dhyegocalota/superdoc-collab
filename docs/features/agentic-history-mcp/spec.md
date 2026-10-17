@@ -114,7 +114,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 |------|--------|
 | No token, bad signature, wrong audience, expired | 401 with RFC 9728 `WWW-Authenticate` |
 | Consent revoked | 401 with `WWW-Authenticate`, so the client re-runs OAuth |
-| Token lacks the tool's scope | 403 |
+| Token lacks the tool's scope | the tool is not listed, and calling it by name returns the MCP "tool not found" error; a token with no agent scope at all gets 403 |
 | Not a member of the document | tool error "document not found", without telling whether it exists |
 | Role below the tool's minimum | tool error naming the person's role |
 | Room does not open within the timeout | the session closes; tool error; the next call opens again |
@@ -134,6 +134,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 | What is the acceptance walk? | — | the five steps above | 2026-10-17 |
 | Which architecture? | monolith module · separate service · edits without the SDK | monolith module in `apps/server` | 2026-10-17 |
 | Does the SDK `open` accept a user per document, avoiding one host per person? | — | yes: `open({ userName, userEmail })` signs tracked changes per session; two sessions on one host kept their own names (probe on the spike stack) | 2026-10-17 |
+| What does a Reader see in a document the AI edited in tracked mode? | show pending AI changes to Readers · keep SuperDoc's viewing mode | keep SuperDoc's viewing mode: a Reader sees the text without pending suggestions and no cards, exactly as for a human's tracked changes; the AI volume, badge and marks stay visible in the timeline (tester edge case E3, decided by the lead under the owner's standing approval) | 2026-10-17 |
 | Is `createAgentToolkit` in `@superdoc/sdk` 2.20.0, or must it move to 2.21.0? | — | the toolkit is in 2.20.0, but per-open `collaborationAuth` is only in the 2.21.0 contract; move the app to 2.21.0, the version the spike proved | 2026-10-17 |
 
 ## Test strategy summary

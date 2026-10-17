@@ -2,10 +2,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { HttpStatus } from '@superdoc-history/types';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
 import type { AgentDocumentSessions, AgentToolContext, AgentToolPrincipal, RecordAgentAction } from './agent-tool-context';
 import { AGENT_TOOLS, agentToolsFor, callAgentTool } from './agent-tools';
 
+export const MCP_BODY_MAX_BYTES = 256 * 1024;
+const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const MCP_SERVER_NAME = 'superdoc-history';
 const MCP_SERVER_VERSION = '1.0.0';
 const ALLOWED_METHOD_HEADER = { Allow: 'POST' };
@@ -30,19 +33,26 @@ function createMcpServer(context: AgentToolContext): McpServer {
 
 export function createMcpRoutes({ services, authorize, unauthorized, sessions, toolkit, recordAction }: McpRouteOptions): Hono {
   const routes = new Hono();
-  routes.post('/', async (honoContext) => {
-    const principal = await authorize(honoContext.req.raw);
-    if (!principal) return unauthorized();
-    if (agentToolsFor(principal.scopes).length === 0) return honoContext.body(null, HttpStatus.Forbidden);
-    const server = createMcpServer({ services, principal, sessions, toolkit, recordAction });
-    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-    await server.connect(transport);
-    try {
-      return await transport.handleRequest(honoContext.req.raw);
-    } finally {
-      await server.close();
-    }
-  });
+  routes.post(
+    '/',
+    bodyLimit({
+      maxSize: MCP_BODY_MAX_BYTES,
+      onError: (honoContext) => honoContext.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
+    }),
+    async (honoContext) => {
+      const principal = await authorize(honoContext.req.raw);
+      if (!principal) return unauthorized();
+      if (agentToolsFor(principal.scopes).length === 0) return honoContext.body(null, HttpStatus.Forbidden);
+      const server = createMcpServer({ services, principal, sessions, toolkit, recordAction });
+      const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+      await server.connect(transport);
+      try {
+        return await transport.handleRequest(honoContext.req.raw);
+      } finally {
+        await server.close();
+      }
+    },
+  );
   routes.on(['GET', 'DELETE'], '/', (honoContext) => honoContext.body(null, HttpStatus.MethodNotAllowed, ALLOWED_METHOD_HEADER));
   return routes;
 }

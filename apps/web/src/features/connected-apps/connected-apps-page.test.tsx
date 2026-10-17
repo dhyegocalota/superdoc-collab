@@ -16,6 +16,8 @@ import {
   McpClient,
   REVOKE_ERROR_MESSAGE,
   revokeLabel,
+  CHATGPT_INSTRUCTION,
+  UNNAMED_CLIENT_LABEL,
 } from './connected-apps-copy';
 import { ConnectedAppsPage } from './connected-apps-page';
 
@@ -72,6 +74,20 @@ test('a failed revoke keeps the row and shows the error', async () => {
   expect(screen.getByText(CLIENT_NAME)).toBeInTheDocument();
 });
 
+test('a client whose name cannot be loaded keeps its row with Revoke', async () => {
+  publicClient.mockResolvedValue({ data: null, error: { status: 404 } } as never);
+  const user = userEvent.setup();
+  renderWithProviders(<ConnectedAppsPage />);
+  await user.click(await screen.findByRole('button', { name: revokeLabel(UNNAMED_CLIENT_LABEL) }));
+  expect(deleteConsent).toHaveBeenCalledWith({ id: CONSENT.id });
+});
+
+test('the ChatGPT instruction is visible text', async () => {
+  getConsents.mockResolvedValue({ data: [], error: null } as never);
+  renderWithProviders(<ConnectedAppsPage />);
+  expect(await screen.findByText(CHATGPT_INSTRUCTION)).toBeInTheDocument();
+});
+
 test('no consents shows the empty message', async () => {
   getConsents.mockResolvedValue({ data: [], error: null } as never);
   renderWithProviders(<ConnectedAppsPage />);
@@ -86,7 +102,10 @@ test('a failed list shows the load error', async () => {
 
 test.each([
   { subject: MCP_URL_LABEL, expected: MCP_URL },
-  ...Object.values(McpClient).map((client) => ({ subject: MCP_CLIENT_LABELS[client], expected: MCP_SNIPPETS[client](MCP_URL) })),
+  ...Object.values(McpClient)
+    .filter((client) => client !== McpClient.ChatGpt)
+    .map((client) => ({ subject: MCP_CLIENT_LABELS[client], expected: MCP_SNIPPETS[client](MCP_URL) })),
+  { subject: MCP_CLIENT_LABELS[McpClient.ChatGpt], expected: MCP_URL },
 ])('the copy button of $subject copies its text', async ({ subject, expected }) => {
   getConsents.mockResolvedValue({ data: [], error: null } as never);
   const user = userEvent.setup();

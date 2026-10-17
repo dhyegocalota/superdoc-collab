@@ -1,5 +1,6 @@
 import {
   DOCX_MIME_TYPE,
+  RoomMode,
   AgentActionKind,
   AgentTool,
   DocumentRole,
@@ -10,11 +11,12 @@ import {
 import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { existsSync } from 'node:fs';
-import { afterAll, beforeAll, expect, test, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import { memberWithRole, documentWithOwner } from '../testing/collaboration-client';
 import type { TestServer, TestUser } from '../testing/test-server';
 import { resultJson, sessionsOn, toolContext } from './agent-tool-fixtures';
-import { callAgentTool } from './agent-tools';
+import { callAgentTool, TOOL_FAILED_MESSAGE } from './agent-tools';
+import { MAX_EDITS, MAX_TEXT_LENGTH, MAX_TEXTS } from './document-tools';
 
 const DOCX_BYTES = Buffer.from('PK-fake-docx');
 const INSPECTED = { revision: 3, paragraphs: ['Budget'] };
@@ -31,6 +33,14 @@ beforeAll(async () => {
   ({ server, documentId, owner } = await documentWithOwner());
   editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+});
+
+beforeEach(() => {
+  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Join);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 afterAll(async () => {
@@ -114,14 +124,17 @@ test('export_docx returns the live document as an embedded DOCX resource, record
   expect(existsSync(dirname(written[0]!))).toBe(false);
 });
 
-test('export_docx removes the temporary file and records nothing when the save fails', async () => {
+test('export_docx hides the cause, logs it, removes the temporary file and records nothing when the save fails', async () => {
   const written: string[] = [];
   const save = vi.fn(async ({ out }: { out: string }) => {
     written.push(out);
     throw new Error('the room is gone');
   });
   const { context, recorded } = toolContext({ server, userId: reader.id, sessions: sessionsOn({ save }) });
-  await expect(callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context })).rejects.toThrow('the room is gone');
+  const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+  expect([result.isError, resultJson(result)]).toEqual([true, { error: TOOL_FAILED_MESSAGE }]);
+  expect(logged).toHaveBeenCalledWith(expect.stringContaining('the room is gone'));
   expect(recorded).toEqual([]);
   expect(existsSync(dirname(written[0]!))).toBe(false);
 });
@@ -167,4 +180,31 @@ test('rotate_share_link with an unknown role is a tool error and rotates nothing
   const { context, recorded } = toolContext({ server, userId: owner.id });
   const result = await callAgentTool({ tool: AgentTool.RotateShareLink, input: { documentId, role: 'admin' }, context });
   expect([result.isError, recorded, server.services.shareLinks.links(documentId)]).toEqual([true, [], before]);
+});
+
+test('export_docx on a room nobody opened returns the stored file without opening a session', async () => {
+  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Create);
+  await server.services.storage.put({ documentId, bytes: DOCX_BYTES });
+  const { context, recorded } = toolContext({ server, userId: reader.id });
+  const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+  expect(result.content).toEqual([
+    {
+      type: 'resource',
+      resource: { uri: expect.stringContaining(documentId), mimeType: DOCX_MIME_TYPE, blob: DOCX_BYTES.toString('base64') },
+    },
+  ]);
+  expect(recorded).toEqual([{ documentId, userId: reader.id, kind: AgentActionKind.DocumentExported }]);
+});
+
+test.each([
+  { field: 'edits', input: { action: 'replace_text', edits: Array.from({ length: MAX_EDITS + 1 }, () => EDITS[0]) } },
+  { field: 'texts', input: { action: 'insert_paragraphs', texts: Array.from({ length: MAX_TEXTS + 1 }, () => 'One') } },
+  { field: 'text', input: { action: 'insert_heading', level: 1, text: 'x'.repeat(MAX_TEXT_LENGTH + 1) } },
+])('edit_document refuses $field beyond its limit and dispatches nothing', async ({ field, input }) => {
+  const dispatch = vi.fn();
+  const { context } = toolContext({ server, userId: editor.id, sessions: sessionsOn({ save: vi.fn() }), dispatch });
+  const result = await callAgentTool({ tool: AgentTool.EditDocument, input: { documentId, ...input }, context });
+  expect(result.isError).toBe(true);
+  expect(JSON.stringify(resultJson(result))).toContain(field);
+  expect(dispatch).not.toHaveBeenCalled();
 });

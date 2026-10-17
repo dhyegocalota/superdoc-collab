@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import { ROOM_TOKEN_TTL_MS, signRoomToken, verifyRoomToken } from './room-tokens';
 
@@ -22,6 +23,12 @@ function withTamperedPayload(token: string): string {
   const claims = JSON.parse(Buffer.from(payload, 'base64url').toString()) as Record<string, unknown>;
   const forged = Buffer.from(JSON.stringify({ ...claims, userId: 'user-bruno' })).toString('base64url');
   return `${forged}${TOKEN_PARTS_SEPARATOR}${signature}`;
+}
+
+function withSignatureFromTheRawSecret(token: string): string {
+  const [payload] = token.split(TOKEN_PARTS_SEPARATOR) as [string];
+  const signature = createHmac('sha256', SECRET).update(payload).digest('base64url');
+  return `${payload}${TOKEN_PARTS_SEPARATOR}${signature}`;
 }
 
 function garbage(): string {
@@ -57,6 +64,14 @@ describe('room tokens', () => {
       name: 'a token signed with another secret',
       present: unchanged,
       secret: OTHER_SECRET,
+      documentId: DOCUMENT_ID,
+      now: NOW,
+      expected: null,
+    },
+    {
+      name: 'a signature made directly with the secret',
+      present: withSignatureFromTheRawSecret,
+      secret: SECRET,
       documentId: DOCUMENT_ID,
       now: NOW,
       expected: null,

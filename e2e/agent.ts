@@ -1,9 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Locator, type Page, type Request } from '@playwright/test';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { AgentScope, AgentTool, ApiPath, AppRoute, type DocumentTimeline, type ShareLinks } from '../libs/types/src';
-import { APPROVE_LABEL, consentDescription } from '../apps/web/src/features/oauth-consent/oauth-consent-copy';
+import { APPROVE_LABEL, consentDescription, redirectNotice } from '../apps/web/src/features/oauth-consent/oauth-consent-copy';
 import { CONNECTED_APPS_HEADING, revokeLabel } from '../apps/web/src/features/connected-apps/connected-apps-copy';
 
 enum EditAction {
@@ -30,7 +30,10 @@ type AuthorizationServerMetadata = {
 
 export type RegisteredClient = { clientId: string; clientName: string; redirectUri: string; metadata: AuthorizationServerMetadata };
 export type AgentConnection = RegisteredClient & { accessToken: string; origin: string };
-export type ToolResult = { isError?: boolean; content: { type: string; text?: string }[] };
+export type ToolResult = {
+  isError?: boolean;
+  content: { type: string; text?: string; resource?: { mimeType: string; blob?: string } }[];
+};
 
 function base64Url(buffer: Buffer): string {
   return buffer.toString('base64url');
@@ -56,7 +59,7 @@ export async function registerClient({ request, origin }: { request: APIRequestC
   return { clientId, clientName, redirectUri, metadata };
 }
 
-export async function approveConsent({
+export async function beginAuthorization({
   page,
   client,
   origin,
@@ -64,7 +67,7 @@ export async function approveConsent({
   page: Page;
   client: RegisteredClient;
   origin: string;
-}): Promise<{ code: string; verifier: string }> {
+}): Promise<{ verifier: string; state: string; callback: Promise<Request> }> {
   const verifier = base64Url(randomBytes(PKCE_VERIFIER_BYTES));
   const challenge = base64Url(createHash('sha256').update(verifier).digest());
   const state = base64Url(randomBytes(STATE_BYTES));
@@ -82,13 +85,42 @@ export async function approveConsent({
   await page.route(`${client.redirectUri}*`, (route) => route.fulfill({ status: 200, body: '' }));
   const callback = page.waitForRequest((request) => request.url().startsWith(client.redirectUri));
   await page.goto(authorizeUrl.toString());
+  return { verifier, state, callback };
+}
+
+export async function approveConsentPage({
+  page,
+  client,
+  state,
+  callback,
+}: {
+  page: Page;
+  client: RegisteredClient;
+  state: string;
+  callback: Promise<Request>;
+}): Promise<string> {
   await expect(page).toHaveURL(new RegExp(`${AppRoute.OAuthConsent}\\?`));
   await expect(page.getByText(consentDescription(client.clientName))).toBeVisible({ timeout: CONSENT_TIMEOUT_MS });
+  await expect(page.getByText(redirectNotice(new URL(client.redirectUri).host))).toBeVisible();
   await page.getByRole('button', { name: APPROVE_LABEL }).click();
   const redirected = new URL((await callback).url());
   expect(redirected.searchParams.get('state')).toBe(state);
   const code = redirected.searchParams.get('code');
   if (!code) throw new Error(`The authorization redirect carried no code: ${redirected.toString()}`);
+  return code;
+}
+
+export async function approveConsent({
+  page,
+  client,
+  origin,
+}: {
+  page: Page;
+  client: RegisteredClient;
+  origin: string;
+}): Promise<{ code: string; verifier: string }> {
+  const { verifier, state, callback } = await beginAuthorization({ page, client, origin });
+  const code = await approveConsentPage({ page, client, state, callback });
   return { code, verifier };
 }
 
@@ -215,4 +247,18 @@ export async function rejectedStatus(call: Promise<unknown>): Promise<number> {
     throw error;
   }
   throw new Error('The call was accepted');
+}
+
+export async function exportDocxThroughAgent({
+  connection,
+  documentId,
+}: {
+  connection: AgentConnection;
+  documentId: string;
+}): Promise<{ mimeType: string; bytes: Buffer }> {
+  const result = await callTool({ connection, tool: AgentTool.ExportDocx, args: { documentId } });
+  expect(result.isError).not.toBe(true);
+  const resource = result.content.find((part) => part.type === 'resource')?.resource;
+  if (!resource?.blob) throw new Error('The export carried no embedded resource');
+  return { mimeType: resource.mimeType, bytes: Buffer.from(resource.blob, 'base64') };
 }

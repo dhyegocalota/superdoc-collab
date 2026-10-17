@@ -11,3 +11,4 @@ export const HAVE_ACCOUNT_PROMPT = 'Already have an account?';
 export const NAME_FIELD_LABEL = 'Name';
 export const EMAIL_FIELD_LABEL = 'Email';
 export const PASSWORD_FIELD_LABEL = 'Password';
+export const EXPIRED_REQUEST_MESSAGE = 'This request expired. Start again from your AI client.';

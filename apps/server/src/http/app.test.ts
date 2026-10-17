@@ -20,7 +20,7 @@ function freshClientAddress(): string {
 async function signUp(body: typeof credentials): Promise<Response> {
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress() },
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress(), origin: server.baseUrl },
     body: JSON.stringify(body),
   });
 }
@@ -35,7 +35,7 @@ async function signIn({
 }): Promise<Response> {
   return fetch(`${target.baseUrl}${ApiPath.Auth}/sign-in/email`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress },
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: target.baseUrl },
     body: JSON.stringify(body),
   });
 }

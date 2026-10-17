@@ -7,7 +7,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from './auth-client';
 import { authFailureMessage, AUTH_RETRY_AFTER_HEADER } from './auth-failure';
 import { pageTitle } from '@/lib/use-document-title';
-import { NO_ACCOUNT_PROMPT, SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL, SIGN_UP_LABEL } from './auth-copy';
+import { EXPIRED_REQUEST_MESSAGE, NO_ACCOUNT_PROMPT, SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL, SIGN_UP_LABEL } from './auth-copy';
 import { SignInPage } from './sign-in-page';
 
 vi.mock('./auth-client', () => ({ authClient: { signIn: { email: vi.fn() } } }));
@@ -93,4 +93,25 @@ test('a 429 says how many seconds to wait', async () => {
   await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
   const expected = authFailureMessage({ status: HttpStatus.TooManyRequests, retryAfterSeconds: RETRY_SECONDS });
   expect(await screen.findByRole('alert')).toHaveTextContent(expected);
+});
+
+test('an expired signed query asks to start again from the AI client', async () => {
+  signInEmail.mockResolvedValue({ data: null, error: { status: 400, error: 'invalid_signature' } } as never);
+  const user = renderSignInPage();
+  await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
+  expect(await screen.findByText(EXPIRED_REQUEST_MESSAGE)).toBeInTheDocument();
+});
+
+test.each([
+  { search: '?client_id=client-1&sig=abc', expected: '?client_id=client-1&sig=abc' },
+  { search: '?next=%2Fsettings', expected: '' },
+])('the sign-up link carries $search only when the query is signed', ({ search, expected }) => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={[`/sign-in${search}`]}>
+        <SignInPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole('link', { name: SIGN_UP_LABEL })).toHaveAttribute('href', `/sign-up${expected}`);
 });

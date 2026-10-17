@@ -9,11 +9,10 @@ import { submitConsent } from './oauth-consent-api';
 import {
   APPROVE_LABEL,
   APPROVING_LABEL,
-  CLIENT_LOAD_ERROR_MESSAGE,
   CLIENT_LOADING_LABEL,
-  CONSENT_FAILED_MESSAGE,
   CONSENT_HEADING,
   consentDescription,
+  redirectNotice,
   DENY_LABEL,
   INCOMPLETE_REQUEST_MESSAGE,
   scopeLabel,
@@ -22,6 +21,20 @@ import {
 import { useOAuthClientName } from './use-oauth-client-name';
 
 const SCOPE_SEPARATOR = ' ';
+function redirectHostOf(redirectUri: string | null): string | null {
+  if (!redirectUri) return null;
+  try {
+    return new URL(redirectUri).host || null;
+  } catch {
+    return null;
+  }
+}
+
+function clientDisplayName({ clientName, redirectHost }: { clientName: string | null; redirectHost: string }): string {
+  if (clientName) return clientName;
+  return redirectHost;
+}
+
 function ConsentShell({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
@@ -30,7 +43,7 @@ function ConsentShell({ children }: { children: ReactNode }) {
   );
 }
 
-function ConsentRequest({ clientId, scopes }: { clientId: string; scopes: string[] }) {
+function ConsentRequest({ clientId, scopes, redirectHost }: { clientId: string; scopes: string[]; redirectHost: string }) {
   const clientName = useOAuthClientName(clientId);
   const answer = useMutation({ mutationFn: submitConsent });
   const isAnswering = answer.isPending || answer.isSuccess;
@@ -39,7 +52,9 @@ function ConsentRequest({ clientId, scopes }: { clientId: string; scopes: string
     <ConsentShell>
       <CardHeader>
         <CardTitle>{CONSENT_HEADING}</CardTitle>
-        {clientName.data && <CardDescription>{consentDescription(clientName.data)}</CardDescription>}
+        {clientName.isSuccess && (
+          <CardDescription>{consentDescription(clientDisplayName({ clientName: clientName.data, redirectHost }))}</CardDescription>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         {clientName.isPending && (
@@ -47,8 +62,7 @@ function ConsentRequest({ clientId, scopes }: { clientId: string; scopes: string
             {CLIENT_LOADING_LABEL}
           </p>
         )}
-        {clientName.isError && <ErrorMessage>{CLIENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
-        {clientName.data && (
+        {clientName.isSuccess && (
           <section aria-label={SCOPES_HEADING} className="space-y-2">
             <h2 className="text-sm font-medium">{SCOPES_HEADING}</h2>
             <ul className="list-disc space-y-1 pl-5 text-sm">
@@ -56,11 +70,12 @@ function ConsentRequest({ clientId, scopes }: { clientId: string; scopes: string
                 <li key={scope}>{scopeLabel(scope)}</li>
               ))}
             </ul>
+            <p className="text-sm text-muted-foreground">{redirectNotice(redirectHost)}</p>
           </section>
         )}
-        {answer.isError && <ErrorMessage>{CONSENT_FAILED_MESSAGE}</ErrorMessage>}
+        {answer.isError && <ErrorMessage>{answer.error.message}</ErrorMessage>}
       </CardContent>
-      {clientName.data && (
+      {clientName.isSuccess && (
         <CardFooter className="gap-2">
           <Button className="flex-1" disabled={isAnswering} onClick={() => answer.mutate(true)}>
             {answer.isPending ? APPROVING_LABEL : APPROVE_LABEL}
@@ -78,9 +93,10 @@ export function OAuthConsentPage() {
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client_id');
   const requestedScope = searchParams.get('scope');
+  const redirectHost = redirectHostOf(searchParams.get('redirect_uri'));
   useDocumentTitle(CONSENT_HEADING);
 
-  if (!clientId || !requestedScope)
+  if (!clientId || !requestedScope || !redirectHost)
     return (
       <ConsentShell>
         <CardContent>
@@ -88,5 +104,5 @@ export function OAuthConsentPage() {
         </CardContent>
       </ConsentShell>
     );
-  return <ConsentRequest clientId={clientId} scopes={requestedScope.split(SCOPE_SEPARATOR).filter(Boolean)} />;
+  return <ConsentRequest clientId={clientId} scopes={requestedScope.split(SCOPE_SEPARATOR).filter(Boolean)} redirectHost={redirectHost} />;
 }

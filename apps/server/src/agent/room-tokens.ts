@@ -4,13 +4,15 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 export const ROOM_TOKEN_TTL_MS = 5 * MINUTE_MS;
 
 const SIGNATURE_DIGEST = 'sha256';
+const ROOM_TOKEN_KEY_LABEL = 'agent-room-token';
 const PARTS_SEPARATOR = '.';
 const EXPECTED_PARTS = 2;
 
 type RoomTokenClaims = { userId: string; documentId: string; actor: ClientActor; expiresAt: number };
 
 function sign({ secret, payload }: { secret: string; payload: string }): Buffer {
-  return createHmac(SIGNATURE_DIGEST, secret).update(payload).digest();
+  const key = createHmac(SIGNATURE_DIGEST, secret).update(ROOM_TOKEN_KEY_LABEL).digest();
+  return createHmac(SIGNATURE_DIGEST, key).update(payload).digest();
 }
 
 function parseClaims(payload: string): RoomTokenClaims | null {

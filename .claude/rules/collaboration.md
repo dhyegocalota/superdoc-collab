@@ -40,5 +40,6 @@ SuperDoc facts about the browser UI (editing surface, focus, zoom, iframes) live
 - `onAwarenessUpdate` receives the document creator's context, not the sender's; tie awareness clientIds to sockets through `document.connections[*].clients`. (poc/RESULTS.md, ADR 0002)
 - `onAuthenticate` returns `{ userId }` as the connection context. (poc/server/collaboration-server.ts)
 - In `apps/server` it returns `{ userId, documentId, actor }`. The upgrade path in `request.url` picks the credential: `/collaboration` takes the session cookie only, `/collaboration/agent` takes a room token in the `token` field only and skips the `Origin` check. (apps/server/src/collaboration/collaboration-server.ts, ADR 0021)
+- The room token and the read-only flag are fixed when an SDK session opens; replace a cached session when the role, the name or the token age changed. (apps/server/src/agent/agent-sessions.ts, docs/learnings/2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md)
 - Load the room with `Y.applyUpdate(document, state, 'update-log-replay')`; `onChange` skips that origin. (poc/server/collaboration-server.ts)
 - `onCollaborationConnectionChange` reported `synced -> degraded -> degraded` across a server restart and never a recovery state, though sync resumed; do not rely on it for recovery. (poc/RESULTS.md)

@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { EMAIL_INVALID_MESSAGE, NAME_TOO_SHORT_MESSAGE, PASSWORD_TOO_SHORT_MESSAGE, signInSchema, signUpSchema } from './auth';
+import {
+  EMAIL_INVALID_MESSAGE,
+  NAME_RESERVED_MESSAGE,
+  NAME_TOO_SHORT_MESSAGE,
+  PASSWORD_TOO_SHORT_MESSAGE,
+  signInSchema,
+  signUpSchema,
+} from './auth';
 
 function firstMessage(result: { success: boolean; error?: { issues: { message: string }[] } }): string | undefined {
   return result.error?.issues[0]?.message;
@@ -23,5 +30,11 @@ describe('signUpSchema', () => {
     expect(firstMessage(signUpSchema.safeParse({ name: 'A', email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(
       NAME_TOO_SHORT_MESSAGE,
     );
+  });
+  test.each(['Ana · AI', 'Ana ·  ai', ' Ana · AI '])('rejects the name "%s" that impersonates an AI', (name) => {
+    expect(firstMessage(signUpSchema.safeParse({ name, email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_RESERVED_MESSAGE);
+  });
+  test('accepts a name that merely contains AI', () => {
+    expect(signUpSchema.safeParse({ name: 'Aino Maia', email: 'ana@example.com', password: 'superdoc-demo' }).success).toBe(true);
   });
 });

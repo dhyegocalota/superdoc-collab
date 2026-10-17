@@ -34,6 +34,9 @@ Two further facts shape the decision. `delete-consent` in the Better Auth OAuth 
 
 - Eight new Better Auth tables in the auth database (`jwks`, `oauth_client`, `oauth_resource`, `oauth_client_resource`, `oauth_refresh_token`, `oauth_access_token`, `oauth_consent`, `oauth_client_assertion`), additive only.
 - Native clients that register without `application_type` and use loopback `http` redirects need `clientRegistrationDefaultApplicationType: 'infer'`.
+- Scopes come from the access token. Narrowing a consent with `update-consent` does not narrow tokens already issued; they keep their scopes until they expire, up to one hour. Only deleting the consent cuts them at once.
+- Access tokens are verified with the Better Auth resource verifier: signature against the JWKS, issuer, audience, expiry and DPoP binding, then the `at+jwt` type. A hook binds a token request that omits the RFC 8707 `resource` to the MCP resource, so clients never receive an opaque token.
+- Room tokens are signed with a key derived from the auth secret by a fixed label, not with the secret itself.
 - Rotating `AUTH_SECRET` invalidates room tokens and JWT signing keys together, as it already does for share links ([0017](0017-share-links-reissued-when-the-secret-changes.md)); clients re-run OAuth.
 - The issuer is the Railway URL ([0019](0019-deploy-on-railway.md)); local development uses `http://localhost`, which the MCP clients accept for loopback.
 - One replica keeps the in-memory SDK hosts and the consent check consistent; a second replica would need shared state.

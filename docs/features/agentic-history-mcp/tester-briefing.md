@@ -131,7 +131,7 @@ The red test for attach-collaboration first waited for the socket to close, whic
 ### Hypotheses to attack
 
 1. Hypothesis: deleting a consent makes the next `authorizeAgentRequest` return null even though the JWT is unexpired. Break it by: delete the consent through `POST /api/auth/oauth2/delete-consent` and call again; also restore a consent for the same client by approving again and check the old token works again (it should, the consent is the gate).
-2. Hypothesis: only OAuth access tokens verify. Break it by: present a session JWT from `/api/auth/token`, an ID token, a token whose `aud` is `APP_ORIGIN`, and a token signed by another instance; each must return null.
+2. Hypothesis (first version refuted by the security review, fixed): only OAuth access tokens verify. The first version accepted a DPoP-bound token as a plain bearer and ignored the `typ` header. Now the Better Auth resource verifier runs first, then the `at+jwt` type and the consent lookup. Break it by: a session JWT from `/api/auth/token`, an ID token, a token whose `aud` is `APP_ORIGIN`, a DPoP-bound token with and without a proof, a token signed by another instance; each must return null.
 3. Hypothesis: neither collaboration path accepts the other's credential. Break it by: browser path with a room token and no cookie; agent path with a cookie and the placeholder token; agent path with a cookie and a valid room token for another person (the person in the token wins, the cookie is ignored).
 4. Hypothesis: a room token cannot be replayed across documents or after five minutes. Break it by: reuse after `ROOM_TOKEN_TTL_MS`, change one byte of the payload or of the signature, swap the document in the room name.
 5. Hypothesis: registration of Cursor-style and Claude Code style clients works. Break it by: register with `redirect_uris` of `http://localhost:PORT/callback`, `http://127.0.0.1:PORT/callback` and a custom scheme with no `application_type`; register a web client with an `http` loopback URI and `application_type: web` (refused by design).
@@ -145,6 +145,23 @@ The red test for attach-collaboration first waited for the socket to close, whic
 - Rotating `AUTH_SECRET` invalidates JWT signing keys and room tokens together, as the ADR says; not exercised.
 - `/.well-known/openid-configuration` answers 404 because `openid` is not a requested scope.
 - Discovery is mounted without the client address header, so Better Auth rate-limits by whatever address it resolves for those requests.
+
+### Review fixes (second pass)
+
+| Test | Red before the fix because | Green after because |
+|------|-----------------------------|----------------------|
+| `agent/agent-authorization.test.ts` DPoP-bound token as a plain bearer | `expected { userId, clientId, scopes } to be null` | `verifyAccessTokenRequest` enforces the binding |
+| `agent/agent-authorization.test.ts` signed token of another type | `expected { ... } to be null` | `typ` must be `at+jwt` |
+| `agent/agent-authorization.test.ts` lowercase bearer, valid DPoP proof | `expected null to match object` | scheme parsing by the verifier |
+| `agent/agent-authorization.test.ts` client that omits `resource` | `expected null to match object` (opaque token) | a hook adds the MCP resource on authorize and token |
+| `auth/oauth.test.ts` consent post from a foreign origin | `expected 400 to be 403` (Vitest skips the origin check) | `advanced.disableOriginCheck: false` |
+| `agent/room-tokens.test.ts` signature from the raw secret | `expected { userId: 'user-ana' } to deeply equal null` | key derived with a fixed label |
+
+- Pins: session token refused, no-proof DPoP refused, app origin consent row, empty agent token refused in `attach-collaboration.test.ts`.
+- Mutation check: deleting `connection.readOnly = true` in `collaboration-server.ts` turns `a reader room token connects read-only and no update is logged` red (`expected [ ... ] to not include '<reader id>'`); restored.
+- `attachCollaboration` no longer takes `agentPath`; `isAgentUpgrade` in `collaboration/upgrade-path.ts` serves the upgrade handler and `onAuthenticate`.
+- With the origin check on, requests that post credentials must carry `Origin`. Test helpers and three test files now send it. Browsers always do. Cookie-less OAuth calls (register, token) need none.
+- Gap: the replay store for DPoP proofs is the process-local default, fine for one replica.
 
 ## L3 agent and MCP
 
@@ -206,6 +223,21 @@ Pins (green when they landed, written after the code because they need the L2 ro
 - Call with `Authorization: Bearer <access token>` and `Accept: application/json, text/event-stream` on `POST /api/mcp`; the official `Client` with `StreamableHTTPClientTransport` does this.
 - Argument shapes: `list_documents {}`; `get_timeline {documentId, term?, author?}`; `get_bin_edits {documentId, binStart, binMs?, term?, author?}`; `list_topics {documentId}`; `summarize_selection {documentId, term?, author?, topic?, at?, binMs?}`; `inspect_document {documentId, findText?}`; `edit_document {documentId, action: replace_text | insert_paragraphs | insert_heading, edits: [{find, replace}] | texts: string[] | text + level}`; `export_docx {documentId}` returns an embedded resource with the DOCX mime type; `list_members {documentId}`; `get_share_links {documentId}`; `rotate_share_link {documentId, role: edit | read}`.
 - Errors come back as `isError` results whose text is JSON `{error, retryAfterSeconds?}`.
+
+### Review fixes
+
+Reviewer round on this lane; red commit dfdeef8 and 7bceef5, green fd38378 and f8a0d67.
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `agent-sessions-room.test.ts::a Reader promoted to Editor while the session is cached has the next edit logged` | `expected 24 to be greater than 24` | the cached session is replaced when the role changed |
+| `agent-sessions-room.test.ts::a session near the end of its room token is replaced, so an edit after a reconnect is logged` | `expected 31 to be greater than 31` | a session older than the token lifetime minus the open timeout is replaced |
+| `agent-sessions.test.ts` role, name, age and cap tests | `expected vi.fn() to be called 2 times, but got 1 times` and `to be called 1 times, but got 2 times` | `OpenedSession` records role, name and `openedAt`; in-flight rooms count in the cap |
+| `agent-document-tools.test.ts` limits, stored-file export and hidden unknown errors | `expected undefined to be true`, `Error: No document session is expected here`, `Error: the room is gone` | limits, `roomMode` check and `TOOL_FAILED_MESSAGE` |
+| `agent-tools.test.ts::list_documents ignores a documentId it does not take` | `expected [ true, … ] to deeply equal [ undefined, … ]` | tools declare whether they target a document |
+| `mcp-route.test.ts::a body over the limit answers 413 before any tool runs` | `expected 400 to be 413` | `bodyLimit` on the route |
+
+Hypotheses to add: a Reader promoted while its session is cached edits successfully on the next call; a call during an in-flight edit on a ninth document waits and then succeeds; `get_timeline` with no `documentId` is a tool error; a body of 256 KiB plus one byte answers 413.
 
 ## L4 web
 
@@ -275,6 +307,12 @@ Pins, green when they landed: the streamgraph tooltip lists the agent author onc
 - `AuthorAvatar` in the selection summary card derives the actor from the " · AI" suffix of the name, because summaries carry names only.
 - Nothing here was run in a browser; the redirect after Approve is the redirect plugin's behaviour and is only unit-tested through the mocked client.
 
+### Review fixes
+
+- Sign-in redirect goes to `next` (was always Documents); the consent card shows "Access will be sent to <host>"; a client without a name shows its redirect host on consent and "Unnamed AI client" with Revoke on Connected apps; `invalid_signature` shows the expired message on consent and sign-in; the sign-up and sign-in links keep a signed query; sign-up refuses names ending in "· AI"; AI badge and action marks are `role="img"` (marks are focusable images, no longer buttons); ChatGPT copy button copies only the URL; `OFFLINE_ACCESS_SCOPE` lives in `libs/types`.
+- E2E selectors changed: action marks are `getByRole('img', { name })`; the AI badge is `getByRole('img', { name: 'Edited by AI' })`.
+- Verified: auth and agent E2E specs pass on a scratch config (12 tests) including the signed-out authorize walk and the Connected apps deep link.
+
 ## L5 E2E
 
 ### What changed
@@ -310,8 +348,12 @@ Both tests were written after the product code landed, so neither was red first.
 2. Hypothesis: the revoked call fails at `initialize` with HTTP 401. Break it by: revoke between `initialize` and a tool call with a long-lived client.
 3. Hypothesis: three parallel runs do not collide. Break it by: `--repeat-each 5` with four workers; registration is limited to five per minute per address and each test uses its own address.
 
+### Added after the lead's review
+
+- The first test also asserts the AI badge (`Edited by AI`) inside the author list item titled "Ana · AI".
+- `a document exported by the AI is a DOCX and leaves a mark`: `export_docx` returns an embedded resource with the DOCX mime type and bytes that start with the ZIP signature, and the "exported the document" mark appears.
+- The share-link mark is now awaited without a reload and appeared on its own. Repeat runs: 12 of 12 green at 4 workers, 8 of 9 and 17 of 18 at 3 and 6 workers; the one failure each time was the first test timing out on the Hiring band appearing after 60 seconds under load (topic naming shares two model slots across workers).
+
 ### Known gaps
 
-- The AI-badge on the author list and the export tool are not covered by an E2E.
-- The mark test reloads the page after the server shows the action, so it does not depend on when the panel refetches; whether the panel picks the mark up without a reload is untested.
-
+- None known for the lane; all three tests are pins, not red-first.

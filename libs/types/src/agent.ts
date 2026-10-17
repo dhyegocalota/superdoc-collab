@@ -30,6 +30,7 @@ export enum AgentTool {
   RotateShareLink = 'rotate_share_link',
 }
 
+export const OFFLINE_ACCESS_SCOPE = 'offline_access';
 export const AGENT_NAME_SUFFIX = ' · AI';
 
 export function agentAuthorName(name: string): string {

@@ -10,6 +10,8 @@ export const CONNECTED_APPS_EMPTY_MESSAGE = 'No AI clients connected yet';
 export const CONNECTED_APPS_LOAD_ERROR_MESSAGE = 'Connected apps could not be loaded.';
 export const REVOKE_ERROR_MESSAGE = 'The app could not be revoked. Try again.';
 export const LOADING_CONNECTED_APPS_LABEL = 'Loading connected apps';
+export const UNNAMED_CLIENT_LABEL = 'Unnamed AI client';
+export const CHATGPT_INSTRUCTION = 'In ChatGPT open Settings → Connectors → Add custom connector and paste the URL.';
 export const CONNECT_HEADING = 'Connect an AI client';
 export const CONNECT_DESCRIPTION = 'Point your AI client at this address. It asks you to approve access the first time.';
 export const MCP_URL_LABEL = 'MCP URL';
@@ -35,5 +37,5 @@ export const MCP_CLIENT_LABELS: Record<McpClient, string> = {
 export const MCP_SNIPPETS: Record<McpClient, (url: string) => string> = {
   [McpClient.ClaudeCode]: (url) => `claude mcp add --transport http history ${url}`,
   [McpClient.Cursor]: (url) => JSON.stringify({ mcpServers: { history: { url } } }, null, 2),
-  [McpClient.ChatGpt]: (url) => `Settings → Connectors → Add custom connector → ${url}`,
+  [McpClient.ChatGpt]: (url) => url,
 };

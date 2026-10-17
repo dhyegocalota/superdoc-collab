@@ -137,3 +137,13 @@ test('timeX maps a moment to the x of its fractional bin and clamps outside the 
   expect(layout.timeX(timeline.bins[0]!.start - binMs)).toBe(layout.binX(0));
   expect(layout.timeX(timeline.bins[4]!.start + 10 * binMs)).toBe(layout.binX(4));
 });
+
+test('pin: the agent layer is as tall as the agent share of the band', () => {
+  const timeline = timelineWith({ volumes: [[10], [10], [10]], names: ['Budget'], agentVolumes: [[4], [4], [4]] });
+  const [shape] = layoutStreamgraph({ timeline, width: 420 }).shapes;
+  const heightOf = (path: string): number => {
+    const ys = (path.match(/-?\d+(\.\d+)?/g) ?? []).map(Number).filter((_, index) => index % 2 === 1);
+    return Math.max(...ys) - Math.min(...ys);
+  };
+  expect(heightOf(shape!.agentPath!) / heightOf(shape!.path)).toBeCloseTo(0.4, 3);
+});

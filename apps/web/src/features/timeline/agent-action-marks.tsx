@@ -12,41 +12,49 @@ type AgentActionMarksProps = {
   chartWidth: number;
 };
 
+function markKey(action: AgentActionView): string {
+  return `${action.kind}-${action.createdAt}-${action.authorKey}`;
+}
+
 export function AgentActionMarks({ actions, authors, timeX, chartWidth }: AgentActionMarksProps) {
   const tooltipId = useId();
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const labels = actions.map((action) =>
-    agentActionLabel({ name: authorOf({ authors, authorKey: action.authorKey }).name, kind: action.kind }),
-  );
-  const activeLeft = activeIndex === null ? null : timeX(actions[activeIndex]!.createdAt);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const marks = actions.map((action) => ({
+    action,
+    key: markKey(action),
+    label: agentActionLabel({ name: authorOf({ authors, authorKey: action.authorKey }).name, kind: action.kind }),
+    left: timeX(action.createdAt),
+  }));
+  const active = marks.find((mark) => mark.key === activeKey);
 
   return (
     <div className="relative h-3" style={{ width: chartWidth }}>
-      {actions.map((action, index) => (
-        <button
-          key={`${action.createdAt}-${index}`}
-          type="button"
-          aria-label={labels[index]}
-          aria-describedby={activeIndex === index ? tooltipId : undefined}
+      {marks.map((mark) => (
+        <span
+          key={mark.key}
+          role="img"
+          tabIndex={0}
+          aria-label={mark.label}
+          aria-describedby={active === mark ? tooltipId : undefined}
           className="absolute top-0.5 size-2 -translate-x-1/2 rotate-45 bg-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          style={{ left: timeX(action.createdAt) }}
-          onPointerEnter={() => setActiveIndex(index)}
-          onPointerLeave={() => setActiveIndex(null)}
-          onFocus={() => setActiveIndex(index)}
-          onBlur={() => setActiveIndex(null)}
+          style={{ left: mark.left }}
+          onPointerEnter={() => setActiveKey(mark.key)}
+          onPointerLeave={() => setActiveKey(null)}
+          onFocus={() => setActiveKey(mark.key)}
+          onBlur={() => setActiveKey(null)}
         />
       ))}
-      {activeIndex !== null && activeLeft !== null && (
+      {active && (
         <div
           id={tooltipId}
           role="tooltip"
-          style={{ left: tooltipAnchorLeft({ left: activeLeft, chartWidth }), maxWidth: Math.min(TOOLTIP_WIDTH, chartWidth) }}
+          style={{ left: tooltipAnchorLeft({ left: active.left, chartWidth }), maxWidth: Math.min(TOOLTIP_WIDTH, chartWidth) }}
           className={cn(
             'pointer-events-none absolute bottom-full z-10 mb-1 w-max rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md',
-            ALIGNMENT_CLASS[tooltipAlignment({ left: activeLeft, chartWidth })],
+            ALIGNMENT_CLASS[tooltipAlignment({ left: active.left, chartWidth })],
           )}
         >
-          {labels[activeIndex]}
+          {active.label}
         </div>
       )}
     </div>

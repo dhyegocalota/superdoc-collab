@@ -15,6 +15,13 @@
       "when": 1792179082945,
       "tag": "0001_noisy_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792251694577,
+      "tag": "0002_mute_naoko",
+      "breakpoints": true
     }
   ]
 }

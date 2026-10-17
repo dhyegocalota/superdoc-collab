@@ -1,5 +1,11 @@
 import { type EditRun } from '@superdoc-history/history';
-import { MINUTE_MS, SELECTION_SUMMARY_COOLDOWN_MS, SELECTION_SUMMARY_FAILED_MESSAGE, SelectionSummaryState } from '@superdoc-history/types';
+import {
+  ClientActor,
+  MINUTE_MS,
+  SELECTION_SUMMARY_COOLDOWN_MS,
+  SELECTION_SUMMARY_FAILED_MESSAGE,
+  SelectionSummaryState,
+} from '@superdoc-history/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { randomUUID } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -16,10 +22,10 @@ import {
   type SelectionSnapshot,
 } from './selection-summaries-service';
 
-const ANA = { id: 'user-ana', name: 'Ana' };
-const BRUNO = { id: 'user-bruno', name: 'Bruno' };
+const ANA = { id: 'user-ana', name: 'Ana', actor: ClientActor.Human };
+const BRUNO = { id: 'user-bruno', name: 'Bruno', actor: ClientActor.Human };
 const MALLORY = 'Mallory';
-const SILVA = { id: 'user-silva', name: 'Silva, Ana' };
+const SILVA = { id: 'user-silva', name: 'Silva, Ana', actor: ClientActor.Human };
 const PROVIDER_FAILURE = 'provider exploded';
 const FOREIGN_KEY_FAILURE = 'FOREIGN KEY constraint failed';
 const BRUNO_SELECTION: RequestedSelection = { term: null, author: 'bruno', topic: null, at: null, binMs: null };

@@ -86,3 +86,28 @@ test('a bin ending on a minute boundary resolves to the mark of its own minute',
   });
   expect(bins.map((bin) => bin.versionSequence)).toEqual([5, 9]);
 });
+
+const AGENT_KEY = 'ana#agent';
+
+test('a cell splits agent volume from the total', () => {
+  const human = { ...runAt({ time: TEN_OCLOCK, binMs: MINUTE_MS }), inserted: 'x'.repeat(10), deleted: 'y'.repeat(2) };
+  const agent = {
+    ...runAt({ time: TEN_OCLOCK, binMs: MINUTE_MS }),
+    blockId: 'b2',
+    authorKeys: [AGENT_KEY],
+    inserted: 'x'.repeat(4),
+    deleted: 'y',
+  };
+  const [bin] = buildBins({ runs: [human, agent], binStarts: [TEN_OCLOCK], binMs: MINUTE_MS, versionSequenceAt: () => null });
+  expect(bin!.byBand.b1).toEqual({ inserted: 14, deleted: 3, agentInserted: 4, agentDeleted: 1, authorKeys: ['ana', AGENT_KEY] });
+});
+
+test('a cell with no agent activity has zero agent volume', () => {
+  const [bin] = buildBins({
+    runs: [runAt({ time: TEN_OCLOCK, binMs: MINUTE_MS })],
+    binStarts: [TEN_OCLOCK],
+    binMs: MINUTE_MS,
+    versionSequenceAt: () => null,
+  });
+  expect(bin!.byBand.b1).toMatchObject({ agentInserted: 0, agentDeleted: 0 });
+});

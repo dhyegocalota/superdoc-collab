@@ -1,4 +1,4 @@
-import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS } from '@superdoc-history/types';
+import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS, secondsRoundedUp } from '@superdoc-history/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
@@ -26,6 +26,12 @@ type OpenedSession = {
 };
 type SessionWork<Result> = { person: AgentPerson; documentId: string; work: (document: SuperDocDocument) => Promise<Result> };
 type SessionTraits = { role: DocumentRole | null; userName: string };
+
+export class AgentSessionBusyError extends AgentToolError {
+  constructor(retryAfterSeconds: number) {
+    super({ message: 'Every document room is in use', details: { retryAfterSeconds } });
+  }
+}
 
 export class AgentSessionOpenTimeoutError extends AgentToolError {
   constructor() {
@@ -160,7 +166,8 @@ export class AgentSessions implements AgentDocumentSessions {
   }
 
   private async reserve(): Promise<void> {
-    while (this.active >= this.maxSessions) await new Promise<void>((resolve) => this.waiting.push(resolve));
+    const deadline = Date.now() + this.openTimeoutMs;
+    while (this.active >= this.maxSessions) await this.waitForSlot(Math.max(deadline - Date.now(), 0));
     this.active++;
     const excess = this.idle.size() + this.active - this.maxSessions;
     const oldest = this.idle.keys().slice(0, Math.max(excess, 0));
@@ -172,6 +179,20 @@ export class AgentSessions implements AgentDocumentSessions {
         return this.release(session);
       }),
     );
+  }
+
+  private waitForSlot(milliseconds: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const wake = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        this.waiting.splice(this.waiting.indexOf(wake), 1);
+        reject(new AgentSessionBusyError(secondsRoundedUp(this.openTimeoutMs)));
+      }, milliseconds);
+      this.waiting.push(wake);
+    });
   }
 
   private free(): void {

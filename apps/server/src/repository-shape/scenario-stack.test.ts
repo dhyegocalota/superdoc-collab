@@ -7,7 +7,7 @@ const PACKAGE_FILE = 'package.json';
 const STACK_MODULE_IMPORT = "from './e2e/stack'";
 const INLINE_BUILD_COMMAND = 'BUILD_AND_START_COMMAND = [';
 const SCENARIO_STACK_SCRIPT = 'scenario:stack';
-const SCENARIO_STACK_COMMAND = 'node e2e/scenario-stack.ts';
+const SCENARIO_STACK_COMMAND = 'tsx e2e/scenario-stack.ts';
 const SCENARIO_PORT = 3200;
 const DATABASE_DIRECTORY = '/tmp/scenario-stack-test';
 const FAKE_OPENROUTER_ORIGIN = 'http://127.0.0.1:3299';

@@ -15,6 +15,7 @@ const SIGN_IN_PATH = '/sign-in/email';
 const SIGN_UP_PATH = '/sign-up/email';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
 const AUTHORIZE_PATH = '/oauth2/authorize';
+const DISABLED_PATHS = ['/update-user'];
 const TOKEN_PATH = '/oauth2/token';
 const OAUTH_SCOPES = [...Object.values(AgentScope), OFFLINE_ACCESS_SCOPE];
 
@@ -72,6 +73,7 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
     trustedOrigins: [environment.appOrigin],
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),
     emailAndPassword: { enabled: true },
+    disabledPaths: DISABLED_PATHS,
     plugins: [
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
       defaultResourcePlugin(mcpResourceOf(environment.appOrigin)),

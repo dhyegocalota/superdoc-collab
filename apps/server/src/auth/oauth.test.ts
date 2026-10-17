@@ -50,4 +50,16 @@ describe('oauth discovery', () => {
     });
     expect(response.status).toBe(status);
   });
+
+  test('a signed-in person cannot rename themselves through update-user', async () => {
+    const person = await signedInUser({ server, name: 'Paula' });
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: person.cookie, origin: server.baseUrl },
+      body: JSON.stringify({ name: 'Paula · AI' }),
+    });
+    const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: person.cookie } });
+    expect(response.status).toBe(HttpStatus.NotFound);
+    expect(((await me.json()) as { user: { name: string } }).user.name).toBe('Paula');
+  });
 });

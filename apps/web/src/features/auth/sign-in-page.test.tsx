@@ -136,6 +136,6 @@ test('a 429 says how many seconds to wait', async () => {
   }) as never);
   const user = renderSignInPage();
   await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
-  const expected = authFailureMessage({ status: HttpStatus.TooManyRequests, retryAfterSeconds: RETRY_SECONDS, serverMessage: '' });
+  const expected = authFailureMessage({ status: HttpStatus.TooManyRequests, retryAfterSeconds: RETRY_SECONDS, serverMessage: undefined });
   expect(await screen.findByRole('alert')).toHaveTextContent(expected);
 });

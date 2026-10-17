@@ -22,9 +22,10 @@ function renderSubmit({ queryClient, options }: { queryClient: QueryClient; opti
       <MemoryRouter>{children}</MemoryRouter>
     </QueryClientProvider>
   );
-  const form = { setError: vi.fn() } as never;
+  const setError = vi.fn();
+  const form = { setError } as never;
   const { result } = renderHook(() => useAuthSubmit({ form, request: async () => ({ error: null }), ...options }), { wrapper });
-  return { submit: result.current, form };
+  return { submit: result.current, setError };
 }
 
 test('resolves the session before navigating', async () => {
@@ -64,8 +65,8 @@ test('hands the headers to the request and awaits afterSuccess before navigating
 test('shows the server message on a 403 and does not navigate', async () => {
   navigate.mockReset();
   const request = async () => ({ error: { status: HttpStatus.Forbidden, message: SIGN_UP_BY_INVITATION_MESSAGE } });
-  const { submit, form } = renderSubmit({ queryClient: new QueryClient(), options: { request } });
+  const { submit, setError } = renderSubmit({ queryClient: new QueryClient(), options: { request } });
   await submit({});
-  expect(form.setError).toHaveBeenCalledWith('root', { message: SIGN_UP_BY_INVITATION_MESSAGE });
+  expect(setError).toHaveBeenCalledWith('root', { message: SIGN_UP_BY_INVITATION_MESSAGE });
   expect(navigate).not.toHaveBeenCalled();
 });

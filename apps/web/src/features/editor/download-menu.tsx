@@ -1,4 +1,6 @@
 import { ChevronDown } from 'lucide-react';
+import type { ReactNode } from 'react';
+import type { SuperDoc } from 'superdoc';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -49,4 +51,11 @@ export function DownloadMenu({ isDisabled, onDownload }: { isDisabled: boolean; 
       </DropdownMenu>
     </div>
   );
+}
+
+export function useDownload(_options: { superdoc: SuperDoc | null; onDownloadDocx: () => void }): {
+  download: (format: DownloadFormat) => void;
+  printView: ReactNode;
+} {
+  throw new Error('useDownload is not implemented');
 }

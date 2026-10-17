@@ -1,8 +1,10 @@
-import { agentAuthorName, MINUTE_MS, RoomMode, SECOND_MS } from '@superdoc-history/types';
+import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS } from '@superdoc-history/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
 import type { AgentDocumentSessions, AgentPerson } from './agent-tool-context';
+import { ROOM_TOKEN_TTL_MS } from './room-tokens';
+import { AgentToolError } from './tool-results';
 
 export const MAX_AGENT_SESSIONS = 8;
 export const AGENT_SESSION_IDLE_MS = 5 * MINUTE_MS;
@@ -14,12 +16,20 @@ const COLLABORATION_PROVIDER = 'hocuspocus';
 
 export type AgentSessionsClient = Pick<SuperDocClient, 'connect' | 'open' | 'dispose'>;
 export type LocatedRoom = { roomMode: RoomMode; filePath: string };
-type IdleSession = { document: SuperDocDocument; idleTimer: NodeJS.Timeout };
+type RoleOf = (options: { userId: string; documentId: string }) => DocumentRole | null;
+type OpenedSession = {
+  document: SuperDocDocument;
+  openedAt: number;
+  role: DocumentRole | null;
+  userName: string;
+  idleTimer: NodeJS.Timeout | null;
+};
 type SessionWork<Result> = { person: AgentPerson; documentId: string; work: (document: SuperDocDocument) => Promise<Result> };
+type SessionTraits = { role: DocumentRole | null; userName: string };
 
-export class AgentSessionOpenTimeoutError extends Error {
+export class AgentSessionOpenTimeoutError extends AgentToolError {
   constructor() {
-    super('The document did not open in time');
+    super({ message: 'The document did not open in time' });
   }
 }
 
@@ -35,20 +45,29 @@ function closeQuietly(document: SuperDocDocument): Promise<void> {
 }
 
 export class AgentSessions implements AgentDocumentSessions {
-  private readonly idle: LruMap<IdleSession>;
+  private readonly idle: LruMap<OpenedSession>;
   private readonly turns = new Map<string, Promise<void>>();
+  private readonly waiting: (() => void)[] = [];
   private readonly client: AgentSessionsClient;
   private readonly issueRoomToken: (options: { userId: string; documentId: string }) => string;
   private readonly collaborationUrl: () => string;
   private readonly locateRoom: (documentId: string) => LocatedRoom;
+  private readonly roleOf: RoleOf;
+  private readonly now: () => number;
+  private readonly maxSessions: number;
   private readonly idleMs: number;
   private readonly openTimeoutMs: number;
+  private readonly tokenLifetimeMs: number;
+  private active = 0;
   private connection: Promise<void> | null = null;
 
   constructor({
     issueRoomToken,
     collaborationUrl,
     locateRoom,
+    roleOf,
+    now = Date.now,
+    tokenLifetimeMs = ROOM_TOKEN_TTL_MS,
     createClient = createHostClient,
     maxSessions = MAX_AGENT_SESSIONS,
     idleMs = AGENT_SESSION_IDLE_MS,
@@ -57,6 +76,9 @@ export class AgentSessions implements AgentDocumentSessions {
     issueRoomToken: (options: { userId: string; documentId: string }) => string;
     collaborationUrl: () => string;
     locateRoom: (documentId: string) => LocatedRoom;
+    roleOf: RoleOf;
+    now?: () => number;
+    tokenLifetimeMs?: number;
     createClient?: () => AgentSessionsClient;
     maxSessions?: number;
     idleMs?: number;
@@ -65,8 +87,12 @@ export class AgentSessions implements AgentDocumentSessions {
     this.issueRoomToken = issueRoomToken;
     this.collaborationUrl = collaborationUrl;
     this.locateRoom = locateRoom;
+    this.roleOf = roleOf;
+    this.now = now;
+    this.tokenLifetimeMs = tokenLifetimeMs;
     this.client = createClient();
-    this.idle = new LruMap({ isOverBudget: (entries) => entries.size > maxSessions });
+    this.maxSessions = maxSessions;
+    this.idle = new LruMap({ isOverBudget: (entries) => entries.size + this.active > maxSessions });
     this.idleMs = idleMs;
     this.openTimeoutMs = openTimeoutMs;
   }
@@ -97,35 +123,77 @@ export class AgentSessions implements AgentDocumentSessions {
 
   private async runOnSession<Result>(options: SessionWork<Result>): Promise<Result> {
     const key = `${options.person.userId}:${options.documentId}`;
-    const document = await this.checkout({ key, ...options });
-    const result = await options.work(document).catch(async (error: unknown) => {
-      await closeQuietly(document);
+    const session = await this.checkout({ key, ...options });
+    const result = await options.work(session.document).catch(async (error: unknown) => {
+      this.free();
+      await closeQuietly(session.document);
       throw error;
     });
-    await this.checkin({ key, document });
+    await this.checkin({ key, session });
     return result;
   }
 
-  private async checkout({ key, person, documentId }: { key: string; person: AgentPerson; documentId: string }): Promise<SuperDocDocument> {
-    const session = this.idle.peek(key);
-    if (!session) return this.open({ person, documentId });
-    clearTimeout(session.idleTimer);
-    this.idle.delete(key);
-    return session.document;
+  private isCurrent({ session, role, userName }: { session: OpenedSession } & SessionTraits): boolean {
+    const isSameIdentity = session.role === role && session.userName === userName;
+    const isTokenLive = this.now() - session.openedAt < this.tokenLifetimeMs - this.openTimeoutMs;
+    return isSameIdentity && isTokenLive;
   }
 
-  private async checkin({ key, document }: { key: string; document: SuperDocDocument }): Promise<void> {
+  private async checkout({ key, person, documentId }: { key: string; person: AgentPerson; documentId: string }): Promise<OpenedSession> {
+    const traits: SessionTraits = { role: this.roleOf({ userId: person.userId, documentId }), userName: agentAuthorName(person.name) };
+    const cached = this.idle.peek(key);
+    if (cached && this.isCurrent({ session: cached, ...traits })) {
+      this.idle.delete(key);
+      if (cached.idleTimer) clearTimeout(cached.idleTimer);
+      this.active++;
+      return cached;
+    }
+    if (cached) {
+      this.idle.delete(key);
+      await this.release(cached);
+    }
+    await this.reserve();
+    return this.open({ person, documentId, ...traits }).catch((error: unknown) => {
+      this.free();
+      throw error;
+    });
+  }
+
+  private async reserve(): Promise<void> {
+    while (this.active >= this.maxSessions) await new Promise<void>((resolve) => this.waiting.push(resolve));
+    this.active++;
+    const excess = this.idle.size() + this.active - this.maxSessions;
+    const oldest = this.idle.keys().slice(0, Math.max(excess, 0));
+    await Promise.all(
+      oldest.map((key) => {
+        const session = this.idle.peek(key);
+        this.idle.delete(key);
+        if (!session) return Promise.resolve();
+        return this.release(session);
+      }),
+    );
+  }
+
+  private free(): void {
+    this.active--;
+    const next = this.waiting.shift();
+    if (next) next();
+  }
+
+  private async checkin({ key, session }: { key: string; session: OpenedSession }): Promise<void> {
     const idleTimer = setTimeout(() => {
       this.idle.delete(key);
-      void closeQuietly(document);
+      void closeQuietly(session.document);
     }, this.idleMs);
     idleTimer.unref();
-    const evicted = this.idle.set({ key, value: { document, idleTimer } });
+    session.idleTimer = idleTimer;
+    this.free();
+    const evicted = this.idle.set({ key, value: session });
     await Promise.all(evicted.map(({ value }) => this.release(value)));
   }
 
-  private release({ document, idleTimer }: IdleSession): Promise<void> {
-    clearTimeout(idleTimer);
+  private release({ document, idleTimer }: OpenedSession): Promise<void> {
+    if (idleTimer) clearTimeout(idleTimer);
     return closeQuietly(document);
   }
 
@@ -138,7 +206,12 @@ export class AgentSessions implements AgentDocumentSessions {
     return this.connection;
   }
 
-  private async open({ person, documentId }: { person: AgentPerson; documentId: string }): Promise<SuperDocDocument> {
+  private async open({
+    person,
+    documentId,
+    role,
+    userName,
+  }: { person: AgentPerson; documentId: string } & SessionTraits): Promise<OpenedSession> {
     const { roomMode, filePath } = this.locateRoom(documentId);
     const seed = roomMode === RoomMode.Create ? { doc: filePath } : {};
     await this.connected();
@@ -146,13 +219,13 @@ export class AgentSessions implements AgentDocumentSessions {
       {
         runtime: SDK_RUNTIME,
         ...seed,
-        userName: agentAuthorName(person.name),
+        userName,
         userEmail: person.email,
         collaboration: { providerType: COLLABORATION_PROVIDER, url: this.collaborationUrl(), documentId, roomMode },
       },
       { collaborationAuth: { type: 'token', token: this.issueRoomToken({ userId: person.userId, documentId }) } },
     );
-    return withTimeout({
+    const document = await withTimeout({
       work: opening,
       milliseconds: this.openTimeoutMs,
       onTimeout: () => {
@@ -160,5 +233,6 @@ export class AgentSessions implements AgentDocumentSessions {
         throw new AgentSessionOpenTimeoutError();
       },
     });
+    return { document, openedAt: this.now(), role, userName, idleTimer: null };
   }
 }

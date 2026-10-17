@@ -114,7 +114,7 @@ MCP client ──Bearer JWT──▶ POST /api/mcp ─▶ consent guard ─▶ t
 |------|--------|
 | No token, bad signature, wrong audience, expired | 401 with RFC 9728 `WWW-Authenticate` |
 | Consent revoked | 401 with `WWW-Authenticate`, so the client re-runs OAuth |
-| Token lacks the tool's scope | 403 |
+| Token lacks the tool's scope | the tool is not listed, and calling it by name returns the MCP "tool not found" error; a token with no agent scope at all gets 403 |
 | Not a member of the document | tool error "document not found", without telling whether it exists |
 | Role below the tool's minimum | tool error naming the person's role |
 | Room does not open within the timeout | the session closes; tool error; the next call opens again |

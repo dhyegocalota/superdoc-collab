@@ -1,35 +1,63 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { AgentScope, DocumentRole } from '@superdoc-history/types';
-import type { z } from 'zod';
+import { AgentScope, DocumentRole } from '@superdoc-history/types';
+import { z } from 'zod';
 import type { AgentPerson, AgentToolContext } from './agent-tool-context';
 import { AgentToolError } from './tool-results';
 
 const UNKNOWN_PERSON_MESSAGE = 'The person behind this connection no longer exists';
 
+export const documentInput = { documentId: z.string().min(1).describe('The document id from list_documents') };
+export const documentTargetSchema = z.object(documentInput);
+
+type ToolHandler<Input> = (options: { input: Input; context: AgentToolContext }) => Promise<CallToolResult> | CallToolResult;
+
 export type AgentToolDefinition = {
   scope: AgentScope;
   minimumRole: DocumentRole;
+  targetsDocument: boolean;
   description: string;
   inputSchema: z.ZodObject;
   handle: (options: { input: unknown; context: AgentToolContext }) => Promise<CallToolResult> | CallToolResult;
 };
 
-export function defineTool<Schema extends z.ZodObject>({
+export function defineDocumentTool<Shape extends z.ZodRawShape>({
   scope,
   minimumRole,
   description,
-  inputSchema,
+  shape,
   handle,
 }: {
   scope: AgentScope;
   minimumRole: DocumentRole;
   description: string;
-  inputSchema: Schema;
-  handle: (options: { input: z.infer<Schema>; context: AgentToolContext }) => Promise<CallToolResult> | CallToolResult;
+  shape: Shape;
+  handle: ToolHandler<z.infer<z.ZodObject<Shape & typeof documentInput>>>;
 }): AgentToolDefinition {
+  const inputSchema = z.object({ ...documentInput, ...shape });
   return {
     scope,
     minimumRole,
+    targetsDocument: true,
+    description,
+    inputSchema,
+    handle: ({ input, context }) => handle({ input: inputSchema.parse(input), context }),
+  };
+}
+
+export function definePersonTool({
+  scope,
+  description,
+  handle,
+}: {
+  scope: AgentScope;
+  description: string;
+  handle: ToolHandler<object>;
+}): AgentToolDefinition {
+  const inputSchema = z.object({});
+  return {
+    scope,
+    minimumRole: DocumentRole.Reader,
+    targetsDocument: false,
     description,
     inputSchema,
     handle: ({ input, context }) => handle({ input: inputSchema.parse(input), context }),

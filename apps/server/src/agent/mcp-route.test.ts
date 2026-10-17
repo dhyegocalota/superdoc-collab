@@ -7,7 +7,7 @@ import { documentWithOwner } from '../testing/collaboration-client';
 import type { TestServer, TestUser } from '../testing/test-server';
 import type { AgentToolPrincipal } from './agent-tool-context';
 import { ALL_AGENT_SCOPES, sessionsOn } from './agent-tool-fixtures';
-import { createMcpRoutes } from './mcp-route';
+import { createMcpRoutes, MCP_BODY_MAX_BYTES } from './mcp-route';
 
 const APP_ORIGIN = 'http://app.test';
 const MCP_URL = `${APP_ORIGIN}${ApiPath.Mcp}`;
@@ -134,4 +134,21 @@ test('a tool outside the scopes of the token cannot be called', async () => {
 test.each([HttpMethod.Get, HttpMethod.Delete])('%s answers 405 because the server is stateless', async (method) => {
   const response = await Promise.resolve(app.fetch(new Request(MCP_URL, { method })));
   expect(response.status).toBe(HttpStatus.MethodNotAllowed);
+});
+
+test('a body over the limit answers 413 before any tool runs', async () => {
+  const response = await Promise.resolve(
+    app.fetch(
+      new Request(MCP_URL, {
+        method: HttpMethod.Post,
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+          authorization: `${BEARER_PREFIX}${OWNER_TOKEN}`,
+        },
+        body: 'x'.repeat(MCP_BODY_MAX_BYTES + 1),
+      }),
+    ),
+  );
+  expect(response.status).toBe(HttpStatus.PayloadTooLarge);
 });

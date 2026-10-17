@@ -1,4 +1,4 @@
-import { BIN_LADDER_MS } from '@superdoc-history/history';
+import { BIN_LADDER_MS, MAX_BINS } from '@superdoc-history/history';
 import {
   AgentScope,
   AgentTool,
@@ -12,13 +12,12 @@ import { buildBinEdits, buildDocumentTimeline } from '../history/timeline-servic
 import { documentTopics } from '../insights/document-topics';
 import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
 import { SelectionRequestOutcome, type RequestedSelection } from '../insights/selection-summaries-service';
-import { defineTool, type AgentToolDefinition } from './agent-tool-definition';
+import { defineDocumentTool, definePersonTool, type AgentToolDefinition } from './agent-tool-definition';
 import { absentAsNull, AgentToolError, jsonResult } from './tool-results';
 
 type ReadTool =
   AgentTool.ListDocuments | AgentTool.GetTimeline | AgentTool.GetBinEdits | AgentTool.ListTopics | AgentTool.SummarizeSelection;
 
-const documentInput = { documentId: z.string().min(1).describe('The document id from list_documents') };
 const filterInput = {
   term: z.string().min(1).max(FILTER_MAX_LENGTH).optional().describe('Only edits whose text contains this term'),
   author: z.string().min(1).max(FILTER_MAX_LENGTH).optional().describe('Only edits by authors whose name or email contains this text'),
@@ -31,18 +30,16 @@ const binMsInput = z
   .describe('The binMs returned by get_timeline');
 
 export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
-  [AgentTool.ListDocuments]: defineTool({
+  [AgentTool.ListDocuments]: definePersonTool({
     scope: AgentScope.HistoryRead,
-    minimumRole: DocumentRole.Reader,
     description: 'List the documents the person is a member of, with their role on each.',
-    inputSchema: z.object({}),
     handle: ({ context }) => jsonResult(context.services.documents.list(context.principal.userId)),
   }),
-  [AgentTool.GetTimeline]: defineTool({
+  [AgentTool.GetTimeline]: defineDocumentTool({
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Reader,
-    description: 'Read how a document evolved: time bins, topic or author bands, contributors and authors. At most 120 bins.',
-    inputSchema: z.object({ ...documentInput, ...filterInput }),
+    description: `Read how a document evolved: time bins, topic or author bands, contributors and authors. At most ${MAX_BINS} bins.`,
+    shape: filterInput,
     handle: ({ input, context }) => {
       const { services } = context;
       services.insights.topics.ensure(input.documentId);
@@ -56,16 +53,15 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
       return jsonResult(timeline);
     },
   }),
-  [AgentTool.GetBinEdits]: defineTool({
+  [AgentTool.GetBinEdits]: defineDocumentTool({
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Reader,
     description: 'Read the edit runs of one timeline bin with their authors. Pass the bin start and binMs from get_timeline.',
-    inputSchema: z.object({
-      ...documentInput,
+    shape: {
       ...filterInput,
       binStart: z.number().int().describe('The start of the bin'),
       binMs: binMsInput,
-    }),
+    },
     handle: ({ input, context }) =>
       jsonResult(
         buildBinEdits({
@@ -77,28 +73,27 @@ export const READ_TOOLS: Record<ReadTool, AgentToolDefinition> = {
         }),
       ),
   }),
-  [AgentTool.ListTopics]: defineTool({
+  [AgentTool.ListTopics]: defineDocumentTool({
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Reader,
     description: 'List the topics of a document and the status of the topic analysis.',
-    inputSchema: z.object(documentInput),
+    shape: {},
     handle: ({ input, context }) => {
       context.services.insights.topics.ensure(input.documentId);
       return jsonResult(documentTopics({ services: context.services, documentId: input.documentId }));
     },
   }),
-  [AgentTool.SummarizeSelection]: defineTool({
+  [AgentTool.SummarizeSelection]: defineDocumentTool({
     scope: AgentScope.HistoryRead,
     minimumRole: DocumentRole.Editor,
     description:
       'Summarize in one sentence what a selection of edits changed. Starts the summary when none is fresh; call again to read it. When busy or too soon the error carries retryAfterSeconds.',
-    inputSchema: z.object({
-      ...documentInput,
+    shape: {
       ...filterInput,
       topic: z.string().min(1).max(FILTER_MAX_LENGTH).optional().describe('Only edits in the topic with this id'),
       at: z.number().int().nonnegative().optional().describe('Only edits in the bin that starts at this time'),
       binMs: binMsInput,
-    }),
+    },
     handle: ({ input, context }) => {
       const { documentId } = input;
       const selection: RequestedSelection = {

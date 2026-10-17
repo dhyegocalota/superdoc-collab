@@ -158,3 +158,16 @@ test('an input the schema rejects is a tool error that names the field', async (
   expect(result.isError).toBe(true);
   expect(JSON.stringify(resultJson(result))).toContain('binStart');
 });
+
+test('list_documents ignores a documentId it does not take', async () => {
+  const { context } = toolContext({ server, userId: outsider.id });
+  const result = await callAgentTool({ tool: AgentTool.ListDocuments, input: { documentId }, context });
+  expect([result.isError, resultJson(result)]).toEqual([undefined, { mine: [], shared: [] }]);
+});
+
+test.each(TOOLS_ON_A_DOCUMENT)('$tool without a documentId is a tool error that names it', async ({ tool }) => {
+  const { context } = toolContext({ server, userId: owner.id });
+  const result = await callAgentTool({ tool, input: {}, context });
+  expect(result.isError).toBe(true);
+  expect(JSON.stringify(resultJson(result))).toContain('documentId');
+});

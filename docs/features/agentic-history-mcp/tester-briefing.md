@@ -207,6 +207,21 @@ Pins (green when they landed, written after the code because they need the L2 ro
 - Argument shapes: `list_documents {}`; `get_timeline {documentId, term?, author?}`; `get_bin_edits {documentId, binStart, binMs?, term?, author?}`; `list_topics {documentId}`; `summarize_selection {documentId, term?, author?, topic?, at?, binMs?}`; `inspect_document {documentId, findText?}`; `edit_document {documentId, action: replace_text | insert_paragraphs | insert_heading, edits: [{find, replace}] | texts: string[] | text + level}`; `export_docx {documentId}` returns an embedded resource with the DOCX mime type; `list_members {documentId}`; `get_share_links {documentId}`; `rotate_share_link {documentId, role: edit | read}`.
 - Errors come back as `isError` results whose text is JSON `{error, retryAfterSeconds?}`.
 
+### Review fixes
+
+Reviewer round on this lane; red commit dfdeef8 and 7bceef5, green fd38378 and f8a0d67.
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `agent-sessions-room.test.ts::a Reader promoted to Editor while the session is cached has the next edit logged` | `expected 24 to be greater than 24` | the cached session is replaced when the role changed |
+| `agent-sessions-room.test.ts::a session near the end of its room token is replaced, so an edit after a reconnect is logged` | `expected 31 to be greater than 31` | a session older than the token lifetime minus the open timeout is replaced |
+| `agent-sessions.test.ts` role, name, age and cap tests | `expected vi.fn() to be called 2 times, but got 1 times` and `to be called 1 times, but got 2 times` | `OpenedSession` records role, name and `openedAt`; in-flight rooms count in the cap |
+| `agent-document-tools.test.ts` limits, stored-file export and hidden unknown errors | `expected undefined to be true`, `Error: No document session is expected here`, `Error: the room is gone` | limits, `roomMode` check and `TOOL_FAILED_MESSAGE` |
+| `agent-tools.test.ts::list_documents ignores a documentId it does not take` | `expected [ true, … ] to deeply equal [ undefined, … ]` | tools declare whether they target a document |
+| `mcp-route.test.ts::a body over the limit answers 413 before any tool runs` | `expected 400 to be 413` | `bodyLimit` on the route |
+
+Hypotheses to add: a Reader promoted while its session is cached edits successfully on the next call; a call during an in-flight edit on a ninth document waits and then succeeds; `get_timeline` with no `documentId` is a tool error; a body of 256 KiB plus one byte answers 413.
+
 ## L4 web
 
 ### What changed
@@ -275,6 +290,12 @@ Pins, green when they landed: the streamgraph tooltip lists the agent author onc
 - `AuthorAvatar` in the selection summary card derives the actor from the " · AI" suffix of the name, because summaries carry names only.
 - Nothing here was run in a browser; the redirect after Approve is the redirect plugin's behaviour and is only unit-tested through the mocked client.
 
+### Review fixes
+
+- Sign-in redirect goes to `next` (was always Documents); the consent card shows "Access will be sent to <host>"; a client without a name shows its redirect host on consent and "Unnamed AI client" with Revoke on Connected apps; `invalid_signature` shows the expired message on consent and sign-in; the sign-up and sign-in links keep a signed query; sign-up refuses names ending in "· AI"; AI badge and action marks are `role="img"` (marks are focusable images, no longer buttons); ChatGPT copy button copies only the URL; `OFFLINE_ACCESS_SCOPE` lives in `libs/types`.
+- E2E selectors changed: action marks are `getByRole('img', { name })`; the AI badge is `getByRole('img', { name: 'Edited by AI' })`.
+- Verified: auth and agent E2E specs pass on a scratch config (12 tests) including the signed-out authorize walk and the Connected apps deep link.
+
 ## L5 E2E
 
 ### What changed
@@ -319,9 +340,3 @@ Both tests were written after the product code landed, so neither was red first.
 ### Known gaps
 
 - None known for the lane; all three tests are pins, not red-first.
-
-### L4 review fixes
-
-- Sign-in redirect goes to `next` (was always Documents); the consent card shows "Access will be sent to <host>"; a client without a name shows its redirect host on consent and "Unnamed AI client" with Revoke on Connected apps; `invalid_signature` shows the expired message on consent and sign-in; the sign-up and sign-in links keep a signed query; sign-up refuses names ending in "· AI"; AI badge and action marks are `role="img"` (marks are focusable images, no longer buttons); ChatGPT copy button copies only the URL; `OFFLINE_ACCESS_SCOPE` lives in `libs/types`.
-- E2E selectors changed: action marks are `getByRole('img', { name })`; the AI badge is `getByRole('img', { name: 'Edited by AI' })`.
-- Verified: auth and agent E2E specs pass on a scratch config (12 tests) including the signed-out authorize walk and the Connected apps deep link.

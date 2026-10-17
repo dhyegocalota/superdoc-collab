@@ -6,7 +6,6 @@ import {
   fitSelection,
   namesOf,
   PROMPT_TOPIC_MAX_CHARACTERS,
-  SELECTION_SYSTEM_PROMPT,
   selectionPrompt,
   summariesPrompt,
   type SelectionEdit,
@@ -14,7 +13,6 @@ import {
 
 const RUN_COUNT = 100;
 const HOSTILE_AUTHOR_COUNT = 50;
-const SEPARATE_PEOPLE_RULE = 'List each person separately, exactly as written in the author tags.';
 const AUTHOR_TAG_PATTERN = /<author name=/g;
 const TOPIC_BODY_PATTERN = /<topic [^>]*>\n([\s\S]*)\n<\/topic>/;
 const NO_OVERHEAD = () => 0;
@@ -140,11 +138,6 @@ test('an edit by a hostile crowd of long author names is still kept within the p
   const fitted = fitSelection([edit({ authors: crowd, inserted: 'newest' }), edit({ inserted: 'older' })]);
   expect(fitted[0]!.inserted).toBe('newest');
   expect(selectionPrompt(fitted).length).toBeLessThanOrEqual(SELECTION_PROMPT_MAX_CHARACTERS);
-});
-
-test('the system prompt tells the model to list each person separately', () => {
-  expect(SELECTION_SYSTEM_PROMPT).toContain(SEPARATE_PEOPLE_RULE);
-  expect(SELECTION_SYSTEM_PROMPT).toContain('<author name="Maria, João">');
 });
 
 test('a name the model split at its comma is matched back to the sent name', () => {

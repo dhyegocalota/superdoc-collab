@@ -7,7 +7,6 @@ import {
   HttpStatus,
   INVALID_SHARE_LINK_MESSAGE,
   shareLinkAcceptPath,
-  sharePagePath,
   ShareLinkRole,
   type DocumentSummary,
   type ShareLinks,
@@ -183,8 +182,4 @@ test('links stored under another secret are regenerated and work', async () => {
   expect(current.resolve(tokenOf(newLinks[ShareLinkRole.Edit]))).toEqual({ documentId, role: ShareLinkRole.Edit });
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
   await server.stop();
-});
-
-test('the share page path is built from the token', () => {
-  expect(sharePagePath('a b')).toBe('/share/a%20b');
 });

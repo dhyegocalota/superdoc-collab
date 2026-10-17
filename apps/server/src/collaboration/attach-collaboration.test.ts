@@ -23,8 +23,9 @@ const LOOPBACK_HOST = '127.0.0.1';
 const UNMASKED_BINARY_FRAME = Buffer.from([0x82, 0x01, 0x00]);
 const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
-const UNAUTHENTICATED_CLOSE_DEADLINE_MS = 12_000;
-const UNAUTHENTICATED_TEST_TIMEOUT_MS = 15_000;
+const SHORT_SOCKET_TIMEOUT_MS = 300;
+const UNAUTHENTICATED_CLOSE_DEADLINE_MS = 3_000;
+const UNAUTHORIZED_CLOSE_CODE = 4401;
 const SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS = 15_000;
 const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
@@ -122,14 +123,16 @@ describe('attachCollaboration', () => {
     expect(response).toBe('');
     await server.stop();
   });
-  test('a socket that never authenticates is closed by the server', { timeout: UNAUTHENTICATED_TEST_TIMEOUT_MS }, async () => {
+  test('a socket that never authenticates is closed by the server as unauthorized', async () => {
     const server = await startTestServer();
+    server.services.hocuspocus.configuration.timeout = SHORT_SOCKET_TIMEOUT_MS;
     const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${ApiPath.Collaboration}`, {
       origin: server.baseUrl,
     });
     const startedAt = Date.now();
-    await new Promise<void>((resolve) => socket.on('close', () => resolve()));
+    const closeCode = await new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
     await server.stop();
+    expect(closeCode).toBe(UNAUTHORIZED_CLOSE_CODE);
     expect(Date.now() - startedAt).toBeLessThan(UNAUTHENTICATED_CLOSE_DEADLINE_MS);
   });
   test('a client that resets the socket while the version upgrade is authorized does not crash the server', async () => {

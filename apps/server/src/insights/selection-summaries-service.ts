@@ -119,9 +119,9 @@ export class SelectionSummariesService {
     const { key, cursor, topicsUpdatedAt } = resolved;
     if (!this.worker.consumeCall()) return;
     this.cooldown.start(documentId);
-    const edits = fitSelection(editsOf(resolved.snapshot));
-    const names = namesOf(edits);
     try {
+      const edits = fitSelection(editsOf(resolved.snapshot));
+      const names = namesOf(edits);
       const output = await generateStructured({ model, schema: selectionSummaryOutputSchema, system: SELECTION_SYSTEM_PROMPT, prompt: selectionPrompt(edits) });
       const authors = [...new Set(output.authors.filter((name) => names.includes(name)))];
       this.repository.saveSelectionSummary({ documentId, key, sentence: output.sentence, authors, computedAtSequence: cursor, topicsUpdatedAt });

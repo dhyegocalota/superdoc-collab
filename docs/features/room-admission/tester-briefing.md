@@ -83,6 +83,38 @@ Red commits after the review (23ed472, f5baab8, bb5fa73) change a test against a
 - The runtime test uses a fake room map, not a real socket. The real 4403 close is covered by G3's and G5's tests.
 - `services.reservations` shares the server's `now`, so a fake clock passed to `startServer` also moves reservation expiry.
 - The projection fallback to the log scan keeps the old trap for documents committed before this feature that have no snapshot before their first projection; only documents with a commit snapshot are immune.
+Written by the developer sub-agents when their steps are done. The developer does not run `test-plan.md` and does not declare the feature works.
+
+## G5 (developer-5): measurement and E2E
+
+### What changed
+
+- `e2e/room-admission.spec.ts` (new): five tests, one browser context per author through `signedInContext`. They assert HTTP answers on the open route and `data-testid="document-editor"`, never waiting-page copy.
+- `docs/features/room-admission/plan.md`: Step 0 evidence and ticks for Steps 19 to 23.
+
+### Step 0 measurement (unchanged tree, built stack with the fake model)
+
+Fixture: `e2e/fixtures/large-docx.ts`, 56,800 paragraphs of plain text, no images, a stored zip of 9,987,294 bytes (9.52 MiB). It is the worst case; an image-heavy file of 9.99 MB sent only 9,989,690 bytes in its largest frame.
+
+| Quantity | Value |
+|---|---|
+| Frames sent / received on the first sync | 37 / 80 |
+| Largest frame sent / received | 36,593,816 / 36,593,816 bytes |
+| Cap `MAX_SOCKET_MESSAGE_BYTES` | 41,943,040 bytes (the largest frame is 87 percent of it) |
+| Peak frames in a rolling second, sent / received | 26 / 42 (rate cap 120) |
+| Open to commit | 40.3 s (reservation is 60 s) |
+| Server: encode the room state | 0.6 to 1.5 s, 36,602,228 bytes; applying 24 rows 2.9 s |
+
+The Playwright socket listener sees the worker socket, so no server-side measurement was needed.
+
+## G4: the open route, the agent session and the web ticket
+
+### What changed
+
+- `libs/types/src/routes.ts`: `CREATOR_ATTEMPT_QUERY_KEY` and `CREATOR_EPOCH_QUERY_KEY`, the G3 mirror (8405168). The lead keeps one copy.
+- `apps/server/src/documents/documents-routes.ts`: the open route answers `Join` with `creatorAttempt: null, creatorEpoch: null` on a committed room. On an uncommitted room a reader gets 409 `NOT_READY`, an editor calls `runtime.reserveCreator` and gets 200 `Create` with the ticket, or 409 when another user holds a live reservation. Every 409 is logged with the document id (`console.warn`).
+- `apps/server/src/agent/agent-sessions.ts`: an uncommitted room throws `AgentToolError` with `DOCUMENT_NOT_READY_ERROR` before `connected()`. The `seed` branch is gone.
+- `apps/web/src/features/editor/collaboration-config.ts`: `collaborationUrl({ path, creatorTicket })` appends `?attempt=&epoch=`; `creatorTicketOf` builds the ticket from the open answer. `superdoc-options.ts` takes an optional `creatorTicket`. `use-editor-setup.ts` captures `creatorTicket` in `EditorSetup`. `use-opened-document.ts` gets `staleTime: Infinity`.
 
 ## Group G3 (collaboration hooks and socket limits)
 
@@ -99,6 +131,47 @@ Red commits after the review (23ed472, f5baab8, bb5fa73) change a test against a
 ### How to run
 
 ```bash
+pnpm exec playwright test room-admission
+E2E_SLOW=1 pnpm exec playwright test room-admission
+```
+
+`pnpm test:e2e -- room-admission` ignores the filter and runs every spec. `E2E_SLOW=1` enables the 60 s expiry test, which is skipped without it. The stack boots through `playwright.config.ts`, so it needs port 3100 and 3299 free.
+
+### Red today, green after
+
+Failure text is what the run printed on commit `ed459e0`, on the tree before G1 to G4.
+
+| Test (`e2e/room-admission.spec.ts::`) | Red before the change because | Green after because |
+|---|---|---|
+| `two editors open a fresh document at once and only the first is answered Create` | (first open answer per browser context) `Expected length: 1`, `Received length: 2`, array of two `{"roomMode": "create", "status": 200}` | the second concurrent open is answered 409 |
+| `the second editor's open is answered 200 Join once the creator commits` | `Expected: 409`, `Received: 200` on the first open response of the second editor's page | the second editor waits, then the poll sees 200 Join and the reload shows the editor |
+| `a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor` | `expect(locator).toBeVisible() failed`, the paragraph never renders in 60 s. The page shows the failed editor with "This collaboration room is structurally invalid and was not opened." | the uncommitted room loads empty, the second editor seeds it and the paragraph appears once |
+| `the holder opens a fresh document in two pages at once and the room holds one paragraph` | pin: green today (2 s), so the holder's two pages do not duplicate | pin: stays green with the holder keeping its attempt |
+| `a 10 MB DOCX commits and reopens as Join` | pin: green today (1.2 min with the text-dense fixture) | pin: stays green after the payload cap of Step 8 |
+| `a creator who goes offline mid-create is replaced by the next editor and leaves one paragraph set` | `Expected: 1`, `Received: null`: after the creator comes back online its text and the second editor's text never converge in 60 s. Runs only with `E2E_SLOW=1` | the superseded creator's late updates are fenced and both pages converge on one paragraph |
+| `a superseded creator's socket closes with 4403 after the 60 s expiry` | `closeCode`: expected 4403, received null after the 60 s poll | the takeover closes the old socket with 4403 |
+
+### Hypotheses to attack
+
+1. Hypothesis: only one of two simultaneous opens is answered Create. Break it by: fire the two opens from two contexts in `Promise.all` 50 times on one fresh document each, and count Create answers.
+2. Hypothesis: the creator's tab closing releases the reservation, so the next editor needs no wait. Break it by: close the creator's tab during the first sync and open as the second editor within 2 s, inside the store debounce.
+3. Hypothesis: a 10 MB DOCX syncs below the cap. Break it by: a DOCX of exactly 10 MiB, and one whose room state is larger than the file (many tracked changes).
+4. Hypothesis: a takeover after expiry fences the old creator. Break it by: let the old creator type after 4403, and reload it. Expect 409 until the new creator commits.
+5. Hypothesis: the E2E would catch a regression that serves Create twice. Break it by: revert only the 409 branch for editors and confirm the first test goes red.
+
+### Known gaps
+
+- The offline test cannot read the close code of the creator's worker socket. It asserts convergence on one paragraph after the creator returns. A premature pass is possible if the late updates arrive after the poll; the failed banner needs connection-state.
+- Step 21 uses the log copy described below, not a page closed on its first sent frame: closing the page at a large sent frame still committed in every probe run.
+
+- Step 21 cannot cut a real creator mid-stream. Chromium runs the collaboration socket in a worker, which `routeWebSocket` does not intercept, and closing the page at the large frame still lets the commit land (all 5 completed probe runs committed). The test copies the log rows that precede the commit of a real creator's document into a fresh document, through `history.sqlite` in `E2E_DATABASE_DIR`. It then opens that document as the second editor. The abandoned prefix is genuine creator output, but the cut is simulated.
+- The plan predicted duplicated paragraphs for Step 21. On the current tree the second editor instead meets a room that SuperDoc rejects as structurally invalid, most likely because the creator's bootstrap claim in the room meta stays pending. The review focus about seeding on top of an abandoned partial may not occur the way it is written. The test is red either way and goes green only if the uncommitted room loads empty.
+- Step 23 holds the creator with a raw in-page WebSocket that sends only the authentication message, so it does not exercise a real editor tab. It checks that the old socket closes with 4403 and does not check the failed banner.
+- `SUPERSEDED_ATTEMPT_CLOSE_CODE` is a local constant in the spec because G1 has not landed in this lane. Replace it with the import from `libs/types` after the merge.
+- The spec holds the DOCX generator and the raw socket helper. Moving them to `e2e/` helper files is a mechanical follow-up the lead can order.
+- The two-window waiting page at 375 and 1280 px from the spec's E2E list is not covered here, because the waiting page belongs to final-visuals.
+pnpm --filter @superdoc-collab/server exec vitest run src/documents/documents-routes.test.ts src/agent/agent-sessions-room.test.ts
+pnpm --filter @superdoc-collab/web exec vitest run src/features/editor
 pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/collaboration-server.test.ts
 pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/attach-collaboration.test.ts
 pnpm --filter @superdoc-collab/server exec vitest run src/collaboration/socket-message-limit.test.ts
@@ -109,6 +182,24 @@ pnpm typecheck
 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
+| `documents-routes.test.ts` (four new tests, Steps 15 to 17) | `expected [ 'create', undefined, undefined ] to deeply equal [ 'create', 1, ... ]`; `expected undefined to be 1`; `expected [ 200, ... ] to deeply equal [ 409, { error: 'NOT_READY' } ]`; the committed-room test failed on undefined creator fields (9327ca3) | 7ddab71 |
+| `agent-sessions-room.test.ts::an agent opening an uncommitted room ...` (Step 18) | `expected { status: 'ok', ... } to be an instance of AgentToolError` (the call resolved) (f2ba41d) | 7faf94b |
+| `collaboration-config.test.ts`, `use-editor-setup.test.ts`, `use-opened-document.test.tsx`, `superdoc-options.test.ts::the options put the creator ticket ...` (Step 18a) | `TypeError: creatorTicketOf is not a function`, `expected 'ws://localhost:3000[object Object]' ...`, `expected undefined to deeply equal { attempt: 1, ... }`, stale query (eaaa5b4) | the web green commit after it |
+
+The four open-route tests share one red and one green commit: the editor 409 is only reachable once the ticket exists, so splitting them would have made Step 16 a pin. The web red commit has no stubs, so `typecheck` is red at that commit and green at the lane tip.
+
+### Hypotheses to attack
+
+1. Hypothesis: two editors opening an uncommitted room at once never both get 200. Break it by: firing both requests in the same tick.
+2. Hypothesis: the holder's second open returns the same attempt and epoch and does not extend the expiry. Break it by: an open at 30 s, then another editor at 61 s.
+3. Hypothesis: a focus refetch never re-reserves. Break it by: blurring and focusing the tab on a Create room and reading the attempt in the socket URL.
+4. Hypothesis: an agent on an uncommitted room is refused before any socket opens and writes nothing. Break it by: an MCP call on a fresh upload.
+
+### Known gaps
+
+- Pending G3's committed-room fixture: `agent-sessions-room.test.ts` (its `beforeAll` and `roomCreatedByOwner`) and `mcp-over-oauth.test.ts` build rooms through `seededDocument`, which relied on the agent seeding the room. They fail with `NOT_READY` until they open a committed room, which needs a real creator because the agent toolkit reads the DOCX content.
+- `use-opened-document.ts` also sets `refetchOnMount: 'always'`: with `staleTime: Infinity` alone a cached open answer would never be refetched on mount, which broke `document-page.test.tsx::a cached create followed by a fresh join`. The holder's refetch returns the same ticket.
+- Follow-up: `superdoc-editor.tsx` and `document-page.tsx` pass the ticket (6fc34d0 red); `LocatedRoom.filePath` and its wiring are removed; `agent-sessions.test.ts` now pins `a document nobody has opened answers NOT_READY and seeds nothing`.
 | `socket-message-limit.test.ts` (3 tests) | `Error: SocketMessageLimit is not implemented` (f950884) | 5b292f3 |
 | `attach-collaboration.test.ts::a frame over the payload cap closes with 1009 ...` | `AssertionError: expected 4401 to be 1009` after the 10 s idle timeout (7651bdb) | 5e4458d |
 | `attach-collaboration.test.ts::a valid update padded to the cap is accepted` | pin: green when it landed | |

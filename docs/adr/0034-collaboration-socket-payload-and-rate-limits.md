@@ -12,7 +12,7 @@ The collaboration socket server is created with the library default, which accep
 
 ## Decision
 
-- `maxPayload` on the socket server equals a small multiple of `MAX_UPLOAD_BYTES`: 4 times 10 MB. The constant is `MAX_SOCKET_MESSAGE_BYTES` in `libs/types`.
+- `maxPayload` on the socket server equals a small multiple of `MAX_UPLOAD_BYTES`: 8 times 10 MB. The constant is `MAX_SOCKET_MESSAGE_BYTES` in `libs/types`. The multiple was 4 until the room-admission measurement of 2026-10-17: a text-dense 9.52 MiB DOCX syncs its seed in one 36,593,816-byte frame, 3.7 times its file size, so 4 times left 15% of headroom and 8 times leaves 2.2 times, still under the `ws` default of 100 MiB.
 - A per-socket rate cap of 120 frames in a rolling second, through the existing `SlidingWindow`, counted at the `ws` layer in `attach-collaboration.ts` from the first frame, before authentication too: Hocuspocus queues every frame that arrives before the authentication message without a bound, so a counter inside its hooks would start too late. The constant is `MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types`. A frame over the payload cap is closed by `ws` with 1009, which the provider treats as final; `terminateOnError` leaves a socket that is already closing alone so that close frame is delivered.
 - A breach of the rate cap closes that socket with close code 1008 (policy violation) and a reason string. The client's provider reconnects on its own.
 - Both limits are logged with the document id and never with the payload.
@@ -40,6 +40,7 @@ Added by the room-admission plan.
 - A unit test of the rate breach: the 121st message in a second closes the socket with 1008.
 - A unit test of the payload cap: a message above the cap closes the socket.
 - A unit test that a seeded room at the upload cap still creates.
+- Measured on 2026-10-17 before the cap was set, with a 9.52 MiB text-dense DOCX (56,800 paragraphs, no images): the largest frame was 36,593,816 bytes each way, 87 percent of `MAX_SOCKET_MESSAGE_BYTES` (41,943,040). The create sent 37 frames and received 80, at most 26 sent and 42 received in any rolling second, so the rate cap of 120 per second holds. Open to commit took 40.3 s, and encoding the room state took 0.6 to 1.5 s. The wire size is 3.7 times the file size for this fixture, so a denser file can approach the cap.
 
 ## Revisit when
 

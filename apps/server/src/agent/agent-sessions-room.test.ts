@@ -1,9 +1,10 @@
-import { ApiPath, DocumentRole, RoomMode } from '@superdoc-collab/types';
+import { ApiPath, DOCUMENT_NOT_READY_ERROR, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import { AgentSessions } from './agent-sessions';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from './room-tokens';
 import { TEST_AUTH_SECRET } from '../testing/test-server';
 import { signedInOwner, signedInUser, type TestServer, type TestUser } from '../testing/test-server';
+import { AgentToolError } from './tool-results';
 import type { AgentPerson } from './agent-tool-context';
 import { seededDocument } from './agent-tool-fixtures';
 
@@ -84,10 +85,12 @@ function loggedUpdates(roomId: string): number {
 }
 
 function sessionsWith({
+  roomMode = RoomMode.Join,
   tokenIssuedAt = () => Date.now(),
   tokenLifetimeMs,
   openTimeoutMs,
 }: {
+  roomMode?: RoomMode;
   tokenIssuedAt?: () => number;
   tokenLifetimeMs?: number;
   openTimeoutMs?: number;
@@ -96,7 +99,7 @@ function sessionsWith({
     issueRoomToken: ({ userId, documentId: roomId }) =>
       signRoomToken({ secret: TEST_AUTH_SECRET, userId, documentId: roomId, now: tokenIssuedAt() }),
     collaborationUrl: () => `${server.baseUrl.replace('http', 'ws')}${ApiPath.AgentCollaboration}`,
-    locateRoom: (roomId) => ({ roomMode: RoomMode.Join, filePath: server.services.storage.pathOf(roomId) }),
+    locateRoom: (roomId) => ({ roomMode }),
     roleOf: ({ userId, documentId: roomId }) => server.services.documents.findRole({ documentId: roomId, userId }),
     tokenLifetimeMs,
     openTimeoutMs,
@@ -164,4 +167,14 @@ test('a session near the end of its room token is replaced, so an edit after a r
   const before = loggedUpdates(roomId);
   await editThrough({ sessions, user: owner, name: 'Ana', roomId });
   await vi.waitFor(() => expect(loggedUpdates(roomId)).toBeGreaterThan(before));
+});
+
+test('an agent opening an uncommitted room is answered NOT_READY and seeds nothing', async () => {
+  const roomId = await seededDocument({ server, owner });
+  const refused = await editThrough({ sessions: sessionsWith({ roomMode: RoomMode.Create }), user: owner, name: 'Ana', roomId }).catch(
+    (error: unknown) => error,
+  );
+  expect(refused).toBeInstanceOf(AgentToolError);
+  expect((refused as AgentToolError).message).toBe(DOCUMENT_NOT_READY_ERROR);
+  expect(loggedUpdates(roomId)).toBe(0);
 });

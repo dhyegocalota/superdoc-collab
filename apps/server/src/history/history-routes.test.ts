@@ -18,6 +18,7 @@ import { connectToDocument, documentWithOwner, memberWithRole } from '../testing
 import { insertedBy, readEvents } from '../testing/events-client';
 import { commitBulkEvents } from '../testing/timeline-client';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
+import { waitForCommit } from '../testing/committed-room';
 
 const PROJECTION_TIMEOUT_MS = 15_000;
 
@@ -27,6 +28,7 @@ test("events attribute each author's inserted text", async () => {
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: ownerClient.document, texts: ['Hello'] });
   commitBootstrap(ownerClient.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: ownerClient.document, texts: ['Hello A'] });
   const editorClient = await connectToDocument({ server, cookie: editor.cookie, documentId });
   writeStory({ document: editorClient.document, texts: ['Hello A B'] });
@@ -52,6 +54,7 @@ test('a late declaration corrects the author of an already projected edit', asyn
   const ownerClient = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: ownerClient.document, texts: ['Hello'] });
   commitBootstrap(ownerClient.document);
+  await waitForCommit({ services: server.services, documentId });
   const anaOffline = new Y.Doc();
   Y.applyUpdate(anaOffline, Y.encodeStateAsUpdate(ownerClient.document));
   writeStory({ document: anaOffline, texts: ['Hello Ana'] });
@@ -73,6 +76,7 @@ test('afterSequence returns only later events and a non-member gets 404', async 
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: ['Hello A'] });
   writeStory({ document: client.document, texts: ['Hello A B'] });
   await expect
@@ -106,6 +110,7 @@ test('events survive a server restart', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   writeStory({ document: client.document, texts: ['Hello A'] });
   await expect
     .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).length, { timeout: PROJECTION_TIMEOUT_MS })

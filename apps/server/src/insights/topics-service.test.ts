@@ -32,6 +32,7 @@ import { LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
 import { INSIGHTS_JOB_FAILED_MESSAGE, JobOutcome } from './insights-job-runner';
 import { SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import { TOPIC_RECOMPUTE_MIN_INTERVAL_MS, UNKNOWN_TOPIC_BLOCKS_MESSAGE } from './topics-service';
+import { waitForCommit } from '../testing/committed-room';
 
 const POLL_TIMEOUT_MS = 15_000;
 const SECRET = 'sk-test-secret';
@@ -314,6 +315,7 @@ async function projectBlocks({
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Budget up'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: POLL_TIMEOUT_MS }).toBeGreaterThan(0);
   return client;
 }
@@ -397,6 +399,7 @@ test('empty-document jobs never exhaust the hourly model budget', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Budget up'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   await expect.poll(() => server.services.readModel.marks(documentId).length, { timeout: POLL_TIMEOUT_MS }).toBeGreaterThan(0);
   await readTopics({ server, documentId, cookie: owner.cookie });
   await expect

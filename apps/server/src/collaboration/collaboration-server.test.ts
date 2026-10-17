@@ -71,7 +71,9 @@ function sendChange({
     documentName: `${SUPERDOC_ROOM_PREFIX}${context.documentId}`,
     transactionOrigin: {},
   } as unknown as ChangePayload;
-  return server.services.hocuspocus.configuration.onChange(payload) as Promise<void>;
+  const { onChange } = server.services.hocuspocus.configuration;
+  if (!onChange) throw new Error('The collaboration server has no onChange hook.');
+  return onChange(payload) as Promise<void>;
 }
 
 function loggedRows(scenario: Pick<Scenario, 'server' | 'documentId'>) {

@@ -32,6 +32,7 @@ export function usePanelWidth(): { width: number; maxWidth: number; resizeTo: (n
 
 export const MIN_PANEL_HEIGHT = 240;
 export const DEFAULT_PANEL_HEIGHT_SHARE = 0.42;
+export const COMPACT_PANEL_HEIGHT_SHARE = 0.58;
 export const MIN_EDITOR_HEIGHT = 240;
 
 function clampHeight({ height, areaHeight }: { height: number; areaHeight: number }): number {

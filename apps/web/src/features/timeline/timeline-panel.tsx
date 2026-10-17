@@ -92,7 +92,7 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   const { ref: chartRef, width: chartWidth } = useElementWidth();
   const { ref: areaRef, height: areaHeight } = useAreaHeight();
   const sideSize = usePanelWidth();
-  const bottomSize = usePanelHeight({ areaHeight });
+  const bottomSize = usePanelHeight({ areaHeight, isCompact: false });
   const { search } = useTimelineSearch();
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
   const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({ timeline, at: search.at, onTravel, onBackToLive });

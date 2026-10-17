@@ -1,10 +1,23 @@
-import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS } from '../libs/types/src';
-import { DEMO_PASSWORD, FORWARDED_FOR_HEADER, expect, expectSignedInAs, randomClientAddress, signIn, test } from './fixtures';
+import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS, ShareLinkRole } from '../libs/types/src';
+import { editorText, readShareLinks, uploadSeed } from './editor';
+import {
+  DEMO_PASSWORD,
+  FORWARDED_FOR_HEADER,
+  expect,
+  expectSignedInAs,
+  randomClientAddress,
+  signedInContext,
+  signIn,
+  test,
+} from './fixtures';
 
 const [ana, bruno] = DEMO_USERS;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const FAILED_ATTEMPTS_BEFORE_LIMIT = 4;
 const INVITE_INVALID_MESSAGE = 'This invite is not valid. Ask an admin for a new link.';
+const SHARED_PARAGRAPH = 'Shared: the plan costs 10.';
+const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)$/;
+const EDITOR_READY_TIMEOUT_MS = 60_000;
 
 test('sign-up without an invite is refused once the instance is claimed', async ({ page }) => {
   await page.goto(AppRoute.SignUp);
@@ -30,6 +43,19 @@ test('visiting documents signed out redirects to sign-in and returns after login
   await expect(page).toHaveURL(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.Documents)}`);
   await signIn({ page, email: ana!.email, password: DEMO_PASSWORD });
   await expectSignedInAs({ page, name: ana!.name });
+});
+
+test('a signed-out member who opens a share link lands on the document after signing in', async ({ browser, page }) => {
+  const owner = await signedInContext({ browser, user: ana! });
+  const documentId = await uploadSeed({ page: owner.page, paragraphs: [SHARED_PARAGRAPH] });
+  const links = await readShareLinks({ page: owner.page, documentId });
+  const sharePath = new URL(links[ShareLinkRole.Edit]).pathname;
+  await page.goto(sharePath);
+  await expect(page).toHaveURL(`${AppRoute.SignIn}?next=${encodeURIComponent(sharePath)}`);
+  await signIn({ page, email: bruno!.email, password: DEMO_PASSWORD });
+  await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
+  expect(DOCUMENT_URL_PATTERN.exec(page.url())![1]).toBe(documentId);
+  await expect(editorText(page).filter({ hasText: SHARED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
 });
 
 test('sign out returns to sign-in and documents is protected again', async ({ page }) => {

@@ -20,8 +20,8 @@ One group.
 
 ### G1
 
-- [ ] **Step 1:** red unit tests (`next` honoured; foreign origin ignored) and the red E2E (share link → sign-in → shared document).
-- [ ] **Step 2:** `RedirectIfSession` navigates to `safeNextPath(next)`; tests green.
+- [x] **Step 1:** red unit tests (`next` honoured; foreign origin ignored) and the red E2E (share link → sign-in → shared document).
+- [x] **Step 2:** `RedirectIfSession` navigates to `safeNextPath(next)`; tests green.
 
 ## Failure modes
 
@@ -33,7 +33,7 @@ One group.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **Security reviewer:** a fresh `security-reviewer` sub-agent returned a verdict on this diff.

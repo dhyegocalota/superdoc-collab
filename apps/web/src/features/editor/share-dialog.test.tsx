@@ -7,13 +7,22 @@ import {
   ShareLinkRole,
   type ShareLinks,
 } from '@superdoc-history/types';
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { COPY_LABEL, ROTATE_FAILED_MESSAGE, ROTATE_LABEL, SHARE_LABEL, SHARE_LINK_LABELS } from './editor-copy';
-import { ShareDialog } from './share-dialog';
+import {
+  COPY_FAILED_MESSAGE,
+  COPY_LABEL,
+  LOADING_SHARE_LINKS_LABEL,
+  RESET_FAILED_MESSAGE,
+  RESET_LINK_LABEL,
+  SHARE_DIALOG_DESCRIPTION,
+  SHARE_LABEL,
+  SHARE_LINK_LABELS,
+} from './editor-copy';
+import { COPIED_NOTICE_MS, ShareDialog } from './share-dialog';
 
 const SHARE_LINKS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.ShareLinks });
 const ROTATE_EDIT_PATH = `${SHARE_LINKS_PATH}/${ShareLinkRole.Edit}/rotate`;
@@ -56,24 +65,75 @@ test('Copy writes the url to the clipboard and confirms', async () => {
   expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
 });
 
-test('Rotate on the edit row posts the rotation and shows the new url', async () => {
+test('Reset link on the edit row posts the rotation and shows the new url', async () => {
   const fetchSpy = mockShareApi();
   await openDialog();
   const editRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Edit] });
-  await userEvent.click(within(editRow).getByRole('button', { name: ROTATE_LABEL }));
+  await userEvent.click(within(editRow).getByRole('button', { name: RESET_LINK_LABEL }));
   expect(await screen.findByDisplayValue(ROTATED_LINKS[ShareLinkRole.Edit])).toBeInTheDocument();
   expect(fetchSpy).toHaveBeenCalledWith(ROTATE_EDIT_PATH, expect.objectContaining({ method: HttpMethod.Post }));
   expect(screen.getByDisplayValue(LINKS[ShareLinkRole.Read])).toBeInTheDocument();
 });
 
-test('a failed rotation shows an alert and keeps the old url', async () => {
+test('a failed reset shows an alert and keeps the old url', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (init?.method === HttpMethod.Post) return new Response(null, { status: HttpStatus.Forbidden });
     return new Response(JSON.stringify(LINKS));
   });
   await openDialog();
   const editRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Edit] });
-  await userEvent.click(within(editRow).getByRole('button', { name: ROTATE_LABEL }));
-  expect(await within(editRow).findByRole('alert')).toHaveTextContent(ROTATE_FAILED_MESSAGE);
+  await userEvent.click(within(editRow).getByRole('button', { name: RESET_LINK_LABEL }));
+  expect(await within(editRow).findByRole('alert')).toHaveTextContent(RESET_FAILED_MESSAGE);
   expect(screen.getByDisplayValue(LINKS[ShareLinkRole.Edit])).toBeInTheDocument();
+});
+
+test('the dialog says resetting stops the old link', async () => {
+  mockShareApi();
+  await openDialog();
+  expect(screen.getByText(SHARE_DIALOG_DESCRIPTION)).toHaveTextContent('stops the old one from working');
+});
+
+test('two placeholder rows show while the links load', async () => {
+  vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>(() => undefined));
+  await openDialog();
+  expect(screen.getByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).toBeInTheDocument();
+});
+
+test('a refused clipboard selects the link and says how to copy it', async () => {
+  mockShareApi();
+  const user = userEvent.setup();
+  vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
+  await openDialog();
+  const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
+  expect(await within(readRow).findByRole('status')).toHaveTextContent(COPY_FAILED_MESSAGE);
+  const input = within(readRow).getByDisplayValue(LINKS[ShareLinkRole.Read]) as HTMLInputElement;
+  expect(input.selectionStart).toBe(0);
+  expect(input.selectionEnd).toBe(LINKS[ShareLinkRole.Read].length);
+});
+
+test('a missing clipboard falls back the same way', async () => {
+  mockShareApi();
+  const user = userEvent.setup();
+  vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(() => {
+    throw new TypeError('clipboard unavailable');
+  });
+  await openDialog();
+  const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
+  expect(await within(readRow).findByRole('status')).toHaveTextContent(COPY_FAILED_MESSAGE);
+});
+
+test('Link copied clears after a few seconds', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockShareApi();
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  await openDialog();
+  const readRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
+  expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(COPIED_NOTICE_MS));
+  expect(within(readRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
+  vi.useRealTimers();
 });

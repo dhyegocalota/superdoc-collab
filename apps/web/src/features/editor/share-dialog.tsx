@@ -1,4 +1,4 @@
-import { LINK_COPIED_MESSAGE, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
+import { LINK_COPIED_MESSAGE, SECOND_MS, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Share2 } from 'lucide-react';
 import { useState } from 'react';
@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { fetchShareLinks, rotateShareLink, shareLinksQueryKey } from './editor-api';
 import {
   COPY_LABEL,
-  ROTATE_FAILED_MESSAGE,
-  ROTATE_LABEL,
+  RESET_FAILED_MESSAGE,
+  RESET_LINK_LABEL,
   SHARE_DIALOG_DESCRIPTION,
   SHARE_DIALOG_TITLE,
   SHARE_LABEL,
@@ -17,6 +17,8 @@ import {
 } from './editor-copy';
 
 const SHARE_ROLES = Object.values(ShareLinkRole);
+
+export const COPIED_NOTICE_MS = 3 * SECOND_MS;
 
 type ShareLinkRowProps = { documentId: string; role: ShareLinkRole; url: string };
 
@@ -50,12 +52,12 @@ function ShareLinkRow({ documentId, role, url }: ShareLinkRowProps) {
           {COPY_LABEL}
         </Button>
         <Button variant="outline" disabled={isPending} onClick={() => rotate()}>
-          {ROTATE_LABEL}
+          {RESET_LINK_LABEL}
         </Button>
       </div>
       {isError && (
         <p role="alert" className="text-sm text-destructive">
-          {ROTATE_FAILED_MESSAGE}
+          {RESET_FAILED_MESSAGE}
         </p>
       )}
       {isCopied && (

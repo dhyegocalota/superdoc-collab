@@ -12,7 +12,8 @@ export const DOWNLOAD_LABEL = 'Download .docx';
 export const BACK_TO_DOCUMENTS_LABEL = 'Back to documents';
 export const ONLINE_LABEL = 'online';
 export const COPY_LABEL = 'Copy';
-export const ROTATE_LABEL = 'Rotate';
+export const RESET_LINK_LABEL = 'Rotate';
+export const CANCEL_LABEL = 'Cancel';
 export const SHARE_DIALOG_TITLE = 'Share this document';
 export const SHARE_DIALOG_DESCRIPTION = 'Anyone signed in with a link joins with that link’s access.';
 export const TIMELINE_TOGGLE_LABEL = 'Toggle timeline';
@@ -25,7 +26,9 @@ export const EDITOR_EXIT_LABEL = 'End of the editor';
 export const SHARE_OPENING_MESSAGE = 'Opening...';
 export const RENAME_FAILED_MESSAGE = 'The title could not be saved.';
 export const DELETE_FAILED_MESSAGE = 'The document could not be deleted.';
-export const ROTATE_FAILED_MESSAGE = 'The link could not be rotated.';
+export const RESET_FAILED_MESSAGE = 'The link could not be rotated.';
+export const COPY_FAILED_MESSAGE = 'The link could not be copied. It is selected, so copy it with your keyboard.';
+export const LOADING_SHARE_LINKS_LABEL = 'Loading links';
 
 export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
   [ShareLinkRole.Edit]: 'Edit link',

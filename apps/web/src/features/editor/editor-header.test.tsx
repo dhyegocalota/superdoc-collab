@@ -13,6 +13,7 @@ import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
+  CANCEL_LABEL,
   DELETE_CONFIRM_LABEL,
   DELETE_FAILED_MESSAGE,
   DELETE_LABEL,
@@ -178,4 +179,18 @@ test('a reader has no More actions menu', () => {
     <EditorHeader opened={openedAs(DocumentRole.Reader)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
   );
   expect(screen.queryByRole('button', { name: MORE_ACTIONS_LABEL })).not.toBeInTheDocument();
+});
+
+test('Cancel closes the delete dialog, sends nothing and leaves the page clickable', async () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch');
+  renderWithProviders(
+    <EditorHeader opened={openedAs(DocumentRole.Owner)} members={[]} currentUserId={SESSION_USER.id} onDownload={onDownload} />,
+  );
+  await openDeleteDialog();
+  await userEvent.click(await screen.findByRole('button', { name: CANCEL_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(document.body.style.pointerEvents).not.toBe('none');
+  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_LABEL }));
+  expect(onDownload).toHaveBeenCalledTimes(1);
 });

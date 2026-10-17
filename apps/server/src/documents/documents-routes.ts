@@ -153,7 +153,8 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
     const online = runtime.onlineUserIds(documentId);
     const tab = context.req.query(TAB_QUERY_KEY);
-    const isCurrentUserOnline = tab === undefined ? online.has(context.var.user.id) : runtime.onlineTabIds(documentId).has(tab);
+    const isCurrentUserOnline =
+      tab === undefined ? online.has(context.var.user.id) : runtime.onlineTabIds({ documentId, userId: context.var.user.id }).has(tab);
     return context.json({
       members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,

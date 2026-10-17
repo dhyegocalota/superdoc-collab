@@ -173,8 +173,8 @@ test("a connection's tab id is in the room's online tab ids and leaves with the 
     documentId,
     path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${tabId}`,
   });
-  expect(server.services.runtime.onlineTabIds(documentId)).toEqual(new Set([tabId]));
+  expect(server.services.runtime.onlineTabIds({ documentId, userId: owner.id })).toEqual(new Set([tabId]));
   client.close();
-  await expect.poll(() => server.services.runtime.onlineTabIds(documentId)).toEqual(new Set());
+  await expect.poll(() => server.services.runtime.onlineTabIds({ documentId, userId: owner.id })).toEqual(new Set());
   await server.stop();
 });

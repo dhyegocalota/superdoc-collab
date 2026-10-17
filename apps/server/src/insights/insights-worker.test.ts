@@ -54,3 +54,11 @@ test('the worker honours the configured limits', async () => {
   await worker.idle();
   expect([worker.consumeCall(), worker.consumeCall(), worker.consumeCall()]).toEqual([true, true, false]);
 });
+
+test('checking the call budget never spends it', () => {
+  const worker = new InsightsWorker({ maxCallsPerHour: 1 });
+  expect(worker.hasCallBudget()).toBe(true);
+  expect(worker.hasCallBudget()).toBe(true);
+  expect(worker.consumeCall()).toBe(true);
+  expect(worker.hasCallBudget()).toBe(false);
+});

@@ -41,6 +41,10 @@ export class InsightsWorker {
     return true;
   }
 
+  hasCallBudget(): boolean {
+    return true;
+  }
+
   isRunning(key: string): boolean {
     return this.running.has(key);
   }

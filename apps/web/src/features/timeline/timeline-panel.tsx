@@ -1,6 +1,6 @@
 import { DocumentRole, type DocumentTimeline, type EditSelection } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useId, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { cn } from '@/lib/utils';
@@ -91,8 +91,7 @@ function regroupDisabledReason({ timeline, isPending }: { timeline: DocumentTime
 
 export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: TimelinePanelProps) {
   const [isOpen, setIsOpen] = useState(true);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartWidth = useElementWidth(chartRef);
+  const { ref: chartRef, width: chartWidth } = useElementWidth();
   const { width, maxWidth, resizeTo, resizeBy } = usePanelWidth();
   const { search } = useTimelineSearch();
   const [selectedTime, setSelectedTime] = useState<number | null>(search.at);

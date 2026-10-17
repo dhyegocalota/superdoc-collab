@@ -135,9 +135,6 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Owner });
     documents.remove(documentId);
     await runtime.forget(documentId);
-    services.insights.topics.forget(documentId);
-    services.insights.summaries.forget(documentId);
-    services.insights.selection.forget(documentId);
     await storage.remove(documentId);
     return context.body(null, HttpStatus.NoContent);
   });

@@ -4,6 +4,7 @@ import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc
 import { RoomMode } from '@superdoc-history/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
+import type { InsightsServices } from '../http/app';
 import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
@@ -28,6 +29,7 @@ export function createCollaborationRuntime({
   timelinePipelines,
   versions,
   versionRooms,
+  insights,
 }: {
   hocuspocus: Hocuspocus;
   updateLog: UpdateLog;
@@ -37,6 +39,7 @@ export function createCollaborationRuntime({
   timelinePipelines: TimelinePipelineCache;
   versions: VersionsService;
   versionRooms: VersionRooms;
+  insights: InsightsServices;
 }): DocumentRuntime {
   const bootstrapped = new Set<string>();
   function roomsOf(documentId: string): Document[] {
@@ -82,6 +85,9 @@ export function createCollaborationRuntime({
       versions.forget(documentId);
       await versionRooms.forget(documentId);
       await scheduler.forget(documentId);
+      insights.topics.forget(documentId);
+      insights.summaries.forget(documentId);
+      insights.selection.forget(documentId);
     },
   };
 }

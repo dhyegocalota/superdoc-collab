@@ -132,16 +132,6 @@ function createServices({
   });
   const timelinePipelines = new TimelinePipelineCache();
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
-  const runtime = createCollaborationRuntime({
-    hocuspocus,
-    updateLog,
-    readModel,
-    scheduler,
-    storage,
-    timelinePipelines,
-    versions,
-    versionRooms,
-  });
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
   const jobRunner = new InsightsJobRunner({
     maxConcurrentJobs: environment.llm.maxConcurrentJobs,
@@ -169,6 +159,17 @@ function createServices({
       readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }),
     }),
   };
+  const runtime = createCollaborationRuntime({
+    hocuspocus,
+    updateLog,
+    readModel,
+    scheduler,
+    storage,
+    timelinePipelines,
+    versions,
+    versionRooms,
+    insights,
+  });
   const services: ServerServices = {
     documents,
     storage,

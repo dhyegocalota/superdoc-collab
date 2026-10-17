@@ -7,7 +7,6 @@ import {
   HttpMethod,
   HttpStatus,
   RoomMode,
-  SECOND_MS,
   TAB_QUERY_KEY,
   type DocumentMembers,
   type OpenedDocument,
@@ -20,7 +19,6 @@ import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export const BLANK_DOCX_PATH = '/blank.docx';
-export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 
 export function openedDocumentQueryKey(documentId: string): unknown[] {
   return documentQueryKey({ documentId, segments: [] });

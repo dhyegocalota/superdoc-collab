@@ -5,7 +5,7 @@ import { capturedNames, composeVariables, readRepositoryFile, repositoryPath } f
 
 const README_FILE = 'README.md';
 const RUNBOOK_FILE = 'docs/features/deploy/runbook.md';
-const LINKED_DOCUMENTS = [RUNBOOK_FILE];
+const LINKED_DOCUMENTS = [README_FILE, RUNBOOK_FILE];
 const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const HEADING_PATTERN = /^#{1,6} (.+)$/gm;
 const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -14,6 +14,10 @@ const SPACE_PATTERN = / /g;
 const EXTERNAL_LINK_PATTERN = /^(https?:|mailto:|#)/;
 const ANCHOR_SEPARATOR = '#';
 const MARKDOWN_EXTENSION = '.md';
+const SECOND_LEVEL_HEADING_PATTERN = /^## (.+)$/gm;
+const DELIVERY_SECTIONS = ['Live demo', 'Try it', 'Run locally', 'Run with Docker', 'Deploy (Dokploy)', 'Limits', 'Credits'];
+const STALE_SECTIONS = ['Status', 'Quick start', 'Citations'];
+const RUNBOOK_LINK = `](${RUNBOOK_FILE})`;
 
 function slugOf(heading: string): string {
   return heading.toLowerCase().replace(SLUG_DISALLOWED_PATTERN, '').replace(SPACE_PATTERN, '-');
@@ -37,6 +41,10 @@ function brokenTargets({ document, text }: { document: string; text: string }): 
   return capturedNames({ text, pattern: LINK_PATTERN }).filter((target) => !EXTERNAL_LINK_PATTERN.test(target)).filter((target) => isBroken({ document, target }));
 }
 
+function readmeSections(): string[] {
+  return capturedNames({ text: readRepositoryFile(README_FILE), pattern: SECOND_LEVEL_HEADING_PATTERN });
+}
+
 describe('delivery documents', () => {
   test.each(LINKED_DOCUMENTS)('every relative link in %s points at a file and a heading in the repository', (document) => {
     expect(brokenTargets({ document, text: readRepositoryFile(document) })).toEqual([]);
@@ -45,6 +53,18 @@ describe('delivery documents', () => {
   test('a link to a heading its target does not have is reported', () => {
     const text = `[missing](${RUNBOOK_FILE}#no-such-heading) [present](${RUNBOOK_FILE}#6-hand-it-over)`;
     expect(brokenTargets({ document: README_FILE, text })).toEqual([`${RUNBOOK_FILE}#no-such-heading`]);
+  });
+
+  test('the README carries every delivery section', () => {
+    expect(DELIVERY_SECTIONS.filter((section) => !readmeSections().includes(section))).toEqual([]);
+  });
+
+  test('the README drops the sections that went stale', () => {
+    expect(STALE_SECTIONS.filter((section) => readmeSections().includes(section))).toEqual([]);
+  });
+
+  test('the README links the deploy runbook', () => {
+    expect(readRepositoryFile(README_FILE)).toContain(RUNBOOK_LINK);
   });
 
   test('the runbook sets every variable the compose file reads', () => {

@@ -107,9 +107,10 @@ test('a reader sees the summary but no Summarize button', async ({ browser }) =>
 });
 
 test('a failed summary explains itself and offers a retry', async ({ browser }) => {
-  const { ana, bruno } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  const { ana, bruno, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await typeInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: FAILING_TEXT });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await waitForSettledTimeline({ page: ana.page, documentId });
   await filterBy({ page: ana.page, text: BRUNO_FILTER });
   await summarizeButton(ana.page).click();
   await expect(summaryCard(ana.page)).toContainText(SELECTION_SUMMARY_FAILED_MESSAGE, { timeout: SUMMARY_TIMEOUT_MS });

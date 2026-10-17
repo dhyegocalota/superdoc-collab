@@ -52,10 +52,14 @@ test('choosing another time zone moves the timeline label and the tooltip range'
   await expect(page.getByText(timesIn(E2E_TIME_ZONE))).toBeVisible();
   const saoPauloMinutes = await tooltipMinutesOfDay(page);
 
-  await saveTimeZone({ page, timeZone: TOKYO_TIME_ZONE });
-  await page.goto(documentPagePath(documentId));
-  await waitForBands({ page, names: [BAND_NAME] });
-  await expect(page.getByText(timesIn(TOKYO_TIME_ZONE))).toBeVisible();
-  const tokyoMinutes = await tooltipMinutesOfDay(page);
-  expect((tokyoMinutes - saoPauloMinutes + MINUTES_PER_DAY) % MINUTES_PER_DAY).toBe(TOKYO_AHEAD_OF_SAO_PAULO_MINUTES);
+  try {
+    await saveTimeZone({ page, timeZone: TOKYO_TIME_ZONE });
+    await page.goto(documentPagePath(documentId));
+    await waitForBands({ page, names: [BAND_NAME] });
+    await expect(page.getByText(timesIn(TOKYO_TIME_ZONE))).toBeVisible();
+    const tokyoMinutes = await tooltipMinutesOfDay(page);
+    expect((tokyoMinutes - saoPauloMinutes + MINUTES_PER_DAY) % MINUTES_PER_DAY).toBe(TOKYO_AHEAD_OF_SAO_PAULO_MINUTES);
+  } finally {
+    await saveTimeZone({ page, timeZone: E2E_TIME_ZONE });
+  }
 });

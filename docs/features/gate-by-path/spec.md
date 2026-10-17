@@ -33,7 +33,7 @@ A one-word README change pays four to five sub-agents and two to four full gate 
 2. Changed paths: `git diff --name-only --no-renames <base>` (working tree against base) plus `git ls-files --others --exclude-standard`.
 3. Each path takes the first matching row of `scripts/verify-gates.tsv` (`glob<TAB>class<TAB>gates`, bash pattern where `*` crosses `/`, `-` for no extra gates); no match → class `product`, gates `all`. The run is the union; the class is the highest of `docs < tooling < product`.
 4. Packages for `unit`: the `apps/<name>` and `libs/<name>` folders of the paths whose row includes `unit`, plus their dependents through the `workspace:` dependencies of every package's `package.json`, to a fixed point.
-5. Gates in this order, stop at the first failure: `doctor` (always), `format` (always, Prettier `--check --ignore-unknown` on the changed files that exist; `all` → `pnpm format:check`), `secrets` (always; fails when `gitleaks` is not on `PATH`), `typecheck`, `audit`, `hooks`, `shape` (always, the server's `src/repository-shape` tests, skipped when the server's unit suite runs), `unit` (`pnpm --filter <name>… test:unit`; `all` → `pnpm test:unit`), `e2e`, `docker` (fails without a running Docker, naming the doctor's fix).
+5. Gates in this order, stop at the first failure: `doctor` (always), `format` (always, Prettier `--check --ignore-unknown` on the changed files that exist; `all` → `pnpm format:check`), `secrets` (always; fails when `gitleaks` is not on `PATH`), `typecheck`, `audit`, `hooks`, `shape` (always, the server's `src/repository-shape` tests, skipped when the server's unit suite runs), `unit` (`pnpm --filter <name>… test:unit`; `all` → `pnpm test:unit`), `e2e`, `docker` (fails without a running Docker, naming the doctor's fix, when a changed path's row lists `docker`; selected only by `all`, it prints that it was skipped and passes, as the doctor keeps Docker optional).
 6. Green, on a clean tree, in `auto` or `all` → write `<git common dir>/verify/<HEAD sha>` atomically with the Node version, the class and the gates. A record at `HEAD` with a clean tree → `verify: <sha> already green` and nothing runs.
 
 `--plan` prints `base:`, `class:`, `gates:` and `packages:` and runs nothing.
@@ -47,7 +47,7 @@ A one-word README change pays four to five sub-agents and two to four full gate 
 
 ### Failure handling
 
-A failed gate prints `verify: <gate> failed`, exits 1 and writes no record. A dirty tree never writes a record. A missing `gitleaks` or Docker fails its gate with the fix line, never passes silently.
+A failed gate prints `verify: <gate> failed`, exits 1 and writes no record. A dirty tree never writes a record. A missing `gitleaks` fails its gate with the fix line; a missing Docker fails it when `docker/` or `deploy/` changed and is printed as skipped otherwise. Nothing passes silently.
 
 ## Open questions → answers
 

@@ -79,6 +79,7 @@ Each width box uses one of these common checks, on the documents list, the edito
 Width boxes, each run in both themes (light is chosen in the account menu, dark too):
 
 - [ ] Width 320, light — viewport 320×640; expected: checks (a) to (d) hold; members hidden; Use with AI in More actions.
+- [ ] Dark comment and tracked-change cards — steps: Dark chosen, open a document with one tracked change and one comment, open both cards, hover one, resolve one; expected: card text is readable on its card background (neither near-white on near-white nor dark on dark), active and hover cards use the popover surface, separators are visible.
 - [ ] Width 320, dark — viewport 320×640, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
 - [ ] Width 375, light — viewport 375×812; expected: checks (a) to (d) hold; panel collapsed by default; Download split in More actions.
 - [ ] Width 375, dark — viewport 375×812, Dark chosen; expected: checks (a) to (d) hold, same layout as light.

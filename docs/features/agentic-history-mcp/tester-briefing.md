@@ -400,3 +400,11 @@ Hypotheses to attack:
 1. Hypothesis: a signed-in person cannot take the AI suffix through `/update-user`. Break it by: post `{ "name": "Eve ・ＡＩ" }` and `{ "name": "Eve" }` to `/api/auth/update-user`; the first answers 400, the second 200.
 2. Hypothesis: an AI client can still authorize on an instance where sign-up is invite-only. Break it by: start with no session, follow the authorize redirect to sign-in, sign in as an invited user, and finish consent.
 3. Hypothesis: the two migrations apply in order on a copy of a database that already ran main's 0004. Break it by: copy a production-like `auth.sqlite`, start the server, and list the OAuth tables.
+
+### L4 actor-driven AI icon (supersedes the name-suffix badge above)
+
+- The AI icon (`role="img"`, `aria-label` "Edited by <Name>'s AI", same text as tooltip) is rendered from `EventAuthor.actor` by `AgentMark` next to the plain name in: avatars, the timeline tooltip, bin edits, top edits and the selection summary card. Action marks read "<Name>'s AI rotated a share link". The old "Edited by AI" badge and every suffix parser are gone.
+- Server: agent authors carry the plain name; selection summary `authors` are `{ name, actor }`; the model sees "<Name>'s AI"; migration `0006_clear-selection-summaries` empties the cached summaries.
+- Names are free-form: "Bob · AI" is accepted at sign-up and update-user and shows no icon. Only the SuperDoc session name keeps " · AI" (tracked-change cards).
+- Hypotheses: a human named "Bob · AI" never shows the icon; an agent edit shows "Ana" plus the icon in avatars, tooltip and top edits; an existing selection summary is recomputed after deploy. Break it by: renaming a person to "Ana · AI" mid-session; opening a document with an old cached summary.
+- E2E selectors: avatar `li[title="<Name>"]` containing `getByRole('img', { name: "Edited by <Name>'s AI" })`; marks `getByRole('img', { name: "<Name>'s AI revealed a share link" })`.

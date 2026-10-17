@@ -1,5 +1,5 @@
 import type { IdentifiedTopic } from '@superdoc-collab/history';
-import { TopicState, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
+import { TopicState, type SummaryAuthor, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
 import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
@@ -8,7 +8,7 @@ import { documentTopics, selectionSummaries, topicBlocks, topicSets, topicSummar
 export type StoredSelectionSummary = {
   key: string;
   sentence: string | null;
-  authors: string[];
+  authors: SummaryAuthor[];
   failure: string | null;
   computedAtSequence: number;
   topicsUpdatedAt: number | null;
@@ -190,7 +190,7 @@ export class InsightsRepository {
     authors,
     computedAtSequence,
     topicsUpdatedAt,
-  }: SelectionStamp & { sentence: string; authors: string[] }): void {
+  }: SelectionStamp & { sentence: string; authors: SummaryAuthor[] }): void {
     const values = { sentence, authors, failure: null, computedAtSequence, topicsUpdatedAt, updatedAt: new Date() };
     this.database.drizzle
       .insert(selectionSummaries)

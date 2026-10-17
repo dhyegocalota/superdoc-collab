@@ -51,7 +51,7 @@ describe('oauth discovery', () => {
     expect(response.status).toBe(status);
   });
 
-  test('a signed-in person cannot take the AI name suffix through update-user', async () => {
+  test('a signed-in person may use any name through update-user, the AI icon comes from the actor', async () => {
     const person = await signedInUser({ server, name: 'Paula' });
     const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/update-user`, {
       method: 'POST',
@@ -59,8 +59,8 @@ describe('oauth discovery', () => {
       body: JSON.stringify({ name: 'Paula · AI' }),
     });
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: person.cookie } });
-    expect(response.status).toBe(HttpStatus.BadRequest);
-    expect(((await me.json()) as { user: { name: string } }).user.name).toBe('Paula');
+    expect(response.status).toBe(HttpStatus.Ok);
+    expect(((await me.json()) as { user: { name: string } }).user.name).toBe('Paula · AI');
   });
 
   test.each([

@@ -1,22 +1,18 @@
 import { byVolumeDescending } from '@superdoc-collab/history/timeline';
 import { ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-collab/types';
 import { initialsOf } from '@/lib/initials';
-import { authorOf, humanNameOf } from './author-of';
-import { AI_BADGE_LABEL, AI_BADGE_TEXT } from './timeline-copy';
+import { AgentMark } from './agent-mark';
+import { authorOf } from './author-of';
 
 const MAX_AVATARS = 3;
 
 export function AuthorAvatar({ name, actor }: { name: string; actor: ClientActor }) {
   return (
     <li title={name} className="relative flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-      {initialsOf(humanNameOf(name))}
+      {initialsOf(name)}
       {actor === ClientActor.Agent && (
-        <span
-          role="img"
-          aria-label={AI_BADGE_LABEL}
-          className="absolute -right-1 -bottom-1 rounded-full bg-primary px-1 text-[10px] leading-3 text-primary-foreground"
-        >
-          {AI_BADGE_TEXT}
+        <span className="absolute -right-1 -bottom-1 rounded-full bg-primary p-0.5 text-primary-foreground">
+          <AgentMark name={name} />
         </span>
       )}
     </li>

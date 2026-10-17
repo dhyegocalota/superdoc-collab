@@ -35,7 +35,7 @@ function servicesWith(actor: ClientActor): ResolvedEventsServices {
 
 test.each([
   [ClientActor.Human, 'Ana'],
-  [ClientActor.Agent, 'Ana · AI'],
+  [ClientActor.Agent, 'Ana'],
 ])('an event written by a %s resolves to the author named %s', (actor, name) => {
   const [event] = resolveEvents({ services: servicesWith(actor), documentId: DOCUMENT, stored: [storedEvent({ connectionActor: actor })] });
   expect(event!.authors).toEqual([{ id: ANA, name, actor }]);

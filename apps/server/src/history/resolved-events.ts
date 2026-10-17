@@ -1,5 +1,5 @@
 import { resolveAuthorIds, type ClientBinding, type StoredEditEvent, type UpdateLog } from '@superdoc-collab/history';
-import { agentAuthorName, ClientActor, type DocumentEditEvent, type EventAuthor } from '@superdoc-collab/types';
+import { ClientActor, type DocumentEditEvent, type EventAuthor } from '@superdoc-collab/types';
 import type { DocumentsRepository } from '../documents/documents-repository';
 
 export type ResolvedEventsServices = {
@@ -39,7 +39,7 @@ function authorsOf({
   return bindings.map(({ userId, actor }) => {
     const name = names.get(userId);
     if (!name) throw new UnknownAuthorError(userId);
-    return { id: userId, name: actor === ClientActor.Agent ? agentAuthorName(name) : name, actor };
+    return { id: userId, name, actor };
   });
 }
 

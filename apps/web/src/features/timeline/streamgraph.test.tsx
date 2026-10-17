@@ -4,7 +4,15 @@ import { expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
-import { AGENT_ACTION_LABELS, AGENT_LEGEND_LABEL, agentActionLabel, CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
+import {
+  AGENT_ACTION_LABELS,
+  AGENT_LEGEND_LABEL,
+  agentActionLabel,
+  agentMarkLabel,
+  CHART_HINT,
+  LEGEND_LABEL,
+  STREAMGRAPH_TITLE,
+} from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
@@ -340,12 +348,12 @@ test('agent volume adds the hatched legend row', () => {
   expect(screen.getByText(AGENT_LEGEND_LABEL)).toBeInTheDocument();
 });
 
-test('pin: the tooltip lists the agent author once with the AI suffix', () => {
+test('the tooltip marks the agent author with the AI icon, by the plain name', () => {
   const { container } = renderAgentGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(FIXTURE_AGENT_AUTHOR_NAME);
-  expect(tooltip).not.toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} · AI`);
+  expect(within(tooltip).getAllByRole('img', { name: agentMarkLabel(FIXTURE_AGENT_AUTHOR_NAME) })).toHaveLength(1);
+  expect(tooltip).not.toHaveTextContent('· AI');
 });
 
 const ACTION_KINDS = [AgentActionKind.ShareLinkRotated, AgentActionKind.DocumentExported];
@@ -381,7 +389,7 @@ test('every agent action is one mark and hovering it names the action', () => {
   const marks = ACTION_KINDS.map((kind) => screen.getByRole('img', { name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind }) }));
   expect(marks).toHaveLength(ACTION_KINDS.length);
   fireEvent.pointerEnter(marks[0]!);
-  expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME} ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(`${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[ACTION_KINDS[0]!]}`);
   fireEvent.pointerLeave(marks[0]!);
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

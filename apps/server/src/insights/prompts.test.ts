@@ -1,4 +1,4 @@
-import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-collab/types';
+import { ClientActor, FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import {
   fitSelection,
@@ -19,7 +19,7 @@ const NO_OVERHEAD = () => 0;
 const ESCAPED_QUOTE_LENGTH = '&quot;'.length;
 
 function edit({ authors = ['Ana'], inserted, deleted = '' }: { authors?: string[]; inserted: string; deleted?: string }): SelectionEdit {
-  return { authors, inserted, deleted };
+  return { authors: authors.map((name) => ({ name, actor: ClientActor.Human })), inserted, deleted };
 }
 
 test('the newest edits are kept and the oldest kept edit is truncated to the budget', () => {
@@ -88,7 +88,7 @@ test('each run and each author name is capped before the prompt budget applies',
   ]);
   expect(capped!.inserted).toHaveLength(SELECTION_RUN_MAX_CHARACTERS);
   expect(capped!.deleted).toHaveLength(SELECTION_RUN_MAX_CHARACTERS);
-  expect(capped!.authors[0]).toHaveLength(FILTER_MAX_LENGTH);
+  expect(capped!.authors[0]!.name).toHaveLength(FILTER_MAX_LENGTH);
 });
 
 test('a long selection renders within the prompt budget and starts with the newest run', () => {
@@ -111,7 +111,7 @@ test('a hostile selection of quotes, ampersands and long names still renders wit
   const fitted = fitSelection(edits);
   expect(selectionPrompt(fitted).length).toBeLessThanOrEqual(SELECTION_PROMPT_MAX_CHARACTERS);
   expect(fitted.length).toBeGreaterThan(0);
-  expect(fitted[0]!.authors[0]!.startsWith('"&0')).toBe(true);
+  expect(fitted[0]!.authors[0]!.name.startsWith('"&0')).toBe(true);
 });
 
 test('the selection prompt groups edits by author and escapes their text', () => {

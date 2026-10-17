@@ -156,6 +156,77 @@ describe('collaboration takeover and the committed room', () => {
   });
 });
 
+function roomsUnloaded(server: TestServer): boolean {
+  return server.services.hocuspocus.documents.size === 0;
+}
+
+describe('collaboration room lifecycle', () => {
+  test('the next attempt starts from an empty room after the creator closes its tab', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    creator.document.getText('t').insert(0, 'abandoned paragraph');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
+    creator.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const ticket = server.services.runtime.reserveCreator({ documentId, userId: editor.id });
+    expect(ticket).toEqual({ attempt: 2, epoch: server.services.reservations.epoch });
+    const next = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket });
+    expect(next.document.getText('t').toString()).toBe('');
+    next.close();
+    await server.stop();
+  });
+  test('a room load after a commit excludes an abandoned partial seed', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const abandoned = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    abandoned.document.getText('t').insert(0, 'abandoned partial seed');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
+    abandoned.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const ticket = server.services.runtime.reserveCreator({ documentId, userId: editor.id })!;
+    const winner = await connectToDocument({ server, cookie: editor.cookie, documentId, ticket });
+    writeStory({ document: winner.document, texts: ['committed story'] });
+    markBootstrapCommitted(winner.document);
+    await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    winner.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const reader = await connectToDocument({ server, cookie: owner.cookie, documentId, ticket: null });
+    expect(reader.document.getText('t').toString()).not.toContain('abandoned partial seed');
+    expect(reader.document.getMap('content').size).toBeGreaterThan(0);
+    reader.close();
+    await server.stop();
+  });
+  test("the holder's reconnect is accepted", async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const first = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    first.close();
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const second = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    second.close();
+    await server.stop();
+  });
+  test('closing the last tab releases the reservation for another editor', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const creator = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    creator.close();
+    await expect.poll(() => server.services.runtime.reserveCreator({ documentId, userId: editor.id })).not.toBeNull();
+    await server.stop();
+  });
+  test('closing one of two tabs keeps the reservation and another editor still gets 409', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const firstTab = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    const secondTab = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    firstTab.close();
+    await expect.poll(() => server.services.hocuspocus.documents.values().next().value?.getConnectionsCount()).toBe(1);
+    expect(server.services.runtime.reserveCreator({ documentId, userId: editor.id })).toBeNull();
+    secondTab.close();
+    await server.stop();
+  });
+});
+
 describe('collaboration admission to an uncommitted room', () => {
   test('a member is refused on an uncommitted room with no attempt', async () => {
     const { server, documentId } = await documentWithOwner();

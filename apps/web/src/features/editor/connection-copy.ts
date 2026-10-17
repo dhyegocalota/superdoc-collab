@@ -7,6 +7,7 @@ export const FAILED_TITLE = 'Editing is paused: the connection failed.';
 export const KEPT_AND_DATED_DETAIL = 'Your edits stay in this browser and are dated when they sync.';
 export const UNSYNCED_LOST_ON_RELOAD_DETAIL = 'Unsynced edits are lost on reload. Download first to keep them.';
 export const RELOAD_LABEL = 'Reload';
+export const SIGN_IN_LABEL = 'Sign in';
 export const RELOADING_LABEL = 'Reloading…';
 export const RELOAD_FAILED_MESSAGE = 'The server could not be reached. Try again.';
 
@@ -15,5 +16,6 @@ export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.ConnectionFailed]: 'The connection to the server failed.',
   [ConnectionFailureReason.SyncTimeout]: 'The server did not answer in time.',
   [ConnectionFailureReason.WorkerTransportFailed]: 'The editor lost its background link.',
+  [ConnectionFailureReason.SessionEnded]: 'Your session ended. Sign in again.',
   [ConnectionFailureReason.Unknown]: 'The cause could not be identified.',
 };

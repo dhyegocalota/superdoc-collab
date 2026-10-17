@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  AppRoute,
   ConnectionFailureReason,
   ConnectionState,
   DOCUMENT_NOT_READY_ERROR,
@@ -26,7 +27,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL } from './connection-copy';
+import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL, SIGN_IN_LABEL } from './connection-copy';
 import {
   BACK_TO_DOCUMENTS_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,
@@ -498,4 +499,19 @@ test('Reload while the server is unreachable keeps the page, the Failed banner a
   expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
   expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
   expect(SuperDoc).toHaveBeenCalledTimes(1);
+});
+
+test('an ended session names its reason and sends the author to sign in with the way back', async () => {
+  let membersStatus = HttpStatus.Ok;
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner), currentMembersStatus: () => membersStatus });
+  const { queryClient, router } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  membersStatus = HttpStatus.Unauthorized;
+  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.SessionEnded]);
+  expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: SIGN_IN_LABEL }));
+  await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.SignIn));
+  expect(router.state.location.search).toBe(`?next=${encodeURIComponent(documentPagePath(DOCUMENT_ID))}`);
 });

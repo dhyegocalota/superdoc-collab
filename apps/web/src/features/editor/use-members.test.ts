@@ -84,3 +84,24 @@ test('the members request carries the tab id', async () => {
   const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[0]![0]), window.location.origin);
   expect(requestedUrl.searchParams.get(TAB_QUERY_KEY)).toBe(tabId());
 });
+
+test('isSessionEnded is false until the poll meets a 401', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(membersAnswer(true));
+  const { result } = renderMembers();
+  await waitFor(() => expect(result.current.membersAnsweredAt).not.toBeNull());
+  expect(result.current.isSessionEnded).toBe(false);
+});
+
+test('isSessionEnded is true once the latest poll is a 401, and a 500 does not set it', async () => {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(membersAnswer(true))
+    .mockResolvedValueOnce(jsonResponse({ body: {}, status: HttpStatus.InternalServerError }))
+    .mockResolvedValueOnce(jsonResponse({ body: {}, status: HttpStatus.Unauthorized }));
+  const { result, poll } = renderMembers();
+  await waitFor(() => expect(result.current.membersAnsweredAt).not.toBeNull());
+  await poll();
+  await waitFor(() => expect(result.current.membersAnsweredAt).toBeNull());
+  expect(result.current.isSessionEnded).toBe(false);
+  await poll();
+  await waitFor(() => expect(result.current.isSessionEnded).toBe(true));
+});

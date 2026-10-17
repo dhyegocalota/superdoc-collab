@@ -1,4 +1,4 @@
-import { ConnectionState, type ConnectionFailureReason } from '@superdoc-collab/types';
+import { ConnectionFailureReason, ConnectionState } from '@superdoc-collab/types';
 import { Check, Loader2, TriangleAlert, WifiOff, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import {
   RECOVERED_TITLE,
   RELOAD_LABEL,
   RELOADING_LABEL,
+  SIGN_IN_LABEL,
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
 } from './connection-copy';
 
@@ -76,6 +77,7 @@ export function ConnectionBanner({ state, failureReason, isReloading, onReload }
   if (state === ConnectionState.Online) return null;
   const { role, toneClassName, Icon, iconClassName, title, detail } = PRESENTATION[state];
   const isFailed = state === ConnectionState.Failed;
+  const actionLabel = failureReason === ConnectionFailureReason.SessionEnded ? SIGN_IN_LABEL : RELOAD_LABEL;
   const reasonLine = isFailed && failureReason ? FAILURE_REASON_COPY[failureReason] : null;
   const body = [reasonLine, detail].filter((line) => line !== null).join(' ');
   return (
@@ -92,7 +94,7 @@ export function ConnectionBanner({ state, failureReason, isReloading, onReload }
       </div>
       {isFailed && (
         <Button type="button" variant="outline" size="sm" className="ml-auto" disabled={isReloading} onClick={onReload}>
-          {isReloading ? RELOADING_LABEL : RELOAD_LABEL}
+          {isReloading ? RELOADING_LABEL : actionLabel}
         </Button>
       )}
     </div>

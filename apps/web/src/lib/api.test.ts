@@ -20,9 +20,9 @@ test('readJson returns the body of a successful response', async () => {
 });
 
 test('readJson names the subject and the status of a failed response', async () => {
-  await expect(readJson({ response: new Response(null, { status: HttpStatus.Forbidden }), subject: SUBJECT })).rejects.toEqual(
-    new ApiRequestError(requestFailedMessage({ subject: SUBJECT, status: HttpStatus.Forbidden })),
-  );
+  const failure = readJson({ response: new Response(null, { status: HttpStatus.Forbidden }), subject: SUBJECT });
+  await expect(failure).rejects.toBeInstanceOf(ApiRequestError);
+  await expect(failure).rejects.toEqual(new ApiRequestError(requestFailedMessage({ subject: SUBJECT, status: HttpStatus.Forbidden })));
 });
 
 test('assertOk lets a successful response through and refuses a failed one', () => {
@@ -33,9 +33,9 @@ test('assertOk lets a successful response through and refuses a failed one', () 
 });
 
 test('a 404 means the document is unavailable', () => {
-  expect(() => assertDocumentAvailable(new Response(null, { status: HttpStatus.NotFound }))).toThrow(
-    new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE),
-  );
+  const unavailable = new Response(null, { status: HttpStatus.NotFound });
+  expect(() => assertDocumentAvailable(unavailable)).toThrow(DocumentUnavailableError);
+  expect(() => assertDocumentAvailable(unavailable)).toThrow(new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE));
   expect(() => assertDocumentAvailable(new Response(null, { status: HttpStatus.Forbidden }))).not.toThrow();
 });
 

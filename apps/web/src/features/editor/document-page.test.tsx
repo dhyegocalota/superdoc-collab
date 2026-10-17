@@ -315,3 +315,12 @@ test('below the large breakpoint the page fits the width', async () => {
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth } })));
 });
+
+test('clearing the new document state keeps the same editor', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  const { router } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID), state: NEW_DOCUMENT_STATE });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  await act(() => router.navigate(documentPagePath(DOCUMENT_ID), { replace: true, state: null }));
+  expect(SuperDoc).toHaveBeenCalledTimes(1);
+  expect(superDocDestroy).not.toHaveBeenCalled();
+});

@@ -27,7 +27,6 @@ const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";
 const FAIL_FAST_DISABLED = 'fail-fast: false';
 const PLAYWRIGHT_INSTALL = 'pnpm exec playwright install --with-deps chromium';
-const TIMEOUT_OCCURRENCES = 4;
 const STRICT_SHELL_OPTIONS = 'set -euo pipefail';
 const LENIENT_SHELL_OPTIONS = 'set -eu\n';
 const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.', 'docker restart'];
@@ -161,8 +160,10 @@ describe('CI workflow', () => {
   });
 
   test('every job has a bounded timeout', () => {
-    const timeouts = Array.from(readRepositoryFile(WORKFLOW_FILE).matchAll(new RegExp(TIMEOUT_PATTERN, 'g')), (match) => Number(match[1]));
-    expect(timeouts).toHaveLength(TIMEOUT_OCCURRENCES);
-    expect(timeouts.filter((minutes) => minutes > MAXIMUM_TIMEOUT_MINUTES)).toEqual([]);
+    const unbounded = EXPECTED_JOBS.filter((name) => {
+      const match = TIMEOUT_PATTERN.exec(job(name));
+      return match === null || Number(match[1]) > MAXIMUM_TIMEOUT_MINUTES;
+    });
+    expect(unbounded).toEqual([]);
   });
 });

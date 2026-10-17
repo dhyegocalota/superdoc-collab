@@ -11,6 +11,7 @@ import type { InvitesRepository } from '../admin/invites';
 import { createSetupRoutes } from '../admin/setup-routes';
 import type { AdminUsersRepository } from '../admin/users';
 import type { Auth } from '../auth/auth';
+import { REGISTER_PATH } from '../auth/registration-limits';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
 import { AgentVerificationUnavailableError, authorizeAgentRequest, unauthorizedAgentResponse } from '../agent/agent-authorization';
 import type { AgentSessions } from '../agent/agent-sessions';
@@ -45,6 +46,7 @@ import { requireUser } from './require-user';
 
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 export const AUTH_BODY_MAX_BYTES = 16 * 1024;
+const REGISTER_BODY_MAX_BYTES = 2 * 1024;
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 export const NOT_FOUND_MESSAGE = 'Not found';
@@ -91,6 +93,13 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     if (error instanceof HTTPException) return error.getResponse();
     throw error;
   });
+  app.use(
+    `${ApiPath.Auth}${REGISTER_PATH}`,
+    bodyLimit({
+      maxSize: REGISTER_BODY_MAX_BYTES,
+      onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
+    }),
+  );
   app.use(
     `${ApiPath.Auth}/*`,
     bodyLimit({

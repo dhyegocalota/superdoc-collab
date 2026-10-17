@@ -39,6 +39,7 @@ Added by the room-admission plan.
 - A unit test of the rate breach: the 121st message in a second closes the socket with 1008.
 - A unit test of the payload cap: a message above the cap closes the socket.
 - A unit test that a seeded room at the upload cap still creates.
+- Measured on 2026-10-17 before the cap was set, with a 9.52 MiB text-dense DOCX (56,800 paragraphs, no images): the largest frame was 36,593,816 bytes each way, 87 percent of `MAX_SOCKET_MESSAGE_BYTES` (41,943,040). The create sent 37 frames and received 80, at most 26 sent and 42 received in any rolling second, so the rate cap of 120 per second holds. Open to commit took 40.3 s, and encoding the room state took 0.6 to 1.5 s. The wire size is 3.7 times the file size for this fixture, so a denser file can approach the cap.
 
 ## Revisit when
 

@@ -11,15 +11,18 @@ Written by the developer sub-agents when their steps are done. The developer doe
 
 ### Step 0 measurement (unchanged tree, built stack with the fake model)
 
+Fixture: `e2e/fixtures/large-docx.ts`, 56,800 paragraphs of plain text, no images, a stored zip of 9,987,294 bytes (9.52 MiB). It is the worst case; an image-heavy file of 9.99 MB sent only 9,989,690 bytes in its largest frame.
+
 | Quantity | Value |
 |---|---|
-| DOCX uploaded | 9,991,684 bytes (9.53 MiB), a stored zip with one 9,988,911-byte noise PNG |
-| Frames sent / received on the first sync | 45 / 79 |
-| Largest frame sent | 9,989,690 bytes |
-| Largest frame received | 9,989,690 bytes |
-| Cap `MAX_SOCKET_MESSAGE_BYTES` | 41,943,040 bytes |
+| Frames sent / received on the first sync | 37 / 80 |
+| Largest frame sent / received | 36,593,816 / 36,593,816 bytes |
+| Cap `MAX_SOCKET_MESSAGE_BYTES` | 41,943,040 bytes (the largest frame is 87 percent of it) |
+| Peak frames in a rolling second, sent / received | 26 / 42 (rate cap 120) |
+| Open to commit | 40.3 s (reservation is 60 s) |
+| Server: encode the room state | 0.6 to 1.5 s, 36,602,228 bytes; applying 24 rows 2.9 s |
 
-The cap leaves 4.2 times headroom. The image travels as one frame right after about 24 small frames, and the commit marker follows in three small frames. The probe was a throwaway Playwright spec outside the repository. The same generator lives in the spec as `buildLargeDocx`.
+The Playwright socket listener sees the worker socket, so no server-side measurement was needed.
 
 ### How to run
 
@@ -36,10 +39,12 @@ Failure text is what the run printed on commit `ed459e0`, on the tree before G1 
 
 | Test (`e2e/room-admission.spec.ts::`) | Red before the change because | Green after because |
 |---|---|---|
-| `two editors open a fresh document at once and only the first is answered Create` | `Expected length: 1`, `Received length: 2`, array of two `{"roomMode": "create", "status": 200}` | the second concurrent open is answered 409 |
+| `two editors open a fresh document at once and only the first is answered Create` | (first open answer per browser context) `Expected length: 1`, `Received length: 2`, array of two `{"roomMode": "create", "status": 200}` | the second concurrent open is answered 409 |
 | `the second editor's open is answered 200 Join once the creator commits` | `Expected: 409`, `Received: 200` on the first open response of the second editor's page | the second editor waits, then the poll sees 200 Join and the reload shows the editor |
 | `a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor` | `expect(locator).toBeVisible() failed`, the paragraph never renders in 60 s. The page shows the failed editor with "This collaboration room is structurally invalid and was not opened." | the uncommitted room loads empty, the second editor seeds it and the paragraph appears once |
-| `a 10 MB DOCX commits and reopens as Join` | pin: green today (4 s) | pin: stays green after the payload cap of Step 8 |
+| `the holder opens a fresh document in two pages at once and the room holds one paragraph` | pin: green today (2 s), so the holder's two pages do not duplicate | pin: stays green with the holder keeping its attempt |
+| `a 10 MB DOCX commits and reopens as Join` | pin: green today (1.2 min with the text-dense fixture) | pin: stays green after the payload cap of Step 8 |
+| `a creator who goes offline mid-create is replaced by the next editor and leaves one paragraph set` | `Expected: 1`, `Received: null`: after the creator comes back online its text and the second editor's text never converge in 60 s. Runs only with `E2E_SLOW=1` | the superseded creator's late updates are fenced and both pages converge on one paragraph |
 | `a superseded creator's socket closes with 4403 after the 60 s expiry` | `closeCode`: expected 4403, received null after the 60 s poll | the takeover closes the old socket with 4403 |
 
 ### Hypotheses to attack
@@ -51,6 +56,9 @@ Failure text is what the run printed on commit `ed459e0`, on the tree before G1 
 5. Hypothesis: the E2E would catch a regression that serves Create twice. Break it by: revert only the 409 branch for editors and confirm the first test goes red.
 
 ### Known gaps
+
+- The offline test cannot read the close code of the creator's worker socket. It asserts convergence on one paragraph after the creator returns. A premature pass is possible if the late updates arrive after the poll; the failed banner needs connection-state.
+- Step 21 uses the log copy described below, not a page closed on its first sent frame: closing the page at a large sent frame still committed in every probe run.
 
 - Step 21 cannot cut a real creator mid-stream. Chromium runs the collaboration socket in a worker, which `routeWebSocket` does not intercept, and closing the page at the large frame still lets the commit land (all 5 completed probe runs committed). The test copies the log rows that precede the commit of a real creator's document into a fresh document, through `history.sqlite` in `E2E_DATABASE_DIR`. It then opens that document as the second editor. The abandoned prefix is genuine creator output, but the cut is simulated.
 - The plan predicted duplicated paragraphs for Step 21. On the current tree the second editor instead meets a room that SuperDoc rejects as structurally invalid, most likely because the creator's bootstrap claim in the room meta stays pending. The review focus about seeding on top of an abandoned partial may not occur the way it is written. The test is red either way and goes green only if the uncommitted room loads empty.

@@ -10,6 +10,7 @@ const FAKE_API_PATH = '/api/v1';
 const LLM_MAX_CONCURRENT_JOBS = 2;
 const LLM_MAX_CALLS_PER_HOUR = 10_000;
 const CONNECTION_REFUSED = 'ECONNREFUSED';
+const HEALTH_POLL_INTERVAL_MS = 500;
 
 export const FAKE_OPENROUTER_COMMAND = 'node e2e/fake-openrouter.ts';
 export const FAKE_OPENROUTER_HEALTH_PATH = '/health';
@@ -37,6 +38,27 @@ export function assertPortFree(port: number): Promise<void> {
       if (error.code === CONNECTION_REFUSED) return resolve();
       reject(error);
     });
+  });
+}
+
+async function isHealthy(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function waitForHealth({ url, timeoutMs }: { url: string; timeoutMs: number }): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    async function poll(): Promise<void> {
+      if (await isHealthy(url)) return resolve();
+      if (Date.now() > deadline) return reject(new Error(`${url} did not answer within ${timeoutMs} ms`));
+      setTimeout(poll, HEALTH_POLL_INTERVAL_MS);
+    }
+    void poll();
   });
 }
 

@@ -1,18 +1,19 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
-import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, stackEnvironment } from './stack';
+import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, stackEnvironment, waitForHealth } from './stack';
 
 const RESTARTABLE_PORT = 3150;
 const SEED_COMMAND = 'apps/server/dist/seed.js';
 const SERVER_COMMAND = 'apps/server/dist/main.js';
 const DATABASE_DIRECTORY_PREFIX = 'superdoc-collab-restartable-';
-const HEALTH_POLL_INTERVAL_MS = 250;
 const SERVER_START_TIMEOUT_MS = 30_000;
 const GRACEFUL_STOP_TIMEOUT_MS = 10_000;
+
+const REPOSITORY_ROOT = resolve(__dirname, '..');
 
 const origin = localOrigin(RESTARTABLE_PORT);
 let environment: Record<string, string> | null = null;
@@ -27,26 +28,8 @@ function waitForExit(child: ChildProcess): Promise<void> {
   return new Promise((resolve) => child.once('exit', () => resolve()));
 }
 
-async function isHealthy(): Promise<boolean> {
-  try {
-    const response = await fetch(`${origin}${SERVER_HEALTH_PATH}`);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function waitForHealth(): Promise<void> {
-  const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    if (await isHealthy()) return;
-    await delay(HEALTH_POLL_INTERVAL_MS);
-  }
-  throw new Error(`${origin}${SERVER_HEALTH_PATH} did not answer within ${SERVER_START_TIMEOUT_MS} ms`);
-}
-
 async function seedDatabase(seedEnvironment: Record<string, string>): Promise<void> {
-  const seed = spawn('node', [SEED_COMMAND], { stdio: 'inherit', env: { ...process.env, ...seedEnvironment } });
+  const seed = spawn('node', [SEED_COMMAND], { cwd: REPOSITORY_ROOT, stdio: 'inherit', env: { ...process.env, ...seedEnvironment } });
   const exitCode = await new Promise<number | null>((resolve) => seed.once('exit', resolve));
   if (exitCode !== 0) throw new Error(`${SEED_COMMAND} exited with ${exitCode}`);
 }
@@ -63,8 +46,13 @@ export async function startRestartableStack(): Promise<string> {
 export async function startServer(): Promise<void> {
   if (!environment) throw new Error('startRestartableStack must run before startServer');
   if (server && isRunning(server)) throw new Error('The restartable server is already running');
-  server = spawn('node', [SERVER_COMMAND], { stdio: 'inherit', env: { ...process.env, ...environment } });
-  await waitForHealth();
+  server = spawn('node', [SERVER_COMMAND], { cwd: REPOSITORY_ROOT, stdio: 'inherit', env: { ...process.env, ...environment } });
+  await waitForHealth({ url: `${origin}${SERVER_HEALTH_PATH}`, timeoutMs: SERVER_START_TIMEOUT_MS });
+}
+
+export async function ensureServerRunning(): Promise<void> {
+  if (server && isRunning(server)) return;
+  await startServer();
 }
 
 export async function stopServer(): Promise<void> {

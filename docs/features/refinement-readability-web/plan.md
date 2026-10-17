@@ -116,11 +116,7 @@ git add apps/web/src/features/auth/sign-in-page.test.tsx
 git commit -m "test(web): pin the too-many-attempts message on sign-in"
 ```
 
-<<<<<<< HEAD
-- [x] **Step 2: Move the shared API error and message into `lib/api.ts`.** (c7574a9, done by the C2 API developer; the message keeps its trailing period, pinned by timeline-copy.test.ts) Add under `ApiRequestError`:
-=======
-- [x] **Step 2: Move the shared API error and message into `lib/api.ts`.** Add under `ApiRequestError`: Evidence: `74ac4dd`.
->>>>>>> chore/refinement-readability-web-structure
+- [x] **Step 2: Move the shared API error and message into `lib/api.ts`.** (done twice in parallel: 74ac4dd by the structure developer and c7574a9 by the API developer, reconciled in merge 863c386; the message keeps its trailing period, pinned by timeline-copy.test.ts) Add under `ApiRequestError`:
 
 ```ts
 export class DocumentUnavailableError extends ApiRequestError {}

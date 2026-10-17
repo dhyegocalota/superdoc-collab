@@ -6,6 +6,7 @@ import {
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
   SOCKET_SINGLE_DOCUMENT_REASON,
   VERSION_FAILURE_TTL_MS,
@@ -45,10 +46,26 @@ const FOREIGN_ADDRESS = '203.0.113.9';
 const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
 const FRAME_OVERHEAD_BYTES = 1024;
 const PADDED_UPDATE_TEST_TIMEOUT_MS = 60_000;
+const FINAL_BINARY_FRAME_BYTE = 0x82;
+const MASKED_FLAG = 0x80;
+const EXTENDED_LENGTH_MARKER = 126;
+const BYTE_BITS = 8;
+const BYTE_MASK = 0xff;
+const ZERO_MASK_KEY = Buffer.alloc(4);
 const SECRET_PAYLOAD_TEXT = 'secret-payload-text';
 const FLOOD_DOCUMENT_ID = '33333333-3333-4333-8333-333333333333';
 const OTHER_FLOOD_DOCUMENT_ID = '44444444-4444-4444-8444-444444444444';
 const FLOOD_ROOM_NAME = `${SUPERDOC_ROOM_PREFIX}${FLOOD_DOCUMENT_ID}`;
+
+function maskedBinaryFrame(payload: Buffer): Buffer {
+  const header = Buffer.from([
+    FINAL_BINARY_FRAME_BYTE,
+    EXTENDED_LENGTH_MARKER | MASKED_FLAG,
+    payload.length >> BYTE_BITS,
+    payload.length & BYTE_MASK,
+  ]);
+  return Buffer.concat([header, ZERO_MASK_KEY, payload]);
+}
 
 function validUpdateFrame(roomName: string = FLOOD_ROOM_NAME): Buffer {
   const document = new Y.Doc();
@@ -196,6 +213,25 @@ describe('attachCollaboration', () => {
     socket.send(validUpdateFrame(`${SUPERDOC_ROOM_PREFIX}${OTHER_FLOOD_DOCUMENT_ID}`));
     expect(await closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_SINGLE_DOCUMENT_REASON });
     await server.stop();
+  });
+  test('a server close that the peer ignores destroys the socket within the grace period', async () => {
+    const server = await startTestServer();
+    const { cookie } = await signedInUser({ server, name: 'Eva' });
+    const { port } = new URL(server.baseUrl);
+    const socket = connect({ host: LOOPBACK_HOST, port: Number(port) });
+    socket.on('error', () => undefined);
+    socket.on('connect', () => socket.write(upgradeRequest({ path: ApiPath.Collaboration, origin: server.baseUrl, cookie })));
+    socket.once('data', () => {
+      const frames = [validUpdateFrame(), validUpdateFrame(`${SUPERDOC_ROOM_PREFIX}${OTHER_FLOOD_DOCUMENT_ID}`)];
+      frames.forEach((frame) => socket.write(maskedBinaryFrame(frame)));
+    });
+    const outcome = await Promise.race([
+      new Promise<string>((resolve) => socket.on('close', () => resolve('destroyed'))),
+      new Promise<string>((resolve) => setTimeout(() => resolve('open'), SOCKET_CLOSE_GRACE_MS * 5)),
+    ]);
+    socket.destroy();
+    await server.stop();
+    expect(outcome).toBe('destroyed');
   });
   test('121 valid awareness frames close the socket with 1008 and the reason', async () => {
     const { server, documentId, owner } = await documentWithOwner();

@@ -11,6 +11,16 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `.github/workflows/verify.yml` and `apps/server/src/repository-shape/ci-workflow.test.ts` — the `checks` job runs `pnpm test:verify`, pinned.
 - `.agents/hooks/doctor.sh` — the `gitleaks` lost text names the gate.
 
+## Review amendments (after the first briefing)
+
+- The class is the branch class (diff against the merge base with `origin/main`, fetched first); the record base only narrows the gates. Red before: 11 failing checks on class and gates (commit 8addc71); green in the amendment commit.
+- Records are written only when the tree was clean at the start and at the end and `HEAD` did not move.
+- `audit` is always on; a commit that is already green still runs `secrets` and `audit`.
+- The map gained `.dockerignore`, `railway.json`, `docker-compose*.yml`; `docs/*.md` and `docs/media/*` are docs, any other file under `docs/` runs everything. `all` drops `hooks` (`test:unit` runs it).
+- Changed paths are read line by line; `gitleaks` is resolved with every `node_modules/.bin` removed from `PATH`.
+- `.agents/hooks/guard-verify-records.sh` is wired in `.claude/settings.json` and `.codex/hooks.json`.
+- Red text printed before the amendment: `verify: 30 check(s) failed` and `hooks: 7 check(s) failed`.
+
 ## How to run
 
 ```bash
@@ -41,6 +51,8 @@ Every "it works" is a hypothesis the tester tries to break.
 7. Hypothesis: the records are shared by every worktree of the clone. Break it by: a record from one worktree read from another.
 
 ## Known gaps
+
+- The guard matches the command text, so a command that builds the records path from pieces evades it; it stops accidents, not an adversary.
 
 - `pnpm verify` was never run for real by the developer (heavy-command lock); only `--plan` against this branch (`class: product`, every gate except `shape`, all four packages).
 - `pnpm test:unit` and the full repository-shape suite were not run end to end. One repository-shape test, `agent-surfaces.test.ts` "the verify skill opens with the doctor script", fails against the lead's uncommitted edit of `.agents/skills/verify/SKILL.md` in this worktree; it is the lead's file.

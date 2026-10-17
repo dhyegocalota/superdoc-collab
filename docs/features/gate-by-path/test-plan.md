@@ -40,6 +40,14 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] A docs commit after a recorded product commit — expected: `base:` is the recorded commit, `class: docs`
 - [ ] A record written under another Node version — expected: ignored, `base:` is the merge base
 - [ ] Merging a `main` that changed `apps/server` into a recorded web branch — expected: server in packages
+- [ ] A recorded product commit, then `--plan` — expected: `class: product` (the branch class), `gates: secrets audit`
+- [ ] Local `main` moved to `HEAD` — expected: the plan is unchanged, the base is `origin/main`
+- [ ] `origin` unreachable — expected: `verify: could not fetch origin main; the base is origin/main as last fetched`, the run continues
+- [ ] A tree dirty at the start, a `HEAD` that moves mid-run, a tree dirtied mid-run — expected: green, no record
+- [ ] `.dockerignore` with Docker absent — expected: `verify: docker failed`; `docs/install.sh` — every gate; `docs/media/x.png` — `class: docs`
+- [ ] A changed `apps/web/src/my file.ts` — expected: Prettier receives the path whole
+- [ ] `gitleaks` only under `node_modules/.bin` — expected: `verify: secrets failed`, the planted binary never runs
+- [ ] `guard-verify-records.sh` — expected: exit 2 for `.git/verify` in a command, in `git-common-dir` plus `verify`, in an Edit or patch path; exit 0 for `pnpm verify --plan`
 - [ ] `all` — expected: `pnpm format:check`, `pnpm test:unit` and `pnpm test:e2e` called, records ignored for the base
 
 ## Harness

@@ -33,6 +33,7 @@ const LINKS: ShareLinks = {
   [ShareLinkRole.Read]: 'http://localhost/share/read-token',
 };
 const ROTATED_LINKS: ShareLinks = { ...LINKS, [ShareLinkRole.Edit]: 'http://localhost/share/rotated-token' };
+const NOTICE_FAKE_TIMERS = { toFake: ['setTimeout', 'clearTimeout'] } satisfies Parameters<typeof vi.useFakeTimers>[0];
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -42,8 +43,6 @@ function mockShareApi() {
     return jsonResponse({ body: LINKS });
   });
 }
-
-const NOTICE_FAKE_TIMERS = { toFake: ['setTimeout', 'clearTimeout'] } satisfies Parameters<typeof vi.useFakeTimers>[0];
 
 async function openDialog(): Promise<void> {
   renderWithProviders(<ShareDialog documentId={DOCUMENT_ID} />);

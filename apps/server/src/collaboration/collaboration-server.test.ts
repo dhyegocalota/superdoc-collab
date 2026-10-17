@@ -178,6 +178,23 @@ describe('collaboration room lifecycle', () => {
     next.close();
     await server.stop();
   });
+  test('a fresh attempt loads an empty room although the log holds a pending bootstrap claim', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const partial = new Y.Doc();
+    partial.getMap('meta').set('bootstrapState', 'pending');
+    writeStory({ document: partial, texts: ['half a seed'] });
+    server.services.updateLog.append({
+      documentName: documentId,
+      connectionUserId: owner.id,
+      connectionActor: ClientActor.Human,
+      update: Y.encodeStateAsUpdate(partial),
+    });
+    const next = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    expect(next.document.getMap('meta').size).toBe(0);
+    expect(next.document.getMap('content').size).toBe(0);
+    next.close();
+    await server.stop();
+  });
   test('a room load after a commit excludes an abandoned partial seed', async () => {
     const { server, documentId, owner } = await documentWithOwner();
     const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });

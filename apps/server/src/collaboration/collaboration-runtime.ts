@@ -12,6 +12,8 @@ import type { BootstrapState } from './bootstrap-state';
 import type { CreatorReservations, CreatorTicket } from './creator-reservations';
 import { documentIdFromRoomName } from './room-name';
 
+const TAKEOVER_CLOSE_LOG = 'Closed a socket superseded by a takeover';
+
 export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
 
 export type DocumentRuntime = {
@@ -57,7 +59,10 @@ export function createCollaborationRuntime({
       if (ticket === null) return null;
       connectionsOf(documentId)
         .filter((connection) => (connection.context as CollaborationContext).creatorAttempt !== ticket.attempt)
-        .forEach((connection) => connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON }));
+        .forEach((connection) => {
+          console.warn(`${TAKEOVER_CLOSE_LOG} ${documentId} attempt ${(connection.context as CollaborationContext).creatorAttempt}`);
+          connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
+        });
       return ticket;
     },
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),

@@ -19,7 +19,8 @@ pnpm test:e2e e2e/collaboration.spec.ts
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
 | `superdoc-exceptions.test.ts` (three cases) | stub threw `isRecoverableException is not implemented` | the classifier compares the code |
-| `collaboration.spec.ts::an edit rejected under a concurrent delete does not stop the editor` | the fatal message rendered (lead's scratch run on main: 63 rejections) | only the status line renders |
+| `collaboration.spec.ts::an edit rejected under a concurrent delete does not stop the editor` | pin (landed after the fix); red under a classifier mutation: the status never shows | only the status line renders |
+| `document-page.test.tsx::a rejected edit shows a status that a key keeps and a click on the editor clears, with no failure` | red at 9429739: pointer down removed the status mid-gesture | the status clears on click |
 
 Red commit: `7e6cc14`.
 

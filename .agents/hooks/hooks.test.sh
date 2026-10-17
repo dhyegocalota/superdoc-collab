@@ -112,6 +112,108 @@ in_repository mv apps/web/src/main.tsx libs/plain/main.tsx
 expect_match "a rename names the README of the folder the file left" "$(remind false)" 'apps/web/README\.md'
 rm -rf "$repository"
 
+doctor_bin=$(mktemp -d)
+doctor_home=$(mktemp -d)
+stub() { printf '#!/bin/bash\n%s\n' "$2" > "$doctor_bin/$1"; chmod +x "$doctor_bin/$1"; }
+stub_all() {
+  rm -f "$doctor_bin"/*
+  stub node 'echo v24.7.0'
+  stub pnpm 'echo 8.15.9'
+  stub jq 'exit 0'
+  stub gh 'exit 0'
+  stub gitleaks 'exit 0'
+  stub ffmpeg 'exit 0'
+  stub docker 'exit 0'
+  stub brew 'exit 0'
+  rm -rf "$doctor_home/Library" "$doctor_home/.cache"
+  mkdir -p "$doctor_home/Library/Caches/ms-playwright/chromium-1247" "$doctor_home/.cache/ms-playwright/chromium-1247"
+}
+doctor() { PLAYWRIGHT_BROWSERS_PATH= DOCTOR_UNAME="$1" DOCTOR_PATH="$doctor_bin" DOCTOR_HOME="$doctor_home" DOCTOR_SKIP="${2:-}" "$here/doctor.sh" 2>&1; }
+doctor_line() { doctor "$1" "${3:-}" | grep "^$2 "; }
+doctor_exit() { local name=$1 expected=$2 platform=$3; doctor "$platform" >/dev/null; local actual=$?; [[ "$actual" == "$expected" ]] && return; echo "FAIL $name: expected exit $expected, got $actual"; failures=$((failures + 1)); }
+
+stub_all
+report=$(doctor Darwin)
+expect_match "doctor: every tool present reports ok" "$report" 'doctor: 0 missing required, 0 missing optional'
+expect_no_match "doctor: every tool present has no missing line" "$report" '\| missing \|'
+expect_match "doctor: a line carries the full shape" "$(doctor_line Darwin jq)" '^jq \| ok \| required \| lost: [^|]+ \| fix: brew install jq$'
+doctor_exit "doctor: every tool present exits 0" 0 Darwin
+
+rm "$doctor_bin/jq"
+report=$(doctor Darwin)
+expect_match "doctor: missing jq on macOS names brew" "$(doctor_line Darwin jq)" '^jq \| missing \| required \| lost: the four hooks; the two guards block \| fix: brew install jq$'
+expect_match "doctor: one missing required is counted" "$report" 'doctor: 1 missing required, 0 missing optional'
+doctor_exit "doctor: a missing required tool exits 1" 1 Darwin
+
+stub_all; rm "$doctor_bin/jq" "$doctor_bin/brew"; stub apt-get 'exit 0'
+report=$(doctor Linux)
+expect_match "doctor: missing jq on Linux names apt-get" "$report" 'fix: sudo apt-get install -y jq'
+expect_match "doctor: chromium on Linux installs with deps" "$(doctor_line Linux chromium)" '^chromium \| ok \| required \| lost: [^|]+ \| fix: pnpm install && pnpm exec playwright install --with-deps chromium$'
+
+stub_all; rm "$doctor_bin/jq" "$doctor_bin/brew"
+report=$(doctor Linux)
+expect_match "doctor: no package manager falls back to the URL" "$report" 'fix: https://jqlang.github.io/jq/download/'
+doctor_exit "doctor: the fallback keeps the exit code" 1 Linux
+
+stub_all; rm "$doctor_bin/gh" "$doctor_bin/brew"; stub apk 'exit 0'
+expect_match "doctor: gh on Alpine is github-cli" "$(doctor_line Linux gh)" 'fix: sudo apk add github-cli$'
+
+stub_all; rm "$doctor_bin/ffmpeg" "$doctor_bin/gitleaks" "$doctor_bin/docker"
+report=$(doctor Darwin)
+expect_match "doctor: optional tools are counted apart" "$report" 'doctor: 0 missing required, 3 missing optional'
+expect_match "doctor: ffmpeg says what is lost" "$(doctor_line Darwin ffmpeg)" '^ffmpeg \| missing \| optional \| lost: the recorder.s mp4 and gif; a PR that touches UI cannot ship \| fix: brew install ffmpeg$'
+doctor_exit "doctor: missing optional tools exit 0" 0 Darwin
+
+stub_all; stub gh 'exit 1'
+report=$(doctor Darwin)
+expect_match "doctor: gh without auth is missing with the human step" "$(doctor_line Darwin gh)" '^gh \| missing \| required \| lost: [^|]+ \| fix: gh auth login \(run it yourself; the agent cannot\)$'
+
+stub_all; stub node 'echo v22.11.0'
+expect_match "doctor: node below .nvmrc is missing" "$(doctor_line Darwin node)" '^node \| missing \| required \| lost: everything \| fix: nvm install \(reads \.nvmrc\), or https://nodejs\.org/en/download$'
+
+stub_all; stub pnpm 'echo 9.0.0'
+expect_match "doctor: pnpm at another version is missing" "$(doctor_line Darwin pnpm)" '^pnpm \| missing \| required \| lost: everything \| fix: corepack enable && corepack prepare pnpm@8\.15\.9 --activate$'
+
+stub_all; rm -rf "$doctor_home/Library/Caches/ms-playwright"
+expect_match "doctor: no chromium in the cache is missing" "$(doctor_line Darwin chromium)" '^chromium \| missing \| required \| lost: pnpm test:e2e, both Playwright MCP servers, /check-ui, /scenario, the tester \| fix: pnpm install && pnpm exec playwright install chromium$'
+
+stub_all; stub docker 'exit 1'
+expect_match "doctor: docker without a daemon is missing but optional" "$(doctor_line Darwin docker)" '^docker \| missing \| optional \| lost: README → Run it and booting the image locally; every gate runs from source \| fix: brew install --cask docker$'
+
+stub_all; rm -rf "$doctor_home/Library/Caches/ms-playwright"
+report=$(doctor Darwin chromium)
+expect_match "doctor: a skipped tool is printed as skipped" "$(doctor_line Darwin chromium chromium)" '^chromium \| skipped \| required \|'
+expect_match "doctor: a skipped tool is not counted" "$report" 'doctor: 0 missing required, 0 missing optional'
+
+stub_all; rm "$doctor_bin/jq"
+fix_line=$(DOCTOR_PATH="$doctor_bin" "$here/doctor.sh" --fix jq)
+[[ "$fix_line" == "brew install jq" ]] || { echo "FAIL doctor --fix prints the fix alone: $fix_line"; failures=$((failures + 1)); }
+
+nvmrc_file=$(mktemp)
+doctor_nvmrc() { DOCTOR_NVMRC="$nvmrc_file" DOCTOR_PATH="$doctor_bin" DOCTOR_HOME="$doctor_home" "$here/doctor.sh" 2>&1; }
+stub_all
+printf '24.7.0\n' > "$nvmrc_file"
+expect_match "doctor: a full version in .nvmrc is read as its major" "$(doctor_nvmrc | grep '^node ')" '^node \| ok \|'
+pwned_dir=$(mktemp -d)
+printf 'root[$(touch${IFS}'"$pwned_dir"'/marker)]\n' > "$nvmrc_file"
+output=$(doctor_nvmrc); status=$?
+[[ "$status" == 1 ]] || { echo "FAIL doctor with a hostile .nvmrc: expected exit 1, got $status"; failures=$((failures + 1)); }
+expect_match "doctor: a hostile .nvmrc is refused" "$output" '^doctor: \.nvmrc is not a version$'
+[[ ! -e "$pwned_dir/marker" ]] || { echo "FAIL doctor evaluated the .nvmrc"; failures=$((failures + 1)); }
+rm -rf "$pwned_dir"
+rm -f "$nvmrc_file"
+
+guard_path=$(mktemp -d)
+for tool in bash env cat dirname sed tr uname ls grep; do ln -s "$(command -v $tool)" "$guard_path/$tool"; done
+guard_without_jq() { PATH="$guard_path" "$here/$1" 2>&1 >/dev/null; }
+output=$(printf '%s' "$(claude_edit /repo/apps/web/src/main.tsx)" | guard_without_jq guard-secrets.sh); status=$?
+[[ "$status" == 2 ]] || { echo "FAIL guard-secrets without jq: expected exit 2, got $status"; failures=$((failures + 1)); }
+expect_match "guard-secrets without jq names the fix" "$output" '^Blocked: the hooks need jq\. fix: https://jqlang\.github\.io/jq/download/$'
+output=$(printf '%s' "$(bash_call 'git add README.md')" | guard_without_jq guard-git-add-all.sh); status=$?
+[[ "$status" == 2 ]] || { echo "FAIL guard-git-add-all without jq: expected exit 2, got $status"; failures=$((failures + 1)); }
+expect_match "guard-git-add-all without jq names the fix" "$output" '^Blocked: the hooks need jq\. fix: '
+rm -rf "$doctor_bin" "$doctor_home" "$guard_path"
+
 [[ "$failures" == 0 ]] && echo "hooks: all checks passed" && exit 0
 echo "hooks: $failures check(s) failed"
 exit 1

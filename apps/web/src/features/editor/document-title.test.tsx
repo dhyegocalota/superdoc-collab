@@ -32,9 +32,9 @@ test('click shows an input with the title selected, Enter saves and Escape resto
   const [path, init] = patchRequests(fetchSpy)[0] as [string, RequestInit];
   expect(path).toBe(documentApiPath({ documentId: DOCUMENT_ID }));
   expect(init.body).toBe(JSON.stringify({ title: RENAMED_TITLE }));
-  expect(screen.getByRole('button', { name: renameTitleLabel(RENAMED_TITLE) })).toHaveFocus();
+  await waitFor(() => expect(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) })).toHaveFocus());
 
-  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(RENAMED_TITLE) }));
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
   await userEvent.keyboard('Discarded{Escape}');
   expect(screen.queryByRole('textbox', { name: TITLE_LABEL })).toBeNull();
   expect(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) })).toHaveFocus();

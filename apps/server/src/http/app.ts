@@ -6,7 +6,7 @@ import { HTTPException } from 'hono/http-exception';
 import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-history/history';
 import type { Auth } from '../auth/auth';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
-import { authorizeAgentRequest, unauthorizedAgentResponse } from '../agent/agent-authorization';
+import { AgentVerificationUnavailableError, authorizeAgentRequest, unauthorizedAgentResponse } from '../agent/agent-authorization';
 import type { AgentSessions } from '../agent/agent-sessions';
 import type { AgentToolContext } from '../agent/agent-tool-context';
 import { createMcpRoutes } from '../agent/mcp-route';
@@ -64,6 +64,7 @@ export type AppServices = {
   insights: InsightsServices;
   versions: VersionsService;
   versionRooms: VersionRooms;
+  jwksUrl: () => string;
 };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
@@ -74,6 +75,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.onError((error, context) => {
     if (error instanceof DocumentNotFoundError) return context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
     if (error instanceof DocumentRoleTooLowError) return context.json({ error: FORBIDDEN_MESSAGE }, HttpStatus.Forbidden);
+    if (error instanceof AgentVerificationUnavailableError) return context.body(null, HttpStatus.ServiceUnavailable);
     if (error instanceof HTTPException) return error.getResponse();
     throw error;
   });
@@ -88,7 +90,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     ApiPath.Mcp,
     createMcpRoutes({
       services,
-      authorize: (request) => authorizeAgentRequest({ auth, request }),
+      authorize: (request) => authorizeAgentRequest({ auth, request, jwksUrl: services.jwksUrl() }),
       unauthorized: () => unauthorizedAgentResponse({ appOrigin: environment.appOrigin }),
       sessions: services.agentSessions,
       toolkit: services.agentToolkit,

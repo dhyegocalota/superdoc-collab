@@ -50,6 +50,7 @@ import { mountStaticWeb } from './http/static-web';
 const AGENT_TOOLKIT_PROVIDER = 'vercel';
 const AGENT_TOOLKIT_PRESET = 'core';
 const LOOPBACK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1';
+const LOOPBACK_HTTP_ORIGIN = 'http://127.0.0.1';
 
 export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle };
 
@@ -198,6 +199,7 @@ function createServices({
     agentActions,
     agentSessions,
     agentToolkit,
+    jwksUrl: () => `${LOOPBACK_HTTP_ORIGIN}:${listeningPort.value}${ApiPath.Auth}/jwks`,
     hocuspocus,
     readModel,
     scheduler,

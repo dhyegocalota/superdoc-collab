@@ -10,6 +10,8 @@ import {
   RETRY_AFTER_SECONDS,
   documentApiPath,
   selectionSummaryApiPath,
+  TimelineQueryParam,
+  UTC_TIME_ZONE,
   versionApiPath,
   type DocumentTimeline,
   type DocumentTopics,
@@ -33,20 +35,29 @@ const BULK_CLIENT_ID = 4242;
 const BULK_BASE_TIME = Date.UTC(2026, 0, 1);
 const DEFAULT_STEP_MS = 1000;
 
+export function zonedQuery({ query = '', timeZone = UTC_TIME_ZONE }: { query?: string; timeZone?: string } = {}): string {
+  const parameters = new URLSearchParams(query);
+  parameters.set(TimelineQueryParam.TimeZone, timeZone);
+  return parameters.toString();
+}
+
 export async function readTimeline({
   server,
   documentId,
   cookie,
   query = '',
+  timeZone = UTC_TIME_ZONE,
 }: {
   server: TestServer;
   documentId: string;
   cookie: string;
   query?: string;
+  timeZone?: string;
 }): Promise<DocumentTimeline> {
-  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${query}`, {
-    headers: { cookie },
-  });
+  const response = await fetch(
+    `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?${zonedQuery({ query, timeZone })}`,
+    { headers: { cookie } },
+  );
   expect(response.ok).toBe(true);
   return response.json();
 }
@@ -157,13 +168,17 @@ export async function readSelectionSummary({
   documentId,
   cookie,
   query = '',
+  timeZone = UTC_TIME_ZONE,
 }: {
   server: TestServer;
   documentId: string;
   cookie: string;
   query?: string;
+  timeZone?: string;
 }): Promise<SelectionSummaryView> {
-  const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${query}`, { headers: { cookie } });
+  const response = await fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${zonedQuery({ query, timeZone })}`, {
+    headers: { cookie },
+  });
   expect(response.ok).toBe(true);
   return response.json();
 }
@@ -173,13 +188,15 @@ export function postSelectionSummary({
   documentId,
   cookie,
   query = '',
+  timeZone = UTC_TIME_ZONE,
 }: {
   server: TestServer;
   documentId: string;
   cookie: string;
   query?: string;
+  timeZone?: string;
 }): Promise<Response> {
-  return fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${query}`, {
+  return fetch(`${server.baseUrl}${selectionSummaryApiPath(documentId)}?${zonedQuery({ query, timeZone })}`, {
     method: HttpMethod.Post,
     headers: { cookie, origin: server.baseUrl },
   });

@@ -47,7 +47,7 @@ Two authors, Ana and Bruno, work on one document at the same time while the hist
 
 ### T4 Every edit is attributed to its author on the timeline
 
-- Wait for the timeline bands `Budget` and `Hiring`.
+- Ana clicks **Regroup topics** and waits for the timeline bands `Budget` and `Hiring` (before the regroup the bands carry the authors' names).
 - Expect: the Budget band's contributors show Ana; the Hiring band's contributors show Bruno; the edit events endpoint (`/api/documents/<id>/events`) attributes ` More money and tax` to Ana's user id and ` A designer` to Bruno's.
 
 ### T5 A reload keeps everything
@@ -62,12 +62,12 @@ Two authors, Ana and Bruno, work on one document at the same time while the hist
 
 ### T7 A read-only link cannot edit but follows live
 
-- Ana copies the read link; Bruno opens it in a new tab of his browser.
-- Expect: Bruno's read tab shows the current text and no caret accepts input (typing changes nothing); when Ana types ` for readers` the read tab shows it within 10 seconds.
+- Ana copies the read link. Bruno signs out on his server and signs in as Dani (`dani@example.com`, not a member); Dani opens the read link.
+- Expect: Dani lands on the document as a reader, typing changes nothing; when Ana types ` for readers` Dani's page shows it within 10 seconds. Bruno signs back in afterwards and reopens the edit link.
 
 ### T8 Time travel shows the same past to both
 
-- Ana opens the version before T6 from the chart and copies the `?at=` link; Bruno opens it.
+- Version marks are one per minute: Ana opens, from the chart, the latest mark whose text still lacks ` while offline`, and copies the `?at=` link; Bruno opens it.
 - Expect: both viewers show text without ` while offline`; the version banner shows the same sequence number for both; Escape returns each to the live editor with the current text.
 
 ### T9 Both authors delete and the document stays consistent

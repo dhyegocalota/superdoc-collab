@@ -16,13 +16,13 @@ import {
   type SelectionSummaryView,
 } from '@superdoc-history/types';
 import { QueryClient } from '@tanstack/react-query';
-import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
 import { renderWithProviders } from '@/test/render-with-providers';
 import { timelineWith } from '@/test/timeline-fixtures';
-import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_FAILED_MESSAGE, EXPORT_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
+import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, DOWNLOAD_LABEL, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE, EXPORT_FAILED_MESSAGE, TITLE_LABEL } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
@@ -201,4 +201,18 @@ test('a failed export shows an alert instead of an unhandled rejection', async (
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(EXPORT_FAILED_MESSAGE);
+});
+
+test('Escape inside the editor moves focus past it so Tab can leave', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const container = await screen.findByTestId('document-editor');
+  const editable = document.createElement('div');
+  editable.setAttribute('contenteditable', 'true');
+  editable.tabIndex = 0;
+  container.append(editable);
+  editable.focus();
+  fireEvent.keyDown(editable, { key: 'Escape' });
+  expect(document.activeElement).toBe(screen.getByText(EDITOR_EXIT_LABEL));
+  expect(screen.getByText(EDITOR_ESCAPE_HINT)).toBeInTheDocument();
 });

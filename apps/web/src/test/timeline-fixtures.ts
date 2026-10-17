@@ -26,6 +26,6 @@ export function timelineWith({ volumes, names, kinds = names.map(() => TimelineB
     contributorsByBand: {},
     authors: { [FIXTURE_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AUTHOR_NAME } },
     topics: { state: TopicState.Ready, failure: null, computedAtSequence: 1 },
-    projection: { isBehind: false, lagMs: null, isDegraded: false },
+    projection: { isBehind: false, lagMs: null, isDegraded: false, cursor: 1 },
   };
 }

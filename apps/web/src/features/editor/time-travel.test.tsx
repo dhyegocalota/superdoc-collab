@@ -368,15 +368,28 @@ test('a document that disappears while viewing stops every poll', async () => {
   expect(fetchSpy.mock.calls).toHaveLength(requestsAtGone);
 });
 
-test('Escape leaves the version from anywhere but a text field', async () => {
+test('Escape leaves the version from anywhere but a field being typed in', async () => {
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   await screen.findByTitle(VERSION_FRAME_TITLE);
-  fireEvent.keyDown(screen.getByLabelText(FILTER_LABEL), { key: 'Escape' });
+  const filter = screen.getByLabelText(FILTER_LABEL);
+  fireEvent.change(filter, { target: { value: 'bud' } });
+  fireEvent.keyDown(filter, { key: 'Escape' });
   expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
-  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(filter).toHaveValue('');
+  fireEvent.keyDown(filter, { key: 'Escape' });
   await waitFor(() => expect(router.state.location.search).toBe(''));
   expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();
+});
+
+test('Escape inside the version frame leaves the version and a foreign frame cannot', async () => {
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const frame = (await screen.findByTitle(VERSION_FRAME_TITLE)) as HTMLIFrameElement;
+  sendFromFrame({ frame, kind: ViewerMessageKind.Exit, origin: EVIL_ORIGIN });
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
+  sendFromFrame({ frame, kind: ViewerMessageKind.Exit });
+  await waitFor(() => expect(router.state.location.search).toBe(''));
 });
 
 test('Escape on a focused band leaves the version once', async () => {

@@ -163,8 +163,15 @@ test('pending topics without topic bands say the topics are being named', async 
   expect(await screen.findByText(TOPICS_PENDING_MESSAGE)).toBeInTheDocument();
 });
 
+test('pending topics with topic bands still say the topics are being named', async () => {
+  const pending: DocumentTimeline = { ...timelineWith({ volumes: [[10]], names: ['Budget'] }), topics: { state: TopicState.Pending, failure: null, computedAtSequence: 1 } };
+  mockTimelineApi({ timeline: pending });
+  renderPanel();
+  expect(await screen.findByText(TOPICS_PENDING_MESSAGE)).toBeInTheDocument();
+});
+
 test('a lagging projection is announced only from the threshold', async () => {
-  mockTimelineApi({ timeline: { ...baseTimeline, projection: { isBehind: true, lagMs: LAG_MS, isDegraded: false } } });
+  mockTimelineApi({ timeline: { ...baseTimeline, projection: { ...baseTimeline.projection, isBehind: true, lagMs: LAG_MS } } });
   renderPanel();
   expect(await screen.findByText(HISTORY_CATCHING_UP_MESSAGE)).toBeInTheDocument();
   expect(screen.getByText('12 s behind')).toBeInTheDocument();
@@ -172,7 +179,7 @@ test('a lagging projection is announced only from the threshold', async () => {
 
 test('a small lag shows nothing', async () => {
   expect(SMALL_LAG_MS).toBeLessThan(PROJECTION_LAG_NOTICE_MS);
-  mockTimelineApi({ timeline: { ...baseTimeline, projection: { isBehind: true, lagMs: SMALL_LAG_MS, isDegraded: false } } });
+  mockTimelineApi({ timeline: { ...baseTimeline, projection: { ...baseTimeline.projection, isBehind: true, lagMs: SMALL_LAG_MS } } });
   renderPanel();
   expect(await screen.findByLabelText('Budget, 30 characters')).toBeInTheDocument();
   expect(screen.queryByText(HISTORY_CATCHING_UP_MESSAGE)).not.toBeInTheDocument();

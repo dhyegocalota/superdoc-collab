@@ -1,5 +1,5 @@
 import { ApiPath, DOCUMENT_UNAVAILABLE_MESSAGE, documentApiPath, DocumentRole, HttpStatus, versionCollaborationPath, versionViewPagePath, RoomMode, type EditRunView } from '@superdoc-history/types';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
@@ -125,4 +125,11 @@ test('a document the viewer cannot open shows the unavailable notice, tells the 
   expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_UNAVAILABLE_MESSAGE);
   expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Failed }, window.location.origin);
   expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('Escape inside the frame asks the parent to leave the version', async () => {
+  const postToParent = vi.spyOn(window.parent, 'postMessage');
+  await renderFrame();
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Exit }, window.location.origin);
 });

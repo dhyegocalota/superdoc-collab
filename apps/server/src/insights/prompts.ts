@@ -162,6 +162,10 @@ export function namesOf(edits: SelectionEdit[]): string[] {
   return [...new Set(edits.flatMap((edit) => edit.authors))];
 }
 
+export function authorsNamed({ returned, names }: { returned: string[]; names: string[] }): string[] {
+  return names.filter((name) => returned.includes(name));
+}
+
 export function selectionPrompt(edits: SelectionEdit[]): string {
   const labels = [...new Set(edits.map(authorLabel))];
   const groups = labels.map((label) => `${authorOpen(label)}${edits.filter((edit) => authorLabel(edit) === label).map(renderSelectionEdit).join(LINE_SEPARATOR)}${AUTHOR_CLOSE}`);

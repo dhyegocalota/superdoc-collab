@@ -44,3 +44,12 @@ test('a blank entry changes nothing', async () => {
   await user.type(screen.getByLabelText(FILTER_LABEL), '   {Enter}');
   expect(router.state.location.search).toBe('');
 });
+
+test('Escape clears a draft without touching the filters', async () => {
+  const user = userEvent.setup();
+  const { router } = renderWithProviders(<FilterBox />, { route: `${ROUTE}?term=budget` });
+  const input = screen.getByLabelText(FILTER_LABEL);
+  await user.type(input, 'hir{Escape}');
+  expect(input).toHaveValue('');
+  expect(router.state.location.search).toBe('?term=budget');
+});

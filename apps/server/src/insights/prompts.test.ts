@@ -1,6 +1,6 @@
 import { FILTER_MAX_LENGTH, SELECTION_PROMPT_MAX_CHARACTERS, SELECTION_RUN_MAX_CHARACTERS } from '@superdoc-history/types';
 import { expect, test } from 'vitest';
-import { fitEdits, fitSelection, namesOf, PROMPT_TOPIC_MAX_CHARACTERS, SELECTION_SYSTEM_PROMPT, selectionPrompt, summariesPrompt, type SelectionEdit } from './prompts';
+import { authorsNamed, fitEdits, fitSelection, namesOf, PROMPT_TOPIC_MAX_CHARACTERS, SELECTION_SYSTEM_PROMPT, selectionPrompt, summariesPrompt, type SelectionEdit } from './prompts';
 
 const RUN_COUNT = 100;
 const HOSTILE_AUTHOR_COUNT = 50;
@@ -89,4 +89,10 @@ test('an edit by a hostile crowd of long author names is still kept within the p
 test('the system prompt tells the model to list each person separately', () => {
   expect(SELECTION_SYSTEM_PROMPT).toContain(SEPARATE_PEOPLE_RULE);
   expect(SELECTION_SYSTEM_PROMPT).toContain('<author name="Maria, João">');
+});
+
+test('a name the model split at its comma is matched back to the sent name', () => {
+  expect(authorsNamed({ returned: ['Silva', 'Ana', 'Mallory'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Silva, Ana']);
+  expect(authorsNamed({ returned: ['Bruno', 'Bruno'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Bruno']);
+  expect(authorsNamed({ returned: ['Ana'], names: ['Silva, Ana'] })).toEqual([]);
 });

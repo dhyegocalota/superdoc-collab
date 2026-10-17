@@ -201,6 +201,14 @@ describe('attachCollaboration', () => {
     expect(await healthStatus(server)).toBe(HEALTH_OK_STATUS);
     await server.stop();
   });
+  test('a browser upgrade without a session cookie is destroyed before it reaches Hocuspocus', async () => {
+    const server = await startTestServer();
+    const handleConnection = vi.spyOn(server.services.hocuspocus, 'handleConnection');
+    const response = await exchange({ server, path: ApiPath.Collaboration });
+    expect(response).toBe('');
+    expect(handleConnection).not.toHaveBeenCalled();
+    await server.stop();
+  });
   test('an upgrade on another path is destroyed and the server keeps answering', async () => {
     const server = await startTestServer();
     const response = await exchange({ server, path: '/other' });

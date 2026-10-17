@@ -139,3 +139,44 @@ pnpm typecheck
 - The raw string `'warn'` and the collaboration reason keys are matched as strings because the installed types are unions of literals; no run against a live SuperDoc was made.
 - `worker-transport-failed` is not in the installed type definitions; it is read as a string.
 - Test runs of the whole web suite were slow because of the shared heavy-command lock.
+
+## G3b: connection hook, banner, page and Reload (`developer-3b`)
+
+### What changed
+- `apps/web/src/features/editor/use-connection-state.ts` — `TransportReading`, `TransportReport`, `transportReportOf`, `mergeConnectionState` and `useConnectionState({ documentId, isCurrentUserOnline, membersAnsweredAt })` returning `{ state, failureReason, reportTransport, resetConnection }`. A reducer holds reading, failure reason, loss time and the Recovered notice flag.
+- `apps/web/src/features/editor/connection-banner.tsx` and `connection-copy.ts` — the banner for Lost, Reconnecting, Recovered and Failed; nothing when Online. Reload shows in Failed only.
+- `apps/web/src/features/editor/superdoc-editor.tsx` — `onTransportReport`, callbacks behind an `isActive` flag, exceptions dispatched from a record keyed by `ExceptionOutcome`.
+- `apps/web/src/features/editor/document-page.tsx` and `use-editor-setup.ts` — `editorGeneration` as the editor `key` and a `useEditorSetup` input; the banner above the version banner; inert and `opacity-60` when Failed; Reload awaits the refetch of the open query and of that document's file query, resets the connection, then bumps the generation.
+- `apps/web/src/features/editor/superdoc-exceptions.ts` and its test — `isRecoverableException` and its describe block are gone; `exceptionOutcome` compares the code itself.
+- `apps/web/src/features/editor/use-members.ts` — `membersAnsweredAt` only, mirrored from G3a; the lead keeps G3a's version.
+- `.claude/rules/collaboration.md` and `.claude/rules/web-ui.md` — states, Reload and the banner pattern.
+
+### How to run
+```bash
+pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/use-connection-state.test.ts
+pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/connection-banner.test.tsx
+pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/document-page.test.tsx
+pnpm typecheck
+```
+
+### Red today, green after (failure text each red run printed)
+| Test file | Red commit | Printed | Green commit |
+|-----------|------------|---------|--------------|
+| `use-connection-state.test.ts` (34 tests) | `5aaed20` | `Error: mergeConnectionState is not implemented`, `transportReportOf is not implemented`, `useConnectionState is not implemented` | `659b25d` |
+| `connection-banner.test.tsx` (15 tests) | `e50b917` | `Error: ConnectionBanner is not implemented` | `1864c4d` |
+| `document-page.test.tsx` (6 new tests) | `3125aaf` | `TypeError: ...onCollaborationConnectionChange is not a function`; `expected "warn" to be called with arguments: [ 'render hiccup' ]`; a `toHaveTextContent` failure for the exception reason | `60f140c` |
+
+No test in this lane is a pin.
+
+### Hypotheses to attack
+1. Hypothesis: a Lost reading with the server flag still true never shows Recovered until a members answer that finished after the loss. Break it by: stopping the server and watching the banner while the poll still has an old true.
+2. Hypothesis: Failed never clears by itself, whatever the poll or the callback say. Break it by: removing the session cookie, then letting the poll and a `synced` callback run.
+3. Hypothesis: Reload remounts one new SuperDoc instance with the refetched room mode and current file, and late callbacks from the old instance show nothing. Break it by: pressing Reload twice quickly, and by pressing it while the server is still down.
+4. Hypothesis: the banner reads well from 320 to 2560 px with at most three lines on phones. Break it by: the Failed banner at 320 px, where the title, reason and unsynced detail may exceed three lines.
+5. Hypothesis: a warn diagnostic only logs. Break it by: a real remote edit that raises a warn diagnostic.
+
+### Known gaps
+- The three-line limit at 320 px for the Failed banner was not measured; I have no browser.
+- Reload with the server down: if the open query fails, the page shows the unavailable notice instead of the banner. I did not change that path.
+- Reload refetches the stored file in create mode; in join mode the cached blank is refetched. No new request is added for a Join answer.
+- The Reconnecting spinner and `motion-reduce` are untested in a browser.

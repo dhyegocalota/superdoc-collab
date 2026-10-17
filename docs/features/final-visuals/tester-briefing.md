@@ -128,3 +128,84 @@ Failure texts are what the red run printed at the red commit. A row marked "chan
 - The account trigger has `aria-label` but no `Tooltip` yet (design section 2 lists one); the Tooltip primitive is ready for whoever wires the top bars.
 - `home-link.tsx` is untouched; G8 deletes it. `BrandLink` imports `HOME_LINK_LABEL` from `features/editor/editor-copy.ts`.
 - Nothing here was seen in a browser. Real Radix pointer, focus and animation behaviour, the contrast numbers and the first-paint theme are untested beyond jsdom.
+
+## G2 editor chrome, Steps 14 to 22 (developer-2, branch `feat/final-visuals-g2`)
+
+Step 23 (`document-page.tsx` integration) is not done; it waits for the merge of G3, G4, G5 and G7.
+
+### What changed
+
+- `features/editor/document-title.tsx` (`DocumentTitle`): button at rest, `Input` with the text selected on click or Enter, Enter or blur saves through the rename mutation, Escape and an empty value restore, focus returns to the button after Enter or Escape, a reader gets an `h1`. While the rename is pending the new title shows.
+- `features/editor/download-format.ts` (`DownloadFormat`), `download-menu.tsx` (`DownloadMenu` split button, `useDownload`, `LOADING_DOCUMENT_REASON_ID`), `DOWNLOAD_FORMAT_LABELS` in `editor-copy.ts`. `useDownload({ superdoc, onDownloadDocx })` returns `download(format)` and the `printView` node. The DOCX path stays the page's `onDownloadDocx`; the PDF path exports with `triggerDownload: false`, shows the loading toast with `PDF_PRINT_HINT`, mounts `PrintView`, and dismisses the toast on `afterprint`; a failed export or print view shows `PDF_FAILED_MESSAGE`.
+- `features/versions/print-view.tsx` (`PrintView`): a portal into `body`, `data-print-view`, 816 px wide, off-screen at `-10000px`, height `pageCount × 1056` px after `onReady`, `virtualization.enabled: false`, a bounded `requestAnimationFrame` loop (600 frames) until the last `.superdoc-page` has text, then `window.print()`. A `@media print` style hides every other child of `body`.
+- `features/editor/find-button.tsx` (`FindButton`): `superdoc.emit('search:open')`, with a `Tooltip`.
+- `features/editor/superdoc-options.ts`: `TOOLBAR_EXCLUDED_ITEMS` (`satisfies readonly ToolbarItemId[]`), `ui.toolbar` only when a container is given, `ui.search: true`, `user.color`, `colors`, `printSuperdocOptions`. `superdoc-zoom.ts`: `FIT_WIDTH_ZOOM`; the viewport switch (`initialZoomMode`, `followViewportZoom`, `NARROW_VIEWPORT_QUERY`) is gone.
+- `features/editor/editor-toolbar-row.tsx` (`EditorToolbarRow`): 40 px row, toolbar container `flex-1 min-w-0` with `inert` support, Summarize at the right, nothing for a reader.
+- `features/editor/editor-header.tsx` (`EditorHeader`): renders `AppTopBar` itself. Left: divider, `DocumentTitle`, Read only badge. Right: Members, Find, Use with AI, Share (owner), Download split, More actions, `AccountMenu`. Below `sm` Members and the Use with AI and Download bar items hide (CSS), and More actions carries Use with AI, Download .docx and Download PDF. Delete stays owner-only. A non-owner's More actions trigger hides at `sm` and above because its items are all `sm:hidden`.
+- `features/editor/superdoc-editor.tsx`: `onSuperdocChange(superdoc | null)` replaces `superdocRef` (set from SuperDoc's `onReady`, cleared on destroy), `toolbarContainer` prop, `user.color` and six `colors` read with `getComputedStyle` from `--author-1` to `--author-6` (a missing token throws `MissingAuthorColorError`), page background `bg-paper`.
+- `features/editor/opening-document.tsx`: header is `AppTopBar`.
+- `features/editor/document-page.tsx`: only what is needed to compile: the instance as state, the new header and editor props, `isPastVersion` from the time-travel state, `renderUseWithAi` returns nothing, `toolbarContainer` is `null`. Step 23 replaces these.
+- Mirrors, for the lead to drop at the merge: `summarize-edits-button.tsx` is G4's file copied (f5ccbc0); `members.tsx` only gains two optional props (a43f42f).
+- New test helper `apps/web/src/testing/author-palette.ts`: installs and removes the six `--author-N` custom properties so jsdom can resolve them.
+
+### Deviations from the prompt
+
+- `EditorHeader` takes `renderUseWithAi: (trigger?: ReactNode) => ReactNode`, not a `ReactNode` slot. The bar calls it with no argument; More actions calls it with a `DropdownMenuItem` trigger, because G7's `UseWithAiDialog` takes a `trigger` prop and a dialog cannot live inside a closing menu otherwise. Step 23 passes `(trigger) => <UseWithAiDialog title={…} canEdit={…} trigger={trigger} />`.
+- `DownloadMenu` is presentational (`isDisabled`, `onDownload(format)`); the PDF logic is the `useDownload` hook in the same file, so More actions can use the same handler.
+- The editor's `onReady` is now set. `web-ui.md` forbids focusing from `onReady`; the test "the editor never takes the focus on its own" now asserts `document.body` keeps the focus after `onReady`.
+
+### Red runs, as printed
+
+| Step | Test | Failure text |
+|---|---|---|
+| 14 | `document-title.test.tsx` | `Error: DocumentTitle is not implemented` |
+| 15 | `download-format.test.ts` | `AssertionError: expected [ 'docx' ] to deeply equal [ 'docx', 'pdf' ]` |
+| 15 | `download-menu.test.tsx` | `Error: DownloadMenu is not implemented` |
+| 16 | `find-button.test.tsx` | `Error: FindButton is not implemented` |
+| 17 | `superdoc-options.test.ts` | `AssertionError: expected undefined to deeply equal [ …(10) ]`; `expected 'import { COLLABORATION_TOKEN_PLACEHOL…' to contain 'satisfies readonly ToolbarItemId[]'`; `TypeError: Cannot read properties of undefined (reading 'matchMedia')` |
+| 17 | `superdoc-zoom.test.ts` | `AssertionError: expected undefined to deeply equal { mode: 'fit-width', …(1) }` |
+| 18 | `print-view.test.tsx` | `Error: PrintView is not implemented` |
+| 18 | `download-menu.test.tsx` (`useDownload`) | `Error: useDownload is not implemented` |
+| 19 | `editor-toolbar-row.test.tsx` | `Error: EditorToolbarRow is not implemented` |
+| 20 | `editor-header.test.tsx` | `Unable to find an accessible element with the role "button" and name "Find in document"` (and Download, More actions, `Rename Plan`); `expected "vi.fn()" to be called with arguments: [ ObjectContaining{…}, undefined ]` |
+| 21 | `superdoc-editor.test.tsx` | `TypeError: Cannot set properties of undefined (setting 'current')` |
+| opening | `opening-document.test.tsx` | `AssertionError: expected 'flex items-center gap-2 border-b px-4…' to be 'flex h-13 items-center gap-2 border-b…'` |
+
+The red commits of Steps 17, 20 and 21 do not typecheck on purpose: their tests call the new signatures and the stub is the old code. Step 22 is a pin (`editor-copy.test.ts`).
+
+### How to run
+
+```bash
+cd apps/web
+pnpm exec vitest run src/features/editor/document-title.test.tsx
+pnpm exec vitest run src/features/editor/download-menu.test.tsx
+pnpm exec vitest run src/features/versions/print-view.test.tsx
+pnpm exec vitest run src/features/editor/editor-header.test.tsx
+pnpm typecheck
+```
+
+Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-toolbar-row`, `superdoc-editor`, `opening-document`, `document-page` and `editor-copy`.
+
+### Known red today
+
+- `document-page.test.tsx::a 409 not ready shows the owner message and never builds the editor`: it expects the retired notice; G6 replaced it. Step 23 rewrites it.
+- `pnpm typecheck` in this lane: `timeline-panel.tsx` still passes the old Summarize props (G3 and G4 merge fixes it); `versions/version-viewer.tsx` and `versions/version-view-page.test.tsx` use the removed `followViewportZoom` and `NARROW_VIEWPORT_QUERY` and the removed `viewport` option. Neither file is in any group's ownership. Raised with the lead.
+- `libs/types/src/constants.ts` declares `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice in the lane base (G1 merge plus a G1 mirror for G6), which fails every Vitest run. I removed the duplicate in my working tree only and never committed it.
+
+### Hypotheses for the tester
+
+1. At 1280 the right slot reads Members, Find, Use with AI, Share, Download, More actions, account, and at 375 the header is one row with the secondary actions inside More actions. Break it by: 320, 375, 640 and 2560 px, a 60-character title, a reader and an owner.
+2. Clicking the title opens an input with the text selected; Enter saves and refocuses the title button; Escape restores; an empty value restores. Break it by: renaming while another tab renames, a failed save, tabbing away mid-edit.
+3. Download PDF opens the browser print dialog with every page of a long document, one SuperDoc page per Letter sheet, with the toast hint visible until the dialog closes. Break it by: a 40-page document, a document with images and tables, Calibri text, pressing Download PDF twice, cancelling the dialog, then downloading again. This is the least proven part: the unit tests fake SuperDoc, the `requestAnimationFrame` loop and `window.print`; whether SuperDoc paints every page of an off-screen container 816 px wide and `pageCount × 1056` px tall is untested.
+4. Find in document opens SuperDoc's Find bar, and Cmd+F does too. Break it by: pressing Find before the editor is ready (nothing happens).
+5. The toolbar hides accept, reject, ruler, measurement unit, document mode, search, linked styles, copy format, clear formatting and ai, and shows the rest. Break it by: reading the real toolbar at 320 to 2560 px.
+6. The page is centred and fitted to the width at every width and never grows past 100 %. Break it by: choosing a zoom in the toolbar and then resizing the window.
+7. The page stays white in dark mode and a remote caret matches that member's avatar colour. Break it by: two browsers, a user whose slot collides with another.
+8. The editor header never shows a download that fails silently: a DOCX export failure shows `EXPORT_FAILED_MESSAGE` under the bar (still the page's job).
+
+### Known gaps
+
+- Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.
+- The "Loading document…" reason is still the page's loading paragraph; `LOADING_DOCUMENT_REASON_ID` is exported for Step 23 to put on it, and Download stays disabled after that paragraph is gone, until SuperDoc's `onReady`.
+- The print view fails (toast) when the last page has no text after 600 frames; a document whose last page is an image only would fail that way.
+- Nothing here was seen in a browser.

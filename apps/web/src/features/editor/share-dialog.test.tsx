@@ -164,3 +164,16 @@ test('links that fail to load show an alert instead of placeholders', async () =
   expect(await screen.findByRole('alert')).toHaveTextContent(SHARE_LINKS_LOAD_ERROR_MESSAGE);
   expect(screen.queryByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).not.toBeInTheDocument();
 });
+
+test('copying the other link moves Link copied to that row', async () => {
+  mockShareApi();
+  const user = userEvent.setup();
+  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  await openDialog();
+  const editRow = await screen.findByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Edit] });
+  const readRow = screen.getByRole('group', { name: SHARE_LINK_LABELS[ShareLinkRole.Read] });
+  await user.click(within(editRow).getByRole('button', { name: COPY_LABEL }));
+  await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
+  expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
+  expect(within(editRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
+});

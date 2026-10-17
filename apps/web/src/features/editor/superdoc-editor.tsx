@@ -2,6 +2,7 @@ import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdo
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
@@ -59,11 +60,7 @@ export function SuperDocEditor({ superdocRef, documentId, roomMode, role, user, 
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface}>
-      {hasFailed && (
-        <p role="alert" className="p-4 text-sm text-destructive">
-          {EDITOR_FAILED_MESSAGE}
-        </p>
-      )}
+      {hasFailed && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div
         ref={containerRef}

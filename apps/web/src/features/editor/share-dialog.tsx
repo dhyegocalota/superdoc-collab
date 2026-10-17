@@ -123,11 +123,7 @@ export function ShareDialog({ documentId }: { documentId: string }) {
           <DialogTitle>{SHARE_DIALOG_TITLE}</DialogTitle>
           <DialogDescription>{SHARE_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
-        {isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {SHARE_LINKS_LOAD_ERROR_MESSAGE}
-          </p>
-        )}
+        {isError && <ErrorMessage>{SHARE_LINKS_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         {isPending && (
           <div role="status" aria-label={LOADING_SHARE_LINKS_LABEL} className="space-y-4">
             {SHARE_ROLES.map((role) => (

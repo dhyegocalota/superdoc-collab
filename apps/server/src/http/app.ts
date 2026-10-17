@@ -6,6 +6,8 @@ import { HTTPException } from 'hono/http-exception';
 import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-history/history';
 import type { Auth } from '../auth/auth';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
+import type { AgentSessions } from '../agent/agent-sessions';
+import type { AgentToolContext } from '../agent/agent-tool-context';
 import type { Environment } from '../config/environment';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -51,6 +53,8 @@ export type AppServices = {
   shareLinks: ShareLinksRepository;
   updateLog: UpdateLog;
   agentActions: AgentActionsLog;
+  agentSessions: AgentSessions;
+  agentToolkit: AgentToolContext['toolkit'];
   readModel: ReadModel;
   insightsRepository: InsightsRepository;
   scheduler: ProjectionScheduler;

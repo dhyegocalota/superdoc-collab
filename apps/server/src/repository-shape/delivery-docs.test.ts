@@ -56,6 +56,7 @@ const ROOT_ENTRIES = [
   'scripts',
   'tsconfig.base.json',
 ];
+const NESTED_PATH_PATTERN = /\/.*$/;
 const TEMPORARY_SEGMENT_PATTERN =
   /(^|\/)(spikes?|poc|prototypes?|experiments?|scratch|scratchpad|playground|sandbox|tmp|temp|wip|backups?)(\/|$)/i;
 const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
@@ -173,7 +174,7 @@ describe('delivery documents', () => {
   });
 
   test('the root holds only the entries the layout names', () => {
-    const rootEntries = new Set(repositoryFiles().map((path) => path.split('/')[0]));
+    const rootEntries = new Set(repositoryFiles().map((path) => path.replace(NESTED_PATH_PATTERN, '')));
     expect([...rootEntries].filter((entry) => !ROOT_ENTRIES.includes(entry))).toEqual([]);
   });
 

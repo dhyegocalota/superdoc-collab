@@ -171,9 +171,12 @@ describe('the README quick install and the install guide run from source', () =>
 });
 
 describe('the README prose', () => {
-  test.each(capturedNames({ text: readme, pattern: PROSE_VARIABLE_PATTERN }))('%s is a key of the example environment file', (name) => {
-    expect(documentedVariables).toContain(name);
-  });
+  test.each([...new Set(capturedNames({ text: `${readme}${LINE_SEPARATOR}${runText}`, pattern: PROSE_VARIABLE_PATTERN }))])(
+    '%s is a key of the example environment file',
+    (name) => {
+      expect(documentedVariables).toContain(name);
+    },
+  );
 
   test.each(capturedNames({ text: readme, pattern: DEMO_ADDRESS_PATTERN }))('%s is a demo user', (email) => {
     expect(DEMO_USERS.map((user) => user.email)).toContain(email);

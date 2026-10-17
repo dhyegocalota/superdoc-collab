@@ -20,9 +20,9 @@ One group; tests first, then the documents.
 
 ## Steps
 
-- [ ] **Step 1:** Tests first. `readme-run-block.test.ts`: the checked text is the README's `## Quick install` section plus `docs/install.md`'s `## Run from source` section; the fenced-block rule names Quick install. `delivery-docs.test.ts`: the agent phrases are read from `docs/agent-install.md`; the README's Quick install and `docs/install.md`'s "Install with an agent" both contain `docs/agent-install.md`. Run them: red on the missing heading, the missing file and the missing prompt.
-- [ ] **Step 2:** `docs/agent-install.md` with the six steps; `README.md` Quick install; `docs/install.md` one-line prompt and `## Run from source`; `AGENTS.md` and the doctor's `docker` line say Quick install; `hooks.test.sh` expectation follows. Run the repository-shape tests and `hooks.test.sh`: green.
-- [ ] **Step 3:** Mutation checks: drop a phrase from `docs/agent-install.md`, rename a script in the moved from-source block, point the README prompt at another file; each turns its test red; restore.
+- [x] **Step 1:** Tests first. `readme-run-block.test.ts`: the checked text is the README's `## Quick install` section plus `docs/install.md`'s `## Run from source` section; the fenced-block rule names Quick install. `delivery-docs.test.ts`: the agent phrases are read from `docs/agent-install.md`; the README's Quick install and `docs/install.md`'s "Install with an agent" both contain `docs/agent-install.md`. Run them: red on the missing heading, the missing file and the missing prompt.
+- [x] **Step 2:** `docs/agent-install.md` with the six steps; `README.md` Quick install; `docs/install.md` one-line prompt and `## Run from source`; `AGENTS.md` and the doctor's `docker` line say Quick install; `hooks.test.sh` expectation follows. Run the repository-shape tests and `hooks.test.sh`: green.
+- [x] **Step 3:** Mutation checks: drop a phrase from `docs/agent-install.md`, rename a script in the moved from-source block, point the README prompt at another file; each turns its test red; restore.
 
 ## Failure modes
 

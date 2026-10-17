@@ -1,8 +1,15 @@
-import { AppRoute, documentPagePath, HttpMethod, HttpStatus, INVALID_SHARE_LINK_MESSAGE, shareLinkAcceptPath } from '@superdoc-history/types';
+import {
+  AppRoute,
+  documentPagePath,
+  HttpMethod,
+  HttpStatus,
+  INVALID_SHARE_LINK_MESSAGE,
+  shareLinkAcceptPath,
+} from '@superdoc-history/types';
 import { screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { ShareLandingPage } from './share-landing-page';
 
@@ -20,7 +27,9 @@ test('a 200 accept opens the document replacing the share entry', async () => {
 });
 
 test('a 404 shows the invalid link message and a way back', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ error: INVALID_SHARE_LINK_MESSAGE }), { status: HttpStatus.NotFound }));
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(JSON.stringify({ error: INVALID_SHARE_LINK_MESSAGE }), { status: HttpStatus.NotFound }),
+  );
   renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
   expect(await screen.findByText(INVALID_SHARE_LINK_MESSAGE)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', AppRoute.Documents);

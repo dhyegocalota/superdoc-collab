@@ -21,7 +21,11 @@ export function NewDocumentButton() {
       <Button disabled={isPending} onClick={() => mutate()}>
         {NEW_DOCUMENT_LABEL}
       </Button>
-      {isError && <p role="alert" className="text-sm text-destructive">{CREATE_ERROR_MESSAGE}</p>}
+      {isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {CREATE_ERROR_MESSAGE}
+        </p>
+      )}
     </>
   );
 }

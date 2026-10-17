@@ -13,7 +13,9 @@ test('two nonces derive different tokens', () => {
 });
 
 test('another secret derives a different token', () => {
-  expect(deriveShareToken({ secret: SECRET, nonce: 'nonce-one' })).not.toBe(deriveShareToken({ secret: `${SECRET}-other`, nonce: 'nonce-one' }));
+  expect(deriveShareToken({ secret: SECRET, nonce: 'nonce-one' })).not.toBe(
+    deriveShareToken({ secret: `${SECRET}-other`, nonce: 'nonce-one' }),
+  );
 });
 
 test('the stored hash is 64 hex characters and differs from the token', () => {

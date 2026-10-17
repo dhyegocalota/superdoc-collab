@@ -1,8 +1,16 @@
-import { DocumentRole, DOCX_MIME_TYPE, documentPagePath, HttpStatus, MAX_UPLOAD_BYTES, NOT_A_DOCX_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from '@superdoc-history/types';
+import {
+  DocumentRole,
+  DOCX_MIME_TYPE,
+  documentPagePath,
+  HttpStatus,
+  MAX_UPLOAD_BYTES,
+  NOT_A_DOCX_MESSAGE,
+  UPLOAD_TOO_LARGE_MESSAGE,
+} from '@superdoc-history/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from './documents-copy';
 import { UploadDialog } from './upload-dialog';
 

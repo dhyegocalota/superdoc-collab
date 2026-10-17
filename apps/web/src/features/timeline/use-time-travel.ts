@@ -1,4 +1,13 @@
-import { DocumentResource, TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type TimelineFilter, type VersionSummary, type DocumentTimeline } from '@superdoc-history/types';
+import {
+  DocumentResource,
+  TimelineSearchParam,
+  VersionViewerState,
+  type EditRunView,
+  type TimelineBin,
+  type TimelineFilter,
+  type VersionSummary,
+  type DocumentTimeline,
+} from '@superdoc-history/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardKey } from '@/lib/keyboard';
@@ -43,7 +52,17 @@ function sequenceOf(bin: TimelineBin | undefined): number | null {
   return bin.versionSequence;
 }
 
-function useBinRuns({ documentId, timeline, bin, filter }: { documentId: string; timeline: DocumentTimeline | undefined; bin: TimelineBin | undefined; filter: TimelineFilter }): EditRunView[] {
+function useBinRuns({
+  documentId,
+  timeline,
+  bin,
+  filter,
+}: {
+  documentId: string;
+  timeline: DocumentTimeline | undefined;
+  bin: TimelineBin | undefined;
+  filter: TimelineFilter;
+}): EditRunView[] {
   const request = bin && timeline ? { documentId, binStart: bin.start, binMs: timeline.binMs, filter } : null;
   const { data } = useQuery({
     queryKey: request ? binEditsQueryKey(request) : NO_BIN_EDITS_KEY,

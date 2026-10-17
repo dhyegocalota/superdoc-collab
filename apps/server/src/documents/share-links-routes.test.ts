@@ -21,7 +21,11 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function blankDocumentWithOwner() {
   const { server, owner } = await signedInOwner();
-  const created = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: HttpMethod.Post, headers: { cookie: owner.cookie, ...JSON_HEADERS }, body: JSON.stringify({ title: 'Shared' }) });
+  const created = await fetch(`${server.baseUrl}${ApiPath.Documents}`, {
+    method: HttpMethod.Post,
+    headers: { cookie: owner.cookie, ...JSON_HEADERS },
+    body: JSON.stringify({ title: 'Shared' }),
+  });
   const { id: documentId }: DocumentSummary = await created.json();
   return { server, documentId, owner };
 }
@@ -30,12 +34,33 @@ function shareLinksPath(documentId: string): string {
   return `${documentApiPath({ documentId })}/${DocumentResource.ShareLinks}`;
 }
 
-async function shareLinksOf({ server, cookie, documentId }: { server: TestServer; cookie: string; documentId: string }): Promise<ShareLinks> {
+async function shareLinksOf({
+  server,
+  cookie,
+  documentId,
+}: {
+  server: TestServer;
+  cookie: string;
+  documentId: string;
+}): Promise<ShareLinks> {
   return (await fetch(`${server.baseUrl}${shareLinksPath(documentId)}`, { headers: { cookie } })).json();
 }
 
-function rotate({ server, cookie, documentId, role }: { server: TestServer; cookie: string; documentId: string; role: string }): Promise<Response> {
-  return fetch(`${server.baseUrl}${shareLinksPath(documentId)}/${role}/rotate`, { method: HttpMethod.Post, headers: { cookie, origin: server.baseUrl } });
+function rotate({
+  server,
+  cookie,
+  documentId,
+  role,
+}: {
+  server: TestServer;
+  cookie: string;
+  documentId: string;
+  role: string;
+}): Promise<Response> {
+  return fetch(`${server.baseUrl}${shareLinksPath(documentId)}/${role}/rotate`, {
+    method: HttpMethod.Post,
+    headers: { cookie, origin: server.baseUrl },
+  });
 }
 
 function accept({ server, cookie, url }: { server: TestServer; cookie: string; url: string }): Promise<Response> {
@@ -60,7 +85,10 @@ test('a token for a deleted document is no longer valid', async () => {
   const { server, documentId, owner } = await blankDocumentWithOwner();
   const bruno = await signedInUser({ server, name: 'Bruno' });
   const links = await shareLinksOf({ server, cookie: owner.cookie, documentId });
-  await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie, origin: server.baseUrl } });
+  await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
+    method: HttpMethod.Delete,
+    headers: { cookie: owner.cookie, origin: server.baseUrl },
+  });
   const response = await accept({ server, cookie: bruno.cookie, url: links[ShareLinkRole.Read] });
   expect([response.status, await response.json()]).toEqual([HttpStatus.NotFound, { error: INVALID_SHARE_LINK_MESSAGE }]);
   await server.stop();
@@ -78,7 +106,9 @@ test('a reader who accepts the edit link becomes an editor', async () => {
 test('the owner accepting their own link stays owner', async () => {
   const { server, documentId, owner } = await blankDocumentWithOwner();
   const links = await shareLinksOf({ server, cookie: owner.cookie, documentId });
-  const statuses = await Promise.all([links[ShareLinkRole.Edit], links[ShareLinkRole.Read]].map(async (url) => (await accept({ server, cookie: owner.cookie, url })).status));
+  const statuses = await Promise.all(
+    [links[ShareLinkRole.Edit], links[ShareLinkRole.Read]].map(async (url) => (await accept({ server, cookie: owner.cookie, url })).status),
+  );
   expect(statuses).toEqual([HttpStatus.Ok, HttpStatus.Ok]);
   expect(server.services.documents.findRole({ documentId, userId: owner.id })).toBe(DocumentRole.Owner);
   await server.stop();

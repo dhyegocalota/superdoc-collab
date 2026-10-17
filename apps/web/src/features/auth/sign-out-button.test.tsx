@@ -11,7 +11,10 @@ import { SIGNED_OUT_STATE } from './sign-out-state';
 
 const navigate = vi.fn();
 
-vi.mock('react-router', async (importOriginal) => ({ ...(await importOriginal<typeof import('react-router')>()), useNavigate: () => navigate }));
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => navigate,
+}));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
 test('navigates to the bare sign-in route marked as signed out', async () => {

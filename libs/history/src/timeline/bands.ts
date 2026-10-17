@@ -15,17 +15,35 @@ function hueOf({ hues, bandId }: { hues: Map<string, number>; bandId: string }):
   return hue;
 }
 
-export function buildBands({ identities, allRuns, matchedRuns }: { identities: BandIdentity[]; allRuns: EditRun[]; matchedRuns: EditRun[] }): TimelineBand[] {
+export function buildBands({
+  identities,
+  allRuns,
+  matchedRuns,
+}: {
+  identities: BandIdentity[];
+  allRuns: EditRun[];
+  matchedRuns: EditRun[];
+}): TimelineBand[] {
   const present = identities
     .map((identity) => ({ identity, runs: runsOf({ runs: allRuns, bandId: identity.id }) }))
     .filter(({ runs }) => runs.length > 0)
     .map(({ identity, runs }) => ({ ...identity, onsetTime: Math.min(...runs.map((run) => run.firstServerTime)) }));
   const hues = huesByOnset(present.filter((band) => band.kind !== TimelineBandKind.Other));
-  return present.map((band) => ({ ...band, hue: hueOf({ hues, bandId: band.id }), volume: runsOf({ runs: matchedRuns, bandId: band.id }).reduce((sum, run) => sum + run.inserted.length + run.deleted.length, 0) }));
+  return present.map((band) => ({
+    ...band,
+    hue: hueOf({ hues, bandId: band.id }),
+    volume: runsOf({ runs: matchedRuns, bandId: band.id }).reduce((sum, run) => sum + run.inserted.length + run.deleted.length, 0),
+  }));
 }
 
 function addRun({ contributor, run }: { contributor: TimelineContributor; run: EditRun }): TimelineContributor {
-  return { ...contributor, inserted: contributor.inserted + run.inserted.length, deleted: contributor.deleted + run.deleted.length, wordsInserted: contributor.wordsInserted + countWords(run.inserted), wordsDeleted: contributor.wordsDeleted + countWords(run.deleted) };
+  return {
+    ...contributor,
+    inserted: contributor.inserted + run.inserted.length,
+    deleted: contributor.deleted + run.deleted.length,
+    wordsInserted: contributor.wordsInserted + countWords(run.inserted),
+    wordsDeleted: contributor.wordsDeleted + countWords(run.deleted),
+  };
 }
 
 function contributorOf({ byAuthor, authorKey }: { byAuthor: Map<string, TimelineContributor>; authorKey: string }): TimelineContributor {
@@ -34,7 +52,13 @@ function contributorOf({ byAuthor, authorKey }: { byAuthor: Map<string, Timeline
   return { authorKey, inserted: 0, deleted: 0, wordsInserted: 0, wordsDeleted: 0 };
 }
 
-function authorsOfBand({ totals, bandId }: { totals: Map<string, Map<string, TimelineContributor>>; bandId: string }): Map<string, TimelineContributor> {
+function authorsOfBand({
+  totals,
+  bandId,
+}: {
+  totals: Map<string, Map<string, TimelineContributor>>;
+  bandId: string;
+}): Map<string, TimelineContributor> {
   const existing = totals.get(bandId);
   if (existing) return existing;
   const created = new Map<string, TimelineContributor>();
@@ -48,5 +72,10 @@ export function contributorsByBand(runs: EditRun[]): Record<string, TimelineCont
     const byAuthor = authorsOfBand({ totals, bandId: run.bandId });
     run.authorKeys.forEach((key) => byAuthor.set(key, addRun({ contributor: contributorOf({ byAuthor, authorKey: key }), run })));
   });
-  return Object.fromEntries([...totals].map(([bandId, byAuthor]) => [bandId, [...byAuthor.values()].sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted))]));
+  return Object.fromEntries(
+    [...totals].map(([bandId, byAuthor]) => [
+      bandId,
+      [...byAuthor.values()].sort((left, right) => right.inserted + right.deleted - (left.inserted + left.deleted)),
+    ]),
+  );
 }

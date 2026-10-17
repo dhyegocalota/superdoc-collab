@@ -1,11 +1,21 @@
-import { ApiPath, DOCUMENT_UNAVAILABLE_MESSAGE, documentApiPath, DocumentRole, HttpStatus, versionCollaborationPath, versionViewPagePath, RoomMode, type EditRunView } from '@superdoc-history/types';
+import {
+  ApiPath,
+  DOCUMENT_UNAVAILABLE_MESSAGE,
+  documentApiPath,
+  DocumentRole,
+  HttpStatus,
+  versionCollaborationPath,
+  versionViewPagePath,
+  RoomMode,
+  type EditRunView,
+} from '@superdoc-history/types';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
-import { ViewerMessageKind } from '@/features/editor/viewer-messages';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
+import { ViewerMessageKind } from './viewer-messages';
+import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { VERSION_FAILED_MESSAGE } from '@/features/timeline/timeline-copy';
 import { useRunHighlights } from './use-run-highlights';
 import { VersionViewPage } from './version-view-page';
@@ -18,7 +28,11 @@ type SuperDocConfig = {
   onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
 };
 
-const { SuperDoc } = vi.hoisted(() => ({ SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) { return { destroy: vi.fn() }; }) }));
+const { SuperDoc } = vi.hoisted(() => ({
+  SuperDoc: vi.fn(function SuperDocStub(_config: SuperDocConfig) {
+    return { destroy: vi.fn() };
+  }),
+}));
 
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
@@ -27,7 +41,9 @@ vi.mock('./use-run-highlights', () => ({ useRunHighlights: vi.fn() }));
 const SEQUENCE = 42;
 const ROUTE = versionViewPagePath({ documentId: DOCUMENT_ID, sequence: SEQUENCE });
 const EVIL_ORIGIN = 'http://evil.example';
-const RUNS: EditRunView[] = [{ blockId: 'block-1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'hello', deleted: '', lastServerTime: 1 }];
+const RUNS: EditRunView[] = [
+  { blockId: 'block-1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'hello', deleted: '', lastServerTime: 1 },
+];
 
 let openedStatus = HttpStatus.Ok;
 
@@ -37,7 +53,8 @@ beforeEach(() => {
   vi.mocked(useRunHighlights).mockClear();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
-    if (input === documentApiPath({ documentId: DOCUMENT_ID })) return new Response(JSON.stringify(openedAs(DocumentRole.Editor)), { status: openedStatus });
+    if (input === documentApiPath({ documentId: DOCUMENT_ID }))
+      return new Response(JSON.stringify(openedAs(DocumentRole.Editor)), { status: openedStatus });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     throw new Error(`unexpected request ${String(input)}`);
   });

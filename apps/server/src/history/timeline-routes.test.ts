@@ -1,5 +1,14 @@
 import { MAX_BINS } from '@superdoc-history/history';
-import { type BinEdits, DocumentResource, MINUTE_MS, documentApiPath, HttpStatus, timelineEditsApiPath, TimelineBandKind, type DocumentTimeline } from '@superdoc-history/types';
+import {
+  type BinEdits,
+  DocumentResource,
+  MINUTE_MS,
+  documentApiPath,
+  HttpStatus,
+  timelineEditsApiPath,
+  TimelineBandKind,
+  type DocumentTimeline,
+} from '@superdoc-history/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
@@ -25,15 +34,27 @@ function timelineUrl({ server, documentId, query }: { server: { baseUrl: string 
 test('filters by author name or email and keeps the x axis', async () => {
   const { server, documentId, owner, editor } = await twoAuthorsInTwoBlocks();
   const all = await readTimeline({ server, documentId, cookie: owner.cookie });
-  const byEmail = await readTimeline({ server, documentId, cookie: owner.cookie, query: `author=${encodeURIComponent(editor.email.toUpperCase())}` });
+  const byEmail = await readTimeline({
+    server,
+    documentId,
+    cookie: owner.cookie,
+    query: `author=${encodeURIComponent(editor.email.toUpperCase())}`,
+  });
   expect(byEmail.bins.map((bin) => bin.start)).toEqual(all.bins.map((bin) => bin.start));
-  expect(Object.keys(byEmail.contributorsByBand).flatMap((bandId) => byEmail.contributorsByBand[bandId]!.map((contributor) => contributor.authorKey))).toEqual([editor.id]);
+  expect(
+    Object.keys(byEmail.contributorsByBand).flatMap((bandId) =>
+      byEmail.contributorsByBand[bandId]!.map((contributor) => contributor.authorKey),
+    ),
+  ).toEqual([editor.id]);
   await server.stop();
 });
 
 test('term=a.b*( narrows without a 500', async () => {
   const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
-  const response = await fetch(`${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?term=${encodeURIComponent('a.b*(')}`, { headers: { cookie: owner.cookie } });
+  const response = await fetch(
+    `${server.baseUrl}${documentApiPath({ documentId, resource: DocumentResource.Timeline })}?term=${encodeURIComponent('a.b*(')}`,
+    { headers: { cookie: owner.cookie } },
+  );
   expect(response.status).toBe(HttpStatus.Ok);
   expect(((await response.json()) as DocumentTimeline).bands.every((band) => band.volume === 0)).toBe(true);
   await server.stop();
@@ -49,9 +70,16 @@ test('without topics the bands are authors', async () => {
 
 test('with stored topics the bands are topics and unassigned blocks fall into Other', async () => {
   const { server, documentId, owner, editor } = await twoAuthorsInTwoBlocks();
-  server.services.insightsRepository.saveTopics({ documentId, topics: [{ id: null, name: 'Budget', blockIds: ['b0'] }], computedAtSequence: 1 });
+  server.services.insightsRepository.saveTopics({
+    documentId,
+    topics: [{ id: null, name: 'Budget', blockIds: ['b0'] }],
+    computedAtSequence: 1,
+  });
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
-  expect(timeline.bands.map((band) => [band.kind, band.name])).toEqual([[TimelineBandKind.Topic, 'Budget'], [TimelineBandKind.Other, 'Other']]);
+  expect(timeline.bands.map((band) => [band.kind, band.name])).toEqual([
+    [TimelineBandKind.Topic, 'Budget'],
+    [TimelineBandKind.Other, 'Other'],
+  ]);
   const other = timeline.bands.find((band) => band.kind === TimelineBandKind.Other)!;
   expect(timeline.contributorsByBand[other.id]!.map((contributor) => contributor.authorKey)).toEqual([editor.id]);
   await server.stop();
@@ -68,8 +96,12 @@ test('term filters runs case-insensitively', async () => {
 
 test('a fixed binMs outside the ladder is 400', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  expect((await fetch(timelineUrl({ server, documentId, query: `binMs=${OFF_LADDER_BIN_MS}` }), { headers: { cookie: owner.cookie } })).status).toBe(HttpStatus.BadRequest);
-  const accepted = await fetch(timelineUrl({ server, documentId, query: `binMs=${TWO_MINUTE_BIN_MS}` }), { headers: { cookie: owner.cookie } });
+  expect(
+    (await fetch(timelineUrl({ server, documentId, query: `binMs=${OFF_LADDER_BIN_MS}` }), { headers: { cookie: owner.cookie } })).status,
+  ).toBe(HttpStatus.BadRequest);
+  const accepted = await fetch(timelineUrl({ server, documentId, query: `binMs=${TWO_MINUTE_BIN_MS}` }), {
+    headers: { cookie: owner.cookie },
+  });
   expect(accepted.status).toBe(HttpStatus.Ok);
   expect(((await accepted.json()) as DocumentTimeline).binMs).toBe(TWO_MINUTE_BIN_MS);
   await server.stop();
@@ -110,11 +142,21 @@ test('edits lists the runs of one bin', async () => {
   const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${DAY_BIN_MS}` });
   const editBin = timeline.bins.find((bin) => Object.keys(bin.byBand).length > 0)!;
-  const edits = (await (await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=${editBin.start}&binMs=${DAY_BIN_MS}`, { headers: { cookie: owner.cookie } })).json()) as BinEdits;
+  const edits = (await (
+    await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=${editBin.start}&binMs=${DAY_BIN_MS}`, {
+      headers: { cookie: owner.cookie },
+    })
+  ).json()) as BinEdits;
   expect(edits.runs.map((run) => run.inserted)).toEqual([' more money', ' a designer']);
-  const empty = (await (await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=0&binMs=${DAY_BIN_MS}`, { headers: { cookie: owner.cookie } })).json()) as BinEdits;
+  const empty = (await (
+    await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binStart=0&binMs=${DAY_BIN_MS}`, {
+      headers: { cookie: owner.cookie },
+    })
+  ).json()) as BinEdits;
   expect(empty.runs).toEqual([]);
-  expect((await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binMs=${DAY_BIN_MS}`, { headers: { cookie: owner.cookie } })).status).toBe(HttpStatus.BadRequest);
+  expect(
+    (await fetch(`${server.baseUrl}${timelineEditsApiPath(documentId)}?binMs=${DAY_BIN_MS}`, { headers: { cookie: owner.cookie } })).status,
+  ).toBe(HttpStatus.BadRequest);
   await server.stop();
 });
 
@@ -122,9 +164,19 @@ test('a non-member gets the same 404 on timeline and edits', async () => {
   const { server, documentId } = await documentWithOwner();
   const stranger = await signedInUser({ server, name: 'Stranger' });
   const unknownId = randomUUID();
-  const urls = (id: string) => [timelineUrl({ server, documentId: id, query: '' }), `${server.baseUrl}${timelineEditsApiPath(id)}?binStart=0`];
-  const responses = await Promise.all([...urls(documentId), ...urls(unknownId)].map((url) => fetch(url, { headers: { cookie: stranger.cookie } })));
-  expect(responses.map((response) => response.status)).toEqual([HttpStatus.NotFound, HttpStatus.NotFound, HttpStatus.NotFound, HttpStatus.NotFound]);
+  const urls = (id: string) => [
+    timelineUrl({ server, documentId: id, query: '' }),
+    `${server.baseUrl}${timelineEditsApiPath(id)}?binStart=0`,
+  ];
+  const responses = await Promise.all(
+    [...urls(documentId), ...urls(unknownId)].map((url) => fetch(url, { headers: { cookie: stranger.cookie } })),
+  );
+  expect(responses.map((response) => response.status)).toEqual([
+    HttpStatus.NotFound,
+    HttpStatus.NotFound,
+    HttpStatus.NotFound,
+    HttpStatus.NotFound,
+  ]);
   const bodies = await Promise.all(responses.map((response) => response.json()));
   expect(bodies[0]).toEqual(bodies[2]);
   expect(bodies[1]).toEqual(bodies[3]);
@@ -160,7 +212,9 @@ test('two hours of history choose two-minute bins', async () => {
   const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
   expect(timeline.binMs).toBe(TWO_MINUTE_BIN_MS);
   expect(timeline.bins.length).toBeLessThanOrEqual(MAX_BINS);
-  expect((await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${TEN_MINUTE_BIN_MS}` })).binMs).toBe(TEN_MINUTE_BIN_MS);
+  expect((await readTimeline({ server, documentId, cookie: owner.cookie, query: `binMs=${TEN_MINUTE_BIN_MS}` })).binMs).toBe(
+    TEN_MINUTE_BIN_MS,
+  );
   await server.stop();
 });
 

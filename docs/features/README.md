@@ -30,9 +30,10 @@ Five vertical slices, in build order ([ADR 0008](../adr/0008-vertical-slices.md)
 | 4 | [`llm-insights`](llm-insights/) | "Summarize edits" on demand for the filtered selection, polish | Shipped 2026-10-16 ([PR #4](https://github.com/dhyegocalota/superdoc-take-home/pull/4)) |
 | 5 | [`deploy`](deploy/) | Compose on the owner's VPS through Dokploy, delivery README | Shipped 2026-10-17 ([PR #5](https://github.com/dhyegocalota/superdoc-take-home/pull/5)) |
 
-Fixes after the five slices:
+Refinement after the five slices:
 
 | Fix | Closes | Status |
 |-----|--------|--------|
 | [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |
+| [`refinement-structure`](refinement-structure/) | Prettier, the version viewer in `features/versions`, one date-time formatter, `repository-shape` and `testing` folder names | Building |
 | [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Building |

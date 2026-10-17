@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { repositoryPath } from '../testing/repository-files';
+import { repositoryPath } from './repository-files';
 
 const ENTRYPOINT = repositoryPath('docker/entrypoint.sh');
 const SEED_OUTPUT = 'seed ran\n';

@@ -35,9 +35,27 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 
-export type InsightsServices = { topics: TopicsService; summaries: SummariesService; selection: SelectionSummariesService; worker: InsightsWorker };
+export type InsightsServices = {
+  topics: TopicsService;
+  summaries: SummariesService;
+  selection: SelectionSummariesService;
+  worker: InsightsWorker;
+};
 
-export type AppServices = { documents: DocumentsRepository; storage: DocumentFileStorage; runtime: DocumentRuntime; shareLinks: ShareLinksRepository; log: UpdateLog; readModel: ReadModel; insightsRepository: InsightsRepository; scheduler: ProjectionScheduler; timelinePipelines: TimelinePipelineCache; insights: InsightsServices; versions: VersionsService; versionRooms: VersionRooms };
+export type AppServices = {
+  documents: DocumentsRepository;
+  storage: DocumentFileStorage;
+  runtime: DocumentRuntime;
+  shareLinks: ShareLinksRepository;
+  log: UpdateLog;
+  readModel: ReadModel;
+  insightsRepository: InsightsRepository;
+  scheduler: ProjectionScheduler;
+  timelinePipelines: TimelinePipelineCache;
+  insights: InsightsServices;
+  versions: VersionsService;
+  versionRooms: VersionRooms;
+};
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
   const app = new Hono();

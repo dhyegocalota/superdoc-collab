@@ -1,9 +1,9 @@
 import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
+import { formatBinRange } from '@/lib/format-date-time';
 import { authorOf } from './author-of';
 import { binEditsQueryKey, fetchBinEdits, pollWhileAvailable } from './timeline-api';
 import { NO_EDITS_IN_BIN_MESSAGE } from './timeline-copy';
-import { formatBinRange } from './timeline-tooltip';
 import { TopicChip } from './topic-chip';
 
 export const SNIPPET_MAX_CHARACTERS = 120;
@@ -34,7 +34,9 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
       <li key={`${run.blockId}-${run.bandId}`} className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
           <TopicChip band={band} maxVolume={maxVolume} />
-          <p className="text-xs text-muted-foreground">{run.authorKeys.map((authorKey) => authorOf({ authors: data!.authors, authorKey }).name).join(', ')}</p>
+          <p className="text-xs text-muted-foreground">
+            {run.authorKeys.map((authorKey) => authorOf({ authors: data!.authors, authorKey }).name).join(', ')}
+          </p>
         </div>
         {run.inserted && <p className="text-sm text-primary">{`+"${snippetOf(run.inserted)}"`}</p>}
         {run.deleted && <p className="text-sm text-destructive">{`−"${snippetOf(run.deleted)}"`}</p>}
@@ -45,7 +47,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   if (!data) return null;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</h3>
+      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, end: bin.start + timeline.binMs })}</h3>
       {data.runs.length === 0 && <p role="status">{NO_EDITS_IN_BIN_MESSAGE}</p>}
       <ul className="flex flex-col gap-3">{data.runs.map(renderRun)}</ul>
     </section>

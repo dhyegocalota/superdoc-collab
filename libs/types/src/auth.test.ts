@@ -20,6 +20,8 @@ describe('signInSchema', () => {
 
 describe('signUpSchema', () => {
   test('requires a name with at least two characters', () => {
-    expect(firstMessage(signUpSchema.safeParse({ name: 'A', email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(NAME_TOO_SHORT_MESSAGE);
+    expect(firstMessage(signUpSchema.safeParse({ name: 'A', email: 'ana@example.com', password: 'superdoc-demo' }))).toBe(
+      NAME_TOO_SHORT_MESSAGE,
+    );
   });
 });

@@ -28,13 +28,29 @@ export function binStartsCovering({ firstTime, lastTime, binMs }: { firstTime: n
 
 function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun }): TimelineCell {
   if (!cell) return { inserted: run.inserted.length, deleted: run.deleted.length, authorKeys: run.authorKeys };
-  return { inserted: cell.inserted + run.inserted.length, deleted: cell.deleted + run.deleted.length, authorKeys: [...new Set([...cell.authorKeys, ...run.authorKeys])].sort() };
+  return {
+    inserted: cell.inserted + run.inserted.length,
+    deleted: cell.deleted + run.deleted.length,
+    authorKeys: [...new Set([...cell.authorKeys, ...run.authorKeys])].sort(),
+  };
 }
 
-export function buildBins({ runs, binStarts, binMs, versionSequenceAt }: { runs: EditRun[]; binStarts: number[]; binMs: number; versionSequenceAt: (time: number) => number | null }): TimelineBin[] {
+export function buildBins({
+  runs,
+  binStarts,
+  binMs,
+  versionSequenceAt,
+}: {
+  runs: EditRun[];
+  binStarts: number[];
+  binMs: number;
+  versionSequenceAt: (time: number) => number | null;
+}): TimelineBin[] {
   return binStarts.map((start) => ({
     start,
     versionSequence: versionSequenceAt(start + binMs - 1),
-    byBand: runs.filter((run) => run.binStart === start).reduce<Record<string, TimelineCell>>((cells, run) => ({ ...cells, [run.bandId]: mergeCell({ cell: cells[run.bandId], run }) }), {}),
+    byBand: runs
+      .filter((run) => run.binStart === start)
+      .reduce<Record<string, TimelineCell>>((cells, run) => ({ ...cells, [run.bandId]: mergeCell({ cell: cells[run.bandId], run }) }), {}),
   }));
 }

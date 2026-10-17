@@ -1,5 +1,7 @@
 # Deploy — spec
 
+Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
+
 - Status: Approved on the owner's behalf (overnight authorization recorded in the slice 3 ledger, 2026-10-16): everything is prepared in the repository; the Dokploy click, the domain and the repo-public switch stay with the owner in the morning (the Dokploy API tokens answer 403 from this machine).
 - Tier: red (production, secrets, public exposure) — one ADR, a runbook, a rollback path.
 - Owner approval: approved 2026-10-16 (on the owner's behalf under the overnight authorization; decisions table below).

@@ -3,8 +3,14 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@8.15.9",
-  "engines": { "node": ">=24" },
-  "pnpm": { "neverBuiltDependencies": ["better-sqlite3"] },
+  "engines": {
+    "node": ">=24"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "better-sqlite3"
+    ]
+  },
   "scripts": {
     "dev": "pnpm -r --parallel --filter ./apps/* dev",
     "build": "pnpm -r build",
@@ -14,6 +20,8 @@
     "test:hooks": "bash .agents/hooks/hooks.test.sh",
     "test:e2e": "playwright test",
     "seed": "pnpm --filter @superdoc-history/server seed",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "verify": "pnpm typecheck && pnpm test:unit && pnpm test:e2e"
   },
   "devDependencies": {
@@ -21,6 +29,7 @@
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.19.2",
     "better-sqlite3": "13.0.3",
+    "prettier": "3.9.10",
     "typescript": "7.0.2"
   }
 }

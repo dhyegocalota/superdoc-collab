@@ -16,7 +16,13 @@ export function endsItsMinute({ update, next }: { update: LoggedUpdate; next: Lo
 }
 
 export function markOf({ update, document, isBootstrap }: { update: LoggedUpdate; document: Y.Doc; isBootstrap: boolean }): VersionMark {
-  return { sequence: update.sequence, serverTime: update.serverTime, minuteStart: minuteStartOf(update.serverTime), isBootstrap, snapshot: Y.encodeSnapshot(Y.snapshot(document)) };
+  return {
+    sequence: update.sequence,
+    serverTime: update.serverTime,
+    minuteStart: minuteStartOf(update.serverTime),
+    isBootstrap,
+    snapshot: Y.encodeSnapshot(Y.snapshot(document)),
+  };
 }
 
 export function versionSequenceAt({ marks, time }: { marks: VersionMarkSummary[]; time: number }): number | null {

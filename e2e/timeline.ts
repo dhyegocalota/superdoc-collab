@@ -1,6 +1,24 @@
 import { expect, type APIRequestContext, type Browser, type FrameLocator, type Locator, type Page } from '@playwright/test';
-import { bandAriaLabel, FILTER_LABEL, SELECTION_SUMMARY_HEADING, SUMMARIZE_EDITS_LABEL, VERSION_FRAME_TITLE } from '../apps/web/src/features/timeline/timeline-copy';
-import { DEMO_USERS, DocumentResource, documentApiPath, ShareLinkRole, TimelineQueryParam, TimelineSearchParam, VersionResource, versionApiPath, type DocumentTimeline, type VersionMarks, type VersionText } from '../libs/types/src';
+import {
+  bandAriaLabel,
+  FILTER_LABEL,
+  SELECTION_SUMMARY_HEADING,
+  SUMMARIZE_EDITS_LABEL,
+  VERSION_FRAME_TITLE,
+} from '../apps/web/src/features/timeline/timeline-copy';
+import {
+  DEMO_USERS,
+  DocumentResource,
+  documentApiPath,
+  ShareLinkRole,
+  TimelineQueryParam,
+  TimelineSearchParam,
+  VersionResource,
+  versionApiPath,
+  type DocumentTimeline,
+  type VersionMarks,
+  type VersionText,
+} from '../libs/types/src';
 import { shareAndAccept, TEXT_RUN_SELECTOR, typeInParagraph, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
@@ -84,7 +102,15 @@ export async function shownVersionSequence(page: Page): Promise<number> {
   return Number(value);
 }
 
-export async function readVersionText({ page, documentId, sequence }: { page: Page; documentId: string; sequence: number }): Promise<string> {
+export async function readVersionText({
+  page,
+  documentId,
+  sequence,
+}: {
+  page: Page;
+  documentId: string;
+  sequence: number;
+}): Promise<string> {
   const response = await page.request.get(versionApiPath({ documentId, sequence, resource: VersionResource.Text }));
   const { text } = (await response.json()) as VersionText;
   return text;
@@ -112,10 +138,20 @@ export async function readVersionMarks({ page, documentId }: { page: Page; docum
 }
 
 export async function waitForProjection({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
-  await expect.poll(async () => (await readTimeline({ page, documentId })).projection.isBehind, { timeout: VERSION_TIMEOUT_MS }).toBe(false);
+  await expect
+    .poll(async () => (await readTimeline({ page, documentId })).projection.isBehind, { timeout: VERSION_TIMEOUT_MS })
+    .toBe(false);
 }
 
-export async function expectStableFor({ read, expected, durationMs }: { read: () => Promise<string>; expected: string; durationMs: number }): Promise<void> {
+export async function expectStableFor({
+  read,
+  expected,
+  durationMs,
+}: {
+  read: () => Promise<string>;
+  expected: string;
+  durationMs: number;
+}): Promise<void> {
   const deadline = Date.now() + durationMs;
   const observed = new Set<string>();
   await expect
@@ -169,5 +205,9 @@ async function timelineVolume({ page, documentId }: { page: Page; documentId: st
 
 export async function waitForSettledTimeline({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
   await waitForProjection({ page, documentId });
-  await expectStableFor({ read: () => timelineVolume({ page, documentId }), expected: await timelineVolume({ page, documentId }), durationMs: SETTLE_WINDOW_MS });
+  await expectStableFor({
+    read: () => timelineVolume({ page, documentId }),
+    expected: await timelineVolume({ page, documentId }),
+    durationMs: SETTLE_WINDOW_MS,
+  });
 }

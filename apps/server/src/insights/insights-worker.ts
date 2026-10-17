@@ -20,7 +20,11 @@ export class InsightsWorker {
   private readonly maxConcurrentJobs: number;
   private readonly maxCallsPerHour: number;
 
-  constructor({ now = () => Date.now(), maxConcurrentJobs = LLM_MAX_CONCURRENT_JOBS, maxCallsPerHour = LLM_MAX_CALLS_PER_HOUR }: { now?: () => number; maxConcurrentJobs?: number; maxCallsPerHour?: number } = {}) {
+  constructor({
+    now = () => Date.now(),
+    maxConcurrentJobs = LLM_MAX_CONCURRENT_JOBS,
+    maxCallsPerHour = LLM_MAX_CALLS_PER_HOUR,
+  }: { now?: () => number; maxConcurrentJobs?: number; maxCallsPerHour?: number } = {}) {
     this.now = now;
     this.maxConcurrentJobs = maxConcurrentJobs;
     this.maxCallsPerHour = maxCallsPerHour;

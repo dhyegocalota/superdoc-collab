@@ -4,8 +4,12 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 
 let server: TestServer;
-beforeAll(async () => { server = await startTestServer(); });
-afterAll(async () => { await server.stop(); });
+beforeAll(async () => {
+  server = await startTestServer();
+});
+afterAll(async () => {
+  await server.stop();
+});
 
 const credentials = { name: 'Ana', email: 'ana@example.com', password: 'superdoc-demo' };
 
@@ -14,13 +18,32 @@ function freshClientAddress(): string {
   return `10.0.0.${nextClientAddress++}`;
 }
 async function signUp(body: typeof credentials): Promise<Response> {
-  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress() }, body: JSON.stringify(body) });
+  return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-up/email`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': freshClientAddress() },
+    body: JSON.stringify(body),
+  });
 }
-async function signIn({ body, clientAddress = freshClientAddress(), target = server }: { body: { email: string; password: string }; clientAddress?: string; target?: TestServer }): Promise<Response> {
-  return fetch(`${target.baseUrl}${ApiPath.Auth}/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress }, body: JSON.stringify(body) });
+async function signIn({
+  body,
+  clientAddress = freshClientAddress(),
+  target = server,
+}: {
+  body: { email: string; password: string };
+  clientAddress?: string;
+  target?: TestServer;
+}): Promise<Response> {
+  return fetch(`${target.baseUrl}${ApiPath.Auth}/sign-in/email`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress },
+    body: JSON.stringify(body),
+  });
 }
 function cookieOf(response: Response): string {
-  return response.headers.getSetCookie().map((cookie) => cookie.split(';')[0]).join('; ');
+  return response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(';')[0])
+    .join('; ');
 }
 
 describe('health', () => {
@@ -73,14 +96,22 @@ describe('sign-up, sign-in and me', () => {
     expect(count.total).toBe(1);
   });
   test('the fourth sign-in within ten seconds is rate limited', async () => {
-    const attempts = await Promise.all(Array.from({ length: 4 }, () => signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: '10.1.0.1' })));
+    const attempts = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: '10.1.0.1' }),
+      ),
+    );
     expect(attempts.map((response) => response.status)).toContain(429);
     const limited = attempts.find((response) => response.status === 429)!;
     expect(limited.headers.get('x-retry-after')).toMatch(/^\d+$/);
   });
   test('rotating x-forwarded-for does not bypass the limit when the proxy is not trusted', async () => {
     const untrusted = await startTestServer({ trustProxy: false });
-    const attempts = await Promise.all(Array.from({ length: 4 }, (_, index) => signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: `10.2.0.${index}`, target: untrusted })));
+    const attempts = await Promise.all(
+      Array.from({ length: 4 }, (_, index) =>
+        signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: `10.2.0.${index}`, target: untrusted }),
+      ),
+    );
     await untrusted.stop();
     expect(attempts.map((response) => response.status)).toContain(429);
   });
@@ -100,7 +131,10 @@ describe('cross-site request forgery', () => {
   async function uploadFrom({ origin }: { origin: string }): Promise<Response> {
     const { cookie } = await signedInUser({ server, name: 'Eva' });
     const form = new FormData();
-    form.set(UPLOAD_FIELD, new File([new Uint8Array(await buildSeedDocx([{ text: 'Hello', trackedChanges: [] }]))], 'Plan.docx', { type: DOCX_MIME_TYPE }));
+    form.set(
+      UPLOAD_FIELD,
+      new File([new Uint8Array(await buildSeedDocx([{ text: 'Hello', trackedChanges: [] }]))], 'Plan.docx', { type: DOCX_MIME_TYPE }),
+    );
     return fetch(`${server.baseUrl}${ApiPath.Documents}`, { method: 'POST', headers: { cookie, origin }, body: form });
   }
 
@@ -112,7 +146,11 @@ describe('cross-site request forgery', () => {
   });
   test('a form post to a share link from a foreign origin is forbidden', async () => {
     const { cookie } = await signedInUser({ server, name: 'Eva' });
-    const response = await fetch(`${server.baseUrl}${ApiPath.ShareLinks}/anything/accept`, { method: 'POST', headers: { cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' }, body: 'role=editor' });
+    const response = await fetch(`${server.baseUrl}${ApiPath.ShareLinks}/anything/accept`, {
+      method: 'POST',
+      headers: { cookie, origin: FOREIGN_ORIGIN, 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'role=editor',
+    });
     expect(response.status).toBe(HttpStatus.Forbidden);
   });
 });

@@ -5,11 +5,17 @@ const MODEL_ID = 'vendor/model';
 const UNAVAILABLE_PREFIX = 'The language model is unavailable:';
 
 test('a missing model is unavailable with the model message', () => {
-  expect(chooseLanguageModel({ model: null, apiKey: 'key', baseUrl: null })).toEqual({ availability: LanguageModelAvailability.Unavailable, reason: LLM_MODEL_MISSING_MESSAGE });
+  expect(chooseLanguageModel({ model: null, apiKey: 'key', baseUrl: null })).toEqual({
+    availability: LanguageModelAvailability.Unavailable,
+    reason: LLM_MODEL_MISSING_MESSAGE,
+  });
 });
 
 test('a model without a key is unavailable with the key message', () => {
-  expect(chooseLanguageModel({ model: MODEL_ID, apiKey: null, baseUrl: null })).toEqual({ availability: LanguageModelAvailability.Unavailable, reason: LLM_KEY_MISSING_MESSAGE });
+  expect(chooseLanguageModel({ model: MODEL_ID, apiKey: null, baseUrl: null })).toEqual({
+    availability: LanguageModelAvailability.Unavailable,
+    reason: LLM_KEY_MISSING_MESSAGE,
+  });
 });
 
 test.each([null, 'http://localhost:9000/v1'])('a model with a key is ready for base url %s', (baseUrl) => {

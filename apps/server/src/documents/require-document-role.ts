@@ -13,7 +13,17 @@ export class DocumentRoleTooLowError extends Error {
   }
 }
 
-export function requireDocumentRole({ documents, documentId, userId, minimumRole }: { documents: DocumentsRepository; documentId: string; userId: string; minimumRole: DocumentRole }): DocumentRole {
+export function requireDocumentRole({
+  documents,
+  documentId,
+  userId,
+  minimumRole,
+}: {
+  documents: DocumentsRepository;
+  documentId: string;
+  userId: string;
+  minimumRole: DocumentRole;
+}): DocumentRole {
   const role = documents.findRole({ documentId, userId });
   if (!role) throw new DocumentNotFoundError();
   if (DOCUMENT_ROLE_RANK[role] < DOCUMENT_ROLE_RANK[minimumRole]) throw new DocumentRoleTooLowError();

@@ -27,9 +27,9 @@ import {
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID } from '@/test/opened-document';
-import { renderWithProviders } from '@/test/render-with-providers';
-import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/test/timeline-fixtures';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from './timeline-api';
 import {
   EARLIER_STATE_LABEL,
@@ -67,10 +67,25 @@ const REFRESH_STATUS = { state: TopicState.Pending, failure: null, computedAtSeq
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
-const READY_VIEW: SelectionSummaryView = { state: SelectionSummaryState.Ready, summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_AUTHOR_NAME], computedAtSequence: 3, isStale: false }, failure: null, isModelAvailable: true };
+const READY_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.Ready,
+  summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_AUTHOR_NAME], computedAtSequence: 3, isStale: false },
+  failure: null,
+  isModelAvailable: true,
+};
 const STALE_VIEW: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, isStale: true } };
-const FAILED_VIEW: SelectionSummaryView = { state: SelectionSummaryState.Failed, summary: null, failure: SELECTION_SUMMARY_FAILED_MESSAGE, isModelAvailable: true };
-const UNAVAILABLE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.Failed, summary: null, failure: 'The language model is unavailable: LLM_MODEL is not set on the server.', isModelAvailable: false };
+const FAILED_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.Failed,
+  summary: null,
+  failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+  isModelAvailable: true,
+};
+const UNAVAILABLE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.Failed,
+  summary: null,
+  failure: 'The language model is unavailable: LLM_MODEL is not set on the server.',
+  isModelAvailable: false,
+};
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
 
 afterEach(() => {
@@ -116,7 +131,8 @@ function mockTimelineApi({
     if (path === EDITS_PATH) return json(edits);
     if (path === SELECTION_PATH && init?.method === HttpMethod.Post) return summarizeResponse();
     if (path === SELECTION_PATH) return json(nextView());
-    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) return new Response(JSON.stringify(REFRESH_STATUS), { status: refreshStatus, headers: refreshHeaders });
+    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post)
+      return new Response(JSON.stringify(REFRESH_STATUS), { status: refreshStatus, headers: refreshHeaders });
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -129,7 +145,10 @@ function renderPanel({ role = DocumentRole.Editor, route = ROUTE }: { role?: Doc
   return renderWithProviders(<TimelinePanel documentId={DOCUMENT_ID} role={role} onTravel={vi.fn()} onBackToLive={vi.fn()} />, { route });
 }
 
-const failedTimeline: DocumentTimeline = { ...baseTimeline, topics: { state: TopicState.Failed, failure: FAILURE_TEXT, computedAtSequence: null } };
+const failedTimeline: DocumentTimeline = {
+  ...baseTimeline,
+  topics: { state: TopicState.Failed, failure: FAILURE_TEXT, computedAtSequence: null },
+};
 
 test('failed topics explain why and let an editor retry', async () => {
   mockTimelineApi({ timeline: failedTimeline });
@@ -157,14 +176,20 @@ test('Retry posts the refresh once and loads the timeline again', async () => {
 });
 
 test('pending topics without topic bands say the topics are being named', async () => {
-  const pending: DocumentTimeline = { ...timelineWith({ volumes: [[10]], names: ['Ana'], kinds: [TimelineBandKind.Author] }), topics: { state: TopicState.Pending, failure: null, computedAtSequence: null } };
+  const pending: DocumentTimeline = {
+    ...timelineWith({ volumes: [[10]], names: ['Ana'], kinds: [TimelineBandKind.Author] }),
+    topics: { state: TopicState.Pending, failure: null, computedAtSequence: null },
+  };
   mockTimelineApi({ timeline: pending });
   renderPanel();
   expect(await screen.findByText(TOPICS_PENDING_MESSAGE)).toBeInTheDocument();
 });
 
 test('pending topics with topic bands still say the topics are being named', async () => {
-  const pending: DocumentTimeline = { ...timelineWith({ volumes: [[10]], names: ['Budget'] }), topics: { state: TopicState.Pending, failure: null, computedAtSequence: 1 } };
+  const pending: DocumentTimeline = {
+    ...timelineWith({ volumes: [[10]], names: ['Budget'] }),
+    topics: { state: TopicState.Pending, failure: null, computedAtSequence: 1 },
+  };
   mockTimelineApi({ timeline: pending });
   renderPanel();
   expect(await screen.findByText(TOPICS_PENDING_MESSAGE)).toBeInTheDocument();
@@ -201,7 +226,16 @@ test('a selected bin lists its runs with cut snippets', async () => {
   const edits: BinEdits = {
     binStart: baseTimeline.bins[1]!.start,
     binMs: baseTimeline.binMs,
-    runs: [{ blockId: 'block-1', bandId: baseTimeline.bands[0]!.id, authorKeys: ['ana'], inserted: 'hello', deleted: 'x'.repeat(SNIPPET_MAX_CHARACTERS + 80), lastServerTime: 1 }],
+    runs: [
+      {
+        blockId: 'block-1',
+        bandId: baseTimeline.bands[0]!.id,
+        authorKeys: ['ana'],
+        inserted: 'hello',
+        deleted: 'x'.repeat(SNIPPET_MAX_CHARACTERS + 80),
+        lastServerTime: 1,
+      },
+    ],
     authors: { ana: { id: '1', name: 'Ana' } },
   };
   mockTimelineApi({ edits });
@@ -289,7 +323,9 @@ test('the too-soon notice goes away when the cooldown ends', async () => {
 });
 
 function postCalls(fetchSpy: ReturnType<typeof mockTimelineApi>): string[] {
-  return fetchSpy.mock.calls.filter(([input, init]) => String(input).split('?')[0] === SELECTION_PATH && init?.method === HttpMethod.Post).map(([input]) => String(input));
+  return fetchSpy.mock.calls
+    .filter(([input, init]) => String(input).split('?')[0] === SELECTION_PATH && init?.method === HttpMethod.Post)
+    .map(([input]) => String(input));
 }
 
 test('an editor summarizes the filtered selection and sees who edited', async () => {
@@ -347,7 +383,9 @@ test('clicking a bin without a version mark summarizes that bin', async () => {
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   fireEvent.keyDown(band, { key: 'ArrowRight' });
   await userEvent.click(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]));
+  await waitFor(() =>
+    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
+  );
   expect(window.location.search).not.toContain('at=');
 });
 
@@ -374,16 +412,24 @@ test('the button is disabled while the request is in flight and while the summar
   const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
   renderPanel();
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  await waitFor(() => expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
+  );
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
   release(json(READY_VIEW, HttpStatus.Accepted));
-  await waitFor(() => expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE),
+  );
   expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
   expect(postCalls(fetchSpy)).toHaveLength(1);
 });
 
 test('a request too soon shows the seconds from Retry-After', async () => {
-  const tooSoon = () => new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '12' } });
+  const tooSoon = () =>
+    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+      status: HttpStatus.TooManyRequests,
+      headers: { [RETRY_AFTER_HEADER]: '12' },
+    });
   mockTimelineApi({ summarizeResponse: tooSoon });
   renderPanel();
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
@@ -391,7 +437,11 @@ test('a request too soon shows the seconds from Retry-After', async () => {
 });
 
 test('the cooldown message belongs to the selection that caused it', async () => {
-  const tooSoon = () => new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '12' } });
+  const tooSoon = () =>
+    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+      status: HttpStatus.TooManyRequests,
+      headers: { [RETRY_AFTER_HEADER]: '12' },
+    });
   mockTimelineApi({ summarizeResponse: tooSoon });
   renderPanel({ route: `${ROUTE}?author=ana` });
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
@@ -424,7 +474,11 @@ test('without a language model Summarize is disabled and the card stays quiet', 
 
 test('the summary cooldown message goes away when the cooldown ends', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  const tooSoon = () => new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '5' } });
+  const tooSoon = () =>
+    new Response(JSON.stringify({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }), {
+      status: HttpStatus.TooManyRequests,
+      headers: { [RETRY_AFTER_HEADER]: '5' },
+    });
   mockTimelineApi({ summarizeResponse: tooSoon });
   renderPanel();
   fireEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
@@ -455,7 +509,10 @@ test('the summary card sits in a polite live region that exists before it has co
 });
 
 test('two authors with the same name each get an avatar', async () => {
-  const twins: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, authors: [FIXTURE_AUTHOR_NAME, FIXTURE_AUTHOR_NAME] } };
+  const twins: SelectionSummaryView = {
+    ...READY_VIEW,
+    summary: { ...READY_VIEW.summary!, authors: [FIXTURE_AUTHOR_NAME, FIXTURE_AUTHOR_NAME] },
+  };
   mockTimelineApi({ selectionViews: [twins] });
   renderPanel();
   const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
@@ -463,12 +520,16 @@ test('two authors with the same name each get an avatar', async () => {
 });
 
 function selectionReads(fetchSpy: ReturnType<typeof mockTimelineApi>): number {
-  return fetchSpy.mock.calls.filter(([input, init]) => String(input).split('?')[0] === SELECTION_PATH && init?.method !== HttpMethod.Post).length;
+  return fetchSpy.mock.calls.filter(([input, init]) => String(input).split('?')[0] === SELECTION_PATH && init?.method !== HttpMethod.Post)
+    .length;
 }
 
 test('a timeline that advances reads the summary once and shows it for an earlier state', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  const grownTimeline: DocumentTimeline = { ...timelineWith({ volumes: [[10], [25]], names: ['Budget'] }), projection: { ...baseTimeline.projection, cursor: 2 } };
+  const grownTimeline: DocumentTimeline = {
+    ...timelineWith({ volumes: [[10], [25]], names: ['Budget'] }),
+    projection: { ...baseTimeline.projection, cursor: 2 },
+  };
   const fetchSpy = mockTimelineApi({ timelines: [baseTimeline, grownTimeline], selectionViews: [READY_VIEW, STALE_VIEW] });
   renderPanel();
   expect(await screen.findByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
@@ -484,7 +545,10 @@ test('every topic compute reads the summary again even when the volume is the sa
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const pending: DocumentTimeline = { ...baseTimeline, topics: { state: TopicState.Pending, failure: null, computedAtSequence: null } };
   const recomputed: DocumentTimeline = { ...baseTimeline, topics: { state: TopicState.Ready, failure: null, computedAtSequence: 9 } };
-  const fetchSpy = mockTimelineApi({ timelines: [baseTimeline, pending, recomputed], selectionViews: [READY_VIEW, READY_VIEW, STALE_VIEW] });
+  const fetchSpy = mockTimelineApi({
+    timelines: [baseTimeline, pending, recomputed],
+    selectionViews: [READY_VIEW, READY_VIEW, STALE_VIEW],
+  });
   renderPanel();
   expect(await screen.findByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
   expect(selectionReads(fetchSpy)).toBe(1);

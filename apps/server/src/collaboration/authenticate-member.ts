@@ -9,7 +9,17 @@ export class CollaborationAuthenticationError extends Error {
   }
 }
 
-export async function authenticateMember({ auth, documents, cookie, documentId }: { auth: Auth; documents: DocumentsRepository; cookie: string | undefined; documentId: string }): Promise<{ userId: string; role: DocumentRole }> {
+export async function authenticateMember({
+  auth,
+  documents,
+  cookie,
+  documentId,
+}: {
+  auth: Auth;
+  documents: DocumentsRepository;
+  cookie: string | undefined;
+  documentId: string;
+}): Promise<{ userId: string; role: DocumentRole }> {
   if (!cookie) throw new CollaborationAuthenticationError();
   const user = await readSession({ auth, headers: new Headers({ cookie }) });
   if (!user) throw new CollaborationAuthenticationError();

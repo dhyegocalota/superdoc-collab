@@ -3,7 +3,10 @@ import { MAX_TOPICS, type TopicsOutput } from './topic-schema';
 
 export type NormalizedTopic = { name: string; blockIds: string[] };
 
-export function normalizeTopics({ output, knownBlockIds }: { output: TopicsOutput; knownBlockIds: Set<string> }): { topics: NormalizedTopic[]; unknownBlockIds: string[] } {
+export function normalizeTopics({ output, knownBlockIds }: { output: TopicsOutput; knownBlockIds: Set<string> }): {
+  topics: NormalizedTopic[];
+  unknownBlockIds: string[];
+} {
   const unknownBlockIds = [...new Set(output.topics.flatMap((topic) => topic.blockIds))].filter((blockId) => !knownBlockIds.has(blockId));
   const claimed = new Set<string>();
   const known = output.topics
@@ -30,9 +33,22 @@ function chosenId({ chosen, index }: { chosen: Map<number, string>; index: numbe
 }
 
 // NB ADR 0015: a recomputed topic keeps an earlier id when at least half of its blocks were in that earlier topic; otherwise it is new.
-export function matchPreviousTopics({ previous, next }: { previous: { id: string; blockIds: string[] }[]; next: NormalizedTopic[] }): IdentifiedTopic[] {
+export function matchPreviousTopics({
+  previous,
+  next,
+}: {
+  previous: { id: string; blockIds: string[] }[];
+  next: NormalizedTopic[];
+}): IdentifiedTopic[] {
   const candidates = next
-    .flatMap((topic, index) => previous.map((old) => ({ index, id: old.id, needed: topic.blockIds.length, shared: sharedBlocks({ blockIds: topic.blockIds, previousBlockIds: old.blockIds }) })))
+    .flatMap((topic, index) =>
+      previous.map((old) => ({
+        index,
+        id: old.id,
+        needed: topic.blockIds.length,
+        shared: sharedBlocks({ blockIds: topic.blockIds, previousBlockIds: old.blockIds }),
+      })),
+    )
     .filter((candidate) => candidate.shared * 2 >= candidate.needed)
     .sort((left, right) => right.shared - left.shared);
   const taken = new Set<string>();

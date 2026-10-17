@@ -19,13 +19,21 @@ type BlockStates = Map<string, Pick<Block, 'text' | 'mergedIntoBlockId'>>;
 type BlockChange = Pick<EditEvent, 'blockId' | 'kind' | 'inserted' | 'deleted'>;
 
 function readBlockStates(document: Y.Doc): BlockStates {
-  return new Map(readMainStoryBlocks(document).map((block) => [block.blockId, { text: block.text, mergedIntoBlockId: block.mergedIntoBlockId }]));
+  return new Map(
+    readMainStoryBlocks(document).map((block) => [block.blockId, { text: block.text, mergedIntoBlockId: block.mergedIntoBlockId }]),
+  );
 }
 
 function diffBlockText({ blockId, before, after }: { blockId: string; before: string; after: string }): BlockChange {
   const parts = diffChars(before, after);
-  const inserted = parts.filter((part) => part.added).map((part) => part.value).join('');
-  const deleted = parts.filter((part) => part.removed).map((part) => part.value).join('');
+  const inserted = parts
+    .filter((part) => part.added)
+    .map((part) => part.value)
+    .join('');
+  const deleted = parts
+    .filter((part) => part.removed)
+    .map((part) => part.value)
+    .join('');
   return { blockId, kind: BlockChangeKind.Modified, inserted, deleted };
 }
 
@@ -48,7 +56,13 @@ function diffBlocks({ before, after }: { before: BlockStates; after: BlockStates
 }
 
 // NB ADR 0002: an update with no structs (deletion-only) is attributed to the sending connection.
-export function resolveAuthorIds({ update, identities }: { update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>; identities: Map<number, string> }): string[] {
+export function resolveAuthorIds({
+  update,
+  identities,
+}: {
+  update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
+  identities: Map<number, string>;
+}): string[] {
   const structAuthors = update.yjsClientIds.flatMap((clientId) => {
     const userId = identities.get(clientId);
     if (!userId) throw new Error(`Yjs client ${clientId} has no bound identity.`);

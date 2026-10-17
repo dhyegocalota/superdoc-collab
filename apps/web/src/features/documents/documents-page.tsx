@@ -17,7 +17,11 @@ export function DocumentsPage() {
         <SignOutButton />
       </header>
       <main className="mx-auto max-w-4xl space-y-8 p-6">
-        {isError && <p role="alert" className="text-sm text-destructive">{DOCUMENTS_LOAD_ERROR_MESSAGE}</p>}
+        {isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {DOCUMENTS_LOAD_ERROR_MESSAGE}
+          </p>
+        )}
         {data && (
           <>
             <section className="space-y-4">

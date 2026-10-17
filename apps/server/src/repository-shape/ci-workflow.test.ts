@@ -5,13 +5,12 @@ const WORKFLOW_FILE = '.github/workflows/verify.yml';
 const JOB_LINE_PATTERN = /^ {2}[\w-]+:$/;
 const JOB_INDENT_LENGTH = 2;
 const NEXT_JOB_PATTERN = /\n {2}\S[^\n]*:\n/;
-const EXPECTED_JOBS = ['checks', 'unit', 'e2e', 'docker'];
-const NODE_JOBS = ['checks', 'unit', 'e2e'];
+const EXPECTED_JOBS = ['checks', 'unit', 'docker'];
+const NODE_JOBS = ['checks', 'unit'];
 const CHECKS_JOB = 'checks';
 const CHECKS_STEPS = ['run: pnpm format:check', 'run: pnpm typecheck', 'run: pnpm test:hooks'];
 const DOCKER_JOB = 'docker';
 const UNIT_JOB = 'unit';
-const END_TO_END_JOB = 'e2e';
 const INSTALL_ACTION = 'uses: ./.github/actions/install';
 const NEEDS_KEY = 'needs:';
 const TIMEOUT_PATTERN = /timeout-minutes: (\d+)/;
@@ -27,7 +26,6 @@ const UNIT_MATRIX_ENTRIES = [
 const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";
 const FAIL_FAST_DISABLED = 'fail-fast: false';
-const PLAYWRIGHT_INSTALL = 'pnpm exec playwright install --with-deps chromium';
 const FORBIDDEN_DOCKER_JOB_FRAGMENTS = ['\n    needs:', 'secrets.', 'docker restart'];
 
 function job(name: string): string {
@@ -65,7 +63,7 @@ describe('CI workflow', () => {
     expect(workflow.indexOf(WORKFLOW_PERMISSIONS)).toBeLessThan(workflow.indexOf(JOBS_START));
   });
 
-  test('the workflow runs exactly the checks, unit, e2e and docker jobs', () => {
+  test('the workflow runs exactly the checks, unit and docker jobs', () => {
     expect(jobNames()).toEqual(EXPECTED_JOBS);
   });
 
@@ -98,10 +96,6 @@ describe('CI workflow', () => {
 
   test('a failing unit matrix entry does not cancel the others', () => {
     expect(job(UNIT_JOB)).toContain(FAIL_FAST_DISABLED);
-  });
-
-  test('the e2e job installs Chromium with its system dependencies', () => {
-    expect(job(END_TO_END_JOB)).toContain(PLAYWRIGHT_INSTALL);
   });
 
   test('every job has a bounded timeout', () => {

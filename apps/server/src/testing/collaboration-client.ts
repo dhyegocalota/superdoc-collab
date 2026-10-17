@@ -51,7 +51,9 @@ export function connectToDocument({ server, cookie, documentId, document = new Y
         reject(new CollaborationRefusedError());
       },
     });
-    websocketProvider.connect().catch(() => undefined);
+    const connectWithoutRejection = websocketProvider.connect.bind(websocketProvider);
+    websocketProvider.connect = () => connectWithoutRejection().catch(() => undefined);
+    websocketProvider.connect();
     function close(): void {
       provider.destroy();
       websocketProvider.destroy();

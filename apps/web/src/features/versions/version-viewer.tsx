@@ -12,7 +12,7 @@ import 'superdoc/style.css';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from '@/features/editor/collaboration-config';
 import { SUPERDOC_TELEMETRY } from '@/features/editor/superdoc-telemetry';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
-import { DocumentMode } from '@/features/editor/superdoc-editor';
+import { DocumentMode } from '@/features/editor/superdoc-options';
 import { followViewportZoom, initialZoomMode } from '@/features/editor/superdoc-zoom';
 
 enum ConnectionState {

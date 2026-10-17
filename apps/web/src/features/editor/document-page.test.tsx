@@ -37,7 +37,7 @@ import {
   TITLE_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
-import { DocumentMode } from './superdoc-editor';
+import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 

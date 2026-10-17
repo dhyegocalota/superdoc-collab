@@ -13,7 +13,7 @@ import {
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
-import { DocumentMode } from '@/features/editor/superdoc-editor';
+import { DocumentMode } from '@/features/editor/superdoc-options';
 import { NARROW_VIEWPORT_QUERY, ZoomMode } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
 import { pageTitle } from '@/lib/use-document-title';

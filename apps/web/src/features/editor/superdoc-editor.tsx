@@ -11,16 +11,12 @@ import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { KeyboardKey } from '@/lib/keyboard';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
+import { DocumentMode } from './superdoc-options';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { followViewportZoom, initialZoomMode } from './superdoc-zoom';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
-
-export enum DocumentMode {
-  Viewing = 'viewing',
-  Editing = 'editing',
-}
 
 type SuperDocEditorProps = {
   superdocRef: RefObject<SuperDoc | null>;

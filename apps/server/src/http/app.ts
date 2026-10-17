@@ -45,6 +45,7 @@ import { requireUser } from './require-user';
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 export const NOT_FOUND_MESSAGE = 'Not found';
+export const AUTH_BODY_MAX_BYTES = 16 * 1024;
 const AUTH_ADMIN_PATH = `${ApiPath.Auth}/admin/*`;
 const PROTECTED_PATHS = [ApiPath.Documents, `${ApiPath.Documents}/*`, `${ApiPath.ShareLinks}/*`];
 

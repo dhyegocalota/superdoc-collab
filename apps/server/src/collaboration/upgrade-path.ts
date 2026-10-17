@@ -9,3 +9,7 @@ export function upgradePathname(url: string): string {
 export function isAgentUpgrade(url: string): boolean {
   return upgradePathname(url) === ApiPath.AgentCollaboration;
 }
+
+export function isLoopbackAddress(_address: string | undefined): boolean {
+  throw new Error('isLoopbackAddress is not implemented');
+}

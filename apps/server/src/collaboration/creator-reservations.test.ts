@@ -196,3 +196,22 @@ test('touches at 59 second intervals stop extending after the lifetime cap and t
   context.advance(touchInterval);
   expect(context.reserveAs(SECOND_EDITOR)).toBe(SECOND_ATTEMPT);
 });
+
+test('a holder whose reservation lapsed at the lifetime cap is refused for one reservation period while another editor takes over', () => {
+  const context = contextAt(0);
+  context.reserveAs(FIRST_EDITOR);
+  context.advance(CREATOR_RESERVATION_MAX_MS + 1);
+  expect(context.reserveAs(FIRST_EDITOR)).toBeUndefined();
+  context.advance(CREATOR_RESERVATION_MS - 1);
+  expect(context.reserveAs(FIRST_EDITOR)).toBeUndefined();
+  expect(context.reserveAs(SECOND_EDITOR)).toBe(SECOND_ATTEMPT);
+});
+
+test('the lapsed holder reserves again once the cooldown has passed and nobody took over', () => {
+  const context = contextAt(0);
+  context.reserveAs(FIRST_EDITOR);
+  context.advance(CREATOR_RESERVATION_MAX_MS + 1);
+  context.reserveAs(FIRST_EDITOR);
+  context.advance(CREATOR_RESERVATION_MS + 1);
+  expect(context.reserveAs(FIRST_EDITOR)).toBe(SECOND_ATTEMPT);
+});

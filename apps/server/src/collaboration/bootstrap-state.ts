@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
 import { findBootstrapSequence, isBootstrapCommitted, type LoggedUpdate, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
-import type { ClientActor } from '@superdoc-collab/types';
+import { BOOTSTRAP_SCAN_CACHE_ENTRIES, type ClientActor } from '@superdoc-collab/types';
+import { LruMap } from '../limits/lru-map';
 
 export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
 
@@ -20,12 +21,12 @@ export type BootstrapState = {
 
 export function createBootstrapState({ updateLog, readModel }: { updateLog: UpdateLog; readModel: ReadModel }): BootstrapState {
   const committed = new Set<string>();
-  const scans = new Map<string, ScanProgress>();
+  const scans = new LruMap<ScanProgress>({ isOverBudget: (entries) => entries.size > BOOTSTRAP_SCAN_CACHE_ENTRIES });
   function progressOf(documentId: string): ScanProgress {
     const existing = scans.get(documentId);
-    if (existing !== undefined) return existing;
+    if (existing !== null) return existing;
     const created = { afterSequence: 0, document: new Y.Doc() };
-    scans.set(documentId, created);
+    scans.set({ key: documentId, value: created });
     return created;
   }
   function scanForward(documentId: string): boolean {

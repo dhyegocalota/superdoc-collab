@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import type { LoggedUpdate } from './update-log';
+import type { LoggedUpdate, Snapshot, UpdateLog } from './update-log';
 
 const META_MAP = 'meta';
 const BOOTSTRAP_STATE_KEY = 'bootstrapState';
@@ -16,4 +16,8 @@ export function findBootstrapSequence({ updates, document = new Y.Doc() }: { upd
   });
   if (!committed) return null;
   return committed.sequence;
+}
+
+export function findCommittedSnapshot({ log, documentName }: { log: UpdateLog; documentName: string }): Snapshot | null {
+  throw new Error('findCommittedSnapshot is not implemented');
 }

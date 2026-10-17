@@ -9,6 +9,7 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { APP_NAME } from '@/lib/app-copy';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, SHARE_OPENING_MESSAGE } from '@/features/editor/editor-copy';
 import { ShareLandingPage } from './share-landing-page';
@@ -52,4 +53,19 @@ test('while the accept is in flight the page says it is opening', () => {
   vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => undefined));
   renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
   expect(screen.getByText(SHARE_OPENING_MESSAGE)).toBeInTheDocument();
+});
+
+test('the opening state is centred like the failure state', () => {
+  vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>(() => undefined));
+  renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
+  const opening = screen.getByRole('status');
+  expect(opening).toHaveTextContent(SHARE_OPENING_MESSAGE);
+  expect(screen.getByRole('main')).toContainElement(opening);
+});
+
+test('the share landing names its tab after the app', async () => {
+  document.title = SHARE_ROUTE;
+  vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>(() => undefined));
+  renderWithProviders(<ShareLandingPage />, { route: SHARE_ROUTE });
+  await waitFor(() => expect(document.title).toBe(APP_NAME));
 });

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DOCUMENTS_QUERY_KEY, uploadDocument, validateUpload } from './documents-api';
-import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOAD_LABEL } from './documents-copy';
+import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOAD_LABEL, UPLOADING_MESSAGE } from './documents-copy';
 
 const FILE_INPUT_ID = 'document-file';
 const DOCX_ACCEPT = '.docx';
@@ -17,7 +17,7 @@ export function UploadDialog() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
-  const { mutate, error, reset } = useMutation({
+  const { mutate, error, reset, isPending } = useMutation({
     mutationFn: uploadDocument,
     onSuccess: async (document) => {
       await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
@@ -55,7 +55,12 @@ export function UploadDialog() {
           <DialogDescription>{UPLOAD_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
         <Label htmlFor={FILE_INPUT_ID}>{FILE_INPUT_LABEL}</Label>
-        <Input id={FILE_INPUT_ID} type="file" accept={DOCX_ACCEPT} onChange={onFileChange} />
+        <Input id={FILE_INPUT_ID} type="file" accept={DOCX_ACCEPT} disabled={isPending} onChange={onFileChange} />
+        {isPending && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {UPLOADING_MESSAGE}
+          </p>
+        )}
         {message && (
           <p role="alert" className="text-sm text-destructive">
             {message}

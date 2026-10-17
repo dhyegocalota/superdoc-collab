@@ -4,7 +4,7 @@ import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import {
   BACK_TO_LIVE_LABEL,
   FILTER_LABEL,
-  REFRESH_TOPICS_LABEL,
+  REGROUP_TOPICS_LABEL,
   RETRY_TOPICS_LABEL,
   SUMMARIZE_EDITS_LABEL,
   VERSION_FRAME_TITLE,
@@ -45,7 +45,7 @@ const EDIT_TEXT = ' More money';
 const LIVE_TEXT = ' live';
 const AGAIN_TEXT = ' again';
 const BAND_NAME = 'Budget';
-const INSERTED_SNIPPET_PATTERN = /\+".+"/;
+const INSERTED_SNIPPET_SELECTOR = 'ins';
 const FAILING_PARAGRAPHS = ['FAIL-TOPICS: the plan costs 10.', 'Hiring: we add two people.'];
 const STABLE_WINDOW_MS = 4_500;
 const ANA = DEMO_USERS[0]!.name;
@@ -99,7 +99,7 @@ test('the edit bin shows the edit, lists it and Browser Back returns to live', a
   expect(serverText).toContain(EDIT_TEXT.trim());
   const binEdits = ana.page.locator('aside section').getByRole('listitem');
   await expect(binEdits.filter({ hasText: ANA })).toBeVisible();
-  await expect(binEdits.filter({ hasText: INSERTED_SNIPPET_PATTERN })).toBeVisible();
+  await expect(binEdits.filter({ has: ana.page.locator(INSERTED_SNIPPET_SELECTOR) })).toBeVisible();
   await ana.page.goBack();
   await expect.poll(() => currentAt(ana.page)).toBeNull();
   await expect(versionBanner(ana.page)).toHaveCount(0);
@@ -162,7 +162,7 @@ test('a reader opens the timeline and a version, cannot refresh, and the room dr
   const caio = await signedInContext({ browser, user: DEMO_USERS[2]! });
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
   await waitForBands({ page: caio.page, names: [BAND_NAME] });
-  await expect(caio.page.getByRole('button', { name: REFRESH_TOPICS_LABEL })).toHaveCount(0);
+  await expect(caio.page.getByRole('button', { name: REGROUP_TOPICS_LABEL })).toHaveCount(0);
   await expect(caio.page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveCount(0);
   await editorText(caio.page).first().click();
   await caio.page.keyboard.press('Escape');

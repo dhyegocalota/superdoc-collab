@@ -1,11 +1,11 @@
-import { documentPagePath, FILTER_MAX_LENGTH } from '@superdoc-history/types';
+import { documentPagePath, FILTER_MAX_LENGTH, TimelineSearchParam } from '@superdoc-history/types';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FilterBox } from './filter-box';
-import { CLEAR_FILTERS_LABEL, FILTER_LABEL, REMOVE_FILTER_LABEL } from './timeline-copy';
+import { CLEAR_FILTERS_LABEL, FILTER_LABEL, REMOVE_FILTER_LABEL, removeFilterLabel } from './timeline-copy';
 
 const ROUTE = documentPagePath(DOCUMENT_ID);
 
@@ -14,7 +14,7 @@ test('Enter on @bruno filters by person and the chip removes it', async () => {
   const { router } = renderWithProviders(<FilterBox />, { route: ROUTE });
   await user.type(screen.getByLabelText(FILTER_LABEL), '@bruno{Enter}');
   expect(router.state.location.search).toBe('?author=bruno');
-  await user.click(screen.getByRole('button', { name: `${REMOVE_FILTER_LABEL} bruno` }));
+  await user.click(screen.getByRole('button', { name: `${REMOVE_FILTER_LABEL} @bruno` }));
   expect(router.state.location.search).toBe('');
 });
 
@@ -52,4 +52,10 @@ test('Escape clears a draft without touching the filters', async () => {
   await user.type(input, 'hir{Escape}');
   expect(input).toHaveValue('');
   expect(router.state.location.search).toBe('?term=budget');
+});
+
+test('a person chip reads @name and a text chip does not', () => {
+  renderWithProviders(<FilterBox />, { route: `${ROUTE}?${TimelineSearchParam.Term}=Bruno&${TimelineSearchParam.Author}=Bruno` });
+  expect(screen.getByRole('button', { name: removeFilterLabel('@Bruno') })).toHaveTextContent('@Bruno');
+  expect(screen.getByRole('button', { name: removeFilterLabel('Bruno') })).toHaveTextContent(/^Bruno$/);
 });

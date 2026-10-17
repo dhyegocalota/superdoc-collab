@@ -1,7 +1,7 @@
 import { FILTER_MAX_LENGTH, TimelineFilterKind, TimelineSearchParam, type TimelineFilter } from '@superdoc-history/types';
 import { useSearchParams } from 'react-router';
 
-const AUTHOR_PREFIX = '@';
+export const AUTHOR_PREFIX = '@';
 const BIN_START_PATTERN = /^\d+$/;
 
 export type TimelineSearch = { filter: TimelineFilter; at: number | null; topic: string | null };

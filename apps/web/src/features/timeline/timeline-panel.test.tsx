@@ -24,9 +24,9 @@ import {
   type DocumentTimeline,
   type SelectionSummaryView,
 } from '@superdoc-history/types';
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
@@ -37,7 +37,8 @@ import {
   NO_EDITS_IN_BIN_MESSAGE,
   NO_EDITS_TO_SUMMARIZE_MESSAGE,
   NO_EDITS_YET_MESSAGE,
-  REFRESH_TOPICS_LABEL,
+  NOTHING_TO_GROUP_MESSAGE,
+  REGROUP_TOPICS_LABEL,
   RESIZE_PANEL_LABEL,
   RETRY_SUMMARY_LABEL,
   RETRY_TOPICS_LABEL,
@@ -47,8 +48,9 @@ import {
   SUMMARIZE_EDITS_LABEL,
   SUMMARIZING_EDITS_MESSAGE,
   SUMMARY_UP_TO_DATE_MESSAGE,
+  TOP_EDITS_LABEL,
 } from './timeline-copy';
-import { TimelinePanel } from './timeline-panel';
+import { PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import { MIN_EDITOR_WIDTH, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
@@ -87,6 +89,13 @@ const UNAVAILABLE_VIEW: SelectionSummaryView = {
   isModelAvailable: false,
 };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
+
+const scrollIntoView = vi.fn();
+
+beforeEach(() => {
+  Element.prototype.scrollIntoView = scrollIntoView;
+  scrollIntoView.mockClear();
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -163,7 +172,7 @@ test('a reader sees the failure but cannot retry or refresh', async () => {
   renderPanel({ role: DocumentRole.Reader });
   expect(await screen.findByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: RETRY_TOPICS_LABEL })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: REFRESH_TOPICS_LABEL })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: REGROUP_TOPICS_LABEL })).not.toBeInTheDocument();
 });
 
 test('Retry posts the refresh once and loads the timeline again', async () => {
@@ -240,8 +249,8 @@ test('a selected bin lists its runs with cut snippets', async () => {
   };
   mockTimelineApi({ edits });
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
-  expect(await screen.findByText('+"hello"')).toBeInTheDocument();
-  expect(screen.getByText(`−"${'x'.repeat(SNIPPET_MAX_CHARACTERS)}…"`)).toBeInTheDocument();
+  expect(await screen.findByText('hello')).toBeInTheDocument();
+  expect(screen.getByText(`${'x'.repeat(SNIPPET_MAX_CHARACTERS)}…`)).toBeInTheDocument();
   expect(screen.getByText('Ana')).toBeInTheDocument();
 });
 
@@ -277,7 +286,7 @@ test('the separator resizes with the arrow keys and never below the minimum', as
 test('a refresh that is too soon explains why', async () => {
   mockTimelineApi({ refreshStatus: HttpStatus.TooManyRequests });
   renderPanel();
-  await userEvent.click(await screen.findByRole('button', { name: REFRESH_TOPICS_LABEL }));
+  await userEvent.click(await screen.findByRole('button', { name: REGROUP_TOPICS_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(TOPICS_REFRESH_TOO_SOON_MESSAGE);
 });
 
@@ -314,7 +323,7 @@ test('the too-soon notice goes away when the cooldown ends', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   mockTimelineApi({ refreshStatus: HttpStatus.TooManyRequests, refreshHeaders: { 'Retry-After': '5' } });
   renderPanel();
-  fireEvent.click(await screen.findByRole('button', { name: REFRESH_TOPICS_LABEL }));
+  fireEvent.click(await screen.findByRole('button', { name: REGROUP_TOPICS_LABEL }));
   expect(await screen.findByRole('alert')).toHaveTextContent(TOPICS_REFRESH_TOO_SOON_MESSAGE);
   await vi.advanceTimersByTimeAsync(4 * SECOND_MS);
   expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -555,6 +564,123 @@ test('refreshing the topics reads the summary again', async () => {
   renderPanel();
   await screen.findByText(READY_VIEW.summary!.sentence);
   const before = selectionReads(fetchSpy);
-  await userEvent.click(screen.getByRole('button', { name: REFRESH_TOPICS_LABEL }));
+  await userEvent.click(screen.getByRole('button', { name: REGROUP_TOPICS_LABEL }));
   await waitFor(() => expect(selectionReads(fetchSpy)).toBe(before + 1));
+});
+
+test('collapsing the panel drops its width and the resize handle', async () => {
+  mockTimelineApi();
+  renderPanel();
+  expect(await screen.findByRole('separator', { name: RESIZE_PANEL_LABEL })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
+  expect(screen.queryByRole('separator', { name: RESIZE_PANEL_LABEL })).not.toBeInTheDocument();
+  expect(screen.getByRole('complementary')).toHaveAttribute('data-state', PanelState.Collapsed);
+});
+
+test('the summary card sits under the filter, before the top edits, and scrolls into view when it starts', async () => {
+  mockTimelineApi({ selectionViews: [NONE_VIEW, RUNNING_VIEW] });
+  renderPanel();
+  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
+  const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
+  expect(within(card).getByText(SUMMARIZING_EDITS_MESSAGE)).toBeInTheDocument();
+  const topEdits = screen.getByRole('heading', { name: TOP_EDITS_LABEL });
+  expect(screen.getByLabelText(FILTER_LABEL).compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(card.compareDocumentPosition(topEdits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+});
+
+test('a summary already cached when the panel opens does not scroll the page', async () => {
+  mockTimelineApi({ selectionViews: [READY_VIEW] });
+  renderPanel();
+  expect(await screen.findByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
+  expect(scrollIntoView).not.toHaveBeenCalled();
+});
+
+test('an empty document says only that there are no edits and explains the disabled Regroup topics', async () => {
+  const emptyPending: DocumentTimeline = {
+    ...timelineWith({ volumes: [], names: [] }),
+    topics: { state: TopicState.Pending, failure: null, computedAtSequence: null },
+  };
+  mockTimelineApi({ timeline: emptyPending });
+  renderPanel();
+  expect(await screen.findByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(TOPICS_PENDING_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: TOP_EDITS_LABEL })).not.toBeInTheDocument();
+  const regroup = screen.getByRole('button', { name: REGROUP_TOPICS_LABEL });
+  expect(regroup).toBeDisabled();
+  expect(regroup).toHaveAccessibleDescription(NOTHING_TO_GROUP_MESSAGE);
+  expect(screen.getByText(NOTHING_TO_GROUP_MESSAGE)).toBeVisible();
+});
+
+test('bin edits mark insertions and deletions without quotes or padding', async () => {
+  const edits: BinEdits = {
+    binStart: baseTimeline.bins[1]!.start,
+    binMs: baseTimeline.binMs,
+    runs: [
+      {
+        blockId: 'block-1',
+        bandId: baseTimeline.bands[0]!.id,
+        authorKeys: ['ana'],
+        inserted: ' More money',
+        deleted: 'old ',
+        lastServerTime: 1,
+      },
+    ],
+    authors: { ana: { id: '1', name: 'Ana' } },
+  };
+  mockTimelineApi({ edits });
+  renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
+  expect((await screen.findByText('More money')).tagName).toBe('INS');
+  expect(screen.getByText('old').tagName).toBe('DEL');
+});
+
+const CONNECTED_WIDTH = 600;
+const DETACHED_WIDTH = 0;
+const resizeObservers = new Set<DetachingResizeObserver>();
+
+class DetachingResizeObserver {
+  private readonly targets: Element[] = [];
+
+  constructor(private readonly callback: ResizeObserverCallback) {
+    resizeObservers.add(this);
+  }
+
+  observe(target: Element): void {
+    this.targets.push(target);
+    this.report();
+  }
+
+  unobserve(): void {}
+
+  disconnect(): void {
+    resizeObservers.delete(this);
+  }
+
+  report(): void {
+    const entries = this.targets.map(
+      (target) => ({ target, contentRect: { width: target.isConnected ? CONNECTED_WIDTH : DETACHED_WIDTH } }) as ResizeObserverEntry,
+    );
+    this.callback(entries, this as unknown as ResizeObserver);
+  }
+}
+
+function reportSizes(): void {
+  act(() => resizeObservers.forEach((observer) => observer.report()));
+}
+
+test('reopening the panel brings the chart back', async () => {
+  const sharedResizeObserver = globalThis.ResizeObserver;
+  vi.stubGlobal('ResizeObserver', DetachingResizeObserver);
+  onTestFinished(() => {
+    vi.stubGlobal('ResizeObserver', sharedResizeObserver);
+  });
+  mockTimelineApi();
+  renderPanel();
+  expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
+  const toggle = screen.getByRole('button', { name: TIMELINE_TOGGLE_LABEL });
+  await userEvent.click(toggle);
+  reportSizes();
+  await userEvent.click(toggle);
+  reportSizes();
+  expect(await screen.findByLabelText(/^Budget/)).toBeInTheDocument();
 });

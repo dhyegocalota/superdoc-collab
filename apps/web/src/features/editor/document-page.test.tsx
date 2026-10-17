@@ -19,7 +19,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { pageTitle } from '@/lib/use-document-title';
+import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import {
@@ -30,15 +31,22 @@ import {
   EDITOR_EXIT_LABEL,
   EDITOR_FAILED_MESSAGE,
   EXPORT_FAILED_MESSAGE,
+  HOME_LINK_LABEL,
+  LOADING_DOCUMENT_MESSAGE,
   TITLE_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { DocumentMode } from './superdoc-editor';
+import { ZoomMode } from './superdoc-zoom';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 
-type SuperDocConfig = { telemetry: { enabled: boolean }; onException: (payload: { error: Error }) => void };
+type SuperDocConfig = {
+  telemetry: { enabled: boolean };
+  onException: (payload: { error: Error }) => void;
+  zoom: { mode: string };
+};
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
@@ -95,6 +103,12 @@ function mockDocumentApi({
       return new Response(JSON.stringify(openStatus === HttpStatus.Ok ? current : openBody), { status: openStatus });
     throw new Error(`unexpected request ${String(input)}`);
   });
+}
+
+function constructedConfig(): SuperDocConfig {
+  const firstCall = SuperDoc.mock.calls.at(0);
+  if (!firstCall) throw new Error('SuperDoc was not constructed');
+  return firstCall[0];
 }
 
 beforeEach(() => SuperDoc.mockClear());
@@ -261,4 +275,38 @@ test('Escape on the reading surface of a viewer moves focus past the editor too'
   readingSurface.focus();
   fireEvent.keyDown(readingSurface, { key: 'Escape' });
   expect(document.activeElement).toBe(screen.getByText(EDITOR_EXIT_LABEL));
+});
+
+test('the header stays while the document opens', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    if (input === ApiPath.Me) return new Response(JSON.stringify({ user: SESSION_USER }));
+    return new Promise<Response>(() => undefined);
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByRole('link', { name: HOME_LINK_LABEL })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent(LOADING_DOCUMENT_MESSAGE);
+});
+
+test('the browser tab names the open document', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
+});
+
+test('below the large breakpoint the page fits the width', async () => {
+  vi.spyOn(window, 'matchMedia').mockReturnValue({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as MediaQueryList);
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth } })));
+});
+
+test('the editor never takes the focus on its own', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(constructedConfig()).not.toHaveProperty('onReady');
 });

@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { authClient } from './auth-client';
-import { SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL } from './auth-copy';
+import { pageTitle } from '@/lib/use-document-title';
+import { NO_ACCOUNT_PROMPT, SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL, SIGN_UP_LABEL } from './auth-copy';
 import { SignInPage } from './sign-in-page';
 
 vi.mock('./auth-client', () => ({ authClient: { signIn: { email: vi.fn() } } }));
@@ -71,4 +72,11 @@ test('submits with Enter from the password field', async () => {
   await user.type(screen.getByLabelText('Email'), 'ada@example.com');
   await user.type(screen.getByLabelText('Password'), 'long-enough-password{Enter}');
   await waitFor(() => expect(signInEmail).toHaveBeenCalledTimes(1));
+});
+
+test('the sign-in page names its tab and links to sign-up from copy', async () => {
+  renderSignInPage();
+  expect(screen.getByText(NO_ACCOUNT_PROMPT, { exact: false })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: SIGN_UP_LABEL })).toBeInTheDocument();
+  await waitFor(() => expect(document.title).toBe(pageTitle(SIGN_IN_LABEL)));
 });

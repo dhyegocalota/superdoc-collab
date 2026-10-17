@@ -1,6 +1,6 @@
 import type { DocumentTimeline, TimelineContributor, TopicSummaries } from '@superdoc-history/types';
 import { ContributorAvatars } from './contributor-avatars';
-import { TOP_EDITS_LABEL, wordsDeltaLabel } from './timeline-copy';
+import { editDeltaLabel, EditUnit, TOP_EDITS_LABEL } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
 function sumWords(contributors: TimelineContributor[]): { inserted: number; deleted: number } {
@@ -15,6 +15,7 @@ export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; 
   const rows = timeline.bands
     .filter((band) => band.volume > 0)
     .sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
+  if (rows.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">{TOP_EDITS_LABEL}</h3>
@@ -28,7 +29,9 @@ export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; 
                 <TopicChip band={band} maxVolume={maxVolume} />
                 {contributors && <ContributorAvatars contributors={contributors} authors={timeline.authors} />}
               </div>
-              {contributors && <p className="text-xs text-muted-foreground">{wordsDeltaLabel(sumWords(contributors))}</p>}
+              {contributors && (
+                <p className="text-xs text-muted-foreground">{editDeltaLabel({ ...sumWords(contributors), unit: EditUnit.Word })}</p>
+              )}
               {sentence && <p className="text-sm">{sentence}</p>}
             </li>
           );

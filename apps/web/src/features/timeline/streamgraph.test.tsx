@@ -1,13 +1,14 @@
 import { TimelineBandKind } from '@superdoc-history/types';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
-import { formatBinRange } from '@/lib/format-date-time';
+import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
-import { STREAMGRAPH_TITLE } from './timeline-copy';
+import { CHART_HINT, LEGEND_LABEL, STREAMGRAPH_TITLE } from './timeline-copy';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 const WIDTH = 600;
+const WHITESPACE = /\s+/g;
 const timeline = timelineWith({
   volumes: [
     [100, 20, 5],
@@ -17,6 +18,10 @@ const timeline = timelineWith({
   names: ['Budget', 'Hiring', 'Other'],
   kinds: [TimelineBandKind.Topic, TimelineBandKind.Topic, TimelineBandKind.Other],
 });
+
+function asRendered(text: string): string {
+  return text.replace(WHITESPACE, ' ');
+}
 
 function renderGraph({
   selectedIndex = 1,
@@ -42,17 +47,16 @@ test('the svg is titled and described with the band count and the time range', (
   expect(container.querySelector('title')!.textContent).toBe(STREAMGRAPH_TITLE);
   const description = container.querySelector('desc')!.textContent!;
   expect(description).toContain('3 bands');
-  expect(description).toContain(
-    formatBinRange({ start: timeline.bins[0]!.start, end: timeline.bins[0]!.start + timeline.binMs }).split(' – ')[0]!,
-  );
+  expect(description).toContain(formatTimestamp(timeline.bins[0]!.start));
 });
 
-test('every band is a focusable path labelled with its size', () => {
+test('every band is a path labelled with its size and only the first is in the tab order', () => {
   renderGraph();
-  [screen.getByLabelText('Budget, 340 characters'), screen.getByLabelText('Other, 15 characters')].forEach((band) => {
-    expect(band.tagName.toLowerCase()).toBe('path');
-    expect(band).toHaveAttribute('tabindex', '0');
-  });
+  const budget = screen.getByLabelText('Budget, 340 characters');
+  const other = screen.getByLabelText('Other, 15 characters');
+  [budget, other].forEach((band) => expect(band.tagName.toLowerCase()).toBe('path'));
+  expect(budget).toHaveAttribute('tabindex', '0');
+  expect(other).toHaveAttribute('tabindex', '-1');
 });
 
 test('arrow keys, End and Escape drive the selection', () => {
@@ -82,9 +86,10 @@ test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });
   const tooltip = screen.getByRole('tooltip');
-  expect(tooltip).toHaveTextContent(formatBinRange({ start: timeline.bins[1]!.start, end: timeline.bins[1]!.start + timeline.binMs }));
+  expect(tooltip).toHaveTextContent(asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })));
   expect(tooltip).toHaveTextContent('Budget');
-  expect(tooltip).toHaveTextContent('+120 −0');
+  expect(tooltip).toHaveTextContent('+120 characters');
+  expect(tooltip).not.toHaveTextContent('−0');
   expect(tooltip).toHaveTextContent(FIXTURE_AUTHOR_NAME);
   fireEvent.pointerLeave(container.querySelector('svg')!);
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
@@ -117,7 +122,7 @@ test('focusing a band shows the tooltip of the selected bin and blurring hides i
   renderGraph({ selectedIndex: 1 });
   fireEvent.focus(budgetBand());
   expect(screen.getByRole('tooltip')).toHaveTextContent(
-    formatBinRange({ start: timeline.bins[1]!.start, end: timeline.bins[1]!.start + timeline.binMs }),
+    asRendered(formatBinRange({ start: timeline.bins[1]!.start, binMs: timeline.binMs })),
   );
   fireEvent.blur(budgetBand());
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
@@ -186,4 +191,85 @@ test.each([343, 300, 256, 600])('the tooltip box stays inside a chart %i px wide
     expect(boxStart).toBeGreaterThanOrEqual(0);
     expect(boxStart + tooltipWidth).toBeLessThanOrEqual(chartWidth);
   });
+});
+
+const LABELLED_TIMELINE = timelineWith({ volumes: Array.from({ length: 60 }, () => [400, 300]), names: ['Budget', 'Hiring'] });
+
+test('the chart shows its first and last moment and how to travel in time', () => {
+  renderGraph();
+  expect(screen.getByText(formatBinMoment({ time: timeline.bins[0]!.start, binMs: timeline.binMs }))).toBeVisible();
+  expect(screen.getByText(formatBinMoment({ time: timeline.bins[2]!.start + timeline.binMs, binMs: timeline.binMs }))).toBeVisible();
+  expect(screen.getByText(CHART_HINT)).toBeVisible();
+});
+
+test('bands without a label are named in a legend', () => {
+  renderGraph();
+  const legend = screen.getByRole('list', { name: LEGEND_LABEL });
+  expect(
+    within(legend)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  ).toEqual(['Budget', 'Hiring', 'Other']);
+});
+
+test('a chart whose bands all carry their label has no legend', () => {
+  render(
+    <Streamgraph
+      timeline={LABELLED_TIMELINE}
+      width={WIDTH}
+      selectedIndex={null}
+      highlightedBandId={null}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole('list', { name: LEGEND_LABEL })).not.toBeInTheDocument();
+});
+
+test('a pointer selection does not pin the tooltip, the next arrow key shows it', () => {
+  const { container } = renderGraph({ selectedIndex: 1 });
+  fireEvent.pointerDown(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 1 });
+  fireEvent.focus(budgetBand());
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  fireEvent.keyDown(budgetBand(), { key: 'ArrowRight' });
+  expect(screen.getByRole('tooltip')).toBeInTheDocument();
+});
+
+test('the chart is one tab stop on the active band', () => {
+  const { container, rerender } = renderGraph();
+  expect(container.querySelectorAll('path[tabindex="0"]')).toHaveLength(1);
+  expect(budgetBand()).toHaveAttribute('tabindex', '0');
+  expect(screen.getByLabelText(/^Other/)).toHaveAttribute('tabindex', '-1');
+  rerender(
+    <Streamgraph
+      timeline={timeline}
+      width={WIDTH}
+      selectedIndex={1}
+      highlightedBandId={timeline.bands[1]!.id}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText(/^Hiring/)).toHaveAttribute('tabindex', '0');
+  expect(budgetBand()).toHaveAttribute('tabindex', '-1');
+});
+
+test('a press that focuses no band leaves the next keyboard focus its tooltip', () => {
+  const { container } = renderGraph({ selectedIndex: 1 });
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerDown(chart, { clientX: WIDTH / 2, buttons: 1 });
+  fireEvent.pointerUp(chart);
+  fireEvent.focus(budgetBand());
+  expect(budgetBand()).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id);
+});
+
+test('a click after arrow keys hands the tooltip back to the pointer', () => {
+  const { container } = renderGraph({ selectedIndex: 1 });
+  const chart = container.querySelector('svg')!;
+  fireEvent.focus(budgetBand());
+  fireEvent.keyDown(budgetBand(), { key: 'ArrowRight' });
+  fireEvent.pointerDown(chart, { clientX: WIDTH / 2, buttons: 1 });
+  fireEvent.pointerUp(chart);
+  fireEvent.pointerLeave(chart);
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

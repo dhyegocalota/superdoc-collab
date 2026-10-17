@@ -89,7 +89,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   }
 
   return (
-    <aside className="flex w-full shrink-0 border-t lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l" style={{ '--panel-width': `${width}px` } as CSSProperties}>
+    <aside className="flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l" style={{ '--panel-width': `${width}px` } as CSSProperties}>
       <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-2 p-2">

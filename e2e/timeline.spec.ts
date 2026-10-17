@@ -1,5 +1,11 @@
-import { TimelineSearchParam } from '../libs/types/src';
-import { bandAriaLabel, REFRESH_TOPICS_LABEL, removeFilterLabel, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
+import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
+import {
+  bandAriaLabel,
+  REGROUP_TOPICS_LABEL,
+  removeFilterLabel,
+  RETRY_TOPICS_LABEL,
+  TOP_EDITS_LABEL,
+} from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
 import {
@@ -44,7 +50,7 @@ test('two authors type in two topics and the bands appear', async ({ browser }) 
   await expect(topEdits(ana.page).filter({ hasText: HIRING }).getByTitle(BRUNO)).toBeVisible();
 });
 
-test('Refresh topics recomputes the names from the current text', async ({ browser }) => {
+test('Regroup topics recomputes the names from the current text', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   const volumeBefore = await bandVolume({ page: ana.page, name: HIRING });
@@ -52,7 +58,7 @@ test('Refresh topics recomputes the names from the current text', async ({ brows
   await ana.page.keyboard.press('Home');
   await ana.page.keyboard.type(RENAMED_PREFIX);
   await expect.poll(() => bandVolume({ page: ana.page, name: HIRING }), { timeout: BANDS_TIMEOUT_MS }).toBeGreaterThan(volumeBefore);
-  await ana.page.getByRole('button', { name: REFRESH_TOPICS_LABEL }).click();
+  await ana.page.getByRole('button', { name: REGROUP_TOPICS_LABEL }).click();
   await waitForBands({ page: ana.page, names: [`${RENAMED_PREFIX}${HIRING}`] });
 });
 

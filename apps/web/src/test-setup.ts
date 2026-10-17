@@ -18,4 +18,19 @@ class ResizeObserverDouble {
 
 vi.stubGlobal('ResizeObserver', ResizeObserverDouble);
 
+function matchMediaDouble(query: string): MediaQueryList {
+  return {
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    dispatchEvent: () => false,
+  };
+}
+
+vi.stubGlobal('matchMedia', matchMediaDouble);
+
 afterEach(cleanup);

@@ -25,7 +25,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ViewerMessageKind } from './viewer-messages';
-import { formatTimestamp } from '@/lib/format-date-time';
+import { formatVersionMoment } from '@/lib/format-date-time';
 import { SCRUB_DEBOUNCE_MS } from '@/features/timeline/use-time-travel';
 import {
   BACK_TO_LIVE_LABEL,
@@ -312,7 +312,7 @@ test('a moment without a version yet shows progress up to the end of its period'
   };
   mockDocumentApi({ timelines: [withoutVersion] });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
-  const endOfPeriod = formatTimestamp(BIN_STARTS[1]! + versionedTimeline.binMs);
+  const endOfPeriod = formatVersionMoment(BIN_STARTS[1]! + versionedTimeline.binMs);
   await waitFor(() => expect(screen.getByTestId('version-banner')).toHaveTextContent(endOfPeriod));
   expect(screen.getByTestId('version-banner')).toHaveTextContent(LOADING_VERSION_MESSAGE);
   expect(screen.queryByTitle(VERSION_FRAME_TITLE)).toBeNull();

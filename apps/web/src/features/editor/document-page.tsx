@@ -3,10 +3,11 @@ import { skipToken, useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { SuperDoc } from 'superdoc';
-import { SessionSkeleton } from '@/features/auth/session-skeleton';
 import { useSession } from '@/features/auth/use-session';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { useRequiredParam } from '@/lib/use-required-param';
 import {
   DocumentUnavailableError,
@@ -18,6 +19,7 @@ import {
 } from './editor-api';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
+import { HomeLink } from './home-link';
 import { VersionBanner } from '@/features/versions/version-banner';
 import { VersionFrame } from '@/features/versions/version-frame';
 import { SuperDocEditor } from './superdoc-editor';
@@ -58,6 +60,20 @@ function UnavailableNotice({ message }: { message: string }) {
   );
 }
 
+function OpeningDocument() {
+  return (
+    <div className="flex h-dvh flex-col">
+      <header className="flex items-center gap-2 border-b px-4 py-2">
+        <HomeLink />
+        <Skeleton className="h-9 w-full max-w-sm" />
+      </header>
+      <p role="status" className="p-4 text-sm text-muted-foreground">
+        {LOADING_DOCUMENT_MESSAGE}
+      </p>
+    </div>
+  );
+}
+
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
@@ -69,10 +85,11 @@ export function DocumentPage() {
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const setup = useEditorSetup({ opened: freshOpened, user, file });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
+  useDocumentTitle(opened ? opened.document.title : null);
 
   if (error) return <UnavailableNotice message={error.message} />;
   if (isUnavailable) return <UnavailableNotice message={DOCUMENT_UNAVAILABLE_MESSAGE} />;
-  if (!opened) return <SessionSkeleton />;
+  if (!opened) return <OpeningDocument />;
 
   const { title } = opened.document;
 
@@ -85,7 +102,12 @@ export function DocumentPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <EditorHeader opened={opened} members={members} onDownload={setup ? downloadLiveDocument : null} />
+      <EditorHeader
+        opened={opened}
+        members={members}
+        currentUserId={user ? user.id : null}
+        onDownload={setup ? downloadLiveDocument : null}
+      />
       {hasExportFailed && (
         <p role="alert" className="px-4 py-2 text-sm text-destructive">
           {EXPORT_FAILED_MESSAGE}

@@ -30,16 +30,18 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   function renderRun(run: EditRunView) {
     const band = timeline.bands.find((candidate) => candidate.id === run.bandId);
     if (!band) throw new MissingBandError(run.bandId);
+    const inserted = run.inserted.trim();
+    const deleted = run.deleted.trim();
     return (
-      <li key={`${run.blockId}-${run.bandId}`} className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
+      <li key={`${run.blockId}-${run.bandId}`} className="flex flex-col items-start gap-1">
+        <div className="flex w-full items-center justify-between gap-2">
           <TopicChip band={band} maxVolume={maxVolume} />
           <p className="text-xs text-muted-foreground">
             {run.authorKeys.map((authorKey) => authorOf({ authors: data!.authors, authorKey }).name).join(', ')}
           </p>
         </div>
-        {run.inserted && <p className="text-sm text-primary">{`+"${snippetOf(run.inserted)}"`}</p>}
-        {run.deleted && <p className="text-sm text-destructive">{`−"${snippetOf(run.deleted)}"`}</p>}
+        {inserted && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
+        {deleted && <del className="rounded-sm bg-deleted px-1 text-sm">{snippetOf(deleted)}</del>}
       </li>
     );
   }
@@ -47,8 +49,12 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   if (!data) return null;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, end: bin.start + timeline.binMs })}</h3>
-      {data.runs.length === 0 && <p role="status">{NO_EDITS_IN_BIN_MESSAGE}</p>}
+      <h3 className="text-sm font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</h3>
+      {data.runs.length === 0 && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {NO_EDITS_IN_BIN_MESSAGE}
+        </p>
+      )}
       <ul className="flex flex-col gap-3">{data.runs.map(renderRun)}</ul>
     </section>
   );

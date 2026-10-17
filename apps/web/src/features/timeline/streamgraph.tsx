@@ -1,10 +1,11 @@
 import { TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
-import { useId, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
-import { formatTimestamp } from '@/lib/format-date-time';
+import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { BandLabel } from './band-label';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
-import { bandAriaLabel, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
+import { StreamgraphLegend } from './streamgraph-legend';
+import { bandAriaLabel, CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
 import { TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
 
 const PRIMARY_BUTTON_PRESSED = 1;
@@ -54,6 +55,14 @@ function tooltipAnchorOf({
   return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET };
 }
 
+function focusableBandIdOf({ shapes, highlightedBandId }: { shapes: BandShape[]; highlightedBandId: string | null }): string | null {
+  const highlighted = shapes.find((shape) => shape.band.id === highlightedBandId);
+  if (highlighted) return highlighted.band.id;
+  const [first] = shapes;
+  if (!first) return null;
+  return first.band.id;
+}
+
 function bandStyle(band: TimelineBand, saturation: number): CSSProperties | undefined {
   if (band.kind === TimelineBandKind.Other) return undefined;
   if (band.hue === null) throw new MissingBandHueError(band.id);
@@ -65,18 +74,35 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   const descriptionId = useId();
   const tooltipId = useId();
   const [hovered, setHovered] = useState<{ index: number; y: number } | null>(null);
-  const [hasFocus, setHasFocus] = useState(false);
+  const [hasKeyboardFocus, setHasKeyboardFocus] = useState(false);
+  const isPointerFocus = useRef(false);
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
   const lastIndex = timeline.bins.length - 1;
-  const tooltipAnchor = tooltipAnchorOf({ hovered, selectedIndex, hasFocus });
+  const tooltipAnchor = tooltipAnchorOf({ hovered, selectedIndex, hasFocus: hasKeyboardFocus });
   if (timeline.bins.length === 0) return null;
+  const maxVolume = Math.max(0, ...timeline.bands.map((band) => band.volume));
+  const focusableBandId = focusableBandIdOf({ shapes: layout.shapes, highlightedBandId });
+  const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
+  const firstMoment = timeline.bins[0]!.start;
+  const lastMoment = timeline.bins[lastIndex]!.start + timeline.binMs;
 
   function offsetOf(event: PointerEvent<SVGSVGElement>): number {
     return event.clientX - event.currentTarget.getBoundingClientRect().left;
   }
 
   function handlePointerDown(event: PointerEvent<SVGSVGElement>): void {
+    isPointerFocus.current = true;
+    setHasKeyboardFocus(false);
     onSelectIndex(layout.binAt(offsetOf(event)));
+  }
+
+  function endPointerPress(): void {
+    isPointerFocus.current = false;
+  }
+
+  function handlePointerLeave(): void {
+    endPointerPress();
+    setHovered(null);
   }
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
@@ -85,7 +111,18 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
     if (event.buttons === PRIMARY_BUTTON_PRESSED) onSelectIndex(index);
   }
 
+  function handleFocus(): void {
+    setHasKeyboardFocus(!isPointerFocus.current);
+  }
+
+  function handleBlur(): void {
+    isPointerFocus.current = false;
+    setHasKeyboardFocus(false);
+  }
+
   function handleKeyDown(event: KeyboardEvent<SVGPathElement>): void {
+    isPointerFocus.current = false;
+    setHasKeyboardFocus(true);
     if (event.key === NavigationKey.Clear) {
       event.stopPropagation();
       onClearSelection();
@@ -104,7 +141,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
       <path
         key={shape.band.id}
         d={shape.path}
-        tabIndex={0}
+        tabIndex={shape.band.id === focusableBandId ? 0 : -1}
         aria-label={bandAriaLabel({ name: shape.band.name, volume: shape.band.volume })}
         data-faded={isFaded}
         className={cn(
@@ -113,16 +150,16 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
           isFaded && 'opacity-40',
         )}
         style={bandStyle(shape.band, shape.saturation)}
-        aria-describedby={hasFocus && tooltipAnchor !== null ? tooltipId : undefined}
+        aria-describedby={hasKeyboardFocus && tooltipAnchor !== null ? tooltipId : undefined}
         onKeyDown={handleKeyDown}
-        onFocus={() => setHasFocus(true)}
-        onBlur={() => setHasFocus(false)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
       />
     );
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col gap-1">
       <svg
         width={width}
         height={CHART_HEIGHT}
@@ -130,14 +167,15 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         aria-describedby={descriptionId}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerLeave={() => setHovered(null)}
+        onPointerUp={endPointerPress}
+        onPointerLeave={handlePointerLeave}
       >
         <title id={titleId}>{STREAMGRAPH_TITLE}</title>
         <desc id={descriptionId}>
           {streamgraphDescription({
             bandCount: timeline.bands.length,
-            from: formatTimestamp(timeline.bins[0]!.start),
-            to: formatTimestamp(timeline.bins[lastIndex]!.start + timeline.binMs),
+            from: formatTimestamp(firstMoment),
+            to: formatTimestamp(lastMoment),
           })}
         </desc>
         {layout.shapes.map(renderBand)}
@@ -156,6 +194,12 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
           />
         )}
       </svg>
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <time dateTime={new Date(firstMoment).toISOString()}>{formatBinMoment({ time: firstMoment, binMs: timeline.binMs })}</time>
+        <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs })}</time>
+      </div>
+      {hasUnlabelledBand && <StreamgraphLegend bands={layout.shapes.map((shape) => shape.band)} maxVolume={maxVolume} />}
+      <p className="text-xs text-muted-foreground">{CHART_HINT}</p>
       {tooltipAnchor !== null && (
         <TimelineTooltip
           id={tooltipId}

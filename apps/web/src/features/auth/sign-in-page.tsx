@@ -6,8 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { authClient } from './auth-client';
-import { SIGN_IN_LABEL, SIGN_IN_PENDING_LABEL } from './auth-copy';
+import {
+  EMAIL_FIELD_LABEL,
+  NO_ACCOUNT_PROMPT,
+  PASSWORD_FIELD_LABEL,
+  SIGN_IN_DESCRIPTION,
+  SIGN_IN_LABEL,
+  SIGN_IN_PENDING_LABEL,
+  SIGN_UP_LABEL,
+} from './auth-copy';
 import { useAuthSubmit } from './use-auth-submit';
 
 export function SignInPage() {
@@ -16,13 +25,14 @@ export function SignInPage() {
     form,
     request: (values, responseCapture) => authClient.signIn.email(values, responseCapture),
   });
+  useDocumentTitle(SIGN_IN_LABEL);
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Use your email and password to open your documents.</CardDescription>
+          <CardTitle>{SIGN_IN_LABEL}</CardTitle>
+          <CardDescription>{SIGN_IN_DESCRIPTION}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -32,7 +42,7 @@ export function SignInPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{EMAIL_FIELD_LABEL}</FormLabel>
                     <FormControl>
                       <Input type="email" autoComplete="email" {...field} />
                     </FormControl>
@@ -45,7 +55,7 @@ export function SignInPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{PASSWORD_FIELD_LABEL}</FormLabel>
                     <FormControl>
                       <Input type="password" autoComplete="current-password" {...field} />
                     </FormControl>
@@ -62,9 +72,9 @@ export function SignInPage() {
                 {form.formState.isSubmitting ? SIGN_IN_PENDING_LABEL : SIGN_IN_LABEL}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
-                No account yet?{' '}
+                {NO_ACCOUNT_PROMPT}{' '}
                 <Link to={AppRoute.SignUp} className="text-primary underline-offset-4 hover:underline">
-                  Sign up
+                  {SIGN_UP_LABEL}
                 </Link>
               </p>
             </form>

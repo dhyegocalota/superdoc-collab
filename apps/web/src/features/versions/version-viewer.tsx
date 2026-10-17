@@ -13,6 +13,7 @@ import { collaborationUrl, HOCUSPOCUS_PROVIDER } from '@/features/editor/collabo
 import { SUPERDOC_TELEMETRY } from '@/features/editor/superdoc-telemetry';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-editor';
+import { followViewportZoom, initialZoomMode } from '@/features/editor/superdoc-zoom';
 
 enum ConnectionState {
   Degraded = 'degraded',
@@ -59,6 +60,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
         },
       ],
       user: { id: user.id, name: user.name, email: user.email },
+      zoom: { mode: initialZoomMode(window.parent) },
       onCollaborationReady: () => {
         isReady = true;
         onReady(superdoc);
@@ -69,7 +71,11 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
       },
       onException: onFailed,
     });
-    return () => superdoc.destroy();
+    const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window.parent });
+    return () => {
+      stopFollowingViewport();
+      superdoc.destroy();
+    };
   }, [documentId, sequence, blank, user, onReady, onFailed, onConnectionFailed]);
 
   return <div ref={containerRef} data-testid="version-viewer" className="h-dvh min-w-0 overflow-auto" />;

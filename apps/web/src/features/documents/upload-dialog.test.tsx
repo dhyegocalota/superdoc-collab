@@ -11,7 +11,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { FILE_INPUT_LABEL, UPLOAD_LABEL } from './documents-copy';
+import { FILE_INPUT_LABEL, UPLOAD_LABEL, UPLOADING_MESSAGE } from './documents-copy';
 import { UploadDialog } from './upload-dialog';
 
 const UPLOADED_DOCUMENT = { id: 'doc-1', title: 'plan', owner: { id: 'user-1', name: 'Ada' }, updatedAt: 1, role: DocumentRole.Owner };
@@ -57,4 +57,12 @@ test('a 201 response closes the dialog and opens the document', async () => {
   await chooseFile(docxFile({ name: 'plan.docx', size: 10 }));
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(UPLOADED_DOCUMENT.id)));
   expect(screen.queryByLabelText(FILE_INPUT_LABEL)).not.toBeInTheDocument();
+});
+
+test('while the upload runs the input is disabled and the wait is announced', async () => {
+  vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>(() => undefined));
+  renderWithProviders(<UploadDialog />);
+  await chooseFile(docxFile({ name: 'plan.docx', size: 10 }));
+  expect(await screen.findByRole('status')).toHaveTextContent(UPLOADING_MESSAGE);
+  expect(screen.getByLabelText(FILE_INPUT_LABEL)).toBeDisabled();
 });

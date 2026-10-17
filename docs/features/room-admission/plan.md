@@ -16,9 +16,9 @@
 
 ## Global Constraints
 
-- `CREATOR_RESERVATION_MS = MINUTE_MS` (60 s). `MAX_SOCKET_MESSAGES_PER_SECOND = 120`.
-- `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`, with `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8` (raised from 4 after Step 0; the cap is 80 MiB) (40 MiB).
-- `POLICY_VIOLATION_CLOSE_CODE = 1008`, `SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403`, `SOCKET_RATE_LIMIT_REASON = 'Too many messages per second'`, `SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded'`. A payload breach keeps `ws`'s 1009.
+- `CREATOR_RESERVATION_MS = MINUTE_MS` (60 s). `CREATOR_RESERVATION_MAX_MS = 5 * MINUTE_MS`. `SOCKET_CLOSE_GRACE_MS = SECOND_MS`. `BOOTSTRAP_SCAN_CACHE_ENTRIES = 32`. `MAX_SOCKET_MESSAGES_PER_SECOND = 120`.
+- `MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES`, with `SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8` (raised from 4 after Step 0), so the cap is 80 MiB (83,886,080 bytes).
+- `POLICY_VIOLATION_CLOSE_CODE = 1008`, `SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403`, `SOCKET_RATE_LIMIT_REASON = 'Too many messages per second'`, `SOCKET_SINGLE_DOCUMENT_REASON = 'One document per socket'`, `UNAUTHORIZED_CLOSE_CODE = 4401`, `SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded'`. A payload breach keeps `ws`'s 1009.
 - Constants go in `libs/types/src/constants.ts` and `libs/types/src/documents.ts`. Reuse `SECOND_MS` and `MINUTE_MS`; never redeclare them.
 - Logs use `console.warn` or `console.error` with a message constant, the document id and `describeError`, as the insights services do. Never log a payload.
 - Red first: each red test is its own commit before its implementation. A stub may throw `<name> is not implemented`. Run `pnpm exec prettier --write` on staged files.
@@ -30,7 +30,7 @@
 1. A connection whose update reached the in-memory room before takeover leaves its partial there, so the next creator seeds on top of it. Pinned by Step 12.
 2. A creator closes its tab and another editor opens at once, so the new attempt must start from an empty room. Hocuspocus 2.15.3 unloads an empty room immediately, so no manual unload exists. Pinned by Step 12.
 3. An abandoned client with a higher client id writes `meta.bootstrapState` concurrently, so a from-zero replay hides the winner's commit. Pinned by Steps 5 and 6a.
-4. `ws` sends 1009 and then emits `error`, and `terminateOnError` destroys the socket before the close frame is delivered. The early return for CLOSING sockets is pinned by Step 8.
+4. `ws` sends 1009 and then emits `error`, and `terminateOnError` destroys the socket before the close frame is delivered. The early return for CLOSING sockets is pinned by Step 8, and the close timeout that terminates a peer ignoring the close frame by the second security round.
 5. A second tab of the holder keeps its attempt and the reservation, while another user gets 409. Pinned by Step 15.
 6. A creator that returns after another editor committed carries a stale attempt on a committed room. Pinned by Step 11b.
 7. The holder opens two pages within one second and both seed from one attempt. Pinned by Step 21b.
@@ -39,7 +39,7 @@
 
 - Limits apply per `ws` socket. One editor socket carries one document.
 - The rate count includes every frame from the first one, before authentication and awareness included.
-- Expiry means 60 s of silence: every appended update from the latest attempt calls `touch`.
+- A reservation is live while any socket of its attempt is connected. Silence after the last close expires it after 60 s, and every appended update from the latest attempt calls `touch`. Its total lifetime is capped at `CREATOR_RESERVATION_MAX_MS`, and a holder that lapsed at the cap waits one `CREATOR_RESERVATION_MS` cooldown before it reserves the same document again.
 - `reserve` returns `{ attempt, epoch }` with a per-process `epoch`. The web passes both as socket URL queries (`collaboration-config.ts`), and `mayWrite` on a committed room accepts only a socket with no attempt or the attempt that committed in this epoch.
 - Release happens when the last connection of the holder's attempt closes. `attemptOf` keeps answering the holder until another editor reserves after expiry.
 - The commit snapshot uses the existing `UpdateLog.writeSnapshot`. The spec's new `UpdateLog.snapshot` would duplicate it, so it is not added.

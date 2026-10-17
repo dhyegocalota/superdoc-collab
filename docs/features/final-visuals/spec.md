@@ -49,26 +49,27 @@ The product works, but the chrome around the document does not. The walk of 2026
 - The job runs these checks in order, and starts only what is stale:
   1. Topics: regroup when the topic status is failed, or when `computedAtSequence` is older than the newest projected edit. A failed regroup keeps the ready topics (ADR 0015).
   2. Selection summary: write it when it is missing, failed, or stamped with another cursor or topics time.
-  3. Topic sentences: rewrite each topic whose sentence is older than its newest run, as `SummariesService` does today.
-- If nothing is stale, the job makes no model call and the answer is 200.
-- The job sets a `SummarizeStep` (`Idle`, `Grouping`, `Summarizing`) that the selection view returns as `step`. The client polls the existing selection path with `pollWhileAvailable` while the step is not `Idle`.
+  3. Topic sentences: rewrite each topic sentence that is older than the topic set.
+- If nothing is stale, the job makes no model call and the answer is 200. This check runs before the cooldown.
+- There is one job per document, keyed `summarize:<documentId>`. It sets a `SummarizeStep` (`Idle`, `Grouping`, `Summarizing`) that the selection view returns as `step`. A step that fails returns `step` to `Idle`, and the view's failure text carries that step's message. The client polls the existing selection path with `pollWhileAvailable` while the step is not `Idle`.
 - The answers are:
-  - 202 with the view while a job runs (started or already running).
-  - 200 with the view when the summary is cached, the selection is empty, or nothing is stale. The client shows "The summary is up to date." on a 200 that started no job.
+  - 202 with the view while a job runs (started or already running). A POST for another selection while the document's job runs also answers 202, with that view mirroring the document job's `step`.
+  - 200 with the view when the summary is cached, the selection is empty, or nothing is stale.
+  - Every 200 and 202 body carries `outcome: SummarizeOutcome` (`Started`, `Running`, `UpToDate`) next to the view. The client shows "The summary is up to date." on `UpToDate`.
   - 429 with `Retry-After` and one message, `SUMMARIZE_BUSY_MESSAGE`, for any wait. The seconds are the longer of the remaining cooldown and the model's busy wait.
   - 503 with the reason when the model is unavailable, as today.
 - Cooldowns:
-  - `SUMMARIZE_COOLDOWN_MS` (30 s, renamed from `SELECTION_SUMMARY_COOLDOWN_MS`, same value) is per document. It is consumed when the job starts its first model call (ADR 0012).
+  - `SUMMARIZE_COOLDOWN_MS` (30 s, renamed from `SELECTION_SUMMARY_COOLDOWN_MS`, same value) is per document. It is consumed only when a model call starts (ADR 0012): a POST that finds nothing stale, or joins a running job, does not consume it.
   - `TOPIC_REFRESH_COOLDOWN_MS` is retired with the refresh endpoint.
   - `SUMMARY_MIN_INTERVAL_MS` is retired. Reading the summaries no longer starts a rewrite; sentence rewrites happen only inside a Summarize click.
   - `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` stays for the automatic recompute of ADR 0015.
 - Removed: `POST /api/documents/:documentId/topics/refresh`, its path helper `topicsRefreshApiPath`, `RefreshOutcome`, `TopicsService.refresh`, and the call to `refreshStale` on read.
-- The new orchestration lives in `apps/server/src/insights/summarize-service.ts`, which calls the topics and summaries services. The job runner's per-key guard stays as it is.
+- The new orchestration lives in `apps/server/src/insights/summarize-service.ts`, which calls the topics and summaries services. The job runner's per-key guard stays as it is. The agent's summarize tool in `agent/read-tools.ts` goes through the same service and answers `SUMMARIZE_BUSY_MESSAGE` when busy. On the client, `features/timeline/use-summarize.ts` owns the mutation (see Interfaces).
 
 **2. Theme.**
 
 - `apps/web/index.html` carries an inline script that runs before the bundle. It reads `THEME_STORAGE_KEY` (`superdoc-collab.theme`) and adds `dark` to `document.documentElement` for Dark, or for System when `prefers-color-scheme: dark` matches. The script cannot import, so a Vitest test reads `index.html` and asserts that its key equals the constant.
-- `useTheme()` applies the class, writes the choice, listens to the `storage` event for other tabs, and follows `prefers-color-scheme` live under System.
+- `useTheme()` is mounted once, in `app/providers.tsx`. It applies the class, writes the choice, listens to the `storage` event for other tabs, and follows `prefers-color-scheme` live under System.
 - The version frame is same-origin. It loads the same shell, so it runs the same script and receives the same `storage` event.
 - An unknown stored value is removed, and System applies.
 
@@ -96,17 +97,26 @@ The product works, but the chrome around the document does not. The walk of 2026
 
 - `useOpenedDocument` treats 409 `NOT_READY` as a state, not an error. While the answer stays 409, it polls every `DOCUMENT_READY_POLL_MS`.
 - The give-up rule counts polls, so hidden time does not count. After `DOCUMENT_READY_GIVE_UP_MS` of polls, polling stops and the page shows the paused state. TanStack's default `refetchIntervalInBackground: false` pauses polling while the tab is hidden.
-- "Keep waiting" resets the count. A 200 enters the normal flow. Any other error shows the error card, and "Try again" refetches once.
+- "Keep waiting" resets the count. A 200 enters the normal flow. Any other error shows the error card, and "Try again" refetches once. A 404 or 403 shows `DOCUMENT_UNAVAILABLE_MESSAGE` on the error card with no "Try again".
 - `WaitingForDocument` replaces `UnavailableNotice` for every role. `DOCUMENT_NOT_READY_MESSAGE` is no longer shown.
+- On entering, `WaitingForDocument` announces "The document is ready." in a live region (design section 5).
 
 **6. SuperDoc options that change.** All in `apps/web/src/features/editor/superdoc-options.ts`.
 
-- `ui.toolbar`: `{ container, responsiveTo: 'container', excludeItems: TOOLBAR_EXCLUDED_ITEMS }`. The excluded items are tracked-change accept and reject, ruler, measurement unit, document mode and search. The names come from SuperDoc 2.23.0's types at build time.
+- `ui.toolbar`: `{ container, responsiveTo: 'container', excludeItems: TOOLBAR_EXCLUDED_ITEMS }`. The excluded items are tracked-change accept and reject, ruler, measurement unit, document mode, search, `linked-style`, `copy-format`, `clear-formatting` and `ai`. The list is declared `satisfies readonly ToolbarItemId[]`, so a name that SuperDoc 2.23.0 does not know fails the typecheck.
 - `ui.search: true`, so Cmd+F and Ctrl+F open the Find bar.
 - `zoom: { mode: 'fit-width', fitWidth: { max: 100 } }` at every width. This replaces the viewport switch of refinement-ux-care for the editor; the lead reconciles the two specs. A zoom change made from the toolbar's menu is left alone.
 - `user.color` and `colors`, from data flow 4.
-- `inert` on the toolbar container while a past version is shown.
-- The print view alone sets `layoutEngineOptions.virtualization.enabled: false` (option 6.1 A).
+- `inert` on the toolbar container while a past version is shown. The Summarize button sits outside that container and stays live.
+- `superdoc-editor.tsx` replaces `[&_.superdoc-page]:bg-background` with `bg-paper`, so the page stays white in dark mode (decision 7.8).
+- The print view alone sets `layoutEngineOptions.virtualization.enabled: false` (data flow 7).
+
+**7. The print view.** No route and no second socket.
+
+- `DownloadMenu` exports the live document to a Blob with `superdoc.export({ triggerDownload: false })`.
+- It mounts `PrintView` off-screen in the page: a non-collaborative SuperDoc in viewing mode from that Blob, with `layoutEngineOptions.virtualization.enabled: false`. Its container height is the `.superdoc-page` count times 1056 px, measured after `onReady`.
+- It calls `window.print()` only after the last `.superdoc-page` has text, found with a bounded `requestAnimationFrame` loop. It never sleeps on a timer.
+- A print stylesheet (`@media print`) hides everything but the print view. `afterprint` unmounts it.
 
 ### Interfaces
 
@@ -115,7 +125,8 @@ The product works, but the chrome around the document does not. The walk of 2026
 | Path | Name | Change |
 |---|---|---|
 | `timeline.ts` | `SummarizeStep` (enum: `Idle`, `Grouping`, `Summarizing`) | new |
-| `timeline.ts` | `SelectionSummaryView.step` | new field |
+| `timeline.ts` | `SelectionSummaryView.step` | new field, added with every fixture that builds a view |
+| `timeline.ts` | `SummarizeOutcome` (enum: `Started`, `Running`, `UpToDate`) | new, next to the view in the POST body |
 | `timeline.ts` | `SUMMARIZE_COOLDOWN_MS` | renamed from `SELECTION_SUMMARY_COOLDOWN_MS` |
 | `timeline.ts` | `SUMMARIZE_BUSY_MESSAGE` | new |
 | `timeline.ts` | `TOPICS_REFRESH_TOO_SOON_MESSAGE` | removed |
@@ -135,6 +146,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 | `insights/summaries-service.ts` | `refreshStale` leaves the read path and becomes a Summarize step. `SUMMARY_MIN_INTERVAL_MS` removed. |
 | `insights/topics-service.ts` | `refresh`, `RefreshOutcome`, `TOPIC_REFRESH_COOLDOWN_MS` removed. `compute` is called by the Summarize service. |
 | `insights/insights-job-runner.ts` | Unchanged. |
+| `agent/read-tools.ts` | The agent's summarize goes through `summarize-service` and answers `SUMMARIZE_BUSY_MESSAGE` when busy. |
 
 **apps/web: shared and changed**
 
@@ -142,6 +154,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 |---|---|
 | `index.html` | Inline theme script (data flow 2). |
 | `lib/use-theme.ts` | `useTheme()`, `ThemePreference` (`Light`, `Dark`, `System`), `THEME_STORAGE_KEY`. |
+| `app/providers.tsx` | Mounts `useTheme()` once. |
 | `lib/breakpoints.ts` | `LARGE_BREAKPOINT_PX`, `WIDE_BREAKPOINT_PX`, `minWidthQuery`. |
 | `components/ui/toggle-group.tsx`, `components/ui/tooltip.tsx`, `components/ui/tabs.tsx` | New shadcn components, from the installed `radix-ui`. |
 | `components/ui/dropdown-menu.tsx` | Adds `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuRadioGroup`, `DropdownMenuRadioItem`. |
@@ -155,17 +168,20 @@ The product works, but the chrome around the document does not. The walk of 2026
 | Path | Change |
 |---|---|
 | `features/account/account-menu.tsx`, `features/account/account-copy.ts` | New. `DropdownMenu` with `modal={false}`, aligned end, 224 px. |
-| `features/editor/editor-header.tsx` | Becomes the editor's right slot of `AppTopBar`. |
+| `features/auth/sign-out-menu-item.tsx`, `features/auth/use-sign-out.ts` | New. The account menu's Sign out item and the shared sign-out function. `sign-out-button.tsx` stays until the four page headers drop it, then is deleted. |
+| `features/editor/editor-header.tsx` | Becomes the editor's right slot of `AppTopBar`. Takes `superdoc` and `isPastVersion` and passes them to `Members`. |
+| `features/editor/opening-document.tsx` | Uses `AppTopBar`. |
+| `features/editor/superdoc-editor.tsx` | `bg-paper` replaces `bg-background`. Exposes the SuperDoc instance as state through `onReady`, not only the ref. |
 | `features/editor/document-title.tsx` | New. Replaces `TitleInput`. |
 | `features/editor/download-menu.tsx`, `features/editor/download-format.ts` | New. `DownloadFormat` (`Docx`, `Pdf`). |
 | `features/editor/find-button.tsx` | New. Opens the Find bar, or falls back to the toolbar item (option 6.4). |
-| `features/editor/editor-toolbar-row.tsx` | New. Toolbar container and the Summarize button. |
+| `features/editor/editor-toolbar-row.tsx` | New. Toolbar container (`inert` in a past version) and the Summarize button, which takes `summarize` from `document-page.tsx`. 40 px high (`h-10`, border included), absent for readers. |
 | `features/editor/waiting-for-document.tsx` | New. Ask 13. |
 | `features/editor/use-member-cursors.ts` | New. Awareness positions by user id, through the spike's route. |
-| `features/editor/members.tsx` | Jump buttons or `aria-disabled` buttons with a reason. Above five members, a "+N" menu. |
+| `features/editor/members.tsx` | Jump buttons or `aria-disabled` buttons with a reason. Takes `superdoc` and `isPastVersion`. Above five members, a "+N" menu. |
 | `features/editor/superdoc-zoom.ts` | Keeps only the cap of data flow 6. |
 | `features/editor/editor-copy.ts`, `features/editor/waiting-copy.ts` | Copy for titles, downloads, members, waiting (design section 4). `waiting-copy.ts` holds the waiting strings. |
-| `features/editor/document-page.tsx`, `features/editor/use-opened-document.ts` | Waiting state and polling (data flow 5). |
+| `features/editor/document-page.tsx`, `features/editor/use-opened-document.ts` | Waiting state and polling (data flow 5). `document-page.tsx` calls `useSummarize` once, owns the panel's `isOpen`, and passes both to `EditorToolbarRow` and `TimelinePanel`. A click on Summarize with the panel collapsed opens it. |
 | `features/documents/` | Upload becomes the primary action of the documents page, and the top bar of the page carries Use with AI and account only (option 6.6). |
 
 **apps/web: timeline and connected apps**
@@ -174,11 +190,15 @@ The product works, but the chrome around the document does not. The walk of 2026
 |---|---|
 | `features/timeline/use-panel-position.ts` | New. `PanelPosition` (`Bottom`, `Side`), `PANEL_POSITION_STORAGE_KEY`, `usePanelPosition`. |
 | `features/timeline/panel-position-toggle.tsx` | New. A `ToggleGroup` with two items. |
-| `features/timeline/timeline-panel.tsx` | Takes the position, loses the two header buttons, gains the toggle and the collapsed bar with topic chips. |
+| `features/timeline/timeline-panel.tsx` | Takes the position, `summarize`, `isOpen` and `onOpenChange`, loses the two header buttons, gains the toggle and the collapsed bar with topic chips. |
+| `features/timeline/use-summarize.ts` | New. `useSummarize({ documentId })` derives the selection from the URL (`useTimelineSearch`), reads `binMs` and `timeZone` from the cached timeline query, owns the mutation, and returns `{ summarize, isRunning, outcome, error, retryAfterSeconds }`. |
+| `features/timeline/selection-summary.ts` | `useSummarizeEdits` and `summarizeDisabledReason` removed. |
+| `features/timeline/timeline-notices.tsx` | Retry calls `summarize`. |
 | `features/timeline/timeline-copy.ts` | Panel and summary copy. `importedAuthorLabel`. |
 | `features/timeline/contributor-avatars.tsx` | Renders `UserAvatar` with the author's colour. |
 | `features/connected-apps/use-with-ai-dialog.tsx`, `features/connected-apps/connected-apps-copy.ts` | New dialog with `Tabs` per client. |
-| `features/versions/print-view.tsx` | New, PDF option A only. |
+| `features/versions/print-view.tsx` | New, PDF option A only. A non-collaborative viewing-mode SuperDoc from an exported Blob, mounted off-screen by `DownloadMenu` (data flow 7). No route. |
+| `features/versions/version-view-page.tsx` | A non-Ready readiness renders the error card and does not poll. |
 
 ### Failure handling
 
@@ -187,11 +207,12 @@ The product works, but the chrome around the document does not. The walk of 2026
 | Rename fails | `RENAME_FAILED_MESSAGE` under the top bar. The title keeps its old value. |
 | DOCX export fails | `EXPORT_FAILED_MESSAGE` under the top bar. |
 | PDF preparation fails | Toast `downloadFailedMessage(DownloadFormat.Pdf)`. No file is downloaded. |
-| A Summarize step fails | The card shows the step's message and "Retry summary", which reruns the whole job. A failed regroup keeps the old topics (ADR 0015). |
+| A Summarize step fails | `step` returns to `Idle`. The card shows the step's message and "Retry summary" (`timeline-notices.tsx`), which calls `summarize` and reruns the whole job. A failed regroup keeps the old topics (ADR 0015). |
 | Busy or cooling down | One 429 answer with one countdown, the longer wait. The card reads "Try again in N s.". |
 | Unknown stored theme or panel value | Removed from storage, then treated as absent. |
 | Awareness position is stale | The button stays. The tooltip shows the cursor-not-found copy for `JUMP_FAILED_NOTICE_MS`. |
 | Waiting page error | The error card, "Try again" refetches once. |
+| Open answers 404 or 403 | `DOCUMENT_UNAVAILABLE_MESSAGE` on the error card, no "Try again". |
 | Waiting page gives up | The paused card, "Keep waiting" restarts the count. |
 
 ## Open questions → answers
@@ -220,7 +241,7 @@ Every answer is the recommendation of design.md section 7, approved by the owner
 | Avatar style (7.21) | solid fill · tint with ring | Recommendation, 2026-10-17: solid fill | 2026-10-17 |
 | Imported DOCX authors (7.22) | coloured by name hash · grey | Recommendation, 2026-10-17: coloured | 2026-10-17 |
 | Waiting page stop rule (7.24) | pause after 5 minutes · poll forever | Recommendation, 2026-10-17: pause after 5 minutes, counted in polls | 2026-10-17 |
-| Spike: PDF through a print view with virtualization off (7.2, option 6.1 A) | print view · server conversion | Spike VIABLE, 2026-10-17: `virtualization.enabled: false` alone paints only the pages near the viewport, so the print view must be as tall as all its pages (the spike used 1280 × 8000) before printing; then every page carries its text and one 816 × 1056 page maps to one Letter sheet with `@page { size: Letter; margin: 0 }`. The print view is a same-origin frame sized to `pageCount × 1056` px. Fonts not bundled (Calibri) print with substitutes. | 2026-10-17 |
+| Spike: PDF through a print view with virtualization off (7.2, option 6.1 A) | print view · server conversion | Spike VIABLE, 2026-10-17: `virtualization.enabled: false` alone paints only the pages near the viewport, so the print view must be as tall as all its pages (the spike used 1280 × 8000) before printing; then every page carries its text and one 816 × 1056 page maps to one Letter sheet with `@page { size: Letter; margin: 0 }`. The print view is a same-origin frame sized to `pageCount × 1056` px. Fonts not bundled (Calibri) print with substitutes. Superseded in shape by data flow 7: the view mounts in the page from an exported Blob, with no frame and no route. | 2026-10-17 |
 | Spike: top-bar Find button (7.6, option 6.4 A) | top-bar button · toolbar item | Spike VIABLE, 2026-10-17: the button calls `superdoc.emit('search:open')`, the same event the toolbar's search item sends; `ui.search.open()` returns ok and mounts nothing, so it is not used. `ui.search: true` stays for Cmd+F. | 2026-10-17 |
 | Spike: jump to a member's cursor (7.20, section 1.13) | ship · drop | Spike answered 2026-10-17: awareness carries only user fields (no cursor, no block id) and `scrollToElement` returns false for every id in this V2 build, so the awareness → block id route is dead. Ship through the DOM instead: SuperDoc draws each remote caret as `.v2-collaboration-overlay__remote-caret` with a `__remote-label` that carries the member's name; `jumpTo(member)` finds that caret element inside the editor container and calls `scrollIntoView({ block: 'center' })`, then glows the matching `__remote-selection` for `CURSOR_GLOW_MS`. No caret element for that name means "online but not in the document" (the caret of a virtualized page is not drawn), which is the existing aria-disabled reason. Decided by the lead within the approved scope. | 2026-10-17 |
 | Spike: the `user.color` format (section 1.12, 3.3) | hex · another string | Spike PARTIAL, 2026-10-17: an explicit six-digit hex `user.color` is kept and drawn; hsl, rgb and named colours are stored but the remote-caret overlay replaces them with a palette colour, so the `--author-N` tokens are declared as six-digit hex and passed as is. `colors` only restricts the automatic palette. The remote caret drawn from the explicit colour is confirmed by the collaboration spike with two browsers. | 2026-10-17 |
@@ -232,4 +253,4 @@ The lead fills the four spike answers after the spikes.
 - **Unit (Vitest), per hook and pure function:** `usePanelPosition`, `useTheme`, `authorColorSlot` and `authorColorKeyOf`, `useOpenedDocument` polling and give-up, `DocumentTitle`, `DownloadMenu`, `PanelPositionToggle`, `UserAvatar`, `Members` jump rules, `WaitingForDocument`, the summarize chain in `summarize-service.ts`, and the 429 answer. Each red commit comes first.
 - **E2E (Playwright), per flow:** sign in and open a document, rename a title, download DOCX and PDF, switch theme and panel position across a reload, summarize with fresh, stale and up-to-date selections, jump to a member's cursor, and open a document before its owner syncs, through the waiting page.
 - **Playwright MCP walk:** each of the eight widths (320, 375, 768, 1024, 1280, 1536, 1920, 2560 px) in light and dark, sixteen boxes. Each box checks no horizontal scroll, no clipped control and no layout jump on load or theme switch.
-- **Mutation checks:** the topics refresh tests in `insights-routes.test.ts` and `topics-service.test.ts` must fail when the refresh endpoint is restored. The two-button panel tests must fail when the second button is restored.
+- **Mutation checks:** the removed-route test in `insights-routes.test.ts` must fail when the refresh endpoint is restored (the `topics-service` refresh tests are deleted with the code). The two-button panel tests must fail when the second button is restored.

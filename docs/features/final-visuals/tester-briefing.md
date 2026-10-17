@@ -116,3 +116,16 @@ pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/summari
 - Kept for G3: `SELECTION_SUMMARY_COOLDOWN_MS`, `use-topics.ts`, `refreshTopics`, `topicsRefreshApiPath`, `REFRESH_SEGMENT`, `TOPICS_REFRESH_TOO_SOON_MESSAGE`.
 - Wiring edits outside my list: `apps/server/src/http/app.ts` (`summarize` in `InsightsServices`), `apps/server/src/server.ts` (builds the service), `apps/server/src/collaboration/collaboration-runtime.ts` (removed the topics and summaries `forget` calls).
 - Gap: `SelectionSummariesService.request` and its tests remain although no route or tool calls it any more.
+
+### G4 folded tests: `SelectionSummariesService.request` removed
+
+`request`, `SelectionRequestOutcome`, `SelectionRequestResult` and the per-selection job key are gone. Tests that only drove `request` were ported to `write`, `isStale` and `read` (still in `selection-summaries-service.test.ts`, green pins) or deleted. For mutation checks, break the covering test's rule and expect the covering test to fail:
+
+| Deleted test | Rule it pinned | Surviving test that covers it |
+|---|---|---|
+| the cooldown is shared by every filter of one document | one cooldown per document, another document free | `insights-routes.test.ts::a second POST inside the cooldown answers 429 with one Retry-After and SUMMARIZE_BUSY_MESSAGE` (other filter, same document) |
+| a second request while one runs is free | a running job spends no second call | `summarize-service.test.ts::a second request while the job runs is already running and spends no second call` and `insights-routes.test.ts::POST selection answers 202 with the running step while a job runs, started or already running` |
+| a request over the hourly cap is busy and writes nothing | no call over the cap | `insights-routes.test.ts::an exhausted hourly cap answers 429 with the seconds until a slot frees`; the ported `a write over the hourly cap writes nothing` covers the write side |
+| TooSoon halves of `a new edit marks the summary stale…`, `a topic recompute makes the summary stale`, `a model failure is stored…`, `after a failure at an unchanged stamp…` | cooldown refusal | the same routes cooldown test and `the Retry-After is the longer of the cooldown and the model's busy wait` |
+| the `Cached` and `Empty` outcome assertions | nothing stale means no call | `summarize-service.test.ts::makes no model call when topics, summary and sentences are fresh` and `insights-routes.test.ts::POST selection answers 200 and starts no job when nothing is stale` |
+| agent tool busy and too-soon paths | busy answer for the MCP tool | `agent-tools.test.ts::summarize_selection answers busy with retryAfterSeconds` and `::summarize_selection starts the summary and then reads it, and the cooldown answers with retryAfterSeconds` |

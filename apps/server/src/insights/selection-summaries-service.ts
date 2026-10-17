@@ -1,7 +1,6 @@
 import { runVolume, selectionSummaryOutputSchema, type EditRun } from '@superdoc-collab/history';
 import {
   GROUPING_FAILED_MESSAGE,
-  secondsRoundedUp,
   SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
@@ -15,7 +14,7 @@ import type { LanguageModel } from 'ai';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
-import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
+import type { InsightsJobRunner } from './insights-job-runner';
 import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
 import {
   authorsMentioned,
@@ -30,27 +29,6 @@ import { selectionKeyOf } from './selection-key';
 
 export const SELECTION_SUMMARY_FAILED_LOG = 'Summarizing a selection failed for document';
 
-export enum SelectionRequestOutcome {
-  Started = 'started',
-  AlreadyRunning = 'already-running',
-  Cached = 'cached',
-  Empty = 'empty',
-  TooSoon = 'too-soon',
-  Busy = 'busy',
-  Unavailable = 'unavailable',
-}
-
-export type SelectionRequestResult =
-  | {
-      outcome:
-        | SelectionRequestOutcome.Started
-        | SelectionRequestOutcome.AlreadyRunning
-        | SelectionRequestOutcome.Cached
-        | SelectionRequestOutcome.Empty;
-    }
-  | { outcome: SelectionRequestOutcome.TooSoon | SelectionRequestOutcome.Busy; retryAfterSeconds: number }
-  | { outcome: SelectionRequestOutcome.Unavailable; reason: string };
-
 export type RequestedSelection = EditSelection & { binMs: number | null; timeZone: string };
 export type SelectionSnapshot = {
   runs: EditRun[];
@@ -63,10 +41,6 @@ export type ReadSelection = (options: { documentId: string; selection: Requested
 
 type SelectionStamp = { cursor: number; topicsUpdatedAt: number | null };
 type ResolvedSelection = SelectionStamp & { key: string; snapshot: SelectionSnapshot };
-
-function jobKeyOf({ documentId, key }: { documentId: string; key: string }): string {
-  return `selection:${documentId}:${key}`;
-}
 
 function matchesStamp({ stored, stamp }: { stored: StoredSelectionSummary; stamp: SelectionStamp }): boolean {
   return stored.computedAtSequence === stamp.cursor && stored.topicsUpdatedAt === stamp.topicsUpdatedAt;
@@ -123,7 +97,7 @@ export class SelectionSummariesService {
     if (resolved === null) return this.view({ documentId, state: SelectionSummaryState.None, summary: null, failure: null });
     const stored = this.repository.selectionSummary({ documentId, key: resolved.key });
     const summary = summaryOf({ stored, stamp: resolved });
-    const isRunning = this.step(documentId) !== SummarizeStep.Idle || this.jobRunner.isRunning(jobKeyOf({ documentId, key: resolved.key }));
+    const isRunning = this.step(documentId) !== SummarizeStep.Idle;
     if (isRunning) return this.view({ documentId, state: SelectionSummaryState.Running, summary, failure: null });
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
       return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: this.languageModel.reason });
@@ -133,24 +107,6 @@ export class SelectionSummariesService {
     if (stored === null) return this.view({ documentId, state: SelectionSummaryState.None, summary: null, failure: null });
     if (stored.failure !== null) return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: stored.failure });
     return this.view({ documentId, state: SelectionSummaryState.Ready, summary, failure: null });
-  }
-
-  request({ documentId, selection }: { documentId: string; selection: RequestedSelection }): SelectionRequestResult {
-    const languageModel = this.languageModel;
-    if (languageModel.availability === LanguageModelAvailability.Unavailable)
-      return { outcome: SelectionRequestOutcome.Unavailable, reason: languageModel.reason };
-    const resolved = this.readNonEmptySelection({ documentId, selection });
-    if (resolved === null) return { outcome: SelectionRequestOutcome.Empty };
-    if (isFresh({ stored: this.repository.selectionSummary({ documentId, key: resolved.key }), stamp: resolved }))
-      return { outcome: SelectionRequestOutcome.Cached };
-    const jobKey = jobKeyOf({ documentId, key: resolved.key });
-    if (this.jobRunner.isRunning(jobKey)) return { outcome: SelectionRequestOutcome.AlreadyRunning };
-    const remainingMs = this.cooldown.remainingMs(documentId);
-    if (remainingMs > 0) return { outcome: SelectionRequestOutcome.TooSoon, retryAfterSeconds: secondsRoundedUp(remainingMs) };
-    if (!this.jobRunner.hasCallBudget()) return this.busy();
-    const outcome = this.jobRunner.run({ key: jobKey, job: () => this.summarize({ documentId, resolved, model: languageModel.model }) });
-    if (outcome === JobOutcome.Busy) return this.busy();
-    return { outcome: SelectionRequestOutcome.Started };
   }
 
   isStale({ documentId, selection }: { documentId: string; selection: RequestedSelection }): boolean {
@@ -190,10 +146,6 @@ export class SelectionSummariesService {
     return step;
   }
 
-  private busy(): SelectionRequestResult {
-    return { outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: secondsRoundedUp(this.jobRunner.retryAfterMs()) };
-  }
-
   private readNonEmptySelection({
     documentId,
     selection,
@@ -231,20 +183,6 @@ export class SelectionSummariesService {
       isModelAvailable: this.languageModel.availability === LanguageModelAvailability.Ready,
       step: this.step(documentId),
     };
-  }
-
-  private async summarize({
-    documentId,
-    resolved,
-    model,
-  }: {
-    documentId: string;
-    resolved: ResolvedSelection;
-    model: LanguageModel;
-  }): Promise<void> {
-    if (!this.jobRunner.consumeCall()) return;
-    this.cooldown.start(documentId);
-    await this.generate({ documentId, resolved, model });
   }
 
   private async generate({

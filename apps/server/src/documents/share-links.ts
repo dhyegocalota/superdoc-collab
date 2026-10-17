@@ -46,6 +46,7 @@ export class ShareLinksRepository {
     const tokenHash = hashShareToken(token);
     const row = this.database.drizzle.select().from(documentShareLinks).where(eq(documentShareLinks.tokenHash, tokenHash)).get();
     if (!row) return null;
+    if (!this.isIssuedBySecret(row)) return null;
     if (!timingSafeEqual(Buffer.from(row.tokenHash), Buffer.from(tokenHash))) return null;
     return { documentId: row.documentId, role: row.role };
   }

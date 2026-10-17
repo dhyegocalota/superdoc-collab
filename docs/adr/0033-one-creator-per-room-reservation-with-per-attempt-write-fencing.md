@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
+- Revised: 2026-10-17, after the plan review (snapshot-first commit detection, attempt epoch, release on the last disconnect, silence expiry)
 - Inspired by: `docs/features/connection-state/brief.md` finding 3, `.claude/rules/collaboration.md`, the SuperDoc collaboration docs on coordinating room creation and initializing a document
 
 ## Context
@@ -13,10 +14,10 @@ The room mode is Create until the update log holds a committed bootstrap. Today 
 
 - The first editor who opens a document with no committed bootstrap is reserved: user id, attempt number and an expiry of about 60 s, held in a constant in `libs/types`.
 - Every other editor and every reader gets 409 `NOT_READY` until the bootstrap commits.
-- The collaboration connection context carries the attempt.
-- While the room is uncommitted, `onChange` ignores updates from a connection whose attempt is not the current one.
-- When the creator disconnects, or the reservation expires before the commit, the reservation is released. The next editor who opens is reserved with the next attempt number, and writes from the old attempt stay refused.
-- The log keeps partial updates. The projection already ignores everything before the committed bootstrap.
+- The attempt travels with the socket, together with a per-process epoch, from the open answer to the socket URL and into the connection context. A restart changes the epoch, so an attempt issued before it is never mistaken for a current one.
+- While the room is uncommitted, `onChange` ignores updates from a connection whose attempt is not the latest. After the commit, a socket that claims any attempt other than the one that committed is closed with 4403, so an abandoned creator that reconnects later never merges its partial seed into the committed room. A socket that claims no attempt joins the committed room as today.
+- The reservation is released when the last connection of the holder's attempt closes, or when the attempt has been silent for the expiry (every appended update refreshes it). The holder's own reconnects and second tabs are accepted meanwhile. The next editor who opens after a release or an expiry is reserved with the next attempt number, and writes from the old attempt stay refused.
+- The commit writes a snapshot of the live room, and "committed" is read from the latest snapshot rather than from a replay of the whole log: an abandoned partial and the winner's seed are concurrent Yjs writes of the same marker, and a from-zero replay can hide the commit. The projection's bootstrap scan starts from that snapshot for the same reason. The log keeps every partial update.
 
 ## Alternatives considered
 
@@ -39,9 +40,11 @@ The room mode is Create until the update log holds a committed bootstrap. Today 
 
 Added by the room-admission plan.
 
-- A unit test of the reservation state machine: reserve, second editor refused, commit, expiry, and an old-attempt write refused after takeover.
+- A unit test of the reservation state machine: reserve, second editor refused, the holder's reconnect and second tab accepted, release on the last disconnect, expiry refreshed by updates, commit, and an old-attempt write refused after takeover and after the commit.
+- A unit test that reproduces the hidden commit: an abandoned client with a higher Yjs client id and the winner's seed, both in the log; the from-zero replay says uncommitted, the snapshot says committed.
 - A Playwright test where two editors open a brand-new document at the same time: exactly one creates and the other waits, then enters on its own.
-- A Playwright test where the creator closes the tab mid-create: the next editor becomes the creator after expiry and the document has no duplicated content.
+- A Playwright test where the creator goes offline mid-create, another editor creates and commits, and the creator comes back: its socket is closed with 4403 and the document has no duplicated content.
+- A Playwright test where the creator closes the tab mid-create: the next editor becomes the creator at once (release on the last disconnect) and the document has no duplicated content.
 
 ## Revisit when
 

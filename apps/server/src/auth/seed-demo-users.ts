@@ -1,4 +1,4 @@
-import { DEMO_USERS } from '@superdoc-history/types';
+import { DEMO_USERS, UTC_TIME_ZONE } from '@superdoc-history/types';
 import { eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
@@ -33,7 +33,7 @@ export async function seedDemoUsers({
       result.existing.push(email);
       continue;
     }
-    await auth.api.signUpEmail({ body: { name, email, password } });
+    await auth.api.signUpEmail({ body: { name, email, password, timeZone: UTC_TIME_ZONE } });
     result.created.push(email);
   }
   return result;

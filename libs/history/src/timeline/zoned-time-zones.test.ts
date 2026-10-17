@@ -43,12 +43,13 @@ function transitionsOf(timeZone: string): number[] {
 }
 
 function walkStarts({ from, to, binMs, timeZone }: { from: number; to: number; binMs: number; timeZone: string }): number[] {
-  const starts = [zonedBinStartOf({ time: from, binMs, timeZone })];
-  while (starts[starts.length - 1] < to) {
-    const previous = starts[starts.length - 1];
-    const next = nextZonedBinStart({ start: previous, binMs, timeZone });
-    if (next <= previous) throw new Error(`bin start ${next} is not after ${previous}`);
+  let start = zonedBinStartOf({ time: from, binMs, timeZone });
+  const starts = [start];
+  while (start < to) {
+    const next = nextZonedBinStart({ start, binMs, timeZone });
+    if (next <= start) throw new Error(`bin start ${next} is not after ${start}`);
     starts.push(next);
+    start = next;
   }
   return starts;
 }
@@ -139,6 +140,6 @@ test('Santiago day bin whose midnight is skipped starts at the transition instan
 test('Lord Howe keeps the short bin after the 30 minute gap', () => {
   const gap = Date.UTC(2026, 9, 3, 15, 30);
   const starts = walkStarts({ from: gap - 3 * HOUR_MS, to: gap + 3 * HOUR_MS, binMs: HOUR_MS, timeZone: LORD_HOWE });
-  const lengths = starts.slice(1).map((start, index) => start - starts[index]);
+  const lengths = starts.slice(1).map((start, index) => start - starts[index]!);
   expect(lengths).toContain(30 * MINUTE_MS);
 });

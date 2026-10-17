@@ -3,6 +3,9 @@ import type { ImportedRevision } from './read-model';
 // NB ADR 0024: Word writes w:date in UTC, so a date with no offset is UTC, never the process zone.
 const OFFSET_LESS_DATE_TIME = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
 const UTC_DESIGNATOR = 'Z';
+const SPACE_SEPARATED_DATE_TIME = /^(\d{4}-\d{2}-\d{2}) (?=\d{2}:)/;
+const MIN_REVISION_YEAR = 1900;
+const MAX_REVISION_YEAR = 9999;
 
 export enum TrackedChangeType {
   Insertion = 'insertion',
@@ -33,9 +36,12 @@ export class InvalidRevisionDateError extends Error {
 }
 
 export function parseRevisionDate({ value, revisionId }: { value: string; revisionId: string }): number {
-  const withOffset = OFFSET_LESS_DATE_TIME.test(value) ? `${value}${UTC_DESIGNATOR}` : value;
+  const isoValue = value.replace(SPACE_SEPARATED_DATE_TIME, '$1T');
+  const withOffset = OFFSET_LESS_DATE_TIME.test(isoValue) ? `${isoValue}${UTC_DESIGNATOR}` : isoValue;
   const time = Date.parse(withOffset);
   if (Number.isNaN(time)) throw new InvalidRevisionDateError(revisionId);
+  const year = new Date(time).getUTCFullYear();
+  if (year < MIN_REVISION_YEAR || year > MAX_REVISION_YEAR) throw new InvalidRevisionDateError(revisionId);
   return time;
 }
 

@@ -24,9 +24,15 @@ function partsFormat(timeZone: string): Intl.DateTimeFormat {
   return created;
 }
 
+export class TimeZonePartsError extends Error {
+  constructor(type: string) {
+    super(`Time zone parts have no ${type}.`);
+  }
+}
+
 function fieldOf({ fields, type }: { fields: Map<string, number>; type: Intl.DateTimeFormatPartTypes }): number {
   const value = fields.get(type);
-  if (value === undefined) throw new Error(`Time zone parts have no ${type}.`);
+  if (value === undefined) throw new TimeZonePartsError(type);
   return value;
 }
 
@@ -38,15 +44,14 @@ export function offsetAt({ time, timeZone }: { time: number; timeZone: string })
       .filter((part) => part.type !== 'literal')
       .map((part) => [part.type, Number(part.value)]),
   );
-  const localTime = Date.UTC(
-    fieldOf({ fields, type: 'year' }),
-    fieldOf({ fields, type: 'month' }) - 1,
-    fieldOf({ fields, type: 'day' }),
+  const localTime = new Date(0);
+  localTime.setUTCFullYear(fieldOf({ fields, type: 'year' }), fieldOf({ fields, type: 'month' }) - 1, fieldOf({ fields, type: 'day' }));
+  localTime.setUTCHours(
     fieldOf({ fields, type: 'hour' }) % HOURS_PER_DAY,
     fieldOf({ fields, type: 'minute' }),
     fieldOf({ fields, type: 'second' }),
   );
-  return localTime - wholeSecond;
+  return localTime.getTime() - wholeSecond;
 }
 
 function alignedLocal({ localTime, binMs }: { localTime: number; binMs: number }): number {

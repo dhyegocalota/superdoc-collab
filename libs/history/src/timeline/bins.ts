@@ -5,7 +5,8 @@ import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
 export const MAX_BINS = 120;
 const EDGE_BINS = 1;
-const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 1;
+const COVERING_EXTRA_BINS = 2 * EDGE_BINS + 2;
+const MAX_COVERING_BINS = MAX_BINS + COVERING_EXTRA_BINS;
 
 export class NonAdvancingBinError extends Error {
   constructor({ start, next }: { start: number; next: number }) {
@@ -28,9 +29,10 @@ export function chooseBinMs(spanMs: number): number {
   return Math.ceil(spanMs / (MAX_BINS - COVERING_EXTRA_BINS) / WEEK_MS) * WEEK_MS;
 }
 
-function startsFrom({ start, last, binMs, timeZone }: { start: number; last: number; binMs: number; timeZone: string }): number[] {
-  if (start >= last) return [start];
-  return [start, ...startsFrom({ start: nextZonedBinStart({ start, binMs, timeZone }), last, binMs, timeZone })];
+function advancedStart({ start, binMs, timeZone }: { start: number; binMs: number; timeZone: string }): number {
+  const next = nextZonedBinStart({ start, binMs, timeZone });
+  if (next <= start) throw new NonAdvancingBinError({ start, next });
+  return next;
 }
 
 export function binStartsCovering({
@@ -46,12 +48,15 @@ export function binStartsCovering({
 }): number[] {
   const firstStart = zonedBinStartOf({ time: firstTime, binMs, timeZone });
   const lastStart = zonedBinStartOf({ time: lastTime, binMs, timeZone });
-  return startsFrom({
-    start: zonedBinStartOf({ time: firstStart - 1, binMs, timeZone }),
-    last: nextZonedBinStart({ start: lastStart, binMs, timeZone }),
-    binMs,
-    timeZone,
-  });
+  const lastEnd = nextZonedBinStart({ start: lastStart, binMs, timeZone });
+  let start = zonedBinStartOf({ time: firstStart - 1, binMs, timeZone });
+  const starts = [start];
+  while (start < lastEnd) {
+    if (starts.length >= MAX_COVERING_BINS) throw new TooManyBinsError(MAX_COVERING_BINS);
+    start = advancedStart({ start, binMs, timeZone });
+    starts.push(start);
+  }
+  return starts;
 }
 
 function mergeCell({ cell, run }: { cell: TimelineCell | undefined; run: EditRun }): TimelineCell {

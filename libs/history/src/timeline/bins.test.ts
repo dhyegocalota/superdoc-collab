@@ -166,7 +166,7 @@ test('Chatham 2 minute bins cover the fall-back without recursing forever', () =
     binMs: 2 * MINUTE_MS,
     timeZone: CHATHAM,
   });
-  expect(binStarts.every((start, index) => index === 0 || start > binStarts[index - 1])).toBe(true);
+  expect(binStarts.every((start, index) => index === 0 || start > binStarts[index - 1]!)).toBe(true);
 });
 
 test.each([
@@ -175,7 +175,7 @@ test.each([
   [CHATHAM, Date.UTC(2026, 8, 26, 14, 0), 2 * MINUTE_MS],
   [LORD_HOWE, Date.UTC(2026, 9, 3, 15, 40), HOUR_MS],
 ])('in %s an edit at %i in a bin of %i ms lands in one of the covering bins', (timeZone, time, binMs) => {
-  const binStarts = binStartsCovering({ firstTime: time - 3 * HOUR_MS, lastTime: time + 3 * HOUR_MS, binMs, timeZone });
+  const binStarts = binStartsCovering({ firstTime: time - 10 * MINUTE_MS, lastTime: time + 10 * MINUTE_MS, binMs, timeZone });
   expect(binStarts).toContain(zonedBinStartOf({ time, binMs, timeZone }));
 });
 

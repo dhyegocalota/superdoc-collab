@@ -2,7 +2,8 @@ import { describe, expect, test } from 'vitest';
 import { readRepositoryFile } from '../testing/repository-files';
 
 const WORKFLOW_FILE = '.github/workflows/verify.yml';
-const JOB_NAME_PATTERN = /^ {2}([\w-]+):$/gm;
+const JOB_LINE_PATTERN = /^ {2}[\w-]+:$/;
+const JOB_INDENT_LENGTH = 2;
 const NEXT_JOB_PATTERN = /\n {2}\S[^\n]*:\n/;
 const EXPECTED_JOBS = ['typecheck', 'unit', 'e2e', 'docker'];
 const NODE_JOBS = ['typecheck', 'unit', 'e2e'];
@@ -47,7 +48,10 @@ function dockerJob(): string {
 function jobNames(): string[] {
   const workflow = readRepositoryFile(WORKFLOW_FILE);
   const jobs = workflow.slice(workflow.indexOf(JOBS_START));
-  return Array.from(jobs.matchAll(JOB_NAME_PATTERN), (match) => match[1]);
+  return jobs
+    .split(LINE_SEPARATOR)
+    .filter((line) => JOB_LINE_PATTERN.test(line))
+    .map((line) => line.slice(JOB_INDENT_LENGTH, -1));
 }
 
 describe('CI workflow', () => {

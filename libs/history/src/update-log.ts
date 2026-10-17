@@ -77,25 +77,27 @@ export class UpdateLog {
       this.observeClientIdentity({ documentName, yjsClientId, userId: connectionUserId, actor: connectionActor }),
     );
     const result = this.database
-      .prepare('INSERT INTO updates (document_name, connection_user_id, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?)')
-      .run(documentName, connectionUserId, JSON.stringify(yjsClientIds), serverTime, update);
+      .prepare(
+        'INSERT INTO updates (document_name, connection_user_id, connection_actor, yjs_client_ids, server_time, update_bytes) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(documentName, connectionUserId, connectionActor, JSON.stringify(yjsClientIds), serverTime, update);
     return { sequence: Number(result.lastInsertRowid), documentName, connectionUserId, connectionActor, yjsClientIds, serverTime, update };
   }
 
-  observeClientIdentity({ documentName, yjsClientId, userId }: ClientIdentity): void {
+  observeClientIdentity({ documentName, yjsClientId, userId, actor }: ClientIdentity): void {
     this.database
-      .prepare('INSERT OR IGNORE INTO client_identities (document_name, yjs_client_id, user_id, source) VALUES (?, ?, ?, ?)')
-      .run(documentName, yjsClientId, userId, IdentitySource.Observed);
+      .prepare('INSERT OR IGNORE INTO client_identities (document_name, yjs_client_id, user_id, source, actor) VALUES (?, ?, ?, ?, ?)')
+      .run(documentName, yjsClientId, userId, IdentitySource.Observed, actor);
   }
 
-  declareClientIdentity({ documentName, yjsClientId, userId }: ClientIdentity): void {
+  declareClientIdentity({ documentName, yjsClientId, userId, actor }: ClientIdentity): void {
     this.database
       .prepare(
-        `INSERT INTO client_identities (document_name, yjs_client_id, user_id, source) VALUES (?, ?, ?, ?)
-         ON CONFLICT (document_name, yjs_client_id) DO UPDATE SET user_id = excluded.user_id, source = excluded.source
+        `INSERT INTO client_identities (document_name, yjs_client_id, user_id, source, actor) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (document_name, yjs_client_id) DO UPDATE SET user_id = excluded.user_id, source = excluded.source, actor = excluded.actor
          WHERE client_identities.source = ?`,
       )
-      .run(documentName, yjsClientId, userId, IdentitySource.Declared, IdentitySource.Observed);
+      .run(documentName, yjsClientId, userId, IdentitySource.Declared, actor, IdentitySource.Observed);
   }
 
   identitySources(documentName: string): Map<number, IdentitySource> {

@@ -22,10 +22,18 @@ Run in this worktree with a code change present, deleting `$(git rev-parse --git
 
 ## Second round (after the review fixes)
 
-- [ ] `pnpm test:hooks` with `bash` and with `/bin/bash` 3.2 — expected: "hooks: all checks passed" both times.
-- [ ] 400 untracked files under one documented folder — expected: one block within 1 s.
-- [ ] Move `e2e/` aside — expected: `delivery-docs.test.ts` fails on `every workspace package and e2e has a README`; restore it.
-- [ ] Re-run the two edge cases above that failed in the first round — expected: both pass.
+- [x] `pnpm test:hooks` with `bash` and with `/bin/bash` 3.2 — expected: "hooks: all checks passed" both times. — evidence: d674cf2: `pnpm test:hooks` and `/bin/bash .agents/hooks/hooks.test.sh` (both GNU bash 3.2.57) print `hooks: all checks passed`
+- [x] 400 untracked files under one documented folder — expected: one block within 1 s. — evidence: d674cf2: 400 files under `apps/web/src/bulk/`, `decision` = `block`, `real 0m0.296s`; files removed
+- [x] Move `e2e/` aside — expected: `delivery-docs.test.ts` fails on `every workspace package and e2e has a README`; restore it. — evidence: d674cf2: `× every workspace package and e2e has a README`, `expected [ 'e2e' ] to deeply equal []`, `1 failed | 15 passed (16)`; restored, unmoved run `16 passed (16)`
+- [x] Re-run the two edge cases above that failed in the first round — expected: both pass. — evidence: d674cf2: space file and directory name `apps/web/README.md` and `.claude/rules/collaboration.md`; e2e rename fails as above
+
+## Adversarial review
+
+The reviewer picked the three claims most likely to be wrong.
+
+- [x] Claim 1: the hook never blocks twice and never loops — attack: dismiss one of two documents, then commit and edit the same folder again; result: refuted in round one (re-nagged the dismissed rule, then silent forever after a commit), fixed in d674cf2, held on re-review with the regression checks in 0f4ac9b.
+- [x] Claim 2: every fact in the five READMEs is true — attack: each statement against the code; result: refuted in round one (worker threads, insights degradation, Vite compiling `libs/history`, "formats", the second collaboration spec), corrected in d674cf2, held on re-review.
+- [x] Claim 3: a renamed folder named in a README fails CI — attack: rename a path written as inline code; result: held for linked paths, refuted for inline-code paths, accepted and recorded below.
 
 ## Coverage honesty
 
@@ -43,6 +51,8 @@ Run in this worktree with a code change present, deleting `$(git rev-parse --git
 - [x] Gitignored file (`.pr-media/x/a.png`) — evidence: silent
 - [x] Outside a git repository, and empty stdin — evidence: both rc 0, no output
 - [x] Document set widens after a reminder (`apps/web` then also `libs/types`) — evidence: second block fires naming the three documents, then silent on repeat
-- [ ] Path with a space, directory (`apps/web/src/my dir/a.ts`) or file (`apps/web/src/b c.ts`) — FAILED: hook names only the root `README.md`, never `apps/web/README.md` nor any rule; expected `apps/web/README.md` and the rules that match. Cause: `git status --porcelain` wraps such paths in double quotes (`?? "apps/web/src/b c.ts"`, still quoted with `core.quotePath=false`); the script strips only the status prefix, so `-f "\"apps/web/...` and the rule globs never match and the walk up falls to `.`. Reproduce: create the file, delete `$(git rev-parse --git-dir)/docs-reminder`, pipe `{"stop_hook_active":false}` into `.agents/hooks/remind-docs.sh`. Needs a regression case in `hooks.test.sh` and a fix (for example `status --porcelain -z`) from the developer
-- [ ] Renaming the `e2e/` folder — FAILED to be caught: with `e2e/` moved to `e2e-renamed`, `delivery-docs.test.ts` still passes 16/16 (no linked README points at `e2e/`, `readmes()` silently skips a README that no longer exists, and the "every workspace package has a README" check covers `apps/*` and `libs/*` only although `AGENTS.md` says `e2e/` needs one). Restored. Low severity; request a check that `e2e/README.md` exists
+- [x] Path with a space, directory (`apps/web/src/my dir/a.ts`) or file (`apps/web/src/b c.ts`) — FAILED: hook names only the root `README.md`, never `apps/web/README.md` nor any rule; expected `apps/web/README.md` and the rules that match. Cause: `git status --porcelain` wraps such paths in double quotes (`?? "apps/web/src/b c.ts"`, still quoted with `core.quotePath=false`); the script strips only the status prefix, so `-f "\"apps/web/...` and the rule globs never match and the walk up falls to `.`. Reproduce: create the file, delete `$(git rev-parse --git-dir)/docs-reminder`, pipe `{"stop_hook_active":false}` into `.agents/hooks/remind-docs.sh`. Needs a regression case in `hooks.test.sh` and a fix (for example `status --porcelain -z`) from the developer — re-run after d674cf2: `apps/web/src/b c.ts` and `apps/web/src/my dir/a.ts` now name `.claude/rules/collaboration.md` `apps/web/README.md`; files removed
+- [x] Renaming the `e2e/` folder — FAILED to be caught: with `e2e/` moved to `e2e-renamed`, `delivery-docs.test.ts` still passes 16/16 (no linked README points at `e2e/`, `readmes()` silently skips a README that no longer exists, and the "every workspace package has a README" check covers `apps/*` and `libs/*` only although `AGENTS.md` says `e2e/` needs one). Restored. Low severity; request a check that `e2e/README.md` exists — re-run after d674cf2: `delivery-docs.test.ts` fails `every workspace package and e2e has a README`, `[ 'e2e' ]`; restored, 16/16
 - [x] Malformed JSON on stdin — evidence: `jq: parse error` on stderr, rc 0, hook carries on (treats `stop_hook_active` as false); harmless
+- [x] Staged rename re-check — evidence: after d674cf2 `git mv apps/server/src/seed.ts libs/types/src/seed.ts` names `apps/server/README.md` and `libs/types/README.md` (both sides) plus `history.md` and `collaboration.md`; same-folder rename names `apps/server/README.md`; both moved back, `git status` clean
+- [x] Once-per-commit state — evidence: d674cf2: `docs-reminder` holds `head <sha>` then the documents; second identical Stop prints 0 bytes

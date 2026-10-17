@@ -40,10 +40,11 @@ reminded=""
 [[ -f "$reminded_file" && "$(head -n 1 "$reminded_file")" == "head $head" ]] && reminded=$(tail -n +2 "$reminded_file")
 fresh=$(grep -vxF -f <(printf '%s\n' "$reminded") <<<"$stale")
 [[ -n "$fresh" ]] || exit 0
-printf 'head %s\n%s\n' "$head" "$(printf '%s\n%s\n' "$reminded" "$fresh" | grep -v '^$' | sort -u)" > "$reminded_file"
 documents=$(sed 's/.*/`&`/' <<<"$fresh" | paste -sd ' ' -)
-jq -n --arg documents "$documents" '{
+block=$(jq -n --arg documents "$documents" '{
   decision: "block",
   reason: "Docs check: this change touches folders described by \($documents), and none of them changed. Update each one whose facts the change made wrong (layout, commands, routes, variables, behaviour, versions), or say in one line why none applies, then stop. Each document is named once until the next commit (.claude/HARNESS.md → Build)."
-}'
+}') || exit 0
+printf 'head %s\n%s\n' "$head" "$(printf '%s\n%s\n' "$reminded" "$fresh" | grep -v '^$' | sort -u)" > "$reminded_file"
+echo "$block"
 exit 0

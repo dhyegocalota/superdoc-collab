@@ -26,6 +26,22 @@ export function tooltipAlignment({ left, chartWidth }: { left: number; chartWidt
   return TooltipAlignment.Center;
 }
 
+const ALIGNMENT_WIDTH_FRACTION: Record<TooltipAlignment, number> = {
+  [TooltipAlignment.Start]: 0,
+  [TooltipAlignment.Center]: 0.5,
+  [TooltipAlignment.End]: 1,
+};
+
+function tooltipWidthIn(chartWidth: number): number {
+  return Math.min(TOOLTIP_WIDTH, chartWidth);
+}
+
+export function tooltipAnchorLeft({ left, chartWidth }: { left: number; chartWidth: number }): number {
+  const tooltipWidth = tooltipWidthIn(chartWidth);
+  const reach = tooltipWidth * ALIGNMENT_WIDTH_FRACTION[tooltipAlignment({ left, chartWidth })];
+  return Math.min(Math.max(left, reach), chartWidth - tooltipWidth + reach);
+}
+
 export function formatTimestamp(time: number): string {
   return TIMESTAMP_FORMAT.format(time);
 }
@@ -45,7 +61,7 @@ export function TimelineTooltip({ id, timeline, index, left, top, chartWidth }: 
       id={id}
       role="tooltip"
       data-alignment={alignment}
-      style={{ left, top, width: Math.min(TOOLTIP_WIDTH, chartWidth) }}
+      style={{ left: tooltipAnchorLeft({ left, chartWidth }), top, width: tooltipWidthIn(chartWidth) }}
       className={cn('pointer-events-none absolute z-10 rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md', ALIGNMENT_CLASS[alignment])}
     >
       <p className="font-medium">{formatBinRange({ start: bin.start, binMs: timeline.binMs })}</p>

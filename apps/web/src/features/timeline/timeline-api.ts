@@ -104,10 +104,11 @@ function filterParams(filter: TimelineFilter): URLSearchParams {
   return params;
 }
 
-function selectionParams(selection: EditSelection): URLSearchParams {
+function selectionParams({ selection, binMs }: { selection: EditSelection; binMs: number | null }): URLSearchParams {
   const params = filterParams(selection);
   if (selection.topic) params.set(TimelineQueryParam.Topic, selection.topic);
   if (selection.at !== null) params.set(TimelineQueryParam.At, String(selection.at));
+  if (selection.at !== null && binMs !== null) params.set(TimelineQueryParam.BinMs, String(binMs));
   return params;
 }
 
@@ -154,15 +155,15 @@ export async function refreshTopics(documentId: string): Promise<TopicStatus> {
   return response.json();
 }
 
-export async function fetchSelectionSummary({ documentId, selection }: { documentId: string; selection: EditSelection }): Promise<SelectionSummaryView> {
-  const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams(selection) }));
+export async function fetchSelectionSummary({ documentId, selection, binMs }: { documentId: string; selection: EditSelection; binMs: number | null }): Promise<SelectionSummaryView> {
+  const response = await apiGet(withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }));
   assertDocumentAvailable(response);
   if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: 'Selection summary request', status: response.status }));
   return response.json();
 }
 
-export async function requestSelectionSummary({ documentId, selection }: { documentId: string; selection: EditSelection }): Promise<SelectionSummaryView> {
-  const response = await apiSend({ path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams(selection) }), method: HttpMethod.Post, body: null });
+export async function requestSelectionSummary({ documentId, selection, binMs }: { documentId: string; selection: EditSelection; binMs: number | null }): Promise<SelectionSummaryView> {
+  const response = await apiSend({ path: withQuery({ path: selectionSummaryApiPath(documentId), params: selectionParams({ selection, binMs }) }), method: HttpMethod.Post, body: null });
   assertDocumentAvailable(response);
   if (response.status === HttpStatus.TooManyRequests) throw new SummaryTooSoonError(Math.ceil(readRetryAfterMs(response) / SECOND_MS));
   if (response.status === HttpStatus.ServiceUnavailable) throw new ApiRequestError(await unavailableMessage(response));

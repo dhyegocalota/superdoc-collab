@@ -10,31 +10,31 @@ function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefin
   return false;
 }
 
-export function useSelectionSummary({ documentId, selection, isOpen, timelineVolume }: { documentId: string; selection: EditSelection; isOpen: boolean; timelineVolume: number | null }): UseQueryResult<SelectionSummaryView> {
+export function useSelectionSummary({ documentId, selection, binMs, isOpen, timelineStamp }: { documentId: string; selection: EditSelection; binMs: number | null; isOpen: boolean; timelineStamp: string | null }): UseQueryResult<SelectionSummaryView> {
   const queryClient = useQueryClient();
-  const seenVolume = useRef(timelineVolume);
+  const seenStamp = useRef(timelineStamp);
   const query = useQuery({
     queryKey: selectionSummaryQueryKey({ documentId, selection }),
-    queryFn: () => fetchSelectionSummary({ documentId, selection }),
+    queryFn: () => fetchSelectionSummary({ documentId, selection, binMs }),
     enabled: isOpen,
     refetchInterval: pollWhileRunning,
     retry: false,
   });
 
   useEffect(() => {
-    const previousVolume = seenVolume.current;
-    seenVolume.current = timelineVolume;
-    if (previousVolume === null || timelineVolume === null || previousVolume === timelineVolume) return;
+    const previousStamp = seenStamp.current;
+    seenStamp.current = timelineStamp;
+    if (previousStamp === null || timelineStamp === null || previousStamp === timelineStamp) return;
     void queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection }) });
-  }, [timelineVolume]);
+  }, [timelineStamp]);
 
   return query;
 }
 
-export function useSummarizeEdits(documentId: string): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
+export function useSummarizeEdits({ documentId, binMs }: { documentId: string; binMs: number | null }): UseMutationResult<SelectionSummaryView, Error, EditSelection> {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection }),
+    mutationFn: (selection: EditSelection) => requestSelectionSummary({ documentId, selection, binMs }),
     onSuccess: async (view, selection) => {
       queryClient.setQueryData(selectionSummaryQueryKey({ documentId, selection }), view);
       await queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection }) });

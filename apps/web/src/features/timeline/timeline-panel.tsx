@@ -1,11 +1,11 @@
 import { DocumentRole, type EditSelection } from '@superdoc-history/types';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { BinEdits } from './bin-edits';
 import { FilterBox } from './filter-box';
-import { errorForSelection, selectionVolume, summarizeDisabledReason } from './selection-summary';
+import { errorForSelection, selectionVolume, summarizeDisabledReason, timelineStamp } from './selection-summary';
 import { SelectionSummaryCard } from './selection-summary-card';
 import { SummarizeEditsButton } from './summarize-edits-button';
 import { Streamgraph } from './streamgraph';
@@ -26,7 +26,6 @@ enum ResizeKey {
 }
 
 const PRIMARY_BUTTON_PRESSED = 1;
-const WHOLE_TIMELINE: EditSelection = { term: null, author: null, topic: null, at: null };
 
 type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
@@ -78,8 +77,11 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const selectedIndex = timeline && selectedTime !== null ? timeline.bins.findIndex((bin) => selectedTime >= bin.start && selectedTime < bin.start + timeline.binMs) : -1;
   const selectedBin = timeline && selectedIndex >= 0 ? timeline.bins[selectedIndex] : undefined;
   const selection: EditSelection = { term: search.filter.term, author: search.filter.author, topic: search.topic, at: selectedBin ? selectedBin.start : null };
-  const { data: selectionSummary } = useSelectionSummary({ documentId, selection, isOpen, timelineVolume: timeline ? selectionVolume({ timeline, selection: WHOLE_TIMELINE }) : null });
-  const summarize = useSummarizeEdits(documentId);
+  const binMs = timeline ? timeline.binMs : null;
+  const { data: selectionSummary } = useSelectionSummary({ documentId, selection, binMs, isOpen, timelineStamp: timeline ? timelineStamp(timeline) : null });
+  const summarize = useSummarizeEdits({ documentId, binMs });
+  const reasonId = useId();
+  const disabledReason = timeline ? summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending }) : null;
   const summaryError = errorForSelection({ error: summarize.error, variables: summarize.variables, selection });
 
   useEffect(() => {
@@ -101,11 +103,11 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
     <aside className="flex max-h-[50dvh] w-full shrink-0 border-t lg:max-h-none lg:w-[var(--panel-width)] lg:border-t-0 lg:border-l" style={{ '--panel-width': `${width}px` } as CSSProperties}>
       <ResizeHandle width={width} maxWidth={maxWidth} resizeTo={resizeTo} resizeBy={resizeBy} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-2 p-2">
+        <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-2">
           <h2 className="px-2 text-sm font-medium">{TIMELINE_HEADING}</h2>
           <div className="flex flex-wrap items-center justify-end gap-1">
             {isOpen && canRefresh && timeline && (
-              <SummarizeEditsButton disabledReason={summarizeDisabledReason({ volume: selectionVolume({ timeline, selection }), view: selectionSummary, isPending: summarize.isPending })} onSummarize={() => summarize.mutate(selection)} />
+              <SummarizeEditsButton disabledReason={disabledReason} reasonId={reasonId} onSummarize={() => summarize.mutate(selection)} />
             )}
             {isOpen && canRefresh && (
               <Button type="button" variant="outline" size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate()}>
@@ -116,6 +118,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
               <ToggleIcon />
             </Button>
           </div>
+          {isOpen && canRefresh && disabledReason !== null && <p id={reasonId} className="basis-full px-2 text-xs text-muted-foreground">{disabledReason}</p>}
         </header>
         {isOpen && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">

@@ -34,11 +34,24 @@ export const MIN_PANEL_HEIGHT = 240;
 export const DEFAULT_PANEL_HEIGHT_SHARE = 0.42;
 export const MIN_EDITOR_HEIGHT = 240;
 
+function clampHeight({ height, areaHeight }: { height: number; areaHeight: number }): number {
+  return Math.round(Math.max(MIN_PANEL_HEIGHT, Math.min(height, areaHeight - MIN_EDITOR_HEIGHT)));
+}
+
 export function usePanelHeight({ areaHeight }: { areaHeight: number }): {
   height: number;
   maxHeight: number;
   resizeTo: (next: number) => void;
   resizeBy: (delta: number) => void;
 } {
-  throw new Error('usePanelHeight is not implemented');
+  const [requestedHeight, setRequestedHeight] = useState<number | null>(null);
+  const wantedHeight = requestedHeight === null ? areaHeight * DEFAULT_PANEL_HEIGHT_SHARE : requestedHeight;
+  const height = clampHeight({ height: wantedHeight, areaHeight });
+
+  return {
+    height,
+    maxHeight: areaHeight - MIN_EDITOR_HEIGHT,
+    resizeTo: (next) => setRequestedHeight(next),
+    resizeBy: (delta) => setRequestedHeight(height + delta),
+  };
 }

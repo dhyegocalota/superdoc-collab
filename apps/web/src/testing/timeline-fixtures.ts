@@ -1,10 +1,22 @@
-import { MINUTE_MS, OTHER_BAND_ID, TimelineBandKind, TopicState, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
+import {
+  agentAuthorName,
+  type AgentActionView,
+  ClientActor,
+  MINUTE_MS,
+  OTHER_BAND_ID,
+  TimelineBandKind,
+  TopicState,
+  type DocumentTimeline,
+  type TimelineBand,
+} from '@superdoc-history/types';
 
 const FIRST_BIN_START = 1_792_165_200_000;
 const HUE_START = 205;
 const HUE_END = 25;
 export const FIXTURE_AUTHOR_KEY = 'ana';
 export const FIXTURE_AUTHOR_NAME = 'Ana';
+export const FIXTURE_AGENT_AUTHOR_KEY = `${FIXTURE_AUTHOR_KEY}#agent`;
+export const FIXTURE_AGENT_AUTHOR_NAME = agentAuthorName(FIXTURE_AUTHOR_NAME);
 
 function bandOf({
   name,
@@ -28,10 +40,14 @@ export function timelineWith({
   volumes,
   names,
   kinds = names.map(() => TimelineBandKind.Topic),
+  agentVolumes = volumes.map((row) => row.map(() => 0)),
+  agentActions = [],
 }: {
   volumes: number[][];
   names: string[];
   kinds?: TimelineBandKind[];
+  agentVolumes?: number[][];
+  agentActions?: AgentActionView[];
 }): DocumentTimeline {
   const bands = names.map((name, index) =>
     bandOf({ name, kind: kinds[index]!, index, count: names.length, volume: volumes.reduce((sum, row) => sum + row[index]!, 0) }),
@@ -40,7 +56,16 @@ export function timelineWith({
     start: FIRST_BIN_START + binIndex * MINUTE_MS,
     versionSequence: null,
     byBand: Object.fromEntries(
-      bands.map((band, index) => [band.id, { inserted: row[index]!, deleted: 0, authorKeys: [FIXTURE_AUTHOR_KEY] }]),
+      bands.map((band, index) => [
+        band.id,
+        {
+          inserted: row[index]!,
+          deleted: 0,
+          agentInserted: agentVolumes[binIndex]![index]!,
+          agentDeleted: 0,
+          authorKeys: agentVolumes[binIndex]![index]! > 0 ? [FIXTURE_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_KEY] : [FIXTURE_AUTHOR_KEY],
+        },
+      ]),
     ),
   }));
   return {
@@ -48,7 +73,11 @@ export function timelineWith({
     bins,
     bands,
     contributorsByBand: {},
-    authors: { [FIXTURE_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AUTHOR_NAME } },
+    agentActions,
+    authors: {
+      [FIXTURE_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human },
+      [FIXTURE_AGENT_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AGENT_AUTHOR_NAME, actor: ClientActor.Agent },
+    },
     topics: { state: TopicState.Ready, failure: null, computedAtSequence: 1 },
     projection: { isBehind: false, lagMs: null, isDegraded: false, cursor: 1 },
   };

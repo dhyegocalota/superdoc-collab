@@ -1,9 +1,11 @@
-import { TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
+import { ClientActor, TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-history/types';
 import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
 import { KeyboardKey } from '@/lib/keyboard';
 import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { cn } from '@/lib/utils';
+import { AgentHatchPattern, agentPatternId } from './agent-hatch';
+import { AgentLegend } from './agent-legend';
 import { BandLabel } from './band-label';
 import { maxBandVolume } from './max-band-volume';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
@@ -76,6 +78,8 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   if (timeline.bins.length === 0) return null;
   const maxVolume = maxBandVolume(timeline);
   const focusableBandId = focusableBandIdOf({ shapes: layout.shapes, highlightedBandId });
+  const agentShapes = layout.shapes.filter((shape) => shape.agentPath !== null);
+  const hasAgentLayer = agentShapes.length > 0;
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
   const firstMoment = timeline.bins[0]!.start;
   const lastMoment = timeline.bins[lastIndex]!.start + timeline.binMs;
@@ -128,9 +132,27 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
     onSelectIndex(index);
   }
 
+  function isFadedBand(shape: BandShape): boolean {
+    return highlightedBandId !== null && highlightedBandId !== shape.band.id;
+  }
+
+  function renderAgentLayer(shape: BandShape) {
+    if (shape.agentPath === null) return null;
+    return (
+      <path
+        key={shape.band.id}
+        d={shape.agentPath}
+        data-actor={ClientActor.Agent}
+        fill={`url(#${agentPatternId(shape.band.id)})`}
+        aria-hidden
+        className={cn('pointer-events-none', isFadedBand(shape) && 'opacity-40')}
+      />
+    );
+  }
+
   function renderBand(shape: BandShape) {
     const isOther = shape.band.kind === TimelineBandKind.Other;
-    const isFaded = highlightedBandId !== null && highlightedBandId !== shape.band.id;
+    const isFaded = isFadedBand(shape);
     return (
       <path
         key={shape.band.id}
@@ -172,7 +194,20 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
             to: formatTimestamp(lastMoment),
           })}
         </desc>
+        {hasAgentLayer && (
+          <defs>
+            {agentShapes.map((shape) => (
+              <AgentHatchPattern
+                key={shape.band.id}
+                bandId={shape.band.id}
+                stripeClassName={shape.band.kind === TimelineBandKind.Other ? 'topic-band-other' : 'topic-band'}
+                stripeStyle={bandStyle(shape.band, shape.saturation)}
+              />
+            ))}
+          </defs>
+        )}
         {layout.shapes.map(renderBand)}
+        {layout.shapes.map(renderAgentLayer)}
         {layout.shapes
           .filter((shape) => shape.label !== null)
           .map((shape) => (
@@ -193,6 +228,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         <time dateTime={new Date(lastMoment).toISOString()}>{formatBinMoment({ time: lastMoment, binMs: timeline.binMs })}</time>
       </div>
       {hasUnlabelledBand && <StreamgraphLegend bands={layout.shapes.map((shape) => shape.band)} maxVolume={maxVolume} />}
+      {hasAgentLayer && <AgentLegend />}
       <p className="text-xs text-muted-foreground">{CHART_HINT}</p>
       {tooltipAnchor !== null && (
         <TimelineTooltip

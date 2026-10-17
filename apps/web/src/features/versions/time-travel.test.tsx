@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  ClientActor,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   documentPagePath,
@@ -230,7 +231,12 @@ test('the previous frame stays until the next one is ready and foreign messages 
 test('the selected bin runs are sent to the ready frame', async () => {
   mockDocumentApi({
     versions: { 42: [readyReply(42)] },
-    edits: { binStart: BIN_STARTS[1]!, binMs: versionedTimeline.binMs, runs: RUNS, authors: { ana: { id: '1', name: 'Ana' } } },
+    edits: {
+      binStart: BIN_STARTS[1]!,
+      binMs: versionedTimeline.binMs,
+      runs: RUNS,
+      authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
+    },
   });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const frame = (await screen.findByTitle(VERSION_FRAME_TITLE)) as HTMLIFrameElement;
@@ -332,7 +338,12 @@ test('a frame that reports a failure replaces the version with the failure messa
 test('runs reach only the frame of the requested version', async () => {
   mockDocumentApi({
     versions: { 42: [readyReply(42)], 50: [readyReply(50)] },
-    edits: { binStart: BIN_STARTS[2]!, binMs: versionedTimeline.binMs, runs: RUNS, authors: { ana: { id: '1', name: 'Ana' } } },
+    edits: {
+      binStart: BIN_STARTS[2]!,
+      binMs: versionedTimeline.binMs,
+      runs: RUNS,
+      authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
+    },
   });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const frameA = (await screen.findByTitle(VERSION_FRAME_TITLE)) as HTMLIFrameElement;

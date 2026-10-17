@@ -1,3 +1,5 @@
+import { AgentActionKind } from '@superdoc-history/types';
+
 export const TIMELINE_HEADING = 'Timeline';
 export const REGROUP_TOPICS_LABEL = 'Regroup topics';
 export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
@@ -27,6 +29,19 @@ export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date.';
 export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
+export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
+export const AI_BADGE_TEXT = 'AI';
+export const AI_BADGE_LABEL = 'Edited by AI';
+
+export const AGENT_ACTION_LABELS: Record<AgentActionKind, string> = {
+  [AgentActionKind.ShareLinkRevealed]: 'revealed a share link',
+  [AgentActionKind.ShareLinkRotated]: 'rotated a share link',
+  [AgentActionKind.DocumentExported]: 'exported the document',
+};
+
+export function agentActionLabel({ name, kind }: { name: string; kind: AgentActionKind }): string {
+  return `${name} ${AGENT_ACTION_LABELS[kind]}`;
+}
 
 const INSERTED_SIGN = '+';
 const DELETED_SIGN = '−';

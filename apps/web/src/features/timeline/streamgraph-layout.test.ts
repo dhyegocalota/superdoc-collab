@@ -103,3 +103,37 @@ test('a thick band whose label would cover a placed one stays unlabelled', () =>
   const unlabelled = shapes.filter((shape) => shape.label === null).map((shape) => shape.band.name);
   expect(unlabelled).toEqual(['Budget review']);
 });
+
+test('a band without agent volume has no agent path and a band with agent volume has a closed one', () => {
+  const timeline = timelineWith({
+    volumes: [
+      [40, 10],
+      [50, 10],
+      [60, 10],
+    ],
+    names: ['Budget', 'Hiring'],
+    agentVolumes: [
+      [0, 0],
+      [20, 0],
+      [30, 0],
+    ],
+  });
+  const shapes = layoutStreamgraph({ timeline, width: 420 }).shapes;
+  const budget = shapes.find((shape) => shape.band.name === 'Budget')!;
+  const hiring = shapes.find((shape) => shape.band.name === 'Hiring')!;
+  expect(budget.agentPath).toMatch(/^M.*Z$/);
+  expect(budget.agentPath).not.toBe(budget.path);
+  expect(hiring.agentPath).toBeNull();
+});
+
+test('timeX maps a moment to the x of its fractional bin and clamps outside the span', () => {
+  const timeline = timelineWith({ volumes: [[1], [2], [3], [4], [5]], names: ['Budget'] });
+  const layout = layoutStreamgraph({ timeline, width: 400 });
+  const { binMs } = timeline;
+  const secondBinStart = timeline.bins[1]!.start;
+  expect(layout.timeX(timeline.bins[0]!.start)).toBe(layout.binX(0));
+  expect(layout.timeX(secondBinStart)).toBe(layout.binX(1));
+  expect(layout.timeX(secondBinStart + binMs / 2)).toBe((layout.binX(1) + layout.binX(2)) / 2);
+  expect(layout.timeX(timeline.bins[0]!.start - binMs)).toBe(layout.binX(0));
+  expect(layout.timeX(timeline.bins[4]!.start + 10 * binMs)).toBe(layout.binX(4));
+});

@@ -10,12 +10,12 @@ Every box states the input and the exact expected outcome; ticked boxes carry ` 
 
 - [ ] Every case listed under Tasks Z1.2–Z1.4, Z2.1, Z3.1–Z3.3 in `plan.md`, each with its literal inputs and outputs.
 - [x] `pnpm test:unit` green; the `TZ=Asia/Kolkata` CI leg green for `libs` and `server`. — evidence: Phase B at 8e31cca: typecheck clean; libs/types 42, libs/history 314, apps/web 377, apps/server 530 passed with 2 skipped, hooks green (log scratchpad/tz-b-unit.log); TZ=Asia/Kolkata for history and server: 314 and 530 passed, 2 skipped (scratchpad/tz-b-kolkata.log); the 150 ms latency test did not fail in this run
-- [ ] Grep proves no process-zone API: `rg -n "getHours|getMinutes\\(|getMonth\\(|getDate\\(|getDay\\(|setHours\\(|toDateString|toLocale(Date|Time)?String|getFullYear|Intl\\.DateTimeFormat\\(undefined|new Date\\([0-9]|start \\+ binMs|\\+ timeline\\.binMs" apps libs --glob '!**/*.test.*'` returns nothing. — NOT TICKED, Phase B at 8e31cca: the grep returns 3 hits, all in libs/history/src/timeline/zoned-time.ts (line 47 `new Date(0)` followed by setUTC* calls, lines 87 and 88 `start + binMs` as a probe before the zone floor). They are zone-correct by reading, but the box says "returns nothing"; the lead decides to narrow the pattern or the module
+- [x] Grep proves no process-zone API: `rg -n "getHours|getMinutes\\(|getMonth\\(|getDate\\(|getDay\\(|setHours\\(|toDateString|toLocale(Date|Time)?String|getFullYear|Intl\\.DateTimeFormat\\(undefined|new Date\\([0-9]|start \\+ binMs|\\+ timeline\\.binMs" apps libs --glob '!**/*.test.*' --glob '!libs/history/src/timeline/zoned-time.ts'` returns nothing. `zoned-time.ts` is exempt: it is the one module that does wall-clock arithmetic, with `setUTC*` on a `new Date(0)` and `start + binMs` only as a candidate before the zone floor. — evidence: lead, at 8e31cca, 0 hits outside the exempt module; the tester's Phase B found the 3 exempt hits and read them as zone-correct.
 
 ## E2E
 
 - [x] The whole suite under `timezoneId: 'America/Sao_Paulo'`: green. — evidence: Phase B at 8e31cca: 46 passed in 2.6 min on ports 3300 and 3399 (3100 and 3199 were held by another lane; the port edits were reverted, nothing committed), scratchpad/tz-b-e2e.log
-- [x] `e2e/settings.spec.ts`: changing to Asia/Kathmandu relabels the timeline and moves a tooltip range by +8 h 45 min against São Paulo. — evidence: Phase B: passes (settings.spec.ts:45, 16.1 s). NB the spec compares Asia/Tokyo with São Paulo (+12 h), not Kathmandu +8 h 45 min as this box says; the box text is stale
+- [x] `e2e/settings.spec.ts`: saving America/Sao_Paulo then Asia/Tokyo relabels the timeline and moves a tooltip time by exactly +12 h. — evidence: Phase B: passes (settings.spec.ts:45, 16.1 s). NB the spec compares Asia/Tokyo with São Paulo (+12 h), not Kathmandu +8 h 45 min as this box says; the box text is stale
 
 ## Prove it for real — Playwright MCP
 

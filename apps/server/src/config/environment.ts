@@ -23,6 +23,10 @@ enum BooleanFlag {
   False = 'false',
 }
 
+const optionalSchema = z.object({
+  HOST: z.string().optional(),
+});
+
 const schema = z.object({
   PORT: z.coerce.number().int().positive(),
   APP_ORIGIN: z.url(),
@@ -57,6 +61,7 @@ export type LlmSettings = {
 
 export type Environment = {
   port: number;
+  host: string | null;
   appOrigin: string;
   authSecret: string;
   databaseDirectory: string;
@@ -94,6 +99,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
     throw new InvalidOriginError({ name: 'APP_ORIGIN', value: parsed.APP_ORIGIN });
   return {
     port: parsed.PORT,
+    host: presentOrNull(optionalSchema.parse(source).HOST),
     appOrigin: parsed.APP_ORIGIN,
     authSecret: parsed.AUTH_SECRET,
     databaseDirectory: parsed.DATABASE_DIR,

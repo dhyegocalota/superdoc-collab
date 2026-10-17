@@ -1,3 +1,4 @@
+const LOOPBACK_HOST = '127.0.0.1';
 const TEST_AUTH_SECRET = 'e2e-auth-secret-with-at-least-32-characters';
 const DEMO_PASSWORD = 'superdoc-demo';
 const WEB_DIST_DIR = 'apps/web/dist';
@@ -19,7 +20,7 @@ export const BUILD_AND_START_COMMAND = [
 ].join(' && ');
 
 export function localOrigin(port: number): string {
-  return `http://127.0.0.1:${port}`;
+  return `http://${LOOPBACK_HOST}:${port}`;
 }
 
 export function stackEnvironment({
@@ -33,6 +34,7 @@ export function stackEnvironment({
 }): Record<string, string> {
   return {
     PORT: String(port),
+    HOST: LOOPBACK_HOST,
     APP_ORIGIN: localOrigin(port),
     AUTH_SECRET: TEST_AUTH_SECRET,
     DATABASE_DIR: databaseDir,

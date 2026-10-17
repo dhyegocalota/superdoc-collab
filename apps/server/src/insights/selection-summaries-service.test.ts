@@ -7,6 +7,7 @@ import { documentWithOwner } from '../testing/collaboration-client';
 import { failingModel, gatedModel, modelAnswering, readyModel } from '../testing/language-model';
 import { InsightsWorker } from './insights-worker';
 import { chooseLanguageModel, LLM_MODEL_MISSING_MESSAGE, type LanguageModelChoice } from './llm-client';
+import { selectionKeyOf } from './selection-key';
 import { SELECTION_SUMMARY_FAILED_LOG, SelectionRequestOutcome, SelectionSummariesService, type RequestedSelection, type SelectionSnapshot } from './selection-summaries-service';
 
 const ANA = { id: 'user-ana', name: 'Ana' };
@@ -235,5 +236,45 @@ test('forget drops the document cooldown', async () => {
   await worker.idle();
   service.forget(documentId);
   expect(service.cooldown.size()).toBe(0);
+  await server.stop();
+});
+
+test('a throw while preparing the prompt is a stored failure and the selection key is never logged', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const model = modelAnswering(ANSWER);
+  const orphanRun = { ...runBy({ author: BRUNO, inserted: ' a designer', lastServerTime: 2 }), authorKeys: ['user-missing'] };
+  const { server, documentId, service, worker } = await serviceWith({ languageModel: readyModel(model), snapshot: snapshotOf({ runs: [orphanRun] }) });
+  const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS });
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
+  await worker.idle();
+  expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({ state: SelectionSummaryState.Failed, failure: SELECTION_SUMMARY_FAILED_MESSAGE });
+  expect([...errors.mock.calls, ...warnings.mock.calls].map((call) => JSON.stringify(call)).join('')).not.toContain(key);
+  expect(callsOf(model)).toBe(0);
+  await server.stop();
+});
+
+test('a started request spends one call of the hourly budget', async () => {
+  const worker = new InsightsWorker({ maxCallsPerHour: 1 });
+  const { server, documentId, service } = await serviceWith({ languageModel: readyModel(modelAnswering(ANSWER)), snapshot: snapshotOf({ runs: BRUNO_RUNS }), worker });
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
+  expect(worker.hasCallBudget()).toBe(false);
+  await worker.idle();
+  await server.stop();
+});
+
+test('after a failure at an unchanged stamp a request is retried once the cooldown has passed', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const model = modelAnswering('not json', ANSWER);
+  const { server, documentId, service, worker } = await serviceWith({ languageModel: readyModel(model), snapshot: snapshotOf({ runs: BRUNO_RUNS }) });
+  service.request({ documentId, selection: BRUNO_SELECTION });
+  await worker.idle();
+  expect(service.read({ documentId, selection: BRUNO_SELECTION }).state).toBe(SelectionSummaryState.Failed);
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toMatchObject({ outcome: SelectionRequestOutcome.TooSoon });
+  vi.setSystemTime(Date.now() + SELECTION_SUMMARY_COOLDOWN_MS);
+  expect(service.request({ documentId, selection: BRUNO_SELECTION })).toEqual({ outcome: SelectionRequestOutcome.Started });
+  await worker.idle();
+  expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({ state: SelectionSummaryState.Ready, summary: { sentence: ANSWER.sentence } });
   await server.stop();
 });

@@ -3,7 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { HttpStatus, MINUTE_MS, secondsRoundedUp } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { SlidingWindow } from '../limits/sliding-window';
+import { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import type { AppServices } from '../http/app';
 import { retryLater } from '../http/retry-later';
 import type { AgentDocumentSessions, AgentToolContext, AgentToolPrincipal, RecordAgentAction } from './agent-tool-context';
@@ -51,14 +51,7 @@ export function createMcpRoutes({
   recordAction,
 }: McpRouteOptions): Hono {
   const routes = new Hono();
-  const windows = new Map<string, SlidingWindow>();
-  function windowOf(userId: string): SlidingWindow {
-    const existing = windows.get(userId);
-    if (existing) return existing;
-    const created = new SlidingWindow({ windowMs: rateLimit.windowMs });
-    windows.set(userId, created);
-    return created;
-  }
+  const calls = new KeyedSlidingWindow({ windowMs: rateLimit.windowMs, maxEvents: rateLimit.maxCalls });
   routes.post(
     '/',
     bodyLimit({
@@ -68,10 +61,8 @@ export function createMcpRoutes({
     async (honoContext) => {
       const principal = await authorize(honoContext.req.raw);
       if (!principal) return unauthorized();
-      const window = windowOf(principal.userId);
-      if (window.count() >= rateLimit.maxCalls) {
-        const oldest = window.oldest();
-        const waitMs = oldest === null ? rateLimit.windowMs : rateLimit.windowMs - (Date.now() - oldest);
+      const waitMs = calls.waitMs(principal.userId);
+      if (waitMs !== null) {
         return retryLater({
           context: honoContext,
           body: { error: RATE_LIMITED_MESSAGE },
@@ -79,7 +70,7 @@ export function createMcpRoutes({
           retryAfterSeconds: secondsRoundedUp(waitMs),
         });
       }
-      window.record();
+      calls.record(principal.userId);
       const body: unknown = await honoContext.req.raw
         .clone()
         .json()

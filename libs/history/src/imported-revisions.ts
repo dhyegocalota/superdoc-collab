@@ -3,6 +3,7 @@ import type { ImportedRevision } from './read-model';
 // NB ADR 0024: Word writes w:date in UTC, so a date with no offset is UTC, never the process zone.
 const OFFSET_LESS_DATE_TIME = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
 const UTC_DESIGNATOR = 'Z';
+const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}(T|$)/;
 const SPACE_SEPARATED_DATE_TIME = /^(\d{4}-\d{2}-\d{2}) (?=\d{2}:)/;
 export const MIN_REVISION_YEAR = 1900;
 export const MAX_REVISION_YEAR = 9999;
@@ -37,6 +38,7 @@ export class InvalidRevisionDateError extends Error {
 
 export function parseRevisionDate({ value, revisionId }: { value: string; revisionId: string }): number {
   const isoValue = value.replace(SPACE_SEPARATED_DATE_TIME, '$1T');
+  if (!ISO_DATE_TIME.test(isoValue)) throw new InvalidRevisionDateError(revisionId);
   const withOffset = OFFSET_LESS_DATE_TIME.test(isoValue) ? `${isoValue}${UTC_DESIGNATOR}` : isoValue;
   const time = Date.parse(withOffset);
   if (Number.isNaN(time)) throw new InvalidRevisionDateError(revisionId);

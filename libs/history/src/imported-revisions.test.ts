@@ -50,6 +50,10 @@ test.each([
   expect(parseRevisionDate({ value, revisionId: 'r1' })).toBe(expected);
 });
 
+test.each(['Oct 17 2026 10:00', '10/17/2026'])('the non-ISO revision date %s throws', (value) => {
+  expect(() => parseRevisionDate({ value, revisionId: 'r8' })).toThrow(InvalidRevisionDateError);
+});
+
 test('an unreadable revision date throws naming the revision', () => {
   expect(() => parseRevisionDate({ value: 'garbage', revisionId: 'r7' })).toThrow(InvalidRevisionDateError);
   expect(() => parseRevisionDate({ value: 'garbage', revisionId: 'r7' })).toThrow('r7');

@@ -1,0 +1,122 @@
+# Test plan: Refinement: UX care
+
+Every checkbox states the input and the exact expected outcome. A ticked box carries evidence after ` — evidence: ` (commit hash, log path, counts, screenshot path).
+
+**Setup.** The stack from `docs/features/timeline-and-time-travel/test-plan.md` (built bundle, fake OpenRouter), demo users `ana@` (owner) and `bruno@` (editor) plus a reader through a read-only link. Two viewports: **1280×800** and **375×812**.
+
+**Baselines.** The "before" screenshots are the 2026-10-17 audit set, `<nn>-<state>-<width>.png`; the folder path is in `tester-briefing.md`. Each audit-item box names the baseline to compare against. New "after" screenshots go to `.pr-media/refinement-ux-care/<item>-<width>.png` (git-ignored). Where the audit has no baseline for a width, the box says "no baseline" and the after shot stands alone.
+
+## The failing test first
+
+- [ ] Each task's red commit precedes its implementation commit in `git log --oneline main..` (nine `test(web…)` commits, each followed by its `feat`/`fix` commit).
+- [ ] Each red commit fails on its named assertion, not on an import or type error: check out the red commit, run its task's command from `plan.md`, and record the first failure line per test.
+
+## Unit
+
+- [ ] `apps/web/src/lib/use-document-title.test.ts` — input: `useDocumentTitle('Plan')` then unmount; expected: `Plan · SuperDoc History`, then `SuperDoc History`. Input `null`; expected: `SuperDoc History`.
+- [ ] `apps/web/src/lib/format-date-time.test.ts` — input: a 10 s bin at 7:45:10 today; expected: two clock times with seconds, the month once, no year. A 1 min bin: no seconds, month once. A bin from 2025: contains `2025`. Two versions 10 s apart today: different strings, no month.
+- [ ] `apps/web/src/features/timeline/timeline-copy.test.ts` — expected: `+2 words`, `+1 word`, `−3 characters`, `+12 words −1 word`, `0 words`; `Budget, 1 character`; `Budget, 0 characters`.
+- [ ] `apps/web/src/features/timeline/streamgraph.test.tsx` — the hover tooltip reads `+120 characters` and has no `−0`; the first and last moment and `CHART_HINT` are visible; a three-bin chart has a `Topics` list `Budget, Hiring, Other`; a 60-bin two-band chart has no legend; a pointer selection then focus shows no tooltip and the next ArrowRight shows it; exactly one `path[tabindex="0"]`, which moves to the highlighted band.
+- [ ] `apps/web/src/features/timeline/timeline-panel.test.tsx` — collapsing removes the `Resize timeline panel` separator and sets `aside[data-state="collapsed"]`; after Summarize the running text follows the filter input and precedes the Top edits heading, and `scrollIntoView` is called with `{ block: 'nearest' }`; a cached ready summary on open never calls `scrollIntoView`; an empty pending document shows `No edits yet`, no `Naming topics…`, no Top edits heading, and a disabled `Regroup topics` described by `No edits to group into topics yet`; bin runs render `INS` `More money` and `DEL` `old` without quotes.
+- [ ] `apps/web/src/features/timeline/filter-box.test.tsx` — `?term=Bruno&author=Bruno`; expected: chips `@Bruno` and `Bruno`, removal labels `Remove filter @Bruno` and `Remove filter Bruno`.
+- [ ] `apps/web/src/features/timeline/top-edits.test.tsx` — a timeline whose only band has volume 0; expected: no `Top edits` heading.
+- [ ] `apps/web/src/features/editor/editor-header.test.tsx` — the home link navigates to `/documents`; members read `Ada, online` (current user, server says offline), `Carla, online`, `Bruno`; no `Delete` button in the header, `Download .docx` and `Share` buttons by name, Delete reachable through `More actions`; a reader has no `More actions`; Cancel closes the dialog, sends no request, and the Download button still responds afterwards.
+- [ ] `apps/web/src/features/editor/document-page.test.tsx` — the header link and `Loading document…` status show while the open request hangs; `document.title` becomes `Plan · SuperDoc History`; with router state `NEW_DOCUMENT_STATE`, `onReady` calls `focus` once; without it, never; with `matchMedia` matching, SuperDoc is built with `zoom: { mode: 'fit-width' }`.
+- [ ] `apps/web/src/features/editor/superdoc-zoom.test.ts` — narrow starts `fit-width`, wide starts `manual`, a change to narrow calls `setZoomMode('fit-width')`, a change to wide calls `setZoom(100)`, the unsubscribe leaves zero listeners.
+- [ ] `apps/web/src/features/editor/share-dialog.test.tsx` — the description contains `stops the old one from working`; `Loading links` status while the request hangs; a rejected and a synchronously throwing `writeText` both show `The link could not be copied…` and select the whole input; `Link copied` disappears after `COPIED_NOTICE_MS`; `Reset link` posts the rotation (renamed existing test).
+- [ ] `apps/web/src/features/documents/documents-page.test.tsx` — `SuperDoc History` and the h1 `Documents` show; the tab reads `Documents · SuperDoc History`; Mine headers `Title, Updated`, Shared headers `Title, Owner, Updated, Access`; the shared editor row says `Can edit`, never `editor`; a `Loading documents` status while the list hangs; a failed New document alert is outside the button row.
+- [ ] `apps/web/src/features/documents/upload-dialog.test.tsx` — while the upload hangs, `Uploading…` status and a disabled file input.
+- [ ] `apps/web/src/lib/copy-rules.test.ts` — no copy string contains `...`; the six listed sentences end with a period.
+- [ ] `apps/web/src/features/auth/sign-in-page.test.tsx` — `No account yet?` and the `Sign up` link render from copy; the tab reads `Sign in · SuperDoc History`.
+- [ ] `apps/web/src/features/sharing/share-landing-page.test.tsx` — the `Opening…` status sits inside `main`.
+- [ ] Edge: one character — `bandAriaLabel({ name: 'Budget', volume: 1 })`; expected: `Budget, 1 character`, and the E2E `bandNamed` regex matches it.
+- [ ] Edge: the error path — `writeText` throws `TypeError` synchronously; expected: the fallback status, no unhandled rejection in the Vitest output.
+- [ ] `pnpm typecheck` green; `pnpm test:unit` green with the counts recorded.
+
+## E2E (Playwright specs)
+
+- [ ] `e2e/documents.spec.ts` delete walk — steps: Ana opens More actions, chooses Delete, confirms; expected: back on the documents list without the document.
+- [ ] `e2e/timeline.spec.ts` Regroup topics walk — steps: unchanged, through `REGROUP_TOPICS_LABEL`; expected: band names recomputed as before.
+- [ ] `e2e/time-travel.spec.ts` — a reader has no `Regroup topics` button.
+- [ ] Every spec using `bandNamed` passes with the pluralized labels.
+- [ ] `pnpm test:e2e` green with the counts recorded.
+
+## Prove it for real — Playwright MCP, one box per audit item
+
+Each box: do the steps at 1280 and at 375, save `.pr-media/refinement-ux-care/<item>-1280.png` and `-375.png`, and compare with the named baseline.
+
+### P1
+
+- [ ] **P1-1 home link.** Open "Plan" as Ana; expected: an arrow at the start of the header with "SuperDoc History" at 1280 and the arrow alone at 375; clicking it opens the documents list. Repeat as Bruno and as the reader. Baselines: `07-editor-with-panel-{1280,375}`, `10-editor-as-editor-bruno-{1280,375}`, `24-reader-view-{1280,375}`.
+- [ ] **P1-2 collapsed rail.** Click the timeline toggle; expected at 1280: the panel shrinks to a narrow rail with only the toggle, no resize handle, the editor widens; at 375: the stacked panel shows "Timeline" and the toggle. Click again: the panel returns at its previous width. Baselines: `17-panel-collapsed-{1280,375}`.
+- [ ] **P1-3 explained chart.** Open a document with two edits in one session; expected: start and end times under the chart, the hint line "Click the chart or use ← → to see the document at that moment.", and a legend "Budget · Hiring" with swatches matching the band colours. A long session where both bands carry labels shows no legend. Baselines: `07-editor-with-panel-{1280,375}`, `10-editor-as-editor-bruno-{1280,375}`, `24-reader-view-{1280,375}`, `11-chart-hover-1280` (no 375 baseline).
+- [ ] **P1-4 bin ranges.** Hover a bin, then click it; expected: the tooltip and the selected-bin heading read like `Oct 17, 7:45:10 – 7:45:20 AM` (date once, seconds for sub-minute bins); the banner reads `Version at 7:45:20 AM` and two neighbouring bins give two different banner times. Baselines: `11-chart-hover-1280`, `12-selected-bin-version-open-{1280,375}`, `21-clicked-bin-version-open-{1280,375}`.
+- [ ] **P1-5 summary placement.** Click Summarize edits; expected: "Summarizing edits…" then the summary appear in a bordered card right under the filter box; at 375 the card scrolls into view inside the panel without a manual scroll. Reload with the summary cached: the page does not jump to the panel. Baselines: `14-summary-card-{1280,375}`, `14a-summary-running-1280` (no 375 baseline).
+
+### P2
+
+- [ ] **P2-1 units.** Hover a bin and read Top edits; expected: tooltip rows like `Budget +11 characters · Ana` with no `−0`, Top edits like `+2 words`, and `1 word` in the singular. Baselines: `11-chart-hover-1280`, `07-editor-with-panel-{1280,375}`.
+- [ ] **P2-2 phone header.** Open "Plan" as Ana at 375; expected: at most two header rows (title row; avatars, Download icon, Share icon and the More actions button), Delete only inside More actions; at 1280 one row with "Download .docx" and "Share" text. Screen reader names: "Download .docx", "Share", "More actions". Baselines: `07-editor-with-panel-375`, `21-clicked-bin-version-open-375`, and `07-editor-with-panel-1280` for P3-5 (Delete no longer beside Download and Share).
+- [ ] **P2-3 roles and columns.** Open the documents page as Bruno with one own and one shared document; expected: Mine shows Title and Updated; Shared shows Title, Owner, Updated and Access with "Can edit". Baselines: `08-documents-with-document-{1280,375}`, `09-documents-shared-bruno-{1280,375}`.
+- [ ] **P2-4 table at 375.** Same page at 375; expected: nothing clipped at the right edge, no horizontal scroll; Shared shows Title and Access only. Baseline: `08-documents-with-document-375`.
+- [ ] **P2-5 identity and titles.** Documents page: "SuperDoc History" in the header and an h1 "Documents"; browser tab "Documents · SuperDoc History". Open "Plan": tab "Plan · SuperDoc History"; rename it to "Budget plan": the tab follows. Sign-in tab "Sign in · SuperDoc History". Baselines: `05-documents-empty-{1280,375}`, `08-documents-with-document-{1280,375}`.
+- [ ] **P2-6 loading states.** Throttle to Slow 3G; open the documents page: heading visible, three skeleton rows, no blank `main`; open a document: header with the home link and a title skeleton, "Loading document…", not a full-screen grey block. Baseline: `18-focus-documents-1280` (no 375 baseline).
+- [ ] **P2-7 upload pending.** Throttle to Slow 3G; choose a valid .docx; expected: "Uploading…" appears, the file input is disabled, a second pick is impossible; on success the document opens. Baselines: `06-upload-dialog-{1280,375}`.
+- [ ] **P2-8 New document error.** Block `POST /api/documents` in DevTools; click New document; expected: "The document could not be created." under the Mine heading row, the Upload and New document buttons stay aligned on their row. No baseline (the audit found it in code).
+- [ ] **P2-9 delete Cancel.** More actions → Delete; expected: "Cancel" (outline) and "Delete document" (destructive); Cancel closes the dialog, the document stays, the header still responds to clicks. Baselines: `16-delete-dialog-{1280,375}`.
+- [ ] **P2-10 share dialog.** Open Share; expected: two skeleton rows while loading (throttle), the description ends "Resetting a link stops the old one from working.", buttons "Copy" and "Reset link"; Copy shows "Link copied" which disappears after about three seconds; on an `http://` LAN address where the clipboard is unavailable, Copy selects the link and shows the keyboard hint. Baselines: `15-share-dialog-{1280,375}`.
+- [ ] **P2-11 chips.** Type `@Bruno` then `Bruno`; expected: chips "@Bruno" and "Bruno". Baselines: `13-filter-applied-{1280,375}`.
+- [ ] **P2-12 empty document panel.** Create a new document; expected: "No edits yet" only, no "Naming topics…", no "Top edits" heading, "Regroup topics" disabled with "No edits to group into topics yet" visible under the header. Baselines: `23-blank-document-empty-timeline-{1280,375}`.
+- [ ] **P2-13 blank document.** Create a new document; expected: a white page with a soft edge on a muted backdrop, and the caret blinking in the page without a click (typing goes into the document). Opening an existing document does not take focus. Baselines: `23-blank-document-empty-timeline-{1280,375}`.
+- [ ] **P2-14 snippets and viewer colour.** Click a bin with an insertion and a deletion; expected: the insertion on a green tint, the deletion struck through on a red tint, no quotes, no leading space; the version viewer highlights the same runs in the same green, not pink. Baselines: `21-clicked-bin-version-open-{1280,375}`.
+- [ ] **P2-15 small empty state.** Click a bin whose filtered runs are empty; expected: "No edits in this period" in the panel's small muted text. Baseline: `12-selected-bin-version-open-1280` (no 375 baseline).
+- [ ] **P2-16 presence.** Ana opens the document: her avatar shows a green dot at once; Bruno joins: his dot turns green within the members poll. Screen reader reads "Ana, online". Baselines: `07-editor-with-panel-{1280,375}`, `10-editor-as-editor-bruno-{1280,375}`, `24-reader-view-{1280,375}`.
+- [ ] **P2-17 copy rule.** Visit an invalid share link and an unknown document id; expected: "This link is no longer valid." and "This document is no longer available." with periods; sign-in shows "Signing in…" with the single-character ellipsis. Baselines: `19-invalid-share-link-{1280,375}`, `20-unknown-document-{1280,375}`.
+- [ ] **P2-18 share landing.** Open a valid share link on Slow 3G; expected: "Opening…" centred on the page, same layout as the failure state. No baseline (transient state).
+
+### P3
+
+- [ ] **P3-3 auth copy.** Sign-in and sign-up pages read exactly as before (same headings, labels and cross-links), now from `auth-copy.ts`. Baselines: `01-sign-in-{1280,375}`, `04-sign-up-{1280,375}`.
+- [ ] **P3-6 tooltip after a click.** Click the chart, move the pointer away; expected: no tooltip stays pinned; press → : the tooltip appears for the next bin. Baselines: `21-clicked-bin-version-open-{1280,375}`.
+- [ ] **P3-7 one tab stop.** Tab from the filter backwards into the chart, then Tab forward; expected: one stop on the chart, then the filter box; arrows move in time. No baseline (keyboard).
+- [ ] **P3-8 chip focus ring.** Tab to a topic chip; expected: the same 3 px ring as the buttons. No baseline (keyboard).
+- [ ] **P3-11 fit to width.** Open "Plan" at 375; expected: the whole page width visible, no horizontal scroll inside the editor; open a version: the viewer fits the same way; resize to 1280: the page returns to 100%. Baseline: `07-editor-with-panel-375`.
+- [ ] **P3-12 Regroup topics.** The header button reads "Regroup topics" and still recomputes the names. Baselines: `07-editor-with-panel-{1280,375}`.
+
+### Whole-flow checks
+
+- [ ] Happy path, entry to exit: sign in → documents → New document (caret in page) → type → open the timeline → click a bin → Back to live → home link; expected: every screen above in order, no blank or grey screen.
+- [ ] Empty: a fresh account; expected: empty messages on both lists, no skeleton left behind.
+- [ ] Single: one document with one edit; expected: chart, legend (labels do not fit), Top edits with "+1 word" or more.
+- [ ] Many: a document with a long session and three contributors; expected: labels inside bands, no legend, one tab stop.
+- [ ] Rejected input: upload a .pdf; expected: "Only .docx files can be uploaded.", input enabled again.
+- [ ] Browser Back mid-flow: from a version open in a document, press Back; expected: same behaviour as before this lane.
+- [ ] Reload mid-flow: reload with `?at=` set; expected: the version reopens, the summary card does not scroll the page.
+- [ ] Two authors in two browser contexts at once: Ana and Bruno edit; expected: both avatars green in both contexts, tooltips label characters.
+- [ ] Latency / disconnect: Slow 3G on the documents page and the share dialog; expected: skeletons, then content.
+- [ ] Console and network clean: zero console errors, zero failed requests, other than the blocked `POST` of the P2-8 box.
+- [ ] Desktop width 1280: every audit box above ticked at 1280.
+- [ ] Narrow width 375: every audit box above ticked at 375; no page-level horizontal scroll anywhere.
+- [ ] Screenshots at `.pr-media/refinement-ux-care/`; video at `.pr-media/refinement-ux-care/walk.mp4`.
+
+## Edge cases found during execution
+
+Empty on purpose. The tester adds one checkbox per new case (input, exact expected outcome) and a regression test for each.
+
+## Adversarial review
+
+The reviewer picks the three claims most likely to be wrong and tries to refute each.
+
+- [ ] Claim 1: <claim> — attack: <how>; result: <refuted | held>
+- [ ] Claim 2: <claim> — attack: <how>; result: <refuted | held>
+- [ ] Claim 3: <claim> — attack: <how>; result: <refuted | held>
+
+## Coverage honesty
+
+What is not tested and why.
+
+- P2-4 column hiding, P2-15 text size, P3-8 focus ring, the P2-13 backdrop and the P1-2 rail width — pure styling; unit tests would be class-string assertions, which lane D removes. Proven only by the screenshot boxes; risk accepted.
+- P3-11 fit-to-width — Vitest checks the config and the listener; whether SuperDoc's fit measures our flex container correctly is proven only by the 375 screenshot.
+- P2-13 caret — Vitest checks `focus()` is called; that SuperDoc places a visible caret is proven only in the browser.
+- `formatRange` output varies by locale and ICU version; unit tests assert structure (seconds, one month, a year), not exact strings.
+- The viewer highlight colour depends on SuperDoc reading `--sd-comment-highlight-*`; proven only by screenshot.

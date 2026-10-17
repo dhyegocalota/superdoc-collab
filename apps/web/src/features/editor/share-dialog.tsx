@@ -113,7 +113,7 @@ export function ShareDialog({ documentId }: { documentId: string }) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label={SHARE_LABEL}>
+        <Button aria-label={SHARE_LABEL}>
           <Share2 />
           <span className="hidden sm:inline">{SHARE_LABEL}</span>
         </Button>

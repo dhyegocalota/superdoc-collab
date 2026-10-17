@@ -1,9 +1,10 @@
-import { ApiPath, AUTHOR_COLOR_SLOT_COUNT, authorColorSlot, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
+import { authorPaletteOf } from './author-palette';
 import { isRecoverableException } from './superdoc-exceptions';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
@@ -11,14 +12,6 @@ import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS } from './superdoc-zoom';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
-
-class MissingAuthorColorError extends Error {}
-
-function authorColorOf(slot: number): string {
-  const color = getComputedStyle(document.documentElement).getPropertyValue(`--author-${slot}`).trim();
-  if (color === '') throw new MissingAuthorColorError(`--author-${slot}`);
-  return color;
-}
 
 type SuperDocEditorProps = {
   onSuperdocChange: (superdoc: SuperDoc | null) => void;
@@ -59,8 +52,7 @@ export function SuperDocEditor({
         collaborationPath: ApiPath.Collaboration,
         roomMode,
         user,
-        userColor: authorColorOf(authorColorSlot(user.id)),
-        paletteColors: Array.from({ length: AUTHOR_COLOR_SLOT_COUNT }, (_, index) => authorColorOf(index + 1)),
+        ...authorPaletteOf(user),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
       onException: (payload) => {

@@ -1,6 +1,7 @@
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { ApiPath, HttpStatus } from '@superdoc-history/types';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-history/history';
@@ -37,6 +38,8 @@ import { createMeHandler } from './me';
 import { requireUser } from './require-user';
 
 const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
+export const AUTH_BODY_MAX_BYTES = 16 * 1024;
+const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const FORBIDDEN_MESSAGE = 'Forbidden';
 export const NOT_FOUND_MESSAGE = 'Not found';
 const PROTECTED_PATHS = [ApiPath.Documents, `${ApiPath.Documents}/*`, `${ApiPath.ShareLinks}/*`];
@@ -79,6 +82,13 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     if (error instanceof HTTPException) return error.getResponse();
     throw error;
   });
+  app.use(
+    `${ApiPath.Auth}/*`,
+    bodyLimit({
+      maxSize: AUTH_BODY_MAX_BYTES,
+      onError: (context) => context.json({ error: REQUEST_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
+    }),
+  );
   app.get(ApiPath.Health, health);
   app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, async (context) => {
     const remoteAddress = getConnInfo(context).remote.address;

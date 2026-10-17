@@ -89,6 +89,13 @@ describe('oauth discovery', () => {
     const validBody = { client_name: 'Client', redirect_uris: ['https://example.com/callback'], token_endpoint_auth_method: 'none' };
 
     test.each([
+      { name: 'a client name over the cap', body: { ...validBody, client_name: 'x'.repeat(300) }, status: HttpStatus.BadRequest },
+      {
+        name: 'more redirect uris than the cap',
+        body: { ...validBody, redirect_uris: Array.from({ length: 40 }, (_, index) => `https://example.com/${index}`) },
+        status: HttpStatus.BadRequest,
+      },
+      { name: 'a normal registration', body: validBody, status: HttpStatus.Created },
       {
         name: 'a five megabyte body',
         body: { ...validBody, client_name: 'x'.repeat(5 * 1024 * 1024) },
@@ -99,13 +106,6 @@ describe('oauth discovery', () => {
         body: { ...validBody, redirect_uris: Array.from({ length: 20_000 }, (_, index) => `https://example.com/${index}`) },
         status: HttpStatus.PayloadTooLarge,
       },
-      { name: 'a client name over the cap', body: { ...validBody, client_name: 'x'.repeat(300) }, status: HttpStatus.BadRequest },
-      {
-        name: 'more redirect uris than the cap',
-        body: { ...validBody, redirect_uris: Array.from({ length: 40 }, (_, index) => `https://example.com/${index}`) },
-        status: HttpStatus.BadRequest,
-      },
-      { name: 'a normal registration', body: validBody, status: HttpStatus.Created },
     ])('$name answers $status', async ({ body, status }) => {
       expect((await register(body)).status).toBe(status);
     });

@@ -8,6 +8,8 @@ import type { Environment } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
+import { consentRevocationPlugin } from './consent-revocation';
+import { registrationLimitsPlugin } from './registration-limits';
 
 const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_MAX_REQUESTS = 100;
@@ -15,7 +17,7 @@ const SIGN_IN_PATH = '/sign-in/email';
 const SIGN_UP_PATH = '/sign-up/email';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
 const AUTHORIZE_PATH = '/oauth2/authorize';
-const DISABLED_PATHS = ['/update-user'];
+const DISABLED_PATHS = ['/update-user', '/token', '/oauth2/create-client'];
 const TOKEN_PATH = '/oauth2/token';
 const OAUTH_SCOPES = [...Object.values(AgentScope), OFFLINE_ACCESS_SCOPE];
 
@@ -76,6 +78,8 @@ export function createAuth({ database, environment }: { database: AuthDatabase; 
     disabledPaths: DISABLED_PATHS,
     plugins: [
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
+      registrationLimitsPlugin(),
+      consentRevocationPlugin(),
       defaultResourcePlugin(mcpResourceOf(environment.appOrigin)),
       mcp({
         loginPage: AppRoute.SignIn,

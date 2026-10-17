@@ -116,7 +116,7 @@ git add apps/web/src/features/auth/sign-in-page.test.tsx
 git commit -m "test(web): pin the too-many-attempts message on sign-in"
 ```
 
-- [ ] **Step 2: Move the shared API error and message into `lib/api.ts`.** Add under `ApiRequestError`:
+- [x] **Step 2: Move the shared API error and message into `lib/api.ts`.** (c7574a9, done by the C2 API developer; the message keeps its trailing period, pinned by timeline-copy.test.ts) Add under `ApiRequestError`:
 
 ```ts
 export class DocumentUnavailableError extends ApiRequestError {}
@@ -616,7 +616,7 @@ Covers 4.20 and the rest of 4.21.
 - Consumes: `DocumentUnavailableError`, `requestFailedMessage` from Task 1.
 - Produces: `assertDocumentAvailable(response: Response): void`; `assertOk({ response, subject }: { response: Response; subject: string }): void`; `readJson<Body>({ response, subject }: { response: Response; subject: string }): Promise<Body>`; `fetchDocuments(): Promise<DocumentsList>` from `documents-api.ts`; `UPLOAD_SUBJECT = 'Upload'`, `CREATE_SUBJECT = 'Create'` in `documents-copy.ts`.
 
-- [ ] **Step 1: Write the failing tests.** `apps/web/src/lib/api.test.ts`:
+- [x] **Step 1: Write the failing tests.** (172a332) `apps/web/src/lib/api.test.ts`:
 
 ```ts
 import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-history/types';
@@ -653,16 +653,16 @@ test('a 404 means the document is unavailable', () => {
 
 Inert stubs in `lib/api.ts`: `assertDocumentAvailable` and `assertOk` do nothing; `readJson` returns `response.json()`.
 
-- [ ] **Step 2: Run it and see it fail.** `cd apps/web && npx vitest run src/lib/api.test.ts`. Expected: FAIL on the `readJson` rejection assertion (the stub rejects with a `SyntaxError` from parsing the empty 403 body, so `rejects.toEqual(new ApiRequestError(...))` fails with `expected SyntaxError … to deeply equal ApiRequestError …`), and twice on `expected [Function] to throw`.
+- [x] **Step 2: Run it and see it fail.** (SyntaxError instead of ApiRequestError; twice expected to throw) `cd apps/web && npx vitest run src/lib/api.test.ts`. Expected: FAIL on the `readJson` rejection assertion (the stub rejects with a `SyntaxError` from parsing the empty 403 body, so `rejects.toEqual(new ApiRequestError(...))` fails with `expected SyntaxError … to deeply equal ApiRequestError …`), and twice on `expected [Function] to throw`.
 
-- [ ] **Step 3: Commit the red test.**
+- [x] **Step 3: Commit the red test.** (172a332)
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/lib/api.test.ts
 git commit -m "test(web): pin one JSON reader and one failed-request message"
 ```
 
-- [ ] **Step 4: Implement in `lib/api.ts`** (add `DOCUMENT_UNAVAILABLE_MESSAGE` and `HttpStatus` to the types import, which becomes a value import):
+- [x] **Step 4: Implement in `lib/api.ts`** (fd95348) (add `DOCUMENT_UNAVAILABLE_MESSAGE` and `HttpStatus` to the types import, which becomes a value import):
 
 ```ts
 export function assertDocumentAvailable(response: Response): void {
@@ -679,7 +679,7 @@ export async function readJson<Body>({ response, subject }: { response: Response
 }
 ```
 
-- [ ] **Step 5: Adopt.** Every message stays byte-identical because `requestFailedMessage` writes `${subject} failed with status ${status}`.
+- [x] **Step 5: Adopt.** (fd95348; messages gain a trailing period, see tester briefing) Every message stays byte-identical because `requestFailedMessage` writes `${subject} failed with status ${status}`.
 
 `timeline-api.ts`: delete the local `assertDocumentAvailable` and import it. Each `if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject: X, status: response.status })); return response.json();` pair becomes `return readJson<T>({ response, subject: X })`, with `T` the function's return body type: `fetchTimeline` (`'Timeline request'`), `fetchSummaries` (`'Summaries request'`), `refreshTopics` (`'Topics refresh'`), `fetchSelectionSummary` (`'Selection summary request'`), `requestSelectionSummary` (`SUMMARIZE_EDITS_SUBJECT`), `fetchBinEdits` (`'Bin edits request'`). `fetchVersion` and `unavailableMessage` stay as they are.
 
@@ -719,9 +719,9 @@ vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeo
 
 Check: `rg -n "vi.mock\('@/lib/api', \(\)" apps/web/src` prints nothing. Check: `rg -n "response.ok" apps/web/src --glob '!*.test.*'` prints only `lib/api.ts`, `openDocument` and `fetchDocumentFile` in `editor-api.ts`, and `fetchVersion` in `timeline-api.ts` (it maps a failure to `VersionLoadKind.Failed`, not an error).
 
-- [ ] **Step 6: Run the gate.** Expected: PASS; `redirect-if-session.test.tsx` and `sign-out-flow.test.tsx` (with the partial mock), `timeline-api.test.ts` (its `requestFailedMessage` assertions), `upload-dialog.test.tsx`, `share-dialog.test.tsx`, `share-landing-page.test.tsx`, `documents-page.test.tsx` and `document-page.test.tsx` unchanged.
+- [x] **Step 6: Run the gate.** (web 290 passed) Expected: PASS; `redirect-if-session.test.tsx` and `sign-out-flow.test.tsx` (with the partial mock), `timeline-api.test.ts` (its `requestFailedMessage` assertions), `upload-dialog.test.tsx`, `share-dialog.test.tsx`, `share-landing-page.test.tsx`, `documents-page.test.tsx` and `document-page.test.tsx` unchanged.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.** (fd95348)
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/features/timeline/timeline-api.ts apps/web/src/features/editor/editor-api.ts apps/web/src/features/documents/documents-api.ts apps/web/src/features/documents/documents-copy.ts apps/web/src/features/documents/use-documents.ts apps/web/src/features/sharing/share-api.ts apps/web/src/features/auth/use-session.ts apps/web/src/features/auth/redirect-if-session.test.tsx apps/web/src/features/auth/sign-out-flow.test.tsx
@@ -892,7 +892,7 @@ Covers 4.23.
 **Interfaces:**
 - Produces: `type PolledQuery = { state: { error: Error | null } }`; `pollWhileAvailable(intervalMs: number): (query: PolledQuery) => number | false` from `@/lib/api`. `timeline-api.ts` no longer exports `pollWhileAvailable`; `TIMELINE_POLL_MS` stays there.
 
-- [ ] **Step 1: Write the failing test.** Append to `api.test.ts` (import `pollWhileAvailable`):
+- [x] **Step 1: Write the failing test.** (97386f6) Append to `api.test.ts` (import `pollWhileAvailable`):
 
 ```ts
 const INTERVAL_MS = 5000;
@@ -907,16 +907,16 @@ test('polling continues at its interval until the document is gone', () => {
 
 Inert stub: `pollWhileAvailable` returns `() => false`.
 
-- [ ] **Step 2: Run it and see it fail.** `cd apps/web && npx vitest run src/lib/api.test.ts`. Expected: FAIL on `expected false to be 5000`.
+- [x] **Step 2: Run it and see it fail.** (expected false to be 5000) `cd apps/web && npx vitest run src/lib/api.test.ts`. Expected: FAIL on `expected false to be 5000`.
 
-- [ ] **Step 3: Commit the red test.**
+- [x] **Step 3: Commit the red test.** (97386f6)
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/lib/api.test.ts
 git commit -m "test(web): pin polling that stops when the document is gone"
 ```
 
-- [ ] **Step 4: Implement and adopt.** `lib/api.ts`:
+- [x] **Step 4: Implement and adopt.** (dcacac3) `lib/api.ts`:
 
 ```ts
 type PolledQuery = { state: { error: Error | null } };
@@ -940,9 +940,9 @@ function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefin
 
 and drop its `DocumentUnavailableError` import. Check: `rg -n "instanceof DocumentUnavailableError" apps/web/src --glob '!*.test.*'` prints `lib/api.ts` and `use-members.ts` (`isUnavailable`) only.
 
-- [ ] **Step 5: Run the gate.** Expected: PASS, including the four Review Focus 2 tests unchanged.
+- [x] **Step 5: Run the gate.** (web 299 passed) Expected: PASS, including the four Review Focus 2 tests unchanged.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.** (dcacac3)
 
 ```bash
 git add apps/web/src/lib/api.ts apps/web/src/features/timeline/timeline-api.ts apps/web/src/features/timeline/use-timeline.ts apps/web/src/features/timeline/use-summaries.ts apps/web/src/features/timeline/bin-edits.tsx apps/web/src/features/timeline/use-bin-runs.ts apps/web/src/features/timeline/use-selection-summary.ts apps/web/src/features/editor/use-members.ts

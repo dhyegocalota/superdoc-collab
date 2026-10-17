@@ -12,9 +12,15 @@ export enum TimePrecision {
   Second = 'second',
 }
 
-const PARTS_BY_PRECISION: Record<TimePrecision, Intl.DateTimeFormatOptions> = {
-  [TimePrecision.Minute]: MINUTE_PARTS,
-  [TimePrecision.Second]: SECOND_PARTS,
+const BIN_FORMATS: Record<TimePrecision, { withoutYear: Intl.DateTimeFormat; withYear: Intl.DateTimeFormat }> = {
+  [TimePrecision.Minute]: {
+    withoutYear: new Intl.DateTimeFormat(undefined, MINUTE_PARTS),
+    withYear: new Intl.DateTimeFormat(undefined, { ...MINUTE_PARTS, ...YEAR_PART }),
+  },
+  [TimePrecision.Second]: {
+    withoutYear: new Intl.DateTimeFormat(undefined, SECOND_PARTS),
+    withYear: new Intl.DateTimeFormat(undefined, { ...SECOND_PARTS, ...YEAR_PART }),
+  },
 };
 
 export function precisionOf(binMs: number): TimePrecision {
@@ -31,9 +37,9 @@ function isToday(time: number): boolean {
 }
 
 function binFormat({ time, binMs }: { time: number; binMs: number }): Intl.DateTimeFormat {
-  const parts = PARTS_BY_PRECISION[precisionOf(binMs)];
-  if (isThisYear(time)) return new Intl.DateTimeFormat(undefined, parts);
-  return new Intl.DateTimeFormat(undefined, { ...parts, ...YEAR_PART });
+  const formats = BIN_FORMATS[precisionOf(binMs)];
+  if (isThisYear(time)) return formats.withoutYear;
+  return formats.withYear;
 }
 
 export function formatTimestamp(time: number): string {

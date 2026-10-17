@@ -12,8 +12,6 @@ import {
   SUMMARIZING_EDITS_MESSAGE,
 } from './timeline-copy';
 
-const RUNNING_REVEAL_KEY = 'running';
-
 type SelectionSummaryCardProps = {
   view: SelectionSummaryView | undefined;
   error: Error | null;
@@ -27,13 +25,23 @@ function errorMessage(error: Error): string {
   return error.message;
 }
 
-function useRevealOnChange({ revealKey, targetRef }: { revealKey: string | undefined; targetRef: RefObject<HTMLElement | null> }): void {
-  const lastRevealKey = useRef(revealKey);
+function useRevealRun({
+  isRunning,
+  summaryKey,
+  targetRef,
+}: {
+  isRunning: boolean;
+  summaryKey: string | undefined;
+  targetRef: RefObject<HTMLElement | null>;
+}): void {
+  const wasRunning = useRef(isRunning);
   useEffect(() => {
-    if (lastRevealKey.current === revealKey) return;
-    lastRevealKey.current = revealKey;
+    const hasStarted = isRunning && !wasRunning.current;
+    const hasLanded = !isRunning && wasRunning.current && summaryKey !== undefined;
+    wasRunning.current = isRunning;
+    if (!hasStarted && !hasLanded) return;
     targetRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [revealKey, targetRef]);
+  }, [isRunning, summaryKey, targetRef]);
 }
 
 function SummarySection({ view, error, canRequest, isPending, onRetry }: SelectionSummaryCardProps & { view: SelectionSummaryView }) {
@@ -43,7 +51,7 @@ function SummarySection({ view, error, canRequest, isPending, onRetry }: Selecti
   const isRetryableFailure = view.state === SelectionSummaryState.Failed && view.isModelAvailable;
   const hasContent = summary !== null || isRunning || isRetryableFailure || error !== null;
   const sectionRef = useRef<HTMLElement>(null);
-  useRevealOnChange({ revealKey: isRunning ? RUNNING_REVEAL_KEY : summary?.key, targetRef: sectionRef });
+  useRevealRun({ isRunning, summaryKey: summary?.key, targetRef: sectionRef });
   if (!hasContent) return null;
   return (
     <section ref={sectionRef} aria-labelledby={headingId} className="flex flex-col gap-2 rounded-md border p-3">

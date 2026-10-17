@@ -50,7 +50,7 @@ test('two authors type in two topics and the bands appear', async ({ browser }) 
   await expect(topEdits(ana.page).filter({ hasText: HIRING }).getByTitle(BRUNO)).toBeVisible();
 });
 
-test('Refresh topics recomputes the names from the current text', async ({ browser }) => {
+test('Regroup topics recomputes the names from the current text', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   const volumeBefore = await bandVolume({ page: ana.page, name: HIRING });

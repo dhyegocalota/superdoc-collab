@@ -26,6 +26,7 @@ enum ResizeKey {
 }
 
 const PRIMARY_BUTTON_PRESSED = 1;
+const WHOLE_TIMELINE: EditSelection = { term: null, author: null, topic: null, at: null };
 
 type TimelinePanelProps = { documentId: string; role: DocumentRole; onTravel: (binStart: number) => void; onBackToLive: () => void };
 
@@ -77,7 +78,7 @@ export function TimelinePanel({ documentId, role, onTravel, onBackToLive }: Time
   const selectedIndex = timeline && selectedTime !== null ? timeline.bins.findIndex((bin) => selectedTime >= bin.start && selectedTime < bin.start + timeline.binMs) : -1;
   const selectedBin = timeline && selectedIndex >= 0 ? timeline.bins[selectedIndex] : undefined;
   const selection: EditSelection = { term: search.filter.term, author: search.filter.author, topic: search.topic, at: selectedBin ? selectedBin.start : null };
-  const { data: selectionSummary } = useSelectionSummary({ documentId, selection, isOpen });
+  const { data: selectionSummary } = useSelectionSummary({ documentId, selection, isOpen, timelineVolume: timeline ? selectionVolume({ timeline, selection: WHOLE_TIMELINE }) : null });
   const summarize = useSummarizeEdits(documentId);
   const summaryError = errorForSelection({ error: summarize.error, variables: summarize.variables, selection });
 

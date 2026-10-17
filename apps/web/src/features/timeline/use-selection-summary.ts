@@ -1,5 +1,5 @@
 import { SECOND_MS, SelectionSummaryState, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { DocumentUnavailableError } from '@/features/editor/editor-api';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey, SummaryTooSoonError, TIMELINE_POLL_MS } from './timeline-api';
@@ -10,14 +10,25 @@ function pollWhileRunning(query: { state: { data: SelectionSummaryView | undefin
   return false;
 }
 
-export function useSelectionSummary({ documentId, selection, isOpen }: { documentId: string; selection: EditSelection; isOpen: boolean }): UseQueryResult<SelectionSummaryView> {
-  return useQuery({
+export function useSelectionSummary({ documentId, selection, isOpen, timelineVolume }: { documentId: string; selection: EditSelection; isOpen: boolean; timelineVolume: number | null }): UseQueryResult<SelectionSummaryView> {
+  const queryClient = useQueryClient();
+  const seenVolume = useRef(timelineVolume);
+  const query = useQuery({
     queryKey: selectionSummaryQueryKey({ documentId, selection }),
     queryFn: () => fetchSelectionSummary({ documentId, selection }),
     enabled: isOpen,
     refetchInterval: pollWhileRunning,
     retry: false,
   });
+
+  useEffect(() => {
+    const previousVolume = seenVolume.current;
+    seenVolume.current = timelineVolume;
+    if (previousVolume === null || timelineVolume === null || previousVolume === timelineVolume) return;
+    void queryClient.invalidateQueries({ queryKey: selectionSummaryQueryKey({ documentId, selection }) });
+  }, [timelineVolume]);
+
+  return query;
 }
 
 export function useSummarizeEdits(documentId: string): UseMutationResult<SelectionSummaryView, Error, EditSelection> {

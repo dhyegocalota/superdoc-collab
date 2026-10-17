@@ -10,15 +10,26 @@ import {
   RECONNECTING_TITLE,
   RECOVERED_TITLE,
   RELOAD_LABEL,
+  RELOADING_LABEL,
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
 } from './connection-copy';
 
-type ConnectionBannerProps = { state: ConnectionState; failureReason: ConnectionFailureReason | null; onReload: () => void };
+type ConnectionBannerProps = {
+  state: ConnectionState;
+  failureReason: ConnectionFailureReason | null;
+  isReloading: boolean;
+  onReload: () => void;
+};
+
+enum BannerRole {
+  Status = 'status',
+  Alert = 'alert',
+}
 
 type BannerState = Exclude<ConnectionState, ConnectionState.Online>;
 
 type Presentation = {
-  role: 'status' | 'alert';
+  role: BannerRole;
   toneClassName: string;
   Icon: LucideIcon;
   iconClassName: string;
@@ -28,7 +39,7 @@ type Presentation = {
 
 const PRESENTATION: Record<BannerState, Presentation> = {
   [ConnectionState.Lost]: {
-    role: 'status',
+    role: BannerRole.Status,
     toneClassName: 'bg-muted',
     Icon: WifiOff,
     iconClassName: '',
@@ -36,7 +47,7 @@ const PRESENTATION: Record<BannerState, Presentation> = {
     detail: KEPT_AND_DATED_DETAIL,
   },
   [ConnectionState.Reconnecting]: {
-    role: 'status',
+    role: BannerRole.Status,
     toneClassName: 'bg-muted',
     Icon: Loader2,
     iconClassName: 'animate-spin motion-reduce:animate-none',
@@ -44,7 +55,7 @@ const PRESENTATION: Record<BannerState, Presentation> = {
     detail: KEPT_AND_DATED_DETAIL,
   },
   [ConnectionState.Recovered]: {
-    role: 'status',
+    role: BannerRole.Status,
     toneClassName: 'bg-online/15',
     Icon: Check,
     iconClassName: '',
@@ -52,7 +63,7 @@ const PRESENTATION: Record<BannerState, Presentation> = {
     detail: null,
   },
   [ConnectionState.Failed]: {
-    role: 'alert',
+    role: BannerRole.Alert,
     toneClassName: 'bg-destructive/10',
     Icon: TriangleAlert,
     iconClassName: 'text-destructive',
@@ -61,10 +72,12 @@ const PRESENTATION: Record<BannerState, Presentation> = {
   },
 };
 
-export function ConnectionBanner({ state, failureReason, onReload }: ConnectionBannerProps) {
+export function ConnectionBanner({ state, failureReason, isReloading, onReload }: ConnectionBannerProps) {
   if (state === ConnectionState.Online) return null;
   const { role, toneClassName, Icon, iconClassName, title, detail } = PRESENTATION[state];
   const isFailed = state === ConnectionState.Failed;
+  const reasonLine = isFailed && failureReason ? FAILURE_REASON_COPY[failureReason] : null;
+  const body = [reasonLine, detail].filter((line) => line !== null).join(' ');
   return (
     <div
       role={role}
@@ -75,12 +88,11 @@ export function ConnectionBanner({ state, failureReason, onReload }: ConnectionB
       <Icon aria-hidden className={cn('size-4 shrink-0', iconClassName)} />
       <div className="min-w-0 flex-1 basis-48">
         <p className="font-medium">{title}</p>
-        {isFailed && failureReason && <p>{FAILURE_REASON_COPY[failureReason]}</p>}
-        {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
+        {body && <p className="text-xs text-muted-foreground">{body}</p>}
       </div>
       {isFailed && (
-        <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={onReload}>
-          {RELOAD_LABEL}
+        <Button type="button" variant="outline" size="sm" className="ml-auto" disabled={isReloading} onClick={onReload}>
+          {isReloading ? RELOADING_LABEL : RELOAD_LABEL}
         </Button>
       )}
     </div>

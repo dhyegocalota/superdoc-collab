@@ -249,3 +249,6 @@ Run on the integration branch merged into the lane, ports 3100, 3199 and 3150 fr
 - The banner's vertical padding and borders are excluded from the measured height.
 
 - Width rule, decided by the lead: text lines on the text block only, at most 3 on phones for Lost, Reconnecting and Recovered, at most 5 for Failed; Reload must stay inside the viewport. The test measures every width in both phases and asserts once, so a run lists every failing width. It was not rerun after this change.
+- A 401 on the Reload refetch is a known gap: `refetchQueries` does not throw, so the page ends on the unavailable notice or the old data instead of a sign-in prompt.
+- Review fixes: Reload refetches the open key and the current file key with `exact: true`; the failure reason survives late Lost or Reconnecting reports; a stale Recovered action is ignored unless the reading is Lost or Reconnecting; the members cancel and refetch run inside `reportTransport` for outage reports; the banner shows the reason and the unsynced warning in one paragraph; the Reload button is disabled and reads "Reloading…" while the refetch runs.
+- Review-fix red/green pairs: hook `058ac98`/`0b1027e`, banner `133e011`/`a4a3a58`, page `f3deef0`/`68b73e4`.

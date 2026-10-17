@@ -26,7 +26,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { FAILURE_REASON_COPY, RELOAD_LABEL } from './connection-copy';
+import { FAILURE_REASON_COPY, RELOAD_LABEL, RELOADING_LABEL } from './connection-copy';
 import {
   BACK_TO_DOCUMENTS_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,
@@ -44,7 +44,7 @@ import { DocumentPage } from './document-page';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
-import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
+import { BLANK_DOCX_PATH, documentFileQueryKey, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
 
@@ -97,6 +97,7 @@ function mockDocumentApi({
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
   openedAfterReload = opened,
+  reloadGate = Promise.resolve(),
 }: {
   opened: OpenedDocument;
   renamedTitle?: string;
@@ -106,6 +107,7 @@ function mockDocumentApi({
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
   openedAfterReload?: OpenedDocument;
+  reloadGate?: Promise<void>;
 }) {
   let current = opened;
   let openRequests = 0;
@@ -126,6 +128,7 @@ function mockDocumentApi({
     if (input === DOCUMENT_PATH) {
       openRequests += 1;
       const isReload = openRequests > 1;
+      if (isReload) await reloadGate;
       return jsonResponse({ body: openStatus === HttpStatus.Ok ? (isReload ? openedAfterReload : current) : openBody, status: openStatus });
     }
     throw new Error(`unexpected request ${String(input)}`);
@@ -441,4 +444,41 @@ test('a callback from the first instance after Reload shows no banner', async ()
   act(() => firstInstanceConfig.onCollaborationConnectionChange(LOST_CALLBACK));
   act(() => firstInstanceConfig.onException(warnDiagnostic()));
   expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+});
+
+test('Reload refetches only the open query and the file query, each exactly', async () => {
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Owner, RoomMode.Create),
+    openedAfterReload: openedAs(DocumentRole.Owner, RoomMode.Join),
+  });
+  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const refetchQueries = vi.spyOn(queryClient, 'refetchQueries');
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  expect(refetchQueries.mock.calls.map(([filters]) => filters)).toEqual([
+    { queryKey: openedDocumentQueryKey(DOCUMENT_ID), exact: true },
+    { queryKey: documentFileQueryKey({ documentId: DOCUMENT_ID, roomMode: RoomMode.Create }), exact: true },
+  ]);
+});
+
+test('Reload disables its button while the refetch runs and remounts once', async () => {
+  let releaseReload = (): void => undefined;
+  const reloadGate = new Promise<void>((resolve) => {
+    releaseReload = resolve;
+  });
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Owner, RoomMode.Create),
+    openedAfterReload: openedAs(DocumentRole.Owner, RoomMode.Join),
+    reloadGate,
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+  expect(await screen.findByRole('button', { name: RELOADING_LABEL })).toBeDisabled();
+  releaseReload();
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  expect(superDocDestroy).toHaveBeenCalledTimes(1);
 });

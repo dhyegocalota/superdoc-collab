@@ -11,6 +11,7 @@ import {
   RECONNECTING_TITLE,
   RECOVERED_TITLE,
   RELOAD_LABEL,
+  RELOADING_LABEL,
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
 } from './connection-copy';
 
@@ -20,12 +21,14 @@ function renderBanner({
   state,
   failureReason = null,
   onReload = vi.fn(),
+  isReloading = false,
 }: {
   state: ConnectionState;
   failureReason?: ConnectionFailureReason | null;
   onReload?: () => void;
+  isReloading?: boolean;
 }) {
-  render(<ConnectionBanner state={state} failureReason={failureReason} onReload={onReload} />);
+  render(<ConnectionBanner state={state} failureReason={failureReason} isReloading={isReloading} onReload={onReload} />);
 }
 
 test.each([
@@ -53,20 +56,20 @@ test.each([
 
 test('Failed names the reason and warns that unsynced edits are lost on reload', () => {
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SyncTimeout });
-  expect(screen.getByText(FAILURE_REASON_COPY[ConnectionFailureReason.SyncTimeout])).toBeInTheDocument();
-  expect(screen.getByText(UNSYNCED_LOST_ON_RELOAD_DETAIL)).toBeInTheDocument();
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.SyncTimeout]);
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
 });
 
 test('an Unknown reason shows the generic failure line', () => {
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown });
-  expect(screen.getByText(FAILURE_REASON_COPY[ConnectionFailureReason.Unknown])).toBeInTheDocument();
+  expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Unknown]);
 });
 
 test.each([ConnectionState.Lost, ConnectionState.Reconnecting, ConnectionState.Recovered])(
   '%s neither warns about reload nor offers it',
   (state) => {
     renderBanner({ state });
-    expect(screen.queryByText(UNSYNCED_LOST_ON_RELOAD_DETAIL)).not.toBeInTheDocument();
+    expect(screen.getByTestId('connection-banner')).not.toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
     expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
   },
 );
@@ -81,4 +84,16 @@ test('Reload calls onReload once', async () => {
   renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown, onReload });
   await userEvent.click(screen.getByRole('button', { name: RELOAD_LABEL }));
   expect(onReload).toHaveBeenCalledTimes(1);
+});
+
+test('Failed is the title and one paragraph holding the reason and the unsynced warning', () => {
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.SyncTimeout });
+  const paragraphs = screen.getByTestId('connection-banner').querySelectorAll('p');
+  expect(paragraphs).toHaveLength(2);
+  expect(paragraphs[1]).toHaveTextContent(`${FAILURE_REASON_COPY[ConnectionFailureReason.SyncTimeout]} ${UNSYNCED_LOST_ON_RELOAD_DETAIL}`);
+});
+
+test('while reloading the button is disabled and says so', () => {
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Unknown, isReloading: true });
+  expect(screen.getByRole('button', { name: RELOADING_LABEL })).toBeDisabled();
 });

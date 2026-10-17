@@ -1,7 +1,7 @@
 import { ConnectionFailureReason, ConnectionState, RECOVERED_NOTICE_MS } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
-import { createElement, type ReactNode } from 'react';
+import { createElement, useLayoutEffect, type ReactNode } from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { membersQueryKey } from './editor-api';
@@ -24,17 +24,26 @@ function readingReport(reading: TransportReading | null, failureReason: Connecti
   return { reading, failureReason, hasSynced: false };
 }
 
-function renderConnection(initialProps: MembersInput = NOT_ANSWERED) {
+type ConnectionView = ReturnType<typeof useConnectionState>;
+
+function renderConnection({
+  initialProps = NOT_ANSWERED,
+  onCommit = () => undefined,
+}: { initialProps?: MembersInput; onCommit?: (view: ConnectionView) => void } = {}) {
   const queryClient = new QueryClient();
   const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
   const cancelQueries = vi.spyOn(queryClient, 'cancelQueries');
   function wrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, { client: queryClient }, children);
   }
-  const rendered = renderHook((members: MembersInput) => useConnectionState({ documentId: DOCUMENT_ID, ...members }), {
-    wrapper,
-    initialProps,
-  });
+  const rendered = renderHook(
+    (members: MembersInput) => {
+      const view = useConnectionState({ documentId: DOCUMENT_ID, ...members });
+      useLayoutEffect(() => onCommit(view));
+      return view;
+    },
+    { wrapper, initialProps },
+  );
   function report(next: TransportReport): void {
     act(() => rendered.result.current.reportTransport(next));
   }
@@ -112,7 +121,7 @@ test('a Lost reading cancels the in-flight members request and refetches', () =>
 });
 
 test('a server flag that was true before the Lost reading stays Lost', () => {
-  const connection = renderConnection({ isCurrentUserOnline: true, membersAnsweredAt: Date.now() });
+  const connection = renderConnection({ initialProps: { isCurrentUserOnline: true, membersAnsweredAt: Date.now() } });
   connection.advance(OUTAGE_DELAY_MS);
   connection.report(readingReport(TransportReading.Lost));
   expect(connection.result.current.state).toBe(ConnectionState.Lost);
@@ -212,3 +221,37 @@ test('the notice timer is cleared on unmount', () => {
   connection.unmount();
   expect(vi.getTimerCount()).toBe(0);
 });
+
+test('a late Lost reading after Failed keeps the failure reason', () => {
+  const connection = renderConnection();
+  connection.report(readingReport(TransportReading.Failed, ConnectionFailureReason.Unknown));
+  connection.report(readingReport(TransportReading.Lost));
+  expect(connection.result.current.state).toBe(ConnectionState.Failed);
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.Unknown);
+});
+
+test('a Failed report queued between the recovery render and its effect stays Failed', () => {
+  let hasQueuedFailure = false;
+  const connection = renderConnection({
+    onCommit: (view) => {
+      if (view.state !== ConnectionState.Recovered || hasQueuedFailure) return;
+      hasQueuedFailure = true;
+      view.reportTransport(readingReport(TransportReading.Failed, ConnectionFailureReason.AccessDenied));
+    },
+  });
+  connection.report(readingReport(TransportReading.Lost));
+  connection.answer(true);
+  expect(connection.result.current.state).toBe(ConnectionState.Failed);
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.AccessDenied);
+});
+
+test.each([TransportReading.Lost, TransportReading.Reconnecting])(
+  'a %s report cancels the members request before it returns',
+  (reading) => {
+    const connection = renderConnection();
+    act(() => {
+      connection.result.current.reportTransport(readingReport(reading));
+      expect(connection.cancelQueries).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) });
+    });
+  },
+);

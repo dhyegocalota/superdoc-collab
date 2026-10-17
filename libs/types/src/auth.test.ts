@@ -39,6 +39,10 @@ test('sign-up accepts a known IANA time zone', () => {
   expect(signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'America/Sao_Paulo' }).success).toBe(true);
 });
 
+test('sign-up accepts UTC, which browsers report but Intl.supportedValuesOf omits', () => {
+  expect(signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'UTC' }).success).toBe(true);
+});
+
 test('sign-up rejects an unknown time zone with its message', () => {
   const rejected = signUpSchema.safeParse({ ...SIGN_UP_BASE, timeZone: 'Mars/Olympus' });
   expect(rejected.error?.issues[0]?.message).toBe(INVALID_TIME_ZONE_MESSAGE);

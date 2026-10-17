@@ -1,6 +1,7 @@
 import { sharePagePath, ShareLinkRole, type ShareLinks } from '@superdoc-history/types';
 import { eq } from 'drizzle-orm';
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { hashToken } from '../auth/token-hash';
 import type { AuthDatabase } from '../database/connection';
 import { documentShareLinks } from '../database/schema/documents';
 
@@ -9,10 +10,6 @@ const TOKEN_DIGEST = 'sha256';
 
 export function deriveShareToken({ secret, nonce }: { secret: string; nonce: string }): string {
   return createHmac(TOKEN_DIGEST, secret).update(nonce).digest('base64url');
-}
-
-export function hashShareToken(token: string): string {
-  return createHash(TOKEN_DIGEST).update(token).digest('hex');
 }
 
 export class ShareLinksRepository {
@@ -45,7 +42,7 @@ export class ShareLinksRepository {
   }
 
   resolve(token: string): { documentId: string; role: ShareLinkRole } | null {
-    const tokenHash = hashShareToken(token);
+    const tokenHash = hashToken(token);
     const row = this.database.drizzle.select().from(documentShareLinks).where(eq(documentShareLinks.tokenHash, tokenHash)).get();
     if (!row) return null;
     if (!this.isIssuedBySecret(row)) return null;
@@ -54,12 +51,12 @@ export class ShareLinksRepository {
   }
 
   private isIssuedBySecret({ nonce, tokenHash }: { nonce: string; tokenHash: string }): boolean {
-    return hashShareToken(deriveShareToken({ secret: this.secret, nonce })) === tokenHash;
+    return hashToken(deriveShareToken({ secret: this.secret, nonce })) === tokenHash;
   }
 
   private writeNonce({ documentId, role }: { documentId: string; role: ShareLinkRole }): void {
     const nonce = randomBytes(NONCE_BYTES).toString('base64url');
-    const tokenHash = hashShareToken(deriveShareToken({ secret: this.secret, nonce }));
+    const tokenHash = hashToken(deriveShareToken({ secret: this.secret, nonce }));
     this.database.drizzle
       .insert(documentShareLinks)
       .values({ documentId, role, nonce, tokenHash, createdAt: new Date() })

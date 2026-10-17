@@ -346,6 +346,7 @@ test('below the wide layout the editor keeps a usable height and the panel stack
   expect(area.className).toContain('min-h-[60dvh]');
   expect(area.className).toContain('lg:min-h-0');
   expect(screen.getByRole('separator').closest('aside')).toHaveClass('shrink-0');
+  expect(screen.getByRole('separator').closest('aside')!.className).toContain('max-h-[50dvh]');
 });
 
 test('a document that disappears while viewing stops every poll', async () => {

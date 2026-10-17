@@ -23,6 +23,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | Version endpoints must not declare identities or awareness | [2026-10-16-version-endpoints-must-skip-awareness-declarations.md](2026-10-16-version-endpoints-must-skip-awareness-declarations.md) | 2026-10-16 |
 | 2026-10-16 | An async upgrade handler leaves the raw socket with no 'error' listener | [2026-10-16-async-upgrade-handlers-drop-the-socket-error-listener.md](2026-10-16-async-upgrade-handlers-drop-the-socket-error-listener.md) | 2026-10-16 |
 | 2026-10-17 | The SDK opens a document with a `collaboration` block, no error is raised, and the room on the server stays empty | [2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md](2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md) | 2026-10-17 |
+| 2026-10-17 | A tracked edit through a cached SDK session returns ok and nothing reaches the update log | [2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md](2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md) | 2026-10-17 |
 
 ### history
 

@@ -192,12 +192,12 @@ Pins (green when they landed, written after the code because they need the L2 ro
 
 ### Known gaps
 
-- `summarize_selection` needs the Editor role, like `POST /summaries/selection`; the spec table says Reader. The cost-bearing action keeps the HTTP rule. Say so if the owner wants Reader.
-- Room tokens live five minutes and sessions can live longer; the SDK reconnect inside a long session would present an expired token. A failed call closes the session, so the next call opens with a fresh token. Not exercised.
+- `summarize_selection` needs the Editor role, like `POST /summaries/selection`, and the spec table now says Editor.
+- Room tokens live five minutes. A cached session is replaced when its role or author name changed or when it is older than the token lifetime minus the open timeout (25 seconds before expiry with the defaults). An edit whose update never reaches the server is still not detected on a session that is current by those rules, for example a socket the server closed one second after the call started.
 - A document that was never opened has its room created by the agent (`roomMode: create` from the stored file), so the bootstrap update is logged with the Agent actor of that person.
 - The embedded SDK host process is spawned at the first open; cold start time and a writable state directory in the Railway container were not measured.
 - `get_share_links` puts the link secrets in the model transcript by design (spec); the reveal is recorded on the timeline.
-- `HttpStatus` has no 405; `mcp-route.ts` declares `METHOD_NOT_ALLOWED_STATUS` locally because `libs/types/src/http.ts` is outside this lane.
+- `GET` and `DELETE` on `/api/mcp` answer `HttpStatus.MethodNotAllowed`.
 - There is no per-call timeout for a tool call on an open session other than the SDK's own.
 
 ### For the E2E lane
@@ -319,3 +319,18 @@ Both tests were written after the product code landed, so neither was red first.
 ### Known gaps
 
 - None known for the lane; all three tests are pins, not red-first.
+
+### L3 review fixes
+
+Reviewer round on this lane; red commit dfdeef8 and 7bceef5, green fd38378 and f8a0d67.
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `agent-sessions-room.test.ts::a Reader promoted to Editor while the session is cached has the next edit logged` | `expected 24 to be greater than 24` | the cached session is replaced when the role changed |
+| `agent-sessions-room.test.ts::a session near the end of its room token is replaced, so an edit after a reconnect is logged` | `expected 31 to be greater than 31` | a session older than the token lifetime minus the open timeout is replaced |
+| `agent-sessions.test.ts` role, name, age and cap tests | `expected vi.fn() to be called 2 times, but got 1 times` and `to be called 1 times, but got 2 times` | `OpenedSession` records role, name and `openedAt`; in-flight rooms count in the cap |
+| `agent-document-tools.test.ts` limits, stored-file export and hidden unknown errors | `expected undefined to be true`, `Error: No document session is expected here`, `Error: the room is gone` | limits, `roomMode` check and `TOOL_FAILED_MESSAGE` |
+| `agent-tools.test.ts::list_documents ignores a documentId it does not take` | `expected [ true, … ] to deeply equal [ undefined, … ]` | tools declare whether they target a document |
+| `mcp-route.test.ts::a body over the limit answers 413 before any tool runs` | `expected 400 to be 413` | `bodyLimit` on the route |
+
+Hypotheses to add: a Reader promoted while its session is cached edits successfully on the next call; a call during an in-flight edit on a ninth document waits and then succeeds; `get_timeline` with no `documentId` is a tool error; a body of 256 KiB plus one byte answers 413.

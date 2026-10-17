@@ -57,7 +57,7 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
     const result = services.insights.selection.request({ documentId, selection });
     if (result.outcome === SelectionRequestOutcome.TooSoon) return context.json({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }, HttpStatus.TooManyRequests, { [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds) });
     if (result.outcome === SelectionRequestOutcome.Unavailable) return context.json({ error: result.reason }, HttpStatus.ServiceUnavailable, { [RETRY_AFTER_HEADER]: String(RETRY_AFTER_SECONDS) });
-    if (result.outcome === SelectionRequestOutcome.Busy) return context.json({ error: LLM_BUSY_MESSAGE }, HttpStatus.ServiceUnavailable, { [RETRY_AFTER_HEADER]: String(RETRY_AFTER_SECONDS) });
+    if (result.outcome === SelectionRequestOutcome.Busy) return context.json({ error: LLM_BUSY_MESSAGE }, HttpStatus.ServiceUnavailable, { [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds) });
     const view = services.insights.selection.read({ documentId, selection });
     const isRunning = result.outcome === SelectionRequestOutcome.Started || result.outcome === SelectionRequestOutcome.AlreadyRunning;
     if (isRunning) return context.json(view, HttpStatus.Accepted);

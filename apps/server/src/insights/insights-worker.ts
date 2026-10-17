@@ -1,4 +1,4 @@
-import { HOUR_MS } from '@superdoc-history/types';
+import { HOUR_MS, MIN_RETRY_AFTER_MS } from '@superdoc-history/types';
 import { describeError } from '../history/projection-messages';
 
 export const INSIGHTS_JOB_FAILED_MESSAGE = 'Insights job failed for';
@@ -43,6 +43,13 @@ export class InsightsWorker {
 
   hasCallBudget(): boolean {
     return this.callsInWindow() < this.maxCallsPerHour;
+  }
+
+  retryAfterMs(): number {
+    if (this.hasCallBudget()) return MIN_RETRY_AFTER_MS;
+    const [oldest] = this.startedAt;
+    if (oldest === undefined) return MIN_RETRY_AFTER_MS;
+    return Math.max(MIN_RETRY_AFTER_MS, oldest + LLM_WINDOW_MS - this.now());
   }
 
   isRunning(key: string): boolean {

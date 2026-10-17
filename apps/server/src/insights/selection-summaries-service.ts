@@ -22,8 +22,8 @@ export enum SelectionRequestOutcome {
 }
 
 export type SelectionRequestResult =
-  | { outcome: SelectionRequestOutcome.Started | SelectionRequestOutcome.AlreadyRunning | SelectionRequestOutcome.Cached | SelectionRequestOutcome.Empty | SelectionRequestOutcome.Busy }
-  | { outcome: SelectionRequestOutcome.TooSoon; retryAfterSeconds: number }
+  | { outcome: SelectionRequestOutcome.Started | SelectionRequestOutcome.AlreadyRunning | SelectionRequestOutcome.Cached | SelectionRequestOutcome.Empty }
+  | { outcome: SelectionRequestOutcome.TooSoon | SelectionRequestOutcome.Busy; retryAfterSeconds: number }
   | { outcome: SelectionRequestOutcome.Unavailable; reason: string };
 
 export type RequestedSelection = EditSelection & { binMs: number | null };
@@ -93,14 +93,18 @@ export class SelectionSummariesService {
     if (this.worker.isRunning(jobKey)) return { outcome: SelectionRequestOutcome.AlreadyRunning };
     const remainingMs = this.cooldown.remainingMs(documentId);
     if (remainingMs > 0) return { outcome: SelectionRequestOutcome.TooSoon, retryAfterSeconds: Math.ceil(remainingMs / SECOND_MS) };
-    if (!this.worker.hasCallBudget()) return { outcome: SelectionRequestOutcome.Busy };
+    if (!this.worker.hasCallBudget()) return this.busy();
     const outcome = this.worker.run({ key: jobKey, job: () => this.summarize({ documentId, resolved, model: choice.model }) });
-    if (outcome === JobOutcome.Busy) return { outcome: SelectionRequestOutcome.Busy };
+    if (outcome === JobOutcome.Busy) return this.busy();
     return { outcome: SelectionRequestOutcome.Started };
   }
 
   forget(documentId: string): void {
     this.cooldown.forget(documentId);
+  }
+
+  private busy(): SelectionRequestResult {
+    return { outcome: SelectionRequestOutcome.Busy, retryAfterSeconds: Math.ceil(this.worker.retryAfterMs() / SECOND_MS) };
   }
 
   private resolve({ documentId, selection }: { documentId: string; selection: RequestedSelection }): ResolvedSelection | null {
@@ -127,7 +131,15 @@ export class SelectionSummariesService {
       this.repository.saveSelectionSummary({ documentId, key, sentence: output.sentence, authors, computedAtSequence: cursor, topicsUpdatedAt });
     } catch (error) {
       console.error(`${SELECTION_SUMMARY_FAILED_LOG} ${documentId}: ${describeError(error)}`);
-      this.repository.saveSelectionFailure({ documentId, key, failure: SELECTION_SUMMARY_FAILED_MESSAGE, computedAtSequence: cursor, topicsUpdatedAt });
+      this.storeFailure({ documentId, resolved });
+    }
+  }
+
+  private storeFailure({ documentId, resolved }: { documentId: string; resolved: ResolvedSelection }): void {
+    try {
+      this.repository.saveSelectionFailure({ documentId, key: resolved.key, failure: SELECTION_SUMMARY_FAILED_MESSAGE, computedAtSequence: resolved.cursor, topicsUpdatedAt: resolved.topicsUpdatedAt });
+    } catch (error) {
+      console.error(`${SELECTION_SUMMARY_FAILED_LOG} ${documentId}: ${describeError(error)}`);
     }
   }
 }

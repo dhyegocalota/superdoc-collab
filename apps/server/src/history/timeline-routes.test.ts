@@ -157,7 +157,7 @@ test('two hours of history choose two-minute bins', async () => {
 
 test('forgetting a document drops its cached pipeline', () => {
   const cache = new TimelinePipelineCache();
-  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [] };
+  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [], cursor: null };
   Array.from({ length: 2 }).forEach(() => cache.get({ documentId: 'd1', key: 'k', build: () => pipeline }));
   expect(cache.builds).toBe(1);
   cache.forget('d1');
@@ -175,7 +175,7 @@ test('deleting the runtime document forgets its cached pipeline', async () => {
 
 test('the pipeline cache evicts the least recently read document', () => {
   const cache = new TimelinePipelineCache({ maxEntries: 2 });
-  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [] };
+  const pipeline = { events: [], identities: [], authors: {}, hasTopics: false, unassignedFirstSequences: [], cursor: null };
   const read = (documentId: string) => cache.get({ documentId, key: 'k', build: () => pipeline });
   ['d1', 'd2', 'd1', 'd3'].forEach(read);
   expect(cache.builds).toBe(3);

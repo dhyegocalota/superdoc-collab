@@ -1,22 +1,12 @@
-import { BIN_LADDER_MS } from '@superdoc-history/history';
-import { DocumentRole, FILTER_MAX_LENGTH, HttpStatus, TimelineQueryParam } from '@superdoc-history/types';
+import { DocumentRole, HttpStatus } from '@superdoc-history/types';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
+import { editsQuerySchema, INVALID_TIMELINE_QUERY_MESSAGE, queryOf, timelineQuerySchema } from './timeline-query';
 import { buildBinEdits, buildDocumentTimeline, readTimelinePipeline } from './timeline-service';
 
-const INVALID_TIMELINE_QUERY_MESSAGE = 'The timeline query is invalid';
 const EDITS_PATH = '/:documentId/timeline/edits';
-const filterText = z.string().trim().max(FILTER_MAX_LENGTH).optional().transform((value) => (value ? value : null));
-const binMsParameter = z.coerce.number().int().refine((value) => BIN_LADDER_MS.includes(value)).optional().transform((value) => (value === undefined ? null : value));
-const timelineQuerySchema = z.object({ [TimelineQueryParam.Term]: filterText, [TimelineQueryParam.Author]: filterText, [TimelineQueryParam.BinMs]: binMsParameter });
-const editsQuerySchema = timelineQuerySchema.extend({ [TimelineQueryParam.BinStart]: z.coerce.number().int() });
-
-function queryOf({ read, names }: { read: (name: string) => string | undefined; names: string[] }): Record<string, string | undefined> {
-  return Object.fromEntries(names.map((name) => [name, read(name)]));
-}
 
 export function createTimelineRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();

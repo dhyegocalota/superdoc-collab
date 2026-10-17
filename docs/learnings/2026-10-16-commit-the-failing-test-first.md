@@ -3,6 +3,7 @@
 - Date: 2026-10-16
 - Inspired by: the slice 1 tester run (`docs/features/bootstrap-and-auth/test-plan.md` → "The failing test first"), tasks 1, 3 and 5 of `docs/features/bootstrap-and-auth/plan.md`
 - Revisited: 2026-10-16 — recorded at the learnings sweep before the slice 1 pull request
+- Revisited: 2026-10-16 — slice 3 tester: two red commits failed on imports instead of the named assertion; a red commit must import only modules that already exist (stub first if needed) — see [a red-first commit must fail on the named assertion](2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md)
 
 ## Signal
 The tester marks every "failing test first" box `BLOCKED`: `git log` shows one commit per task containing both the test and the implementation, and the only RED evidence is a line in an implementer report that lives in git-ignored scratch.

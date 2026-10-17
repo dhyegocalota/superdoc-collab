@@ -28,7 +28,7 @@ import {
 } from './editor-copy';
 import { DocumentTitle } from './document-title';
 import { DownloadFormat } from './download-format';
-import { DownloadMenu, useDownload } from './download-menu';
+import { DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
 import { FindButton } from './find-button';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
@@ -113,7 +113,13 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
             </DropdownMenuItem>,
           )}
           {Object.values(DownloadFormat).map((format) => (
-            <DropdownMenuItem key={format} className="sm:hidden" disabled={!isReady} onSelect={() => onDownload(format)}>
+            <DropdownMenuItem
+              key={format}
+              className="sm:hidden"
+              disabled={!isReady}
+              aria-describedby={isReady ? undefined : LOADING_DOCUMENT_REASON_ID}
+              onSelect={() => onDownload(format)}
+            >
               {DOWNLOAD_FORMAT_LABELS[format]}
             </DropdownMenuItem>
           ))}

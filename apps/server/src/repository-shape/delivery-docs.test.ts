@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -21,6 +22,43 @@ const QUICK_INSTALL_HEADING = '## Quick install';
 const CONFIGURATION_SECTION_HEADING = '## Configuration';
 const RECOVERY_SECTION_HEADING = '## Recovery';
 const SECTION_PATTERN = /^## /m;
+const ROOT_ENTRIES = [
+  '.agents',
+  '.claude',
+  '.codex',
+  '.dockerignore',
+  '.env.example',
+  '.github',
+  '.gitignore',
+  '.gitleaks.toml',
+  '.mcp.json',
+  '.npmrc',
+  '.nvmrc',
+  '.prettierignore',
+  '.prettierrc',
+  'AGENTS.md',
+  'CLAUDE.md',
+  'GEMINI.md',
+  'LICENSE',
+  'README.md',
+  'apps',
+  'deploy',
+  'docker',
+  'docker-compose.yml',
+  'docs',
+  'e2e',
+  'libs',
+  'package.json',
+  'playwright.config.ts',
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'railway.json',
+  'scripts',
+  'tsconfig.base.json',
+];
+const NESTED_PATH_PATTERN = /\/.*$/;
+const TEMPORARY_SEGMENT_PATTERN =
+  /(^|\/)(spikes?|poc|prototypes?|experiments?|scratch|scratchpad|playground|sandbox|tmp|temp|wip|backups?)(\/|$)/i;
 const AGENT_PROMPT_PHRASES = ['AUTH_SECRET', 'APP_ORIGIN', 'SEED_DEMO_USERS=false', 'claim the instance'];
 const REPOSITORY_URL = 'https://github.com/dhyegocalota/superdoc-collab';
 const GITHUB_URL_PATTERN = /https:\/\/github\.com\/[^\s`)]+/g;
@@ -69,6 +107,16 @@ function brokenTargets({ document, text }: { document: string; text: string }): 
 }
 
 const LINKED_DOCUMENTS = [...readmes(), RUNBOOK_FILE, RAILWAY_RUNBOOK_FILE];
+
+function repositoryFiles(): string[] {
+  return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+    cwd: repositoryPath('.'),
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter((path) => path.length > 0)
+    .filter((path) => existsSync(repositoryPath(path)));
+}
 
 describe('delivery documents', () => {
   test.each(LINKED_DOCUMENTS)('every relative link in %s points at a file and a heading in the repository', (document) => {
@@ -123,6 +171,15 @@ describe('delivery documents', () => {
     const urls = followed.match(GITHUB_URL_PATTERN);
     expect(urls).not.toBeNull();
     expect(urls?.filter((url) => url !== REPOSITORY_URL)).toEqual([]);
+  });
+
+  test('the root holds only the entries the layout names', () => {
+    const rootEntries = new Set(repositoryFiles().map((path) => path.replace(NESTED_PATH_PATTERN, '')));
+    expect([...rootEntries].filter((entry) => !ROOT_ENTRIES.includes(entry))).toEqual([]);
+  });
+
+  test('no path carries a folder an agent leaves behind for temporary work', () => {
+    expect(repositoryFiles().filter((path) => TEMPORARY_SEGMENT_PATTERN.test(path))).toEqual([]);
   });
 
   test('the install guide explains how to promote an administrator', () => {

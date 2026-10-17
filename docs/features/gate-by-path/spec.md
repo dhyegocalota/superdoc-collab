@@ -1,6 +1,6 @@
 # Gate by path
 
-**Status:** Building
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17
 **ADRs:** [0030](../../adr/0030-the-local-gate-runs-what-the-diff-can-break.md), [0018](../../adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)

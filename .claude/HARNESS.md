@@ -46,7 +46,7 @@ Classify the change so the depth of the spec matches the risk:
 | 🟡 medium | new endpoint, new panel, schema change | + data flow, failure modes |
 | 🔴 structural | history pipeline, auth, collaboration, deploy | + ADR, alternatives, rollback, spike if an assumption is unproven |
 
-When in doubt, take the heavier tier. Hidden complexity discovered mid-task upgrades the tier: stop, say so, step up.
+A spike's code is never committed: it runs in a scratch worktree, and its answer lands in the feature folder and the ADR. When in doubt, take the heavier tier. Hidden complexity discovered mid-task upgrades the tier: stop, say so, step up.
 
 **Docs lane.** A change whose `pnpm verify --plan` class is `docs`, and that no person or agent follows step by step, may take the docs lane. Install guides, runbooks, the agent install file and `docs/scenarios/` are followed step by step, so they never take it. The lane is one ten-line `spec.md` that says `**Lane:** docs`, no plan, test plan or tester, one reviewer on the mid model, no security reviewer, on the class of the whole branch against `origin/main` ([ADR 0030](../docs/adr/0030-the-local-gate-runs-what-the-diff-can-break.md)). The class is necessary, never sufficient. A one-line change to code or configuration never takes it.
 
@@ -76,6 +76,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 - Developers may run unit tests and typecheck for their own loop. They never run `test-plan.md` and never declare the feature works.
 - When a developer finishes, it writes a **tester briefing** into `docs/features/<slug>/tester-briefing.md`: what changed, how to run it, which tests are red today and green after, and every "it works" stated as a hypothesis.
 - Stuck after three honest attempts → `systematic-debugging` skill, then escalate to the owner with evidence.
+- **Nothing temporary reaches `main`.** Spikes, prototypes, walks, notes and any scratch folder an agent creates live in the scratchpad or a throwaway worktree, never in the repository. The root holds only the entries `delivery-docs.test.ts` lists, and no path may carry a segment such as `spike`, `poc`, `scratch`, `tmp`, `playground`, `sandbox` or `wip`; a new root entry is added to that list in the same PR, where the reviewer sees it.
 - **Docs move with the code.** A change that makes a README, a `.claude/rules/` fact or the `AGENTS.md` layout wrong updates it in the same commit. A package README states purpose only, never commands, configuration or behaviour the code already shows, and links the folders it names so a rename fails CI. The `remind-docs.sh` Stop hook names the documents that describe uncommitted changes; update them or say why none applies.
 
 **Parallel lanes.** When the lead runs several developers at once:

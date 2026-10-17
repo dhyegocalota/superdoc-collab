@@ -1,11 +1,10 @@
 # Spike — SuperDoc SDK inside a live Hocuspocus room
 
-> Throwaway spike, 2026-10-17. Question: can a server-side agent built on
+> Throwaway spike, 2026-10-17. Its code was removed from the tree the same day; read it at commit `c1ada06` (`git show c1ada06:spikes/sdk-room-join/<file>`). Question: can a server-side agent built on
 > `@superdoc/sdk` edit the **live collaborative document** (not a file on disk),
 > in tracked mode, so that every editor sees the change and the history
 > attributes it to the agent? Stack: `@superdoc/sdk` 2.21.0 (embedded CLI
-> host) · `@hocuspocus/server` 2.15.3 · Yjs 13.6 · Vitest. Run with
-> `pnpm install --ignore-workspace && pnpm test` from this folder.
+> host) · `@hocuspocus/server` 2.15.3 · Yjs 13.6 · Vitest.
 
 ## Verdict
 
@@ -21,9 +20,7 @@
 ## Round 2 — human in the browser versus agent over MCP
 
 > Question from the owner: prove it in a real browser, humans and agent editing
-> the same room in real time, with real MCP tool calls. Run with `pnpm test:e2e`
-> (Playwright builds and serves the SuperDoc v2 client from `client/`, the same
-> one as `poc/`; `SPIKE_VIDEO=on` records the walkthrough).
+> the same room in real time, with real MCP tool calls. Playwright built and served the SuperDoc v2 client from `client/` at `c1ada06`.
 
 The stock `@superdoc/mcp` 1.8.0 cannot join a room: its `superdoc_open` takes
 only `path` (an absolute `.docx` on disk). So the spike ships its own MCP server
@@ -97,6 +94,6 @@ await toolkit.dispatch(doc, 'superdoc_perform_action', { action: 'replace_text',
 
 ## Not tested
 
-- Concurrent human typing while the agent edits (convergence was proven for humans in `poc/`; the agent is one more Yjs client).
+- Concurrent human typing while the agent edits (convergence was proven for humans in the proof of concept, removed on 2026-10-17; the agent is one more Yjs client).
 - Agent sessions kept open across many tool calls (each test opens and closes).
 - Cookie-based authentication; the spike server authenticates by token only.

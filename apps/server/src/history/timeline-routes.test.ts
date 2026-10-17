@@ -15,10 +15,12 @@ import {
   UTC_TIME_ZONE,
   type DocumentTimeline,
 } from '@superdoc-collab/types';
+import { chooseBinMs } from '@superdoc-collab/history';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { TimelinePipelineCache } from './timeline-pipeline-cache';
+import { INVALID_TIMELINE_QUERY_MESSAGE } from './timeline-query';
 import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks, zonedQuery } from '../testing/timeline-client';
 import { signedInUser } from '../testing/test-server';
 
@@ -327,5 +329,20 @@ test('a bin size that would cover too many bins for the span answers 400', async
     headers: { cookie: owner.cookie },
   });
   expect(response.status).toBe(HttpStatus.BadRequest);
+  expect(await response.json()).toEqual({ error: INVALID_TIMELINE_QUERY_MESSAGE });
+  await server.stop();
+});
+
+const REVISION_SPAN_MS = Date.UTC(10_000, 0, 1) - Date.UTC(1900, 0, 1);
+const LARGEST_SERVED_BIN_MS = chooseBinMs(REVISION_SPAN_MS);
+const CRAFTED_WEEK_MULTIPLE_BIN_MS = 9_007_199_254_528_000;
+
+test('a week multiple above the largest bin an imported span can need is 400, and the largest is served', async () => {
+  const { server, documentId, owner } = await twoAuthorsInTwoBlocks();
+  const statusOf = async (binMs: number): Promise<number> =>
+    (await fetch(timelineUrl({ server, documentId, query: `binMs=${binMs}` }), { headers: { cookie: owner.cookie } })).status;
+  expect(await statusOf(LARGEST_SERVED_BIN_MS)).toBe(HttpStatus.Ok);
+  expect(await statusOf(LARGEST_SERVED_BIN_MS + WEEK_MS)).toBe(HttpStatus.BadRequest);
+  expect(await statusOf(CRAFTED_WEEK_MULTIPLE_BIN_MS)).toBe(HttpStatus.BadRequest);
   await server.stop();
 });

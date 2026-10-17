@@ -1,6 +1,7 @@
 import { DAY_MS, MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import type { EditRun, TimelineEvent } from './runs';
+import { BIN_LADDER_MS } from './bins';
 import { authorKey, filterRuns, groupIntoRuns, narrowRuns, runVolume } from './runs';
 
 const BIN_MS = MINUTE_MS;
@@ -114,4 +115,18 @@ test('day runs split at the reader local midnight, not at UTC midnight', () => {
   const inUtc = groupIntoRuns({ events, binMs: DAY_MS, timeZone: UTC });
   expect(inSaoPaulo.map((run) => run.binStart)).toEqual([Date.UTC(2026, 9, 16, 3, 0), Date.UTC(2026, 9, 17, 3, 0)]);
   expect(inUtc.map((run) => run.binStart)).toEqual([Date.UTC(2026, 9, 17, 0, 0)]);
+});
+
+const PRE_EPOCH_TIMES = [Date.UTC(1900, 0, 1), Date.UTC(1969, 11, 31, 23, 59), Date.UTC(1971, 5, 1)];
+const PRE_EPOCH_ZONES = [UTC, SAO_PAULO, 'Asia/Kolkata', 'Pacific/Apia'];
+
+test('events before 1970 group into runs that contain them for every ladder size and zone', () => {
+  const events = PRE_EPOCH_TIMES.flatMap((startTime) => typed({ text: 'x', author: 'ana', blockId: 'b1', startTime }));
+  PRE_EPOCH_ZONES.forEach((timeZone) =>
+    BIN_LADDER_MS.forEach((binMs) => {
+      const runs = groupIntoRuns({ events, binMs, timeZone });
+      expect(runs.length).toBeGreaterThanOrEqual(1);
+      expect(runs.every((run) => run.binStart <= run.firstServerTime)).toBe(true);
+    }),
+  );
 });

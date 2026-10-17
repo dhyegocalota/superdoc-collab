@@ -9,7 +9,10 @@
   "pnpm": {
     "neverBuiltDependencies": [
       "better-sqlite3"
-    ]
+    ],
+    "overrides": {
+      "@esbuild-kit/core-utils>esbuild": "0.25.12"
+    }
   },
   "scripts": {
     "dev": "pnpm -r --parallel --filter ./apps/* dev",

@@ -28,7 +28,12 @@ export enum ProjectionReplyKind {
   Failed = 'failed',
 }
 
-export type ProjectionDoneReply = { kind: ProjectionRequestKind; documentId: string; cursor: number | null; importError: string | null };
+export type ProjectionDoneReply = {
+  kind: ProjectionRequestKind.Project | ProjectionRequestKind.Import | ProjectionRequestKind.Forget;
+  documentId: string;
+  cursor: number | null;
+  importError: string | null;
+};
 export type VersionReply = {
   kind: ProjectionRequestKind.Version;
   documentId: string;

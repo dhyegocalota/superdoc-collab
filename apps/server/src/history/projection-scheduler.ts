@@ -8,16 +8,15 @@ import {
   PROJECTION_FAILED_MESSAGE,
   ProjectionDegradedError,
   ProjectionReplyKind,
-  ProjectionRequestCrashedError,
   ProjectionRequestKind,
   ProjectionStoppedError,
   type BlocksReply,
   type ProjectionDoneReply,
   type ProjectionFailedReply,
   type ProjectionReply,
-  type ProjectionRequest,
   type VersionReply,
 } from './projection-messages';
+import { requestKeyOf, WaitingRequests, type ServedReply, type ServedRequest } from './waiting-requests';
 
 const SOURCE_EXTENSION = '.ts';
 const TSX_REGISTER_SPECIFIER = 'tsx/esm/api';
@@ -37,33 +36,7 @@ function createWorker(databaseDirectory: string): Worker {
   });
 }
 
-type ServedReply = VersionReply | BlocksReply;
 export const MAX_REQUEST_POSTS = 2;
-
-type Waiter = { resolve: (reply: ServedReply) => void; reject: (error: Error) => void };
-type WaitingRequest = { request: ProjectionRequest; waiters: Waiter[]; posts: number };
-
-function versionKey({ documentId, sequence }: { documentId: string; sequence: number }): string {
-  return `${ProjectionRequestKind.Version}:${documentId}@${sequence}`;
-}
-
-function blocksKey(documentId: string): string {
-  return `${ProjectionRequestKind.Blocks}:${documentId}`;
-}
-
-function isServedReply(reply: ProjectionDoneReply | ServedReply): reply is ServedReply {
-  return reply.kind === ProjectionRequestKind.Version || reply.kind === ProjectionRequestKind.Blocks;
-}
-
-function keyOfReply(reply: ServedReply): string {
-  if (reply.kind === ProjectionRequestKind.Version) return versionKey(reply);
-  return blocksKey(reply.documentId);
-}
-
-function keyOfFailure(reply: ProjectionFailedReply): string {
-  if (reply.requestKind === ProjectionRequestKind.Version) return versionKey({ documentId: reply.documentId, sequence: reply.sequence });
-  return blocksKey(reply.documentId);
-}
 
 export class ProjectionScheduler {
   currentWorker: Worker;
@@ -73,7 +46,7 @@ export class ProjectionScheduler {
   private readonly documentsNeedingRerun = new Set<string>();
   private readonly rebuildingDocuments = new Set<string>();
   private readonly reimportedDocuments = new Set<string>();
-  private readonly waiting = new Map<string, WaitingRequest>();
+  private readonly waitingRequests = new WaitingRequests();
   private readonly forgetting = new Map<string, (() => void)[]>();
   private readonly restarts = new SlidingWindow({ windowMs: WORKER_RESTART_WINDOW_MS });
   private readonly loggedProjectionFailures = new Set<string>();
@@ -114,14 +87,11 @@ export class ProjectionScheduler {
   }
 
   version({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionReply> {
-    return this.serve({
-      key: versionKey({ documentId, sequence }),
-      request: { kind: ProjectionRequestKind.Version, documentId, sequence },
-    }) as Promise<VersionReply>;
+    return this.serve({ kind: ProjectionRequestKind.Version, documentId, sequence }) as Promise<VersionReply>;
   }
 
   blocks(documentId: string): Promise<BlocksReply> {
-    return this.serve({ key: blocksKey(documentId), request: { kind: ProjectionRequestKind.Blocks, documentId } }) as Promise<BlocksReply>;
+    return this.serve({ kind: ProjectionRequestKind.Blocks, documentId }) as Promise<BlocksReply>;
   }
 
   forget(documentId: string): Promise<void> {
@@ -136,23 +106,18 @@ export class ProjectionScheduler {
   stop(): Promise<void> {
     if (this.stopping) return this.stopping;
     if (!this.isAlive) return Promise.resolve();
-    this.waiting.forEach((_, key) => this.rejectWaiters({ key, error: new ProjectionStoppedError() }));
+    this.waitingRequests.rejectAll(() => new ProjectionStoppedError());
     this.stopping = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
     return this.stopping;
   }
 
-  private serve({ key, request }: { key: string; request: ProjectionRequest }): Promise<ServedReply> {
+  private serve(request: ServedRequest): Promise<ServedReply> {
     if (this.isDegraded) return Promise.reject(new ProjectionDegradedError());
     if (this.stopping) return Promise.reject(new ProjectionStoppedError());
     return new Promise((resolve, reject) => {
-      const existing = this.waiting.get(key);
-      if (existing) {
-        existing.waiters.push({ resolve, reject });
-        return;
-      }
-      this.waiting.set(key, { request, waiters: [{ resolve, reject }], posts: 1 });
-      this.currentWorker.postMessage(request);
+      const isNewRequest = this.waitingRequests.add({ request, waiter: { resolve, reject } });
+      if (isNewRequest) this.currentWorker.postMessage(request);
     });
   }
 
@@ -170,13 +135,20 @@ export class ProjectionScheduler {
 
   private settle(reply: ProjectionReply): void {
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
-    return this.settleDone(reply);
+    if (reply.kind === ProjectionRequestKind.Version || reply.kind === ProjectionRequestKind.Blocks)
+      return this.waitingRequests.resolve(reply);
+    if (reply.kind === ProjectionRequestKind.Forget) return this.settleForget(reply.documentId);
+    if (reply.kind === ProjectionRequestKind.Import) return this.settleImport(reply);
+    return this.settleProject(reply);
   }
 
   private settleFailure(reply: ProjectionFailedReply): void {
     const { documentId, message, requestKind } = reply;
     if (requestKind === ProjectionRequestKind.Version || requestKind === ProjectionRequestKind.Blocks)
-      return this.rejectWaiters({ key: keyOfFailure(reply), error: new Error(message) });
+      return this.waitingRequests.reject({
+        key: requestKeyOf({ kind: requestKind, documentId, sequence: reply.sequence }),
+        error: new Error(message),
+      });
     this.rebuildingDocuments.delete(documentId);
     this.reimportedDocuments.delete(documentId);
     this.settleForget(documentId);
@@ -187,33 +159,21 @@ export class ProjectionScheduler {
     console.error(`${PROJECTION_FAILED_MESSAGE} ${documentId}: ${message}`);
   }
 
-  private settleDone(reply: ProjectionDoneReply | ServedReply): void {
-    if (isServedReply(reply)) return this.resolveWaiters(reply);
-    const { kind, documentId, importError } = reply;
-    if (kind === ProjectionRequestKind.Forget) return this.settleForget(documentId);
-    if (kind === ProjectionRequestKind.Import) this.pendingImports.delete(documentId);
-    if (kind === ProjectionRequestKind.Import && this.rebuildingDocuments.has(documentId)) {
-      this.reimportedDocuments.add(documentId);
-      this.schedule(documentId);
-    }
-    if (importError !== null) return this.reportImportFailure({ documentId, importError });
-    if (kind !== ProjectionRequestKind.Project) return;
+  private settleImport({ documentId, importError }: ProjectionDoneReply): void {
+    this.pendingImports.delete(documentId);
+    if (this.rebuildingDocuments.has(documentId)) this.projectReimported(documentId);
+    if (importError !== null) this.reportImportFailure({ documentId, importError });
+  }
+
+  private projectReimported(documentId: string): void {
+    this.reimportedDocuments.add(documentId);
+    this.schedule(documentId);
+  }
+
+  private settleProject({ documentId }: ProjectionDoneReply): void {
     this.inFlight.delete(documentId);
     if (this.documentsNeedingRerun.delete(documentId)) return this.schedule(documentId);
     if (this.reimportedDocuments.delete(documentId)) this.rebuildingDocuments.delete(documentId);
-  }
-
-  private resolveWaiters(reply: ServedReply): void {
-    const key = keyOfReply(reply);
-    const entry = this.waiting.get(key);
-    this.waiting.delete(key);
-    if (entry) entry.waiters.forEach(({ resolve }) => resolve(reply));
-  }
-
-  private rejectWaiters({ key, error }: { key: string; error: Error }): void {
-    const entry = this.waiting.get(key);
-    this.waiting.delete(key);
-    if (entry) entry.waiters.forEach(({ reject }) => reject(error));
   }
 
   private reportImportFailure({ documentId, importError }: { documentId: string; importError: string }): void {
@@ -245,15 +205,7 @@ export class ProjectionScheduler {
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }),
     );
     [...this.forgetting.keys()].forEach((documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId }));
-    this.repostWaiting();
-  }
-
-  private repostWaiting(): void {
-    [...this.waiting].forEach(([key, waiting]) => {
-      if (waiting.posts >= MAX_REQUEST_POSTS) return this.rejectWaiters({ key, error: new ProjectionRequestCrashedError() });
-      waiting.posts += 1;
-      this.currentWorker.postMessage(waiting.request);
-    });
+    this.waitingRequests.repost({ post: (request) => this.currentWorker.postMessage(request), maxPosts: MAX_REQUEST_POSTS });
   }
 
   private withinRestartBudget(): boolean {
@@ -270,6 +222,6 @@ export class ProjectionScheduler {
     this.documentsNeedingRerun.clear();
     this.rebuildingDocuments.clear();
     this.reimportedDocuments.clear();
-    [...this.waiting.keys()].forEach((key) => this.rejectWaiters({ key, error: new ProjectionDegradedError() }));
+    this.waitingRequests.rejectAll(() => new ProjectionDegradedError());
   }
 }

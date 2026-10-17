@@ -133,7 +133,7 @@ Each task committed its failing tests alone before the implementation. Check wit
 - [ ] OWNER: the timeline shows both authors; a click on a moment opens the old version; **Back to live** returns; **Summarize edits** answers with the real model
 - [ ] OWNER: deploy again with no change; expected: logs list the four emails under `existing:`, the brief uploaded before is still in Ana's list (the volume persisted)
 - [ ] OWNER: rollback rehearsal, runbook step 7 "pin": `git push origin <main's previous commit>:refs/heads/release/rollback`, branch `release/rollback`, deploy; expected: health `{"status":"ok"}`, Ana's documents still there; then branch `main`, deploy, `git push origin --delete release/rollback`, health `{"status":"ok"}`
-- [ ] OWNER: before the repository goes public, from a fresh clone, `git log --all -p | grep -cE 'sk-or-v1-[A-Za-z0-9]{16,}'` prints `0` and `git log --all --oneline -- .env deploy/.env` prints nothing (runbook step 6.2)
+- [ ] OWNER: before the repository goes public, from a fresh clone, `git log --all -p | grep -cE 'sk-or-v1-[A-Za-z0-9]{16,}'` prints `0` `git log --all --name-only --format= | grep -E '(^|/)\.env' | grep -vx '.env.example'` prints nothing, and `git log --all -p | grep -E '^\+ *(AUTH_SECRET|DEMO_PASSWORD)=' | sort -u` prints only the four placeholder lines, none carrying a real `AUTH_SECRET=` or `DEMO_PASSWORD=` value (runbook step 6.2)
 - [ ] OWNER: README `- **Demo:**` line replaced with the URL and merged; the repository is public; the delivery message sent with the URL, the GitHub link, the four emails and the password
 
 ## Edge cases (planned)

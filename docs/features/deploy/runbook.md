@@ -129,7 +129,7 @@ Then, in a browser:
    prints `0`,
 
    ```bash
-   git log --all --oneline -- .env deploy/.env
+   git log --all --name-only --format= | grep -E '(^|/)\.env' | grep -vx '.env.example'
    ```
 
    prints nothing, and

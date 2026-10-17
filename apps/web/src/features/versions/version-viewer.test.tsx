@@ -41,9 +41,9 @@ const COLLABORATION_REFUSAL = {
 const FATAL_PAYLOAD = { code: 'password-required', error: new Error('boom'), editor: null } as SuperDocExceptionPayload;
 const EDIT_REJECTED = { code: SuperDocExceptionCode.EditRejected, error: new Error('rejected'), editor: null } as SuperDocExceptionPayload;
 
-const onReady = vi.fn();
-const onFailed = vi.fn();
-const onConnectionFailed = vi.fn();
+const onReady = vi.fn().mockName('onReady');
+const onFailed = vi.fn().mockName('onFailed');
+const onConnectionFailed = vi.fn().mockName('onConnectionFailed');
 
 beforeEach(() => {
   SuperDoc.mockClear();

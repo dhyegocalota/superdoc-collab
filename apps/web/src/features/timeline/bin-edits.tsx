@@ -1,9 +1,10 @@
 import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
+import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';
 import { authorNames } from './author-of';
 import { maxBandVolume } from './max-band-volume';
-import { binEditsQueryKey, fetchBinEdits, pollWhileAvailable } from './timeline-api';
+import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
 import { NO_EDITS_IN_BIN_MESSAGE } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
@@ -23,7 +24,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   const { data } = useQuery({
     queryKey: binEditsQueryKey({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
     queryFn: () => fetchBinEdits({ documentId, binStart: bin.start, binMs: timeline.binMs, filter }),
-    refetchInterval: pollWhileAvailable,
+    refetchInterval: pollWhileAvailable(TIMELINE_POLL_MS),
     retry: false,
   });
   const maxVolume = maxBandVolume(timeline);

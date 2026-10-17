@@ -1,6 +1,7 @@
 import { DocumentResource, type DocumentTimeline, type EditRunView, type TimelineBin, type TimelineFilter } from '@superdoc-history/types';
 import { skipToken, useQuery } from '@tanstack/react-query';
-import { binEditsQueryKey, fetchBinEdits, pollWhileAvailable } from './timeline-api';
+import { pollWhileAvailable } from '@/lib/api';
+import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
 
 const NO_RUNS: EditRunView[] = [];
 const NO_BIN_SEGMENT = 'no-bin';
@@ -21,7 +22,7 @@ export function useBinRuns({
   const { data } = useQuery({
     queryKey: request ? binEditsQueryKey(request) : NO_BIN_EDITS_KEY,
     queryFn: request ? () => fetchBinEdits(request) : skipToken,
-    refetchInterval: pollWhileAvailable,
+    refetchInterval: pollWhileAvailable(TIMELINE_POLL_MS),
     retry: false,
   });
   if (!data) return NO_RUNS;

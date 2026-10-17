@@ -44,5 +44,8 @@ export async function readJson<Body>({ response, subject }: { response: Response
 type PolledQuery = { state: { error: Error | null } };
 
 export function pollWhileAvailable(intervalMs: number): (query: PolledQuery) => number | false {
-  return () => false;
+  return function pollUnlessUnavailable(query: PolledQuery): number | false {
+    if (query.state.error instanceof DocumentUnavailableError) return false;
+    return intervalMs;
+  };
 }

@@ -22,16 +22,7 @@ import {
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-history/types';
-import {
-  ApiRequestError,
-  apiGet,
-  apiSend,
-  assertDocumentAvailable,
-  DocumentUnavailableError,
-  readJson,
-  requestFailedMessage,
-  RetryLaterError,
-} from '@/lib/api';
+import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, readJson, requestFailedMessage, RetryLaterError } from '@/lib/api';
 import { documentQueryKey } from '@/features/documents/documents-api';
 
 export const TIMELINE_POLL_MS = 3 * SECOND_MS;
@@ -97,11 +88,6 @@ export function versionQueryKey({ documentId, sequence }: { documentId: string; 
 
 export function selectionSummaryQueryKey({ documentId, selection }: { documentId: string; selection: EditSelection }): unknown[] {
   return [...summariesQueryKey(documentId), SELECTION_SEGMENT, selection];
-}
-
-export function pollWhileAvailable(query: { state: { error: Error | null } }): number | false {
-  if (query.state.error instanceof DocumentUnavailableError) return false;
-  return TIMELINE_POLL_MS;
 }
 
 function withQuery({ path, params }: { path: string; params: URLSearchParams }): string {

@@ -1,6 +1,6 @@
 import type { DocumentMember } from '@superdoc-history/types';
 import { useQuery } from '@tanstack/react-query';
-import { DocumentUnavailableError } from '@/lib/api';
+import { DocumentUnavailableError, pollWhileAvailable } from '@/lib/api';
 import { fetchMembers, MEMBERS_REFRESH_MS, membersQueryKey } from './editor-api';
 
 const NO_MEMBERS: DocumentMember[] = [];
@@ -9,7 +9,7 @@ export function useMembers(documentId: string): { members: DocumentMember[]; isU
   const { data, error } = useQuery({
     queryKey: membersQueryKey(documentId),
     queryFn: () => fetchMembers(documentId),
-    refetchInterval: (query) => (query.state.error instanceof DocumentUnavailableError ? false : MEMBERS_REFRESH_MS),
+    refetchInterval: pollWhileAvailable(MEMBERS_REFRESH_MS),
     retry: false,
   });
   const isUnavailable = error instanceof DocumentUnavailableError;

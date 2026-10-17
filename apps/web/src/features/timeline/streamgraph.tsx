@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { BandLabel } from './band-label';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
 import { bandAriaLabel, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
-import { formatTimestamp, TimelineTooltip, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
+import { formatTimestamp, TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
 
 const PRIMARY_BUTTON_PRESSED = 1;
 
@@ -37,8 +37,12 @@ function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedInd
   return null;
 }
 
-function tooltipLeft({ binX, width }: { binX: number; width: number }): number {
-  return Math.min(Math.max(binX, TOOLTIP_WIDTH / 2), width - TOOLTIP_WIDTH / 2);
+type TooltipAnchor = { index: number; top: number };
+
+function tooltipAnchorOf({ hovered, selectedIndex, hasFocus }: { hovered: { index: number; y: number } | null; selectedIndex: number | null; hasFocus: boolean }): TooltipAnchor | null {
+  if (hovered !== null) return { index: hovered.index, top: hovered.y + TOOLTIP_POINTER_OFFSET };
+  if (!hasFocus || selectedIndex === null) return null;
+  return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET };
 }
 
 function bandStyle(band: TimelineBand, saturation: number): CSSProperties | undefined {
@@ -51,8 +55,10 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   const titleId = useId();
   const descriptionId = useId();
   const [hovered, setHovered] = useState<{ index: number; y: number } | null>(null);
+  const [hasFocus, setHasFocus] = useState(false);
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
   const lastIndex = timeline.bins.length - 1;
+  const tooltipAnchor = tooltipAnchorOf({ hovered, selectedIndex, hasFocus });
   if (timeline.bins.length === 0) return null;
 
   function offsetOf(event: PointerEvent<SVGSVGElement>): number {
@@ -93,6 +99,8 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         className={cn(isOther ? 'topic-band-other' : 'topic-band', 'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2', isFaded && 'opacity-40')}
         style={bandStyle(shape.band, shape.saturation)}
         onKeyDown={handleKeyDown}
+        onFocus={() => setHasFocus(true)}
+        onBlur={() => setHasFocus(false)}
       />
     );
   }
@@ -114,7 +122,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         {layout.shapes.filter((shape) => shape.label !== null).map((shape) => <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />)}
         {selectedIndex !== null && <line x1={layout.binX(selectedIndex)} x2={layout.binX(selectedIndex)} y1={0} y2={CHART_HEIGHT} className="pointer-events-none stroke-foreground" />}
       </svg>
-      {hovered !== null && <TimelineTooltip timeline={timeline} index={hovered.index} left={tooltipLeft({ binX: layout.binX(hovered.index), width })} top={hovered.y + TOOLTIP_POINTER_OFFSET} />}
+      {tooltipAnchor !== null && <TimelineTooltip timeline={timeline} index={tooltipAnchor.index} left={layout.binX(tooltipAnchor.index)} top={tooltipAnchor.top} chartWidth={width} />}
     </div>
   );
 }

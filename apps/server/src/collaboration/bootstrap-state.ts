@@ -1,11 +1,18 @@
 import * as Y from 'yjs';
-import { findBootstrapSequence, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
+import { findBootstrapSequence, isBootstrapCommitted, type LoggedUpdate, type ReadModel, type UpdateLog } from '@superdoc-collab/history';
+import type { ClientActor } from '@superdoc-collab/types';
 
 export const ROOM_MODE_SCAN_BATCH_SIZE = 100;
 
 export type BootstrapState = {
   isCommitted: (documentId: string) => boolean;
-  markCommitted: (parameters: { documentId: string; sequence: number; document: Y.Doc }) => void;
+  commit: (parameters: {
+    documentId: string;
+    connectionUserId: string;
+    connectionActor: ClientActor;
+    update: Uint8Array;
+    document: Y.Doc;
+  }) => LoggedUpdate;
   forget: (documentId: string) => void;
 };
 
@@ -28,8 +35,12 @@ export function createBootstrapState({ updateLog, readModel }: { updateLog: Upda
     return findCommittedBootstrap({ documentId, afterSequence: last.sequence, document });
   }
   function hasCommittedBootstrap(documentId: string): boolean {
-    const isProjected = readModel.cursor(documentId) !== null;
-    return isProjected || findCommittedBootstrap({ documentId, afterSequence: 0, document: new Y.Doc() }) !== null;
+    if (readModel.cursor(documentId) !== null) return true;
+    const snapshot = updateLog.latestSnapshot({ documentName: documentId, atOrBefore: Number.MAX_SAFE_INTEGER });
+    if (!snapshot) return findCommittedBootstrap({ documentId, afterSequence: 0, document: new Y.Doc() }) !== null;
+    const fromSnapshot = new Y.Doc();
+    Y.applyUpdate(fromSnapshot, snapshot.state);
+    return isBootstrapCommitted({ document: fromSnapshot });
   }
   return {
     isCommitted: (documentId) => {
@@ -38,9 +49,10 @@ export function createBootstrapState({ updateLog, readModel }: { updateLog: Upda
       committed.add(documentId);
       return true;
     },
-    markCommitted: ({ documentId, sequence, document }) => {
-      updateLog.writeSnapshot({ documentName: documentId, sequence, state: Y.encodeStateAsUpdate(document) });
+    commit: ({ documentId, document, ...logged }) => {
+      const appended = updateLog.appendCommitted({ documentName: documentId, state: Y.encodeStateAsUpdate(document), ...logged });
       committed.add(documentId);
+      return appended;
     },
     forget: (documentId) => {
       committed.delete(documentId);

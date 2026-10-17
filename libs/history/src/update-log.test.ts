@@ -113,3 +113,12 @@ test('forget removes the agent actions of the document', () => {
   new UpdateLog(sqlite).forget(DOCUMENT);
   expect(actions.list({ documentName: DOCUMENT, from: 0, until: 100 })).toEqual([]);
 });
+
+test('serverTimeOf answers the logged time for a sequence of the document and null otherwise', () => {
+  const log = logWith(3);
+  typedUpdates(1).forEach((update) => log.append({ documentName: OTHER_DOCUMENT, connectionUserId: 'bruno', update }));
+  const [first] = log.read({ documentName: DOCUMENT, untilSequence: 1 });
+  expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 1 })).toBe(first!.serverTime);
+  expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 99 })).toBeNull();
+  expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 4 })).toBeNull();
+});

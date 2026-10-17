@@ -1,4 +1,4 @@
-import type { DocumentMember } from '@superdoc-history/types';
+import type { DocumentMember } from '@superdoc-collab/types';
 import { initialsOf } from '@/lib/initials';
 import { memberLabel } from './editor-copy';
 

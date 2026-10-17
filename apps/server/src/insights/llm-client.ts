@@ -1,5 +1,5 @@
 import { createOpenRouter, type OpenRouterProviderSettings } from '@openrouter/ai-sdk-provider';
-import { SECOND_MS } from '@superdoc-history/types';
+import { SECOND_MS } from '@superdoc-collab/types';
 import { generateText, Output, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 import type { LlmSettings } from '../config/environment';

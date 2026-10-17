@@ -1,4 +1,4 @@
-import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-history/types';
+import { SelectionSummaryState, type SelectionSummaryView } from '@superdoc-collab/types';
 import { render } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME } from '@/testing/timeline-fixtures';

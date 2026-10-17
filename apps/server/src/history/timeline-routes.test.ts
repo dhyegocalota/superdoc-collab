@@ -7,7 +7,7 @@ import {
   timelineEditsApiPath,
   TimelineBandKind,
   type DocumentTimeline,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';

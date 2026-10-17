@@ -1,5 +1,5 @@
-import { ApiPath, DOCX_MIME_TYPE, HttpStatus, UPLOAD_FIELD } from '@superdoc-history/types';
-import { buildSeedDocx } from '@superdoc-history/history';
+import { ApiPath, DOCX_MIME_TYPE, HttpStatus, UPLOAD_FIELD } from '@superdoc-collab/types';
+import { buildSeedDocx } from '@superdoc-collab/history';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 

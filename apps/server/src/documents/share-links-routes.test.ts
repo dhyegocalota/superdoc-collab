@@ -10,7 +10,7 @@ import {
   ShareLinkRole,
   type DocumentSummary,
   type ShareLinks,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { ShareLinksRepository } from './share-links';
 import { memberWithRole } from '../testing/collaboration-client';

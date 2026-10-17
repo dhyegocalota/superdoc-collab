@@ -1,4 +1,4 @@
-import { DEMO_USERS } from '@superdoc-history/types';
+import { DEMO_USERS } from '@superdoc-collab/types';
 import { eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';

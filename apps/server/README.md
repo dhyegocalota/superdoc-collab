@@ -1,8 +1,8 @@
-# @superdoc-history/server
+# @superdoc-collab/server
 
 One Node process on one port: Hono serves the REST API and the built SPA, Hocuspocus serves the collaboration WebSocket, one worker thread runs the projection, and the language-model jobs run in-process under the caps of [ADR 0011](../../docs/adr/0011-process-wide-llm-cost-caps.md) ([ADR 0004](../../docs/adr/0004-stack.md)).
 
-Run every script from the repository root with `pnpm --filter @superdoc-history/server <script>`:
+Run every script from the repository root with `pnpm --filter @superdoc-collab/server <script>`:
 
 - `dev` watches the sources; the configuration comes from the shell (`scripts/with-env.sh` loads `.env` without printing it).
 - `build` bundles the server, the seed and the projection worker.

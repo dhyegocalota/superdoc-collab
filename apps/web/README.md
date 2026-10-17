@@ -1,8 +1,8 @@
-# @superdoc-history/web
+# @superdoc-collab/web
 
 The single-page app: React, Vite, TanStack Query and React Router, styled with Tailwind and shadcn/ui ([ADR 0009](../../docs/adr/0009-design-system.md)). SuperDoc renders the live editor and, inside an iframe, the read-only version viewer.
 
-Run every script from the repository root with `pnpm --filter @superdoc-history/web <script>`:
+Run every script from the repository root with `pnpm --filter @superdoc-collab/web <script>`:
 
 - `dev` serves the pages around the editor on port 5173 and proxies the API and the collaboration socket to the server on port 3000.
 - `build` writes the bundle the server serves when `WEB_DIST_DIR` points at it.

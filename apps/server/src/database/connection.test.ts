@@ -6,7 +6,7 @@ import { AUTH_DATABASE_FILE, DatabaseDirectoryNotWritableError, openDatabase, op
 import { runMigrations } from './migrate';
 
 function temporaryDirectory(): string {
-  return mkdtempSync(join(tmpdir(), 'superdoc-history-'));
+  return mkdtempSync(join(tmpdir(), 'superdoc-collab-'));
 }
 
 describe('openDatabase', () => {

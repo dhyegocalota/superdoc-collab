@@ -1,4 +1,4 @@
-import { AUTH_ERROR_MESSAGE, HttpStatus } from '@superdoc-history/types';
+import { AUTH_ERROR_MESSAGE, HttpStatus } from '@superdoc-collab/types';
 
 export const AUTH_RETRY_AFTER_HEADER = 'X-Retry-After';
 export const GENERIC_AUTH_FAILURE_MESSAGE = 'Something went wrong. Try again.';

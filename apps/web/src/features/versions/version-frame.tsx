@@ -1,4 +1,4 @@
-import { versionViewPagePath, type EditRunView, type VersionSummary } from '@superdoc-history/types';
+import { versionViewPagePath, type EditRunView, type VersionSummary } from '@superdoc-collab/types';
 import { useEffect, useRef, useState } from 'react';
 import { VERSION_FRAME_TITLE } from '@/features/timeline/timeline-copy';
 import { useWindowMessage } from '@/lib/use-window-message';

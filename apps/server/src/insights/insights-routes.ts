@@ -5,7 +5,7 @@ import {
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   type DocumentTopics,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { authorizedDocumentId } from '../documents/require-document-role';
 import { INVALID_TIMELINE_QUERY_MESSAGE, selectionQuerySchema } from '../history/timeline-query';

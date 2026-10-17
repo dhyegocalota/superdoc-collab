@@ -1,4 +1,4 @@
-import { DocumentRole, MAX_UPLOAD_MEGABYTES } from '@superdoc-history/types';
+import { DocumentRole, MAX_UPLOAD_MEGABYTES } from '@superdoc-collab/types';
 import { DocumentColumn } from './document-columns';
 
 export const MINE_HEADING = 'Mine';

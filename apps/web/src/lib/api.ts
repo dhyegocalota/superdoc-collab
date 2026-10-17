@@ -1,4 +1,4 @@
-import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus, type HttpMethod } from '@superdoc-history/types';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus, type HttpMethod } from '@superdoc-collab/types';
 
 const JSON_CONTENT_TYPE = 'application/json';
 

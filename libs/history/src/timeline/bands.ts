@@ -1,4 +1,4 @@
-import { TimelineBandKind, type TimelineBand, type TimelineContributor } from '@superdoc-history/types';
+import { TimelineBandKind, type TimelineBand, type TimelineContributor } from '@superdoc-collab/types';
 import { runVolume, type EditRun } from './runs';
 import { huesByOnset } from './stack';
 import { countWords } from './words';

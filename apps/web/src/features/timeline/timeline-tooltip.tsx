@@ -1,5 +1,5 @@
-import { cellVolume } from '@superdoc-history/history/timeline';
-import type { DocumentTimeline } from '@superdoc-history/types';
+import { cellVolume } from '@superdoc-collab/history/timeline';
+import type { DocumentTimeline } from '@superdoc-collab/types';
 import { formatBinRange } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { authorNames } from './author-of';

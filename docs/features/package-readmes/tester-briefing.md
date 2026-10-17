@@ -11,7 +11,7 @@
 ## How to run
 
 - `pnpm test:hooks`
-- `pnpm --filter @superdoc-history/server exec vitest run src/repository-shape/delivery-docs.test.ts`
+- `pnpm --filter @superdoc-collab/server exec vitest run src/repository-shape/delivery-docs.test.ts`
 
 ## Red before, green after
 

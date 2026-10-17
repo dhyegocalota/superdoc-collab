@@ -1,4 +1,4 @@
-import { HttpStatus, RETRY_AFTER_HEADER } from '@superdoc-history/types';
+import { HttpStatus, RETRY_AFTER_HEADER } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { expect, test } from 'vitest';
 import { retryLater } from './retry-later';

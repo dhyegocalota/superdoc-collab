@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 
 const PROTOCOL_RELATIVE_PREFIX = '//';
 

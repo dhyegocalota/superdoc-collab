@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-history/types';
+import { MINUTE_MS } from '@superdoc-collab/types';
 
 const TIMESTAMP_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const VERSION_TIME_FORMAT = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' });

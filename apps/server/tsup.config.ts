@@ -7,7 +7,7 @@ export const serverBuildOptions: Options = {
   platform: 'node',
   clean: true,
   external: ['better-sqlite3', '@superdoc/sdk'],
-  noExternal: ['@superdoc-history/types', '@superdoc-history/history'],
+  noExternal: ['@superdoc-collab/types', '@superdoc-collab/history'],
 };
 
 export default defineConfig(serverBuildOptions);

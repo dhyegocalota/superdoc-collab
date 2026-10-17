@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-history/types';
+import { AppRoute } from '@superdoc-collab/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { DocumentPage } from '@/features/editor/document-page';
 import { RedirectIfSession } from '@/features/auth/redirect-if-session';

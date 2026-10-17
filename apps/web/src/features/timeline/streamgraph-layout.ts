@@ -1,5 +1,5 @@
-import { toStackRows, type StackRow } from '@superdoc-history/history/timeline';
-import type { DocumentTimeline, TimelineBand } from '@superdoc-history/types';
+import { toStackRows, type StackRow } from '@superdoc-collab/history/timeline';
+import type { DocumentTimeline, TimelineBand } from '@superdoc-collab/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
 import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series, type SeriesPoint } from 'd3-shape';
 import { maxBandVolume } from './max-band-volume';

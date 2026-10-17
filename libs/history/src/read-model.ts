@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { BlockChangeKind } from '@superdoc-history/types';
+import { BlockChangeKind } from '@superdoc-collab/types';
 import type { ProjectedEdit } from './edit-events';
 import type { VersionMark, VersionMarkSummary } from './version-marks';
 

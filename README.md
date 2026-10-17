@@ -1,4 +1,4 @@
-# SuperDoc History
+# SuperDoc Collab
 
 A collaborative DOCX editor that records every edit and shows who changed what, and when: a timeline per topic, time travel to any moment, and model-written summaries of the edits you select. Built on SuperDoc for its take-home brief ([`docs/brief/`](docs/brief/superdoc-eng-sample-project.docx)).
 
@@ -21,7 +21,7 @@ cp .env.example .env
 pnpm install
 pnpm build
 scripts/with-env.sh pnpm seed
-WEB_DIST_DIR=apps/web/dist scripts/with-env.sh pnpm --filter @superdoc-history/server start
+WEB_DIST_DIR=apps/web/dist scripts/with-env.sh pnpm --filter @superdoc-collab/server start
 ```
 
 Topics and summaries need `OPENROUTER_API_KEY` in `.env`; without it the app works and the chart shows one band per author.

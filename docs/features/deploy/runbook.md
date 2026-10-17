@@ -1,6 +1,6 @@
 # Deploy runbook: Dokploy
 
-How to put SuperDoc History on a VPS that runs Dokploy, check it, seed the demo accounts and roll back. About ten minutes once DNS resolves. The decision behind this shape is [ADR 0013](../../adr/0013-deploy-with-dokploy-compose.md).
+How to put SuperDoc Collab on a VPS that runs Dokploy, check it, seed the demo accounts and roll back. About ten minutes once DNS resolves. The decision behind this shape is [ADR 0013](../../adr/0013-deploy-with-dokploy-compose.md).
 
 Steps marked **(from memory, verify in the UI)** describe Dokploy screens that could not be checked from the machine that wrote this runbook. Labels may differ slightly in your Dokploy version; the intent of each step does not.
 
@@ -28,8 +28,8 @@ Steps marked **(from memory, verify in the UI)** describe Dokploy screens that c
 
 ## 1. Create the compose service (from memory, verify in the UI)
 
-1. Dokploy → **Projects** → **Create Project**, name `superdoc-history`.
-2. Open the project → **Create Service** → **Compose**. Name `superdoc-history`, compose type **Docker Compose** (not Stack) → **Create**.
+1. Dokploy → **Projects** → **Create Project**, name `superdoc-collab`.
+2. Open the project → **Create Service** → **Compose**. Name `superdoc-collab`, compose type **Docker Compose** (not Stack) → **Create**.
 3. In the service, **General** tab: provider **GitHub** (or **Git** with the public URL), repository `dhyegocalota/superdoc-take-home`, branch `main`, **Compose Path** `./deploy/docker-compose.yml` → **Save**.
 
 ## 2. Set the environment (from memory, verify in the UI)

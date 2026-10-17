@@ -1,4 +1,4 @@
-import { ApiPath, type SessionUser } from '@superdoc-history/types';
+import { ApiPath, type SessionUser } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet, readJson } from '@/lib/api';
 

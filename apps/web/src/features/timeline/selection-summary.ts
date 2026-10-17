@@ -1,5 +1,5 @@
-import { cellVolume } from '@superdoc-history/history/timeline';
-import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-history/types';
+import { cellVolume } from '@superdoc-collab/history/timeline';
+import { SelectionSummaryState, type DocumentTimeline, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
 import {
   NO_EDITS_TO_SUMMARIZE_MESSAGE,
   SUMMARIES_UNAVAILABLE_MESSAGE,

@@ -1,4 +1,4 @@
-import { OTHER_BAND_ID } from '@superdoc-history/types';
+import { OTHER_BAND_ID } from '@superdoc-collab/types';
 import { MAX_TOPICS, type TopicsOutput } from './topic-schema';
 
 export type NormalizedTopic = { name: string; blockIds: string[] };

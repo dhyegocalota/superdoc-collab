@@ -1,4 +1,4 @@
-import { VersionViewerState, VERSION_FAILED_MESSAGE } from '@superdoc-history/types';
+import { VersionViewerState, VERSION_FAILED_MESSAGE } from '@superdoc-collab/types';
 import { Button } from '@/components/ui/button';
 import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, versionAtLabel } from '@/features/timeline/timeline-copy';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';

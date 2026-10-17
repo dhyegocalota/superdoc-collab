@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { SELECTION_SUMMARY_MAX_CHARACTERS } from '@superdoc-history/types';
+import { SELECTION_SUMMARY_MAX_CHARACTERS } from '@superdoc-collab/types';
 import { selectionSummaryOutputSchema, summariesOutputSchema, topicsOutputSchema } from './topic-schema';
 
 const NAME_LIMIT = 40;

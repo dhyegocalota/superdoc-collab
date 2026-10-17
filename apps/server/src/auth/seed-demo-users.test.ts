@@ -1,4 +1,4 @@
-import { ApiPath, DEMO_USERS } from '@superdoc-history/types';
+import { ApiPath, DEMO_USERS } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { seedDemoUsers } from './seed-demo-users';
 import { startTestServer } from '../testing/test-server';

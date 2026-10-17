@@ -1,4 +1,4 @@
-import { documentPagePath, TimelineFilterKind } from '@superdoc-history/types';
+import { documentPagePath, TimelineFilterKind } from '@superdoc-collab/types';
 import { act } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';

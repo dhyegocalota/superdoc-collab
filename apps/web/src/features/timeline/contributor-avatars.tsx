@@ -1,5 +1,5 @@
-import { byVolumeDescending } from '@superdoc-history/history/timeline';
-import type { EventAuthor, TimelineContributor } from '@superdoc-history/types';
+import { byVolumeDescending } from '@superdoc-collab/history/timeline';
+import type { EventAuthor, TimelineContributor } from '@superdoc-collab/types';
 import { initialsOf } from '@/lib/initials';
 import { authorOf } from './author-of';
 

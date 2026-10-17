@@ -1,4 +1,4 @@
-import { VERSION_FAILED_MESSAGE, type EditRunView } from '@superdoc-history/types';
+import { VERSION_FAILED_MESSAGE, type EditRunView } from '@superdoc-collab/types';
 import { useCallback, useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';

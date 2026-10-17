@@ -5,7 +5,7 @@ import {
   HttpStatus,
   INVALID_SHARE_LINK_MESSAGE,
   shareLinkAcceptPath,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';

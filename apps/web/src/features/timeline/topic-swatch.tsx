@@ -1,4 +1,4 @@
-import { TimelineBandKind, type TimelineBand } from '@superdoc-history/types';
+import { TimelineBandKind, type TimelineBand } from '@superdoc-collab/types';
 import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { saturationOf } from './streamgraph-layout';

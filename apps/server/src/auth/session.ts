@@ -1,4 +1,4 @@
-import type { SessionUser } from '@superdoc-history/types';
+import type { SessionUser } from '@superdoc-collab/types';
 import type { Auth } from './auth';
 
 export async function readSession({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionUser | null> {

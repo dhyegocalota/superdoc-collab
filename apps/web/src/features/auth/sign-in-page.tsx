@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AppRoute, signInSchema, type SignInInput } from '@superdoc-history/types';
+import { AppRoute, signInSchema, type SignInInput } from '@superdoc-collab/types';
 import { useForm } from 'react-hook-form';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { AuthCard } from './auth-card';

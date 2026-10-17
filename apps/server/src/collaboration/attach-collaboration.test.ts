@@ -5,7 +5,7 @@ import {
   SECOND_MS,
   VERSION_FAILURE_TTL_MS,
   versionCollaborationPath,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import type { Hocuspocus } from '@hocuspocus/server';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';

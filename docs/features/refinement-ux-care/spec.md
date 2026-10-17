@@ -35,7 +35,7 @@ One goal per audit item in scope. The test plan has one box per item.
 | P2-2 | At 375 the editor header takes at most two rows: Download and Share are icon buttons below `sm`, Delete lives in a "More actions" menu at every width (folds P3-5). |
 | P2-3 | Roles read "Owner", "Can edit", "Can view"; the "Mine" table drops the Owner and role columns. |
 | P2-4 | The shared table hides Owner and Updated below `sm`, so nothing clips at 375. |
-| P2-5 | The documents page has the app name and a "Documents" h1; every page sets `document.title` ("Plan · SuperDoc History"). |
+| P2-5 | The documents page has the app name and a "Documents" h1; every page sets `document.title` ("Plan · SuperDoc Collab"). |
 | P2-6 | The documents page shows skeleton rows while loading; the document page keeps its header (home link and a title skeleton) while the document opens. |
 | P2-7 | While an upload runs, the file input is disabled and "Uploading…" is announced. |
 | P2-8 | The "New document" error renders under the section heading, outside the button row. |
@@ -108,7 +108,7 @@ No new requests. Every change is presentation inside the existing components, pl
 | P2-1 one unit for every number | words everywhere (needs per-bin word counts from the API) · words where the data has words, characters where it only has characters, always labelled | Planner default, owner may override: words in Top edits, characters in the tooltip and band labels; every number labelled, pluralized, zero side hidden | 2026-10-17 |
 | P1-4 range format | hand-built string · `Intl.DateTimeFormat#formatRange` | Planner default: `formatRange`; seconds when `binMs` is under a minute; the year only when it is not the current year; the banner always shows seconds | 2026-10-17 |
 | P2-2 where Delete goes | overflow menu below `sm` only · overflow menu at every width | Planner default: "More actions" menu at every width, which also settles P3-5; Download and Share keep their text from `sm` up | 2026-10-17 |
-| P1-1 back link form | arrow icon only · "Documents" link · arrow and app name | Planner default, from the proposal's "back link + app name": arrow and app name, accessible name "SuperDoc History, back to documents" | 2026-10-17 |
+| P1-1 back link form | arrow icon only · "Documents" link · arrow and app name | Planner default, from the proposal's "back link + app name": arrow and app name, accessible name "SuperDoc Collab, back to documents" | 2026-10-17 |
 | P2-3 role labels and columns | — | Planner default: Owner / Can edit / Can view under the header "Access"; "Mine" shows Title and Updated | 2026-10-17 |
 | P3-12 | `title` on the button · rename | Planner default: rename to "Regroup topics" (a disabled button never shows its `title`, see `docs/learnings/2026-10-17-a-disabled-button-never-shows-its-title.md`) | 2026-10-17 |
 | P2-14 viewer colour | align the viewer to the panel · the panel to the viewer | Planner default: both use the new `--inserted` green; the viewer through SuperDoc's documented `--sd-comment-highlight-*` variables | 2026-10-17 |

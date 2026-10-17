@@ -20,7 +20,7 @@ import {
   type OpenedDocument,
   type SelectionSummaryView,
   type VersionSummary,
-} from '@superdoc-history/types';
+} from '@superdoc-collab/types';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';

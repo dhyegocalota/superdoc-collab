@@ -20,8 +20,8 @@ const JOBS_START = '\njobs:\n';
 const LINE_SEPARATOR = '\n';
 const UNIT_MATRIX_ENTRIES = [
   '{ name: libs, filter: ./libs/* }',
-  '{ name: web, filter: "@superdoc-history/web" }',
-  '{ name: server, filter: "@superdoc-history/server" }',
+  '{ name: web, filter: "@superdoc-collab/web" }',
+  '{ name: server, filter: "@superdoc-collab/server" }',
 ];
 const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";

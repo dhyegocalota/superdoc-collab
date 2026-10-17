@@ -1,5 +1,5 @@
-import { readMainStoryText } from '@superdoc-history/history';
-import { ApiPath, documentApiPath, MINUTE_MS, versionCollaborationPath, type OpenedDocument, type RoomMode } from '@superdoc-history/types';
+import { readMainStoryText } from '@superdoc-collab/history';
+import { ApiPath, documentApiPath, MINUTE_MS, versionCollaborationPath, type OpenedDocument, type RoomMode } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument } from '../testing/collaboration-client';

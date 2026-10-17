@@ -1,4 +1,4 @@
-import { MINUTE_MS, SECOND_MS, type TimelineBin, type TimelineCell } from '@superdoc-history/types';
+import { MINUTE_MS, SECOND_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
 import type { EditRun } from './runs';
 
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.

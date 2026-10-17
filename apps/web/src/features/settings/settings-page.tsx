@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { SignOutButton } from '@/features/auth/sign-out-button';
 import { HomeLink } from '@/features/editor/home-link';
 import { browserTimeZone } from '@/lib/browser-time-zone';
+import { useSession } from '@/features/auth/use-session';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { useTimeZone } from '@/lib/use-time-zone';
 import {
@@ -23,16 +24,28 @@ import { canonicalTimeZone, timeZoneOptions } from './zone-options';
 const SELECT_ID = 'time-zone';
 
 export function SettingsPage() {
+  const { user } = useSession();
   const { timeZone: effectiveTimeZone } = useTimeZone();
   const [selectedTimeZone, setSelectedTimeZone] = useState(effectiveTimeZone);
   const saveTimeZone = useSaveTimeZone();
   const browserZone = browserTimeZone();
+  const storedTimeZone = user?.timeZone;
   const options = useMemo(
-    () => timeZoneOptions({ now: Date.now(), extra: [effectiveTimeZone, browserZone] }),
-    [effectiveTimeZone, browserZone],
+    () => timeZoneOptions({ now: Date.now(), extra: storedTimeZone ? [storedTimeZone, browserZone] : [browserZone] }),
+    [storedTimeZone, browserZone],
   );
   const browserDiffers = canonicalTimeZone(browserZone) !== canonicalTimeZone(effectiveTimeZone);
   useDocumentTitle(SETTINGS_HEADING);
+
+  function chooseTimeZone(timeZone: string): void {
+    saveTimeZone.reset();
+    setSelectedTimeZone(timeZone);
+  }
+
+  function save(): void {
+    if (saveTimeZone.isPending) return;
+    saveTimeZone.mutate(selectedTimeZone);
+  }
 
   return (
     <div className="min-h-screen">
@@ -49,7 +62,7 @@ export function SettingsPage() {
             <select
               id={SELECT_ID}
               value={selectedTimeZone}
-              onChange={(event) => setSelectedTimeZone(event.currentTarget.value)}
+              onChange={(event) => chooseTimeZone(event.currentTarget.value)}
               className="h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm shadow-xs"
             >
               {options.map((option) => (
@@ -62,13 +75,13 @@ export function SettingsPage() {
           {browserDiffers && (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               {browserReportsMessage(browserZone)}
-              <Button type="button" variant="outline" size="sm" onClick={() => setSelectedTimeZone(browserZone)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => chooseTimeZone(browserZone)}>
                 {USE_BROWSER_TIME_ZONE_LABEL}
               </Button>
             </p>
           )}
           {saveTimeZone.isError && <ErrorMessage>{SAVE_TIME_ZONE_FAILED_MESSAGE}</ErrorMessage>}
-          <Button type="button" disabled={saveTimeZone.isPending} onClick={() => saveTimeZone.mutate(selectedTimeZone)}>
+          <Button type="button" aria-disabled={saveTimeZone.isPending} onClick={save}>
             {saveTimeZone.isPending ? SAVING_TIME_ZONE_LABEL : SAVE_TIME_ZONE_LABEL}
           </Button>
         </section>

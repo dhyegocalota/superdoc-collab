@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-collab/types';
+import { MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 
 const LOCALE = 'en-US';
 const TIMESTAMP_PARTS: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
@@ -7,6 +7,10 @@ const DATED_VERSION_TIME_PARTS: Intl.DateTimeFormatOptions = { dateStyle: 'mediu
 const MINUTE_PARTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
 const SECOND_PARTS: Intl.DateTimeFormatOptions = { ...MINUTE_PARTS, second: '2-digit' };
 const YEAR_PART: Intl.DateTimeFormatOptions = { year: 'numeric' };
+const OFFSET_PARTS: Intl.DateTimeFormatOptions = { timeZoneName: 'longOffset' };
+const OFFSET_PART_TYPE = 'timeZoneName';
+const OFFSET_PREFIX = 'GMT';
+const ZERO_OFFSET = '+00:00';
 const DAY_PARTS: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
 export enum TimePrecision {
@@ -66,4 +70,14 @@ export function formatBinRange({ start, end, binMs, timeZone }: { start: number;
 export function formatVersionMoment({ time, timeZone }: { time: number; timeZone: string }): string {
   if (isToday({ time, timeZone })) return formatFor({ timeZone, parts: VERSION_TIME_PARTS }).format(time);
   return formatFor({ timeZone, parts: DATED_VERSION_TIME_PARTS }).format(time);
+}
+
+export function formatTimeZoneOffset({ time, timeZone }: { time: number; timeZone: string }): string {
+  const part = formatFor({ timeZone, parts: OFFSET_PARTS })
+    .formatToParts(time)
+    .find((candidate) => candidate.type === OFFSET_PART_TYPE);
+  if (!part) throw new Error(`No offset for ${timeZone}`);
+  const offset = part.value.slice(OFFSET_PREFIX.length);
+  if (offset === '') return `${UTC_TIME_ZONE}${ZERO_OFFSET}`;
+  return `${UTC_TIME_ZONE}${offset}`;
 }

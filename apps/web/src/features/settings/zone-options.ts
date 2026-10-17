@@ -1,19 +1,8 @@
 import { isSupportedTimeZone, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { formatTimeZoneOffset } from '@/lib/format-date-time';
 import { unsupportedTimeZoneLabel } from './settings-copy';
 
 export type TimeZoneOption = { value: string; label: string };
-
-const OFFSET_PART_TYPE = 'timeZoneName';
-const OFFSET_PREFIX = 'GMT';
-const ZERO_OFFSET = '+00:00';
-
-function offsetLabel({ timeZone, now }: { timeZone: string; now: number }): string {
-  const formatter = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' });
-  const part = formatter.formatToParts(now).find((candidate) => candidate.type === OFFSET_PART_TYPE);
-  if (!part) throw new Error(`No offset for ${timeZone}`);
-  const offset = part.value.slice(OFFSET_PREFIX.length);
-  return `${timeZone} (${UTC_TIME_ZONE}${offset === '' ? ZERO_OFFSET : offset})`;
-}
 
 export function canonicalTimeZone(timeZone: string): string {
   if (!isSupportedTimeZone(timeZone)) return timeZone;
@@ -24,6 +13,8 @@ export function timeZoneOptions({ now, extra }: { now: number; extra: string[] }
   const values = [...new Set([...Intl.supportedValuesOf('timeZone'), UTC_TIME_ZONE, ...extra])].sort();
   return values.map((value) => ({
     value,
-    label: isSupportedTimeZone(value) ? offsetLabel({ timeZone: value, now }) : unsupportedTimeZoneLabel(value),
+    label: isSupportedTimeZone(value)
+      ? `${value} (${formatTimeZoneOffset({ time: now, timeZone: value })})`
+      : unsupportedTimeZoneLabel(value),
   }));
 }

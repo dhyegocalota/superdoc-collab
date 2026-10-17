@@ -12,8 +12,9 @@ export function AuthorAvatar({ name, actor }: { name: string; actor: ClientActor
       {initialsOf(humanNameOf(name))}
       {actor === ClientActor.Agent && (
         <span
+          role="img"
           aria-label={AI_BADGE_LABEL}
-          className="absolute -right-1 -bottom-1 rounded-full bg-primary px-1 text-[7px] leading-3 text-primary-foreground"
+          className="absolute -right-1 -bottom-1 rounded-full bg-primary px-1 text-[10px] leading-3 text-primary-foreground"
         >
           {AI_BADGE_TEXT}
         </span>

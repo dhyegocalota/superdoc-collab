@@ -1,6 +1,6 @@
-import { DocumentRole, type EditSelection, type SummarizeOutcome } from '@superdoc-collab/types';
+import { DocumentRole, type EditSelection } from '@superdoc-collab/types';
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
-import { type CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
@@ -21,6 +21,7 @@ import { TopEdits } from './top-edits';
 import { useBinSelection } from './use-bin-selection';
 import { PanelPosition, usePanelPosition } from './use-panel-position';
 import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, useAreaHeight, useIsCompact, usePanelHeight, usePanelWidth } from './use-panel-width';
+import type { SummarizeControl } from './use-summarize';
 import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
 import { useTimeline } from './use-timeline';
@@ -36,21 +37,13 @@ export enum PanelColumn {
   List = 'list',
 }
 
-export type SummarizeHandle = {
-  summarize: () => void;
-  isRunning: boolean;
-  outcome: SummarizeOutcome | null;
-  error: Error | null;
-  retryAfterSeconds: number | null;
-};
-
 type TimelinePanelProps = {
   documentId: string;
   role: DocumentRole;
   position: PanelPosition;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  summarize: SummarizeHandle;
+  summarize: SummarizeControl;
   onTravel: (binStart: number) => void;
   onBackToLive: () => void;
 };
@@ -106,6 +99,12 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
     topic: search.topic,
     at: selectedBin ? selectedBin.start : null,
   };
+  const selectionKey = JSON.stringify(selection);
+
+  useEffect(() => {
+    summarize.showSelection(selection);
+  }, [selectionKey]);
+
   const { timeZone: preferredTimeZone } = useTimeZone();
   const binMs = timeline ? timeline.binMs : null;
   const timeZone = timeline ? timeline.timeZone : preferredTimeZone;

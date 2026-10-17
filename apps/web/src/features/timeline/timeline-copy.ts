@@ -2,9 +2,6 @@ import { AgentActionKind } from '@superdoc-collab/types';
 import { PanelPosition } from './use-panel-position';
 
 export const TIMELINE_HEADING = 'Edits';
-export const REGROUP_TOPICS_LABEL = 'Regroup topics';
-export const REGROUPING_TOPICS_MESSAGE = 'Regrouping topics…';
-export const NOTHING_TO_GROUP_MESSAGE = 'No edits to group into topics yet';
 export const RETRY_TOPICS_LABEL = 'Retry';
 export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 export const FILTER_LABEL = 'Filter';

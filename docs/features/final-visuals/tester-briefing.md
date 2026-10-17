@@ -274,6 +274,19 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 7. The page stays white in dark mode and a remote caret matches that member's avatar colour. Break it by: two browsers, a user whose slot collides with another.
 8. The editor header never shows a download that fails silently: a DOCX export failure shows `EXPORT_FAILED_MESSAGE` under the bar (still the page's job).
 
+### Review fix: empty selection and the outcome across selections
+
+- An empty selection or a document with no edits answers `UpToDate` with no summary; the card now says `NO_EDITS_TO_SUMMARIZE_MESSAGE` instead of "The summary is up to date." (red, then green: `selection-summary-card.test.tsx::an empty selection answered up to date shows the empty message…`).
+- `useSummarize` (G4's file, one authorized edit) resets its mutation when the selection query key changes, so the outcome and error belong to the selection (`use-summarize.test.tsx::the outcome belongs to the selection: another bin does not inherit it`; red `expected 'up-to-date' to be null`).
+- Hypothesis: after Summarize answers up to date on one bin, another bin or topic shows its own view with no up-to-date line. Break it by: switching bin, topic and filter right after the answer, and while a request is in flight.
+
+### Review fix: one selection source
+
+- `useSummarize` posts the selection the panel shows, not the URL. `SummarizeControl` gained `showSelection(selection)`; the panel calls it whenever its selection (filter, topic, selected bin) changes, so a bin without a version, or a click inside the scrub debounce gap, posts what the card shows. The URL selection is used until the panel has reported one.
+- Tests: `use-summarize.test.tsx::a click during the scrub debounce gap posts the selection the panel shows, not the URL` (red `expected null to be '1792165200007'`), `timeline-panel.test.tsx::the panel tells the summarize control which selection it shows…` (red `expected last "vi.fn()" call to have been called with …`).
+- The panel takes G4's `SummarizeControl`; the local `SummarizeHandle` and the dead Regroup copy are gone.
+- Hypothesis: select a bin with no version mark, press Summarize at once, and the POST and the card both name that bin. Break it by: clicking Summarize right after a click on the chart, during a scrub, and with the panel collapsed.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.
@@ -340,7 +353,7 @@ The panel tests that drove the removed header buttons (Summarize disabled reason
 - While the panel is collapsed at the bottom the timeline is still fetched and polled, because the chips need it. Side collapsed stops the polling as before.
 - `isPanelOpenByDefault()` is the answer for G2's initial `isOpen` (`useState(isPanelOpenByDefault)`); I do not own the state.
 - `top-edits.tsx` has its own `calloutStyleOf` that repeats the swatch's hue and saturation style. `topic-swatch.tsx` is not mine; one shared helper would remove it.
-- `SummarizeHandle` in `timeline-panel.tsx` and G4's `SummarizeControl` are the same shape; G2 passes G4's hook result as is.
+- G2 passes G4's hook result as is; the panel's prop type is `SummarizeControl`.
 - Dead after this lane, for G4 Step 39: `useSummarizeEdits` in `use-selection-summary.ts`, `summarizeDisabledReason`, `errorForSelection` and `selectionVolume` in `selection-summary.ts`, `use-topics.ts`, `SummaryTooSoonError` in `timeline-api.ts` and the unused copy constants.
 - `apps/web/src/features/editor/document-page.tsx` does not typecheck until G2 passes `position`, `isOpen`, `onOpenChange` and `summarize`; it is the only typecheck error.
 - On the integration base, `libs/types/src/constants.ts` declared `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice, which stopped every run that imports `@superdoc-collab/types`; I removed the second pair in my working tree only and did not commit it.

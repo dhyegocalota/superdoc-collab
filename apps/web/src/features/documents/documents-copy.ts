@@ -1,4 +1,5 @@
-import { MAX_UPLOAD_MEGABYTES } from '@superdoc-history/types';
+import { DocumentRole, MAX_UPLOAD_MEGABYTES } from '@superdoc-history/types';
+import { DocumentColumn } from './document-columns';
 
 export const MINE_HEADING = 'Mine';
 export const SHARED_HEADING = 'Shared with me';
@@ -14,3 +15,19 @@ export const UPLOAD_FAILED_MESSAGE = 'Upload failed with status';
 export const CREATE_FAILED_MESSAGE = 'Create failed with status';
 export const CREATE_ERROR_MESSAGE = 'The document could not be created.';
 export const COLUMN_HEADERS = ['Title', 'Owner', 'Updated', 'My role'];
+export const DOCUMENTS_HEADING = 'Documents';
+export const LOADING_DOCUMENTS_LABEL = 'Loading documents';
+export const UPLOADING_MESSAGE = 'Uploading…';
+
+export const ROLE_LABELS: Record<DocumentRole, string> = {
+  [DocumentRole.Owner]: 'Owner',
+  [DocumentRole.Editor]: 'Can edit',
+  [DocumentRole.Reader]: 'Can view',
+};
+
+export const COLUMN_LABELS: Record<DocumentColumn, string> = {
+  [DocumentColumn.Title]: 'Title',
+  [DocumentColumn.Owner]: 'Owner',
+  [DocumentColumn.Updated]: 'Updated',
+  [DocumentColumn.Access]: 'Access',
+};

@@ -54,7 +54,7 @@ export function UploadDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">{UPLOAD_LABEL}</Button>
+        <Button>{UPLOAD_LABEL}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

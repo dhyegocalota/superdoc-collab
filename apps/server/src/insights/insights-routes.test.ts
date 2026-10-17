@@ -4,6 +4,7 @@ import {
   HttpMethod,
   HttpStatus,
   RETRY_AFTER_HEADER,
+  RETRY_AFTER_SECONDS,
   SECOND_MS,
   SELECTION_SUMMARY_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
@@ -18,7 +19,6 @@ import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, expect, test, vi } from 'vitest';
-import { RETRY_AFTER_SECONDS } from '../history/versions-routes';
 import { INVALID_TIMELINE_QUERY_MESSAGE } from '../history/timeline-query';
 import { readEvents } from '../testing/events-client';
 import { memberWithRole } from '../testing/collaboration-client';

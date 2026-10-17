@@ -1,7 +1,7 @@
 import {
   DocumentRole,
   HttpStatus,
-  RETRY_AFTER_HEADER,
+  RETRY_AFTER_SECONDS,
   SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   TOPICS_REFRESH_TOO_SOON_MESSAGE,
   type DocumentTopics,
@@ -9,9 +9,9 @@ import {
 import { Hono } from 'hono';
 import { requireDocumentRole } from '../documents/require-document-role';
 import { INVALID_TIMELINE_QUERY_MESSAGE, queryOf, selectionQuerySchema } from '../history/timeline-query';
-import { RETRY_AFTER_SECONDS } from '../history/versions-routes';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
+import { retryLater } from '../http/retry-later';
 import { LLM_BUSY_MESSAGE } from './llm-client';
 import { SelectionRequestOutcome } from './selection-summaries-service';
 import { RefreshOutcome } from './topics-service';
@@ -42,8 +42,11 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
     requireDocumentRole({ documents: services.documents, documentId, userId: context.get('user').id, minimumRole: DocumentRole.Editor });
     const result = services.insights.topics.refresh(documentId);
     if (result.outcome === RefreshOutcome.TooSoon)
-      return context.json({ error: TOPICS_REFRESH_TOO_SOON_MESSAGE }, HttpStatus.TooManyRequests, {
-        [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds),
+      return retryLater({
+        context,
+        body: { error: TOPICS_REFRESH_TOO_SOON_MESSAGE },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: result.retryAfterSeconds,
       });
     return context.json(services.insights.topics.status(documentId), HttpStatus.Accepted);
   });
@@ -68,14 +71,25 @@ export function createInsightsRoutes({ services }: { services: AppServices }): H
     const selection = parsed.data;
     const result = services.insights.selection.request({ documentId, selection });
     if (result.outcome === SelectionRequestOutcome.TooSoon)
-      return context.json({ error: SELECTION_SUMMARY_TOO_SOON_MESSAGE }, HttpStatus.TooManyRequests, {
-        [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds),
+      return retryLater({
+        context,
+        body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: result.retryAfterSeconds,
       });
     if (result.outcome === SelectionRequestOutcome.Unavailable)
-      return context.json({ error: result.reason }, HttpStatus.ServiceUnavailable, { [RETRY_AFTER_HEADER]: String(RETRY_AFTER_SECONDS) });
+      return retryLater({
+        context,
+        body: { error: result.reason },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: RETRY_AFTER_SECONDS,
+      });
     if (result.outcome === SelectionRequestOutcome.Busy)
-      return context.json({ error: LLM_BUSY_MESSAGE }, HttpStatus.ServiceUnavailable, {
-        [RETRY_AFTER_HEADER]: String(result.retryAfterSeconds),
+      return retryLater({
+        context,
+        body: { error: LLM_BUSY_MESSAGE },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: result.retryAfterSeconds,
       });
     const view = services.insights.selection.read({ documentId, selection });
     const isRunning = result.outcome === SelectionRequestOutcome.Started || result.outcome === SelectionRequestOutcome.AlreadyRunning;

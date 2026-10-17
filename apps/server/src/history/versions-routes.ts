@@ -2,7 +2,7 @@ import {
   DocumentRole,
   HttpStatus,
   NON_NEGATIVE_INTEGER_PATTERN,
-  RETRY_AFTER_HEADER,
+  RETRY_AFTER_SECONDS,
   TimelineQueryParam,
   VERSION_FAILED_ERROR,
   VERSION_NOT_READY_ERROR,
@@ -16,16 +16,15 @@ import { z } from 'zod';
 import { requireDocumentRole } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
+import { retryLater } from '../http/retry-later';
 import { VersionLookupKind } from './versions-service';
 
 export const VERSION_MARKS_AROUND = 10;
-export const RETRY_AFTER_SECONDS = 1;
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 
 export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  const retryHeaders = { [RETRY_AFTER_HEADER]: String(RETRY_AFTER_SECONDS) };
 
   routes.get('/:documentId/versions', (context) => {
     const documentId = context.req.param('documentId');
@@ -51,12 +50,28 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const mark = services.versions.resolve({ documentId, sequence: Number(sequenceText) });
     if (!mark && services.scheduler.isRebuilding(documentId))
-      return context.json({ sequence: Number(sequenceText) }, HttpStatus.Accepted, retryHeaders);
+      return retryLater({
+        context,
+        body: { sequence: Number(sequenceText) },
+        status: HttpStatus.Accepted,
+        retryAfterSeconds: RETRY_AFTER_SECONDS,
+      });
     if (!mark) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
     const lookup = services.versions.peek({ documentId, sequence: mark.sequence });
     if (lookup.kind === VersionLookupKind.Failed)
-      return context.json({ error: VERSION_FAILED_ERROR }, HttpStatus.ServiceUnavailable, retryHeaders);
-    if (lookup.kind === VersionLookupKind.Pending) return context.json({ sequence: mark.sequence }, HttpStatus.Accepted, retryHeaders);
+      return retryLater({
+        context,
+        body: { error: VERSION_FAILED_ERROR },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: RETRY_AFTER_SECONDS,
+      });
+    if (lookup.kind === VersionLookupKind.Pending)
+      return retryLater({
+        context,
+        body: { sequence: mark.sequence },
+        status: HttpStatus.Accepted,
+        retryAfterSeconds: RETRY_AFTER_SECONDS,
+      });
     const summary: VersionSummary = {
       sequence: lookup.version.sequence,
       serverTime: lookup.version.serverTime,
@@ -77,7 +92,12 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
       const body: VersionText = { sequence, text };
       return context.json(body);
     } catch {
-      return context.json({ error: VERSION_FAILED_ERROR }, HttpStatus.ServiceUnavailable, retryHeaders);
+      return retryLater({
+        context,
+        body: { error: VERSION_FAILED_ERROR },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: RETRY_AFTER_SECONDS,
+      });
     }
   });
 

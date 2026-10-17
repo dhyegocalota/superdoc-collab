@@ -23,3 +23,4 @@ export enum HttpMethod {
 }
 
 export const RETRY_AFTER_HEADER = 'Retry-After';
+export const RETRY_AFTER_SECONDS = 1;

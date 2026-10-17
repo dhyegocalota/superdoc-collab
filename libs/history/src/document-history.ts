@@ -18,6 +18,19 @@ export function findBootstrapSequence({ updates, document = new Y.Doc() }: { upd
   return committed.sequence;
 }
 
-export function findCommittedSnapshot({ log, documentName }: { log: UpdateLog; documentName: string }): Snapshot | null {
-  throw new Error('findCommittedSnapshot is not implemented');
+export function findCommittedSnapshot({
+  log,
+  documentName,
+  afterSequence = 0,
+}: {
+  log: UpdateLog;
+  documentName: string;
+  afterSequence?: number;
+}): Snapshot | null {
+  const snapshot = log.snapshotAfter({ documentName, afterSequence });
+  if (!snapshot) return null;
+  const document = new Y.Doc();
+  Y.applyUpdate(document, snapshot.state);
+  if (isBootstrapCommitted({ document })) return snapshot;
+  return findCommittedSnapshot({ log, documentName, afterSequence: snapshot.sequence });
 }

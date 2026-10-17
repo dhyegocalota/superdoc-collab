@@ -25,7 +25,7 @@ import {
   uploadSeed,
   insertedBy,
 } from './editor';
-import { SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
+import { ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, DOWNLOAD_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { expect, signedInContext, test } from './fixtures';
 
@@ -104,7 +104,7 @@ test('a share link adds the document to Shared with me', async ({ browser }) => 
   await caio.page.goto(AppRoute.Documents);
   const sharedSection = caio.page.locator('section', { has: caio.page.getByRole('heading', { name: SHARED_HEADING }) });
   const row = sharedSection.getByRole('row', { name: new RegExp(titleOf(fileName)) });
-  await expect(row).toContainText(DocumentRole.Editor);
+  await expect(row).toContainText(ROLE_LABELS[DocumentRole.Editor]);
 });
 
 test('an invalid share link says so', async ({ browser }) => {

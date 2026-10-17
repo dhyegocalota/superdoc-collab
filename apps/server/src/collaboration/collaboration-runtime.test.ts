@@ -38,10 +38,10 @@ test("a takeover closes the superseded creator's socket with 4403 and the reason
   const superseded = connectionWithAttempt(1);
   const otherRoom = connectionWithAttempt(1);
   const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [superseded], [OTHER_DOCUMENT_ID]: [otherRoom] }, reservations });
-  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR })).toBe(1);
+  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR })).toEqual({ attempt: 1, epoch: reservations.epoch });
   expect(superseded.close).not.toHaveBeenCalled();
   clock.time += CREATOR_RESERVATION_MS + 1;
-  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR })).toBe(2);
+  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR })).toEqual({ attempt: 2, epoch: reservations.epoch });
   expect(superseded.close).toHaveBeenCalledWith({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
   expect(otherRoom.close).not.toHaveBeenCalled();
 });

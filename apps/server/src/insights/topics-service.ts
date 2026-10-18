@@ -1,5 +1,12 @@
 import { matchPreviousTopics, normalizeTopics, topicsOutputSchema } from '@superdoc-collab/history';
-import { MINUTE_MS, TOPIC_RECOMPUTE_NEW_BLOCKS, TOPICS_FAILED_MESSAGE, TopicState, type TopicStatus } from '@superdoc-collab/types';
+import {
+  isBlank,
+  MINUTE_MS,
+  TOPIC_RECOMPUTE_NEW_BLOCKS,
+  TOPICS_FAILED_MESSAGE,
+  TopicState,
+  type TopicStatus,
+} from '@superdoc-collab/types';
 import type { LanguageModel } from 'ai';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
@@ -133,7 +140,7 @@ export class TopicsService {
   }): Promise<void> {
     const { blocks, sequence } = await this.scheduler.blocks(documentId);
     if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
-    const blocksWithText = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
+    const blocksWithText = blocks.filter((block) => block.mergedIntoBlockId === null && !isBlank(block.text));
     if (blocksWithText.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
     if (!this.jobRunner.consumeDocumentCall(documentId)) throw new LanguageModelBusyError();
     const output = await generateStructured({

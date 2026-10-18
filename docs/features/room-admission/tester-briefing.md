@@ -308,3 +308,8 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 
 - **Red text:** `expected 3 to be undefined` (the release-and-reopen holder got a fresh attempt instead of lapsing) and `expected undefined to be 2` (51d8ac1). Green: 68f3f0a.
 - **Rule:** a reopen while live, or within `CREATOR_RESERVATION_MS` of the expiry or release, is a continuation: it keeps `reservedAt`, and the lapse cooldown applies. A later reopen starts fresh. Hypothesis: a holder looping write, close, reopen cannot hold the document past `CREATOR_RESERVATION_MAX_MS`. The two lapse tests now reach the cap with a touch, because an untouched reservation that is silent for a minute is not a continuation.
+
+### G3 sixth review round
+
+- **Pin of the kept start:** `a holder reopening every 59 seconds past the lifetime cap lapses and the next editor takes over` fails if the reopen resets `reservedAt` (mutation checked: with `reservedAt = now`, it and the release-and-reopen row both go red). It was green when it landed, so it is a pin, not a red-first row.
+- **Test cleanups:** the duplicate "closing one of two tabs" row is dropped (the row "refuses a second editor while the reservation is live" covers it, and the two-socket case is `collaboration-server.test.ts`); the agent budget test removes its member in `finally`.

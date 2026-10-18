@@ -28,27 +28,28 @@ test('authorColorSlot follows the 32-bit FNV-1a of the key', () => {
   expect(authorColorSlot('')).toBe((FNV_OFFSET_BASIS % AUTHOR_COLOR_SLOT_COUNT) + 1);
 });
 
-const MEMBERS_SHARING_SLOT_ONE = ['member-2', 'member-4', 'member-8', 'member-15', 'member-20', 'member-26', 'member-31'];
+const FIRST_MEMBER = 'member-2';
+const SECOND_MEMBER = 'member-4';
+const MEMBERS_SHARING_SLOT_ONE = [FIRST_MEMBER, SECOND_MEMBER, 'member-8', 'member-15', 'member-20', 'member-26'];
+const SEVENTH_MEMBER = 'member-31';
 
 test('two members whose ids hash to one slot get two slots in join order', () => {
-  const [first, second] = MEMBERS_SHARING_SLOT_ONE;
-  const slots = assignAuthorColorSlots({ memberIds: [first, second] });
-  expect(slots.get(first)).toBe(authorColorSlot(first));
-  expect(slots.get(second)).toBe(authorColorSlot(first) + 1);
-  const reversed = assignAuthorColorSlots({ memberIds: [second, first] });
-  expect(reversed.get(second)).toBe(authorColorSlot(second));
-  expect(reversed.get(first)).not.toBe(reversed.get(second));
+  const slots = assignAuthorColorSlots({ memberIds: [FIRST_MEMBER, SECOND_MEMBER] });
+  expect(slots.get(FIRST_MEMBER)).toBe(authorColorSlot(FIRST_MEMBER));
+  expect(slots.get(SECOND_MEMBER)).toBe(authorColorSlot(FIRST_MEMBER) + 1);
+  const reversed = assignAuthorColorSlots({ memberIds: [SECOND_MEMBER, FIRST_MEMBER] });
+  expect(reversed.get(SECOND_MEMBER)).toBe(authorColorSlot(SECOND_MEMBER));
+  expect(reversed.get(FIRST_MEMBER)).not.toBe(reversed.get(SECOND_MEMBER));
 });
 
 test('six members get six distinct slots', () => {
-  const memberIds = MEMBERS_SHARING_SLOT_ONE.slice(0, AUTHOR_COLOR_SLOT_COUNT);
-  expect(new Set(assignAuthorColorSlots({ memberIds }).values()).size).toBe(AUTHOR_COLOR_SLOT_COUNT);
+  const slots = assignAuthorColorSlots({ memberIds: MEMBERS_SHARING_SLOT_ONE });
+  expect(new Set(slots.values()).size).toBe(AUTHOR_COLOR_SLOT_COUNT);
 });
 
 test('the seventh member takes its hash slot', () => {
-  const slots = assignAuthorColorSlots({ memberIds: MEMBERS_SHARING_SLOT_ONE });
-  const seventh = MEMBERS_SHARING_SLOT_ONE[AUTHOR_COLOR_SLOT_COUNT];
-  expect(slots.get(seventh)).toBe(authorColorSlot(seventh));
+  const slots = assignAuthorColorSlots({ memberIds: [...MEMBERS_SHARING_SLOT_ONE, SEVENTH_MEMBER] });
+  expect(slots.get(SEVENTH_MEMBER)).toBe(authorColorSlot(SEVENTH_MEMBER));
 });
 
 test('an empty list is an empty map', () => {

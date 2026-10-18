@@ -8,7 +8,7 @@ import { AgentActionMarks } from './agent-action-marks';
 import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { AgentLegend } from './agent-legend';
 import { BandLabel } from './band-label';
-import { stepOutOfBreaks, type IdleBreak } from './idle-breaks';
+import { StepDirection, stepOutOfBreaks, type IdleBreak } from './idle-breaks';
 import { maxBandVolume } from './max-band-volume';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape, type BreakColumn } from './streamgraph-layout';
 import { StreamgraphLegend } from './streamgraph-legend';
@@ -46,8 +46,9 @@ function nextIndex({
   if (!isStep) return null;
   if (selectedIndex === null && key === KeyboardKey.ArrowRight) return 0;
   if (selectedIndex === null) return lastIndex;
-  if (key === KeyboardKey.ArrowRight) return Math.min(lastIndex, stepOutOfBreaks({ breaks, index: selectedIndex + 1, direction: 1 }));
-  return Math.max(0, stepOutOfBreaks({ breaks, index: selectedIndex - 1, direction: -1 }));
+  if (key === KeyboardKey.ArrowRight)
+    return Math.min(lastIndex, stepOutOfBreaks({ breaks, index: selectedIndex + 1, direction: StepDirection.Forward }));
+  return Math.max(0, stepOutOfBreaks({ breaks, index: selectedIndex - 1, direction: StepDirection.Backward }));
 }
 
 type Hovered = { index: number; y: number; idleBreak: BreakColumn | null };

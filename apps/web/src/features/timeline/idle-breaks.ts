@@ -29,15 +29,20 @@ export function idleBreaksOf({ timeline, thresholdMs }: { timeline: DocumentTime
     .filter((idleBreak) => idleBreak.durationMs > thresholdMs);
 }
 
-function idleBreakContaining({ breaks, index }: { breaks: IdleBreak[]; index: number }): IdleBreak | null {
+export function idleBreakContaining<Break extends IdleBreak>({ breaks, index }: { breaks: Break[]; index: number }): Break | null {
   const idleBreak = breaks.find((candidate) => index >= candidate.firstIndex && index <= candidate.lastIndex);
   if (!idleBreak) return null;
   return idleBreak;
 }
 
-export function stepOutOfBreaks({ breaks, index, direction }: { breaks: IdleBreak[]; index: number; direction: 1 | -1 }): number {
+export enum StepDirection {
+  Forward = 'forward',
+  Backward = 'backward',
+}
+
+export function stepOutOfBreaks({ breaks, index, direction }: { breaks: IdleBreak[]; index: number; direction: StepDirection }): number {
   const idleBreak = idleBreakContaining({ breaks, index });
   if (!idleBreak) return index;
-  if (direction === 1) return idleBreak.lastIndex + 1;
+  if (direction === StepDirection.Forward) return idleBreak.lastIndex + 1;
   return idleBreak.firstIndex - 1;
 }

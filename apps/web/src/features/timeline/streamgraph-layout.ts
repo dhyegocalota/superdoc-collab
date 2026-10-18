@@ -2,7 +2,7 @@ import { cellVolume, toStackRows, type StackRow } from '@superdoc-collab/history
 import { MINUTE_MS, type DocumentTimeline, type TimelineBand, type TimelineCell } from '@superdoc-collab/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
 import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series } from 'd3-shape';
-import { idleBreaksOf, type IdleBreak } from './idle-breaks';
+import { idleBreakContaining, idleBreaksOf, type IdleBreak } from './idle-breaks';
 import { maxBandVolume } from './max-band-volume';
 
 export const CHART_HEIGHT = 240;
@@ -78,10 +78,6 @@ function intersects({ first, second }: { first: LabelBox; second: LabelBox }): b
   return first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
 }
 
-function containsIndex({ range, index }: { range: { first: number; last: number }; index: number }): boolean {
-  return index >= range.first && index <= range.last;
-}
-
 function taperPoint({ x, point }: { x: number; point: AreaPoint }): AreaPoint {
   const middle = (point.lower + point.upper) / HALF;
   return { x, lower: middle, upper: middle };
@@ -95,7 +91,7 @@ function segmentsOf({ binCount, breaks }: { binCount: number; breaks: IdleBreak[
 
 function binColumnsOf({ binCount, idleBreaks, width }: { binCount: number; idleBreaks: IdleBreak[]; width: number }): BinColumns {
   const visibleBins = Array.from({ length: binCount }, (_, index) => index).filter(
-    (index) => !idleBreaks.some((idleBreak) => containsIndex({ range: { first: idleBreak.firstIndex, last: idleBreak.lastIndex }, index })),
+    (index) => idleBreakContaining({ breaks: idleBreaks, index }) === null,
   );
   const intervalCount = visibleBins.length - 1;
   const pitchIntervalCount = intervalCount - idleBreaks.length;
@@ -113,7 +109,7 @@ function binColumnsOf({ binCount, idleBreaks, width }: { binCount: number; idleB
     return { ...idleBreak, left, right, centerX: (left + right) / HALF };
   });
   const binXs = Array.from({ length: binCount }, (_, index) => {
-    const column = breaks.find((candidate) => containsIndex({ range: { first: candidate.firstIndex, last: candidate.lastIndex }, index }));
+    const column = idleBreakContaining({ breaks, index });
     if (column) return column.centerX;
     return slotX.get(index)!;
   });
@@ -139,7 +135,7 @@ function labelBoxOf({
   const halfWidth = (band.name.length * LABEL_CHARACTER_WIDTH) / HALF;
 
   function fitsAt(index: number): boolean {
-    const segment = segments.find((candidate) => containsIndex({ range: candidate, index }));
+    const segment = segments.find((candidate) => index >= candidate.first && index <= candidate.last);
     if (!segment) return false;
     const left = binX(index) - halfWidth;
     const right = binX(index) + halfWidth;
@@ -270,10 +266,8 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     timeX: (time) => {
       const position = Math.min(lastIndex, Math.max(0, (time - firstBinStart(timeline)) / timeline.binMs));
       const index = Math.floor(position);
-      const isInsideBreak = breaks.some((candidate) =>
-        containsIndex({ range: { first: candidate.firstIndex, last: candidate.lastIndex }, index }),
-      );
-      if (isInsideBreak) return binX(index);
+      const isBesideBreak = idleBreakContaining({ breaks, index }) !== null || idleBreakContaining({ breaks, index: index + 1 }) !== null;
+      if (isBesideBreak) return binX(index);
       return binX(index) + (position - index) * (binX(Math.min(lastIndex, index + 1)) - binX(index));
     },
   };

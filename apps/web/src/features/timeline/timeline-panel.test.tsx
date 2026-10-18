@@ -37,7 +37,7 @@ import {
   EARLIER_STATE_LABEL,
   CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
-  LOADING_TIMELINE_MESSAGE,
+  LOADING_TIMELINE_LABEL,
   NO_EDITS_IN_BIN_MESSAGE,
   NO_EDITS_YET_MESSAGE,
   RESIZE_PANEL_LABEL,
@@ -74,7 +74,7 @@ const SMALL_LAG_MS = 2000;
 const DRAGGED_WIDTH = 500;
 const SHRUNK_WINDOW_WIDTH = 800;
 const AREA_HEIGHT = 1000;
-const DEFAULT_HEIGHT = 460;
+const DEFAULT_HEIGHT = 580;
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
 const NONE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.None,
@@ -837,15 +837,16 @@ test('a tap on the chart scrolls the header into view', async () => {
 test('the first load shows a status skeleton with the chart height', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => undefined));
   renderPanel({ position: PanelPosition.Bottom });
-  const skeleton = await screen.findByRole('status', { name: LOADING_TIMELINE_MESSAGE });
+  const skeleton = await screen.findByRole('status', { name: LOADING_TIMELINE_LABEL });
   expect(skeleton).toHaveStyle({ height: `${CHART_HEIGHT}px` });
+  expect(skeleton).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
 });
 
 test('once the timeline is loaded the skeleton is gone', async () => {
   mockTimelineApi();
   renderPanel({ position: PanelPosition.Bottom });
   await screen.findByLabelText(/^Budget/);
-  expect(screen.queryByRole('status', { name: LOADING_TIMELINE_MESSAGE })).not.toBeInTheDocument();
+  expect(screen.queryByRole('status', { name: LOADING_TIMELINE_LABEL })).not.toBeInTheDocument();
 });
 
 test('View version shows when the pending version names the selected bin and confirms through the panel', async () => {

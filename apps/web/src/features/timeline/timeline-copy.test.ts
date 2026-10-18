@@ -7,6 +7,7 @@ import {
   editDeltaLabel,
   EditUnit,
   importedAuthorLabel,
+  LOADING_TIMELINE_LABEL,
   PANEL_POSITION_LABELS,
   selectedEditCount,
   SHOWING_WHOLE_DOCUMENT_MESSAGE,
@@ -50,5 +51,6 @@ test('the selected header copy reads the whole document, counts edits and names 
   expect(SHOWING_WHOLE_DOCUMENT_MESSAGE).toBe('Showing the whole document');
   expect(CLEAR_SELECTION_LABEL).toBe('Clear selection');
   expect(VIEW_VERSION_LABEL).toBe('View version');
+  expect(LOADING_TIMELINE_LABEL).toBe('Loading the timeline');
   expect([0, 1, 12].map(selectedEditCount)).toEqual(['0 edits', '1 edit', '12 edits']);
 });

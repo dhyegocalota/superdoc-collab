@@ -206,6 +206,7 @@ export function Streamgraph({
             bandCount: timeline.bands.length,
             from: formatTimestamp({ time: firstMoment, timeZone }),
             to: formatTimestamp({ time: lastMoment, timeZone }),
+            hasIdleBreaks: layout.breaks.length > 0,
           })}
         </desc>
         {hasAgentLayer && (

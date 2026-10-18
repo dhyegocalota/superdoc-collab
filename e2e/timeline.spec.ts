@@ -25,7 +25,7 @@ import {
 } from './timeline';
 
 const RENAMED_PREFIX = 'Staff ';
-const LONG_TYPING_LENGTH = 80;
+const LONG_TYPING_LENGTH = 200;
 const LONG_TYPING_DELAY_MS = 100;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const VERSION_REQUEST_PATTERN = /\/versions\/\d+$/;

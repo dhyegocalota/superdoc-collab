@@ -18,23 +18,23 @@ export enum JumpOutcome {
 
 type MemberCursors = { hasCursor: (member: DocumentMember) => boolean; jumpTo: (member: DocumentMember) => JumpOutcome };
 
-const normalizedColors = new Map<string, string>();
+const normalizedPaletteColors = new Map<string, string>();
 
-function normalizedColor(color: string): string {
-  const known = normalizedColors.get(color);
+function normalizedPaletteColor(color: string): string {
+  const known = normalizedPaletteColors.get(color);
   if (known !== undefined) return known;
   const probe = document.createElement('span');
   probe.style.color = color;
-  normalizedColors.set(color, probe.style.color);
+  normalizedPaletteColors.set(color, probe.style.color);
   return probe.style.color;
 }
 
 function cursorKey({ name, color }: { name: string; color: string }): string {
-  return JSON.stringify([name, normalizedColor(color)]);
+  return JSON.stringify([name, color]);
 }
 
 function memberKey(member: DocumentMember): string {
-  return cursorKey({ name: member.user.name, color: authorColorOf(authorColorSlot(member.user.id)) });
+  return cursorKey({ name: member.user.name, color: normalizedPaletteColor(authorColorOf(authorColorSlot(member.user.id))) });
 }
 
 function caretsIn(container: HTMLElement): HTMLElement[] {

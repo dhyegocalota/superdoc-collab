@@ -131,10 +131,10 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       const [caret] = matches;
       if (!caret || matches.length > 1) return JumpOutcome.NotFound;
       caret.scrollIntoView({ block: 'center' });
-      const selections = selectionsOf(caret);
-      selections.forEach((selection) => selection.classList.add(GLOW_CLASS));
+      const glowing = [caret, ...selectionsOf(caret)];
+      glowing.forEach((element) => element.classList.add(GLOW_CLASS));
       const timer = setTimeout(() => {
-        selections.forEach((selection) => selection.classList.remove(GLOW_CLASS));
+        glowing.forEach((element) => element.classList.remove(GLOW_CLASS));
         glowTimers.current.delete(timer);
       }, CURSOR_GLOW_MS);
       glowTimers.current.add(timer);

@@ -1,5 +1,5 @@
 import { DOCUMENT_READY_GIVE_UP_MS, DOCUMENT_READY_POLL_MS, type CreatorTicket, type OpenedDocument } from '@superdoc-collab/types';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
 import { creatorTicketOf } from './collaboration-config';
@@ -28,16 +28,22 @@ function readinessOf({ data, error, errorCount, resumedAt }: ReadinessInput): Do
   return DocumentReadiness.Waiting;
 }
 
-function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string; shouldPoll: boolean }) {
-  const queryClient = useQueryClient();
-  const [resume, setResume] = useState({ documentId, errorCount: 0 });
-  const resumedAt = resume.documentId === documentId ? resume.errorCount : 0;
-  const query = useQuery({
+function openedDocumentQueryOptions(documentId: string) {
+  return queryOptions({
     queryKey: openedDocumentQueryKey(documentId),
     queryFn: () => openDocument(documentId),
     retry: false,
     gcTime: 0,
     staleTime: Infinity,
+  });
+}
+
+function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string; shouldPoll: boolean }) {
+  const queryClient = useQueryClient();
+  const [resume, setResume] = useState({ documentId, errorCount: 0 });
+  const resumedAt = resume.documentId === documentId ? resume.errorCount : 0;
+  const query = useQuery({
+    ...openedDocumentQueryOptions(documentId),
     refetchOnMount: 'always',
     refetchInterval: (current) => {
       const { data, error, errorUpdateCount } = current.state;
@@ -83,12 +89,7 @@ export function useOpenedDocumentWithoutPolling(documentId: string) {
 }
 
 export function useOpenedCreatorTicket(documentId: string): CreatorTicket | null {
-  const { data } = useQuery({
-    queryKey: openedDocumentQueryKey(documentId),
-    queryFn: () => openDocument(documentId),
-    enabled: false,
-    staleTime: Infinity,
-  });
+  const { data } = useQuery({ ...openedDocumentQueryOptions(documentId), enabled: false });
   if (!data) return null;
   return creatorTicketOf(data);
 }

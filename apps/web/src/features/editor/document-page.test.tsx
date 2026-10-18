@@ -888,7 +888,7 @@ test('leaving a page with the timeline mounted removes the opened document from 
   );
 });
 
-test('a Reload answered 409 with the timeline mounted makes exactly one open request', async () => {
+test('a Reload answered 409 with the timeline mounted is not retried: the open, the reload and the waiting page restart make three requests', async () => {
   let status = HttpStatus.Ok;
   matchMediaAlwaysMatching();
   const fetchSpy = mockDocumentApi({
@@ -905,7 +905,7 @@ test('a Reload answered 409 with the timeline mounted makes exactly one open req
   await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
   expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
   const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
-  expect(openRequests).toHaveLength(2);
+  expect(openRequests).toHaveLength(3);
 });
 
 test('with the timeline mounted the members are requested once per interval', async () => {

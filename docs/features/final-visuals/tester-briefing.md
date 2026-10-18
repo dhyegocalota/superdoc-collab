@@ -538,7 +538,6 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 
 ### Known gaps
 
-- `editor-header.tsx` does not yet pass `editorContainer`: typecheck and `editor-header.test.tsx` fail until the lead wires the page's editor element through `EditorHeader` to `Members`.
 - The label SuperDoc draws is cut to a maximum length with `...`; a longer name will not match and reads as off screen.
 - A failed jump from the "+N" menu is only announced in the status region; the menu has closed, so there is no tooltip.
 - No user id reaches the overlay DOM, so a peer who forges both name and colour can still hijack a jump (limit recorded in `.claude/rules/web-ui.md`). Two members with the same name and colour make both unjumpable. A name SuperDoc truncates or decorates reads as "not in the document". `hasCursor(member)` replaced `namesWithCursor`; `authorColorOf` in G2's `author-palette.ts` is now exported (one word).

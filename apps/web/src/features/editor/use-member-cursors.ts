@@ -83,21 +83,28 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
     }
     const refresh = () => show(caretKeysIn(container));
     const overlayObserver = new MutationObserver(refresh);
-    const containerObserver = new MutationObserver(() => {
+    const parentObserver = new MutationObserver(() => watchCurrentOverlay());
+    const containerObserver = new MutationObserver(() => watchCurrentOverlay());
+    let watchedOverlay: HTMLElement | null | undefined;
+    function watchCurrentOverlay(): void {
       const overlay = overlayIn(container);
-      if (!overlay) return;
+      if (overlay === watchedOverlay) return;
+      watchedOverlay = overlay;
+      overlayObserver.disconnect();
+      parentObserver.disconnect();
       containerObserver.disconnect();
-      watch(overlay);
-    });
-    function watch(overlay: HTMLElement): void {
       refresh();
+      if (!overlay) {
+        containerObserver.observe(container, { childList: true, subtree: true });
+        return;
+      }
       overlayObserver.observe(overlay, { childList: true, subtree: true, characterData: true, attributeFilter: ['style'] });
+      if (overlay.parentElement) parentObserver.observe(overlay.parentElement, { childList: true });
     }
-    const overlay = overlayIn(container);
-    if (overlay) watch(overlay);
-    if (!overlay) containerObserver.observe(container, { childList: true, subtree: true });
+    watchCurrentOverlay();
     return () => {
       containerObserver.disconnect();
+      parentObserver.disconnect();
       overlayObserver.disconnect();
     };
   }, [superdoc, container]);

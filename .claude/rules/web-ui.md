@@ -30,7 +30,7 @@ paths:
 - Every string lives in a `*-copy.ts` file or `libs/types`, never inline in JSX. (apps/web/src/lib/app-copy.ts, features/*/…-copy.ts)
 - A message with a verb is a sentence and ends with a period; labels, headings and noun-phrase states ("No edits yet", "Link copied") do not. (refinement-ux-care spec P2-17)
 - The ellipsis is `…`, never `...`. (refinement-ux-care spec P2-17)
-- A disabled control carries a visible reason, linked with `aria-describedby`. (docs/learnings/2026-10-17-a-disabled-button-never-shows-its-title.md)
+- A disabled control carries a visible reason, linked with `aria-describedby`. Exception: while the document loads, SuperDoc's loading overlay on the paper is the visible reason, so the Download description may be screen-reader only. (docs/learnings/2026-10-17-a-disabled-button-never-shows-its-title.md)
 
 ## Banners
 - A page-level state banner (`ConnectionBanner`, `VersionBanner`) sits full width between the top bar and the content, carries `data-testid` and `data-state`, and wraps its action under the text at narrow widths (`flex-wrap`, `gap-2`, `px-4 py-2`, `text-sm`). `role="status"` announces progress; only a failure uses `role="alert"`. A spinner carries `motion-reduce:animate-none`. (apps/web/src/features/editor/connection-banner.tsx, apps/web/src/features/versions/version-banner.tsx)

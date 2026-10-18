@@ -6,9 +6,6 @@ import type { TimeTravel } from '@/features/timeline/use-time-travel';
 import { formatVersionMoment } from '@/lib/format-date-time';
 import { useMinWidth } from '@/lib/use-min-width';
 import { useTimeZone } from '@/lib/use-time-zone';
-import { cn } from '@/lib/utils';
-
-const PHONE_BAR_CLASS = 'sticky top-0 z-10 min-h-11';
 
 function loadingMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }): string {
   if (timeTravel.requestedBinEnd === null) return LOADING_VERSION_MESSAGE;
@@ -31,7 +28,7 @@ export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
       role="status"
       data-testid="version-banner"
       data-sequence={timeTravel.shownVersion?.sequence}
-      className={cn('flex items-center justify-between gap-2 border-b bg-muted px-4 py-2 text-sm', isPhoneLayout && PHONE_BAR_CLASS)}
+      className="flex items-center justify-between gap-2 border-b bg-muted px-4 py-2 text-sm"
     >
       <p>{message}</p>
       <Button type="button" variant="outline" size={isPhoneLayout ? 'touch' : 'sm'} onClick={timeTravel.backToLive}>

@@ -14,6 +14,8 @@ import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/feature
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { useMinWidth } from '@/lib/use-min-width';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
@@ -73,6 +75,7 @@ export function DocumentPage() {
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
   const { position } = usePanelPosition();
+  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
   const summarize = useSummarize({ documentId });
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
@@ -145,9 +148,9 @@ export function DocumentPage() {
     navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
+  const versionBar = <VersionBanner timeTravel={timeTravel} />;
   const isFailed = connectionState === ConnectionState.Failed;
   const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
-  const isDimmed = isFailed || timeTravel.isLoading;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
@@ -189,11 +192,15 @@ export function DocumentPage() {
         isRunning={summarize.isRunning}
         onSummarize={summarizeAndOpenPanel}
       />
+      {isPhoneLayout && versionBar}
       <div className={PANEL_LAYOUT_CLASS[position]}>
-        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isDimmed && DIMMED_EDITOR_AREA_CLASS)}>
-          <VersionBanner timeTravel={timeTravel} />
+        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && DIMMED_EDITOR_AREA_CLASS)}>
+          {!isPhoneLayout && versionBar}
           {timeTravel.isLoading && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
-          <div className="relative flex min-h-0 min-w-0 flex-1">
+          <div
+            data-testid="editor-surface"
+            className={cn('relative flex min-h-0 min-w-0 flex-1', timeTravel.isLoading && DIMMED_EDITOR_AREA_CLASS)}
+          >
             {editorSetup && isToolbarReady && (
               <SuperDocEditor
                 key={editorGeneration}

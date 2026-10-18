@@ -24,7 +24,28 @@ import { Members } from './members';
 const CURRENT_USER_ID = 'u1';
 const DOCUMENT_ID = 'doc-1';
 const JUMP_FAILED_MS = 3000;
-const superdoc = {} as SuperDoc;
+const AWARENESS_UPDATE_EVENT = 'awareness-update';
+
+type AwarenessChange = { added: number[]; removed: number[] };
+
+let superdoc: SuperDoc;
+let awarenessHandlers: Set<(change: AwarenessChange) => void>;
+
+function emitAwareness(change: AwarenessChange): void {
+  awarenessHandlers.forEach((handler) => handler(change));
+}
+
+function superdocWithAwareness(): SuperDoc {
+  awarenessHandlers = new Set();
+  return {
+    on: (name: string, handler: (change: AwarenessChange) => void) => {
+      if (name === AWARENESS_UPDATE_EVENT) awarenessHandlers.add(handler);
+    },
+    off: (name: string, handler: (change: AwarenessChange) => void) => {
+      if (name === AWARENESS_UPDATE_EVENT) awarenessHandlers.delete(handler);
+    },
+  } as unknown as SuperDoc;
+}
 const scrollIntoView = vi.fn();
 
 function memberNamed({
@@ -94,6 +115,7 @@ function manyMembers(count: number): DocumentMember[] {
 }
 
 beforeEach(() => {
+  superdoc = superdocWithAwareness();
   queryClient = new QueryClient();
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   installAuthorPalette();
@@ -117,15 +139,37 @@ test('the avatar swatch of a member uses the slot the server assigned, not the i
   expect(screen.getByText(initialsOf('Ana'))).toHaveClass('bg-author-1');
 });
 
-test('a peer caret leaving refreshes the members query', async () => {
-  addCaret({ name: 'Bruno', color: colorOf(bruno) });
+test('a peer with no rendered caret leaving refreshes the members query', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   renderMembers({ members: [ana, bruno] });
-  await findJumpButton('Bruno');
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [], removed: [1] }));
   await act(async () => {
-    editor.replaceChildren();
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
   });
-  await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false }));
+  expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false });
+});
+
+test('a peer arriving refreshes the members query', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [1], removed: [] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).toHaveBeenCalledTimes(1);
+});
+
+test('an awareness update where nobody came or went leaves the members query alone', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [], removed: [] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).not.toHaveBeenCalled();
 });
 
 function MembersFetchProbe({ fetchMembers }: { fetchMembers: () => Promise<never> }) {
@@ -151,17 +195,9 @@ test('a burst of presence changes during a members fetch invalidates once withou
     </QueryClientProvider>,
   );
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
-  const burst = [bruno, dario, bruno, dario, bruno];
-  for (const member of burst) {
-    addCaret({ name: member.user.name, color: colorOf(member) });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    overlay.replaceChildren();
-    await act(async () => {
-      await Promise.resolve();
-    });
-  }
+  Array.from({ length: 5 }).forEach((_, index) =>
+    act(() => emitAwareness(index % 2 === 0 ? { added: [1], removed: [] } : { added: [], removed: [1] })),
+  );
   await act(async () => {
     vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
   });

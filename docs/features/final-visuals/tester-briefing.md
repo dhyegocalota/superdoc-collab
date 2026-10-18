@@ -288,6 +288,11 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 - The panel takes G4's `SummarizeControl`; the local `SummarizeHandle` and the dead Regroup copy are gone.
 - Hypothesis: select a bin with no version mark, press Summarize at once, and the POST and the card both name that bin. Break it by: clicking Summarize right after a click on the chart, during a scrub, and with the panel collapsed.
 
+### Tester fixes: collapsed bar test id and stale after up to date
+
+- The collapsed bar carries `data-testid="timeline-collapsed-bar"` (`TIMELINE_COLLAPSED_BAR_TEST_ID`, asserted in `timeline-collapsed-bar.test.tsx`; red `Unable to find an element by: [data-testid="timeline-collapsed-bar"]`).
+- The card shows the up-to-date line only while the summary is not stale, so a new edit shows the "For an earlier state" badge alone (red `expected … not.toBeInTheDocument()`). The mutation outcome itself is not reset by staleness; hypothesis: a new edit after an up-to-date answer shows the badge and no up-to-date line, and the next Summarize replaces the outcome.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

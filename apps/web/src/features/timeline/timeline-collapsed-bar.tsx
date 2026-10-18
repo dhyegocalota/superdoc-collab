@@ -22,7 +22,7 @@ export function TimelineCollapsedBar({ timeline, onExpand }: { timeline: Documen
   }
 
   return (
-    <div className="flex h-11 min-w-0 flex-1 items-center gap-2 px-2">
+    <div data-testid={TIMELINE_COLLAPSED_BAR_TEST_ID} className="flex h-11 min-w-0 flex-1 items-center gap-2 px-2">
       <h2 className="px-2 text-sm font-medium">{TIMELINE_HEADING}</h2>
       <ul className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
         {bands.map((band) => (

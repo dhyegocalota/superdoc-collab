@@ -1,10 +1,9 @@
 import { TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type VersionSummary } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
-import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { isTypingInField } from '@/lib/keyboard';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { useEscapeKey } from '@/lib/use-escape-key';
-import { useMinWidth } from '@/lib/use-min-width';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { binContaining } from './bin-containing';
 import { VersionLoadKind } from './timeline-api';
 import { useBinRuns } from './use-bin-runs';
@@ -44,7 +43,7 @@ function pinnedSequenceAt({ pin, at }: { pin: VersionPin | null; at: number | nu
 export function useTimeTravel({ documentId, isEnabled }: { documentId: string; isEnabled: boolean }): TimeTravel {
   const { search, update } = useTimelineSearch();
   const at = search.at;
-  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
+  const isPhoneLayout = useIsPhoneLayout();
   const [pendingBinStart, setPendingBinStart] = useState<number | null>(null);
   const [readyFrameSequence, setReadyFrameSequence] = useState<number | null>(null);
   const [shownVersion, setShownVersion] = useState<VersionSummary | null>(null);
@@ -82,9 +81,13 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     setPinnedVersion({ at, sequence: binSequence });
   }, [at, bin, binSequence, pinnedVersion]);
 
+  function writeAt(binStart: number): void {
+    update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
+  }
+
   const { schedule, cancel } = useDebouncedCallback({
     callback: (binStart: number) => {
-      update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
+      writeAt(binStart);
       setPendingBinStart(null);
     },
     delayMs: SCRUB_DEBOUNCE_MS,
@@ -103,7 +106,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
 
   function travelNow(binStart: number): void {
     cancel();
-    update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
+    writeAt(binStart);
   }
 
   function travelTo(binStart: number): void {

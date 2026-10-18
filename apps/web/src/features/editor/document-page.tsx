@@ -148,7 +148,12 @@ export function DocumentPage() {
     navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
-  const versionBar = <VersionBanner timeTravel={timeTravel} />;
+  const versionBar = (
+    <>
+      <VersionBanner timeTravel={timeTravel} />
+      {timeTravel.isLoading && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
+    </>
+  );
   const isFailed = connectionState === ConnectionState.Failed;
   const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
@@ -196,7 +201,6 @@ export function DocumentPage() {
       <div className={PANEL_LAYOUT_CLASS[position]}>
         <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && DIMMED_EDITOR_AREA_CLASS)}>
           {!isPhoneLayout && versionBar}
-          {timeTravel.isLoading && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
           <div
             data-testid="editor-surface"
             className={cn('relative flex min-h-0 min-w-0 flex-1', timeTravel.isLoading && DIMMED_EDITOR_AREA_CLASS)}

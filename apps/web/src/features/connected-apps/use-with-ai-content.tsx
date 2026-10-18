@@ -1,6 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientSnippet } from './connect-snippets';
-import { documentPrompts, EXAMPLE_PROMPTS_HEADING, LIBRARY_PROMPTS, MCP_CLIENT_LABELS, McpClient } from './connected-apps-copy';
+import {
+  AI_CLIENTS_TABLIST_LABEL,
+  documentPrompts,
+  EXAMPLE_PROMPTS_HEADING,
+  LIBRARY_PROMPTS,
+  MCP_CLIENT_LABELS,
+  McpClient,
+} from './connected-apps-copy';
 
 function promptsFor({ title, canEdit }: { title: string | null; canEdit: boolean }): string[] {
   if (title === null) return LIBRARY_PROMPTS;
@@ -11,7 +18,7 @@ export function UseWithAiContent({ title, canEdit }: { title: string | null; can
   return (
     <div className="space-y-4">
       <Tabs defaultValue={McpClient.ClaudeCode}>
-        <TabsList>
+        <TabsList aria-label={AI_CLIENTS_TABLIST_LABEL}>
           {Object.values(McpClient).map((client) => (
             <TabsTrigger key={client} value={client}>
               {MCP_CLIENT_LABELS[client]}

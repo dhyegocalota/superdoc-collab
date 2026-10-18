@@ -211,6 +211,7 @@ export function DocumentPage() {
                 creatorTicket={editorSetup.creatorTicket}
                 role={editorSetup.role}
                 user={editorSetup.user}
+                colorSlot={editorSetup.colorSlot}
                 file={editorSetup.file}
                 isInert={isEditingSurfaceInert}
                 isSuperseded={failureReason === ConnectionFailureReason.Superseded}

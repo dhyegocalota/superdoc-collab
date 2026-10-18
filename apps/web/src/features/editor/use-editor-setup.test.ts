@@ -12,6 +12,12 @@ test('the setup captures the creator ticket of the open answer', async () => {
   await waitFor(() => expect(result.current?.creatorTicket).toEqual(TICKET));
 });
 
+test('pin: the setup captures the colour slot of the open answer', async () => {
+  const opened = { ...openedAs(DocumentRole.Editor, RoomMode.Join), colorSlot: 4 as const };
+  const { result } = renderHook(() => useEditorSetup({ opened, user: SESSION_USER, file: new Blob(), generation: 0 }));
+  await waitFor(() => expect(result.current?.colorSlot).toBe(4));
+});
+
 test('the setup has no ticket for a joined room', async () => {
   const opened = openedAs(DocumentRole.Editor, RoomMode.Join);
   const { result } = renderHook(() => useEditorSetup({ opened, user: SESSION_USER, file: new Blob(), generation: 0 }));

@@ -1,4 +1,4 @@
-import { authorColorKeyOf, authorColorSlot, JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
+import { JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useEffect, useId, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
@@ -47,15 +47,8 @@ function jumpReasonOf({
 }
 
 function MemberAvatar({ member, isOnline }: { member: DocumentMember; isOnline: boolean }) {
-  const { id, name } = member.user;
   return (
-    <UserAvatar
-      name={name}
-      colorSlot={authorColorSlot(authorColorKeyOf({ id, name }))}
-      size={UserAvatarSize.Large}
-      isAgent={false}
-      isOnline={isOnline}
-    />
+    <UserAvatar name={member.user.name} colorSlot={member.colorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline={isOnline} />
   );
 }
 

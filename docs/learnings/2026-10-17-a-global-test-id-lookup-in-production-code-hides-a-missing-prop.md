@@ -4,6 +4,7 @@
 - Inspired by: review of the member jump, fixed by `092a8cc` and `976ff3e`
 - Revisited: 2026-10-17 — still true
 - Revisited: 2026-10-18 — still true
+- Revisited: 2026-10-18 — still true; the colour slot reaches the editor, the header and the account menu as an explicit prop, never a lookup
 
 ## Signal
 The member jump finds carets in the full page but never in a component test, or finds the wrong editor when two exist (the print view or the version viewer). No error is raised.

@@ -37,7 +37,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 - Server PDF conversion. The PDF is a print view (option 6.1 A).
 - A real logo asset. The brand mark is a `FileText` icon in a primary square (owner decision 7.15).
 - Colour by author as a page setting (option 6.5 C).
-- Distinct colours within one document: colours are a hash (option 6.9 A), so collisions are accepted.
+- Distinct colours within one document: colours are a hash (option 6.9 A), so collisions are accepted. Superseded by [ADR 0037](../../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md): slots are assigned per document by join order.
 
 ## Design
 
@@ -89,7 +89,7 @@ The product works, but the chrome around the document does not. The walk of 2026
   - An account: its user id.
   - An agent acting for a person: the person's user id, with `AGENT_KEY_SUFFIX` (`#agent`) removed.
   - A DOCX author with no account (`id` is null): `imported:` plus the name, trimmed and lowercased.
-- `authorColorSlot(key)` hashes the key with FNV-1a (constants `HASH_OFFSET_BASIS` and `HASH_PRIME`) and returns `AuthorColorSlot`, 1 to 6, modulo `AUTHOR_COLOR_SLOT_COUNT`. No request is needed, so every client agrees.
+- `authorColorSlot(key)` hashes the key with FNV-1a (constants `HASH_OFFSET_BASIS` and `HASH_PRIME`) and returns `AuthorColorSlot`, 1 to 6, modulo `AUTHOR_COLOR_SLOT_COUNT`. This is the slot of an author who is not a member; a member's slot comes from the server. Superseded by [ADR 0037](../../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md): the members and open responses carry `colorSlot`.
 - Components use `var(--author-N)`. The palette is hex and the same in both modes.
 - At mount, `SuperDocEditor` reads each token with `getComputedStyle(document.documentElement)`. It passes the current user's colour as `user.color` and all six as `colors`. SuperDoc then broadcasts the colour through awareness, so remote cursors match the avatars. The spike confirms the accepted format (see the open questions).
 
@@ -242,7 +242,7 @@ Every answer is the recommendation of design.md section 7, approved by the owner
 | Panel at 375 (7.16) | collapsed · open | Recommendation, 2026-10-17: collapsed | 2026-10-17 |
 | Use with AI layout (7.17) | tabs per client · stacked snippets | Recommendation, 2026-10-17: tabs | 2026-10-17 |
 | Author palette (7.18) | six slots on hues 235 to 355 · twelve on the wheel | Recommendation, 2026-10-17: six, as the `--author-N` hex | 2026-10-17 |
-| How a colour is derived (7.19) | hash · member order · server slot | Recommendation, 2026-10-17: hash | 2026-10-17 |
+| How a colour is derived (7.19) | hash · member order · server slot | Recommendation, 2026-10-17: hash. Superseded by [ADR 0037](../../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md): server slot by join order | 2026-10-17 |
 | Avatar style (7.21) | solid fill · tint with ring | Recommendation, 2026-10-17: solid fill | 2026-10-17 |
 | Imported DOCX authors (7.22) | coloured by name hash · grey | Recommendation, 2026-10-17: coloured | 2026-10-17 |
 | Waiting page stop rule (7.24) | pause after 5 minutes · poll forever | Recommendation, 2026-10-17: pause after 5 minutes, counted in polls | 2026-10-17 |

@@ -7,6 +7,7 @@
 - Revisited: 2026-10-17 — still true: `SUPERDOC_TELEMETRY` is set in both `superdocOptions` and `printSuperdocOptions`, the third constructor; walk the network panel after the print view lands
 - Revisited: 2026-10-17 — still true; `superdocOptions` still passes `SUPERDOC_TELEMETRY` and both page tests still pin it; the version viewer only gained the exception narrowing
 - Revisited: 2026-10-18 — still true
+- Revisited: 2026-10-18 — still true; `author-colours` leaves the telemetry option as it is
 
 ## Signal
 The network panel shows requests to `ingest.superdoc.dev` although the app code never names that host; the local test suite cannot see them because it mocks `superdoc`.

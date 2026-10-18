@@ -4,6 +4,7 @@
 - Inspired by: the connection-state Reload review (`docs/features/connection-state/plan.md`, Reload step); the page test that pins the Reload refetch saw a third call after the Failed report began refetching members
 - Revisited: 2026-10-17 — still true with TanStack Query in `apps/web`
 - Revisited: 2026-10-18 — still true; the members query key now has trailing ticket segments, and the Reload path keeps `exact: true`
+- Revisited: 2026-10-18 — still true; `author-colours` adds no refetch
 
 ## Signal
 After pressing Reload, the network panel shows the document's members, file and open requests all firing, although the code names only the open query and the file query.

@@ -1,5 +1,6 @@
 import { buildSeedDocx, isDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
+  type AuthorColorSlot,
   DOCUMENT_NOT_READY_ERROR,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
@@ -133,11 +134,22 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       });
     }
     const { roomMode } = answer;
-    if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
+    function colorSlotOf(): AuthorColorSlot {
+      return documents.colorSlotOf({ documentId, userId });
+    }
+    if (roomMode === RoomMode.Join)
+      return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null, colorSlot: colorSlotOf() });
     if (role === DocumentRole.Reader) return notReady({ context, documentId });
     const ticket = runtime.reserveCreator({ documentId, userId });
     if (ticket === null) return notReady({ context, documentId });
-    return context.json({ document: summary, role, roomMode, creatorAttempt: ticket.attempt, creatorEpoch: ticket.epoch });
+    return context.json({
+      document: summary,
+      role,
+      roomMode,
+      creatorAttempt: ticket.attempt,
+      creatorEpoch: ticket.epoch,
+      colorSlot: colorSlotOf(),
+    });
   });
 
   routes.patch(
@@ -184,7 +196,7 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const { attempt, epoch } = claimedTicketOf(new URL(context.req.url).searchParams);
     const isTicketClaimed = attempt !== null && epoch !== null;
     return context.json({
-      members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
+      members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,
       isAttemptSuperseded: isTicketClaimed && runtime.isAttemptSuperseded({ documentId, attempt, epoch }),
     });

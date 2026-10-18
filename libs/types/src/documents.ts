@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AuthorColorSlot } from './author-colors';
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 export const TITLE_MAX_LENGTH = 200;
@@ -60,8 +61,9 @@ export type OpenedDocument = {
   roomMode: RoomMode;
   creatorAttempt: number | null;
   creatorEpoch: string | null;
+  colorSlot: AuthorColorSlot;
 };
-export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean };
+export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
 export type DocumentMembers = { members: DocumentMember[]; isCurrentUserOnline: boolean; isAttemptSuperseded: boolean };
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };

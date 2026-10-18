@@ -2,10 +2,10 @@
 
 **Status:** Building
 **Lane:** product
-**Tier:** 🟢
+**Tier:** 🟡
 **Owner approval:** approved 2026-10-18
 **ADRs:** none
-**Not changing:** the server, the members endpoint, the collaboration socket, the connection banner and the timeline query.
+**Not changing:** the server (the tier is 🟡 because the SuperDoc construction effect now depends on `onEditorUpdate`), the members endpoint, the collaboration socket, the connection banner and the timeline query.
 
 ## Problem
 
@@ -17,9 +17,9 @@ The core-realtime scenario run on main on 2026-10-18 saw three defects.
 
 Root causes, read from the code:
 
-1. The roster is the members query, polled every `MEMBERS_REFRESH_MS` (5 s). `online` is computed on the server from the open sockets. Sign-out already ends the socket: the page unmounts and `superdoc.destroy()` disconnects and destroys the provider. The server drops the connection at once, but a peer only learns it at its next poll, and nothing connects the peer's awareness (the remote caret vanishing) to that query. So a peer shows Dani online for up to one poll interval after Dani left. The fix does not need the server.
+1. The roster is the members query, polled every `MEMBERS_REFRESH_MS` (5 s). `online` is computed on the server from the open sockets. Sign-out already ends the socket: the page unmounts and `superdoc.destroy()` disconnects and destroys the provider. The server drops the connection at once, but a peer only learns it at its next poll, and nothing connects SuperDoc's awareness to that query. So a peer shows Dani online for up to one poll interval after Dani left. The fix does not need the server.
 2. `Members` sets the accessible name of a button from two sources. With a rendered remote caret (`reason === null`) the name is `goToCursorLabel`; without one it is `memberLabel` ("Bruno, online"). Whether the caret has rendered by the time a reader looks depends on how the member got there (a reload paints carets late), so the same state gets two names.
-3. `TimelineNotices` shows the empty copy whenever `bins` is empty. Two stale answers read as "no edits": a poll that lands while the projection is still behind the log (`projection.isBehind`), and, found by the recorder, an answer fetched before Ana typed that stays on screen until the next 3 s poll while the projection is already caught up (about 0.85 s of flash). The panel has no query that reflects the log by itself, and adding a request was ruled out, so the page uses its own knowledge: SuperDoc's `onEditorUpdate`, which fires for local and remote edits.
+3. `TimelineNotices` shows the empty copy whenever `bins` is empty. Two stale answers read as "no edits": a poll that lands while the projection is still behind the log (`projection.isBehind`), and, found by the recorder, an answer fetched before Ana typed that stays on screen until the next 3 s poll while the projection is already caught up (about 0.85 s of flash). The panel has no query that reflects the log by itself, and adding a request was ruled out, so the page uses its own knowledge: SuperDoc's `onEditorUpdate`. In SuperDoc 2.23 `editor-update` is emitted only on a committed document mutation (`mutation:committed`), never on a selection change, and its payload carries no transaction or `docChanged` flag (`superdoc.es.js`, `emitV2EditorUpdate`). A click in an empty document therefore cannot hide "No edits yet" and no extra gate or test applies. It does not report an edit that arrives from a peer through Yjs only, which this change leaves as it was.
 
 ## Goals
 
@@ -36,8 +36,8 @@ Root causes, read from the code:
 
 ### Data flow
 
-1. `Members` derives the ids of the peers whose caret is rendered. The key changes only when that set changes, not when a caret moves, renames or recolours.
-2. On a change it invalidates `membersQueryKey(documentId)` through a trailing debounce of `MEMBERS_PRESENCE_DEBOUNCE_MS` (`libs/types`), with `cancelRefetch: false`, so a burst of awareness frames yields one invalidation and never cancels an in-flight members fetch or the 5 s poll.
+1. SuperDoc 2.23 v2 has no provider awareness map to read: its bridge turns the presence snapshot into an `awareness-update` event whose payload lists the `added` and `removed` remote actors, one per email, so a two-tab user stays until the last tab leaves. Remote states carry no user id, so `Members` does not map them to members; a peer that comes or goes is enough.
+2. `Members` subscribes to `awareness-update` on the SuperDoc instance. When `added` or `removed` is not empty it invalidates `membersQueryKey(documentId)` through a trailing debounce of `MEMBERS_PRESENCE_DEBOUNCE_MS` (`libs/types`), with `cancelRefetch: false`, so a burst yields one invalidation and never cancels an in-flight members fetch or the 5 s poll. A caret moving, a peer with no caret and a peer with a truncated label all count the same. The rendered carets serve only the jump.
 3. Every member button is named by `memberLabel`; `aria-describedby` points at the jump text or the reason.
 4. `TimelineNotices` hides the empty copy while the projection is behind or the log is ahead. `SuperDocEditor` reports every `onEditorUpdate` to the page; `useLastEditAt` records the time, at most once per `LAST_EDIT_MARK_INTERVAL_MS`; `TimelinePanel` computes `isLogAhead` as an edit time at or after the timeline query's `dataUpdatedAt`, so the next answer lifts it.
 

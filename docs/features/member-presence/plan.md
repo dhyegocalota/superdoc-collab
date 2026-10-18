@@ -1,8 +1,8 @@
 # Plan: Member presence
 
 **Spec:** spec.md
-**Tier:** 🟢
-**Seam:** `members.tsx`, `use-member-cursors.ts`, `timeline-notices.tsx`.
+**Tier:** 🟡
+**Seam:** the `awareness-update` subscription in `members.tsx`; the `onEditorUpdate` callback of `superdoc-editor.tsx` into `timeline-panel.tsx`.
 **Assumptions (decided, owner can override):**
 - The staleness of defect 1 is the poll, not the socket: `destroy()` already closes the provider on unmount.
 
@@ -10,7 +10,7 @@
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `apps/web/src/features/editor/use-member-cursors.ts`, `members.tsx`, `editor-header.tsx`, `members.test.tsx`, `use-member-cursors.test.ts` | `developer-ca` |
+| G1 | `apps/web/src/features/editor/members.tsx`, `editor-header.tsx`, `members.test.tsx`, `e2e/final-visuals.spec.ts`, `libs/types/src/constants.ts` | `developer-ca` |
 | G2 | `apps/web/src/features/editor/members.tsx`, `members.test.tsx` | `developer-ca` |
 | G3 | `apps/web/src/features/timeline/timeline-notices.tsx`, `timeline-panel.tsx`, `use-last-edit-at.ts`, their tests, `apps/web/src/features/editor/superdoc-editor.tsx`, `document-page.tsx`, `libs/types/src/constants.ts` | `developer-ca` |
 
@@ -27,6 +27,7 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 ### G1b: bound the invalidation
 
 - [x] **Step 1b:** red test that a burst of presence changes during a members fetch calls `invalidateQueries` once with `{ cancelRefetch: false }` and starts no second fetch; derive the peer id set, debounce by the cooldown constant. — evidence: red 55b15f7c, green 273474bc
+- [x] **Step 1c:** review round: the trigger is SuperDoc's `awareness-update` (added or removed), not rendered carets; constant renamed `MEMBERS_PRESENCE_DEBOUNCE_MS` (a2ac2f91); E2E a signed-out member reads offline within 1.5 s (a77d5e5e). — evidence: red 029e19b8, green c71b56e8
 
 ### G2: one label rule
 

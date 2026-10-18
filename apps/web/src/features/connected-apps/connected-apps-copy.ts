@@ -13,8 +13,6 @@ export const LOADING_CONNECTED_APPS_LABEL = 'Loading connected apps';
 export const UNNAMED_CLIENT_LABEL = 'Unnamed AI client';
 export const CHATGPT_INSTRUCTION = 'In ChatGPT open Settings → Connectors → Add custom connector and paste the URL.';
 export const CONNECT_HEADING = 'Connect an AI client';
-export const CONNECT_DESCRIPTION = 'Point your AI client at this address. It asks you to approve access the first time.';
-export const MCP_URL_LABEL = 'MCP URL';
 export const COPY_LABEL = 'Copy';
 export const COPIED_LABEL = 'Copied';
 export const CONNECTED_ON_LABEL = 'Connected';
@@ -23,6 +21,7 @@ export const USE_WITH_AI_LABEL = 'Use with AI';
 export const USE_WITH_AI_TITLE = 'Use this document with your AI';
 export const USE_WITH_AI_DESCRIPTION =
   'Connect your AI client once. It asks you to approve access the first time, then works on every document you can open.';
+export const AI_CLIENTS_TABLIST_LABEL = 'AI clients';
 export const EXAMPLE_PROMPTS_HEADING = 'Then try asking';
 export const MANAGE_CONNECTED_APPS_LABEL = 'Manage connected apps';
 export const CLOSE_LABEL = 'Close';

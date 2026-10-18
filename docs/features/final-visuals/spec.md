@@ -111,12 +111,14 @@ The product works, but the chrome around the document does not. The walk of 2026
 - `superdoc-editor.tsx` replaces `[&_.superdoc-page]:bg-background` with `bg-paper`, so the page stays white in dark mode (decision 7.8).
 - The print view alone sets `layoutEngineOptions.virtualization.enabled: false` (data flow 7).
 
-**7. The print view.** No route and no second socket.
+**7. The print view.** One more route, no second socket.
 
 - `DownloadMenu` exports the live document to a Blob with `superdoc.export({ triggerDownload: false })`.
-- It mounts `PrintView` off-screen in the page: a non-collaborative SuperDoc in viewing mode from that Blob, with `layoutEngineOptions.virtualization.enabled: false`. Its container height is the `.superdoc-page` count times 1056 px, measured after `onReady`.
-- It calls `window.print()` only after the last `.superdoc-page` has text, found with a bounded `requestAnimationFrame` loop. It never sleeps on a timer.
-- A print stylesheet (`@media print`) hides everything but the print view. `afterprint` unmounts it.
+- It mounts `PrintView` in the page: an off-screen same-origin frame on `AppRoute.Print` (`/print`). The route needs no session, carries no document id and holds no document data. [ADR 0035](../../adr/0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md).
+- The frame announces `Ready`; the page answers with the exported Blob by `postMessage`. Both sides check `origin` and `source` on every message, and the Blob never leaves the origin.
+- The frame opens a non-collaborative SuperDoc in viewing mode with `layoutEngineOptions.virtualization.enabled: false`, reports the `.superdoc-page` count after `onReady`, and the page sizes the frame to the count times 1056 px so its own viewport covers every page.
+- The frame reports `Painted` only after the last `.superdoc-page` has text, found with a bounded `requestAnimationFrame` loop. The page then calls the frame's own `print()`, so only the document prints, and `afterprint` unmounts the frame.
+- A frame that does not report `Painted` within `PRINT_READY_TIMEOUT_MS` fails the preparation: the `PDF_FAILED_MESSAGE` toast and the frame unmounts.
 
 ### Interfaces
 
@@ -197,7 +199,8 @@ The product works, but the chrome around the document does not. The walk of 2026
 | `features/timeline/timeline-copy.ts` | Panel and summary copy. `importedAuthorLabel`. |
 | `features/timeline/contributor-avatars.tsx` | Renders `UserAvatar` with the author's colour. |
 | `features/connected-apps/use-with-ai-dialog.tsx`, `features/connected-apps/connected-apps-copy.ts` | New dialog with `Tabs` per client. |
-| `features/versions/print-view.tsx` | New, PDF option A only. A non-collaborative viewing-mode SuperDoc from an exported Blob, mounted off-screen by `DownloadMenu` (data flow 7). No route. |
+| `features/versions/print-view.tsx` | New, PDF option A only. The parent side: an off-screen frame on the print route, handed the exported Blob and sized to its pages (data flow 7). |
+| `features/versions/print-page.tsx`, `print-messages.ts` | New. The page inside the frame: a non-collaborative viewing-mode SuperDoc from the received Blob, with the message kinds both sides share. |
 | `features/versions/version-view-page.tsx` | A non-Ready readiness renders the error card and does not poll. |
 
 ### Failure handling

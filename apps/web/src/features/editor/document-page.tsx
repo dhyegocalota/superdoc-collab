@@ -194,7 +194,7 @@ export function DocumentPage() {
         <div id={LOADING_DOCUMENT_REASON_ID}>
           {fileError && <ErrorMessage className="px-4 py-1">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
           {isLoadingLineShown && (
-            <p role="status" className="px-4 py-1 text-xs text-muted-foreground">
+            <p role="status" className="sr-only">
               {LOADING_DOCUMENT_MESSAGE}
             </p>
           )}

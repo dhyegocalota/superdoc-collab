@@ -93,9 +93,9 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
   - `exceptionOutcome(payload): ExceptionOutcome`: a warn diagnostic is Logged; `edit-rejected` is Recoverable; `collaborationReason` or the worker code is ConnectionFailed; everything else, including error diagnostics, is Fatal.
   - `failureReasonOf(payload): ConnectionFailureReason`, with an explicit `Unknown` branch.
 - `apps/web/src/features/editor/use-connection-state.ts`:
-  - `useConnectionState({ documentId, isCurrentUserOnline }): { state, failureReason, reportTransport, resetConnection }`.
-  - `TransportReport { reading: TransportReading; failureReason: ConnectionFailureReason | null; hasSynced: boolean }`.
-  - `reportTransport` refetches members when `hasSynced` is true.
+  - `useConnectionState({ documentId, isCurrentUserOnline, membersAnsweredAt, isSessionEnded }): { state, failureReason, reportTransport, resetConnection }`.
+  - `TransportReport { reading: TransportReading | null; failureReason: ConnectionFailureReason | null; hasSynced: boolean }`.
+  - `reportTransport` refetches members when `hasSynced` is true and on every Lost, Reconnecting and Failed reading, so the server's answer after the outage began is the one that confirms Recovered or Session ended.
   - Exported pure `mergeConnectionState({ reading, isCurrentUserOnline }): ConnectionState` for the merge table.
 - `apps/web/src/features/editor/superdoc-editor.tsx`: gains `onTransportReport: (report: TransportReport) => void`. Its `onCollaborationConnectionChange` and `onException` call `onTransportReport` through the `isActive` guard. Fatal keeps `EDITOR_FAILED_MESSAGE`. Recoverable keeps the status line. Logged calls `console.warn` with the diagnostic message, since `apps/web` has no logger.
 - `apps/web/src/features/editor/connection-banner.tsx`: `ConnectionBanner({ state, failureReason, isReloading, onAction })`, following `VersionBanner`. It renders nothing when Online. Failed uses `role="alert"`; the other states use `role="status"`. Each has `data-testid="connection-banner"` and `data-state`.
@@ -105,7 +105,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 
 ## Failure handling
 
-- The connection fails before the first sync (a removed session or a restart during a create): the open itself fails, SuperDoc reports a fatal exception and the page shows its own failure notice with Reload; the banner applies to a connection that reached its first sync. Decided by the lead on 2026-10-17 after the tester's Create-mode walk.
+- The connection fails before the first sync (a removed session or a restart during a create): the open itself fails, SuperDoc reports a fatal exception and the page shows its own failure notice asking to reload the page; the banner applies to a connection that reached its first sync. Decided by the lead on 2026-10-17 after the tester's Create-mode walk.
 - The members poll fails while Lost: the flag becomes `null`, the banner keeps its state, and the previous answer is never reused.
 - A callback arrives after unmount or after Reload: the `isActive` guard drops it.
 - Two callbacks in one tick: they fold in arrival order, and Failed is sticky.

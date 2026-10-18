@@ -146,7 +146,7 @@ test('a server restart shows reconnecting, recovered, then clears', async ({ bro
   const firstIndexes = REQUIRED_SEQUENCE.map((state) => observed.indexOf(state));
   expect(firstIndexes).not.toContain(-1);
   expect(firstIndexes).toEqual([...firstIndexes].sort((left, right) => left - right));
-  const lostIndex = observed.indexOf(ConnectionState.Lost);
+  const lostIndex = observed.lastIndexOf(ConnectionState.Lost);
   const isLostAfterRecovered = lostIndex > firstIndexes[1]!;
   expect(isLostAfterRecovered).toBe(false);
 });

@@ -35,6 +35,8 @@ The same exception event now also carries structured diagnostics with a severity
 
 ## Consequences
 
+- Residual: when the browser notices a drop before the server does (a network switch, not a restart), the members refetch can answer online for the dead socket's tab for up to `COLLABORATION_SOCKET_TIMEOUT_MS`, so Recovered may show for up to that long while the provider still reconnects. A restarted server holds no socket, so the restart proof cannot hit it. Recorded on 2026-10-18 from the final review; no code change.
+
 - The members poll becomes part of the connection truth. A recovery is shown within one poll interval, shortened by the immediate refetch on a `synced` or `recovered` callback.
 - If the poll itself fails while the callback says recovered, the banner stays on Reconnecting. The state never claims more than the server confirmed.
 - The members response and its test grow by one field.

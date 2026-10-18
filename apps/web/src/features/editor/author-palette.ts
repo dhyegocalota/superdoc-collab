@@ -1,4 +1,4 @@
-import { AUTHOR_COLOR_SLOT_COUNT, authorColorSlot, type SessionUser } from '@superdoc-collab/types';
+import { AUTHOR_COLOR_SLOT_COUNT, authorColorSlot, type AuthorColorSlot, type SessionUser } from '@superdoc-collab/types';
 
 class MissingAuthorColorError extends Error {}
 
@@ -20,7 +20,10 @@ export function authorColorOf(slot: number): string {
   return color;
 }
 
-export function authorPaletteOf(user: SessionUser): { userColor: string; paletteColors: string[] } {
+export function authorPaletteOf({ user, colorSlot }: { user: SessionUser; colorSlot: AuthorColorSlot }): {
+  userColor: string;
+  paletteColors: string[];
+} {
   return {
     userColor: authorColorOf(authorColorSlot(user.id)),
     paletteColors: Array.from({ length: AUTHOR_COLOR_SLOT_COUNT }, (_, index) => authorColorOf(index + 1)),

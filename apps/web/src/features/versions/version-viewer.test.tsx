@@ -5,9 +5,10 @@ import { SuperDocExceptionCode } from '@/features/editor/superdoc-exceptions';
 import { DOCUMENT_ID, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { VersionViewer } from './version-viewer';
-import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
+import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 
 type SuperDocConfig = {
+  user: { color: string };
   onException: (payload: SuperDocExceptionPayload) => void;
 };
 
@@ -25,6 +26,7 @@ vi.mock('@/features/editor/editor-api', async (importOriginal) => ({
 }));
 
 const SEQUENCE = 42;
+const DISPLACED_COLOR_SLOT = 2;
 const WARN_DIAGNOSTIC = {
   diagnosticCode: 'RENDER_ERROR',
   severity: 'warn',
@@ -64,6 +66,7 @@ async function raise(payload: SuperDocExceptionPayload): Promise<void> {
       documentId={DOCUMENT_ID}
       sequence={SEQUENCE}
       user={SESSION_USER}
+      colorSlot={DISPLACED_COLOR_SLOT}
       onReady={onReady}
       onFailed={onFailed}
       onConnectionFailed={onConnectionFailed}
@@ -72,6 +75,11 @@ async function raise(payload: SuperDocExceptionPayload): Promise<void> {
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   SuperDoc.mock.calls[0]![0].onException(payload);
 }
+
+test('the viewer user carries the colour of the slot the server assigned, not the id hash', async () => {
+  await raise(WARN_DIAGNOSTIC);
+  expect(SuperDoc.mock.calls[0]![0].user.color).toBe(AUTHOR_PALETTE[DISPLACED_COLOR_SLOT - 1]);
+});
 
 test('a warn diagnostic calls neither onFailed nor onConnectionFailed', async () => {
   await raise(WARN_DIAGNOSTIC);

@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  type AuthorColorSlot,
   ConnectionFailureReason,
   type CreatorTicket,
   DocumentRole,
@@ -30,6 +31,7 @@ type SuperDocEditorProps = {
   creatorTicket: CreatorTicket | null;
   role: DocumentRole;
   user: SessionUser;
+  colorSlot: AuthorColorSlot;
   file: Blob;
   isInert: boolean;
   onTransportReport: (report: TransportReport) => void;
@@ -44,6 +46,7 @@ export function SuperDocEditor({
   creatorTicket,
   role,
   user,
+  colorSlot,
   file,
   isInert,
   onTransportReport,
@@ -91,7 +94,7 @@ export function SuperDocEditor({
         roomMode,
         creatorTicket,
         user,
-        ...authorPaletteOf(user),
+        ...authorPaletteOf({ user, colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
       onCollaborationReady: () => {

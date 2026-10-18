@@ -57,6 +57,11 @@ html:root {
   --sd-comment-separator: var(--border);
 }
 
+html:root.dark {
+  --sd-comment-tc-insert-color: #4ade80;
+  --sd-comment-tc-delete-color: #f87171;
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

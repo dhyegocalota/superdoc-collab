@@ -26,7 +26,7 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
 };
 
 function blockOf(selector: string): string {
-  const start = css.indexOf(`${selector} {`);
+  const start = css.search(new RegExp(`^\\s*${selector.replace(/[.]/g, '\\.')} \\{`, 'm'));
   if (start < 0) throw new Error(`globals.css has no ${selector} block`);
   return css.slice(start, css.indexOf('\n}', start));
 }

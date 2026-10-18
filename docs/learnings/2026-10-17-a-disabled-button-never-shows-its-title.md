@@ -5,6 +5,7 @@
 - Revisited: 2026-10-17
 - Revisited: 2026-10-17 — still true; the UX lane gave Regroup topics the same visible reason (`regroupDisabledReason` in `timeline-panel.tsx`) instead of a `title`. Promoted to `.claude/rules/web-ui.md` → Copy
 - Revisited: 2026-10-17 — still true; final-visuals retired the Summarize disabled reason (the click answers "The summary is up to date." instead), and a member avatar that cannot jump is an `aria-disabled` button whose reason is its tooltip and accessible description, reachable by keyboard
+- Revisited: 2026-10-18 — still true, with one exception: while the document loads, SuperDoc's loading overlay is the visible reason, so the Download description may be screen-reader only (`loading-line`)
 
 ## Signal
 A greyed-out button with a perfectly good `title` explaining why, and nobody — mouse or keyboard — ever reads it; tests pass because they assert the attribute.

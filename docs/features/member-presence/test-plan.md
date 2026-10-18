@@ -6,6 +6,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [ ] `members.test.tsx::a peer caret appearing or leaving refreshes the members query` — input: a caret for Bruno is removed from the overlay; expected: `invalidateQueries` called with the members query key
 - [ ] `members.test.tsx::a member with a live position is named Bruno, online and described by Go to Bruno’s cursor` — expected: the button name is `Bruno, online`
+- [ ] `timeline-notices.test.tsx::the empty copy stays hidden while the log is ahead of the last timeline answer`, `timeline-panel.test.tsx::a document edited after the last timeline answer does not say it has no edits`, `superdoc-editor.test.tsx::reports every editor update to the page`, `use-last-edit-at.test.ts`
 - [ ] `timeline-notices.test.tsx::no empty copy while the projection is behind` — input: no bins, `isBehind: true`; expected: no "No edits yet"
 
 - [ ] `members.test.tsx::a burst of presence changes during a members fetch invalidates once without cancelling it` — input: five caret toggles during an in-flight members fetch; expected: one `invalidateQueries` with `{ cancelRefetch: false }`, one fetch

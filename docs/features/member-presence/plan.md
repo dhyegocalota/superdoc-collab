@@ -12,7 +12,7 @@
 |-------|-------------|---------------------|
 | G1 | `apps/web/src/features/editor/use-member-cursors.ts`, `members.tsx`, `editor-header.tsx`, `members.test.tsx`, `use-member-cursors.test.ts` | `developer-ca` |
 | G2 | `apps/web/src/features/editor/members.tsx`, `members.test.tsx` | `developer-ca` |
-| G3 | `apps/web/src/features/timeline/timeline-notices.tsx`, `timeline-notices.test.tsx` | `developer-ca` |
+| G3 | `apps/web/src/features/timeline/timeline-notices.tsx`, `timeline-panel.tsx`, `use-last-edit-at.ts`, their tests, `apps/web/src/features/editor/superdoc-editor.tsx`, `document-page.tsx`, `libs/types/src/constants.ts` | `developer-ca` |
 
 ## Sequencing
 
@@ -35,6 +35,10 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 ### G3: empty copy
 
 - [x] **Step 3:** red test that no empty copy shows while the projection is behind; add the condition. — evidence: red 5c0039b3, green 278f4285
+- [x] **Step 3b:** the recorder's 0.85 s flash: red test that the notices hide the empty copy while the log is ahead; gate it. — evidence: red 784fc116, green 5627e319
+- [x] **Step 3c:** red test that the panel computes the log as ahead from an edit newer than the last timeline answer. — evidence: red 39beea78, green 573111fd
+- [x] **Step 3d:** red test that the editor reports every editor update; wire it. — evidence: red 05f908c2, green 220cdee0
+- [x] **Step 3e:** red test that the last edit time is marked at most once per interval; hook and page wiring. — evidence: red b5e78e00, green 62af6087
 
 ## Failure modes
 
@@ -42,7 +46,7 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 |------|-------------|------------------------------------|----------------|
 | 1 | an invalidation loop or a starved poll | the members request repeats without a peer joining or leaving, or an in-flight fetch is cancelled | revert; the key is the set of peer ids with a caret, the call is debounced and never cancels a fetch |
 | 2 | the jump button loses its announced purpose | a screen reader hears only the name | the description carries it; revert if tests show otherwise |
-| 3 | the empty copy never shows | a brand-new document shows nothing | revert; `isBehind` is false once the projection caught up |
+| 3 | the empty copy never shows | a brand-new document shows nothing, or one that was edited and emptied again | the next timeline answer lifts the gate; revert the edit mark if not |
 
 **Steps with no backout:** none.
 

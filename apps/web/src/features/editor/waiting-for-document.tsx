@@ -155,7 +155,7 @@ export function WaitingForDocument({ documentId, readiness, onKeepWaiting, onRet
         <Skeleton className="h-8 w-full max-w-md" />
       </div>
       <main className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted p-4">
-        <div aria-hidden="true" className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-3 bg-white p-8 shadow-sm sm:p-12">
+        <div aria-hidden="true" className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-3 bg-paper p-8 shadow-sm sm:p-12">
           {PAGE_LINE_WIDTHS.map((width, index) => (
             <Skeleton key={`${width}-${index}`} className={`h-3 ${width}`} />
           ))}

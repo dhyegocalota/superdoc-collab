@@ -33,10 +33,11 @@ function headerAt(rect: DOMRect): { current: HTMLElement } {
   return { current: header };
 }
 
-function selectBin({ targetRef, index }: { targetRef: { current: HTMLElement }; index: number }) {
+function selectBin({ targetRef, index, input }: { targetRef: { current: HTMLElement }; index: number; input: string }): void {
   const hook = renderHook(({ selectedIndex }) => useRevealSelected({ targetRef, selectedIndex }), {
     initialProps: { selectedIndex: null as number | null },
   });
+  window.dispatchEvent(new Event(input));
   hook.rerender({ selectedIndex: index });
 }
 
@@ -48,30 +49,26 @@ afterEach(() => vi.restoreAllMocks());
 
 test('a pointer selection scrolls the header into view smoothly', () => {
   const targetRef = headerAt(HIDDEN_RECT);
-  window.dispatchEvent(new Event('pointerdown'));
-  selectBin({ targetRef, index: 1 });
+  selectBin({ targetRef, index: 1, input: 'pointerdown' });
   expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', behavior: 'smooth' });
 });
 
 test('reduced motion scrolls instantly', () => {
   stubMotionPreference(true);
   const targetRef = headerAt(HIDDEN_RECT);
-  window.dispatchEvent(new Event('pointerdown'));
-  selectBin({ targetRef, index: 1 });
+  selectBin({ targetRef, index: 1, input: 'pointerdown' });
   expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', behavior: 'auto' });
 });
 
 test('a keyboard selection with the header in view does not scroll', () => {
   const targetRef = headerAt(VISIBLE_RECT);
-  window.dispatchEvent(new Event('keydown'));
-  selectBin({ targetRef, index: 1 });
+  selectBin({ targetRef, index: 1, input: 'keydown' });
   expect(scrollIntoView).not.toHaveBeenCalled();
 });
 
 test('a keyboard selection with the header out of view scrolls', () => {
   const targetRef = headerAt(HIDDEN_RECT);
-  window.dispatchEvent(new Event('keydown'));
-  selectBin({ targetRef, index: 1 });
+  selectBin({ targetRef, index: 1, input: 'keydown' });
   expect(scrollIntoView).toHaveBeenCalledTimes(1);
 });
 

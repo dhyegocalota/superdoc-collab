@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { RETRY_TOPICS_LABEL } from './timeline-copy';
+import { NO_EDITS_YET_MESSAGE, RETRY_TOPICS_LABEL } from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 
 const FAILURE_TEXT = 'The model refused';
@@ -24,4 +24,20 @@ test('Retry runs the callback it is given, once per click', async () => {
 test('a reader gets no Retry', () => {
   render(<TimelineNotices timeline={failedTimeline} hasFilter={false} canRefresh={false} onRetry={vi.fn()} />);
   expect(screen.queryByRole('button', { name: RETRY_TOPICS_LABEL })).not.toBeInTheDocument();
+});
+
+const emptyTimeline: DocumentTimeline = { ...timelineWith({ volumes: [], names: [] }), bins: [] };
+
+test('the empty copy shows when there are no bins and the projection caught up', () => {
+  render(<TimelineNotices timeline={emptyTimeline} hasFilter={false} canRefresh onRetry={vi.fn()} />);
+  expect(screen.getByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
+});
+
+test('the empty copy stays hidden while the projection is behind the log', () => {
+  const behindTimeline: DocumentTimeline = {
+    ...emptyTimeline,
+    projection: { ...emptyTimeline.projection, isBehind: true, lagMs: 200 },
+  };
+  render(<TimelineNotices timeline={behindTimeline} hasFilter={false} canRefresh onRetry={vi.fn()} />);
+  expect(screen.queryByText(NO_EDITS_YET_MESSAGE)).not.toBeInTheDocument();
 });

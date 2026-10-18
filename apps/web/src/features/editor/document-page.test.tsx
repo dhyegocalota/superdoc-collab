@@ -188,6 +188,7 @@ function constructedConfig(): SuperDocConfig {
 const VIEWED_AT = 1_700_000_000_000;
 const RENDER_WARNING = 'render hiccup';
 const LOST_CALLBACK = { state: 'degraded', kind: 'lost' };
+const SYNCED_CALLBACK = { state: 'synced', kind: 'initial' };
 const FAILED_CALLBACK = { state: 'failed', kind: 'failed' };
 
 function warnDiagnostic(): ExceptionPayload {
@@ -567,6 +568,24 @@ test('a warn diagnostic keeps the editor usable and logs with console.warn', asy
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
   expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
   expect(screen.getByTestId('document-editor')).not.toHaveAttribute('inert');
+});
+
+test('a failed report before the first sync shows the editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+});
+
+test('a failed report after the first sync keeps the banner and shows no editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByRole('alert')).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 
 test('a failed callback makes the editor inert, dims it and names the reason', async () => {

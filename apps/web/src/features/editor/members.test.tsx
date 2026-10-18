@@ -1,5 +1,5 @@
-import { DocumentRole, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { DocumentRole, MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
@@ -125,7 +125,49 @@ test('a peer caret leaving refreshes the members query', async () => {
   await act(async () => {
     editor.replaceChildren();
   });
-  expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) });
+  await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false }));
+});
+
+function MembersFetchProbe({ fetchMembers }: { fetchMembers: () => Promise<never> }) {
+  useQuery({ queryKey: membersQueryKey(DOCUMENT_ID), queryFn: fetchMembers });
+  return null;
+}
+
+test('a burst of presence changes during a members fetch invalidates once without cancelling it', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const fetchMembers = vi.fn(() => new Promise<never>(() => {}));
+  const dario = memberNamed({ id: 'u4', name: 'Dario', online: true, colorSlot: 6 });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MembersFetchProbe fetchMembers={fetchMembers} />
+      <Members
+        documentId={DOCUMENT_ID}
+        members={[ana, bruno, dario]}
+        currentUserId={CURRENT_USER_ID}
+        superdoc={superdoc}
+        editorContainer={editor}
+        isPastVersion={false}
+      />
+    </QueryClientProvider>,
+  );
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  const burst = [bruno, dario, bruno, dario, bruno];
+  for (const member of burst) {
+    addCaret({ name: member.user.name, color: colorOf(member) });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    overlay.replaceChildren();
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS);
+  });
+  expect(invalidate).toHaveBeenCalledTimes(1);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false });
+  expect(fetchMembers).toHaveBeenCalledTimes(1);
 });
 
 test('a member with a live position is named Bruno, online and described by Go to Bruno’s cursor', async () => {

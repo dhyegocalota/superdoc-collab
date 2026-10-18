@@ -60,6 +60,8 @@ html:root {
 html:root.dark {
   --sd-comment-tc-insert-color: #4ade80;
   --sd-comment-tc-delete-color: #f87171;
+  --sd-comment-highlight-internal: #4ade804d;
+  --sd-comment-highlight-external: #4ade804d;
 }
 
 .dark {

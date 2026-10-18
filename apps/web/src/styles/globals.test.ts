@@ -108,3 +108,25 @@ test('dark tracked-change text is mapped on the winning block and reaches AA on 
     expect((luminanceOfHex(hex) + LUMINANCE_OFFSET) / (cardLuminance + LUMINANCE_OFFSET)).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST),
   );
 });
+
+const DARK_COMMENT_HIGHLIGHT = '#4ade804d';
+const DARK_COMMENT_HIGHLIGHT_VARIABLES = ['--sd-comment-highlight-internal', '--sd-comment-highlight-external'];
+const PAGE_TEXT_LUMINANCE = 0;
+const FULL_CHANNEL = 255;
+const ALPHA_START = 7;
+
+function luminanceOverWhite(hexWithAlpha: string): number {
+  const alpha = parseInt(hexWithAlpha.slice(ALPHA_START, ALPHA_START + 2), 16) / FULL_CHANNEL;
+  const blended = [1, 3, 5].map((start) =>
+    Math.round(parseInt(hexWithAlpha.slice(start, start + 2), 16) * alpha + FULL_CHANNEL * (1 - alpha)),
+  );
+  return luminanceOfHex(`#${blended.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`);
+}
+
+test('the dark comment highlight is translucent and keeps black page text at AA over the paper', () => {
+  const darkSuperdocBlock = blockOf('html:root.dark');
+  const mapped = DARK_COMMENT_HIGHLIGHT_VARIABLES.map((name) => declarationOf({ block: darkSuperdocBlock, name }));
+  expect(mapped).toEqual(DARK_COMMENT_HIGHLIGHT_VARIABLES.map(() => DARK_COMMENT_HIGHLIGHT));
+  const contrast = (luminanceOverWhite(DARK_COMMENT_HIGHLIGHT) + LUMINANCE_OFFSET) / (PAGE_TEXT_LUMINANCE + LUMINANCE_OFFSET);
+  expect(contrast).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+});

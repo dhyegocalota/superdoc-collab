@@ -25,6 +25,7 @@ const PARAGRAPHS = ['Budget: the plan costs 10.', 'Hiring: we add two people.'];
 const EDIT_TEXT = ' More money for the plan, a second sentence about the budget lines and a third one about the hiring plan.';
 const BAND_NAME = 'Budget';
 const PHONE_VIEWPORT = { width: 375, height: 568 };
+const NARROWEST_PHONE_VIEWPORT = { width: 320, height: 568 };
 const DEBOUNCE_WINDOW_MS = 1_000;
 const CHART_CENTRE_FRACTION = 0.5;
 const PANEL_BODY_SELECTOR = 'aside [data-panel-body]';
@@ -45,6 +46,15 @@ async function rectsOf({ header, scroller }: { header: Locator; scroller: Locato
 
 function isInside({ inner, outer }: { inner: Rect; outer: Rect }): boolean {
   return inner.top >= outer.top - PIXEL_TOLERANCE && inner.bottom <= outer.bottom + PIXEL_TOLERANCE;
+}
+
+type Box = { x: number; y: number; width: number; height: number } | null;
+
+function boxesIntersect({ first, second }: { first: Box; second: Box }): boolean {
+  if (first === null || second === null) throw new Error('A box is missing');
+  const overlapsHorizontally = first.x < second.x + second.width && second.x < first.x + first.width;
+  const overlapsVertically = first.y < second.y + second.height && second.y < first.y + first.height;
+  return overlapsHorizontally && overlapsVertically;
 }
 
 async function ownerWithEdit(browser: Browser) {
@@ -101,6 +111,12 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
     .toBeCloseTo(Math.max(0, naturalOffset - maxScroll), 0);
   await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
   await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeVisible();
+  await ana.page.setViewportSize(NARROWEST_PHONE_VIEWPORT);
+  await expect.poll(() => header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  const rangeBox = await header.locator('p').boundingBox();
+  const buttonBox = await ana.page.getByRole('button', { name: VIEW_VERSION_LABEL }).boundingBox();
+  expect(boxesIntersect({ first: rangeBox, second: buttonBox })).toBe(false);
+  await ana.page.setViewportSize(PHONE_VIEWPORT);
   await expectStableFor({ read: async () => String(currentAt(ana.page)), expected: 'null', durationMs: DEBOUNCE_WINDOW_MS });
   expect(requests).toHaveLength(0);
 

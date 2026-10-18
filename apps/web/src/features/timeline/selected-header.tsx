@@ -19,7 +19,7 @@ export function SelectedHeader({ ref, selection, canViewVersion, isViewVersionDi
       ref={ref}
       data-selected-header
       aria-live="polite"
-      className="sticky top-0 z-10 flex flex-wrap items-center gap-x-2 rounded-md border bg-muted px-3 py-1 text-sm"
+      className="sticky top-0 z-10 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border bg-muted px-3 py-1 text-sm"
     >
       {selection === null && <p className="text-muted-foreground">{SHOWING_WHOLE_DOCUMENT_MESSAGE}</p>}
       {selection !== null && (

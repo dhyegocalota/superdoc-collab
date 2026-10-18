@@ -17,7 +17,11 @@ export enum JumpOutcome {
   NotFound = 'not-found',
 }
 
-type MemberCursors = { hasCursor: (member: DocumentMember) => boolean; jumpTo: (member: DocumentMember) => JumpOutcome };
+type MemberCursors = {
+  hasCursor: (member: DocumentMember) => boolean;
+  jumpTo: (member: DocumentMember) => JumpOutcome;
+  presenceKey: string;
+};
 
 const normalizedPaletteColors = new Map<string, string>();
 
@@ -153,5 +157,5 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
     [container],
   );
 
-  return { hasCursor, jumpTo };
+  return { hasCursor, jumpTo, presenceKey: JSON.stringify(caretKeys) };
 }

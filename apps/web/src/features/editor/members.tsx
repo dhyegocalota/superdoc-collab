@@ -1,5 +1,6 @@
 import { JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
-import { useEffect, useId, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
   offlineMemberReason,
   SELF_MEMBER_REASON,
 } from './editor-copy';
+import { membersQueryKey } from './editor-api';
 import { overflowCountLabel } from './members-copy';
 import { JumpOutcome, useMemberCursors } from './use-member-cursors';
 
@@ -145,8 +147,16 @@ export function Members({
   editorContainer: HTMLElement | null;
   isPastVersion: boolean;
 }) {
-  const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container: editorContainer });
+  const { hasCursor, jumpTo, presenceKey } = useMemberCursors({ superdoc, container: editorContainer });
+  const queryClient = useQueryClient();
+  const shownPresenceKey = useRef(presenceKey);
   const [announcement, setAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (shownPresenceKey.current === presenceKey) return;
+    shownPresenceKey.current = presenceKey;
+    queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) });
+  }, [presenceKey, queryClient, documentId]);
 
   function jump(member: DocumentMember): JumpOutcome {
     const outcome = jumpTo(member);

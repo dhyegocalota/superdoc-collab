@@ -19,16 +19,16 @@ export function SelectedHeader({ ref, selection, canViewVersion, isViewVersionDi
       ref={ref}
       data-selected-header
       aria-live="polite"
-      className="sticky top-0 z-10 flex items-center justify-between gap-2 rounded-md border bg-muted px-3 py-1 text-sm"
+      className="sticky top-0 z-10 flex flex-wrap items-center gap-x-2 rounded-md border bg-muted px-3 py-1 text-sm"
     >
       {selection === null && <p className="text-muted-foreground">{SHOWING_WHOLE_DOCUMENT_MESSAGE}</p>}
       {selection !== null && (
         <>
-          <p className="min-w-0">
+          <p className="min-w-0 flex-1 basis-40">
             <span className="font-medium">{selection.rangeLabel}</span>{' '}
             <span className="text-muted-foreground">{countLabel({ count: selection.volume, unit: EditUnit.Character })}</span>
           </p>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex items-center gap-1">
             {canViewVersion && (
               <Button type="button" size="touch" disabled={isViewVersionDisabled} onClick={onViewVersion}>
                 {VIEW_VERSION_LABEL}

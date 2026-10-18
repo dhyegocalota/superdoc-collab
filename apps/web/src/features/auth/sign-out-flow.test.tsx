@@ -8,12 +8,14 @@ import { accountMenuLabel } from '@/features/account/account-copy';
 import { AccountMenu } from '@/features/account/account-menu';
 import { apiGet } from '@/lib/api';
 import { jsonResponse } from '@/testing/json-response';
+import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { authClient } from './auth-client';
 import { SIGN_OUT_LABEL } from './auth-copy';
 import { RedirectIfSession } from './redirect-if-session';
 import { RequireSession } from './require-session';
 import { SIGNED_OUT_STATE } from './sign-out-state';
 import { SESSION_QUERY_KEY } from './use-session';
+import { useSignOut } from './use-sign-out';
 
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
@@ -91,4 +93,14 @@ test('arriving signed out while the session still looks signed in shows the form
   await waitFor(() => expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull());
   await waitFor(() => expect(router.state.location.state).toBeNull());
   expect(router.state.location.pathname).toBe(AppRoute.SignIn);
+});
+
+test('signing out sets the session to signed out and invalidates it', async () => {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  const { result } = renderHookWithRouter(useSignOut, { queryClient });
+  await result.current();
+  expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull();
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: SESSION_QUERY_KEY });
 });

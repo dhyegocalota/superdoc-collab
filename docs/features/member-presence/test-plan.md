@@ -21,6 +21,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] Reload Bruno's page; expected: in Ana's header Bruno is named "Bruno, online", the tooltip says "Go to Bruno’s cursor" once the caret paints
 - [ ] Ana types in a new document with the Edits panel open; expected: "No edits yet" never shows once she has typed
 
+- [ ] `e2e/final-visuals.spec.ts` member avatar jump case and two-colours case locate the button as "Bruno, online" / "Ana, online"; expected: green
+
 ## Edge cases found during execution
 
 ## Adversarial review

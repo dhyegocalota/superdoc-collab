@@ -452,7 +452,8 @@ test('a member avatar scrolls the editor to that member’s caret and offline me
   const remoteCaret = ana.page.locator(REMOTE_CARET_SELECTOR).first();
   await expect(remoteCaret).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
   await expect(remoteCaret).not.toBeInViewport();
-  const jumpButton = topBar(ana.page).getByRole('button', { name: goToCursorLabel(BRUNO) });
+  const jumpButton = topBar(ana.page).getByRole('button', { name: memberLabel({ name: BRUNO, isOnline: true }) });
+  await expect(jumpButton).toHaveAccessibleDescription(goToCursorLabel(BRUNO));
   await expect(jumpButton).not.toHaveAttribute('aria-disabled', 'true');
   await jumpButton.click();
   await expect(remoteCaret).toBeInViewport();
@@ -493,8 +494,8 @@ test('two members have two colours, one on every surface and on every browser', 
   await expect(ana.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
   await expect(bruno.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
   const anaOwnLabel = { page: ana.page, label: memberLabel({ name: ANA, isOnline: true }) };
-  const brunoForAnaLabel = { page: ana.page, label: goToCursorLabel(BRUNO) };
-  const anaForBrunoLabel = { page: bruno.page, label: goToCursorLabel(ANA) };
+  const brunoForAnaLabel = { page: ana.page, label: memberLabel({ name: BRUNO, isOnline: true }) };
+  const anaForBrunoLabel = { page: bruno.page, label: memberLabel({ name: ANA, isOnline: true }) };
   const slots = await memberSlotsOf({ page: ana.page, documentId });
   await expect(swatchOf(anaOwnLabel)).toHaveClass(new RegExp(`bg-author-${slots[ANA]}\\b`));
   await expect(swatchOf(brunoForAnaLabel)).toHaveClass(new RegExp(`bg-author-${slots[BRUNO]}\\b`));

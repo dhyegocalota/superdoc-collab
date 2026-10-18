@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LARGE_BREAKPOINT_PX, minWidthQuery, WIDE_BREAKPOINT_PX } from '../../lib/breakpoints';
+import { useMinWidth } from '../../lib/use-min-width';
 
 export enum PanelPosition {
   Bottom = 'bottom',
@@ -31,22 +32,6 @@ function writeStoredPosition(position: PanelPosition): void {
   } catch {
     return;
   }
-}
-
-function useMinWidth(pixels: number): boolean {
-  const [matches, setMatches] = useState(() => window.matchMedia(minWidthQuery(pixels)).matches);
-
-  useEffect(() => {
-    const query = window.matchMedia(minWidthQuery(pixels));
-    function update(): void {
-      setMatches(query.matches);
-    }
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, [pixels]);
-
-  return matches;
 }
 
 export function usePanelPosition(): { position: PanelPosition; choosePosition: (position: PanelPosition) => void; canChoose: boolean } {

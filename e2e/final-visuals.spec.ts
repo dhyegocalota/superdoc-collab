@@ -88,6 +88,8 @@ const SHORT_VIEWPORT = { width: 1280, height: 480 };
 const PHONE_VIEWPORT = { width: 375, height: 812 };
 const VIEWPORT_WIDTHS = [320, 375, 768, 1024, 1280, 1536, 1920, 2560];
 const VIEWPORT_HEIGHT = 800;
+const TWO_MEMBER_WIDTHS = [640, 700, 768, 800, 1023];
+const MINIMUM_TITLE_WIDTH_PX = 96;
 const PAGE_CENTRE_TOLERANCE_PX = 2;
 const PAGE_CENTRED_FROM_WIDTH_PX = 1024;
 const LONG_DOCUMENT_LINES = 40;
@@ -489,6 +491,18 @@ test('Use with AI opens a dialog with a tab per client, fewer prompts for a read
       await expect(trigger).toBeFocused();
     }),
   );
+});
+
+test('the top bar fits between 640 and 1023 px with two members and keeps a readable title', async ({ browser }) => {
+  const { ana, title, documentId } = await ownerOpensDocument({ browser });
+  const bruno = await signedInContext({ browser, user: brunoUser! });
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  for (const width of TWO_MEMBER_WIDTHS) {
+    await ana.page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
+    await expectChromeFits({ page: ana.page, name: anaUser!.name });
+    const titleBox = await titleButton({ page: ana.page, title }).boundingBox();
+    expect(titleBox!.width).toBeGreaterThanOrEqual(MINIMUM_TITLE_WIDTH_PX);
+  }
 });
 
 for (const width of VIEWPORT_WIDTHS) {

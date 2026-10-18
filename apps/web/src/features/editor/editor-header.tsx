@@ -1,6 +1,6 @@
 import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Ellipsis } from 'lucide-react';
+import { Bot, Ellipsis, Search } from 'lucide-react';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
@@ -15,7 +15,8 @@ import { AccountMenu } from '@/features/account/account-menu';
 import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
 import type { UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { cn } from '@/lib/utils';
+import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { useMinWidth } from '@/lib/use-min-width';
 import { deleteDocument } from './editor-api';
 import {
   CANCEL_LABEL,
@@ -25,13 +26,14 @@ import {
   DELETE_FAILED_MESSAGE,
   DELETE_LABEL,
   DOWNLOAD_FORMAT_LABELS,
+  FIND_IN_DOCUMENT_LABEL,
   MORE_ACTIONS_LABEL,
   RENAME_FAILED_MESSAGE,
 } from './editor-copy';
 import { DocumentTitle } from './document-title';
 import { DownloadFormat } from './download-format';
 import { DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
-import { FindButton } from './find-button';
+import { FindButton, openFindBar } from './find-button';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
 
@@ -81,7 +83,8 @@ function DeleteDocumentDialog({
 
 type DocumentActionsMenuProps = DocumentIdentity & {
   isOwner: boolean;
-  isReady: boolean;
+  isLarge: boolean;
+  superdoc: SuperDoc | null;
   onDownload: (format: DownloadFormat) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
@@ -90,7 +93,8 @@ function keepMenuOpen(event: Event): void {
   event.preventDefault();
 }
 
-function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderUseWithAi }: DocumentActionsMenuProps) {
+function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownload, renderUseWithAi }: DocumentActionsMenuProps) {
+  const isReady = superdoc !== null;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -100,7 +104,7 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <Button ref={triggerRef} variant="ghost" size="icon" aria-label={MORE_ACTIONS_LABEL} className={cn(!isOwner && 'sm:hidden')}>
+              <Button ref={triggerRef} variant="ghost" size="icon" aria-label={MORE_ACTIONS_LABEL}>
                 <Ellipsis aria-hidden />
               </Button>
             </DropdownMenuTrigger>
@@ -108,26 +112,33 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
           <TooltipContent>{MORE_ACTIONS_LABEL}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end">
-          {renderUseWithAi({
-            trigger: (
-              <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
-                <Bot aria-hidden />
-                {USE_WITH_AI_LABEL}
-              </DropdownMenuItem>
-            ),
-            returnFocusRef: triggerRef,
-          })}
-          {Object.values(DownloadFormat).map((format) => (
-            <DropdownMenuItem
-              key={format}
-              className="sm:hidden"
-              disabled={!isReady}
-              aria-describedby={isReady ? undefined : LOADING_DOCUMENT_REASON_ID}
-              onSelect={() => onDownload(format)}
-            >
-              {DOWNLOAD_FORMAT_LABELS[format]}
+          {!isLarge && (
+            <DropdownMenuItem onSelect={() => openFindBar(superdoc)}>
+              <Search aria-hidden />
+              {FIND_IN_DOCUMENT_LABEL}
             </DropdownMenuItem>
-          ))}
+          )}
+          {!isLarge &&
+            renderUseWithAi({
+              trigger: (
+                <DropdownMenuItem onSelect={keepMenuOpen}>
+                  <Bot aria-hidden />
+                  {USE_WITH_AI_LABEL}
+                </DropdownMenuItem>
+              ),
+              returnFocusRef: triggerRef,
+            })}
+          {!isLarge &&
+            Object.values(DownloadFormat).map((format) => (
+              <DropdownMenuItem
+                key={format}
+                disabled={!isReady}
+                aria-describedby={isReady ? undefined : LOADING_DOCUMENT_REASON_ID}
+                onSelect={() => onDownload(format)}
+              >
+                {DOWNLOAD_FORMAT_LABELS[format]}
+              </DropdownMenuItem>
+            ))}
           {isOwner && (
             <DropdownMenuItem variant="destructive" onSelect={() => setIsDeleteOpen(true)}>
               {DELETE_LABEL}
@@ -165,6 +176,8 @@ export function EditorHeader({
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;
   const { download, printView } = useDownload({ superdoc, onDownloadDocx });
+  const isLarge = useMinWidth(LARGE_BREAKPOINT_PX);
+  const hasActionsMenu = !isLarge || isOwner;
   const [hasRenameFailed, setHasRenameFailed] = useState(false);
 
   return (
@@ -188,17 +201,20 @@ export function EditorHeader({
                 isPastVersion={isPastVersion}
               />
             </div>
-            <FindButton superdoc={superdoc} />
-            <div className="hidden sm:block">{renderUseWithAi()}</div>
+            {isLarge && <FindButton superdoc={superdoc} />}
+            {isLarge && renderUseWithAi()}
             {isOwner && <ShareDialog documentId={document.id} />}
-            <DownloadMenu isDisabled={superdoc === null} onDownload={download} />
-            <DocumentActionsMenu
-              documentId={document.id}
-              isOwner={isOwner}
-              isReady={superdoc !== null}
-              onDownload={download}
-              renderUseWithAi={renderUseWithAi}
-            />
+            {isLarge && <DownloadMenu isDisabled={superdoc === null} onDownload={download} />}
+            {hasActionsMenu && (
+              <DocumentActionsMenu
+                documentId={document.id}
+                isOwner={isOwner}
+                isLarge={isLarge}
+                superdoc={superdoc}
+                onDownload={download}
+                renderUseWithAi={renderUseWithAi}
+              />
+            )}
             <AccountMenu />
           </>
         }

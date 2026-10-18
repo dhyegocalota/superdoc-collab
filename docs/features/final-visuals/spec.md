@@ -16,7 +16,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 
 | Ask | Goal |
 |---|---|
-| A1 | One top bar on every signed-in page holds the brand link, the title (editor), members, Find, Use with AI, Share, Download, More actions and the account menu. Below `sm`, the secondary actions fold into More actions. |
+| A1 | One top bar on every signed-in page holds the brand link, the title (editor), members, Find, Use with AI, Share, Download, More actions and the account menu. Below `lg` (1024 px), Find, Use with AI and Download fold into More actions, and below `sm` Members hide too. |
 | A2 | The Edits panel opens at the bottom by default, and at the side from the wide breakpoint when no position is stored. |
 | A3 | A toolbar row under the top bar holds SuperDoc's trimmed toolbar and the Summarize edits button. |
 | A4 | The brand link on every page opens the documents list. |

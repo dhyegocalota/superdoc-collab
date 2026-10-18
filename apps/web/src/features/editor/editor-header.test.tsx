@@ -153,7 +153,7 @@ test('at 1280 the right slot order is Members, Find, Use with AI, Share, Downloa
 });
 
 test('closing Use with AI opened from More actions returns focus to the More actions button', async () => {
-  renderHeader();
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL }));
   expect(await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE })).toBeInTheDocument();
@@ -283,7 +283,7 @@ test('members announce their presence and the current user is online at once', (
 test('at 768 the bar keeps Members, Share, More actions and the account, and More actions carries Find, Use with AI and both downloads', async () => {
   const emit = vi.fn();
   renderHeader({ role: DocumentRole.Owner, members: [ADA], superdoc: { emit } as unknown as SuperDoc, width: NARROW_VIEWPORT_WIDTH });
-  expect(screen.getByText(memberLabel({ name: ADA.user.name, isOnline: true }))).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: SHARE_LABEL })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: USE_WITH_AI_LABEL })).toBeNull();

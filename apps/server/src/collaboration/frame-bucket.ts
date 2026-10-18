@@ -30,16 +30,24 @@ function bufferOf(frame: RawData): Buffer {
   return Buffer.from(frame);
 }
 
-export function frameBucketOf(frame: RawData): FrameBucket {
-  const bytes = bufferOf(frame);
+function messageTypeOf(bytes: Buffer): VarUint | null {
   const roomNameLength = readVarUint({ bytes, offset: 0 });
-  if (roomNameLength === null) return FrameBucket.Updates;
-  const messageType = readVarUint({ bytes, offset: roomNameLength.next + roomNameLength.value });
-  if (messageType === null) return FrameBucket.Updates;
-  if (messageType.value === MessageType.Awareness) return FrameBucket.Awareness;
+  if (roomNameLength === null) return null;
+  return readVarUint({ bytes, offset: roomNameLength.next + roomNameLength.value });
+}
+
+export function frameBucketOf(frame: RawData): FrameBucket {
+  const messageType = messageTypeOf(bufferOf(frame));
+  if (messageType?.value === MessageType.Awareness) return FrameBucket.Awareness;
   return FrameBucket.Updates;
 }
 
 export function awarenessEntryCountOf(frame: RawData): number | null {
-  throw new Error('awarenessEntryCountOf is not implemented');
+  const bytes = bufferOf(frame);
+  const messageType = messageTypeOf(bytes);
+  if (messageType?.value !== MessageType.Awareness) return null;
+  const payloadLength = readVarUint({ bytes, offset: messageType.next });
+  if (payloadLength === null) return null;
+  const entryCount = readVarUint({ bytes, offset: payloadLength.next });
+  return entryCount === null ? null : entryCount.value;
 }

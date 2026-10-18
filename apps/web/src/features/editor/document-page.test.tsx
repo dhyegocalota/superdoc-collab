@@ -635,6 +635,20 @@ test('a connection exception fails the connection with its reason and not the ed
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 
+test('a refused upgrade reported as an exception before the editor is ready shows the editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = {
+    code: 'collaboration-connection-failed',
+    collaborationReason: 'connection-failed',
+    error: new Error('refused'),
+    editor: null,
+  };
+  act(() => constructedConfig().onException(payload));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+});
+
 test('Reload remounts the editor with the refetched join setup and the current file', async () => {
   await reloadAfterFailure();
   expect(superDocDestroy).toHaveBeenCalledTimes(1);

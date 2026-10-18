@@ -1,4 +1,11 @@
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode, TAB_QUERY_KEY } from '@superdoc-collab/types';
+import {
+  COLLABORATION_TOKEN_PLACEHOLDER,
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
+  DOCX_MIME_TYPE,
+  RoomMode,
+  TAB_QUERY_KEY,
+} from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { tabId } from '@/lib/tab-id';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
@@ -62,7 +69,9 @@ test('the options put the creator ticket on the socket url', () => {
   });
   expect(options.documents).toEqual([
     expect.objectContaining({
-      v2Collaboration: expect.objectContaining({ serverUrl: `ws://localhost:3000${COLLABORATION_PATH}?attempt=1&epoch=epoch-1` }),
+      v2Collaboration: expect.objectContaining({
+        serverUrl: `ws://localhost:3000${COLLABORATION_PATH}?${TAB_QUERY_KEY}=${tabId()}&${CREATOR_ATTEMPT_QUERY_KEY}=1&${CREATOR_EPOCH_QUERY_KEY}=epoch-1`,
+      }),
     }),
   ]);
 });

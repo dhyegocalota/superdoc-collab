@@ -42,3 +42,11 @@ test('users do not share a budget', () => {
   ['a', 'b'].forEach((documentId) => budget.record({ userId: USER, documentId }));
   expect(budget.waitMs({ userId: 'user-2', documentId: 'c' })).toBeNull();
 });
+
+test('a pair past the window is forgotten at the next record', () => {
+  const { budget, advance } = budgetAt(0);
+  budget.record({ userId: USER, documentId: 'a' });
+  advance(WINDOW_MS + 1);
+  budget.record({ userId: USER, documentId: 'b' });
+  expect(budget.trackedPairs()).toBe(1);
+});

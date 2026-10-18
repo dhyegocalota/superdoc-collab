@@ -21,6 +21,10 @@ export class OpenBudget {
     this.counted.start(`${userId}:${documentId}`);
   }
 
+  trackedPairs(): number {
+    return this.counted.keys().length;
+  }
+
   private isCounted({ userId, documentId }: { userId: string; documentId: string }): boolean {
     return this.counted.remainingMs(`${userId}:${documentId}`) > 0;
   }

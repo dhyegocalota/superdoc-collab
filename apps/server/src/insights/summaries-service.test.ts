@@ -101,7 +101,7 @@ test('a sentence older than the topic set is stale, and a newer set stales every
 test('summaries are skipped and logged when the hourly LLM cap is spent', async () => {
   const warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const { server, documentId, client, model } = await twoTopicDocument();
-  vi.spyOn(server.services.insights.jobRunner, 'consumeCall').mockReturnValue(false);
+  vi.spyOn(server.services.insights.jobRunner, 'consumeDocumentCall').mockReturnValue(false);
   await server.services.insights.summaries.rewriteStale(documentId);
   expect(model.doGenerateCalls).toHaveLength(0);
   expect(warnings.mock.calls.filter(([line]) => String(line).startsWith(SUMMARIES_BUSY_MESSAGE))).toHaveLength(1);

@@ -417,7 +417,7 @@ test('a busy automatic recompute keeps the ready topics ready', async () => {
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready, failure: null });
   open();
   await server.services.insights.jobRunner.idle();
-  vi.spyOn(server.services.insights.jobRunner, 'consumeCall').mockReturnValue(false);
+  vi.spyOn(server.services.insights.jobRunner, 'consumeDocumentCall').mockReturnValue(false);
   await readTimeline({ server, documentId, cookie: owner.cookie });
   await server.services.insights.jobRunner.idle();
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready, failure: null });
@@ -429,7 +429,7 @@ test('a busy automatic recompute keeps the ready topics ready', async () => {
 
 test('a busy regroup shows failed with the busy message', async () => {
   const { server, documentId, client } = await readyDocumentWithFiveNewBlocks();
-  vi.spyOn(server.services.insights.jobRunner, 'consumeCall').mockReturnValue(false);
+  vi.spyOn(server.services.insights.jobRunner, 'consumeDocumentCall').mockReturnValue(false);
   await server.services.insights.topics.regroup(documentId);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Failed, failure: LLM_BUSY_MESSAGE });
   vi.useRealTimers();

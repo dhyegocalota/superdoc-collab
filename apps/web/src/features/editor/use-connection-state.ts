@@ -150,7 +150,10 @@ export function useConnectionState({
   const isAnsweredAfterLoss = lostAt !== null && membersAnsweredAt !== null && membersAnsweredAt > lostAt;
   const mergedState = mergeConnectionState({ reading, isCurrentUserOnline: isAnsweredAfterLoss ? isCurrentUserOnline : null });
   const isRecoveredNow = mergedState === ConnectionState.Recovered;
-  const state = isNoticeShown && reading === TransportReading.Clear ? ConnectionState.Recovered : mergedState;
+  const isSessionEndedDuringOutage = isSessionEnded && isOutageReading(reading);
+  const transportState = isNoticeShown && reading === TransportReading.Clear ? ConnectionState.Recovered : mergedState;
+  const state = isSessionEndedDuringOutage ? ConnectionState.Failed : transportState;
+  const reportedFailureReason = isSessionEndedDuringOutage ? ConnectionFailureReason.Unknown : failureReason;
 
   useEffect(() => {
     if (isRecoveredNow) dispatch({ type: ConnectionAction.Recovered });
@@ -176,5 +179,10 @@ export function useConnectionState({
 
   const resetConnection = useCallback((): void => dispatch({ type: ConnectionAction.Reset }), []);
 
-  return { state, failureReason: resolveFailureReason({ failureReason, isSessionEnded }), reportTransport, resetConnection };
+  return {
+    state,
+    failureReason: resolveFailureReason({ failureReason: reportedFailureReason, isSessionEnded }),
+    reportTransport,
+    resetConnection,
+  };
 }

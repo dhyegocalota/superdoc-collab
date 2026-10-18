@@ -86,3 +86,9 @@ test('a past version keeps the row itself live', () => {
   renderRow({ isToolbarInert: true });
   expect(screen.getByTestId('editor-toolbar-row')).not.toHaveAttribute('inert');
 });
+
+test('the row clips horizontal overflow so a toolbar that is still laying out never scrolls the page', () => {
+  renderRow();
+  expect(screen.getByTestId('editor-toolbar-row')).toHaveClass('overflow-x-clip');
+  expect(screen.getByTestId('toolbar-container')).toHaveClass('overflow-x-clip');
+});

@@ -475,13 +475,11 @@ test('Use with AI opens a dialog with a tab per client, fewer prompts for a read
       await trigger.click();
       const dialog = page.getByRole('dialog', { name: USE_WITH_AI_TITLE });
       await expect(dialog).toBeVisible();
-      await Promise.all(
-        Object.values(McpClient).map(async (client) => {
-          const tab = dialog.getByRole('tab', { name: MCP_CLIENT_LABELS[client] });
-          await tab.click();
-          await expect(tab).toHaveAttribute('aria-selected', 'true');
-        }),
-      );
+      for (const client of Object.values(McpClient)) {
+        const tab = dialog.getByRole('tab', { name: MCP_CLIENT_LABELS[client] });
+        await tab.click();
+        await expect(tab).toHaveAttribute('aria-selected', 'true');
+      }
       await Promise.all(prompts.map((prompt) => expect(dialog.getByText(prompt)).toBeVisible()));
       await Promise.all(
         editorPrompts.filter((prompt) => !prompts.includes(prompt)).map((prompt) => expect(dialog.getByText(prompt)).toHaveCount(0)),

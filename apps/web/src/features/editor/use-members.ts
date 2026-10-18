@@ -15,9 +15,9 @@ type MembersResult = {
 };
 
 export function useMembers({ documentId, creatorTicket }: { documentId: string; creatorTicket: CreatorTicket | null }): MembersResult {
-  const ticketedAttempt = creatorTicket ? creatorTicket.attempt : null;
+  const ticketSegments = creatorTicket ? [creatorTicket.attempt, creatorTicket.epoch] : [];
   const { data, error, dataUpdatedAt, isPlaceholderData } = useQuery({
-    queryKey: [...membersQueryKey(documentId), ticketedAttempt],
+    queryKey: [...membersQueryKey(documentId), ...ticketSegments],
     placeholderData: keepPreviousData,
     queryFn: () => fetchMembers({ documentId, creatorTicket }),
     refetchInterval: pollWhileAvailable(MEMBERS_REFRESH_MS),

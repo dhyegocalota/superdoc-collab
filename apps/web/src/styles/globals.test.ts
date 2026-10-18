@@ -26,7 +26,7 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
 };
 
 function blockOf(selector: string): string {
-  const start = css.indexOf(`${selector} {`);
+  const start = css.search(new RegExp(`^\\s*${selector.replace(/[.]/g, '\\.')} \\{`, 'm'));
   if (start < 0) throw new Error(`globals.css has no ${selector} block`);
   return css.slice(start, css.indexOf('\n}', start));
 }
@@ -83,4 +83,28 @@ test('SuperDoc chrome variables point at our tokens on html:root, which beats th
 test('no SuperDoc variable stays on the plain :root rule', () => {
   const stayedOnRoot = Object.keys(SUPERDOC_VARIABLES).filter((name) => declarationOf({ block: rootBlock, name }) !== null);
   expect(stayedOnRoot).toEqual([]);
+});
+
+const MINIMUM_TEXT_CONTRAST = 4.5;
+const DARK_TRACKED_CHANGE_COLORS = { '--sd-comment-tc-insert-color': '#4ade80', '--sd-comment-tc-delete-color': '#f87171' };
+const LUMINANCE_WEIGHTS = [0.2126, 0.7152, 0.0722];
+const LUMINANCE_OFFSET = 0.05;
+
+function luminanceOfHex(hex: string): number {
+  const channels = [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16) / 255);
+  const linear = channels.map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  return linear.reduce((sum, channel, index) => sum + channel * LUMINANCE_WEIGHTS[index]!, 0);
+}
+
+test('dark tracked-change text is mapped on the winning block and reaches AA on the dark card', () => {
+  const darkSuperdocBlock = blockOf('html:root.dark');
+  const darkCardLightness = Number(/oklch\(([\d.]+) 0 0\)/.exec(declarationOf({ block: darkBlock, name: '--card' })!)![1]);
+  const cardLuminance = darkCardLightness ** 3;
+  const mapped = Object.fromEntries(
+    Object.keys(DARK_TRACKED_CHANGE_COLORS).map((name) => [name, declarationOf({ block: darkSuperdocBlock, name })]),
+  );
+  expect(mapped).toEqual(DARK_TRACKED_CHANGE_COLORS);
+  Object.values(DARK_TRACKED_CHANGE_COLORS).forEach((hex) =>
+    expect((luminanceOfHex(hex) + LUMINANCE_OFFSET) / (cardLuminance + LUMINANCE_OFFSET)).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST),
+  );
 });

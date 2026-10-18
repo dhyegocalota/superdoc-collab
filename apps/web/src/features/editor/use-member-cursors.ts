@@ -81,13 +81,14 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       show(NO_KEYS);
       return;
     }
-    const refresh = () => show(caretKeysIn(container));
+    const editorRoot = container;
+    const refresh = () => show(caretKeysIn(editorRoot));
     const overlayObserver = new MutationObserver(refresh);
     const parentObserver = new MutationObserver(() => watchCurrentOverlay());
     const containerObserver = new MutationObserver(() => watchCurrentOverlay());
     let watchedOverlay: HTMLElement | null | undefined;
     function watchCurrentOverlay(): void {
-      const overlay = overlayIn(container);
+      const overlay = overlayIn(editorRoot);
       if (overlay === watchedOverlay) return;
       watchedOverlay = overlay;
       overlayObserver.disconnect();
@@ -95,7 +96,7 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       containerObserver.disconnect();
       refresh();
       if (!overlay) {
-        containerObserver.observe(container, { childList: true, subtree: true });
+        containerObserver.observe(editorRoot, { childList: true, subtree: true });
         return;
       }
       overlayObserver.observe(overlay, { childList: true, subtree: true, characterData: true, attributeFilter: ['style'] });

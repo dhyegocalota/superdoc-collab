@@ -9,13 +9,13 @@
 
 ## Problem
 
-`useSession` has no stale time, so every component that mounts and reads the session or the time zone (about ten each) refetches `/api/me`. A component that remounts across a breakpoint therefore asks the server again, and with the cookie gone the 401 redirected the page to sign-in (learning 2026-10-18, "a component that moves between layouts remounts and refetches the session"). Two related gaps: sign-out never touches the session query, and a 401 from `/api/me` becomes a query error that keeps the last good user, so consumers still see the old user.
+`useSession` has no stale time, so every component that mounts and reads the session or the time zone (about ten each) refetches `/api/me`. A component that remounts across a breakpoint therefore asks the server again, and with the cookie gone the answer (200 with a null user) redirected the page to sign-in (learning 2026-10-18, "a component that moves between layouts remounts and refetches the session"). A related gap: sign-out never touches the session query, so pages can keep showing the old user.
 
 ## Goals
 
 - The session query is fresh for five minutes: consumers mounted one after the other fetch `/api/me` once.
 - Sign-out sets the cached session to signed out and invalidates it, so no page shows the old user.
-- A 401 from `/api/me` reads as a signed-out session (`null`), not as a stale user. Any other failure still rejects.
+- The session still refetches when the window gets focus and when the browser comes back online, even inside the stale window, so an ended session is noticed on returning to the tab as before.
 
 ## Non-goals
 
@@ -28,7 +28,7 @@
 
 1. `SESSION_STALE_TIME_MS` in `libs/types/src/constants.ts`, five times the shared minute constant, passed as `staleTime` of the session query in `use-session.ts`.
 2. `use-sign-out.ts`: after the auth client signs out, `setQueryData(SESSION_QUERY_KEY, null)`, then `invalidateQueries({ queryKey: SESSION_QUERY_KEY })`, then navigate to sign-in.
-3. `fetchMe` catches `AuthenticationError` only and returns `null`; every other error is rethrown.
+3. The session query sets `refetchOnWindowFocus: 'always'` and `refetchOnReconnect: 'always'`; a resize fires no focus event, so the remount dedupe stays.
 
 ### Interfaces
 
@@ -37,10 +37,14 @@
 
 ### Failure handling
 
-- A 401 on the first read: the user is `null`, consumers redirect to sign-in as before.
-- A 401 on a later refetch: the cached user becomes `null`.
+- The server answers 200 with `{ user: null }` when signed out (`apps/server/src/http/me.ts`), so an ended session reads as `null` at the next refetch and `RequireSession` redirects.
 - A 5xx or a network failure: the query errors and keeps the last good user, as before.
-- The session ending on the server while the cache is fresh is noticed at the next refetch (stale time, sign-in, time zone save) or by the features that already watch it (the members poll).
+- A session that ends on the server while the socket is alive is noticed on window focus, on the next session refetch (stale time, sign-in, time zone save, reload) or when the transport drops. The members poll does not notice it: `use-connection-state.ts` turns the poll's 401 into Failed only during an outage (ADR 0032).
+
+### Known gaps, for the owner
+
+- A sign-out in another tab leaves an open editor writable as the old user until a focus or five minutes; the server never closes sockets on sign-out, so the root fix is a server-side lane.
+- Option B: a members 401 invalidating the session would send the user to sign-in, but it would redirect mid-edit away from a document whose socket still works.
 
 ## Open questions → answers
 
@@ -50,5 +54,5 @@
 
 ## Test strategy summary
 
-- Unit (red first): two consumers fetch once; a 401 first read and a 401 refetch read as signed out; another failure stays an error; sign-out sets and invalidates the session; the constant is five minutes.
+- Unit (red first): two consumers fetch once; a focus and a reconnect refetch inside the stale window; a failed refetch keeps the last good user; sign-out sets and invalidates the session.
 - E2E: the existing connection-state and sign-out specs are the guard; no new spec.

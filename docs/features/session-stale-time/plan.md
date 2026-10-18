@@ -15,7 +15,7 @@
 
 ## Sequencing
 
-One developer: the stale time (1), sign-out (2), the 401 (3).
+One developer: the stale time (1), sign-out (2), the 401 (3, struck), focus and reconnect (4).
 
 ## Steps
 
@@ -23,7 +23,8 @@ One developer: the stale time (1), sign-out (2), the 401 (3).
 
 - [x] **Step 1:** red tests for the constant and two consumers fetching once; `SESSION_STALE_TIME_MS` and `staleTime`. — evidence: red 2cdc513, green 57bb86c
 - [x] **Step 2:** red test that sign-out sets the session to null and invalidates it; `use-sign-out.ts`. — evidence: red b1fe992, green 30affcf
-- [x] **Step 3:** red tests for a 401 reading as signed out; `fetchMe` catches `AuthenticationError`. — evidence: red 2cdc513, green 4e30e72
+- [x] ~~**Step 3:** red tests for a 401 reading as signed out; `fetchMe` catches `AuthenticationError`.~~ Struck: the server answers 200 with a null user, so the branch was dead; removed in 6d880ed. — evidence: red 2cdc513, green 4e30e72
+- [x] **Step 4:** red tests that a focus and a reconnect refetch inside the stale window; `refetchOnWindowFocus` and `refetchOnReconnect` set to `'always'`. — evidence: red e09bc08, green 6d880ed
 
 ## Failure modes
 
@@ -31,7 +32,7 @@ One developer: the stale time (1), sign-out (2), the 401 (3).
 |------|-------------|------------------------------------|----------------|
 | 1 | a flow that relied on a refetch at mount now shows a stale user | a page shows the old user after a change the app made without invalidating | add the invalidation at that change, as sign-in and the time zone save do |
 | 2 | invalidating right after setting null refetches into a flash of the old user | the account menu shows the old name for a frame | none seen; the cached value is null before the refetch starts |
-| 3 | swallowing a 401 hides an expired session | a page stays open with no sign-in redirect | `RequireSession` redirects on `null`; the members poll still ends the session |
+| 4 | a session that ends with a live socket is noticed late | the page keeps the old user until a focus or five minutes | focus and reconnect refetch the session; see the known gaps in the spec |
 
 **Steps with no backout:** none.
 

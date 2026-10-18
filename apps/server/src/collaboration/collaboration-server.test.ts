@@ -22,7 +22,7 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
-import { MAX_STORE_DEBOUNCE_MS, OPEN_BUDGET_LOG } from './collaboration-server';
+import { MAX_STORE_DEBOUNCE_MS, OPEN_BUDGET_LOG, REFUSED_TICKET_LOG, UNTICKETED_REFUSAL_LOG } from './collaboration-server';
 import type { CollaborationContext } from './collaboration-context';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
@@ -139,6 +139,14 @@ test('a creator update on an uncommitted room never queries the log or the snaps
   await sendChange({ server, context: latest, ...updateWith({ committed: false }) });
   expect(loggedRows({ server, documentId })).toHaveLength(1);
   expect([readBatch.mock.calls.length, latestSnapshot.mock.calls.length]).toEqual([0, 0]);
+  await server.stop();
+});
+
+test('an appended update from the latest attempt refreshes its reservation (mutation: drop the touch)', async () => {
+  const { server, documentId, latest } = await supersededScenario();
+  const touch = vi.spyOn(server.services.reservations, 'touch');
+  await sendChange({ server, context: latest, ...updateWith({ committed: false }) });
+  expect(touch).toHaveBeenCalledWith({ documentId, attempt: latest.creatorAttempt });
   await server.stop();
 });
 
@@ -335,6 +343,18 @@ describe('collaboration room lifecycle', () => {
 });
 
 describe('collaboration admission to an uncommitted room', () => {
+  test("another user's ticket is refused on an uncommitted room and logged as a refused ticket (mutation: drop the holder check)", async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+    const ownersTicket = server.services.reservations.reserve({ documentId, userId: owner.id })!;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectToDocument({ server, cookie: editor.cookie, documentId, ticket: ownersTicket })).rejects.toBeInstanceOf(
+      CollaborationRefusedError,
+    );
+    expect(warn).toHaveBeenCalledWith(`${REFUSED_TICKET_LOG} ${documentId}`);
+    warn.mockRestore();
+    await server.stop();
+  });
   test('a user who exhausted the open budget is refused before the log is scanned', async () => {
     const { server, documentId, owner } = await documentWithOwner();
     Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
@@ -353,7 +373,7 @@ describe('collaboration admission to an uncommitted room', () => {
     const member = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await expect(connectToDocument({ server, cookie: member.cookie, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
-    expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
+    expect(warn).toHaveBeenCalledWith(`${UNTICKETED_REFUSAL_LOG} ${documentId}`);
     warn.mockRestore();
     await server.stop();
   });

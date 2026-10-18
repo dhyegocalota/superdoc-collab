@@ -42,7 +42,8 @@ const NO_TICKET = { attempt: null, epoch: null };
 export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
-const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
+export const UNTICKETED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
+export const REFUSED_TICKET_LOG = 'Refused a socket whose creator ticket is not the latest on an uncommitted room';
 
 export class CollaborationSupersededError extends Error {
   readonly code = SUPERSEDED_ATTEMPT_CLOSE_CODE;
@@ -165,12 +166,12 @@ export function createCollaborationServer({
       const mayWrite = reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
       const isTicketless = actor === ClientActor.Agent || attempt === null;
       if (!isCommitted && isTicketless) {
-        console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
+        console.warn(`${UNTICKETED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationAuthenticationError();
       }
       const isAdmittedCreator = isHolder && mayWrite;
       if (!isCommitted && !isAdmittedCreator) {
-        console.warn(`${UNCOMMITTED_REFUSAL_LOG} ${documentId}`);
+        console.warn(`${UNTICKETED_REFUSAL_LOG} ${documentId}`);
         throw new CollaborationSupersededError();
       }
       if (!mayWrite) connection.readOnly = true;

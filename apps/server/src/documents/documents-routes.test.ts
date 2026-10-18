@@ -403,6 +403,30 @@ test('a waiting editor polling the same uncommitted document is answered 409 eve
   await server.stop();
 });
 
+test('a reader opening an unreserved uncommitted room gets 409 and reserves nothing (mutation: drop the reader check)', async () => {
+  const { server, owner } = await signedInOwner();
+  const [documentId] = uncommittedDocuments({ server, owner, count: 1 });
+  const reader = await memberWithRole({ server, documentId: documentId!, role: DocumentRole.Reader });
+  const response = await request({ server, cookie: reader.cookie, path: pathOf({ documentId: documentId! }) });
+  expect([response.status, server.services.reservations.attemptOf({ documentId: documentId!, userId: reader.id })]).toEqual([
+    HttpStatus.Conflict,
+    null,
+  ]);
+  await server.stop();
+});
+
+test('a known committed room answers Join while the open budget is spent (mutation: drop the known-committed shortcut)', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitRoom({ services: server.services, documentId, userId: owner.id });
+  await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) });
+  Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+    server.services.openBudget.record({ userId: owner.id, documentId: `spent-${index}` }),
+  );
+  const again = await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) });
+  expect([again.status, ((await again.json()) as OpenedDocument).roomMode]).toEqual([HttpStatus.Ok, RoomMode.Join]);
+  await server.stop();
+});
+
 test('a committed room answers Join with creatorAttempt null for a reader and an editor', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });

@@ -1,14 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
 import { expect, test } from 'vitest';
+import { CHART_HEIGHT } from './streamgraph-layout';
 import {
   COMPACT_PANEL_HEIGHT_SHARE,
   DEFAULT_PANEL_HEIGHT_SHARE,
   MIN_EDITOR_HEIGHT,
   MIN_PANEL_HEIGHT,
+  PANEL_CHROME_PX,
+  PANEL_MIN_CONTENT_PX,
   PANEL_RESIZE_STEP,
   usePanelHeight,
 } from './use-panel-width';
 
+const CHROME_ABOVE_AREA_PX = 96;
 const ROOMY_AREA_HEIGHT = 1000;
 const CRAMPED_AREA_HEIGHT = 400;
 const ROOMY_DEFAULT_HEIGHT = 420;
@@ -45,4 +49,12 @@ test('below sm the default height is 58 percent of the area and from sm it is 42
   expect(compact.result.current.height).toBe(ROOMY_AREA_HEIGHT * COMPACT_PANEL_HEIGHT_SHARE);
   const regular = renderHook(() => usePanelHeight({ areaHeight: ROOMY_AREA_HEIGHT, isCompact: false }));
   expect(regular.result.current.height).toBe(ROOMY_DEFAULT_HEIGHT);
+});
+
+test.each([720, 768, 800])('at a %i px viewport the default height holds the whole chart, its header and its padding', (viewportHeight) => {
+  const areaHeight = viewportHeight - CHROME_ABOVE_AREA_PX;
+  const { result } = renderHook(() => usePanelHeight({ areaHeight, isCompact: false }));
+  expect(PANEL_MIN_CONTENT_PX).toBe(CHART_HEIGHT + PANEL_CHROME_PX);
+  expect(result.current.height).toBe(PANEL_MIN_CONTENT_PX);
+  expect(areaHeight - result.current.height).toBeGreaterThanOrEqual(MIN_EDITOR_HEIGHT);
 });

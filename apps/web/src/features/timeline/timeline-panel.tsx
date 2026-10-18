@@ -142,7 +142,7 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
     <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={summarize.summarize} />
   );
   const chart = (
-    <div ref={chartRef} className="shrink-0">
+    <div ref={chartRef} className="shrink-0 overflow-visible">
       {timeline && chartWidth > 0 && (
         <Streamgraph
           timeline={timeline}

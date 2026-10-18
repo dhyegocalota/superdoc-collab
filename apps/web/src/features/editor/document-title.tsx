@@ -7,7 +7,7 @@ import { KeyboardKey } from '@/lib/keyboard';
 import { openedDocumentQueryKey, renameDocument } from './editor-api';
 import { renameTitleLabel, TITLE_LABEL } from './editor-copy';
 
-const TITLE_TEXT_CLASS = 'h-8 max-w-[360px] min-w-24 truncate px-2 text-left leading-8 font-medium';
+const TITLE_TEXT_CLASS = 'h-8 max-w-[360px] min-w-20 truncate md:min-w-24 px-2 text-left leading-8 font-medium';
 const TITLE_BUTTON_CLASS = `${TITLE_TEXT_CLASS} rounded-md hover:bg-accent`;
 
 type DocumentTitleProps = { documentId: string; title: string; role: DocumentRole; onFailureChange: (hasFailed: boolean) => void };

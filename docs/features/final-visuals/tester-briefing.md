@@ -302,6 +302,15 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 - The bottom columns no longer shrink below md (`md:min-h-0`), so at 375 the chart block keeps its height and the card sits below it. The chart block is `shrink-0` and first in the chart column, the filter follows it, and the topic notices moved to the top of the list column (design 1.4 puts the hint and filter above the chart; the filter now sits under it so the chart is the first thing visible). Tests: the last two in `timeline-panel.test.tsx` (red `expected the element to have class "shrink-0"` and `expected [ 'flex', 'min-h-0', … ] to not include 'min-h-0'`).
 - The chart is 240 px tall, so at the 240 px minimum panel height its axis and hint can still sit below the fold; the chart itself starts at the top of the chart column. Hypothesis: at 1280×800 with the default 42 % the whole chart is visible; at the minimum height the chart column scrolls. Break it by: dragging the handle to the minimum and to the maximum at 800 px tall.
 
+### Countdown and the e2e locator
+
+- The cooldown label counts down each second from `Retry-After` (`lib/use-countdown.ts`, `useCountdown(untilMs)`, interval `SECOND_MS`, cleared on unmount; red `Error: useCountdown is not implemented for …`, and `selection-summary-card.test.tsx::the cooldown ticks down each second`). At zero the hook of G4 resets the error, so the label then goes away. Hypothesis: "Try again in 16 s." shows 15, 14, … in step with the clock. Break it by: a hidden tab for 10 s, then showing it; two cooldowns back to back.
+- `e2e/final-visuals.spec.ts` looks for the position toggle as a `radiogroup`. `pnpm typecheck:e2e` is clean; the spec was not run.
+
+### Default height holds the chart
+
+- `usePanelHeight` default is the larger of the 42 % (58 % below `sm`) share and `PANEL_MIN_CONTENT_PX` (the 240 px chart plus 72 px of handle, header and padding), still capped to leave 240 px for the editor. The chart block is `overflow-visible`. Tests: `use-panel-width.test.ts` at 720, 768 and 800 px viewports (red `expected 262 to be 312`, `282`, `296`) and the `overflow-visible` assertion in `timeline-panel.test.tsx`. Hypothesis: at 1280×800, 1280×720 and 1024×768 the whole chart is visible at the default height; 72 px of chrome is an estimate that the browser measure must confirm.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

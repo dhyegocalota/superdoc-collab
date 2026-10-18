@@ -213,6 +213,7 @@ export function DocumentPage() {
                 user={editorSetup.user}
                 file={editorSetup.file}
                 isInert={isEditingSurfaceInert}
+                isSuperseded={failureReason === ConnectionFailureReason.Superseded}
                 onTransportReport={reportTransport}
               />
             )}

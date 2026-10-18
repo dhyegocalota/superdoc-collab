@@ -402,7 +402,7 @@ test('a members 404 after the editor mounted shows the unavailable message, dest
   expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
   expect(superDocDestroy).toHaveBeenCalledTimes(1);
-  const membersQuery = queryClient.getQueryCache().find({ queryKey: membersQueryKey(DOCUMENT_ID) });
+  const membersQuery = queryClient.getQueryCache().find({ queryKey: membersQueryKey(DOCUMENT_ID), exact: false });
   const refetchInterval = membersQuery?.observers[0]?.options.refetchInterval;
   if (typeof refetchInterval !== 'function' || !membersQuery) throw new Error('members polling is not a function of the query state');
   expect(refetchInterval(membersQuery)).toBe(false);

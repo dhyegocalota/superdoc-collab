@@ -41,6 +41,7 @@ function renderEditor({
       user={SESSION_USER}
       file={new Blob()}
       isInert={false}
+      isSuperseded={false}
       onTransportReport={vi.fn()}
     />,
   );

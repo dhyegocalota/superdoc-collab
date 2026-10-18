@@ -32,6 +32,7 @@ type SuperDocEditorProps = {
   user: SessionUser;
   file: Blob;
   isInert: boolean;
+  isSuperseded: boolean;
   onTransportReport: (report: TransportReport) => void;
 };
 
@@ -46,6 +47,7 @@ export function SuperDocEditor({
   user,
   file,
   isInert,
+  isSuperseded,
   onTransportReport,
 }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,7 @@ export function SuperDocEditor({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface} onClick={clearRejectedEdit}>
-      {hasFailed && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
+      {hasFailed && !isSuperseded && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
       {hasRejectedEdit && (
         <p role="status" className="px-4 py-1 text-xs text-muted-foreground">
           {EDIT_REJECTED_MESSAGE}

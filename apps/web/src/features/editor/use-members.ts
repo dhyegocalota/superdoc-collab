@@ -1,5 +1,5 @@
 import { MEMBERS_REFRESH_MS, type CreatorTicket, type DocumentMember } from '@superdoc-collab/types';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AuthenticationError, DocumentUnavailableError, pollWhileAvailable } from '@/lib/api';
 import { fetchMembers, membersQueryKey } from './editor-api';
 
@@ -15,8 +15,10 @@ type MembersResult = {
 };
 
 export function useMembers({ documentId, creatorTicket }: { documentId: string; creatorTicket: CreatorTicket | null }): MembersResult {
-  const { data, error, dataUpdatedAt } = useQuery({
-    queryKey: membersQueryKey(documentId),
+  const ticketedAttempt = creatorTicket ? creatorTicket.attempt : null;
+  const { data, error, dataUpdatedAt, isPlaceholderData } = useQuery({
+    queryKey: [...membersQueryKey(documentId), ticketedAttempt],
+    placeholderData: keepPreviousData,
     queryFn: () => fetchMembers({ documentId, creatorTicket }),
     refetchInterval: pollWhileAvailable(MEMBERS_REFRESH_MS),
     retry: false,
@@ -47,6 +49,6 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
     isCurrentUserOnline: data.isCurrentUserOnline,
     membersAnsweredAt: dataUpdatedAt,
     isSessionEnded,
-    isAttemptSuperseded: data.isAttemptSuperseded,
+    isAttemptSuperseded: data.isAttemptSuperseded && !isPlaceholderData,
   };
 }

@@ -96,7 +96,13 @@ export async function uploadSeed({
   await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer });
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
   await expect(editorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
-  return DOCUMENT_URL_PATTERN.exec(page.url())![1]!;
+  return documentIdOf(page.url());
+}
+
+export function documentIdOf(url: string): string {
+  const match = DOCUMENT_URL_PATTERN.exec(url);
+  if (!match) throw new Error(`no document id in ${url}`);
+  return match[1]!;
 }
 
 export async function readShareLinks({ page, documentId }: { page: Page; documentId: string }): Promise<ShareLinks> {
@@ -147,12 +153,24 @@ async function isEditorFocused(page: Page): Promise<boolean> {
   return page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR);
 }
 
-async function focusParagraphEnd({ page, paragraphText }: { page: Page; paragraphText: string }): Promise<void> {
+export async function focusEditorAtEnd({
+  page,
+  target,
+  position,
+}: {
+  page: Page;
+  target: Locator;
+  position?: { x: number; y: number };
+}): Promise<void> {
   await expect(async () => {
-    await editorText(page).filter({ hasText: paragraphText }).first().click();
+    await target.click({ position });
     await page.keyboard.press('End');
     expect(await isEditorFocused(page)).toBe(true);
   }).toPass({ timeout: FOCUS_TIMEOUT_MS });
+}
+
+async function focusParagraphEnd({ page, paragraphText }: { page: Page; paragraphText: string }): Promise<void> {
+  await focusEditorAtEnd({ page, target: editorText(page).filter({ hasText: paragraphText }).first() });
 }
 
 export async function insertInParagraph({ page, paragraphText, text }: { page: Page; paragraphText: string; text: string }): Promise<void> {

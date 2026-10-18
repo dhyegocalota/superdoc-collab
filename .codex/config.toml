@@ -22,10 +22,17 @@ config_file = ".codex/agents/frontend-designer.toml"
 [mcp_servers.playwright]
 command = "npx"
 args = ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+tool_timeout_sec = 60
 
 [mcp_servers.playwright-second]
 command = "npx"
 args = ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+tool_timeout_sec = 60
+
+[mcp_servers.playwright-third]
+command = "npx"
+args = ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+tool_timeout_sec = 60
 
 [mcp_servers.context7]
 command = "npx"

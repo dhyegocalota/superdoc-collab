@@ -73,4 +73,5 @@ Refinement after the five slices:
 | [`dark-theme`](dark-theme/) | Dark mode follows the tokens on every SuperDoc surface: toolbar, dropdowns, menus, tooltips and shadows mapped to tokens, a caret visible on the paper, `color-scheme`, no literal white on the waiting page | Shipped 2026-10-18 ([PR #50](https://github.com/dhyegocalota/superdoc-collab/pull/50)) |
 | [`mobile-horizontal-scroll`](mobile-horizontal-scroll/) | Nothing scrolls sideways on a phone: below `lg` each document of the list is a stacked row with a wrapping title and one muted line | Building |
 
+| [`gate-and-scenario-tooling`](gate-and-scenario-tooling/) | The format gate ignores `e2e/_*`, the secret probe uses fixed tokens, the scenario clicks before typing into a New document with an E2E for it, and a spare Playwright MCP server | Building |
 | [`timeline-idle-gaps`](timeline-idle-gaps/) | The edits chart collapses each idle stretch longer than five minutes into one marked break column, with a dashed divider, a duration tooltip and a one-press key step ([ADR 0039](../adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md)) | Building |

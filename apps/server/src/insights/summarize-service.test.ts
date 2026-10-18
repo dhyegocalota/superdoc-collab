@@ -124,14 +124,15 @@ test('the summary-only scope writes the summary and leaves stale topics and sent
   await server.stop();
 });
 
-test('a failed regroup keeps the previous ready topics', async () => {
+test('a failed regroup keeps the previous ready topics and stops the job when the selection names a topic', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const { server, documentId, client, model, summarize } = await documentWithTopics({
     isFresh: false,
     modelFor: () => failingModel(new Error('provider exploded')),
   });
   const before = server.services.insightsRepository.topics(documentId);
-  summarize.request({ documentId, selection: SELECTION });
+  const topicSelection = { ...SELECTION, topic: before[0]!.id };
+  summarize.request({ documentId, selection: topicSelection });
   await server.services.insights.jobRunner.idle();
   expect(modelCallsOf(model)).toEqual([ModelCall.Topics]);
   expect(server.services.insightsRepository.topics(documentId)).toEqual(before);
@@ -139,9 +140,33 @@ test('a failed regroup keeps the previous ready topics', async () => {
     state: TopicState.Failed,
     failure: TOPICS_FAILED_MESSAGE,
   });
-  expect(server.services.insights.selection.read({ documentId, selection: SELECTION })).toMatchObject({
+  expect(server.services.insights.selection.read({ documentId, selection: topicSelection })).toMatchObject({
     state: SelectionSummaryState.Failed,
     failure: GROUPING_FAILED_MESSAGE,
+    step: SummarizeStep.Idle,
+  });
+  client.close();
+  await server.stop();
+});
+
+test('a failed regroup does not lock the summary out when the selection names no topic', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  let calls = 0;
+  const { server, documentId, client, model, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: (answer) =>
+      modelAnsweringWith(() => {
+        calls += 1;
+        if (calls === 1) throw new Error('provider exploded');
+        return answer();
+      }),
+  });
+  summarize.request({ documentId, selection: SELECTION });
+  await server.services.insights.jobRunner.idle();
+  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expect(server.services.insights.selection.read({ documentId, selection: SELECTION })).toMatchObject({
+    failure: GROUPING_FAILED_MESSAGE,
+    summary: { sentence: COMBINED_ANSWER.sentence },
     step: SummarizeStep.Idle,
   });
   client.close();

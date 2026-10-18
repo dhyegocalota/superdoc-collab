@@ -26,7 +26,8 @@ export class SlidingWindow {
 
   private prune(): void {
     const windowStart = this.now() - this.windowMs;
-    const recent = this.times.filter((time) => time > windowStart);
-    this.times.splice(0, this.times.length, ...recent);
+    const firstRecent = this.times.findIndex((time) => time > windowStart);
+    const staleCount = firstRecent === -1 ? this.times.length : firstRecent;
+    this.times.splice(0, staleCount);
   }
 }

@@ -13,6 +13,7 @@ import { useMinWidth } from '@/lib/use-min-width';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
+import { binContaining } from './bin-containing';
 import { FilterBox } from './filter-box';
 import { PanelPositionToggle } from './panel-position-toggle';
 import { ResizeHandle } from './resize-handle';
@@ -196,7 +197,8 @@ export function TimelinePanel({
       )}
     </div>
   );
-  const canViewVersion = selectedBin !== null && selectedBin.versionSequence !== null && selectedBin.start !== search.at;
+  const isSelectedBinShown = selectedIndex !== null && binContaining({ timeline, time: search.at })?.index === selectedIndex;
+  const canViewVersion = selectedBin !== null && selectedBin.versionSequence !== null && !isSelectedBinShown;
   function viewSelectedVersion(): void {
     if (!selectedBin) return;
     onTravel(selectedBin.start);

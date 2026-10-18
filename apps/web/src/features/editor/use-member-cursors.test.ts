@@ -10,6 +10,7 @@ const LABEL_CLASS = 'v2-collaboration-overlay__remote-label';
 const SELECTION_CLASS = 'v2-collaboration-overlay__remote-selection';
 const GLOW_CLASS = 'member-glow';
 const GLOW_MS = 1200;
+const GLOW_COLOR_PROPERTY = '--member-glow-color';
 const FORGED_COLOR = '#000000';
 const superdoc = {} as SuperDoc;
 const bruno: DocumentMember = { user: { id: 'u2', name: 'Bruno' }, role: DocumentRole.Editor, online: true };
@@ -208,4 +209,21 @@ test('a bare caret with no selection gets the glow class after the jump and lose
     vi.advanceTimersByTime(GLOW_MS);
   });
   expect(caret.classList.contains(GLOW_CLASS)).toBe(false);
+});
+
+test('after a jump the caret and its selection carry the member colour for the glow ring and lose it afterwards', () => {
+  vi.useFakeTimers();
+  const { caret, selection } = addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
+  const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
+  act(() => {
+    result.current.jumpTo(bruno);
+  });
+  expect([caret, selection].map((element) => element.style.getPropertyValue(GLOW_COLOR_PROPERTY))).toEqual([
+    colorOf(bruno),
+    colorOf(bruno),
+  ]);
+  act(() => {
+    vi.advanceTimersByTime(GLOW_MS);
+  });
+  expect([caret, selection].map((element) => element.style.getPropertyValue(GLOW_COLOR_PROPERTY))).toEqual(['', '']);
 });

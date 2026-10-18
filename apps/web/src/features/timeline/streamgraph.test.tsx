@@ -559,3 +559,21 @@ test('the description says long stretches are shortened only when a break is dra
   expect(withoutBreak.container.querySelector('desc')!.textContent).not.toContain('shortened');
 });
 
+test('hovering a break names how long there were no edits and shows no bin range', () => {
+  const { container } = renderBreakGraph();
+  fireEvent.pointerMove(container.querySelector('svg')!, { clientX: breakColumn.centerX, buttons: 0 });
+  const tooltip = screen.getByRole('tooltip');
+  expect(tooltip).toHaveTextContent('No edits for 6 minutes');
+  expect(tooltip).not.toHaveTextContent('Budget');
+  expect(tooltip).not.toHaveTextContent(
+    asRendered(formatBinRange({ ...breakTimeline.bins[AFTER_SILENCE]!, binMs: breakTimeline.binMs, timeZone: UTC_TIME_ZONE })),
+  );
+});
+
+test('hovering a bin beside the break still shows the range of the bin', () => {
+  const { container } = renderBreakGraph();
+  fireEvent.pointerMove(container.querySelector('svg')!, { clientX: 0, buttons: 0 });
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    asRendered(formatBinRange({ ...breakTimeline.bins[0]!, binMs: breakTimeline.binMs, timeZone: UTC_TIME_ZONE })),
+  );
+});

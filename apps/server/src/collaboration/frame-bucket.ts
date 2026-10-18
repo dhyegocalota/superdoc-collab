@@ -1,3 +1,4 @@
+import { MessageType } from '@hocuspocus/server';
 import type { RawData } from 'ws';
 
 export enum FrameBucket {
@@ -5,7 +6,6 @@ export enum FrameBucket {
   Awareness = 'awareness',
 }
 
-const AWARENESS_MESSAGE_TYPE = 1;
 const VARINT_CONTINUATION_BIT = 0x80;
 const VARINT_PAYLOAD_MASK = 0x7f;
 const VARINT_BITS_PER_BYTE = 7;
@@ -36,6 +36,6 @@ export function frameBucketOf(frame: RawData): FrameBucket {
   if (roomNameLength === null) return FrameBucket.Updates;
   const messageType = readVarUint({ bytes, offset: roomNameLength.next + roomNameLength.value });
   if (messageType === null) return FrameBucket.Updates;
-  if (messageType.value === AWARENESS_MESSAGE_TYPE) return FrameBucket.Awareness;
+  if (messageType.value === MessageType.Awareness) return FrameBucket.Awareness;
   return FrameBucket.Updates;
 }

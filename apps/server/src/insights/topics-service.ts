@@ -72,8 +72,8 @@ export class TopicsService {
 
   async regroup(documentId: string): Promise<void> {
     const key = topicsKey(documentId);
-    if (!this.jobRunner.isRunning(key)) this.start({ documentId, isRegroup: true });
-    await this.jobRunner.settled(key);
+    if (this.jobRunner.isRunning(key)) return this.jobRunner.settled(key);
+    await this.compute({ documentId, isRegroup: true });
   }
 
   onTimelineRead(documentId: string): void {

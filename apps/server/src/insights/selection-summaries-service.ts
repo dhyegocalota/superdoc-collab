@@ -129,9 +129,12 @@ export class SelectionSummariesService {
     this.steps.set(documentId, step);
   }
 
-  setGroupingFailure({ documentId, hasFailed }: { documentId: string; hasFailed: boolean }): void {
-    if (hasFailed) this.failures.set(documentId, GROUPING_FAILED_MESSAGE);
-    else this.failures.delete(documentId);
+  markGroupingFailed(documentId: string): void {
+    this.failures.set(documentId, GROUPING_FAILED_MESSAGE);
+  }
+
+  clearGroupingFailure(documentId: string): void {
+    this.failures.delete(documentId);
   }
 
   forget(documentId: string): void {

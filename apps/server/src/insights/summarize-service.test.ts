@@ -125,13 +125,14 @@ test('the summary-only scope writes the summary and leaves stale topics and sent
 
 test('a failed regroup keeps the previous ready topics', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  const { server, documentId, client, summarize } = await documentWithTopics({
+  const { server, documentId, client, model, summarize } = await documentWithTopics({
     isFresh: false,
     modelFor: () => failingModel(new Error('provider exploded')),
   });
   const before = server.services.insightsRepository.topics(documentId);
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
+  expect(modelCallsOf(model)).toEqual([ModelCall.Topics]);
   expect(server.services.insightsRepository.topics(documentId)).toEqual(before);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({
     state: TopicState.Failed,
@@ -142,6 +143,19 @@ test('a failed regroup keeps the previous ready topics', async () => {
     failure: GROUPING_FAILED_MESSAGE,
     step: SummarizeStep.Idle,
   });
+  client.close();
+  await server.stop();
+});
+
+test('a Summarize with a regroup holds one process-wide slot', async () => {
+  const { server, documentId, client, model, summarize } = await documentWithTopics({ isFresh: false, modelFor: modelAnsweringWith });
+  const { jobRunner } = server.services.insights;
+  summarize.request({ documentId, selection: SELECTION });
+  expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(true);
+  expect(jobRunner.isRunning(`topics:${documentId}`)).toBe(false);
+  await jobRunner.idle();
+  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
   client.close();
   await server.stop();
 });

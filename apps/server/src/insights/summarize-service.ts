@@ -72,11 +72,12 @@ export class SummarizeService {
     return { outcome: SummarizeRefusal.Busy, retryAfterSeconds: secondsRoundedUp(waitMs) };
   }
 
-  private async regroup(documentId: string): Promise<void> {
+  private async regroup(documentId: string): Promise<boolean> {
     this.selection.setStep({ documentId, step: SummarizeStep.Grouping });
     await this.topics.regroup(documentId);
     const hasFailed = this.topics.status(documentId).state === TopicState.Failed;
-    this.selection.setGroupingFailure({ documentId, hasFailed });
+    if (hasFailed) this.selection.markGroupingFailed(documentId);
+    return hasFailed;
   }
 
   private async run({
@@ -86,9 +87,10 @@ export class SummarizeService {
     isFull,
   }: SummarizeRequest & { needsRegroup: boolean; isFull: boolean }): Promise<void> {
     this.selection.cooldown.start(documentId);
-    this.selection.setGroupingFailure({ documentId, hasFailed: false });
+    this.selection.clearGroupingFailure(documentId);
     try {
-      if (needsRegroup) await this.regroup(documentId);
+      const hasRegroupFailed = needsRegroup && (await this.regroup(documentId));
+      if (hasRegroupFailed) return;
       this.selection.setStep({ documentId, step: SummarizeStep.Summarizing });
       await this.selection.write({ documentId, selection });
       if (isFull) await this.summaries.rewriteStale(documentId);

@@ -1,6 +1,13 @@
-import { HOUR_MS, MINUTE_MS, SECOND_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { DAY_MS, HOUR_MS, MINUTE_MS, SECOND_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { formatBinMoment, formatBinRange, formatTimestamp, formatTimeZoneOffset, formatVersionMoment } from './format-date-time';
+import {
+  formatBinMoment,
+  formatBinRange,
+  formatIdleDuration,
+  formatTimestamp,
+  formatTimeZoneOffset,
+  formatVersionMoment,
+} from './format-date-time';
 
 const SAO_PAULO = 'America/Sao_Paulo';
 const LISBON = 'Europe/Lisbon';
@@ -93,4 +100,16 @@ test.each([
   { time: MIDNIGHT_UTC, timeZone: KIRITIMATI, offset: 'UTC+14:00' },
 ])('the offset of $timeZone at the instant reads $offset', ({ time, timeZone, offset }) => {
   expect(formatTimeZoneOffset({ time, timeZone })).toBe(offset);
+});
+
+test.each([
+  { durationMs: 410 * SECOND_MS, label: '7 minutes' },
+  { durationMs: MINUTE_MS, label: '1 minute' },
+  { durationMs: 59 * MINUTE_MS, label: '59 minutes' },
+  { durationMs: 59.5 * MINUTE_MS, label: '1 hour' },
+  { durationMs: 2 * HOUR_MS, label: '2 hours' },
+  { durationMs: 23.6 * HOUR_MS, label: '24 hours' },
+  { durationMs: 2 * DAY_MS, label: '2 days' },
+])('an idle stretch of $durationMs ms reads $label', ({ durationMs, label }) => {
+  expect(formatIdleDuration({ durationMs })).toBe(label);
 });

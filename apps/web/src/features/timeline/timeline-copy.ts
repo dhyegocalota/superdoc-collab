@@ -11,6 +11,8 @@ export const REMOVE_FILTER_LABEL = 'Remove filter';
 export const TOP_EDITS_LABEL = 'Top edits';
 export const NO_EDITS_YET_MESSAGE = 'No edits yet';
 export const NO_EDITS_IN_BIN_MESSAGE = 'No edits in this period';
+export const NO_EDITS_FOR_LABEL = 'No edits for';
+export const IDLE_BREAKS_DESCRIPTION = 'Long stretches without edits are shortened.';
 export const STREAMGRAPH_TITLE = 'Edits over time by topic';
 export const BACK_TO_LIVE_LABEL = 'Back to live';
 export const LOADING_VERSION_MESSAGE = 'Loading this version…';
@@ -73,8 +75,24 @@ export function bandAriaLabel({ name, volume }: { name: string; volume: number }
   return `${name}, ${countLabel({ count: volume, unit: EditUnit.Character })}`;
 }
 
-export function streamgraphDescription({ bandCount, from, to }: { bandCount: number; from: string; to: string }): string {
-  return `${bandCount} bands, from ${from} to ${to}`;
+export function streamgraphDescription({
+  bandCount,
+  from,
+  to,
+  hasIdleBreaks,
+}: {
+  bandCount: number;
+  from: string;
+  to: string;
+  hasIdleBreaks: boolean;
+}): string {
+  const range = `${bandCount} bands, from ${from} to ${to}`;
+  if (!hasIdleBreaks) return range;
+  return `${range}. ${IDLE_BREAKS_DESCRIPTION}`;
+}
+
+export function noEditsForLabel({ duration }: { duration: string }): string {
+  return `${NO_EDITS_FOR_LABEL} ${duration}`;
 }
 
 export function removeFilterLabel(value: string): string {

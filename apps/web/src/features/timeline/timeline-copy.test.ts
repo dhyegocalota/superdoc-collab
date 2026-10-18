@@ -8,8 +8,10 @@ import {
   EditUnit,
   importedAuthorLabel,
   LOADING_TIMELINE_LABEL,
+  noEditsForLabel,
   PANEL_POSITION_LABELS,
   SHOWING_WHOLE_DOCUMENT_MESSAGE,
+  streamgraphDescription,
   topicCountLabel,
   VIEW_VERSION_LABEL,
 } from './timeline-copy';
@@ -51,4 +53,16 @@ test('the selected header copy reads the whole document, names the version butto
   expect(CLEAR_SELECTION_LABEL).toBe('Clear selection');
   expect(VIEW_VERSION_LABEL).toBe('View version');
   expect(LOADING_TIMELINE_LABEL).toBe('Loading the timeline');
+});
+
+test('a break names how long there were no edits', () => {
+  expect(noEditsForLabel({ duration: '7 minutes' })).toBe('No edits for 7 minutes');
+});
+
+test('the description says long stretches are shortened only when the chart has a break', () => {
+  const plain = streamgraphDescription({ bandCount: 3, from: 'a', to: 'b', hasIdleBreaks: false });
+  const shortened = streamgraphDescription({ bandCount: 3, from: 'a', to: 'b', hasIdleBreaks: true });
+  expect(plain).toBe('3 bands, from a to b');
+  expect(shortened.startsWith(plain)).toBe(true);
+  expect(shortened.endsWith('Long stretches without edits are shortened.')).toBe(true);
 });

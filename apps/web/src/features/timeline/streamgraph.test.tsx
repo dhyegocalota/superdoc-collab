@@ -1,9 +1,10 @@
-import { AgentActionKind, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { AgentActionKind, MINUTE_MS, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
+import { layoutStreamgraph } from './streamgraph-layout';
 import {
   AGENT_ACTION_LABELS,
   AGENT_LEGEND_LABEL,
@@ -493,4 +494,122 @@ test('the bins are labelled in the zone the timeline was built in, not the curre
   render(<Streamgraph timeline={saoPaulo} {...props} />);
   const first = saoPaulo.bins[0]!;
   expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();
+});
+
+const EDGE_BINS = 4;
+const SILENT_BINS = 6;
+const SILENCE_FIRST = EDGE_BINS;
+const AFTER_SILENCE = EDGE_BINS + SILENT_BINS;
+const LAST_BIN = 2 * EDGE_BINS + SILENT_BINS - 1;
+const silentTimeline = timelineWith({
+  volumes: [
+    ...Array.from({ length: EDGE_BINS }, () => [100, 20]),
+    ...Array.from({ length: SILENT_BINS }, () => [0, 0]),
+    ...Array.from({ length: EDGE_BINS }, () => [100, 20]),
+  ],
+  names: ['Budget', 'Hiring'],
+});
+const breakTimeline = {
+  ...silentTimeline,
+  agentActions: [
+    {
+      authorKey: FIXTURE_AGENT_AUTHOR_KEY,
+      kind: AgentActionKind.DocumentExported,
+      createdAt: silentTimeline.bins[0]!.start + (SILENCE_FIRST + 2) * MINUTE_MS,
+    },
+  ],
+};
+const breakColumn = layoutStreamgraph({ timeline: breakTimeline, width: WIDTH }).breaks[0]!;
+
+function renderBreakGraph({ selectedIndex = null }: { selectedIndex?: number | null } = {}) {
+  const onSelectIndex = vi.fn();
+  const view = render(
+    <Streamgraph
+      timeline={breakTimeline}
+      width={WIDTH}
+      selectedIndex={selectedIndex}
+      highlightedBandId={null}
+      onSelectIndex={onSelectIndex}
+      isLoadingVersion={false}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  const focusableBand = view.container.querySelector('path[tabindex="0"]')!;
+  return { ...view, onSelectIndex, focusableBand };
+}
+
+test('a break is one dashed divider hidden from assistive technology', () => {
+  const { container } = renderBreakGraph();
+  const dividers = container.querySelectorAll('line[stroke-dasharray]');
+  expect(dividers).toHaveLength(1);
+  const [divider] = dividers;
+  expect(divider).toHaveAttribute('aria-hidden', 'true');
+  expect(divider!.getAttribute('class')).toContain('stroke-');
+  expect(divider!.outerHTML).not.toMatch(/#[0-9a-f]{3,8}/i);
+  expect(Number(divider!.getAttribute('x1'))).toBeCloseTo(breakColumn.centerX);
+});
+
+test('a chart without a break has no divider', () => {
+  const { container } = renderGraph();
+  expect(container.querySelectorAll('line[stroke-dasharray]')).toHaveLength(0);
+});
+
+test('the description says long stretches are shortened only when a break is drawn', () => {
+  const withBreak = renderBreakGraph();
+  expect(withBreak.container.querySelector('desc')!.textContent).toContain('Long stretches without edits are shortened.');
+  withBreak.unmount();
+  const withoutBreak = renderGraph();
+  expect(withoutBreak.container.querySelector('desc')!.textContent).not.toContain('shortened');
+});
+
+test('hovering a break names how long there were no edits and shows no bin range', () => {
+  const { container } = renderBreakGraph();
+  fireEvent.pointerMove(container.querySelector('svg')!, { clientX: breakColumn.centerX, buttons: 0 });
+  const tooltip = screen.getByRole('tooltip');
+  expect(tooltip).toHaveTextContent('No edits for 6 minutes');
+  expect(tooltip).not.toHaveTextContent('Budget');
+  expect(tooltip).not.toHaveTextContent(
+    asRendered(formatBinRange({ ...breakTimeline.bins[AFTER_SILENCE]!, binMs: breakTimeline.binMs, timeZone: UTC_TIME_ZONE })),
+  );
+});
+
+test('hovering a bin beside the break still shows the range of the bin', () => {
+  const { container } = renderBreakGraph();
+  fireEvent.pointerMove(container.querySelector('svg')!, { clientX: 0, buttons: 0 });
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    asRendered(formatBinRange({ ...breakTimeline.bins[0]!, binMs: breakTimeline.binMs, timeZone: UTC_TIME_ZONE })),
+  );
+});
+
+test('pressing inside the break column selects the first bin after it', () => {
+  const { container, onSelectIndex } = renderBreakGraph();
+  fireEvent.pointerDown(container.querySelector('svg')!, { clientX: breakColumn.centerX, buttons: 1 });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(AFTER_SILENCE);
+});
+
+test.each([
+  { key: 'ArrowRight', from: SILENCE_FIRST - 1, to: AFTER_SILENCE },
+  { key: 'ArrowLeft', from: AFTER_SILENCE, to: SILENCE_FIRST - 1 },
+  { key: 'ArrowLeft', from: SILENCE_FIRST + 2, to: SILENCE_FIRST - 1 },
+  { key: 'ArrowRight', from: SILENCE_FIRST + 2, to: AFTER_SILENCE },
+  { key: 'ArrowRight', from: 0, to: 1 },
+  { key: 'ArrowLeft', from: AFTER_SILENCE + 1, to: AFTER_SILENCE },
+  { key: 'Home', from: AFTER_SILENCE, to: 0 },
+  { key: 'End', from: 0, to: LAST_BIN },
+])('$key from bin $from selects bin $to across a break', ({ key, from, to }) => {
+  const { focusableBand, onSelectIndex } = renderBreakGraph({ selectedIndex: from });
+  fireEvent.keyDown(focusableBand, { key });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(to);
+});
+
+test('an agent action inside the break is drawn at the column centre', () => {
+  renderBreakGraph();
+  const mark = screen.getByRole('img', {
+    name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: AgentActionKind.DocumentExported }),
+  });
+  expect(parseFloat(mark.style.left)).toBeCloseTo(breakColumn.centerX);
+  fireEvent.pointerEnter(mark);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    `${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[AgentActionKind.DocumentExported]}`,
+  );
 });

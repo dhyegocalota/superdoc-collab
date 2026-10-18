@@ -598,3 +598,15 @@ test.each([
   fireEvent.keyDown(focusableBand, { key });
   expect(onSelectIndex).toHaveBeenLastCalledWith(to);
 });
+
+test('an agent action inside the break is drawn at the column centre', () => {
+  renderBreakGraph();
+  const mark = screen.getByRole('img', {
+    name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: AgentActionKind.DocumentExported }),
+  });
+  expect(parseFloat(mark.style.left)).toBeCloseTo(breakColumn.centerX);
+  fireEvent.pointerEnter(mark);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(
+    `${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[AgentActionKind.DocumentExported]}`,
+  );
+});

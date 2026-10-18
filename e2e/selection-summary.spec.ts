@@ -1,5 +1,10 @@
 import { SELECTION_SUMMARY_FAILED_MESSAGE } from '../libs/types/src';
-import { EARLIER_STATE_LABEL, RETRY_SUMMARY_LABEL, SUMMARY_UP_TO_DATE_MESSAGE } from '../apps/web/src/features/timeline/timeline-copy';
+import {
+  EARLIER_STATE_LABEL,
+  RETRY_SUMMARY_LABEL,
+  SUMMARY_UP_TO_DATE_MESSAGE,
+  TOPICS_GROUPED_LABEL,
+} from '../apps/web/src/features/timeline/timeline-copy';
 import { insertedBy, insertInParagraph, readEvents, typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
 import {
@@ -44,6 +49,7 @@ test('another member with the same filter reads the cached summary without a mod
   await filterBy({ page: ana.page, text: BRUNO_FILTER });
   await summarizeButton(ana.page).click();
   await expect(summaryCard(ana.page)).toContainText(`${BRUNO} edited`, { timeout: SUMMARY_TIMEOUT_MS });
+  await expect(summaryCard(ana.page)).not.toContainText(TOPICS_GROUPED_LABEL);
   const sentence = await summaryCard(ana.page).locator('p').first().innerText();
   const callsAfterSummary = await readSelectionCalls(ana.page.request);
   await bruno.page.goto(ana.page.url());

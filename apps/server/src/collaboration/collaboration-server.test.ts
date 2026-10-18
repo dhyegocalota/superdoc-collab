@@ -6,6 +6,7 @@ import {
   OPEN_UNCOMMITTED_PER_MINUTE,
   RoomMode,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
+  SUPERSEDED_ATTEMPT_REASON,
 } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
@@ -188,6 +189,45 @@ describe('collaboration takeover and the committed room', () => {
 function roomsUnloaded(server: TestServer): boolean {
   return server.services.hocuspocus.documents.size === 0;
 }
+
+describe('collaboration holder reopening', () => {
+  test('the holder opening twice gets a new attempt, the first socket gets 4403 and only the second writes', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const first = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    const second = server.services.runtime.reserveCreator({ documentId, userId: owner.id })!;
+    expect(second.attempt).toBe(2);
+    expect(await first.closed).toEqual({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
+    const staleContext = contextOf({ userId: owner.id, documentId, attempt: 1, epoch: second.epoch });
+    await sendChange({ server, context: staleContext, ...updateWith({ committed: false }) });
+    expect(loggedRows({ server, documentId })).toHaveLength(0);
+    const next = await connectToDocument({ server, cookie: owner.cookie, documentId, ticket: second });
+    next.document.getText('t').insert(0, 'from the second tab');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBe(1);
+    next.close();
+    await server.stop();
+  });
+  test('a reload in the middle of the create ends with one committed bootstrap and no partial', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const half = await connectToDocument({ server, cookie: owner.cookie, documentId });
+    half.document.getText('t').insert(0, 'half of the seed');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
+    const reloaded = server.services.runtime.reserveCreator({ documentId, userId: owner.id })!;
+    await half.closed;
+    await expect.poll(() => roomsUnloaded(server)).toBe(true);
+    const winner = await connectToDocument({ server, cookie: owner.cookie, documentId, ticket: reloaded });
+    writeStory({ document: winner.document, texts: ['committed story'] });
+    markBootstrapCommitted(winner.document);
+    await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    const { updateLog } = server.services;
+    const firstSnapshot = updateLog.snapshotAfter({ documentName: documentId, afterSequence: 0 })!;
+    expect(updateLog.snapshotAfter({ documentName: documentId, afterSequence: firstSnapshot.sequence })).toBeNull();
+    const restored = new Y.Doc();
+    Y.applyUpdate(restored, firstSnapshot.state);
+    expect(restored.getText('t').toString()).not.toContain('half of the seed');
+    winner.close();
+    await server.stop();
+  });
+});
 
 describe('collaboration room lifecycle', () => {
   test('the next attempt starts from an empty room after the creator closes its tab', async () => {

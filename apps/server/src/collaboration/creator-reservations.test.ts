@@ -51,15 +51,20 @@ const SCENARIOS: Scenario[] = [
     expected: undefined,
   },
   {
-    name: "keeps the holder's attempt on a second open without extending the expiry",
-    act: ({ reserveAs, advance }) => {
+    name: "supersedes the holder's own attempt on a second open and still refuses a second editor",
+    act: ({ reservations, reserveAs, mayWrite, advance }) => {
       reserveAs(FIRST_EDITOR);
       advance(HALF_RESERVATION_MS);
       const reopened = reserveAs(FIRST_EDITOR);
-      advance(HALF_RESERVATION_MS + SECOND_MS);
-      return [reopened, reserveAs(SECOND_EDITOR)];
+      return [
+        reopened,
+        mayWrite({ attempt: FIRST_ATTEMPT }),
+        mayWrite({ attempt: SECOND_ATTEMPT }),
+        reserveAs(SECOND_EDITOR),
+        reservations.attemptOf({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR }),
+      ];
     },
-    expected: [FIRST_ATTEMPT, SECOND_ATTEMPT],
+    expected: [SECOND_ATTEMPT, false, true, undefined, SECOND_ATTEMPT],
   },
   {
     name: 'passes an expired reservation to the next editor with the next attempt',

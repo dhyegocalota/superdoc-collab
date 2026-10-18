@@ -526,14 +526,16 @@ test('a loading version dims the editor area and shows a progress line under the
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const banner = await screen.findByTestId('version-banner');
   const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
-  expect(screen.getByTestId('editor-area')).toHaveClass('opacity-60');
+  expect(screen.getByTestId('editor-surface')).toHaveClass('opacity-60');
+  expect(screen.getByTestId('editor-area')).not.toHaveClass('opacity-60');
+  expect(banner.closest('.opacity-60')).toBeNull();
   expect(progress).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
   expect(banner.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const frame = await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT);
   expect(screen.getByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeInTheDocument();
   sendFromFrame({ frame: frame as HTMLIFrameElement });
   await waitFor(() => expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull());
-  expect(screen.getByTestId('editor-area')).not.toHaveClass('opacity-60');
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass('opacity-60');
 });
 
 test('below lg a pointer tap during a load is ignored', async () => {
@@ -568,12 +570,14 @@ test('an at with no version never locks the chart', async () => {
   expect(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })).toBeEnabled();
 });
 
-test('below lg the version bar is pinned above the editor with a 44 px button', async () => {
+test('below lg the version bar sits before the layout, outside the shared scroller, with a 44 px button', async () => {
   stubViewportWidth(NARROW_VIEWPORT_WIDTH);
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const banner = await screen.findByTestId('version-banner');
-  expect(banner).toHaveClass('sticky', 'top-0', 'min-h-11');
+  const layout = screen.getByTestId('editor-area').parentElement!;
+  expect(layout).not.toContainElement(banner);
+  expect(banner.compareDocumentPosition(layout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'touch');
 });
 
@@ -582,6 +586,6 @@ test('from lg the version bar keeps its place and its small button', async () =>
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const banner = await screen.findByTestId('version-banner');
-  expect(banner).not.toHaveClass('sticky');
+  expect(screen.getByTestId('editor-area')).toContainElement(banner);
   expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'sm');
 });

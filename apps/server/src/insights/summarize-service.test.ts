@@ -102,6 +102,27 @@ test('regroups only when topics failed or are older than the newest edit, then s
   await server.stop();
 });
 
+test('an edit after a Summarize and the automatic topics recompute never spend another selection call', async () => {
+  const { server, documentId, owner, client, model, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: modelAnsweringWith,
+  });
+  summarize.request({ documentId, selection: SELECTION });
+  await server.services.insights.jobRunner.idle();
+  writeStory({ document: client.document, texts: ['Budget up again', 'Hiring up'] });
+  await expect
+    .poll(async () => (await readEvents({ server, cookie: owner.cookie, documentId })).map((event) => event.inserted), {
+      timeout: POLL_TIMEOUT_MS,
+    })
+    .toEqual(expect.arrayContaining([' again']));
+  server.services.insights.topics.onTimelineRead(documentId);
+  server.services.insights.topics.ensure(documentId);
+  await server.services.insights.jobRunner.idle();
+  expect(modelCallsOf(model).filter((call) => call === ModelCall.Summary)).toHaveLength(1);
+  client.close();
+  await server.stop();
+});
+
 test('fresh topics are not regrouped', async () => {
   const { server, documentId, client, model, summarize } = await documentWithTopics({ isFresh: true, modelFor: modelAnsweringWith });
   summarize.request({ documentId, selection: SELECTION });

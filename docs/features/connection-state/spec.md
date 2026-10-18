@@ -105,6 +105,7 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 
 ## Failure handling
 
+- The connection fails before the first sync (a removed session or a restart during a create): the open itself fails, SuperDoc reports a fatal exception and the page shows its own failure notice with Reload; the banner applies to a connection that reached its first sync. Decided by the lead on 2026-10-17 after the tester's Create-mode walk.
 - The members poll fails while Lost: the flag becomes `null`, the banner keeps its state, and the previous answer is never reused.
 - A callback arrives after unmount or after Reload: the `isActive` guard drops it.
 - Two callbacks in one tick: they fold in arrival order, and Failed is sticky.

@@ -9,6 +9,7 @@ import { TopicSwatch } from './topic-swatch';
 import { useTimelineSearch } from './use-timeline-search';
 
 const MAX_BAR_CHIPS = 3;
+export const TIMELINE_COLLAPSED_BAR_TEST_ID = 'timeline-collapsed-bar';
 
 export function TimelineCollapsedBar({ timeline, onExpand }: { timeline: DocumentTimeline | undefined; onExpand: () => void }) {
   const { update } = useTimelineSearch();

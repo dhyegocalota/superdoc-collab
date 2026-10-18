@@ -312,6 +312,7 @@ test('creating fetches the stored download and a reader gets the viewing mode', 
 });
 
 test('a rejected file fetch shows the load error instead of an empty pane', async () => {
+  matchMediaAlwaysMatching();
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner), downloadStatus: HttpStatus.NotFound });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_LOAD_ERROR_MESSAGE);
@@ -400,6 +401,7 @@ test('a members 404 after the editor mounted shows the unavailable message, dest
 });
 
 test('the header download exports the live document and a reader can use it', async () => {
+  matchMediaAlwaysMatching();
   mockDocumentApi({ opened: openedAs(DocumentRole.Reader, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
@@ -409,6 +411,7 @@ test('the header download exports the live document and a reader can use it', as
 });
 
 test('a failed export shows an alert instead of an unhandled rejection', async () => {
+  matchMediaAlwaysMatching();
   superDocExport.mockRejectedValueOnce(new Error('export boom'));
   mockDocumentApi({ opened: openedAs(DocumentRole.Editor, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
@@ -521,14 +524,24 @@ test('an editor gets the toolbar container of the row and a reader gets none', a
   expect(screen.queryByTestId('toolbar-container')).toBeNull();
 });
 
-test('while the editor is mounted but not ready, Download and its More actions items are described by the loading reason', async () => {
+test('while the editor is mounted but not ready, the Download button is described by the loading reason', async () => {
+  SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
+    return { destroy: superDocDestroy, export: superDocExport };
+  });
+  matchMediaAlwaysMatching();
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toHaveAccessibleDescription(LOADING_DOCUMENT_MESSAGE);
+});
+
+test('while the editor is mounted but not ready, the More actions download items are described by the loading reason', async () => {
   SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
     return { destroy: superDocDestroy, export: superDocExport };
   });
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  expect(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toHaveAccessibleDescription(LOADING_DOCUMENT_MESSAGE);
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   expect(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toHaveAccessibleDescription(LOADING_DOCUMENT_MESSAGE);
 });

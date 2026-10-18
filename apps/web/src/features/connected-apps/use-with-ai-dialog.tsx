@@ -1,6 +1,6 @@
 import { AppRoute } from '@superdoc-collab/types';
 import { Bot } from 'lucide-react';
-import type { ReactNode, RefObject } from 'react';
+import type { RefObject } from 'react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,9 +35,21 @@ function promptsFor({ title, canEdit }: { title: string | null; canEdit: boolean
   return documentPrompts({ title, canEdit });
 }
 
-export type UseWithAiSlot = { trigger?: ReactNode; returnFocusRef?: RefObject<HTMLElement | null> };
+export type UseWithAiSlot = {
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+};
 
-export function UseWithAiDialog({ title, canEdit, trigger, returnFocusRef }: UseWithAiSlot & { title: string | null; canEdit: boolean }) {
+export function UseWithAiDialog({
+  title,
+  canEdit,
+  isOpen,
+  onOpenChange,
+  returnFocusRef,
+}: UseWithAiSlot & { title: string | null; canEdit: boolean }) {
+  const isControlled = isOpen !== undefined;
+
   function returnFocus(event: Event): void {
     if (!returnFocusRef) return;
     event.preventDefault();
@@ -45,17 +57,15 @@ export function UseWithAiDialog({ title, canEdit, trigger, returnFocusRef }: Use
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        {trigger ? (
-          trigger
-        ) : (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
           <Button variant="outline">
             <Bot aria-hidden />
             {USE_WITH_AI_LABEL}
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent className={DIALOG_CLASS_NAME} onCloseAutoFocus={returnFocus}>
         <DialogHeader>
           <DialogTitle>{USE_WITH_AI_TITLE}</DialogTitle>

@@ -6,15 +6,15 @@ import { FIND_IN_DOCUMENT_LABEL } from './editor-copy';
 
 const SEARCH_OPEN_EVENT = 'search:open';
 
-export function FindButton({ superdoc }: { superdoc: SuperDoc | null }) {
-  function openFind(): void {
-    superdoc?.emit(SEARCH_OPEN_EVENT);
-  }
+export function openFindBar(superdoc: SuperDoc | null): void {
+  superdoc?.emit(SEARCH_OPEN_EVENT);
+}
 
+export function FindButton({ superdoc }: { superdoc: SuperDoc | null }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={FIND_IN_DOCUMENT_LABEL} onClick={openFind}>
+        <Button variant="ghost" size="icon" aria-label={FIND_IN_DOCUMENT_LABEL} onClick={() => openFindBar(superdoc)}>
           <Search aria-hidden />
         </Button>
       </TooltipTrigger>

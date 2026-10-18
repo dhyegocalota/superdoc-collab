@@ -22,7 +22,7 @@ export function DownloadMenu({ isDisabled, onDownload }: { isDisabled: boolean; 
   const reasonId = isDisabled ? LOADING_DOCUMENT_REASON_ID : undefined;
 
   return (
-    <div className="hidden items-center sm:flex">
+    <div className="flex items-center">
       <Button
         variant="outline"
         className="rounded-r-none"

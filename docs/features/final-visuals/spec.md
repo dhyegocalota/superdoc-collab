@@ -16,7 +16,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 
 | Ask | Goal |
 |---|---|
-| A1 | One top bar on every signed-in page holds the brand link, the title (editor), members, Find, Use with AI, Share, Download, More actions and the account menu. Below `sm`, the secondary actions fold into More actions. |
+| A1 | One top bar on every signed-in page holds the brand link, the title (editor), members, Find, Use with AI, Share, Download, More actions and the account menu. Below `lg` (1024 px), Find, Use with AI and Download fold into More actions, and below `sm` Members hide too. |
 | A2 | The Edits panel opens at the bottom by default, and at the side from the wide breakpoint when no position is stored. |
 | A3 | A toolbar row under the top bar holds SuperDoc's trimmed toolbar and the Summarize edits button. |
 | A4 | The brand link on every page opens the documents list. |
@@ -107,7 +107,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 - `ui.search: true`, so Cmd+F and Ctrl+F open the Find bar.
 - `zoom: { mode: 'fit-width', fitWidth: { max: 100 } }` at every width. This replaces the viewport switch of refinement-ux-care for the editor; the lead reconciles the two specs. A zoom change made from the toolbar's menu is left alone.
 - `user.color` and `colors`, from data flow 4.
-- `inert` on the toolbar container while a past version is shown. The Summarize button sits outside that container and stays live.
+- `inert` on the toolbar container while a past version is shown or the connection has failed (`isEditingSurfaceInert`, shared with the editor). The Summarize button sits outside that container: it stays live in a past version (it summarizes the moment on screen) and the whole row, Summarize included, is inert while the connection has failed (`isRowInert`).
 - `superdoc-editor.tsx` replaces `[&_.superdoc-page]:bg-background` with `bg-paper`, so the page stays white in dark mode (decision 7.8).
 - The print view alone sets `layoutEngineOptions.virtualization.enabled: false` (data flow 7).
 
@@ -178,7 +178,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 | `features/editor/document-title.tsx` | New. Replaces `TitleInput`. |
 | `features/editor/download-menu.tsx`, `features/editor/download-format.ts` | New. `DownloadFormat` (`Docx`, `Pdf`). |
 | `features/editor/find-button.tsx` | New. Opens the Find bar, or falls back to the toolbar item (option 6.4). |
-| `features/editor/editor-toolbar-row.tsx` | New. Toolbar container (`inert` in a past version) and the Summarize button, which takes `summarize` from `document-page.tsx`. 40 px high (`h-10`, border included), absent for readers. |
+| `features/editor/editor-toolbar-row.tsx` | New. Toolbar container (`inert` in a past version or on a failed connection) and the Summarize button, which takes `summarize` from `document-page.tsx`; the row itself is `inert` on a failed connection (`isRowInert`). 40 px high (`h-10`, border included), absent for readers. |
 | `features/editor/waiting-for-document.tsx` | New. Ask 13. |
 | `features/editor/use-member-cursors.ts` | New. Awareness positions by user id, through the spike's route. |
 | `features/editor/members.tsx` | Jump buttons or `aria-disabled` buttons with a reason. Takes `superdoc` and `isPastVersion`. Above five members, a "+N" menu. |

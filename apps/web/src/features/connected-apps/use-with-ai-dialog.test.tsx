@@ -1,7 +1,8 @@
 import { ApiPath, AppRoute } from '@superdoc-collab/types';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, test } from 'vitest';
+import { createRef } from 'react';
+import { expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   CHATGPT_INSTRUCTION,
@@ -88,9 +89,19 @@ test('Escape closes the dialog and returns focus to the trigger', async () => {
   expect(screen.getByRole('button', { name: USE_WITH_AI_LABEL })).toHaveFocus();
 });
 
-test('a given trigger replaces the default button', async () => {
-  renderWithProviders(<UseWithAiDialog title={TITLE} canEdit trigger={<button type="button">Open assistant</button>} />);
+test('a controlled dialog has no trigger, follows isOpen and returns focus to the given element', async () => {
+  const returnFocusRef = createRef<HTMLButtonElement>();
+  const onOpenChange = vi.fn();
+  renderWithProviders(
+    <>
+      <button ref={returnFocusRef} type="button">
+        Elsewhere
+      </button>
+      <UseWithAiDialog title={TITLE} canEdit isOpen onOpenChange={onOpenChange} returnFocusRef={returnFocusRef} />
+    </>,
+  );
   expect(screen.queryByRole('button', { name: USE_WITH_AI_LABEL })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Open assistant' }));
   expect(await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE })).toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  expect(onOpenChange).toHaveBeenCalledWith(false);
 });

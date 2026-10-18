@@ -1,6 +1,7 @@
 # Ordinary typing closes the collaboration socket with 1008 "Too many messages per second"
 
 - Date: 2026-10-18
+- Revisited: 2026-10-18 — still true for update frames; the single cap of 1000 then broke on the awareness flush at the end of typing, so awareness has its own bucket (see the provider-defers-awareness learning)
 - Inspired by: the server line "Collaboration socket closed for sending too many messages" in every E2E stack, and [ADR 0040](../adr/0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md)
 
 ## Signal

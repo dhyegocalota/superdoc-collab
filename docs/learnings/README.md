@@ -41,6 +41,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-18 | The caret vanishes in dark mode and `caret-color` changes nothing | [2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md](2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md) | 2026-10-18 |
 | 2026-10-18 | One request per E2E run fails with `read ECONNRESET` on a plain GET | [2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md](2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md) | 2026-10-18 |
 | 2026-10-18 | Ordinary typing closes the collaboration socket with 1008 "Too many messages per second" | [2026-10-18-superdoc-v2-sends-six-update-frames-per-keystroke-so-a-120-per-second-socket-cap-trips-at-twenty-keys-per-second.md](2026-10-18-superdoc-v2-sends-six-update-frames-per-keystroke-so-a-120-per-second-socket-cap-trips-at-twenty-keys-per-second.md) | 2026-10-18 |
+| 2026-10-18 | The collaboration socket closes with 1008 right after a long typing run, when the typing stops | [2026-10-18-the-hocuspocus-provider-defers-awareness-and-flushes-it-in-one-burst-at-the-next-pause.md](2026-10-18-the-hocuspocus-provider-defers-awareness-and-flushes-it-in-one-burst-at-the-next-pause.md) | 2026-10-18 |
 
 ### history
 

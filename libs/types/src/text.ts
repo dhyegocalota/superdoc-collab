@@ -4,5 +4,5 @@ export function presentOrNull(value: string | null | undefined): string | null {
 }
 
 export function isBlank(text: string): boolean {
-  throw new Error('isBlank is not implemented');
+  return text.trim() === '';
 }

@@ -15,8 +15,11 @@ import {
 } from '../libs/types/src';
 import {
   acceptShareLink,
+  documentIdOf,
   downloadButton,
+  EDITOR_READY_TIMEOUT_MS,
   editorText,
+  focusEditorAtEnd,
   readEditorText,
   readEvents,
   readShareLinks,
@@ -26,7 +29,7 @@ import {
   uploadSeed,
   insertedBy,
 } from './editor';
-import { ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
+import { NEW_DOCUMENT_LABEL, ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, MORE_ACTIONS_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import { expect, signedInContext, test } from './fixtures';
@@ -45,6 +48,8 @@ const LONG_TITLE_PREFIX =
   'Quarterly operating plan with every regional hiring forecast and the full budget review for each office across the whole company next year';
 const TITLE_LINE_CLAMP = '2';
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
+const FIRST_PARAGRAPH_CLICK_POSITION = { x: 120, y: 120 };
+const TYPED_SENTENCE = 'Typed into a new document.';
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
@@ -208,4 +213,21 @@ test('the list never scrolls sideways at 375 and clamps a long title to two line
   await expect
     .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
     .toBeLessThanOrEqual(0);
+});
+
+test('a new document accepts typing after a click', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await ana.page.getByRole('button', { name: NEW_DOCUMENT_LABEL }).click();
+  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  const documentId = documentIdOf(ana.page.url());
+  await focusEditorAtEnd({ page: ana.page, target: ana.page.locator(PAGE_SELECTOR).first(), position: FIRST_PARAGRAPH_CLICK_POSITION });
+  await ana.page.keyboard.insertText(TYPED_SENTENCE);
+  await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible();
+  await expect
+    .poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: ana.userId }), {
+      timeout: EVENTS_TIMEOUT_MS,
+    })
+    .toBe(TYPED_SENTENCE);
+  await ana.page.reload();
+  await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
 });

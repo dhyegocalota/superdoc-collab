@@ -5,6 +5,7 @@ pnpm-lock.yaml
 .pr-media
 .superpowers
 test-results
+e2e/_*
 *.md
 *.yml
 *.yaml

@@ -1,4 +1,4 @@
-import { SECOND_MS } from '@superdoc-collab/types';
+import { BOOTSTRAP_SCAN_CACHE_ENTRIES, OPEN_UNCOMMITTED_PER_MINUTE, SECOND_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { OpenBudget } from './open-budget';
 
@@ -49,4 +49,8 @@ test('a pair past the window is forgotten at the next record', () => {
   advance(WINDOW_MS + 1);
   budget.record({ userId: USER, documentId: 'b' });
   expect(budget.trackedPairs()).toBe(1);
+});
+
+test('the open budget of a user never exceeds the scan cache, so one user cannot evict every other document', () => {
+  expect(OPEN_UNCOMMITTED_PER_MINUTE).toBeLessThanOrEqual(BOOTSTRAP_SCAN_CACHE_ENTRIES);
 });

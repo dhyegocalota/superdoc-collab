@@ -473,7 +473,14 @@ test('a tooltip for an action that disappears is gone with it', () => {
 
 test('the bins are labelled in the zone the timeline was built in, not the current preference', () => {
   const saoPaulo = timelineWith({ volumes: [[100]], names: ['Budget'], timeZone: SAO_PAULO_TIME_ZONE });
-  const props = { width: WIDTH, selectedIndex: 0, highlightedBandId: null, onSelectIndex: vi.fn(), onClearSelection: vi.fn() };
+  const props = {
+    width: WIDTH,
+    selectedIndex: 0,
+    highlightedBandId: null,
+    isLoadingVersion: false,
+    onSelectIndex: vi.fn(),
+    onClearSelection: vi.fn(),
+  };
   render(<Streamgraph timeline={saoPaulo} {...props} />);
   const first = saoPaulo.bins[0]!;
   expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();

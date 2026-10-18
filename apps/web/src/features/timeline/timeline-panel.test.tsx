@@ -234,7 +234,6 @@ function renderPanel({
       summarize={summarize}
       onOpenChange={onOpenChange}
       pendingVersion={pendingVersion}
-      isLoadingVersion={false}
       onConfirmTravel={onConfirmTravel}
     />,
     { route },
@@ -803,7 +802,9 @@ test('from the large breakpoint there is no header', async () => {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }));
-  onTestFinished(() => vi.stubGlobal('matchMedia', sharedMatchMedia));
+  onTestFinished(() => {
+    vi.stubGlobal('matchMedia', sharedMatchMedia);
+  });
   mockTimelineApi();
   renderPanel({ position: PanelPosition.Bottom });
   await screen.findByLabelText(/^Budget/);

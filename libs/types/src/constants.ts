@@ -16,6 +16,7 @@ export const CREATOR_RESERVATION_MAX_MS = 5 * MINUTE_MS;
 export const SOCKET_CLOSE_GRACE_MS = SECOND_MS;
 export const BOOTSTRAP_SCAN_CACHE_ENTRIES = 32;
 export const OPEN_UNCOMMITTED_PER_MINUTE = 60;
+export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 export const MAX_SOCKET_MESSAGES_PER_SECOND = 120;
 export const POLICY_VIOLATION_CLOSE_CODE = 1008;
 export const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;

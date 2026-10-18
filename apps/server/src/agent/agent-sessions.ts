@@ -65,7 +65,7 @@ export class AgentSessions implements AgentDocumentSessions {
   private readonly client: AgentSessionsClient;
   private readonly issueRoomToken: (options: { userId: string; documentId: string }) => string;
   private readonly collaborationUrl: () => string;
-  private readonly locateRoom: (documentId: string) => LocatedRoom;
+  private readonly locateRoom: (options: { documentId: string; userId: string }) => LocatedRoom;
   private readonly roleOf: RoleOf;
   private readonly now: () => number;
   private readonly maxSessions: number;
@@ -89,7 +89,7 @@ export class AgentSessions implements AgentDocumentSessions {
   }: {
     issueRoomToken: (options: { userId: string; documentId: string }) => string;
     collaborationUrl: () => string;
-    locateRoom: (documentId: string) => LocatedRoom;
+    locateRoom: (options: { documentId: string; userId: string }) => LocatedRoom;
     roleOf: RoleOf;
     now?: () => number;
     tokenLifetimeMs?: number;
@@ -251,7 +251,7 @@ export class AgentSessions implements AgentDocumentSessions {
     role,
     userName,
   }: { person: AgentPerson; documentId: string } & SessionTraits): Promise<OpenedSession> {
-    const { roomMode } = this.locateRoom(documentId);
+    const { roomMode } = this.locateRoom({ documentId, userId: person.userId });
     if (roomMode === RoomMode.Create) throw new AgentToolError({ message: DOCUMENT_NOT_READY_ERROR });
     await this.connected();
     const opening = this.client.open(

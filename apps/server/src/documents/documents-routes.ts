@@ -7,6 +7,7 @@ import {
   HttpStatus,
   MAX_UPLOAD_BYTES,
   NOT_A_DOCX_MESSAGE,
+  OPEN_RATE_LIMITED_MESSAGE,
   RoomMode,
   secondsRoundedUp,
   TITLE_MAX_LENGTH,
@@ -31,7 +32,6 @@ const BLANK_DOCUMENT: SeedParagraph[] = [{ text: '', trackedChanges: [] }];
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const INVALID_TITLE_MESSAGE = 'The title must not be blank';
 const DOCX_EXTENSION_PATTERN = /\.docx$/i;
-const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 const CREATOR_REFUSED_MESSAGE = 'Open refused: no creator ticket for document';
 const MALFORMED_UPLOAD_MESSAGE = 'The upload could not be read';
 const RFC_5987_RESERVED = /['()*]/g;
@@ -55,7 +55,7 @@ function contentDisposition(fileName: string): string {
 }
 
 export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { documents, storage, runtime, openLimits } = services;
+  const { documents, storage, runtime } = services;
   const routes = new Hono<SignedIn>();
 
   async function storeDocument({
@@ -119,20 +119,18 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
-    const isKnownCommitted = runtime.isKnownCommitted(documentId);
-    const waitMs = isKnownCommitted ? null : openLimits.waitMs(userId);
-    if (waitMs !== null) {
+    const answer = runtime.roomModeFor({ documentId, userId });
+    if (answer.isSpent) {
       console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);
       return retryLater({
         context,
         body: { error: OPEN_RATE_LIMITED_MESSAGE },
         status: HttpStatus.TooManyRequests,
-        retryAfterSeconds: secondsRoundedUp(waitMs),
+        retryAfterSeconds: secondsRoundedUp(answer.waitMs),
       });
     }
-    const roomMode = runtime.roomMode(documentId);
+    const { roomMode } = answer;
     if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
-    openLimits.record(userId);
     if (role === DocumentRole.Reader) return notReady({ context, documentId });
     const ticket = runtime.reserveCreator({ documentId, userId });
     if (ticket === null) return notReady({ context, documentId });

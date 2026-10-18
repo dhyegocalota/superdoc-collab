@@ -20,7 +20,6 @@ export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
-  isKnownCommitted: (documentId: string) => boolean;
   reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
   onlineUserIds: (documentId: string) => Set<string>;
   importRevisions: (documentId: string) => void;
@@ -75,7 +74,6 @@ export function createCollaborationRuntime({
       return ticket;
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
-    isKnownCommitted: (documentId) => bootstrap.isKnownCommitted(documentId),
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),

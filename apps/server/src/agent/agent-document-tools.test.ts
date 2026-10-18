@@ -37,7 +37,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Join);
+  vi.spyOn(server.services.runtime, 'roomModeFor').mockReturnValue({ isSpent: false, roomMode: RoomMode.Join });
 });
 
 afterEach(() => {
@@ -126,6 +126,7 @@ test('export_docx returns the live document as an embedded DOCX resource, record
 });
 
 test('export_docx with the open budget spent is refused before any log scan', async () => {
+  vi.restoreAllMocks();
   Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
     server.services.openBudget.record({ userId: reader.id, documentId: `spent-${index}` }),
   );
@@ -207,7 +208,7 @@ test('rotate_share_link with an unknown role is a tool error and rotates nothing
 });
 
 test('export_docx on a room nobody opened returns the stored file without opening a session', async () => {
-  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Create);
+  vi.spyOn(server.services.runtime, 'roomModeFor').mockReturnValue({ isSpent: false, roomMode: RoomMode.Create });
   await server.services.storage.put({ documentId, bytes: DOCX_BYTES });
   const { context, recorded } = toolContext({ server, userId: reader.id });
   const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });

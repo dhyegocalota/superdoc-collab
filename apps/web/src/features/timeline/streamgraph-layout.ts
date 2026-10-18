@@ -33,6 +33,7 @@ export type StreamgraphLayout = {
   shapes: BandShape[];
   breaks: BreakColumn[];
   binX: (index: number) => number;
+  breakAt: (position: number) => BreakColumn | null;
   binAt: (position: number) => number;
   timeX: (time: number) => number;
 };
@@ -230,12 +231,19 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     },
     { shapes: [], placed: [] },
   );
+  function breakAt(position: number): BreakColumn | null {
+    const column = breaks.find((candidate) => position > candidate.left && position < candidate.right);
+    if (!column) return null;
+    return column;
+  }
+
   return {
     shapes,
     breaks,
     binX,
+    breakAt,
     binAt: (position) => {
-      const column = breaks.find((candidate) => position > candidate.left && position < candidate.right);
+      const column = breakAt(position);
       if (column) return column.lastIndex + 1;
       return slots.reduce((nearest, slot) => (Math.abs(slot.x - position) <= Math.abs(nearest.x - position) ? slot : nearest), {
         index: 0,

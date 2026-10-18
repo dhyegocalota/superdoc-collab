@@ -1,9 +1,10 @@
 import { cellVolume } from '@superdoc-collab/history/timeline';
 import type { DocumentTimeline } from '@superdoc-collab/types';
-import { formatBinRange } from '@/lib/format-date-time';
+import type { ReactNode } from 'react';
+import { formatBinRange, formatIdleDuration } from '@/lib/format-date-time';
 import { cn } from '@/lib/utils';
 import { AuthorNames } from './author-names';
-import { editDeltaLabel, EditUnit } from './timeline-copy';
+import { editDeltaLabel, EditUnit, noEditsForLabel } from './timeline-copy';
 
 export const TOOLTIP_WIDTH = 256;
 export const TOOLTIP_POINTER_OFFSET = 12;
@@ -43,6 +44,56 @@ export function tooltipAnchorLeft({ left, chartWidth }: { left: number; chartWid
   return Math.min(Math.max(left, reach), chartWidth - tooltipWidth + reach);
 }
 
+function TooltipBox({
+  id,
+  left,
+  top,
+  chartWidth,
+  children,
+}: {
+  id: string;
+  left: number;
+  top: number;
+  chartWidth: number;
+  children: ReactNode;
+}) {
+  const alignment = tooltipAlignment({ left, chartWidth });
+  return (
+    <div
+      id={id}
+      role="tooltip"
+      data-alignment={alignment}
+      style={{ left: tooltipAnchorLeft({ left, chartWidth }), top, width: tooltipWidthIn(chartWidth) }}
+      className={cn(
+        'pointer-events-none absolute z-10 rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md',
+        ALIGNMENT_CLASS[alignment],
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function IdleBreakTooltip({
+  id,
+  durationMs,
+  left,
+  top,
+  chartWidth,
+}: {
+  id: string;
+  durationMs: number;
+  left: number;
+  top: number;
+  chartWidth: number;
+}) {
+  return (
+    <TooltipBox id={id} left={left} top={top} chartWidth={chartWidth}>
+      <p className="font-medium">{noEditsForLabel({ duration: formatIdleDuration({ durationMs }) })}</p>
+    </TooltipBox>
+  );
+}
+
 export function TimelineTooltip({
   id,
   timeline,
@@ -61,18 +112,8 @@ export function TimelineTooltip({
   const { timeZone } = timeline;
   const bin = timeline.bins[index]!;
   const rows = timeline.bands.map((band) => ({ band, cell: bin.byBand[band.id] })).filter(({ cell }) => cellVolume(cell) > 0);
-  const alignment = tooltipAlignment({ left, chartWidth });
   return (
-    <div
-      id={id}
-      role="tooltip"
-      data-alignment={alignment}
-      style={{ left: tooltipAnchorLeft({ left, chartWidth }), top, width: tooltipWidthIn(chartWidth) }}
-      className={cn(
-        'pointer-events-none absolute z-10 rounded-md border bg-popover p-2 text-xs text-popover-foreground shadow-md',
-        ALIGNMENT_CLASS[alignment],
-      )}
-    >
+    <TooltipBox id={id} left={left} top={top} chartWidth={chartWidth}>
       <p className="font-medium">{formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone })}</p>
       {rows.map(({ band, cell }) => (
         <p key={band.id}>
@@ -80,6 +121,6 @@ export function TimelineTooltip({
           <AuthorNames authors={timeline.authors} authorKeys={cell!.authorKeys} />
         </p>
       ))}
-    </div>
+    </TooltipBox>
   );
 }

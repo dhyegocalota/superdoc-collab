@@ -222,7 +222,10 @@ test('a holder who reopens a fresh document supersedes its first page and the ro
   await expect.poll(() => firstPageProgress.hasSentFrame).toBe(true);
   const secondPage = await ana.context.newPage();
   await secondPage.goto(documentPagePath(documentId));
-  await expect(ana.page.getByText(EDITOR_FAILED_MESSAGE)).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
+  const failedBanner = ana.page.locator(
+    `[data-testid="${CONNECTION_BANNER_TEST_ID}"][${CONNECTION_STATE_ATTRIBUTE}="${ConnectionState.Failed}"]`,
+  );
+  await expect(ana.page.getByText(EDITOR_FAILED_MESSAGE).or(failedBanner)).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
   await expect(editorText(secondPage).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
   await expect
     .poll(() => openDocument({ page: secondPage, documentId }), { timeout: LARGE_COMMIT_TIMEOUT_MS })

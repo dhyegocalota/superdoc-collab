@@ -28,7 +28,7 @@ Rule: `[data-v2-local-selection-caret='true'] { color: var(--paper-foreground); 
 | `--card` | `--sd-ui-comments-input-bg` |
 | `--shadow-popover` | `--sd-ui-dropdown-shadow`, `--sd-ui-menu-shadow`, `--sd-ui-tooltip-shadow`, `--sd-ui-surface-shadow`, `--sd-ui-comments-card-shadow`, `--sd-ui-comments-dropdown-shadow` |
 
-Mapped beyond the spec's table: the six shadow variables above, `--sd-ui-comments-tag-bg` and `--sd-ui-disabled-bg`, found in `superdoc/dist/style.css` with literal black or grey rgba defaults. Every name was grepped in that stylesheet. Left to SuperDoc on purpose: `--sd-ui-dialog-backdrop`, the search-match backgrounds, `--sd-ui-find-replace-action-btn-color` (`#fff` on the action colour) and the `--sd-comments-highlight-*` and hover colours.
+Mapped beyond the spec's table: the six shadow variables above, `--sd-ui-comments-tag-bg` and `--sd-ui-disabled-bg`, found in `superdoc/dist/style.css` with literal black or grey rgba defaults for the six shadows, and with a hex reached through a `var()` chain for the tag and disabled backgrounds. Every name was grepped in that stylesheet. Left to SuperDoc on purpose: `--sd-ui-dialog-backdrop`, the search-match backgrounds, `--sd-ui-find-replace-action-btn-color` (`#fff` on the action colour) and the `--sd-comments-highlight-*` and hover colours.
 
 ## Run in dark
 

@@ -173,8 +173,10 @@ function grayLightness(value: string): number {
   return Number(/oklch\(([\d.]+) 0 0\)/.exec(value)![1]);
 }
 
-function grayContrast({ text, surface }: { text: string; surface: string }): number {
-  const [lighter, darker] = [grayLightness(text) ** 3, grayLightness(surface) ** 3].sort((first, second) => second - first);
+function grayContrast({ first, second }: { first: string; second: string }): number {
+  const [lighter, darker] = [grayLightness(first) ** 3, grayLightness(second) ** 3].sort(
+    (leftLuminance, rightLuminance) => rightLuminance - leftLuminance,
+  );
   return (lighter! + LUMINANCE_OFFSET) / (darker! + LUMINANCE_OFFSET);
 }
 
@@ -209,8 +211,8 @@ test('the caret takes the paper foreground so it reads on the white paper in bot
 test('--foreground on --active reaches AA in both themes', () => {
   const lightForeground = declarationOf({ block: rootBlock, name: '--foreground' })!;
   const darkForeground = declarationOf({ block: darkBlock, name: '--foreground' })!;
-  expect(grayContrast({ text: lightForeground, surface: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
-  expect(grayContrast({ text: darkForeground, surface: ACTIVE_BY_THEME.dark })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  expect(grayContrast({ first: lightForeground, second: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  expect(grayContrast({ first: darkForeground, second: ACTIVE_BY_THEME.dark })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
 });
 
 const MINIMUM_ACTIVE_CONTRAST = 1.5;
@@ -218,8 +220,8 @@ const MINIMUM_ACTIVE_CONTRAST = 1.5;
 test('--active stays distinguishable from --background in both themes', () => {
   const lightBackground = declarationOf({ block: rootBlock, name: '--background' })!;
   const darkBackground = declarationOf({ block: darkBlock, name: '--background' })!;
-  expect(grayContrast({ text: lightBackground, surface: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
-  expect(grayContrast({ text: ACTIVE_BY_THEME.dark, surface: darkBackground })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+  expect(grayContrast({ first: lightBackground, second: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+  expect(grayContrast({ first: ACTIVE_BY_THEME.dark, second: darkBackground })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
 });
 
 test('every mapped SuperDoc variable is declared or consumed in the installed SuperDoc stylesheet', () => {

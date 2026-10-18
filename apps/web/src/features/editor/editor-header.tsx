@@ -37,6 +37,8 @@ import { FindButton, openFindBar } from './find-button';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
 
+const FOLDING_ACTION_CLASS = 'flex items-center max-lg:hidden';
+
 type DocumentIdentity = { documentId: string };
 
 function DeleteDocumentDialog({
@@ -195,10 +197,18 @@ export function EditorHeader({
                 isPastVersion={isPastVersion}
               />
             </div>
-            {isLarge && <FindButton superdoc={superdoc} />}
-            {isLarge && renderUseWithAi()}
+            {isLarge && (
+              <div className={FOLDING_ACTION_CLASS}>
+                <FindButton superdoc={superdoc} />
+              </div>
+            )}
+            {isLarge && <div className={FOLDING_ACTION_CLASS}>{renderUseWithAi()}</div>}
             {isOwner && <ShareDialog documentId={document.id} />}
-            {isLarge && <DownloadMenu isDisabled={superdoc === null} onDownload={download} />}
+            {isLarge && (
+              <div className={FOLDING_ACTION_CLASS}>
+                <DownloadMenu isDisabled={superdoc === null} onDownload={download} />
+              </div>
+            )}
             {hasActionsMenu && (
               <DocumentActionsMenu
                 documentId={document.id}

@@ -14,8 +14,8 @@ export function EditorToolbarRow({ role, containerRef, isToolbarInert, isRowIner
   if (role === DocumentRole.Reader) return null;
 
   return (
-    <div data-testid="editor-toolbar-row" inert={isRowInert} className="flex h-10 items-center border-b bg-background">
-      <div ref={containerRef} data-testid="toolbar-container" inert={isToolbarInert} className="min-w-0 flex-1" />
+    <div data-testid="editor-toolbar-row" inert={isRowInert} className="flex h-10 items-center overflow-x-clip border-b bg-background">
+      <div ref={containerRef} data-testid="toolbar-container" inert={isToolbarInert} className="min-w-0 flex-1 overflow-x-clip" />
       <div className="shrink-0 px-2">
         <SummarizeEditsButton isRunning={isRunning} onSummarize={onSummarize} />
       </div>

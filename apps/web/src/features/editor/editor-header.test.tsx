@@ -305,3 +305,10 @@ test('at 1280 the menu holds only Delete for the owner and nothing for a reader'
   expect(screen.queryByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toBeNull();
   expect(screen.queryByRole('menuitem', { name: FIND_IN_DOCUMENT_LABEL })).toBeNull();
 });
+
+test('the bar actions that fold below 1024 are also hidden by CSS, so a resize never shows them for a frame', () => {
+  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc });
+  [FIND_IN_DOCUMENT_LABEL, USE_WITH_AI_LABEL, DOWNLOAD_BUTTON_LABEL].forEach((name) => {
+    expect(screen.getByRole('button', { name }).closest('.max-lg\\:hidden')).not.toBeNull();
+  });
+});

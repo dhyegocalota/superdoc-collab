@@ -14,6 +14,8 @@ import { StreamgraphLegend } from './streamgraph-legend';
 import { bandAriaLabel, CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
 import { TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
 
+const BREAK_DASH_ARRAY = '4 4';
+
 class MissingBandHueError extends Error {}
 
 type StreamgraphProps = {
@@ -228,6 +230,18 @@ export function Streamgraph({
           .map((shape) => (
             <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />
           ))}
+        {layout.breaks.map((column) => (
+          <line
+            key={column.firstIndex}
+            x1={column.centerX}
+            x2={column.centerX}
+            y1={0}
+            y2={CHART_HEIGHT}
+            strokeDasharray={BREAK_DASH_ARRAY}
+            aria-hidden
+            className="pointer-events-none stroke-muted-foreground"
+          />
+        ))}
         {selectedIndex !== null && (
           <line
             x1={layout.binX(selectedIndex)}

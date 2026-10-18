@@ -35,6 +35,13 @@ function contextAt(start: number): Context {
   };
 }
 
+function holdUntilCap(context: Context): void {
+  context.reserveAs(FIRST_EDITOR);
+  context.advance(CREATOR_RESERVATION_MAX_MS - SECOND_MS);
+  context.reservations.touch({ documentId: DOCUMENT_ID, attempt: FIRST_ATTEMPT });
+  context.advance(SECOND_MS + 1);
+}
+
 const SCENARIOS: Scenario[] = [
   {
     name: 'reserves attempt 1 for the first editor',
@@ -204,8 +211,7 @@ test('touches at 59 second intervals stop extending after the lifetime cap and t
 
 test('a holder whose reservation lapsed at the lifetime cap is refused for one reservation period while another editor takes over', () => {
   const context = contextAt(0);
-  context.reserveAs(FIRST_EDITOR);
-  context.advance(CREATOR_RESERVATION_MAX_MS + 1);
+  holdUntilCap(context);
   expect(context.reserveAs(FIRST_EDITOR)).toBeUndefined();
   context.advance(CREATOR_RESERVATION_MS - 1);
   expect(context.reserveAs(FIRST_EDITOR)).toBeUndefined();
@@ -214,8 +220,7 @@ test('a holder whose reservation lapsed at the lifetime cap is refused for one r
 
 test('the lapsed holder reserves again once the cooldown has passed and nobody took over', () => {
   const context = contextAt(0);
-  context.reserveAs(FIRST_EDITOR);
-  context.advance(CREATOR_RESERVATION_MAX_MS + 1);
+  holdUntilCap(context);
   context.reserveAs(FIRST_EDITOR);
   context.advance(CREATOR_RESERVATION_MS + 1);
   expect(context.reserveAs(FIRST_EDITOR)).toBe(SECOND_ATTEMPT);

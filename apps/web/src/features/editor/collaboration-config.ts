@@ -1,4 +1,11 @@
-import { CREATOR_ATTEMPT_QUERY_KEY, CREATOR_EPOCH_QUERY_KEY, type CreatorTicket, type OpenedDocument } from '@superdoc-collab/types';
+import {
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
+  type CreatorTicket,
+  type OpenedDocument,
+  TAB_QUERY_KEY,
+} from '@superdoc-collab/types';
+import { tabId } from '@/lib/tab-id';
 
 export const HOCUSPOCUS_PROVIDER = 'hocuspocus';
 const HTTP_SCHEME = /^http/;
@@ -13,10 +20,10 @@ export function creatorTicketOf({
 
 export function collaborationUrl({ path, creatorTicket }: { path: string; creatorTicket: CreatorTicket | null }): string {
   const url = `${window.location.origin.replace(HTTP_SCHEME, 'ws')}${path}`;
-  if (creatorTicket === null) return url;
-  const query = new URLSearchParams({
-    [CREATOR_ATTEMPT_QUERY_KEY]: String(creatorTicket.attempt),
-    [CREATOR_EPOCH_QUERY_KEY]: creatorTicket.epoch,
-  });
+  const query = new URLSearchParams({ [TAB_QUERY_KEY]: tabId() });
+  if (creatorTicket !== null) {
+    query.set(CREATOR_ATTEMPT_QUERY_KEY, String(creatorTicket.attempt));
+    query.set(CREATOR_EPOCH_QUERY_KEY, creatorTicket.epoch);
+  }
   return `${url}?${query}`;
 }

@@ -15,13 +15,14 @@ The same exception event now also carries structured diagnostics with a severity
 
 ## Decision
 
-- `onCollaborationConnectionChange` sets Lost, Reconnecting and Failed the instant it fires.
+- `onCollaborationConnectionChange` sets Lost, Reconnecting and Failed the instant it fires. The provider reports Lost and Reconnecting in the same tick, so Lost is rarely rendered; the state stays in the machine and nothing end to end requires seeing it.
 - Recovered is set only when the members poll says the server sees this user online in the room and the callback has not said failed. A `synced` or `recovered` callback only triggers an immediate refetch of the members.
 - Failed is final until the user presses Reload.
+- The transport carries no reason for a removed session: it reports lost, reconnecting and failed within milliseconds with no detail and raises no exception. When the callback says failed without a reason and the latest members poll was a 401, the reason is Session ended, the copy asks the user to sign in again and the action reads Sign in, navigating to the sign-in route with the current path as `next`. Without a 401 the reason stays Unknown and the action is Reload.
 - There is no browser online flag and no heartbeat.
 - The five states (Online, Lost, Reconnecting, Recovered, Failed) are an enum in `libs/types`.
 - Exceptions are narrowed by payload shape. A diagnostic with severity warn is logged and does not change the state. A payload with `collaborationReason`, or with the code `worker-transport-failed`, is a failure.
-- The members response gains a field that says whether the current user is online in the room, read from the live connections the server already holds.
+- The members response gains a field that says whether the current user is online in the room, read from the live connections the server already holds. The flag is per browser tab: the socket and the members request carry the page load's tab id, so a second tab of the same person cannot keep the first one online. Only an answer to a request made after the transport turned Lost or Reconnecting can confirm Recovered.
 
 ## Alternatives considered
 
@@ -34,6 +35,8 @@ The same exception event now also carries structured diagnostics with a severity
 
 ## Consequences
 
+- Residual: when the browser notices a drop before the server does (a network switch, not a restart), the members refetch can answer online for the dead socket's tab for up to `COLLABORATION_SOCKET_TIMEOUT_MS`, so Recovered may show for up to that long while the provider still reconnects. A restarted server holds no socket, so the restart proof cannot hit it. Recorded on 2026-10-18 from the final review; no code change.
+
 - The members poll becomes part of the connection truth. A recovery is shown within one poll interval, shortened by the immediate refetch on a `synced` or `recovered` callback.
 - If the poll itself fails while the callback says recovered, the banner stays on Reconnecting. The state never claims more than the server confirmed.
 - The members response and its test grow by one field.
@@ -45,7 +48,9 @@ Added by the connection-state plan.
 
 - A unit test of the exception narrowing: a warn diagnostic is logged, `collaborationReason` and `worker-transport-failed` are failures.
 - A unit test of the merge table, callback state against server presence.
-- A Playwright test that restarts the server mid-session and checks lost, then reconnecting, then a cleared banner.
+- A Playwright test that restarts the server mid-session and checks reconnecting (lost is optional), then recovered, then a cleared banner.
+- A Playwright test that removes the session cookie and checks the Failed banner with the Session ended reason, then Sign in returning to the document.
+- A unit test that a Failed report with no reason resolves to Session ended after a 401 and stays Unknown otherwise.
 
 ## Revisit when
 

@@ -1,11 +1,13 @@
 import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { render, screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, parsePath, RouterProvider } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { apiGet } from '@/lib/api';
 import { jsonResponse } from '@/testing/json-response';
 import { RedirectIfSession } from './redirect-if-session';
+import { SIGNED_OUT_STATE } from './sign-out-state';
 
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 
@@ -19,20 +21,25 @@ function respondWithUser(user: SessionUser | null): void {
   vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user } }));
 }
 
-function renderSignInRoute(initialEntry: string = AppRoute.SignIn) {
+function renderSignInRoute({
+  initialEntry = AppRoute.SignIn,
+  state = null,
+  queryClient = new QueryClient(),
+}: { initialEntry?: string; state?: unknown; queryClient?: QueryClient } = {}) {
   const router = createMemoryRouter(
     [
       { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
       { path: AppRoute.Documents, element: DOCUMENTS_TEXT },
       { path: AppRoute.Admin, element: ADMIN_TEXT },
     ],
-    { initialEntries: [initialEntry] },
+    { initialEntries: [{ ...parsePath(initialEntry), state }] },
   );
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return router;
 }
 
 beforeEach(() => vi.mocked(apiGet).mockReset());
@@ -52,12 +59,30 @@ test('renders the form when signed out', async () => {
 
 test('a signed-in user goes to the page named by next', async () => {
   respondWithUser(ADA);
-  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.Admin)}`);
+  renderSignInRoute({ initialEntry: `${AppRoute.SignIn}?next=${encodeURIComponent(AppRoute.Admin)}` });
   expect(await screen.findByText(ADMIN_TEXT)).toBeInTheDocument();
 });
 
 test('a next pointing at another origin falls back to documents', async () => {
   respondWithUser(ADA);
-  renderSignInRoute(`${AppRoute.SignIn}?next=${encodeURIComponent(EXTERNAL_NEXT)}`);
+  renderSignInRoute({ initialEntry: `${AppRoute.SignIn}?next=${encodeURIComponent(EXTERNAL_NEXT)}` });
   expect(await screen.findByText(DOCUMENTS_TEXT)).toBeInTheDocument();
+});
+
+test('the signed-out landing keeps the next query for the form', async () => {
+  respondWithUser(null);
+  const nextSearch = `?next=${encodeURIComponent(AppRoute.Admin)}`;
+  const router = renderSignInRoute({ initialEntry: `${AppRoute.SignIn}${nextSearch}`, state: SIGNED_OUT_STATE });
+  expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
+  await waitFor(() => expect(router.state.location.state).toBeNull());
+  expect(router.state.location.search).toBe(nextSearch);
+});
+
+test('the signed-out landing drops the cached documents of the previous user', async () => {
+  respondWithUser(null);
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(DOCUMENTS_QUERY_KEY, [{ id: 'doc-1' }]);
+  renderSignInRoute({ state: SIGNED_OUT_STATE, queryClient });
+  expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
+  await waitFor(() => expect(queryClient.getQueryData(DOCUMENTS_QUERY_KEY)).toBeUndefined());
 });

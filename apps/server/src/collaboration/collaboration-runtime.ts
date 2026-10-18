@@ -22,6 +22,7 @@ export type DocumentRuntime = {
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
   onlineUserIds: (documentId: string) => Set<string>;
+  onlineTabIds: ({ documentId, userId }: { documentId: string; userId: string }) => Set<string>;
   importRevisions: (documentId: string) => void;
   forget: (documentId: string) => Promise<void>;
 };
@@ -77,6 +78,13 @@ export function createCollaborationRuntime({
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),
+    onlineTabIds: ({ documentId, userId }) =>
+      new Set(
+        roomsOf(documentId)
+          .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection.context as CollaborationContext))
+          .filter((connectionContext) => connectionContext.userId === userId)
+          .flatMap((connectionContext) => (connectionContext.tabId === null ? [] : [connectionContext.tabId])),
+      ),
     importRevisions: (documentId) => scheduler.importRevisions({ documentId, filePath: storage.pathOf(documentId) }),
     forget: async (documentId) => {
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));

@@ -6,4 +6,5 @@ export type CollaborationContext = {
   actor: ClientActor;
   creatorAttempt: number | null;
   creatorEpoch: string | null;
+  tabId: string | null;
 };

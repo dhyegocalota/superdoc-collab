@@ -7,6 +7,7 @@ import {
   DocumentResource,
   DocumentRole,
   HttpStatus,
+  MEMBERS_REFRESH_MS,
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
@@ -40,7 +41,6 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { MEMBERS_REFRESH_MS } from '@/features/editor/editor-api';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { TITLE_LABEL } from '@/features/editor/editor-copy';

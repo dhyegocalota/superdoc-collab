@@ -6,10 +6,12 @@ import {
   CREATOR_ATTEMPT_QUERY_KEY,
   CREATOR_EPOCH_QUERY_KEY,
   DocumentRole,
+  isTabId,
   RoomMode,
   POLICY_VIOLATION_CLOSE_CODE,
   SECOND_MS,
   SOCKET_SINGLE_DOCUMENT_REASON,
+  TAB_QUERY_KEY,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
   SUPERSEDED_ATTEMPT_REASON,
 } from '@superdoc-collab/types';
@@ -98,6 +100,12 @@ function requireDocumentId(roomName: string): string {
   return documentId;
 }
 
+function tabIdOf(requestParameters: URLSearchParams): string | null {
+  const tab = requestParameters.get(TAB_QUERY_KEY);
+  if (tab === null || !isTabId(tab)) return null;
+  return tab;
+}
+
 function connectionActorOf(request: IncomingMessage): ClientActor {
   if (!request.url) throw new CollaborationAuthenticationError();
   return isAgentUpgrade(request.url) ? ClientActor.Agent : ClientActor.Human;
@@ -135,7 +143,7 @@ export function createCollaborationServer({
       if (firstDocumentName === undefined) return void documentNameBySocket.set(request, documentName);
       if (firstDocumentName !== documentName) throw new CollaborationSingleDocumentError();
     },
-    async onAuthenticate({ requestHeaders, request, token, documentName, connection }): Promise<CollaborationContext> {
+    async onAuthenticate({ requestHeaders, requestParameters, request, token, documentName, connection }): Promise<CollaborationContext> {
       const documentId = requireDocumentId(documentName);
       const actor = connectionActorOf(request);
       const { userId, role } =
@@ -163,7 +171,7 @@ export function createCollaborationServer({
         throw new CollaborationSupersededError();
       }
       if (!mayWrite) connection.readOnly = true;
-      return { userId, documentId, actor, creatorAttempt: attempt, creatorEpoch: epoch };
+      return { userId, documentId, actor, creatorAttempt: attempt, creatorEpoch: epoch, tabId: tabIdOf(requestParameters) };
     },
     async connected({ context, connectionInstance }) {
       const { documentId, creatorAttempt, creatorEpoch } = context as CollaborationContext;

@@ -47,5 +47,6 @@ The server returns every bin from the first edit to the last, one padding bin on
 
 - A reader on production-like data cannot read the breaks in the walk, or takes a break for missing data.
 - Breaks at day or week resolution read as noise. The answer is then a minimum run length in bins beside the duration.
+- Alternating quiet and active days at day bins draw a divider between every pair (14 on a 31-day span in the tester's walk); it was legible but busy. The same answer applies.
 - The chart moves to canvas or WebGL, so the render budget no longer binds.
 - The server starts returning bins chosen by activity. That would supersede [ADR 0016](0016-timeline-bin-budget.md) and this decision with it.

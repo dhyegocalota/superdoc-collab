@@ -41,6 +41,7 @@ The room mode is Create until the update log holds a committed bootstrap. Today 
 - Opens of documents not yet known committed are limited per user to `OPEN_UNCOMMITTED_PER_MINUTE` distinct documents per minute (never above the scan cache size), one budget consulted before any log scan on the open route, socket authentication, the agent room locator and the export tool, so one user cannot thrash the bounded scan cache on any path. A document counts once per user and minute, so waiting-page polls and reconnects are free.
 - The holder opening the document again (a second tab or a reload mid-create) is issued a new attempt and its old sockets are closed with 4403: the newest tab wins, which restarts a create cleanly instead of leaving two pages seeding one attempt.
 - A holder that releases and reopens within `CREATOR_RESERVATION_MS` keeps the original start of its lifetime, so closing the last socket and reopening cannot reset the cap; a creator returning after that window gets a fresh start.
+- After a server restart the creator's page reconnects with the ticket of the previous process. On an uncommitted room that socket is refused, on a committed room a ticket from another epoch is read as no ticket and the socket is admitted as an ordinary editor, so the banner recovers without a reload. This is a conscious narrowing: an abandoned creator tab that survives a restart, on a room that committed meanwhile, edits as a member. A ticket of this epoch with another attempt is still closed with 4403.
 
 ## Evidence
 

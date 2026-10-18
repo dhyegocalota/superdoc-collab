@@ -158,6 +158,26 @@ describe('collaboration fence on a committed room', () => {
   });
 });
 
+describe('collaboration ticket from another epoch', () => {
+  const FOREIGN_EPOCH = 'a-previous-process';
+
+  test('a committed room admits a socket carrying a ticket from another epoch as an ordinary editor', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
+    const returning = await connectToDocument({ server, cookie: owner.cookie, documentId, ticket: { attempt: 1, epoch: FOREIGN_EPOCH } });
+    returning.document.getText('t').insert(0, 'edited after the restart');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBe(2);
+    returning.close();
+    await server.stop();
+  });
+  test('an uncommitted room still refuses a socket carrying a ticket from another epoch', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const refused = connectToDocument({ server, cookie: owner.cookie, documentId, ticket: { attempt: 1, epoch: FOREIGN_EPOCH } });
+    await expect(refused).rejects.toBeInstanceOf(CollaborationRefusedError);
+    await server.stop();
+  });
+});
+
 describe('collaboration takeover and the committed room', () => {
   test('a creator returning after another editor committed is closed with 4403 and writes nothing', async () => {
     const { server, documentId, owner } = await documentWithOwner();

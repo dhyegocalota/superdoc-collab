@@ -48,6 +48,7 @@ LLM_MODEL=openai/gpt-6-luna
 OPENROUTER_BASE_URL=
 LLM_MAX_CONCURRENT_JOBS=
 LLM_MAX_CALLS_PER_HOUR=
+OPEN_UNCOMMITTED_PER_MINUTE=
 ```
 
 | Variable | Secret | What it does |
@@ -61,6 +62,7 @@ LLM_MAX_CALLS_PER_HOUR=
 | `OPENROUTER_BASE_URL` | no | Empty in production; only tests point it at a fake. |
 | `LLM_MAX_CONCURRENT_JOBS` | no | Empty keeps the default of 2 model jobs at once ([ADR 0011](../../adr/0011-process-wide-llm-cost-caps.md)). |
 | `LLM_MAX_CALLS_PER_HOUR` | no | Empty keeps the default of 60 model calls per rolling hour. |
+| `OPEN_UNCOMMITTED_PER_MINUTE` | no | Empty keeps the default of 30 distinct uncommitted documents per user per minute ([ADR 0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md)); only test stacks raise it. |
 
 Do not set `PORT`, `DATABASE_DIR`, `WEB_DIST_DIR` or `TRUST_PROXY`: the compose file pins them.
 

@@ -721,7 +721,7 @@ test('the bottom panel puts the chart first in a block that keeps its height, an
   const listColumn = (await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING })).closest(
     `[data-column="${PanelColumn.List}"]`,
   ) as HTMLElement;
-  expect(chartColumn.firstElementChild).toHaveClass('shrink-0');
+  expect(chartColumn.firstElementChild).toHaveClass('shrink-0', 'overflow-visible');
   expect(chartColumn.firstElementChild).toContainElement(chart);
   expect(chart.compareDocumentPosition(screen.getByLabelText(FILTER_LABEL)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(listColumn).getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();

@@ -2,15 +2,16 @@ import {
   authorColorKeyOf,
   authorColorSlot,
   ClientActor,
+  SECOND_MS,
   SelectionSummaryState,
   SummarizeOutcome,
   SummarizeStep,
   type EventAuthor,
   type SelectionSummaryView,
 } from '@superdoc-collab/types';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR } from '@/testing/timeline-fixtures';
 import { SelectionSummaryCard } from './selection-summary-card';
 import {
@@ -56,6 +57,10 @@ const FAILED_VIEW: SelectionSummaryView = {
   failure: 'The edits could not be summarized. Try again.',
 };
 const scrollIntoView = vi.fn();
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = scrollIntoView;
@@ -193,6 +198,14 @@ test('a cooldown shows the seconds to wait and offers no retry yet', () => {
   render(card({ view: NONE_VIEW, summarize: idleSummarize({ error: new Error('Summarizing is busy.'), retryAfterSeconds: 24 }) }));
   expect(screen.getByRole('alert')).toHaveTextContent(`Summarizing is busy. ${retryInLabel(24)}`);
   expect(screen.queryByRole('button', { name: RETRY_SUMMARY_LABEL })).not.toBeInTheDocument();
+});
+
+test('the cooldown ticks down each second', () => {
+  vi.useFakeTimers();
+  render(card({ view: NONE_VIEW, summarize: idleSummarize({ error: new Error('Summarizing is busy.'), retryAfterSeconds: 5 }) }));
+  expect(screen.getByRole('alert')).toHaveTextContent(retryInLabel(5));
+  act(() => vi.advanceTimersByTime(2 * SECOND_MS));
+  expect(screen.getByRole('alert')).toHaveTextContent(retryInLabel(3));
 });
 
 test('a failed summary offers a retry to editors only', async () => {

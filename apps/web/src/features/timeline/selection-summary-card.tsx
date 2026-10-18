@@ -1,4 +1,5 @@
 import {
+  SECOND_MS,
   SelectionSummaryState,
   SummarizeOutcome,
   SummarizeStep,
@@ -6,10 +7,11 @@ import {
   type SelectionSummaryView,
 } from '@superdoc-collab/types';
 import { Check, Loader2Icon } from 'lucide-react';
-import { useEffect, useId, useRef, type RefObject } from 'react';
+import { useEffect, useId, useMemo, useRef, type RefObject } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useCountdown } from '@/lib/use-countdown';
 import { authorByName } from './author-of';
 import { AuthorAvatar } from './contributor-avatars';
 import {
@@ -33,9 +35,9 @@ type SelectionSummaryCardProps = {
   authors: Record<string, EventAuthor>;
 };
 
-function errorMessage({ error, retryAfterSeconds }: { error: Error; retryAfterSeconds: number | null }): string {
-  if (retryAfterSeconds === null) return error.message;
-  return `${error.message} ${retryInLabel(retryAfterSeconds)}`;
+function errorMessage({ error, secondsLeft }: { error: Error; secondsLeft: number | null }): string {
+  if (secondsLeft === null) return error.message;
+  return `${error.message} ${retryInLabel(secondsLeft)}`;
 }
 
 function Spinner() {
@@ -92,6 +94,8 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
   const headingId = useId();
   const { summary } = view;
   const { error, retryAfterSeconds } = summarize;
+  const deadlineMs = useMemo(() => (retryAfterSeconds === null ? null : Date.now() + retryAfterSeconds * SECOND_MS), [error]);
+  const secondsLeft = useCountdown(deadlineMs);
   const isGrouping = view.step === SummarizeStep.Grouping;
   const isSummarizing = view.step === SummarizeStep.Summarizing;
   const isRunning = summarize.isRunning || view.state === SelectionSummaryState.Running || isGrouping || isSummarizing;
@@ -149,7 +153,7 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
           {view.failure}
         </p>
       )}
-      {error && <ErrorMessage>{errorMessage({ error, retryAfterSeconds })}</ErrorMessage>}
+      {error && <ErrorMessage>{errorMessage({ error, secondsLeft })}</ErrorMessage>}
       {showsRetry && (
         <Button
           type="button"

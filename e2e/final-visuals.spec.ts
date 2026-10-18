@@ -213,7 +213,7 @@ async function ownerOpensDocument({
 }
 
 function panelPositionChoice({ page, position }: { page: Page; position: PanelPosition }) {
-  return page.getByRole('group', { name: PANEL_POSITION_LABEL }).getByRole('radio', { name: PANEL_POSITION_LABELS[position] });
+  return page.getByRole('radiogroup', { name: PANEL_POSITION_LABEL }).getByRole('radio', { name: PANEL_POSITION_LABELS[position] });
 }
 
 async function expectPageFitsEditor({ page, width }: { page: Page; width: number }): Promise<void> {

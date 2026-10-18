@@ -34,7 +34,7 @@ export function usePanelWidth(): { width: number; maxWidth: number; resizeTo: (n
 
 export const MIN_PANEL_HEIGHT = 240;
 export const DEFAULT_PANEL_HEIGHT_SHARE = 0.42;
-export const COMPACT_PANEL_HEIGHT_SHARE = 0.58;
+export const COMPACT_PANEL_HEIGHT_SHARE = 0.46;
 export const MIN_EDITOR_HEIGHT = 240;
 export const PANEL_CHROME_PX = 72;
 export const PANEL_MIN_CONTENT_PX = CHART_HEIGHT + PANEL_CHROME_PX;

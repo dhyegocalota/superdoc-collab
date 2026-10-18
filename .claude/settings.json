@@ -1,7 +1,4 @@
 {
-  "env": {
-    "MCP_TOOL_TIMEOUT": "60000"
-  },
   "permissions": {
     "deny": [
       "Read(./.env)",

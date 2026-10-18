@@ -2,15 +2,18 @@
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+      "args": ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"],
+      "timeout": 60000
     },
     "playwright-second": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+      "args": ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"],
+      "timeout": 60000
     },
     "playwright-third": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"]
+      "args": ["-y", "@playwright/mcp@0.0.83", "--browser", "chromium", "--isolated"],
+      "timeout": 60000
     },
     "context7": {
       "command": "npx",

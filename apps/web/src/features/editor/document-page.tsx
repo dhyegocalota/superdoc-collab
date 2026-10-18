@@ -148,14 +148,14 @@ export function DocumentPage() {
     navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
+  const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
   const versionBar = (
     <>
       <VersionBanner timeTravel={timeTravel} />
-      {timeTravel.isLoading && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
+      {isLoadingRequestedVersion && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
     </>
   );
   const isFailed = connectionState === ConnectionState.Failed;
-  const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
@@ -203,7 +203,7 @@ export function DocumentPage() {
           {!isPhoneLayout && versionBar}
           <div
             data-testid="editor-surface"
-            className={cn('relative flex min-h-0 min-w-0 flex-1', timeTravel.isLoading && DIMMED_EDITOR_AREA_CLASS)}
+            className={cn('relative flex min-h-0 min-w-0 flex-1', isLoadingRequestedVersion && DIMMED_EDITOR_AREA_CLASS)}
           >
             {editorSetup && isToolbarReady && (
               <SuperDocEditor

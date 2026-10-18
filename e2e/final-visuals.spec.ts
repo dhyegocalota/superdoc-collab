@@ -8,11 +8,14 @@ import {
   DEMO_ADMIN,
   DEMO_USERS,
   DOCX_MIME_TYPE,
+  documentApiPath,
   documentPagePath,
+  DocumentResource,
   HttpMethod,
   HttpStatus,
   RETRY_AFTER_HEADER,
   ShareLinkRole,
+  type DocumentMembers,
   type DocumentSummary,
 } from '../libs/types/src';
 import {
@@ -457,9 +460,12 @@ test('a member avatar scrolls the editor to that member’s caret and offline me
   await expect(offlineButton).toHaveAccessibleDescription(offlineMemberReason(BRUNO), { timeout: WAITING_TIMEOUT_MS });
 });
 
+function swatchOf({ page, label }: { page: Page; label: string }) {
+  return topBar(page).getByRole('button', { name: label }).locator('span').first();
+}
+
 async function swatchColorOf({ page, label }: { page: Page; label: string }): Promise<string> {
-  const swatch = topBar(page).getByRole('button', { name: label }).locator('span').first();
-  return swatch.evaluate((element) => getComputedStyle(element).backgroundColor);
+  return swatchOf({ page, label }).evaluate((element) => getComputedStyle(element).backgroundColor);
 }
 
 async function remoteCaretColorOf(page: Page): Promise<string> {
@@ -469,7 +475,13 @@ async function remoteCaretColorOf(page: Page): Promise<string> {
     .evaluate((element) => getComputedStyle(element).backgroundColor);
 }
 
-test('two members of one document get two colours that agree between the members list and the remote cursor', async ({ browser }) => {
+async function memberSlotsOf({ page, documentId }: { page: Page; documentId: string }): Promise<Record<string, number>> {
+  const response = await page.request.get(documentApiPath({ documentId, resource: DocumentResource.Members }));
+  const { members } = (await response.json()) as DocumentMembers;
+  return Object.fromEntries(members.map((member) => [member.user.name, member.colorSlot]));
+}
+
+test('a member has one colour on every surface and on every browser', async ({ browser }) => {
   const { ana, documentId } = await ownerOpensDocument({ browser });
   const bruno = await signedInContext({ browser, user: brunoUser! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
@@ -477,13 +489,17 @@ test('two members of one document get two colours that agree between the members
   await insertInParagraph({ page: bruno.page, paragraphText: HIRING_PARAGRAPH, text: BRUNO_EDIT });
   await expect(ana.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
   await expect(bruno.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
-  const anaOwnSwatch = await swatchColorOf({ page: ana.page, label: memberLabel({ name: ANA, isOnline: true }) });
-  const brunoSwatchForAna = await swatchColorOf({ page: ana.page, label: goToCursorLabel(BRUNO) });
-  const anaSwatchForBruno = await swatchColorOf({ page: bruno.page, label: goToCursorLabel(ANA) });
-  expect(brunoSwatchForAna).not.toBe(anaOwnSwatch);
-  expect(anaSwatchForBruno).toBe(anaOwnSwatch);
-  expect(await remoteCaretColorOf(ana.page)).toBe(brunoSwatchForAna);
-  expect(await remoteCaretColorOf(bruno.page)).toBe(anaSwatchForBruno);
+  const anaOwnLabel = { page: ana.page, label: memberLabel({ name: ANA, isOnline: true }) };
+  const brunoForAnaLabel = { page: ana.page, label: goToCursorLabel(BRUNO) };
+  const anaForBrunoLabel = { page: bruno.page, label: goToCursorLabel(ANA) };
+  const slots = await memberSlotsOf({ page: ana.page, documentId });
+  await expect(swatchOf(anaOwnLabel)).toHaveClass(new RegExp(`bg-author-${slots[ANA]}\\b`));
+  await expect(swatchOf(brunoForAnaLabel)).toHaveClass(new RegExp(`bg-author-${slots[BRUNO]}\\b`));
+  await expect(swatchOf(anaForBrunoLabel)).toHaveClass(new RegExp(`bg-author-${slots[ANA]}\\b`));
+  const anaOwnSwatch = await swatchColorOf(anaOwnLabel);
+  expect(await swatchColorOf(anaForBrunoLabel)).toBe(anaOwnSwatch);
+  expect(await remoteCaretColorOf(ana.page)).toBe(await swatchColorOf(brunoForAnaLabel));
+  expect(await remoteCaretColorOf(bruno.page)).toBe(anaOwnSwatch);
 });
 
 test('a document opened before its owner syncs it shows the waiting page and enters on its own', async ({ browser }) => {

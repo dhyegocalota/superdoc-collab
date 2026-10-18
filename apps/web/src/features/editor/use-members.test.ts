@@ -176,3 +176,17 @@ test('a new ticket fetches at once and the answer for the old ticket is not cred
   expect(requestedUrl.searchParams.get(CREATOR_ATTEMPT_QUERY_KEY)).toBe(String(reopenedTicket.attempt));
   expect(result.current.isAttemptSuperseded).toBe(false);
 });
+
+test('a new epoch with the same attempt fetches at once and the old answer is not credited to it', async () => {
+  const restartedTicket: CreatorTicket = { attempt: CREATOR_TICKET.attempt, epoch: 'epoch-2' };
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptSuperseded: true }))
+    .mockReturnValueOnce(new Promise(() => undefined));
+  const { result, rerender } = renderMembers(CREATOR_TICKET);
+  await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(true));
+  rerender({ ticket: restartedTicket });
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[1]![0]), window.location.origin);
+  expect(requestedUrl.searchParams.get(CREATOR_EPOCH_QUERY_KEY)).toBe(restartedTicket.epoch);
+  expect(result.current.isAttemptSuperseded).toBe(false);
+});

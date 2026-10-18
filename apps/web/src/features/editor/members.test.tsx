@@ -1,4 +1,4 @@
-import { authorColorSlot, DocumentRole, type DocumentMember } from '@superdoc-collab/types';
+import { DocumentRole, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
@@ -16,6 +16,7 @@ import {
   offlineMemberReason,
   SELF_MEMBER_REASON,
 } from './editor-copy';
+import { initialsOf } from '@/lib/initials';
 import { Members } from './members';
 
 const CURRENT_USER_ID = 'u1';
@@ -23,20 +24,30 @@ const JUMP_FAILED_MS = 3000;
 const superdoc = {} as SuperDoc;
 const scrollIntoView = vi.fn();
 
-function memberNamed({ id, name, online }: { id: string; name: string; online: boolean }): DocumentMember {
-  return { user: { id, name }, role: DocumentRole.Editor, online, colorSlot: authorColorSlot(id) };
+function memberNamed({
+  id,
+  name,
+  online,
+  colorSlot,
+}: {
+  id: string;
+  name: string;
+  online: boolean;
+  colorSlot: AuthorColorSlot;
+}): DocumentMember {
+  return { user: { id, name }, role: DocumentRole.Editor, online, colorSlot };
 }
 
-const ana = memberNamed({ id: CURRENT_USER_ID, name: 'Ana', online: true });
-const bruno = memberNamed({ id: 'u2', name: 'Bruno', online: true });
-const clara = memberNamed({ id: 'u3', name: 'Clara', online: false });
-const dario = memberNamed({ id: 'u4', name: 'Dario', online: true });
+const ana = memberNamed({ id: CURRENT_USER_ID, name: 'Ana', online: true, colorSlot: 1 });
+const bruno = memberNamed({ id: 'u2', name: 'Bruno', online: true, colorSlot: 4 });
+const clara = memberNamed({ id: 'u3', name: 'Clara', online: false, colorSlot: 5 });
+const dario = memberNamed({ id: 'u4', name: 'Dario', online: true, colorSlot: 6 });
 
 let editor: HTMLElement;
 let overlay: HTMLElement;
 
 function colorOf(member: DocumentMember): string {
-  return AUTHOR_PALETTE[authorColorSlot(member.user.id) - 1]!;
+  return AUTHOR_PALETTE[member.colorSlot - 1]!;
 }
 
 function addCaret({ name, color }: { name: string; color: string }): void {
@@ -64,7 +75,9 @@ function renderMembers({ members, isPastVersion = false }: { members: DocumentMe
 }
 
 function manyMembers(count: number): DocumentMember[] {
-  return Array.from({ length: count }, (_, index) => memberNamed({ id: `m${index}`, name: `Person ${index}`, online: false }));
+  return Array.from({ length: count }, (_, index) =>
+    memberNamed({ id: `m${index}`, name: `Person ${index}`, online: false, colorSlot: 1 }),
+  );
 }
 
 beforeEach(() => {
@@ -82,6 +95,12 @@ afterEach(() => {
   editor.remove();
   scrollIntoView.mockClear();
   vi.useRealTimers();
+});
+
+test('the avatar swatch of a member uses the slot the server assigned, not the id hash', () => {
+  renderMembers({ members: [ana, bruno] });
+  expect(screen.getByText(initialsOf('Bruno'))).toHaveClass('bg-author-4');
+  expect(screen.getByText(initialsOf('Ana'))).toHaveClass('bg-author-1');
 });
 
 test('a member with a live position is a button named Go to Bruno’s cursor', async () => {

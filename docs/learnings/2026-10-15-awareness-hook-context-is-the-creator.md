@@ -2,6 +2,7 @@
 - Date: 2026-10-15
 - Inspired by: poc/RESULTS.md (finding 6); poc/tests/e-edge-cases.spec.ts::E3
 - Revisited: 2026-10-16 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 Logging `context` inside `onAwarenessUpdate` always prints the identity of whoever created the room, no matter which client moved its cursor or declared itself.

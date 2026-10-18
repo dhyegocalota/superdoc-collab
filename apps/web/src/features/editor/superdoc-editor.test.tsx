@@ -44,6 +44,7 @@ function renderEditor({
       colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
       isInert={false}
+      isSuperseded={false}
       onTransportReport={vi.fn()}
     />,
   );

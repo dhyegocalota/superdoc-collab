@@ -12,6 +12,7 @@ export enum ConnectionFailureReason {
   SyncTimeout = 'sync-timeout',
   WorkerTransportFailed = 'worker-transport-failed',
   SessionEnded = 'session-ended',
+  Superseded = 'superseded',
   Unknown = 'unknown',
 }
 

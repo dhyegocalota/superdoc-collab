@@ -6,6 +6,7 @@
 - Revisited: 2026-10-16 — slice 3 schedules projection from `onChange` on a 1.5 s throttle with the store as the final flush (`apps/server/src/history/projection-throttle.ts`)
 - Revisited: 2026-10-17 — still true; `MAX_STORE_DEBOUNCE_MS` is still passed as `maxDebounce`
 - Revisited: 2026-10-17 — still true; `collaboration-server.ts` gained only the connection's `tabId` and `MAX_STORE_DEBOUNCE_MS` is unchanged
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 Two authors type continuously and `/events` shows nothing for many seconds, then a burst.

@@ -2,6 +2,7 @@
 - Date: 2026-10-17
 - Inspired by: room-admission Step 0 measurement; [ADR 0034](../adr/0034-collaboration-socket-payload-and-rate-limits.md) evidence; `fee812c`, `fadc0bd`
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 A creator opens a document just under the 10 MB upload limit and the socket closes with 1009 before the room exists. Small and image-heavy files of the same size open fine.

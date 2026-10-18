@@ -24,6 +24,7 @@ import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
+import { claimedTicketOf } from '../collaboration/claimed-ticket';
 import { retryLater } from '../http/retry-later';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
@@ -192,9 +193,12 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const isCurrentUserOnline = isTabAsked
       ? runtime.onlineTabIds({ documentId, userId: context.var.user.id }).has(tab)
       : online.has(context.var.user.id);
+    const { attempt, epoch } = claimedTicketOf(new URL(context.req.url).searchParams);
+    const isTicketClaimed = attempt !== null && epoch !== null;
     return context.json({
       members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,
+      isAttemptSuperseded: isTicketClaimed && runtime.isAttemptSuperseded({ documentId, attempt, epoch }),
     });
   });
 

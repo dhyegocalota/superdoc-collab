@@ -2,6 +2,7 @@
 - Date: 2026-10-17
 - Inspired by: room-admission authentication refusal (`cf04805`) against the red E2E written before it (`ed459e0`)
 - Revisited: 2026-10-17 — open for `holdCreatorSocket`, which still builds its URL from the path alone
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 A spec that opens `new WebSocket(...)` in the page waits for an authenticated state that never arrives. The server logs a refusal for the room with no attempt. Existing server tests that use the collaboration client helper broke the same way in the same commit, with `The collaboration server refused the connection`.

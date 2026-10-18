@@ -2,6 +2,7 @@
 - Date: 2026-10-15
 - Inspired by: poc/RESULTS.md (finding 2); poc/tests/t4-chaos.spec.ts::T7
 - Revisited: 2026-10-16 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 After starting a second collaboration server in the same process, requests hit the first server's hooks and database, or the listen call collides with the first server's port. Restarting a server inside one test does not change behaviour.

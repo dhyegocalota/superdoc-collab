@@ -1,6 +1,7 @@
 import {
   ApiPath,
   AppRoute,
+  ClientActor,
   ConnectionFailureReason,
   ConnectionState,
   CREATOR_ATTEMPT_QUERY_KEY,
@@ -14,6 +15,7 @@ import {
   DocumentRole,
   HttpMethod,
   HttpStatus,
+  MEMBERS_REFRESH_MS,
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
@@ -53,6 +55,7 @@ import {
   renameTitleLabel,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
+import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
@@ -110,6 +113,15 @@ const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: Docume
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
 const SUMMARIES_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries });
 const EMPTY_TIMELINE = timelineWith({ volumes: [], names: [] });
+const BASE_TIMELINE = timelineWith({ volumes: [[10]], names: ['Budget'] });
+const CONTRIBUTOR_NAME = 'Ana Souza';
+const TIMELINE_WITH_CONTRIBUTOR = {
+  ...BASE_TIMELINE,
+  authors: { ana: { id: SESSION_USER.id, name: CONTRIBUTOR_NAME, actor: ClientActor.Human } },
+  contributorsByBand: {
+    [BASE_TIMELINE.bands[0]!.id]: [{ authorKey: 'ana', inserted: 10, deleted: 0, wordsInserted: 2, wordsDeleted: 0 }],
+  },
+};
 const RENAMED_TITLE = 'Renamed';
 const READY_WAIT_MS = 2 * DOCUMENT_READY_POLL_MS;
 const TEST_TIMEOUT_MS = 3 * DOCUMENT_READY_POLL_MS;
@@ -123,6 +135,8 @@ function mockDocumentApi({
   downloadStatus = HttpStatus.Ok,
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
+  isAttemptSuperseded = () => false,
+  timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
   isReloadUnreachable = false,
@@ -136,6 +150,8 @@ function mockDocumentApi({
   downloadStatus?: HttpStatus;
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
+  isAttemptSuperseded?: () => boolean;
+  timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
   isReloadUnreachable?: boolean;
@@ -147,11 +163,14 @@ function mockDocumentApi({
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (String(input).startsWith(MEMBERS_PATH)) {
-      return jsonResponse({ body: { members: [], isCurrentUserOnline: isCurrentUserOnline() }, status: currentMembersStatus() });
+      return jsonResponse({
+        body: { members: [], isCurrentUserOnline: isCurrentUserOnline(), isAttemptSuperseded: isAttemptSuperseded() },
+        status: currentMembersStatus(),
+      });
     }
     if (input === DOWNLOAD_PATH && openRequests > 1 && reloadFileResponse) return reloadFileResponse();
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
-    if (String(input).split('?')[0] === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
+    if (String(input).split('?')[0] === TIMELINE_PATH) return jsonResponse({ body: timeline });
     if (String(input).split('?')[0] === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
     if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) {
       summaryStep = SummarizeStep.Grouping;
@@ -397,7 +416,7 @@ test('a members 404 after the editor mounted shows the unavailable message, dest
   expect(await screen.findByText(DOCUMENT_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
   expect(superDocDestroy).toHaveBeenCalledTimes(1);
-  const membersQuery = queryClient.getQueryCache().find({ queryKey: membersQueryKey(DOCUMENT_ID) });
+  const membersQuery = queryClient.getQueryCache().find({ queryKey: membersQueryKey(DOCUMENT_ID), exact: false });
   const refetchInterval = membersQuery?.observers[0]?.options.refetchInterval;
   if (typeof refetchInterval !== 'function' || !membersQuery) throw new Error('members polling is not a function of the query state');
   expect(refetchInterval(membersQuery)).toBe(false);
@@ -791,4 +810,157 @@ test('an ended session names its reason and sends the author to sign in with the
   await userEvent.click(screen.getByRole('button', { name: SIGN_IN_LABEL }));
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.SignIn));
   expect(router.state.location.search).toBe(`?next=${encodeURIComponent(documentPagePath(DOCUMENT_ID))}`);
+});
+
+const CREATOR_TICKET = { creatorAttempt: 2, creatorEpoch: 'epoch-1' };
+
+function ticketedCreate(): OpenedDocument {
+  return { ...openedAs(DocumentRole.Owner, RoomMode.Create), ...CREATOR_TICKET };
+}
+
+async function renderSupersededPage(): Promise<ReturnType<typeof renderWithProviders>> {
+  let isSuperseded = false;
+  mockDocumentApi({ opened: ticketedCreate(), isAttemptSuperseded: () => isSuperseded });
+  const rendered = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  isSuperseded = true;
+  await act(() => rendered.queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  return rendered;
+}
+
+test('the members poll carries the creator ticket of the opened document', async () => {
+  const fetchSpy = mockDocumentApi({ opened: ticketedCreate() });
+  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  const membersUrls = fetchSpy.mock.calls.map(([input]) => String(input)).filter((url) => url.startsWith(MEMBERS_PATH));
+  const ticketOfLatestPoll = new URL(membersUrls.at(-1)!, window.location.origin).searchParams;
+  expect([ticketOfLatestPoll.get(CREATOR_ATTEMPT_QUERY_KEY), ticketOfLatestPoll.get(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
+    String(CREATOR_TICKET.creatorAttempt),
+    CREATOR_TICKET.creatorEpoch,
+  ]);
+});
+
+test('a superseded answer from the members poll fails the connection before any sync and makes the editor inert', async () => {
+  await renderSupersededPage();
+  const banner = await screen.findByRole('alert');
+  expect(banner).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Superseded]);
+  expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('a failure SuperDoc reports before ready after the superseded answer shows no editor notice that asks to reload', async () => {
+  await renderSupersededPage();
+  await screen.findByRole('alert');
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  act(() => constructedConfig().onException({ code: 'fatal', error: new Error('fatal'), editor: null }));
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('a superseded tab offers the way back to the documents and never a reload', async () => {
+  const { router } = await renderSupersededPage();
+  await screen.findByRole('alert');
+  expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: BACK_TO_DOCUMENTS_LABEL }));
+  await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
+});
+
+test('a members poll that does not report a takeover leaves the page online', async () => {
+  mockDocumentApi({ opened: ticketedCreate() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+});
+
+async function renderWithTimelineContributor(opened: OpenedDocument) {
+  matchMediaAlwaysMatching();
+  const fetchSpy = mockDocumentApi({ opened, timeline: TIMELINE_WITH_CONTRIBUTOR });
+  const rendered = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTitle(CONTRIBUTOR_NAME);
+  return { ...rendered, fetchSpy };
+}
+
+test('leaving a page with the timeline mounted removes the opened document from the cache', async () => {
+  const { queryClient } = await renderWithTimelineContributor(ticketedCreate());
+  cleanup();
+  await waitFor(() =>
+    expect(queryClient.getQueryCache().find({ queryKey: openedDocumentQueryKey(DOCUMENT_ID), exact: true })).toBeUndefined(),
+  );
+});
+
+test('a Reload answered 409 with the timeline mounted is not retried: the open, the reload and the waiting page restart make three requests', async () => {
+  let status = HttpStatus.Ok;
+  matchMediaAlwaysMatching();
+  const fetchSpy = mockDocumentApi({
+    opened: ticketedCreate(),
+    openBody: { error: DOCUMENT_NOT_READY_ERROR },
+    currentOpenStatus: () => status,
+    timeline: TIMELINE_WITH_CONTRIBUTOR,
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTitle(CONTRIBUTOR_NAME);
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  status = HttpStatus.Conflict;
+  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
+  expect(openRequests).toHaveLength(3);
+});
+
+test('with the timeline mounted the members are requested once per interval', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    const { fetchSpy } = await renderWithTimelineContributor(ticketedCreate());
+    function membersRequests(): number {
+      return fetchSpy.mock.calls.filter(([input]) => String(input).startsWith(MEMBERS_PATH)).length;
+    }
+    await vi.advanceTimersByTimeAsync(MEMBERS_REFRESH_MS * 2);
+    const requestsBefore = membersRequests();
+    await vi.advanceTimersByTimeAsync(MEMBERS_REFRESH_MS * 2);
+    expect(membersRequests() - requestsBefore).toBe(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+function stubSuperDocStillLoading(): () => void {
+  const original = SuperDoc.getMockImplementation();
+  if (!original) throw new Error('the SuperDoc stub has no implementation to restore');
+  SuperDoc.mockImplementation(function SuperDocLoadingStub() {
+    return { destroy: superDocDestroy, export: superDocExport };
+  } as unknown as typeof SuperDoc);
+  return () => SuperDoc.mockImplementation(original);
+}
+
+test('a document that is still loading shows the loading line and keeps SuperDoc loading overlay', async () => {
+  const restoreSuperDoc = stubSuperDocStillLoading();
+  try {
+    mockDocumentApi({ opened: ticketedCreate() });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByTestId('document-editor')).not.toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+  } finally {
+    restoreSuperDoc();
+  }
+});
+
+test('a superseded tab that never finished loading hides the loading line and SuperDoc loading overlay', async () => {
+  const restoreSuperDoc = stubSuperDocStillLoading();
+  try {
+    let isSuperseded = false;
+    mockDocumentApi({ opened: ticketedCreate(), isAttemptSuperseded: () => isSuperseded });
+    const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+    isSuperseded = true;
+    await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+    await screen.findByRole('alert');
+    expect(screen.queryByText(LOADING_DOCUMENT_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.getByTestId('document-editor')).toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+  } finally {
+    restoreSuperDoc();
+  }
 });

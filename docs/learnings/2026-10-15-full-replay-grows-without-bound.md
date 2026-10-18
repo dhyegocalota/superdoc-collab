@@ -2,6 +2,7 @@
 - Date: 2026-10-15
 - Inspired by: poc/RESULTS.md (Performance); poc/tests/t11-performance.spec.ts::T11
 - Revisited: 2026-10-16 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 `fullReplayMs` in the T11 report climbs with the amount of history (about 900 ms at 9,619 updates) and the replay budget assertion fails on one scenario per full run, never on small documents.

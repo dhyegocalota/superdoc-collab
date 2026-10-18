@@ -171,7 +171,7 @@ export function createCollaborationServer({
       }
       const isAdmittedCreator = isHolder && mayWrite;
       if (!isCommitted && !isAdmittedCreator) {
-        console.warn(`${UNTICKETED_REFUSAL_LOG} ${documentId}`);
+        console.warn(`${REFUSED_TICKET_LOG} ${documentId}`);
         throw new CollaborationSupersededError();
       }
       if (!mayWrite) connection.readOnly = true;

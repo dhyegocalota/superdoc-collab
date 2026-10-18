@@ -307,6 +307,10 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 - The cooldown label counts down each second from `Retry-After` (`lib/use-countdown.ts`, `useCountdown(untilMs)`, interval `SECOND_MS`, cleared on unmount; red `Error: useCountdown is not implemented for …`, and `selection-summary-card.test.tsx::the cooldown ticks down each second`). At zero the hook of G4 resets the error, so the label then goes away. Hypothesis: "Try again in 16 s." shows 15, 14, … in step with the clock. Break it by: a hidden tab for 10 s, then showing it; two cooldowns back to back.
 - `e2e/final-visuals.spec.ts` looks for the position toggle as a `radiogroup`. `pnpm typecheck:e2e` is clean; the spec was not run.
 
+### Default height holds the chart
+
+- `usePanelHeight` default is the larger of the 42 % (58 % below `sm`) share and `PANEL_MIN_CONTENT_PX` (the 240 px chart plus 72 px of handle, header and padding), still capped to leave 240 px for the editor. The chart block is `overflow-visible`. Tests: `use-panel-width.test.ts` at 720, 768 and 800 px viewports (red `expected 262 to be 312`, `282`, `296`) and the `overflow-visible` assertion in `timeline-panel.test.tsx`. Hypothesis: at 1280×800, 1280×720 and 1024×768 the whole chart is visible at the default height; 72 px of chrome is an estimate that the browser measure must confirm.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

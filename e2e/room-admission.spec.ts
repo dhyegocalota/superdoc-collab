@@ -29,6 +29,7 @@ import {
   type OpenedDocument,
 } from '../libs/types/src';
 import { UpdateLog, buildSeedDocx, findBootstrapSequence } from '../libs/history/src';
+import { EDITOR_FAILED_MESSAGE } from '../apps/web/src/features/editor/editor-copy';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
@@ -221,9 +222,7 @@ test('a holder who reopens a fresh document supersedes its first page and the ro
   await expect.poll(() => firstPageProgress.hasSentFrame).toBe(true);
   const secondPage = await ana.context.newPage();
   await secondPage.goto(documentPagePath(documentId));
-  await expect(ana.page.getByTestId(CONNECTION_BANNER_TEST_ID)).toHaveAttribute(CONNECTION_STATE_ATTRIBUTE, ConnectionState.Failed, {
-    timeout: COMMIT_TIMEOUT_MS,
-  });
+  await expect(ana.page.getByText(EDITOR_FAILED_MESSAGE)).toBeVisible({ timeout: COMMIT_TIMEOUT_MS });
   await expect(editorText(secondPage).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
   await expect
     .poll(() => openDocument({ page: secondPage, documentId }), { timeout: LARGE_COMMIT_TIMEOUT_MS })

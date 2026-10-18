@@ -524,7 +524,7 @@ test('a loading version dims the editor area and shows a progress line under the
   mockDocumentApi({ versions: { 42: [PENDING_REPLY, readyReply(42)] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const banner = await screen.findByTestId('version-banner');
-  const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
+  const progress = await screen.findByRole('status', { name: LOADING_VERSION_MESSAGE });
   expect(screen.getByTestId('editor-surface')).toHaveClass('opacity-60');
   expect(screen.getByTestId('editor-area')).not.toHaveClass('opacity-60');
   expect(banner.closest('.opacity-60')).toBeNull();
@@ -584,7 +584,7 @@ test('below lg the progress line follows the bar outside the dimmed editor area'
   mockDocumentApi({ versions: { 42: [PENDING_REPLY] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const banner = await screen.findByTestId('version-banner');
-  const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
+  const progress = await screen.findByRole('status', { name: LOADING_VERSION_MESSAGE });
   expect(banner.nextElementSibling).toBe(progress);
   expect(screen.getByTestId('editor-area').parentElement).not.toContainElement(progress);
 });

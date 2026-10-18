@@ -9,7 +9,7 @@ const ANY_PATH = '*';
 
 type RenderOptions = { route?: string; queryClient?: QueryClient; state?: unknown };
 
-function createTestQueryClient(): QueryClient {
+export function createTestQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 

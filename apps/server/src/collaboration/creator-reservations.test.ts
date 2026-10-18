@@ -220,3 +220,25 @@ test('the lapsed holder reserves again once the cooldown has passed and nobody t
   context.advance(CREATOR_RESERVATION_MS + 1);
   expect(context.reserveAs(FIRST_EDITOR)).toBe(SECOND_ATTEMPT);
 });
+
+test('a holder that releases and reopens at once keeps its original start and still lapses at the cap', () => {
+  const context = contextAt(0);
+  context.reserveAs(FIRST_EDITOR);
+  context.advance(CREATOR_RESERVATION_MAX_MS - SECOND_MS);
+  context.reservations.release({ documentId: DOCUMENT_ID, attempt: FIRST_ATTEMPT });
+  expect(context.reserveAs(FIRST_EDITOR)).toBe(SECOND_ATTEMPT);
+  context.advance(2 * SECOND_MS);
+  expect(context.reserveAs(FIRST_EDITOR)).toBeUndefined();
+});
+
+test('a holder that reopens after the release window starts a fresh lifetime', () => {
+  const context = contextAt(0);
+  context.reserveAs(FIRST_EDITOR);
+  context.advance(CREATOR_RESERVATION_MAX_MS - SECOND_MS);
+  context.reservations.release({ documentId: DOCUMENT_ID, attempt: FIRST_ATTEMPT });
+  context.advance(CREATOR_RESERVATION_MS + SECOND_MS);
+  expect(context.reserveAs(FIRST_EDITOR)).toBe(SECOND_ATTEMPT);
+  context.advance(CREATOR_RESERVATION_MAX_MS - 2 * SECOND_MS);
+  context.reservations.touch({ documentId: DOCUMENT_ID, attempt: SECOND_ATTEMPT });
+  expect(context.reserveAs(FIRST_EDITOR)).toBe(3);
+});

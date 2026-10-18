@@ -2,10 +2,10 @@ import { waitFor } from '@testing-library/react';
 import type { SuperDocExceptionPayload } from 'superdoc';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { SuperDocExceptionCode } from '@/features/editor/superdoc-exceptions';
-import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { DOCUMENT_ID, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { VersionViewer } from './version-viewer';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 
 type SuperDocConfig = {
   onException: (payload: SuperDocExceptionPayload) => void;

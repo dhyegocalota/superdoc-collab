@@ -25,7 +25,7 @@ The slot of a member is assigned per document from the members in join order: ea
 ## Consequences
 
 - Up to six members of one document never share a colour; the seventh and later may.
-- The account menu avatar is not per document and keeps the hash colour; it may differ from the user's colour inside a document.
+- The account menu avatar follows the document's slot on the document page, so the top bar never shows two colours for one person; on every other page it keeps the hash colour.
 - The members and open responses grow by one integer field; a client from before this change ignores it.
 
 ## Evidence

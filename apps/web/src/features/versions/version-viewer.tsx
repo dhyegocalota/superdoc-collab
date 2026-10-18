@@ -49,7 +49,7 @@ export function VersionViewer({ documentId, sequence, user, colorSlot, onReady, 
         roomMode: RoomMode.Join,
         creatorTicket: null,
         user,
-        ...authorPaletteOf({ user, colorSlot }),
+        ...authorPaletteOf({ colorSlot }),
       }),
       onCollaborationReady: () => {
         isReady = true;

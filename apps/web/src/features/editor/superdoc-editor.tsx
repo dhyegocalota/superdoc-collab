@@ -94,7 +94,7 @@ export function SuperDocEditor({
         roomMode,
         creatorTicket,
         user,
-        ...authorPaletteOf({ user, colorSlot }),
+        ...authorPaletteOf({ colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
       onCollaborationReady: () => {

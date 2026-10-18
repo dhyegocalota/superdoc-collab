@@ -22,22 +22,22 @@ One developer, steps in order.
 
 ### G1
 
-- [ ] **Step 1:** red unit test in `document-table.test.tsx`: below `lg` the stacked list; from `lg` the table.
-- [ ] **Step 2:** the phone rendering in `DocumentTable` and the separator copy; green.
-- [ ] **Step 3:** E2E at 375 x 812: the card never scrolls sideways and the full title is visible; `pnpm typecheck`; tester briefing; the README row.
+- [x] **Step 1:** red unit test in `document-table.test.tsx`: below `lg` the stacked list; from `lg` the table. — evidence: red 523d906
+- [x] **Step 2:** the phone rendering in `DocumentTable` and the separator copy; green. — evidence: green d1b9d49 (`documents-page.test.tsx` now stubs a wide viewport, because jsdom counts as a phone)
+- [x] **Step 3:** E2E at 375 x 812: the card never scrolls sideways and the full title is visible; `pnpm typecheck`; tester briefing; the README row. — evidence: E2E in the next commit, run once and green; `pnpm typecheck` green
 
 ## Failure modes
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
-| 2 | a long unbroken title still widens the card | the E2E `scrollWidth` check at 375 | `break-words` on the link |
+| 2 | a long unbroken title still widens the card | the E2E `scrollWidth` check at 375 | `break-words` on the title |
 | 2 | the muted line drops the access label in Shared | the unit test reads the line | render the shared cell renderers for every non-title column |
 
 **Steps with no backout:** none.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **Security reviewer:** a fresh `security-reviewer` sub-agent returned a verdict on this diff.

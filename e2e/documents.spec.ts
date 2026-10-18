@@ -41,6 +41,7 @@ const LIVE_TIMEOUT_MS = 30_000;
 const EDITOR_TEST_ID = 'document-editor';
 const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
+const LONG_TITLE_PREFIX = 'Quarterly operating plan with every regional hiring forecast';
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
 
 function uniqueFileName(prefix: string): string {
@@ -181,4 +182,15 @@ test('the Download button exports the live document', async ({ browser }) => {
   const download = ana.page.waitForEvent('download');
   await downloadButton(ana.page).click();
   expect((await download).suggestedFilename()).toBe(fileName);
+});
+
+test('the documents list never scrolls sideways on a narrow viewport and shows the whole title', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const fileName = uniqueFileName(LONG_TITLE_PREFIX);
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
+  await ana.page.setViewportSize(NARROW_VIEWPORT);
+  await ana.page.goto(AppRoute.Documents);
+  const card = ana.page.getByRole('list').first().locator('..');
+  await expect(ana.page.getByRole('link', { name: titleOf(fileName) })).toBeVisible();
+  await expect.poll(() => card.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0);
 });

@@ -21,7 +21,9 @@ pnpm typecheck
 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
-| filled in at step 1 | | |
+| `document-table.test.tsx::below lg a shared document is a list item with the title link and one muted line`, 523d906 | `Unable to find role="listitem"` because the table renders | d1b9d49 |
+| `document-table.test.tsx::below lg a document of Mine shows only the time under the title`, 523d906 | same | d1b9d49 |
+| `document-table.test.tsx::from lg the table and its column headers remain`, `::an empty list shows its message at any width` | pin | pin |
 
 ## Hypotheses to attack
 

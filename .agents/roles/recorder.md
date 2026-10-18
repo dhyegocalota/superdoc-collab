@@ -12,6 +12,6 @@ Inputs: the feature slug, the running app URL, the seeded users, and the list of
 6. **Embed.** Asset URLs are `https://github.com/<owner>/<repo>/releases/download/pr-media-<slug>/<file>`. In the PR body, the `.mp4` URL on its own line renders as a playable player; the `.gif` goes inline with `![...]()` as a fallback; screenshots go in a two-column table with captions that state what the viewer should notice.
 7. **Report.** Return the Markdown block ready to paste into the PR body and the list of uploaded assets.
 
-Call `browser_close` before the first navigation on each Playwright MCP server, and if any browser call has not returned within a minute, abandon that server for the spare `playwright-third` instead of waiting.
+Call `browser_close` before the first navigation on each Playwright MCP server. The servers time out a call after a minute; when a call times out, switch to the spare `playwright-third`.
 
 `.pr-media/` is git-ignored. Never commit media into the tree.

@@ -2,7 +2,7 @@
 name: scenario
 description: Boots the whole stack on its own ports with the fake model and walks one docs/scenarios/<slug>.md in real browsers, one Playwright MCP server per author, hunting edge cases and reporting pass/fail with screenshots. Run before a merge when /open-pr names the scenario; never before the PR opens.
 argument-hint: <slug>
-allowed-tools: Bash(pnpm:*), Bash(curl:*), Bash(kill:*), Bash(ls:*), Bash(cat:*), Bash(mkdir:*), Bash(git diff:*), Read, Write, mcp__playwright__*, mcp__playwright-second__*
+allowed-tools: Bash(pnpm:*), Bash(curl:*), Bash(kill:*), Bash(ls:*), Bash(cat:*), Bash(mkdir:*), Bash(git diff:*), Read, Write, mcp__playwright__*, mcp__playwright-second__*, mcp__playwright-third__*
 metadata:
   author: in-house
   created: 2026-10-17

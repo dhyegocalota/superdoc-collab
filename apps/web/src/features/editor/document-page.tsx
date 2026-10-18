@@ -161,6 +161,8 @@ export function DocumentPage() {
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
+  const isSuperseded = failureReason === ConnectionFailureReason.Superseded;
+  const isLoadingLineShown = !fileError && !isSuperseded;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
 
   return withAnnouncement(
@@ -178,7 +180,7 @@ export function DocumentPage() {
       {superdoc === null && (
         <div id={LOADING_DOCUMENT_REASON_ID}>
           {fileError && <ErrorMessage className="px-4 py-1">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
-          {!fileError && (
+          {isLoadingLineShown && (
             <p role="status" className="px-4 py-1 text-xs text-muted-foreground">
               {LOADING_DOCUMENT_MESSAGE}
             </p>
@@ -214,7 +216,7 @@ export function DocumentPage() {
                 colorSlot={editorSetup.colorSlot}
                 file={editorSetup.file}
                 isInert={isEditingSurfaceInert}
-                isSuperseded={failureReason === ConnectionFailureReason.Superseded}
+                isSuperseded={isSuperseded}
                 onTransportReport={reportTransport}
               />
             )}

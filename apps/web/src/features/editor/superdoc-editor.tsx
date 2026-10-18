@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS } from './superdoc-zoom';
 import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
+const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
 type SuperDocEditorProps = {
@@ -147,6 +148,7 @@ export function SuperDocEditor({
         className={cn(
           'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
           FITTED_PAGE_CLASS,
+          isSuperseded && HIDDEN_LOADING_OVERLAY_CLASS,
         )}
       />
       <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">

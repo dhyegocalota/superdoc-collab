@@ -1,6 +1,6 @@
 import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,9 @@ const MAX_MEMBERS_WITHOUT_MENU = 5;
 const MEMBERS_BESIDE_MENU = 4;
 const NARROW_MEMBERS_WITHOUT_MENU = 3;
 
+const AWARENESS_UPDATE_EVENT = 'awareness-update';
+
+type AwarenessChange = { added: number[]; removed: number[] };
 type JumpState = { member: DocumentMember; isOnline: boolean; reason: string | null };
 
 function jumpReasonOf({
@@ -149,11 +152,6 @@ export function Members({
 }) {
   const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container: editorContainer });
   const queryClient = useQueryClient();
-  const peersWithCursorKey = members
-    .filter((member) => member.user.id !== currentUserId && hasCursor(member))
-    .map((member) => member.user.id)
-    .join();
-  const shownPeersWithCursorKey = useRef(peersWithCursorKey);
   const { schedule: refreshMembers } = useDebouncedCallback({
     callback: () => queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) }, { cancelRefetch: false }),
     delayMs: MEMBERS_PRESENCE_DEBOUNCE_MS,
@@ -161,10 +159,17 @@ export function Members({
   const [announcement, setAnnouncement] = useState('');
 
   useEffect(() => {
-    if (shownPeersWithCursorKey.current === peersWithCursorKey) return;
-    shownPeersWithCursorKey.current = peersWithCursorKey;
-    refreshMembers();
-  }, [peersWithCursorKey, refreshMembers]);
+    if (!superdoc) return;
+    function onAwarenessUpdate({ added, removed }: AwarenessChange): void {
+      const hasPeerChange = added.length + removed.length > 0;
+      if (!hasPeerChange) return;
+      refreshMembers();
+    }
+    superdoc.on(AWARENESS_UPDATE_EVENT, onAwarenessUpdate);
+    return () => {
+      superdoc.off(AWARENESS_UPDATE_EVENT, onAwarenessUpdate);
+    };
+  }, [superdoc, refreshMembers]);
 
   function jump(member: DocumentMember): JumpOutcome {
     const outcome = jumpTo(member);

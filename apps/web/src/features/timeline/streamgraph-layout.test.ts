@@ -310,7 +310,14 @@ test('an edit island of one bin between two breaks keeps a drawn width at minute
 
 test('edits on alternate days keep every segment drawn at day bins', () => {
   const rows = [BUSY, QUIET, BUSY, QUIET, BUSY];
-  const timeline = { ...timelineWith({ volumes: rows, names: ['Budget', 'Hiring'] }), binMs: DAY_MS };
+  const minuteTimeline = timelineWith({ volumes: rows, names: ['Budget', 'Hiring'] });
+  const firstStart = minuteTimeline.bins[0]!.start;
+  const bins = minuteTimeline.bins.map((bin, index) => ({
+    ...bin,
+    start: firstStart + index * DAY_MS,
+    end: firstStart + (index + 1) * DAY_MS,
+  }));
+  const timeline = { ...minuteTimeline, binMs: DAY_MS, bins };
   const layout = layoutStreamgraph({ timeline, width: CHART_WIDTH });
   expect(layout.breaks).toHaveLength(2);
   layout.shapes.forEach((shape) => {

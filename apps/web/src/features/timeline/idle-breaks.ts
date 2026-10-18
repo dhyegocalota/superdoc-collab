@@ -1,11 +1,15 @@
 import { cellVolume } from '@superdoc-collab/history/timeline';
-import type { DocumentTimeline, TimelineBin } from '@superdoc-collab/types';
+import type { DocumentTimeline } from '@superdoc-collab/types';
 
 export type IdleBreak = { firstIndex: number; lastIndex: number; durationMs: number };
 type EmptyRun = { firstIndex: number; lastIndex: number };
 
-function isEmptyBin({ timeline, bin }: { timeline: DocumentTimeline; bin: TimelineBin }): boolean {
-  return timeline.bands.every((band) => cellVolume(bin.byBand[band.id]) === 0);
+function isSilentBin({ timeline, index }: { timeline: DocumentTimeline; index: number }): boolean {
+  const bin = timeline.bins[index]!;
+  const isEmpty = timeline.bands.every((band) => cellVolume(bin.byBand[band.id]) === 0);
+  const previousBin = timeline.bins[index - 1];
+  const keepsVersion = previousBin === undefined || previousBin.versionSequence === bin.versionSequence;
+  return isEmpty && keepsVersion;
 }
 
 function extendRuns({ runs, index }: { runs: EmptyRun[]; index: number }): EmptyRun[] {
@@ -17,11 +21,11 @@ function extendRuns({ runs, index }: { runs: EmptyRun[]; index: number }): Empty
 export function idleBreaksOf({ timeline, thresholdMs }: { timeline: DocumentTimeline; thresholdMs: number }): IdleBreak[] {
   const lastBinIndex = timeline.bins.length - 1;
   return timeline.bins
-    .map((bin, index) => ({ index, isEmpty: isEmptyBin({ timeline, bin }) }))
-    .filter(({ isEmpty }) => isEmpty)
-    .reduce<EmptyRun[]>((runs, { index }) => extendRuns({ runs, index }), [])
+    .map((_, index) => index)
+    .filter((index) => isSilentBin({ timeline, index }))
+    .reduce<EmptyRun[]>((runs, index) => extendRuns({ runs, index }), [])
     .filter((run) => run.firstIndex > 0 && run.lastIndex < lastBinIndex)
-    .map((run) => ({ ...run, durationMs: (run.lastIndex - run.firstIndex + 1) * timeline.binMs }))
+    .map((run) => ({ ...run, durationMs: timeline.bins[run.lastIndex]!.end - timeline.bins[run.firstIndex]!.start }))
     .filter((idleBreak) => idleBreak.durationMs > thresholdMs);
 }
 

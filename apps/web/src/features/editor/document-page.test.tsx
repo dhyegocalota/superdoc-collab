@@ -553,6 +553,7 @@ test('a lost callback shows the banner above the version banner', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner), isCurrentUserOnline: () => false });
   renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=${VIEWED_AT}` });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
   const connectionBanner = await screen.findByTestId('connection-banner');
   const versionBanner = await screen.findByTestId('version-banner');

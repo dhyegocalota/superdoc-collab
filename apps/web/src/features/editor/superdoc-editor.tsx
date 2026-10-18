@@ -57,11 +57,11 @@ export function SuperDocEditor({
     const container = containerRef.current;
     if (!container) return;
     let isActive = true;
-    let hasSynced = false;
+    let isReady = false;
     function reportTransport(report: TransportReport): void {
-      const isRefusedBeforeSync = report.reading === TransportReading.Failed && !hasSynced;
-      hasSynced = hasSynced || report.hasSynced;
-      if (isRefusedBeforeSync) return setHasFailed(true);
+      isReady = isReady || report.hasSynced;
+      const isInterruptedBeforeReady = !isReady && report.reading !== null && report.reading !== TransportReading.Clear;
+      if (isInterruptedBeforeReady) return setHasFailed(true);
       onTransportReport(report);
     }
     const exceptionHandlers: Record<ExceptionOutcome, (payload: SuperDocExceptionPayload) => void> = {
@@ -88,6 +88,9 @@ export function SuperDocEditor({
         ...authorPaletteOf(user),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
+      onCollaborationReady: () => {
+        isReady = true;
+      },
       onCollaborationConnectionChange: (payload) => {
         if (!isActive) return;
         reportTransport(transportReportOf(payload));

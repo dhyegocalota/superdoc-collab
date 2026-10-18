@@ -24,7 +24,7 @@ import {
 const PARAGRAPHS = ['Budget: the plan costs 10.', 'Hiring: we add two people.'];
 const EDIT_TEXT = ' More money';
 const BAND_NAME = 'Budget';
-const PHONE_VIEWPORT = { width: 375, height: 812 };
+const PHONE_VIEWPORT = { width: 375, height: 568 };
 const DEBOUNCE_WINDOW_MS = 1_000;
 const CHART_CENTRE_FRACTION = 0.5;
 const PANEL_BODY_SELECTOR = 'aside [data-panel-body]';
@@ -86,7 +86,12 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
   await clickChart({ page: ana.page, widthFraction: CHART_CENTRE_FRACTION });
   await expect(header).toContainText(CHARACTER_COUNT_PATTERN);
   const scroller = ana.page.locator(PANEL_BODY_SELECTOR);
-  expect(await scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
+  const naturalOffset = await rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top);
+  const maxScroll = await scroller.evaluate((element) => element.scrollHeight - element.clientHeight);
+  expect(maxScroll, 'the panel must scroll further than the header offset, or the header never has to stick').toBeGreaterThan(
+    naturalOffset,
+  );
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))
     .toBe(true);

@@ -20,6 +20,7 @@ import { USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
+import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   CANCEL_LABEL,
@@ -61,21 +62,6 @@ type HeaderOptions = {
   route?: string;
   width?: number;
 };
-
-const WIDE_VIEWPORT_WIDTH = 1280;
-const NARROW_VIEWPORT_WIDTH = 768;
-
-function stubViewportWidth(width: number): void {
-  vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
-    const minimumWidth = Number(/min-width:\s*(\d+)px/.exec(query)?.[1]);
-    return {
-      matches: width >= minimumWidth,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    } as unknown as MediaQueryList;
-  });
-}
 
 function renderHeader({
   role = DocumentRole.Editor,

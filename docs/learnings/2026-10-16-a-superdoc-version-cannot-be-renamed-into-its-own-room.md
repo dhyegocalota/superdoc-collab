@@ -5,6 +5,7 @@
 - Revisited: 2026-10-16 — ADR 0003 addendum
 - Revisited: 2026-10-17 — still true; version endpoints are still routed to `versionRooms` before the member path in `attach-collaboration.ts`
 - Revisited: 2026-10-17 — still true: `version-viewer.tsx` passes `versionCollaborationPath`; the viewer page now sits under `features/versions/`
+- Revisited: 2026-10-18 — still true; `author-colours` only adds a `colorSlot` prop to the version viewer
 
 ## Signal
 Opening a version in a room named `sd2/v2.1/<id>@<sequence>` never connects: SuperDoc builds the room name from the document id itself and ignores the suffix.

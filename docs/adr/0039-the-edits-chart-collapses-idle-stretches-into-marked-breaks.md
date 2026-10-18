@@ -13,6 +13,7 @@ The server returns every bin from the first edit to the last, one padding bin on
 
 - The server is unchanged. Its bins, their indexes, their tiling and the cap of 120 stay as [ADR 0016](0016-timeline-bin-budget.md) records them.
 - The client collapses each run of consecutive empty bins that is longer than `IDLE_BREAK_MS` into one break column of `BREAK_WIDTH_PX`. `IDLE_BREAK_MS` is five minutes and `BREAK_WIDTH_PX` is 16 pixels, both proposed and open to the owner. A run that touches the first or the last bin is never a break, because the server pads one bin on each edge.
+- A bin that cuts a new version is never part of a break. A break holds only empty bins whose version equals the bin before it, so every version stays reachable by keyboard and pointer.
 - A break is drawn as a gap. Each band's area is drawn separately on each side of it, and a dashed divider marks the column; the divider is `aria-hidden`.
 - A break's tooltip names its length, for example "No edits for 7 minutes". The length is formatted from milliseconds at the edge.
 - The keyboard treats a break as one step. ArrowRight from the bin before a break lands on the first bin after it, and ArrowLeft reverses. Bin indexes do not change, so selection, versions, `?at=`, bands and agent marks keep their meaning.
@@ -30,7 +31,7 @@ The server returns every bin from the first edit to the last, one padding bin on
 ## Consequences
 
 - A silence costs one break column, so the active minutes get the width the silence took.
-- Every bin in a break carries the version of the bin before it. Versions are cut only at minutes that had updates ([`version-marks.ts`](../../libs/history/src/version-marks.ts)), so a silence adds no mark, and skipping a break loses no version.
+- Every bin in a break carries the version of the bin before it. A formatting-only update inside a silence cuts a version at its minute without any text volume ([`version-marks.ts`](../../libs/history/src/version-marks.ts)), so the version rule above keeps every version reachable: that bin ends the run and skipping a break loses no version.
 - Breaks never touch the first or last bin, so Home and End always reach a bin that is not inside a break.
 - At day or week bins every empty interior bin is longer than five minutes, so each quiet day becomes a break. This is accepted and checked in the walk.
 - Time across a break is no longer linear, and the break says so in its tooltip and its divider.

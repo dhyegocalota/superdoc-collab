@@ -1,4 +1,4 @@
-import { AppRoute } from '@superdoc-collab/types';
+import { AppRoute, PRINT_READY_TIMEOUT_MS } from '@superdoc-collab/types';
 import { act, render } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { PrintMessageKind, type PrintMessage } from './print-messages';
@@ -33,7 +33,10 @@ function renderPrintView() {
   return { onClose, onFailed, frameWindow, postMessage, print };
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 test('mounts an off-screen same-origin frame on the print route and hands it the file when it is ready', () => {
   const { postMessage } = renderPrintView();
@@ -75,5 +78,26 @@ test('a message from another window is ignored', () => {
   sendFromFrame({ message: { kind: PrintMessageKind.Painted }, source: window });
   sendFromFrame({ message: { kind: PrintMessageKind.Failed }, source: window });
   expect(print).not.toHaveBeenCalled();
+  expect(onFailed).not.toHaveBeenCalled();
+});
+
+test('a frame that never reports Painted fails the preparation after the timeout, once', () => {
+  vi.useFakeTimers();
+  const { onFailed, print } = renderPrintView();
+  sendFromFrame({ message: { kind: PrintMessageKind.Ready } });
+  act(() => vi.advanceTimersByTime(PRINT_READY_TIMEOUT_MS - 1));
+  expect(onFailed).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(onFailed).toHaveBeenCalledTimes(1);
+  act(() => vi.advanceTimersByTime(PRINT_READY_TIMEOUT_MS));
+  expect(onFailed).toHaveBeenCalledTimes(1);
+  expect(print).not.toHaveBeenCalled();
+});
+
+test('Painted before the timeout cancels it', () => {
+  vi.useFakeTimers();
+  const { onFailed } = renderPrintView();
+  sendFromFrame({ message: { kind: PrintMessageKind.Painted } });
+  act(() => vi.advanceTimersByTime(PRINT_READY_TIMEOUT_MS * 2));
   expect(onFailed).not.toHaveBeenCalled();
 });

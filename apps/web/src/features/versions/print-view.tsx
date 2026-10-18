@@ -1,5 +1,5 @@
-import { AppRoute } from '@superdoc-collab/types';
-import { useRef, useState } from 'react';
+import { AppRoute, PRINT_READY_TIMEOUT_MS } from '@superdoc-collab/types';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useWindowMessage } from '@/lib/use-window-message';
 import { PrintMessageKind, readPrintMessage } from './print-messages';
@@ -10,6 +10,13 @@ const LETTER_PAGE_HEIGHT_PX = 1056;
 export function PrintView({ file, onClose, onFailed }: { file: Blob; onClose: () => void; onFailed: () => void }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [pageCount, setPageCount] = useState(1);
+  const [isPainted, setIsPainted] = useState(false);
+
+  useEffect(() => {
+    if (isPainted) return;
+    const timeout = setTimeout(onFailed, PRINT_READY_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [isPainted, onFailed]);
 
   useWindowMessage((event) => {
     const frameWindow = frameRef.current ? frameRef.current.contentWindow : null;
@@ -19,6 +26,7 @@ export function PrintView({ file, onClose, onFailed }: { file: Blob; onClose: ()
     if (message.kind === PrintMessageKind.PageCount) setPageCount(message.pageCount);
     if (message.kind === PrintMessageKind.Failed) onFailed();
     if (message.kind !== PrintMessageKind.Painted) return;
+    setIsPainted(true);
     frameWindow.addEventListener('afterprint', onClose, { once: true });
     frameWindow.print();
   });

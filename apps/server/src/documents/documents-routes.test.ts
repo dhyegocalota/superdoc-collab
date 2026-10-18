@@ -274,9 +274,8 @@ test('roomMode stays create until the bootstrap commits', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   await expect.poll(() => server.services.updateLog.hasUpdates(documentId)).toBe(true);
-  const roomModeOf = async () =>
-    ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
-  expect(await roomModeOf()).toBe(RoomMode.Create);
+  const roomModeOf = () => server.services.runtime.roomMode(documentId);
+  expect(roomModeOf()).toBe(RoomMode.Create);
   commitBootstrap(client.document);
   await expect.poll(roomModeOf).toBe(RoomMode.Join);
   client.close();
@@ -326,8 +325,9 @@ async function openedBy({ server, user, documentId }: { server: TestServer; user
 }
 
 test('the first editor to open a fresh room is reserved as creator with attempt 1', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  const opened = await openedBy({ server, user: owner, documentId });
+  const { server, owner } = await signedInOwner();
+  const [documentId] = uncommittedDocuments({ server, owner, count: 1 });
+  const opened = await openedBy({ server, user: owner, documentId: documentId! });
   expect([opened.roomMode, opened.creatorAttempt, opened.creatorEpoch]).toEqual([
     RoomMode.Create,
     FIRST_ATTEMPT,

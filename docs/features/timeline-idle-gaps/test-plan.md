@@ -106,9 +106,9 @@ Empty on purpose. The tester adds one checkbox per new case (input, exact expect
 
 The reviewer picks the three claims most likely to be wrong and tries to refute each.
 
-- [ ] Claim 1: a bin inside a break carries the version of the bin before it, so skipping a break loses no version — attack: a version mark placed inside the silence; result: <refuted | held>
-- [ ] Claim 2: a break never includes the first or last bin — attack: a timeline whose first edit is later than the silence, with agent actions that widen the span; result: <refuted | held>
-- [ ] Claim 3: the piecewise scale keeps `binAt` and `binX` inverse on bins outside a break — attack: sweep every pixel of a 600 px chart with breaks at both edges of a bin; result: <refuted | held>
+- [x] Claim 1: a bin inside a break carries the version of the bin before it, so skipping a break loses no version — attack: a version mark placed inside the silence; result: refuted at a09b5bd, held at 80b02523 — idle-breaks.ts first counted text volume only while `endsItsMinute` in libs/history/src/version-marks.ts cuts a version on any update, so a formatting-only update inside a silence made an unreachable version; now idle-breaks.ts:11-12 requires a silent bin to repeat the previous bin's versionSequence, a version-bearing bin ends the run (idle-breaks.test.ts:75 and :82) and ADR 0039 states the rule (aa2fe8dc); verified by reading, not with a seeded formatting update
+- [x] Claim 2: a break never includes the first or last bin — attack: a timeline whose first edit is later than the silence, with agent actions that widen the span; result: held — idle-breaks.ts:27 drops any run whose firstIndex is 0 or whose lastIndex is the last bin, on the index alone, so leading empty bins from an agent-widened span are never a break (idle-breaks.test.ts:31 and :36); verified by reading, no agent-widened fixture run
+- [x] Claim 3: the piecewise scale keeps `binAt` and `binX` inverse on bins outside a break — attack: sweep every pixel of a 600 px chart with breaks at both edges of a bin; result: held — binAt returns the nearest slot outside a break (streamgraph-layout.ts:261) and breakAt excludes the column edges (:248), so binAt(binX(i)) is i even for an island with a break on each side (streamgraph-layout.test.ts:219 over every bin outside the break, :208 over the column edges); the 600 px pixel sweep was not run
 
 ## Coverage honesty
 

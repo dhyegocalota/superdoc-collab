@@ -7,7 +7,8 @@
 - `connected-apps-page.tsx`: the section under the list shows `CONNECT_HEADING`, `USE_WITH_AI_DESCRIPTION` and `UseWithAiContent` with `title: null, canEdit: false`.
 - `connect-snippets.tsx`: `ConnectSnippets` removed, `ClientSnippet` kept.
 - `connected-apps-copy.ts`: `CONNECT_DESCRIPTION` and `MCP_URL_LABEL` removed; `rg` found no other user in apps/web or e2e.
-- E2E files untouched: they read only `CONNECTED_APPS_HEADING` and `revokeLabel`, and `final-visuals.spec.ts` reads names that still exist.
+- E2E: `agent.ts`, `agent.spec.ts` and `auth.spec.ts` untouched. `final-visuals.spec.ts` gains "the Connected apps page shows a tab per client and the library prompts" (not run by the developer; typecheck only).
+- The tab list has an accessible name, `AI_CLIENTS_TABLIST_LABEL`, in the dialog and on the page. Red 7c0dfc0 (`Unable to find an accessible element with the role "tablist" and name "AI clients"`), green 806b8bf. The Cursor tab assertion in the content test is a pin.
 
 ## How to run
 

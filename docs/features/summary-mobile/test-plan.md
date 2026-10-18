@@ -4,18 +4,20 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## The failing test first
 
-- [ ] `apps/web/src/features/timeline/selected-header.test.tsx::a selected bin shows its time range, its edit count and Clear selection` — input: a selection with 12 characters; expected: the range, "12 characters" and a "Clear selection" button
+- [ ] `apps/web/src/features/timeline/selected-header.test.tsx::a selected bin shows its time range, its character count and Clear selection` — input: a selection with a volume of 12; expected: the range, "12 characters" and a "Clear selection" button
 - [ ] Confirmed it fails for the right reason: `SelectedHeader is not implemented`
 
 ## Unit
 
 - [ ] `selected-header.test.tsx::no selection reads Showing the whole document` — input: `selection: null`; expected: that text, no buttons
-- [ ] `selected-header.test.tsx::a versioned bin on a phone offers View version` — input: `hasVersion: true, isPhoneLayout: true`; expected: the "View version" button, `onViewVersion` called on click
-- [ ] `selected-header.test.tsx::a versioned bin on desktop offers no View version` — input: `isPhoneLayout: false`; expected: no such button
+- [ ] `selected-header.test.tsx::a bin that can be viewed offers View version` — input: `canViewVersion: true`; expected: the "View version" button, `onViewVersion` called on click
+- [ ] `selected-header.test.tsx::a bin that cannot be viewed offers no View version` — input: `canViewVersion: false`; expected: no such button
+- [ ] `selected-header.test.tsx::View version is disabled while a version loads` — input: `canViewVersion: true, isViewVersionDisabled: true`; expected: the button is disabled
 - [ ] `use-reduced-motion.test.ts` — input: `matchMedia` reduce true, then false; expected: `true`, then `false`, updates on change
 - [ ] `use-reveal-selected.test.ts::a pointer selection scrolls the header into view smoothly` — expected: `scrollIntoView({ block: 'nearest', behavior: 'smooth' })`
 - [ ] `use-reveal-selected.test.ts::reduced motion scrolls instantly` — expected: `behavior: 'auto'`
-- [ ] `use-reveal-selected.test.ts::a keyboard selection with the header in view does not scroll` — expected: no call
+- [ ] `use-reveal-selected.test.ts::a keyboard selection never scrolls` — expected: no call
+- [ ] `use-reveal-selected.test.ts::a change after the pointer was released, such as Back, never scrolls` — expected: no call
 - [ ] `timeline-panel.test.tsx::below md the order is chart, header, filter, card, edits` — expected: DOM order, header `sticky`
 - [ ] `timeline-panel.test.tsx::the first load shows a skeleton` — input: timeline pending; expected: a status skeleton with the chart height
 - [ ] `time-travel.test.tsx::below lg selecting a versioned bin never travels, View version writes at at once` — expected: no `at` change on tap or key; `at` set right after the click, no debounce
@@ -26,10 +28,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `time-travel.test.tsx::loading ends when the frame is visible` — expected: dim and progress line gone after the ready message
 - [ ] `timeline-panel.test.tsx::the header's parent is the scroll container below md, and at 768 it tops the list column`
 - [ ] `streamgraph.test.tsx::keys still move the selection while a version loads` — expected: `onSelectIndex` called on ArrowRight
-- [ ] `document-page.test.tsx::a loading version dims the editor and shows the progress line` — expected: the editor area has the dim class, a `role="status"` line under the bar
-- [ ] `document-page.test.tsx::the version bar is pinned below lg` — expected: the bar sits above the editor with the touch height
-- [ ] `version-banner.test.tsx` — expected: "Back to live" at 44 px via the `touch` size
-- [ ] `timeline-copy.test.ts` — the new strings and `viewVersionPrompt('14:05')`
+- [ ] `time-travel.test.tsx::a loading version dims the editor area and shows a progress line under the bar until the frame is visible` — expected: `editor-surface` has the dim class, the bar does not, a `role="status"` line follows the bar and goes after the ready message
+- [ ] `time-travel.test.tsx::below lg the version bar sits before the layout, outside the shared scroller, with a 44 px button` and `::below lg the progress line follows the bar outside the dimmed editor area` — expected: the bar and the line sit before the layout div, the button has the `touch` size
+- [ ] `time-travel.test.tsx::from lg the version bar keeps its place and its small button` — expected: the bar inside the editor area, the `sm` size
+- [ ] `timeline-copy.test.ts` — the new strings (no `viewVersionPrompt`)
 - [ ] `pnpm --filter @superdoc-collab/web test:unit`; expected: green
 
 ## E2E (Playwright specs)

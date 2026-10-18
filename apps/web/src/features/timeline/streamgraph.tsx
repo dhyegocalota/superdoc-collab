@@ -8,6 +8,7 @@ import { AgentActionMarks } from './agent-action-marks';
 import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { AgentLegend } from './agent-legend';
 import { BandLabel } from './band-label';
+import { stepOutOfBreaks, type IdleBreak } from './idle-breaks';
 import { maxBandVolume } from './max-band-volume';
 import { CHART_HEIGHT, layoutStreamgraph, type BandShape, type BreakColumn } from './streamgraph-layout';
 import { StreamgraphLegend } from './streamgraph-legend';
@@ -28,15 +29,25 @@ type StreamgraphProps = {
   onClearSelection: () => void;
 };
 
-function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedIndex: number | null; lastIndex: number }): number | null {
+function nextIndex({
+  key,
+  selectedIndex,
+  lastIndex,
+  breaks,
+}: {
+  key: string;
+  selectedIndex: number | null;
+  lastIndex: number;
+  breaks: IdleBreak[];
+}): number | null {
   const isStep = key === KeyboardKey.ArrowRight || key === KeyboardKey.ArrowLeft;
   if (key === KeyboardKey.Home) return 0;
   if (key === KeyboardKey.End) return lastIndex;
   if (!isStep) return null;
   if (selectedIndex === null && key === KeyboardKey.ArrowRight) return 0;
   if (selectedIndex === null) return lastIndex;
-  if (key === KeyboardKey.ArrowRight) return Math.min(lastIndex, selectedIndex + 1);
-  return Math.max(0, selectedIndex - 1);
+  if (key === KeyboardKey.ArrowRight) return Math.min(lastIndex, stepOutOfBreaks({ breaks, index: selectedIndex + 1, direction: 1 }));
+  return Math.max(0, stepOutOfBreaks({ breaks, index: selectedIndex - 1, direction: -1 }));
 }
 
 type Hovered = { index: number; y: number; idleBreak: BreakColumn | null };
@@ -143,7 +154,7 @@ export function Streamgraph({
       onClearSelection();
       return;
     }
-    const index = nextIndex({ key: event.key, selectedIndex, lastIndex });
+    const index = nextIndex({ key: event.key, selectedIndex, lastIndex, breaks: layout.breaks });
     if (index === null) return;
     event.preventDefault();
     onSelectIndex(index);

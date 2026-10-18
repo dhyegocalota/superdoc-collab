@@ -24,3 +24,16 @@ export function idleBreaksOf({ timeline, thresholdMs }: { timeline: DocumentTime
     .map((run) => ({ ...run, durationMs: (run.lastIndex - run.firstIndex + 1) * timeline.binMs }))
     .filter((idleBreak) => idleBreak.durationMs > thresholdMs);
 }
+
+function idleBreakContaining({ breaks, index }: { breaks: IdleBreak[]; index: number }): IdleBreak | null {
+  const idleBreak = breaks.find((candidate) => index >= candidate.firstIndex && index <= candidate.lastIndex);
+  if (!idleBreak) return null;
+  return idleBreak;
+}
+
+export function stepOutOfBreaks({ breaks, index, direction }: { breaks: IdleBreak[]; index: number; direction: 1 | -1 }): number {
+  const idleBreak = idleBreakContaining({ breaks, index });
+  if (!idleBreak) return index;
+  if (direction === 1) return idleBreak.lastIndex + 1;
+  return idleBreak.firstIndex - 1;
+}

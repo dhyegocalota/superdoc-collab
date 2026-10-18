@@ -16,6 +16,7 @@ import {
   EARLIER_STATE_LABEL,
   GROUPING_TOPICS_MESSAGE,
   NEXT_SUMMARIZING_LABEL,
+  NO_EDITS_TO_SUMMARIZE_MESSAGE,
   RETRY_SUMMARY_LABEL,
   retryInLabel,
   SELECTION_SUMMARY_HEADING,
@@ -23,11 +24,11 @@ import {
   SUMMARY_UP_TO_DATE_MESSAGE,
   TOPICS_GROUPED_LABEL,
 } from './timeline-copy';
-import type { SummarizeHandle } from './timeline-panel';
+import type { SummarizeControl } from './use-summarize';
 
 type SelectionSummaryCardProps = {
   view: SelectionSummaryView | undefined;
-  summarize: SummarizeHandle;
+  summarize: SummarizeControl;
   canRequest: boolean;
   authors: Record<string, EventAuthor>;
 };
@@ -95,11 +96,13 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
   const isSummarizing = view.step === SummarizeStep.Summarizing;
   const isRunning = summarize.isRunning || view.state === SelectionSummaryState.Running || isGrouping || isSummarizing;
   const isRunningWithoutStep = isRunning && !isGrouping && !isSummarizing;
-  const isUpToDate = summarize.outcome === SummarizeOutcome.UpToDate;
+  const isAnsweredUpToDate = summarize.outcome === SummarizeOutcome.UpToDate;
+  const isEmpty = isAnsweredUpToDate && summary === null;
+  const isUpToDate = isAnsweredUpToDate && summary !== null;
   const isRetryableFailure = view.state === SelectionSummaryState.Failed && view.isModelAvailable;
   const isRetryableError = error !== null && retryAfterSeconds === null;
   const showsRetry = canRequest && (isRetryableFailure || isRetryableError);
-  const hasContent = summary !== null || isRunning || isRetryableFailure || error !== null || isUpToDate;
+  const hasContent = summary !== null || isRunning || isRetryableFailure || error !== null || isAnsweredUpToDate;
   const sectionRef = useRef<HTMLElement>(null);
   useRevealRun({ isRunning, summaryKey: summary?.key, targetRef: sectionRef });
   if (!hasContent) return null;
@@ -130,6 +133,11 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
           </div>
           <p className="text-sm">{summary.sentence}</p>
         </div>
+      )}
+      {isEmpty && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {NO_EDITS_TO_SUMMARIZE_MESSAGE}
+        </p>
       )}
       {isUpToDate && (
         <p role="status" className="text-sm text-muted-foreground">

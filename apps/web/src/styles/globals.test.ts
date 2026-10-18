@@ -18,6 +18,11 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
   '--sd-ui-action': 'var(--primary)',
   '--sd-ui-action-hover': 'var(--primary)',
   '--sd-layout-page-bg': 'var(--paper)',
+  '--sd-comment-bg': 'var(--card)',
+  '--sd-comment-bg-hover': 'var(--popover)',
+  '--sd-comment-bg-active': 'var(--popover)',
+  '--sd-comment-bg-resolved': 'var(--muted)',
+  '--sd-comment-separator': 'var(--border)',
 };
 
 function blockOf(selector: string): string {

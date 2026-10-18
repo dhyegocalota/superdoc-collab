@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
 import { useSession } from '@/features/auth/use-session';
-import { UseWithAiDialog } from '@/features/connected-apps/use-with-ai-dialog';
+import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
@@ -17,6 +17,7 @@ import { LOADING_DOCUMENT_REASON_ID } from './download-menu';
 import { VersionBanner } from '@/features/versions/version-banner';
 import { VersionFrame } from '@/features/versions/version-frame';
 import { OpeningDocument } from './opening-document';
+import { ReadinessAnnouncement } from './readiness-announcement';
 import { SuperDocEditor } from './superdoc-editor';
 import { useDocumentFile } from './use-document-file';
 import { useEditorSetup } from './use-editor-setup';
@@ -38,6 +39,7 @@ export function DocumentPage() {
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { members, isUnavailable } = useMembers(documentId);
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
+  const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
@@ -47,24 +49,35 @@ export function DocumentPage() {
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
 
-  if (readiness === DocumentReadiness.Opening) return <OpeningDocument />;
-  if (isUnavailable) {
+  function withAnnouncement(page: ReactNode): ReactNode {
     return (
-      <WaitingForDocument documentId={documentId} readiness={DocumentReadiness.Unavailable} onKeepWaiting={keepWaiting} onRetry={retry} />
+      <>
+        <ReadinessAnnouncement readiness={readiness} />
+        {page}
+      </>
+    );
+  }
+
+  if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
+  if (isUnavailable) {
+    return withAnnouncement(
+      <WaitingForDocument documentId={documentId} readiness={DocumentReadiness.Unavailable} onKeepWaiting={keepWaiting} onRetry={retry} />,
     );
   }
   if (readiness !== DocumentReadiness.Ready) {
-    return <WaitingForDocument documentId={documentId} readiness={readiness} onKeepWaiting={keepWaiting} onRetry={retry} />;
+    return withAnnouncement(
+      <WaitingForDocument documentId={documentId} readiness={readiness} onKeepWaiting={keepWaiting} onRetry={retry} />,
+    );
   }
-  if (!opened) return <OpeningDocument />;
+  if (!opened) return withAnnouncement(<OpeningDocument />);
 
   const { title } = opened.document;
   const isReader = opened.role === DocumentRole.Reader;
   const isViewingPastVersion = timeTravel.state === VersionViewerState.Viewing;
   const isToolbarReady = isReader || toolbarContainer !== null;
 
-  function renderUseWithAi(trigger?: ReactNode): ReactNode {
-    return <UseWithAiDialog title={title} canEdit={!isReader} trigger={trigger} />;
+  function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
+    return <UseWithAiDialog title={title} canEdit={!isReader} {...slot} />;
   }
 
   function summarizeAndOpenPanel(): void {
@@ -78,17 +91,23 @@ export function DocumentPage() {
     superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
   }
 
-  return (
+  return withAnnouncement(
     <div className="flex h-dvh flex-col">
       <EditorHeader
         opened={opened}
         members={members}
         currentUserId={user ? user.id : null}
         superdoc={superdoc}
+        editorContainer={editorContainer}
         isPastVersion={isViewingPastVersion}
         onDownloadDocx={downloadLiveDocument}
         renderUseWithAi={renderUseWithAi}
       />
+      {superdoc === null && !fileError && (
+        <p id={LOADING_DOCUMENT_REASON_ID} role="status" className="px-4 py-1 text-xs text-muted-foreground">
+          {LOADING_DOCUMENT_MESSAGE}
+        </p>
+      )}
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <EditorToolbarRow
         role={opened.role}
@@ -104,6 +123,7 @@ export function DocumentPage() {
             {editorSetup && isToolbarReady && (
               <SuperDocEditor
                 onSuperdocChange={setSuperdoc}
+                onContainerChange={setEditorContainer}
                 toolbarContainer={toolbarContainer}
                 documentId={documentId}
                 roomMode={editorSetup.roomMode}
@@ -112,11 +132,6 @@ export function DocumentPage() {
                 file={editorSetup.file}
                 isInert={isViewingPastVersion}
               />
-            )}
-            {!(editorSetup && isToolbarReady) && !fileError && (
-              <p id={LOADING_DOCUMENT_REASON_ID} role="status" className="flex-1 p-4 text-sm text-muted-foreground">
-                {LOADING_DOCUMENT_MESSAGE}
-              </p>
             )}
             {fileError && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
             <VersionFrame
@@ -140,6 +155,6 @@ export function DocumentPage() {
           onBackToLive={timeTravel.backToLive}
         />
       </div>
-    </div>
+    </div>,
   );
 }

@@ -11,5 +11,5 @@ No tester runs this plan: a behaviour-preserving refactor plus a dependency over
 ## Hypotheses worth refuting
 
 1. The override reaches `@esbuild-kit/core-utils` only: `rg "esbuild" pnpm-lock.yaml` under `vite`, `vitest`, `tsx` and `drizzle-kit` still shows their own ranges.
-2. `drizzle-kit` loads a TypeScript config through the overridden loader: `pnpm exec drizzle-kit check` in `apps/server`.
+2. The overridden `@esbuild-kit/core-utils` still transforms TypeScript: call its `transformSync` directly. `drizzle-kit check` only pins that the config loads, through `tsx`.
 3. Nothing imports the setup file by path: `rg test-setup apps/web` outside `docs/`.

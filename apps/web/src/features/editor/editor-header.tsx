@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AccountMenu } from '@/features/account/account-menu';
 import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
+import type { UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { cn } from '@/lib/utils';
 import { deleteDocument } from './editor-api';
@@ -25,10 +26,11 @@ import {
   DELETE_LABEL,
   DOWNLOAD_FORMAT_LABELS,
   MORE_ACTIONS_LABEL,
+  RENAME_FAILED_MESSAGE,
 } from './editor-copy';
 import { DocumentTitle } from './document-title';
 import { DownloadFormat } from './download-format';
-import { DownloadMenu, useDownload } from './download-menu';
+import { DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
 import { FindButton } from './find-button';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
@@ -81,7 +83,7 @@ type DocumentActionsMenuProps = DocumentIdentity & {
   isOwner: boolean;
   isReady: boolean;
   onDownload: (format: DownloadFormat) => void;
-  renderUseWithAi: (trigger?: ReactNode) => ReactNode;
+  renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
 function keepMenuOpen(event: Event): void {
@@ -106,14 +108,23 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
           <TooltipContent>{MORE_ACTIONS_LABEL}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end">
-          {renderUseWithAi(
-            <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
-              <Bot aria-hidden />
-              {USE_WITH_AI_LABEL}
-            </DropdownMenuItem>,
-          )}
+          {renderUseWithAi({
+            trigger: (
+              <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
+                <Bot aria-hidden />
+                {USE_WITH_AI_LABEL}
+              </DropdownMenuItem>
+            ),
+            returnFocusRef: triggerRef,
+          })}
           {Object.values(DownloadFormat).map((format) => (
-            <DropdownMenuItem key={format} className="sm:hidden" disabled={!isReady} onSelect={() => onDownload(format)}>
+            <DropdownMenuItem
+              key={format}
+              className="sm:hidden"
+              disabled={!isReady}
+              aria-describedby={isReady ? undefined : LOADING_DOCUMENT_REASON_ID}
+              onSelect={() => onDownload(format)}
+            >
               {DOWNLOAD_FORMAT_LABELS[format]}
             </DropdownMenuItem>
           ))}
@@ -134,9 +145,10 @@ type EditorHeaderProps = {
   members: DocumentMember[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
+  editorContainer: HTMLElement | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
-  renderUseWithAi: (trigger?: ReactNode) => ReactNode;
+  renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
 export function EditorHeader({
@@ -144,6 +156,7 @@ export function EditorHeader({
   members,
   currentUserId,
   superdoc,
+  editorContainer,
   isPastVersion,
   onDownloadDocx,
   renderUseWithAi,
@@ -152,6 +165,7 @@ export function EditorHeader({
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;
   const { download, printView } = useDownload({ superdoc, onDownloadDocx });
+  const [hasRenameFailed, setHasRenameFailed] = useState(false);
 
   return (
     <>
@@ -159,14 +173,20 @@ export function EditorHeader({
         left={
           <>
             <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
-            <DocumentTitle documentId={document.id} title={document.title} role={role} />
+            <DocumentTitle documentId={document.id} title={document.title} role={role} onFailureChange={setHasRenameFailed} />
             {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
           </>
         }
         right={
           <>
             <div className="hidden sm:block">
-              <Members members={members} currentUserId={currentUserId} superdoc={superdoc} isPastVersion={isPastVersion} />
+              <Members
+                members={members}
+                currentUserId={currentUserId}
+                superdoc={superdoc}
+                editorContainer={editorContainer}
+                isPastVersion={isPastVersion}
+              />
             </div>
             <FindButton superdoc={superdoc} />
             <div className="hidden sm:block">{renderUseWithAi()}</div>
@@ -183,6 +203,7 @@ export function EditorHeader({
           </>
         }
       />
+      {hasRenameFailed && <ErrorMessage className="px-4 py-2">{RENAME_FAILED_MESSAGE}</ErrorMessage>}
       {printView}
     </>
   );

@@ -11,7 +11,7 @@ import {
   memberLabel,
   moreMembersLabel,
   movedToCursorMessage,
-  notInDocumentReason,
+  cursorOffScreenReason,
   offlineMemberReason,
   SELF_MEMBER_REASON,
 } from './editor-copy';
@@ -32,6 +32,7 @@ const clara = memberNamed({ id: 'u3', name: 'Clara', online: false });
 const dario = memberNamed({ id: 'u4', name: 'Dario', online: true });
 
 let editor: HTMLElement;
+let overlay: HTMLElement;
 
 function colorOf(member: DocumentMember): string {
   return AUTHOR_PALETTE[authorColorSlot(member.user.id) - 1]!;
@@ -46,11 +47,19 @@ function addCaret({ name, color }: { name: string; color: string }): void {
   label.textContent = name;
   caret.append(label);
   caret.scrollIntoView = scrollIntoView;
-  editor.append(caret);
+  overlay.append(caret);
 }
 
 function renderMembers({ members, isPastVersion = false }: { members: DocumentMember[]; isPastVersion?: boolean }) {
-  return render(<Members members={members} currentUserId={CURRENT_USER_ID} superdoc={superdoc} isPastVersion={isPastVersion} />);
+  return render(
+    <Members
+      members={members}
+      currentUserId={CURRENT_USER_ID}
+      superdoc={superdoc}
+      editorContainer={editor}
+      isPastVersion={isPastVersion}
+    />,
+  );
 }
 
 function manyMembers(count: number): DocumentMember[] {
@@ -60,7 +69,9 @@ function manyMembers(count: number): DocumentMember[] {
 beforeEach(() => {
   installAuthorPalette();
   editor = document.createElement('div');
-  editor.dataset.testid = 'document-editor';
+  overlay = document.createElement('div');
+  overlay.dataset.v2CollaborationOverlay = 'true';
+  editor.append(overlay);
   document.body.append(editor);
 });
 
@@ -83,7 +94,7 @@ test('an online member with no position, an offline member and the current user 
   const user = userEvent.setup();
   const reasons = [
     { member: ana, reason: SELF_MEMBER_REASON, isOnline: true },
-    { member: bruno, reason: notInDocumentReason('Bruno'), isOnline: true },
+    { member: bruno, reason: cursorOffScreenReason('Bruno'), isOnline: true },
     { member: clara, reason: offlineMemberReason('Clara'), isOnline: false },
   ];
   for (const { member, reason, isOnline } of reasons) {
@@ -144,7 +155,7 @@ test('the +N menu items for members who cannot be jumped to are aria-disabled wi
   const fabio = within(menu).getByRole('menuitem', { name: /Fabio/ });
   expect(darioItem).not.toHaveAttribute('aria-disabled', 'true');
   expect(fabio).toHaveAttribute('aria-disabled', 'true');
-  expect(fabio).toHaveTextContent(notInDocumentReason('Fabio'));
+  expect(fabio).toHaveTextContent(cursorOffScreenReason('Fabio'));
 });
 
 test('after a jump a status region reads Moved to Bruno’s cursor.', async () => {

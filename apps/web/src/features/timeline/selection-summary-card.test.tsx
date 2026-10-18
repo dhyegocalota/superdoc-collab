@@ -18,6 +18,7 @@ import {
   importedAuthorLabel,
   EARLIER_STATE_LABEL,
   GROUPING_TOPICS_MESSAGE,
+  NO_EDITS_TO_SUMMARIZE_MESSAGE,
   NEXT_SUMMARIZING_LABEL,
   RETRY_SUMMARY_LABEL,
   retryInLabel,
@@ -26,7 +27,7 @@ import {
   SUMMARY_UP_TO_DATE_MESSAGE,
   TOPICS_GROUPED_LABEL,
 } from './timeline-copy';
-import type { SummarizeHandle } from './timeline-panel';
+import type { SummarizeControl } from './use-summarize';
 
 const AUTHORS: Record<string, EventAuthor> = {
   ana: { id: 'user-1', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human },
@@ -61,8 +62,16 @@ beforeEach(() => {
   scrollIntoView.mockClear();
 });
 
-function idleSummarize(overrides: Partial<SummarizeHandle> = {}): SummarizeHandle {
-  return { summarize: vi.fn(), isRunning: false, outcome: null, error: null, retryAfterSeconds: null, ...overrides };
+function idleSummarize(overrides: Partial<SummarizeControl> = {}): SummarizeControl {
+  return {
+    summarize: vi.fn(),
+    isRunning: false,
+    outcome: null,
+    error: null,
+    retryAfterSeconds: null,
+    showSelection: vi.fn(),
+    ...overrides,
+  };
 }
 
 function card({
@@ -71,7 +80,7 @@ function card({
   canRequest = true,
 }: {
   view: SelectionSummaryView;
-  summarize?: SummarizeHandle;
+  summarize?: SummarizeControl;
   canRequest?: boolean;
 }) {
   return <SelectionSummaryCard view={view} summarize={summarize} canRequest={canRequest} authors={AUTHORS} />;
@@ -147,6 +156,12 @@ test('an up-to-date outcome keeps the sentence and says the summary is up to dat
   render(card({ view: FIRST_VIEW, summarize: idleSummarize({ outcome: SummarizeOutcome.UpToDate }) }));
   expect(screen.getByText(FIRST_VIEW.summary!.sentence)).toBeInTheDocument();
   expect(screen.getByText(SUMMARY_UP_TO_DATE_MESSAGE)).toBeInTheDocument();
+});
+
+test('an empty selection answered up to date shows the empty message, not the up-to-date line', () => {
+  render(card({ view: NONE_VIEW, summarize: idleSummarize({ outcome: SummarizeOutcome.UpToDate }) }));
+  expect(screen.getByText(NO_EDITS_TO_SUMMARIZE_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(SUMMARY_UP_TO_DATE_MESSAGE)).not.toBeInTheDocument();
 });
 
 test('a started outcome does not say the summary is up to date', () => {

@@ -240,9 +240,10 @@ The plan names `use-selection-summary.test.tsx`; the file is `use-selection-summ
 ### What changed
 
 - `apps/web/src/features/editor/use-member-cursors.ts`: `useMemberCursors({ superdoc, container })` returns `namesWithCursor` and `jumpTo(member)`; `JumpOutcome` is `Jumped` or `NotFound`. It reads `.v2-collaboration-overlay__remote-caret` elements whose `__remote-label` text equals the member name AND whose background colour equals the member's `--author-N` colour (the overlay DOM carries no user id, only `data-peer-rank`, label and colour); more than one match counts as none, follows the overlay with a `MutationObserver`, calls `scrollIntoView({ block: 'center' })` and adds `member-glow` to the `__remote-selection` elements inside the caret's parent for `CURSOR_GLOW_MS`.
-- `members.tsx`: `Members({ members, currentUserId, superdoc, isPastVersion })`. Reason order: past version, self, offline, online without caret, else enabled. Disabled buttons use `aria-disabled` and stay focusable. Above five members: four avatars and a `DropdownMenu` named `moreMembersLabel(rest)` whose disabled items show the reason as secondary text. A `role="status"` region reads `movedToCursorMessage` or `cursorNotFoundMessage`. A failed jump holds the tooltip open with the not-found text for `JUMP_FAILED_NOTICE_MS`.
+- `members.tsx`: `Members({ members, currentUserId, superdoc, editorContainer, isPastVersion })`. Reason order: past version, self, offline, online without caret, else enabled. Disabled buttons use `aria-disabled` and stay focusable. Above five members: four avatars and a `DropdownMenu` named `moreMembersLabel(rest)` whose disabled items show the reason as secondary text. A `role="status"` region reads `movedToCursorMessage` or `cursorNotFoundMessage`. A failed jump holds the tooltip open with the not-found text for `JUMP_FAILED_NOTICE_MS`.
 - `members-copy.ts` (new, one function `overflowCountLabel` for the visible "+N"); `globals.css` gets `.member-glow` (commit a8a1a2b, the lead keeps one copy with G1).
-- `Members` finds the editor container with `document.querySelector('[data-testid="document-editor"]')` once `superdoc` is non-null, so G2 only passes `superdoc` and `isPastVersion`.
+- `Members` takes `editorContainer: HTMLElement | null` (the editor element from the page) and no longer queries the global document. The hook observes only `[data-v2-collaboration-overlay="true"]`, waiting on the container only until that layer exists, and pairs a caret with its selection by `data-peer-rank` (all peers share one flat layer). `authorColorOf` in `author-palette.ts` reads the six tokens once and memoizes them.
+- The online-without-caret reason is now `cursorOffScreenReason` ("Bruno’s cursor is off screen"), replacing `notInDocumentReason`.
 
 ### How to run
 
@@ -273,6 +274,19 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 6. The page is centred and fitted to the width at every width and never grows past 100 %. Break it by: choosing a zoom in the toolbar and then resizing the window.
 7. The page stays white in dark mode and a remote caret matches that member's avatar colour. Break it by: two browsers, a user whose slot collides with another.
 8. The editor header never shows a download that fails silently: a DOCX export failure shows `EXPORT_FAILED_MESSAGE` under the bar (still the page's job).
+
+### Review fix: empty selection and the outcome across selections
+
+- An empty selection or a document with no edits answers `UpToDate` with no summary; the card now says `NO_EDITS_TO_SUMMARIZE_MESSAGE` instead of "The summary is up to date." (red, then green: `selection-summary-card.test.tsx::an empty selection answered up to date shows the empty message…`).
+- `useSummarize` (G4's file, one authorized edit) resets its mutation when the selection query key changes, so the outcome and error belong to the selection (`use-summarize.test.tsx::the outcome belongs to the selection: another bin does not inherit it`; red `expected 'up-to-date' to be null`).
+- Hypothesis: after Summarize answers up to date on one bin, another bin or topic shows its own view with no up-to-date line. Break it by: switching bin, topic and filter right after the answer, and while a request is in flight.
+
+### Review fix: one selection source
+
+- `useSummarize` posts the selection the panel shows, not the URL. `SummarizeControl` gained `showSelection(selection)`; the panel calls it whenever its selection (filter, topic, selected bin) changes, so a bin without a version, or a click inside the scrub debounce gap, posts what the card shows. The URL selection is used until the panel has reported one.
+- Tests: `use-summarize.test.tsx::a click during the scrub debounce gap posts the selection the panel shows, not the URL` (red `expected null to be '1792165200007'`), `timeline-panel.test.tsx::the panel tells the summarize control which selection it shows…` (red `expected last "vi.fn()" call to have been called with …`).
+- The panel takes G4's `SummarizeControl`; the local `SummarizeHandle` and the dead Regroup copy are gone.
+- Hypothesis: select a bin with no version mark, press Summarize at once, and the POST and the card both name that bin. Break it by: clicking Summarize right after a click on the chart, during a scrub, and with the panel collapsed.
 
 ### Known gaps
 
@@ -340,7 +354,7 @@ The panel tests that drove the removed header buttons (Summarize disabled reason
 - While the panel is collapsed at the bottom the timeline is still fetched and polled, because the chips need it. Side collapsed stops the polling as before.
 - `isPanelOpenByDefault()` is the answer for G2's initial `isOpen` (`useState(isPanelOpenByDefault)`); I do not own the state.
 - `top-edits.tsx` has its own `calloutStyleOf` that repeats the swatch's hue and saturation style. `topic-swatch.tsx` is not mine; one shared helper would remove it.
-- `SummarizeHandle` in `timeline-panel.tsx` and G4's `SummarizeControl` are the same shape; G2 passes G4's hook result as is.
+- G2 passes G4's hook result as is; the panel's prop type is `SummarizeControl`.
 - Dead after this lane, for G4 Step 39: `useSummarizeEdits` in `use-selection-summary.ts`, `summarizeDisabledReason`, `errorForSelection` and `selectionVolume` in `selection-summary.ts`, `use-topics.ts`, `SummaryTooSoonError` in `timeline-api.ts` and the unused copy constants.
 - `apps/web/src/features/editor/document-page.tsx` does not typecheck until G2 passes `position`, `isOpen`, `onOpenChange` and `summarize`; it is the only typecheck error.
 - On the integration base, `libs/types/src/constants.ts` declared `DOCUMENT_READY_POLL_MS` and `DOCUMENT_READY_GIVE_UP_MS` twice, which stopped every run that imports `@superdoc-collab/types`; I removed the second pair in my working tree only and did not commit it.
@@ -519,8 +533,8 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 
 ### Known gaps
 
-- `editor-header.tsx` still calls `Members` without the two new props: typecheck and `editor-header.test.tsx` fail until G2's merge wires `superdoc` and `isPastVersion`.
-- The glow targets every `__remote-selection` inside the caret's parent element. If SuperDoc puts all users' selections in one shared layer, all of them glow; the real DOM needs the browser walk.
+- `editor-header.tsx` does not yet pass `editorContainer`: typecheck and `editor-header.test.tsx` fail until the lead wires the page's editor element through `EditorHeader` to `Members`.
+- The label SuperDoc draws is cut to a maximum length with `...`; a longer name will not match and reads as off screen.
 - A failed jump from the "+N" menu is only announced in the status region; the menu has closed, so there is no tooltip.
 - No user id reaches the overlay DOM, so a peer who forges both name and colour can still hijack a jump (limit recorded in `.claude/rules/web-ui.md`). Two members with the same name and colour make both unjumpable. A name SuperDoc truncates or decorates reads as "not in the document". `hasCursor(member)` replaced `namesWithCursor`; `authorColorOf` in G2's `author-palette.ts` is now exported (one word).
 - Nothing here was seen in a browser; Radix tooltip and menu behaviour were exercised in jsdom only.
@@ -538,3 +552,11 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - A failed regroup ends the job: no summary or sentence call follows, so a failing provider costs one call per click and no summary is written against stale topics. Test: `summarize-service.test.ts::a failed regroup keeps the previous ready topics` (red: `[topics, summary, sentences]` instead of `[topics]`).
 - The regroup no longer starts its own `topics:` job, so this replaces the earlier note about a second slot: a Summarize now holds one slot. When a topics job already runs, the regroup awaits it through `InsightsJobRunner.settled`; otherwise it computes directly inside the `summarize:` job (the Pending status keeps `ensure` and `onTimelineRead` out). Tests: `summarize-service.test.ts::a Summarize with a regroup holds one process-wide slot` (red: the topics key was running) and `topics-service.test.ts::a regroup awaits the topics job that is already running and the model is called once`.
 - `SelectionSummariesService.setGroupingFailure` became `markGroupingFailed` and `clearGroupingFailure`.
+
+### G6 addendum: "The document is ready." announcement
+
+- `readiness-announcement.tsx` renders a persistent polite `role="status"` region (visually hidden) above every state of `DocumentPage` (opening, waiting, error, editor). It fills with `DOCUMENT_READY_ANNOUNCEMENT` only when the readiness moves from `Waiting` or `Paused` to `Ready`. `document-page.tsx` wraps its four returns in one helper so the region keeps its identity across states.
+- Red `095d5f3`: `moving from Waiting to Ready announces that the document is ready` and the Paused variant fail on `toHaveTextContent`; `a document that opens Ready at once announces nothing` is a pin. Green is the commit after it.
+- `document-page.test.tsx::the header stays while the document opens` now finds its status region by text, because the page has a second status region.
+- Hypothesis: a screen reader says "The document is ready." once when a waiting page gives way to the editor, and says nothing when a document opens at once. Break it by: a screen reader pass of both entries; a reload on the editor; Keep waiting then ready.
+- Gap: no page-level test drives Waiting to Ready through `DocumentPage`; the unit tests cover the component only.

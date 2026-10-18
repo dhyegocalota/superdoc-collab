@@ -9,14 +9,15 @@ import {
   type DocumentMember,
 } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
-import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
+import { USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/connected-apps-copy';
+import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -48,8 +49,8 @@ const RENAMED_TITLE = 'Renamed';
 const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true };
 const onDownloadDocx = vi.fn();
 
-function renderUseWithAi(trigger?: ReactNode): ReactNode {
-  return trigger ?? <button type="button">{USE_WITH_AI_LABEL}</button>;
+function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
+  return <UseWithAiDialog title={DOCUMENT_TITLE} canEdit {...slot} />;
 }
 
 type HeaderOptions = {
@@ -69,6 +70,7 @@ function renderHeader({ role = DocumentRole.Editor, members = [], superdoc = nul
       members={members}
       currentUserId={SESSION_USER.id}
       superdoc={superdoc}
+      editorContainer={null}
       isPastVersion={isPastVersion}
       onDownloadDocx={onDownloadDocx}
       renderUseWithAi={renderUseWithAi}
@@ -126,6 +128,16 @@ test('at 1280 the right slot order is Members, Find, Use with AI, Share, Downloa
   expect(labelsInDocumentOrder).toEqual(['Members', 'Find', 'Use with AI', 'Share', 'Download', 'More actions', 'Account']);
 });
 
+test('closing Use with AI opened from More actions returns focus to the More actions button', async () => {
+  renderHeader();
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL }));
+  expect(await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE })).toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: MORE_ACTIONS_LABEL })).toHaveFocus();
+});
+
 test('EditorHeader passes superdoc and isPastVersion to Members', () => {
   const superdoc = {} as SuperDoc;
   renderHeader({ members: [ADA], superdoc, isPastVersion: true });
@@ -164,6 +176,7 @@ test('a failed rename shows an alert', async () => {
   renderHeader();
   await renameTo(RENAMED_TITLE);
   expect(await screen.findByRole('alert')).toHaveTextContent(RENAME_FAILED_MESSAGE);
+  expect(within(screen.getByRole('banner')).queryByRole('alert')).toBeNull();
 });
 
 test('the owner deletes after confirming and returns to the documents list', async () => {

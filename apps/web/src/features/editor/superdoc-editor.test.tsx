@@ -32,6 +32,7 @@ function renderEditor({
   render(
     <SuperDocEditor
       onSuperdocChange={onSuperdocChange}
+      onContainerChange={vi.fn()}
       toolbarContainer={toolbarContainer}
       documentId="doc-1"
       roomMode={RoomMode.Create}

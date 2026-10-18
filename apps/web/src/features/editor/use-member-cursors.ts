@@ -6,6 +6,8 @@ import { authorColorOf } from './author-palette';
 const CARET_SELECTOR = '.v2-collaboration-overlay__remote-caret';
 const LABEL_SELECTOR = '.v2-collaboration-overlay__remote-label';
 const SELECTION_SELECTOR = '.v2-collaboration-overlay__remote-selection';
+const OVERLAY_SELECTOR = '[data-v2-collaboration-overlay="true"]';
+const PEER_RANK_ATTRIBUTE = 'data-peer-rank';
 const GLOW_CLASS = 'member-glow';
 const NO_KEYS: readonly string[] = [];
 
@@ -16,9 +18,14 @@ export enum JumpOutcome {
 
 type MemberCursors = { hasCursor: (member: DocumentMember) => boolean; jumpTo: (member: DocumentMember) => JumpOutcome };
 
+const normalizedColors = new Map<string, string>();
+
 function normalizedColor(color: string): string {
+  const known = normalizedColors.get(color);
+  if (known !== undefined) return known;
   const probe = document.createElement('span');
   probe.style.color = color;
+  normalizedColors.set(color, probe.style.color);
   return probe.style.color;
 }
 
@@ -40,10 +47,15 @@ function caretKeyOf(caret: HTMLElement): string | null {
   return cursorKey({ name: label.textContent, color: caret.style.backgroundColor });
 }
 
-function selectionsBeside(caret: HTMLElement): Element[] {
+function selectionsOf(caret: HTMLElement): Element[] {
   const group = caret.parentElement;
-  if (!group) return [];
-  return Array.from(group.querySelectorAll(SELECTION_SELECTOR));
+  const rank = caret.getAttribute(PEER_RANK_ATTRIBUTE);
+  if (!group || rank === null) return [];
+  return Array.from(group.querySelectorAll(SELECTION_SELECTOR)).filter((selection) => selection.getAttribute(PEER_RANK_ATTRIBUTE) === rank);
+}
+
+function overlayIn(container: HTMLElement): HTMLElement | null {
+  return container.querySelector<HTMLElement>(OVERLAY_SELECTOR);
 }
 
 function caretKeysIn(container: HTMLElement): string[] {
@@ -70,10 +82,24 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       return;
     }
     const refresh = () => show(caretKeysIn(container));
-    refresh();
-    const observer = new MutationObserver(refresh);
-    observer.observe(container, { childList: true, subtree: true, characterData: true, attributeFilter: ['style'] });
-    return () => observer.disconnect();
+    const overlayObserver = new MutationObserver(refresh);
+    const containerObserver = new MutationObserver(() => {
+      const overlay = overlayIn(container);
+      if (!overlay) return;
+      containerObserver.disconnect();
+      watch(overlay);
+    });
+    function watch(overlay: HTMLElement): void {
+      refresh();
+      overlayObserver.observe(overlay, { childList: true, subtree: true, characterData: true, attributeFilter: ['style'] });
+    }
+    const overlay = overlayIn(container);
+    if (overlay) watch(overlay);
+    if (!overlay) containerObserver.observe(container, { childList: true, subtree: true });
+    return () => {
+      containerObserver.disconnect();
+      overlayObserver.disconnect();
+    };
   }, [superdoc, container]);
 
   useEffect(() => {
@@ -97,7 +123,7 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       const [caret] = matches;
       if (!caret || matches.length > 1) return JumpOutcome.NotFound;
       caret.scrollIntoView({ block: 'center' });
-      const selections = selectionsBeside(caret);
+      const selections = selectionsOf(caret);
       selections.forEach((selection) => selection.classList.add(GLOW_CLASS));
       const timer = setTimeout(() => {
         selections.forEach((selection) => selection.classList.remove(GLOW_CLASS));

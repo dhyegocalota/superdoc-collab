@@ -25,7 +25,7 @@ The live editor never subscribes to `onCollaborationConnectionChange`. A lost co
 | G7 | A callback whose state is `synced` or whose kind is `recovered` refetches members at once. | Unit, state machine |
 | G8 | The version viewer applies the same exception narrowing. Its inert behaviour is unchanged. | Unit, exception narrowing |
 | G9 | With a past version shown, the connection banner sits above the version banner. | Playwright MCP walk |
-| R | The banner and the inert state read well at 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 px. No horizontal page scroll, no clipped Reload, three lines at most on phones, no layout jump on load or theme switch. | Playwright at eight widths; Playwright MCP walk |
+| R | The banner and the inert state read well at 320, 375, 768, 1024, 1280, 1536, 1920 and 2560 px. No horizontal page scroll, no clipped Reload, text at most three lines on phones for Lost, Reconnecting and Recovered, and at most five for Failed (title, then one paragraph with the reason and the unsynced-edits sentence); the Reload button may wrap to its own row and stays fully inside the viewport. Lines are counted on the text block without padding. Revised by the lead on 2026-10-17 after the width measurement at 320 px, no layout jump on load or theme switch. | Playwright at eight widths; Playwright MCP walk |
 
 ## Non-goals
 
@@ -55,6 +55,8 @@ The states and their triggers follow design 1.14. `ConnectionState` lives in `li
 ### Merge
 
 `useConnectionState` holds the latest transport reading from the callback and the server flag from `useMembers`. `TransportReading` is `Clear`, `Lost`, `Reconnecting` or `Failed`. The callback maps to a reading by its kind and state: `lost`, `reconnecting` and `failed` map to themselves; `initial` maps to Clear; `recovered` and state `synced` keep the current reading and only set `hasSynced`, which triggers an immediate members refetch (ADR 0032: the callback never confirms recovery on its own). Revised by the lead on 2026-10-17 after the plan review.
+
+**Lost is usually invisible.** The provider reports `lost` and `reconnecting` in the same tick, so the banner renders as Reconnecting at once; a Lost render of a few milliseconds happens only occasionally. The state stays in the machine and its unit tests, but no end-to-end test or walk requires seeing it; the restart proof asserts Reconnecting then Recovered, with Lost optional before them. Recorded by the lead on 2026-10-17 from the tester's walk.
 
 **Request after Lost.** When the reading turns Lost or Reconnecting the hook records `lostAt`, cancels the in-flight members request (`queryClient.cancelQueries`) and refetches. A members answer counts only when its `dataUpdatedAt` is later than `lostAt`; `useMembers` exposes that time as `membersAnsweredAt`. A flag that still reads `true` from before the outage therefore never shows Recovered.
 

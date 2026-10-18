@@ -1,6 +1,6 @@
 # 0034. Collaboration socket limits: a per-message payload cap and a per-connection rate cap
 
-- Status: Accepted
+- Status: Accepted; the 120 frames per second figure is superseded by [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md)
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Revised: 2026-10-17, after the plan review (the counter moves to the ws layer and covers frames before authentication)

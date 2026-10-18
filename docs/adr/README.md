@@ -57,3 +57,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0038](0038-phone-time-travel-confirms-with-an-inline-second-tap.md) | Phone time travel confirms with an inline second tap and shows its loading | Accepted | 2026-10-18 |
 | [0036](0036-the-superseded-creator-page-learns-of-the-takeover-from-the-members-poll.md) | The superseded creator's page learns of the takeover from the members poll | Accepted | 2026-10-18 |
 | [0037](0037-author-colour-slots-are-assigned-per-document-by-join-order.md) | Author colour slots are assigned per document by join order | Accepted | 2026-10-18 |
+| [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame cap allows fast typing and reconnect bursts | Accepted | 2026-10-18 |

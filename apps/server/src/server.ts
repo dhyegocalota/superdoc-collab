@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import { ApiPath, CREATOR_RESERVATION_MS, HttpStatus, MINUTE_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import { ApiPath, CREATOR_RESERVATION_MS, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
@@ -59,6 +59,8 @@ const AGENT_TOOLKIT_PROVIDER = 'vercel';
 const AGENT_TOOLKIT_PRESET = 'core';
 const LOOPBACK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1';
 const LOOPBACK_HTTP_ORIGIN = 'http://127.0.0.1';
+export const KEEP_ALIVE_TIMEOUT_MS = 65 * SECOND_MS;
+export const HEADERS_TIMEOUT_MS = KEEP_ALIVE_TIMEOUT_MS + SECOND_MS;
 
 export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle; reservations: CreatorReservations };
 

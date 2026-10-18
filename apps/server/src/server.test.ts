@@ -1,5 +1,6 @@
 import { ApiPath, AppRoute, UserRole } from '@superdoc-collab/types';
 import Database from 'better-sqlite3';
+import type { Server } from 'node:http';
 import { createServer, type AddressInfo } from 'node:net';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -8,7 +9,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { DOCUMENT_FILES_DIRECTORY, DatabaseDirectoryNotWritableError } from './database/connection';
 import { ProjectionScheduler } from './history/projection-scheduler';
 import { JobOutcome } from './insights/insights-job-runner';
-import { startServer } from './server';
+import { HEADERS_TIMEOUT_MS, KEEP_ALIVE_TIMEOUT_MS, startServer } from './server';
 import { LOOPBACK_HOST, prebuiltProjectionWorkerFile, TEST_TIME_ZONE, testEnvironment } from './testing/test-server';
 
 const RESTART_CREDENTIALS = { name: 'Eva', email: 'eva@example.com', password: 'superdoc-demo' };
@@ -25,6 +26,13 @@ function urlOf({ port, path }: { port: number; path: string }): string {
 }
 
 describe('startServer', () => {
+  test('keeps idle connections open longer than a client reuses them, with the headers timeout just above', async () => {
+    const running = await startServer({ environment: testEnvironment(), projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const { keepAliveTimeout, headersTimeout } = running.httpServer as Server;
+    await running.stop();
+    expect({ keepAliveTimeout, headersTimeout }).toEqual({ keepAliveTimeout: KEEP_ALIVE_TIMEOUT_MS, headersTimeout: HEADERS_TIMEOUT_MS });
+  });
+
   test('serves the SPA fallback for an app route when the web directory is set', async () => {
     const running = await startServer({
       environment: testEnvironment(),

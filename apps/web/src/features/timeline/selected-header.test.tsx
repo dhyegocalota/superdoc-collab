@@ -61,6 +61,17 @@ test('the header root carries the selected header marker', () => {
   expect(screen.getByText(SELECTION.rangeLabel).closest('[aria-live]')).toHaveAttribute('data-selected-header');
 });
 
+test('the range text keeps a readable column and the buttons wrap onto their own row when the width is short', () => {
+  renderHeader({ canViewVersion: true });
+  const text = screen.getByText(SELECTION.rangeLabel).closest('p')!;
+  const buttons = screen.getByRole('button', { name: CLEAR_SELECTION_LABEL }).parentElement!;
+  const header = text.parentElement!;
+  expect(header).toHaveClass('sticky', 'top-0', 'flex-wrap');
+  expect(text).toHaveClass('min-w-0', 'flex-1', 'basis-40');
+  expect(buttons).toHaveClass('ml-auto');
+  expect(buttons).not.toHaveClass('shrink-0');
+});
+
 test('the header announces changes politely', () => {
   renderHeader();
   expect(screen.getByText(SELECTION.rangeLabel).closest('[aria-live]')).toHaveAttribute('aria-live', 'polite');

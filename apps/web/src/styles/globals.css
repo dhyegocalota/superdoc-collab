@@ -151,7 +151,7 @@ html:root.dark {
     background-color: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-tint-lightness));
   }
   .member-glow {
-    box-shadow: 0 0 0 3px var(--ring);
+    box-shadow: 0 0 0 3px var(--member-glow-color);
   }
   .topic-swatch-other {
     background-color: var(--topic-other);

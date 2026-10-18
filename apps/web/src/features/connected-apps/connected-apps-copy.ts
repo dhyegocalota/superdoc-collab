@@ -21,6 +21,7 @@ export const USE_WITH_AI_LABEL = 'Use with AI';
 export const USE_WITH_AI_TITLE = 'Use this document with your AI';
 export const USE_WITH_AI_DESCRIPTION =
   'Connect your AI client once. It asks you to approve access the first time, then works on every document you can open.';
+export const AI_CLIENTS_TABLIST_LABEL = 'AI clients';
 export const EXAMPLE_PROMPTS_HEADING = 'Then try asking';
 export const MANAGE_CONNECTED_APPS_LABEL = 'Manage connected apps';
 export const CLOSE_LABEL = 'Close';

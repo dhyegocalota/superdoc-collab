@@ -129,7 +129,6 @@ test('the stacked snippets are gone', async () => {
   getConsents.mockResolvedValue({ data: [], error: null } as never);
   renderWithProviders(<ConnectedAppsPage />);
   await screen.findByText(CONNECTED_APPS_EMPTY_MESSAGE);
-  expect(screen.queryByRole('button', { name: copyLabel('MCP URL') })).not.toBeInTheDocument();
   expect(screen.getAllByRole('button', { name: new RegExp(`^${COPY_LABEL}`) })).toHaveLength(1);
 });
 

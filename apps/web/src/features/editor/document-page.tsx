@@ -178,6 +178,7 @@ export function DocumentPage() {
         role={opened.role}
         containerRef={setToolbarContainer}
         isToolbarInert={isEditingSurfaceInert}
+        isRowInert={isFailed}
         isRunning={summarize.isRunning}
         onSummarize={summarizeAndOpenPanel}
       />

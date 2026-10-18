@@ -10,7 +10,6 @@ export class CreatorReservations {
   readonly epoch = randomUUID();
   private readonly held = new Map<string, CreatorReservation>();
   private readonly latestAttempts = new Map<string, number>();
-  private readonly committedAttempts = new Map<string, number>();
   private readonly reservationMs: number;
   private readonly maxLifetimeMs: number;
   private readonly lapses: KeyedCooldown;
@@ -59,7 +58,7 @@ export class CreatorReservations {
     return current.attempt;
   }
 
-  // NB ADR 0033: the fence is the latest attempt issued in this epoch, and a committed room accepts only the attempt that committed or a socket that claims none.
+  // NB ADR 0033: the fence is the latest attempt issued in this epoch, and a committed room accepts that same attempt (it is the one that committed) or a socket that claims none.
   mayWrite({
     documentId,
     attempt,
@@ -73,13 +72,10 @@ export class CreatorReservations {
   }): boolean {
     if (attempt === null) return isCommitted;
     if (epoch !== this.epoch) return false;
-    const committedAttempt = this.committedAttempts.get(documentId);
-    if (committedAttempt !== undefined) return attempt === committedAttempt;
     return attempt === this.latestAttemptOf(documentId);
   }
 
-  commit({ documentId, attempt }: { documentId: string; attempt: number }): void {
-    this.committedAttempts.set(documentId, attempt);
+  commit(documentId: string): void {
     this.held.delete(documentId);
   }
 
@@ -101,7 +97,6 @@ export class CreatorReservations {
       .filter((key) => key.startsWith(`${documentId}:`))
       .forEach((key) => this.lapses.forget(key));
     this.latestAttempts.delete(documentId);
-    this.committedAttempts.delete(documentId);
   }
 
   private reschedule({ documentId, attempt, expiresAt }: { documentId: string; attempt: number; expiresAt: number }): void {

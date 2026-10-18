@@ -1,7 +1,8 @@
-import { secondsRoundedUp, type EditSelection, type SummarizeOutcome, type SummarizeResponse } from '@superdoc-collab/types';
+import { secondsRoundedUp, type EditSelection, type SummarizeOutcome, type SelectionSummaryView } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { RetryLaterError } from '@/lib/api';
+import { timelineStamp } from './selection-summary';
 import { isSummarizing, pollWhileSummarizing } from './use-selection-summary';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
 import { useTimeZone } from '@/lib/use-time-zone';
@@ -18,6 +19,14 @@ export type SummarizeControl = {
   showSelection: (selection: EditSelection) => void;
 };
 
+function pollWhenNoOtherOwner(query: Query<SelectionSummaryView>): number | false {
+  const hasOtherOwner = query.observers.some(
+    (observer) => observer.options.enabled === true && observer.options.refetchInterval === pollWhileSummarizing,
+  );
+  if (hasOtherOwner) return false;
+  return pollWhileSummarizing(query);
+}
+
 export function useSummarize({ documentId }: { documentId: string }): SummarizeControl {
   const queryClient = useQueryClient();
   const { search } = useTimelineSearch();
@@ -32,8 +41,8 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
   const { data: view } = useQuery({
     queryKey,
     queryFn: () => fetchSelectionSummary({ documentId, selection, binMs, timeZone }),
-    enabled: isSummarizing(queryClient.getQueryData<SummarizeResponse>(queryKey)),
-    refetchInterval: pollWhileSummarizing,
+    enabled: (query) => isSummarizing(query.state.data),
+    refetchInterval: pollWhenNoOtherOwner,
   });
   const mutation = useMutation({
     mutationFn: () => requestSelectionSummary({ documentId, selection, binMs, timeZone }),
@@ -44,7 +53,7 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
   });
   const { error, reset } = mutation;
 
-  const selectionKey = JSON.stringify(queryKey);
+  const selectionKey = JSON.stringify([queryKey, timeline ? timelineStamp(timeline) : null]);
 
   useEffect(() => {
     if (error instanceof RetryLaterError) return;

@@ -41,7 +41,7 @@ export class InsightsJobRunner {
     return JobOutcome.Started;
   }
 
-  consumeCall(): boolean {
+  private consumeCall(): boolean {
     if (this.calls.count() >= this.maxCallsPerHour) return false;
     this.calls.record();
     return true;

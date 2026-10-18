@@ -11,12 +11,14 @@ import {
 } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { selectionSummaryQueryKey, SummaryTooSoonError, TIMELINE_POLL_MS, timelineQueryKey } from './timeline-api';
+import { useSelectionSummary } from './use-selection-summary';
 import { useSummarize } from './use-summarize';
 
 vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
@@ -163,4 +165,68 @@ test('a busy countdown survives a change of selection', async () => {
   });
   expect(result.current.error).toBeInstanceOf(SummaryTooSoonError);
   expect(result.current.retryAfterSeconds).toBe(RETRY_AFTER_SECONDS);
+});
+
+test('the outcome goes stale when the timeline moves, so an empty selection can fill', async () => {
+  const queryClient = newQueryClient();
+  const timeline = timelineWith({ volumes: [[1]], names: ['Budget'] });
+  const timelineKey = timelineQueryKey({
+    documentId: DOCUMENT_ID,
+    filter: { term: SELECTION.term, author: SELECTION.author },
+    timeZone: UTC_TIME_ZONE,
+  });
+  queryClient.setQueryData(timelineKey, timeline);
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+    jsonResponse({ body: responseWith({ outcome: SummarizeOutcome.UpToDate, step: SummarizeStep.Idle }) }),
+  );
+  const { result } = renderHookWithRouter(() => useSummarize({ documentId: DOCUMENT_ID }), { route: ROUTE, queryClient });
+  act(() => result.current.summarize());
+  await waitFor(() => expect(result.current.outcome).toBe(SummarizeOutcome.UpToDate));
+  act(() => {
+    queryClient.setQueryData(timelineKey, { ...timeline, projection: { ...timeline.projection, cursor: 99 } });
+  });
+  await waitFor(() => expect(result.current.outcome).toBeNull());
+});
+
+test('only one observer polls a running job when the panel is open', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const queryClient = newQueryClient();
+  queryClient.setQueryData(
+    selectionSummaryQueryKey({ documentId: DOCUMENT_ID, selection: SELECTION, timeZone: UTC_TIME_ZONE }),
+    responseWith({ outcome: SummarizeOutcome.Started, step: SummarizeStep.Grouping }),
+  );
+  const fetchSpy = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async () =>
+      jsonResponse({ body: responseWith({ outcome: SummarizeOutcome.Started, step: SummarizeStep.Grouping }) }),
+    );
+  const { result } = renderHookWithRouter(
+    () => {
+      const [isOpen, setIsOpen] = useState(false);
+      useSummarize({ documentId: DOCUMENT_ID });
+      useSelectionSummary({
+        documentId: DOCUMENT_ID,
+        selection: SELECTION,
+        binMs: null,
+        timeZone: UTC_TIME_ZONE,
+        isOpen,
+        timelineStamp: null,
+      });
+      return setIsOpen;
+    },
+    { route: ROUTE, queryClient },
+  );
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS / 3);
+  });
+  act(() => result.current(true));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 2);
+  });
+  const readsBefore = fetchSpy.mock.calls.length;
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 3);
+  });
+  expect(fetchSpy.mock.calls.length - readsBefore).toBeLessThanOrEqual(4);
+  vi.useRealTimers();
 });

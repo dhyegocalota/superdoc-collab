@@ -26,7 +26,7 @@ test.each(Object.values(ConnectionFailureReason))('the %s reason is short enough
   expect(FAILURE_REASON_COPY[reason].length).toBeLessThanOrEqual(MAX_REASON_LENGTH);
 });
 
-test.each([UNSYNCED_LOST_ON_RELOAD_DETAIL, UNSYNCED_LOST_ON_SIGN_IN_DETAIL])(
+test.each([UNSYNCED_LOST_ON_RELOAD_DETAIL, UNSYNCED_LOST_ON_SIGN_IN_DETAIL, SUPERSEDED_DOWNLOAD_DETAIL])(
   'the unsynced warning "%s" is short enough for a phone',
   (detail) => {
     expect(detail.length).toBeLessThanOrEqual(MAX_DETAIL_LENGTH);

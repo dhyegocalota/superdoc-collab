@@ -836,6 +836,14 @@ test('a superseded answer from the members poll fails the connection before any 
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 
+test('a failure SuperDoc reports before ready after the superseded answer shows no editor notice that asks to reload', async () => {
+  await renderSupersededPage();
+  await screen.findByRole('alert');
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  act(() => constructedConfig().onException({ code: 'fatal', error: new Error('fatal'), editor: null }));
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
 test('a superseded tab offers the way back to the documents and never a reload', async () => {
   const { router } = await renderSupersededPage();
   await screen.findByRole('alert');

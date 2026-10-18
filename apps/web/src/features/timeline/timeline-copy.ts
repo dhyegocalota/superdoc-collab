@@ -73,8 +73,21 @@ export function bandAriaLabel({ name, volume }: { name: string; volume: number }
   return `${name}, ${countLabel({ count: volume, unit: EditUnit.Character })}`;
 }
 
-export function streamgraphDescription({ bandCount, from, to }: { bandCount: number; from: string; to: string }): string {
+export function streamgraphDescription({
+  bandCount,
+  from,
+  to,
+}: {
+  bandCount: number;
+  from: string;
+  to: string;
+  hasIdleBreaks?: boolean;
+}): string {
   return `${bandCount} bands, from ${from} to ${to}`;
+}
+
+export function noEditsForLabel(_: { duration: string }): string {
+  throw new Error('noEditsForLabel is not implemented');
 }
 
 export function removeFilterLabel(value: string): string {

@@ -311,6 +311,11 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 
 - `usePanelHeight` default is the larger of the 42 % (58 % below `sm`) share and `PANEL_MIN_CONTENT_PX` (the 240 px chart plus 72 px of handle, header and padding), still capped to leave 240 px for the editor. The chart block is `overflow-visible`. Tests: `use-panel-width.test.ts` at 720, 768 and 800 px viewports (red `expected 262 to be 312`, `282`, `296`) and the `overflow-visible` assertion in `timeline-panel.test.tsx`. Hypothesis: at 1280×800, 1280×720 and 1024×768 the whole chart is visible at the default height; 72 px of chrome is an estimate that the browser measure must confirm.
 
+### Gate failure: the version frame follows the theme
+
+- Cause: not the panel. On a cold stack `chooseTheme` pressed Escape and returned before Radix gave focus back to the account button; `pressInChart` focused the band, the menu then restored focus to the account button, and End went to the button, so no bin was selected (the error context showed Top edits still listed, no `at`). Two fresh stacks on ports 3650 and 3749 failed that way on the first run and passed on every later run.
+- Fix: `chooseTheme` in `e2e/editor.ts` waits for the menu to be hidden and the account button to hold focus. Two fresh-stack runs of the single test passed. Hypothesis: the same race can bite any e2e step that moves focus right after a closing Radix menu.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

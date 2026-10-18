@@ -1,4 +1,4 @@
-import { ConnectionFailureReason, ConnectionState, RECOVERED_NOTICE_MS } from '@superdoc-collab/types';
+import { ConnectionFailureReason, ConnectionState, RECOVERED_NOTICE_MS, SuperdocCollaborationState } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useReducer } from 'react';
 import type { SuperDocCollaborationConnectionChangePayload, SuperDocCollaborationConnectionKind } from 'superdoc';
@@ -12,11 +12,6 @@ export enum TransportReading {
 }
 
 export type TransportReport = { reading: TransportReading | null; failureReason: ConnectionFailureReason | null; hasSynced: boolean };
-
-enum CollaborationState {
-  Synced = 'synced',
-  Failed = 'failed',
-}
 
 enum ConnectionAction {
   Report = 'report',
@@ -73,10 +68,14 @@ const STATE_BY_READING: Record<TransportReading, ConnectionState> = {
   [TransportReading.Failed]: ConnectionState.Failed,
 };
 
+function isOutageReading(reading: TransportReading | null): boolean {
+  return reading === TransportReading.Lost || reading === TransportReading.Reconnecting;
+}
+
 export function transportReportOf({ state, kind }: Pick<SuperDocCollaborationConnectionChangePayload, 'state' | 'kind'>): TransportReport {
-  if (state === CollaborationState.Failed) return FAILED_REPORT;
+  if (state === SuperdocCollaborationState.Failed) return FAILED_REPORT;
   const report = REPORT_BY_KIND[kind];
-  if (state === CollaborationState.Synced) return { ...report, hasSynced: true };
+  if (state === SuperdocCollaborationState.Synced) return { ...report, hasSynced: true };
   return report;
 }
 
@@ -87,8 +86,7 @@ export function mergeConnectionState({
   reading: TransportReading;
   isCurrentUserOnline: boolean | null;
 }): ConnectionState {
-  const isOutage = reading === TransportReading.Lost || reading === TransportReading.Reconnecting;
-  if (isOutage && isCurrentUserOnline === true) return ConnectionState.Recovered;
+  if (isOutageReading(reading) && isCurrentUserOnline === true) return ConnectionState.Recovered;
   return STATE_BY_READING[reading];
 }
 
@@ -116,8 +114,7 @@ function reportedMachine({ machine, report, now }: { machine: Machine; report: T
 const REDUCERS: { [Type in ConnectionAction]: (machine: Machine, action: Extract<Action, { type: Type }>) => Machine } = {
   [ConnectionAction.Report]: (machine, { report, now }) => reportedMachine({ machine, report, now }),
   [ConnectionAction.Recovered]: (machine) => {
-    const isOutage = machine.reading === TransportReading.Lost || machine.reading === TransportReading.Reconnecting;
-    if (!isOutage) return machine;
+    if (!isOutageReading(machine.reading)) return machine;
     return { ...machine, reading: TransportReading.Clear, lostAt: null, isNoticeShown: true };
   },
   [ConnectionAction.NoticeEnded]: (machine) => ({ ...machine, isNoticeShown: false }),
@@ -168,7 +165,7 @@ export function useConnectionState({
   const reportTransport = useCallback(
     (report: TransportReport): void => {
       const queryKey = membersQueryKey(documentId);
-      const isOutageReport = report.reading === TransportReading.Lost || report.reading === TransportReading.Reconnecting;
+      const isOutageReport = isOutageReading(report.reading);
       if (isOutageReport) queryClient.cancelQueries({ queryKey });
       const isFailedReport = report.reading === TransportReading.Failed;
       if (isOutageReport || isFailedReport || report.hasSynced) queryClient.invalidateQueries({ queryKey });

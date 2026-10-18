@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
 import { DEMO_USERS } from '../libs/types/src';
 import { THEME_STORAGE_KEY, ThemePreference } from '../apps/web/src/lib/use-theme';
 import { editorText, uploadSeed } from './editor';
@@ -11,7 +11,9 @@ const CARET_SELECTOR = "[data-v2-local-selection-caret='true']";
 const FONT_FAMILY_TOGGLE_SELECTOR = "[data-item='btn-fontFamily-toggle']";
 const DROPDOWN_SELECTOR = "[data-sd-part='dropdown-menu']";
 const DROPDOWN_OPTION_SELECTOR = "[role='option']";
-const SUPERDOC_LIGHT_ACTIVE_BACKGROUND = 'rgb(200, 208, 216)';
+const BOLD_BUTTON_SELECTOR = "[data-item='btn-bold']";
+const SELECTED_OPTION_SELECTOR = `${DROPDOWN_SELECTOR} .sd-selected`;
+const AWAY_FROM_TOOLBAR = { x: 0, y: 0 };
 const DARK_COLOR_SCHEME = 'dark';
 
 enum CssProperty {
@@ -19,13 +21,7 @@ enum CssProperty {
   BackgroundColor = 'background-color',
 }
 
-async function openedEditorIn({
-  browser,
-  theme,
-}: {
-  browser: Parameters<typeof signedInContext>[0]['browser'];
-  theme: ThemePreference;
-}): Promise<Page> {
+async function openedEditorIn({ browser, theme }: { browser: Browser; theme: ThemePreference }): Promise<Page> {
   const { page } = await signedInContext({ browser, user: anaUser! });
   await page.setViewportSize(VIEWPORT);
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: THEME_STORAGE_KEY, value: theme });
@@ -64,16 +60,29 @@ async function openFontFamilyDropdown(page: Page): Promise<void> {
   await expect(page.locator(DROPDOWN_SELECTOR)).toBeVisible();
 }
 
+async function expectActiveSurfacesFollowTheToken(page: Page): Promise<void> {
+  const activeBackground = await tokenValue({ page, token: '--active', property: CssProperty.BackgroundColor });
+  await page.locator(BOLD_BUTTON_SELECTOR).click();
+  await page.mouse.move(AWAY_FROM_TOOLBAR.x, AWAY_FROM_TOOLBAR.y);
+  await expect
+    .poll(() => computedValue({ page, selector: BOLD_BUTTON_SELECTOR, property: CssProperty.BackgroundColor }))
+    .toBe(activeBackground);
+  await openFontFamilyDropdown(page);
+  await expect(page.locator(SELECTED_OPTION_SELECTOR)).toBeVisible();
+  expect(await computedValue({ page, selector: SELECTED_OPTION_SELECTOR, property: CssProperty.BackgroundColor })).toBe(activeBackground);
+}
+
 async function expectCaretAndDropdownFollowTheTokens(page: Page): Promise<void> {
   await placeCaret(page);
   expect(await computedValue({ page, selector: CARET_SELECTOR, property: CssProperty.Color })).toBe(
     await tokenValue({ page, token: '--paper-foreground', property: CssProperty.Color }),
   );
-  await openFontFamilyDropdown(page);
-  const dropdownBackground = await computedValue({ page, selector: DROPDOWN_SELECTOR, property: CssProperty.BackgroundColor });
-  expect(dropdownBackground).toBe(await tokenValue({ page, token: '--popover', property: CssProperty.BackgroundColor }));
-  expect(dropdownBackground).not.toBe(SUPERDOC_LIGHT_ACTIVE_BACKGROUND);
-  await page.locator(DROPDOWN_OPTION_SELECTOR).first().hover();
+  await expectActiveSurfacesFollowTheToken(page);
+  expect(await computedValue({ page, selector: DROPDOWN_SELECTOR, property: CssProperty.BackgroundColor })).toBe(
+    await tokenValue({ page, token: '--popover', property: CssProperty.BackgroundColor }),
+  );
+  const dropdownOption = page.locator(DROPDOWN_SELECTOR).locator(DROPDOWN_OPTION_SELECTOR).first();
+  await dropdownOption.hover();
   expect(await computedValue({ page, selector: `${DROPDOWN_SELECTOR} ${DROPDOWN_OPTION_SELECTOR}`, property: CssProperty.Color })).toBe(
     await tokenValue({ page, token: '--foreground', property: CssProperty.Color }),
   );

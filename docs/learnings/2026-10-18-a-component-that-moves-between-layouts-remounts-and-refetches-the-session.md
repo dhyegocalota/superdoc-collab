@@ -4,7 +4,7 @@
 - Inspired by: the summary-mobile gate: `e2e/connection-state.spec.ts` "the banner reads well at eight widths" failed with a null banner in 9 s
 - Revisited: 2026-10-18 — still true; the version bar now takes the time zone as a prop
 - Revisited: 2026-10-18 — changed because the session query now has a five minute stale time (`session-stale-time`): a remount no longer refetches `/api/me`, while focus and reconnect still do; passing session-derived values as props is still the safer shape
-- Revisited: 2026-10-18 — still true; `sign-out-redirect-race` reordered sign-out so the page is left before the cached session flips, because a session read that turns null while `RequireSession` is mounted starts a `next` redirect
+- Revisited: 2026-10-18 — still true; a session read that turns null while `RequireSession` is mounted starts a `next` redirect, and sign-out now avoids it by committing the sign-in route synchronously first (`sign-out-flush-sync`)
 
 ## Signal
 After the session is gone, resizing the window across a breakpoint makes the document page vanish: the page snapshot is the Sign in page and a test that looks for the connection banner finds nothing. With a valid session nothing is visible.

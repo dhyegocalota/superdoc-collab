@@ -13,7 +13,7 @@
 
 ## Goals
 
-- Signing out navigates to the bare sign-in route (replace, with the signed-out marker) before the cached session is cleared and invalidated, so `RequireSession` is gone when the cache flips and no `next` redirect can start.
+- Signing out navigates to the bare sign-in route (replace, with the signed-out marker) before the cached session is cleared and invalidated, so `RequireSession` is meant to be gone when the cache flips. The reorder alone narrows the race: the router applies the navigation in a transition that can yield after the cache notification. `sign-out-flush-sync` closes it.
 - Sign-out calls the auth client first. What a failure does depends on its kind; see Failure handling.
 
 ## Non-goals

@@ -11,7 +11,7 @@ export function useSignOut(): () => Promise<void> {
 
   return async function signOut(): Promise<void> {
     await authClient.signOut();
-    await navigate(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE });
+    await navigate(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE, flushSync: true });
     queryClient.setQueryData(SESSION_QUERY_KEY, null);
     await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
   };

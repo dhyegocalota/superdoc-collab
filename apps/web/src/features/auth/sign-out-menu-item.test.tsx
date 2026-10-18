@@ -34,5 +34,5 @@ test('renders as a menu item and still signs out', async () => {
   await userEvent.setup().click(await screen.findByRole('menuitem', { name: SIGN_OUT_LABEL }));
   await waitFor(() => expect(navigate).toHaveBeenCalled());
   expect(authClient.signOut).toHaveBeenCalledTimes(1);
-  expect(navigate).toHaveBeenCalledWith(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE });
+  expect(navigate).toHaveBeenCalledWith(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE, flushSync: true });
 });

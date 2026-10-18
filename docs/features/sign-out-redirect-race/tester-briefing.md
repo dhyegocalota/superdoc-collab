@@ -27,5 +27,5 @@ pnpm typecheck
 
 ## Known gaps
 
-- The race itself depends on timing; the unit test pins the order, not the URL.
+- The race itself depends on timing; the unit test pins the order, not the URL, and the reorder alone narrows the race. The `sign-out-flush-sync` lane closes it.
 - The sign-out result is not checked: an HTTP error is handled only by the session refetch (the reader returns to documents, still signed in). Checking the returned error or setting the client to throw is an option not taken.

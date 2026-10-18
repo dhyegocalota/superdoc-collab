@@ -16,6 +16,8 @@ import {
 import {
   acceptShareLink,
   downloadButton,
+  EDITOR_INPUT_SELECTOR,
+  EDITOR_READY_TIMEOUT_MS,
   editorText,
   readEditorText,
   readEvents,
@@ -26,7 +28,7 @@ import {
   uploadSeed,
   insertedBy,
 } from './editor';
-import { ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
+import { NEW_DOCUMENT_LABEL, ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, MORE_ACTIONS_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import { expect, signedInContext, test } from './fixtures';
@@ -42,6 +44,9 @@ const EDITOR_TEST_ID = 'document-editor';
 const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
+const FIRST_PARAGRAPH_CLICK_POSITION = { x: 120, y: 120 };
+const TYPING_DELAY_MS = 20;
+const TYPED_SENTENCE = 'Typed into a new document.';
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
@@ -181,4 +186,19 @@ test('the Download button exports the live document', async ({ browser }) => {
   const download = ana.page.waitForEvent('download');
   await downloadButton(ana.page).click();
   expect((await download).suggestedFilename()).toBe(fileName);
+});
+
+test('a new document accepts typing after a click', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await ana.page.getByRole('button', { name: NEW_DOCUMENT_LABEL }).click();
+  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await expect(async () => {
+    await ana.page.locator(PAGE_SELECTOR).first().click({ position: FIRST_PARAGRAPH_CLICK_POSITION });
+    await ana.page.keyboard.press('End');
+    expect(await ana.page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR)).toBe(true);
+  }).toPass({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await ana.page.keyboard.type(TYPED_SENTENCE, { delay: TYPING_DELAY_MS });
+  await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible();
+  await ana.page.reload();
+  await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
 });

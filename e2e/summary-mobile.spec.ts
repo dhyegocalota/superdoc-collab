@@ -22,7 +22,7 @@ import {
 } from './timeline';
 
 const PARAGRAPHS = ['Budget: the plan costs 10.', 'Hiring: we add two people.'];
-const EDIT_TEXT = ' More money';
+const EDIT_TEXT = ' More money for the plan, a second sentence about the budget lines and a third one about the hiring plan.';
 const BAND_NAME = 'Budget';
 const PHONE_VIEWPORT = { width: 375, height: 568 };
 const DEBOUNCE_WINDOW_MS = 1_000;
@@ -92,6 +92,9 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
   await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
   const naturalOffset = await rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top);
   const maxScroll = await scroller.evaluate((element) => element.scrollHeight - element.clientHeight);
+  expect(maxScroll, 'the panel must scroll further than the header offset, or the header never has to stick').toBeGreaterThan(
+    naturalOffset,
+  );
   await scroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top))

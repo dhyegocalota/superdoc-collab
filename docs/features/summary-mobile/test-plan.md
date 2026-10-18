@@ -36,7 +36,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/summary-mobile.spec.ts::on a phone a tap keeps the selected header in view and a version needs View version` — viewport 375 x 812; steps: open a document with bins and a version, open the panel, tap a bin; expected: the header is inside the viewport and names the bin; tap a versioned bin; expected: the URL has no `at`; press View version; expected: the progress line, the dimmed editor, then the version frame ready and the pinned bar with Back to live; press it; expected: live again
+- [ ] `e2e/summary-mobile.spec.ts::on a phone a tap keeps the selected header in view and a version needs View version` — viewport 375 x 568; steps: open a document with bins and a version, open the panel, tap a bin; expected: the header is inside the viewport and names the bin; tap a versioned bin; expected: the URL has no `at`; press View version; expected: the progress line, the dimmed editor, then the version frame ready and the pinned bar with Back to live; press it; expected: live again
 - [ ] `e2e/summary-mobile.spec.ts::on desktop a tap travels at once` — viewport 1280; expected: `at` set after one tap
 
 ## Prove it for real — Playwright MCP

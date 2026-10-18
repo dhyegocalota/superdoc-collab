@@ -460,9 +460,10 @@ test('Reload refetches only the open query and the file query, each exactly', as
   });
   const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  const refetchQueries = vi.spyOn(queryClient, 'refetchQueries');
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
-  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+  const reloadButton = await screen.findByRole('button', { name: RELOAD_LABEL });
+  const refetchQueries = vi.spyOn(queryClient, 'refetchQueries');
+  await userEvent.click(reloadButton);
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
   expect(refetchQueries.mock.calls.map(([filters]) => filters)).toEqual([
     { queryKey: openedDocumentQueryKey(DOCUMENT_ID), exact: true },

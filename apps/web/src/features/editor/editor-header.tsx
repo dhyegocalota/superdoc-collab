@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { KeyboardKey } from '@/lib/keyboard';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { deleteDocument, renameDocument } from './editor-api';
+import { deleteDocument, openedDocumentQueryKey, renameDocument } from './editor-api';
 import {
   CANCEL_LABEL,
   DELETE_CONFIRM_LABEL,
@@ -34,7 +34,13 @@ function TitleInput({ documentId, title }: DocumentIdentity & { title: string })
   const queryClient = useQueryClient();
   const { mutate, isError } = useMutation({
     mutationFn: renameDocument,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY }),
+    onSuccess: (_, { title: renamedTitle }) => {
+      queryClient.setQueryData<OpenedDocument>(
+        openedDocumentQueryKey(documentId),
+        (opened) => opened && { ...opened, document: { ...opened.document, title: renamedTitle } },
+      );
+      return queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY, exact: true });
+    },
   });
 
   function commit(input: HTMLInputElement): void {
@@ -74,7 +80,7 @@ function DeleteDocumentDialog({
     mutationFn: () => deleteDocument(documentId),
     onSuccess: async () => {
       await navigate(AppRoute.Documents);
-      await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY, exact: true });
     },
   });
 

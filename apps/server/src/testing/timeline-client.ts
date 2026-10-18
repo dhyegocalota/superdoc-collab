@@ -9,6 +9,7 @@ import {
   HttpMethod,
   RETRY_AFTER_HEADER,
   RETRY_AFTER_SECONDS,
+  SECOND_MS,
   documentApiPath,
   selectionSummaryApiPath,
   TimelineQueryParam,
@@ -35,7 +36,7 @@ import type { TestServer, TestUser } from './test-server';
 const PROJECTION_TIMEOUT_MS = 15_000;
 const BULK_CLIENT_ID = 4242;
 const BULK_BASE_TIME = Date.UTC(2026, 0, 1);
-const DEFAULT_STEP_MS = 1000;
+const DEFAULT_STEP_MS = SECOND_MS;
 
 export function zonedQuery({ query = '', timeZone = UTC_TIME_ZONE }: { query?: string; timeZone?: string } = {}): string {
   const parameters = new URLSearchParams(query);

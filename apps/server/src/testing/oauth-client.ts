@@ -1,5 +1,5 @@
 import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID, type KeyObject } from 'node:crypto';
-import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-collab/types';
+import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE, SECOND_MS } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 import type { TestServer, TestUser } from './test-server';
 
@@ -23,7 +23,6 @@ const DPOP_CURVE = 'prime256v1';
 const SIGNATURE_ENCODING = 'ieee-p1363';
 const REGISTRATION_ADDRESS_PREFIX = '10.201.0';
 const TOKEN_ADDRESS_PREFIX = '10.202.0';
-const MILLISECONDS_PER_SECOND = 1000;
 
 enum OAuthPath {
   Register = '/oauth2/register',
@@ -61,7 +60,7 @@ export function dpopProof({ key, method, url, accessToken }: { key: DpopKey; met
   const claims = encodeSegment({
     htm: method,
     htu: url,
-    iat: Math.floor(Date.now() / MILLISECONDS_PER_SECOND),
+    iat: Math.floor(Date.now() / SECOND_MS),
     jti: randomUUID(),
     ...accessTokenHash,
   });

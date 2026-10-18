@@ -141,6 +141,7 @@ export function DocumentPage() {
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
+  const isEditingSurfaceInert = isViewingPastVersion || isFailed;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
   return withAnnouncement(
@@ -176,7 +177,7 @@ export function DocumentPage() {
       <EditorToolbarRow
         role={opened.role}
         containerRef={setToolbarContainer}
-        isToolbarInert={isViewingPastVersion}
+        isToolbarInert={isEditingSurfaceInert}
         isRunning={summarize.isRunning}
         onSummarize={summarizeAndOpenPanel}
       />
@@ -195,7 +196,7 @@ export function DocumentPage() {
                 role={editorSetup.role}
                 user={editorSetup.user}
                 file={editorSetup.file}
-                isInert={isViewingPastVersion || isFailed}
+                isInert={isEditingSurfaceInert}
                 onTransportReport={reportTransport}
               />
             )}

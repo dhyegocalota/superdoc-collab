@@ -118,6 +118,15 @@ test('keys still move the selection while a version loads', () => {
   expect(onSelectIndex).toHaveBeenLastCalledWith(2);
 });
 
+test('a drag inside the selected bin selects nothing and a drag into another bin selects it', () => {
+  const { container, onSelectIndex } = renderGraph({ selectedIndex: 1 });
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerMove(chart, { clientX: WIDTH / 2, buttons: 1 });
+  expect(onSelectIndex).not.toHaveBeenCalled();
+  fireEvent.pointerMove(chart, { clientX: WIDTH, buttons: 1 });
+  expect(onSelectIndex).toHaveBeenCalledExactlyOnceWith(2);
+});
+
 test('hovering a bin shows its range, bands, sizes and contributors', () => {
   const { container } = renderGraph();
   fireEvent.pointerMove(container.querySelector('svg')!, { clientX: WIDTH / 2, buttons: 0 });

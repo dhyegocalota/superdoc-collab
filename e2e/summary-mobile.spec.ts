@@ -110,10 +110,15 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top))
     .toBeCloseTo(Math.max(0, naturalOffset - maxScroll), 0);
   await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
+  const hiddenBeforeRepeatTap = await rectsOf({ header, scroller }).then(
+    ({ headerRect, scrollerRect }) => !isInside({ inner: headerRect, outer: scrollerRect }),
+  );
+  expect(hiddenBeforeRepeatTap, 'the header must start below the fold or the repeat tap proves nothing').toBe(true);
   await clickChart({ page: ana.page, widthFraction: CHART_CENTRE_FRACTION });
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))
     .toBe(true);
+  await expect(header).toBeInViewport();
   await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeVisible();
   await ana.page.setViewportSize(NARROWEST_PHONE_VIEWPORT);
   await expect.poll(() => header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);

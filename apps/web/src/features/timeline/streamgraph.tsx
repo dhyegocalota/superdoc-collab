@@ -119,7 +119,8 @@ export function Streamgraph({
     const index = layout.binAt(offsetOf(event));
     setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top });
     const isScrubbing = event.buttons === PRIMARY_BUTTON_PRESSED && !isLoadingVersion;
-    if (isScrubbing) onSelectIndex(index);
+    const isOtherBin = index !== selectedIndex;
+    if (isScrubbing && isOtherBin) onSelectIndex(index);
   }
 
   function handleFocus(): void {

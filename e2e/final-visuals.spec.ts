@@ -481,7 +481,7 @@ async function memberSlotsOf({ page, documentId }: { page: Page; documentId: str
   return Object.fromEntries(members.map((member) => [member.user.name, member.colorSlot]));
 }
 
-test('a member has one colour on every surface and on every browser', async ({ browser }) => {
+test('two members have two colours, one on every surface and on every browser', async ({ browser }) => {
   const { ana, documentId } = await ownerOpensDocument({ browser });
   const bruno = await signedInContext({ browser, user: brunoUser! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
@@ -496,9 +496,12 @@ test('a member has one colour on every surface and on every browser', async ({ b
   await expect(swatchOf(anaOwnLabel)).toHaveClass(new RegExp(`bg-author-${slots[ANA]}\\b`));
   await expect(swatchOf(brunoForAnaLabel)).toHaveClass(new RegExp(`bg-author-${slots[BRUNO]}\\b`));
   await expect(swatchOf(anaForBrunoLabel)).toHaveClass(new RegExp(`bg-author-${slots[ANA]}\\b`));
+  expect(slots[ANA]).not.toBe(slots[BRUNO]);
   const anaOwnSwatch = await swatchColorOf(anaOwnLabel);
   expect(await swatchColorOf(anaForBrunoLabel)).toBe(anaOwnSwatch);
-  expect(await remoteCaretColorOf(ana.page)).toBe(await swatchColorOf(brunoForAnaLabel));
+  const brunoCaretForAna = await remoteCaretColorOf(ana.page);
+  expect(brunoCaretForAna).toBe(await swatchColorOf(brunoForAnaLabel));
+  expect(brunoCaretForAna).not.toBe(anaOwnSwatch);
   expect(await remoteCaretColorOf(bruno.page)).toBe(anaOwnSwatch);
 });
 

@@ -99,6 +99,6 @@ test('before the members answer an avatar is neutral, never the hash colour', ()
     </ul>,
   );
   const swatch = screen.getByTitle(ACCOUNT_AUTHOR.name).firstElementChild;
-  expect(swatch).toHaveClass('bg-muted');
+  expect(swatch).toHaveClass('bg-muted', 'text-muted-foreground');
   expect(swatch?.className).not.toMatch(/bg-author-/);
 });

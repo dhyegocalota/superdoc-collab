@@ -16,6 +16,7 @@ import {
   TITLE_MAX_LENGTH,
   RoomMode,
   AUTHOR_COLOR_SLOT_COUNT,
+  authorColorSlot,
   TAB_QUERY_KEY,
   UPLOAD_FIELD,
   type DocumentMembers,
@@ -336,6 +337,7 @@ test('the first editor to open a fresh room is reserved as creator with attempt 
     FIRST_ATTEMPT,
     server.services.reservations.epoch,
   ]);
+  expect(opened.colorSlot).toBe(authorColorSlot(owner.id));
   await server.stop();
 });
 

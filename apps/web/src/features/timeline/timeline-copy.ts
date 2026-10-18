@@ -62,13 +62,11 @@ const SINGLE_COUNT = 1;
 export enum EditUnit {
   Word = 'word',
   Character = 'character',
-  Edit = 'edit',
 }
 
 const UNIT_LABELS: Record<EditUnit, { one: string; many: string }> = {
   [EditUnit.Word]: { one: 'word', many: 'words' },
   [EditUnit.Character]: { one: 'character', many: 'characters' },
-  [EditUnit.Edit]: { one: 'edit', many: 'edits' },
 };
 
 export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
@@ -116,8 +114,4 @@ export function topicCountLabel(count: number): string {
 
 export function importedAuthorLabel(name: string): string {
   return `${name}, imported from the DOCX`;
-}
-
-export function selectedEditCount(count: number): string {
-  return countLabel({ count, unit: EditUnit.Edit });
 }

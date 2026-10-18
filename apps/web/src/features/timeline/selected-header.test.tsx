@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { SelectedHeader, type SelectedHeaderSelection } from './selected-header';
 import { CLEAR_SELECTION_LABEL, SHOWING_WHOLE_DOCUMENT_MESSAGE, VIEW_VERSION_LABEL } from './timeline-copy';
 
-const SELECTION: SelectedHeaderSelection = { rangeLabel: 'Oct 16, 2:00 – 2:01 PM', editCount: 12 };
+const SELECTION: SelectedHeaderSelection = { rangeLabel: 'Oct 16, 2:00 – 2:01 PM', volume: 12 };
 
 function renderHeader({
   selection = SELECTION,

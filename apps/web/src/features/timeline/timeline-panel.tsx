@@ -92,7 +92,7 @@ function PanelHeader({ position, isOpen, onOpenChange }: Pick<TimelinePanelProps
 function selectionOf({ timeline, bin }: { timeline: DocumentTimeline; bin: TimelineBin }): SelectedHeaderSelection {
   return {
     rangeLabel: formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone: timeline.timeZone }),
-    editCount: Object.values(bin.byBand).reduce((total, cell) => total + cellVolume(cell), 0),
+    volume: Object.values(bin.byBand).reduce((total, cell) => total + cellVolume(cell), 0),
   };
 }
 

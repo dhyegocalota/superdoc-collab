@@ -1,8 +1,8 @@
 import type { Ref } from 'react';
 import { Button } from '@/components/ui/button';
-import { CLEAR_SELECTION_LABEL, selectedEditCount, SHOWING_WHOLE_DOCUMENT_MESSAGE, VIEW_VERSION_LABEL } from './timeline-copy';
+import { CLEAR_SELECTION_LABEL, countLabel, EditUnit, SHOWING_WHOLE_DOCUMENT_MESSAGE, VIEW_VERSION_LABEL } from './timeline-copy';
 
-export type SelectedHeaderSelection = { rangeLabel: string; editCount: number };
+export type SelectedHeaderSelection = { rangeLabel: string; volume: number };
 
 type SelectedHeaderProps = {
   ref: Ref<HTMLDivElement>;
@@ -25,7 +25,7 @@ export function SelectedHeader({ ref, selection, canViewVersion, isViewVersionDi
         <>
           <p className="min-w-0">
             <span className="font-medium">{selection.rangeLabel}</span>{' '}
-            <span className="text-muted-foreground">{selectedEditCount(selection.editCount)}</span>
+            <span className="text-muted-foreground">{countLabel({ count: selection.volume, unit: EditUnit.Character })}</span>
           </p>
           <div className="flex shrink-0 items-center gap-1">
             {canViewVersion && (

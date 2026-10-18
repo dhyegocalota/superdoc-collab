@@ -1,8 +1,10 @@
 import { TimelineSearchParam, VersionViewerState, type EditRunView, type TimelineBin, type VersionSummary } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
+import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { isTypingInField } from '@/lib/keyboard';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { useMinWidth } from '@/lib/use-min-width';
 import { binContaining } from './bin-containing';
 import { VersionLoadKind } from './timeline-api';
 import { useBinRuns } from './use-bin-runs';
@@ -45,7 +47,9 @@ function pinnedSequenceAt({ pin, at }: { pin: VersionPin | null; at: number | nu
 export function useTimeTravel({ documentId, isEnabled }: { documentId: string; isEnabled: boolean }): TimeTravel {
   const { search, update } = useTimelineSearch();
   const at = search.at;
+  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
   const [pendingBinStart, setPendingBinStart] = useState<number | null>(null);
+  const [pendingVersion, setPendingVersion] = useState<VersionReference | null>(null);
   const [shownVersion, setShownVersion] = useState<VersionSummary | null>(null);
   const [failedFrameSequence, setFailedFrameSequence] = useState<number | null>(null);
   const [pinnedVersion, setPinnedVersion] = useState<VersionPin | null>(null);
@@ -91,17 +95,31 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   useEffect(() => {
     cancel();
     setPendingBinStart(null);
+    setPendingVersion(null);
     setFailedFrameSequence(null);
   }, [at, cancel]);
 
-  function travelTo(binStart: number): void {
+  function startTravel(binStart: number): void {
     setPendingBinStart(binStart);
     schedule(binStart);
+  }
+
+  function travelTo(binStart: number): void {
+    const needsConfirmation = isPhoneLayout && binStart !== at;
+    if (!needsConfirmation) return startTravel(binStart);
+    setPendingVersion({ binStart });
+  }
+
+  function confirmTravel(): void {
+    if (pendingVersion === null) return;
+    setPendingVersion(null);
+    startTravel(pendingVersion.binStart);
   }
 
   function backToLive(): void {
     cancel();
     setPendingBinStart(null);
+    setPendingVersion(null);
     if (at === null) return;
     update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
   }
@@ -127,11 +145,9 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,
     hasFailed,
     runs,
-    pendingVersion: null,
+    pendingVersion,
     travelTo,
-    confirmTravel: () => {
-      throw new Error('confirmTravel is not implemented');
-    },
+    confirmTravel,
     backToLive,
     reportFailure: setFailedFrameSequence,
   };

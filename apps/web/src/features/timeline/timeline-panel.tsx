@@ -98,7 +98,18 @@ function selectionOf({ timeline, bin }: { timeline: DocumentTimeline; bin: Timel
   };
 }
 
-export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange, summarize, onTravel, onBackToLive }: TimelinePanelProps) {
+export function TimelinePanel({
+  documentId,
+  role,
+  position,
+  isOpen,
+  onOpenChange,
+  summarize,
+  pendingVersion,
+  onTravel,
+  onConfirmTravel,
+  onBackToLive,
+}: TimelinePanelProps) {
   const isBottom = position === PanelPosition.Bottom;
   const { ref: chartRef, width: chartWidth } = useElementWidth();
   const { ref: areaRef, height: areaHeight } = useAreaHeight();
@@ -179,14 +190,15 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
       )}
     </div>
   );
+  const hasPendingVersion = pendingVersion !== null && selectedBin !== null && pendingVersion.binStart === selectedBin.start;
   const header = isPhoneLayout && (
     <SelectedHeader
       ref={headerRef}
       selection={timeline && selectedBin ? selectionOf({ timeline, bin: selectedBin }) : null}
-      hasVersion={false}
+      hasVersion={hasPendingVersion}
       isPhoneLayout={isPhoneLayout}
       onClear={clearSelection}
-      onViewVersion={() => undefined}
+      onViewVersion={onConfirmTravel}
     />
   );
   const filter = (

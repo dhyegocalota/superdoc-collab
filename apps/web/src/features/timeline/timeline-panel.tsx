@@ -22,7 +22,7 @@ import { SelectionSummaryCard } from './selection-summary-card';
 import { Streamgraph } from './streamgraph';
 import { CHART_HEIGHT } from './streamgraph-layout';
 import { TimelineCollapsedBar } from './timeline-collapsed-bar';
-import { LOADING_TIMELINE_MESSAGE, TIMELINE_HEADING } from './timeline-copy';
+import { LOADING_TIMELINE_LABEL, TIMELINE_HEADING } from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useBinSelection } from './use-bin-selection';
@@ -178,7 +178,7 @@ export function TimelinePanel({
   const chart = (
     <div ref={chartRef} className="shrink-0 overflow-visible">
       {isTimelinePending && (
-        <Skeleton role="status" aria-label={LOADING_TIMELINE_MESSAGE} className="w-full" style={{ height: CHART_HEIGHT }} />
+        <Skeleton role="status" aria-label={LOADING_TIMELINE_LABEL} className="w-full" style={{ height: CHART_HEIGHT }} />
       )}
       {timeline && chartWidth > 0 && (
         <Streamgraph

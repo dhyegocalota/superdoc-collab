@@ -286,3 +286,22 @@ test('a Failed report refetches members so a 401 resolves at once', () => {
   connection.report(readingReport(TransportReading.Failed, ConnectionFailureReason.Unknown));
   expect(connection.invalidateQueries).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) });
 });
+
+test.each([TransportReading.Lost, TransportReading.Reconnecting])(
+  'a members 401 while the transport is %s ends the session as Failed with Sign in',
+  (reading) => {
+    const connection = renderConnection();
+    connection.report(readingReport(reading));
+    connection.rerender({ ...NOT_ANSWERED, isSessionEnded: true });
+    expect([connection.result.current.state, connection.result.current.failureReason]).toEqual([
+      ConnectionState.Failed,
+      ConnectionFailureReason.SessionEnded,
+    ]);
+  },
+);
+
+test('a members 401 on a connected transport leaves the connection online', () => {
+  const connection = renderConnection();
+  connection.rerender({ ...NOT_ANSWERED, isSessionEnded: true });
+  expect(connection.result.current.state).toBe(ConnectionState.Online);
+});

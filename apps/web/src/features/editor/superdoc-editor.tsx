@@ -1,4 +1,11 @@
-import { ApiPath, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  ConnectionFailureReason,
+  type CreatorTicket,
+  DocumentRole,
+  type RoomMode,
+  type SessionUser,
+} from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -70,8 +77,13 @@ export function SuperDocEditor({
         console.warn(payload.message);
       },
       [ExceptionOutcome.Recoverable]: () => setHasRejectedEdit(true),
-      [ExceptionOutcome.ConnectionFailed]: (payload) =>
-        onTransportReport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
+      [ExceptionOutcome.ConnectionFailed]: (payload) => {
+        const failureReason = failureReasonOf(payload);
+        const report: TransportReport = { reading: TransportReading.Failed, failureReason, hasSynced: false };
+        const isRefusedUpgrade = failureReason === ConnectionFailureReason.ConnectionFailed;
+        if (isRefusedUpgrade) return reportTransport(report);
+        onTransportReport(report);
+      },
       [ExceptionOutcome.Fatal]: () => setHasFailed(true),
     };
     const superdoc = new SuperDoc({

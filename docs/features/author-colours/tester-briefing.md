@@ -54,7 +54,7 @@ Known blemish: the red commit e9f99f3 does not typecheck (two untyped fixtures i
 
 ## Gaps
 
-- The E2E test (`a member has one colour on every surface and on every browser`) was typechecked but never run by me. It asserts distinctness too: with exactly two members the second always takes a free slot, whatever the random ids.
+- The E2E test (`two members have two colours, one on every surface and on every browser`) was typechecked but never run by me. It asserts distinctness too: with exactly two members the second always takes a free slot, whatever the random ids.
 - Cursor jump matches carets by name plus colour: after a slot shift or with an old tab it says not found until the peer remounts. I kept the matching; name-only matching would confuse same-name members.
 - The selection summary card colours an author with no id in the timeline by the imported hash.
 - The server unit tests use random user ids, so they assert six distinct slots for six members rather than a forced collision; a forced collision is covered by the pure function test.

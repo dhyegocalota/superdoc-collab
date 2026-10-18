@@ -1,10 +1,13 @@
 import { cellVolume, toStackRows, type StackRow } from '@superdoc-collab/history/timeline';
-import type { DocumentTimeline, TimelineBand, TimelineCell } from '@superdoc-collab/types';
+import { MINUTE_MS, type DocumentTimeline, type TimelineBand, type TimelineCell } from '@superdoc-collab/types';
 import { scaleLinear, type ScaleLinear } from 'd3-scale';
 import { area, curveBasis, stack, stackOffsetWiggle, stackOrderInsideOut, type Series } from 'd3-shape';
+import type { IdleBreak } from './idle-breaks';
 import { maxBandVolume } from './max-band-volume';
 
 export const CHART_HEIGHT = 240;
+export const IDLE_BREAK_MS = 5 * MINUTE_MS;
+export const BREAK_WIDTH_PX = 16;
 export const MIN_LABEL_HEIGHT = 16;
 export const SATURATION_MIN = 35;
 export const SATURATION_MAX = 85;
@@ -22,8 +25,10 @@ export type BandShape = {
   agentPath: string | null;
 };
 type PlacedLabel = { label: { x: number; y: number }; box: LabelBox };
+export type BreakColumn = IdleBreak & { left: number; right: number; centerX: number };
 export type StreamgraphLayout = {
   shapes: BandShape[];
+  breaks: BreakColumn[];
   binX: (index: number) => number;
   binAt: (position: number) => number;
   timeX: (time: number) => number;
@@ -163,6 +168,7 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
   );
   return {
     shapes,
+    breaks: [],
     binX: (index) => x(index),
     binAt: (position) => Math.min(lastIndex, Math.max(0, Math.round(x.invert(position)))),
     timeX: (time) => x(Math.min(lastIndex, Math.max(0, (time - firstBinStart(timeline)) / timeline.binMs))),

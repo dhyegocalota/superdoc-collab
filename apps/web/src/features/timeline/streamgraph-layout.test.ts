@@ -1,6 +1,7 @@
+import { MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
+import { BREAK_WIDTH_PX, layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
 
 const RAMP_HALF_LENGTH = 8;
 
@@ -148,4 +149,125 @@ test('pin: the agent layer is as tall as the agent share of the band', () => {
     return Math.max(...ys) - Math.min(...ys);
   };
   expect(heightOf(shape!.agentPath!) / heightOf(shape!.path)).toBeCloseTo(0.4, 3);
+});
+
+const EDGE_BINS = 4;
+const SILENT_BINS = 6;
+const SILENCE_FIRST = EDGE_BINS;
+const SILENCE_LAST = EDGE_BINS + SILENT_BINS - 1;
+const AFTER_SILENCE = SILENCE_LAST + 1;
+const LAST_BIN = 2 * EDGE_BINS + SILENT_BINS - 1;
+const CHART_WIDTH = 600;
+const PITCH = (CHART_WIDTH - BREAK_WIDTH_PX) / (2 * EDGE_BINS - 2);
+const BUSY: number[] = [400, 300];
+const QUIET: number[] = [0, 0];
+const AGENT_BUSY: number[] = [40, 30];
+
+function silentTimeline({ names = ['Budget', 'Hiring'], agent = false }: { names?: string[]; agent?: boolean } = {}) {
+  const rows = [
+    ...Array.from({ length: EDGE_BINS }, () => BUSY),
+    ...Array.from({ length: SILENT_BINS }, () => QUIET),
+    ...Array.from({ length: EDGE_BINS }, () => BUSY),
+  ];
+  const agentVolumes = rows.map((row) => row.map((volume) => (agent && volume > 0 ? AGENT_BUSY[0]! : 0)));
+  return timelineWith({ volumes: rows, names, agentVolumes });
+}
+
+function silentLayout(options: Parameters<typeof silentTimeline>[0] = {}) {
+  const timeline = silentTimeline(options);
+  return { timeline, layout: layoutStreamgraph({ timeline, width: CHART_WIDTH }) };
+}
+
+test('a break is one column between its neighbours', () => {
+  const { layout } = silentLayout();
+  const [column] = layout.breaks;
+  expect(layout.breaks).toHaveLength(1);
+  expect(column).toMatchObject({ firstIndex: SILENCE_FIRST, lastIndex: SILENCE_LAST, durationMs: SILENT_BINS * MINUTE_MS });
+  expect(column!.right - column!.left).toBeCloseTo(BREAK_WIDTH_PX);
+  expect(column!.centerX).toBeCloseTo((column!.left + column!.right) / 2);
+  expect(layout.binX(0)).toBe(0);
+  expect(layout.binX(LAST_BIN)).toBeCloseTo(CHART_WIDTH);
+});
+
+test('the bins on either side of a break keep the same pitch', () => {
+  const { layout } = silentLayout();
+  expect(layout.binX(1) - layout.binX(0)).toBeCloseTo(PITCH);
+  expect(layout.binX(LAST_BIN) - layout.binX(LAST_BIN - 1)).toBeCloseTo(PITCH);
+  expect(layout.binX(AFTER_SILENCE) - layout.binX(SILENCE_FIRST - 1)).toBeCloseTo(BREAK_WIDTH_PX);
+});
+
+test('a bin inside the break sits at the centre of its column', () => {
+  const { layout } = silentLayout();
+  const [column] = layout.breaks;
+  Array.from({ length: SILENT_BINS }, (_, offset) => SILENCE_FIRST + offset).forEach((index) => {
+    expect(layout.binX(index)).toBeCloseTo(column!.centerX);
+  });
+});
+
+test('binAt gives the first bin after the break inside its column and the nearest bin elsewhere', () => {
+  const { layout } = silentLayout();
+  const [column] = layout.breaks;
+  expect(layout.binAt(column!.centerX)).toBe(AFTER_SILENCE);
+  expect(layout.binAt(column!.left)).toBe(SILENCE_FIRST - 1);
+  expect(layout.binAt(column!.right)).toBe(AFTER_SILENCE);
+  expect(layout.binAt(-50)).toBe(0);
+  expect(layout.binAt(CHART_WIDTH + 50)).toBe(LAST_BIN);
+  expect(layout.binAt(layout.binX(1) + 1)).toBe(1);
+});
+
+test('binAt inverts binX for every bin outside the break', () => {
+  const { layout, timeline } = silentLayout();
+  const outsideBreak = timeline.bins.map((_, index) => index).filter((index) => index < SILENCE_FIRST || index > SILENCE_LAST);
+  outsideBreak.forEach((index) => expect(layout.binAt(layout.binX(index))).toBe(index));
+});
+
+test('timeX maps a time inside the break to the column centre and other times linearly', () => {
+  const { layout, timeline } = silentLayout();
+  const [column] = layout.breaks;
+  const firstStart = timeline.bins[0]!.start;
+  expect(layout.timeX(firstStart + (SILENCE_FIRST + 3) * MINUTE_MS)).toBeCloseTo(column!.centerX);
+  expect(layout.timeX(firstStart + 1.5 * MINUTE_MS)).toBeCloseTo((layout.binX(1) + layout.binX(2)) / 2);
+  expect(layout.timeX(firstStart - MINUTE_MS)).toBe(0);
+  expect(layout.timeX(timeline.bins[LAST_BIN]!.end + MINUTE_MS)).toBeCloseTo(CHART_WIDTH);
+});
+
+test('a band with volume on both sides of the break has one closed path per side', () => {
+  const { layout } = silentLayout();
+  layout.shapes.forEach((shape) => {
+    expect(shape.path.match(/M/g)).toHaveLength(2);
+    expect(shape.path.endsWith('Z')).toBe(true);
+  });
+});
+
+test('agent volume on both sides gives one closed agent path per side', () => {
+  const { layout } = silentLayout({ agent: true });
+  layout.shapes.forEach((shape) => {
+    expect(shape.agentPath!.match(/M/g)).toHaveLength(2);
+    expect(shape.agentPath!.endsWith('Z')).toBe(true);
+  });
+});
+
+test('a label never straddles the break', () => {
+  const longName = 'x'.repeat(40);
+  const { layout } = silentLayout({ names: [longName, 'Hiring'] });
+  const [column] = layout.breaks;
+  const halfWidth = (longName.length * 7) / 2;
+  const wide = layout.shapes.find((shape) => shape.band.name === longName)!;
+  const fitsLeft = wide.label !== null && wide.label.x + halfWidth <= column!.left;
+  const fitsRight = wide.label !== null && wide.label.x - halfWidth >= column!.right;
+  expect(wide.label === null || fitsLeft || fitsRight).toBe(true);
+});
+
+test('a timeline of only two bins and one break keeps finite positions', () => {
+  const rows = [BUSY, ...Array.from({ length: SILENT_BINS }, () => QUIET), BUSY];
+  const timeline = timelineWith({ volumes: rows, names: ['Budget', 'Hiring'] });
+  const layout = layoutStreamgraph({ timeline, width: CHART_WIDTH });
+  rows.forEach((_, index) => expect(Number.isFinite(layout.binX(index))).toBe(true));
+  expect(layout.binX(0)).toBe(0);
+  expect(layout.binX(rows.length - 1)).toBeCloseTo(CHART_WIDTH);
+});
+
+test('a timeline without a break has no column', () => {
+  const timeline = timelineWith({ volumes: [[1], [2], [3], [4], [5]], names: ['Budget'] });
+  expect(layoutStreamgraph({ timeline, width: 400 }).breaks).toEqual([]);
 });

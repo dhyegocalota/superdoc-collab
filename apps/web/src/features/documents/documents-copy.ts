@@ -30,3 +30,5 @@ export const COLUMN_LABELS: Record<DocumentColumn, string> = {
   [DocumentColumn.Updated]: 'Updated',
   [DocumentColumn.Access]: 'Access',
 };
+
+export const DOCUMENT_DETAILS_SEPARATOR = ' · ';

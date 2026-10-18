@@ -8,11 +8,14 @@ import { AgentActionMarks } from './agent-action-marks';
 import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { AgentLegend } from './agent-legend';
 import { BandLabel } from './band-label';
+import { StepDirection, stepOutOfBreaks, type IdleBreak } from './idle-breaks';
 import { maxBandVolume } from './max-band-volume';
-import { CHART_HEIGHT, layoutStreamgraph, type BandShape } from './streamgraph-layout';
+import { CHART_HEIGHT, layoutStreamgraph, type BandShape, type BreakColumn } from './streamgraph-layout';
 import { StreamgraphLegend } from './streamgraph-legend';
 import { bandAriaLabel, CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
-import { TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
+import { IdleBreakTooltip, TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
+
+const BREAK_DASH_ARRAY = '4 4';
 
 class MissingBandHueError extends Error {}
 
@@ -26,31 +29,43 @@ type StreamgraphProps = {
   onClearSelection: () => void;
 };
 
-function nextIndex({ key, selectedIndex, lastIndex }: { key: string; selectedIndex: number | null; lastIndex: number }): number | null {
+function nextIndex({
+  key,
+  selectedIndex,
+  lastIndex,
+  breaks,
+}: {
+  key: string;
+  selectedIndex: number | null;
+  lastIndex: number;
+  breaks: IdleBreak[];
+}): number | null {
   const isStep = key === KeyboardKey.ArrowRight || key === KeyboardKey.ArrowLeft;
   if (key === KeyboardKey.Home) return 0;
   if (key === KeyboardKey.End) return lastIndex;
   if (!isStep) return null;
   if (selectedIndex === null && key === KeyboardKey.ArrowRight) return 0;
   if (selectedIndex === null) return lastIndex;
-  if (key === KeyboardKey.ArrowRight) return Math.min(lastIndex, selectedIndex + 1);
-  return Math.max(0, selectedIndex - 1);
+  if (key === KeyboardKey.ArrowRight)
+    return Math.min(lastIndex, stepOutOfBreaks({ breaks, index: selectedIndex + 1, direction: StepDirection.Forward }));
+  return Math.max(0, stepOutOfBreaks({ breaks, index: selectedIndex - 1, direction: StepDirection.Backward }));
 }
 
-type TooltipAnchor = { index: number; top: number };
+type Hovered = { index: number; y: number; idleBreak: BreakColumn | null };
+type TooltipAnchor = { index: number; top: number; idleBreak: BreakColumn | null };
 
 function tooltipAnchorOf({
   hovered,
   selectedIndex,
   hasFocus,
 }: {
-  hovered: { index: number; y: number } | null;
+  hovered: Hovered | null;
   selectedIndex: number | null;
   hasFocus: boolean;
 }): TooltipAnchor | null {
-  if (hovered !== null) return { index: hovered.index, top: hovered.y + TOOLTIP_POINTER_OFFSET };
+  if (hovered !== null) return { index: hovered.index, top: hovered.y + TOOLTIP_POINTER_OFFSET, idleBreak: hovered.idleBreak };
   if (!hasFocus || selectedIndex === null) return null;
-  return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET };
+  return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET, idleBreak: null };
 }
 
 function focusableBandIdOf({ shapes, highlightedBandId }: { shapes: BandShape[]; highlightedBandId: string | null }): string | null {
@@ -80,7 +95,7 @@ export function Streamgraph({
   const titleId = useId();
   const descriptionId = useId();
   const tooltipId = useId();
-  const [hovered, setHovered] = useState<{ index: number; y: number } | null>(null);
+  const [hovered, setHovered] = useState<Hovered | null>(null);
   const [hasKeyboardFocus, setHasKeyboardFocus] = useState(false);
   const isPointerFocus = useRef(false);
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
@@ -117,7 +132,7 @@ export function Streamgraph({
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
     const index = layout.binAt(offsetOf(event));
-    setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top });
+    setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top, idleBreak: layout.breakAt(offsetOf(event)) });
     const isScrubbing = event.buttons === PRIMARY_BUTTON_PRESSED && !isLoadingVersion;
     const isOtherBin = index !== selectedIndex;
     if (isScrubbing && isOtherBin) onSelectIndex(index);
@@ -140,7 +155,7 @@ export function Streamgraph({
       onClearSelection();
       return;
     }
-    const index = nextIndex({ key: event.key, selectedIndex, lastIndex });
+    const index = nextIndex({ key: event.key, selectedIndex, lastIndex, breaks: layout.breaks });
     if (index === null) return;
     event.preventDefault();
     onSelectIndex(index);
@@ -206,6 +221,7 @@ export function Streamgraph({
             bandCount: timeline.bands.length,
             from: formatTimestamp({ time: firstMoment, timeZone }),
             to: formatTimestamp({ time: lastMoment, timeZone }),
+            hasIdleBreaks: layout.breaks.length > 0,
           })}
         </desc>
         {hasAgentLayer && (
@@ -227,6 +243,18 @@ export function Streamgraph({
           .map((shape) => (
             <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />
           ))}
+        {layout.breaks.map((column) => (
+          <line
+            key={column.firstIndex}
+            x1={column.centerX}
+            x2={column.centerX}
+            y1={0}
+            y2={CHART_HEIGHT}
+            strokeDasharray={BREAK_DASH_ARRAY}
+            aria-hidden
+            className="pointer-events-none stroke-muted-foreground"
+          />
+        ))}
         {selectedIndex !== null && (
           <line
             x1={layout.binX(selectedIndex)}
@@ -249,12 +277,21 @@ export function Streamgraph({
       {hasUnlabelledBand && <StreamgraphLegend bands={layout.shapes.map((shape) => shape.band)} maxVolume={maxVolume} />}
       {hasAgentLayer && <AgentLegend />}
       <p className="text-xs text-muted-foreground">{CHART_HINT}</p>
-      {tooltipAnchor !== null && (
+      {tooltipAnchor !== null && tooltipAnchor.idleBreak === null && (
         <TimelineTooltip
           id={tooltipId}
           timeline={timeline}
           index={tooltipAnchor.index}
           left={layout.binX(tooltipAnchor.index)}
+          top={tooltipAnchor.top}
+          chartWidth={width}
+        />
+      )}
+      {tooltipAnchor !== null && tooltipAnchor.idleBreak !== null && (
+        <IdleBreakTooltip
+          id={tooltipId}
+          durationMs={tooltipAnchor.idleBreak.durationMs}
+          left={tooltipAnchor.idleBreak.centerX}
           top={tooltipAnchor.top}
           chartWidth={width}
         />

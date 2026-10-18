@@ -20,6 +20,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 
 | Number | Title | Status | Date |
 |--------|-------|--------|------|
+| [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |
 | [0001](0001-event-sourcing-over-yjs.md) | Capture live history by event-sourcing the Yjs update stream | Accepted | 2026-10-16 |
 | [0002](0002-authorship-observed-vs-declared.md) | Bind Yjs clientIds to users in two tiers | Accepted | 2026-10-16 |
 | [0003](0003-time-travel-with-native-yjs-snapshots.md) | Implement time travel with native Yjs snapshots | Accepted | 2026-10-16 |
@@ -57,4 +58,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0038](0038-phone-time-travel-confirms-with-an-inline-second-tap.md) | Phone time travel confirms with an inline second tap and shows its loading | Accepted | 2026-10-18 |
 | [0036](0036-the-superseded-creator-page-learns-of-the-takeover-from-the-members-poll.md) | The superseded creator's page learns of the takeover from the members poll | Accepted | 2026-10-18 |
 | [0037](0037-author-colour-slots-are-assigned-per-document-by-join-order.md) | Author colour slots are assigned per document by join order | Accepted | 2026-10-18 |
-| [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |
+| [0039](0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) | The edits chart collapses idle stretches into marked breaks | Accepted | 2026-10-18 |

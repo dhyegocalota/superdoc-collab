@@ -79,6 +79,8 @@ Red commits after the review (23ed472, f5baab8, bb5fa73) change a test against a
 
 ### Known gaps
 
+- The raw creator socket carries the ticket (`attempt` and `epoch` queries) read from the open answer. `a creator who closes its last socket releases the reservation at once` is the fast companion of the lifetime-cap test and runs by default.
+
 - Step 21 writes the log through the library `UpdateLog` API on a direct handle to `history.sqlite`. It is kept because it is the only deterministic cut.
 - The 10 MB test asserts the largest sent frame is below `MAX_SOCKET_MESSAGE_BYTES` and that the connection banner, when present, is not reconnecting. The banner exists only after connection-state merges. The second-editor test runs at 375 and 1280 px and expects the editor to enter without a reload, which needs the waiting page from final-visuals.
 
@@ -152,7 +154,7 @@ Failure text is what the run printed on commit `ed459e0`, on the tree before G1 
 | `the holder opens a fresh document in two pages at once and the room holds one paragraph` | pin: green today (2 s), so the holder's two pages do not duplicate | pin: stays green with the holder keeping its attempt |
 | `a 10 MB DOCX commits and reopens as Join` | pin: green today (1.2 min with the text-dense fixture) | pin: stays green after the payload cap of Step 8 |
 | `a creator who goes offline mid-create is replaced by the next editor and leaves one paragraph set` | `Expected: 1`, `Received: null`: after the creator comes back online its text and the second editor's text never converge in 60 s. Runs only with `E2E_SLOW=1` | the superseded creator's late updates are fenced and both pages converge on one paragraph |
-| `a superseded creator's socket closes with 4403 after the 60 s expiry` | `closeCode`: expected 4403, received null after the 60 s poll | the takeover closes the old socket with 4403 |
+| `a connected creator holding its socket without updates is superseded with 4403 at the lifetime cap` (`E2E_SLOW=1`, real 5 minutes: the server has no environment variable for the cap) | `closeCode`: expected 4403, received null after the 60 s poll | the takeover closes the old socket with 4403 |
 
 ### Hypotheses to attack
 

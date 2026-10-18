@@ -3,6 +3,7 @@
 - Date: 2026-10-18
 - Inspired by: eight `pnpm verify` runs of the connected-apps-content lane (a web-only diff) on 2026-10-18, each red on a different test
 - Revisited: —
+- Revisited: 2026-10-18 — still true: summary-mobile added chart helpers to `e2e/timeline.ts`; `waitForBands` and `readVersionText` are unchanged
 
 ## Signal
 

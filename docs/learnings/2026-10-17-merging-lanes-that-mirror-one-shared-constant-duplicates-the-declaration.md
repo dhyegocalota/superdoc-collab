@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: `aee3a17` and `6b49cd2`, two fixes after merging lanes G1 and G6, then G3 and G4
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true: summary-mobile added copy to `timeline-copy.ts` and declared nothing twice
 
 ## Signal
 Every package that imports the shared types fails to compile with a redeclared `export const`, enum or type, although each lane was green alone and the merge had no textual conflict.

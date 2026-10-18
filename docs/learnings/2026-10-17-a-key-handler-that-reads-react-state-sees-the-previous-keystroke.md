@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: known-minors fixes `f1c4af8`, `6c5fb24` and `4240334`: Escape and Enter in the timeline filter box missed a draft typed just before them in a real browser while every jsdom test passed, and Escape in the filter box also left the version through the document-level time-travel handler
 - Revisited: 2026-10-17
+- Revisited: 2026-10-18 — still true: summary-mobile edited `use-time-travel.ts` (immediate travel below lg, frame-ready loading); the Escape listener is unchanged
 
 ## Signal
 In Playwright or by hand, typing fast and pressing Enter or Escape acts on the draft as it was one keystroke earlier (nothing applied, or the wrong chip). The unit test with Testing Library is green.

@@ -5,6 +5,7 @@
 - Revisited: 2026-10-17
 - Revisited: 2026-10-17 — still true; `e2e/timeline.ts` changed in the UX lane without touching the counter. Promoted to `.claude/rules/e2e.md`
 - Revisited: 2026-10-17 — still true: `readSelectionCalls` in `e2e/timeline.ts` is unchanged and the config stays serial
+- Revisited: 2026-10-18 — still true: summary-mobile added chart helpers to `e2e/timeline.ts`; `readSelectionCalls` is unchanged
 
 ## Signal
 A green E2E spec starts failing on an exact-count assertion (`expected 3, received 10`) only when the suite runs with more workers or with `fullyParallel`; it passes alone and passes under file-level parallelism.

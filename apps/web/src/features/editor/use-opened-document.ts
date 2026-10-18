@@ -1,7 +1,8 @@
-import { DOCUMENT_READY_GIVE_UP_MS, DOCUMENT_READY_POLL_MS, type OpenedDocument } from '@superdoc-collab/types';
+import { DOCUMENT_READY_GIVE_UP_MS, DOCUMENT_READY_POLL_MS, type CreatorTicket, type OpenedDocument } from '@superdoc-collab/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
+import { creatorTicketOf } from './collaboration-config';
 import { DocumentNotReadyError, openDocument, openedDocumentQueryKey } from './editor-api';
 
 const GIVE_UP_POLL_COUNT = DOCUMENT_READY_GIVE_UP_MS / DOCUMENT_READY_POLL_MS;
@@ -79,4 +80,15 @@ export function useOpenedDocument(documentId: string) {
 
 export function useOpenedDocumentWithoutPolling(documentId: string) {
   return useOpenedDocumentQuery({ documentId, shouldPoll: false });
+}
+
+export function useOpenedCreatorTicket(documentId: string): CreatorTicket | null {
+  const { data } = useQuery({
+    queryKey: openedDocumentQueryKey(documentId),
+    queryFn: () => openDocument(documentId),
+    enabled: false,
+    staleTime: Infinity,
+  });
+  if (!data) return null;
+  return creatorTicketOf(data);
 }

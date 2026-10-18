@@ -15,4 +15,4 @@ Append the ticket to the URL the way `collaborationUrl` does: take `creatorAttem
 ## Anchor
 - `e2e/room-admission.spec.ts` (`holdCreatorSocket`, `a superseded creator's socket closes with 4403 after the 60 s expiry`)
 - `apps/web/src/features/editor/collaboration-config.ts` (`collaborationUrl`), `apps/server/src/testing/collaboration-client.ts` (`ticketQuery`)
-- commits `ed459e0`, `cf04805`, `ae0c62f`
+- commits `ed459e0`, `cf04805`, `ae0c62f`; fixed in `3bf6ce6` (the held socket carries the ticket; the slow proof targets the lifetime cap)

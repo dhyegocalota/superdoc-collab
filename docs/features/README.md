@@ -76,3 +76,4 @@ Refinement after the five slices:
 
 | [`gate-and-scenario-tooling`](gate-and-scenario-tooling/) | The format gate ignores `e2e/_*`, the secret probe uses fixed tokens, the scenario clicks before typing into a New document with an E2E for it, and a spare Playwright MCP server | Building |
 | [`timeline-idle-gaps`](timeline-idle-gaps/) | The edits chart collapses each idle stretch longer than five minutes into one marked break column, with a dashed divider, a duration tooltip and a one-press key step ([ADR 0039](../adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md)) | Building |
+| [`socket-message-limit`](socket-message-limit/) | The socket frame cap goes from 120 to 1000 per second: SuperDoc sends six update frames per keystroke, so ordinary typing hit the old cap ([ADR 0040](../adr/0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md)) | Building |

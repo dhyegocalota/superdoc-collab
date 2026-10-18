@@ -8,6 +8,7 @@ import {
   RoomMode,
   POLICY_VIOLATION_CLOSE_CODE,
   SECOND_MS,
+  SOCKET_AWARENESS_IDS_REASON,
   SOCKET_SINGLE_DOCUMENT_REASON,
   TAB_QUERY_KEY,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
@@ -20,6 +21,7 @@ import type { RoomModes } from './room-modes';
 import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
+import { overfullConnections } from './awareness-client-cap';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { CreatorReservations } from './creator-reservations';
@@ -207,6 +209,9 @@ export function createCollaborationServer({
       onStored(requireDocumentId(documentName));
     },
     async onAwarenessUpdate({ document }) {
+      const overfull = overfullConnections(document);
+      overfull.forEach(({ connection }) => connection.close({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON }));
+      if (overfull.length > 0) return;
       declarer.declare(document);
     },
     async afterUnloadDocument({ documentName }) {

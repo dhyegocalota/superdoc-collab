@@ -30,6 +30,14 @@ function declaredBy(connections: FakeConnection[]): string[] {
   return declareClientIdentity.mock.calls.map(([{ yjsClientId, userId }]) => `${yjsClientId}:${userId}`);
 }
 
+const MANY_CLIENT_IDS = 100_000;
+const BOUNDED_DECLARE_TIMEOUT_MS = 2_000;
+
+test('a connection holding many client ids is declared in linear time', { timeout: BOUNDED_DECLARE_TIMEOUT_MS }, () => {
+  const clients = Array.from({ length: MANY_CLIENT_IDS }, (_, index) => index + 1);
+  expect(declaredBy([{ userId: 'ana', clients }])).toHaveLength(MANY_CLIENT_IDS);
+});
+
 test('a writable connection declares the clients that carry its user id', () => {
   expect(declaredBy([{ userId: 'ana', clients: [1] }])).toEqual(['1:ana']);
 });

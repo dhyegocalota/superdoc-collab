@@ -2,10 +2,13 @@ import {
   ApiPath,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
-  MAX_SOCKET_MESSAGES_PER_SECOND,
+  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
+  MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_AWARENESS_IDS_REASON,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
   UNAUTHORIZED_CLOSE_CODE,
@@ -25,6 +28,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
 import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
+import { awarenessFrame, awarenessFrameClaiming } from '../testing/socket-frames';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
@@ -33,6 +37,9 @@ import { attachCollaboration } from './attach-collaboration';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
+const TYPING_BURST_FRAMES = 600;
+const AWARENESS_BURST_FRAMES = 3000;
+const AWARENESS_ROOM_NAME = 'superdoc-room-1';
 const UNMASKED_BINARY_FRAME = Buffer.from([0x82, 0x01, 0x00]);
 const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
@@ -191,14 +198,14 @@ describe('attachCollaboration', () => {
     client.close();
     await server.stop();
   });
-  test('121 frames before authentication close the socket with 1008, are not applied and are logged without the payload', async () => {
+  test('more frames than the cap before authentication close the socket with 1008, are not applied and are logged without the payload', async () => {
     const server = await startTestServer();
     const { cookie } = await signedInUser({ server, name: 'Eva' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { socket, closed } = openFloodSocket({ server, cookie });
     await new Promise((resolve) => socket.on('open', resolve));
     const frame = validUpdateFrame();
-    Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 1 }).forEach(() => socket.send(frame));
+    Array.from({ length: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND + 1 }).forEach(() => socket.send(frame));
     expect(await closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_RATE_LIMIT_REASON });
     expect(server.services.updateLog.hasUpdates(FLOOD_DOCUMENT_ID)).toBe(false);
     expect(warn).toHaveBeenCalled();
@@ -235,11 +242,13 @@ describe('attachCollaboration', () => {
     await server.stop();
     expect(outcome).toBe('destroyed');
   });
-  test('121 valid awareness frames close the socket with 1008 and the reason', async () => {
+  test('more awareness frames than the cap close the socket with 1008 and the reason', async () => {
     const { server, documentId, owner } = await documentWithOwner();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
-    Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 1 }).forEach((_, index) => client.provider.setAwarenessField('cursor', index));
+    Array.from({ length: MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND + 1 }).forEach((_, index) =>
+      client.provider.setAwarenessField('cursor', index),
+    );
     expect(await client.closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_RATE_LIMIT_REASON });
     warn.mockRestore();
     client.close();
@@ -439,7 +448,7 @@ describe('attachCollaboration', () => {
   });
 });
 
-test('the frame that breaches the limit reaches the room handler and nothing after it does', async () => {
+async function openCountedSocket() {
   const received = vi.fn();
   const hocuspocus = {
     handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
@@ -465,8 +474,74 @@ test('the frame that breaches the limit reaches the room handler and nothing aft
   socket.on('error', () => undefined);
   const closed = new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
   await new Promise((resolve) => socket.on('open', resolve));
-  Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 10 }).forEach(() => socket.send(Buffer.from([0])));
-  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
-  expect(received).toHaveBeenCalledTimes(MAX_SOCKET_MESSAGES_PER_SECOND + 1);
+  return { socket, closed, received, httpServer };
+}
+
+test('a typing burst of 600 frames in one second is accepted and the socket stays open', async () => {
+  const { socket, received, httpServer } = await openCountedSocket();
+  Array.from({ length: TYPING_BURST_FRAMES }).forEach(() => socket.send(Buffer.from([0])));
+  await expect.poll(() => received.mock.calls.length).toBe(TYPING_BURST_FRAMES);
+  expect(socket.readyState).toBe(WebSocket.OPEN);
+  socket.close();
   await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('the frame that breaches the limit reaches the room handler and nothing after it does', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  Array.from({ length: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND + 10 }).forEach(() => socket.send(Buffer.from([0])));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).toHaveBeenCalledTimes(MAX_SOCKET_UPDATE_FRAMES_PER_SECOND + 1);
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('an awareness burst of 3000 frames in one second is accepted and the socket stays open', async () => {
+  const { socket, received, httpServer } = await openCountedSocket();
+  Array.from({ length: AWARENESS_BURST_FRAMES }).forEach(() => socket.send(awarenessFrame(AWARENESS_ROOM_NAME)));
+  await expect.poll(() => received.mock.calls.length).toBe(AWARENESS_BURST_FRAMES);
+  expect(socket.readyState).toBe(WebSocket.OPEN);
+  socket.close();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('the awareness frame past its own cap closes the socket with 1008 and nothing after it is read', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  Array.from({ length: MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND + 10 }).forEach(() => socket.send(awarenessFrame(AWARENESS_ROOM_NAME)));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).toHaveBeenCalledTimes(MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND + 1);
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+async function sendClaimingFrame({ clientIds }: { clientIds: number[] }) {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  let closedSocket: { code: number; reason: string } | null = null;
+  void client.closed.then((event) => (closedSocket = event));
+  const roomName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
+  const webSocket = client.provider.configuration.websocketProvider.webSocket!;
+  webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName, clientIds })));
+  return { server, client, closedSocket: () => closedSocket, webSocket, roomName };
+}
+
+const CLAIMED_ID_BASE = 1_000_000;
+
+test('an awareness frame claiming one client id more than the connection cap closes the socket with 1008', async () => {
+  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 }, (_, index) => CLAIMED_ID_BASE + index);
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
+  await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+  client.close();
+  await server.stop();
+});
+
+test('an awareness frame claiming exactly the connection cap of client ids keeps the socket open', async () => {
+  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION }, (_, index) => CLAIMED_ID_BASE + index);
+  const { server, client, closedSocket, webSocket } = await sendClaimingFrame({ clientIds });
+  await expect
+    .poll(() =>
+      [...server.services.hocuspocus.documents.values()].some((document) => document.awareness.getStates().size >= clientIds.length),
+    )
+    .toBe(true);
+  expect(closedSocket()).toBeNull();
+  expect(webSocket.readyState).toBe(WebSocket.OPEN);
+  client.close();
+  await server.stop();
 });

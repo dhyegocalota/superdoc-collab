@@ -577,3 +577,24 @@ test('hovering a bin beside the break still shows the range of the bin', () => {
     asRendered(formatBinRange({ ...breakTimeline.bins[0]!, binMs: breakTimeline.binMs, timeZone: UTC_TIME_ZONE })),
   );
 });
+
+test('pressing inside the break column selects the first bin after it', () => {
+  const { container, onSelectIndex } = renderBreakGraph();
+  fireEvent.pointerDown(container.querySelector('svg')!, { clientX: breakColumn.centerX, buttons: 1 });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(AFTER_SILENCE);
+});
+
+test.each([
+  { key: 'ArrowRight', from: SILENCE_FIRST - 1, to: AFTER_SILENCE },
+  { key: 'ArrowLeft', from: AFTER_SILENCE, to: SILENCE_FIRST - 1 },
+  { key: 'ArrowLeft', from: SILENCE_FIRST + 2, to: SILENCE_FIRST - 1 },
+  { key: 'ArrowRight', from: SILENCE_FIRST + 2, to: AFTER_SILENCE },
+  { key: 'ArrowRight', from: 0, to: 1 },
+  { key: 'ArrowLeft', from: AFTER_SILENCE + 1, to: AFTER_SILENCE },
+  { key: 'Home', from: AFTER_SILENCE, to: 0 },
+  { key: 'End', from: 0, to: LAST_BIN },
+])('$key from bin $from selects bin $to across a break', ({ key, from, to }) => {
+  const { focusableBand, onSelectIndex } = renderBreakGraph({ selectedIndex: from });
+  fireEvent.keyDown(focusableBand, { key });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(to);
+});

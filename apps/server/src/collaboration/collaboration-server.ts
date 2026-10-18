@@ -3,8 +3,6 @@ import type { IncomingMessage } from 'node:http';
 import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
   ClientActor,
-  CREATOR_ATTEMPT_QUERY_KEY,
-  CREATOR_EPOCH_QUERY_KEY,
   DocumentRole,
   isTabId,
   RoomMode,
@@ -25,6 +23,7 @@ import { authenticateMember, CollaborationAuthenticationError } from './authenti
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { CreatorReservations } from './creator-reservations';
+import { claimedTicketOf, type ClaimedTicket } from './claimed-ticket';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade } from './upgrade-path';
 
@@ -37,8 +36,7 @@ export const MAX_STORE_DEBOUNCE_MS = 4 * SECOND_MS;
 export const LOADING_ORIGIN = 'update-log-replay';
 
 const PARSE_BASE_URL = 'http://localhost';
-const FIRST_ATTEMPT = 1;
-const NO_TICKET = { attempt: null, epoch: null };
+const NO_TICKET: ClaimedTicket = { attempt: null, epoch: null };
 export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
@@ -85,15 +83,9 @@ function warnOncePerConnection({ context, warned }: { context: CollaborationCont
   console.warn(`${REFUSED_UPDATE_LOG} ${context.documentId}`);
 }
 
-function claimedTicketOf(request: IncomingMessage): { attempt: number | null; epoch: string | null } {
+function claimedTicketFrom(request: IncomingMessage): ClaimedTicket {
   if (!request.url) throw new CollaborationAuthenticationError();
-  const { searchParams } = new URL(request.url, PARSE_BASE_URL);
-  const attempt = Number(searchParams.get(CREATOR_ATTEMPT_QUERY_KEY));
-  const epoch = searchParams.get(CREATOR_EPOCH_QUERY_KEY);
-  return {
-    attempt: Number.isInteger(attempt) && attempt >= FIRST_ATTEMPT ? attempt : null,
-    epoch: epoch ? epoch : null,
-  };
+  return claimedTicketOf(new URL(request.url, PARSE_BASE_URL).searchParams);
 }
 
 function requireDocumentId(roomName: string): string {
@@ -153,7 +145,7 @@ export function createCollaborationServer({
           ? await authenticateAgent({ auth, documents, token, documentId })
           : await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
       if (role === DocumentRole.Reader) connection.readOnly = true;
-      const claimedTicket = claimedTicketOf(request);
+      const claimedTicket = claimedTicketFrom(request);
       const answer = roomModes.resolve({ documentId, userId });
       if (answer.isSpent) {
         console.warn(`${OPEN_BUDGET_LOG} ${documentId}`);

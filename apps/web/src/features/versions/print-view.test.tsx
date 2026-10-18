@@ -29,8 +29,7 @@ function renderPrintView() {
   render(<PrintView file={FILE} onClose={onClose} onFailed={onFailed} />);
   const frameWindow = frameWindowOf(printFrame());
   const postMessage = vi.spyOn(frameWindow, 'postMessage').mockImplementation(() => undefined);
-  const print = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined);
-  return { onClose, onFailed, frameWindow, postMessage, print };
+  return { onClose, onFailed, postMessage };
 }
 
 afterEach(() => {
@@ -54,36 +53,35 @@ test('the frame height is page count × 1056 px once the frame reports its pages
   expect(printFrame().style.height).toBe('4224px');
 });
 
-test('prints the frame only once it reports Painted, and afterprint closes the view', () => {
-  const { print, onClose, frameWindow } = renderPrintView();
+test('asks the frame to print only once it reports Painted, and Closed closes the view', () => {
+  const { postMessage, onClose } = renderPrintView();
   sendFromFrame({ message: { kind: PrintMessageKind.PageCount, pageCount: 4 } });
-  expect(print).not.toHaveBeenCalled();
+  expect(postMessage).not.toHaveBeenCalledWith({ kind: PrintMessageKind.Print }, window.location.origin);
   sendFromFrame({ message: { kind: PrintMessageKind.Painted } });
-  expect(print).toHaveBeenCalledTimes(1);
-  act(() => {
-    frameWindow.dispatchEvent(new Event('afterprint'));
-  });
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Print }, window.location.origin);
+  expect(postMessage.mock.calls.filter(([message]) => (message as PrintMessage).kind === PrintMessageKind.Print)).toHaveLength(1);
+  sendFromFrame({ message: { kind: PrintMessageKind.Closed } });
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 test('a failure of the frame fails the preparation and prints nothing', () => {
-  const { print, onFailed } = renderPrintView();
+  const { postMessage, onFailed } = renderPrintView();
   sendFromFrame({ message: { kind: PrintMessageKind.Failed } });
   expect(onFailed).toHaveBeenCalledTimes(1);
-  expect(print).not.toHaveBeenCalled();
+  expect(postMessage).not.toHaveBeenCalled();
 });
 
 test('a message from another window is ignored', () => {
-  const { print, onFailed } = renderPrintView();
+  const { postMessage, onFailed } = renderPrintView();
   sendFromFrame({ message: { kind: PrintMessageKind.Painted }, source: window });
   sendFromFrame({ message: { kind: PrintMessageKind.Failed }, source: window });
-  expect(print).not.toHaveBeenCalled();
+  expect(postMessage).not.toHaveBeenCalled();
   expect(onFailed).not.toHaveBeenCalled();
 });
 
 test('a frame that never reports Painted fails the preparation after the timeout, once', () => {
   vi.useFakeTimers();
-  const { onFailed, print } = renderPrintView();
+  const { onFailed, postMessage } = renderPrintView();
   sendFromFrame({ message: { kind: PrintMessageKind.Ready } });
   act(() => vi.advanceTimersByTime(PRINT_READY_TIMEOUT_MS - 1));
   expect(onFailed).not.toHaveBeenCalled();
@@ -91,7 +89,7 @@ test('a frame that never reports Painted fails the preparation after the timeout
   expect(onFailed).toHaveBeenCalledTimes(1);
   act(() => vi.advanceTimersByTime(PRINT_READY_TIMEOUT_MS));
   expect(onFailed).toHaveBeenCalledTimes(1);
-  expect(print).not.toHaveBeenCalled();
+  expect(postMessage).not.toHaveBeenCalledWith({ kind: PrintMessageKind.Print }, window.location.origin);
 });
 
 test('Painted before the timeout cancels it', () => {

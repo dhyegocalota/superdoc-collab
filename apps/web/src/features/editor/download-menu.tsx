@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,6 @@ import {
 } from './editor-copy';
 
 export const LOADING_DOCUMENT_REASON_ID = 'loading-document-reason';
-const PDF_TOAST_ID = 'pdf-download';
 
 export function DownloadMenu({ isDisabled, onDownload }: { isDisabled: boolean; onDownload: (format: DownloadFormat) => void }) {
   const reasonId = isDisabled ? LOADING_DOCUMENT_REASON_ID : undefined;
@@ -69,23 +68,33 @@ export function useDownload({ superdoc, onDownloadDocx }: { superdoc: SuperDoc |
 } {
   const [pdfFile, setPdfFile] = useState<Blob | null>(null);
   const isPreparingPdf = useRef(false);
+  const preparingToastId = useRef<string | number | null>(null);
+
+  const dismissPreparingToast = useCallback(() => {
+    if (preparingToastId.current === null) return;
+    toast.dismiss(preparingToastId.current);
+    preparingToastId.current = null;
+  }, []);
+
+  useEffect(() => dismissPreparingToast, [dismissPreparingToast]);
 
   const closePrintView = useCallback(() => {
     isPreparingPdf.current = false;
-    toast.dismiss(PDF_TOAST_ID);
+    dismissPreparingToast();
     setPdfFile(null);
-  }, []);
+  }, [dismissPreparingToast]);
 
   const failPdf = useCallback(() => {
     isPreparingPdf.current = false;
-    toast.error(PDF_FAILED_MESSAGE, { id: PDF_TOAST_ID, description: undefined });
+    dismissPreparingToast();
+    toast.error(PDF_FAILED_MESSAGE);
     setPdfFile(null);
-  }, []);
+  }, [dismissPreparingToast]);
 
   function preparePdf(): void {
     if (!superdoc || isPreparingPdf.current) return;
     isPreparingPdf.current = true;
-    toast.loading(PREPARING_PDF_MESSAGE, { id: PDF_TOAST_ID, description: PDF_PRINT_HINT });
+    preparingToastId.current = toast.loading(PREPARING_PDF_MESSAGE, { description: PDF_PRINT_HINT });
     superdoc.export({ triggerDownload: false }).then(setPdfFile, failPdf);
   }
 

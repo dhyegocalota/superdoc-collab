@@ -7,18 +7,16 @@ import { PrintMessageKind, readPrintMessage, type PrintMessage } from './print-m
 
 const PAGE_SELECTOR = '.superdoc-page';
 const LETTER_PAGE_WIDTH_PX = 816;
-const PRINT_READY_MAX_FRAMES = 600;
 const PRINT_STYLES = '@page { size: Letter; margin: 0 } html, body { margin: 0 }';
 
 function postToParent(message: PrintMessage): void {
   window.parent.postMessage(message, window.location.origin);
 }
 
-function isLastPagePainted({ container, pageCount }: { container: HTMLElement; pageCount: number }): boolean {
-  const pages = container.querySelectorAll(PAGE_SELECTOR);
-  const lastPageText = pages.item(pages.length - 1)?.textContent;
+function arePagesPainted({ container, pageCount }: { container: HTMLElement; pageCount: number }): boolean {
+  const pages = [...container.querySelectorAll(PAGE_SELECTOR)];
   const hasAllPages = pages.length >= pageCount;
-  return hasAllPages && lastPageText !== undefined && lastPageText.trim() !== '';
+  return hasAllPages && pages.every((page) => page.textContent !== null && page.textContent.trim() !== '');
 }
 
 export function PrintPage() {
@@ -28,10 +26,19 @@ export function PrintPage() {
 
   useEffect(() => postToParent({ kind: PrintMessageKind.Ready }), []);
 
+  useEffect(() => {
+    function reportClosed(): void {
+      postToParent({ kind: PrintMessageKind.Closed });
+    }
+    window.addEventListener('afterprint', reportClosed);
+    return () => window.removeEventListener('afterprint', reportClosed);
+  }, []);
+
   useWindowMessage((event) => {
     const message = readPrintMessage({ event, expectedSource: window.parent });
-    if (message === null || message.kind !== PrintMessageKind.Load) return;
-    setFile(message.file);
+    if (message === null) return;
+    if (message.kind === PrintMessageKind.Print) window.print();
+    if (message.kind === PrintMessageKind.Load) setFile(message.file);
   });
 
   useEffect(() => {
@@ -54,17 +61,19 @@ export function PrintPage() {
     const container = containerRef.current;
     if (!container || pageCount === null) return;
     const printContainer: HTMLElement = container;
-    const expectedPageCount: number = pageCount;
-    let frame = 0;
+    let announcedPageCount: number = pageCount;
     let frameRequest = 0;
-    function waitForLastPage(): void {
-      if (isLastPagePainted({ container: printContainer, pageCount: expectedPageCount }))
+    function waitForPages(): void {
+      const currentPageCount = printContainer.querySelectorAll(PAGE_SELECTOR).length;
+      if (currentPageCount > announcedPageCount) {
+        announcedPageCount = currentPageCount;
+        postToParent({ kind: PrintMessageKind.PageCount, pageCount: currentPageCount });
+      }
+      if (arePagesPainted({ container: printContainer, pageCount: announcedPageCount }))
         return postToParent({ kind: PrintMessageKind.Painted });
-      frame += 1;
-      if (frame > PRINT_READY_MAX_FRAMES) return postToParent({ kind: PrintMessageKind.Failed });
-      frameRequest = requestAnimationFrame(waitForLastPage);
+      frameRequest = requestAnimationFrame(waitForPages);
     }
-    frameRequest = requestAnimationFrame(waitForLastPage);
+    frameRequest = requestAnimationFrame(waitForPages);
     return () => cancelAnimationFrame(frameRequest);
   }, [pageCount]);
 

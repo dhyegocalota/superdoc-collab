@@ -24,6 +24,10 @@ export class SocketMessageLimit {
     return window.count() > CAP_BY_BUCKET[bucket];
   }
 
+  claimsTooManyEntries(frame: RawData): boolean {
+    throw new Error('claimsTooManyEntries is not implemented');
+  }
+
   private windowsOf(socket: object): Record<FrameBucket, SlidingWindow> {
     const existing = this.windows.get(socket);
     if (existing !== undefined) return existing;

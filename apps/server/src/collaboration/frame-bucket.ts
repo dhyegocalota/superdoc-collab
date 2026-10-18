@@ -39,3 +39,7 @@ export function frameBucketOf(frame: RawData): FrameBucket {
   if (messageType.value === MessageType.Awareness) return FrameBucket.Awareness;
   return FrameBucket.Updates;
 }
+
+export function awarenessEntryCountOf(frame: RawData): number | null {
+  throw new Error('awarenessEntryCountOf is not implemented');
+}

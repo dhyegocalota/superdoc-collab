@@ -1,6 +1,11 @@
-import { MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND, MAX_SOCKET_UPDATE_FRAMES_PER_SECOND, SECOND_MS } from '@superdoc-collab/types';
+import {
+  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
+  MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
+  SECOND_MS,
+} from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { awarenessFrame, syncStepOneFrame } from '../testing/socket-frames';
+import { awarenessFrame, awarenessFrameClaiming, syncStepOneFrame } from '../testing/socket-frames';
 import { SocketMessageLimit } from './socket-message-limit';
 
 const ROOM_NAME = 'superdoc-room-1';
@@ -50,4 +55,24 @@ test('each socket has its own windows', () => {
   const frame = syncStepOneFrame(ROOM_NAME);
   burst({ limit, socket: {}, frame, count: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND + 1 });
   expect(limit.breached({ socket: {}, frame })).toBe(false);
+});
+
+function claimingFrame(count: number): Buffer {
+  return awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: Array.from({ length: count }, (_, index) => index + 1) });
+}
+
+test('an awareness frame claiming one entry more than the connection cap claims too many', () => {
+  const limit = new SocketMessageLimit();
+  expect(limit.claimsTooManyEntries(claimingFrame(MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1))).toBe(true);
+});
+
+test('awareness frames claiming up to the connection cap, other frames and unreadable frames do not', () => {
+  const limit = new SocketMessageLimit();
+  const frames = [
+    claimingFrame(MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION),
+    awarenessFrame(ROOM_NAME),
+    syncStepOneFrame(ROOM_NAME),
+    Buffer.from([0]),
+  ];
+  expect(frames.map((frame) => limit.claimsTooManyEntries(frame))).toEqual([false, false, false, false]);
 });

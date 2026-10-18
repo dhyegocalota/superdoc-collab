@@ -8,6 +8,7 @@ import {
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
@@ -40,6 +41,9 @@ const LOOPBACK_HOST = '127.0.0.1';
 const TYPING_BURST_FRAMES = 600;
 const AWARENESS_BURST_FRAMES = 3000;
 const AWARENESS_ROOM_NAME = 'superdoc-room-1';
+const CLAIMED_ID_BASE = 1_000_000;
+const SECOND_CLAIMED_ID_BASE = 2_000_000;
+const SPLIT_CLAIM_IDS_PER_FRAME = 5;
 const UNMASKED_BINARY_FRAME = Buffer.from([0x82, 0x01, 0x00]);
 const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
@@ -522,18 +526,51 @@ async function sendClaimingFrame({ clientIds }: { clientIds: number[] }) {
   return { server, client, closedSocket: () => closedSocket, webSocket, roomName };
 }
 
-const CLAIMED_ID_BASE = 1_000_000;
+function claimedIds({ base, count }: { base: number; count: number }): number[] {
+  return Array.from({ length: count }, (_, index) => base + index);
+}
 
-test('an awareness frame claiming one client id more than the connection cap closes the socket with 1008', async () => {
-  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 }, (_, index) => CLAIMED_ID_BASE + index);
+function isKnownToAwareness({
+  server,
+  clientId,
+}: {
+  server: Awaited<ReturnType<typeof sendClaimingFrame>>['server'];
+  clientId: number;
+}): boolean {
+  return [...server.services.hocuspocus.documents.values()].some((document) => document.awareness.meta.has(clientId));
+}
+
+test('an awareness frame claiming one entry more than the connection cap closes the socket with 1008 before the room decodes it', async () => {
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
   const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
+  await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ENTRIES_REASON });
+  expect(clientIds.some((clientId) => isKnownToAwareness({ server, clientId }))).toBe(false);
+  client.close();
+  await server.stop();
+});
+
+test('claims split over frames that together pass the connection cap close the socket with the client ids reason', async () => {
+  const firstIds = claimedIds({ base: CLAIMED_ID_BASE, count: SPLIT_CLAIM_IDS_PER_FRAME });
+  const secondIds = claimedIds({ base: SECOND_CLAIMED_ID_BASE, count: SPLIT_CLAIM_IDS_PER_FRAME });
+  const { server, client, closedSocket, webSocket, roomName } = await sendClaimingFrame({ clientIds: firstIds });
+  webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName, clientIds: secondIds })));
   await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
   client.close();
   await server.stop();
 });
 
+test('the frame claiming too many entries never reaches the room handler and nothing after it does', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
+  socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds }));
+  socket.send(awarenessFrame(AWARENESS_ROOM_NAME));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
 test('an awareness frame claiming exactly the connection cap of client ids keeps the socket open', async () => {
-  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION }, (_, index) => CLAIMED_ID_BASE + index);
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION });
   const { server, client, closedSocket, webSocket } = await sendClaimingFrame({ clientIds });
   await expect
     .poll(() =>

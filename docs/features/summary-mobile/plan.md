@@ -35,12 +35,12 @@ One developer, steps in order: the header and reveal (1-3), the two-step (4), th
 
 ### Rework after the plan review (binding decisions of the lead)
 
-- [ ] **R1:** revert the panel height share to 58 percent with its tests; the skeleton copy becomes `LOADING_TIMELINE_LABEL` and `components/ui/skeleton.tsx` gains `motion-reduce:animate-none`.
-- [ ] **R2:** no pending state: selecting never travels below `lg`; View version calls `onTravel` which writes `at` at once below `lg`; `canViewVersion` derives from the selected bin and `at`; remove `pendingVersion`, `confirmTravel`, `VersionReference`.
-- [ ] **R3:** loading ends on frame ready (`VersionFrame.onReady`); the chart lock and the disabled View version apply below `lg` only and only with a requested sequence; `aria-busy` on the chart wrapper.
-- [ ] **R4:** the dim moves to the inner editor div with its own test id; below `lg` the bar renders before the layout div and drops its sticky classes.
-- [ ] **R5:** reveal on pointer selections only; header placement from `md` to `lg` at the top of the list column; the header's parent is the scroller below `md`.
-- [ ] **R6:** E2E helper in `e2e/timeline.ts`; tester briefing and this plan follow.
+- [x] **R1:** revert the panel height share to 58 percent with its tests; the skeleton copy becomes `LOADING_TIMELINE_LABEL` and `components/ui/skeleton.tsx` gains `motion-reduce:animate-none`. — evidence: red 87aaae8, green 3b70dea
+- [x] **R2:** no pending state: selecting never travels below `lg`; View version calls `onTravel` which writes `at` at once below `lg`; `canViewVersion` derives from the selected bin and `at`; remove `pendingVersion`, `confirmTravel`, `VersionReference`. — evidence: red 37037d3, green cc731fa (`selected-header.test.tsx`, `timeline-panel.test.tsx`, `time-travel.test.tsx`)
+- [x] **R3:** loading ends on frame ready (`VersionFrame.onReady`); the chart lock and the disabled View version apply below `lg` only and only with a requested sequence; `aria-busy` on the chart wrapper. — evidence: red 37037d3, green cc731fa (frame-ready end of loading, phone-only lock, `aria-busy` on the wrapper)
+- [x] **R4:** the dim moves to the inner editor div with its own test id; below `lg` the bar renders before the layout div and drops its sticky classes. — evidence: red 7fd37e0, green f47b5d2
+- [x] **R5:** reveal on pointer selections only; header placement from `md` to `lg` at the top of the list column; the header's parent is the scroller below `md`. — evidence: header placement in 37037d3/cc731fa; reveal red (see log: test(summary-mobile): only a pointer press reveals the header, red), green 59e8f2a
+- [x] **R6:** E2E helper in `e2e/timeline.ts`; tester briefing and this plan follow. — evidence: E2E helper and spec updated, `pnpm typecheck` green; briefing rewritten
 
 ## Failure modes
 

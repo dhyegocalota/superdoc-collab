@@ -4,17 +4,18 @@ Written by developer-sm. The developer did not run `test-plan.md`, did not run t
 
 ## What changed
 
-- `apps/web/src/features/timeline/selected-header.tsx` (new): the sticky header with the bin's range, its edit count, Clear selection and, on a phone with a pending version, View version. Live region `aria-live="polite"`.
-- `apps/web/src/features/timeline/use-reveal-selected.ts` (new) and `apps/web/src/lib/use-reduced-motion.ts` (new): after a selection change the header scrolls into view (`block: 'nearest'`), smooth or instant by motion preference. A change that follows a key press with the header already inside the scroller does not scroll.
-- `timeline-panel.tsx`: the header sits under the chart whenever the viewport is below `lg`; the two column wrappers are `display: contents` below `md` so the header is a direct child of the scrolling body; a `Skeleton` with the chart height shows while the first timeline request is pending; the panel takes `pendingVersion`, `isLoadingVersion` and `onConfirmTravel`.
-- `use-time-travel.ts`: below `lg` a tap on a versioned bin other than the viewed one sets `pendingVersion`; `confirmTravel()` travels through the existing 300 ms debounce. At `lg` and up the tap travels as before.
-- `streamgraph.tsx`: `isLoadingVersion` drops pointer presses and drags and sets `aria-busy` on the chart svg. Keys are untouched.
-- `document-page.tsx`: while a version loads the editor area takes the dim class (renamed from the failed-state constant, same `opacity-60`) and a `role="status"` progress line follows the version bar.
-- `version-banner.tsx`: below `lg` the bar is `sticky top-0 z-10 min-h-11` and "Back to live" uses the new `touch` button size.
-- `components/ui/button.tsx`: `touch` size, 44 px.
-- `use-panel-width.ts`: the compact share is 46 percent (was 58).
-- `timeline-copy.ts`: `SHOWING_WHOLE_DOCUMENT_MESSAGE`, `CLEAR_SELECTION_LABEL`, `VIEW_VERSION_LABEL`, `LOADING_TIMELINE_MESSAGE`, `EditUnit.Edit`, `selectedEditCount`.
-- `e2e/summary-mobile.spec.ts` (new), `docs/features/README.md` row.
+Reworked after the plan review (spec, plan and test plan commit ff9f841). One phone rule: below `lg`.
+
+- `selected-header.tsx` (new): sticky header with the bin's range, edit count, Clear selection and View version (`canViewVersion`, disabled while a version loads). Live region `aria-live="polite"`.
+- `use-reveal-selected.ts`, `lib/use-reduced-motion.ts` (new): only a pointer press reveals the header (`block: 'nearest'`, smooth or instant by motion preference); keys and history changes never do. The outer page scroller may move too; accepted.
+- `timeline-panel.tsx`: below `lg` the header renders. Below `md` the column wrappers are `contents`, so the header's layout parent is the scrolling grid; from `md` to `lg` it tops the list column. `canViewVersion` derives from the selected bin and `at` (versioned and not the bin viewed). Below `lg` selecting never calls `onTravel`; View version calls `onTravel(selectedBin.start)`. A skeleton (`role="status"`, `LOADING_TIMELINE_LABEL`) shows while the timeline is pending. The height share is unchanged.
+- `use-time-travel.ts`: below `lg` `travelTo` writes `at` at once; from `lg` it keeps the 300 ms debounce. `isLoading` ends when the version frame is visible (`reportReady`).
+- `version-frame.tsx`: `onReady(sequence)` when the requested frame is visible.
+- `streamgraph.tsx`: `isLoadingVersion` drops pointer presses and drags; `aria-busy` is on the chart wrapper. The panel passes it only below `lg` and only with a requested sequence. Keys untouched.
+- `document-page.tsx`: the inner editor div (`editor-surface`) dims while a version loads; the failed connection still dims the whole area. A progress line (`role="status"`) sits between the banner and the editor. Below `lg` the version bar renders before the layout div, outside the shared scroller.
+- `version-banner.tsx`: "Back to live" uses the 44 px `touch` size below `lg`.
+- `components/ui/button.tsx` (`touch`), `components/ui/skeleton.tsx` (`motion-reduce:animate-none`), `timeline-copy.ts` (new strings, `EditUnit.Edit`).
+- `e2e/summary-mobile.spec.ts` (new), `e2e/timeline.ts` (`chartSvg`, `clickChart`), `docs/features/README.md` row.
 
 ## How to run
 
@@ -50,27 +51,34 @@ Red hashes are the test commits; the failure text is what the red run printed. T
 | `time-travel.test.tsx::from lg the version bar keeps its place and its small button` | pin | pin |
 | `use-panel-width.test.ts::below sm the default height is 46 percent ...`, `timeline-panel.test.tsx::the bottom panel has a row resize handle ...`, e374fa6 | `AssertionError: expected 0.58 to be 0.46` (and the panel default height 580 against 460) | 24489b0 |
 
+Rework rows (the first-round rows above for the two-step, the sticky bar and the 46 percent share are superseded):
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `use-panel-width.test.ts` (58 percent), `timeline-panel.test.tsx` skeleton label and still motion, `timeline-copy.test.ts` label, 87aaae8 | the share was 46 percent; the label was empty; no `motion-reduce` | 3b70dea |
+| `selected-header.test.tsx::a bin that can be viewed ...`, `::View version is disabled ...`, `timeline-panel.test.tsx::below lg selecting a versioned bin by key never travels ...`, `::View version is disabled while a version loads`, `::below md the header sits in a contents wrapper ...`, `::from md to lg the header tops the list column`, `streamgraph.test.tsx::taps ...` (aria-busy on the wrapper, two), `time-travel.test.tsx::below lg selecting a versioned bin never travels ...`, `::a loading version dims ... until the frame is visible`, `::below lg a pointer tap during a load is ignored`, `::from lg a tap during a load still travels ...`, `::an at with no version never locks the chart`, 37037d3 | assertion failures on the old behaviour (thirteen red) | cc731fa |
+| `time-travel.test.tsx::a loading version dims ...` (inner editor), `::below lg the version bar sits before the layout ...`, 7fd37e0 | the dim sat on the area and the bar was sticky inside the scroller | f47b5d2 |
+| `use-reveal-selected.test.ts::a keyboard selection never scrolls`, `::a change after the pointer was released ...`, b-commit "only a pointer press reveals the header, red" | the hook scrolled on keys out of view and after release | 59e8f2a |
+
 The keyboard cases of `use-reveal-selected.test.ts` were corrected in f9444b4: the red commit dispatched the key before the hook mounted, so its listener never saw it.
 
 ## Hypotheses to attack
 
-1. Hypothesis: below `lg` the header stays pinned while the list scrolls, in both the single column and the two-column bottom panel between `md` and `lg`. Break it by: scrolling the panel body at 375 and at 800 px with a long list of edits and watching for the header leaving the top.
-2. Hypothesis: a tap never travels below `lg` until View version; the URL has no `at` and no version request fires. Break it by: tapping a versioned bin and waiting more than 300 ms, then tapping the same bin twice, then a versioned bin followed by a bin without a version (View version must disappear).
-3. Hypothesis: a keyboard move on a phone viewport names the right bin in View version. Break it by: ArrowRight across versioned and unversioned bins and reading the header after each step.
-4. Hypothesis: during a load a chart press and drag do nothing and keys still work. Break it by: a double tap, a drag across the chart, and arrow keys while the progress line shows.
-5. Hypothesis: the failed-load path undims the editor and the chart accepts taps again. Break it by: forcing the version request to fail (503) and tapping the chart.
-6. Hypothesis: Escape and Back to live from a pending selection clear the pending version. Break it by: selecting a versioned bin on a phone, pressing Escape in the chart, and checking that View version is gone.
-7. Hypothesis: the desktop layout is unchanged from `lg`: no header, a tap travels at once, the version bar is not sticky, the button is the small one. Break it by: the same flows at 1280 and 1536 with the panel at the bottom and at the side.
-8. Hypothesis: reduced motion makes the reveal instant and stops the progress pulse. Break it by: emulating `prefers-reduced-motion: reduce` and tapping a bin while watching the scroll.
+1. Hypothesis: below `lg` the header stays pinned while the list scrolls at 375 (the grid scrolls) and at 768 (the list column scrolls). Break it by: scrolling with a long list of edits.
+2. Hypothesis: nothing travels below `lg` until View version, by pointer or key; the URL has no `at` and no version request fires; the click writes `at` at once. Break it by: tapping and arrowing across versioned bins, waiting past 300 ms, then pressing View version.
+3. Hypothesis: View version names the selected bin and disappears for the bin already viewed. Break it by: arrows while viewing version A (the bar keeps A, the header shows B, accepted).
+4. Hypothesis: while a version loads below `lg` chart presses and drags do nothing, View version is disabled, keys work; an `at` with no version never locks the chart. Break it by: a double tap, a drag, a shared link to a bin without a version.
+5. Hypothesis: loading ends when the frame is visible, not when the data arrives; the failed path undims and unlocks. Break it by: throttling the viewer page, forcing a 503.
+6. Hypothesis: only the inner editor dims, never the bar; typing in the dimmed editor changes nothing. Break it by: typing during a held load.
+7. Hypothesis: below `lg` the version bar stays at the top while the page scrolls to the panel. Break it by: scrolling the page at 375 with a version shown.
+8. Hypothesis: from `lg` nothing changed: no header, the tap travels after the debounce, the bar sits in the editor area with the small button, the chart is never locked. Break it by: the same flows at 1280 and 1536, bottom and side.
+9. Hypothesis: reduced motion makes the reveal instant and stops both pulses. Break it by: emulating `prefers-reduced-motion: reduce`.
 
 ## Known gaps
 
-- The E2E spec was typechecked, not run. Its pixel positions (`x: 1` and `x: 340` on the chart) assume a chart about 343 px wide at 375.
-- `aria-busy` is on the chart svg, not on a bin: a bin is no element, and the test plan's wording "the selected bin `aria-busy`" is satisfied by the chart that holds it.
-- `viewVersionPrompt(time)` from the spec is not built: the header already shows the range next to the button, so the prompt would be unused text.
-- The "edit count" is the bin's inserted plus deleted characters across bands, labelled "edits" (`1 edit`, `12 edits`). It is a volume, not a count of edit operations. The owner may want a different label.
-- Between `md` and `lg` the pending version and the header apply too (the rule is "below `lg`"), although the spec's layout paragraph speaks of `md`. There the header is the second item of the chart column.
-- Below `lg` the progress line is a sibling after the sticky bar and scrolls away with the page; only the bar is pinned.
-- The loading dim covers the whole editor area, so the version bar itself is dimmed to 60 percent during a load, as the failed state already dims its area.
-- The cross-page scroll behaviour (smooth scroll into view) is unit-tested with a mock, not observed in a browser. jsdom has no `scrollIntoView`, so tests that render the panel with a phone viewport stub it on the prototype.
+- The E2E spec was typechecked, not run. Its click positions (`x: 1` and `x: 340`) assume a chart about 343 px wide at 375.
+- The header's layout parent below `md` is the scrolling grid, but its DOM parent is the `contents` wrapper of the chart column; the unit test asserts exactly that.
+- The "edit count" is the bin's inserted plus deleted characters labelled "edits"; a volume, not a count of operations.
+- With one bin in the E2E, the second chart click during a load hits the same bin, so it proves the lock but not a change of selection.
+- Smooth scroll is unit-tested with a mock, not observed in a browser. jsdom has no `scrollIntoView`, so tests that render the panel below `lg` stub it on the prototype.
 - Real touch input is not exercised; the E2E uses mouse clicks at a phone viewport.

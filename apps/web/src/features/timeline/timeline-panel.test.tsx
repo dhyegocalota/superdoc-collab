@@ -209,10 +209,8 @@ function PanelHarness({
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       summarize={summarize}
-      pendingVersion={null}
       isLoadingVersion={isLoadingVersion}
       onTravel={onTravel}
-      onConfirmTravel={vi.fn()}
       onBackToLive={vi.fn()}
     />
   );

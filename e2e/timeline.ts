@@ -1,6 +1,7 @@
 import { expect, type APIRequestContext, type Browser, type FrameLocator, type Locator, type Page, type Response } from '@playwright/test';
 import {
   bandAriaLabel,
+  STREAMGRAPH_TITLE,
   FILTER_LABEL,
   SELECTION_SUMMARY_HEADING,
   SUMMARIZE_EDITS_LABEL,
@@ -125,6 +126,14 @@ export async function readVersionText({
 export async function pressInChart({ page, name, keys }: { page: Page; name: string; keys: string[] }): Promise<void> {
   await bandNamed({ page, name }).focus();
   for (const key of keys) await page.keyboard.press(key);
+}
+
+export function chartSvg(page: Page): Locator {
+  return page.locator('aside svg', { has: page.locator('title', { hasText: STREAMGRAPH_TITLE }) });
+}
+
+export async function clickChart({ page, position }: { page: Page; position: { x: number; y: number } }): Promise<void> {
+  await chartSvg(page).click({ position });
 }
 
 export async function ruleX(page: Page): Promise<number> {

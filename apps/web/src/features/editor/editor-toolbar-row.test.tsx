@@ -7,13 +7,20 @@ import { EditorToolbarRow } from './editor-toolbar-row';
 
 const TOOLBAR_CONTAINER_TEST_ID = 'toolbar-container';
 
-function renderRow({ role = DocumentRole.Editor, isToolbarInert = false, isRunning = false, onSummarize = vi.fn() } = {}) {
+function renderRow({
+  role = DocumentRole.Editor,
+  isToolbarInert = false,
+  isRowInert = false,
+  isRunning = false,
+  onSummarize = vi.fn(),
+} = {}) {
   const containerRef = vi.fn();
   render(
     <EditorToolbarRow
       role={role}
       containerRef={containerRef}
       isToolbarInert={isToolbarInert}
+      isRowInert={isRowInert}
       isRunning={isRunning}
       onSummarize={onSummarize}
     />,
@@ -46,12 +53,36 @@ test('a running summary shows its label and disables the button', () => {
 
 test('the row is h-10 and is absent for a reader', () => {
   const { rerender } = render(
-    <EditorToolbarRow role={DocumentRole.Owner} containerRef={vi.fn()} isToolbarInert={false} isRunning={false} onSummarize={vi.fn()} />,
+    <EditorToolbarRow
+      role={DocumentRole.Owner}
+      containerRef={vi.fn()}
+      isToolbarInert={false}
+      isRowInert={false}
+      isRunning={false}
+      onSummarize={vi.fn()}
+    />,
   );
   expect(screen.getByTestId(TOOLBAR_CONTAINER_TEST_ID).parentElement).toHaveClass('h-10');
   rerender(
-    <EditorToolbarRow role={DocumentRole.Reader} containerRef={vi.fn()} isToolbarInert={false} isRunning={false} onSummarize={vi.fn()} />,
+    <EditorToolbarRow
+      role={DocumentRole.Reader}
+      containerRef={vi.fn()}
+      isToolbarInert={false}
+      isRowInert={false}
+      isRunning={false}
+      onSummarize={vi.fn()}
+    />,
   );
   expect(screen.queryByTestId(TOOLBAR_CONTAINER_TEST_ID)).toBeNull();
   expect(screen.queryByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeNull();
+});
+
+test('a failed connection makes the whole row inert, Summarize included', () => {
+  renderRow({ isToolbarInert: true, isRowInert: true });
+  expect(screen.getByTestId('editor-toolbar-row')).toHaveAttribute('inert');
+});
+
+test('a past version keeps the row itself live', () => {
+  renderRow({ isToolbarInert: true });
+  expect(screen.getByTestId('editor-toolbar-row')).not.toHaveAttribute('inert');
 });

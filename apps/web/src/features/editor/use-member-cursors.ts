@@ -9,6 +9,7 @@ const SELECTION_SELECTOR = '.v2-collaboration-overlay__remote-selection';
 const OVERLAY_SELECTOR = '[data-v2-collaboration-overlay="true"]';
 const PEER_RANK_ATTRIBUTE = 'data-peer-rank';
 const GLOW_CLASS = 'member-glow';
+const GLOW_COLOR_PROPERTY = '--member-glow-color';
 const NO_KEYS: readonly string[] = [];
 
 export enum JumpOutcome {
@@ -47,11 +48,13 @@ function caretKeyOf(caret: HTMLElement): string | null {
   return cursorKey({ name: label.textContent, color: caret.style.backgroundColor });
 }
 
-function selectionsOf(caret: HTMLElement): Element[] {
+function selectionsOf(caret: HTMLElement): HTMLElement[] {
   const group = caret.parentElement;
   const rank = caret.getAttribute(PEER_RANK_ATTRIBUTE);
   if (!group || rank === null) return [];
-  return Array.from(group.querySelectorAll(SELECTION_SELECTOR)).filter((selection) => selection.getAttribute(PEER_RANK_ATTRIBUTE) === rank);
+  return Array.from(group.querySelectorAll<HTMLElement>(SELECTION_SELECTOR)).filter(
+    (selection) => selection.getAttribute(PEER_RANK_ATTRIBUTE) === rank,
+  );
 }
 
 function overlayIn(container: HTMLElement): HTMLElement | null {
@@ -132,9 +135,16 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       if (!caret || matches.length > 1) return JumpOutcome.NotFound;
       caret.scrollIntoView({ block: 'center' });
       const glowing = [caret, ...selectionsOf(caret)];
-      glowing.forEach((element) => element.classList.add(GLOW_CLASS));
+      const glowColor = authorColorOf(authorColorSlot(member.user.id));
+      glowing.forEach((element) => {
+        element.style.setProperty(GLOW_COLOR_PROPERTY, glowColor);
+        element.classList.add(GLOW_CLASS);
+      });
       const timer = setTimeout(() => {
-        glowing.forEach((element) => element.classList.remove(GLOW_CLASS));
+        glowing.forEach((element) => {
+          element.style.removeProperty(GLOW_COLOR_PROPERTY);
+          element.classList.remove(GLOW_CLASS);
+        });
         glowTimers.current.delete(timer);
       }, CURSOR_GLOW_MS);
       glowTimers.current.add(timer);

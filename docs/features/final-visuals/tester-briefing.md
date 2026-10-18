@@ -297,6 +297,11 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 
 - The panel calls `showSelection` only once its timeline has data, so until then Summarize keeps the URL selection (`timeline-panel.test.tsx::while the timeline is loading the panel reports no selection…`; red `expected "vi.fn()" to not be called at all, but actually been called 1 times`). Hypothesis: opening a link with `?at=` and pressing Summarize before the chart appears posts that bin. Break it by: throttling the network and clicking at once; collapsing the panel at the side so the timeline is never fetched.
 
+### Recorder fixes: chart overlap at 375 and chart below the fold
+
+- The bottom columns no longer shrink below md (`md:min-h-0`), so at 375 the chart block keeps its height and the card sits below it. The chart block is `shrink-0` and first in the chart column, the filter follows it, and the topic notices moved to the top of the list column (design 1.4 puts the hint and filter above the chart; the filter now sits under it so the chart is the first thing visible). Tests: the last two in `timeline-panel.test.tsx` (red `expected the element to have class "shrink-0"` and `expected [ 'flex', 'min-h-0', … ] to not include 'min-h-0'`).
+- The chart is 240 px tall, so at the 240 px minimum panel height its axis and hint can still sit below the fold; the chart itself starts at the top of the chart column. Hypothesis: at 1280×800 with the default 42 % the whole chart is visible; at the minimum height the chart column scrolls. Break it by: dragging the handle to the minimum and to the maximum at 800 px tall.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

@@ -142,7 +142,7 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
     <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={summarize.summarize} />
   );
   const chart = (
-    <div ref={chartRef}>
+    <div ref={chartRef} className="shrink-0">
       {timeline && chartWidth > 0 && (
         <Streamgraph
           timeline={timeline}
@@ -194,12 +194,12 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
           )}
           {isOpen && isBottom && (
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto px-4 pb-4 md:grid-cols-[minmax(0,1fr)_380px] md:overflow-hidden">
-              <div data-column={PanelColumn.Chart} className="flex min-h-0 min-w-0 flex-col gap-3 md:overflow-y-auto">
-                {notices}
-                {filter}
+              <div data-column={PanelColumn.Chart} className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto">
                 {chart}
+                {filter}
               </div>
-              <div data-column={PanelColumn.List} className="flex min-h-0 min-w-0 flex-col gap-3 md:overflow-y-auto">
+              <div data-column={PanelColumn.List} className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto">
+                {notices}
                 {card}
                 {edits}
               </div>

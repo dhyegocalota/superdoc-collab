@@ -448,7 +448,7 @@ test('a document opened before its owner syncs it shows the waiting page and ent
   const bruno = await signedInContext({ browser, user: brunoUser! });
   const created = await ana.page.request.post(ApiPath.Documents, { data: { title: uniqueTitle() } });
   const { id: documentId } = (await created.json()) as DocumentSummary;
-  await acceptShareLink({ page: bruno.page, documentId, role: ShareLinkRole.Edit, owner: ana.page });
+  await acceptShareLink({ page: bruno.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
   await expect(bruno.page.getByText(PREPARING_DOCUMENT_MESSAGE)).toBeVisible();
   await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
   await ana.page.goto(documentPagePath(documentId));

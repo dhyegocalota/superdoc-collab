@@ -54,6 +54,7 @@ export function SuperDocEditor({
   isInert,
   isSuperseded,
   onTransportReport,
+  onEditorUpdate,
 }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
@@ -101,6 +102,10 @@ export function SuperDocEditor({
         ...authorPaletteOf({ colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
+      onEditorUpdate: () => {
+        if (!isActive) return;
+        onEditorUpdate();
+      },
       onCollaborationReady: () => {
         isReady = true;
       },
@@ -119,7 +124,7 @@ export function SuperDocEditor({
       superdoc.destroy();
       setHasRejectedEdit(false);
     };
-  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport]);
+  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport, onEditorUpdate]);
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);

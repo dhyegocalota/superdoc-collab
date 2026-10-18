@@ -179,7 +179,7 @@ export function TimelinePanel({
   const sideStyle = { '--panel-width': `${sideSize.width}px` } as CSSProperties;
 
   const notices = timeline && (
-    <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={summarize.summarize} />
+    <TimelineNotices timeline={timeline} hasFilter={hasFilter} isLogAhead={false} canRefresh={canEdit} onRetry={summarize.summarize} />
   );
   const chart = (
     <div ref={chartRef} className="shrink-0 overflow-visible">

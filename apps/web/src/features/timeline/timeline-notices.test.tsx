@@ -14,7 +14,7 @@ const failedTimeline: DocumentTimeline = {
 
 test('Retry runs the callback it is given, once per click', async () => {
   const onRetry = vi.fn();
-  render(<TimelineNotices timeline={failedTimeline} hasFilter={false} canRefresh onRetry={onRetry} />);
+  render(<TimelineNotices timeline={failedTimeline} hasFilter={false} isLogAhead={false} canRefresh onRetry={onRetry} />);
   expect(screen.getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.getByText(FAILURE_TEXT)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: RETRY_TOPICS_LABEL }));
@@ -22,14 +22,14 @@ test('Retry runs the callback it is given, once per click', async () => {
 });
 
 test('a reader gets no Retry', () => {
-  render(<TimelineNotices timeline={failedTimeline} hasFilter={false} canRefresh={false} onRetry={vi.fn()} />);
+  render(<TimelineNotices timeline={failedTimeline} hasFilter={false} isLogAhead={false} canRefresh={false} onRetry={vi.fn()} />);
   expect(screen.queryByRole('button', { name: RETRY_TOPICS_LABEL })).not.toBeInTheDocument();
 });
 
 const emptyTimeline: DocumentTimeline = { ...timelineWith({ volumes: [], names: [] }), bins: [] };
 
 test('the empty copy shows when there are no bins and the projection caught up', () => {
-  render(<TimelineNotices timeline={emptyTimeline} hasFilter={false} canRefresh onRetry={vi.fn()} />);
+  render(<TimelineNotices timeline={emptyTimeline} hasFilter={false} isLogAhead={false} canRefresh onRetry={vi.fn()} />);
   expect(screen.getByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
 });
 
@@ -38,6 +38,11 @@ test('the empty copy stays hidden while the projection is behind the log', () =>
     ...emptyTimeline,
     projection: { ...emptyTimeline.projection, isBehind: true, lagMs: 200 },
   };
-  render(<TimelineNotices timeline={behindTimeline} hasFilter={false} canRefresh onRetry={vi.fn()} />);
+  render(<TimelineNotices timeline={behindTimeline} hasFilter={false} isLogAhead={false} canRefresh onRetry={vi.fn()} />);
+  expect(screen.queryByText(NO_EDITS_YET_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('the empty copy stays hidden while the log is ahead of the last timeline answer', () => {
+  render(<TimelineNotices timeline={emptyTimeline} hasFilter={false} isLogAhead canRefresh onRetry={vi.fn()} />);
   expect(screen.queryByText(NO_EDITS_YET_MESSAGE)).not.toBeInTheDocument();
 });

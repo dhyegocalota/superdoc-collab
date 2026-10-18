@@ -12,9 +12,15 @@ import { lagBehindLabel, NO_EDITS_YET_MESSAGE, RETRY_TOPICS_LABEL } from './time
 
 export const PROJECTION_LAG_NOTICE_MS = 10 * SECOND_MS;
 
-type TimelineNoticesProps = { timeline: DocumentTimeline; hasFilter: boolean; canRefresh: boolean; onRetry: () => void };
+type TimelineNoticesProps = {
+  timeline: DocumentTimeline;
+  hasFilter: boolean;
+  isLogAhead: boolean;
+  canRefresh: boolean;
+  onRetry: () => void;
+};
 
-export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: TimelineNoticesProps) {
+export function TimelineNotices({ timeline, hasFilter, isLogAhead, canRefresh, onRetry }: TimelineNoticesProps) {
   const { topics, projection, bins, bands } = timeline;
   const isLagging = projection.isBehind && projection.lagMs !== null && projection.lagMs >= PROJECTION_LAG_NOTICE_MS;
   const hasNoMatches = hasFilter && bins.length > 0 && bands.every((band) => band.volume === 0);

@@ -194,3 +194,18 @@ test('a replaced overlay node is watched in place of the old one', async () => {
   });
   expect(result.current.hasCursor(bruno)).toBe(true);
 });
+
+test('a bare caret with no selection gets the glow class after the jump and loses it after CURSOR_GLOW_MS', () => {
+  vi.useFakeTimers();
+  const { caret, selection } = addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
+  selection.remove();
+  const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
+  act(() => {
+    result.current.jumpTo(bruno);
+  });
+  expect(caret.classList.contains(GLOW_CLASS)).toBe(true);
+  act(() => {
+    vi.advanceTimersByTime(GLOW_MS);
+  });
+  expect(caret.classList.contains(GLOW_CLASS)).toBe(false);
+});

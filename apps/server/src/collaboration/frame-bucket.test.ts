@@ -25,6 +25,15 @@ test('an unparseable frame is counted with the updates', () => {
   ]);
 });
 
+const LONG_ROOM_NAME = 'r'.repeat(300);
+
+test('a room name long enough to need a multi-byte length is still read', () => {
+  expect([frameBucketOf(awarenessFrame(LONG_ROOM_NAME)), frameBucketOf(syncStepOneFrame(LONG_ROOM_NAME))]).toEqual([
+    FrameBucket.Awareness,
+    FrameBucket.Updates,
+  ]);
+});
+
 test('a frame delivered as fragments or an array buffer is read the same way', () => {
   const frame = awarenessFrame(ROOM_NAME);
   const arrayBuffer = new ArrayBuffer(frame.length);

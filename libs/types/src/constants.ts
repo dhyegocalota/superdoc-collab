@@ -30,6 +30,7 @@ export const SOCKET_SINGLE_DOCUMENT_REASON = 'One document per socket';
 export const MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION = 8;
 export const SOCKET_AWARENESS_IDS_REASON = 'Too many awareness clients on one connection';
 export const SOCKET_AWARENESS_ENTRIES_REASON = 'Too many awareness entries in one frame';
+export const SOCKET_AWARENESS_ORIGIN_REASON = 'Awareness client not owned by this connection';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;

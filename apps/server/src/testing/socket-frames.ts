@@ -3,6 +3,7 @@ import { MessageType } from '@hocuspocus/server';
 const SYNC_STEP_ONE = 0;
 const EMPTY_AWARENESS_PAYLOAD = [1, 0];
 const SINGLE_BYTE_LIMIT = 128;
+const CLAIMED_STATE = { userId: 'claimed' };
 
 function roomNameBytes(roomName: string): Buffer {
   const name = Buffer.from(roomName, 'utf8');
@@ -18,9 +19,24 @@ function varUint(value: number): number[] {
   return [(value % SINGLE_BYTE_LIMIT) + SINGLE_BYTE_LIMIT, ...varUint(Math.floor(value / SINGLE_BYTE_LIMIT))];
 }
 
-export function awarenessFrameClaiming({ roomName, clientIds }: { roomName: string; clientIds: number[] }): Buffer {
-  const state = Buffer.from(JSON.stringify({ userId: 'claimed' }), 'utf8');
-  const entries = clientIds.flatMap((clientId) => [...varUint(clientId), ...varUint(1), ...varUint(state.length), ...state]);
+export function awarenessFrameClaiming({
+  roomName,
+  clientIds,
+  clock = 1,
+  state = CLAIMED_STATE,
+}: {
+  roomName: string;
+  clientIds: number[];
+  clock?: number;
+  state?: object | null;
+}): Buffer {
+  const encodedState = Buffer.from(JSON.stringify(state), 'utf8');
+  const entries = clientIds.flatMap((clientId) => [
+    ...varUint(clientId),
+    ...varUint(clock),
+    ...varUint(encodedState.length),
+    ...encodedState,
+  ]);
   const update = Buffer.from([...varUint(clientIds.length), ...entries]);
   return Buffer.concat([roomNameBytes(roomName), Buffer.from([MessageType.Awareness, ...varUint(update.length)]), update]);
 }

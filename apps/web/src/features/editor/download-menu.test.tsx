@@ -1,4 +1,5 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { toast } from 'sonner';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -77,19 +78,16 @@ test('Download PDF exports the live document to a Blob with triggerDownload fals
   await waitFor(() => expect(printFrame()).not.toBeNull());
   const frameWindow = printFrame()!.contentWindow!;
   const postMessage = vi.spyOn(frameWindow, 'postMessage').mockImplementation(() => undefined);
-  const print = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined);
 
   sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.Ready } });
   expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Load, file: EXPORTED_BLOB }, window.location.origin);
   sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.PageCount, pageCount: 3 } });
   expect(printFrame()!.style.height).toBe('3168px');
-  expect(print).not.toHaveBeenCalled();
+  expect(postMessage).not.toHaveBeenCalledWith({ kind: PrintMessageKind.Print }, window.location.origin);
   sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.Painted } });
-  expect(print).toHaveBeenCalledTimes(1);
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Print }, window.location.origin);
 
-  act(() => {
-    frameWindow.dispatchEvent(new Event('afterprint'));
-  });
+  sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.Closed } });
   expect(printFrame()).toBeNull();
   await waitFor(() => expect(screen.queryByText(PREPARING_PDF_MESSAGE)).toBeNull());
 });
@@ -121,4 +119,16 @@ test('the main part hands the DOCX to the page and does not export a PDF', async
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
   expect(onDownloadDocx).toHaveBeenCalledTimes(1);
   expect(live.export).not.toHaveBeenCalled();
+});
+
+test('leaving the page while the PDF prepares dismisses the preparing toast', async () => {
+  const dismiss = vi.spyOn(toast, 'dismiss');
+  const live = liveDocument(() => new Promise<Blob>(() => undefined));
+  renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={vi.fn()} />);
+  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
+  expect(await screen.findByText(PREPARING_PDF_MESSAGE)).toBeVisible();
+  expect(dismiss).not.toHaveBeenCalled();
+  cleanup();
+  expect(dismiss).toHaveBeenCalledWith(expect.any(String));
 });

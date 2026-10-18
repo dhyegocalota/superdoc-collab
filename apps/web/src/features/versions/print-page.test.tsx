@@ -94,27 +94,55 @@ test('opens the file non-collaboratively in viewing mode with virtualization off
   expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.PageCount, pageCount: 4 }, window.location.origin);
 });
 
-test('reports Painted only after the last page has text', () => {
+test('reports Painted only after every page has text', () => {
   const postMessage = vi.spyOn(window, 'postMessage');
+  pagesToPaint.splice(0, pagesToPaint.length, 'one', '', 'three', 'four');
   render(<PrintPage />);
   sendFile();
   act(() => constructedConfig().onReady());
   act(() => vi.advanceTimersToNextFrame());
   act(() => vi.advanceTimersToNextFrame());
   expect(sentKinds(postMessage)).not.toContain(PrintMessageKind.Painted);
-  lastPage().textContent = 'paragraph';
+  const pages = document.querySelectorAll('.superdoc-page');
+  pages[1]!.textContent = 'two';
   act(() => vi.advanceTimersToNextFrame());
+  expect(sentKinds(postMessage).filter((kind) => kind === PrintMessageKind.Painted)).toHaveLength(1);
+});
+
+test('announces the page count again when more pages appear after onReady', () => {
+  const postMessage = vi.spyOn(window, 'postMessage');
+  pagesToPaint.splice(0, pagesToPaint.length, 'one', 'two');
+  render(<PrintPage />);
+  sendFile();
+  act(() => constructedConfig().onReady());
+  expect(postMessage).toHaveBeenLastCalledWith({ kind: PrintMessageKind.PageCount, pageCount: 2 }, window.location.origin);
+  const container = document.querySelector('[data-testid="print-page"]')!;
+  ['three', 'four'].forEach((text) => {
+    const page = document.createElement('div');
+    page.className = 'superdoc-page';
+    page.textContent = text;
+    container.append(page);
+  });
+  act(() => vi.advanceTimersToNextFrame());
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.PageCount, pageCount: 4 }, window.location.origin);
   expect(sentKinds(postMessage)).toContain(PrintMessageKind.Painted);
 });
 
-test('a last page that never gets text fails after a bounded number of frames', () => {
+test('prints its own window on the Print message and reports Closed after printing', () => {
   const postMessage = vi.spyOn(window, 'postMessage');
+  const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
   render(<PrintPage />);
-  sendFile();
-  act(() => constructedConfig().onReady());
-  act(() => Array.from({ length: 1000 }).forEach(() => vi.advanceTimersToNextFrame()));
-  expect(sentKinds(postMessage).filter((kind) => kind === PrintMessageKind.Failed)).toHaveLength(1);
-  expect(sentKinds(postMessage)).not.toContain(PrintMessageKind.Painted);
+  expect(print).not.toHaveBeenCalled();
+  act(() => {
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { kind: PrintMessageKind.Print }, origin: window.location.origin, source: window }),
+    );
+  });
+  expect(print).toHaveBeenCalledTimes(1);
+  act(() => {
+    window.dispatchEvent(new Event('afterprint'));
+  });
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Closed }, window.location.origin);
 });
 
 test('a document with no pages and an editor exception both fail', () => {

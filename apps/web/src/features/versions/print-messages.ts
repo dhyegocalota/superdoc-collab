@@ -3,6 +3,8 @@ export enum PrintMessageKind {
   Load = 'print-load',
   PageCount = 'print-page-count',
   Painted = 'print-painted',
+  Print = 'print-print',
+  Closed = 'print-closed',
   Failed = 'print-failed',
 }
 
@@ -11,6 +13,8 @@ export type PrintMessage =
   | { kind: PrintMessageKind.Load; file: Blob }
   | { kind: PrintMessageKind.PageCount; pageCount: number }
   | { kind: PrintMessageKind.Painted }
+  | { kind: PrintMessageKind.Print }
+  | { kind: PrintMessageKind.Closed }
   | { kind: PrintMessageKind.Failed };
 
 const PRINT_MESSAGE_KINDS: string[] = Object.values(PrintMessageKind);

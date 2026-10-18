@@ -12,15 +12,17 @@ import {
   CONNECTED_APPS_EMPTY_MESSAGE,
   CONNECTED_APPS_HEADING,
   CONNECTED_APPS_LOAD_ERROR_MESSAGE,
+  CONNECT_HEADING,
   CONNECTED_ON_LABEL,
   LOADING_CONNECTED_APPS_LABEL,
   REVOKE_LABEL,
   revokeLabel,
   UNNAMED_CLIENT_LABEL,
+  USE_WITH_AI_DESCRIPTION,
 } from './connected-apps-copy';
-import { ConnectSnippets } from './connect-snippets';
 import { useConnectedApps } from './use-connected-apps';
 import { useRevokeConnectedApp } from './use-revoke-connected-app';
+import { UseWithAiContent } from './use-with-ai-content';
 
 const SKELETON_ROWS = 2;
 
@@ -80,7 +82,11 @@ export function ConnectedAppsPage() {
           </div>
         )}
         {data && <ConnectedAppsList apps={data} />}
-        <ConnectSnippets />
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">{CONNECT_HEADING}</h2>
+          <p className="text-sm text-muted-foreground">{USE_WITH_AI_DESCRIPTION}</p>
+          <UseWithAiContent title={null} canEdit={false} />
+        </section>
       </main>
     </div>
   );

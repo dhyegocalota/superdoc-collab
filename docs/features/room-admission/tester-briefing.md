@@ -288,3 +288,9 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 - **Distinct-document budget:** `OpenBudget` (in `limits/`) counts a document once per user and minute and replaces `services.openLimits` with `services.openBudget`. `runtime.roomModeFor` (built from `createRoomModes`) is the only way the open route, `onAuthenticate`, the agent room locator (`locateRoom` now takes `{ documentId, userId }`) and the export tool decide a room mode; a spent budget is 429, access denied, or an `AgentToolError` with `OPEN_RATE_LIMITED_MESSAGE`. Hypotheses: 61 opens of one uncommitted document are all 409; the 61st distinct document makes no `readBatch` call on the route, the socket or the export tool. Gap: `runtime.roomMode` (the raw scan) still exists for tests and `waitForCommit`; production code outside `roomModeFor` does not call it.
 - **Known committed:** also true when the projection cursor exists, so a restart with a spent budget does not refuse committed rooms.
 - **Tests tightened:** the throwing lookup asserts close code 1006; the budget refusal asserts the exact log text.
+
+### G3 fifth review round
+
+- **Expired pairs:** `OpenBudget.record` sweeps expired user and document pairs before it starts a new one, so a hostile user cannot leave dead pairs behind; `trackedPairs()` exposes the count for the test. Hypothesis: after a minute of silence the next record leaves one pair.
+- **Agent paths:** the tool error shape on a spent budget is `{ error: OPEN_RATE_LIMITED_MESSAGE, retryAfterSeconds }` (pinned with its own user). The session path test builds an `AgentSessions` with the same `agentRoomMode` locator as `server.ts` and a fake client; it does not spy on the real client of `services.agentSessions`.
+- **Committed rooms are free:** a spent budget never refuses a committed room, including the seeded rooms of the agent tests, so the budget tests use uncommitted documents.

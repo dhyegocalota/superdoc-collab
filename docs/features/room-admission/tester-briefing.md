@@ -316,3 +316,8 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 
 - **Pin of the kept start:** `a holder reopening every 59 seconds past the lifetime cap lapses and the next editor takes over` fails if the reopen resets `reservedAt` (mutation checked: with `reservedAt = now`, it and the release-and-reopen row both go red). It was green when it landed, so it is a pin, not a red-first row.
 - **Test cleanups:** the duplicate "closing one of two tabs" row is dropped (the row "refuses a second editor while the reservation is live" covers it, and the two-socket case is `collaboration-server.test.ts`); the agent budget test removes its member in `finally`.
+
+### G3 restart reconnect
+
+- **Red text:** `The collaboration server refused the connection.` for `a committed room admits a socket carrying a ticket from another epoch as an ordinary editor` (8f163cc); the uncommitted row is a pin. Green: the next feat commit on the lane.
+- **Decision applied narrowly:** only a ticket whose epoch differs from the process epoch is read as no ticket on a committed room. A ticket of this epoch with another attempt (a creator that was taken over and returns after the other editor committed) is still closed with 4403, because the lead's note said "or any attempt" but that would let an abandoned creator's partial seed sync into a committed room as a member; the one-line broadening is dropping the epoch comparison in `onAuthenticate`. Hypothesis: after a restart the creator's banner recovers on a committed room without a reload.

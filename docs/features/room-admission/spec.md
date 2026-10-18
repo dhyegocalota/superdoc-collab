@@ -54,7 +54,8 @@ Reserved(n) ──5 min since reserved──▶ Lapsed(n)         (even with a s
 Expired(n) or Lapsed(n) ──open by any editor──▶ Reserved(n+1) (n is fenced and its sockets closed)
 Expired(n) ──last connection of n closes──▶ Unreserved
 Reserved(n) or Expired(n) ──commit by n──▶ Committed(n) (reservation cleared, room is Join)
-Committed(n) ──socket with an attempt other than n, or from another epoch──▶ closed 4403
+Committed(n) ──socket with an attempt other than n in this epoch──▶ closed 4403
+Committed(n) ──socket with a ticket from another epoch (a restart)──▶ admitted as an ordinary editor; a ticket is only read for another epoch while the room is uncommitted
 Unreserved ──open──▶ Reserved(latest + 1), or Reserved(1) when nothing was ever issued
 ```
 

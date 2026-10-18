@@ -4,7 +4,6 @@ import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import {
   BACK_TO_LIVE_LABEL,
   FILTER_LABEL,
-  REGROUP_TOPICS_LABEL,
   RETRY_TOPICS_LABEL,
   SUMMARIZE_EDITS_LABEL,
   VERSION_FRAME_TITLE,
@@ -16,6 +15,7 @@ import {
   readEvents,
   shareAndAccept,
   TEXT_RUN_SELECTOR,
+  toolbarRow,
   typeInParagraph,
   uploadSeed,
 } from './editor';
@@ -32,6 +32,7 @@ import {
   readVersionText,
   readViewerText,
   shownVersionSequence,
+  summarizeButton,
   VERSION_TIMEOUT_MS,
   versionBanner,
   viewerFrame,
@@ -158,12 +159,12 @@ test('the live editor keeps working while the viewer is open', async ({ browser 
   await expect.poll(() => readLiveText(bruno.page), { timeout: VERSION_TIMEOUT_MS }).toContain(AGAIN_TEXT);
 });
 
-test('a reader opens the timeline and a version, cannot refresh, and the room drops their edits', async ({ browser }) => {
+test('a reader opens the timeline and a version, cannot summarize, and the room drops their edits', async ({ browser }) => {
   const { ana, documentId } = await ownerWithEdit(browser);
   const caio = await signedInContext({ browser, user: DEMO_USERS[2]! });
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
   await waitForBands({ page: caio.page, names: [BAND_NAME] });
-  await expect(caio.page.getByRole('button', { name: REGROUP_TOPICS_LABEL })).toHaveCount(0);
+  await expect(toolbarRow(caio.page)).toHaveCount(0);
   await expect(caio.page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveCount(0);
   await editorText(caio.page).first().click();
   await caio.page.keyboard.press('Escape');
@@ -179,6 +180,18 @@ test('a reader opens the timeline and a version, cannot refresh, and the room dr
   await waitForProjection({ page: ana.page, documentId });
   expect((await readEvents({ page: ana.page, documentId })).length).toBe(eventsBefore);
   expect(await readLiveText(ana.page)).toBe(liveBefore);
+});
+
+test('the toolbar container is inert while a version shows and Summarize stays live', async ({ browser }) => {
+  const { ana, documentId } = await ownerWithEdit(browser);
+  const inertToolbar = toolbarRow(ana.page).locator('[inert]');
+  await expect(inertToolbar).toHaveCount(0);
+  await openEditBin({ page: ana.page, documentId });
+  await expect(inertToolbar).toHaveCount(1);
+  await expect(inertToolbar.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveCount(0);
+  await expect(summarizeButton(ana.page)).toBeEnabled();
+  await ana.page.getByRole('button', { name: BACK_TO_LIVE_LABEL }).click();
+  await expect(inertToolbar).toHaveCount(0);
 });
 
 test('failed topics fall back to author bands and only the owner gets Retry', async ({ browser }) => {

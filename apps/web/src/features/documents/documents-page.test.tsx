@@ -1,6 +1,5 @@
 import {
   ApiPath,
-  AppRoute,
   DocumentRole,
   documentPagePath,
   HttpMethod,
@@ -18,9 +17,9 @@ import { pageTitle } from '@/lib/use-document-title';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
-import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
-import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
+import { accountMenuLabel } from '@/features/account/account-copy';
+import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
+import { LIBRARY_PROMPTS, USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/connected-apps-copy';
 import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import {
@@ -32,6 +31,7 @@ import {
   NEW_DOCUMENT_LABEL,
   ROLE_LABELS,
   SHARED_EMPTY_MESSAGE,
+  UPLOAD_LABEL,
 } from './documents-copy';
 import { DocumentsPage } from './documents-page';
 
@@ -68,11 +68,29 @@ function headersOf(table: HTMLElement): (string | null)[] {
 
 afterEach(() => vi.restoreAllMocks());
 
-test('the header links to the connected apps page', async () => {
+test('the header holds Use with AI and the account menu only, with no Sign out button, and Upload is the primary action', async () => {
   mockApi({ mine: [], shared: [] });
   renderWithProviders(<DocumentsPage />);
-  const link = await screen.findByRole('link', { name: CONNECTED_APPS_HEADING });
-  expect(link).toHaveAttribute('href', AppRoute.ConnectedApps);
+  const header = screen.getByRole('banner');
+  expect(await within(header).findByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
+  expect(within(header).getByRole('button', { name: USE_WITH_AI_LABEL })).toBeInTheDocument();
+  expect(within(header).getAllByRole('link')).toHaveLength(1);
+  expect(screen.queryByRole('button', { name: SIGN_OUT_LABEL })).not.toBeInTheDocument();
+  const upload = await screen.findByRole('button', { name: UPLOAD_LABEL });
+  expect(upload).toHaveClass('bg-primary');
+  expect(screen.getByRole('button', { name: NEW_DOCUMENT_LABEL })).not.toHaveClass('bg-primary');
+});
+
+test('Use with AI opens the dialog with the library prompts', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  await userEvent.click(await screen.findByRole('button', { name: USE_WITH_AI_LABEL }));
+  const dialog = await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE });
+  expect(
+    within(dialog)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  ).toEqual(LIBRARY_PROMPTS);
 });
 
 test('empty lists show both empty messages', async () => {
@@ -165,23 +183,4 @@ test('new document posts the untitled title, refreshes the list and opens it', a
     expect.objectContaining({ method: HttpMethod.Post, body: JSON.stringify({ title: UNTITLED_DOCUMENT_TITLE }) }),
   );
   expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });
-});
-
-test('the header shows the Admin link only for admins', async () => {
-  mockApi({ mine: [], shared: [] }, { ...SESSION_USER, role: UserRole.Admin });
-  renderWithProviders(<DocumentsPage />);
-  expect(await screen.findByRole('link', { name: ADMIN_LINK_LABEL })).toHaveAttribute('href', AppRoute.Admin);
-});
-
-test('the header has no Admin link for a user', async () => {
-  mockApi({ mine: [], shared: [] });
-  renderWithProviders(<DocumentsPage />);
-  await screen.findByText(SESSION_USER.name);
-  expect(screen.queryByRole('link', { name: ADMIN_LINK_LABEL })).not.toBeInTheDocument();
-});
-
-test('the header links to Settings', async () => {
-  mockApi({ mine: [], shared: [] });
-  renderWithProviders(<DocumentsPage />);
-  expect(await screen.findByRole('link', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
 });

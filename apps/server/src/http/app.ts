@@ -31,6 +31,7 @@ import { createInsightsRoutes } from '../insights/insights-routes';
 import type { InsightsJobRunner } from '../insights/insights-job-runner';
 import type { SelectionSummariesService } from '../insights/selection-summaries-service';
 import type { SummariesService } from '../insights/summaries-service';
+import type { SummarizeService } from '../insights/summarize-service';
 import type { TopicsService } from '../insights/topics-service';
 import type { InsightsRepository } from '../insights/insights-repository';
 import { createHistoryRoutes } from '../history/history-routes';
@@ -58,6 +59,7 @@ export type InsightsServices = {
   topics: TopicsService;
   summaries: SummariesService;
   selection: SelectionSummariesService;
+  summarize: SummarizeService;
   jobRunner: InsightsJobRunner;
 };
 

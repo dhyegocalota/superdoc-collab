@@ -1,16 +1,14 @@
-import { AppRoute } from '@superdoc-collab/types';
-import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router';
+import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AccountMenu } from '@/features/account/account-menu';
 import { CLIENT_LOAD_ERROR_MESSAGE, scopeLabel } from '@/features/oauth-consent/oauth-consent-copy';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { useTimeZone } from '@/lib/use-time-zone';
 import type { ConnectedApp } from './connected-apps-api';
 import {
-  BACK_TO_DOCUMENTS_LABEL,
   CONNECTED_APPS_EMPTY_MESSAGE,
   CONNECTED_APPS_HEADING,
   CONNECTED_APPS_LOAD_ERROR_MESSAGE,
@@ -70,14 +68,7 @@ export function ConnectedAppsPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center gap-4 border-b px-6 py-4">
-        <Button asChild variant="ghost" size="sm">
-          <Link to={AppRoute.Documents}>
-            <ArrowLeft />
-            {BACK_TO_DOCUMENTS_LABEL}
-          </Link>
-        </Button>
-      </header>
+      <AppTopBar right={<AccountMenu />} />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{CONNECTED_APPS_HEADING}</h1>
         {isError && <ErrorMessage>{CONNECTED_APPS_LOAD_ERROR_MESSAGE}</ErrorMessage>}

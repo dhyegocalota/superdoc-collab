@@ -1,13 +1,8 @@
-import { AppRoute, UserRole } from '@superdoc-collab/types';
-import { Link } from 'react-router';
-import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
-import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
-import { SignOutButton } from '@/features/auth/sign-out-button';
-import { useSession } from '@/features/auth/use-session';
-import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
-import { APP_NAME } from '@/lib/app-copy';
-import { useDocumentTitle } from '@/lib/use-document-title';
+import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
+import { AccountMenu } from '@/features/account/account-menu';
+import { UseWithAiDialog } from '@/features/connected-apps/use-with-ai-dialog';
+import { useDocumentTitle } from '@/lib/use-document-title';
 import { DocumentListKind } from './document-columns';
 import { DocumentListSkeleton } from './document-list-skeleton';
 import { DocumentTable } from './document-table';
@@ -26,31 +21,20 @@ import { useCreateDocument } from './use-create-document';
 import { useDocuments } from './use-documents';
 
 export function DocumentsPage() {
-  const { user } = useSession();
   const { data, isError, isPending } = useDocuments();
   const createDocument = useCreateDocument();
   useDocumentTitle(DOCUMENTS_HEADING);
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
-        <span className="font-semibold">{APP_NAME}</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">{user?.name}</span>
-          <Link to={AppRoute.ConnectedApps} className="text-sm underline-offset-4 hover:underline">
-            {CONNECTED_APPS_HEADING}
-          </Link>
-          {user?.role === UserRole.Admin && (
-            <Link to={AppRoute.Admin} className="text-sm hover:underline">
-              {ADMIN_LINK_LABEL}
-            </Link>
-          )}
-          <Link to={AppRoute.Settings} className="text-sm hover:underline">
-            {SETTINGS_LINK_LABEL}
-          </Link>
-          <SignOutButton />
-        </div>
-      </header>
+      <AppTopBar
+        right={
+          <>
+            <UseWithAiDialog title={null} canEdit={false} />
+            <AccountMenu />
+          </>
+        }
+      />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{DOCUMENTS_HEADING}</h1>
         {isError && <ErrorMessage>{DOCUMENTS_LOAD_ERROR_MESSAGE}</ErrorMessage>}

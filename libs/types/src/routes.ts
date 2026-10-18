@@ -11,6 +11,8 @@ export enum AppRoute {
   ConnectedApps = '/settings/connected-apps',
   Admin = '/admin',
   Settings = '/settings',
+  // NB ADR 0035: the print route needs no session and holds no document; it only prints what its parent frame hands it.
+  Print = '/print',
 }
 
 export enum ApiPath {
@@ -55,7 +57,6 @@ export function isTabId(value: string): boolean {
   return TAB_ID_PATTERN.test(value);
 }
 
-const REFRESH_SEGMENT = 'refresh';
 const EDITS_SEGMENT = 'edits';
 const SELECTION_SEGMENT = 'selection';
 const COLLABORATION_VERSIONS_SEGMENT = 'versions';
@@ -77,10 +78,6 @@ export function sharePagePath(token: string): string {
 
 export function shareLinkAcceptPath(token: string): string {
   return `${ApiPath.ShareLinks}/${encodeURIComponent(token)}/accept`;
-}
-
-export function topicsRefreshApiPath(documentId: string): string {
-  return `${documentApiPath({ documentId, resource: DocumentResource.Topics })}/${REFRESH_SEGMENT}`;
 }
 
 export function selectionSummaryApiPath(documentId: string): string {

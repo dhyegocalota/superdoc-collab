@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentRole,
@@ -15,10 +16,11 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-options';
-import { NARROW_VIEWPORT_QUERY, ZoomMode } from '@/features/editor/superdoc-zoom';
+import { FIT_WIDTH_ZOOM } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
 import { tabId } from '@/lib/tab-id';
 import { pageTitle } from '@/lib/use-document-title';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -54,19 +56,27 @@ const RUNS: EditRunView[] = [
 
 let openedStatus = HttpStatus.Ok;
 
+function openedBody(): unknown {
+  if (openedStatus === HttpStatus.Conflict) return { error: DOCUMENT_NOT_READY_ERROR };
+  return openedAs(DocumentRole.Editor);
+}
+
 beforeEach(() => {
   openedStatus = HttpStatus.Ok;
   SuperDoc.mockClear();
+  installAuthorPalette();
   vi.mocked(useRunHighlights).mockClear();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
-    if (input === documentApiPath({ documentId: DOCUMENT_ID }))
-      return jsonResponse({ body: openedAs(DocumentRole.Editor), status: openedStatus });
+    if (input === documentApiPath({ documentId: DOCUMENT_ID })) return jsonResponse({ body: openedBody(), status: openedStatus });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     throw new Error(`unexpected request ${String(input)}`);
   });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  removeAuthorPalette();
+  vi.restoreAllMocks();
+});
 
 async function renderFrame(): Promise<SuperDocConfig> {
   renderWithProviders(<VersionViewPage />, { route: ROUTE });
@@ -156,6 +166,15 @@ test('a document the viewer cannot open shows the unavailable notice, tells the 
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 
+test('a document that is not ready shows the unavailable notice, tells the parent and never connects', async () => {
+  openedStatus = HttpStatus.Conflict;
+  const postToParent = vi.spyOn(window.parent, 'postMessage');
+  renderWithProviders(<VersionViewPage />, { route: ROUTE });
+  expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_UNAVAILABLE_MESSAGE);
+  expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Failed }, window.location.origin);
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
 test('Escape inside the frame asks the parent to leave the version', async () => {
   const postToParent = vi.spyOn(window.parent, 'postMessage');
   await renderFrame();
@@ -163,14 +182,9 @@ test('Escape inside the frame asks the parent to leave the version', async () =>
   expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Exit }, window.location.origin);
 });
 
-test('the version measures the page around its frame, not the frame, to pick its zoom', async () => {
-  const parentMatchMedia = vi.fn(
-    () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList,
-  );
-  vi.spyOn(window, 'parent', 'get').mockReturnValue({ matchMedia: parentMatchMedia } as unknown as Window);
+test('the version fits the width at every width, like the editor', async () => {
   const config = await renderFrame();
-  expect(config.zoom).toEqual({ mode: ZoomMode.FitWidth });
-  expect(parentMatchMedia).toHaveBeenCalledWith(NARROW_VIEWPORT_QUERY);
+  expect(config.zoom).toEqual(FIT_WIDTH_ZOOM);
 });
 
 test('the version page names its tab after the document', async () => {

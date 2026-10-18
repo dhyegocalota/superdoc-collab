@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
+import { authorPaletteOf } from '@/features/editor/author-palette';
 import { documentFileQueryKey, fetchDocumentFile } from '@/features/editor/editor-api';
 import { ExceptionOutcome, exceptionOutcome } from '@/features/editor/superdoc-exceptions';
 import { DocumentMode, superdocOptions } from '@/features/editor/superdoc-options';
-import { FITTED_PAGE_CLASS, followViewportZoom } from '@/features/editor/superdoc-zoom';
+import { FITTED_PAGE_CLASS } from '@/features/editor/superdoc-zoom';
 import { cn } from '@/lib/utils';
 
 type VersionViewerProps = {
@@ -33,13 +34,14 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
+        toolbarContainer: null,
         documentId,
         file: blank,
         documentMode: DocumentMode.Viewing,
         collaborationPath: versionCollaborationPath({ documentId, sequence }),
         roomMode: RoomMode.Join,
         user,
-        viewport: window.parent,
+        ...authorPaletteOf(user),
       }),
       onCollaborationReady: () => {
         isReady = true;
@@ -55,9 +57,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
         if (outcome === ExceptionOutcome.Fatal) onFailed();
       },
     });
-    const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window.parent });
     return () => {
-      stopFollowingViewport();
       superdoc.destroy();
     };
   }, [documentId, sequence, blank, user, onReady, onFailed, onConnectionFailed]);

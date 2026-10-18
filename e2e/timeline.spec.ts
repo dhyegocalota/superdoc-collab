@@ -1,11 +1,5 @@
 import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
-import {
-  bandAriaLabel,
-  REGROUP_TOPICS_LABEL,
-  removeFilterLabel,
-  RETRY_TOPICS_LABEL,
-  TOP_EDITS_LABEL,
-} from '../apps/web/src/features/timeline/timeline-copy';
+import { bandAriaLabel, removeFilterLabel, RETRY_TOPICS_LABEL, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
 import {
@@ -46,11 +40,12 @@ function topEdits(page: Parameters<typeof waitForBands>[0]['page']) {
 test('two authors type in two topics and the bands appear', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await summarizeButton(ana.page).click();
   await expect(topEdits(ana.page).filter({ hasText: BUDGET })).toContainText(`Edits about ${BUDGET}.`, { timeout: BANDS_TIMEOUT_MS });
   await expect(topEdits(ana.page).filter({ hasText: HIRING }).getByTitle(BRUNO)).toBeVisible();
 });
 
-test('Regroup topics recomputes the names from the current text', async ({ browser }) => {
+test('Summarize edits regroups the topics from the current text', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   const volumeBefore = await bandVolume({ page: ana.page, name: HIRING });
@@ -58,7 +53,7 @@ test('Regroup topics recomputes the names from the current text', async ({ brows
   await ana.page.keyboard.press('Home');
   await ana.page.keyboard.type(RENAMED_PREFIX);
   await expect.poll(() => bandVolume({ page: ana.page, name: HIRING }), { timeout: BANDS_TIMEOUT_MS }).toBeGreaterThan(volumeBefore);
-  await ana.page.getByRole('button', { name: REGROUP_TOPICS_LABEL }).click();
+  await summarizeButton(ana.page).click();
   await waitForBands({ page: ana.page, names: [`${RENAMED_PREFIX}${HIRING}`] });
 });
 

@@ -20,3 +20,15 @@ test('an unknown path redirects to documents and then to sign-in when signed out
   expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe(AppRoute.SignIn);
 });
+
+test('the print route stays on its path and needs no session', async () => {
+  vi.mocked(apiGet).mockResolvedValue(jsonResponse({ body: { user: null } }));
+  const router = createMemoryRouter(routes, { initialEntries: [AppRoute.Print] });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByTestId('print-page')).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe(AppRoute.Print);
+});

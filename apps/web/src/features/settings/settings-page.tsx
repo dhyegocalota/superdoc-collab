@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
+import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { SignOutButton } from '@/features/auth/sign-out-button';
-import { HomeLink } from '@/features/editor/home-link';
+import { AccountMenu } from '@/features/account/account-menu';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { useSession } from '@/features/auth/use-session';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -49,10 +49,7 @@ export function SettingsPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
-        <HomeLink />
-        <SignOutButton />
-      </header>
+      <AppTopBar right={<AccountMenu />} />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{SETTINGS_HEADING}</h1>
         <section className="space-y-4">

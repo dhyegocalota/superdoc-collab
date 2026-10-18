@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import {
   AppRoute,
   DocumentResource,
@@ -11,10 +11,21 @@ import {
   type ShareLinks,
 } from '../libs/types/src';
 import { buildSeedDocx } from '../libs/history/src';
+import { THEME_LABELS, accountMenuLabel } from '../apps/web/src/features/account/account-copy';
+import { SIGN_OUT_LABEL } from '../apps/web/src/features/auth/auth-copy';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
+import {
+  DOWNLOAD_BUTTON_LABEL,
+  DOWNLOAD_OPTIONS_LABEL,
+  HOME_LINK_LABEL,
+  renameTitleLabel,
+} from '../apps/web/src/features/editor/editor-copy';
+import type { ThemePreference } from '../apps/web/src/lib/use-theme';
 
 export const TEXT_RUN_SELECTOR = '.superdoc-text-run';
 export const EDITOR_INPUT_SELECTOR = 'textarea';
+export const REMOTE_CARET_SELECTOR = '.v2-collaboration-overlay__remote-caret';
+const TOOLBAR_ROW_TEST_ID = 'editor-toolbar-row';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';
 const FOCUS_TIMEOUT_MS = 30_000;
@@ -23,6 +34,47 @@ const TYPING_DELAY_MS = 20;
 
 export function editorText(page: Page) {
   return page.locator(TEXT_RUN_SELECTOR);
+}
+
+export function topBar(page: Page): Locator {
+  return page.getByRole('banner');
+}
+
+export function toolbarRow(page: Page): Locator {
+  return page.getByTestId(TOOLBAR_ROW_TEST_ID);
+}
+
+export function brandLink(page: Page): Locator {
+  return topBar(page).getByRole('link', { name: HOME_LINK_LABEL });
+}
+
+export function accountTrigger({ page, name }: { page: Page; name: string }): Locator {
+  return topBar(page).getByRole('button', { name: accountMenuLabel(name) });
+}
+
+export function titleButton({ page, title }: { page: Page; title: string }): Locator {
+  return topBar(page).getByRole('button', { name: renameTitleLabel(title) });
+}
+
+export function downloadButton(page: Page): Locator {
+  return page.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL, exact: true });
+}
+
+export function downloadOptionsButton(page: Page): Locator {
+  return page.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL });
+}
+
+export async function chooseTheme({ page, name, theme }: { page: Page; name: string; theme: ThemePreference }): Promise<void> {
+  await accountTrigger({ page, name }).click();
+  await page.getByRole('menuitemradio', { name: THEME_LABELS[theme] }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toBeHidden();
+  await expect(accountTrigger({ page, name })).toBeFocused();
+}
+
+export async function signOut({ page, name }: { page: Page; name: string }): Promise<void> {
+  await accountTrigger({ page, name }).click();
+  await page.getByRole('menuitem', { name: SIGN_OUT_LABEL }).click();
 }
 
 export async function readEditorText(page: Page): Promise<string> {

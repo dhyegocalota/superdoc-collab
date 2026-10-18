@@ -464,12 +464,12 @@ test('delete removes the row, the file, the log and the events, and closes the r
 
 test('forgetting a document clears its insights cooldowns after the projection forgets it', async () => {
   const { server, documentId } = await documentWithOwner();
-  const { topics, summaries, selection } = server.services.insights;
-  [topics, summaries, selection].forEach((service) => service.cooldown.start(documentId));
+  const { selection } = server.services.insights;
+  selection.cooldown.start(documentId);
   const projectionForget = vi.spyOn(server.services.scheduler, 'forget');
-  const insightsForgets = [vi.spyOn(topics, 'forget'), vi.spyOn(summaries, 'forget'), vi.spyOn(selection, 'forget')];
+  const insightsForgets = [vi.spyOn(selection, 'forget')];
   await server.services.runtime.forget(documentId);
-  expect([topics, summaries, selection].map((service) => service.cooldown.size())).toEqual([0, 0, 0]);
+  expect(selection.cooldown.size()).toBe(0);
   const order = [projectionForget, ...insightsForgets].map((spy) => spy.mock.invocationCallOrder[0]!);
   expect(order).toEqual([...order].sort((left, right) => left - right));
   insightsForgets.forEach((spy) => expect(spy).toHaveBeenCalledTimes(1));
@@ -479,10 +479,10 @@ test('forgetting a document clears its insights cooldowns after the projection f
 test('deleting a document forgets it once through the runtime, then removes the file', async () => {
   const { server, owner } = await signedInOwner();
   const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Doomed' })).json();
-  const { topics, summaries, selection } = server.services.insights;
+  const { selection } = server.services.insights;
   const forget = vi.spyOn(server.services.runtime, 'forget');
   const remove = vi.spyOn(server.services.storage, 'remove');
-  const insightsForgets = [vi.spyOn(topics, 'forget'), vi.spyOn(summaries, 'forget'), vi.spyOn(selection, 'forget')];
+  const insightsForgets = [vi.spyOn(selection, 'forget')];
   await request({ server, cookie: owner.cookie, path: pathOf({ documentId: created.id }), method: HttpMethod.Delete });
   expect(forget).toHaveBeenCalledTimes(1);
   insightsForgets.forEach((spy) => expect(spy).toHaveBeenCalledTimes(1));

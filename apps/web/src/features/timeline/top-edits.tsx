@@ -1,6 +1,15 @@
-import type { DocumentTimeline, TimelineContributor, TopicSummaries } from '@superdoc-collab/types';
+import {
+  TimelineBandKind,
+  type DocumentTimeline,
+  type TimelineBand,
+  type TimelineContributor,
+  type TopicSummaries,
+} from '@superdoc-collab/types';
+import type { CSSProperties } from 'react';
+import { cn } from '@/lib/utils';
 import { ContributorAvatars } from './contributor-avatars';
 import { maxBandVolume } from './max-band-volume';
+import { saturationOf } from './streamgraph-layout';
 import { editDeltaLabel, EditUnit, TOP_EDITS_LABEL } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 
@@ -11,11 +20,22 @@ function sumWords(contributors: TimelineContributor[]): { inserted: number; dele
   );
 }
 
-export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
-  const maxVolume = maxBandVolume(timeline);
-  const rows = timeline.bands
+function calloutStyleOf({ band, maxVolume }: { band: TimelineBand; maxVolume: number }): CSSProperties {
+  return {
+    '--topic-hue': String(band.hue),
+    '--topic-saturation': `${saturationOf({ volume: band.volume, maxVolume })}%`,
+  } as CSSProperties;
+}
+
+export function bandsByVolume(timeline: DocumentTimeline): TimelineBand[] {
+  return timeline.bands
     .filter((band) => band.volume > 0)
     .sort((left, right) => right.volume - left.volume || left.id.localeCompare(right.id));
+}
+
+export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; summaries: TopicSummaries | undefined }) {
+  const maxVolume = maxBandVolume(timeline);
+  const rows = bandsByVolume(timeline);
   if (rows.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
@@ -33,7 +53,14 @@ export function TopEdits({ timeline, summaries }: { timeline: DocumentTimeline; 
               {contributors && (
                 <p className="text-xs text-muted-foreground">{editDeltaLabel({ ...sumWords(contributors), unit: EditUnit.Word })}</p>
               )}
-              {sentence && <p className="text-sm">{sentence}</p>}
+              {sentence && (
+                <p
+                  className={cn('rounded-md px-2 py-1 text-sm', band.kind === TimelineBandKind.Other ? 'bg-muted' : 'topic-tint')}
+                  style={band.kind === TimelineBandKind.Other ? undefined : calloutStyleOf({ band, maxVolume })}
+                >
+                  {sentence}
+                </p>
+              )}
             </li>
           );
         })}

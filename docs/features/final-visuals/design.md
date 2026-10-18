@@ -137,7 +137,8 @@ One `AppTopBar` on every signed-in page, 52 px high, `border-b`, `px-3`, `gap-2`
 
 - **Brand link (ask 4).** A 24 px `rounded-sm` square in `bg-primary` with a `FileText` icon in `text-primary-foreground`, then `APP_NAME` in `font-semibold`. The whole group is one `Link` to `AppRoute.Documents`, `hover:bg-accent`, accessible name `HOME_LINK_LABEL` ("SuperDoc Collab, back to documents"). The name hides below `sm`; the mark stays. This keeps P1-1 ("home link with the app name") while dropping its arrow. The mark is a proposal; there is no logo asset (owner decision 7.15).
 - **Version label.** The mock's "v2.4.0" is the SuperDoc demo's version. Dropped.
-- **Below `sm`.** Use with AI, Download .docx, Download PDF and Delete move into More actions. Share becomes an icon button. Members hide. The header is one row at 375, which keeps P2-2.
+- **Below `lg` (1024 px).** Find, Use with AI, Download .docx and Download PDF move into More actions, beside Delete for owners. The bar keeps Members, Share, More actions and the account. The right slot needs about 790 px with two members, so folding only below `sm` overflowed between 640 and 790 px (tester defect 9); the title keeps a 96 px minimum with truncation (80 px below `md`). Below `md` (768 px) Members show at most three avatars and the rest sit in the `+N` menu, because five members overflowed at 640 to 655 px (tester defect 10).
+- **Below `sm`.** Share becomes an icon button and Members hide. The header is one row at 375, which keeps P2-2.
 
 Mockups: `mockup-editor-bottom-1280.png`, `mockup-editor-bottom-375.png`, `mockup-more-menu-375.png`, `mockup-reader-1280.png`, `mockup-reader-375.png`, `option-upload-1280.png`.
 
@@ -216,7 +217,7 @@ Placement options: 6.2.
 
 ### 1.6 Use with AI (ask 1)
 
-- **The button.** "Use with AI" with a `Bot` icon, `variant="outline"`, in the editor and documents top bars. Below `sm` it lives in More actions.
+- **The button.** "Use with AI" with a `Bot` icon, `variant="outline"`, in the editor and documents top bars. Below `lg` it lives in the editor's More actions; below `sm` on the documents page.
 - **The dialog.** `Dialog`, 560 px wide, scrolls within the viewport.
   - Title "Use this document with your AI" and a one-line description.
   - Then the client snippets: today's `ConnectSnippets` content (MCP URL, Claude Code, Cursor, ChatGPT with its instruction), shown one client at a time in tabs (option in 7.11).

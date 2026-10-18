@@ -22,10 +22,10 @@ G1 now; G2 when the designer's audit lands.
 
 ### G1
 
-- [ ] **Step 1:** red `globals.test.ts` (new map entries, tokens, `color-scheme`, caret rule, active-item contrast); commit alone.
-- [ ] **Step 2:** the CSS; green.
-- [ ] **Step 3:** `bg-paper` on the waiting page skeleton, red test first.
-- [ ] **Step 4:** E2E `dark-theme.spec.ts`; `pnpm typecheck`; README row; tester briefing.
+- [x] **Step 1:** red `globals.test.ts` (new map entries, tokens, `color-scheme`, caret rule, active-item contrast); commit alone. — e74870e
+- [x] **Step 2:** the CSS; green. — 75bc231
+- [x] **Step 3:** `bg-paper` on the waiting page skeleton, red test first. — ccefd0b red, 376db86 green
+- [x] **Step 4:** E2E `dark-theme.spec.ts`; `pnpm typecheck`; README row; tester briefing. — 251c7cc, 09df876, tester-briefing.md
 
 ### G2
 
@@ -43,7 +43,7 @@ G1 now; G2 when the designer's audit lands.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **Security reviewer:** a fresh `security-reviewer` sub-agent returned a verdict on this diff.

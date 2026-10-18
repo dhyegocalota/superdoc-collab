@@ -29,7 +29,7 @@ The server returns every bin from the first edit to the last, empty bins include
 
 ### Data flow
 
-1. `idle-breaks.ts` (new, `features/timeline`) finds the breaks of a timeline. A bin is empty when no band has volume in it (`cellVolume` is zero for every band). A break is a run of consecutive empty bins that does not include the first or the last bin and whose length in milliseconds is longer than `IDLE_BREAK_MS`. The run's length is its bin count times `timeline.binMs`, converted at the edge.
+1. `idle-breaks.ts` (new, `features/timeline`) finds the breaks of a timeline. A bin is silent when no band has volume in it (`cellVolume` is zero for every band) and its version sequence equals the bin before it, so a bin that cuts a version stays reachable. A break is a run of consecutive silent bins that does not include the first or the last bin and whose length in milliseconds is longer than `IDLE_BREAK_MS`. The run's length is the end of its last bin minus the start of its first, converted at the edge.
 2. `streamgraph-layout.ts` takes the breaks and lays the bins out in segments. Each bin outside a break keeps an equal pitch. A break takes `BREAK_WIDTH_PX` in place of the pitch between its neighbours. The total width stays the width of the chart, and the first and last bins stay at its edges.
 3. The band areas and the agent layer are drawn once per segment, so a band with volume on both sides of a break has two areas with a gap between them. Labels are placed inside a segment and never across a break.
 4. `binX(index)` returns the bin's position. For a bin inside a break it returns the centre of the column. `binAt(position)` returns the bin under the pointer; a position inside a break returns the first bin after it. `timeX(time)` maps a time inside a break to the centre of its column, and any other time as before.
@@ -56,11 +56,11 @@ The server returns every bin from the first edit to the last, empty bins include
 
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
-| Which idle stretches collapse | A, runs longer than five minutes; B, a larger threshold | Pending the owner. Proposed: A, five minutes, to be confirmed in the walk | 2026-10-18 |
-| Width of a break | A, 16 px; B, 24 px | Pending the owner. Proposed: A, 16 px, to be confirmed in the walk | 2026-10-18 |
-| Visual treatment | A, dashed divider and tooltip; B, a hatched column | Pending the owner. Proposed: A. The `HARNESS` asks for a `frontend-designer` `design.md` when a screen is reshaped; this spec is reviewed on that point before the plan is approved | 2026-10-18 |
-| Break wording | "No edits for 7 minutes", without a full stop | Pending the owner. Proposed, matching "No edits in this period" | 2026-10-18 |
-| Day and week bins, where every empty bin is longer than five minutes | A, every empty interior bin is a break; B, a minimum run length in bins | Pending the owner. Proposed: A for now, checked in the walk; the revisit trigger is in ADR 0039 | 2026-10-18 |
+| Which idle stretches collapse | A, runs longer than five minutes; B, a larger threshold | A. The owner delegated these decisions to the lead. A break is a run of empty bins longer than five minutes; a run of exactly five minutes is not one. A bin that cuts a new version (its version sequence differs from the bin before it) is never empty, so it ends a run and stays reachable | 2026-10-18 |
+| Width of a break | A, 16 px; B, 24 px | A. `BREAK_WIDTH_PX` (16 px) is the distance between the bin before the break and the bin after it, in place of the pitch | 2026-10-18 |
+| Visual treatment | A, dashed divider and tooltip; B, a hatched column | A. The dashed divider uses the muted foreground token. `design.md` is waived: the owner saw the production chart and asked for the gap to go, and the treatment follows ADR 0039 | 2026-10-18 |
+| Break wording | "No edits for 7 minutes", without a full stop | "No edits for N minutes", "hours" or "days" (singular for one), without a full stop, matching "No edits in this period" | 2026-10-18 |
+| Day and week bins, where every empty bin is longer than five minutes | A, every empty interior bin is a break; B, a minimum run length in bins | A. Day and week bins collapse the same way, so each quiet day is a break; the revisit trigger is in ADR 0039 | 2026-10-18 |
 
 ## Test strategy summary
 

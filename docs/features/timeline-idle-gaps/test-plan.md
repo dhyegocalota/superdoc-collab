@@ -6,7 +6,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [ ] `apps/web/src/features/timeline/idle-breaks.test.ts::a run of exactly the threshold is not a break` — input: a timeline with 30 empty interior bins of 10 s, threshold 300 000 ms; expected: `idleBreaksOf` returns `[]`
 - [ ] `apps/web/src/lib/format-date-time.test.ts::formatIdleDuration reads 410 000 ms as "7 minutes"` — input: `durationMs: 410000`; expected: `"7 minutes"`
-- [ ] `apps/web/src/features/timeline/streamgraph-layout.test.ts::a break is one column between its neighbours` — input: a 41-bin silence of 10 s between two edit bins, width 600; expected: the column spans `BREAK_WIDTH_PX`, `binX(0)` is 0, `binX(last)` is 600
+- [ ] `apps/web/src/features/timeline/streamgraph-layout.test.ts::a break is one column between its neighbours` — input: a silence of six one-minute bins between two runs of edit bins, width 600; expected: the column spans `BREAK_WIDTH_PX`, `binX(0)` is 0, `binX(last)` is 600
 - [ ] `apps/web/src/features/timeline/streamgraph.test.tsx::ArrowRight from the bin before a break selects the first bin after it` — input: a timeline with a break after bin 1, selected index 1, key ArrowRight; expected: `onSelectIndex` called once with 2 (the first bin after the 41 empty bins)
 - [ ] Confirmed each red test fails for the right reason: the failure text is recorded here after the red run. Expected reason: the function or the column is missing, not a broken fixture.
 
@@ -37,9 +37,9 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Unit: layout (`streamgraph-layout.test.ts`)
 
-- [ ] `binX(0)` is 0 and `binX(last)` is the width — input: 41-bin silence, width 600; expected: 0 and 600
+- [ ] `binX(0)` is 0 and `binX(last)` is the width — input: six one-minute-bin silence, width 600; expected: 0 and 600
 - [ ] Bins on either side of the break keep the pitch — input: as above; expected: the distance between bins 0 and 1 equals the distance between the bin before the break and the bin after it, measured across no break
-- [ ] The break spans `BREAK_WIDTH_PX` — expected: `binX` of the first bin after the break minus `binX` of the bin before it equals the pitch plus `BREAK_WIDTH_PX`
+- [ ] The break spans `BREAK_WIDTH_PX` — expected: `binX` of the first bin after the break minus `binX` of the bin before it equals `BREAK_WIDTH_PX`, in place of the pitch
 - [ ] `binX` of a bin inside the break is the centre of the column — expected: a value between the column edges
 - [ ] `binAt` at the centre of the column returns the first bin after the break — input: the column centre position; expected: the index of the first bin after the break
 - [ ] `timeX` for a time inside the break is the column centre — input: the start of the 10th empty bin; expected: the same x as the column centre
@@ -55,7 +55,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] One divider per break — input: a timeline with one break; expected: exactly one `line` element with `aria-hidden="true"` and a `stroke-dasharray` style
 - [ ] No divider without a break — input: the existing `timeline` fixture; expected: no `line` with `aria-hidden` is rendered by the break divider
 - [ ] The divider uses the token set — expected: its class name contains a token class and no hex colour appears in its attributes
-- [ ] Hover over the break's column — input: `pointerMove` at the column centre; expected: `role="tooltip"` with the text "No edits for 7 minutes" for a 410 000 ms break and no bin range
+- [ ] Hover over the break's column — input: `pointerMove` at the column centre; expected: `role="tooltip"` with the text "No edits for 6 minutes" for a 360 000 ms break and no bin range
 - [ ] Hover over a bin — input: `pointerMove` over a bin; expected: the bin's range tooltip, as before
 - [ ] Edge: keyboard ArrowLeft from the first bin after a break — input: selection on the first bin after the break, key ArrowLeft; expected: `onSelectIndex` with the bin before the break
 - [ ] Edge: keyboard from inside a break, ArrowLeft — input: selection inside the break, key ArrowLeft; expected: `onSelectIndex` with the last bin before the break

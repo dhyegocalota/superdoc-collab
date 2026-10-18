@@ -89,8 +89,6 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
   await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
   const naturalOffset = await rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top);
   const maxScroll = await scroller.evaluate((element) => element.scrollHeight - element.clientHeight);
-    naturalOffset,
-  );
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))
     .toBe(true);

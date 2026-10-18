@@ -24,3 +24,7 @@ export function authorColorSlot(key: string): AuthorColorSlot {
   if (slot === undefined) throw new UnknownAuthorColorSlotError(key);
   return slot;
 }
+
+export function assignAuthorColorSlots({ memberIds }: { memberIds: string[] }): Map<string, AuthorColorSlot> {
+  throw new Error('assignAuthorColorSlots is not implemented');
+}

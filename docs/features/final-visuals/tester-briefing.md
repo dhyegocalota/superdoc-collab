@@ -300,7 +300,6 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.
-- The "Loading document…" reason is still the page's loading paragraph; `LOADING_DOCUMENT_REASON_ID` is exported for Step 23 to put on it, and Download stays disabled after that paragraph is gone, until SuperDoc's `onReady`.
 - The print view fails (toast) when the last page has no text after 600 frames; a document whose last page is an image only would fail that way.
 - Nothing here was seen in a browser.
 pnpm install --frozen-lockfile

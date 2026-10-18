@@ -103,10 +103,15 @@ export function DocumentPage() {
         onDownloadDocx={downloadLiveDocument}
         renderUseWithAi={renderUseWithAi}
       />
-      {superdoc === null && !fileError && (
-        <p id={LOADING_DOCUMENT_REASON_ID} role="status" className="px-4 py-1 text-xs text-muted-foreground">
-          {LOADING_DOCUMENT_MESSAGE}
-        </p>
+      {superdoc === null && (
+        <div id={LOADING_DOCUMENT_REASON_ID}>
+          {fileError && <ErrorMessage className="px-4 py-1">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
+          {!fileError && (
+            <p role="status" className="px-4 py-1 text-xs text-muted-foreground">
+              {LOADING_DOCUMENT_MESSAGE}
+            </p>
+          )}
+        </div>
       )}
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
       <EditorToolbarRow
@@ -133,7 +138,6 @@ export function DocumentPage() {
                 isInert={isViewingPastVersion}
               />
             )}
-            {fileError && <ErrorMessage className="flex-1 p-4">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
             <VersionFrame
               documentId={documentId}
               version={timeTravel.shownVersion}

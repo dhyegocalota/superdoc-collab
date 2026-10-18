@@ -86,12 +86,9 @@ type DocumentActionsMenuProps = DocumentIdentity & {
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
-function keepMenuOpen(event: Event): void {
-  event.preventDefault();
-}
-
 function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderUseWithAi }: DocumentActionsMenuProps) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isUseWithAiOpen, setIsUseWithAiOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -108,15 +105,10 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
           <TooltipContent>{MORE_ACTIONS_LABEL}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end">
-          {renderUseWithAi({
-            trigger: (
-              <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
-                <Bot aria-hidden />
-                {USE_WITH_AI_LABEL}
-              </DropdownMenuItem>
-            ),
-            returnFocusRef: triggerRef,
-          })}
+          <DropdownMenuItem className="sm:hidden" onSelect={() => setIsUseWithAiOpen(true)}>
+            <Bot aria-hidden />
+            {USE_WITH_AI_LABEL}
+          </DropdownMenuItem>
           {Object.values(DownloadFormat).map((format) => (
             <DropdownMenuItem
               key={format}
@@ -135,6 +127,7 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {renderUseWithAi({ isOpen: isUseWithAiOpen, onOpenChange: setIsUseWithAiOpen, returnFocusRef: triggerRef })}
       <DeleteDocumentDialog documentId={documentId} isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} returnFocusRef={triggerRef} />
     </>
   );

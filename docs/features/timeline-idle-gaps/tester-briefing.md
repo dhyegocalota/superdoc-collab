@@ -48,3 +48,12 @@ Every "it works" is a hypothesis the tester tries to break.
 - No touch-device pass; the pointer path is unchanged.
 - The E2E serves a timeline built from the real response with the silence inserted, because no test clock exists.
 - The threshold of five minutes and the width of 16 pixels are proposals awaiting the owner. The tester reports whether they read well, without changing them.
+
+## Build notes (developer)
+
+- Red failure texts: the island of one bin printed `expected 0 to be greater than 0`; a version-bearing empty bin printed `expected [ { firstIndex: 1, ... } ] to deeply equal []`; a time late in the last bin before a break printed `expected 299.2 to be close to 292`.
+- A silent bin is empty and repeats the version of the bin before it. A bin that cuts a new version ends the run, so every version stays reachable.
+- Each segment tapers to a zero-thickness point at the centre of the adjacent break column, so a one-bin island is drawn.
+- Deviations from the plan: unit fixtures use one-minute bins (six empty bins, 360 000 ms); the break column is `BREAK_WIDTH_PX` between the two neighbours, in place of the pitch; the description sentence appears only when a break is drawn; the E2E is a pin that landed after the code; steps 5 to 8 were written as one test file and committed in stages.
+- E2E seeding: the real timeline is read, then served through a route with silent bins appended (they carry the version of the last real bin) and a time-shifted copy of the bins from the first edited one. It ran green twice alone.
+- Not run by the developer: `e2e/time-travel.spec.ts` and `e2e/timeline.spec.ts` alone (step 10); the lane gate ran the whole suite.

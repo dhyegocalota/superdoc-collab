@@ -2,6 +2,7 @@
 - Date: 2026-10-17
 - Inspired by: reviewer finding on the L3 agent lane of agentic-history-mcp; `apps/server/src/agent/agent-sessions-room.test.ts`
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-17 — still true; `isCurrent` is unchanged, and an open on an uncommitted room now throws NOT_READY instead of seeding
 
 ## Signal
 `replace_text` through an MCP tool answers `status: ok`, yet the update log does not grow and the browser shows no tracked change. It happens after a person is promoted from Reader to Editor, and after the room token expired and the socket reconnected.

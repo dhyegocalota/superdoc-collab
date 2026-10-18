@@ -147,12 +147,24 @@ async function isEditorFocused(page: Page): Promise<boolean> {
   return page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR);
 }
 
-async function focusParagraphEnd({ page, paragraphText }: { page: Page; paragraphText: string }): Promise<void> {
+export async function focusEditorAtEnd({
+  page,
+  target,
+  position,
+}: {
+  page: Page;
+  target: Locator;
+  position?: { x: number; y: number };
+}): Promise<void> {
   await expect(async () => {
-    await editorText(page).filter({ hasText: paragraphText }).first().click();
+    await target.click({ position });
     await page.keyboard.press('End');
     expect(await isEditorFocused(page)).toBe(true);
   }).toPass({ timeout: FOCUS_TIMEOUT_MS });
+}
+
+async function focusParagraphEnd({ page, paragraphText }: { page: Page; paragraphText: string }): Promise<void> {
+  await focusEditorAtEnd({ page, target: editorText(page).filter({ hasText: paragraphText }).first() });
 }
 
 export async function insertInParagraph({ page, paragraphText, text }: { page: Page; paragraphText: string; text: string }): Promise<void> {

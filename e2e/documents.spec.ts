@@ -16,9 +16,9 @@ import {
 import {
   acceptShareLink,
   downloadButton,
-  EDITOR_INPUT_SELECTOR,
   EDITOR_READY_TIMEOUT_MS,
   editorText,
+  focusEditorAtEnd,
   readEditorText,
   readEvents,
   readShareLinks,
@@ -45,8 +45,15 @@ const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
 const FIRST_PARAGRAPH_CLICK_POSITION = { x: 120, y: 120 };
-const TYPING_DELAY_MS = 20;
 const TYPED_SENTENCE = 'Typed into a new document.';
+
+const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
+
+function documentIdOf(url: string): string {
+  const match = DOCUMENT_URL_PATTERN.exec(url);
+  if (!match) throw new Error(`no document id in ${url}`);
+  return match[1]!;
+}
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
@@ -192,13 +199,15 @@ test('a new document accepts typing after a click', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await ana.page.getByRole('button', { name: NEW_DOCUMENT_LABEL }).click();
   await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
-  await expect(async () => {
-    await ana.page.locator(PAGE_SELECTOR).first().click({ position: FIRST_PARAGRAPH_CLICK_POSITION });
-    await ana.page.keyboard.press('End');
-    expect(await ana.page.evaluate((selector) => document.activeElement?.matches(selector) === true, EDITOR_INPUT_SELECTOR)).toBe(true);
-  }).toPass({ timeout: EDITOR_READY_TIMEOUT_MS });
-  await ana.page.keyboard.type(TYPED_SENTENCE, { delay: TYPING_DELAY_MS });
+  const documentId = documentIdOf(ana.page.url());
+  await focusEditorAtEnd({ page: ana.page, target: ana.page.locator(PAGE_SELECTOR).first(), position: FIRST_PARAGRAPH_CLICK_POSITION });
+  await ana.page.keyboard.insertText(TYPED_SENTENCE);
   await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible();
+  await expect
+    .poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: ana.userId }), {
+      timeout: EVENTS_TIMEOUT_MS,
+    })
+    .toBe(TYPED_SENTENCE);
   await ana.page.reload();
   await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
 });

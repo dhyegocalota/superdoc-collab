@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
-import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { LARGE_BREAKPOINT_PX, MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { formatBinRange } from '@/lib/format-date-time';
 import { useElementWidth } from '@/lib/use-element-width';
 import { useMinWidth } from '@/lib/use-min-width';
@@ -33,7 +33,6 @@ import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
 import { useRevealSelected } from './use-reveal-selected';
 import { useTimeline } from './use-timeline';
-import type { VersionReference } from './use-time-travel';
 import { useTimelineSearch } from './use-timeline-search';
 
 export enum PanelState {
@@ -53,10 +52,8 @@ type TimelinePanelProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   summarize: SummarizeControl;
-  pendingVersion: VersionReference | null;
   isLoadingVersion: boolean;
   onTravel: (binStart: number) => void;
-  onConfirmTravel: () => void;
   onBackToLive: () => void;
 };
 
@@ -99,6 +96,8 @@ function selectionOf({ timeline, bin }: { timeline: DocumentTimeline; bin: Timel
   };
 }
 
+function ignoreTravel(): void {}
+
 export function TimelinePanel({
   documentId,
   role,
@@ -106,10 +105,8 @@ export function TimelinePanel({
   isOpen,
   onOpenChange,
   summarize,
-  pendingVersion,
   isLoadingVersion,
   onTravel,
-  onConfirmTravel,
   onBackToLive,
 }: TimelinePanelProps) {
   const isBottom = position === PanelPosition.Bottom;
@@ -120,10 +117,16 @@ export function TimelinePanel({
   const bottomSize = usePanelHeight({ areaHeight, isCompact });
   const { search } = useTimelineSearch();
   const { data: timeline, isPending: isTimelinePending } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
-  const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({ timeline, at: search.at, onTravel, onBackToLive });
+  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
+  const isStackedLayout = !useMinWidth(MEDIUM_BREAKPOINT_PX);
+  const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({
+    timeline,
+    at: search.at,
+    onTravel: isPhoneLayout ? ignoreTravel : onTravel,
+    onBackToLive,
+  });
   const headerRef = useRef<HTMLDivElement>(null);
   useRevealSelected({ targetRef: headerRef, selectedIndex });
-  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
   const { data: summaries } = useSummaries({ documentId, isOpen });
   const canEdit = role !== DocumentRole.Reader;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
@@ -186,22 +189,27 @@ export function TimelinePanel({
           width={chartWidth}
           selectedIndex={selectedIndex}
           highlightedBandId={search.topic}
-          isLoadingVersion={isLoadingVersion}
+          isLoadingVersion={isPhoneLayout && isLoadingVersion}
           onSelectIndex={selectIndex}
           onClearSelection={clearSelection}
         />
       )}
     </div>
   );
-  const hasPendingVersion = pendingVersion !== null && selectedBin !== null && pendingVersion.binStart === selectedBin.start;
+  const canViewVersion = selectedBin !== null && selectedBin.versionSequence !== null && selectedBin.start !== search.at;
+  function viewSelectedVersion(): void {
+    if (!selectedBin) return;
+    onTravel(selectedBin.start);
+  }
+
   const header = isPhoneLayout && (
     <SelectedHeader
       ref={headerRef}
       selection={timeline && selectedBin ? selectionOf({ timeline, bin: selectedBin }) : null}
-      hasVersion={hasPendingVersion}
-      isPhoneLayout={isPhoneLayout}
+      canViewVersion={canViewVersion}
+      isViewVersionDisabled={isLoadingVersion}
       onClear={clearSelection}
-      onViewVersion={onConfirmTravel}
+      onViewVersion={viewSelectedVersion}
     />
   );
   const filter = (
@@ -248,13 +256,14 @@ export function TimelinePanel({
                 className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"
               >
                 {chart}
-                {header}
+                {isStackedLayout && header}
                 {filter}
               </div>
               <div
                 data-column={PanelColumn.List}
                 className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"
               >
+                {!isStackedLayout && header}
                 {notices}
                 {card}
                 {edits}

@@ -205,6 +205,7 @@ test('an at link opens the version in a same-origin frame and Back to live remov
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const frame = await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT);
   expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }));
+  sendFromFrame({ frame: frame as HTMLIFrameElement });
   expect(await screen.findByText(/Version at/)).toBeVisible();
   expect(screen.getByTestId('version-banner')).toHaveAttribute('data-sequence', '42');
   await userEvent.click(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL }));

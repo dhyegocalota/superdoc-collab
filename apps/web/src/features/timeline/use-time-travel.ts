@@ -14,8 +14,6 @@ import { useVersionLoad } from './use-version-load';
 
 export const SCRUB_DEBOUNCE_MS = 300;
 
-export type VersionReference = { binStart: number };
-
 type VersionPin = { at: number; sequence: number };
 
 export type TimeTravel = {
@@ -27,11 +25,10 @@ export type TimeTravel = {
   isLoading: boolean;
   hasFailed: boolean;
   runs: EditRunView[];
-  pendingVersion: VersionReference | null;
   travelTo: (binStart: number) => void;
-  confirmTravel: () => void;
   backToLive: () => void;
   reportFailure: (sequence: number) => void;
+  reportReady: (sequence: number) => void;
 };
 
 function sequenceOf(bin: TimelineBin | undefined): number | null {
@@ -49,7 +46,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   const at = search.at;
   const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
   const [pendingBinStart, setPendingBinStart] = useState<number | null>(null);
-  const [pendingVersion, setPendingVersion] = useState<VersionReference | null>(null);
+  const [readyFrameSequence, setReadyFrameSequence] = useState<number | null>(null);
   const [shownVersion, setShownVersion] = useState<VersionSummary | null>(null);
   const [failedFrameSequence, setFailedFrameSequence] = useState<number | null>(null);
   const [pinnedVersion, setPinnedVersion] = useState<VersionPin | null>(null);
@@ -73,6 +70,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     if (at === null) {
       setPinnedVersion(null);
       setShownVersion(null);
+      setReadyFrameSequence(null);
       return;
     }
     if (isAlreadyPinned) return;
@@ -95,7 +93,6 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   useEffect(() => {
     cancel();
     setPendingBinStart(null);
-    setPendingVersion(null);
     setFailedFrameSequence(null);
   }, [at, cancel]);
 
@@ -104,22 +101,19 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     schedule(binStart);
   }
 
-  function travelTo(binStart: number): void {
-    const needsConfirmation = isPhoneLayout && binStart !== at;
-    if (!needsConfirmation) return startTravel(binStart);
-    setPendingVersion({ binStart });
+  function travelNow(binStart: number): void {
+    cancel();
+    update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
   }
 
-  function confirmTravel(): void {
-    if (pendingVersion === null) return;
-    setPendingVersion(null);
-    startTravel(pendingVersion.binStart);
+  function travelTo(binStart: number): void {
+    if (isPhoneLayout) return travelNow(binStart);
+    startTravel(binStart);
   }
 
   function backToLive(): void {
     cancel();
     setPendingBinStart(null);
-    setPendingVersion(null);
     if (at === null) return;
     update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
   }
@@ -134,6 +128,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
 
   const requestedBinStart = pendingBinStart !== null ? pendingBinStart : at;
   const requestedBin = timeline?.bins.find((candidate) => candidate.start === requestedBinStart);
+  const isRequestedFrameReady = requestedSequence !== null && readyFrameSequence === requestedSequence;
   const isShownFailed = shownVersion !== null && shownVersion.sequence === failedFrameSequence;
 
   return {
@@ -142,13 +137,12 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     requestedBinEnd: requestedBin ? requestedBin.end : null,
     requestedSequence,
     shownVersion: at === null || isShownFailed ? null : shownVersion,
-    isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,
+    isLoading: state === VersionViewerState.Viewing && !hasFailed && !isRequestedFrameReady,
     hasFailed,
     runs,
-    pendingVersion,
     travelTo,
-    confirmTravel,
     backToLive,
     reportFailure: setFailedFrameSequence,
+    reportReady: setReadyFrameSequence,
   };
 }

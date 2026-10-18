@@ -7,16 +7,13 @@ export type SelectedHeaderSelection = { rangeLabel: string; editCount: number };
 type SelectedHeaderProps = {
   ref: Ref<HTMLDivElement>;
   selection: SelectedHeaderSelection | null;
-  hasVersion?: boolean;
-  isPhoneLayout?: boolean;
-  canViewVersion?: boolean;
-  isViewVersionDisabled?: boolean;
+  canViewVersion: boolean;
+  isViewVersionDisabled: boolean;
   onClear: () => void;
   onViewVersion: () => void;
 };
 
-export function SelectedHeader({ ref, selection, hasVersion, isPhoneLayout, onClear, onViewVersion }: SelectedHeaderProps) {
-  const canViewVersion = selection !== null && hasVersion && isPhoneLayout;
+export function SelectedHeader({ ref, selection, canViewVersion, isViewVersionDisabled, onClear, onViewVersion }: SelectedHeaderProps) {
   return (
     <div
       ref={ref}
@@ -32,7 +29,7 @@ export function SelectedHeader({ ref, selection, hasVersion, isPhoneLayout, onCl
           </p>
           <div className="flex shrink-0 items-center gap-1">
             {canViewVersion && (
-              <Button type="button" size="touch" onClick={onViewVersion}>
+              <Button type="button" size="touch" disabled={isViewVersionDisabled} onClick={onViewVersion}>
                 {VIEW_VERSION_LABEL}
               </Button>
             )}

@@ -188,13 +188,12 @@ export function Streamgraph({
   }
 
   return (
-    <div className="relative flex flex-col gap-1">
+    <div aria-busy={isLoadingVersion} className="relative flex flex-col gap-1">
       <svg
         width={width}
         height={CHART_HEIGHT}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        aria-busy={isLoadingVersion}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endPointerPress}

@@ -146,6 +146,7 @@ export function DocumentPage() {
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
+  const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
   const isDimmed = isFailed || timeTravel.isLoading;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
@@ -214,6 +215,7 @@ export function DocumentPage() {
               version={timeTravel.shownVersion}
               requestedSequence={timeTravel.requestedSequence}
               runs={timeTravel.runs}
+              onReady={timeTravel.reportReady}
               onFailed={timeTravel.reportFailure}
               onExit={timeTravel.backToLive}
             />
@@ -226,10 +228,8 @@ export function DocumentPage() {
           isOpen={isPanelOpen}
           onOpenChange={setIsPanelOpen}
           summarize={summarize}
-          pendingVersion={timeTravel.pendingVersion}
-          isLoadingVersion={timeTravel.isLoading}
+          isLoadingVersion={isLoadingRequestedVersion}
           onTravel={timeTravel.travelTo}
-          onConfirmTravel={timeTravel.confirmTravel}
           onBackToLive={timeTravel.backToLive}
         />
       </div>

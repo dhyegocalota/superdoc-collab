@@ -25,11 +25,12 @@ type VersionFrameProps = {
   version: VersionSummary | null;
   requestedSequence: number | null;
   runs: EditRunView[];
+  onReady: (sequence: number) => void;
   onFailed: (sequence: number) => void;
   onExit: () => void;
 };
 
-export function VersionFrame({ documentId, version, requestedSequence, runs, onFailed, onExit }: VersionFrameProps) {
+export function VersionFrame({ documentId, version, requestedSequence, runs, onReady, onFailed, onExit }: VersionFrameProps) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const elements = useRef(new Map<number, HTMLIFrameElement>());
   const isRequestedReady = frames.some((frame) => frame.isReady && frame.version.sequence === requestedSequence);
@@ -57,6 +58,11 @@ export function VersionFrame({ documentId, version, requestedSequence, runs, onF
       elements.current.set(sequence, element);
     };
   }
+
+  useEffect(() => {
+    if (!isRequestedReady || requestedSequence === null) return;
+    onReady(requestedSequence);
+  }, [isRequestedReady, requestedSequence]);
 
   useEffect(() => {
     if (!isRequestedReady || requestedSequence === null) return;

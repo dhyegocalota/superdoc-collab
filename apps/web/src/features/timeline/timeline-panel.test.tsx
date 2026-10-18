@@ -899,11 +899,12 @@ test('from lg selecting a versioned bin travels at once and there is no header',
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
 });
 
-test('below md the header is a direct child of the scrolling body', async () => {
+test('below md the header sits in a contents wrapper whose parent is the scrolling body', async () => {
   mockTimelineApi();
   renderPanel({ position: PanelPosition.Bottom });
   await screen.findByLabelText(/^Budget/);
-  expect(wholeDocumentHeader().parentElement).toHaveClass('grid', 'overflow-y-auto');
+  expect(wholeDocumentHeader().parentElement).toHaveClass('contents');
+  expect(wholeDocumentHeader().parentElement!.parentElement).toHaveClass('grid', 'overflow-y-auto');
 });
 
 test('from md to lg the header tops the list column', async () => {

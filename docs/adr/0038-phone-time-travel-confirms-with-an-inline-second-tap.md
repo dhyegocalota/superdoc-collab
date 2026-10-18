@@ -11,21 +11,21 @@ On every width a tap on a bin that holds a version moves the editor to that vers
 
 ## Decision
 
-Below the `lg` breakpoint the first tap on a versioned bin only selects it: the pinned header under the chart shows the time, the edit count and a "View version" button; the second tap, on that button, travels. At `lg` and up the first tap travels as today. While a version loads, on every width, a two-pixel indeterminate line sits under the version bar, the editor area dims to the same opacity the failed state uses, the selected bin is `aria-busy` and the chart ignores taps until the frame is ready. On phones the version bar with "Back to live" is pinned above the editor, 44 px high.
+Below the `lg` breakpoint selecting a bin, by pointer or by key, only selects it: the pinned header under the chart shows the time, the character count and a "View version" button for a versioned bin that is not already shown; pressing that button travels at once. At `lg` and up the first tap travels as today. While a version loads, on every width, a two-pixel indeterminate line sits under the version bar and the inner editor area dims to the same opacity the failed state uses, until the version frame is visible. Below `lg` only, the chart wrapper is `aria-busy`, the chart ignores pointer presses and View version is disabled during that wait. On phones the version bar and the line sit above the layout, outside the shared scroller, with "Back to live" at 44 px.
 
 ## Alternatives considered
 
 | Option | Pros | Cons | Why not |
 |--------|------|------|---------|
-| Inline second tap below `lg` (chosen) | the confirmation the owner asked for, no modal, one extra tap only for versions, desktop scrubbing untouched | a pending state to keep in sync with the selection | — |
+| Inline second tap below `lg` (chosen) | the confirmation the owner asked for, no modal, one extra tap only for versions, desktop scrubbing untouched | one extra tap per version on a phone | — |
 | A confirm dialog | explicit | two taps on every version on every width; a dialog protects a read-only, one-tap-reversible action | cost without benefit |
 | No confirmation, a pinned "Back to live" and the loading state only | smallest change | the owner asked for a confirmation on the phone flow | the owner's call |
 | A skeleton over the editor while loading | matches an earlier design note | hides the document the reader was on and flashes on fast loads | the dimmed editor keeps the reader's place |
 
 ## Consequences
 
-- Phone readers confirm once per version; keyboard users on desktop keep arrow-key scrubbing.
-- The chart drops taps during a load, so a fast double tap cannot queue two versions.
+- Phone readers press View version once per version; from `lg` arrow-key and pointer scrubbing are unchanged.
+- Below `lg` the chart drops pointer presses during a load and View version is disabled, so a fast double tap cannot queue two versions.
 - `prefers-reduced-motion` turns the progress pulse and the scroll animation off.
 
 ## Evidence

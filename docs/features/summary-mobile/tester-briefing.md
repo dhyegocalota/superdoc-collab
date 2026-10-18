@@ -60,6 +60,15 @@ Rework rows (the first-round rows above for the two-step, the sticky bar and the
 | `time-travel.test.tsx::a loading version dims ...` (inner editor), `::below lg the version bar sits before the layout ...`, 7fd37e0 | the dim sat on the area and the bar was sticky inside the scroller | f47b5d2 |
 | `use-reveal-selected.test.ts::a keyboard selection never scrolls`, `::a change after the pointer was released ...`, b-commit "only a pointer press reveals the header, red" | the hook scrolled on keys out of view and after release | 59e8f2a |
 
+Reviewer-round rows:
+
+| Test | Red before the change because | Green after because |
+|------|--------------------------------|---------------------|
+| `selected-header.test.tsx`, `timeline-panel.test.tsx` (`10 characters`, `12 characters`), e774709 | the header counted "edits" with a new unit | d800802 uses the existing character count |
+| `time-travel.test.tsx::below lg the progress line follows the bar outside the dimmed editor area`, e774709 | the line sat inside the editor area | 4f213db |
+| `timeline-panel.test.tsx::an at inside the selected bin offers no View version`, be8907c | the check compared `start` with `at` | 4d0d339 compares bin indexes |
+| `time-travel.test.tsx::an at beyond the last bin never dims the editor or shows a progress line`, be8907c | the dim followed `isLoading` alone | 474df3f needs a requested version |
+
 The keyboard cases of `use-reveal-selected.test.ts` were corrected in f9444b4: the red commit dispatched the key before the hook mounted, so its listener never saw it.
 
 ## Hypotheses to attack

@@ -42,6 +42,8 @@ One developer, steps in order: the header and reveal (1-3), the two-step (4), th
 - [x] **R5:** reveal on pointer selections only; header placement from `md` to `lg` at the top of the list column; the header's parent is the scroller below `md`. — evidence: header placement in 37037d3/cc731fa; reveal red (see log: test(summary-mobile): only a pointer press reveals the header, red), green 59e8f2a
 - [x] **R6:** E2E helper in `e2e/timeline.ts`; tester briefing and this plan follow. — evidence: E2E helper and spec updated, `pnpm typecheck` green; briefing rewritten
 
+- [x] **R7 (reviewer findings):** header counts characters with the existing helper; the progress line sits right under the bar; View version by bin index; dim and progress line need a requested version; one `useIsPhoneLayout`, one `useMediaQuery`, one `writeAt`; the E2E proves the reveal and the sticky header against the scroller — evidence: red e774709, green d800802 and 4f213db; red be8907c, green 4d0d339 and 474df3f; refactors d40c0b6, 65213dc, 8b61460; E2E in the commit after 8b61460
+
 ## Failure modes
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |

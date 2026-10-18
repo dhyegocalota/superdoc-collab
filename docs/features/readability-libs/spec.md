@@ -1,6 +1,6 @@
 # Readability in the libraries
 
-**Status:** Building
+**Status:** Built, awaiting review
 **Lane:** product
 **Tier:** 🟢 small. No new behaviour, no schema change and nothing the user sees.
 **Owner approval:** approved 2026-10-18
@@ -51,4 +51,10 @@ Vitest only. Every item runs the unit files it touches; the lane ends with `pnpm
 
 ## Known gaps
 
-Filled in by the sweep (plan step 5).
+The sweep found `libs/history/src` and `libs/types/src` already close to the conventions: no `??` fallback, no `else` left, no nested `if`, no function over 40 lines, and no positional multi-parameter function except sort comparators. What remains, left on purpose:
+
+- `binStartContaining` keeps two non-null assertions. With `noUncheckedIndexedAccess` the indexed read is `number | undefined`, and the search never leaves the array, so a throwing branch would be dead code.
+- `edit-events.ts` and `agent-actions.ts` keep presence compounds (`!beforeState && afterState`, `row.first === null || row.last === null`) unnamed, because a named alias would stop TypeScript narrowing the values the next line reads.
+- `binStartContaining` and `occupiedBinStarts` keep their `while` loops. Both stop on a computed condition, and an array method would need the bin count in advance.
+- About twenty exported types and the three read-model tables have no importer outside their file. They are left because un-exporting a type that appears in an exported signature hurts readers of the declaration.
+- `ReadModel.commit` is 41 lines, one over the guideline, and is one transaction body.

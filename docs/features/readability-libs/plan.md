@@ -18,11 +18,11 @@ One developer, steps in order. Step 2 comes before its call sites.
 
 ## Steps
 
-- [ ] **Step 1:** remove the `else` and the non-null assertion in `binStartContaining`; the runs and bins tests pin it.
-- [ ] **Step 2:** `isBlank` test first, then `isBlank`, then the five call sites.
-- [ ] **Step 3:** un-export `runMatchesTerm` and `PASSWORD_MIN_LENGTH` after a repository-wide grep.
-- [ ] **Step 4:** examine the two `transitionsOf` helpers; they differ, so nothing is shared and the spec says why.
-- [ ] **Step 5:** sweep the libraries for the conventions; fix the clear cases and list the rest in the spec.
+- [x] **Step 1:** remove the `else` and the non-null assertion in `binStartContaining`; the runs and bins tests pin it.
+- [x] **Step 2:** `isBlank` test first, then `isBlank`, then the five call sites.
+- [x] **Step 3:** un-export `runMatchesTerm` and `PASSWORD_MIN_LENGTH` after a repository-wide grep.
+- [x] **Step 4:** examine the two `transitionsOf` helpers; they differ, so nothing is shared and the spec says why.
+- [x] **Step 5:** sweep the libraries for the conventions; fix the clear cases and list the rest in the spec.
 
 ## Failure modes
 

@@ -6,7 +6,8 @@ Every "it works" below is a hypothesis for the tester to attack, not a result.
 
 - The page cannot read the takeover close: `superdoc.socket` is only ever `null` in SuperDoc 2.23.0 (`superdoc.es.js:46416`) and the provider runs in the collaboration worker. ADR 0036 takes the members poll instead.
 - Server: `GET /api/documents/:id/members` accepts `attempt` and `epoch` (parsed by the shared `claimedTicketOf`, moved out of `collaboration-server.ts`) and answers `isAttemptSuperseded`. The rule lives in `DocumentRuntime.isAttemptSuperseded`: committed room plus another epoch is false, otherwise `!CreatorReservations.mayWrite`.
-- Web: `fetchMembers` sends the opened document's creator ticket; `useMembers` returns `isAttemptSuperseded`; `DocumentPage` reports `SUPERSEDED_REPORT` through `reportTransport` when it turns true. The banner may show before the first sync.
+- Web: `fetchMembers` sends the opened document's creator ticket; `useMembers` returns `isAttemptSuperseded`; `DocumentPage` reports `SUPERSEDED_REPORT` through `reportTransport` when it turns true. The banner may show before the first sync, and the editor failure notice (`EDITOR_FAILED_MESSAGE`) is hidden while the reason is Superseded (`isSuperseded` prop of `SuperDocEditor`), because a later SuperDoc failure would otherwise ask to reload under a banner that offers no Reload.
+- The members query key now ends with the ticket's attempt and uses `keepPreviousData`: a new ticket (in-app Reload) fetches at once, and an answer fetched for the old ticket is never credited to the new one (`isPlaceholderData` forces `isAttemptSuperseded` false).
 - Copy: reason "This document was opened elsewhere."; warning "Download first to keep your edits."; action "Back to documents" (navigates to the documents list). Reload is not offered for this reason.
 - `connection-copy.test.ts`: the 40-character reason cap is unchanged: the neutral copy is 35 characters.
 - E2E: `SUPERSEDED_SIGNAL_TIMEOUT_MS = 15_000` in `e2e/room-admission.spec.ts`; the holder-reopens test waits for the first page's editor and a frame before the second open, then expects the Failed banner with the Superseded copy and the Back to documents button.
@@ -30,6 +31,8 @@ The E2E spec is run by the lead's gate; the developer did not run it.
 | `61fe56e` | `use-members.test.ts`: request carries the ticket; `isAttemptSuperseded` follows the answer (2 tests) | `AssertionError: expected [ null, null ] to deeply equal [ '2', 'epoch-1' ]`; `AssertionError: expected false to be true` | `0d9117b` |
 | `61fe56e` | `connection-banner.test.tsx`: superseded names the reason and offers the way back | `expect(element).not.toBeInTheDocument()` (the Reload button was still rendered) | `0d9117b` |
 | `61fe56e` | `document-page.test.tsx`: poll carries the opened ticket; a superseded answer fails the page | `AssertionError: expected [ null, null ] to deeply equal [ '2', 'epoch-1' ]`; `Unable to find role="alert"` (twice) | `0d9117b` |
+| `bf5f700` | `use-members.test.ts`: a new ticket fetches at once and the old answer is not credited | `expected "fetch" to be called 2 times, but got 1 times` | review-fix green commit |
+| `bf5f700` | `document-page.test.tsx`: a failure reported before ready after the superseded answer shows no editor notice | `expect(element).not.toBeInTheDocument()` (the notice was rendered) | review-fix green commit |
 
 Pins (green when they landed): the six "unclaimed ticket is not superseded" rows in `documents-routes.test.ts`, and "a members poll that does not report a takeover leaves the page online" in `document-page.test.tsx`.
 

@@ -218,6 +218,7 @@ test('a rejected file fetch shows the load error instead of an empty pane', asyn
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_LOAD_ERROR_MESSAGE);
   expect(SuperDoc).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toHaveAccessibleDescription(DOCUMENT_LOAD_ERROR_MESSAGE);
 });
 
 test('an editor exception shows the editor failure', async () => {

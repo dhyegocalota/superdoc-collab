@@ -24,6 +24,8 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | An async upgrade handler leaves the raw socket with no 'error' listener | [2026-10-16-async-upgrade-handlers-drop-the-socket-error-listener.md](2026-10-16-async-upgrade-handlers-drop-the-socket-error-listener.md) | 2026-10-16 |
 | 2026-10-17 | The SDK opens a document with a `collaboration` block, no error is raised, and the room on the server stays empty | [2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md](2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md) | 2026-10-17 |
 | 2026-10-17 | A tracked edit through a cached SDK session returns ok and nothing reaches the update log | [2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md](2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md) | 2026-10-17 |
+| 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-17 |
+| 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-17 |
 
 ### history
 
@@ -43,6 +45,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A spec that reads a call counter off the fake upstream passes alone and fails as soon as its file runs in parallel | [2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md](2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md) | 2026-10-17 |
 | 2026-10-17 | Text typed keystroke by keystroke can land in two runs | [2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md](2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md) | 2026-10-17 |
 | 2026-10-17 | `shouldAdvanceTime` lets real lag move the fake clock, so a timer test passes alone and fails under load | [2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md](2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md) | 2026-10-17 |
+| 2026-10-17 | A banner whose copy passes its length pins still wraps to more lines than the design allows on a phone | [2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md](2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md) | 2026-10-17 |
 
 ### tooling
 
@@ -52,8 +55,8 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | A red-first claim cannot be verified when test and code share a commit | [2026-10-16-commit-the-failing-test-first.md](2026-10-16-commit-the-failing-test-first.md) | 2026-10-16 |
 | 2026-10-16 | A commit from one lane sweeps in files another lane staged | [2026-10-16-parallel-lanes-share-one-git-index.md](2026-10-16-parallel-lanes-share-one-git-index.md) | 2026-10-17 |
 | 2026-10-16 | A worker_threads exception with no 'error' listener exits the server | [2026-10-16-worker-threads-need-an-error-listener.md](2026-10-16-worker-threads-need-an-error-listener.md) | 2026-10-16 |
-| 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-16 |
-| 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-16 |
+| 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-17 |
+| 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-17 |
 | 2026-10-16 | AI SDK 7 deprecates generateObject; structured output is generateText + Output.object | [2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md](2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md) | 2026-10-16 |
 | 2026-10-17 | A repository folder named `deploy/` breaks `pnpm deploy` inside the image build | [2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md](2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md) | 2026-10-17 |
 | 2026-10-16 | A red-first commit must fail on the named assertion, not on a missing module | [2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md](2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md) | 2026-10-17 |
@@ -72,3 +75,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | `Intl.supportedValuesOf('timeZone')` does not list `UTC` | [2026-10-17-intl-supported-time-zones-omit-utc.md](2026-10-17-intl-supported-time-zones-omit-utc.md) | 2026-10-17 |
 | 2026-10-17 | A session-start hook runs whatever a repository file contains when bash compares it with -ge | [2026-10-17-a-session-start-hook-runs-whatever-a-repository-file-contains.md](2026-10-17-a-session-start-hook-runs-whatever-a-repository-file-contains.md) | 2026-10-17 |
 | 2026-10-17 | A `pnpm <name>` step is green in under a second and prints nothing the script would print | [2026-10-17-a-script-named-like-a-pnpm-built-in-never-runs.md](2026-10-17-a-script-named-like-a-pnpm-built-in-never-runs.md) | 2026-10-17 |
+| 2026-10-17 | Sign in after an ended session lands on the documents list instead of the document | [2026-10-17-a-signed-out-landing-that-navigates-to-the-path-drops-the-query.md](2026-10-17-a-signed-out-landing-that-navigates-to-the-path-drops-the-query.md) | 2026-10-17 |
+| 2026-10-17 | A query refetch fires more requests than the one query named | [2026-10-17-refetchqueries-without-exact-refetches-every-query-under-the-prefix.md](2026-10-17-refetchqueries-without-exact-refetches-every-query-under-the-prefix.md) | 2026-10-17 |
+| 2026-10-17 | `pnpm test:e2e -- <file>` runs every spec and holds the E2E ports | [2026-10-17-pnpm-test-e2e-with-a-file-argument-runs-the-whole-suite.md](2026-10-17-pnpm-test-e2e-with-a-file-argument-runs-the-whole-suite.md) | 2026-10-17 |

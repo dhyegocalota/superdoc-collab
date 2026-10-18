@@ -532,3 +532,9 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - `TopicsService.regroup` goes through the `topics:<id>` job key: it starts the job when none runs and awaits `InsightsJobRunner.settled(key)` either way, so an editor's Summarize and an automatic recompute share one model call. Test: `topics-service.test.ts::a regroup awaits the topics job that is already running and the model is called once` (red: 3 calls).
 - Side effect: the regroup now holds a second process-wide job slot while the Summarize job waits on it, so a full worker answers the regroup busy sooner than before.
 - `SELECTION_SUMMARY_TOO_SOON_MESSAGE` deleted from `libs/types` (no consumer).
+
+### G4 review fixes (red 9b07299)
+
+- A failed regroup ends the job: no summary or sentence call follows, so a failing provider costs one call per click and no summary is written against stale topics. Test: `summarize-service.test.ts::a failed regroup keeps the previous ready topics` (red: `[topics, summary, sentences]` instead of `[topics]`).
+- The regroup no longer starts its own `topics:` job, so this replaces the earlier note about a second slot: a Summarize now holds one slot. When a topics job already runs, the regroup awaits it through `InsightsJobRunner.settled`; otherwise it computes directly inside the `summarize:` job (the Pending status keeps `ensure` and `onTimelineRead` out). Tests: `summarize-service.test.ts::a Summarize with a regroup holds one process-wide slot` (red: the topics key was running) and `topics-service.test.ts::a regroup awaits the topics job that is already running and the model is called once`.
+- `SelectionSummariesService.setGroupingFailure` became `markGroupingFailed` and `clearGroupingFailure`.

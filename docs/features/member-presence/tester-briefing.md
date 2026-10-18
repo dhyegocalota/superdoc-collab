@@ -4,7 +4,7 @@ Written by developer-ca. The developer did not run `test-plan.md` and does not d
 
 ## What changed
 
-- `members.tsx` invalidates the members query, debounced and without cancelling a fetch, when the set of peers with a rendered caret changes, names every member button with `memberLabel` and describes it by the jump text or the reason; `editor-header.tsx` passes `documentId`.
+- `members.tsx` invalidates the members query, debounced and without cancelling a fetch, when SuperDoc's `awareness-update` reports a peer added or removed, names every member button with `memberLabel` and describes it by the jump text or the reason; `editor-header.tsx` passes `documentId`.
 - `timeline-notices.tsx` shows the empty copy only when there are no bins, the projection is not behind and the log is not ahead. `superdoc-editor.tsx` reports `onEditorUpdate`, `use-last-edit-at.ts` records it at most once per second, `document-page.tsx` passes it to `timeline-panel.tsx`, which compares it with the timeline query's update time.
 
 ## How to run
@@ -19,6 +19,7 @@ pnpm typecheck
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
 | `members.test.tsx::a peer caret leaving refreshes the members query`, c637a309 | `expected "invalidateQueries" to be called with arguments: [ { queryKey: [ 'documents', …(2) ] } ]`, number of calls 0 | 24f8cbfa |
+| `members.test.tsx::a peer with no rendered caret leaving refreshes the members query`, 029e19b8 | `expected "invalidateQueries" to be called once with arguments` (0 calls) | c71b56e8 |
 | `members.test.tsx::a burst of presence changes during a members fetch invalidates once without cancelling it`, 55b15f7c | `expected "invalidateQueries" to be called 1 times, but got 10 times` | 273474bc |
 | `timeline-notices.test.tsx::the empty copy stays hidden while the log is ahead of the last timeline answer`, 784fc116 | `expected document not to contain element, found <p` | 5627e319 |
 | `timeline-panel.test.tsx::a document edited after the last timeline answer does not say it has no edits`, 39beea78 | `expected document not to contain element, found <p` | 573111fd |

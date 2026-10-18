@@ -36,4 +36,4 @@ pnpm typecheck
 
 - The five-minute window is not waited out in any test.
 - A session that ends on the server with a live socket is noticed on focus, reload or a transport drop, not by the members poll (ADR 0032).
-- For the owner: a sign-out in another tab leaves an open editor writable as the old user until a focus or five minutes (the server never closes sockets on sign-out; the root fix is a server-side lane). Option B, a members 401 invalidating the session, would redirect mid-edit.
+- For the owner: a sign-out in another tab leaves an open editor writable as the old user until the window gets focus or the session is next refetched (the server never closes sockets on sign-out; the root fix is a server-side lane). Option B, a members 401 invalidating the session, would redirect mid-edit.

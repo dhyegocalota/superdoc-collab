@@ -43,7 +43,7 @@
 
 ### Known gaps, for the owner
 
-- A sign-out in another tab leaves an open editor writable as the old user until a focus or five minutes; the server never closes sockets on sign-out, so the root fix is a server-side lane.
+- A sign-out in another tab leaves an open editor writable as the old user until the window gets focus or the session is next refetched; the server never closes sockets on sign-out, so the root fix is a server-side lane.
 - Option B: a members 401 invalidating the session would send the user to sign-in, but it would redirect mid-edit away from a document whose socket still works.
 
 ## Open questions → answers

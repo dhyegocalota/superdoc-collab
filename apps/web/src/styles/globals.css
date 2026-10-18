@@ -37,6 +37,9 @@
   --author-6: #b82e39;
   --sd-comment-highlight-internal: var(--inserted);
   --sd-comment-highlight-external: var(--inserted);
+}
+
+html:root {
   --sd-ui-font-family: var(--font-sans);
   --sd-ui-text: var(--foreground);
   --sd-ui-text-muted: var(--muted-foreground);

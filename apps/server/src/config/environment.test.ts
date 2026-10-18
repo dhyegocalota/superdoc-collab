@@ -1,3 +1,4 @@
+import { OPEN_UNCOMMITTED_PER_MINUTE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidLlmLimitError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
@@ -28,6 +29,7 @@ describe('loadEnvironment', () => {
       databaseDirectory: '/tmp/data',
       trustProxy: false,
       llm: noLlm,
+      openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -90,6 +92,16 @@ describe('loadEnvironment', () => {
     ['LLM_MAX_CALLS_PER_HOUR', '-3'],
     ['LLM_MAX_CALLS_PER_HOUR', '1.5'],
   ])('fails startup when %s is %s', (name, value) => {
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidLlmLimitError({ name, value }));
+  });
+  test('reads the open budget when it is set', () => {
+    expect(loadEnvironment({ ...complete, OPEN_UNCOMMITTED_PER_MINUTE: '5000' }).openUncommittedPerMinute).toBe(5000);
+  });
+  test('treats an empty open budget as unset', () => {
+    expect(loadEnvironment({ ...complete, OPEN_UNCOMMITTED_PER_MINUTE: '' }).openUncommittedPerMinute).toBe(OPEN_UNCOMMITTED_PER_MINUTE);
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when OPEN_UNCOMMITTED_PER_MINUTE is %s', (value) => {
+    const name = 'OPEN_UNCOMMITTED_PER_MINUTE';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidLlmLimitError({ name, value }));
   });
 });

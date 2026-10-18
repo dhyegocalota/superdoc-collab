@@ -1,4 +1,4 @@
-import { presentOrNull } from '@superdoc-collab/types';
+import { OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull } from '@superdoc-collab/types';
 import { z } from 'zod';
 
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
@@ -63,6 +63,7 @@ export type Environment = {
   databaseDirectory: string;
   trustProxy: boolean;
   llm: LlmSettings;
+  openUncommittedPerMinute: number;
 };
 
 function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
@@ -101,5 +102,10 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
     databaseDirectory: parsed.DATABASE_DIR,
     trustProxy: parsed.TRUST_PROXY === BooleanFlag.True,
     llm: loadLlmSettings(source),
+    openUncommittedPerMinute: limitFrom({
+      name: 'OPEN_UNCOMMITTED_PER_MINUTE',
+      value: source.OPEN_UNCOMMITTED_PER_MINUTE,
+      fallback: OPEN_UNCOMMITTED_PER_MINUTE,
+    }),
   };
 }

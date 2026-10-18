@@ -6,14 +6,7 @@ import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import {
-  ApiPath,
-  CREATOR_RESERVATION_MS,
-  HttpStatus,
-  MINUTE_MS,
-  OPEN_UNCOMMITTED_PER_MINUTE,
-  TOPICS_INTERRUPTED_MESSAGE,
-} from '@superdoc-collab/types';
+import { ApiPath, CREATOR_RESERVATION_MS, HttpStatus, MINUTE_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
@@ -157,7 +150,7 @@ function createServices({
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now });
   const bootstrap = createBootstrapState({ updateLog, readModel });
-  const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: OPEN_UNCOMMITTED_PER_MINUTE, now });
+  const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
   const hocuspocus = createCollaborationServer({
     auth,

@@ -1,7 +1,19 @@
 import { HISTORY_CATCHING_UP_MESSAGE, HttpStatus } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { requestFailedMessage } from '@/lib/api';
-import { bandAriaLabel, editDeltaLabel, EditUnit, importedAuthorLabel, PANEL_POSITION_LABELS, topicCountLabel } from './timeline-copy';
+import {
+  bandAriaLabel,
+  CLEAR_SELECTION_LABEL,
+  editDeltaLabel,
+  EditUnit,
+  importedAuthorLabel,
+  PANEL_POSITION_LABELS,
+  selectedEditCount,
+  SHOWING_WHOLE_DOCUMENT_MESSAGE,
+  topicCountLabel,
+  VIEW_VERSION_LABEL,
+  viewVersionPrompt,
+} from './timeline-copy';
 import { PanelPosition } from './use-panel-position';
 
 test.each([
@@ -33,4 +45,12 @@ test('a topic count is singular for one and plural otherwise', () => {
 test('an imported author names the DOCX and each panel position has a label', () => {
   expect(importedAuthorLabel('Chris Crawford')).toBe('Chris Crawford, imported from the DOCX');
   expect(Object.values(PanelPosition).map((position) => PANEL_POSITION_LABELS[position])).toEqual(['Bottom', 'Side']);
+});
+
+test('the selected header copy reads the whole document, counts edits and prompts for a version', () => {
+  expect(SHOWING_WHOLE_DOCUMENT_MESSAGE).toBe('Showing the whole document');
+  expect(CLEAR_SELECTION_LABEL).toBe('Clear selection');
+  expect(VIEW_VERSION_LABEL).toBe('View version');
+  expect([0, 1, 12].map(selectedEditCount)).toEqual(['0 edits', '1 edit', '12 edits']);
+  expect(viewVersionPrompt('14:05')).toBe('View version from 14:05?');
 });

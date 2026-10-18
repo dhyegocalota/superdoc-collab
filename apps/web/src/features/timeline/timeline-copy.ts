@@ -14,6 +14,9 @@ export const NO_EDITS_IN_BIN_MESSAGE = 'No edits in this period';
 export const STREAMGRAPH_TITLE = 'Edits over time by topic';
 export const BACK_TO_LIVE_LABEL = 'Back to live';
 export const LOADING_VERSION_MESSAGE = 'Loading this version…';
+export const SHOWING_WHOLE_DOCUMENT_MESSAGE = '';
+export const CLEAR_SELECTION_LABEL = '';
+export const VIEW_VERSION_LABEL = '';
 export const VERSION_FRAME_TITLE = 'Document version';
 export const RESIZE_PANEL_LABEL = 'Resize edits panel';
 export const PANEL_POSITION_LABEL = 'Panel position';
@@ -58,11 +61,13 @@ const SINGLE_COUNT = 1;
 export enum EditUnit {
   Word = 'word',
   Character = 'character',
+  Edit = 'edit',
 }
 
 const UNIT_LABELS: Record<EditUnit, { one: string; many: string }> = {
   [EditUnit.Word]: { one: 'word', many: 'words' },
   [EditUnit.Character]: { one: 'character', many: 'characters' },
+  [EditUnit.Edit]: { one: 'edit', many: 'edits' },
 };
 
 export function bandAriaLabel({ name, volume }: { name: string; volume: number }): string {
@@ -110,4 +115,12 @@ export function topicCountLabel(count: number): string {
 
 export function importedAuthorLabel(name: string): string {
   return `${name}, imported from the DOCX`;
+}
+
+export function selectedEditCount(count: number): string {
+  throw new Error('selectedEditCount is not implemented');
+}
+
+export function viewVersionPrompt(time: string): string {
+  throw new Error('viewVersionPrompt is not implemented');
 }

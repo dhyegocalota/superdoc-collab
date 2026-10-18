@@ -2,11 +2,13 @@ import {
   ApiPath,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
+  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_AWARENESS_IDS_REASON,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
   UNAUTHORIZED_CLOSE_CODE,
@@ -26,7 +28,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
 import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
-import { awarenessFrame } from '../testing/socket-frames';
+import { awarenessFrame, awarenessFrameClaiming } from '../testing/socket-frames';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
@@ -507,4 +509,39 @@ test('the awareness frame past its own cap closes the socket with 1008 and nothi
   expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
   expect(received).toHaveBeenCalledTimes(MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND + 1);
   await new Promise((resolve) => httpServer.close(resolve));
+});
+
+async function sendClaimingFrame({ clientIds }: { clientIds: number[] }) {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  let closedSocket: { code: number; reason: string } | null = null;
+  void client.closed.then((event) => (closedSocket = event));
+  const roomName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
+  const webSocket = client.provider.configuration.websocketProvider.webSocket!;
+  webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName, clientIds })));
+  return { server, client, closedSocket: () => closedSocket, webSocket, roomName };
+}
+
+const CLAIMED_ID_BASE = 1_000_000;
+
+test('an awareness frame claiming one client id more than the connection cap closes the socket with 1008', async () => {
+  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 }, (_, index) => CLAIMED_ID_BASE + index);
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
+  await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+  client.close();
+  await server.stop();
+});
+
+test('an awareness frame claiming exactly the connection cap of client ids keeps the socket open', async () => {
+  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION }, (_, index) => CLAIMED_ID_BASE + index);
+  const { server, client, closedSocket, webSocket } = await sendClaimingFrame({ clientIds });
+  await expect
+    .poll(() =>
+      [...server.services.hocuspocus.documents.values()].some((document) => document.awareness.getStates().size >= clientIds.length),
+    )
+    .toBe(true);
+  expect(closedSocket()).toBeNull();
+  expect(webSocket.readyState).toBe(WebSocket.OPEN);
+  client.close();
+  await server.stop();
 });

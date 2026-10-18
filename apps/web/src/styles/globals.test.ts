@@ -74,7 +74,13 @@ test('.topic-tint paints the topic hue at the tint lightness', () => {
   );
 });
 
-test('SuperDoc chrome variables point at our tokens', () => {
-  const mapped = Object.fromEntries(Object.keys(SUPERDOC_VARIABLES).map((name) => [name, declarationOf({ block: rootBlock, name })]));
+test('SuperDoc chrome variables point at our tokens on html:root, which beats the SuperDoc :root rule', () => {
+  const superdocBlock = blockOf('html:root');
+  const mapped = Object.fromEntries(Object.keys(SUPERDOC_VARIABLES).map((name) => [name, declarationOf({ block: superdocBlock, name })]));
   expect(mapped).toEqual(SUPERDOC_VARIABLES);
+});
+
+test('no SuperDoc variable stays on the plain :root rule', () => {
+  const stayedOnRoot = Object.keys(SUPERDOC_VARIABLES).filter((name) => declarationOf({ block: rootBlock, name }) !== null);
+  expect(stayedOnRoot).toEqual([]);
 });

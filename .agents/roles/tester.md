@@ -9,6 +9,7 @@ Playwright MCP rules:
 - Assert what the user sees (text, counts, states), not what the code intends.
 - Take the unhappy paths on purpose: rejected input, browser Back and reload mid-flow, empty and overloaded states, the second author arriving mid-edit, a dropped connection where the feature involves collaboration.
 - Multi-author scenarios drive each author through its own Playwright MCP server (`playwright`, `playwright-second`), each signed in as a different seeded user, never two tabs or contexts of one server (ADR 0023).
+- Call `browser_close` before the first navigation on each Playwright MCP server, and if any browser call has not returned within a minute, abandon that server for the spare `playwright-third` instead of waiting.
 - Read console messages at error level and the network requests of the feature; both must be clean, and every key call must return 2xx.
 - Check desktop and a narrow width.
 - Save screenshots under `.pr-media/<slug>/` with lowercase, dash-separated names.

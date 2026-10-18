@@ -1,4 +1,5 @@
 import { DocumentRole, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
@@ -17,9 +18,11 @@ import {
   SELF_MEMBER_REASON,
 } from './editor-copy';
 import { initialsOf } from '@/lib/initials';
+import { membersQueryKey } from './editor-api';
 import { Members } from './members';
 
 const CURRENT_USER_ID = 'u1';
+const DOCUMENT_ID = 'doc-1';
 const JUMP_FAILED_MS = 3000;
 const superdoc = {} as SuperDoc;
 const scrollIntoView = vi.fn();
@@ -43,6 +46,7 @@ const bruno = memberNamed({ id: 'u2', name: 'Bruno', online: true, colorSlot: 4 
 const clara = memberNamed({ id: 'u3', name: 'Clara', online: false, colorSlot: 5 });
 const dario = memberNamed({ id: 'u4', name: 'Dario', online: true, colorSlot: 6 });
 
+let queryClient: QueryClient;
 let editor: HTMLElement;
 let overlay: HTMLElement;
 
@@ -64,13 +68,16 @@ function addCaret({ name, color }: { name: string; color: string }): void {
 
 function renderMembers({ members, isPastVersion = false }: { members: DocumentMember[]; isPastVersion?: boolean }) {
   return render(
-    <Members
-      members={members}
-      currentUserId={CURRENT_USER_ID}
-      superdoc={superdoc}
-      editorContainer={editor}
-      isPastVersion={isPastVersion}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <Members
+        documentId={DOCUMENT_ID}
+        members={members}
+        currentUserId={CURRENT_USER_ID}
+        superdoc={superdoc}
+        editorContainer={editor}
+        isPastVersion={isPastVersion}
+      />
+    </QueryClientProvider>,
   );
 }
 
@@ -81,6 +88,7 @@ function manyMembers(count: number): DocumentMember[] {
 }
 
 beforeEach(() => {
+  queryClient = new QueryClient();
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   installAuthorPalette();
   editor = document.createElement('div');
@@ -101,6 +109,17 @@ test('the avatar swatch of a member uses the slot the server assigned, not the i
   renderMembers({ members: [ana, bruno] });
   expect(screen.getByText(initialsOf('Bruno'))).toHaveClass('bg-author-4');
   expect(screen.getByText(initialsOf('Ana'))).toHaveClass('bg-author-1');
+});
+
+test('a peer caret leaving refreshes the members query', async () => {
+  addCaret({ name: 'Bruno', color: colorOf(bruno) });
+  renderMembers({ members: [ana, bruno] });
+  await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  await act(async () => {
+    editor.replaceChildren();
+  });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) });
 });
 
 test('a member with a live position is a button named Go to Bruno’s cursor', async () => {

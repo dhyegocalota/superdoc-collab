@@ -131,12 +131,14 @@ function MembersMenu({ states, onJump }: { states: JumpState[]; onJump: (member:
 }
 
 export function Members({
+  documentId,
   members,
   currentUserId,
   superdoc,
   editorContainer,
   isPastVersion,
 }: {
+  documentId: string;
   members: DocumentMember[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;

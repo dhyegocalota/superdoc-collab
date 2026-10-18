@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
 
@@ -48,7 +49,8 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
   '--sd-ui-tooltip-text': 'var(--popover-foreground)',
   '--sd-ui-action-text': 'var(--primary-foreground)',
   '--sd-ui-comments-input-bg': 'var(--card)',
-  '--sd-ui-shadow': 'var(--shadow-popover)',
+  '--sd-ui-comments-tag-bg': 'var(--muted)',
+  '--sd-ui-disabled-bg': 'var(--muted)',
   '--sd-ui-dropdown-shadow': 'var(--shadow-popover)',
   '--sd-ui-menu-shadow': 'var(--shadow-popover)',
   '--sd-ui-tooltip-shadow': 'var(--shadow-popover)',
@@ -58,7 +60,7 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
 };
 const SHADOW_BY_THEME = { light: '0 8px 24px oklch(0 0 0 / 0.16)', dark: '0 4px 16px oklch(0 0 0 / 0.35)' };
 const PAPER_FOREGROUND = 'oklch(0.145 0 0)';
-const ACTIVE_BY_THEME = { light: 'oklch(0.92 0 0)', dark: 'oklch(0.37 0 0)' };
+const ACTIVE_BY_THEME = { light: 'oklch(0.86 0 0)', dark: 'oklch(0.37 0 0)' };
 const CARET_SELECTOR = "[data-v2-local-selection-caret='true']";
 
 function blockOf(selector: string): string {
@@ -181,7 +183,7 @@ test('--paper-foreground is oklch(0.145 0 0) in :root and .dark', () => {
   expect(declarationOf({ block: darkBlock, name: '--paper-foreground' })).toBe(PAPER_FOREGROUND);
 });
 
-test('--active is oklch(0.92 0 0) in light and oklch(0.37 0 0) in dark', () => {
+test('--active is oklch(0.86 0 0) in light and oklch(0.37 0 0) in dark', () => {
   expect(declarationOf({ block: rootBlock, name: '--active' })).toBe(ACTIVE_BY_THEME.light);
   expect(declarationOf({ block: darkBlock, name: '--active' })).toBe(ACTIVE_BY_THEME.dark);
 });
@@ -209,4 +211,19 @@ test('--foreground on --active reaches AA in both themes', () => {
   const darkForeground = declarationOf({ block: darkBlock, name: '--foreground' })!;
   expect(grayContrast({ text: lightForeground, surface: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
   expect(grayContrast({ text: darkForeground, surface: ACTIVE_BY_THEME.dark })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+});
+
+const MINIMUM_ACTIVE_CONTRAST = 1.5;
+
+test('--active stays distinguishable from --background in both themes', () => {
+  const lightBackground = declarationOf({ block: rootBlock, name: '--background' })!;
+  const darkBackground = declarationOf({ block: darkBlock, name: '--background' })!;
+  expect(grayContrast({ text: lightBackground, surface: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+  expect(grayContrast({ text: ACTIVE_BY_THEME.dark, surface: darkBackground })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+});
+
+test('every mapped SuperDoc variable is declared or consumed in the installed SuperDoc stylesheet', () => {
+  const superdocStylesheet = readFileSync(createRequire(import.meta.url).resolve('superdoc/style.css'), 'utf8');
+  const undeclared = Object.keys(SUPERDOC_VARIABLES).filter((name) => !new RegExp(`${name}[:,)]`).test(superdocStylesheet));
+  expect(undeclared).toEqual([]);
 });

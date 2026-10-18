@@ -41,6 +41,9 @@ const LIVE_TIMEOUT_MS = 30_000;
 const EDITOR_TEST_ID = 'document-editor';
 const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
+const LONG_TITLE_PREFIX =
+  'Quarterly operating plan with every regional hiring forecast and the full budget review for each office across the whole company next year';
+const TITLE_LINE_CLAMP = '2';
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
 
 function uniqueFileName(prefix: string): string {
@@ -181,4 +184,28 @@ test('the Download button exports the live document', async ({ browser }) => {
   const download = ana.page.waitForEvent('download');
   await downloadButton(ana.page).click();
   expect((await download).suggestedFilename()).toBe(fileName);
+});
+
+test('the list never scrolls sideways at 375 and clamps a long title to two lines', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const fileName = uniqueFileName(LONG_TITLE_PREFIX);
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
+  await ana.page.setViewportSize(NARROW_VIEWPORT);
+  await ana.page.goto(AppRoute.Documents);
+  const titleLink = ana.page.getByRole('link', { name: titleOf(fileName) });
+  const titleText = titleLink.locator('span');
+  await expect(titleLink).toBeVisible();
+  await expect(titleText).toHaveCSS('-webkit-line-clamp', TITLE_LINE_CLAMP);
+  await expect.poll(() => titleText.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      ana.page
+        .getByRole('list')
+        .first()
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    )
+    .toBeLessThanOrEqual(0);
+  await expect
+    .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+    .toBeLessThanOrEqual(0);
 });

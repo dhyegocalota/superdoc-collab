@@ -11,12 +11,13 @@ import {
 } from '@superdoc-collab/types';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
+import { stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
 import { LIBRARY_PROMPTS, USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/connected-apps-copy';
@@ -65,6 +66,8 @@ function headersOf(table: HTMLElement): (string | null)[] {
     .getAllByRole('columnheader')
     .map((header) => header.textContent);
 }
+
+beforeEach(() => stubViewportWidth(WIDE_VIEWPORT_WIDTH));
 
 afterEach(() => vi.restoreAllMocks());
 

@@ -108,7 +108,7 @@ const PRINT_TIMEOUT_MS = 60_000;
 const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
 const LONG_DOCUMENT_PARAGRAPH_COUNT = 60;
 const LONG_DOCUMENT_MIN_PAGES = 4;
-const LONG_DOCUMENT_FIRST_LINE = 'Opening line of the long plan.';
+const LONG_DOCUMENT_FIRST_LINE = `${BUDGET}: opening line of the long plan.`;
 const EDITED_PHRASE = 'edited';
 const RETRY_IN_PATTERN = /Try again in \d+ s\./;
 const DARK_CLASS_PATTERN = /(^|\s)dark(\s|$)/;
@@ -322,7 +322,7 @@ test('Download PDF of a document of at least 4 pages prints only when every page
   const ana = await signedInContext({ browser, user: anaUser! });
   await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
   const paragraphs = Array.from({ length: LONG_DOCUMENT_PARAGRAPH_COUNT }, (_, index) =>
-    index === 0 ? LONG_DOCUMENT_FIRST_LINE : `Paragraph ${index} `.repeat(40),
+    index === 0 ? LONG_DOCUMENT_FIRST_LINE : `${BUDGET}: ${`Paragraph ${index} `.repeat(40)}`,
   );
   await uploadSeed({ page: ana.page, paragraphs });
   await downloadPdf(ana.page);

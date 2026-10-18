@@ -10,6 +10,7 @@
 - [ ] `attach-collaboration.test.ts::the frame that breaches the limit reaches the room handler and nothing after it does` — expected: cap plus one frames reach the handler, the socket closes with 1008
 - [ ] `attach-collaboration.test.ts::more frames than the cap before authentication close the socket with 1008, are not applied and are logged without the payload`
 - [ ] `attach-collaboration.test.ts::more awareness frames than the cap close the socket with 1008 and the reason`
+- [ ] `apps/server/src/limits/sliding-window.test.ts::a window at the cap keeps its newest entries and counts the same after each prune` (a pin: green when it landed)
 - [ ] `socket-message-limit.test.ts`: the last message under the cap is accepted and the next breaches; messages older than a second stop counting; each socket has its own window
 
 ## Prove it for real

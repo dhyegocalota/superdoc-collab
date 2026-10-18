@@ -33,12 +33,12 @@ Measured on 2026-10-18 on this lane with a temporary per-second log, typing 26 c
 
 ### Data flow
 
-`MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types/src/constants.ts` goes from 120 to 1000, with a `// NB ADR 0040:` pointer. `SocketMessageLimit` and `attach-collaboration.ts` are unchanged.
+`MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types/src/constants.ts` goes from 120 to 1000, with a `// NB ADR 0040:` pointer. `SocketMessageLimit` and `attach-collaboration.ts` are unchanged, and the limiter's prune drops only the stale prefix of its entries instead of rebuilding the array on every frame.
 
 ### Follow-ups for the owner
 
 - No per-user or per-IP cap on concurrent sockets exists: a member can multiply the per-socket ceiling. Count sockets per user id in `upgradeMember` against a constant in `libs/types`.
-- The declaration cost in `client-declarations.ts:17-22` is quadratic; a separate lane.
+- The declaration loop in `client-declarations.ts` is quadratic; a separate lane.
 
 ### Failure handling
 

@@ -2,6 +2,8 @@ import { expect, test } from 'vitest';
 import { SlidingWindow } from './sliding-window';
 
 const WINDOW_MS = 1000;
+const FRAME_COUNT = 5;
+const FRAME_SPACING_MS = 300;
 
 test('an entry counts until exactly one window has passed', () => {
   const clock = { time: 0 };
@@ -20,8 +22,6 @@ test('an entry counts until exactly one window has passed', () => {
 test('a window at the cap keeps its newest entries and counts the same after each prune', () => {
   const clock = { time: 0 };
   const window = new SlidingWindow({ windowMs: WINDOW_MS, now: () => clock.time });
-  const FRAME_COUNT = 5;
-  const FRAME_SPACING_MS = 300;
   Array.from({ length: FRAME_COUNT }).forEach((_, index) => {
     clock.time = index * FRAME_SPACING_MS;
     window.record();

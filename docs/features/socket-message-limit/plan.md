@@ -10,7 +10,7 @@
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `libs/types/src/constants.ts`, `apps/server/src/collaboration/attach-collaboration.test.ts`, `socket-message-limit.test.ts`, `docs/adr/0040-*`, `docs/adr/0034-*` status line, `docs/adr/README.md`, `docs/features/socket-message-limit/`, `docs/features/README.md`, `docs/learnings/`, `.claude/rules/collaboration.md` | `developer-dt` |
+| G1 | `libs/types/src/constants.ts`, `apps/server/src/collaboration/attach-collaboration.test.ts`, `socket-message-limit.test.ts`, `apps/server/src/limits/sliding-window.ts` and its test, `docs/adr/0040-*`, `docs/adr/0034-*` status line, `docs/adr/README.md`, `docs/features/socket-message-limit/`, `docs/features/README.md`, `docs/learnings/`, `.claude/rules/collaboration.md` | `developer-dt` |
 
 ## Sequencing
 
@@ -23,6 +23,7 @@ One group, red test first.
 - [ ] **Step 1:** red test: a burst of 600 frames in one second is accepted and the socket stays open; commit alone.
 - [ ] **Step 2:** the constant at 1000 with its ADR pointer; green.
 - [ ] **Step 3:** ADR 0040, ADR 0034 status line, the feature folder, the learning, the collaboration rule.
+- [ ] **Step 3b:** the limiter's prune drops only the stale prefix: a pin test first (green when it lands, behaviour preserved), then the rewrite.
 - [ ] **Step 4:** re-run the driver against a stack of the lane; the log line is gone.
 
 ## Failure modes

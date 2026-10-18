@@ -33,9 +33,9 @@ Measured on 2026-10-18 with a temporary per-second log in `attach-collaboration.
 ## Consequences
 
 - Typing at any realistic speed and the reconnect burst stay under the cap with room.
-- The cap bounds rate, not volume. A client that sends 999 frames per second is never closed. Each update frame is one synchronous append to the update log (`collaboration-server.ts:197`) plus a room broadcast, so one socket's sustained ceiling goes from 120 to 1000 log rows per second, multiplied by the sockets a member opens. Bytes were never bounded either, beyond the 80 MiB payload cap per frame.
+- The cap bounds rate, not volume. A client that sends 999 frames per second is never closed. Each update frame is one synchronous append to the update log (`onChange` in `collaboration-server.ts`) plus a room broadcast, so one socket's sustained ceiling goes from 120 to 1000 log rows per second, multiplied by the sockets a member opens. Bytes were never bounded either, beyond the 80 MiB payload cap per frame.
 - The payload cap, the per-socket counter, one document per socket and the same cap on the version-room sockets from ADR 0034 are unchanged.
-- Follow-ups for the owner, not part of this decision: no per-user or per-IP cap on concurrent sockets exists (count sockets per user id in `upgradeMember` against a constant in `libs/types`), and the declaration cost in `client-declarations.ts:17-22` is quadratic (a separate lane).
+- Follow-ups for the owner, not part of this decision: no per-user or per-IP cap on concurrent sockets exists (count sockets per user id in `upgradeMember` against a constant in `libs/types`), and the declaration loop in `client-declarations.ts` is quadratic (a separate lane).
 - ADR 0034's figure of 120 is superseded by this decision; the rest of 0034 stays Accepted.
 
 ## Evidence

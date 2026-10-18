@@ -22,7 +22,7 @@ Red test, then the fix, then the docs.
 
 - [x] **Step 1:** red test with a sign-in route that renders for 10 ms. — evidence: 8efe42b6
 - [x] **Step 2:** `react-router/dom` in `main.tsx` and the helpers; `flushSync: true` in `useSignOut`; order pin renamed; menu-item pin updated. — evidence: 7f798e83
-- [ ] **Step 3:** docs, learning and the restated claims.
+- [x] **Step 3:** docs, learning and the restated claims. — evidence: b672eb93
 
 ## Failure modes
 
@@ -34,7 +34,7 @@ Red test, then the fix, then the docs.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`. — evidence: b672eb93
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.

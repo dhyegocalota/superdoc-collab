@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { minWidthQuery } from '@/lib/breakpoints';
+import { CHART_HEIGHT } from './streamgraph-layout';
 
 export const MIN_PANEL_WIDTH = 420;
 export const DEFAULT_PANEL_SHARE = 0.4;
@@ -36,7 +37,7 @@ export const DEFAULT_PANEL_HEIGHT_SHARE = 0.42;
 export const COMPACT_PANEL_HEIGHT_SHARE = 0.58;
 export const MIN_EDITOR_HEIGHT = 240;
 export const PANEL_CHROME_PX = 72;
-export const PANEL_MIN_CONTENT_PX = 312;
+export const PANEL_MIN_CONTENT_PX = CHART_HEIGHT + PANEL_CHROME_PX;
 export const SMALL_BREAKPOINT_PX = 640;
 
 function clampHeight({ height, areaHeight }: { height: number; areaHeight: number }): number {
@@ -51,7 +52,8 @@ export function usePanelHeight({ areaHeight, isCompact }: { areaHeight: number; 
 } {
   const [requestedHeight, setRequestedHeight] = useState<number | null>(null);
   const defaultShare = isCompact ? COMPACT_PANEL_HEIGHT_SHARE : DEFAULT_PANEL_HEIGHT_SHARE;
-  const wantedHeight = requestedHeight === null ? areaHeight * defaultShare : requestedHeight;
+  const defaultHeight = Math.max(areaHeight * defaultShare, PANEL_MIN_CONTENT_PX);
+  const wantedHeight = requestedHeight === null ? defaultHeight : requestedHeight;
   const height = clampHeight({ height: wantedHeight, areaHeight });
 
   return {

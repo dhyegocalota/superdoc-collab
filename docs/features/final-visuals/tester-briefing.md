@@ -560,3 +560,21 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - `document-page.test.tsx::the header stays while the document opens` now finds its status region by text, because the page has a second status region.
 - Hypothesis: a screen reader says "The document is ready." once when a waiting page gives way to the editor, and says nothing when a document opens at once. Break it by: a screen reader pass of both entries; a reload on the editor; Keep waiting then ready.
 - Gap: no page-level test drives Waiting to Ready through `DocumentPage`; the unit tests cover the component only.
+### G2 print rework: the PDF print runs in a frame on its own route (9cbab7c)
+
+The tester refuted the first print view. Measured in a browser on a 7-page document at 1280 × 800, with my own stack on port 3600:
+
+| Hypothesis | Result |
+|---|---|
+| Off-screen 816 × 7392 px div in the page, virtualization off | 2 of 7 pages had text, so the first design could not print more than about 2 pages |
+| Scroll the page or an inner scroller through each page | Each page paints when it is near the viewport and loses its text when it leaves, so no moment has every page painted |
+| Same page with a 1280 × 9000 browser viewport | All 7 pages painted and print ran. Painting follows the real window viewport |
+| A frame element holding a SuperDoc made in the page's own script | SuperDoc throws `detached preparation requires a paginated DOM mount`, because elements of another window fail its checks |
+| A same-origin frame loading its own route, as tall as all pages | All 7 pages painted, print ran once with every page filled |
+| The brief DOCX through the same frame | 3 pages, all with text, print ran once. The earlier `open-failed` came from a second SuperDoc in the same window; it does not happen in its own window |
+
+What changed: `AppRoute.Print` (`/print`, no session needed), `features/versions/print-page.tsx` (`PrintPage`, the frame's content), `print-messages.ts` (Ready, Load, PageCount, Painted, Failed), and `print-view.tsx` is now the parent side: an off-screen frame on `/print`, handed the exported Blob after Ready, resized to `pageCount × 1056` px on PageCount, and printed with the frame's own `print()` on Painted. The `@media print` stylesheet is gone because only the frame prints. Red commits 4fd173e, the PrintView red in the log before it, and 9cbab7c for the e2e proof.
+
+- The spec's "No route" line no longer holds; the lead should update the spec and add an ADR if wanted. The route exists only to give the printed document its own viewport.
+- `e2e/final-visuals.spec.ts`: the print stub now counts in the print frame and reports into the top window; two new tests print a 4-page upload and the brief and assert every page has text.
+- Gap: the tester should confirm in headed Chrome that the print dialog shows the document with the correct page breaks. A frame that never reports Ready (route failure) leaves the preparing toast up.

@@ -1,118 +1,79 @@
+import { AppRoute } from '@superdoc-collab/types';
 import { act, render } from '@testing-library/react';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
+import { PrintMessageKind, type PrintMessage } from './print-messages';
 import { PrintView } from './print-view';
-
-type PrintConfig = {
-  selector: HTMLElement;
-  documentMode: string;
-  documents: { data: Blob }[];
-  layoutEngineOptions: { virtualization: { enabled: boolean } };
-  collaboration?: unknown;
-  onReady: () => void;
-  onException: () => void;
-};
-
-const { SuperDoc, superdocDestroy, pagesToPaint } = vi.hoisted(() => {
-  const superdocDestroy = vi.fn();
-  const pagesToPaint: string[] = [];
-  return {
-    superdocDestroy,
-    pagesToPaint,
-    SuperDoc: vi.fn(function SuperDocStub(config: { selector: HTMLElement }) {
-      pagesToPaint.forEach((text) => {
-        const page = document.createElement('div');
-        page.className = 'superdoc-page';
-        page.textContent = text;
-        config.selector.append(page);
-      });
-      return { destroy: superdocDestroy };
-    }),
-  };
-});
-
-vi.mock('superdoc', () => ({ SuperDoc }));
-vi.mock('superdoc/style.css', () => ({}));
 
 const FILE = new Blob(['docx']);
 
-function constructedConfig(): PrintConfig {
-  const firstCall = SuperDoc.mock.calls.at(0);
-  if (!firstCall) throw new Error('SuperDoc was not constructed');
-  return firstCall[0] as unknown as PrintConfig;
+function printFrame(): HTMLIFrameElement {
+  const frame = document.querySelector<HTMLIFrameElement>('iframe[data-print-view]');
+  if (!frame) throw new Error('print view is not mounted');
+  return frame;
 }
 
-function printViewContainer(): HTMLElement {
-  const container = document.querySelector<HTMLElement>('[data-print-view]');
-  if (!container) throw new Error('print view is not mounted');
-  return container;
+function frameWindowOf(frame: HTMLIFrameElement): Window {
+  if (!frame.contentWindow) throw new Error('the print frame has no window');
+  return frame.contentWindow;
 }
 
-function lastPage(): Element {
-  const page = printViewContainer().querySelector('.superdoc-page:last-of-type');
-  if (!page) throw new Error('no page painted');
-  return page;
+function sendFromFrame({ message, source = frameWindowOf(printFrame()) }: { message: PrintMessage; source?: MessageEventSource }): void {
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', { data: message, origin: window.location.origin, source }));
+  });
 }
 
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
-  vi.spyOn(window, 'print').mockImplementation(() => undefined);
-  pagesToPaint.splice(0, pagesToPaint.length, 'one', 'two', 'three', '');
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  SuperDoc.mockClear();
-  superdocDestroy.mockClear();
-});
-
-test('the container height is page count × 1056 px, measured after onReady, and virtualization is off', () => {
-  render(<PrintView file={FILE} onClose={vi.fn()} onFailed={vi.fn()} />);
-  const config = constructedConfig();
-  expect(config.layoutEngineOptions.virtualization.enabled).toBe(false);
-  expect(config.documentMode).toBe('viewing');
-  expect(config.documents[0]?.data).toBe(FILE);
-  expect(config.collaboration).toBeUndefined();
-  expect(printViewContainer().style.height).not.toBe('4224px');
-  act(() => config.onReady());
-  expect(printViewContainer().style.height).toBe('4224px');
-});
-
-test('window.print is called only after the last page has text', () => {
-  const printedLength = vi.fn();
-  vi.mocked(window.print).mockImplementation(() => printedLength(lastPage().textContent?.length));
-  render(<PrintView file={FILE} onClose={vi.fn()} onFailed={vi.fn()} />);
-  act(() => constructedConfig().onReady());
-  act(() => vi.advanceTimersToNextFrame());
-  act(() => vi.advanceTimersToNextFrame());
-  expect(window.print).not.toHaveBeenCalled();
-  lastPage().textContent = 'paragraph';
-  act(() => vi.advanceTimersToNextFrame());
-  expect(window.print).toHaveBeenCalledTimes(1);
-  expect(printedLength).toHaveBeenCalledWith(9);
-});
-
-test('a last page that never gets text fails after a bounded number of frames and never prints', () => {
-  const onFailed = vi.fn();
-  render(<PrintView file={FILE} onClose={vi.fn()} onFailed={onFailed} />);
-  act(() => constructedConfig().onReady());
-  act(() => Array.from({ length: 1000 }).forEach(() => vi.advanceTimersToNextFrame()));
-  expect(onFailed).toHaveBeenCalledTimes(1);
-  expect(window.print).not.toHaveBeenCalled();
-});
-
-test('afterprint closes the view and unmounting destroys the editor', () => {
+function renderPrintView() {
   const onClose = vi.fn();
-  const { unmount } = render(<PrintView file={FILE} onClose={onClose} onFailed={vi.fn()} />);
-  window.dispatchEvent(new Event('afterprint'));
-  expect(onClose).toHaveBeenCalledTimes(1);
-  unmount();
-  expect(superdocDestroy).toHaveBeenCalledTimes(1);
+  const onFailed = vi.fn();
+  render(<PrintView file={FILE} onClose={onClose} onFailed={onFailed} />);
+  const frameWindow = frameWindowOf(printFrame());
+  const postMessage = vi.spyOn(frameWindow, 'postMessage').mockImplementation(() => undefined);
+  const print = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined);
+  return { onClose, onFailed, frameWindow, postMessage, print };
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+test('mounts an off-screen same-origin frame on the print route and hands it the file when it is ready', () => {
+  const { postMessage } = renderPrintView();
+  expect(printFrame()).toHaveAttribute('src', AppRoute.Print);
+  expect(printFrame()).toHaveAttribute('aria-hidden', 'true');
+  expect(postMessage).not.toHaveBeenCalled();
+  sendFromFrame({ message: { kind: PrintMessageKind.Ready } });
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Load, file: FILE }, window.location.origin);
 });
 
-test('an editor exception fails the preparation', () => {
-  const onFailed = vi.fn();
-  render(<PrintView file={FILE} onClose={vi.fn()} onFailed={onFailed} />);
-  act(() => constructedConfig().onException());
+test('the frame height is page count × 1056 px once the frame reports its pages', () => {
+  renderPrintView();
+  expect(printFrame().style.height).not.toBe('4224px');
+  sendFromFrame({ message: { kind: PrintMessageKind.PageCount, pageCount: 4 } });
+  expect(printFrame().style.height).toBe('4224px');
+});
+
+test('prints the frame only once it reports Painted, and afterprint closes the view', () => {
+  const { print, onClose, frameWindow } = renderPrintView();
+  sendFromFrame({ message: { kind: PrintMessageKind.PageCount, pageCount: 4 } });
+  expect(print).not.toHaveBeenCalled();
+  sendFromFrame({ message: { kind: PrintMessageKind.Painted } });
+  expect(print).toHaveBeenCalledTimes(1);
+  act(() => {
+    frameWindow.dispatchEvent(new Event('afterprint'));
+  });
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('a failure of the frame fails the preparation and prints nothing', () => {
+  const { print, onFailed } = renderPrintView();
+  sendFromFrame({ message: { kind: PrintMessageKind.Failed } });
   expect(onFailed).toHaveBeenCalledTimes(1);
+  expect(print).not.toHaveBeenCalled();
+});
+
+test('a message from another window is ignored', () => {
+  const { print, onFailed } = renderPrintView();
+  sendFromFrame({ message: { kind: PrintMessageKind.Painted }, source: window });
+  sendFromFrame({ message: { kind: PrintMessageKind.Failed }, source: window });
+  expect(print).not.toHaveBeenCalled();
+  expect(onFailed).not.toHaveBeenCalled();
 });

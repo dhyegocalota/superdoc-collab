@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   DOWNLOAD_BUTTON_LABEL,
@@ -13,28 +13,8 @@ import {
   PREPARING_PDF_MESSAGE,
 } from './editor-copy';
 import { DownloadFormat } from './download-format';
+import { PrintMessageKind, type PrintMessage } from '@/features/versions/print-messages';
 import { DownloadMenu, useDownload } from './download-menu';
-
-type PrintConfig = { selector: HTMLElement; layoutEngineOptions: { virtualization: { enabled: boolean } }; onReady: () => void };
-
-const { SuperDoc: PrintSuperDoc, superdocDestroy } = vi.hoisted(() => {
-  const superdocDestroy = vi.fn();
-  return {
-    superdocDestroy,
-    SuperDoc: vi.fn(function SuperDocStub(config: { selector: HTMLElement }) {
-      ['one', 'two', ''].forEach((text) => {
-        const page = document.createElement('div');
-        page.className = 'superdoc-page';
-        page.textContent = text;
-        config.selector.append(page);
-      });
-      return { destroy: superdocDestroy };
-    }),
-  };
-});
-
-vi.mock('superdoc', () => ({ SuperDoc: PrintSuperDoc }));
-vi.mock('superdoc/style.css', () => ({}));
 
 const EXPORTED_BLOB = new Blob(['docx']);
 
@@ -52,21 +32,17 @@ function liveDocument(exportBlob: () => Promise<Blob>) {
   return { export: vi.fn(exportBlob) };
 }
 
-function printContainer(): HTMLElement | null {
-  return document.querySelector<HTMLElement>('[data-print-view]');
+function printFrame(): HTMLIFrameElement | null {
+  return document.querySelector<HTMLIFrameElement>('iframe[data-print-view]');
 }
 
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
-  vi.spyOn(window, 'print').mockImplementation(() => undefined);
-});
+function sendFromFrame({ frameWindow, message }: { frameWindow: Window; message: PrintMessage }): void {
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', { data: message, origin: window.location.origin, source: frameWindow }));
+  });
+}
 
-afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  PrintSuperDoc.mockClear();
-  superdocDestroy.mockClear();
-});
+afterEach(() => vi.restoreAllMocks());
 
 test('the main part downloads DOCX and the chevron offers Download PDF', async () => {
   const onDownload = vi.fn();
@@ -87,7 +63,7 @@ test('both parts are disabled while the editor is not ready', () => {
   expect(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL })).toBeDisabled();
 });
 
-test('Download PDF exports the live document to a Blob with triggerDownload false, mounts PrintView off-screen, calls window.print only after the last .superdoc-page has text, and afterprint unmounts it', async () => {
+test('Download PDF exports the live document to a Blob with triggerDownload false, mounts the print frame off-screen, prints only after the frame reports Painted, and afterprint unmounts it', async () => {
   const live = liveDocument(() => Promise.resolve(EXPORTED_BLOB));
   const onDownloadDocx = vi.fn();
   renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={onDownloadDocx} />);
@@ -98,28 +74,35 @@ test('Download PDF exports the live document to a Blob with triggerDownload fals
   expect(onDownloadDocx).not.toHaveBeenCalled();
   expect(await screen.findByText(PREPARING_PDF_MESSAGE)).toBeVisible();
   expect(screen.getByText(PDF_PRINT_HINT)).toBeVisible();
-  await waitFor(() => expect(PrintSuperDoc).toHaveBeenCalledTimes(1));
-  const config = PrintSuperDoc.mock.calls[0]![0] as unknown as PrintConfig;
-  expect(config.layoutEngineOptions.virtualization.enabled).toBe(false);
-  expect(printContainer()).toBeInTheDocument();
+  await waitFor(() => expect(printFrame()).not.toBeNull());
+  const frameWindow = printFrame()!.contentWindow!;
+  const postMessage = vi.spyOn(frameWindow, 'postMessage').mockImplementation(() => undefined);
+  const print = vi.spyOn(frameWindow, 'print').mockImplementation(() => undefined);
 
-  act(() => config.onReady());
-  act(() => vi.advanceTimersToNextFrame());
-  expect(window.print).not.toHaveBeenCalled();
-  const lastPage = printContainer()!.querySelector('.superdoc-page:last-of-type')!;
-  lastPage.textContent = 'paragraph';
-  act(() => vi.advanceTimersToNextFrame());
-  expect(window.print).toHaveBeenCalledTimes(1);
+  sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.Ready } });
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Load, file: EXPORTED_BLOB }, window.location.origin);
+  sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.PageCount, pageCount: 3 } });
+  expect(printFrame()!.style.height).toBe('3168px');
+  expect(print).not.toHaveBeenCalled();
+  sendFromFrame({ frameWindow, message: { kind: PrintMessageKind.Painted } });
+  expect(print).toHaveBeenCalledTimes(1);
 
   act(() => {
-    window.dispatchEvent(new Event('afterprint'));
+    frameWindow.dispatchEvent(new Event('afterprint'));
   });
-  expect(printContainer()).toBeNull();
-  expect(superdocDestroy).toHaveBeenCalledTimes(1);
-  await waitFor(() => {
-    act(() => vi.advanceTimersToNextFrame());
-    expect(screen.queryByText(PREPARING_PDF_MESSAGE)).toBeNull();
-  });
+  expect(printFrame()).toBeNull();
+  await waitFor(() => expect(screen.queryByText(PREPARING_PDF_MESSAGE)).toBeNull());
+});
+
+test('a failure reported by the print frame shows the PDF failure toast and removes the frame', async () => {
+  const live = liveDocument(() => Promise.resolve(EXPORTED_BLOB));
+  renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={vi.fn()} />);
+  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
+  await waitFor(() => expect(printFrame()).not.toBeNull());
+  sendFromFrame({ frameWindow: printFrame()!.contentWindow!, message: { kind: PrintMessageKind.Failed } });
+  expect(await screen.findByText(PDF_FAILED_MESSAGE)).toBeVisible();
+  expect(printFrame()).toBeNull();
 });
 
 test('a failed export shows the PDF failure toast and prints nothing', async () => {
@@ -128,8 +111,7 @@ test('a failed export shows the PDF failure toast and prints nothing', async () 
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
   expect(await screen.findByText(PDF_FAILED_MESSAGE)).toBeVisible();
-  expect(printContainer()).toBeNull();
-  expect(window.print).not.toHaveBeenCalled();
+  expect(printFrame()).toBeNull();
 });
 
 test('the main part hands the DOCX to the page and does not export a PDF', async () => {

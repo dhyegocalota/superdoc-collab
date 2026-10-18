@@ -85,7 +85,15 @@ export function closeServer(httpServer: ServerType): Promise<void> {
 
 function listen({ app, port, host }: { app: Hono; port: number; host: string | null }): Promise<ServerType> {
   return new Promise((resolve, reject) => {
-    const started = serve({ fetch: app.fetch, port, ...(host === null ? {} : { hostname: host }) }, () => resolve(started));
+    const started = serve(
+      {
+        fetch: app.fetch,
+        port,
+        serverOptions: { keepAliveTimeout: KEEP_ALIVE_TIMEOUT_MS, headersTimeout: HEADERS_TIMEOUT_MS },
+        ...(host === null ? {} : { hostname: host }),
+      },
+      () => resolve(started),
+    );
     started.once('error', reject);
   });
 }

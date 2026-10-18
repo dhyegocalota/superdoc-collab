@@ -27,7 +27,11 @@ function urlOf({ port, path }: { port: number; path: string }): string {
 
 describe('startServer', () => {
   test('keeps idle connections open longer than a client reuses them, with the headers timeout just above', async () => {
-    const running = await startServer({ environment: testEnvironment(), projectionWorkerFile: prebuiltProjectionWorkerFile() });
+    const running = await startServer({
+      environment: testEnvironment(),
+      webDistDirectory: null,
+      projectionWorkerFile: prebuiltProjectionWorkerFile(),
+    });
     const { keepAliveTimeout, headersTimeout } = running.httpServer as Server;
     await running.stop();
     expect({ keepAliveTimeout, headersTimeout }).toEqual({ keepAliveTimeout: KEEP_ALIVE_TIMEOUT_MS, headersTimeout: HEADERS_TIMEOUT_MS });

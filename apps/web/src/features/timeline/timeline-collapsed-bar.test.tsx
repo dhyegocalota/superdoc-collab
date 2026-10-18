@@ -6,7 +6,7 @@ import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { TimelineCollapsedBar } from './timeline-collapsed-bar';
+import { TIMELINE_COLLAPSED_BAR_TEST_ID, TimelineCollapsedBar } from './timeline-collapsed-bar';
 import { TIMELINE_HEADING } from './timeline-copy';
 
 const ROUTE = documentPagePath(DOCUMENT_ID);
@@ -50,4 +50,10 @@ test('a topic that is already filtered stays filtered when its chip is clicked i
   });
   await user.click(screen.getByRole('button', { name: 'Hiring' }));
   expect(router.state.location.search).toBe(`?${TimelineSearchParam.Topic}=${hiring!.id}`);
+});
+
+test('the bar carries the test id the end-to-end walk looks for', () => {
+  renderWithProviders(<TimelineCollapsedBar timeline={timeline} onExpand={vi.fn()} />, { route: ROUTE });
+  expect(screen.getByTestId(TIMELINE_COLLAPSED_BAR_TEST_ID)).toBe(screen.getByRole('heading', { name: TIMELINE_HEADING }).parentElement);
+  expect(TIMELINE_COLLAPSED_BAR_TEST_ID).toBe('timeline-collapsed-bar');
 });

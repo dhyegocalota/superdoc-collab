@@ -164,6 +164,13 @@ test('an empty selection answered up to date shows the empty message, not the up
   expect(screen.queryByText(SUMMARY_UP_TO_DATE_MESSAGE)).not.toBeInTheDocument();
 });
 
+test('an up-to-date outcome followed by a stale view shows the badge without the up-to-date line', () => {
+  const stale: SelectionSummaryView = { ...FIRST_VIEW, summary: { ...FIRST_VIEW.summary!, isStale: true } };
+  render(card({ view: stale, summarize: idleSummarize({ outcome: SummarizeOutcome.UpToDate }) }));
+  expect(screen.getByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
+  expect(screen.queryByText(SUMMARY_UP_TO_DATE_MESSAGE)).not.toBeInTheDocument();
+});
+
 test('a started outcome does not say the summary is up to date', () => {
   render(card({ view: FIRST_VIEW, summarize: idleSummarize({ outcome: SummarizeOutcome.Started }) }));
   expect(screen.queryByText(SUMMARY_UP_TO_DATE_MESSAGE)).not.toBeInTheDocument();

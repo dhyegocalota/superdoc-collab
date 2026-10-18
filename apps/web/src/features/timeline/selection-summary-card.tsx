@@ -98,7 +98,7 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
   const isRunningWithoutStep = isRunning && !isGrouping && !isSummarizing;
   const isAnsweredUpToDate = summarize.outcome === SummarizeOutcome.UpToDate;
   const isEmpty = isAnsweredUpToDate && summary === null;
-  const isUpToDate = isAnsweredUpToDate && summary !== null;
+  const isUpToDate = isAnsweredUpToDate && summary !== null && !summary.isStale;
   const isRetryableFailure = view.state === SelectionSummaryState.Failed && view.isModelAvailable;
   const isRetryableError = error !== null && retryAfterSeconds === null;
   const showsRetry = canRequest && (isRetryableFailure || isRetryableError);

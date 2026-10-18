@@ -16,7 +16,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { selectionSummaryQueryKey, SummaryTooSoonError, timelineQueryKey } from './timeline-api';
+import { selectionSummaryQueryKey, SummaryTooSoonError, TIMELINE_POLL_MS, timelineQueryKey } from './timeline-api';
 import { useSummarize } from './use-summarize';
 
 vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
@@ -122,4 +122,26 @@ test('a click during the scrub debounce gap posts the selection the panel shows,
   await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
   const requested = new URL(String(fetchSpy.mock.calls[0]![0]), 'http://localhost');
   expect(requested.searchParams.get(TimelineQueryParam.At)).toBe(String(shown.at));
+});
+
+test('a job that ends while the panel is collapsed re-enables the button', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const queryClient = newQueryClient();
+  queryClient.setQueryData(
+    selectionSummaryQueryKey({ documentId: DOCUMENT_ID, selection: SELECTION, timeZone: UTC_TIME_ZONE }),
+    responseWith({ outcome: SummarizeOutcome.Started, step: SummarizeStep.Grouping }),
+  );
+  let reads = 0;
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+    reads += 1;
+    const step = reads === 1 ? SummarizeStep.Grouping : SummarizeStep.Idle;
+    return jsonResponse({ body: responseWith({ outcome: SummarizeOutcome.Started, step }) });
+  });
+  const { result } = renderHookWithRouter(() => useSummarize({ documentId: DOCUMENT_ID }), { route: ROUTE, queryClient });
+  expect(result.current.isRunning).toBe(true);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 3);
+  });
+  expect(result.current.isRunning).toBe(false);
+  vi.useRealTimers();
 });

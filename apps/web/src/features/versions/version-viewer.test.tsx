@@ -5,6 +5,7 @@ import { SuperDocExceptionCode } from '@/features/editor/superdoc-exceptions';
 import { DOCUMENT_ID, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { VersionViewer } from './version-viewer';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 
 type SuperDocConfig = {
   onException: (payload: SuperDocExceptionPayload) => void;
@@ -46,12 +47,16 @@ const onFailed = vi.fn().mockName('onFailed');
 const onConnectionFailed = vi.fn().mockName('onConnectionFailed');
 
 beforeEach(() => {
+  installAuthorPalette();
   SuperDoc.mockClear();
   onReady.mockClear();
   onFailed.mockClear();
   onConnectionFailed.mockClear();
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  removeAuthorPalette();
+  vi.restoreAllMocks();
+});
 
 async function raise(payload: SuperDocExceptionPayload): Promise<void> {
   renderWithProviders(

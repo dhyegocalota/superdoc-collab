@@ -336,3 +336,20 @@ test('a time late in the last bin before a break stays at that bin, not on the d
   const time = timeline.bins[lastBinBefore]!.start + LATE_IN_BIN * MINUTE_MS;
   expect(layout.timeX(time)).toBeCloseTo(layout.binX(lastBinBefore));
 });
+
+const DENSE_EDGE_BINS = 50;
+const DENSE_SILENT_BINS = 20;
+const NARROW_CHART_WIDTH = 375;
+
+test('on a dense narrow chart the break column shrinks to one interval between visible bins', () => {
+  const rows = [
+    ...Array.from({ length: DENSE_EDGE_BINS }, () => BUSY),
+    ...Array.from({ length: DENSE_SILENT_BINS }, () => QUIET),
+    ...Array.from({ length: DENSE_EDGE_BINS }, () => BUSY),
+  ];
+  const timeline = timelineWith({ volumes: rows, names: ['Budget', 'Hiring'] });
+  const [column] = layoutStreamgraph({ timeline, width: NARROW_CHART_WIDTH }).breaks;
+  const visibleIntervals = 2 * DENSE_EDGE_BINS - 1;
+  expect(column!.right - column!.left).toBeCloseTo(NARROW_CHART_WIDTH / visibleIntervals);
+  expect(column!.right - column!.left).toBeLessThan(BREAK_WIDTH_PX);
+});

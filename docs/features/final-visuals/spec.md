@@ -64,7 +64,7 @@ The product works, but the chrome around the document does not. The walk of 2026
   - `SUMMARY_MIN_INTERVAL_MS` is retired. Reading the summaries no longer starts a rewrite; sentence rewrites happen only inside a Summarize click.
   - `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` stays for the automatic recompute of ADR 0015.
 - Removed: `POST /api/documents/:documentId/topics/refresh`, its path helper `topicsRefreshApiPath`, `RefreshOutcome`, `TopicsService.refresh`, and the call to `refreshStale` on read.
-- The new orchestration lives in `apps/server/src/insights/summarize-service.ts`, which calls the topics and summaries services. The job runner's per-key guard stays as it is. The agent's summarize tool in `agent/read-tools.ts` goes through the same service and answers `SUMMARIZE_BUSY_MESSAGE` when busy. On the client, `features/timeline/use-summarize.ts` owns the mutation (see Interfaces).
+- The new orchestration lives in `apps/server/src/insights/summarize-service.ts`, which calls the topics and summaries services. The job runner's per-key guard stays as it is. The agent's summarize tool in `agent/read-tools.ts` goes through the same service and answers `SUMMARIZE_BUSY_MESSAGE` when busy. On the client, `features/timeline/use-summarize.ts` owns the mutation (see Interfaces). The agent runs `SummarizeScope.SummaryOnly`: it writes only the selection summary, never regroups or rewrites sentences, and starts the shared per-document cooldown when it makes its model call.
 
 **2. Theme.**
 
@@ -127,6 +127,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 | `timeline.ts` | `SummarizeStep` (enum: `Idle`, `Grouping`, `Summarizing`) | new |
 | `timeline.ts` | `SelectionSummaryView.step` | new field, added with every fixture that builds a view |
 | `timeline.ts` | `SummarizeOutcome` (enum: `Started`, `Running`, `UpToDate`) | new, next to the view in the POST body |
+| `timeline.ts` | `SummarizeScope` (enum: `Full`, `SummaryOnly`) | new, `SummaryOnly` is what the agent's summarize tool passes |
 | `timeline.ts` | `SUMMARIZE_COOLDOWN_MS` | renamed from `SELECTION_SUMMARY_COOLDOWN_MS` |
 | `timeline.ts` | `SUMMARIZE_BUSY_MESSAGE` | new |
 | `timeline.ts` | `TOPICS_REFRESH_TOO_SOON_MESSAGE` | removed |
@@ -209,6 +210,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 | PDF preparation fails | Toast `downloadFailedMessage(DownloadFormat.Pdf)`. No file is downloaded. |
 | A Summarize step fails | `step` returns to `Idle`. The card shows the step's message and "Retry summary" (`timeline-notices.tsx`), which calls `summarize` and reruns the whole job. A failed regroup keeps the old topics (ADR 0015). |
 | Busy or cooling down | One 429 answer with one countdown, the longer wait. The card reads "Try again in N s.". |
+| A POST for another selection while a job runs | 202 with that selection's view, `outcome` `Running` and the document job's `step`. The job never writes that selection; the card shows it again after the next Summarize. |
 | Unknown stored theme or panel value | Removed from storage, then treated as absent. |
 | Awareness position is stale | The button stays. The tooltip shows the cursor-not-found copy for `JUMP_FAILED_NOTICE_MS`. |
 | Waiting page error | The error card, "Try again" refetches once. |

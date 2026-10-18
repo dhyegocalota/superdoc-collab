@@ -1,7 +1,8 @@
-import { secondsRoundedUp, SelectionSummaryState, SummarizeStep, type EditSelection, type SummarizeOutcome } from '@superdoc-collab/types';
+import { secondsRoundedUp, type EditSelection, type SummarizeOutcome, type SummarizeResponse } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RetryLaterError } from '@/lib/api';
+import { isSummarizing, pollWhileSummarizing } from './use-selection-summary';
 import { useResetAfterRetry } from '@/lib/use-reset-after-retry';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { fetchSelectionSummary, requestSelectionSummary, selectionSummaryQueryKey } from './timeline-api';
@@ -31,7 +32,8 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
   const { data: view } = useQuery({
     queryKey,
     queryFn: () => fetchSelectionSummary({ documentId, selection, binMs, timeZone }),
-    enabled: false,
+    enabled: isSummarizing(queryClient.getQueryData<SummarizeResponse>(queryKey)),
+    refetchInterval: pollWhileSummarizing,
   });
   const mutation = useMutation({
     mutationFn: () => requestSelectionSummary({ documentId, selection, binMs, timeZone }),
@@ -50,7 +52,7 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
 
   useResetAfterRetry({ error, reset });
 
-  const isPolledRunning = view !== undefined && (view.state === SelectionSummaryState.Running || view.step !== SummarizeStep.Idle);
+  const isPolledRunning = isSummarizing(view);
   return {
     summarize: () => mutation.mutate(),
     isRunning: mutation.isPending || isPolledRunning,

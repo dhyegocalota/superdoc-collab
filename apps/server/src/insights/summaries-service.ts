@@ -98,7 +98,7 @@ export class SummariesService {
     computedAtSequence: number;
   }): Promise<void> {
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
-    if (!this.jobRunner.consumeCall()) {
+    if (!this.jobRunner.consumeDocumentCall(documentId)) {
       console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
       return;
     }

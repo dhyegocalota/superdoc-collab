@@ -121,7 +121,7 @@ export class SelectionSummariesService {
     const resolved = this.readNonEmptySelection({ documentId, selection });
     if (resolved === null) return;
     if (isFresh({ stored: this.repository.selectionSummary({ documentId, key: resolved.key }), stamp: resolved })) return;
-    if (!this.jobRunner.consumeCall()) return;
+    if (!this.jobRunner.consumeDocumentCall(documentId)) return;
     await this.generate({ documentId, resolved, model: languageModel.model });
   }
 

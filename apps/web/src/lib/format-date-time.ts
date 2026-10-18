@@ -1,4 +1,4 @@
-import { DATE_TIME_LOCALE, MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { DATE_TIME_LOCALE, DAY_MS, HOUR_MS, MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 
 const TIMESTAMP_PARTS: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
 const VERSION_TIME_PARTS: Intl.DateTimeFormatOptions = { timeStyle: 'medium' };
@@ -21,6 +21,14 @@ const BIN_PARTS: Record<TimePrecision, { withoutYear: Intl.DateTimeFormatOptions
   [TimePrecision.Minute]: { withoutYear: MINUTE_PARTS, withYear: { ...MINUTE_PARTS, ...YEAR_PART } },
   [TimePrecision.Second]: { withoutYear: SECOND_PARTS, withYear: { ...SECOND_PARTS, ...YEAR_PART } },
 };
+
+type IdleUnit = { unit: Intl.NumberFormatOptions['unit']; unitMs: number };
+
+const IDLE_UNITS_ASCENDING: IdleUnit[] = [
+  { unit: 'minute', unitMs: MINUTE_MS },
+  { unit: 'hour', unitMs: HOUR_MS },
+  { unit: 'day', unitMs: DAY_MS },
+];
 
 const formats = new Map<string, Intl.DateTimeFormat>();
 
@@ -81,6 +89,8 @@ export function formatTimeZoneOffset({ time, timeZone }: { time: number; timeZon
   return `${UTC_TIME_ZONE}${offset}`;
 }
 
-export function formatIdleDuration(_: { durationMs: number }): string {
-  throw new Error('formatIdleDuration is not implemented');
+export function formatIdleDuration({ durationMs }: { durationMs: number }): string {
+  const roundedMs = Math.round(durationMs / MINUTE_MS) * MINUTE_MS;
+  const { unit, unitMs } = IDLE_UNITS_ASCENDING.reduce((chosen, candidate) => (roundedMs >= candidate.unitMs ? candidate : chosen));
+  return new Intl.NumberFormat(DATE_TIME_LOCALE, { style: 'unit', unit, unitDisplay: 'long' }).format(Math.round(roundedMs / unitMs));
 }

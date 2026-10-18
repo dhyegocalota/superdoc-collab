@@ -108,7 +108,7 @@ test.each([
   { durationMs: 59 * MINUTE_MS, label: '59 minutes' },
   { durationMs: 59.5 * MINUTE_MS, label: '1 hour' },
   { durationMs: 2 * HOUR_MS, label: '2 hours' },
-  { durationMs: 23.6 * HOUR_MS, label: '1 day' },
+  { durationMs: 23.6 * HOUR_MS, label: '24 hours' },
   { durationMs: 2 * DAY_MS, label: '2 days' },
 ])('an idle stretch of $durationMs ms reads $label', ({ durationMs, label }) => {
   expect(formatIdleDuration({ durationMs })).toBe(label);

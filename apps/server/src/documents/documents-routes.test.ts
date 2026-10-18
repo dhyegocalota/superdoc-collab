@@ -336,12 +336,12 @@ test('the first editor to open a fresh room is reserved as creator with attempt 
   await server.stop();
 });
 
-test('a second open by the holder keeps attempt 1', async () => {
+test('a second open by the holder supersedes its own attempt with the next one', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const first = await openedBy({ server, user: owner, documentId });
   const second = await openedBy({ server, user: owner, documentId });
-  expect([second.creatorAttempt, second.creatorEpoch]).toEqual([first.creatorAttempt, first.creatorEpoch]);
-  expect(second.creatorAttempt).toBe(FIRST_ATTEMPT);
+  expect(second.creatorAttempt).toBe(first.creatorAttempt! + 1);
+  expect(second.creatorEpoch).toBe(first.creatorEpoch);
   await server.stop();
 });
 

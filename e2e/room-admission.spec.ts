@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { APIResponse, Page, Response } from '@playwright/test';
 import {
+  ConnectionState,
   ApiPath,
   COLLABORATION_TOKEN_PLACEHOLDER,
   CREATOR_ATTEMPT_QUERY_KEY,
@@ -36,8 +37,6 @@ const EDITOR_TEST_ID = 'document-editor';
 const CONNECTION_BANNER_TEST_ID = 'connection-banner';
 const CONNECTION_STATE_ATTRIBUTE = 'data-state';
 const SOCKETS_PER_UNINTERRUPTED_CREATE = 2;
-const FAILED_STATE = 'failed';
-const RECONNECTING_STATE = 'reconnecting';
 const WAITING_VIEWPORTS = [
   { name: '375 px', viewport: { width: 375, height: 812 } },
   { name: '1280 px', viewport: { width: 1280, height: 800 } },
@@ -222,7 +221,7 @@ test('a holder who reopens a fresh document supersedes its first page and the ro
   await expect.poll(() => firstPageProgress.hasSentFrame).toBe(true);
   const secondPage = await ana.context.newPage();
   await secondPage.goto(documentPagePath(documentId));
-  await expect(ana.page.getByTestId(CONNECTION_BANNER_TEST_ID)).toHaveAttribute(CONNECTION_STATE_ATTRIBUTE, FAILED_STATE, {
+  await expect(ana.page.getByTestId(CONNECTION_BANNER_TEST_ID)).toHaveAttribute(CONNECTION_STATE_ATTRIBUTE, ConnectionState.Failed, {
     timeout: COMMIT_TIMEOUT_MS,
   });
   await expect(editorText(secondPage).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
@@ -305,7 +304,7 @@ test('a 10 MB DOCX commits and reopens as Join', async ({ browser }) => {
     .poll(async () => ((await banner.count()) === 0 ? null : banner.getAttribute(CONNECTION_STATE_ATTRIBUTE)), {
       timeout: COMMIT_TIMEOUT_MS,
     })
-    .not.toBe(RECONNECTING_STATE);
+    .not.toBe(ConnectionState.Reconnecting);
   await ana.page.reload();
   await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
   await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });

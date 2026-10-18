@@ -22,14 +22,14 @@ One developer, steps in order: the header and reveal (1-3), the two-step (4), th
 
 ### G1
 
-- [ ] **Step 1:** red tests for `SelectedHeader` (four states) and the copy; the component; green.
-- [ ] **Step 2:** red tests for `useReducedMotion` and `useRevealSelected`; the hooks; green.
-- [ ] **Step 3:** red test for the panel's phone order (chart, header, filter, card, edits) with the header sticky; the layout; green.
-- [ ] **Step 4:** red tests for `useTimeTravel`: below `lg` a versioned bin sets `pendingVersion` and `confirmTravel` travels; at `lg` the tap travels; the hook and the header's "View version"; green.
-- [ ] **Step 5:** red tests for `Streamgraph` ignoring taps and marking `aria-busy` while loading; the prop; green.
-- [ ] **Step 6:** red tests for `document-page` (dimmed editor and progress line while a version loads, the pinned bar below `lg`) and `version-banner`; the `touch` size variant; green.
-- [ ] **Step 7:** red tests for the timeline skeleton on first load and the phone share constant; green.
-- [ ] **Step 8:** E2E at 375 x 812 (tap, pinned header in view, two-step, loading, Back to live) and one desktop assertion that a tap still travels; `pnpm typecheck`; tester briefing; the README row.
+- [x] **Step 1:** red tests for `SelectedHeader` (four states) and the copy; the component; green. — evidence: red 3f20e65, green a0dd53c (`selected-header.test.tsx`, `timeline-copy.test.ts`); `viewVersionPrompt` dropped, the header names the range already; the `touch` button variant landed here because the header uses it
+- [x] **Step 2:** red tests for `useReducedMotion` and `useRevealSelected`; the hooks; green. — evidence: red b155fe9, green f9444b4 (`use-reduced-motion.test.ts`, `use-reveal-selected.test.ts`)
+- [x] **Step 3:** red test for the panel's phone order (chart, header, filter, card, edits) with the header sticky; the layout; green. — evidence: red 287564d, green 06f0415 (`timeline-panel.test.tsx`); the first-load skeleton of step 7 landed in the same pair
+- [x] **Step 4:** red tests for `useTimeTravel`: below `lg` a versioned bin sets `pendingVersion` and `confirmTravel` travels; at `lg` the tap travels; the hook and the header's "View version"; green. — evidence: red b6913df, green 465ba4d (`time-travel.test.tsx`, `timeline-panel.test.tsx`)
+- [x] **Step 5:** red tests for `Streamgraph` ignoring taps and marking `aria-busy` while loading; the prop; green. — evidence: red bc07597, green 5eec8af (`streamgraph.test.tsx`); `aria-busy` sits on the chart svg, not on a bin, because a bin is not an element
+- [x] **Step 6:** red tests for `document-page` (dimmed editor and progress line while a version loads, the pinned bar below `lg`) and `version-banner`; the `touch` size variant; green. — evidence: red 0fc9a8c, green 005a892 (tests live in `time-travel.test.tsx`, which already holds the version fixtures; `document-page.test.tsx` passes unchanged); the `touch` variant is from step 1
+- [x] **Step 7:** red tests for the timeline skeleton on first load and the phone share constant; green. — evidence: red e374fa6, green 24489b0 (`use-panel-width.test.ts`); the skeleton is from step 3
+- [x] **Step 8:** E2E at 375 x 812 (tap, pinned header in view, two-step, loading, Back to live) and one desktop assertion that a tap still travels; `pnpm typecheck`; tester briefing; the README row. — evidence: E2E 718aa4d (`e2e/summary-mobile.spec.ts`, not run by the developer); `pnpm typecheck` green; README row; tester briefing
 
 ## Failure modes
 
@@ -45,7 +45,7 @@ One developer, steps in order: the header and reveal (1-3), the two-step (4), th
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **Security reviewer:** a fresh `security-reviewer` sub-agent returned a verdict on this diff.

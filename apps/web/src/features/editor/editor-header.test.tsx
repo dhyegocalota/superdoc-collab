@@ -59,9 +59,33 @@ type HeaderOptions = {
   superdoc?: SuperDoc | null;
   isPastVersion?: boolean;
   route?: string;
+  width?: number;
 };
 
-function renderHeader({ role = DocumentRole.Editor, members = [], superdoc = null, isPastVersion = false, route }: HeaderOptions = {}) {
+const WIDE_VIEWPORT_WIDTH = 1280;
+const NARROW_VIEWPORT_WIDTH = 768;
+
+function stubViewportWidth(width: number): void {
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+    const minimumWidth = Number(/min-width:\s*(\d+)px/.exec(query)?.[1]);
+    return {
+      matches: width >= minimumWidth,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList;
+  });
+}
+
+function renderHeader({
+  role = DocumentRole.Editor,
+  members = [],
+  superdoc = null,
+  isPastVersion = false,
+  route,
+  width = WIDE_VIEWPORT_WIDTH,
+}: HeaderOptions = {}) {
+  stubViewportWidth(width);
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   queryClient.setQueryData(SESSION_QUERY_KEY, SESSION_USER);
   return renderWithProviders(
@@ -129,7 +153,7 @@ test('at 1280 the right slot order is Members, Find, Use with AI, Share, Downloa
 });
 
 test('closing Use with AI opened from More actions returns focus to the More actions button', async () => {
-  renderHeader();
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL }));
   expect(await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE })).toBeInTheDocument();
@@ -144,7 +168,7 @@ test('closing Use with AI opened from More actions returns focus to the More act
 });
 
 test('the Use with AI dialog opened from More actions lives outside the menu', async () => {
-  renderHeader();
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL }));
   const dialog = await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE });
@@ -159,7 +183,7 @@ test('EditorHeader passes superdoc and isPastVersion to Members', () => {
 });
 
 test('a reader sees the read-only badge, an h1 title and neither Delete nor Share', async () => {
-  renderHeader({ role: DocumentRole.Reader });
+  renderHeader({ role: DocumentRole.Reader, width: NARROW_VIEWPORT_WIDTH });
   expect(screen.getByText(READ_ONLY_BADGE_LABEL)).toBeVisible();
   expect(screen.queryByRole('button', { name: SHARE_LABEL })).toBeNull();
   expect(screen.getByRole('heading', { level: 1, name: DOCUMENT_TITLE })).toBeVisible();
@@ -230,7 +254,7 @@ test('the download parts are disabled until the editor is ready', () => {
 });
 
 test('More actions offers Download .docx too, and Delete only to the owner', async () => {
-  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc });
+  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc, width: NARROW_VIEWPORT_WIDTH });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_LABEL }));
   expect(onDownloadDocx).toHaveBeenCalledTimes(1);
@@ -268,4 +292,30 @@ test('members announce their presence and the current user is online at once', (
   expect(screen.getByRole('button', { name: memberLabel({ name: 'Ada', isOnline: true }) })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: memberLabel({ name: 'Carla', isOnline: true }) })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: false }) })).toBeInTheDocument();
+});
+
+test('at 768 the bar keeps Members, Share, More actions and the account, and More actions carries Find, Use with AI and both downloads', async () => {
+  const emit = vi.fn();
+  renderHeader({ role: DocumentRole.Owner, members: [ADA], superdoc: { emit } as unknown as SuperDoc, width: NARROW_VIEWPORT_WIDTH });
+  expect(screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: SHARE_LABEL })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: USE_WITH_AI_LABEL })).toBeNull();
+  expect(screen.queryByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toBeNull();
+  expect(screen.queryByRole('button', { name: FIND_IN_DOCUMENT_LABEL })).toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  expect(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL })).toBeVisible();
+  expect(screen.getByRole('menuitem', { name: DOWNLOAD_LABEL })).toBeVisible();
+  expect(screen.getByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toBeVisible();
+  await userEvent.click(screen.getByRole('menuitem', { name: FIND_IN_DOCUMENT_LABEL }));
+  expect(emit).toHaveBeenCalledWith('search:open');
+});
+
+test('at 1280 the menu holds only Delete for the owner and nothing for a reader', async () => {
+  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc });
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  expect(await screen.findByRole('menuitem', { name: DELETE_LABEL })).toBeVisible();
+  expect(screen.queryByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toBeNull();
+  expect(screen.queryByRole('menuitem', { name: FIND_IN_DOCUMENT_LABEL })).toBeNull();
 });

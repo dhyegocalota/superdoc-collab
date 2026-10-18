@@ -4,7 +4,7 @@
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 ("fix tambem colisao de cores entre diferentes usuarios no mesmo doc")
 **ADRs:** [0037](../../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md)
-**Not changing:** the six palette tokens and their values; the hash for authors who are not members (imported authors, removed members); the account menu avatar; the agent suffix rule of `authorColorKeyOf`.
+**Not changing:** the six palette tokens and their values; the hash for authors who are not members (imported authors, removed members); the account menu avatar on pages with no document (it keeps the hash colour; on the document page it follows the document's slot); the agent suffix rule of `authorColorKeyOf`.
 
 ## Problem
 

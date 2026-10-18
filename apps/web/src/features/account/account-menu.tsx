@@ -35,6 +35,8 @@ export function AccountMenu({ colorSlot }: { colorSlot: AuthorColorSlot | null }
 
   if (!user) return null;
 
+  const avatarColorSlot = colorSlot === null ? authorColorSlot(user.id) : colorSlot;
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -43,7 +45,7 @@ export function AccountMenu({ colorSlot }: { colorSlot: AuthorColorSlot | null }
           aria-label={accountMenuLabel(user.name)}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          <UserAvatar name={user.name} colorSlot={authorColorSlot(user.id)} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />
+          <UserAvatar name={user.name} colorSlot={avatarColorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

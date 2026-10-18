@@ -59,5 +59,5 @@ Known blemish: the red commit e9f99f3 does not typecheck (two untyped fixtures i
 - The selection summary card colours an author with no id in the timeline by the imported hash.
 - The server unit tests use random user ids, so they assert six distinct slots for six members rather than a forced collision; a forced collision is covered by the pure function test.
 - The own SuperDoc cursor colour cannot be read from the page; the E2E compares swatches and remote carets only.
-- The account menu avatar keeps the hash colour by design.
+- The account menu avatar takes the document slot on the document page (`AccountMenu colorSlot={opened.colorSlot}`) and keeps the hash colour on every other page (`colorSlot={null}`).
 - I did not run the whole web or server suites, only the directories named above.

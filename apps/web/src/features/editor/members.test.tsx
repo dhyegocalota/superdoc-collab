@@ -1,6 +1,6 @@
 import { DocumentRole, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
 import { PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
@@ -81,6 +81,12 @@ function renderMembers({ members, isPastVersion = false }: { members: DocumentMe
   );
 }
 
+async function findJumpButton(name: string): Promise<HTMLElement> {
+  const button = await screen.findByRole('button', { name: memberLabel({ name, isOnline: true }) });
+  await waitFor(() => expect(button).toHaveAccessibleDescription(goToCursorLabel(name)));
+  return button;
+}
+
 function manyMembers(count: number): DocumentMember[] {
   return Array.from({ length: count }, (_, index) =>
     memberNamed({ id: `m${index}`, name: `Person ${index}`, online: false, colorSlot: 1 }),
@@ -114,7 +120,7 @@ test('the avatar swatch of a member uses the slot the server assigned, not the i
 test('a peer caret leaving refreshes the members query', async () => {
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  await findJumpButton('Bruno');
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   await act(async () => {
     editor.replaceChildren();
@@ -122,10 +128,10 @@ test('a peer caret leaving refreshes the members query', async () => {
   expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) });
 });
 
-test('a member with a live position is a button named Go to Bruno’s cursor', async () => {
+test('a member with a live position is named Bruno, online and described by Go to Bruno’s cursor', async () => {
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const button = await findJumpButton('Bruno');
   expect(button).not.toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -201,7 +207,7 @@ test('the +N menu items for members who cannot be jumped to are aria-disabled wi
 test('after a jump a status region reads Moved to Bruno’s cursor.', async () => {
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const button = await findJumpButton('Bruno');
   await userEvent.click(button);
   expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'center' });
   expect(screen.getByRole('status')).toHaveTextContent(movedToCursorMessage('Bruno'));
@@ -212,7 +218,7 @@ test('a jump whose caret left shows the not-found message in the tooltip for thr
   vi.useFakeTimers({ shouldAdvanceTime: true });
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const button = await findJumpButton('Bruno');
   editor.replaceChildren();
   await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(button);
   expect(await screen.findByRole('tooltip')).toHaveTextContent(cursorNotFoundMessage('Bruno'));

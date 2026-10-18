@@ -15,6 +15,8 @@ import {
   RETRY_AFTER_HEADER,
   TITLE_MAX_LENGTH,
   RoomMode,
+  AUTHOR_COLOR_SLOT_COUNT,
+  authorColorSlot,
   TAB_QUERY_KEY,
   UPLOAD_FIELD,
   type DocumentMembers,
@@ -335,6 +337,7 @@ test('the first editor to open a fresh room is reserved as creator with attempt 
     FIRST_ATTEMPT,
     server.services.reservations.epoch,
   ]);
+  expect(opened.colorSlot).toBe(authorColorSlot(owner.id));
   await server.stop();
 });
 
@@ -486,6 +489,37 @@ test('members marks the connected owner online', async () => {
     [reader.id, false],
   ]);
   client.close();
+  await server.stop();
+});
+
+const EXTRA_MEMBER_COUNT = AUTHOR_COLOR_SLOT_COUNT - 1;
+
+async function documentWithSixMembers() {
+  const { server, documentId, owner } = await documentWithOwner();
+  const extras = await Promise.all(
+    Array.from({ length: EXTRA_MEMBER_COUNT }, () => memberWithRole({ server, documentId, role: DocumentRole.Editor })),
+  );
+  return { server, documentId, users: [owner, ...extras] };
+}
+
+test('members carry a distinct colorSlot per member for the first six members', async () => {
+  const { server, documentId, users } = await documentWithSixMembers();
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  const { members }: DocumentMembers = await (await request({ server, cookie: users[0]!.cookie, path })).json();
+  expect(new Set(members.map((member) => member.colorSlot)).size).toBe(AUTHOR_COLOR_SLOT_COUNT);
+  await server.stop();
+});
+
+test('open answers the colorSlot the members route gives the same user', async () => {
+  const { server, documentId, users } = await documentWithSixMembers();
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  const { members }: DocumentMembers = await (await request({ server, cookie: users[0]!.cookie, path })).json();
+  commitRoom({ services: server.services, documentId, userId: users[0]!.id });
+  const openedSlots = new Map(
+    await Promise.all(users.map(async (user) => [user.id, (await openedBy({ server, user, documentId })).colorSlot] as const)),
+  );
+  expect(new Set(openedSlots.values()).size).toBe(AUTHOR_COLOR_SLOT_COUNT);
+  expect(openedSlots).toEqual(new Map(members.map((member) => [member.user.id, member.colorSlot])));
   await server.stop();
 });
 

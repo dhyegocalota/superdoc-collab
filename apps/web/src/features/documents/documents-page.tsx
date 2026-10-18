@@ -31,7 +31,7 @@ export function DocumentsPage() {
         right={
           <>
             <UseWithAiDialog title={null} canEdit={false} />
-            <AccountMenu />
+            <AccountMenu colorSlot={null} />
           </>
         }
       />

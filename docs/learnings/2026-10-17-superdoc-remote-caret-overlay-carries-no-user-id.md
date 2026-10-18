@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: `ba435f1` and `8bf66ad`, the review round that made a caret count for a member only by name and colour
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true; carets are still matched by name plus colour, now with the colour of the member `colorSlot`; after a slot shift or with an old tab Jump says not found until the peer remounts (recorded in the author-colours failure modes)
 
 ## Signal
 Clicking a member's avatar scrolls to a caret that belongs to someone else with the same name, or does nothing for a member who is plainly typing. Reading awareness for a cursor or a block id yields neither.

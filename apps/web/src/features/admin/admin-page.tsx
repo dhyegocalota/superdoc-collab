@@ -19,7 +19,7 @@ export function AdminPage() {
   if (!user) return <SessionSkeleton />;
   return (
     <div className="min-h-screen">
-      <AppTopBar right={<AccountMenu />} />
+      <AppTopBar right={<AccountMenu colorSlot={null} />} />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{ADMIN_HEADING}</h1>
         {(users.isError || invites.isError) && <ErrorMessage>{ADMIN_LOAD_ERROR_MESSAGE}</ErrorMessage>}

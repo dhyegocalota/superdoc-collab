@@ -1,4 +1,4 @@
-import { authorColorSlot, DocumentRole, type DocumentMember } from '@superdoc-collab/types';
+import { DocumentRole, type DocumentMember } from '@superdoc-collab/types';
 import { act, renderHook } from '@testing-library/react';
 import type { SuperDoc } from 'superdoc';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -13,11 +13,21 @@ const GLOW_MS = 1200;
 const GLOW_COLOR_PROPERTY = '--member-glow-color';
 const FORGED_COLOR = '#000000';
 const superdoc = {} as SuperDoc;
-const bruno: DocumentMember = { user: { id: 'u2', name: 'Bruno' }, role: DocumentRole.Editor, online: true };
-const clara: DocumentMember = { user: { id: 'u3', name: 'Clara' }, role: DocumentRole.Editor, online: true };
+const bruno: DocumentMember = {
+  user: { id: 'u2', name: 'Bruno' },
+  role: DocumentRole.Editor,
+  online: true,
+  colorSlot: 4,
+};
+const clara: DocumentMember = {
+  user: { id: 'u3', name: 'Clara' },
+  role: DocumentRole.Editor,
+  online: true,
+  colorSlot: 5,
+};
 
 function colorOf(member: DocumentMember): string {
-  return AUTHOR_PALETTE[authorColorSlot(member.user.id) - 1]!;
+  return AUTHOR_PALETTE[member.colorSlot - 1]!;
 }
 
 function createOverlay(parent: HTMLElement): HTMLElement {

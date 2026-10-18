@@ -70,7 +70,7 @@ export function ConnectedAppsPage() {
 
   return (
     <div className="min-h-screen">
-      <AppTopBar right={<AccountMenu />} />
+      <AppTopBar right={<AccountMenu colorSlot={null} />} />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{CONNECTED_APPS_HEADING}</h1>
         {isError && <ErrorMessage>{CONNECTED_APPS_LOAD_ERROR_MESSAGE}</ErrorMessage>}

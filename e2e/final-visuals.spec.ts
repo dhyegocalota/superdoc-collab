@@ -1,8 +1,12 @@
 import type { Browser, Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   ApiPath,
+  AppRoute,
   DEMO_USERS,
+  DOCX_MIME_TYPE,
   documentPagePath,
   HttpMethod,
   HttpStatus,
@@ -28,6 +32,7 @@ import {
   TIMELINE_TOGGLE_LABEL,
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
+import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import {
   GROUPING_TOPICS_MESSAGE,
@@ -95,6 +100,9 @@ const BRUNO_EDIT = ' from Bruno';
 const SUMMARY_TIMEOUT_MS = 30_000;
 const WAITING_TIMEOUT_MS = 30_000;
 const PRINT_TIMEOUT_MS = 60_000;
+const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
+const LONG_DOCUMENT_PARAGRAPH_COUNT = 60;
+const LONG_DOCUMENT_MIN_PAGES = 4;
 const EDITED_PHRASE = 'edited';
 const RETRY_IN_PATTERN = /Try again in \d+ s\./;
 const DARK_CLASS_PATTERN = /(^|\s)dark(\s|$)/;
@@ -105,21 +113,24 @@ const EDITOR_TEST_ID = 'document-editor';
 const PAGE_SELECTOR = '.superdoc-page';
 const TOP_BAR_SELECTOR = 'header';
 
-type PrintState = { calls: number; emptyPageCount: number; isPreparingSeen: boolean };
+type PrintState = { calls: number; pageCount: number; emptyPageCount: number; isPreparingSeen: boolean };
 type WindowWithRecords = Window & { printState: PrintState; seenSummaryMessages: string[]; topBarTops: number[] };
 
 function stubPrint(preparingMessage: string): void {
-  const state: PrintState = { calls: 0, emptyPageCount: -1, isPreparingSeen: false };
-  Object.assign(window, { printState: state });
-  new MutationObserver(() => {
-    if (!document.body) return;
-    if (document.body.innerText.includes(preparingMessage)) state.isPreparingSeen = true;
-  }).observe(document, { childList: true, subtree: true, characterData: true });
+  if (window === window.top) {
+    const state: PrintState = { calls: 0, pageCount: 0, emptyPageCount: -1, isPreparingSeen: false };
+    Object.assign(window, { printState: state });
+    new MutationObserver(() => {
+      if (!document.body) return;
+      if (document.body.innerText.includes(preparingMessage)) state.isPreparingSeen = true;
+    }).observe(document, { childList: true, subtree: true, characterData: true });
+  }
   window.print = () => {
+    const state = (window.top as WindowWithRecords).printState;
+    const pages = [...document.querySelectorAll('.superdoc-page')];
     state.calls += 1;
-    state.emptyPageCount = [...document.querySelectorAll('.superdoc-page')].filter(
-      (pageElement) => !pageElement.textContent!.trim(),
-    ).length;
+    state.pageCount = pages.length;
+    state.emptyPageCount = pages.filter((pageElement) => !pageElement.textContent!.trim()).length;
   };
 }
 
@@ -271,15 +282,48 @@ test('Download starts a docx download with no error', async ({ browser }) => {
   await expect(ana.page.getByText(EXPORT_FAILED_MESSAGE)).toHaveCount(0);
 });
 
+async function downloadPdf(page: Page): Promise<void> {
+  await downloadOptionsButton(page).click();
+  await page.getByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }).click();
+}
+
+async function uploadBrief(page: Page): Promise<void> {
+  await page.goto(AppRoute.Documents);
+  await page.getByRole('button', { name: UPLOAD_LABEL }).click();
+  await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: 'brief.docx', mimeType: DOCX_MIME_TYPE, buffer: readFileSync(BRIEF_PATH) });
+  await expect(page.locator(PAGE_SELECTOR).first()).toBeVisible({ timeout: PRINT_TIMEOUT_MS });
+}
+
+async function expectPrintedWithEveryPageFilled({ page, minPages }: { page: Page; minPages: number }): Promise<void> {
+  await expect
+    .poll(() => readPrintState(page), { timeout: PRINT_TIMEOUT_MS })
+    .toMatchObject({ calls: 1, emptyPageCount: 0, isPreparingSeen: true });
+  expect((await readPrintState(page)).pageCount).toBeGreaterThanOrEqual(minPages);
+}
+
 test('Download PDF prepares the print view and calls print once every page has text', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: anaUser! });
   await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
   await openDocument({ page: ana.page, title: uniqueTitle() });
-  await downloadOptionsButton(ana.page).click();
-  await ana.page.getByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }).click();
-  await expect
-    .poll(() => readPrintState(ana.page), { timeout: PRINT_TIMEOUT_MS })
-    .toEqual({ calls: 1, emptyPageCount: 0, isPreparingSeen: true });
+  await downloadPdf(ana.page);
+  await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: 1 });
+});
+
+test('Download PDF of a document of at least 4 pages prints only when every page has text', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: anaUser! });
+  await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
+  const paragraphs = Array.from({ length: LONG_DOCUMENT_PARAGRAPH_COUNT }, (_, index) => `Paragraph ${index} `.repeat(40));
+  await uploadSeed({ page: ana.page, paragraphs });
+  await downloadPdf(ana.page);
+  await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: LONG_DOCUMENT_MIN_PAGES });
+});
+
+test('Download PDF of the uploaded brief prints only when every page has text', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: anaUser! });
+  await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
+  await uploadBrief(ana.page);
+  await downloadPdf(ana.page);
+  await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: 1 });
 });
 
 test('Dark in the account menu applies to the page and survives a reload', async ({ browser }) => {

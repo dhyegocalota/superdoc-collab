@@ -1,5 +1,5 @@
 import { act, render } from '@testing-library/react';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import { PrintMessageKind } from './print-messages';
 import { PrintPage } from './print-page';
 
@@ -42,7 +42,7 @@ function constructedConfig(): PrintConfig {
   return firstCall[0] as unknown as PrintConfig;
 }
 
-function sentKinds(postMessage: ReturnType<typeof vi.spyOn>): unknown[] {
+function sentKinds(postMessage: MockInstance<typeof window.postMessage>): unknown[] {
   return postMessage.mock.calls.map(([message]) => (message as { kind: unknown }).kind);
 }
 

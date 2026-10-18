@@ -18,7 +18,7 @@ import { accountMenuLabel } from '@/features/account/account-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/connected-apps-copy';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
-import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_COLOR_SLOT, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -311,4 +311,11 @@ test('the bar actions that fold below 1024 are also hidden by CSS, so a resize n
   [FIND_IN_DOCUMENT_LABEL, USE_WITH_AI_LABEL, DOWNLOAD_BUTTON_LABEL].forEach((name) => {
     expect(screen.getByRole('button', { name }).closest('.max-lg\\:hidden')).not.toBeNull();
   });
+});
+
+test('the account avatar wears the colour of the document slot, like the member swatch', () => {
+  renderHeader();
+  expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) }).firstElementChild).toHaveClass(
+    `bg-author-${EDITOR_COLOR_SLOT}`,
+  );
 });

@@ -1,4 +1,4 @@
-import { AppRoute, authorColorSlot, UserRole } from '@superdoc-collab/types';
+import { AppRoute, authorColorSlot, UserRole, type AuthorColorSlot } from '@superdoc-collab/types';
 import { Plug, Settings, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
@@ -24,7 +24,7 @@ function keepMenuOpen(event: Event): void {
   event.preventDefault();
 }
 
-export function AccountMenu() {
+export function AccountMenu({ colorSlot }: { colorSlot: AuthorColorSlot | null }) {
   const { user } = useSession();
   const { preference, choosePreference } = useTheme();
 

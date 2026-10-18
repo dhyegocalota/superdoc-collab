@@ -46,7 +46,7 @@ function renderApp({
         path: AppRoute.Documents,
         element: (
           <RequireSession>
-            <AccountMenu />
+            <AccountMenu colorSlot={null} />
           </RequireSession>
         ),
       },

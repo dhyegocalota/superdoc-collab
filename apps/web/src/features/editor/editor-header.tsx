@@ -219,7 +219,7 @@ export function EditorHeader({
                 renderUseWithAi={renderUseWithAi}
               />
             )}
-            <AccountMenu />
+            <AccountMenu colorSlot={opened.colorSlot} />
           </>
         }
       />

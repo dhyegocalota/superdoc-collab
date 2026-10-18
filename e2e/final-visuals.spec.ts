@@ -62,6 +62,7 @@ import {
   insertInParagraph,
   REMOTE_CARET_SELECTOR,
   shareAndAccept,
+  signOut,
   titleButton,
   toolbarRow,
   topBar,
@@ -109,6 +110,7 @@ const RENAMED_TITLE = 'Renamed';
 const DISCARDED_TITLE = 'Discard';
 const FIRST_EDIT = ' More money';
 const SECOND_EDIT = ' and more';
+const PRESENCE_REFRESH_BUDGET_MS = 1500;
 const BRUNO_EDIT = ' from Bruno';
 const ANA_EDIT = ' from Ana';
 const SUMMARY_TIMEOUT_MS = 30_000;
@@ -462,6 +464,16 @@ test('a member avatar scrolls the editor to that member’s caret and offline me
   const offlineButton = topBar(ana.page).getByRole('button', { name: new RegExp(BRUNO) });
   await expect(offlineButton).toHaveAttribute('aria-disabled', 'true', { timeout: WAITING_TIMEOUT_MS });
   await expect(offlineButton).toHaveAccessibleDescription(offlineMemberReason(BRUNO), { timeout: WAITING_TIMEOUT_MS });
+});
+
+test('a member who signs out reads offline for the others before the members poll would say so', async ({ browser }) => {
+  const { ana, documentId } = await ownerOpensDocument({ browser });
+  const bruno = await signedInContext({ browser, user: brunoUser! });
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  const brunoButton = topBar(ana.page).getByRole('button', { name: BRUNO });
+  await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: true }), { timeout: WAITING_TIMEOUT_MS });
+  await signOut({ page: bruno.page, name: BRUNO });
+  await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: false }), { timeout: PRESENCE_REFRESH_BUDGET_MS });
 });
 
 function swatchOf({ page, label }: { page: Page; label: string }) {

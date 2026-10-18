@@ -293,6 +293,10 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 - The collapsed bar carries `data-testid="timeline-collapsed-bar"` (`TIMELINE_COLLAPSED_BAR_TEST_ID`, asserted in `timeline-collapsed-bar.test.tsx`; red `Unable to find an element by: [data-testid="timeline-collapsed-bar"]`).
 - The card shows the up-to-date line only while the summary is not stale, so a new edit shows the "For an earlier state" badge alone (red `expected … not.toBeInTheDocument()`). The mutation outcome itself is not reset by staleness; hypothesis: a new edit after an up-to-date answer shows the badge and no up-to-date line, and the next Summarize replaces the outcome.
 
+### Review fix: no selection reported before the timeline loads
+
+- The panel calls `showSelection` only once its timeline has data, so until then Summarize keeps the URL selection (`timeline-panel.test.tsx::while the timeline is loading the panel reports no selection…`; red `expected "vi.fn()" to not be called at all, but actually been called 1 times`). Hypothesis: opening a link with `?at=` and pressing Summarize before the chart appears posts that bin. Break it by: throttling the network and clicking at once; collapsing the panel at the side so the timeline is never fetched.
+
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.

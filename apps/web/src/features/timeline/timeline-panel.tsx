@@ -101,9 +101,12 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   };
   const selectionKey = JSON.stringify(selection);
 
+  const isTimelineLoaded = timeline !== undefined;
+
   useEffect(() => {
+    if (!isTimelineLoaded) return;
     summarize.showSelection(selection);
-  }, [selectionKey]);
+  }, [selectionKey, isTimelineLoaded]);
 
   const { timeZone: preferredTimeZone } = useTimeZone();
   const binMs = timeline ? timeline.binMs : null;

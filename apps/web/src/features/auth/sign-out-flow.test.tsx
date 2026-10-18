@@ -2,7 +2,8 @@ import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider, type InitialEntry } from 'react-router';
+import { createMemoryRouter, type InitialEntry } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { AccountMenu } from '@/features/account/account-menu';
@@ -105,7 +106,7 @@ test('a sign-in route that renders slowly still ends on the bare sign-in route',
   expect(router.state.location.search).toBe('');
 });
 
-test('signing out leaves the page before the cached session flips, so no sign-in redirect with next can start', async () => {
+test('navigates before it clears the cached session', async () => {
   const queryClient = new QueryClient();
   queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
   const { result, router } = renderHookWithRouter(useSignOut, { queryClient });

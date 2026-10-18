@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { Toaster } from '@/components/ui/sonner';
-import { createMemoryRouter, parsePath, RouterProvider } from 'react-router';
+import { createMemoryRouter, parsePath } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 
 const ANY_PATH = '*';
 

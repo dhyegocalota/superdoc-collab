@@ -112,6 +112,7 @@ Width boxes, each run in both themes (light is chosen in the account menu, dark 
 - [ ] Width 1024, dark — viewport 1024×768, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
 - [ ] Width 1024, Side chosen — viewport 1024×768, the toggle set to Side; expected: checks (a) to (d) hold; the panel beside the page with no clipped control.
 - [ ] Width 1280, light — viewport 1280×800; expected: checks (a) to (d) hold; the page centred with no horizontal scroll; panel at the bottom.
+- [ ] Width 1280×800, panel at the bottom, default height — viewport 1280×800, no manual resize; expected: the streamgraph is the first thing in the panel and is fully visible without scrolling (no part of it below the fold of the viewport), the filter and axis may scroll under it, only the summary and Top edits column scrolls, and at 375×812 with the panel open the chart ends above the "Summary of these edits" card with no overlap.
 - [ ] Width 1280, dark — viewport 1280×800, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
 - [ ] Width 1280, Side chosen — viewport 1280×800, the toggle set to Side; expected: checks (a) to (d) hold; the page fits beside the panel with no horizontal scroll.
 - [ ] Width 1536, light — viewport 1536×864; expected: checks (a) to (d) hold; panel at the side by default with no stored choice.

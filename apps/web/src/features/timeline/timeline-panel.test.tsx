@@ -712,3 +712,29 @@ test('while the timeline is loading the panel reports no selection, so the URL s
   await screen.findByRole('heading', { name: TIMELINE_HEADING, level: 2 });
   expect(summarize.showSelection).not.toHaveBeenCalled();
 });
+
+test('the bottom panel puts the chart first in a block that keeps its height, and the notices over the card', async () => {
+  mockTimelineApi({ timeline: failedTimeline, selectionViews: [READY_VIEW] });
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = await screen.findByLabelText(/^Budget/);
+  const chartColumn = chart.closest(`[data-column="${PanelColumn.Chart}"]`) as HTMLElement;
+  const listColumn = (await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING })).closest(
+    `[data-column="${PanelColumn.List}"]`,
+  ) as HTMLElement;
+  expect(chartColumn.firstElementChild).toHaveClass('shrink-0');
+  expect(chartColumn.firstElementChild).toContainElement(chart);
+  expect(chart.compareDocumentPosition(screen.getByLabelText(FILTER_LABEL)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(listColumn).getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
+  expect(within(chartColumn).queryByText(TOPICS_UNAVAILABLE_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('below md the bottom columns take their content height so the chart never overlaps the card', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  document.querySelectorAll('[data-column]').forEach((column) => {
+    const classes = column.className.split(' ');
+    expect(classes).not.toContain('min-h-0');
+    expect(classes).toContain('md:min-h-0');
+  });
+});

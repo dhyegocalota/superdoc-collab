@@ -145,3 +145,22 @@ test('a job that ends while the panel is collapsed re-enables the button', async
   expect(result.current.isRunning).toBe(false);
   vi.useRealTimers();
 });
+
+test('a busy countdown survives a change of selection', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+    jsonResponse({
+      body: { error: 'busy' },
+      status: HttpStatus.TooManyRequests,
+      headers: { [RETRY_AFTER_HEADER]: String(RETRY_AFTER_SECONDS) },
+    }),
+  );
+  const { result } = renderHookWithRouter(() => useSummarize({ documentId: DOCUMENT_ID }), { route: ROUTE });
+  act(() => result.current.summarize());
+  await waitFor(() => expect(result.current.error).toBeInstanceOf(SummaryTooSoonError));
+  act(() => result.current.showSelection({ term: null, author: 'ana', topic: null, at: null }));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(result.current.error).toBeInstanceOf(SummaryTooSoonError);
+  expect(result.current.retryAfterSeconds).toBe(RETRY_AFTER_SECONDS);
+});

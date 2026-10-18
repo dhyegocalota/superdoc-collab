@@ -47,6 +47,7 @@ export function useSummarize({ documentId }: { documentId: string }): SummarizeC
   const selectionKey = JSON.stringify(queryKey);
 
   useEffect(() => {
+    if (error instanceof RetryLaterError) return;
     reset();
   }, [selectionKey, reset]);
 

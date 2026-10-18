@@ -595,3 +595,8 @@ What changed: `AppRoute.Print` (`/print`, no session needed), `features/versions
 
 
 Print frame review round: the frame prints itself on a `Print` message and reports `Closed` after `afterprint`; Painted needs every page to have text and the page count is announced again when it grows; the only time bound is `PRINT_READY_TIMEOUT_MS` in the parent (a document whose last page is image-only fails by that timeout); leaving the page dismisses the PDF toast.
+### G4 second review (red 32b0d45)
+
+- A failed regroup ends the job only when `selection.topic` is set (the summary would be written against stale topics). For any other selection the summary and sentence steps still run on the previous topics, so a deterministic grouping failure no longer locks the summary out. Tests: `summarize-service.test.ts::a failed regroup keeps the previous ready topics and stops the job when the selection names a topic` (pin) and `::a failed regroup does not lock the summary out when the selection names no topic` (red: `[topics]` instead of `[topics, summary, sentences]`). The view still carries `GROUPING_FAILED_MESSAGE` with the summary.
+- `useSummarize` keeps a 429 `RetryLaterError` across a selection change, so the countdown survives a bin switch; outcomes and other errors still reset. Test: `use-summarize.test.tsx::a busy countdown survives a change of selection` (red: `expected null to be an instance of SummaryTooSoonError`).
+- ADR 0031 and spec data flow 1 record both rules, the regroup inside the Summarize slot and the cooldown at the first model call.

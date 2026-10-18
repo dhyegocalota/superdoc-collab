@@ -5,15 +5,16 @@ type EditorToolbarRowProps = {
   role: DocumentRole;
   containerRef: (element: HTMLDivElement | null) => void;
   isToolbarInert: boolean;
+  isRowInert: boolean;
   isRunning: boolean;
   onSummarize: () => void;
 };
 
-export function EditorToolbarRow({ role, containerRef, isToolbarInert, isRunning, onSummarize }: EditorToolbarRowProps) {
+export function EditorToolbarRow({ role, containerRef, isToolbarInert, isRowInert, isRunning, onSummarize }: EditorToolbarRowProps) {
   if (role === DocumentRole.Reader) return null;
 
   return (
-    <div data-testid="editor-toolbar-row" className="flex h-10 items-center border-b bg-background">
+    <div data-testid="editor-toolbar-row" inert={isRowInert} className="flex h-10 items-center border-b bg-background">
       <div ref={containerRef} data-testid="toolbar-container" inert={isToolbarInert} className="min-w-0 flex-1" />
       <div className="shrink-0 px-2">
         <SummarizeEditsButton isRunning={isRunning} onSummarize={onSummarize} />

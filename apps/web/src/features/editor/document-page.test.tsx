@@ -537,6 +537,8 @@ test('a failed callback makes the editor inert, dims it and names the reason', a
   expect(banner).toHaveAttribute('data-state', ConnectionState.Failed);
   expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Unknown]);
   expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
+  expect(screen.getByTestId('toolbar-container')).toHaveAttribute('inert');
+  expect(screen.getByTestId('editor-toolbar-row')).toHaveAttribute('inert');
   expect(screen.getByTestId('editor-area')).toHaveClass('opacity-60');
 });
 

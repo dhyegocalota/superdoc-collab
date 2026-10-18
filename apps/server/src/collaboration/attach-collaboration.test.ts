@@ -33,6 +33,7 @@ import { attachCollaboration } from './attach-collaboration';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
+const TYPING_BURST_FRAMES = 600;
 const UNMASKED_BINARY_FRAME = Buffer.from([0x82, 0x01, 0x00]);
 const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
@@ -191,7 +192,7 @@ describe('attachCollaboration', () => {
     client.close();
     await server.stop();
   });
-  test('121 frames before authentication close the socket with 1008, are not applied and are logged without the payload', async () => {
+  test('more frames than the cap before authentication close the socket with 1008, are not applied and are logged without the payload', async () => {
     const server = await startTestServer();
     const { cookie } = await signedInUser({ server, name: 'Eva' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -235,7 +236,7 @@ describe('attachCollaboration', () => {
     await server.stop();
     expect(outcome).toBe('destroyed');
   });
-  test('121 valid awareness frames close the socket with 1008 and the reason', async () => {
+  test('more awareness frames than the cap close the socket with 1008 and the reason', async () => {
     const { server, documentId, owner } = await documentWithOwner();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
@@ -439,7 +440,7 @@ describe('attachCollaboration', () => {
   });
 });
 
-test('the frame that breaches the limit reaches the room handler and nothing after it does', async () => {
+async function openCountedSocket() {
   const received = vi.fn();
   const hocuspocus = {
     handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
@@ -465,6 +466,20 @@ test('the frame that breaches the limit reaches the room handler and nothing aft
   socket.on('error', () => undefined);
   const closed = new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
   await new Promise((resolve) => socket.on('open', resolve));
+  return { socket, closed, received, httpServer };
+}
+
+test('a typing burst of 600 frames in one second is accepted and the socket stays open', async () => {
+  const { socket, received, httpServer } = await openCountedSocket();
+  Array.from({ length: TYPING_BURST_FRAMES }).forEach(() => socket.send(Buffer.from([0])));
+  await expect.poll(() => received.mock.calls.length).toBe(TYPING_BURST_FRAMES);
+  expect(socket.readyState).toBe(WebSocket.OPEN);
+  socket.close();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('the frame that breaches the limit reaches the room handler and nothing after it does', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
   Array.from({ length: MAX_SOCKET_MESSAGES_PER_SECOND + 10 }).forEach(() => socket.send(Buffer.from([0])));
   expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
   expect(received).toHaveBeenCalledTimes(MAX_SOCKET_MESSAGES_PER_SECOND + 1);

@@ -6,7 +6,7 @@ function burst({ limit, socket, count }: { limit: SocketMessageLimit; socket: ob
   return Array.from({ length: count }, () => limit.breached(socket));
 }
 
-test('the 120th message in a second is accepted and the 121st breaches', () => {
+test('the last message under the cap in a second is accepted and the next breaches', () => {
   const limit = new SocketMessageLimit({ now: () => 0 });
   const socket = {};
   const accepted = burst({ limit, socket, count: MAX_SOCKET_MESSAGES_PER_SECOND });

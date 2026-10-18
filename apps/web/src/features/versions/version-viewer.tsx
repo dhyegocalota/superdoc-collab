@@ -40,6 +40,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
         documentMode: DocumentMode.Viewing,
         collaborationPath: versionCollaborationPath({ documentId, sequence }),
         roomMode: RoomMode.Join,
+        creatorTicket: null,
         user,
         ...authorPaletteOf(user),
       }),

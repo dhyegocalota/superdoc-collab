@@ -25,6 +25,7 @@ import { editedAfterBootstrap, pollVersion, readJson, seededRandom } from '../te
 import { ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService } from './versions-service';
+import { waitForCommit } from '../testing/committed-room';
 
 const MINUTES = 3;
 const unknownSequenceLog = { serverTimeOf: () => null } as unknown as UpdateLog;
@@ -53,6 +54,7 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Start'] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   await Array.from({ length: MINUTES }).reduce<Promise<void>>(async (previous, _, minute) => {
     await previous;
     vi.setSystemTime(Date.now() + VERSION_MARK_MS);

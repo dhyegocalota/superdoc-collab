@@ -1,4 +1,11 @@
-import { COLLABORATION_TOKEN_PLACEHOLDER, DOCX_MIME_TYPE, RoomMode, TAB_QUERY_KEY } from '@superdoc-collab/types';
+import {
+  COLLABORATION_TOKEN_PLACEHOLDER,
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
+  DOCX_MIME_TYPE,
+  RoomMode,
+  TAB_QUERY_KEY,
+} from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { tabId } from '@/lib/tab-id';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
@@ -22,6 +29,7 @@ function optionsFor(toolbarContainer: HTMLElement | null) {
     documentMode: DocumentMode.Editing,
     collaborationPath: COLLABORATION_PATH,
     roomMode: RoomMode.Join,
+    creatorTicket: null,
     user: { ...SESSION_USER },
     userColor: USER_COLOR,
     paletteColors: PALETTE_COLORS,
@@ -40,6 +48,7 @@ test('the options open the file in its room as the signed-in user, fitted to the
     documentMode: DocumentMode.Viewing,
     collaborationPath: COLLABORATION_PATH,
     roomMode: RoomMode.Join,
+    creatorTicket: null,
     user: { ...SESSION_USER },
     userColor: USER_COLOR,
     paletteColors: PALETTE_COLORS,
@@ -71,6 +80,29 @@ test('the options open the file in its room as the signed-in user, fitted to the
       search: true,
     },
   });
+});
+
+test('the options put the creator ticket on the socket url', () => {
+  const options = superdocOptions({
+    container: document.createElement('div'),
+    toolbarContainer: null,
+    documentId: DOCUMENT_ID,
+    file: new Blob(),
+    documentMode: DocumentMode.Editing,
+    collaborationPath: COLLABORATION_PATH,
+    roomMode: RoomMode.Create,
+    creatorTicket: { attempt: 1, epoch: 'epoch-1' },
+    user: { ...SESSION_USER },
+    userColor: USER_COLOR,
+    paletteColors: PALETTE_COLORS,
+  });
+  expect(options.documents).toEqual([
+    expect.objectContaining({
+      v2Collaboration: expect.objectContaining({
+        serverUrl: `ws://localhost:3000${COLLABORATION_PATH}?${TAB_QUERY_KEY}=${tabId()}&${CREATOR_ATTEMPT_QUERY_KEY}=1&${CREATOR_EPOCH_QUERY_KEY}=epoch-1`,
+      }),
+    }),
+  ]);
 });
 
 test('ui.toolbar excludes accept, reject, ruler, measurement unit, document mode, search, linked-style, copy-format, clear-formatting and ai', () => {

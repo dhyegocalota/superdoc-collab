@@ -36,6 +36,7 @@ function renderEditor({
       toolbarContainer={toolbarContainer}
       documentId="doc-1"
       roomMode={RoomMode.Create}
+      creatorTicket={null}
       role={DocumentRole.Editor}
       user={SESSION_USER}
       file={new Blob()}

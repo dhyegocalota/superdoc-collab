@@ -1,11 +1,34 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { HttpStatus, RETRY_AFTER_HEADER, SECOND_MS, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
-import { WebSocketServer, type WebSocket } from 'ws';
+import {
+  HttpStatus,
+  MAX_SOCKET_MESSAGE_BYTES,
+  POLICY_VIOLATION_CLOSE_CODE,
+  RETRY_AFTER_HEADER,
+  SECOND_MS,
+  SOCKET_CLOSE_GRACE_MS,
+  SOCKET_RATE_LIMIT_REASON,
+  UNAUTHORIZED_CLOSE_CODE,
+  UNAUTHORIZED_CLOSE_REASON,
+  VERSION_FAILURE_TTL_MS,
+} from '@superdoc-collab/types';
+import { WebSocket, WebSocketServer, type ServerOptions } from 'ws';
+import type { Auth } from '../auth/auth';
+import { readSession } from '../auth/session';
+import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
+import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
+
+const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
+  noServer: true,
+  maxPayload: MAX_SOCKET_MESSAGE_BYTES,
+  closeTimeout: SOCKET_CLOSE_GRACE_MS,
+};
+const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
+const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
 
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
@@ -16,7 +39,9 @@ const UNAVAILABLE_UPGRADE_RESPONSE = [
   '',
 ].join('\r\n');
 
-function terminateOnError(this: WebSocket): void {
+function terminateOnError(this: WebSocket, error: Error): void {
+  console.warn(`${SOCKET_ERROR_MESSAGE}: ${describeError(error)}`);
+  if (this.readyState === WebSocket.CLOSING) return;
   this.terminate();
 }
 
@@ -26,18 +51,27 @@ function destroyOnSocketError(this: Duplex): void {
 
 export function attachCollaboration({
   httpServer,
+  auth,
   hocuspocus,
   versionRooms,
   path,
   allowedOrigin,
 }: {
   httpServer: Server;
+  auth: Auth;
   hocuspocus: Hocuspocus;
   versionRooms: VersionRooms;
   path: string;
   allowedOrigin: string;
 }): WebSocketServer {
-  const sockets = new WebSocketServer({ noServer: true });
+  const sockets = new WebSocketServer(SOCKET_SERVER_OPTIONS);
+  const messageLimit = new SocketMessageLimit();
+  function closeOnBreach(this: WebSocket): void {
+    if (!messageLimit.breached(this)) return;
+    console.warn(SOCKET_RATE_LIMIT_LOG);
+    this.removeAllListeners('message');
+    this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+  }
   function upgrade({
     request,
     socket,
@@ -51,6 +85,7 @@ export function attachCollaboration({
   }): void {
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
+      webSocket.on('message', closeOnBreach);
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);
     });
@@ -79,6 +114,25 @@ export function attachCollaboration({
     }
     upgrade({ request, socket, head, endpoint });
   }
+  function refuseSession({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): void {
+    sockets.handleUpgrade(request, socket, head, (webSocket) => {
+      webSocket.on('error', terminateOnError);
+      webSocket.close(UNAUTHORIZED_CLOSE_CODE, UNAUTHORIZED_CLOSE_REASON);
+    });
+  }
+  async function upgradeMember({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): Promise<void> {
+    const { cookie } = request.headers;
+    if (!cookie) return void socket.destroy();
+    socket.on('error', destroyOnSocketError);
+    const lookup = await readSession({ auth, headers: new Headers({ cookie }) }).then(
+      (session) => ({ isFailed: false, session }),
+      () => ({ isFailed: true, session: null }),
+    );
+    socket.removeListener('error', destroyOnSocketError);
+    if (lookup.isFailed) return void socket.destroy();
+    if (!lookup.session) return refuseSession({ request, socket, head });
+    upgrade({ request, socket, head, endpoint: null });
+  }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     const pathname = upgradePathname(request.url);
@@ -88,7 +142,7 @@ export function attachCollaboration({
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });
     if (pathname !== path) return socket.destroy();
-    upgrade({ request, socket, head, endpoint: null });
+    void upgradeMember({ request, socket, head });
   });
   return sockets;
 }

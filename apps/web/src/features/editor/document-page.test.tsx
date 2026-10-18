@@ -3,6 +3,8 @@ import {
   AppRoute,
   ConnectionFailureReason,
   ConnectionState,
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
   DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_READY_POLL_MS,
   DOCUMENT_UNAVAILABLE_MESSAGE,
@@ -15,6 +17,7 @@ import {
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  TAB_QUERY_KEY,
   SummarizeOutcome,
   SummarizeStep,
   type OpenedDocument,
@@ -24,6 +27,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { tabId } from '@/lib/tab-id';
 import { PanelPosition, PANEL_POSITION_STORAGE_KEY } from '@/features/timeline/use-panel-position';
 import { GROUPING_TOPICS_MESSAGE, SUMMARIZE_EDITS_LABEL } from '@/features/timeline/timeline-copy';
 import { pageTitle } from '@/lib/use-document-title';
@@ -77,6 +81,7 @@ type SuperDocConfig = {
   telemetry: { enabled: boolean };
   onException: (payload: ExceptionPayload) => void;
   onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
+  onCollaborationReady: () => void;
   zoom: { mode: string };
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
@@ -184,6 +189,7 @@ function constructedConfig(): SuperDocConfig {
 const VIEWED_AT = 1_700_000_000_000;
 const RENDER_WARNING = 'render hiccup';
 const LOST_CALLBACK = { state: 'degraded', kind: 'lost' };
+const SYNCED_CALLBACK = { state: 'synced', kind: 'initial' };
 const FAILED_CALLBACK = { state: 'failed', kind: 'failed' };
 
 function warnDiagnostic(): ExceptionPayload {
@@ -198,6 +204,7 @@ async function reloadAfterFailure(): Promise<SuperDocConfig> {
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const firstInstanceConfig = constructedConfig();
+  act(() => firstInstanceConfig.onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => firstInstanceConfig.onCollaborationConnectionChange(FAILED_CALLBACK));
   await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
@@ -232,6 +239,16 @@ test('a title rename does not re-create the editor', async () => {
   await screen.findByRole('button', { name: renameTitleLabel(RENAMED_TITLE) });
   expect(SuperDoc).toHaveBeenCalledTimes(1);
   expect(superDocDestroy).not.toHaveBeenCalled();
+});
+
+test('a title rename never opens the document again, so the creator ticket stays', async () => {
+  const fetchSpy = mockDocumentApi({ opened: openedAs(DocumentRole.Owner), renamedTitle: RENAMED_TITLE });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await userEvent.click(await screen.findByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
+  await screen.findByRole('button', { name: renameTitleLabel(RENAMED_TITLE) });
+  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
+  expect(openRequests).toHaveLength(1);
 });
 
 test('a 409 not ready shows the waiting page and never builds the editor', async () => {
@@ -354,6 +371,20 @@ test('a cached create followed by a fresh join from the server builds the join s
     }),
   );
   expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain(DOWNLOAD_PATH);
+});
+
+test('the editor builds the socket url from the creator ticket of the open answer', async () => {
+  mockDocumentApi({ opened: { ...openedAs(DocumentRole.Editor, RoomMode.Create), creatorAttempt: 1, creatorEpoch: 'epoch-1' } });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const socketQuery = `${TAB_QUERY_KEY}=${tabId()}&${CREATOR_ATTEMPT_QUERY_KEY}=1&${CREATOR_EPOCH_QUERY_KEY}=epoch-1`;
+  expect(SuperDoc).toHaveBeenCalledWith(
+    expect.objectContaining({
+      documents: [
+        expect.objectContaining({ v2Collaboration: expect.objectContaining({ serverUrl: expect.stringContaining(socketQuery) }) }),
+      ],
+    }),
+  );
 });
 
 test('a members 404 after the editor mounted shows the unavailable message, destroys the editor and stops polling', async () => {
@@ -522,6 +553,7 @@ test('a lost callback shows the banner above the version banner', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner), isCurrentUserOnline: () => false });
   renderWithProviders(<DocumentPage />, { route: `${documentPagePath(DOCUMENT_ID)}?at=${VIEWED_AT}` });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
   const connectionBanner = await screen.findByTestId('connection-banner');
   const versionBanner = await screen.findByTestId('version-banner');
@@ -541,10 +573,49 @@ test('a warn diagnostic keeps the editor usable and logs with console.warn', asy
   expect(screen.getByTestId('document-editor')).not.toHaveAttribute('inert');
 });
 
+test('a failed report before the first sync shows the editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+});
+
+test('a lost report before the editor is ready is ignored, so a blip mid-create neither fails nor shows the banner', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+});
+
+test('a lost then failed report after the editor was ready reaches the banner', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationReady());
+  act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByRole('alert')).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('a failed report after the first sync keeps the banner and shows no editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByRole('alert')).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
 test('a failed callback makes the editor inert, dims it and names the reason', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   const banner = await screen.findByRole('alert');
   expect(banner).toHaveAttribute('data-state', ConnectionState.Failed);
@@ -560,9 +631,34 @@ test('a connection exception fails the connection with its reason and not the ed
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onException(payload));
   expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('an access-denied exception before the editor is ready shows the editor failure notice and no banner', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onException(payload));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+});
+
+test('a refused upgrade reported as an exception before the editor is ready shows the editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = {
+    code: 'collaboration-connection-failed',
+    collaborationReason: 'connection-failed',
+    error: new Error('refused'),
+    editor: null,
+  };
+  act(() => constructedConfig().onException(payload));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
 });
 
 test('Reload remounts the editor with the refetched join setup and the current file', async () => {
@@ -591,6 +687,7 @@ test('Reload refetches only the open query and the file query, each exactly', as
   });
   const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   const reloadButton = await screen.findByRole('button', { name: RELOAD_LABEL });
   const refetchQueries = vi.spyOn(queryClient, 'refetchQueries');
@@ -614,6 +711,7 @@ test('Reload disables its button while the refetch runs and remounts once', asyn
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
   expect(await screen.findByRole('button', { name: RELOADING_LABEL })).toBeDisabled();
@@ -642,6 +740,7 @@ test.each(RELOAD_FILE_FAILURES)(
     });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
     act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
     await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
     expect(await screen.findByText(RELOAD_FAILED_MESSAGE)).toBeInTheDocument();
@@ -654,6 +753,30 @@ test.each(RELOAD_FILE_FAILURES)(
   },
 );
 
+test(
+  'Reload that is answered 409 while another editor creates shows the waiting page, which enters on the 200',
+  async () => {
+    let status = HttpStatus.Ok;
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Create),
+      openBody: { error: DOCUMENT_NOT_READY_ERROR },
+      currentOpenStatus: () => status,
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+    act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+    status = HttpStatus.Conflict;
+    await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+    expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText(RELOAD_FAILED_MESSAGE)).not.toBeInTheDocument();
+    status = HttpStatus.Ok;
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
+    expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  },
+  TEST_TIMEOUT_MS,
+);
+
 test('an ended session names its reason and sends the author to sign in with the way back', async () => {
   let membersStatus = HttpStatus.Ok;
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner), currentMembersStatus: () => membersStatus });
@@ -661,6 +784,7 @@ test('an ended session names its reason and sends the author to sign in with the
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   membersStatus = HttpStatus.Unauthorized;
   await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.SessionEnded]);
   expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();

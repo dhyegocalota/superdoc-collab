@@ -53,7 +53,7 @@ function DeleteDocumentDialog({
     mutationFn: () => deleteDocument(documentId),
     onSuccess: async () => {
       await navigate(AppRoute.Documents);
-      await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY, exact: true });
     },
   });
 

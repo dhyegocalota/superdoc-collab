@@ -17,7 +17,7 @@ import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
 import { RELOAD_FAILED_MESSAGE } from './connection-copy';
-import { documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
+import { DocumentNotReadyError, documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
 import { EditorToolbarRow } from './editor-toolbar-row';
@@ -44,7 +44,7 @@ const FAILED_EDITOR_AREA_CLASS = 'opacity-60';
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
-  const { data: opened, readiness, keepWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
+  const { data: opened, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
@@ -129,8 +129,11 @@ export function DocumentPage() {
       ]);
       resetConnection();
       setEditorGeneration((generation) => generation + 1);
-    } catch {
-      setHasReloadFailed(true);
+    } catch (error) {
+      if (!(error instanceof DocumentNotReadyError)) return setHasReloadFailed(true);
+      restartWaiting();
+      resetConnection();
+      setEditorGeneration((generation) => generation + 1);
     } finally {
       setIsReloading(false);
     }
@@ -194,6 +197,7 @@ export function DocumentPage() {
                 toolbarContainer={toolbarContainer}
                 documentId={documentId}
                 roomMode={editorSetup.roomMode}
+                creatorTicket={editorSetup.creatorTicket}
                 role={editorSetup.role}
                 user={editorSetup.user}
                 file={editorSetup.file}

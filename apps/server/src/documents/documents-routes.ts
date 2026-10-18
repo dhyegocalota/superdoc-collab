@@ -8,7 +8,9 @@ import {
   isTabId,
   MAX_UPLOAD_BYTES,
   NOT_A_DOCX_MESSAGE,
+  OPEN_RATE_LIMITED_MESSAGE,
   RoomMode,
+  secondsRoundedUp,
   TAB_QUERY_KEY,
   TITLE_MAX_LENGTH,
   titleSchema,
@@ -21,6 +23,7 @@ import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
+import { retryLater } from '../http/retry-later';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
 
@@ -31,6 +34,7 @@ const BLANK_DOCUMENT: SeedParagraph[] = [{ text: '', trackedChanges: [] }];
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const INVALID_TITLE_MESSAGE = 'The title must not be blank';
 const DOCX_EXTENSION_PATTERN = /\.docx$/i;
+const CREATOR_REFUSED_MESSAGE = 'Open refused: no creator ticket for document';
 const MALFORMED_UPLOAD_MESSAGE = 'The upload could not be read';
 const RFC_5987_RESERVED = /['()*]/g;
 const UNSAFE_IN_QUOTED_FILENAME = /[^\x20-\x7e]|["\\]/g;
@@ -84,6 +88,11 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     return storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title: parsed.data.title, importRevisions: false });
   }
 
+  function notReady({ context, documentId }: { context: Context<SignedIn>; documentId: string }): Response {
+    console.warn(`${CREATOR_REFUSED_MESSAGE} ${documentId}`);
+    return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
+  }
+
   routes.get('/', (context) => context.json(documents.list(context.var.user.id)));
 
   routes.post(
@@ -111,10 +120,23 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     const documentId = context.req.param('documentId');
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
-    const roomMode = runtime.roomMode(documentId);
-    const mustWaitForCreator = roomMode === RoomMode.Create && role === DocumentRole.Reader;
-    if (mustWaitForCreator) return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
-    return context.json({ document: documents.summary({ documentId, userId }), role, roomMode });
+    const summary = documents.summary({ documentId, userId });
+    const answer = runtime.roomModeFor({ documentId, userId });
+    if (answer.isSpent) {
+      console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);
+      return retryLater({
+        context,
+        body: { error: OPEN_RATE_LIMITED_MESSAGE },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: secondsRoundedUp(answer.waitMs),
+      });
+    }
+    const { roomMode } = answer;
+    if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
+    if (role === DocumentRole.Reader) return notReady({ context, documentId });
+    const ticket = runtime.reserveCreator({ documentId, userId });
+    if (ticket === null) return notReady({ context, documentId });
+    return context.json({ document: summary, role, roomMode, creatorAttempt: ticket.attempt, creatorEpoch: ticket.epoch });
   });
 
   routes.patch(

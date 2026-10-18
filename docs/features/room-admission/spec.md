@@ -43,7 +43,9 @@ The reservation of one document moves through these states. The attempt counter 
 ```
 Unreserved ──open by editor──▶ Reserved(n)
 Reserved(n) ──open by other, live──▶ Reserved(n)        (other gets 409)
-Reserved(n) ──open by same user──▶ Reserved(n)          (same attempt, no extension)
+Reserved(n) ──open by same user──▶ Reserved(n+1)        (newest tab wins: n is fenced and its sockets closed 4403; the lifetime cap carries over)
+Reserved(n) or Expired(n) ──same user reopens within the release window──▶ Reserved(n+1), cap carried over
+Released(n) ──same user reopens after the window──▶ Reserved(n+1), fresh lifetime
 Reserved(n) ──update from n──▶ Reserved(n)              (silence timer refreshed, never past reservedAt + 5 min)
 Reserved(n) ──socket of n connected──▶ Reserved(n)      (live while any socket of n is connected)
 Reserved(n) ──last connection of n closes──▶ Unreserved (attempt counter kept at n)
@@ -52,7 +54,8 @@ Reserved(n) ──5 min since reserved──▶ Lapsed(n)         (even with a s
 Expired(n) or Lapsed(n) ──open by any editor──▶ Reserved(n+1) (n is fenced and its sockets closed)
 Expired(n) ──last connection of n closes──▶ Unreserved
 Reserved(n) or Expired(n) ──commit by n──▶ Committed(n) (reservation cleared, room is Join)
-Committed(n) ──socket with an attempt other than n, or from another epoch──▶ closed 4403
+Committed(n) ──socket with an attempt other than n in this epoch──▶ closed 4403
+Committed(n) ──socket with a ticket from another epoch (a restart)──▶ admitted as an ordinary editor; a ticket is only read for another epoch while the room is uncommitted
 Unreserved ──open──▶ Reserved(latest + 1), or Reserved(1) when nothing was ever issued
 ```
 
@@ -71,16 +74,17 @@ The open route is synchronous, and so is reservation. Node's single thread there
 
 ### Data flow
 
-- **Open** (`GET /api/documents/:id`). Role check first (Reader minimum). If the room is committed, answer Join with `creatorAttempt: null`. Otherwise a reader gets 409. An editor calls `runtime.reserveCreator`. A `null` answer (another user holds a live reservation) is 409 and is logged with the document id. An attempt is 200 with `RoomMode.Create`, `creatorAttempt` and `creatorEpoch`. The holder's second open answers Create with the same attempt. The web's open query gets `staleTime: Infinity` (`use-opened-document.ts`, added by connection-state's lane G4 after final-visuals merges, which owns that file today).
+- **Open** (`GET /api/documents/:id`). Role check first (Reader minimum). If the room is committed, answer Join with `creatorAttempt: null`. Otherwise a reader gets 409. An editor calls `runtime.reserveCreator`. A `null` answer (another user holds a live reservation) is 409 and is logged with the document id. An attempt is 200 with `RoomMode.Create`, `creatorAttempt` and `creatorEpoch`. The holder's second open answers Create with a new attempt: the newest tab wins, the old attempt is fenced and its sockets are closed with 4403, and the lifetime cap keeps counting from the first reservation, also when the holder released and reopened within `CREATOR_RESERVATION_MS` of the release. A holder returning later starts a fresh lifetime. The web's open query gets `staleTime: Infinity` (`use-opened-document.ts`, added by connection-state's lane G4 after final-visuals merges, which owns that file today).
 - **Socket authentication.** The attempt travels with the socket: the web passes `attempt` and `epoch` from the open response as socket URL queries (`collaboration-config.ts`), and `onAuthenticate` stores them in the context. On an uncommitted room the connection is accepted only when `attemptOf` answers the session user with that attempt in this epoch. Anything else is refused and logged with the document id, for members and agents alike. The agent path is loopback-only, its room token is checked in the first protocol message, and an agent is refused on an uncommitted room before any ticket check, so agents never create. The room token carries no attempt. On a committed room, a socket with an attempt that is not the committing attempt of this epoch is closed with 4403.
 - **Update.** `onChange` runs after Hocuspocus applied the update, in this order: fence, append, `isBootstrapCommitted({ document })`, `commit` with the appended sequence. The fence is `mayWrite`: a committed room accepts a socket with no attempt or the committing attempt, an uncommitted room accepts the latest attempt of this epoch. An update from a socket that carries an attempt never calls `readBatch` or `latestSnapshot`: the fence reads the reservation, not the log. A refused update is dropped and logged once per connection, and a fenced committing update never commits the room. Every appended update from the latest attempt calls `touch`, which refreshes `expiresAt` up to `reservedAt + CREATOR_RESERVATION_MAX_MS`. The log keeps everything appended before the takeover.
-- **Commit.** On the first committed update, the append and the snapshot happen in one SQLite transaction at the appended sequence. `commit({ documentId, attempt })` then records the committing attempt and clears the reservation. A snapshot slightly ahead of the appended sequence is harmless, because `onChange` runs after the update was applied and Yjs updates are idempotent.
+- **Commit.** On the first committed update, the append and the snapshot happen in one SQLite transaction at the appended sequence. `commit(documentId)` then clears the reservation; the latest attempt is the committing one, so nothing else is recorded. A snapshot slightly ahead of the appended sequence is harmless, because `onChange` runs after the update was applied and Yjs updates are idempotent.
 - **Commit detection.** `isCommitted` answers from the latest snapshot whose state satisfies `isBootstrapCommitted`, and falls back to the paged log scan only when no snapshot exists. The projection's bootstrap scan (`projectPending` in `libs/history/src/projection.ts`) does the same. A from-zero replay is unreliable: an abandoned client with a higher client id can write `meta.bootstrapState` concurrently, and Yjs resolves the conflict in its favour, which hides the winner's commit.
-- **Session at the upgrade.** The browser path verifies the session cookie before `handleUpgrade`. A failed check completes the upgrade and closes the socket with `UNAUTHORIZED_CLOSE_CODE` (4401) and `UNAUTHORIZED_CLOSE_REASON`, so the client maps it to `failed` without retries, and no frame reaches Hocuspocus. A request without a cookie is destroyed before the upgrade.
+- **Session at the upgrade.** The browser path verifies the session cookie before `handleUpgrade`. A failed check completes the upgrade and closes the socket with `UNAUTHORIZED_CLOSE_CODE` (4401) and `UNAUTHORIZED_CLOSE_REASON`, so the client maps it to `failed` without retries, and no frame reaches Hocuspocus. A request without a cookie is destroyed before the upgrade, and so is one whose session lookup throws, so the provider treats it as a network drop and retries.
 - **One document per socket.** The first frame names the document. A frame for a second document name on the same socket closes it with `POLICY_VIOLATION_CLOSE_CODE` (1008) and `SOCKET_SINGLE_DOCUMENT_REASON`, and the close is logged with the document id.
 - **Close grace.** Every server-initiated close uses one `closeTimeout` of `SOCKET_CLOSE_GRACE_MS`, so a peer that ignores the close frame is terminated after that grace.
+- **Open limit.** A user may open at most `OPEN_UNCOMMITTED_PER_MINUTE` (30, never above `BOOTSTRAP_SCAN_CACHE_ENTRIES`, so one user cannot evict every other document's scan progress) distinct documents that are not yet known committed in a rolling minute. A document counts once per user and minute (an `OpenBudget`: a `KeyedSlidingWindow` per user plus a `KeyedCooldown` per user and document), so a waiting page polling every 2 s, a reconnect, or a creator's open plus socket cost one entry. One budget, held in `services.openBudget`, is consulted before any log scan through `runtime.roomModeFor` on every path that decides a room mode: the open route (429 with `Retry-After`), `onAuthenticate` (access denied), the agent room locator and the export tool (a tool error with a rate-limited message). A room the process already knows is committed (cached or with a projection cursor) is never limited. Each refusal is logged with the document id.
 - **Takeover.** `reserveCreator` first refreshes the reservation from the sockets still connected, so a holder with a connected socket is not taken over when the silence timer has run out. It then closes every connection whose attempt is not the new one with `SUPERSEDED_ATTEMPT_CLOSE_CODE` and the reason.
-- **Release.** `onDisconnect` releases the reservation only when the last connection of the holder's attempt closes. Closing one of two tabs keeps the reservation, and another editor still gets 409. The takeover close is logged with the document id.
+- **Release.** `onDisconnect` releases the reservation of the closing connection's attempt, and `reserveCreator` refreshes the attempt of every connected socket before it reserves. So closing one of two tabs keeps the reservation in effect, and another editor still gets 409 until the last socket is gone. The takeover close is logged with the document id.
 - **Room load.** While uncommitted, `onLoadDocument` restores nothing, so a new attempt starts empty and abandoned partials stay out of the live room. Once committed, it materializes as today, starting from the commit snapshot.
 - **Room unload.** Hocuspocus 2.15.3 unloads a room when its last connection closes (`unloadImmediately` defaults to true), so the next attempt loads an empty room through the uncommitted rule above. No manual unload is added.
 - **Commit snapshot.** The snapshot holds the live room's state (`Y.encodeStateAsUpdate(document)`), never a `materialize` of the log, because the log still holds the abandoned partials. It is written through the existing `UpdateLog.writeSnapshot`; no new `snapshot` method is added.
@@ -97,7 +101,7 @@ The open route is synchronous, and so is reservation. Node's single thread there
 - `MAX_SOCKET_MESSAGES_PER_SECOND = 120`.
 - `POLICY_VIOLATION_CLOSE_CODE = 1008`.
 - `SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403`, the same code upstream uses for access denied, so the client maps it to `failed` without retries.
-- `UNAUTHORIZED_CLOSE_CODE = 4401` and `UNAUTHORIZED_CLOSE_REASON = 'Unauthorized'`, for a session that fails at the upgrade.
+- `UNAUTHORIZED_CLOSE_CODE = 4401` and `UNAUTHORIZED_CLOSE_REASON = 'Session expired'`, for a session that fails at the upgrade.
 - `SOCKET_RATE_LIMIT_REASON = 'Too many messages per second'`.
 - `SOCKET_SINGLE_DOCUMENT_REASON = 'One document per socket'`.
 - `SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded'`.
@@ -119,14 +123,14 @@ export class CreatorReservations {
   reserve({ documentId, userId }: { documentId: string; userId: string }): CreatorTicket | null;
   attemptOf({ documentId, userId }: { documentId: string; userId: string }): number | null;
   mayWrite({ documentId, attempt, epoch, isCommitted }: { documentId: string; attempt: number | null; epoch: string | null; isCommitted: boolean }): boolean;
-  commit({ documentId, attempt }: { documentId: string; attempt: number }): void;
+  commit(documentId: string): void;
   touch({ documentId, attempt }: { documentId: string; attempt: number }): void;
   release({ documentId, attempt }: { documentId: string; attempt: number }): void;
   forget(documentId: string): void;
 }
 ```
 
-`CreatorTicket` is declared in `libs/types/src/documents.ts`. `reserve` returns a ticket with the new attempt, the same attempt for the holder, or `null` for a live holder and for a holder that lapsed at the cap and is still in its cooldown. Every ticket carries the per-process `epoch`, so an attempt from before a restart never matches. The constructor takes `reservationMs`, `maxLifetimeMs` (default `CREATOR_RESERVATION_MAX_MS`) and `now`, following `KeyedCooldown`, which also times the lapse cooldown. `commit` records the committing attempt, which `mayWrite` then accepts on the committed room, and clears the reservation. `touch` never moves `expiresAt` past `reservedAt + maxLifetimeMs`.
+`CreatorTicket` is declared in `libs/types/src/documents.ts`. `reserve` returns a ticket with the new attempt (also for the holder, who supersedes its own live attempt), or `null` for a live holder and for a holder that lapsed at the cap and is still in its cooldown. Every ticket carries the per-process `epoch`, so an attempt from before a restart never matches. The constructor takes `reservationMs`, `maxLifetimeMs` (default `CREATOR_RESERVATION_MAX_MS`) and `now`, following `KeyedCooldown`, which also times the lapse cooldown. `commit` clears the reservation. `touch` never moves `expiresAt` past `reservedAt + maxLifetimeMs`.
 
 **`apps/server/src/collaboration/bootstrap-state.ts`** (new)
 
@@ -143,7 +147,7 @@ export class CreatorReservations {
 - `onAuthenticate` stores the attempt and epoch from the URL queries (`CREATOR_ATTEMPT_QUERY_KEY` and `CREATOR_EPOCH_QUERY_KEY` in `libs/types/src/routes.ts`) and refuses, with a log line, an uncommitted room without a matching attempt, for members and agents alike.
 - `onLoadDocument` restores nothing while uncommitted.
 - `onChange` applies the fence, appends, detects the commit, and logs refusals once per connection through a `WeakSet` of contexts.
-- `onDisconnect` releases the reservation when the last connection of the attempt closes.
+- `onDisconnect` releases the reservation of the closing connection's attempt; a connected sibling keeps it live through `reserveCreator`.
 
 **`apps/server/src/collaboration/socket-message-limit.ts`** (new)
 
@@ -169,8 +173,9 @@ export class CreatorReservations {
 - **The session expired before the upgrade.** The socket closes with 4401, the client shows failed, and no frame reaches Hocuspocus.
 - **A rate breach during a burst paste.** The socket closes with 1008 and the provider reconnects once. `attemptOf` still answers the holder, so the reconnect is accepted on the uncommitted room, re-syncs missed updates, and the banner goes lost, reconnecting, then recovered. Awareness frames count toward the 120. If the same paste breaches again on reconnect, the human checklist catches it.
 - **The creator goes offline mid-create and another editor commits.** The creator's reservation expired and the other editor took over with attempt + 1. When the creator returns, its socket carries the old attempt on a committed room and is closed with 4403. The document keeps one paragraph set and the room still opens.
-- **The holder opens the document twice within a second.** The second open answers Create with the same attempt, so both pages seed from one attempt. If an E2E shows duplicated paragraphs, the rule becomes 409 while a socket of that attempt is connected.
+- **The holder opens the document twice (two tabs, or a reload in the middle of a create).** The second open answers Create with the next attempt and `reserveCreator` closes the first tab's sockets with 4403, so the old page shows the failed banner when it had already synced, or the editor failure notice (`EDITOR_FAILED_MESSAGE`) when it was still loading, and the new page restarts the create from an empty room. The abandoned partial stays in the log and is never loaded. A reload 8 s into a 10 MB create therefore ends with one committed bootstrap, not a stuck page. A superseded creator that was already ready sees the Failed banner only when the provider's refusal surfaces, measured at about 40 to 60 seconds after the takeover because SuperDoc reports the 4403 late. That delay is a known limit.
 - **A server restart mid-create.** Reservations and counters vanish. The creator's reconnect is refused at authentication because no reservation exists, so the page shows failed with Reload. Reload reserves attempt 1, and the room loads empty because it is uncommitted. The abandoned partial seed stays in the log and is not loaded, so nothing duplicates. Editors who open during the downtime see the open error and retry. A creator that committed before the restart and reconnects after it carries an old epoch, is closed with 4403, and Reload opens the committed room as Join.
+- **A refused socket before the first sync.** No connection report reaches the page before the first sync, so a page still on "Loading document…" would show nothing. Before the editor is ready, only a `failed` report or a connection exception (any reason) ends the load with the editor failure notice, which tells the user to reload. `lost` and `reconnecting` before ready are ignored, so a network blip while a creator streams a large DOCX keeps reconnecting. The banner applies only after the first sync, and after it every connection exception reaches the banner with its reason.
 - **A stale connection writes after takeover.** `onChange` refuses it and logs once. Hocuspocus has already applied the update to the in-memory room, so the close on takeover is the actual fence. The refusal is the second line.
 
 ## Alternatives

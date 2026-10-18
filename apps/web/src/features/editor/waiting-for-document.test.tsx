@@ -86,3 +86,7 @@ test('without a cached title a skeleton takes its place', () => {
   expect(screen.queryByText(DOCUMENT_TITLE)).not.toBeInTheDocument();
   expect(screen.getByTestId(TITLE_SKELETON_TEST_ID)).toBeInTheDocument();
 });
+
+test('the waiting copy names another editor, never the owner, because any editor can create the room', () => {
+  expect([PREPARING_DOCUMENT_HINT, NOT_READY_PAUSED_MESSAGE].some((copy) => /owner/i.test(copy))).toBe(false);
+});

@@ -13,6 +13,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, openedAs } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
+import { openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness, useOpenedDocument, useOpenedDocumentWithoutPolling } from './use-opened-document';
 
@@ -107,6 +108,18 @@ test('keepWaiting restarts the count', async () => {
   expect(fetchSpy).toHaveBeenCalledTimes(GIVE_UP_POLLS * 2);
 });
 
+test('restartWaiting forgets the saved count, so the next wait gives up after a full count again', async () => {
+  answerInOrder(notReady);
+  const result = renderOpenedDocument();
+  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
+  act(() => result.current.keepWaiting());
+  await advance(DOCUMENT_READY_POLL_MS * 2);
+  act(() => result.current.restartWaiting());
+  await advance(0);
+  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
+  expect(result.current.readiness).toBe(DocumentReadiness.Paused);
+});
+
 test('a non-409 error stays an error and retry refetches once', async () => {
   const fetchSpy = answerInOrder(serverError, entered);
   const result = renderOpenedDocument();
@@ -135,4 +148,17 @@ test('without polling a NOT_READY answer is asked once and stays waiting', async
   await advance(DOCUMENT_READY_POLL_MS * 5);
   expect(fetchSpy).toHaveBeenCalledTimes(1);
   expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
+});
+
+test('the open answer never goes stale, so a focus refetch cannot re-reserve the creator', async () => {
+  answerInOrder(entered);
+  const { result, queryClient } = renderHookWithRouter(() => useOpenedDocument(DOCUMENT_ID));
+  await advance(0);
+  expect(result.current.readiness).toBe(DocumentReadiness.Ready);
+  expect(
+    queryClient
+      .getQueryCache()
+      .find({ queryKey: openedDocumentQueryKey(DOCUMENT_ID) })
+      ?.isStale(),
+  ).toBe(false);
 });

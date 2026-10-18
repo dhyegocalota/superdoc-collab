@@ -1,12 +1,23 @@
-import { ApiPath, DocumentRole, RoomMode } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  DOCUMENT_NOT_READY_ERROR,
+  DocumentRole,
+  OPEN_RATE_LIMITED_MESSAGE,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  RoomMode,
+} from '@superdoc-collab/types';
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
-import { AgentSessions } from './agent-sessions';
+import { agentRoomMode } from './agent-room-mode';
+import { AgentSessions, type AgentSessionsClient } from './agent-sessions';
 import { ROOM_TOKEN_TTL_MS, signRoomToken } from './room-tokens';
 import { TEST_AUTH_SECRET } from '../testing/test-server';
 import { signedInOwner, signedInUser, type TestServer, type TestUser } from '../testing/test-server';
+import { AgentToolError } from './tool-results';
 import type { AgentPerson } from './agent-tool-context';
 import { seededDocument } from './agent-tool-fixtures';
 
+const ROOM_TOKEN_PLACEHOLDER = 'room-token';
 const OWNER_AGENT_NAME = 'Ana · AI';
 const READER_NAME = 'Reader';
 const SECOND_NAME = 'Bruno';
@@ -84,10 +95,12 @@ function loggedUpdates(roomId: string): number {
 }
 
 function sessionsWith({
+  roomMode = RoomMode.Join,
   tokenIssuedAt = () => Date.now(),
   tokenLifetimeMs,
   openTimeoutMs,
 }: {
+  roomMode?: RoomMode;
   tokenIssuedAt?: () => number;
   tokenLifetimeMs?: number;
   openTimeoutMs?: number;
@@ -96,7 +109,7 @@ function sessionsWith({
     issueRoomToken: ({ userId, documentId: roomId }) =>
       signRoomToken({ secret: TEST_AUTH_SECRET, userId, documentId: roomId, now: tokenIssuedAt() }),
     collaborationUrl: () => `${server.baseUrl.replace('http', 'ws')}${ApiPath.AgentCollaboration}`,
-    locateRoom: (roomId) => ({ roomMode: RoomMode.Join, filePath: server.services.storage.pathOf(roomId) }),
+    locateRoom: (roomId) => ({ roomMode }),
     roleOf: ({ userId, documentId: roomId }) => server.services.documents.findRole({ documentId: roomId, userId }),
     tokenLifetimeMs,
     openTimeoutMs,
@@ -164,4 +177,43 @@ test('a session near the end of its room token is replaced, so an edit after a r
   const before = loggedUpdates(roomId);
   await editThrough({ sessions, user: owner, name: 'Ana', roomId });
   await vi.waitFor(() => expect(loggedUpdates(roomId)).toBeGreaterThan(before));
+});
+
+test('an agent opening an uncommitted room is answered NOT_READY and seeds nothing', async () => {
+  const roomId = await seededDocument({ server, owner });
+  const before = loggedUpdates(roomId);
+  const refused = await editThrough({ sessions: sessionsWith({ roomMode: RoomMode.Create }), user: owner, name: 'Ana', roomId }).catch(
+    (error: unknown) => error,
+  );
+  expect(refused).toBeInstanceOf(AgentToolError);
+  expect((refused as AgentToolError).message).toBe(DOCUMENT_NOT_READY_ERROR);
+  expect(loggedUpdates(roomId)).toBe(before);
+});
+
+test('opening a session with the open budget spent is refused before any log scan and any client open', async () => {
+  const spender = await signedInUser({ server, name: 'Spender' });
+  const uncommittedId = randomUUID();
+  server.services.documents.create({ id: uncommittedId, title: 'Not ready', ownerUserId: owner.id });
+  server.services.documents.grant({ documentId: uncommittedId, userId: spender.id, role: DocumentRole.Editor });
+  Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+    server.services.openBudget.record({ userId: spender.id, documentId: `spent-${index}` }),
+  );
+  const open = vi.fn();
+  const sessions = new AgentSessions({
+    issueRoomToken: () => ROOM_TOKEN_PLACEHOLDER,
+    collaborationUrl: () => `${server.baseUrl.replace('http', 'ws')}${ApiPath.AgentCollaboration}`,
+    locateRoom: ({ documentId: roomId, userId }) => ({
+      roomMode: agentRoomMode({ runtime: server.services.runtime, documentId: roomId, userId }),
+    }),
+    roleOf: ({ userId, documentId: roomId }) => server.services.documents.findRole({ documentId: roomId, userId }),
+    createClient: () => ({ connect: vi.fn(), open, dispose: vi.fn() }) as unknown as AgentSessionsClient,
+  });
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const refused = await sessions
+    .run({ person: personOf(spender, 'Spender'), documentId: uncommittedId, work: async () => undefined })
+    .catch((error: unknown) => error);
+  expect(refused).toBeInstanceOf(AgentToolError);
+  expect((refused as AgentToolError).message).toBe(OPEN_RATE_LIMITED_MESSAGE);
+  expect([open.mock.calls.length, readBatch.mock.calls.length]).toEqual([0, 0]);
+  readBatch.mockRestore();
 });

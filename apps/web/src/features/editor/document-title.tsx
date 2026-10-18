@@ -1,10 +1,10 @@
-import { DocumentRole } from '@superdoc-collab/types';
+import { DocumentRole, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { KeyboardKey } from '@/lib/keyboard';
-import { renameDocument } from './editor-api';
+import { openedDocumentQueryKey, renameDocument } from './editor-api';
 import { renameTitleLabel, TITLE_LABEL } from './editor-copy';
 
 const TITLE_TEXT_CLASS = 'h-8 max-w-[360px] min-w-20 truncate md:min-w-24 px-2 text-left leading-8 font-medium';
@@ -22,7 +22,13 @@ export function DocumentTitle({ documentId, title, role, onFailureChange }: Docu
     mutationFn: renameDocument,
     onMutate: () => onFailureChange(false),
     onError: () => onFailureChange(true),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY }),
+    onSuccess: (_, { title: renamedTitle }) => {
+      queryClient.setQueryData<OpenedDocument>(
+        openedDocumentQueryKey(documentId),
+        (opened) => opened && { ...opened, document: { ...opened.document, title: renamedTitle } },
+      );
+      return queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY, exact: true });
+    },
   });
   const shownTitle = isPending ? variables.title : title;
 

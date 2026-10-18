@@ -168,6 +168,31 @@ export class UpdateLog {
       .run(documentName, sequence, state);
   }
 
+  appendCommitted({
+    state,
+    ...parameters
+  }: {
+    documentName: string;
+    connectionUserId: string;
+    connectionActor: ClientActor;
+    update: Uint8Array;
+    state: Uint8Array;
+  }): LoggedUpdate {
+    return this.database.transaction(() => {
+      const appended = this.append(parameters);
+      this.writeSnapshot({ documentName: parameters.documentName, sequence: appended.sequence, state });
+      return appended;
+    })();
+  }
+
+  snapshotAfter({ documentName, afterSequence }: { documentName: string; afterSequence: number }): Snapshot | null {
+    const row = this.database
+      .prepare('SELECT sequence, state FROM snapshots WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT 1')
+      .get(documentName, afterSequence) as { sequence: number; state: Uint8Array } | undefined;
+    if (!row) return null;
+    return { sequence: row.sequence, state: new Uint8Array(row.state) };
+  }
+
   latestSnapshot({ documentName, atOrBefore }: { documentName: string; atOrBefore: number }): Snapshot | null {
     const row = this.database
       .prepare('SELECT sequence, state FROM snapshots WHERE document_name = ? AND sequence <= ? ORDER BY sequence DESC LIMIT 1')

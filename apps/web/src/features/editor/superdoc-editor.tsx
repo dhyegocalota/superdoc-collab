@@ -1,4 +1,11 @@
-import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  ConnectionFailureReason,
+  type CreatorTicket,
+  DocumentRole,
+  type RoomMode,
+  type SessionUser,
+} from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -20,6 +27,7 @@ type SuperDocEditorProps = {
   toolbarContainer: HTMLElement | null;
   documentId: string;
   roomMode: RoomMode;
+  creatorTicket: CreatorTicket | null;
   role: DocumentRole;
   user: SessionUser;
   file: Blob;
@@ -33,6 +41,7 @@ export function SuperDocEditor({
   toolbarContainer,
   documentId,
   roomMode,
+  creatorTicket,
   role,
   user,
   file,
@@ -55,6 +64,12 @@ export function SuperDocEditor({
     const container = containerRef.current;
     if (!container) return;
     let isActive = true;
+    let isReady = false;
+    function reportTransport(report: TransportReport): void {
+      isReady = isReady || report.hasSynced;
+      if (isReady) return onTransportReport(report);
+      if (report.reading === TransportReading.Failed) setHasFailed(true);
+    }
     const exceptionHandlers: Record<ExceptionOutcome, (payload: SuperDocExceptionPayload) => void> = {
       [ExceptionOutcome.Logged]: (payload) => {
         if (!('message' in payload)) return;
@@ -62,7 +77,7 @@ export function SuperDocEditor({
       },
       [ExceptionOutcome.Recoverable]: () => setHasRejectedEdit(true),
       [ExceptionOutcome.ConnectionFailed]: (payload) =>
-        onTransportReport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
+        reportTransport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
       [ExceptionOutcome.Fatal]: () => setHasFailed(true),
     };
     const superdoc = new SuperDoc({
@@ -74,13 +89,17 @@ export function SuperDocEditor({
         documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
         collaborationPath: ApiPath.Collaboration,
         roomMode,
+        creatorTicket,
         user,
         ...authorPaletteOf(user),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
+      onCollaborationReady: () => {
+        isReady = true;
+      },
       onCollaborationConnectionChange: (payload) => {
         if (!isActive) return;
-        onTransportReport(transportReportOf(payload));
+        reportTransport(transportReportOf(payload));
       },
       onException: (payload) => {
         if (!isActive) return;
@@ -93,7 +112,7 @@ export function SuperDocEditor({
       superdoc.destroy();
       setHasRejectedEdit(false);
     };
-  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, role, user, file, onTransportReport]);
+  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport]);
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);

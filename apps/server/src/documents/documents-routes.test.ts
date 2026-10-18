@@ -11,6 +11,8 @@ import {
   HttpMethod,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  RETRY_AFTER_HEADER,
   TITLE_MAX_LENGTH,
   RoomMode,
   TAB_QUERY_KEY,
@@ -25,9 +27,11 @@ import { randomUUID } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
-import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
+import * as Y from 'yjs';
+import { connectToDocument, documentWithOwner, memberWithRole, reserveOwner } from '../testing/collaboration-client';
+import { commitBootstrap as commitRoom } from '../testing/committed-room';
 import { readEvents } from '../testing/events-client';
-import { signedInOwner, signedInUser, type TestServer } from '../testing/test-server';
+import { signedInOwner, signedInUser, type TestServer, type TestUser } from '../testing/test-server';
 import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
 import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtime';
 
@@ -38,6 +42,7 @@ const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
 const LONG_LOG_EXTRA_UPDATES = 20;
+const FIRST_ATTEMPT = 1;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function upload({
@@ -271,9 +276,8 @@ test('roomMode stays create until the bootstrap commits', async () => {
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   await expect.poll(() => server.services.updateLog.hasUpdates(documentId)).toBe(true);
-  const roomModeOf = async () =>
-    ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument).roomMode;
-  expect(await roomModeOf()).toBe(RoomMode.Create);
+  const roomModeOf = () => server.services.runtime.roomMode(documentId);
+  expect(roomModeOf()).toBe(RoomMode.Create);
   commitBootstrap(client.document);
   await expect.poll(roomModeOf).toBe(RoomMode.Join);
   client.close();
@@ -282,23 +286,19 @@ test('roomMode stays create until the bootstrap commits', async () => {
 
 test('roomMode scans a long log in pages until the first committed bootstrap', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
-  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) =>
-    writeStory({ document: client.document, texts: ['x'.repeat(index + 1)] }),
+  const document = new Y.Doc();
+  document.on('update', (update: Uint8Array) =>
+    server.services.updateLog.append({ documentName: documentId, connectionUserId: owner.id, connectionActor: ClientActor.Human, update }),
   );
-  commitBootstrap(client.document);
-  const batchSize = ROOM_MODE_SCAN_BATCH_SIZE;
-  await expect
-    .poll(() => server.services.updateLog.readBatch({ documentName: documentId, afterSequence: batchSize, limit: 1 }).length)
-    .toBe(1);
+  Array.from({ length: ROOM_MODE_SCAN_BATCH_SIZE + LONG_LOG_EXTRA_UPDATES }).forEach((_, index) =>
+    writeStory({ document, texts: ['x'.repeat(index + 1)] }),
+  );
+  commitBootstrap(document);
   const readAll = vi.spyOn(server.services.updateLog, 'read');
   const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
-  const roomMode = ((await (await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })).json()) as OpenedDocument)
-    .roomMode;
-  expect(roomMode).toBe(RoomMode.Join);
+  expect((await openedBy({ server, user: owner, documentId })).roomMode).toBe(RoomMode.Join);
   expect(readAll).not.toHaveBeenCalled();
   expect(readBatch.mock.calls.length).toBeGreaterThan(1);
-  client.close();
   await server.stop();
 });
 
@@ -309,7 +309,7 @@ test('a reader opening a never-created room gets 409 NOT_READY', async () => {
   const notReady = await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) });
   expect([notReady.status, await notReady.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
   const editorOpen = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
-  expect([editorOpen.status, ((await editorOpen.json()) as OpenedDocument).roomMode]).toEqual([HttpStatus.Ok, RoomMode.Create]);
+  expect(editorOpen.status).toBe(HttpStatus.Conflict);
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
@@ -318,6 +318,128 @@ test('a reader opening a never-created room gets 409 NOT_READY', async () => {
     .toBe(HttpStatus.Ok);
   const readerOpen: OpenedDocument = await (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).json();
   expect(readerOpen.roomMode).toBe(RoomMode.Join);
+  client.close();
+  await server.stop();
+});
+
+async function openedBy({ server, user, documentId }: { server: TestServer; user: TestUser; documentId: string }): Promise<OpenedDocument> {
+  return (await request({ server, cookie: user.cookie, path: pathOf({ documentId }) })).json();
+}
+
+test('the first editor to open a fresh room is reserved as creator with attempt 1', async () => {
+  const { server, owner } = await signedInOwner();
+  const [documentId] = uncommittedDocuments({ server, owner, count: 1 });
+  const opened = await openedBy({ server, user: owner, documentId: documentId! });
+  expect([opened.roomMode, opened.creatorAttempt, opened.creatorEpoch]).toEqual([
+    RoomMode.Create,
+    FIRST_ATTEMPT,
+    server.services.reservations.epoch,
+  ]);
+  await server.stop();
+});
+
+test('a second open by the holder supersedes its own attempt with the next one', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const first = await openedBy({ server, user: owner, documentId });
+  const second = await openedBy({ server, user: owner, documentId });
+  expect(second.creatorAttempt).toBe(first.creatorAttempt! + 1);
+  expect(second.creatorEpoch).toBe(first.creatorEpoch);
+  await server.stop();
+});
+
+test('a second editor opening a live reservation gets 409 NOT_READY', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  await openedBy({ server, user: owner, documentId });
+  const refused = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
+  expect([refused.status, await refused.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
+  await server.stop();
+});
+
+function uncommittedDocuments({ server, owner, count }: { server: TestServer; owner: TestUser; count: number }): string[] {
+  return Array.from({ length: count }, () => {
+    const documentId = randomUUID();
+    server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
+    return documentId;
+  });
+}
+
+test('the first distinct uncommitted document over the budget answers 429 and another user is still served', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const others = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE });
+  const statuses = await Promise.all(
+    [documentId, ...others].map((openedId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId: openedId }) })),
+  );
+  const limited = statuses.filter((response) => response.status === HttpStatus.TooManyRequests);
+  expect([limited.length, statuses.filter((response) => response.status === HttpStatus.Ok).length]).toEqual([
+    1,
+    OPEN_UNCOMMITTED_PER_MINUTE,
+  ]);
+  expect(Number(limited[0]!.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
+  const other = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
+  expect(other.status).toBe(HttpStatus.Conflict);
+  await server.stop();
+});
+
+test('the first distinct uncommitted document over the budget makes no query to the log', async () => {
+  const { server, owner } = await documentWithOwner();
+  const opened = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE + 1 });
+  await Promise.all(opened.slice(0, -1).map((documentId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })));
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const limited = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: opened.at(-1)! }) });
+  expect([limited.status, readBatch.mock.calls.length]).toEqual([HttpStatus.TooManyRequests, 0]);
+  await server.stop();
+});
+
+test('a waiting editor polling the same uncommitted document is answered 409 every time, never 429', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  await openedBy({ server, user: owner, documentId });
+  const statuses = await Promise.all(
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE + 1 }, () => request({ server, cookie: editor.cookie, path: pathOf({ documentId }) })),
+  );
+  expect(new Set(statuses.map((response) => response.status))).toEqual(new Set([HttpStatus.Conflict]));
+  await server.stop();
+});
+
+test('a reader opening an unreserved uncommitted room gets 409 and reserves nothing (mutation: drop the reader check)', async () => {
+  const { server, owner } = await signedInOwner();
+  const [documentId] = uncommittedDocuments({ server, owner, count: 1 });
+  const reader = await memberWithRole({ server, documentId: documentId!, role: DocumentRole.Reader });
+  const response = await request({ server, cookie: reader.cookie, path: pathOf({ documentId: documentId! }) });
+  expect([response.status, server.services.reservations.attemptOf({ documentId: documentId!, userId: reader.id })]).toEqual([
+    HttpStatus.Conflict,
+    null,
+  ]);
+  await server.stop();
+});
+
+test('a known committed room answers Join while the open budget is spent (mutation: drop the known-committed shortcut)', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitRoom({ services: server.services, documentId, userId: owner.id });
+  await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) });
+  Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+    server.services.openBudget.record({ userId: owner.id, documentId: `spent-${index}` }),
+  );
+  const again = await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) });
+  expect([again.status, ((await again.json()) as OpenedDocument).roomMode]).toEqual([HttpStatus.Ok, RoomMode.Join]);
+  await server.stop();
+});
+
+test('a committed room answers Join with creatorAttempt null for a reader and an editor', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: ['Hello'] });
+  commitBootstrap(client.document);
+  await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+  const answers = await Promise.all([reader, editor].map((user) => openedBy({ server, user, documentId })));
+  expect(answers.map(({ roomMode, creatorAttempt, creatorEpoch }) => [roomMode, creatorAttempt, creatorEpoch])).toEqual([
+    [RoomMode.Join, null, null],
+    [RoomMode.Join, null, null],
+  ]);
   client.close();
   await server.stop();
 });
@@ -381,6 +503,7 @@ test('members reports whether the current user is online', async () => {
 
 test('members answers isCurrentUserOnline for the tab that asks, not for another tab of the same user', async () => {
   const { server, documentId, owner } = await documentWithOwner();
+  commitRoom({ services: server.services, documentId, userId: owner.id });
   const connectedTab = randomUUID();
   const otherTab = randomUUID();
   const client = await connectToDocument({
@@ -403,6 +526,7 @@ test('members answers isCurrentUserOnline for the tab that asks, not for another
 
 test('a socket of another user carrying a tab id does not make that tab online for the asking user', async () => {
   const { server, documentId, owner } = await documentWithOwner();
+  commitRoom({ services: server.services, documentId, userId: owner.id });
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const readerTab = randomUUID();
   const client = await connectToDocument({
@@ -445,6 +569,7 @@ test('signed-out requests get 401', async () => {
 test('delete removes the row, the file, the log and the events, and closes the room', async () => {
   const { server, owner } = await signedInOwner();
   const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Doomed' })).json();
+  reserveOwner({ server, documentId: created.id, owner });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId: created.id });
   const closed = new Promise<void>((resolve) => client.provider.on('close', () => resolve()));
   writeStory({ document: client.document, texts: ['Hello'] });

@@ -3,6 +3,7 @@
 - Date: 2026-10-16
 - Inspired by: slice 3 Task 9 review (reproduced on Node 24 with a standalone probe: a client reset during the authorize window raised an uncaught `ECONNRESET`); sibling of [worker threads need an error listener](2026-10-16-worker-threads-need-an-error-listener.md)
 - Revisited: 2026-10-16 — fixed in `attach-collaboration.ts` with the ws README pattern and a reset-mid-authorize test
+- Revisited: 2026-10-17 — still true; the member and version upgrades both attach the error listener before their first await, now also around the session lookup
 
 ## Signal
 The server exits with an uncaught `ECONNRESET` the moment a client opens a WebSocket upgrade and resets the connection before authentication finishes. No session is needed and `Origin` is trivially spoofed outside browsers.

@@ -5,6 +5,8 @@ import {
   AgentTool,
   DocumentRole,
   documentPagePath,
+  OPEN_RATE_LIMITED_MESSAGE,
+  OPEN_UNCOMMITTED_PER_MINUTE,
   ShareLinkRole,
   type DocumentMembers,
 } from '@superdoc-collab/types';
@@ -36,7 +38,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Join);
+  vi.spyOn(server.services.runtime, 'roomModeFor').mockReturnValue({ isSpent: false, roomMode: RoomMode.Join });
 });
 
 afterEach(() => {
@@ -124,6 +126,24 @@ test('export_docx returns the live document as an embedded DOCX resource, record
   expect(existsSync(dirname(written[0]!))).toBe(false);
 });
 
+test('export_docx with the open budget spent is refused before any log scan', async () => {
+  vi.restoreAllMocks();
+  const spender = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+    server.services.openBudget.record({ userId: spender.id, documentId: `spent-${index}` }),
+  );
+  try {
+    const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+    const save = vi.fn();
+    const { context, recorded } = toolContext({ server, userId: spender.id, sessions: sessionsOn({ save }) });
+    const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+    expect(resultJson(result)).toEqual({ error: OPEN_RATE_LIMITED_MESSAGE, retryAfterSeconds: expect.any(Number) });
+    expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
+  } finally {
+    server.database.sqlite.prepare('DELETE FROM document_members WHERE user_id = ?').run(spender.id);
+  }
+});
+
 test('export_docx hides the cause, logs it, removes the temporary file and records nothing when the save fails', async () => {
   const written: string[] = [];
   const save = vi.fn(async ({ out }: { out: string }) => {
@@ -195,7 +215,7 @@ test('rotate_share_link with an unknown role is a tool error and rotates nothing
 });
 
 test('export_docx on a room nobody opened returns the stored file without opening a session', async () => {
-  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Create);
+  vi.spyOn(server.services.runtime, 'roomModeFor').mockReturnValue({ isSpent: false, roomMode: RoomMode.Create });
   await server.services.storage.put({ documentId, bytes: DOCX_BYTES });
   const { context, recorded } = toolContext({ server, userId: reader.id });
   const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });

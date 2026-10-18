@@ -4,7 +4,9 @@ import { randomUUID } from 'node:crypto';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import { expect, test, vi } from 'vitest';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
+import { commitBootstrap as commitBootstrapFixture } from '../testing/committed-room';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
+import { waitForCommit } from '../testing/committed-room';
 
 const ALL = Number.MAX_SAFE_INTEGER;
 const SNAPSHOT_WAIT_MS = 15_000;
@@ -12,6 +14,7 @@ const UPDATES_BEFORE_SNAPSHOT = 1001;
 
 test("a reader's update is acknowledged but never logged", async () => {
   const { server, documentId, owner } = await documentWithOwner();
+  commitBootstrapFixture({ services: server.services, documentId, userId: owner.id });
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const readerClient = await connectToDocument({ server, cookie: reader.cookie, documentId });
   readerClient.document.getText('t').insert(0, 'reader');
@@ -29,9 +32,10 @@ test("a reader's update is acknowledged but never logged", async () => {
 
 test('a restarted server restores the room from the log', async () => {
   const { server, documentId, owner } = await documentWithOwner();
+  commitBootstrapFixture({ services: server.services, documentId, userId: owner.id });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   client.document.getText('t').insert(0, 'persisted');
-  await expect.poll(() => server.services.updateLog.hasUpdates(documentId)).toBe(true);
+  await expect.poll(() => server.services.updateLog.read({ documentName: documentId, untilSequence: ALL }).length).toBe(2);
   client.close();
   await server.stop();
   const restarted = await startTestServer({ databaseDirectory: server.databaseDirectory });
@@ -118,6 +122,7 @@ test('the worker writes the heavy snapshot', { timeout: SNAPSHOT_WAIT_MS * 2 }, 
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
   Array.from({ length: UPDATES_BEFORE_SNAPSHOT }).forEach(() => client.document.getText('t').insert(0, 'x'));
   await expect
     .poll(() => server.services.updateLog.latestSnapshot({ documentName: documentId, atOrBefore: ALL })?.sequence, {

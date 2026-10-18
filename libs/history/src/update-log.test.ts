@@ -1,7 +1,7 @@
 import { AgentActionKind, ClientActor } from '@superdoc-collab/types';
 import Database from 'better-sqlite3';
 import * as Y from 'yjs';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -123,4 +123,45 @@ test('serverTimeOf answers the logged time for a sequence of the document and nu
   expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 1 })).toBe(first!.serverTime);
   expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 99 })).toBeNull();
   expect(log.serverTimeOf({ documentName: DOCUMENT, sequence: 4 })).toBeNull();
+});
+
+test('appendCommitted appends the update and snapshots the given state at the appended sequence', () => {
+  const log = logWith(2);
+  const [update] = typedUpdates(1);
+  const state = Uint8Array.from([1, 2, 3]);
+  const appended = log.appendCommitted({
+    documentName: DOCUMENT,
+    connectionUserId: 'ana',
+    connectionActor: ClientActor.Human,
+    update: update!,
+    state,
+  });
+  expect(appended.sequence).toBe(3);
+  expect(log.latestSnapshot({ documentName: DOCUMENT, atOrBefore: appended.sequence })).toEqual({ sequence: appended.sequence, state });
+});
+
+test('appendCommitted leaves no update behind when the snapshot cannot be written', () => {
+  const log = logWith(2);
+  const [update] = typedUpdates(1);
+  vi.spyOn(log, 'writeSnapshot').mockImplementation(() => {
+    throw new Error('disk full');
+  });
+  expect(() =>
+    log.appendCommitted({
+      documentName: DOCUMENT,
+      connectionUserId: 'ana',
+      connectionActor: ClientActor.Human,
+      update: update!,
+      state: new Uint8Array(),
+    }),
+  ).toThrow('disk full');
+  expect(log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER })).toHaveLength(2);
+});
+
+test('snapshotAfter answers the first snapshot past a sequence and null when there is none', () => {
+  const log = logWith(3);
+  [1, 3].forEach((sequence) => log.writeSnapshot({ documentName: DOCUMENT, sequence, state: Uint8Array.from([sequence]) }));
+  expect(log.snapshotAfter({ documentName: DOCUMENT, afterSequence: 0 })?.sequence).toBe(1);
+  expect(log.snapshotAfter({ documentName: DOCUMENT, afterSequence: 1 })?.sequence).toBe(3);
+  expect(log.snapshotAfter({ documentName: DOCUMENT, afterSequence: 3 })).toBeNull();
 });

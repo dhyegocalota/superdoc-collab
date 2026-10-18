@@ -5,6 +5,8 @@ export const TITLE_MAX_LENGTH = 200;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
+export const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
+export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
@@ -13,6 +15,7 @@ export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
+export const SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/';
 export const DOCUMENT_NOT_READY_ERROR = 'NOT_READY';
 export const DOCUMENT_UNAVAILABLE_MESSAGE = 'This document is no longer available.';
 export const READ_ONLY_BADGE_LABEL = 'Read only';
@@ -50,7 +53,14 @@ export const titleSchema = z.object({ title: z.string().trim().min(1).max(TITLE_
 export type UserReference = { id: string; name: string };
 export type DocumentSummary = { id: string; title: string; owner: UserReference; updatedAt: number; role: DocumentRole };
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
-export type OpenedDocument = { document: DocumentSummary; role: DocumentRole; roomMode: RoomMode };
+export type CreatorTicket = { attempt: number; epoch: string };
+export type OpenedDocument = {
+  document: DocumentSummary;
+  role: DocumentRole;
+  roomMode: RoomMode;
+  creatorAttempt: number | null;
+  creatorEpoch: string | null;
+};
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean };
 export type DocumentMembers = { members: DocumentMember[]; isCurrentUserOnline: boolean };
 export type ShareLinks = Record<ShareLinkRole, string>;

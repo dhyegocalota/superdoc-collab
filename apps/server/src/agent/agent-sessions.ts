@@ -1,4 +1,12 @@
-import { agentAuthorName, type DocumentRole, MINUTE_MS, RoomMode, SECOND_MS, secondsRoundedUp } from '@superdoc-collab/types';
+import {
+  agentAuthorName,
+  DOCUMENT_NOT_READY_ERROR,
+  type DocumentRole,
+  MINUTE_MS,
+  RoomMode,
+  SECOND_MS,
+  secondsRoundedUp,
+} from '@superdoc-collab/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
@@ -15,7 +23,7 @@ const SDK_RUNTIME = 'v2';
 const COLLABORATION_PROVIDER = 'hocuspocus';
 
 export type AgentSessionsClient = Pick<SuperDocClient, 'connect' | 'open' | 'dispose'>;
-export type LocatedRoom = { roomMode: RoomMode; filePath: string };
+export type LocatedRoom = { roomMode: RoomMode };
 type RoleOf = (options: { userId: string; documentId: string }) => DocumentRole | null;
 type OpenedSession = {
   document: SuperDocDocument;
@@ -57,7 +65,7 @@ export class AgentSessions implements AgentDocumentSessions {
   private readonly client: AgentSessionsClient;
   private readonly issueRoomToken: (options: { userId: string; documentId: string }) => string;
   private readonly collaborationUrl: () => string;
-  private readonly locateRoom: (documentId: string) => LocatedRoom;
+  private readonly locateRoom: (options: { documentId: string; userId: string }) => LocatedRoom;
   private readonly roleOf: RoleOf;
   private readonly now: () => number;
   private readonly maxSessions: number;
@@ -81,7 +89,7 @@ export class AgentSessions implements AgentDocumentSessions {
   }: {
     issueRoomToken: (options: { userId: string; documentId: string }) => string;
     collaborationUrl: () => string;
-    locateRoom: (documentId: string) => LocatedRoom;
+    locateRoom: (options: { documentId: string; userId: string }) => LocatedRoom;
     roleOf: RoleOf;
     now?: () => number;
     tokenLifetimeMs?: number;
@@ -243,13 +251,12 @@ export class AgentSessions implements AgentDocumentSessions {
     role,
     userName,
   }: { person: AgentPerson; documentId: string } & SessionTraits): Promise<OpenedSession> {
-    const { roomMode, filePath } = this.locateRoom(documentId);
-    const seed = roomMode === RoomMode.Create ? { doc: filePath } : {};
+    const { roomMode } = this.locateRoom({ documentId, userId: person.userId });
+    if (roomMode === RoomMode.Create) throw new AgentToolError({ message: DOCUMENT_NOT_READY_ERROR });
     await this.connected();
     const opening = this.client.open(
       {
         runtime: SDK_RUNTIME,
-        ...seed,
         userName,
         userEmail: person.email,
         collaboration: { providerType: COLLABORATION_PROVIDER, url: this.collaborationUrl(), documentId, roomMode },

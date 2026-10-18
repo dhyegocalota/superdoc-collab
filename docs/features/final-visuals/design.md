@@ -402,7 +402,7 @@ desktop                                                          375
 
 | State | Card | Actions |
 |---|---|---|
-| Waiting | spinner, "Preparing the document…", muted "It opens here on its own as soon as its owner has opened it once." | Back to documents |
+| Waiting | spinner, "Preparing the document…", muted "It opens here on its own as soon as another editor has opened it once." | Back to documents |
 | Paused | "The document is not ready yet", muted "We stopped checking after 5 minutes. Its owner has not opened it once." | Keep waiting (primary; restarts the clock), Back to documents |
 | Error (any other failure) | `TriangleAlert`, "The document could not be loaded.", muted "Check your connection and try again." | Try again (primary), Back to documents |
 | Entered | the card goes and the normal "Loading document…" then editor flow runs | — |
@@ -677,7 +677,7 @@ The `ConnectionFailureReason` members other than `Unknown` are provisional until
 
 ```ts
 export const PREPARING_DOCUMENT_MESSAGE = 'Preparing the document…';
-export const PREPARING_DOCUMENT_HINT = 'It opens here on its own as soon as its owner has opened it once.';
+export const PREPARING_DOCUMENT_HINT = 'It opens here on its own as soon as another editor has opened it once.';
 export const NOT_READY_PAUSED_HEADING = 'The document is not ready yet';
 export const KEEP_WAITING_LABEL = 'Keep waiting';
 export const TRY_AGAIN_LABEL = 'Try again';

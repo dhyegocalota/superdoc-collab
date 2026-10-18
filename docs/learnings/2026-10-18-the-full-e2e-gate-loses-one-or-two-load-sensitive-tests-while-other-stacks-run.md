@@ -2,7 +2,7 @@
 
 - Date: 2026-10-18
 - Inspired by: eight `pnpm verify` runs of the connected-apps-content lane (a web-only diff) on 2026-10-18, each red on a different test
-- Revisited: —
+- Revisited: 2026-10-18 — changed because the band starvation was not a queue: the job runner refuses a third concurrent topic job as Busy, `TopicsService` marks that first computation failed and never retries it, so the band never appears. The E2E stack now allows 8 topic jobs, above the worker count; the production default stays 2.
 
 ## Signal
 
@@ -10,11 +10,11 @@
 
 ## Cause
 
-The flock hook serializes playwright, vitest and tsc, but not the stacks and browsers that tester sub-agents keep alive on other ports, nor stacks left behind by an audit, nor an orphaned vitest worker from a finished session burning a core. With that load, the fake model's topic naming queues behind `LLM_MAX_CONCURRENT_JOBS = 2` past the 60 s band wait, and the server resets a reused keep-alive connection under pressure. The E2E suite itself runs with `50%` of the cores as workers (six on a 12-core machine).
+The flock hook serializes playwright, vitest and tsc, but not the stacks and browsers that tester sub-agents keep alive on other ports, nor stacks left behind by an audit, nor an orphaned vitest worker from a finished session burning a core. With that load, the fake model's topic naming is refused as Busy by `LLM_MAX_CONCURRENT_JOBS = 2` when a third document starts its first naming while two run, and the server resets a reused keep-alive connection under pressure. The E2E suite itself runs with `50%` of the cores as workers (six on a 12-core machine).
 
 ## Do
 
-Before a gate: check `lsof -iTCP:3200,3400,3500,3700 -sTCP:LISTEN` and `ps -eo pid,etime,pcpu,command | grep -E 'vitest|scenario-stack'`, stop what nobody uses, and wait for the active tester walks to end. Run the gate as `CI=1 pnpm verify` when the machine is still busy: nothing else reads `CI`, and `playwright.config.ts` drops to four workers. Rerun each red test alone as evidence, record the run numbers in the PR comment, and never merge before a run prints `verify exit 0`.
+The E2E stack allows eight topic jobs (`e2e/stack.ts`), so a refused first naming no longer starves a band wait; keep that cap above the worker count. Before a gate: check `lsof -iTCP:3200,3400,3500,3700 -sTCP:LISTEN` and `ps -eo pid,etime,pcpu,command | grep -E 'vitest|scenario-stack'`, stop what nobody uses, and wait for the active tester walks to end. Run the gate as `CI=1 pnpm verify` when the machine is still busy: nothing else reads `CI`, and `playwright.config.ts` drops to four workers. Rerun each red test alone as evidence, record the run numbers in the PR comment, and never merge before a run prints `verify exit 0`.
 
 ## Anchor
 

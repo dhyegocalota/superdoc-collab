@@ -306,5 +306,5 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 
 ### G3 lifetime cap survives a release
 
-- **Red text:** `expected 3 to be undefined` (the release-and-reopen holder got a fresh attempt instead of lapsing) and `expected undefined to be 2` (51d8ac1, with the fix 34 lines later). Green: see the next commit.
+- **Red text:** `expected 3 to be undefined` (the release-and-reopen holder got a fresh attempt instead of lapsing) and `expected undefined to be 2` (51d8ac1). Green: 68f3f0a.
 - **Rule:** a reopen while live, or within `CREATOR_RESERVATION_MS` of the expiry or release, is a continuation: it keeps `reservedAt`, and the lapse cooldown applies. A later reopen starts fresh. Hypothesis: a holder looping write, close, reopen cannot hold the document past `CREATOR_RESERVATION_MAX_MS`. The two lapse tests now reach the cap with a touch, because an untouched reservation that is silent for a minute is not a continuation.

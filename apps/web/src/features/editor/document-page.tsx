@@ -17,7 +17,7 @@ import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
 import { RELOAD_FAILED_MESSAGE } from './connection-copy';
-import { documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
+import { DocumentNotReadyError, documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
 import { EditorToolbarRow } from './editor-toolbar-row';
@@ -129,8 +129,11 @@ export function DocumentPage() {
       ]);
       resetConnection();
       setEditorGeneration((generation) => generation + 1);
-    } catch {
-      setHasReloadFailed(true);
+    } catch (error) {
+      if (!(error instanceof DocumentNotReadyError)) return setHasReloadFailed(true);
+      queryClient.removeQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true });
+      resetConnection();
+      setEditorGeneration((generation) => generation + 1);
     } finally {
       setIsReloading(false);
     }

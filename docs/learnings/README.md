@@ -33,8 +33,8 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A hand-built collaboration socket in an E2E never authenticates on an uncommitted room, and its slow spec is skipped by default | [2026-10-17-an-e2e-that-opens-the-collaboration-socket-by-hand-needs-the-creator-ticket.md](2026-10-17-an-e2e-that-opens-the-collaboration-socket-by-hand-needs-the-creator-ticket.md) | 2026-10-17 |
 | 2026-10-17 | The jump to a member lands on the wrong person or on nobody | [2026-10-17-superdoc-remote-caret-overlay-carries-no-user-id.md](2026-10-17-superdoc-remote-caret-overlay-carries-no-user-id.md) | 2026-10-18 |
 | 2026-10-17 | A member's cursor is drawn in a colour the app never declared | [2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md](2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md) | 2026-10-18 |
-| 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-17 |
-| 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-17 |
+| 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-18 |
+| 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-18 |
 
 ### history
 
@@ -51,6 +51,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 
 | Date | Title | File | Last revisited |
 |------|-------|------|----------------|
+| 2026-10-18 | A component rendered in one of two slots by a media-query flag remounts at the breakpoint and refetches the session | [2026-10-18-a-component-that-moves-between-layouts-remounts-and-refetches-the-session.md](2026-10-18-a-component-that-moves-between-layouts-remounts-and-refetches-the-session.md) | 2026-10-18 |
 | 2026-10-18 | An E2E that finds a scroll container by a class substring picks a responsive variant on a box-less wrapper | [2026-10-18-an-e2e-that-finds-a-scroll-container-by-a-class-substring-picks-a-responsive-variant.md](2026-10-18-an-e2e-that-finds-a-scroll-container-by-a-class-substring-picks-a-responsive-variant.md) | 2026-10-18 |
 | 2026-10-18 | The local gate fails only on a latency pin while every other test is green | [2026-10-18-a-local-latency-pin-fails-under-parallel-agent-load.md](2026-10-18-a-local-latency-pin-fails-under-parallel-agent-load.md) | 2026-10-18 |
 | 2026-10-15 | Keystrokes land on BODY and typed text is silently missing, only under concurrency | [2026-10-15-click-steals-editor-focus-under-load.md](2026-10-15-click-steals-editor-focus-under-load.md) | 2026-10-16 |
@@ -60,7 +61,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | `shouldAdvanceTime` lets real lag move the fake clock, so a timer test passes alone and fails under load | [2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md](2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md) | 2026-10-17 |
 | 2026-10-17 | A component test throws a missing author colour error although the component is untouched | [2026-10-17-get-computed-style-is-empty-in-jsdom-so-a-token-reader-needs-the-palette-stub.md](2026-10-17-get-computed-style-is-empty-in-jsdom-so-a-token-reader-needs-the-palette-stub.md) | 2026-10-18 |
 | 2026-10-17 | A feature works in the page and silently does nothing in an isolated render | [2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md](2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md) | 2026-10-18 |
-| 2026-10-17 | A banner whose copy passes its length pins still wraps to more lines than the design allows on a phone | [2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md](2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md) | 2026-10-17 |
+| 2026-10-17 | A banner whose copy passes its length pins still wraps to more lines than the design allows on a phone | [2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md](2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md) | 2026-10-18 |
 
 ### tooling
 

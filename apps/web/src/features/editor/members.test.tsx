@@ -2,6 +2,7 @@ import { authorColorSlot, DocumentRole, type DocumentMember } from '@superdoc-co
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
+import { PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
@@ -67,6 +68,7 @@ function manyMembers(count: number): DocumentMember[] {
 }
 
 beforeEach(() => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   installAuthorPalette();
   editor = document.createElement('div');
   overlay = document.createElement('div');
@@ -198,4 +200,18 @@ test('a disabled member is described by its reason while the tooltip is closed',
   expect(screen.getByRole('button', { name: memberLabel({ name: 'Ana', isOnline: true }) })).toHaveAccessibleDescription(
     SELF_MEMBER_REASON,
   );
+});
+
+test('below 768 five members show three avatars and a button named 2 more people', () => {
+  stubViewportWidth(PHONE_VIEWPORT_WIDTH);
+  renderMembers({ members: manyMembers(5) });
+  expect(screen.getAllByRole('button').filter((button) => !/more people/.test(String(button.getAttribute('aria-label'))))).toHaveLength(3);
+  expect(screen.getByRole('button', { name: moreMembersLabel(2) })).toBeInTheDocument();
+});
+
+test('below 768 three members still show all three with no menu', () => {
+  stubViewportWidth(PHONE_VIEWPORT_WIDTH);
+  renderMembers({ members: manyMembers(3) });
+  expect(screen.queryByRole('button', { name: /more people/ })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button')).toHaveLength(3);
 });

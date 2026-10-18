@@ -102,7 +102,7 @@ test('a failure reported by the print frame shows the PDF failure toast and remo
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
   await waitFor(() => expect(printFrame()).not.toBeNull());
   sendFromFrame({ frameWindow: printFrame()!.contentWindow!, message: { kind: PrintMessageKind.Failed } });
-  expect(await screen.findByText(PDF_FAILED_MESSAGE)).toBeVisible();
+  await waitFor(() => expect(screen.getByText(PDF_FAILED_MESSAGE)).toBeVisible());
   expect(printFrame()).toBeNull();
 });
 
@@ -111,7 +111,7 @@ test('a failed export shows the PDF failure toast and prints nothing', async () 
   renderWithProviders(<DownloadHarness superdoc={live as unknown as SuperDoc} onDownloadDocx={vi.fn()} />);
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
-  expect(await screen.findByText(PDF_FAILED_MESSAGE)).toBeVisible();
+  await waitFor(() => expect(screen.getByText(PDF_FAILED_MESSAGE)).toBeVisible());
   expect(printFrame()).toBeNull();
 });
 

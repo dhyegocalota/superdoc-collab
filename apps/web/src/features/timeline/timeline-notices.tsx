@@ -24,7 +24,7 @@ export function TimelineNotices({ timeline, hasFilter, isLogAhead, canRefresh, o
   const { topics, projection, bins, bands } = timeline;
   const isLagging = projection.isBehind && projection.lagMs !== null && projection.lagMs >= PROJECTION_LAG_NOTICE_MS;
   const hasNoMatches = hasFilter && bins.length > 0 && bands.every((band) => band.volume === 0);
-  const isEmpty = bins.length === 0 && !projection.isBehind;
+  const isEmpty = bins.length === 0 && !projection.isBehind && !isLogAhead;
   const isNamingTopics = topics.state === TopicState.Pending && bins.length > 0;
   return (
     <div className="flex flex-col gap-2 text-sm">

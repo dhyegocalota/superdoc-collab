@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-collab/types';
+import { DAY_MS, MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { BREAK_WIDTH_PX, layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
@@ -270,4 +270,52 @@ test('a timeline of only two bins and one break keeps finite positions', () => {
 test('a timeline without a break has no column', () => {
   const timeline = timelineWith({ volumes: [[1], [2], [3], [4], [5]], names: ['Budget'] });
   expect(layoutStreamgraph({ timeline, width: 400 }).breaks).toEqual([]);
+});
+
+const NUMBER_PATTERN = /-?\d+(?:\.\d+)?/g;
+const COORDINATES_PER_POINT = 2;
+
+function subpathWidths(path: string): number[] {
+  return path
+    .split('Z')
+    .filter((subpath) => subpath !== '')
+    .map((subpath) => {
+      const xs = Array.from(subpath.matchAll(NUMBER_PATTERN), ([value]) => Number(value)).filter(
+        (_, index) => index % COORDINATES_PER_POINT === 0,
+      );
+      return Math.max(...xs) - Math.min(...xs);
+    });
+}
+
+function islandRows(): number[][] {
+  return [
+    ...Array.from({ length: EDGE_BINS }, () => BUSY),
+    ...Array.from({ length: SILENT_BINS }, () => QUIET),
+    BUSY,
+    ...Array.from({ length: SILENT_BINS }, () => QUIET),
+    ...Array.from({ length: EDGE_BINS }, () => BUSY),
+  ];
+}
+
+test('an edit island of one bin between two breaks keeps a drawn width at minute bins', () => {
+  const timeline = timelineWith({ volumes: islandRows(), names: ['Budget', 'Hiring'] });
+  const layout = layoutStreamgraph({ timeline, width: CHART_WIDTH });
+  expect(layout.breaks).toHaveLength(2);
+  layout.shapes.forEach((shape) => {
+    const widths = subpathWidths(shape.path);
+    expect(widths).toHaveLength(3);
+    widths.forEach((width) => expect(width).toBeGreaterThan(0));
+  });
+});
+
+test('edits on alternate days keep every segment drawn at day bins', () => {
+  const rows = [BUSY, QUIET, BUSY, QUIET, BUSY];
+  const timeline = { ...timelineWith({ volumes: rows, names: ['Budget', 'Hiring'] }), binMs: DAY_MS };
+  const layout = layoutStreamgraph({ timeline, width: CHART_WIDTH });
+  expect(layout.breaks).toHaveLength(2);
+  layout.shapes.forEach((shape) => {
+    const widths = subpathWidths(shape.path);
+    expect(widths).toHaveLength(3);
+    widths.forEach((width) => expect(width).toBeGreaterThan(0));
+  });
 });

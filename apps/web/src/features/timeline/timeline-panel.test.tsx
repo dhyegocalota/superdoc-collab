@@ -109,6 +109,7 @@ const UNAVAILABLE_VIEW: SelectionSummaryView = {
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
 
 const VERSION_SEQUENCE = 10;
+const INSIDE_BIN_OFFSET_MS = 1000;
 
 const scrollIntoView = vi.fn();
 
@@ -868,6 +869,13 @@ test('below lg selecting a versioned bin by key never travels and View version d
 test('the bin already shown offers no View version', async () => {
   mockTimelineApi({ timeline: versionedTimeline });
   renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${versionedTimeline.bins[0]!.start}` });
+  await screen.findByText('10 characters');
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('an at inside the selected bin offers no View version', async () => {
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${versionedTimeline.bins[0]!.start + INSIDE_BIN_OFFSET_MS}` });
   await screen.findByText('10 characters');
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
 });

@@ -497,13 +497,12 @@ test('below lg selecting a versioned bin never travels and View version writes a
   const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
   await openPanel();
   pressChartAt(1);
-  const viewVersion = await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
   fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowRight' });
   fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowLeft' });
   await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
   expect(router.state.location.search).toBe('');
   await act(async () => fireEvent.click(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })));
-  expect(viewVersion).toBeDefined();
   expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
 });
 
@@ -559,6 +558,16 @@ test('from lg a tap during a load still travels after the debounce', async () =>
   pressChartAt(3);
   await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 2);
   expect(router.state.location.search).toBe(`?at=${BIN_STARTS[3]}`);
+});
+
+test('an at beyond the last bin never dims the editor or shows a progress line', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi();
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[4]! + BIN_AFTER_LAST_MS}` });
+  await screen.findByTestId('version-banner');
+  await screen.findByTitle(STREAMGRAPH_TITLE);
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass('opacity-60');
+  expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull();
 });
 
 test('an at with no version never locks the chart', async () => {

@@ -47,7 +47,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 
 - The client sends one `POST` to `selectionSummaryApiPath(documentId)` with the current selection query, as today. The request starts the job or answers at once.
 - The job runs these checks in order, and starts only what is stale:
-  1. Topics: regroup when the topic status is failed, or when `computedAtSequence` is older than the newest projected edit. A failed regroup keeps the ready topics (ADR 0015).
+  1. Topics: regroup when the topic status is failed, or when `computedAtSequence` is older than the newest projected edit. A failed regroup keeps the ready topics (ADR 0015) and ends the job only when the selection names a topic; otherwise the summary and sentence steps still run against the previous topics. The regroup runs inside the Summarize slot and awaits a topics job that is already running instead of computing again.
   2. Selection summary: write it when it is missing, failed, or stamped with another cursor or topics time.
   3. Topic sentences: rewrite each topic sentence that is older than the topic set.
 - If nothing is stale, the job makes no model call and the answer is 200. This check runs before the cooldown.
@@ -59,7 +59,7 @@ The product works, but the chrome around the document does not. The walk of 2026
   - 429 with `Retry-After` and one message, `SUMMARIZE_BUSY_MESSAGE`, for any wait. The seconds are the longer of the remaining cooldown and the model's busy wait.
   - 503 with the reason when the model is unavailable, as today.
 - Cooldowns:
-  - `SUMMARIZE_COOLDOWN_MS` (30 s, renamed from `SELECTION_SUMMARY_COOLDOWN_MS`, same value) is per document. It is consumed only when a model call starts (ADR 0012): a POST that finds nothing stale, or joins a running job, does not consume it.
+  - `SUMMARIZE_COOLDOWN_MS` (30 s, renamed from `SELECTION_SUMMARY_COOLDOWN_MS`, same value) is per document. It starts at the job's first model call (ADR 0012): a POST that finds nothing stale, or joins a running job, does not consume it.
   - `TOPIC_REFRESH_COOLDOWN_MS` is retired with the refresh endpoint.
   - `SUMMARY_MIN_INTERVAL_MS` is retired. Reading the summaries no longer starts a rewrite; sentence rewrites happen only inside a Summarize click.
   - `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` stays for the automatic recompute of ADR 0015.
@@ -211,7 +211,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 | Rename fails | `RENAME_FAILED_MESSAGE` under the top bar. The title keeps its old value. |
 | DOCX export fails | `EXPORT_FAILED_MESSAGE` under the top bar. |
 | PDF preparation fails | Toast `downloadFailedMessage(DownloadFormat.Pdf)`. No file is downloaded. |
-| A Summarize step fails | `step` returns to `Idle`. The card shows the step's message and "Retry summary" (`timeline-notices.tsx`), which calls `summarize` and reruns the whole job. A failed regroup keeps the old topics (ADR 0015). |
+| A Summarize step fails | `step` returns to `Idle`. The card shows the step's message and "Retry summary" (`timeline-notices.tsx`), which calls `summarize` and reruns the whole job. A failed regroup keeps the old topics (ADR 0015); it ends the job only for a topic selection. |
 | Busy or cooling down | One 429 answer with one countdown, the longer wait. The card reads "Try again in N s.". |
 | A POST for another selection while a job runs | 202 with that selection's view, `outcome` `Running` and the document job's `step`. The job never writes that selection; the card shows it again after the next Summarize. |
 | Unknown stored theme or panel value | Removed from storage, then treated as absent. |

@@ -591,3 +591,9 @@ What changed: `AppRoute.Print` (`/print`, no session needed), `features/versions
 - The agent's `SummaryOnly` run is recorded in spec data flow 1, the Interfaces table and ADR 0031; it starts the shared per-document cooldown. The spec failure table now says a POST for another selection during a job answers 202 and never writes that selection.
 - The red table above now prints `expected 202 to be 429` for the two cooldown tests and `expected '5' to be '30'` for the Retry-After test.
 - Gap: the cooldown starts when the first call is consumed, so a hung first call keeps the job, not the cooldown, as the limit.
+
+### G4 second review (red 32b0d45)
+
+- A failed regroup ends the job only when `selection.topic` is set (the summary would be written against stale topics). For any other selection the summary and sentence steps still run on the previous topics, so a deterministic grouping failure no longer locks the summary out. Tests: `summarize-service.test.ts::a failed regroup keeps the previous ready topics and stops the job when the selection names a topic` (pin) and `::a failed regroup does not lock the summary out when the selection names no topic` (red: `[topics]` instead of `[topics, summary, sentences]`). The view still carries `GROUPING_FAILED_MESSAGE` with the summary.
+- `useSummarize` keeps a 429 `RetryLaterError` across a selection change, so the countdown survives a bin switch; outcomes and other errors still reset. Test: `use-summarize.test.tsx::a busy countdown survives a change of selection` (red: `expected null to be an instance of SummaryTooSoonError`).
+- ADR 0031 and spec data flow 1 record both rules, the regroup inside the Summarize slot and the cooldown at the first model call.

@@ -90,7 +90,8 @@ export class SummarizeService {
     this.selection.clearGroupingFailure(documentId);
     try {
       const hasRegroupFailed = needsRegroup && (await this.regroup(documentId));
-      if (hasRegroupFailed) return;
+      const isTopicSelection = selection.topic !== null;
+      if (hasRegroupFailed && isTopicSelection) return;
       this.selection.setStep({ documentId, step: SummarizeStep.Summarizing });
       await this.selection.write({ documentId, selection });
       if (isFull) await this.summaries.rewriteStale(documentId);

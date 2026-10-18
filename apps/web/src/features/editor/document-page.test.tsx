@@ -581,12 +581,13 @@ test('a failed report before the first sync shows the editor failure notice', as
   expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
 });
 
-test('a degraded report before the editor is ready shows the editor failure notice', async () => {
+test('a lost report before the editor is ready is ignored, so a blip mid-create neither fails nor shows the banner', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
-  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
 });
 
 test('a lost then failed report after the editor was ready reaches the banner', async () => {
@@ -630,9 +631,20 @@ test('a connection exception fails the connection with its reason and not the ed
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onException(payload));
   expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('an access-denied exception before the editor is ready shows the editor failure notice and no banner', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onException(payload));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
 });
 
 test('a refused upgrade reported as an exception before the editor is ready shows the editor failure notice', async () => {

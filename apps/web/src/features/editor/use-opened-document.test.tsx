@@ -108,6 +108,18 @@ test('keepWaiting restarts the count', async () => {
   expect(fetchSpy).toHaveBeenCalledTimes(GIVE_UP_POLLS * 2);
 });
 
+test('restartWaiting forgets the saved count, so the next wait gives up after a full count again', async () => {
+  answerInOrder(notReady);
+  const result = renderOpenedDocument();
+  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
+  act(() => result.current.keepWaiting());
+  await advance(DOCUMENT_READY_POLL_MS * 2);
+  act(() => result.current.restartWaiting());
+  await advance(0);
+  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
+  expect(result.current.readiness).toBe(DocumentReadiness.Paused);
+});
+
 test('a non-409 error stays an error and retry refetches once', async () => {
   const fetchSpy = answerInOrder(serverError, entered);
   const result = renderOpenedDocument();

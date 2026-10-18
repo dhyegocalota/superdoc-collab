@@ -226,8 +226,8 @@ The red commits of Steps 17, 20 and 21 do not typecheck on purpose: their tests 
 | `apps/server/src/insights/summarize-service.test.ts` (all 7) | `Cannot find module './summarize-service'` (45708c9) | b63b57f |
 | `insights-routes.test.ts::POST /:documentId/topics/refresh no longer exists` | `expected 202 to be 404` (dd2b2b3) | 4116a80 |
 | `insights-routes.test.ts::a full worker answers 429 with SUMMARIZE_BUSY_MESSAGE` and `::an exhausted hourly cap answers 429 …` | `expected 503 to be 429` | 4116a80 |
-| `insights-routes.test.ts::a second POST inside the cooldown answers 429 with one Retry-After and SUMMARIZE_BUSY_MESSAGE` and `::a second POST with the same filter is 200 from the cache and another filter inside the cooldown is 429` | `expected { Object (error) } to deeply equal { Object (error) }` (the too-soon text) | 4116a80 |
-| `insights-routes.test.ts::the Retry-After is the longer of the cooldown and the model's busy wait` | `expected '30' to be '90'` | 4116a80 |
+| `insights-routes.test.ts::a second POST inside the cooldown answers 429 with one Retry-After and SUMMARIZE_BUSY_MESSAGE` and `::a second POST with the same filter is 200 from the cache and another filter inside the cooldown is 429` | `expected 202 to be 429` | 4116a80 |
+| `insights-routes.test.ts::the Retry-After is the longer of the cooldown and the model's busy wait` | `expected '5' to be '30'` | 4116a80 |
 | `insights-routes.test.ts::POST selection answers 202 with the running step while a job runs, started or already running` | the 202 view did not report `step: summarizing` | 4116a80 |
 | `apps/web/src/features/timeline/use-selection-summary.test.ts::polls while step is not idle and stops at idle` | `expected +0 to be 2 // Object.is equality` (37132b0) | 78d63e5 |
 | `apps/web/src/features/timeline/summarize-edits-button.test.tsx::is never disabled, and while running reads Summarizing… with aria-busy` | `expect(element).toBeEnabled()` received the button with `disabled=""` | 78d63e5 |
@@ -578,3 +578,11 @@ What changed: `AppRoute.Print` (`/print`, no session needed), `features/versions
 - The spec's "No route" line no longer holds; the lead should update the spec and add an ADR if wanted. The route exists only to give the printed document its own viewport.
 - `e2e/final-visuals.spec.ts`: the print stub now counts in the print frame and reports into the top window; two new tests print a 4-page upload and the brief and assert every page has text.
 - Gap: the tester should confirm in headed Chrome that the print dialog shows the document with the correct page breaks. A frame that never reports Ready (route failure) leaves the preparing toast up.
+
+### G4 review minors (red f1f7c1e)
+
+- The per-document cooldown now starts at the first model call of a job (`InsightsJobRunner.watchFirstCall`, fed by `consumeDocumentCall`), not at the job start; a job whose steps make no call leaves no cooldown. Test: `summarize-service.test.ts::a job whose steps make no model call leaves no cooldown` (red: `expected 29997 to be +0`).
+- `useSummarize` polls its own selection query while a job runs, so a collapsed panel no longer leaves the button on "Summarizing…". Test: `use-summarize.test.tsx::a job that ends while the panel is collapsed re-enables the button` (red: `expected true to be false`).
+- The agent's `SummaryOnly` run is recorded in spec data flow 1, the Interfaces table and ADR 0031; it starts the shared per-document cooldown. The spec failure table now says a POST for another selection during a job answers 202 and never writes that selection.
+- The red table above now prints `expected 202 to be 429` for the two cooldown tests and `expected '5' to be '30'` for the Retry-After test.
+- Gap: the cooldown starts when the first call is consumed, so a hung first call keeps the job, not the cooldown, as the limit.

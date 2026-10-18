@@ -23,6 +23,7 @@ Three model jobs exist today. Topics are computed and refreshed with a 30 s cool
 - A failed regroup keeps the previous ready topics. The busy rule of 0015 stays.
 - The automatic topic recompute trigger of 0015 (five new blocks, one minute) stays as it is.
 - "Regroup topics" leaves the interface. The Summarize job is the way to re-cluster on demand.
+- The agent's summarize tool runs the same job with scope `SummaryOnly`: the summary step only, no regroup and no sentence rewrite, so a read-only token never spends the regroup. It starts the shared per-document cooldown.
 
 ## Alternatives considered
 

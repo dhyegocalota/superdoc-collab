@@ -107,6 +107,7 @@ test('fresh topics are not regrouped', async () => {
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
   expect(modelCallsOf(model)).toEqual([ModelCall.Summary, ModelCall.Sentences]);
+  expect(server.services.insights.selection.cooldown.remainingMs(documentId)).toBeGreaterThan(0);
   client.close();
   await server.stop();
 });
@@ -210,6 +211,20 @@ test('a second request while the job runs is already running and spends no secon
   release();
   await server.services.insights.jobRunner.idle();
   expect(modelCallsOf(model).filter((call) => call === ModelCall.Topics)).toHaveLength(1);
+  client.close();
+  await server.stop();
+});
+
+test('a job whose steps make no model call leaves no cooldown', async () => {
+  const model = modelAnsweringWith(() => COMBINED_ANSWER);
+  const story = await storyWithBlocks({ languageModel: readyModel(model), texts: ['', '  '] });
+  const { server, documentId, client } = story;
+  server.services.insightsRepository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
+  const { summarize, selection, jobRunner } = server.services.insights;
+  expect(summarize.request({ documentId, selection: { ...SELECTION, author: 'nobody' } }).outcome).toBe(SummarizeOutcome.Started);
+  await jobRunner.idle();
+  expect(model.doGenerateCalls).toHaveLength(0);
+  expect(selection.cooldown.remainingMs(documentId)).toBe(0);
   client.close();
   await server.stop();
 });

@@ -14,6 +14,7 @@ export enum JobOutcome {
 
 export class InsightsJobRunner {
   private readonly running = new Map<string, Promise<void>>();
+  private readonly firstCallWatchers = new Map<string, () => void>();
   private readonly calls: SlidingWindow;
   private readonly now: () => number;
   private readonly maxConcurrentJobs: number;
@@ -44,6 +45,20 @@ export class InsightsJobRunner {
     if (this.calls.count() >= this.maxCallsPerHour) return false;
     this.calls.record();
     return true;
+  }
+
+  consumeDocumentCall(documentId: string): boolean {
+    if (!this.consumeCall()) return false;
+    const watcher = this.firstCallWatchers.get(documentId);
+    if (watcher === undefined) return true;
+    this.firstCallWatchers.delete(documentId);
+    watcher();
+    return true;
+  }
+
+  watchFirstCall({ documentId, onFirstCall }: { documentId: string; onFirstCall: () => void }): () => void {
+    this.firstCallWatchers.set(documentId, onFirstCall);
+    return () => this.firstCallWatchers.delete(documentId);
   }
 
   hasCallBudget(): boolean {

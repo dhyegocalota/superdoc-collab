@@ -86,7 +86,7 @@ export class SummarizeService {
     needsRegroup,
     isFull,
   }: SummarizeRequest & { needsRegroup: boolean; isFull: boolean }): Promise<void> {
-    this.selection.cooldown.start(documentId);
+    const stopWatching = this.jobRunner.watchFirstCall({ documentId, onFirstCall: () => this.selection.cooldown.start(documentId) });
     this.selection.clearGroupingFailure(documentId);
     try {
       const hasRegroupFailed = needsRegroup && (await this.regroup(documentId));
@@ -95,6 +95,7 @@ export class SummarizeService {
       await this.selection.write({ documentId, selection });
       if (isFull) await this.summaries.rewriteStale(documentId);
     } finally {
+      stopWatching();
       this.selection.setStep({ documentId, step: SummarizeStep.Idle });
     }
   }

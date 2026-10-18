@@ -135,7 +135,7 @@ export class TopicsService {
     if (blocks.every((block) => block.mergedIntoBlockId !== null)) return this.repository.restoreStatus({ documentId, previous });
     const blocksWithText = blocks.filter((block) => block.mergedIntoBlockId === null && block.text.trim() !== '');
     if (blocksWithText.length === 0) return this.repository.saveTopics({ documentId, topics: [], computedAtSequence: sequence });
-    if (!this.jobRunner.consumeCall()) throw new LanguageModelBusyError();
+    if (!this.jobRunner.consumeDocumentCall(documentId)) throw new LanguageModelBusyError();
     const output = await generateStructured({
       model,
       schema: topicsOutputSchema,

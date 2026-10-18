@@ -4,11 +4,13 @@ import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-q
 import { pollWhileAvailable } from '@/lib/api';
 import { fetchSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
 
-function pollWhileSummarizing(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
-  const view = query.state.data;
+export function isSummarizing(view: SelectionSummaryView | undefined): boolean {
   if (view === undefined) return false;
-  const isSummarizing = view.state === SelectionSummaryState.Running || view.step !== SummarizeStep.Idle;
-  if (!isSummarizing) return false;
+  return view.state === SelectionSummaryState.Running || view.step !== SummarizeStep.Idle;
+}
+
+export function pollWhileSummarizing(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
+  if (!isSummarizing(query.state.data)) return false;
   return pollWhileAvailable(TIMELINE_POLL_MS)(query);
 }
 

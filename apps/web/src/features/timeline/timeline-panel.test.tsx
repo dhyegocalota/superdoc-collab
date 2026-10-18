@@ -704,3 +704,11 @@ test('the panel tells the summarize control which selection it shows, including 
     expect(summarize.showSelection).toHaveBeenLastCalledWith({ term: null, author: null, topic: null, at: baseTimeline.bins[1]!.start }),
   );
 });
+
+test('while the timeline is loading the panel reports no selection, so the URL selection stands', async () => {
+  const summarize = idleSummarize();
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => undefined));
+  renderPanel({ summarize, route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
+  await screen.findByRole('heading', { name: TIMELINE_HEADING, level: 2 });
+  expect(summarize.showSelection).not.toHaveBeenCalled();
+});

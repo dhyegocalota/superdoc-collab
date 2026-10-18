@@ -6,6 +6,8 @@ export class ApiRequestError extends Error {}
 
 export class DocumentUnavailableError extends ApiRequestError {}
 
+export class AuthenticationError extends ApiRequestError {}
+
 export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
   return `${subject} failed with status ${status}.`;
 }
@@ -37,7 +39,10 @@ export function assertDocumentAvailable(response: Response): void {
 }
 
 export function assertOk({ response, subject }: { response: Response; subject: string }): void {
-  if (!response.ok) throw new ApiRequestError(requestFailedMessage({ subject, status: response.status }));
+  if (response.ok) return;
+  const message = requestFailedMessage({ subject, status: response.status });
+  if (response.status === HttpStatus.Unauthorized) throw new AuthenticationError(message);
+  throw new ApiRequestError(message);
 }
 
 export async function readJson<Body>({ response, subject }: { response: Response; subject: string }): Promise<Body> {
@@ -50,6 +55,7 @@ type PolledQuery = { state: { error: Error | null } };
 export function pollWhileAvailable(intervalMs: number): (query: PolledQuery) => number | false {
   return function pollUnlessUnavailable(query: PolledQuery): number | false {
     if (query.state.error instanceof DocumentUnavailableError) return false;
+    if (query.state.error instanceof AuthenticationError) return false;
     return intervalMs;
   };
 }

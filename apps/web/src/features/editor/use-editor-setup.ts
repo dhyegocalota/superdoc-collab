@@ -3,22 +3,27 @@ import { useEffect, useState } from 'react';
 
 export type EditorSetup = { roomMode: RoomMode; role: DocumentRole; user: SessionUser; file: Blob };
 
+type CapturedSetup = { generation: number; setup: EditorSetup };
+
 export function useEditorSetup({
   opened,
   user,
   file,
+  generation,
 }: {
   opened: OpenedDocument | undefined;
   user: SessionUser | null;
   file: Blob | undefined;
+  generation: number;
 }): EditorSetup | null {
-  const [setup, setSetup] = useState<EditorSetup | null>(null);
+  const [captured, setCaptured] = useState<CapturedSetup | null>(null);
+  const setup = captured !== null && captured.generation === generation ? captured.setup : null;
 
   useEffect(() => {
     const canCapture = setup === null && opened !== undefined && user !== null && file !== undefined;
     if (!canCapture) return;
-    setSetup({ roomMode: opened.roomMode, role: opened.role, user, file });
-  }, [setup, opened, user, file]);
+    setCaptured({ generation, setup: { roomMode: opened.roomMode, role: opened.role, user, file } });
+  }, [setup, generation, opened, user, file]);
 
   return setup;
 }

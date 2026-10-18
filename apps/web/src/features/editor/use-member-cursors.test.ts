@@ -19,29 +19,41 @@ function colorOf(member: DocumentMember): string {
   return AUTHOR_PALETTE[authorColorSlot(member.user.id) - 1]!;
 }
 
-function addCaret({ container, name, color }: { container: HTMLElement; name: string; color: string }) {
-  const group = document.createElement('div');
+function createOverlay(parent: HTMLElement): HTMLElement {
+  const overlay = document.createElement('div');
+  overlay.dataset.v2CollaborationOverlay = 'true';
+  parent.append(overlay);
+  return overlay;
+}
+
+let nextRank = 1;
+
+function addCaret({ overlay, name, color }: { overlay: HTMLElement; name: string; color: string }) {
+  const rank = String(nextRank++);
   const caret = document.createElement('div');
   const label = document.createElement('div');
   const selection = document.createElement('div');
   caret.className = CARET_CLASS;
+  caret.dataset.peerRank = rank;
   caret.style.backgroundColor = color;
   label.className = LABEL_CLASS;
   label.textContent = name;
   selection.className = SELECTION_CLASS;
+  selection.dataset.peerRank = rank;
   caret.append(label);
-  group.append(caret, selection);
-  container.append(group);
+  overlay.append(caret, selection);
   caret.scrollIntoView = vi.fn();
-  return { group, caret, selection };
+  return { caret, selection };
 }
 
 let container: HTMLElement;
+let overlay: HTMLElement;
 
 beforeEach(() => {
   installAuthorPalette();
   container = document.createElement('div');
   document.body.append(container);
+  overlay = createOverlay(container);
 });
 
 afterEach(() => {
@@ -59,8 +71,8 @@ function jump({ result, member }: { result: { current: ReturnType<typeof useMemb
 }
 
 test('jumpTo scrolls the remote caret element whose label is the member name and colour into view', () => {
-  const { caret } = addCaret({ container, name: 'Bruno', color: colorOf(bruno) });
-  const other = addCaret({ container, name: 'Clara', color: colorOf(clara) });
+  const { caret } = addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
+  const other = addCaret({ overlay, name: 'Clara', color: colorOf(clara) });
   const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
   expect(jump({ result, member: bruno })).toBe(JumpOutcome.Jumped);
   expect(caret.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'center' });
@@ -68,13 +80,13 @@ test('jumpTo scrolls the remote caret element whose label is the member name and
 });
 
 test('a member with no caret element returns NotFound', () => {
-  addCaret({ container, name: 'Clara', color: colorOf(clara) });
+  addCaret({ overlay, name: 'Clara', color: colorOf(clara) });
   const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
   expect(jump({ result, member: bruno })).toBe(JumpOutcome.NotFound);
 });
 
 test('a peer whose name equals the member name but whose colour differs does not satisfy the jump', () => {
-  const forged = addCaret({ container, name: 'Bruno', color: FORGED_COLOR });
+  const forged = addCaret({ overlay, name: 'Bruno', color: FORGED_COLOR });
   const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
   expect(result.current.hasCursor(bruno)).toBe(false);
   expect(jump({ result, member: bruno })).toBe(JumpOutcome.NotFound);
@@ -82,8 +94,8 @@ test('a peer whose name equals the member name but whose colour differs does not
 });
 
 test('two carets with the same name and colour are ambiguous, so neither jump nor cursor is claimed', () => {
-  addCaret({ container, name: 'Bruno', color: colorOf(bruno) });
-  addCaret({ container, name: 'Bruno', color: colorOf(bruno) });
+  addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
+  addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
   const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
   expect(result.current.hasCursor(bruno)).toBe(false);
   expect(jump({ result, member: bruno })).toBe(JumpOutcome.NotFound);
@@ -94,25 +106,26 @@ test('hasCursor follows carets appearing and leaving', async () => {
   expect(result.current.hasCursor(bruno)).toBe(false);
   let added: ReturnType<typeof addCaret> | undefined;
   await act(async () => {
-    added = addCaret({ container, name: 'Bruno', color: colorOf(bruno) });
+    added = addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
   });
   expect(result.current.hasCursor(bruno)).toBe(true);
   await act(async () => {
-    added?.group.remove();
+    added?.caret.remove();
+    added?.selection.remove();
   });
   expect(result.current.hasCursor(bruno)).toBe(false);
 });
 
 test('without an instance no member has a cursor', () => {
-  addCaret({ container, name: 'Bruno', color: colorOf(bruno) });
+  addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
   const { result } = renderHook(() => useMemberCursors({ superdoc: null, container }));
   expect(result.current.hasCursor(bruno)).toBe(false);
 });
 
 test('jumpTo adds the glow class to the matching __remote-selection and removes it after CURSOR_GLOW_MS', () => {
   vi.useFakeTimers();
-  const brunoParts = addCaret({ container, name: 'Bruno', color: colorOf(bruno) });
-  const claraParts = addCaret({ container, name: 'Clara', color: colorOf(clara) });
+  const brunoParts = addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
+  const claraParts = addCaret({ overlay, name: 'Clara', color: colorOf(clara) });
   const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
   act(() => {
     result.current.jumpTo(bruno);
@@ -127,4 +140,32 @@ test('jumpTo adds the glow class to the matching __remote-selection and removes 
     vi.advanceTimersByTime(1);
   });
   expect(brunoParts.selection.classList.contains(GLOW_CLASS)).toBe(false);
+});
+
+test('the glow goes only to the selection that shares the caret peer rank', () => {
+  vi.useFakeTimers();
+  const brunoParts = addCaret({ overlay, name: 'Bruno', color: colorOf(bruno) });
+  const claraParts = addCaret({ overlay, name: 'Clara', color: colorOf(clara) });
+  const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
+  act(() => {
+    result.current.jumpTo(clara);
+  });
+  expect(claraParts.selection.classList.contains(GLOW_CLASS)).toBe(true);
+  expect(brunoParts.selection.classList.contains(GLOW_CLASS)).toBe(false);
+});
+
+test('it observes the overlay layer and never the whole editor container once the overlay exists', () => {
+  const observe = vi.spyOn(MutationObserver.prototype, 'observe');
+  renderHook(() => useMemberCursors({ superdoc, container }));
+  expect(observe.mock.calls.map(([target]) => target)).toEqual([overlay]);
+  observe.mockRestore();
+});
+
+test('an overlay that appears after mount is picked up', async () => {
+  overlay.remove();
+  const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
+  await act(async () => {
+    addCaret({ overlay: createOverlay(container), name: 'Bruno', color: colorOf(bruno) });
+  });
+  expect(result.current.hasCursor(bruno)).toBe(true);
 });

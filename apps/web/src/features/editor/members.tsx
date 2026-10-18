@@ -1,5 +1,5 @@
 import { authorColorKeyOf, authorColorSlot, JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -12,14 +12,13 @@ import {
   memberLabel,
   moreMembersLabel,
   movedToCursorMessage,
-  notInDocumentReason,
+  cursorOffScreenReason,
   offlineMemberReason,
   SELF_MEMBER_REASON,
 } from './editor-copy';
 import { overflowCountLabel } from './members-copy';
 import { JumpOutcome, useMemberCursors } from './use-member-cursors';
 
-const EDITOR_CONTAINER_SELECTOR = '[data-testid="document-editor"]';
 const MAX_MEMBERS_WITHOUT_MENU = 5;
 const MEMBERS_BESIDE_MENU = 4;
 
@@ -40,7 +39,7 @@ function jumpReasonOf({
   if (isPastVersion) return BACK_TO_LIVE_TO_JUMP_REASON;
   if (member.user.id === currentUserId) return SELF_MEMBER_REASON;
   if (!member.online) return offlineMemberReason(name);
-  if (!isInDocument) return notInDocumentReason(name);
+  if (!isInDocument) return cursorOffScreenReason(name);
   return null;
 }
 
@@ -132,15 +131,16 @@ export function Members({
   members,
   currentUserId,
   superdoc,
+  editorContainer,
   isPastVersion,
 }: {
   members: DocumentMember[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
+  editorContainer: HTMLElement | null;
   isPastVersion: boolean;
 }) {
-  const container = useMemo(() => (superdoc ? document.querySelector<HTMLElement>(EDITOR_CONTAINER_SELECTOR) : null), [superdoc]);
-  const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container });
+  const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container: editorContainer });
   const [announcement, setAnnouncement] = useState('');
 
   function jump(member: DocumentMember): JumpOutcome {

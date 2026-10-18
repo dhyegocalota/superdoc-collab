@@ -240,9 +240,10 @@ The plan names `use-selection-summary.test.tsx`; the file is `use-selection-summ
 ### What changed
 
 - `apps/web/src/features/editor/use-member-cursors.ts`: `useMemberCursors({ superdoc, container })` returns `namesWithCursor` and `jumpTo(member)`; `JumpOutcome` is `Jumped` or `NotFound`. It reads `.v2-collaboration-overlay__remote-caret` elements whose `__remote-label` text equals the member name AND whose background colour equals the member's `--author-N` colour (the overlay DOM carries no user id, only `data-peer-rank`, label and colour); more than one match counts as none, follows the overlay with a `MutationObserver`, calls `scrollIntoView({ block: 'center' })` and adds `member-glow` to the `__remote-selection` elements inside the caret's parent for `CURSOR_GLOW_MS`.
-- `members.tsx`: `Members({ members, currentUserId, superdoc, isPastVersion })`. Reason order: past version, self, offline, online without caret, else enabled. Disabled buttons use `aria-disabled` and stay focusable. Above five members: four avatars and a `DropdownMenu` named `moreMembersLabel(rest)` whose disabled items show the reason as secondary text. A `role="status"` region reads `movedToCursorMessage` or `cursorNotFoundMessage`. A failed jump holds the tooltip open with the not-found text for `JUMP_FAILED_NOTICE_MS`.
+- `members.tsx`: `Members({ members, currentUserId, superdoc, editorContainer, isPastVersion })`. Reason order: past version, self, offline, online without caret, else enabled. Disabled buttons use `aria-disabled` and stay focusable. Above five members: four avatars and a `DropdownMenu` named `moreMembersLabel(rest)` whose disabled items show the reason as secondary text. A `role="status"` region reads `movedToCursorMessage` or `cursorNotFoundMessage`. A failed jump holds the tooltip open with the not-found text for `JUMP_FAILED_NOTICE_MS`.
 - `members-copy.ts` (new, one function `overflowCountLabel` for the visible "+N"); `globals.css` gets `.member-glow` (commit a8a1a2b, the lead keeps one copy with G1).
-- `Members` finds the editor container with `document.querySelector('[data-testid="document-editor"]')` once `superdoc` is non-null, so G2 only passes `superdoc` and `isPastVersion`.
+- `Members` takes `editorContainer: HTMLElement | null` (the editor element from the page) and no longer queries the global document. The hook observes only `[data-v2-collaboration-overlay="true"]`, waiting on the container only until that layer exists, and pairs a caret with its selection by `data-peer-rank` (all peers share one flat layer). `authorColorOf` in `author-palette.ts` reads the six tokens once and memoizes them.
+- The online-without-caret reason is now `cursorOffScreenReason` ("Bruno’s cursor is off screen"), replacing `notInDocumentReason`.
 
 ### How to run
 
@@ -532,8 +533,8 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 
 ### Known gaps
 
-- `editor-header.tsx` still calls `Members` without the two new props: typecheck and `editor-header.test.tsx` fail until G2's merge wires `superdoc` and `isPastVersion`.
-- The glow targets every `__remote-selection` inside the caret's parent element. If SuperDoc puts all users' selections in one shared layer, all of them glow; the real DOM needs the browser walk.
+- `editor-header.tsx` does not yet pass `editorContainer`: typecheck and `editor-header.test.tsx` fail until the lead wires the page's editor element through `EditorHeader` to `Members`.
+- The label SuperDoc draws is cut to a maximum length with `...`; a longer name will not match and reads as off screen.
 - A failed jump from the "+N" menu is only announced in the status region; the menu has closed, so there is no tooltip.
 - No user id reaches the overlay DOM, so a peer who forges both name and colour can still hijack a jump (limit recorded in `.claude/rules/web-ui.md`). Two members with the same name and colour make both unjumpable. A name SuperDoc truncates or decorates reads as "not in the document". `hasCursor(member)` replaced `namesWithCursor`; `authorColorOf` in G2's `author-palette.ts` is now exported (one word).
 - Nothing here was seen in a browser; Radix tooltip and menu behaviour were exercised in jsdom only.

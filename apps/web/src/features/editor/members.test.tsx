@@ -1,4 +1,4 @@
-import { DocumentRole, MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
+import { DocumentRole, MEMBERS_PRESENCE_DEBOUNCE_MS, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -163,7 +163,7 @@ test('a burst of presence changes during a members fetch invalidates once withou
     });
   }
   await act(async () => {
-    vi.advanceTimersByTime(MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS);
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
   });
   expect(invalidate).toHaveBeenCalledTimes(1);
   expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false });

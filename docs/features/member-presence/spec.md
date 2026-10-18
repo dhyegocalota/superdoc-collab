@@ -37,7 +37,7 @@ Root causes, read from the code:
 ### Data flow
 
 1. `Members` derives the ids of the peers whose caret is rendered. The key changes only when that set changes, not when a caret moves, renames or recolours.
-2. On a change it invalidates `membersQueryKey(documentId)` through a trailing debounce of `MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS` (`libs/types`), with `cancelRefetch: false`, so a burst of awareness frames yields one invalidation and never cancels an in-flight members fetch or the 5 s poll.
+2. On a change it invalidates `membersQueryKey(documentId)` through a trailing debounce of `MEMBERS_PRESENCE_DEBOUNCE_MS` (`libs/types`), with `cancelRefetch: false`, so a burst of awareness frames yields one invalidation and never cancels an in-flight members fetch or the 5 s poll.
 3. Every member button is named by `memberLabel`; `aria-describedby` points at the jump text or the reason.
 4. `TimelineNotices` hides the empty copy while the projection is behind or the log is ahead. `SuperDocEditor` reports every `onEditorUpdate` to the page; `useLastEditAt` records the time, at most once per `LAST_EDIT_MARK_INTERVAL_MS`; `TimelinePanel` computes `isLogAhead` as an edit time at or after the timeline query's `dataUpdatedAt`, so the next answer lifts it.
 

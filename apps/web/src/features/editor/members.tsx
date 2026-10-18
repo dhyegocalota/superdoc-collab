@@ -1,4 +1,4 @@
-import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS, type DocumentMember } from '@superdoc-collab/types';
+import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
@@ -156,7 +156,7 @@ export function Members({
   const shownPeersWithCursorKey = useRef(peersWithCursorKey);
   const { schedule: refreshMembers } = useDebouncedCallback({
     callback: () => queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) }, { cancelRefetch: false }),
-    delayMs: MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS,
+    delayMs: MEMBERS_PRESENCE_DEBOUNCE_MS,
   });
   const [announcement, setAnnouncement] = useState('');
 

@@ -16,6 +16,9 @@ import {
   type DocumentSummary,
 } from '../libs/types/src';
 import {
+  CHATGPT_INSTRUCTION,
+  CONNECTED_APPS_HEADING,
+  LIBRARY_PROMPTS,
   McpClient,
   MCP_CLIENT_LABELS,
   documentPrompts,
@@ -498,6 +501,19 @@ test('Use with AI opens a dialog with a tab per client, fewer prompts for a read
       await expect(trigger).toBeFocused();
     }),
   );
+});
+
+test('the Connected apps page shows a tab per client and the library prompts', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: anaUser! });
+  await ana.page.goto(AppRoute.ConnectedApps);
+  await expect(ana.page.getByRole('heading', { name: CONNECTED_APPS_HEADING })).toBeVisible();
+  await Promise.all(
+    Object.values(McpClient).map((client) => expect(ana.page.getByRole('tab', { name: MCP_CLIENT_LABELS[client] })).toBeVisible()),
+  );
+  await Promise.all(LIBRARY_PROMPTS.map((prompt) => expect(ana.page.getByText(prompt)).toBeVisible()));
+  await expect(ana.page.getByText(CHATGPT_INSTRUCTION)).toHaveCount(0);
+  await ana.page.getByRole('tab', { name: MCP_CLIENT_LABELS[McpClient.ChatGpt] }).click();
+  await expect(ana.page.getByText(CHATGPT_INSTRUCTION)).toBeVisible();
 });
 
 test('the top bar fits between 640 and 1023 px with two members and keeps a readable title', async ({ browser }) => {

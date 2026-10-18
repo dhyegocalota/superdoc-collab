@@ -10,17 +10,19 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 ## Unit
 
 - [ ] `globals.test.ts::--paper-foreground is oklch(0.145 0 0) in :root and .dark`
-- [ ] `globals.test.ts::--active is lighter than the surface in light and darker-but-visible in dark` — expected: `oklch(0.92 0 0)` and `oklch(0.37 0 0)`
+- [ ] `globals.test.ts::--active is oklch(0.86 0 0) in light and oklch(0.37 0 0) in dark`
 - [ ] `globals.test.ts::.dark sets color-scheme dark`
-- [ ] `globals.test.ts::the caret rule targets the page's editable surface with --paper-foreground`
+- [ ] `globals.test.ts::the caret takes the paper foreground so it reads on the white paper in both themes`
 - [ ] `globals.test.ts::--foreground on --active reaches AA in both themes` — computed as the tracked-change test does
+- [ ] `globals.test.ts::--active stays distinguishable from --background in both themes` — at least 1.5:1
+- [ ] `globals.test.ts::every mapped SuperDoc variable is declared or consumed in the installed SuperDoc stylesheet`
 - [ ] `waiting-for-document.test.tsx`: the page skeleton uses `bg-paper`, not `bg-white`
 - [ ] `pnpm --filter @superdoc-collab/web test:unit`; expected: green
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/dark-theme.spec.ts::in dark mode the caret is dark on the paper, the font dropdown is readable and native controls follow the theme` — steps: set the dark preference, open a document, focus the editor, read computed `caret-color`; open the font-family dropdown, read its computed background and text colours; expected: caret `rgb(37, 37, 37)` (the oklch converted) or the paper-foreground value, dropdown background not `rgb(200, 208, 216)`, `color-scheme` dark on `<html>`
-- [ ] `e2e/dark-theme.spec.ts::in light mode nothing regressed` — expected: the caret rule holds, the dropdown background equals the light `--active`/`--popover` values
+- [ ] `e2e/dark-theme.spec.ts::in dark mode the caret is dark on the paper, the font dropdown is readable and native controls follow the theme` — steps: set the dark preference, open a document, focus the editor, read the computed `color` of `[data-v2-local-selection-caret='true']`; press Bold and read its button background; open the font-family dropdown and read the selected option and list backgrounds; expected: caret colour equals the resolved `--paper-foreground`, Bold and the selected option equal the resolved `--active`, the list equals `--popover`, `color-scheme` dark on `<html>`
+- [ ] `e2e/dark-theme.spec.ts::in light mode nothing regressed` — expected: the caret rule holds, Bold, the selected option and the list equal the light `--active` and `--popover` values
 
 ## Prove it for real — Playwright MCP
 

@@ -2,7 +2,7 @@
 
 ## What changed
 
-- `apps/web/src/styles/globals.css`: new tokens `--paper-foreground` (both themes), `--active` (light `oklch(0.92 0 0)`, dark `oklch(0.37 0 0)`) and `--shadow-popover` (light `0 8px 24px oklch(0 0 0 / 0.16)`, dark `0 4px 16px oklch(0 0 0 / 0.35)`); Tailwind colours `bg-active` and `text-paper-foreground`; `.dark { color-scheme: dark }`; the caret rule; 31 new `--sd-ui-*` mappings on `html:root`.
+- `apps/web/src/styles/globals.css`: new tokens `--paper-foreground` (both themes), `--active` (light `oklch(0.86 0 0)`, dark `oklch(0.37 0 0)`) and `--shadow-popover` (light `0 8px 24px oklch(0 0 0 / 0.16)`, dark `0 4px 16px oklch(0 0 0 / 0.35)`); Tailwind colours `bg-active` and `text-paper-foreground`; `.dark { color-scheme: dark }`; the caret rule; 32 new `--sd-ui-*` mappings on `html:root`.
 - `apps/web/src/features/editor/waiting-for-document.tsx`: `bg-white` became `bg-paper`.
 - Tests: `globals.test.ts`, `waiting-for-document.test.tsx`, `e2e/dark-theme.spec.ts` (not run by the developer).
 
@@ -20,15 +20,15 @@ Rule: `[data-v2-local-selection-caret='true'] { color: var(--paper-foreground); 
 | `--accent` | `--sd-ui-dropdown-hover-bg`, `--sd-ui-menu-item-hover-bg`, `--sd-ui-toolbar-button-hover-bg`, `--sd-ui-comments-option-hover-bg` |
 | `--popover` | `--sd-ui-dropdown-bg`, `--sd-ui-menu-bg`, `--sd-ui-surface-bg`, `--sd-ui-tooltip-bg`, `--sd-ui-tools-item-bg` |
 | `--border` | `--sd-ui-dropdown-border`, `--sd-ui-menu-border`, `--sd-ui-comments-separator`, `--sd-ui-comments-input-border` |
-| `--muted` | `--sd-ui-menu-header-bg` |
+| `--muted` | `--sd-ui-menu-header-bg`, `--sd-ui-comments-tag-bg`, `--sd-ui-disabled-bg` |
 | `--muted-foreground` | `--sd-ui-menu-text-muted`, `--sd-ui-text-disabled`, `--sd-ui-comments-timestamp-text` |
 | `--foreground` | `--sd-ui-toolbar-button-text` |
 | `--popover-foreground` | `--sd-ui-tooltip-text` |
 | `--primary-foreground` | `--sd-ui-action-text` |
 | `--card` | `--sd-ui-comments-input-bg` |
-| `--shadow-popover` | `--sd-ui-shadow`, `--sd-ui-dropdown-shadow`, `--sd-ui-menu-shadow`, `--sd-ui-tooltip-shadow`, `--sd-ui-surface-shadow`, `--sd-ui-comments-card-shadow`, `--sd-ui-comments-dropdown-shadow` |
+| `--shadow-popover` | `--sd-ui-dropdown-shadow`, `--sd-ui-menu-shadow`, `--sd-ui-tooltip-shadow`, `--sd-ui-surface-shadow`, `--sd-ui-comments-card-shadow`, `--sd-ui-comments-dropdown-shadow` |
 
-Mapped beyond the spec's table: the seven shadow variables above, found in `superdoc/dist/style.css` with literal black or grey rgba defaults. Every name was grepped in that stylesheet. Left to SuperDoc on purpose: `--sd-ui-dialog-backdrop`, the search-match backgrounds, `--sd-ui-find-replace-action-btn-color` (`#fff` on the action colour) and the `--sd-comments-highlight-*` and hover colours.
+Mapped beyond the spec's table: the six shadow variables above, `--sd-ui-comments-tag-bg` and `--sd-ui-disabled-bg`, found in `superdoc/dist/style.css` with literal black or grey rgba defaults. Every name was grepped in that stylesheet. Left to SuperDoc on purpose: `--sd-ui-dialog-backdrop`, the search-match backgrounds, `--sd-ui-find-replace-action-btn-color` (`#fff` on the action colour) and the `--sd-comments-highlight-*` and hover colours.
 
 ## Run in dark
 
@@ -55,13 +55,13 @@ Green after: 75bc231 (CSS), 376db86 (waiting page). Both files run green togethe
 
 - In dark, the caret and the typed text cursor are dark on the white paper; remote carets are untouched.
 - In dark, every toolbar dropdown, menu, tooltip and comment card reads with token colours and a visible shadow.
-- In light, the active toolbar item is `oklch(0.92 0 0)` instead of `#c8d0d8`: distinguishable from the toolbar background.
+- In light, the active toolbar item is `oklch(0.86 0 0)` instead of `#c8d0d8` (1.53:1 against white): distinguishable from the toolbar background.
 - Native scrollbars and selects are dark in dark mode.
 - `e2e/dark-theme.spec.ts` passes in both tests; the dropdown selectors (`btn-fontFamily-toggle`, `dropdown-menu`, `option`) were read from the SuperDoc source, not run.
 
 ## Known gaps
 
-- `--muted-foreground` on `--muted` is 4.34:1 in light (below AA 4.5). It is the pairing the spec asks for the menu header text; token values were not changed.
+- The seven `--sd-ui-menu-*` names are unconsumed in SuperDoc 2.23.0 and docx-engine 0.22.0; they stay mapped for forward compatibility. `--muted-foreground` on `--muted` is 4.34:1 in light, so if SuperDoc starts consuming the menu header, that text would sit just under AA; neither token nor pairing was changed.
 - The dark shadow value is my reading of "lighter and softer"; the designer may want another.
 - The E2E and the caret selector were never run in a browser by the developer.
 - G2 (the designer's live audit) is not started.

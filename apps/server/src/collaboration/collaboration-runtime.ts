@@ -76,8 +76,11 @@ export function createCollaborationRuntime({
       return ticket;
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
-    isAttemptSuperseded: () => {
-      throw new Error('isAttemptSuperseded is not implemented');
+    isAttemptSuperseded: ({ documentId, attempt, epoch }) => {
+      const isCommitted = bootstrap.isCommitted(documentId);
+      const isFromAnotherEpoch = epoch !== reservations.epoch;
+      if (isCommitted && isFromAnotherEpoch) return false;
+      return !reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
     },
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>

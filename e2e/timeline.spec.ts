@@ -40,6 +40,7 @@ function topEdits(page: Parameters<typeof waitForBands>[0]['page']) {
 test('two authors type in two topics and the bands appear', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await summarizeButton(ana.page).click();
   await expect(topEdits(ana.page).filter({ hasText: BUDGET })).toContainText(`Edits about ${BUDGET}.`, { timeout: BANDS_TIMEOUT_MS });
   await expect(topEdits(ana.page).filter({ hasText: HIRING }).getByTitle(BRUNO)).toBeVisible();
 });

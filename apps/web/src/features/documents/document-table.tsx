@@ -6,11 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatTimestamp } from '@/lib/format-date-time';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useTimeZone } from '@/lib/use-time-zone';
-import { cn } from '@/lib/utils';
-import { COLUMNS_BY_KIND, DocumentColumn, type DocumentListKind, NARROW_HIDDEN_COLUMNS } from './document-columns';
+import { COLUMNS_BY_KIND, DocumentColumn, type DocumentListKind } from './document-columns';
 import { COLUMN_LABELS, DOCUMENT_DETAILS_SEPARATOR, ROLE_LABELS } from './documents-copy';
-
-const NARROW_HIDDEN_CLASS = 'hidden sm:table-cell';
 
 type CellArguments = { document: DocumentSummary; timeZone: string };
 
@@ -41,11 +38,6 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
   const { timeZone } = useTimeZone();
   const isPhoneLayout = useIsPhoneLayout();
   const columns = COLUMNS_BY_KIND[kind];
-  const hiddenWhenNarrow = NARROW_HIDDEN_COLUMNS[kind];
-
-  function columnClass(column: DocumentColumn): string {
-    return cn(hiddenWhenNarrow.includes(column) && NARROW_HIDDEN_CLASS);
-  }
 
   if (documents.length === 0) return <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">{emptyMessage}</p>;
   if (isPhoneLayout) {
@@ -71,9 +63,7 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
         <TableHeader>
           <TableRow>
             {columns.map((column) => (
-              <TableHead key={column} className={columnClass(column)}>
-                {COLUMN_LABELS[column]}
-              </TableHead>
+              <TableHead key={column}>{COLUMN_LABELS[column]}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
@@ -81,9 +71,7 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
           {documents.map((document) => (
             <TableRow key={document.id}>
               {columns.map((column) => (
-                <TableCell key={column} className={columnClass(column)}>
-                  {CELL_CONTENT[column]({ document, timeZone })}
-                </TableCell>
+                <TableCell key={column}>{CELL_CONTENT[column]({ document, timeZone })}</TableCell>
               ))}
             </TableRow>
           ))}

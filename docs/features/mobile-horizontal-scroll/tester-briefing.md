@@ -6,7 +6,7 @@ Written by developer-mo. The developer did not run `test-plan.md`, ran the one E
 
 Documents list only. Comments on phones stay SuperDoc's inline cards; nothing was built for them.
 
-- `document-table.tsx`: below `lg` the rows render as a list of stacked items; from `lg` the table is unchanged.
+- `document-table.tsx`: the dead narrow-hidden column code is gone; below `lg` the rows render as a list of stacked items; from `lg` the table is unchanged.
 - `documents-copy.ts`: the separator of the muted line.
 - `document-table.test.tsx` (new), `e2e/documents.spec.ts` (one test), `docs/features/README.md` row.
 

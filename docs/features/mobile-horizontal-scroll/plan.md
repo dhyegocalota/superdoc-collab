@@ -24,7 +24,7 @@ One developer, steps in order.
 
 - [x] **Step 1:** red unit test in `document-table.test.tsx`: below `lg` the stacked list; from `lg` the table. — evidence: red 523d906
 - [x] **Step 2:** the phone rendering in `DocumentTable` and the separator copy; green. — evidence: green d1b9d49 (`documents-page.test.tsx` now stubs a wide viewport, because jsdom counts as a phone)
-- [x] **Step 3:** E2E at 375 x 812: the card never scrolls sideways and the full title is visible; `pnpm typecheck`; tester briefing; the README row. — evidence: E2E in the next commit, run once and green; `pnpm typecheck` green
+- [x] **Step 3:** E2E at 375 x 812: the list never scrolls sideways and a long title is clamped to two lines; `pnpm typecheck`; tester briefing; the README row. — evidence: E2E in the next commit, run once and green; `pnpm typecheck` green
 
 ## Failure modes
 

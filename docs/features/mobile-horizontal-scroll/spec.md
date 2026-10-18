@@ -5,7 +5,7 @@
 **Owner approval:** approved 2026-10-18 (the owner reported the sideways scroll on their phone and asked for the fix)
 **ADRs:** none
 **Lane:** product
-**Not changing:** the documents table from `lg` and up (columns, headers, the hidden columns of the Shared list between `sm` and `lg`, the `ROLE_LABELS` copy); the list query, the empty messages and the skeleton; the editor page and SuperDoc's comments layout (inline cards below 480 px), which do not overflow at 375 px.
+**Not changing:** the documents table from `lg` and up (columns, headers, the `ROLE_LABELS` copy); the list query, the empty messages and the skeleton; the editor page and SuperDoc's comments layout (inline cards below 480 px), which do not overflow at 375 px.
 
 ## Problem
 
@@ -60,5 +60,5 @@ A dialog is reconsidered only if a document with comments shows inline cards tha
 ## Test strategy summary
 
 - Unit (red first), `document-table.test.tsx`: with the viewport below `lg`, Mine and Shared render a list with one item per document, no table and no column header; each item has the title link and one line with the owner, the time and the access label as the table would show them; from `lg` the table and its headers remain.
-- E2E at 375 x 812 in `e2e/documents.spec.ts`: the documents card has `scrollWidth <= clientWidth` and a long title is fully visible.
+- E2E at 375 x 812 in `e2e/documents.spec.ts`: the list and the document have `scrollWidth <= clientWidth`, and a title that needs three lines is clamped to two while the link keeps the full title as its name.
 - Walk at 375, 320 and 1280 in both themes.

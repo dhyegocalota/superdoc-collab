@@ -12,11 +12,11 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `document-table.test.tsx::below lg Mine shows only the time under the title` — expected: the line reads the formatted time
 - [ ] `document-table.test.tsx::from lg the table and its column headers remain` — expected: the table and the headers of `COLUMNS_BY_KIND`, no list
 - [ ] `document-table.test.tsx::an empty list shows its message at any width` — expected: the empty message, no list, no table
-- [ ] `documents-page.test.tsx` unchanged and green
+- [ ] `documents-page.test.tsx` stubs a wide viewport and stays green
 
 ## E2E (browser specs)
 
-- [ ] `e2e/documents.spec.ts::the documents list never scrolls sideways on a narrow viewport` — viewport 375 x 812, a document with a long title; expected: the card's `scrollWidth <= clientWidth` and the full title text visible
+- [ ] `e2e/documents.spec.ts::the list never scrolls sideways at 375 and clamps a long title to two lines` — viewport 375 x 812, a document whose title needs three lines; expected: the list and the document have `scrollWidth <= clientWidth`, the title text is clamped to two lines and the link's name is the full title
 
 ## Prove it for real (Playwright MCP)
 

@@ -22,6 +22,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [x] `.mcp.json` parses and lists `playwright`, `playwright-second`, `playwright-third` identically; `.codex/config.toml` has the same three — expected: three servers, same command and arguments — evidence: lead at 05e167b — `.mcp.json` lists playwright, playwright-second, playwright-third with identical definitions (json compare), `.codex/config.toml` names playwright-third
 - [x] `.agents/roles/tester.md` and `recorder.md` carry the `browser_close` and one-minute rule — expected: one line each — evidence: lead at 05e167b — `browser_close` appears once in each role body
 
+## Web test timeout
+
+- [ ] `apps/web/src/features/versions/time-travel.test.tsx` — expected: 32 of 32 pass with the five-second `asyncUtilTimeout` (a pin: it passed alone at the commit) — evidence: the gate's unit run under load
+
 ## Typecheck
 
 - [x] `pnpm typecheck` — expected: green — evidence: gate at 05e167b — `verify: typecheck ok in 2s`

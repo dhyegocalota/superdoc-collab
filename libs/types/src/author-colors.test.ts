@@ -55,3 +55,11 @@ test('the seventh member takes its hash slot', () => {
 test('an empty list is an empty map', () => {
   expect(assignAuthorColorSlots({ memberIds: [] }).size).toBe(0);
 });
+
+const FIRST_SLOT_SIX_MEMBER = 'member-3';
+const SECOND_SLOT_SIX_MEMBER = 'member-5';
+
+test('a collision on slot six wraps to slot one', () => {
+  const slots = assignAuthorColorSlots({ memberIds: [FIRST_SLOT_SIX_MEMBER, SECOND_SLOT_SIX_MEMBER] });
+  expect([slots.get(FIRST_SLOT_SIX_MEMBER), slots.get(SECOND_SLOT_SIX_MEMBER)]).toEqual([AUTHOR_COLOR_SLOT_COUNT, 1]);
+});

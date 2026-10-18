@@ -21,7 +21,9 @@ const { useMembers } = vi.hoisted(() => ({ useMembers: vi.fn() }));
 
 vi.mock('@/features/editor/use-members', () => ({ useMembers }));
 
-beforeEach(() => useMembers.mockReturnValue({ members: [] }));
+const OTHER_MEMBER: DocumentMember = { user: { id: 'other', name: 'Other' }, role: DocumentRole.Editor, online: false, colorSlot: 1 };
+
+beforeEach(() => useMembers.mockReturnValue({ members: [OTHER_MEMBER] }));
 
 function renderAvatars(element: ReactElement) {
   return renderWithProviders(element, { route: ROUTE });
@@ -87,4 +89,16 @@ test('an author who is a member takes the slot the server assigned', () => {
     </ul>,
   );
   expect(screen.getByTitle(ACCOUNT_AUTHOR.name).firstElementChild).toHaveClass(`bg-author-${memberSlot}`);
+});
+
+test('before the members answer an avatar is neutral, never the hash colour', () => {
+  useMembers.mockReturnValue({ members: [] });
+  renderAvatars(
+    <ul>
+      <AuthorAvatar author={ACCOUNT_AUTHOR} />
+    </ul>,
+  );
+  const swatch = screen.getByTitle(ACCOUNT_AUTHOR.name).firstElementChild;
+  expect(swatch).toHaveClass('bg-muted');
+  expect(swatch?.className).not.toMatch(/bg-author-/);
 });

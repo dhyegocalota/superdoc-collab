@@ -12,10 +12,16 @@ const MEMBER_ID = 'u1';
 const MEMBER_SLOT = authorColorSlot(MEMBER_ID) === 6 ? 1 : 6;
 const member: DocumentMember = { user: { id: MEMBER_ID, name: 'Ana' }, role: DocumentRole.Editor, online: true, colorSlot: MEMBER_SLOT };
 
-function slotOfAuthor(author: { id: string | null; name: string }) {
-  useMembers.mockReturnValue({ members: [member] });
+function resolverWith(members: DocumentMember[]) {
+  useMembers.mockReturnValue({ members });
   const { result } = renderHookWithRouter(() => useAuthorColorSlots(), { route: documentPagePath(DOCUMENT_ID) });
-  return result.current(author);
+  return result.current;
+}
+
+function slotOfAuthor(author: { id: string | null; name: string }) {
+  const slotOf = resolverWith([member]);
+  if (slotOf === null) throw new Error('the members answered, a resolver is expected');
+  return slotOf(author);
 }
 
 test('a member resolves to the slot its members response carries, not to the id hash', () => {
@@ -31,4 +37,8 @@ test('an author who is not a member resolves to the hash of its key', () => {
   const imported = { id: null, name: 'Chris Crawford' };
   expect(slotOfAuthor(stranger)).toBe(authorColorSlot(authorColorKeyOf(stranger)));
   expect(slotOfAuthor(imported)).toBe(authorColorSlot(authorColorKeyOf(imported)));
+});
+
+test('before the members answer there is no resolver, so no member is given the hash colour', () => {
+  expect(resolverWith([])).toBeNull();
 });

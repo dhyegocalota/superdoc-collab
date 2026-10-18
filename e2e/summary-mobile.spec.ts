@@ -86,12 +86,12 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
   await clickChart({ page: ana.page, widthFraction: CHART_CENTRE_FRACTION });
   await expect(header).toContainText(CHARACTER_COUNT_PATTERN);
   const scroller = ana.page.locator(PANEL_BODY_SELECTOR);
-  await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
-  const naturalOffset = await rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top);
-  const maxScroll = await scroller.evaluate((element) => element.scrollHeight - element.clientHeight);
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))
     .toBe(true);
+  await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
+  const naturalOffset = await rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top);
+  const maxScroll = await scroller.evaluate((element) => element.scrollHeight - element.clientHeight);
   await scroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top))

@@ -35,6 +35,8 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A member's cursor is drawn in a colour the app never declared | [2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md](2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md) | 2026-10-18 |
 | 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-17 |
 | 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-17 |
+| 2026-10-18 | The caret vanishes in dark mode and `caret-color` changes nothing | [2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md](2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md) | 2026-10-18 |
+| 2026-10-18 | One request per E2E run fails with `read ECONNRESET` on a plain GET | [2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md](2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md) | 2026-10-18 |
 
 ### history
 
@@ -53,7 +55,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 |------|-------|------|----------------|
 | 2026-10-18 | The local gate fails only on a latency pin while every other test is green | [2026-10-18-a-local-latency-pin-fails-under-parallel-agent-load.md](2026-10-18-a-local-latency-pin-fails-under-parallel-agent-load.md) | 2026-10-18 |
 | 2026-10-15 | Keystrokes land on BODY and typed text is silently missing, only under concurrency | [2026-10-15-click-steals-editor-focus-under-load.md](2026-10-15-click-steals-editor-focus-under-load.md) | 2026-10-16 |
-| 2026-10-17 | A spec that reads a call counter off the fake upstream passes alone and fails as soon as its file runs in parallel | [2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md](2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md) | 2026-10-17 |
+| 2026-10-17 | A spec that reads a call counter off the fake upstream passes alone and fails as soon as its file runs in parallel | [2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md](2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md) | 2026-10-18 |
 | 2026-10-18 | The full E2E gate loses one or two load-sensitive tests per run while other stacks run on the machine | [2026-10-18-the-full-e2e-gate-loses-one-or-two-load-sensitive-tests-while-other-stacks-run.md](2026-10-18-the-full-e2e-gate-loses-one-or-two-load-sensitive-tests-while-other-stacks-run.md) | 2026-10-18 |
 | 2026-10-17 | Text typed keystroke by keystroke can land in two runs | [2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md](2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md) | 2026-10-17 |
 | 2026-10-17 | `shouldAdvanceTime` lets real lag move the fake clock, so a timer test passes alone and fails under load | [2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md](2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md) | 2026-10-17 |

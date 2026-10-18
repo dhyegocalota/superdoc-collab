@@ -11,7 +11,7 @@
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `libs/types/src/author-colors.ts`, `author-colors.test.ts`, `libs/types/src/documents.ts`, `apps/server/src/documents/documents-routes.ts`, `documents-routes.test.ts` (or the route test files that exist), `apps/server/src/documents/*` needed for the open route, `apps/web/src/testing/opened-document.ts`, `apps/web/src/features/editor/author-palette.ts`, `author-palette.test.ts`, `superdoc-editor.tsx`, `superdoc-options.ts`, `use-member-cursors.ts`, `members.tsx`, `apps/web/src/features/timeline/use-author-color-slots.ts`, `use-author-color-slots.test.ts`, `contributor-avatars.tsx`, `apps/web/src/features/versions/version-viewer.tsx`, their tests, `e2e/final-visuals.spec.ts` or `e2e/collaboration.spec.ts` | `developer-ac` |
+| G1 | `libs/types/src/author-colors.ts`, `author-colors.test.ts`, `libs/types/src/documents.ts`, `apps/server/src/documents/documents-routes.ts`, `documents-routes.test.ts` (or the route test files that exist), `apps/server/src/documents/*` needed for the open route, `apps/web/src/testing/opened-document.ts`, `apps/web/src/features/editor/author-palette.ts`, `author-palette.test.ts`, `superdoc-editor.tsx`, `superdoc-options.ts`, `use-member-cursors.ts`, `members.tsx`, `apps/web/src/features/timeline/use-author-color-slots.ts`, `use-author-color-slots.test.ts`, `contributor-avatars.tsx`, `apps/web/src/features/versions/version-viewer.tsx`, `version-view-page.tsx`, `use-editor-setup.ts`, `document-page.tsx`, `apps/web/src/components/user-avatar.tsx`, `selection-summary-card.test.tsx`, `editor-header.test.tsx`, `docs/features/final-visuals/spec.md`, `docs/features/final-visuals/test-plan.md`, `docs/features/README.md`, their tests, `e2e/final-visuals.spec.ts` or `e2e/collaboration.spec.ts` | `developer-ac` |
 
 ## Sequencing
 
@@ -34,7 +34,8 @@ One group, server first (steps 1-2), then web (3-5), then E2E (6).
 |------|-------------|------------------------------------|----------------|
 | 2 | the open route loads members on every open and slows the 409 waiting poll | the open route timing test or the E2E waiting proof slows | compute only on the 200 path, after the role check |
 | 3 | the SuperDoc user colour is set at mount and never updated | the own cursor keeps the first slot after a members change | the slot comes from the open response, which is captured once per editor generation; documented |
-| 5 | timeline avatars flash the hash colour before the members query answers | a colour change visible on load | the avatars render after the members query, which the editor page already holds; the hook reads the cache |
+| 4 | Jump says not found while a peer still broadcasts a stale colour | the jump button announces the not-found message after a slot shift | the peer remounts on reload; matching by name plus colour is kept to tell same-name members apart |
+| 5 | timeline avatars flash the hash colour before the members query answers | a colour change visible on load | the hook returns null until `useMembers` has data and avatars are neutral until then |
 
 **Steps with no backout:** none.
 

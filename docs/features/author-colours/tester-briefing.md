@@ -6,7 +6,7 @@
 - `libs/types/src/documents.ts`: `DocumentMember.colorSlot` and `OpenedDocument.colorSlot`.
 - `apps/server/src/documents/documents-repository.ts`: `membersWithColorSlots` and `colorSlotOf`; members now also order by user id when `joinedAt` ties, so every client gets one order.
 - `apps/server/src/documents/documents-routes.ts`: the members route returns `colorSlot` per member; the open route returns the current user's `colorSlot` only on its 200 paths (Join and the creator's Create), after the role and reservation checks. The 409 and 429 paths do not load members.
-- Web: `authorPaletteOf({ colorSlot })` replaces the id hash; the slot travels open answer, editor setup, `SuperDocEditor` and `VersionViewer` (via `version-view-page.tsx`). `members.tsx` and `use-member-cursors.ts` read `member.colorSlot`. `AuthorAvatar` resolves through the new `useAuthorColorSlots()` (timeline), which reads `documentId` from the route and the members query, and hashes the author key only for a non-member.
+- Web: `authorPaletteOf({ colorSlot })` replaces the id hash; the slot travels open answer, editor setup, `SuperDocEditor` and `VersionViewer` (via `version-view-page.tsx`). `members.tsx` and `use-member-cursors.ts` read `member.colorSlot`. `AuthorAvatar` resolves through the new `useAuthorColorSlots()` (timeline), which reads `documentId` from the route and `useMembers`, looks the member up by `authorColorKeyOf` and hashes only for a non-member. It returns null until the members have data, and `UserAvatar` then renders a neutral `bg-muted` swatch.
 - E2E: one test in `e2e/final-visuals.spec.ts`.
 
 ## Files outside the plan's G1 list that I touched
@@ -15,7 +15,7 @@
 
 ## Deviation from the spec
 
-`useAuthorColorSlots()` takes no argument and reads `documentId` from the route, because `AuthorAvatar` is rendered by `TopEdits` and `SelectionSummaryCard`, which have no document id. The version viewer takes `opened.colorSlot` directly instead of the hook (it already holds the open answer and a hook would recreate the SuperDoc when the members query resolves).
+`useAuthorColorSlots()` takes no argument and reads `documentId` from the route, because `AuthorAvatar` is rendered by `TopEdits` and `SelectionSummaryCard`, which have no document id. The version viewer renders no authors and takes `opened.colorSlot` directly, so it is not a reader of the hook.
 
 ## How to run
 
@@ -36,9 +36,10 @@ pnpm typecheck
 | 206f995 | `superdoc-editor.test.tsx::passes the colour of the slot the server assigned...` | `AssertionError: expected '#b82e70' to be '#5a2eb8'` |
 | 206f995 | `version-viewer.test.tsx::the viewer user carries the colour of the slot...` | `AssertionError: expected '#b82e70' to be '#5a2eb8'` |
 | e9f99f3 | `members.test.tsx` (5 failures) and `use-member-cursors.test.ts` (8 failures) | `AssertionError: expected 'not-found' to be 'jumped'`, `expected false to be true`, `expected [ '', '' ] to deeply equal [ '#b82ea8', '#b82ea8' ]` |
+| 7eddfa6 | `use-author-color-slots.test.ts::before the members answer there is no resolver...` and `contributor-avatars.test.tsx::before the members answer an avatar is neutral...` | `AssertionError: expected [Function] to be null`; `expected element to have class bg-muted` |
 | 43eb812 | `use-author-color-slots.test.ts` (3) and `contributor-avatars.test.tsx::an author who is a member takes the slot the server assigned` | `Error: useAuthorColorSlots is not implemented`; `expected element to have class bg-author-6` |
 
-Pins (green when they landed): `use-editor-setup.test.ts::pin: the setup captures the colour slot of the open answer`.
+Pins (green when they landed): `author-colors.test.ts::a collision on slot six wraps to slot one`, `use-editor-setup.test.ts::pin: the setup captures the colour slot of the open answer`.
 
 Known blemish: the red commit e9f99f3 does not typecheck (two untyped fixtures in `members.test.tsx`); 3719906 fixes it. The red commit 752d207 repaired a typecheck error left by 3213a32.
 
@@ -53,7 +54,9 @@ Known blemish: the red commit e9f99f3 does not typecheck (two untyped fixtures i
 
 ## Gaps
 
-- The E2E test was typechecked but never run by me.
+- The E2E test (`a member has one colour on every surface and on every browser`) was typechecked but never run by me. It proves consistency, not distinctness: demo ids are random per database, so a collision happens in 1 of 6 runs.
+- Cursor jump matches carets by name plus colour: after a slot shift or with an old tab it says not found until the peer remounts. I kept the matching; name-only matching would confuse same-name members.
+- The selection summary card colours an author with no id in the timeline by the imported hash.
 - The server unit tests use random user ids, so they assert six distinct slots for six members rather than a forced collision; a forced collision is covered by the pure function test.
 - The own SuperDoc cursor colour cannot be read from the page; the E2E compares swatches and remote carets only.
 - The account menu avatar keeps the hash colour by design.

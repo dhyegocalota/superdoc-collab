@@ -27,7 +27,7 @@ The colour slot is a hash of the user id, so members of one document collide: on
 1. `libs/types/src/author-colors.ts`: `assignAuthorColorSlots({ memberIds }): Map<string, AuthorColorSlot>`; member ids in join order; each takes `authorColorSlot(id)` when free, otherwise the next free slot cyclically; from the seventh on, `authorColorSlot(id)`.
 2. Server, members route (`apps/server/src/documents/documents-routes.ts`): the members list already comes ordered by `joinedAt` from `documents-repository.ts`; each member gains `colorSlot`.
 3. Server, open route: `OpenedDocument.colorSlot` for the current user, from the same assignment over the document's members.
-4. Web: `authorPaletteOf({ user, colorSlot })` uses the opened document's slot; `use-member-cursors.ts` and `members.tsx` read `member.colorSlot`; the timeline avatars and the version viewer resolve an author through a new `useAuthorColorSlots(documentId)` hook that maps member ids from the members query to slots and, for an author who is not a member, returns `authorColorSlot(authorColorKeyOf(author))`.
+4. Web: `authorPaletteOf({ colorSlot })` uses the opened document's slot, for the editor and for the version viewer (which renders no authors and takes `opened.colorSlot`); `use-member-cursors.ts` and `members.tsx` read `member.colorSlot`; the timeline avatars resolve an author through a new `useAuthorColorSlots()` hook (the document id comes from the route, because `AuthorAvatar` has no document id) that reuses `useMembers`, looks the member up by `authorColorKeyOf(author)` (so an agent resolves to its person), and for an author who is not a member returns `authorColorSlot(authorColorKeyOf(author))`. Until the members query has data the hook returns null and avatars render a neutral swatch, never the hash for a member.
 
 ### Interfaces
 
@@ -38,6 +38,9 @@ The colour slot is a hash of the user id, so members of one document collide: on
 
 - A member list longer than six: slots wrap, documented.
 - An author with no membership: the explicit hash branch, tested.
+- Members not answered yet: avatars are neutral (`bg-muted`), tested.
+- The selection summary card finds its authors by name; one with no id in the timeline takes the imported hash, a known limit.
+- Cursor jump matches carets by name plus colour; when a slot shifts, or an old tab still broadcasts the hash colour, Jump says not found until that peer remounts. Accepted, listed in Coverage honesty.
 
 ## Open questions → answers
 

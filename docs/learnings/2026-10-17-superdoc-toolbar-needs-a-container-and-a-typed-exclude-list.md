@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: final-visuals G2 toolbar row (`7901443`, `2a239cb`) and the page integration `fa48cb2`, `ef27dfd`
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 The toolbar renders above the document inside SuperDoc's own box instead of in our top row, does not collapse items when the row narrows, or an item we meant to hide is still there. A misspelled item name in the exclude list raises nothing at runtime.

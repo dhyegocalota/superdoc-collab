@@ -1,4 +1,5 @@
 import { ConnectionFailureReason } from '@superdoc-collab/types';
+import { BACK_TO_DOCUMENTS_LABEL } from './editor-copy';
 
 export const LOST_TITLE = 'You are offline.';
 export const RECONNECTING_TITLE = 'Reconnecting…';
@@ -7,6 +8,7 @@ export const FAILED_TITLE = 'Editing is paused: the connection failed.';
 export const KEPT_AND_DATED_DETAIL = 'Your edits stay in this browser and are dated when they sync.';
 export const UNSYNCED_LOST_ON_RELOAD_DETAIL = 'Unsynced edits are lost on reload. Download first to keep them.';
 export const UNSYNCED_LOST_ON_SIGN_IN_DETAIL = 'Unsynced edits are lost on sign-in. Download first to keep them.';
+export const SUPERSEDED_DOWNLOAD_DETAIL = 'Download first to keep your edits.';
 export const RELOAD_LABEL = 'Reload';
 export const SIGN_IN_LABEL = 'Sign in';
 export const RELOADING_LABEL = 'Reloading…';
@@ -18,10 +20,18 @@ export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.SyncTimeout]: 'The server did not answer in time.',
   [ConnectionFailureReason.WorkerTransportFailed]: 'The editor lost its background link.',
   [ConnectionFailureReason.SessionEnded]: 'Your session ended. Sign in again.',
+  [ConnectionFailureReason.Superseded]: 'This document was opened elsewhere.',
   [ConnectionFailureReason.Unknown]: 'The cause could not be identified.',
 };
 
 export function unsyncedDetailFor(failureReason: ConnectionFailureReason): string {
   if (failureReason === ConnectionFailureReason.SessionEnded) return UNSYNCED_LOST_ON_SIGN_IN_DETAIL;
+  if (failureReason === ConnectionFailureReason.Superseded) return SUPERSEDED_DOWNLOAD_DETAIL;
   return UNSYNCED_LOST_ON_RELOAD_DETAIL;
+}
+
+export function actionLabelFor(failureReason: ConnectionFailureReason): string {
+  if (failureReason === ConnectionFailureReason.SessionEnded) return SIGN_IN_LABEL;
+  if (failureReason === ConnectionFailureReason.Superseded) return BACK_TO_DOCUMENTS_LABEL;
+  return RELOAD_LABEL;
 }

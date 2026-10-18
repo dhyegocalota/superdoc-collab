@@ -4,6 +4,7 @@
 - Inspired by: the tester's removed-cookie walk for `docs/features/connection-state/` (`tester-briefing.md`, session-ended row); design 1.14 expected the callback's `detail` or an `exception` to carry the reason
 - Revisited: 2026-10-17 — still true at SuperDoc 2.23.0; `useMembers.isSessionEnded` and `resolveFailureReason` are the app's answer
 - Revisited: 2026-10-18 — still true; summary-mobile moved the version bar between layouts and the eight-widths run caught a sign-in redirect it caused (see the layout-switch remount learning); the connection-state spec itself is unchanged
+- Revisited: 2026-10-18 — changed because the Superseded reason is derived the same way, from the members poll (`isAttemptSuperseded`), not from the transport (ADR 0036)
 
 ## Signal
 With the session cookie removed under an open editor, `onCollaborationConnectionChange` fires `lost`, `reconnecting` and `failed` in a few milliseconds, each with `detail: null`, and `onException` never fires. The banner has no reason to show and reads Unknown.

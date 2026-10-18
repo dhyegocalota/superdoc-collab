@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { APIResponse, Page, Response } from '@playwright/test';
 import {
+  ConnectionFailureReason,
   ConnectionState,
   ApiPath,
   COLLABORATION_TOKEN_PLACEHOLDER,
@@ -29,7 +30,8 @@ import {
   type OpenedDocument,
 } from '../libs/types/src';
 import { UpdateLog, buildSeedDocx, findBootstrapSequence } from '../libs/history/src';
-import { EDITOR_FAILED_MESSAGE } from '../apps/web/src/features/editor/editor-copy';
+import { FAILURE_REASON_COPY } from '../apps/web/src/features/editor/connection-copy';
+import { BACK_TO_DOCUMENTS_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
@@ -47,6 +49,7 @@ const SEED_PARAGRAPH = 'Paragraph written by the creator.';
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const COMMIT_TIMEOUT_MS = 60_000;
 const LARGE_COMMIT_TIMEOUT_MS = 120_000;
+const SUPERSEDED_SIGNAL_TIMEOUT_MS = 15_000;
 const LARGE_TEST_TIMEOUT_MS = 240_000;
 const RESERVATION_EXPIRY_WAIT_MS = MINUTE_MS + SECOND_MS;
 const LIFETIME_CAP_TEST_TIMEOUT_MS = CREATOR_RESERVATION_MAX_MS + 2 * MINUTE_MS;
@@ -219,13 +222,17 @@ test('a holder who reopens a fresh document supersedes its first page and the ro
   const firstPageProgress = { hasSentFrame: false };
   ana.page.on('websocket', (socket) => socket.on('framesent', () => (firstPageProgress.hasSentFrame = true)));
   await ana.page.goto(documentPagePath(documentId));
+  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   await expect.poll(() => firstPageProgress.hasSentFrame).toBe(true);
   const secondPage = await ana.context.newPage();
   await secondPage.goto(documentPagePath(documentId));
   const failedBanner = ana.page.locator(
     `[data-testid="${CONNECTION_BANNER_TEST_ID}"][${CONNECTION_STATE_ATTRIBUTE}="${ConnectionState.Failed}"]`,
   );
-  await expect(ana.page.getByText(EDITOR_FAILED_MESSAGE).or(failedBanner)).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
+  await expect(failedBanner).toContainText(FAILURE_REASON_COPY[ConnectionFailureReason.Superseded], {
+    timeout: SUPERSEDED_SIGNAL_TIMEOUT_MS,
+  });
+  await expect(failedBanner.getByRole('button', { name: BACK_TO_DOCUMENTS_LABEL })).toBeVisible();
   await expect(editorText(secondPage).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
   await expect
     .poll(() => openDocument({ page: secondPage, documentId }), { timeout: LARGE_COMMIT_TIMEOUT_MS })

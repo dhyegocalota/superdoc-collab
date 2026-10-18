@@ -3,6 +3,7 @@ import { Check, Loader2, TriangleAlert, WifiOff, type LucideIcon } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
+  actionLabelFor,
   FAILED_TITLE,
   FAILURE_REASON_COPY,
   KEPT_AND_DATED_DETAIL,
@@ -11,7 +12,6 @@ import {
   RECOVERED_TITLE,
   RELOAD_LABEL,
   RELOADING_LABEL,
-  SIGN_IN_LABEL,
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
   unsyncedDetailFor,
 } from './connection-copy';
@@ -79,7 +79,7 @@ export function ConnectionBanner({ state, failureReason, isReloading, onAction }
   const { role, toneClassName, Icon, iconClassName, title, detail: stateDetail } = PRESENTATION[state];
   const isFailed = state === ConnectionState.Failed;
   const detail = isFailed && failureReason ? unsyncedDetailFor(failureReason) : stateDetail;
-  const actionLabel = failureReason === ConnectionFailureReason.SessionEnded ? SIGN_IN_LABEL : RELOAD_LABEL;
+  const actionLabel = failureReason ? actionLabelFor(failureReason) : RELOAD_LABEL;
   const reasonLine = isFailed && failureReason ? FAILURE_REASON_COPY[failureReason] : null;
   const body = [reasonLine, detail].filter((line) => line !== null).join(' ');
   return (

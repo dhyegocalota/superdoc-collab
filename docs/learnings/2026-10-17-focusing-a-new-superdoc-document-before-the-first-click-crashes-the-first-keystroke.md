@@ -7,6 +7,7 @@
 - Revisited: 2026-10-17 — still true; the editor gained a creator ticket prop and no focus call
 - Revisited: 2026-10-17 — still true: no `superdoc.focus()` anywhere in `features/editor`
 - Revisited: 2026-10-17 — still true; connection-state added transport reports to `superdoc-editor.tsx` and no `focus()` on the SuperDoc instance
+- Revisited: 2026-10-18 — still true
 - Revisited: 2026-10-18 — still true; `author-colours` changes only the user colour option
 
 ## Signal

@@ -2,6 +2,7 @@
 - Date: 2026-10-17
 - Inspired by: room-admission second security round and the third and fourth review rounds; `1519955`, `27d057f`, `758992b`
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true
 - Revisited: 2026-10-18 — still true; the open route loads members only on its 200 paths, after the scan answer
 
 ## Signal

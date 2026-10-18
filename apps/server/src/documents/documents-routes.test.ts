@@ -3,6 +3,8 @@ import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
   ClientActor,
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
   DOCUMENT_NOT_READY_ERROR,
   DOCX_MIME_TYPE,
   documentApiPath,
@@ -19,6 +21,7 @@ import {
   authorColorSlot,
   TAB_QUERY_KEY,
   UPLOAD_FIELD,
+  type CreatorTicket,
   type DocumentMembers,
   type DocumentsList,
   type DocumentSummary,
@@ -587,6 +590,79 @@ test.each([
   const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
   expect(answer.isCurrentUserOnline).toBe(true);
   client.close();
+  await server.stop();
+});
+
+async function isAttemptSupersededFor({
+  server,
+  user,
+  documentId,
+  query,
+}: {
+  server: TestServer;
+  user: TestUser;
+  documentId: string;
+  query: Record<string, string>;
+}): Promise<boolean> {
+  const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${new URLSearchParams(query)}`;
+  const answer: DocumentMembers = await (await request({ server, cookie: user.cookie, path })).json();
+  return answer.isAttemptSuperseded;
+}
+
+function ticketQuery({ attempt, epoch }: CreatorTicket): Record<string, string> {
+  return { [CREATOR_ATTEMPT_QUERY_KEY]: String(attempt), [CREATOR_EPOCH_QUERY_KEY]: epoch };
+}
+
+test('members answers that the first attempt is superseded once the holder reopens, and the newest is not', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const first = await openedBy({ server, user: owner, documentId });
+  const second = await openedBy({ server, user: owner, documentId });
+  const firstTicket = { attempt: first.creatorAttempt!, epoch: first.creatorEpoch! };
+  const secondTicket = { attempt: second.creatorAttempt!, epoch: second.creatorEpoch! };
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query: ticketQuery(firstTicket) })).toBe(true);
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query: ticketQuery(secondTicket) })).toBe(false);
+  await server.stop();
+});
+
+test('members answers that a ticket from another epoch is superseded while the room is uncommitted', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const query = ticketQuery({ attempt: FIRST_ATTEMPT, epoch: randomUUID() });
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(true);
+  await server.stop();
+});
+
+test('members answers that a ticket from another epoch is not superseded once the room is committed', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitRoom({ services: server.services, documentId, userId: owner.id });
+  const query = ticketQuery({ attempt: FIRST_ATTEMPT, epoch: randomUUID() });
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(false);
+  await server.stop();
+});
+
+test('members answers that an older attempt is superseded after the room is committed by a newer one', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const first = await openedBy({ server, user: owner, documentId });
+  const second = await openedBy({ server, user: owner, documentId });
+  commitRoom({ services: server.services, documentId, userId: owner.id });
+  const firstTicket = { attempt: first.creatorAttempt!, epoch: first.creatorEpoch! };
+  const secondTicket = { attempt: second.creatorAttempt!, epoch: second.creatorEpoch! };
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query: ticketQuery(firstTicket) })).toBe(true);
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query: ticketQuery(secondTicket) })).toBe(false);
+  await server.stop();
+});
+
+const UNCLAIMED_TICKETS: { name: string; query: Record<string, string> }[] = [
+  { name: 'no ticket', query: {} },
+  { name: 'an attempt without an epoch', query: { [CREATOR_ATTEMPT_QUERY_KEY]: '1' } },
+  { name: 'an epoch without an attempt', query: { [CREATOR_EPOCH_QUERY_KEY]: 'epoch' } },
+  { name: 'a zero attempt', query: { [CREATOR_ATTEMPT_QUERY_KEY]: '0', [CREATOR_EPOCH_QUERY_KEY]: 'epoch' } },
+  { name: 'a fractional attempt', query: { [CREATOR_ATTEMPT_QUERY_KEY]: '1.5', [CREATOR_EPOCH_QUERY_KEY]: 'epoch' } },
+  { name: 'a non-numeric attempt', query: { [CREATOR_ATTEMPT_QUERY_KEY]: 'abc', [CREATOR_EPOCH_QUERY_KEY]: 'epoch' } },
+];
+
+test.each(UNCLAIMED_TICKETS)('members answers not superseded for $name', async ({ query }) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(false);
   await server.stop();
 });
 

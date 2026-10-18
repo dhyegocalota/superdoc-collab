@@ -2,6 +2,7 @@
 - Date: 2026-10-17
 - Inspired by: room-admission review; `5d11020`, `f4c4745`, `bc26598`
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 While a creator seeds a large document, every other request on the server is slow and the process spends its time decoding Yjs. The update log is read once per creator update.

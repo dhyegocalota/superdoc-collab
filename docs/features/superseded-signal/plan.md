@@ -1,17 +1,17 @@
-# Plan: The superseded creator's page learns of the takeover at once
+# Plan: The superseded creator's page learns of the takeover within a poll
 
 **Spec:** spec.md
 **Tier:** 🟢
-**Seam:** the `SuperDoc` instance created in `apps/web/src/features/editor/superdoc-editor.tsx` and its `socket` (`HocuspocusProviderWebsocket`).
+**Seam:** the members poll (`GET /api/documents/:id/members`) and `DocumentPage`.
 **Assumptions (decided, owner can override):**
-- The listener is attached where SuperDoc first exposes `socket`; the developer reads the SuperDoc dist to find that moment and pins it in the unit test.
-- A superseded close disconnects the socket itself; every other close is left to the provider.
+- The signal is the members poll carrying the creator ticket (ADR 0036); the bound is one poll interval.
+- The banner action is Back to documents; Reload is not offered on a superseded tab.
 
 ## File map
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `libs/types/src/connection.ts`, `apps/web/src/features/editor/superseded-close.ts`, `superseded-close.test.ts`, `superdoc-editor.tsx`, `superdoc-editor.test.tsx`, `connection-copy.ts`, `connection-copy.test.ts`, `connection-banner.test.tsx`, `e2e/room-admission.spec.ts`, `docs/features/room-admission/spec.md`, `docs/features/connection-state/spec.md`, `docs/features/README.md` | `developer-ss` |
+| G1 | `libs/types/src/connection.ts`, `libs/types/src/documents.ts`, `apps/server/src/collaboration/claimed-ticket.ts`, `collaboration-runtime.ts`, `collaboration-server.ts`, `apps/server/src/documents/documents-routes.ts`, `documents-routes.test.ts`, `apps/web/src/features/editor/{editor-api,use-members,use-members.test,use-connection-state,connection-copy,connection-copy.test,connection-banner,connection-banner.test,document-page,document-page.test}.ts(x)`, `e2e/room-admission.spec.ts`, `docs/features/superseded-signal/*`, `docs/adr/0036-*.md`, `docs/adr/README.md`, `docs/features/room-admission/spec.md`, `docs/features/connection-state/spec.md`, `docs/features/README.md` | `developer-ss` |
 
 ## Sequencing
 
@@ -21,19 +21,20 @@ One group.
 
 ### G1
 
-- [ ] **Step 1:** red unit test `superseded-close.test.ts` and the stub (`supersededReportOf is not implemented`); commit the red test alone.
-- [ ] **Step 2:** `ConnectionFailureReason.Superseded`, `supersededReportOf`, the copy; unit green.
-- [ ] **Step 3:** red test in `superdoc-editor.test.tsx` for the socket listener; then the listener in `SuperDocEditor` with disconnect and cleanup; green.
-- [ ] **Step 4:** E2E bound: the holder-reopens proof waits `SUPERSEDED_SIGNAL_TIMEOUT_MS` for the banner or the notice and asserts the Superseded copy on the banner path.
-- [ ] **Step 5:** docs: room-admission spec known limit removed, connection-state spec reason list, features README statuses; tester briefing.
+- [x] **Step 1:** ~~red `superseded-close.test.ts` for a close-code mapping~~ struck: the page cannot read the close code (`superdoc.socket` is always `null` in v2, `superdoc.es.js:46416`). Red `d0ae878`, green `7ce7056`, removed in `61fe56e`; the `Superseded` reason and its copy stay.
+- [x] **Step 2:** red route tests for `isAttemptSuperseded` with the runtime stub (`0e6fb74`), then the runtime rule (`73bf01b`).
+- [x] **Step 3:** red web tests for the ticketed poll, the banner and the action (`61fe56e`), then the implementation (`0d9117b`).
+- [x] **Step 4:** E2E bound: the holder-reopens proof waits `SUPERSEDED_SIGNAL_TIMEOUT_MS` for the Failed banner with the Superseded copy and Back to documents (`e016538`).
+- [x] **Step 5:** docs: ADR 0036, spec, plan, test plan, room-admission spec, connection-state spec, features README; tester briefing.
 
 ## Failure modes
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
-| 3 | `socket` is set after the first close event and the listener misses it | the unit test that attaches before the mocked close fails; the E2E keeps taking 40 s | attach on construction and again on `onReady`, deduplicated by the socket identity |
-| 3 | a server restart's 4403 (old epoch on a committed room) now shows the Superseded copy | the connection-state restart proof reads the wrong reason | the restart close carries the same reason by design (ADR 0033); the copy is reviewed to fit both |
-| 4 | the E2E bound is too tight under five workers | the holder-reopens test fails on the 10 s wait while the second page is still loading | the bound starts after the second page's open request answered, and the gate log shows the measured delay |
+| 2 | the rule drifts from the `connected` hook | the walk shows a banner on a tab whose socket still writes, or no banner on a refused one | both read `CreatorReservations.mayWrite`; the E2E and the walk compare them |
+| 3 | the first poll runs before the opened document carries a ticket | the signal takes one extra poll | the next poll carries the ticket; the bound stays two intervals |
+| 3 | a restart's refused reconnect now shows the Superseded copy | the connection-state restart walk reads the wrong reason | the copy is neutral by design |
+| 4 | the E2E bound is too tight under five workers | the 15 s wait fails while the second page is still loading | the bound starts after the first page's editor is mounted; the gate log shows the measured delay |
 
 **Steps with no backout:** none.
 

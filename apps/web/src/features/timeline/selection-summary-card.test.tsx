@@ -30,6 +30,10 @@ import {
 } from './timeline-copy';
 import type { SummarizeControl } from './use-summarize';
 
+vi.mock('./use-author-color-slots', () => ({
+  useAuthorColorSlots: () => (author: Pick<EventAuthor, 'id' | 'name'>) => authorColorSlot(authorColorKeyOf(author)),
+}));
+
 const AUTHORS: Record<string, EventAuthor> = {
   ana: { id: 'user-1', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Human },
   'ana#agent': { id: 'user-1#agent', name: FIXTURE_AUTHOR_NAME, actor: ClientActor.Agent },

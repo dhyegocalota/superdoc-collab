@@ -1,9 +1,19 @@
-import { DOCUMENT_ROLE_RANK, DocumentRole, type DocumentsList, type DocumentSummary, type UserReference } from '@superdoc-collab/types';
+import {
+  assignAuthorColorSlots,
+  DOCUMENT_ROLE_RANK,
+  DocumentRole,
+  type AuthorColorSlot,
+  type DocumentsList,
+  type DocumentSummary,
+  type UserReference,
+} from '@superdoc-collab/types';
 import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { user } from '../database/schema/auth';
 import { documentMembers, documents } from '../database/schema/documents';
 import { DocumentNotFoundError } from './require-document-role';
+
+class MemberColorSlotMissingError extends Error {}
 
 export class DocumentsRepository {
   private readonly database: AuthDatabase;
@@ -62,9 +72,25 @@ export class DocumentsRepository {
       .from(documentMembers)
       .innerJoin(user, eq(user.id, documentMembers.userId))
       .where(eq(documentMembers.documentId, documentId))
-      .orderBy(documentMembers.joinedAt)
+      .orderBy(documentMembers.joinedAt, documentMembers.userId)
       .all()
       .map((row) => ({ user: { id: row.id, name: row.name }, role: row.role }));
+  }
+
+  membersWithColorSlots(documentId: string): { user: UserReference; role: DocumentRole; colorSlot: AuthorColorSlot }[] {
+    const members = this.members(documentId);
+    const slots = assignAuthorColorSlots({ memberIds: members.map((member) => member.user.id) });
+    return members.map((member) => {
+      const colorSlot = slots.get(member.user.id);
+      if (colorSlot === undefined) throw new MemberColorSlotMissingError(member.user.id);
+      return { ...member, colorSlot };
+    });
+  }
+
+  colorSlotOf({ documentId, userId }: { documentId: string; userId: string }): AuthorColorSlot {
+    const member = this.membersWithColorSlots(documentId).find((candidate) => candidate.user.id === userId);
+    if (!member) throw new MemberColorSlotMissingError(userId);
+    return member.colorSlot;
   }
 
   grant({ documentId, userId, role }: { documentId: string; userId: string; role: DocumentRole }): void {

@@ -65,6 +65,7 @@ export function VersionViewPage() {
       documentId={documentId}
       sequence={sequence}
       user={user}
+      colorSlot={opened.colorSlot}
       onReady={handleReady}
       onFailed={handleFailed}
       onConnectionFailed={handleConnectionFailed}

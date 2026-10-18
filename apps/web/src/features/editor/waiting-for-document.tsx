@@ -149,7 +149,7 @@ export function WaitingForDocument({ documentId, readiness, onKeepWaiting, onRet
             {!title && <Skeleton data-testid={TITLE_SKELETON_TEST_ID} className="h-8 w-full max-w-sm" />}
           </>
         }
-        right={<AccountMenu />}
+        right={<AccountMenu colorSlot={null} />}
       />
       <div aria-hidden="true" className="flex border-b px-4 py-2">
         <Skeleton className="h-8 w-full max-w-md" />

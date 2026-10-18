@@ -1,8 +1,15 @@
-import type { CreatorTicket, DocumentRole, OpenedDocument, RoomMode, SessionUser } from '@superdoc-collab/types';
+import type { AuthorColorSlot, CreatorTicket, DocumentRole, OpenedDocument, RoomMode, SessionUser } from '@superdoc-collab/types';
 import { useEffect, useState } from 'react';
 import { creatorTicketOf } from './collaboration-config';
 
-export type EditorSetup = { roomMode: RoomMode; role: DocumentRole; creatorTicket: CreatorTicket | null; user: SessionUser; file: Blob };
+export type EditorSetup = {
+  roomMode: RoomMode;
+  role: DocumentRole;
+  creatorTicket: CreatorTicket | null;
+  user: SessionUser;
+  colorSlot: AuthorColorSlot;
+  file: Blob;
+};
 
 type CapturedSetup = { generation: number; setup: EditorSetup };
 
@@ -25,7 +32,14 @@ export function useEditorSetup({
     if (!canCapture) return;
     setCaptured({
       generation,
-      setup: { roomMode: opened.roomMode, role: opened.role, creatorTicket: creatorTicketOf(opened), user, file },
+      setup: {
+        roomMode: opened.roomMode,
+        role: opened.role,
+        creatorTicket: creatorTicketOf(opened),
+        user,
+        colorSlot: opened.colorSlot,
+        file,
+      },
     });
   }, [setup, generation, opened, user, file]);
 

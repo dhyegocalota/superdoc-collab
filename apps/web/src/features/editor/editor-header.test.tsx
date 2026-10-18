@@ -18,7 +18,7 @@ import { accountMenuLabel } from '@/features/account/account-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { USE_WITH_AI_LABEL, USE_WITH_AI_TITLE } from '@/features/connected-apps/connected-apps-copy';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
-import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_COLOR_SLOT, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -47,7 +47,7 @@ vi.mock('./members', async (importOriginal) => {
 });
 
 const RENAMED_TITLE = 'Renamed';
-const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true };
+const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true, colorSlot: 1 };
 const onDownloadDocx = vi.fn();
 
 function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
@@ -270,9 +270,9 @@ test('closing the delete dialog returns the focus to More actions', async () => 
 
 test('members announce their presence and the current user is online at once', () => {
   const members: DocumentMember[] = [
-    { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false },
-    { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false },
-    { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true },
+    { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false, colorSlot: 1 },
+    { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false, colorSlot: 2 },
+    { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true, colorSlot: 3 },
   ];
   renderHeader({ role: DocumentRole.Owner, members });
   expect(screen.getByRole('button', { name: memberLabel({ name: 'Ada', isOnline: true }) })).toBeInTheDocument();
@@ -311,4 +311,11 @@ test('the bar actions that fold below 1024 are also hidden by CSS, so a resize n
   [FIND_IN_DOCUMENT_LABEL, USE_WITH_AI_LABEL, DOWNLOAD_BUTTON_LABEL].forEach((name) => {
     expect(screen.getByRole('button', { name }).closest('.max-lg\\:hidden')).not.toBeNull();
   });
+});
+
+test('the account avatar wears the colour of the document slot, like the member swatch', () => {
+  renderHeader();
+  expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) }).firstElementChild).toHaveClass(
+    `bg-author-${EDITOR_COLOR_SLOT}`,
+  );
 });

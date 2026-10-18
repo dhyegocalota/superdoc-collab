@@ -123,6 +123,7 @@ function mockDocumentApi({
   downloadStatus = HttpStatus.Ok,
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
+  isAttemptSuperseded = () => false,
   openedAfterReload,
   reloadGate = Promise.resolve(),
   isReloadUnreachable = false,
@@ -136,6 +137,7 @@ function mockDocumentApi({
   downloadStatus?: HttpStatus;
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
+  isAttemptSuperseded?: () => boolean;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
   isReloadUnreachable?: boolean;
@@ -147,7 +149,10 @@ function mockDocumentApi({
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (String(input).startsWith(MEMBERS_PATH)) {
-      return jsonResponse({ body: { members: [], isCurrentUserOnline: isCurrentUserOnline() }, status: currentMembersStatus() });
+      return jsonResponse({
+        body: { members: [], isCurrentUserOnline: isCurrentUserOnline(), isAttemptSuperseded: isAttemptSuperseded() },
+        status: currentMembersStatus(),
+      });
     }
     if (input === DOWNLOAD_PATH && openRequests > 1 && reloadFileResponse) return reloadFileResponse();
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
@@ -791,4 +796,56 @@ test('an ended session names its reason and sends the author to sign in with the
   await userEvent.click(screen.getByRole('button', { name: SIGN_IN_LABEL }));
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.SignIn));
   expect(router.state.location.search).toBe(`?next=${encodeURIComponent(documentPagePath(DOCUMENT_ID))}`);
+});
+
+const CREATOR_TICKET = { creatorAttempt: 2, creatorEpoch: 'epoch-1' };
+
+function ticketedCreate(): OpenedDocument {
+  return { ...openedAs(DocumentRole.Owner, RoomMode.Create), ...CREATOR_TICKET };
+}
+
+async function renderSupersededPage(): Promise<ReturnType<typeof renderWithProviders>> {
+  let isSuperseded = false;
+  mockDocumentApi({ opened: ticketedCreate(), isAttemptSuperseded: () => isSuperseded });
+  const rendered = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  isSuperseded = true;
+  await act(() => rendered.queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  return rendered;
+}
+
+test('the members poll carries the creator ticket of the opened document', async () => {
+  const fetchSpy = mockDocumentApi({ opened: ticketedCreate() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const membersUrls = fetchSpy.mock.calls.map(([input]) => String(input)).filter((url) => url.startsWith(MEMBERS_PATH));
+  const ticketOfFirstPoll = new URL(membersUrls.at(-1)!, window.location.origin).searchParams;
+  expect([ticketOfFirstPoll.get(CREATOR_ATTEMPT_QUERY_KEY), ticketOfFirstPoll.get(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
+    String(CREATOR_TICKET.creatorAttempt),
+    CREATOR_TICKET.creatorEpoch,
+  ]);
+});
+
+test('a superseded answer from the members poll fails the connection before any sync and makes the editor inert', async () => {
+  await renderSupersededPage();
+  const banner = await screen.findByRole('alert');
+  expect(banner).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Superseded]);
+  expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('a superseded tab offers the way back to the documents and never a reload', async () => {
+  const { router } = await renderSupersededPage();
+  await screen.findByRole('alert');
+  expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: BACK_TO_DOCUMENTS_LABEL }));
+  await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
+});
+
+test('a members poll that does not report a takeover leaves the page online', async () => {
+  mockDocumentApi({ opened: ticketedCreate() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
 });

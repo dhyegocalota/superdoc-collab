@@ -26,6 +26,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] Console and network clean
 - [ ] Screenshots at `.pr-media/mobile-horizontal-scroll/`
 
+## Comments on phones
+
+- [x] No comments dialog is built — input: the editor page at 375 x 812 with comments inline below 480 px; expected: no element wider than the viewport — evidence: the lead's measurement on a copy of production and `superdoc-options.ts:14,82`; the case of a document with comments is unproven, see the spec
+
 ## Edge cases found during execution
 
 Empty on purpose. The tester adds one checkbox per new case and a regression test for each.

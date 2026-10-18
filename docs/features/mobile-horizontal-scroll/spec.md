@@ -5,7 +5,7 @@
 **Owner approval:** approved 2026-10-18 (the owner reported the sideways scroll on their phone and asked for the fix)
 **ADRs:** none
 **Lane:** product
-**Not changing:** the documents table from `lg` and up (columns, headers, the hidden columns of the Shared list between `sm` and `lg`, the `ROLE_LABELS` copy); the list query, the empty messages and the skeleton; the editor page, which does not overflow at 375 px.
+**Not changing:** the documents table from `lg` and up (columns, headers, the hidden columns of the Shared list between `sm` and `lg`, the `ROLE_LABELS` copy); the list query, the empty messages and the skeleton; the editor page and SuperDoc's comments layout (inline cards below 480 px), which do not overflow at 375 px.
 
 ## Problem
 
@@ -22,7 +22,11 @@ On a phone the documents list table is 766 px wide inside a 375 px card. The tit
 
 ### Comments on phones
 
-Decided after a spike, see the lead. This section is filled in before the second part is built.
+No comments dialog is built. SuperDoc already renders comments as inline cards below 480 px instead of a sidebar: `apps/web/src/features/editor/superdoc-options.ts:14` sets `COMMENTS_INLINE_BELOW_PX = 480` and line 82 passes it as `responsive: { breakpoint }` next to `layout: COMMENTS_LAYOUT_BY_WIDTH`.
+
+A measurement on a copy of production at 375 x 812 found no element wider than the viewport on the editor page and no comments panel in the DOM. The sideways scroll the owner saw was the documents card.
+
+A dialog is reconsidered only if a document with comments shows inline cards that widen the page. The spike could not add comments through the toolbar, so that case is unproven.
 
 ## Non-goals
 

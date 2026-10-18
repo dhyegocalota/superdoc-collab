@@ -6,7 +6,7 @@
 **Assumptions (decided, owner can override):**
 - "Phone" means below the `lg` breakpoint, `useIsPhoneLayout`.
 - The row has no action besides the title link, so the 44 px touch target is the link.
-- Part 2 (comments on phones) waits for the lead's spike answer.
+- Comments on phones need no change: SuperDoc's inline cards below 480 px stay (spec, decided by the lead).
 
 ## File map
 

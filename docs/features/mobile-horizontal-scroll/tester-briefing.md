@@ -4,7 +4,7 @@ Written by developer-mo. The developer did not run `test-plan.md`, ran the one E
 
 ## What changed
 
-Part 1 only (documents list). Part 2 (comments on phones) is not built.
+Documents list only. Comments on phones stay SuperDoc's inline cards; nothing was built for them.
 
 - `document-table.tsx`: below `lg` the rows render as a list of stacked items; from `lg` the table is unchanged.
 - `documents-copy.ts`: the separator of the muted line.

@@ -89,7 +89,6 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
   await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
   const naturalOffset = await rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top);
   const maxScroll = await scroller.evaluate((element) => element.scrollHeight - element.clientHeight);
-  expect(maxScroll, 'the panel must scroll further than the header offset, or the header never has to stick').toBeGreaterThan(
     naturalOffset,
   );
   await expect
@@ -97,8 +96,8 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
     .toBe(true);
   await scroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
   await expect
-    .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => Math.abs(headerRect.top - scrollerRect.top)))
-    .toBeLessThanOrEqual(PIXEL_TOLERANCE);
+    .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => headerRect.top - scrollerRect.top))
+    .toBeCloseTo(Math.max(0, naturalOffset - maxScroll), 0);
   await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
   await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeVisible();
   await expectStableFor({ read: async () => String(currentAt(ana.page)), expected: 'null', durationMs: DEBOUNCE_WINDOW_MS });

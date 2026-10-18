@@ -81,6 +81,7 @@ type SuperDocConfig = {
   telemetry: { enabled: boolean };
   onException: (payload: ExceptionPayload) => void;
   onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
+  onCollaborationReady: () => void;
   zoom: { mode: string };
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
@@ -577,6 +578,25 @@ test('a failed report before the first sync shows the editor failure notice', as
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+});
+
+test('a degraded report before the editor is ready shows the editor failure notice', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
+  expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
+});
+
+test('a lost then failed report after the editor was ready reaches the banner', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationReady());
+  act(() => constructedConfig().onCollaborationConnectionChange(LOST_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  expect(await screen.findByRole('alert')).toHaveAttribute('data-state', ConnectionState.Failed);
+  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 
 test('a failed report after the first sync keeps the banner and shows no editor failure notice', async () => {

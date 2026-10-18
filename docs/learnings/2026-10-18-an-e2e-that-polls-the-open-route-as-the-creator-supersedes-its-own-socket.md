@@ -2,6 +2,7 @@
 - Date: 2026-10-18
 - Inspired by: the E2E triage of the room-admission merge, `e2e/room-admission.spec.ts` `a creator who closes its tab mid-create leaves no duplicated paragraph for the next editor` timing out at roomMode create
 - Revisited: 2026-10-18 — fixed in the test: it waits for the editor text before polling (`3ec48b1`)
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 A spec opens a fresh document as its creator, then polls the open route as the same user until the answer says Join. The poll runs for the whole timeout and the answer stays Create. The editor shows its text and the room never commits.

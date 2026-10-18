@@ -2,6 +2,7 @@
 - Date: 2026-10-17
 - Inspired by: room-admission review of the holder's second open; the E2E `the holder opens a fresh document in two pages at once and the room holds one paragraph` (`fee812c`)
 - Revisited: 2026-10-17 — fixed: a holder reopening gets the next attempt and the old attempt's sockets close with 4403 (`4541b89` red, `117b91f` green)
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 One user opens the same new document in two tabs within a second. Both answers say Create with the same attempt, both pages seed the room, and the committed document holds the seed twice or one page's edits are lost. Two different users are protected, so the two-editor test passes.

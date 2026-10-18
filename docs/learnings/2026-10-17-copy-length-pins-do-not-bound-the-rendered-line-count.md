@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: the connection-state review (the reviewer measured six lines at the pin limits) and the eight-width E2E, which failed with `failed at 320px: the text takes 7 lines, more than 5`
 - Revisited: 2026-10-17 — still true; the E2E width test is the guard and the spec allows five lines for Failed on phones
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 Every copy test is green, each string under its length pin, and the Failed banner takes six or seven lines at 320 or 375 px.

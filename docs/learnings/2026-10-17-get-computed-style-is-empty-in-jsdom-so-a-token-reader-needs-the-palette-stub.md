@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: `21c5593` and `005fd86`, two header and time-travel tests that broke the gate after the member jump started reading the author tokens
 - Revisited: 2026-10-17 — still true
+- Revisited: 2026-10-18 — still true
 
 ## Signal
 The gate is red on a test that renders a header, a panel or a viewer and never mentions colours. The error names `--author-1` or another token, thrown from `authorColorOf`. It happened twice in one feature, each time on a test written before the component read tokens.

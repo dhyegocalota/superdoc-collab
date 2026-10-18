@@ -608,3 +608,32 @@ test('from lg the version bar keeps its place and its small button', async () =>
   expect(screen.getByTestId('editor-area')).toContainElement(banner);
   expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'sm');
 });
+
+function sessionRequests(fetchSpy: ReturnType<typeof mockDocumentApi>): number {
+  return fetchSpy.mock.calls.filter(([path]) => String(path).split('?')[0] === ApiPath.Me).length;
+}
+
+test('moving the version bar between layouts does not ask the server for the session again', async () => {
+  const listeners: Array<(event: { matches: boolean }) => void> = [];
+  let width = WIDE_VIEWPORT_WIDTH;
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+    const minimumWidth = Number(/min-width:\s*(\d+)px/.exec(query)?.[1]);
+    return {
+      get matches() {
+        return width >= minimumWidth;
+      },
+      media: query,
+      addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.push(listener),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList;
+  });
+  const fetchSpy = mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTestId('version-banner');
+  const before = sessionRequests(fetchSpy);
+  width = NARROW_VIEWPORT_WIDTH;
+  act(() => listeners.forEach((listener) => listener({ matches: false })));
+  await waitFor(() => expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'touch'));
+  await act(async () => undefined);
+  expect(sessionRequests(fetchSpy)).toBe(before);
+});

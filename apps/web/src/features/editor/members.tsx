@@ -1,4 +1,4 @@
-import { JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
+import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { useMinWidth } from '@/lib/use-min-width';
 import {
   BACK_TO_LIVE_TO_JUMP_REASON,
@@ -146,16 +147,24 @@ export function Members({
   editorContainer: HTMLElement | null;
   isPastVersion: boolean;
 }) {
-  const { hasCursor, jumpTo, presenceKey } = useMemberCursors({ superdoc, container: editorContainer });
+  const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container: editorContainer });
   const queryClient = useQueryClient();
-  const shownPresenceKey = useRef(presenceKey);
+  const peersWithCursorKey = members
+    .filter((member) => member.user.id !== currentUserId && hasCursor(member))
+    .map((member) => member.user.id)
+    .join();
+  const shownPeersWithCursorKey = useRef(peersWithCursorKey);
+  const { schedule: refreshMembers } = useDebouncedCallback({
+    callback: () => queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) }, { cancelRefetch: false }),
+    delayMs: MEMBERS_PRESENCE_INVALIDATION_COOLDOWN_MS,
+  });
   const [announcement, setAnnouncement] = useState('');
 
   useEffect(() => {
-    if (shownPresenceKey.current === presenceKey) return;
-    shownPresenceKey.current = presenceKey;
-    queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) });
-  }, [presenceKey, queryClient, documentId]);
+    if (shownPeersWithCursorKey.current === peersWithCursorKey) return;
+    shownPeersWithCursorKey.current = peersWithCursorKey;
+    refreshMembers();
+  }, [peersWithCursorKey, refreshMembers]);
 
   function jump(member: DocumentMember): JumpOutcome {
     const outcome = jumpTo(member);

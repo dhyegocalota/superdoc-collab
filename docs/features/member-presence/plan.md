@@ -24,6 +24,10 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 
 - [x] **Step 1:** red test that a peer caret leaving invalidates the members query; `Members` takes `documentId`; `presenceKey` and the invalidation. — evidence: red c637a309, green 24f8cbfa
 
+### G1b: bound the invalidation
+
+- [x] **Step 1b:** red test that a burst of presence changes during a members fetch calls `invalidateQueries` once with `{ cancelRefetch: false }` and starts no second fetch; derive the peer id set, debounce by the cooldown constant. — evidence: red 55b15f7c, green see git log
+
 ### G2: one label rule
 
 - [x] **Step 2:** red test that a jumpable member is named `Bruno, online` and described by the jump text; name by `memberLabel`, describe by the jump text or the reason. — evidence: red 1a3a3be5, green 75598460
@@ -36,7 +40,7 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
-| 1 | an invalidation loop | the members request repeats without a caret change | revert; the key only changes on appear or disappear |
+| 1 | an invalidation loop or a starved poll | the members request repeats without a peer joining or leaving, or an in-flight fetch is cancelled | revert; the key is the set of peer ids with a caret, the call is debounced and never cancels a fetch |
 | 2 | the jump button loses its announced purpose | a screen reader hears only the name | the description carries it; revert if tests show otherwise |
 | 3 | the empty copy never shows | a brand-new document shows nothing | revert; `isBehind` is false once the projection caught up |
 

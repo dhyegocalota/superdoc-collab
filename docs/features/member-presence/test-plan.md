@@ -8,6 +8,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `members.test.tsx::a member with a live position is named Bruno, online and described by Go to Bruno’s cursor` — expected: the button name is `Bruno, online`
 - [ ] `timeline-notices.test.tsx::no empty copy while the projection is behind` — input: no bins, `isBehind: true`; expected: no "No edits yet"
 
+- [ ] `members.test.tsx::a burst of presence changes during a members fetch invalidates once without cancelling it` — input: five caret toggles during an in-flight members fetch; expected: one `invalidateQueries` with `{ cancelRefetch: false }`, one fetch
+
 ## Unit
 
 - [ ] `timeline-notices.test.tsx::empty copy shows when there are no bins and the projection caught up` — expected: "No edits yet" shown
@@ -23,7 +25,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Adversarial review
 
-- [ ] Claim: the members query is not refetched when a peer only moves the caret — attack: type as Bruno for 10 s; expect no extra members requests
+- [ ] Claim: the members query is not refetched when a peer only moves, renames or recolours its caret, and a burst of awareness frames starves neither the poll nor an in-flight fetch — attack: type as Bruno for 10 s and watch the requests
 
 ## Coverage honesty
 

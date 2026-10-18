@@ -1,4 +1,4 @@
-import { ApiPath, UserRole, type SessionUser } from '@superdoc-collab/types';
+import { ApiPath, HttpStatus, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { focusManager, onlineManager } from '@tanstack/react-query';
 import { waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -7,7 +7,6 @@ import { createTestQueryClient, renderHookWithRouter } from '@/testing/render-wi
 import { SESSION_QUERY_KEY, useSession } from './use-session';
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
-const SERVICE_UNAVAILABLE = 503;
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -52,7 +51,7 @@ test('coming back online asks the server again even inside the stale window', as
 });
 
 test('a failed refetch keeps the last good user and the query in error', async () => {
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: {}, status: SERVICE_UNAVAILABLE }));
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: {}, status: HttpStatus.ServiceUnavailable }));
   const queryClient = createTestQueryClient();
   queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
   const { result } = renderHookWithRouter(useSession, { queryClient });

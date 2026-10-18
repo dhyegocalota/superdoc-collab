@@ -23,6 +23,7 @@ vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const FORM_TEXT = 'sign-in form';
+const SIGN_IN_REDIRECT_WITH_NEXT_SEARCH = `?next=${encodeURIComponent(AppRoute.Documents)}`;
 const SLOW_SIGN_IN_RENDER_MILLISECONDS = 10;
 
 let isSignedIn = true;
@@ -102,7 +103,7 @@ test('a sign-in route that renders slowly still ends on the bare sign-in route',
   await signOut();
   expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
   await waitFor(() => expect(router.state.location.state).toBeNull());
-  expect(visitedSearches).not.toContain('?next=%2Fdocuments');
+  expect(visitedSearches).not.toContain(SIGN_IN_REDIRECT_WITH_NEXT_SEARCH);
   expect(router.state.location.search).toBe('');
 });
 

@@ -5,6 +5,7 @@ import {
   AgentTool,
   DocumentRole,
   documentPagePath,
+  OPEN_RATE_LIMITED_MESSAGE,
   OPEN_UNCOMMITTED_PER_MINUTE,
   ShareLinkRole,
   type DocumentMembers,
@@ -127,13 +128,15 @@ test('export_docx returns the live document as an embedded DOCX resource, record
 
 test('export_docx with the open budget spent is refused before any log scan', async () => {
   vi.restoreAllMocks();
+  const spender = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
-    server.services.openBudget.record({ userId: reader.id, documentId: `spent-${index}` }),
+    server.services.openBudget.record({ userId: spender.id, documentId: `spent-${index}` }),
   );
   const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
   const save = vi.fn();
-  const { context, recorded } = toolContext({ server, userId: reader.id, sessions: sessionsOn({ save }) });
+  const { context, recorded } = toolContext({ server, userId: spender.id, sessions: sessionsOn({ save }) });
   const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+  expect(resultJson(result)).toEqual({ error: OPEN_RATE_LIMITED_MESSAGE, retryAfterSeconds: expect.any(Number) });
   expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
 });
 

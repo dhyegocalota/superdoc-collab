@@ -43,9 +43,9 @@ test('resizeTo and resizeBy stay within the limits and the default follows the a
   expect(result.current.height).toBe(ROOMY_AREA_HEIGHT * 2 - MIN_EDITOR_HEIGHT);
 });
 
-test('below sm the default height is 58 percent of the area and from sm it is 42 percent', () => {
+test('below sm the default height is 46 percent of the area and from sm it is 42 percent', () => {
   const compact = renderHook(() => usePanelHeight({ areaHeight: ROOMY_AREA_HEIGHT, isCompact: true }));
-  expect(COMPACT_PANEL_HEIGHT_SHARE).toBe(0.58);
+  expect(COMPACT_PANEL_HEIGHT_SHARE).toBe(0.46);
   expect(compact.result.current.height).toBe(ROOMY_AREA_HEIGHT * COMPACT_PANEL_HEIGHT_SHARE);
   const regular = renderHook(() => usePanelHeight({ areaHeight: ROOMY_AREA_HEIGHT, isCompact: false }));
   expect(regular.result.current.height).toBe(ROOMY_DEFAULT_HEIGHT);

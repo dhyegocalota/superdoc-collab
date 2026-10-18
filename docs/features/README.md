@@ -34,7 +34,7 @@ Refinement after the five slices:
 
 | Fix | Closes | Status |
 |-----|--------|--------|
-| [`author-colours`](author-colours/) | One colour per member of a document: the server assigns slots by join order, and the members and open responses carry `colorSlot` ([ADR 0037](../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md)) | Building |
+| [`author-colours`](author-colours/) | One colour per member of a document: the server assigns slots by join order, and the members and open responses carry `colorSlot` ([ADR 0037](../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md)) | Shipped 2026-10-18 ([PR #49](https://github.com/dhyegocalota/superdoc-collab/pull/49)) |
 | [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |
 | [`refinement-structure`](refinement-structure/) | Prettier, the version viewer in `features/versions`, one date-time formatter, `repository-shape` and `testing` folder names | Shipped 2026-10-17 ([PR #9](https://github.com/dhyegocalota/superdoc-take-home/pull/9)) |
 | [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Shipped 2026-10-17 ([PR #10](https://github.com/dhyegocalota/superdoc-take-home/pull/10)) |

@@ -4,6 +4,7 @@
 - Inspired by: eight `pnpm verify` runs of the connected-apps-content lane (a web-only diff) on 2026-10-18, each red on a different test
 - Revisited: 2026-10-18 — changed because the band starvation was not a queue: the job runner refuses a third concurrent insights job (topic naming and Summarize share the runner) as Busy, `TopicsService` marks that first computation failed and never retries it automatically (a Summarize click regroups a failed computation, the band wait makes no such click), so the band never appears. The E2E stack now allows 8 insights jobs, above the worker count; the production default stays 2.
 - Revisited: 2026-10-18 — second cause named: the `ECONNRESET` on `page.request.get` was the server's default 5 s keep-alive timeout closing a socket the client reuses; the server now keeps idle connections for 65 s ([2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md](2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md))
+- Revisited: 2026-10-18 — third cause named: in `e2e/timeline.spec.ts` the two band growths must fit inside the other author's typing script, and with the projection throttle an 8 s script is overrun on a slow machine, so `isTyping` read false; the script now types 200 characters (about 20 s)
 
 ## Signal
 

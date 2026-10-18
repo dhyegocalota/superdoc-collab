@@ -2,12 +2,10 @@ import { authorColorKeyOf, authorColorSlot, type AuthorColorSlot, type EventAuth
 import { useMembers } from '@/features/editor/use-members';
 import { useRequiredParam } from '@/lib/use-required-param';
 
-const DOCUMENT_ID_PARAM = 'documentId';
-
 export type AuthorColorSlotOf = (author: Pick<EventAuthor, 'id' | 'name'>) => AuthorColorSlot;
 
 export function useAuthorColorSlots(): AuthorColorSlotOf | null {
-  const { members } = useMembers(useRequiredParam(DOCUMENT_ID_PARAM));
+  const { members } = useMembers(useRequiredParam('documentId'));
   if (members.length === 0) return null;
   return (author) => {
     const key = authorColorKeyOf(author);

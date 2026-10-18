@@ -22,7 +22,7 @@ const COLOR_CLASSES: Record<AuthorColorSlot, string> = {
   6: 'bg-author-6',
 };
 
-const NEUTRAL_COLOR_CLASS = 'bg-muted';
+const NEUTRAL_COLOR_CLASS = 'bg-muted text-muted-foreground';
 
 type UserAvatarProps = { name: string; colorSlot: AuthorColorSlot | null; size: UserAvatarSize; isAgent: boolean; isOnline: boolean };
 

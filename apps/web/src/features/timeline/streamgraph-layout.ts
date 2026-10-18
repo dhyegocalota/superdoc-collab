@@ -26,6 +26,7 @@ export type BandShape = {
 };
 type Segment = { first: number; last: number };
 type Slot = { index: number; x: number };
+type AreaPoint = { x: number; lower: number; upper: number };
 type BinColumns = { binXs: number[]; slots: Slot[]; breaks: BreakColumn[] };
 type PlacedLabel = { label: { x: number; y: number }; box: LabelBox };
 export type BreakColumn = IdleBreak & { left: number; right: number; centerX: number };
@@ -79,6 +80,11 @@ function intersects({ first, second }: { first: LabelBox; second: LabelBox }): b
 
 function containsIndex({ range, index }: { range: { first: number; last: number }; index: number }): boolean {
   return index >= range.first && index <= range.last;
+}
+
+function taperPoint({ x, point }: { x: number; point: AreaPoint }): AreaPoint {
+  const middle = (point.lower + point.upper) / HALF;
+  return { x, lower: middle, upper: middle };
 }
 
 function segmentsOf({ binCount, breaks }: { binCount: number; breaks: IdleBreak[] }): Segment[] {
@@ -184,14 +190,25 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
     .domain([lowest, highest])
     .range([CHART_HEIGHT - CHART_PADDING, CHART_PADDING]);
 
+  function segmentPointsOf({ segment, values }: { segment: Segment; values: [number, number][] }): AreaPoint[] {
+    const points = values
+      .slice(segment.first, segment.last + 1)
+      .map(([lower, upper], offset) => ({ x: binX(segment.first + offset), lower, upper }));
+    const leftBreak = breaks.find((column) => column.lastIndex + 1 === segment.first);
+    const rightBreak = breaks.find((column) => column.firstIndex - 1 === segment.last);
+    const leftTaper = leftBreak ? [taperPoint({ x: leftBreak.centerX, point: points[0]! })] : [];
+    const rightTaper = rightBreak ? [taperPoint({ x: rightBreak.centerX, point: points.at(-1)! })] : [];
+    return [...leftTaper, ...points, ...rightTaper];
+  }
+
   function closedPathOf({ bandId, values }: { bandId: string; values: [number, number][] }): string {
     return segments
       .map((segment) => {
-        const path = area<[number, number]>()
-          .x((_, offset) => binX(segment.first + offset))
-          .y0((point) => y(point[0]))
-          .y1((point) => y(point[1]))
-          .curve(curveBasis)(values.slice(segment.first, segment.last + 1));
+        const path = area<AreaPoint>()
+          .x((point) => point.x)
+          .y0((point) => y(point.lower))
+          .y1((point) => y(point.upper))
+          .curve(curveBasis)(segmentPointsOf({ segment, values }));
         if (!path) throw new EmptyBandPathError(bandId);
         return `${path}Z`;
       })

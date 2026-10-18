@@ -101,7 +101,7 @@ test('taps are ignored while a version loads and the chart is busy', () => {
   fireEvent.pointerDown(chart, { clientX: WIDTH, buttons: 1 });
   fireEvent.pointerMove(chart, { clientX: 0, buttons: 1 });
   expect(onSelectIndex).not.toHaveBeenCalled();
-  expect(chart).toHaveAttribute('aria-busy', 'true');
+  expect(chart.parentElement).toHaveAttribute('aria-busy', 'true');
 });
 
 test('taps select and the chart is not busy once no version loads', () => {
@@ -109,7 +109,7 @@ test('taps select and the chart is not busy once no version loads', () => {
   const chart = container.querySelector('svg')!;
   fireEvent.pointerDown(chart, { clientX: WIDTH, buttons: 1 });
   expect(onSelectIndex).toHaveBeenLastCalledWith(2);
-  expect(chart).toHaveAttribute('aria-busy', 'false');
+  expect(chart.parentElement).toHaveAttribute('aria-busy', 'false');
 });
 
 test('keys still move the selection while a version loads', () => {

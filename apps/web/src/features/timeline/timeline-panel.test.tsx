@@ -28,6 +28,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
+import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR, timelineWith } from '@/testing/timeline-fixtures';
@@ -58,7 +59,6 @@ import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import type { SummarizeControl } from './use-summarize';
-import type { VersionReference } from './use-time-travel';
 import { PANEL_POSITION_STORAGE_KEY, PanelPosition } from './use-panel-position';
 import { MIN_EDITOR_HEIGHT, MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
@@ -107,6 +107,8 @@ const UNAVAILABLE_VIEW: SelectionSummaryView = {
   step: SummarizeStep.Idle,
 };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
+
+const VERSION_SEQUENCE = 10;
 
 const scrollIntoView = vi.fn();
 
@@ -179,8 +181,8 @@ type PanelOptions = {
   isOpen?: boolean;
   summarize?: SummarizeControl;
   onOpenChange?: (isOpen: boolean) => void;
-  pendingVersion?: VersionReference | null;
-  onConfirmTravel?: () => void;
+  onTravel?: (binStart: number) => void;
+  isLoadingVersion?: boolean;
 };
 
 function PanelHarness({
@@ -189,8 +191,8 @@ function PanelHarness({
   initiallyOpen,
   summarize,
   onOpenChange,
-  pendingVersion,
-  onConfirmTravel,
+  onTravel,
+  isLoadingVersion,
 }: Required<Omit<PanelOptions, 'route' | 'isOpen'>> & { initiallyOpen: boolean }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen);
 
@@ -207,10 +209,10 @@ function PanelHarness({
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       summarize={summarize}
-      pendingVersion={pendingVersion}
-      isLoadingVersion={false}
-      onTravel={vi.fn()}
-      onConfirmTravel={onConfirmTravel}
+      pendingVersion={null}
+      isLoadingVersion={isLoadingVersion}
+      onTravel={onTravel}
+      onConfirmTravel={vi.fn()}
       onBackToLive={vi.fn()}
     />
   );
@@ -223,8 +225,8 @@ function renderPanel({
   isOpen = true,
   summarize = idleSummarize(),
   onOpenChange = vi.fn(),
-  pendingVersion = null,
-  onConfirmTravel = vi.fn(),
+  onTravel = vi.fn(),
+  isLoadingVersion = false,
 }: PanelOptions = {}) {
   return renderWithProviders(
     <PanelHarness
@@ -233,8 +235,8 @@ function renderPanel({
       initiallyOpen={isOpen}
       summarize={summarize}
       onOpenChange={onOpenChange}
-      pendingVersion={pendingVersion}
-      onConfirmTravel={onConfirmTravel}
+      onTravel={onTravel}
+      isLoadingVersion={isLoadingVersion}
     />,
     { route },
   );
@@ -849,34 +851,67 @@ test('once the timeline is loaded the skeleton is gone', async () => {
   expect(screen.queryByRole('status', { name: LOADING_TIMELINE_LABEL })).not.toBeInTheDocument();
 });
 
-test('View version shows when the pending version names the selected bin and confirms through the panel', async () => {
-  const onConfirmTravel = vi.fn();
-  const selectedStart = baseTimeline.bins[0]!.start;
-  mockTimelineApi();
-  renderPanel({
-    position: PanelPosition.Bottom,
-    route: `${ROUTE}?at=${selectedStart}`,
-    pendingVersion: { binStart: selectedStart },
-    onConfirmTravel,
-  });
-  await userEvent.click(await screen.findByRole('button', { name: VIEW_VERSION_LABEL }));
-  expect(onConfirmTravel).toHaveBeenCalledTimes(1);
+const versionedTimeline: DocumentTimeline = {
+  ...baseTimeline,
+  bins: baseTimeline.bins.map((bin, index) => ({ ...bin, versionSequence: VERSION_SEQUENCE + index })),
+};
+
+test('below lg selecting a versioned bin by key never travels and View version does', async () => {
+  const onTravel = vi.fn();
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, onTravel });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  const viewVersion = await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  expect(onTravel).not.toHaveBeenCalled();
+  await userEvent.click(viewVersion);
+  expect(onTravel).toHaveBeenCalledExactlyOnceWith(versionedTimeline.bins[0]!.start);
 });
 
-test('View version stays hidden when the pending version names another bin than the selected one', async () => {
-  mockTimelineApi();
-  renderPanel({
-    position: PanelPosition.Bottom,
-    route: `${ROUTE}?at=${baseTimeline.bins[0]!.start}`,
-    pendingVersion: { binStart: baseTimeline.bins[1]!.start },
-  });
+test('the bin already shown offers no View version', async () => {
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${versionedTimeline.bins[0]!.start}` });
   await screen.findByText('10 edits');
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
 });
 
-test('View version stays hidden without a pending version', async () => {
+test('a bin without a version offers no View version', async () => {
   mockTimelineApi();
-  renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${baseTimeline.bins[0]!.start}` });
+  renderPanel({ position: PanelPosition.Bottom });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
   await screen.findByText('10 edits');
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('View version is disabled while a version loads', async () => {
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, isLoadingVersion: true });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  expect(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })).toBeDisabled();
+});
+
+test('from lg selecting a versioned bin travels at once and there is no header', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  const onTravel = vi.fn();
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, onTravel });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  expect(onTravel).toHaveBeenCalledExactlyOnceWith(versionedTimeline.bins[0]!.start);
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('below md the header is a direct child of the scrolling body', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  expect(wholeDocumentHeader().parentElement).toHaveClass('grid', 'overflow-y-auto');
+});
+
+test('from md to lg the header tops the list column', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  const listColumn = document.querySelector<HTMLElement>(`[data-column="${PanelColumn.List}"]`)!;
+  expect(wholeDocumentHeader().parentElement).toBe(listColumn);
+  expect(listColumn.firstElementChild).toBe(wholeDocumentHeader());
 });

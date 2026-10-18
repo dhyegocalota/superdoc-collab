@@ -489,7 +489,7 @@ test('Escape on a focused band leaves the version once', async () => {
   expect(locations).toEqual(['']);
 });
 
-test('below lg a versioned bin waits for View version before the URL changes', async () => {
+test('below lg selecting a versioned bin never travels and View version writes at at once', async () => {
   stubViewportWidth(NARROW_VIEWPORT_WIDTH);
   vi.useFakeTimers({ shouldAdvanceTime: true });
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
@@ -497,12 +497,13 @@ test('below lg a versioned bin waits for View version before the URL changes', a
   await openPanel();
   pressChartAt(1);
   const viewVersion = await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowRight' });
+  fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowLeft' });
   await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
   expect(router.state.location.search).toBe('');
-  fireEvent.click(viewVersion);
-  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 2);
+  await act(async () => fireEvent.click(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })));
+  expect(viewVersion).toBeDefined();
   expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
-  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
 });
 
 test('from lg a versioned bin travels on the tap and offers no View version', async () => {
@@ -515,20 +516,10 @@ test('from lg a versioned bin travels on the tap and offers no View version', as
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
 });
 
-test('below lg Back to live drops the pending version', async () => {
-  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
-  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
-  renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
-  await openPanel();
-  pressChartAt(1);
-  await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
-  await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
-  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
-});
-
+const BIN_AFTER_LAST_MS = 600_000;
 const PENDING_REPLY: VersionReply = { status: HttpStatus.Accepted, headers: { 'Retry-After': '1' } };
 
-test('a loading version dims the editor area and shows a progress line under the bar', async () => {
+test('a loading version dims the editor area and shows a progress line under the bar until the frame is visible', async () => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   mockDocumentApi({ versions: { 42: [PENDING_REPLY, readyReply(42)] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
@@ -537,19 +528,43 @@ test('a loading version dims the editor area and shows a progress line under the
   expect(screen.getByTestId('editor-area')).toHaveClass('opacity-60');
   expect(progress).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
   expect(banner.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  await waitFor(() => expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull(), SLOW_WAIT);
+  const frame = await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT);
+  expect(screen.getByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeInTheDocument();
+  sendFromFrame({ frame: frame as HTMLIFrameElement });
+  await waitFor(() => expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull());
   expect(screen.getByTestId('editor-area')).not.toHaveClass('opacity-60');
 });
 
-test('a tap on the chart during a load is ignored', async () => {
+test('below lg a pointer tap during a load is ignored', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
+  const rule = screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.querySelector('line')!;
+  const before = rule.getAttribute('x1');
+  pressChartAt(3);
+  expect(screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.querySelector('line')).toHaveAttribute('x1', before!);
+  expect(screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.parentElement).toHaveAttribute('aria-busy', 'true');
+});
+
+test('from lg a tap during a load still travels after the debounce', async () => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  mockDocumentApi({ versions: { 42: [PENDING_REPLY], 50: [readyReply(50)] } });
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY], 51: [readyReply(51)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   await screen.findByRole('status', { name: LOADING_VERSION_MESSAGE });
-  pressChartAt(2);
-  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
-  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
+  pressChartAt(3);
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 2);
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[3]}`);
+});
+
+test('an at with no version never locks the chart', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi();
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[4]! + BIN_AFTER_LAST_MS}` });
+  await openPanel();
+  pressChartAt(1);
+  expect(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })).toBeEnabled();
 });
 
 test('below lg the version bar is pinned above the editor with a 44 px button', async () => {

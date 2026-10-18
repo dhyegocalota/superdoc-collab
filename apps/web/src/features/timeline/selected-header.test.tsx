@@ -8,8 +8,8 @@ const SELECTION: SelectedHeaderSelection = { rangeLabel: 'Oct 16, 2:00 – 2:01 
 
 function renderHeader({
   selection = SELECTION,
-  hasVersion = false,
-  isPhoneLayout = true,
+  canViewVersion = false,
+  isViewVersionDisabled = false,
   onClear = vi.fn(),
   onViewVersion = vi.fn(),
 }: Partial<Parameters<typeof SelectedHeader>[0]> = {}) {
@@ -17,8 +17,8 @@ function renderHeader({
     <SelectedHeader
       ref={null}
       selection={selection}
-      hasVersion={hasVersion}
-      isPhoneLayout={isPhoneLayout}
+      canViewVersion={canViewVersion}
+      isViewVersionDisabled={isViewVersionDisabled}
       onClear={onClear}
       onViewVersion={onViewVersion}
     />,
@@ -40,20 +40,20 @@ test('no selection reads Showing the whole document and offers no buttons', () =
   expect(screen.queryByRole('button')).toBeNull();
 });
 
-test('a versioned bin on a phone offers View version', async () => {
-  const { onViewVersion } = renderHeader({ hasVersion: true, isPhoneLayout: true });
+test('a bin that can be viewed offers View version', async () => {
+  const { onViewVersion } = renderHeader({ canViewVersion: true });
   await userEvent.click(screen.getByRole('button', { name: VIEW_VERSION_LABEL }));
   expect(onViewVersion).toHaveBeenCalledTimes(1);
 });
 
-test('a versioned bin on desktop offers no View version', () => {
-  renderHeader({ hasVersion: true, isPhoneLayout: false });
+test('a bin that cannot be viewed offers no View version', () => {
+  renderHeader({ canViewVersion: false });
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
 });
 
-test('a bin without a version offers no View version', () => {
-  renderHeader({ hasVersion: false, isPhoneLayout: true });
-  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
+test('View version is disabled while a version loads', () => {
+  renderHeader({ canViewVersion: true, isViewVersionDisabled: true });
+  expect(screen.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeDisabled();
 });
 
 test('the header announces changes politely', () => {

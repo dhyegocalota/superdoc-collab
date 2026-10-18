@@ -7,8 +7,10 @@ export type SelectedHeaderSelection = { rangeLabel: string; editCount: number };
 type SelectedHeaderProps = {
   ref: Ref<HTMLDivElement>;
   selection: SelectedHeaderSelection | null;
-  hasVersion: boolean;
-  isPhoneLayout: boolean;
+  hasVersion?: boolean;
+  isPhoneLayout?: boolean;
+  canViewVersion?: boolean;
+  isViewVersionDisabled?: boolean;
   onClear: () => void;
   onViewVersion: () => void;
 };

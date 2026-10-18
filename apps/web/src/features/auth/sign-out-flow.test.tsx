@@ -79,6 +79,21 @@ test('signing out lands on the bare sign-in route and stays there', async () => 
   expect(router.state.location.search).toBe('');
 });
 
+test('signing out leaves the page before the cached session flips, so no sign-in redirect with next can start', async () => {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
+  const { result, router } = renderHookWithRouter(useSignOut, { queryClient });
+  const sessionsAtNavigation: Array<SessionUser | null | undefined> = [];
+  const navigate = router.navigate.bind(router);
+  vi.spyOn(router, 'navigate').mockImplementation((...args: Parameters<typeof router.navigate>) => {
+    sessionsAtNavigation.push(queryClient.getQueryData<SessionUser | null>(SESSION_QUERY_KEY));
+    return navigate(...args);
+  });
+  await result.current();
+  expect(sessionsAtNavigation).toEqual([ADA]);
+  expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull();
+});
+
 test('a session read that already sees the signed-out user does not turn into a next redirect', async () => {
   const { router, queryClient } = renderApp();
   await signOut();

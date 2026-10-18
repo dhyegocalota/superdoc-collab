@@ -1,7 +1,7 @@
 import { ApiPath, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
 import { authorPaletteOf } from './author-palette';
@@ -40,6 +40,13 @@ export function SuperDocEditor({
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [hasRejectedEdit, setHasRejectedEdit] = useState(false);
+  const attachContainer = useCallback(
+    (element: HTMLDivElement | null) => {
+      containerRef.current = element;
+      onContainerChange(element);
+    },
+    [onContainerChange],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -91,10 +98,7 @@ export function SuperDocEditor({
       )}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div
-        ref={(element) => {
-          containerRef.current = element;
-          onContainerChange(element);
-        }}
+        ref={attachContainer}
         data-testid="document-editor"
         inert={isInert}
         className={cn(

@@ -4,6 +4,7 @@
 - Inspired by: final-visuals G5 spike on coloured members (`docs/features/final-visuals/spec.md`, spike row 7.20) and `8bf66ad`
 - Revisited: 2026-10-17 — still true
 - Revisited: 2026-10-18 — still true; the user colour is now the token of the server-assigned slot, still a six-digit hex, with `colors` the whole array
+- Revisited: 2026-10-18 — still true; the dark-theme fix added tokens beside the `--author-N` ones and left them in `:root` only, and the stylesheet test still pins the six hex values
 
 ## Signal
 The member avatar uses the author colour but the same member's remote caret and selection in the page show another colour. Setting the colour as `hsl(...)`, `rgb(...)` or a name changes nothing visible and raises no error.

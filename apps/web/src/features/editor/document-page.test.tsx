@@ -139,6 +139,17 @@ test('a title rename does not re-create the editor', async () => {
   expect(superDocDestroy).not.toHaveBeenCalled();
 });
 
+test('a title rename never opens the document again, so the creator ticket stays', async () => {
+  const fetchSpy = mockDocumentApi({ opened: openedAs(DocumentRole.Owner), renamedTitle: RENAMED_TITLE });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const title = await screen.findByRole('textbox', { name: TITLE_LABEL });
+  await userEvent.clear(title);
+  await userEvent.type(title, `${RENAMED_TITLE}{Enter}`);
+  await screen.findByDisplayValue(RENAMED_TITLE);
+  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
+  expect(openRequests).toHaveLength(1);
+});
+
 test('a 409 not ready shows the owner message and never builds the editor', async () => {
   mockDocumentApi({
     opened: openedAs(DocumentRole.Reader),

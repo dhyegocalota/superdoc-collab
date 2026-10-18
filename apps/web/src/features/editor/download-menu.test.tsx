@@ -43,7 +43,10 @@ function sendFromFrame({ frameWindow, message }: { frameWindow: Window; message:
   });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  toast.dismiss();
+});
 
 test('the main part downloads DOCX and the chevron offers Download PDF', async () => {
   const onDownload = vi.fn();
@@ -130,5 +133,5 @@ test('leaving the page while the PDF prepares dismisses the preparing toast', as
   expect(await screen.findByText(PREPARING_PDF_MESSAGE)).toBeVisible();
   expect(dismiss).not.toHaveBeenCalled();
   cleanup();
-  expect(dismiss).toHaveBeenCalledWith(expect.any(String));
+  expect(dismiss).toHaveBeenCalledTimes(1);
 });

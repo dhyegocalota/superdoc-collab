@@ -25,10 +25,10 @@ export function PrintView({ file, onClose, onFailed }: { file: Blob; onClose: ()
     if (message.kind === PrintMessageKind.Ready) frameWindow.postMessage({ kind: PrintMessageKind.Load, file }, window.location.origin);
     if (message.kind === PrintMessageKind.PageCount) setPageCount(message.pageCount);
     if (message.kind === PrintMessageKind.Failed) onFailed();
+    if (message.kind === PrintMessageKind.Closed) onClose();
     if (message.kind !== PrintMessageKind.Painted) return;
     setIsPainted(true);
-    frameWindow.addEventListener('afterprint', onClose, { once: true });
-    frameWindow.print();
+    frameWindow.postMessage({ kind: PrintMessageKind.Print }, window.location.origin);
   });
 
   return createPortal(

@@ -300,7 +300,6 @@ Same pattern for `find-button`, `superdoc-options`, `superdoc-zoom`, `editor-too
 ### Known gaps
 
 - Share is not primary and not an icon below `sm`: `share-dialog.tsx` is not in G2's ownership.
-- The print view fails (toast) when the last page has no text after 600 frames; a document whose last page is an image only would fail that way.
 - Nothing here was seen in a browser.
 pnpm install --frozen-lockfile
 pnpm --filter @superdoc-collab/web exec vitest run src/features/timeline/use-panel-position.test.tsx
@@ -593,3 +592,6 @@ What changed: `AppRoute.Print` (`/print`, no session needed), `features/versions
 - The agent's `SummaryOnly` run is recorded in spec data flow 1, the Interfaces table and ADR 0031; it starts the shared per-document cooldown. The spec failure table now says a POST for another selection during a job answers 202 and never writes that selection.
 - The red table above now prints `expected 202 to be 429` for the two cooldown tests and `expected '5' to be '30'` for the Retry-After test.
 - Gap: the cooldown starts when the first call is consumed, so a hung first call keeps the job, not the cooldown, as the limit.
+
+
+Print frame review round: the frame prints itself on a `Print` message and reports `Closed` after `afterprint`; Painted needs every page to have text and the page count is announced again when it grows; the only time bound is `PRINT_READY_TIMEOUT_MS` in the parent (a document whose last page is image-only fails by that timeout); leaving the page dismisses the PDF toast.

@@ -1,5 +1,5 @@
 import { authorColorKeyOf, authorColorSlot, JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -61,6 +61,7 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
   const name = member.user.name;
   const [isOpen, setIsOpen] = useState(false);
   const [isFailed, setIsFailed] = useState(false);
+  const reasonId = useId();
 
   useEffect(() => {
     if (!isFailed) return;
@@ -81,10 +82,16 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
 
   return (
     <Tooltip open={isOpen || isFailed} onOpenChange={setIsOpen}>
+      {reason !== null && (
+        <span id={reasonId} className="sr-only">
+          {reason}
+        </span>
+      )}
       <TooltipTrigger asChild>
         <button
           type="button"
           aria-label={reason === null ? goToCursorLabel(name) : memberLabel({ name, isOnline })}
+          aria-describedby={reason === null ? undefined : reasonId}
           aria-disabled={reason !== null}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={jump}

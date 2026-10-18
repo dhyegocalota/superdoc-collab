@@ -188,3 +188,14 @@ test('a peer who borrows the name of an online member does not make that member 
   const button = screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) });
   expect(button).toHaveAttribute('aria-disabled', 'true');
 });
+
+test('a disabled member is described by its reason while the tooltip is closed', () => {
+  renderMembers({ members: [ana, clara] });
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel({ name: 'Clara', isOnline: false }) })).toHaveAccessibleDescription(
+    offlineMemberReason('Clara'),
+  );
+  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ana', isOnline: true }) })).toHaveAccessibleDescription(
+    SELF_MEMBER_REASON,
+  );
+});

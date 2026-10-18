@@ -11,6 +11,7 @@ export enum AppRoute {
   ConnectedApps = '/settings/connected-apps',
   Admin = '/admin',
   Settings = '/settings',
+  Print = '/print',
 }
 
 export enum ApiPath {

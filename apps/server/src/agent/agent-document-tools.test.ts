@@ -132,13 +132,16 @@ test('export_docx with the open budget spent is refused before any log scan', as
   Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
     server.services.openBudget.record({ userId: spender.id, documentId: `spent-${index}` }),
   );
-  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
-  const save = vi.fn();
-  const { context, recorded } = toolContext({ server, userId: spender.id, sessions: sessionsOn({ save }) });
-  const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
-  expect(resultJson(result)).toEqual({ error: OPEN_RATE_LIMITED_MESSAGE, retryAfterSeconds: expect.any(Number) });
-  expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
-  server.database.sqlite.prepare('DELETE FROM document_members WHERE user_id = ?').run(spender.id);
+  try {
+    const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+    const save = vi.fn();
+    const { context, recorded } = toolContext({ server, userId: spender.id, sessions: sessionsOn({ save }) });
+    const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+    expect(resultJson(result)).toEqual({ error: OPEN_RATE_LIMITED_MESSAGE, retryAfterSeconds: expect.any(Number) });
+    expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
+  } finally {
+    server.database.sqlite.prepare('DELETE FROM document_members WHERE user_id = ?').run(spender.id);
+  }
 });
 
 test('export_docx hides the cause, logs it, removes the temporary file and records nothing when the save fails', async () => {

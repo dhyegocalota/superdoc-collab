@@ -26,7 +26,7 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 
 ### G1b: bound the invalidation
 
-- [x] **Step 1b:** red test that a burst of presence changes during a members fetch calls `invalidateQueries` once with `{ cancelRefetch: false }` and starts no second fetch; derive the peer id set, debounce by the cooldown constant. — evidence: red 55b15f7c, green see git log
+- [x] **Step 1b:** red test that a burst of presence changes during a members fetch calls `invalidateQueries` once with `{ cancelRefetch: false }` and starts no second fetch; derive the peer id set, debounce by the cooldown constant. — evidence: red 55b15f7c, green 273474bc
 
 ### G2: one label rule
 

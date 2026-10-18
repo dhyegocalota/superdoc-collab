@@ -184,6 +184,7 @@ type PanelOptions = {
   onOpenChange?: (isOpen: boolean) => void;
   onTravel?: (binStart: number) => void;
   isLoadingVersion?: boolean;
+  lastEditAt?: number | null;
 };
 
 function PanelHarness({
@@ -194,6 +195,7 @@ function PanelHarness({
   onOpenChange,
   onTravel,
   isLoadingVersion,
+  lastEditAt,
 }: Required<Omit<PanelOptions, 'route' | 'isOpen'>> & { initiallyOpen: boolean }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen);
 
@@ -211,6 +213,7 @@ function PanelHarness({
       onOpenChange={handleOpenChange}
       summarize={summarize}
       isLoadingVersion={isLoadingVersion}
+      lastEditAt={lastEditAt}
       onTravel={onTravel}
       onBackToLive={vi.fn()}
     />
@@ -226,6 +229,7 @@ function renderPanel({
   onOpenChange = vi.fn(),
   onTravel = vi.fn(),
   isLoadingVersion = false,
+  lastEditAt = null,
 }: PanelOptions = {}) {
   return renderWithProviders(
     <PanelHarness
@@ -236,6 +240,7 @@ function renderPanel({
       onOpenChange={onOpenChange}
       onTravel={onTravel}
       isLoadingVersion={isLoadingVersion}
+      lastEditAt={lastEditAt}
     />,
     { route },
   );
@@ -421,6 +426,20 @@ test('a filter that matches nothing says so', async () => {
 test('a document without edits says so', async () => {
   mockTimelineApi({ timeline: timelineWith({ volumes: [], names: [] }) });
   renderPanel();
+  expect(await screen.findByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
+});
+
+test('a document edited after the last timeline answer does not say it has no edits', async () => {
+  mockTimelineApi({ timeline: timelineWith({ volumes: [], names: [] }) });
+  renderPanel({ lastEditAt: Number.MAX_SAFE_INTEGER });
+  await screen.findByRole('heading', { name: TIMELINE_HEADING, level: 2 });
+  await waitFor(() => expect(screen.queryByRole('status', { name: LOADING_TIMELINE_LABEL })).not.toBeInTheDocument());
+  expect(screen.queryByText(NO_EDITS_YET_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('a document edited before the last timeline answer and still empty says so', async () => {
+  mockTimelineApi({ timeline: timelineWith({ volumes: [], names: [] }) });
+  renderPanel({ lastEditAt: 0 });
   expect(await screen.findByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
 });
 

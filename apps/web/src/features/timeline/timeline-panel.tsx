@@ -55,6 +55,7 @@ type TimelinePanelProps = {
   onOpenChange: (isOpen: boolean) => void;
   summarize: SummarizeControl;
   isLoadingVersion: boolean;
+  lastEditAt: number | null;
   onTravel: (binStart: number) => void;
   onBackToLive: () => void;
 };
@@ -108,6 +109,7 @@ export function TimelinePanel({
   onOpenChange,
   summarize,
   isLoadingVersion,
+  lastEditAt,
   onTravel,
   onBackToLive,
 }: TimelinePanelProps) {

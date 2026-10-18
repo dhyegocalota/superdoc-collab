@@ -256,6 +256,7 @@ export function DocumentPage() {
           onOpenChange={setIsPanelOpen}
           summarize={summarize}
           isLoadingVersion={isLoadingRequestedVersion}
+          lastEditAt={null}
           onTravel={timeTravel.travelTo}
           onBackToLive={timeTravel.backToLive}
         />

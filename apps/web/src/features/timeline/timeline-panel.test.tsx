@@ -835,6 +835,19 @@ test('a tap on the chart scrolls the header into view', async () => {
   expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
 });
 
+test('a tap on the bin already selected scrolls the header into view again', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = (await screen.findByLabelText(/^Budget/)).closest('svg')!;
+  const header = wholeDocumentHeader();
+  fireEvent.pointerDown(chart, { clientX: 0 });
+  await waitFor(() => expect(scrollIntoView.mock.contexts.includes(header)).toBe(true));
+  fireEvent.pointerUp(chart);
+  scrollIntoView.mockClear();
+  fireEvent.pointerDown(chart, { clientX: 0 });
+  await waitFor(() => expect(scrollIntoView.mock.contexts.includes(header)).toBe(true));
+});
+
 test('the first load shows a status skeleton with the chart height', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => undefined));
   renderPanel({ position: PanelPosition.Bottom });

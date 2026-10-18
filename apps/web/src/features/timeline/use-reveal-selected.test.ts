@@ -23,9 +23,9 @@ function header(): { current: HTMLElement } {
   return { current: element };
 }
 
-function mountWithoutSelection(targetRef: { current: HTMLElement }) {
-  return renderHook(({ selectedIndex }) => useRevealSelected({ targetRef, selectedIndex }), {
-    initialProps: { selectedIndex: null as number | null },
+function mount(targetRef: { current: HTMLElement }) {
+  return renderHook(({ selectionCount }) => useRevealSelected({ targetRef, selectionCount }), {
+    initialProps: { selectionCount: 0 },
   });
 }
 
@@ -36,49 +36,55 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 test('a pointer selection scrolls the header into view smoothly', () => {
-  const hook = mountWithoutSelection(header());
+  const hook = mount(header());
   window.dispatchEvent(new Event('pointerdown'));
-  hook.rerender({ selectedIndex: 1 });
+  hook.rerender({ selectionCount: 1 });
   expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', behavior: 'smooth' });
 });
 
 test('reduced motion scrolls instantly', () => {
   stubMotionPreference(true);
-  const hook = mountWithoutSelection(header());
+  const hook = mount(header());
   window.dispatchEvent(new Event('pointerdown'));
-  hook.rerender({ selectedIndex: 1 });
+  hook.rerender({ selectionCount: 1 });
   expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', behavior: 'auto' });
 });
 
-test('a drag reveals on every bin it crosses', () => {
-  const hook = mountWithoutSelection(header());
+test('a tap on the bin already selected reveals the header again', () => {
+  const hook = mount(header());
   window.dispatchEvent(new Event('pointerdown'));
-  hook.rerender({ selectedIndex: 1 });
-  hook.rerender({ selectedIndex: 2 });
+  hook.rerender({ selectionCount: 1 });
+  window.dispatchEvent(new Event('pointerup'));
+  window.dispatchEvent(new Event('pointerdown'));
+  hook.rerender({ selectionCount: 2 });
+  expect(scrollIntoView).toHaveBeenCalledTimes(2);
+});
+
+test('a drag reveals on every bin it crosses', () => {
+  const hook = mount(header());
+  window.dispatchEvent(new Event('pointerdown'));
+  hook.rerender({ selectionCount: 1 });
+  hook.rerender({ selectionCount: 2 });
   expect(scrollIntoView).toHaveBeenCalledTimes(2);
 });
 
 test('a keyboard selection never scrolls', () => {
-  const hook = mountWithoutSelection(header());
+  const hook = mount(header());
   window.dispatchEvent(new Event('keydown'));
-  hook.rerender({ selectedIndex: 1 });
+  hook.rerender({ selectionCount: 1 });
   expect(scrollIntoView).not.toHaveBeenCalled();
 });
 
-test('a change after the pointer was released, such as Back, never scrolls', () => {
-  const hook = mountWithoutSelection(header());
+test('a selection after the pointer was released never scrolls', () => {
+  const hook = mount(header());
   window.dispatchEvent(new Event('pointerdown'));
   window.dispatchEvent(new Event('pointerup'));
-  hook.rerender({ selectedIndex: 1 });
+  hook.rerender({ selectionCount: 1 });
   expect(scrollIntoView).not.toHaveBeenCalled();
 });
 
-test('mounting with a selection and clearing it do not scroll', () => {
-  const targetRef = header();
-  const { rerender } = renderHook(({ selectedIndex }) => useRevealSelected({ targetRef, selectedIndex }), {
-    initialProps: { selectedIndex: 2 as number | null },
-  });
+test('mounting does not scroll', () => {
   window.dispatchEvent(new Event('pointerdown'));
-  rerender({ selectedIndex: null });
+  mount(header());
   expect(scrollIntoView).not.toHaveBeenCalled();
 });

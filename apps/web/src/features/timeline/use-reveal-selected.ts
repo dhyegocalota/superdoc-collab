@@ -7,9 +7,11 @@ const INSTANT_SCROLL: ScrollBehavior = 'auto';
 export function useRevealSelected({
   targetRef,
   selectedIndex,
+  selectionCount,
 }: {
   targetRef: RefObject<HTMLElement | null>;
-  selectedIndex: number | null;
+  selectedIndex?: number | null;
+  selectionCount?: number;
 }): void {
   const behavior = useReducedMotion() ? INSTANT_SCROLL : SMOOTH_SCROLL;
   const isPointerPressed = useRef(false);

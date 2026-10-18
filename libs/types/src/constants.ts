@@ -16,6 +16,7 @@ export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;
 export const DOCUMENT_READY_GIVE_UP_MS = 5 * MINUTE_MS;
 export const CURSOR_GLOW_MS = 1.2 * SECOND_MS;
 export const JUMP_FAILED_NOTICE_MS = 3 * SECOND_MS;
+export const PRINT_READY_TIMEOUT_MS = 20 * SECOND_MS;
 export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 
 export function secondsRoundedUp(milliseconds: number): number {

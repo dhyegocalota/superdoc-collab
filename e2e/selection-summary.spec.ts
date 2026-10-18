@@ -1,4 +1,9 @@
-import { SELECTION_SUMMARY_FAILED_MESSAGE } from '../libs/types/src';
+import {
+  SELECTION_SUMMARY_FAILED_MESSAGE,
+  selectionSummaryApiPath,
+  TimelineQueryParam,
+  type SelectionSummaryView,
+} from '../libs/types/src';
 import {
   EARLIER_STATE_LABEL,
   RETRY_SUMMARY_LABEL,
@@ -7,6 +12,7 @@ import {
 } from '../apps/web/src/features/timeline/timeline-copy';
 import { insertedBy, insertInParagraph, readEvents, typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
+import { E2E_TIME_ZONE } from './time-zone';
 import {
   ANA,
   BRUNO,
@@ -64,13 +70,18 @@ test('an edit outside the filter marks the summary as for an earlier state and e
   await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
   await waitForSettledTimeline({ page: ana.page, documentId });
   await filterBy({ page: ana.page, text: ANA_FILTER });
-  const before = await readSelectionCalls(ana.page.request);
+  const summaryUrl = `${selectionSummaryApiPath(documentId)}?${new URLSearchParams({ [TimelineQueryParam.Author]: ANA.toLowerCase(), [TimelineQueryParam.TimeZone]: E2E_TIME_ZONE })}`;
+  const stampOfSummary = async (): Promise<number> => {
+    const view: SelectionSummaryView = await (await ana.page.request.get(summaryUrl)).json();
+    return view.summary!.computedAtSequence;
+  };
   await summarizeButton(ana.page).click();
   await expect(summaryCard(ana.page)).toContainText(`${ANA} edited`, { timeout: SUMMARY_TIMEOUT_MS });
+  const summarized = await stampOfSummary();
   await typeInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: WRITER_TEXT });
   await expect(summaryCard(ana.page)).toContainText(EARLIER_STATE_LABEL, { timeout: SUMMARY_TIMEOUT_MS });
   await expect(summarizeButton(ana.page)).toBeEnabled();
-  expect(await readSelectionCalls(ana.page.request)).toBe(before + 1);
+  expect(await stampOfSummary()).toBe(summarized);
 });
 
 test('a failed summary explains itself and offers a retry', async ({ browser }) => {

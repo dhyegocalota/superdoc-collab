@@ -23,7 +23,7 @@ import {
 
 type Handlers = { [Kind in AnsweredRequestKind]: (request: ProjectionRequestsByKind[Kind]) => AnsweredReply | Promise<AnsweredReply> };
 
-export type ProjectionStores = {
+type ProjectionStores = {
   updateLog: UpdateLog;
   readModel: ReadModel;
   replays: GcFreeReplays;

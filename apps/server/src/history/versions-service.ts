@@ -6,12 +6,12 @@ import { describeError } from '../logging/describe-error';
 import { ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 
-export const VERSION_LOAD_FAILED_MESSAGE = 'Loading a version failed for';
-export const VERSION_KEY_SEPARATOR = '/';
+const VERSION_LOAD_FAILED_MESSAGE = 'Loading a version failed for';
+const VERSION_KEY_SEPARATOR = '/';
 export const VERSION_MARKS_AROUND = 10;
 
 export type VersionEndpoint = { documentId: string; sequence: number };
-export type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
+type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
 type CachedLookup = { key: string; sequence: number; cached: LoadedVersion | null };
 
 export enum VersionLookupKind {
@@ -20,16 +20,16 @@ export enum VersionLookupKind {
   Failed = 'failed',
 }
 
-export type VersionLookup =
+type VersionLookup =
   { kind: VersionLookupKind.Ready; version: LoadedVersion } | { kind: VersionLookupKind.Pending } | { kind: VersionLookupKind.Failed };
 
-export class VersionNotReadyError extends Error {
+class VersionNotReadyError extends Error {
   constructor(documentId: string) {
     super(`Document ${documentId} has no versions yet.`);
   }
 }
 
-export class VersionLoadFailedError extends Error {
+class VersionLoadFailedError extends Error {
   constructor(key: string) {
     super(`Version ${key} failed to load recently.`);
   }

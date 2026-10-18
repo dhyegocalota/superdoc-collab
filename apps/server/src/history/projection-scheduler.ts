@@ -23,7 +23,7 @@ const TSX_REGISTER_SPECIFIER = 'tsx/esm/api';
 const WORKER_ERROR_MESSAGE = 'Projection worker error';
 const WORKER_DEGRADED_MESSAGE = 'Projection worker keeps failing; projection is disabled until the server restarts';
 export const MAX_WORKER_RESTARTS_PER_WINDOW = 5;
-export const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
+const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
 
 function createWorker({
   databaseDirectory,

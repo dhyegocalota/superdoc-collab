@@ -24,7 +24,7 @@ const SEED_TOKEN = 'seed-token';
 const SEED_LOCALHOST = 'ws://127.0.0.1';
 const UNEXPECTED_SESSION_MESSAGE = 'No document session is expected here';
 
-export type RecordedAgentAction = { documentId: string; userId: string; kind: AgentActionKind };
+type RecordedAgentAction = { documentId: string; userId: string; kind: AgentActionKind };
 
 export function sessionsOn(document: object): AgentDocumentSessions {
   return { run: ({ work }) => work(document as SuperDocDocument) };
@@ -59,7 +59,7 @@ export function toolContext({
   return { context, recorded };
 }
 
-export function resultText(result: CallToolResult): string {
+function resultText(result: CallToolResult): string {
   const [content] = result.content;
   if (!content || content.type !== 'text') throw new Error('The tool result has no text content');
   return content.text;

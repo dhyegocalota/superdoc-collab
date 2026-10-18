@@ -126,7 +126,7 @@ export async function startTestServer({
   }
 }
 
-export class NoTestAdminError extends Error {
+class NoTestAdminError extends Error {
   constructor() {
     super('startTestServer({ claim: false }) has no admin.');
   }
@@ -182,7 +182,7 @@ async function postCredentials({
   });
 }
 
-export class TestSignInFailedError extends Error {
+class TestSignInFailedError extends Error {
   constructor({ step, status }: { step: string; status: number }) {
     super(`Test sign-in failed at ${step} with status ${status}.`);
   }

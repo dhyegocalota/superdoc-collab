@@ -11,7 +11,7 @@ import { LanguageModelAvailability, LLM_BUSY_MESSAGE, generateStructured, type L
 import { TOPICS_SYSTEM_PROMPT, topicsPrompt } from './prompts';
 
 export const UNKNOWN_TOPIC_BLOCKS_MESSAGE = 'The model named block ids that are not in the document, for document';
-export const TOPICS_COMPUTE_FAILED_MESSAGE = 'Naming topics failed for document';
+const TOPICS_COMPUTE_FAILED_MESSAGE = 'Naming topics failed for document';
 export const TOPIC_RECOMPUTE_MIN_INTERVAL_MS = MINUTE_MS;
 
 class LanguageModelBusyError extends Error {}

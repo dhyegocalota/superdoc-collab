@@ -74,12 +74,12 @@ export type RunningServer = {
   stop: () => Promise<void>;
 };
 
-export function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
+function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
   if (!('closeAllConnections' in httpServer)) return;
   httpServer.closeAllConnections();
 }
 
-export function closeServer(httpServer: ServerType): Promise<void> {
+function closeServer(httpServer: ServerType): Promise<void> {
   return new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
 }
 

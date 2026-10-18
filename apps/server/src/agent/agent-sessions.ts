@@ -14,9 +14,9 @@ import type { AgentDocumentSessions, AgentPerson } from './agent-tool-context';
 import { ROOM_TOKEN_TTL_MS } from './room-tokens';
 import { AgentToolError } from './tool-results';
 
-export const MAX_AGENT_SESSIONS = 8;
-export const AGENT_SESSION_IDLE_MS = 5 * MINUTE_MS;
-export const AGENT_SESSION_OPEN_TIMEOUT_MS = 30 * SECOND_MS;
+const MAX_AGENT_SESSIONS = 8;
+const AGENT_SESSION_IDLE_MS = 5 * MINUTE_MS;
+const AGENT_SESSION_OPEN_TIMEOUT_MS = 30 * SECOND_MS;
 const AGENT_HOST_NAME = 'SuperDoc History agent';
 const AGENT_HOST_EMAIL = 'agent@superdoc-history.local';
 const SDK_RUNTIME = 'v2';
@@ -25,7 +25,7 @@ const SESSION_BUSY_MESSAGE = 'Every document room is in use';
 const SESSION_OPEN_TIMEOUT_MESSAGE = 'The document did not open in time';
 
 export type AgentSessionsClient = Pick<SuperDocClient, 'connect' | 'open' | 'dispose'>;
-export type LocatedRoom = { roomMode: RoomMode };
+type LocatedRoom = { roomMode: RoomMode };
 type RoleOf = (options: { userId: string; documentId: string }) => DocumentRole | null;
 type OpenedSession = {
   document: SuperDocDocument;

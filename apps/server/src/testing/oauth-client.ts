@@ -35,7 +35,7 @@ enum OAuthPath {
 
 let nextAddress = 0;
 
-export class OAuthStepFailedError extends Error {
+class OAuthStepFailedError extends Error {
   constructor({ step, status, body }: { step: string; status: number; body: string }) {
     super(`OAuth step ${step} failed with status ${status}: ${body}`);
   }
@@ -43,7 +43,7 @@ export class OAuthStepFailedError extends Error {
 
 export type RequestedScope = AgentScope | typeof OFFLINE_ACCESS_SCOPE;
 
-export type DpopKey = { privateKey: KeyObject; publicJwk: JsonWebKey };
+type DpopKey = { privateKey: KeyObject; publicJwk: JsonWebKey };
 
 export function createDpopKey(): DpopKey {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: DPOP_CURVE });
@@ -85,7 +85,7 @@ function authUrl({ server, path }: { server: TestServer; path: string }): string
   return `${server.baseUrl}${ApiPath.Auth}${path}`;
 }
 
-export async function registerAgentClient({ server, dpopBound = false }: { server: TestServer; dpopBound?: boolean }): Promise<string> {
+async function registerAgentClient({ server, dpopBound = false }: { server: TestServer; dpopBound?: boolean }): Promise<string> {
   const response = await requireOk({
     step: 'register',
     response: await fetch(authUrl({ server, path: OAuthPath.Register }), {

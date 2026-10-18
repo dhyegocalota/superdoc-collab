@@ -201,12 +201,15 @@ async function ownerOpensDocument({
   browser,
   paragraphs = PARAGRAPHS,
   viewport = DEFAULT_VIEWPORT,
+  recordsTopBar = false,
 }: {
   browser: Browser;
   paragraphs?: string[];
   viewport?: { width: number; height: number };
+  recordsTopBar?: boolean;
 }) {
   const ana = await signedInContext({ browser, user: anaUser! });
+  if (recordsTopBar) await ana.page.addInitScript(recordTopBarTops, TOP_BAR_SELECTOR);
   const title = uniqueTitle();
   const documentId = await openDocument({ page: ana.page, title, paragraphs, viewport });
   return { ana, title, documentId };
@@ -498,7 +501,7 @@ test('Use with AI opens a dialog with a tab per client, fewer prompts for a read
 });
 
 test('the top bar fits between 640 and 1023 px with two members and keeps a readable title', async ({ browser }) => {
-  const { ana, title, documentId } = await ownerOpensDocument({ browser });
+  const { ana, title, documentId } = await ownerOpensDocument({ browser, recordsTopBar: true });
   const bruno = await signedInContext({ browser, user: brunoUser! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   for (const width of TWO_MEMBER_WIDTHS) {
@@ -510,7 +513,7 @@ test('the top bar fits between 640 and 1023 px with two members and keeps a read
 });
 
 test('the top bar fits at 640 px with five members and keeps a readable title', async ({ browser }) => {
-  const { ana, title, documentId } = await ownerOpensDocument({ browser });
+  const { ana, title, documentId } = await ownerOpensDocument({ browser, recordsTopBar: true });
   const otherMembers = [brunoUser!, caioUser!, daniUser!, DEMO_ADMIN];
   for (const user of otherMembers) {
     const member = await signedInContext({ browser, user });

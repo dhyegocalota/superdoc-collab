@@ -33,6 +33,7 @@ import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
 import { useRevealSelected } from './use-reveal-selected';
 import { useTimeline } from './use-timeline';
+import type { VersionReference } from './use-time-travel';
 import { useTimelineSearch } from './use-timeline-search';
 
 export enum PanelState {
@@ -52,7 +53,9 @@ type TimelinePanelProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   summarize: SummarizeControl;
+  pendingVersion: VersionReference | null;
   onTravel: (binStart: number) => void;
+  onConfirmTravel: () => void;
   onBackToLive: () => void;
 };
 

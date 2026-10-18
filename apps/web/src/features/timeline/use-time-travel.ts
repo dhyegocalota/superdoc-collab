@@ -12,6 +12,8 @@ import { useVersionLoad } from './use-version-load';
 
 export const SCRUB_DEBOUNCE_MS = 300;
 
+export type VersionReference = { binStart: number };
+
 type VersionPin = { at: number; sequence: number };
 
 export type TimeTravel = {
@@ -23,7 +25,9 @@ export type TimeTravel = {
   isLoading: boolean;
   hasFailed: boolean;
   runs: EditRunView[];
+  pendingVersion: VersionReference | null;
   travelTo: (binStart: number) => void;
+  confirmTravel: () => void;
   backToLive: () => void;
   reportFailure: (sequence: number) => void;
 };
@@ -123,7 +127,11 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,
     hasFailed,
     runs,
+    pendingVersion: null,
     travelTo,
+    confirmTravel: () => {
+      throw new Error('confirmTravel is not implemented');
+    },
     backToLive,
     reportFailure: setFailedFrameSequence,
   };

@@ -37,15 +37,17 @@ import {
   LOADING_VERSION_MESSAGE,
   STREAMGRAPH_TITLE,
   VERSION_FRAME_TITLE,
+  VIEW_VERSION_LABEL,
 } from '@/features/timeline/timeline-copy';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
+import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
-import { renameTitleLabel, TITLE_LABEL } from '@/features/editor/editor-copy';
+import { renameTitleLabel, TIMELINE_TOGGLE_LABEL, TITLE_LABEL } from '@/features/editor/editor-copy';
 import { DocumentPage } from '@/features/editor/document-page';
 
 type VersionReply = { status: HttpStatus; body?: VersionSummary; headers?: Record<string, string> };
@@ -178,7 +180,13 @@ function pressChartAt(index: number): void {
   fireEvent.pointerDown(chart, { clientX: (index * 600) / (SEQUENCES.length - 1) });
 }
 
+async function openPanel(): Promise<void> {
+  await userEvent.click(await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
+  await screen.findByTitle(STREAMGRAPH_TITLE);
+}
+
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
   SuperDoc.mockClear();
   installAuthorPalette();
   vi.spyOn(window, 'matchMedia').mockImplementation(
@@ -479,4 +487,41 @@ test('Escape on a focused band leaves the version once', async () => {
   await waitFor(() => expect(router.state.location.search).toBe(''));
   unsubscribe();
   expect(locations).toEqual(['']);
+});
+
+test('below lg a versioned bin waits for View version before the URL changes', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await openPanel();
+  pressChartAt(1);
+  const viewVersion = await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
+  expect(router.state.location.search).toBe('');
+  fireEvent.click(viewVersion);
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 2);
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
+});
+
+test('from lg a versioned bin travels on the tap and offers no View version', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await screen.findByTitle(STREAMGRAPH_TITLE);
+  pressChartAt(1);
+  await waitFor(() => expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`), SLOW_WAIT);
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
+});
+
+test('below lg Back to live drops the pending version', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await openPanel();
+  pressChartAt(1);
+  await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
 });

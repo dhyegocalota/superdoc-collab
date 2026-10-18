@@ -222,7 +222,9 @@ export function DocumentPage() {
           isOpen={isPanelOpen}
           onOpenChange={setIsPanelOpen}
           summarize={summarize}
+          pendingVersion={timeTravel.pendingVersion}
           onTravel={timeTravel.travelTo}
+          onConfirmTravel={timeTravel.confirmTravel}
           onBackToLive={timeTravel.backToLive}
         />
       </div>

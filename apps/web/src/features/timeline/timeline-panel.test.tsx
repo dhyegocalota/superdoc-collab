@@ -51,12 +51,14 @@ import {
   PANEL_POSITION_LABELS,
   TIMELINE_HEADING,
   TOP_EDITS_LABEL,
+  VIEW_VERSION_LABEL,
 } from './timeline-copy';
 import { CHART_HEIGHT } from './streamgraph-layout';
 import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import type { SummarizeControl } from './use-summarize';
+import type { VersionReference } from './use-time-travel';
 import { PANEL_POSITION_STORAGE_KEY, PanelPosition } from './use-panel-position';
 import { MIN_EDITOR_HEIGHT, MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
@@ -177,6 +179,8 @@ type PanelOptions = {
   isOpen?: boolean;
   summarize?: SummarizeControl;
   onOpenChange?: (isOpen: boolean) => void;
+  pendingVersion?: VersionReference | null;
+  onConfirmTravel?: () => void;
 };
 
 function PanelHarness({
@@ -185,6 +189,8 @@ function PanelHarness({
   initiallyOpen,
   summarize,
   onOpenChange,
+  pendingVersion,
+  onConfirmTravel,
 }: Required<Omit<PanelOptions, 'route' | 'isOpen'>> & { initiallyOpen: boolean }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen);
 
@@ -201,7 +207,9 @@ function PanelHarness({
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       summarize={summarize}
+      pendingVersion={pendingVersion}
       onTravel={vi.fn()}
+      onConfirmTravel={onConfirmTravel}
       onBackToLive={vi.fn()}
     />
   );
@@ -214,9 +222,19 @@ function renderPanel({
   isOpen = true,
   summarize = idleSummarize(),
   onOpenChange = vi.fn(),
+  pendingVersion = null,
+  onConfirmTravel = vi.fn(),
 }: PanelOptions = {}) {
   return renderWithProviders(
-    <PanelHarness role={role} position={position} initiallyOpen={isOpen} summarize={summarize} onOpenChange={onOpenChange} />,
+    <PanelHarness
+      role={role}
+      position={position}
+      initiallyOpen={isOpen}
+      summarize={summarize}
+      onOpenChange={onOpenChange}
+      pendingVersion={pendingVersion}
+      onConfirmTravel={onConfirmTravel}
+    />,
     { route },
   );
 }
@@ -825,4 +843,36 @@ test('once the timeline is loaded the skeleton is gone', async () => {
   renderPanel({ position: PanelPosition.Bottom });
   await screen.findByLabelText(/^Budget/);
   expect(screen.queryByRole('status', { name: LOADING_TIMELINE_MESSAGE })).not.toBeInTheDocument();
+});
+
+test('View version shows when the pending version names the selected bin and confirms through the panel', async () => {
+  const onConfirmTravel = vi.fn();
+  const selectedStart = baseTimeline.bins[0]!.start;
+  mockTimelineApi();
+  renderPanel({
+    position: PanelPosition.Bottom,
+    route: `${ROUTE}?at=${selectedStart}`,
+    pendingVersion: { binStart: selectedStart },
+    onConfirmTravel,
+  });
+  await userEvent.click(await screen.findByRole('button', { name: VIEW_VERSION_LABEL }));
+  expect(onConfirmTravel).toHaveBeenCalledTimes(1);
+});
+
+test('View version stays hidden when the pending version names another bin than the selected one', async () => {
+  mockTimelineApi();
+  renderPanel({
+    position: PanelPosition.Bottom,
+    route: `${ROUTE}?at=${baseTimeline.bins[0]!.start}`,
+    pendingVersion: { binStart: baseTimeline.bins[1]!.start },
+  });
+  await screen.findByText('10 edits');
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('View version stays hidden without a pending version', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${baseTimeline.bins[0]!.start}` });
+  await screen.findByText('10 edits');
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
 });

@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS } from './superdoc-zoom';
 import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
-const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
+export const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
 type SuperDocEditorProps = {

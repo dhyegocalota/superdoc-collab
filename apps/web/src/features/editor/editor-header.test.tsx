@@ -159,7 +159,21 @@ test('closing Use with AI opened from More actions returns focus to the More act
   expect(await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE })).toBeInTheDocument();
   await userEvent.keyboard('{Escape}');
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-  expect(screen.getByRole('button', { name: MORE_ACTIONS_LABEL })).toHaveFocus();
+  const moreActions = screen.getByRole('button', { name: MORE_ACTIONS_LABEL });
+  expect(moreActions).toHaveFocus();
+  expect(moreActions).toHaveAttribute('aria-expanded', 'false');
+  await userEvent.click(moreActions);
+  expect(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL })).toBeInTheDocument();
+  expect(moreActions).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('the Use with AI dialog opened from More actions lives outside the menu', async () => {
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH });
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: USE_WITH_AI_LABEL }));
+  const dialog = await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE });
+  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  expect(dialog.closest('[role="menu"]')).toBeNull();
 });
 
 test('EditorHeader passes superdoc and isPastVersion to Members', () => {

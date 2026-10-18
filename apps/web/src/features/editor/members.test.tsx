@@ -150,6 +150,22 @@ test('a peer with no rendered caret leaving refreshes the members query', async 
   expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false });
 });
 
+test('a peer who reconnects without a caret is refreshed on arrival and again on leave', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [2], removed: [1] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  act(() => emitAwareness({ added: [], removed: [2] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) })).toBeInTheDocument();
+});
+
 test('a peer arriving refreshes the members query', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   renderMembers({ members: [ana, bruno] });

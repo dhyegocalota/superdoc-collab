@@ -151,6 +151,7 @@ test('pin: the agent layer is as tall as the agent share of the band', () => {
   expect(heightOf(shape!.agentPath!) / heightOf(shape!.path)).toBeCloseTo(0.4, 3);
 });
 
+const LABEL_CHARACTER_WIDTH = 7;
 const EDGE_BINS = 4;
 const SILENT_BINS = 6;
 const SILENCE_FIRST = EDGE_BINS;
@@ -251,7 +252,7 @@ test('a label never straddles the break', () => {
   const longName = 'x'.repeat(40);
   const { layout } = silentLayout({ names: [longName, 'Hiring'] });
   const [column] = layout.breaks;
-  const halfWidth = (longName.length * 7) / 2;
+  const halfWidth = (longName.length * LABEL_CHARACTER_WIDTH) / 2;
   const wide = layout.shapes.find((shape) => shape.band.name === longName)!;
   const fitsLeft = wide.label !== null && wide.label.x + halfWidth <= column!.left;
   const fitsRight = wide.label !== null && wide.label.x - halfWidth >= column!.right;
@@ -325,4 +326,13 @@ test('edits on alternate days keep every segment drawn at day bins', () => {
     expect(widths).toHaveLength(3);
     widths.forEach((width) => expect(width).toBeGreaterThan(0));
   });
+});
+
+const LATE_IN_BIN = 0.9;
+
+test('a time late in the last bin before a break stays at that bin, not on the divider', () => {
+  const { layout, timeline } = silentLayout();
+  const lastBinBefore = SILENCE_FIRST - 1;
+  const time = timeline.bins[lastBinBefore]!.start + LATE_IN_BIN * MINUTE_MS;
+  expect(layout.timeX(time)).toBeCloseTo(layout.binX(lastBinBefore));
 });

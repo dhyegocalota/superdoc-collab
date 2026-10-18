@@ -103,7 +103,7 @@ test.each([
 });
 
 test.each([
-  { durationMs: 410_000, label: '7 minutes' },
+  { durationMs: 410 * SECOND_MS, label: '7 minutes' },
   { durationMs: MINUTE_MS, label: '1 minute' },
   { durationMs: 59 * MINUTE_MS, label: '59 minutes' },
   { durationMs: 59.5 * MINUTE_MS, label: '1 hour' },

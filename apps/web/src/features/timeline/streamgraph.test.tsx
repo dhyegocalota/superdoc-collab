@@ -1,4 +1,4 @@
-import { AgentActionKind, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { AgentActionKind, MINUTE_MS, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
@@ -501,21 +501,24 @@ const SILENT_BINS = 6;
 const SILENCE_FIRST = EDGE_BINS;
 const AFTER_SILENCE = EDGE_BINS + SILENT_BINS;
 const LAST_BIN = 2 * EDGE_BINS + SILENT_BINS - 1;
-const breakTimeline = timelineWith({
+const silentTimeline = timelineWith({
   volumes: [
     ...Array.from({ length: EDGE_BINS }, () => [100, 20]),
     ...Array.from({ length: SILENT_BINS }, () => [0, 0]),
     ...Array.from({ length: EDGE_BINS }, () => [100, 20]),
   ],
   names: ['Budget', 'Hiring'],
+});
+const breakTimeline = {
+  ...silentTimeline,
   agentActions: [
     {
       authorKey: FIXTURE_AGENT_AUTHOR_KEY,
       kind: AgentActionKind.DocumentExported,
-      createdAt: timeline.bins[0]!.start + (SILENCE_FIRST + 2) * 60_000,
+      createdAt: silentTimeline.bins[0]!.start + (SILENCE_FIRST + 2) * MINUTE_MS,
     },
   ],
-});
+};
 const breakColumn = layoutStreamgraph({ timeline: breakTimeline, width: WIDTH }).breaks[0]!;
 
 function renderBreakGraph({ selectedIndex = null }: { selectedIndex?: number | null } = {}) {

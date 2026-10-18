@@ -4,7 +4,7 @@
 **Tier:** 🟡
 **Seam:** `MAX_SOCKET_MESSAGES_PER_SECOND` and the `ws` layer counter in `attach-collaboration.ts`.
 **Assumptions (decided, owner can override):**
-- 1000 frames per second is about eight times the fastest burst measured and still a hard cap.
+- 1000 frames per second is eight times the measured peak of 121 and about three times the E2E helper's 300 per second, and still a hard cap.
 
 ## File map
 

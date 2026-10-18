@@ -18,13 +18,13 @@ Measured on 2026-10-18 with a temporary per-second log in `attach-collaboration.
 
 ## Decision
 
-`MAX_SOCKET_MESSAGES_PER_SECOND` becomes 1000, about eight times the fastest legitimate burst measured. Everything else in ADR 0034 stays: the counter lives at the `ws` layer, counts every frame per socket from the first one, awareness included, and a breach closes with 1008.
+`MAX_SOCKET_MESSAGES_PER_SECOND` becomes 1000: eight times the measured peak of 121 frames in a second at 20 keys per second, and about three times the 300 frames per second of the E2E helper at 50 keys per second. Everything else in ADR 0034 stays: the counter lives at the `ws` layer, counts every frame per socket from the first one, awareness included, and a breach closes with 1008.
 
 ## Alternatives considered
 
 | Option | Pros | Cons | Why not |
 |--------|------|------|---------|
-| Raise the cap to 1000 frames per second (chosen) | one constant; still a hard cap on a flooding client; fits the fastest burst with room | a flooder gets eight times more frames before the close | n/a |
+| Raise the cap to 1000 frames per second (chosen) | one constant; still a hard cap on a flooding client; fits typing and the reconnect burst with room | a flooder gets about eight times more frames before the close | n/a |
 | Count bytes per second instead | follows the real cost | a flood of tiny frames costs the server almost no bytes and still burns CPU | does not bound the flood it exists for |
 | Exempt awareness frames | awareness bursts never trip it | needs frame parsing at the `ws` layer plus a second cap for awareness | more code than the problem needs |
 | Batch frames in the client | fewer frames | the batching lives in the provider inside `node_modules` | not ours to change |
@@ -33,7 +33,9 @@ Measured on 2026-10-18 with a temporary per-second log in `attach-collaboration.
 ## Consequences
 
 - Typing at any realistic speed and the reconnect burst stay under the cap with room.
-- A flooding client can send up to 1000 frames per second per socket before it is closed. The payload cap, the per-socket counter and one document per socket from ADR 0034 are unchanged.
+- The cap bounds rate, not volume. A client that sends 999 frames per second is never closed. Each update frame is one synchronous append to the update log (`collaboration-server.ts:197`) plus a room broadcast, so one socket's sustained ceiling goes from 120 to 1000 log rows per second, multiplied by the sockets a member opens. Bytes were never bounded either, beyond the 80 MiB payload cap per frame.
+- The payload cap, the per-socket counter, one document per socket and the same cap on the version-room sockets from ADR 0034 are unchanged.
+- Follow-ups for the owner, not part of this decision: no per-user or per-IP cap on concurrent sockets exists (count sockets per user id in `upgradeMember` against a constant in `libs/types`), and the declaration cost in `client-declarations.ts:17-22` is quadratic (a separate lane).
 - ADR 0034's figure of 120 is superseded by this decision; the rest of 0034 stays Accepted.
 
 ## Evidence
@@ -42,5 +44,6 @@ The measurement above; `apps/server/src/collaboration/attach-collaboration.test.
 
 ## Revisit when
 
-- Typing or paste in a future SuperDoc version sends more than about 100 update frames per keystroke burst, so the headroom of eight times is gone.
+- A legitimate client is measured above about 500 frames in a rolling second.
+- The update log grows noticeably from one member's sockets.
 - A flooding client is seen to cost the server more than one closed socket per second can bound.

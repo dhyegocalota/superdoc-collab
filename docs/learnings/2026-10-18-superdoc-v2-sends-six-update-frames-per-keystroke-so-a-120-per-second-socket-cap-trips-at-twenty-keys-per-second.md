@@ -13,7 +13,7 @@ SuperDoc v2 sends about six update frames per keystroke: the server's update log
 
 ## Do
 
-Size a per-socket frame cap from a measurement of the editor, not from another product's figure: count frames per second by kind while typing, keep about eight times the fastest burst, and keep the cap hard. The cap is now 1000.
+Size a per-socket frame cap from a measurement of the editor, not from another product's figure: count frames per second by kind while typing, leave several times the measured peak as headroom, and keep the cap hard. The cap is now 1000.
 
 ## Anchor
 

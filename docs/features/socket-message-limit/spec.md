@@ -5,7 +5,7 @@
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18
 **ADRs:** [0040](../../adr/0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) (supersedes the 120 figure of [0034](../../adr/0034-collaboration-socket-payload-and-rate-limits.md))
-**Not changing:** the payload cap, the per-socket counter from the first frame, awareness counting, one document per socket, close code 1008.
+**Not changing:** the payload cap, the per-socket counter from the first frame, awareness counting, one document per socket, close code 1008, the same cap on the version-room sockets (`closeOnBreach` attaches in the upgrade handler for both endpoint kinds), and the limiter's behaviour (only its prune is rewritten to drop the stale prefix instead of rebuilding the array on every frame).
 
 ## Problem
 
@@ -34,6 +34,11 @@ Measured on 2026-10-18 on this lane with a temporary per-second log, typing 26 c
 ### Data flow
 
 `MAX_SOCKET_MESSAGES_PER_SECOND` in `libs/types/src/constants.ts` goes from 120 to 1000, with a `// NB ADR 0040:` pointer. `SocketMessageLimit` and `attach-collaboration.ts` are unchanged.
+
+### Follow-ups for the owner
+
+- No per-user or per-IP cap on concurrent sockets exists: a member can multiply the per-socket ceiling. Count sockets per user id in `upgradeMember` against a constant in `libs/types`.
+- The declaration cost in `client-declarations.ts:17-22` is quadratic; a separate lane.
 
 ### Failure handling
 

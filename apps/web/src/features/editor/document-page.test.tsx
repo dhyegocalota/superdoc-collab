@@ -1,6 +1,7 @@
 import {
   ApiPath,
   AppRoute,
+  ClientActor,
   ConnectionFailureReason,
   ConnectionState,
   CREATOR_ATTEMPT_QUERY_KEY,
@@ -14,6 +15,7 @@ import {
   DocumentRole,
   HttpMethod,
   HttpStatus,
+  MEMBERS_REFRESH_MS,
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
@@ -110,6 +112,15 @@ const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: Docume
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
 const SUMMARIES_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries });
 const EMPTY_TIMELINE = timelineWith({ volumes: [], names: [] });
+const BASE_TIMELINE = timelineWith({ volumes: [[10]], names: ['Budget'] });
+const CONTRIBUTOR_NAME = 'Ana Souza';
+const TIMELINE_WITH_CONTRIBUTOR = {
+  ...BASE_TIMELINE,
+  authors: { ana: { id: SESSION_USER.id, name: CONTRIBUTOR_NAME, actor: ClientActor.Human } },
+  contributorsByBand: {
+    [BASE_TIMELINE.bands[0]!.id]: [{ authorKey: 'ana', inserted: 10, deleted: 0, wordsInserted: 2, wordsDeleted: 0 }],
+  },
+};
 const RENAMED_TITLE = 'Renamed';
 const READY_WAIT_MS = 2 * DOCUMENT_READY_POLL_MS;
 const TEST_TIMEOUT_MS = 3 * DOCUMENT_READY_POLL_MS;
@@ -124,6 +135,7 @@ function mockDocumentApi({
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
   isAttemptSuperseded = () => false,
+  timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
   isReloadUnreachable = false,
@@ -138,6 +150,7 @@ function mockDocumentApi({
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
   isAttemptSuperseded?: () => boolean;
+  timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
   isReloadUnreachable?: boolean;
@@ -156,7 +169,7 @@ function mockDocumentApi({
     }
     if (input === DOWNLOAD_PATH && openRequests > 1 && reloadFileResponse) return reloadFileResponse();
     if (input === DOWNLOAD_PATH) return new Response(new Uint8Array([1, 2, 3]), { status: downloadStatus });
-    if (String(input).split('?')[0] === TIMELINE_PATH) return jsonResponse({ body: EMPTY_TIMELINE });
+    if (String(input).split('?')[0] === TIMELINE_PATH) return jsonResponse({ body: timeline });
     if (String(input).split('?')[0] === SUMMARIES_PATH) return jsonResponse({ body: { summaries: [] } });
     if (String(input).split('?')[0] === selectionSummaryApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post) {
       summaryStep = SummarizeStep.Grouping;
@@ -857,4 +870,56 @@ test('a members poll that does not report a takeover leaves the page online', as
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+});
+
+async function renderWithTimelineContributor(opened: OpenedDocument) {
+  matchMediaAlwaysMatching();
+  const fetchSpy = mockDocumentApi({ opened, timeline: TIMELINE_WITH_CONTRIBUTOR });
+  const rendered = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTitle(CONTRIBUTOR_NAME);
+  return { ...rendered, fetchSpy };
+}
+
+test('leaving a page with the timeline mounted removes the opened document from the cache', async () => {
+  const { queryClient } = await renderWithTimelineContributor(ticketedCreate());
+  cleanup();
+  await waitFor(() =>
+    expect(queryClient.getQueryCache().find({ queryKey: openedDocumentQueryKey(DOCUMENT_ID), exact: true })).toBeUndefined(),
+  );
+});
+
+test('a Reload answered 409 with the timeline mounted makes exactly one open request', async () => {
+  let status = HttpStatus.Ok;
+  matchMediaAlwaysMatching();
+  const fetchSpy = mockDocumentApi({
+    opened: ticketedCreate(),
+    openBody: { error: DOCUMENT_NOT_READY_ERROR },
+    currentOpenStatus: () => status,
+    timeline: TIMELINE_WITH_CONTRIBUTOR,
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTitle(CONTRIBUTOR_NAME);
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  status = HttpStatus.Conflict;
+  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
+  expect(openRequests).toHaveLength(2);
+});
+
+test('with the timeline mounted the members are requested once per interval', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    const { fetchSpy } = await renderWithTimelineContributor(ticketedCreate());
+    function membersRequests(): number {
+      return fetchSpy.mock.calls.filter(([input]) => String(input).startsWith(MEMBERS_PATH)).length;
+    }
+    await vi.advanceTimersByTimeAsync(MEMBERS_REFRESH_MS * 2);
+    const requestsBefore = membersRequests();
+    await vi.advanceTimersByTimeAsync(MEMBERS_REFRESH_MS * 2);
+    expect(membersRequests() - requestsBefore).toBe(2);
+  } finally {
+    vi.useRealTimers();
+  }
 });

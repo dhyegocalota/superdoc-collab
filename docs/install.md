@@ -79,6 +79,7 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `OPENROUTER_BASE_URL` | empty | Another OpenRouter-compatible endpoint; tests point it at a fake |
 | `LLM_MAX_CONCURRENT_JOBS` | `2` | Model jobs at once, for the whole server ([ADR 0011](adr/0011-process-wide-llm-cost-caps.md)) |
 | `LLM_MAX_CALLS_PER_HOUR` | `60` | Model calls per rolling hour, for the whole server |
+| `OPEN_UNCOMMITTED_PER_MINUTE` | `30` | Documents one user may open for the first time per rolling minute |
 | `SEED_DEMO_USERS` | `false` | Tests only: `true` seeds four demo users and a test administrator on start. Production sets `false` ([ADR 0020](adr/0020-invite-only-accounts-with-a-first-claim-admin.md)) |
 | `DEMO_PASSWORD` | `superdoc-demo` in `.env.example` | Tests only: the seeded accounts' password, required when `SEED_DEMO_USERS=true` |
 

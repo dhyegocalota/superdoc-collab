@@ -1,4 +1,12 @@
-import { ApiPath, DEMO_ADMIN, INVITE_TOKEN_HEADER, UTC_TIME_ZONE, type SessionUser, inviteTokenOf } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  DEMO_ADMIN,
+  INVITE_TOKEN_HEADER,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  UTC_TIME_ZONE,
+  type SessionUser,
+  inviteTokenOf,
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
@@ -59,6 +67,7 @@ export function testEnvironment({
     databaseDirectory,
     trustProxy: true,
     llm: NO_LLM_SETTINGS,
+    openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
 }
 
@@ -101,6 +110,7 @@ export async function startTestServer({
     databaseDirectory,
     trustProxy,
     llm: NO_LLM_SETTINGS,
+    openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
   try {
     const running = await startServer({

@@ -1,4 +1,4 @@
-import { authorColorSlot, CURSOR_GLOW_MS, type DocumentMember } from '@superdoc-collab/types';
+import { CURSOR_GLOW_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { authorColorOf } from './author-palette';
@@ -35,7 +35,7 @@ function cursorKey({ name, color }: { name: string; color: string }): string {
 }
 
 function memberKey(member: DocumentMember): string {
-  return cursorKey({ name: member.user.name, color: normalizedPaletteColor(authorColorOf(authorColorSlot(member.user.id))) });
+  return cursorKey({ name: member.user.name, color: normalizedPaletteColor(authorColorOf(member.colorSlot)) });
 }
 
 function caretsIn(container: HTMLElement): HTMLElement[] {
@@ -135,7 +135,7 @@ export function useMemberCursors({ superdoc, container }: { superdoc: SuperDoc |
       if (!caret || matches.length > 1) return JumpOutcome.NotFound;
       caret.scrollIntoView({ block: 'center' });
       const glowing = [caret, ...selectionsOf(caret)];
-      const glowColor = authorColorOf(authorColorSlot(member.user.id));
+      const glowColor = authorColorOf(member.colorSlot);
       glowing.forEach((element) => {
         element.style.setProperty(GLOW_COLOR_PROPERTY, glowColor);
         element.classList.add(GLOW_CLASS);

@@ -165,9 +165,9 @@ test('the +N menu items for members who cannot be jumped to are aria-disabled wi
     ana,
     bruno,
     clara,
-    memberNamed({ id: 'u9', name: 'Eva', online: true }),
+    memberNamed({ id: 'u9', name: 'Eva', online: true, colorSlot: 2 }),
     dario,
-    memberNamed({ id: 'u8', name: 'Fabio', online: true }),
+    memberNamed({ id: 'u8', name: 'Fabio', online: true, colorSlot: 3 }),
   ];
   renderMembers({ members });
   await userEvent.click(screen.getByRole('button', { name: moreMembersLabel(2) }));

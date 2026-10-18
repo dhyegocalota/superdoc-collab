@@ -27,7 +27,7 @@ const BAND_NAME = 'Budget';
 const PHONE_VIEWPORT = { width: 375, height: 812 };
 const DEBOUNCE_WINDOW_MS = 1_000;
 const CHART_CENTRE_FRACTION = 0.5;
-const SCROLLER_SELECTOR = 'xpath=ancestor::*[contains(@class, "overflow-y-auto")][1]';
+const PANEL_BODY_SELECTOR = 'aside [data-panel-body]';
 const PIXEL_TOLERANCE = 1;
 const VERSION_PATH_PATTERN = /\/versions\/\d+$/;
 const SELECTED_HEADER_SELECTOR = 'aside [aria-live="polite"]';
@@ -85,7 +85,7 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
 
   await clickChart({ page: ana.page, widthFraction: CHART_CENTRE_FRACTION });
   await expect(header).toContainText(CHARACTER_COUNT_PATTERN);
-  const scroller = header.locator(SCROLLER_SELECTOR);
+  const scroller = ana.page.locator(PANEL_BODY_SELECTOR);
   expect(await scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
   await expect
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))

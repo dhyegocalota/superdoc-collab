@@ -253,7 +253,10 @@ export function TimelinePanel({
             </div>
           )}
           {isOpen && isBottom && (
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 pb-4 md:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:overflow-hidden">
+            <div
+              data-panel-body
+              className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 pb-4 md:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:overflow-hidden"
+            >
               <div
                 data-column={PanelColumn.Chart}
                 className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"

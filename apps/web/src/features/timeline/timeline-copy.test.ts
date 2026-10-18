@@ -12,7 +12,6 @@ import {
   SHOWING_WHOLE_DOCUMENT_MESSAGE,
   topicCountLabel,
   VIEW_VERSION_LABEL,
-  viewVersionPrompt,
 } from './timeline-copy';
 import { PanelPosition } from './use-panel-position';
 
@@ -47,10 +46,9 @@ test('an imported author names the DOCX and each panel position has a label', ()
   expect(Object.values(PanelPosition).map((position) => PANEL_POSITION_LABELS[position])).toEqual(['Bottom', 'Side']);
 });
 
-test('the selected header copy reads the whole document, counts edits and prompts for a version', () => {
+test('the selected header copy reads the whole document, counts edits and names the version button', () => {
   expect(SHOWING_WHOLE_DOCUMENT_MESSAGE).toBe('Showing the whole document');
   expect(CLEAR_SELECTION_LABEL).toBe('Clear selection');
   expect(VIEW_VERSION_LABEL).toBe('View version');
   expect([0, 1, 12].map(selectedEditCount)).toEqual(['0 edits', '1 edit', '12 edits']);
-  expect(viewVersionPrompt('14:05')).toBe('View version from 14:05?');
 });

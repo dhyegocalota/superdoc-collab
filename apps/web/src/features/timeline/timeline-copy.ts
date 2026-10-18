@@ -14,9 +14,9 @@ export const NO_EDITS_IN_BIN_MESSAGE = 'No edits in this period';
 export const STREAMGRAPH_TITLE = 'Edits over time by topic';
 export const BACK_TO_LIVE_LABEL = 'Back to live';
 export const LOADING_VERSION_MESSAGE = 'Loading this version…';
-export const SHOWING_WHOLE_DOCUMENT_MESSAGE = '';
-export const CLEAR_SELECTION_LABEL = '';
-export const VIEW_VERSION_LABEL = '';
+export const SHOWING_WHOLE_DOCUMENT_MESSAGE = 'Showing the whole document';
+export const CLEAR_SELECTION_LABEL = 'Clear selection';
+export const VIEW_VERSION_LABEL = 'View version';
 export const VERSION_FRAME_TITLE = 'Document version';
 export const RESIZE_PANEL_LABEL = 'Resize edits panel';
 export const PANEL_POSITION_LABEL = 'Panel position';
@@ -118,9 +118,5 @@ export function importedAuthorLabel(name: string): string {
 }
 
 export function selectedEditCount(count: number): string {
-  throw new Error('selectedEditCount is not implemented');
-}
-
-export function viewVersionPrompt(time: string): string {
-  throw new Error('viewVersionPrompt is not implemented');
+  return countLabel({ count, unit: EditUnit.Edit });
 }

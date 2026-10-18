@@ -67,7 +67,15 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
   return { '--topic-hue': String(band.hue), '--topic-saturation': `${saturation}%` } as CSSProperties;
 }
 
-export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
+export function Streamgraph({
+  timeline,
+  width,
+  selectedIndex,
+  highlightedBandId,
+  isLoadingVersion,
+  onSelectIndex,
+  onClearSelection,
+}: StreamgraphProps) {
   const { timeZone } = timeline;
   const titleId = useId();
   const descriptionId = useId();
@@ -94,6 +102,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   function handlePointerDown(event: PointerEvent<SVGSVGElement>): void {
     isPointerFocus.current = true;
     setHasKeyboardFocus(false);
+    if (isLoadingVersion) return;
     onSelectIndex(layout.binAt(offsetOf(event)));
   }
 
@@ -109,7 +118,8 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
     const index = layout.binAt(offsetOf(event));
     setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top });
-    if (event.buttons === PRIMARY_BUTTON_PRESSED) onSelectIndex(index);
+    const isScrubbing = event.buttons === PRIMARY_BUTTON_PRESSED && !isLoadingVersion;
+    if (isScrubbing) onSelectIndex(index);
   }
 
   function handleFocus(): void {
@@ -184,6 +194,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
         height={CHART_HEIGHT}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        aria-busy={isLoadingVersion}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endPointerPress}

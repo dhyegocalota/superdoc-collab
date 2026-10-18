@@ -17,6 +17,7 @@ export class OpenBudget {
 
   record({ userId, documentId }: { userId: string; documentId: string }): void {
     if (this.isCounted({ userId, documentId })) return;
+    this.counted.keys().forEach((key) => this.counted.remainingMs(key));
     this.documents.record(userId);
     this.counted.start(`${userId}:${documentId}`);
   }

@@ -67,9 +67,8 @@ export function SuperDocEditor({
     let isReady = false;
     function reportTransport(report: TransportReport): void {
       isReady = isReady || report.hasSynced;
-      const isInterruptedBeforeReady = !isReady && report.reading !== null && report.reading !== TransportReading.Clear;
-      if (isInterruptedBeforeReady) return setHasFailed(true);
-      onTransportReport(report);
+      if (isReady) return onTransportReport(report);
+      if (report.reading === TransportReading.Failed) setHasFailed(true);
     }
     const exceptionHandlers: Record<ExceptionOutcome, (payload: SuperDocExceptionPayload) => void> = {
       [ExceptionOutcome.Logged]: (payload) => {
@@ -77,13 +76,8 @@ export function SuperDocEditor({
         console.warn(payload.message);
       },
       [ExceptionOutcome.Recoverable]: () => setHasRejectedEdit(true),
-      [ExceptionOutcome.ConnectionFailed]: (payload) => {
-        const failureReason = failureReasonOf(payload);
-        const report: TransportReport = { reading: TransportReading.Failed, failureReason, hasSynced: false };
-        const isRefusedUpgrade = failureReason === ConnectionFailureReason.ConnectionFailed;
-        if (isRefusedUpgrade) return reportTransport(report);
-        onTransportReport(report);
-      },
+      [ExceptionOutcome.ConnectionFailed]: (payload) =>
+        reportTransport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
       [ExceptionOutcome.Fatal]: () => setHasFailed(true),
     };
     const superdoc = new SuperDoc({

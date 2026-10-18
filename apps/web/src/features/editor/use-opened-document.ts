@@ -1,5 +1,5 @@
 import { DOCUMENT_READY_GIVE_UP_MS, DOCUMENT_READY_POLL_MS, type OpenedDocument } from '@superdoc-collab/types';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
 import { DocumentNotReadyError, openDocument, openedDocumentQueryKey } from './editor-api';
@@ -28,6 +28,7 @@ function readinessOf({ data, error, errorCount, resumedAt }: ReadinessInput): Do
 }
 
 function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string; shouldPoll: boolean }) {
+  const queryClient = useQueryClient();
   const [resume, setResume] = useState({ documentId, errorCount: 0 });
   const resumedAt = resume.documentId === documentId ? resume.errorCount : 0;
   const query = useQuery({
@@ -52,6 +53,11 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
     void query.refetch();
   }
 
+  function restartWaiting(): void {
+    queryClient.removeQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true });
+    setResume({ documentId, errorCount: 0 });
+  }
+
   function retry(): void {
     void query.refetch();
   }
@@ -62,6 +68,7 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
     isFetchedAfterMount: query.isFetchedAfterMount,
     readiness,
     keepWaiting,
+    restartWaiting,
     retry,
   };
 }

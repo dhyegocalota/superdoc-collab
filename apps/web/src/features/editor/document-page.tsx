@@ -44,7 +44,7 @@ const FAILED_EDITOR_AREA_CLASS = 'opacity-60';
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
-  const { data: opened, readiness, keepWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
+  const { data: opened, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
@@ -131,7 +131,7 @@ export function DocumentPage() {
       setEditorGeneration((generation) => generation + 1);
     } catch (error) {
       if (!(error instanceof DocumentNotReadyError)) return setHasReloadFailed(true);
-      queryClient.removeQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true });
+      restartWaiting();
       resetConnection();
       setEditorGeneration((generation) => generation + 1);
     } finally {

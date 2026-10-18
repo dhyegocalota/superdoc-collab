@@ -1,6 +1,8 @@
 import {
   SELECTION_SUMMARY_FAILED_MESSAGE,
   selectionSummaryApiPath,
+  SummarizeOutcome,
+  type SummarizeResponse,
   TimelineQueryParam,
   type SelectionSummaryView,
 } from '../libs/types/src';
@@ -27,6 +29,7 @@ import {
   twoAuthorsInTwoTopics,
   waitForBands,
   waitForSettledTimeline,
+  waitForSummarizeResponse,
 } from './timeline';
 
 const SUMMARY_TIMEOUT_MS = 30_000;
@@ -57,12 +60,12 @@ test('another member with the same filter reads the cached summary without a mod
   await expect(summaryCard(ana.page)).toContainText(`${BRUNO} edited`, { timeout: SUMMARY_TIMEOUT_MS });
   await expect(summaryCard(ana.page)).not.toContainText(TOPICS_GROUPED_LABEL);
   const sentence = await summaryCard(ana.page).locator('p').first().innerText();
-  const callsAfterSummary = await readSelectionCalls(ana.page.request);
   await bruno.page.goto(ana.page.url());
   await expect(summaryCard(bruno.page)).toContainText(sentence, { timeout: SUMMARY_TIMEOUT_MS });
+  const summarizeResponse = waitForSummarizeResponse({ page: bruno.page, documentId });
   await summarizeButton(bruno.page).click();
+  expect(((await (await summarizeResponse).json()) as SummarizeResponse).outcome).toBe(SummarizeOutcome.UpToDate);
   await expect(summaryCard(bruno.page)).toContainText(SUMMARY_UP_TO_DATE_MESSAGE);
-  expect(await readSelectionCalls(bruno.page.request)).toBe(callsAfterSummary);
 });
 
 test('an edit outside the filter marks the summary as for an earlier state and enables Summarize', async ({ browser }) => {

@@ -24,6 +24,7 @@ paths:
 - The theme applies before the first render: an inline script in `index.html` reads `superdoc-collab.theme` and adds `dark` to `html` before the bundle runs, and `useTheme()` listens to the `storage` event so another tab follows. The script cannot import, so a test pins its key to `THEME_STORAGE_KEY`. (apps/web/index.html, apps/web/src/lib/use-theme.ts, apps/web/src/lib/theme-script.test.ts)
 - The version frame is same-origin: it runs the same inline script and receives the same `storage` event, so it follows the theme with no message. (apps/web/src/features/versions/version-view-page.tsx)
 - The panel position lives under `superdoc-collab.edits-panel` as a `PanelPosition`. Below `LARGE_BREAKPOINT_PX` it is always `Bottom`; with no stored value it follows `WIDE_BREAKPOINT_PX` live; a stored value that is not a `PanelPosition` is removed. (apps/web/src/features/timeline/use-panel-position.ts, apps/web/src/lib/breakpoints.ts)
+- SuperDoc's local caret is an overlay `div` painted with `currentColor`, so `caret-color` does nothing; colour it through `[data-v2-local-selection-caret='true']`. (apps/web/src/styles/globals.css, docs/features/dark-theme/spec.md)
 
 ## Copy
 - Every string lives in a `*-copy.ts` file or `libs/types`, never inline in JSX. (apps/web/src/lib/app-copy.ts, features/*/…-copy.ts)

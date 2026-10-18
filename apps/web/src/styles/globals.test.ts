@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
 
@@ -23,10 +24,47 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
   '--sd-comment-bg-active': 'var(--popover)',
   '--sd-comment-bg-resolved': 'var(--muted)',
   '--sd-comment-separator': 'var(--border)',
+  '--sd-ui-active-bg': 'var(--active)',
+  '--sd-ui-dropdown-active-bg': 'var(--active)',
+  '--sd-ui-menu-item-active-bg': 'var(--active)',
+  '--sd-ui-toolbar-button-active-bg': 'var(--active)',
+  '--sd-ui-dropdown-hover-bg': 'var(--accent)',
+  '--sd-ui-menu-item-hover-bg': 'var(--accent)',
+  '--sd-ui-toolbar-button-hover-bg': 'var(--accent)',
+  '--sd-ui-comments-option-hover-bg': 'var(--accent)',
+  '--sd-ui-dropdown-bg': 'var(--popover)',
+  '--sd-ui-menu-bg': 'var(--popover)',
+  '--sd-ui-surface-bg': 'var(--popover)',
+  '--sd-ui-tooltip-bg': 'var(--popover)',
+  '--sd-ui-tools-item-bg': 'var(--popover)',
+  '--sd-ui-dropdown-border': 'var(--border)',
+  '--sd-ui-menu-border': 'var(--border)',
+  '--sd-ui-comments-separator': 'var(--border)',
+  '--sd-ui-comments-input-border': 'var(--border)',
+  '--sd-ui-menu-header-bg': 'var(--muted)',
+  '--sd-ui-menu-text-muted': 'var(--muted-foreground)',
+  '--sd-ui-text-disabled': 'var(--muted-foreground)',
+  '--sd-ui-comments-timestamp-text': 'var(--muted-foreground)',
+  '--sd-ui-toolbar-button-text': 'var(--foreground)',
+  '--sd-ui-tooltip-text': 'var(--popover-foreground)',
+  '--sd-ui-action-text': 'var(--primary-foreground)',
+  '--sd-ui-comments-input-bg': 'var(--card)',
+  '--sd-ui-comments-tag-bg': 'var(--muted)',
+  '--sd-ui-disabled-bg': 'var(--muted)',
+  '--sd-ui-dropdown-shadow': 'var(--shadow-popover)',
+  '--sd-ui-menu-shadow': 'var(--shadow-popover)',
+  '--sd-ui-tooltip-shadow': 'var(--shadow-popover)',
+  '--sd-ui-surface-shadow': 'var(--shadow-popover)',
+  '--sd-ui-comments-card-shadow': 'var(--shadow-popover)',
+  '--sd-ui-comments-dropdown-shadow': 'var(--shadow-popover)',
 };
+const SHADOW_BY_THEME = { light: '0 8px 24px oklch(0 0 0 / 0.16)', dark: '0 4px 16px oklch(0 0 0 / 0.35)' };
+const PAPER_FOREGROUND = 'oklch(0.145 0 0)';
+const ACTIVE_BY_THEME = { light: 'oklch(0.86 0 0)', dark: 'oklch(0.37 0 0)' };
+const CARET_SELECTOR = "[data-v2-local-selection-caret='true']";
 
 function blockOf(selector: string): string {
-  const start = css.search(new RegExp(`^\\s*${selector.replace(/[.]/g, '\\.')} \\{`, 'm'));
+  const start = css.search(new RegExp(`^\\s*${selector.replace(/[.[\]]/g, '\\$&')} \\{`, 'm'));
   if (start < 0) throw new Error(`globals.css has no ${selector} block`);
   return css.slice(start, css.indexOf('\n}', start));
 }
@@ -129,4 +167,65 @@ test('the dark comment highlight is translucent and keeps black page text at AA 
   expect(mapped).toEqual(DARK_COMMENT_HIGHLIGHT_VARIABLES.map(() => DARK_COMMENT_HIGHLIGHT));
   const contrast = (luminanceOverWhite(DARK_COMMENT_HIGHLIGHT) + LUMINANCE_OFFSET) / (PAGE_TEXT_LUMINANCE + LUMINANCE_OFFSET);
   expect(contrast).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+});
+
+function grayLightness(value: string): number {
+  return Number(/oklch\(([\d.]+) 0 0\)/.exec(value)![1]);
+}
+
+function grayContrast({ first, second }: { first: string; second: string }): number {
+  const [lighter, darker] = [grayLightness(first) ** 3, grayLightness(second) ** 3].sort(
+    (leftLuminance, rightLuminance) => rightLuminance - leftLuminance,
+  );
+  return (lighter! + LUMINANCE_OFFSET) / (darker! + LUMINANCE_OFFSET);
+}
+
+test('--paper-foreground is oklch(0.145 0 0) in :root and .dark', () => {
+  expect(declarationOf({ block: rootBlock, name: '--paper-foreground' })).toBe(PAPER_FOREGROUND);
+  expect(declarationOf({ block: darkBlock, name: '--paper-foreground' })).toBe(PAPER_FOREGROUND);
+});
+
+test('--active is oklch(0.86 0 0) in light and oklch(0.37 0 0) in dark', () => {
+  expect(declarationOf({ block: rootBlock, name: '--active' })).toBe(ACTIVE_BY_THEME.light);
+  expect(declarationOf({ block: darkBlock, name: '--active' })).toBe(ACTIVE_BY_THEME.dark);
+});
+
+test('--shadow-popover is defined in :root and softer in .dark', () => {
+  expect(declarationOf({ block: rootBlock, name: '--shadow-popover' })).toBe(SHADOW_BY_THEME.light);
+  expect(declarationOf({ block: darkBlock, name: '--shadow-popover' })).toBe(SHADOW_BY_THEME.dark);
+});
+
+test('Tailwind gets bg-active and text-paper-foreground colours', () => {
+  expect(declarationOf({ block: themeBlock, name: '--color-active' })).toBe('var(--active)');
+  expect(declarationOf({ block: themeBlock, name: '--color-paper-foreground' })).toBe('var(--paper-foreground)');
+});
+
+test('.dark sets color-scheme dark', () => {
+  expect(declarationOf({ block: darkBlock, name: 'color-scheme' })).toBe('dark');
+});
+
+test('the caret takes the paper foreground so it reads on the white paper in both themes', () => {
+  expect(declarationOf({ block: blockOf(CARET_SELECTOR), name: 'color' })).toBe('var(--paper-foreground)');
+});
+
+test('--foreground on --active reaches AA in both themes', () => {
+  const lightForeground = declarationOf({ block: rootBlock, name: '--foreground' })!;
+  const darkForeground = declarationOf({ block: darkBlock, name: '--foreground' })!;
+  expect(grayContrast({ first: lightForeground, second: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  expect(grayContrast({ first: darkForeground, second: ACTIVE_BY_THEME.dark })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+});
+
+const MINIMUM_ACTIVE_CONTRAST = 1.5;
+
+test('--active stays distinguishable from --background in both themes', () => {
+  const lightBackground = declarationOf({ block: rootBlock, name: '--background' })!;
+  const darkBackground = declarationOf({ block: darkBlock, name: '--background' })!;
+  expect(grayContrast({ first: lightBackground, second: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+  expect(grayContrast({ first: ACTIVE_BY_THEME.dark, second: darkBackground })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+});
+
+test('every mapped SuperDoc variable is declared or consumed in the installed SuperDoc stylesheet', () => {
+  const superdocStylesheet = readFileSync(createRequire(import.meta.url).resolve('superdoc/style.css'), 'utf8');
+  const undeclared = Object.keys(SUPERDOC_VARIABLES).filter((name) => !new RegExp(`${name}[:,)]`).test(superdocStylesheet));
+  expect(undeclared).toEqual([]);
 });

@@ -1,9 +1,11 @@
+import type { Ref } from 'react';
 import { Button } from '@/components/ui/button';
 import { CLEAR_SELECTION_LABEL, selectedEditCount, SHOWING_WHOLE_DOCUMENT_MESSAGE, VIEW_VERSION_LABEL } from './timeline-copy';
 
 export type SelectedHeaderSelection = { rangeLabel: string; editCount: number };
 
 type SelectedHeaderProps = {
+  ref: Ref<HTMLDivElement>;
   selection: SelectedHeaderSelection | null;
   hasVersion: boolean;
   isPhoneLayout: boolean;
@@ -11,10 +13,11 @@ type SelectedHeaderProps = {
   onViewVersion: () => void;
 };
 
-export function SelectedHeader({ selection, hasVersion, isPhoneLayout, onClear, onViewVersion }: SelectedHeaderProps) {
+export function SelectedHeader({ ref, selection, hasVersion, isPhoneLayout, onClear, onViewVersion }: SelectedHeaderProps) {
   const canViewVersion = selection !== null && hasVersion && isPhoneLayout;
   return (
     <div
+      ref={ref}
       aria-live="polite"
       className="sticky top-0 z-10 flex items-center justify-between gap-2 rounded-md border bg-muted px-3 py-1 text-sm"
     >

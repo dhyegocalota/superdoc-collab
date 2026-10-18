@@ -15,6 +15,7 @@ function renderHeader({
 }: Partial<Parameters<typeof SelectedHeader>[0]> = {}) {
   render(
     <SelectedHeader
+      ref={null}
       selection={selection}
       hasVersion={hasVersion}
       isPhoneLayout={isPhoneLayout}

@@ -1,10 +1,15 @@
-import { DocumentRole, type EditSelection } from '@superdoc-collab/types';
+import { DocumentRole, type DocumentTimeline, type EditSelection, type TimelineBin } from '@superdoc-collab/types';
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
-import { useEffect, type CSSProperties } from 'react';
+import { cellVolume } from '@superdoc-collab/history/timeline';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
+import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { formatBinRange } from '@/lib/format-date-time';
 import { useElementWidth } from '@/lib/use-element-width';
+import { useMinWidth } from '@/lib/use-min-width';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
@@ -12,10 +17,12 @@ import { FilterBox } from './filter-box';
 import { PanelPositionToggle } from './panel-position-toggle';
 import { ResizeHandle } from './resize-handle';
 import { timelineStamp } from './selection-summary';
+import { SelectedHeader, type SelectedHeaderSelection } from './selected-header';
 import { SelectionSummaryCard } from './selection-summary-card';
 import { Streamgraph } from './streamgraph';
+import { CHART_HEIGHT } from './streamgraph-layout';
 import { TimelineCollapsedBar } from './timeline-collapsed-bar';
-import { TIMELINE_HEADING } from './timeline-copy';
+import { LOADING_TIMELINE_MESSAGE, TIMELINE_HEADING } from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useBinSelection } from './use-bin-selection';
@@ -24,6 +31,7 @@ import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, useAreaHeight, useIsCompact, usePane
 import type { SummarizeControl } from './use-summarize';
 import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
+import { useRevealSelected } from './use-reveal-selected';
 import { useTimeline } from './use-timeline';
 import { useTimelineSearch } from './use-timeline-search';
 
@@ -80,6 +88,13 @@ function PanelHeader({ position, isOpen, onOpenChange }: Pick<TimelinePanelProps
   );
 }
 
+function selectionOf({ timeline, bin }: { timeline: DocumentTimeline; bin: TimelineBin }): SelectedHeaderSelection {
+  return {
+    rangeLabel: formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone: timeline.timeZone }),
+    editCount: Object.values(bin.byBand).reduce((total, cell) => total + cellVolume(cell), 0),
+  };
+}
+
 export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange, summarize, onTravel, onBackToLive }: TimelinePanelProps) {
   const isBottom = position === PanelPosition.Bottom;
   const { ref: chartRef, width: chartWidth } = useElementWidth();
@@ -88,8 +103,11 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   const isCompact = useIsCompact();
   const bottomSize = usePanelHeight({ areaHeight, isCompact });
   const { search } = useTimelineSearch();
-  const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
+  const { data: timeline, isPending: isTimelinePending } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
   const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({ timeline, at: search.at, onTravel, onBackToLive });
+  const headerRef = useRef<HTMLDivElement>(null);
+  useRevealSelected({ targetRef: headerRef, selectedIndex });
+  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
   const { data: summaries } = useSummaries({ documentId, isOpen });
   const canEdit = role !== DocumentRole.Reader;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
@@ -143,6 +161,9 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   );
   const chart = (
     <div ref={chartRef} className="shrink-0 overflow-visible">
+      {isTimelinePending && (
+        <Skeleton role="status" aria-label={LOADING_TIMELINE_MESSAGE} className="w-full" style={{ height: CHART_HEIGHT }} />
+      )}
       {timeline && chartWidth > 0 && (
         <Streamgraph
           timeline={timeline}
@@ -154,6 +175,16 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
         />
       )}
     </div>
+  );
+  const header = isPhoneLayout && (
+    <SelectedHeader
+      ref={headerRef}
+      selection={timeline && selectedBin ? selectionOf({ timeline, bin: selectedBin }) : null}
+      hasVersion={false}
+      isPhoneLayout={isPhoneLayout}
+      onClear={clearSelection}
+      onViewVersion={() => undefined}
+    />
   );
   const filter = (
     <div className="w-full md:ml-auto md:w-72">
@@ -193,12 +224,19 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
             </div>
           )}
           {isOpen && isBottom && (
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto px-4 pb-4 md:grid-cols-[minmax(0,1fr)_380px] md:overflow-hidden">
-              <div data-column={PanelColumn.Chart} className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 pb-4 md:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:overflow-hidden">
+              <div
+                data-column={PanelColumn.Chart}
+                className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"
+              >
                 {chart}
+                {header}
                 {filter}
               </div>
-              <div data-column={PanelColumn.List} className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto">
+              <div
+                data-column={PanelColumn.List}
+                className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"
+              >
                 {notices}
                 {card}
                 {edits}

@@ -72,24 +72,23 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
     setIsFailed(onJump(member) === JumpOutcome.NotFound);
   }
 
+  const description = reason === null ? goToCursorLabel(name) : reason;
+
   function tooltipText(): string {
     if (isFailed) return cursorNotFoundMessage(name);
-    if (reason !== null) return reason;
-    return goToCursorLabel(name);
+    return description;
   }
 
   return (
     <Tooltip open={isOpen || isFailed} onOpenChange={setIsOpen}>
-      {reason !== null && (
-        <span id={reasonId} className="sr-only">
-          {reason}
-        </span>
-      )}
+      <span id={reasonId} className="sr-only">
+        {description}
+      </span>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={reason === null ? goToCursorLabel(name) : memberLabel({ name, isOnline })}
-          aria-describedby={reason === null ? undefined : reasonId}
+          aria-label={memberLabel({ name, isOnline })}
+          aria-describedby={reasonId}
           aria-disabled={reason !== null}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={jump}

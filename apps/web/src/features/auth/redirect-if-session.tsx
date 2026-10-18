@@ -16,6 +16,7 @@ export function RedirectIfSession({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isSigningOut) return;
+    queryClient.removeQueries({ type: 'inactive' });
     queryClient.setQueryData(SESSION_QUERY_KEY, null);
     navigate(location.pathname + location.search, { replace: true, state: null });
   }, [isSigningOut, queryClient, navigate, location.pathname, location.search]);

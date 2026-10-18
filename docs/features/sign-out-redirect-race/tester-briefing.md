@@ -23,8 +23,9 @@ pnpm typecheck
 
 1. Hypothesis: no `?next=` appears in the URL or the history while signing out. Break it by: signing out from a document page and from the documents list, then pressing Back.
 2. Hypothesis: the old user never shows after sign-out. Break it by: watching the account menu during the transition.
-3. Hypothesis: sign-out still fails closed. Break it by: blocking the sign-out request.
+3. Hypothesis: a failed sign-out request does not sign the reader out of the UI. A network error (request aborted): nothing changes. An HTTP error (answer the sign-out request with a 500): the hook carries on, and the reader lands back on the documents list, still signed in. Break it by: aborting, then failing, the sign-out request.
 
 ## Known gaps
 
 - The race itself depends on timing; the unit test pins the order, not the URL.
+- The sign-out result is not checked: an HTTP error is handled only by the session refetch (the reader returns to documents, still signed in). Checking the returned error or setting the client to throw is an option not taken.

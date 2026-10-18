@@ -14,7 +14,7 @@
 ## Goals
 
 - Signing out navigates to the bare sign-in route (replace, with the signed-out marker) before the cached session is cleared and invalidated, so `RequireSession` is gone when the cache flips and no `next` redirect can start.
-- Sign-out still fails closed: the auth client signs out first, and a failure there changes nothing.
+- Sign-out calls the auth client first. What a failure does depends on its kind; see Failure handling.
 
 ## Non-goals
 
@@ -34,7 +34,8 @@ None; `useSignOut()` keeps its signature.
 
 ### Failure handling
 
-- The auth client rejects: nothing else runs, the user stays on the page with the cached session.
+- The auth client throws (a network error): nothing else runs, the reader stays on the page with the cached session.
+- The auth client resolves with an error object (an HTTP error such as a 5xx; it throws only on a network error): the hook carries on, navigates to sign-in and the invalidation refetches a session that is still valid, so `RedirectIfSession` sends the reader back to the documents list, still signed in. On main the sign-in form stayed up while the reader was still signed in; this is better, not worse.
 - The invalidation fails after the navigation: the user is already on sign-in and the cached session is `null`.
 
 ## Open questions → answers
@@ -42,6 +43,7 @@ None; `useSignOut()` keeps its signature.
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
 | Navigate first, or mark the sign-out in `RequireSession`? | reorder in the hook; a flag read by `RequireSession` | reorder: the smaller change, no new state | 2026-10-18 |
+| Check the sign-out result? | check the returned error; set the client to throw; leave as is | not taken: out of scope for the race, and the HTTP-error outcome above is acceptable. Option for a later lane. | 2026-10-18 |
 
 ## Test strategy summary
 

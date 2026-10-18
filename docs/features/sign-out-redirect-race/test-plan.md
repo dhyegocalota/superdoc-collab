@@ -29,7 +29,7 @@ Empty on purpose. The tester adds one checkbox per new case (input, exact expect
 ## Adversarial review
 
 - [ ] Claim 1: no history entry carries `next` during sign-out — attack: inspect `history.length` and every entry after sign-out; result:
-- [ ] Claim 2: sign-out still fails closed — attack: make the sign-out request fail; result:
+- [ ] Claim 2: a failed sign-out never leaves the reader on a sign-in form while signed in — attack: abort, then answer 500 to the sign-out request; result:
 
 ## Coverage honesty
 

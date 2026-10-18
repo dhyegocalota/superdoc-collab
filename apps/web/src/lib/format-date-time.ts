@@ -80,3 +80,7 @@ export function formatTimeZoneOffset({ time, timeZone }: { time: number; timeZon
   if (offset === '') return `${UTC_TIME_ZONE}${ZERO_OFFSET}`;
   return `${UTC_TIME_ZONE}${offset}`;
 }
+
+export function formatIdleDuration(_: { durationMs: number }): string {
+  throw new Error('formatIdleDuration is not implemented');
+}

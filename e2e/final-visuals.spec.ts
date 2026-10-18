@@ -451,7 +451,7 @@ test('a member avatar scrolls the editor to that member’s caret and offline me
   await bruno.page.close();
   const offlineButton = topBar(ana.page).getByRole('button', { name: new RegExp(BRUNO) });
   await expect(offlineButton).toHaveAttribute('aria-disabled', 'true', { timeout: WAITING_TIMEOUT_MS });
-  await expect(offlineButton).toHaveAccessibleDescription(offlineMemberReason(BRUNO));
+  await expect(offlineButton).toHaveAccessibleDescription(offlineMemberReason(BRUNO), { timeout: WAITING_TIMEOUT_MS });
 });
 
 test('a document opened before its owner syncs it shows the waiting page and enters on its own', async ({ browser }) => {

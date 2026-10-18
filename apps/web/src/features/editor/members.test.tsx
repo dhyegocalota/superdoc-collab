@@ -24,7 +24,7 @@ const superdoc = {} as SuperDoc;
 const scrollIntoView = vi.fn();
 
 function memberNamed({ id, name, online }: { id: string; name: string; online: boolean }): DocumentMember {
-  return { user: { id, name }, role: DocumentRole.Editor, online };
+  return { user: { id, name }, role: DocumentRole.Editor, online, colorSlot: authorColorSlot(id) };
 }
 
 const ana = memberNamed({ id: CURRENT_USER_ID, name: 'Ana', online: true });

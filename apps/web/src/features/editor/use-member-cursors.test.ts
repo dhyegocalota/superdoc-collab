@@ -13,8 +13,18 @@ const GLOW_MS = 1200;
 const GLOW_COLOR_PROPERTY = '--member-glow-color';
 const FORGED_COLOR = '#000000';
 const superdoc = {} as SuperDoc;
-const bruno: DocumentMember = { user: { id: 'u2', name: 'Bruno' }, role: DocumentRole.Editor, online: true };
-const clara: DocumentMember = { user: { id: 'u3', name: 'Clara' }, role: DocumentRole.Editor, online: true };
+const bruno: DocumentMember = {
+  user: { id: 'u2', name: 'Bruno' },
+  role: DocumentRole.Editor,
+  online: true,
+  colorSlot: authorColorSlot('u2'),
+};
+const clara: DocumentMember = {
+  user: { id: 'u3', name: 'Clara' },
+  role: DocumentRole.Editor,
+  online: true,
+  colorSlot: authorColorSlot('u3'),
+};
 
 function colorOf(member: DocumentMember): string {
   return AUTHOR_PALETTE[authorColorSlot(member.user.id) - 1]!;

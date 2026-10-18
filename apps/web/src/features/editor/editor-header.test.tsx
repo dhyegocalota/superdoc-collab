@@ -47,7 +47,7 @@ vi.mock('./members', async (importOriginal) => {
 });
 
 const RENAMED_TITLE = 'Renamed';
-const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true };
+const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true, colorSlot: 1 };
 const onDownloadDocx = vi.fn();
 
 function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
@@ -270,9 +270,9 @@ test('closing the delete dialog returns the focus to More actions', async () => 
 
 test('members announce their presence and the current user is online at once', () => {
   const members: DocumentMember[] = [
-    { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false },
-    { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false },
-    { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true },
+    { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false, colorSlot: 1 },
+    { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false, colorSlot: 2 },
+    { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true, colorSlot: 3 },
   ];
   renderHeader({ role: DocumentRole.Owner, members });
   expect(screen.getByRole('button', { name: memberLabel({ name: 'Ada', isOnline: true }) })).toBeInTheDocument();

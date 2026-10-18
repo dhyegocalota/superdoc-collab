@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-collab/types';
+import { MINUTE_MS, type DocumentTimeline } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { idleBreaksOf } from './idle-breaks';
@@ -64,4 +64,24 @@ test('a bin is empty when every band has zero volume in it', () => {
     names: ['Budget', 'Hiring'],
   });
   expect(idleBreaksOf({ timeline: oneBandActive, thresholdMs: THRESHOLD_MS })).toEqual([]);
+});
+
+const VERSION_SEQUENCE = 7;
+
+function withVersionSequences({ timeline, sequences }: { timeline: DocumentTimeline; sequences: (number | null)[] }): DocumentTimeline {
+  return { ...timeline, bins: timeline.bins.map((bin, index) => ({ ...bin, versionSequence: sequences[index]! })) };
+}
+
+test('an empty bin that carries a new version ends the run before it', () => {
+  const run = THRESHOLD_BINS + 1;
+  const timeline = timelineOf([EDITED], emptyBins(run), [EDITED]);
+  const sequences = timeline.bins.map((_, index) => (index > run / 2 ? VERSION_SEQUENCE : null));
+  expect(idleBreaksOf({ timeline: withVersionSequences({ timeline, sequences }), thresholdMs: THRESHOLD_MS })).toEqual([]);
+});
+
+test('empty bins that repeat the previous version stay one run', () => {
+  const run = THRESHOLD_BINS + 1;
+  const timeline = timelineOf([EDITED], emptyBins(run), [EDITED]);
+  const sequences = timeline.bins.map(() => VERSION_SEQUENCE);
+  expect(idleBreaksOf({ timeline: withVersionSequences({ timeline, sequences }), thresholdMs: THRESHOLD_MS })).toHaveLength(1);
 });

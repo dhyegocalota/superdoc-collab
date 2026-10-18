@@ -4,7 +4,6 @@ import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, versionAtLabel } from '@/f
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
 import { formatVersionMoment } from '@/lib/format-date-time';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
-import { useTimeZone } from '@/lib/use-time-zone';
 
 function loadingMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }): string {
   if (timeTravel.requestedBinEnd === null) return LOADING_VERSION_MESSAGE;
@@ -17,8 +16,7 @@ function bannerMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZ
   return versionAtLabel(formatVersionMoment({ time: timeTravel.shownVersion.serverTime, timeZone }));
 }
 
-export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
-  const { timeZone } = useTimeZone();
+export function VersionBanner({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }) {
   const isPhoneLayout = useIsPhoneLayout();
   if (timeTravel.state === VersionViewerState.Live) return null;
   const message = bannerMessage({ timeTravel, timeZone });

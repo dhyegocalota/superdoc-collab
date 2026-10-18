@@ -15,6 +15,7 @@ import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
@@ -75,6 +76,7 @@ export function DocumentPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
+  const { timeZone } = useTimeZone();
   const summarize = useSummarize({ documentId });
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
@@ -150,7 +152,7 @@ export function DocumentPage() {
   const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
   const versionBar = (
     <>
-      <VersionBanner timeTravel={timeTravel} />
+      <VersionBanner timeTravel={timeTravel} timeZone={timeZone} />
       {isLoadingRequestedVersion && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
     </>
   );

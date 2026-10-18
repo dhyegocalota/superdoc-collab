@@ -56,6 +56,11 @@ test('View version is disabled while a version loads', () => {
   expect(screen.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeDisabled();
 });
 
+test('the header root carries the selected header marker', () => {
+  renderHeader();
+  expect(screen.getByText(SELECTION.rangeLabel).closest('[aria-live]')).toHaveAttribute('data-selected-header');
+});
+
 test('the header announces changes politely', () => {
   renderHeader();
   expect(screen.getByText(SELECTION.rangeLabel).closest('[aria-live]')).toHaveAttribute('aria-live', 'polite');

@@ -923,3 +923,39 @@ test('with the timeline mounted the members are requested once per interval', as
     vi.useRealTimers();
   }
 });
+
+const OVERLAY_HIDDEN_CLASS = '[&_.v2-document-loading-overlay]:hidden';
+
+function stubSuperDocStillLoading(): () => void {
+  const original = SuperDoc.getMockImplementation();
+  if (!original) throw new Error('the SuperDoc stub has no implementation to restore');
+  SuperDoc.mockImplementation(function SuperDocLoadingStub() {
+    return { destroy: superDocDestroy, export: superDocExport };
+  } as unknown as typeof SuperDoc);
+  return () => SuperDoc.mockImplementation(original);
+}
+
+test('a document that is still loading shows the loading line and keeps SuperDoc loading overlay', async () => {
+  const restoreSuperDoc = stubSuperDocStillLoading();
+  mockDocumentApi({ opened: ticketedCreate() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).not.toHaveClass(OVERLAY_HIDDEN_CLASS);
+  restoreSuperDoc();
+});
+
+test('a superseded tab that never finished loading hides the loading line and SuperDoc loading overlay', async () => {
+  const restoreSuperDoc = stubSuperDocStillLoading();
+  let isSuperseded = false;
+  mockDocumentApi({ opened: ticketedCreate(), isAttemptSuperseded: () => isSuperseded });
+  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  isSuperseded = true;
+  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  await screen.findByRole('alert');
+  expect(screen.queryByText(LOADING_DOCUMENT_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).toHaveClass(OVERLAY_HIDDEN_CLASS);
+  restoreSuperDoc();
+});

@@ -71,7 +71,7 @@ export function PrintPage() {
   return (
     <>
       <style>{PRINT_STYLES}</style>
-      <div ref={containerRef} style={{ width: LETTER_PAGE_WIDTH_PX }} />
+      <div ref={containerRef} data-testid="print-page" style={{ width: LETTER_PAGE_WIDTH_PX }} />
     </>
   );
 }

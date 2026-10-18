@@ -1,14 +1,6 @@
 import { ApiPath } from '@superdoc-collab/types';
 import { CopyButton } from './copy-button';
-import {
-  CHATGPT_INSTRUCTION,
-  CONNECT_DESCRIPTION,
-  CONNECT_HEADING,
-  MCP_CLIENT_LABELS,
-  MCP_SNIPPETS,
-  MCP_URL_LABEL,
-  McpClient,
-} from './connected-apps-copy';
+import { CHATGPT_INSTRUCTION, MCP_CLIENT_LABELS, MCP_SNIPPETS, McpClient } from './connected-apps-copy';
 
 const MCP_URL = `${window.location.origin}${ApiPath.Mcp}`;
 
@@ -32,18 +24,5 @@ export function ClientSnippet({ client }: { client: McpClient }) {
       text={MCP_SNIPPETS[client](MCP_URL)}
       instruction={client === McpClient.ChatGpt ? CHATGPT_INSTRUCTION : undefined}
     />
-  );
-}
-
-export function ConnectSnippets() {
-  return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold">{CONNECT_HEADING}</h2>
-      <p className="text-sm text-muted-foreground">{CONNECT_DESCRIPTION}</p>
-      <Snippet label={MCP_URL_LABEL} text={MCP_URL} />
-      {Object.values(McpClient).map((client) => (
-        <ClientSnippet key={client} client={client} />
-      ))}
-    </section>
   );
 }

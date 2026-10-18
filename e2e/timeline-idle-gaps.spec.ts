@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { DEMO_USERS, documentApiPath, DocumentResource, type DocumentTimeline, type TimelineBin } from '../libs/types/src';
+import { cellVolume } from '../libs/history/src/timeline';
 import { IDLE_BREAK_MS } from '../apps/web/src/features/timeline/streamgraph-layout';
 import { NO_EDITS_FOR_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph, uploadSeed } from './editor';
@@ -13,7 +14,7 @@ const SILENCE_MARGIN_BINS = 2;
 const TOOLTIP_Y = 100;
 
 function hasEdits(bin: TimelineBin): boolean {
-  return Object.values(bin.byBand).some((cell) => cell.inserted + cell.deleted > 0);
+  return Object.values(bin.byBand).some((cell) => cellVolume(cell) > 0);
 }
 
 function silentBinsAfter({ timeline, count }: { timeline: DocumentTimeline; count: number }): TimelineBin[] {
@@ -21,14 +22,15 @@ function silentBinsAfter({ timeline, count }: { timeline: DocumentTimeline; coun
   return Array.from({ length: count }, (_, index) => ({
     start: lastEnd + index * timeline.binMs,
     end: lastEnd + (index + 1) * timeline.binMs,
-    versionSequence: null,
+    versionSequence: timeline.bins.at(-1)!.versionSequence,
     byBand: {},
   }));
 }
 
 function withSilence({ timeline, silentBinCount }: { timeline: DocumentTimeline; silentBinCount: number }): DocumentTimeline {
-  const shiftMs = (timeline.bins.length + silentBinCount) * timeline.binMs;
-  const laterBins = timeline.bins.map((bin) => ({ ...bin, start: bin.start + shiftMs, end: bin.end + shiftMs }));
+  const firstEditedIndex = timeline.bins.findIndex(hasEdits);
+  const shiftMs = (timeline.bins.length + silentBinCount - firstEditedIndex) * timeline.binMs;
+  const laterBins = timeline.bins.slice(firstEditedIndex).map((bin) => ({ ...bin, start: bin.start + shiftMs, end: bin.end + shiftMs }));
   return { ...timeline, bins: [...timeline.bins, ...silentBinsAfter({ timeline, count: silentBinCount }), ...laterBins] };
 }
 
@@ -58,7 +60,7 @@ test('a silence of more than five minutes is one break the keyboard crosses in o
   const silentBinCount = Math.ceil(IDLE_BREAK_MS / real.binMs) + SILENCE_MARGIN_BINS;
   const served = withSilence({ timeline: real, silentBinCount });
   const lastEditedBefore = real.bins.findLastIndex(hasEdits);
-  const firstEditedAfter = real.bins.length + silentBinCount + real.bins.findIndex(hasEdits);
+  const firstBinAfterBreak = real.bins.length + silentBinCount;
 
   await serveTimeline({ page: ana.page, documentId, timeline: served });
   await ana.page.reload();
@@ -73,5 +75,5 @@ test('a silence of more than five minutes is one break the keyboard crosses in o
   await pressInChart({ page: ana.page, name: BUDGET, keys: ['Home', ...Array.from({ length: lastEditedBefore }, () => 'ArrowRight')] });
   await expect.poll(() => currentAt(ana.page)).toBe(served.bins[lastEditedBefore]!.start);
   await ana.page.keyboard.press('ArrowRight');
-  await expect.poll(() => currentAt(ana.page)).toBe(served.bins[firstEditedAfter]!.start);
+  await expect.poll(() => currentAt(ana.page)).toBe(served.bins[firstBinAfterBreak]!.start);
 });

@@ -5,6 +5,9 @@ import type { APIResponse, Page, Response } from '@playwright/test';
 import {
   ApiPath,
   COLLABORATION_TOKEN_PLACEHOLDER,
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
+  CREATOR_RESERVATION_MAX_MS,
   DEMO_USERS,
   DOCX_MIME_TYPE,
   HttpMethod,
@@ -20,6 +23,7 @@ import {
   documentApiPath,
   documentPagePath,
   shareLinkAcceptPath,
+  type CreatorTicket,
   type DocumentSummary,
   type OpenedDocument,
 } from '../libs/types/src';
@@ -44,6 +48,8 @@ const COMMIT_TIMEOUT_MS = 60_000;
 const LARGE_COMMIT_TIMEOUT_MS = 120_000;
 const LARGE_TEST_TIMEOUT_MS = 240_000;
 const RESERVATION_EXPIRY_WAIT_MS = MINUTE_MS + SECOND_MS;
+const LIFETIME_CAP_TEST_TIMEOUT_MS = CREATOR_RESERVATION_MAX_MS + 2 * MINUTE_MS;
+const CREATOR_SOCKET_KEY = 'creatorSocket';
 const SLOW_TEST_TIMEOUT_MS = RESERVATION_EXPIRY_WAIT_MS + 120_000;
 const MINIMUM_FLUSHED_FRAMES = 3;
 const SLOW_ENVIRONMENT_VARIABLE = 'E2E_SLOW';
@@ -119,9 +125,20 @@ function copyUncommittedUpdates({ sourceDocumentId, targetDocumentId }: { source
   history.close();
 }
 
-async function holdCreatorSocket({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
+async function readCreatorTicket({ page, documentId }: { page: Page; documentId: string }): Promise<CreatorTicket> {
+  const response = await page.request.get(documentApiPath({ documentId }));
+  const { creatorAttempt, creatorEpoch } = (await response.json()) as OpenedDocument;
+  if (creatorAttempt === null || creatorEpoch === null) throw new Error('The open answer carries no creator ticket');
+  return { attempt: creatorAttempt, epoch: creatorEpoch };
+}
+
+async function holdCreatorSocket({ page, documentId, ticket }: { page: Page; documentId: string; ticket: CreatorTicket }): Promise<void> {
+  const socketPath = `${ApiPath.Collaboration}?${new URLSearchParams({
+    [CREATOR_ATTEMPT_QUERY_KEY]: String(ticket.attempt),
+    [CREATOR_EPOCH_QUERY_KEY]: ticket.epoch,
+  })}`;
   await page.evaluate(
-    ({ roomName, token, stateKey, socketPath, messageTypes }) => {
+    ({ roomName, token, stateKey, socketKey, socketPath, messageTypes }) => {
       const encoder = new TextEncoder();
       const encodeVarUint = (value: number): number[] => (value < 128 ? [value] : [128 | (value & 127), ...encodeVarUint(value >>> 7)]);
       const encodeVarString = (text: string): number[] => {
@@ -137,6 +154,7 @@ async function holdCreatorSocket({ page, documentId }: { page: Page; documentId:
       const state: CreatorSocketState = { isAuthenticated: false, closeCode: null };
       Object.assign(window, { [stateKey]: state });
       const socket = new WebSocket(`${location.origin.replace('http', 'ws')}${socketPath}`);
+      Object.assign(window, { [socketKey]: socket });
       socket.binaryType = 'arraybuffer';
       socket.onopen = () =>
         socket.send(
@@ -162,10 +180,15 @@ async function holdCreatorSocket({ page, documentId }: { page: Page; documentId:
       roomName: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
       token: COLLABORATION_TOKEN_PLACEHOLDER,
       stateKey: CREATOR_SOCKET_STATE_KEY,
-      socketPath: ApiPath.Collaboration,
+      socketKey: CREATOR_SOCKET_KEY,
+      socketPath,
       messageTypes: { auth: AUTH_MESSAGE_TYPE, token: TOKEN_AUTH_SUBTYPE, authenticated: AUTHENTICATED_AUTH_SUBTYPE },
     },
   );
+}
+
+async function closeCreatorSocket(page: Page): Promise<void> {
+  await page.evaluate((socketKey) => (window as unknown as Record<string, WebSocket>)[socketKey]!.close(), CREATOR_SOCKET_KEY);
 }
 
 async function readCreatorSocketState(page: Page): Promise<CreatorSocketState> {
@@ -273,22 +296,40 @@ test('a 10 MB DOCX commits and reopens as Join', async ({ browser }) => {
   await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
 });
 
-test("a superseded creator's socket closes with 4403 after the 60 s expiry", async ({ browser }) => {
-  test.skip(!process.env[SLOW_ENVIRONMENT_VARIABLE], `Waits for the 60 s reservation expiry; set ${SLOW_ENVIRONMENT_VARIABLE}=1 to run it`);
-  test.setTimeout(SLOW_TEST_TIMEOUT_MS);
+test('a creator who closes its last socket releases the reservation at once', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
   await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
-  expect((await openDocument({ page: ana.page, documentId })).roomMode).toBe(RoomMode.Create);
-  await holdCreatorSocket({ page: ana.page, documentId });
+  await holdCreatorSocket({ page: ana.page, documentId, ticket: await readCreatorTicket({ page: ana.page, documentId }) });
+  await expect.poll(() => readCreatorSocketState(ana.page)).toMatchObject({ isAuthenticated: true });
+  expect(await openDocument({ page: bruno.page, documentId })).toEqual({ status: HttpStatus.Conflict, roomMode: null });
+  await closeCreatorSocket(ana.page);
+  await expect
+    .poll(() => openDocument({ page: bruno.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
+    .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Create });
+});
+
+test('a connected creator holding its socket without updates is superseded with 4403 at the lifetime cap', async ({ browser }) => {
+  test.skip(
+    !process.env[SLOW_ENVIRONMENT_VARIABLE],
+    `Waits for the 5 minute reservation lifetime cap; set ${SLOW_ENVIRONMENT_VARIABLE}=1 to run it`,
+  );
+  test.setTimeout(LIFETIME_CAP_TEST_TIMEOUT_MS);
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
+  await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
+  const anaTicket = await readCreatorTicket({ page: ana.page, documentId });
+  await holdCreatorSocket({ page: ana.page, documentId, ticket: anaTicket });
   await expect.poll(() => readCreatorSocketState(ana.page)).toMatchObject({ isAuthenticated: true });
   await expect
     .poll(() => openDocument({ page: bruno.page, documentId }), {
-      timeout: RESERVATION_EXPIRY_WAIT_MS + COMMIT_TIMEOUT_MS,
-      intervals: [SECOND_MS],
+      timeout: CREATOR_RESERVATION_MAX_MS + MINUTE_MS,
+      intervals: [5 * SECOND_MS],
     })
     .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Create });
+  expect((await readCreatorTicket({ page: bruno.page, documentId })).attempt).toBeGreaterThan(anaTicket.attempt);
   await expect
     .poll(() => readCreatorSocketState(ana.page), { timeout: COMMIT_TIMEOUT_MS })
     .toMatchObject({ closeCode: SUPERSEDED_ATTEMPT_CLOSE_CODE });

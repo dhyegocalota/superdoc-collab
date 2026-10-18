@@ -1,4 +1,5 @@
 import { MAX_SOCKET_MESSAGES_PER_SECOND, SECOND_MS } from '@superdoc-collab/types';
+import type { RawData } from 'ws';
 import { SlidingWindow } from '../limits/sliding-window';
 
 export class SocketMessageLimit {
@@ -10,7 +11,7 @@ export class SocketMessageLimit {
   }
 
   // NB ADR 0034: every frame counts from the first one, before authentication, and the frame past the limit breaches.
-  breached(socket: object): boolean {
+  breached({ socket }: { socket: object; frame: RawData }): boolean {
     const window = this.windowOf(socket);
     window.record();
     return window.count() > MAX_SOCKET_MESSAGES_PER_SECOND;

@@ -19,6 +19,8 @@ export const OPEN_UNCOMMITTED_PER_MINUTE = 30;
 export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 // NB ADR 0040: the cap sits well above typing at fifty keys per second plus a reconnect burst and still closes a flood.
 export const MAX_SOCKET_MESSAGES_PER_SECOND = 1000;
+export const MAX_SOCKET_UPDATE_FRAMES_PER_SECOND = 1000;
+export const MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND = 5000;
 export const POLICY_VIOLATION_CLOSE_CODE = 1008;
 export const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
 export const SOCKET_RATE_LIMIT_REASON = 'Too many messages per second';

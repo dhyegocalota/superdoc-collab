@@ -13,7 +13,7 @@ import {
   UNAUTHORIZED_CLOSE_REASON,
   VERSION_FAILURE_TTL_MS,
 } from '@superdoc-collab/types';
-import { WebSocket, WebSocketServer, type ServerOptions } from 'ws';
+import { WebSocket, WebSocketServer, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
@@ -66,8 +66,8 @@ export function attachCollaboration({
 }): WebSocketServer {
   const sockets = new WebSocketServer(SOCKET_SERVER_OPTIONS);
   const messageLimit = new SocketMessageLimit();
-  function closeOnBreach(this: WebSocket): void {
-    if (!messageLimit.breached(this)) return;
+  function closeOnBreach(this: WebSocket, frame: RawData): void {
+    if (!messageLimit.breached({ socket: this, frame })) return;
     console.warn(SOCKET_RATE_LIMIT_LOG);
     this.removeAllListeners('message');
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);

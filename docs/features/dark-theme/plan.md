@@ -12,11 +12,11 @@
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
 | G1 | `apps/web/src/styles/globals.css`, `globals.test.ts`, `apps/web/src/features/editor/waiting-for-document.tsx` and its test, `e2e/dark-theme.spec.ts` (new), `docs/features/README.md` (this fix's row) | `developer-dt` |
-| G2 | the audit's extra surfaces (after `design.md`), same files plus any `.tsx` with a literal colour the audit names | `developer-dt` |
+| G2 | the extra surfaces from the reviewer's pass, same files plus any `.tsx` with a literal colour the walk names | `developer-dt` |
 
 ## Sequencing
 
-G1 now; G2 when the designer's audit lands.
+G1, then G2 from the reviewer's pass; the tester's dark walk is the live audit of record.
 
 ## Steps
 
@@ -29,7 +29,7 @@ G1 now; G2 when the designer's audit lands.
 
 ### G2
 
-- [ ] **Step 5:** the audit's extra defects, each with its test pin.
+- [x] **Step 5:** the reviewer's extra surfaces (`--sd-ui-comments-tag-bg`, `--sd-ui-disabled-bg`), each with its test pin. — c084ac5, 6b1edb7
 
 ## Failure modes
 

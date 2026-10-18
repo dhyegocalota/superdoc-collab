@@ -32,7 +32,7 @@ Mapped beyond the spec's table: the six shadow variables above, `--sd-ui-comment
 
 ## Run in dark
 
-Set `localStorage['superdoc-collab.theme'] = 'dark'` and reload, or choose Dark in the account menu. Open a document, click into the text: the caret must be dark on the white paper. Open the font-family dropdown from the toolbar: the list uses the popover colour, the hovered option the accent colour, the shadow is visible.
+Choose Dark in the account menu (Light to go back). Walk, in light and in dark, at 1280 and 375: the toolbar's active button (press Bold), the font dropdown's selected option, caret, text selection, find bar, share dialog, members, Edits panel, version viewer, documents list, admin, settings, connected apps and the waiting page. Open a document, click into the text: the caret must be dark on the white paper. Open the font-family dropdown from the toolbar: the list uses the popover colour, the hovered option the accent colour, the shadow is visible.
 
 ## Red today, green after
 

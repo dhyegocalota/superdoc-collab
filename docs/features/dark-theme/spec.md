@@ -28,7 +28,7 @@ Dark mode is one `.dark` class on `<html>` and our own surfaces use tokens, but 
    - the caret: SuperDoc paints it as an overlay `div` with `background: currentColor`, so a rule on `[data-v2-local-selection-caret='true']` sets `color: var(--paper-foreground)`; `caret-color` does nothing there;
 2. `apps/web/src/styles/globals.test.ts`: the `SUPERDOC_VARIABLES` map grows with every new mapping; a test pins `color-scheme: dark` in `.dark`, `--paper-foreground` in both blocks, `--active` in both, and the caret rule.
 3. `apps/web/src/features/editor/waiting-for-document.tsx`: `bg-white` → `bg-paper`.
-4. The live audit's extra defects (if the designer delivers `design.md`) are folded in as a second step with the same rules.
+4. The extra surfaces came from the reviewer's pass (the comment tag and disabled backgrounds) and are mapped with the same rules. The tester's dark walk is the live audit of record; a defect it finds returns to Build with the same rules.
 
 ### Failure handling
 

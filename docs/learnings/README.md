@@ -35,15 +35,12 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A member's cursor is drawn in a colour the app never declared | [2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md](2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md) | 2026-10-18 |
 | 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-18 |
 | 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-18 |
-| 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-17 |
-| 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-17 |
 | 2026-10-18 | A listener on `superdoc.socket` never fires, and a mocked socket in a unit test passes anyway | [2026-10-18-a-documented-superdoc-socket-property-is-null-on-the-v2-path.md](2026-10-18-a-documented-superdoc-socket-property-is-null-on-the-v2-path.md) | 2026-10-18 |
 | 2026-10-18 | The caret vanishes in dark mode and `caret-color` changes nothing | [2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md](2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md) | 2026-10-18 |
 | 2026-10-18 | One request per E2E run fails with `read ECONNRESET` on a plain GET | [2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md](2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md) | 2026-10-18 |
 
 ### history
 
-| Date | Title | File | Last revisited |
 |------|-------|------|----------------|
 | 2026-10-15 | Replay takes about 900 ms at 10k updates and the performance budget fails once per full run | [2026-10-15-full-replay-grows-without-bound.md](2026-10-15-full-replay-grows-without-bound.md) | 2026-10-18 |
 | 2026-10-15 | After a server crash, text typed by one author is attributed to whoever reconnected first | [2026-10-15-relayed-updates-misattribute-after-a-crash.md](2026-10-15-relayed-updates-misattribute-after-a-crash.md) | 2026-10-16 |
@@ -54,7 +51,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 
 ### testing
 
-| Date | Title | File | Last revisited |
 |------|-------|------|----------------|
 | 2026-10-18 | A component rendered in one of two slots by a media-query flag remounts at the breakpoint and refetches the session | [2026-10-18-a-component-that-moves-between-layouts-remounts-and-refetches-the-session.md](2026-10-18-a-component-that-moves-between-layouts-remounts-and-refetches-the-session.md) | 2026-10-18 |
 | 2026-10-18 | An E2E that finds a scroll container by a class substring picks a responsive variant on a box-less wrapper | [2026-10-18-an-e2e-that-finds-a-scroll-container-by-a-class-substring-picks-a-responsive-variant.md](2026-10-18-an-e2e-that-finds-a-scroll-container-by-a-class-substring-picks-a-responsive-variant.md) | 2026-10-18 |
@@ -70,7 +66,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 
 ### tooling
 
-| Date | Title | File | Last revisited |
 |------|-------|------|----------------|
 | 2026-10-15 | SuperDoc never becomes ready under `vite dev` and the worker fails to load | [2026-10-15-vite-dev-breaks-superdoc-worker.md](2026-10-15-vite-dev-breaks-superdoc-worker.md) | 2026-10-16 |
 | 2026-10-16 | A red-first claim cannot be verified when test and code share a commit | [2026-10-16-commit-the-failing-test-first.md](2026-10-16-commit-the-failing-test-first.md) | 2026-10-16 |
@@ -89,12 +84,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | pnpm's changed-since filter selects nothing in a linked worktree | [2026-10-17-pnpm-changed-since-selects-nothing-in-a-linked-worktree.md](2026-10-17-pnpm-changed-since-selects-nothing-in-a-linked-worktree.md) | — |
 | 2026-10-17 | A key handler that reads React state sees the previous keystroke | [2026-10-17-a-key-handler-that-reads-react-state-sees-the-previous-keystroke.md](2026-10-17-a-key-handler-that-reads-react-state-sees-the-previous-keystroke.md) | 2026-10-18 |
 | 2026-10-17 | A Radix dialog without a trigger drops focus to body on close | [2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md](2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md) | 2026-10-17 |
-| 2026-10-17 | SuperDoc sends usage telemetry to its vendor unless the config turns it off | [2026-10-17-superdoc-telemetry-is-on-by-default.md](2026-10-17-superdoc-telemetry-is-on-by-default.md) | 2026-10-18 |
-| 2026-10-17 | A guard hook blocks a harmless command because the forbidden flag appears in quoted prose | [2026-10-17-a-guard-hook-matches-the-flag-inside-quoted-prose.md](2026-10-17-a-guard-hook-matches-the-flag-inside-quoted-prose.md) | 2026-10-17 |
-| 2026-10-17 | `pnpm audit` reports a critical `better-auth` advisory while the app ships a patched version | [2026-10-17-pnpm-audit-is-red-because-a-dev-cli-pins-an-old-better-auth.md](2026-10-17-pnpm-audit-is-red-because-a-dev-cli-pins-an-old-better-auth.md) | — |
-| 2026-10-17 | pnpm's changed-since filter selects nothing in a linked worktree | [2026-10-17-pnpm-changed-since-selects-nothing-in-a-linked-worktree.md](2026-10-17-pnpm-changed-since-selects-nothing-in-a-linked-worktree.md) | — |
-| 2026-10-17 | A key handler that reads React state sees the previous keystroke | [2026-10-17-a-key-handler-that-reads-react-state-sees-the-previous-keystroke.md](2026-10-17-a-key-handler-that-reads-react-state-sees-the-previous-keystroke.md) | 2026-10-17 |
-| 2026-10-17 | A Radix dialog without a trigger drops focus to body on close | [2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md](2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md) | 2026-10-18 |
 | 2026-10-17 | GitHub Actions may create no run for a push or PR, and tight API polling trips the secondary rate limit | [2026-10-17-github-actions-may-create-no-run-and-tight-polling-trips-the-rate-limit.md](2026-10-17-github-actions-may-create-no-run-and-tight-polling-trips-the-rate-limit.md) | 2026-10-17 |
 | 2026-10-17 | Focusing a new SuperDoc document before the first click crashes the first keystroke | [2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md](2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md) | 2026-10-18 |
 | 2026-10-17 | A hook that parses `git status --porcelain` maps a path with a space to the wrong folder | [2026-10-17-git-status-porcelain-quotes-paths-with-spaces.md](2026-10-17-git-status-porcelain-quotes-paths-with-spaces.md) | 2026-10-17 |
@@ -105,8 +94,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | The print view of a four-page document has text on the first pages and blank pages after them | [2026-10-17-superdoc-paints-only-the-pages-near-the-viewport-even-with-virtualization-off.md](2026-10-17-superdoc-paints-only-the-pages-near-the-viewport-even-with-virtualization-off.md) | 2026-10-17 |
 | 2026-10-17 | The SuperDoc toolbar appears inside the page, overflows, or lists items we removed | [2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md](2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md) | 2026-10-17 |
 | 2026-10-17 | The typecheck fails with a duplicate declaration in libs/types right after a lane merge | [2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md](2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md) | 2026-10-18 |
-| 2026-10-17 | The SuperDoc toolbar appears inside the page, overflows, or lists items we removed | [2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md](2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md) | 2026-10-18 |
-| 2026-10-17 | The typecheck fails with a duplicate declaration in libs/types right after a lane merge | [2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md](2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md) | 2026-10-17 |
 | 2026-10-17 | Sign in after an ended session lands on the documents list instead of the document | [2026-10-17-a-signed-out-landing-that-navigates-to-the-path-drops-the-query.md](2026-10-17-a-signed-out-landing-that-navigates-to-the-path-drops-the-query.md) | 2026-10-17 |
 | 2026-10-17 | A query refetch fires more requests than the one query named | [2026-10-17-refetchqueries-without-exact-refetches-every-query-under-the-prefix.md](2026-10-17-refetchqueries-without-exact-refetches-every-query-under-the-prefix.md) | 2026-10-18 |
 | 2026-10-17 | `pnpm test:e2e -- <file>` runs every spec and holds the E2E ports | [2026-10-17-pnpm-test-e2e-with-a-file-argument-runs-the-whole-suite.md](2026-10-17-pnpm-test-e2e-with-a-file-argument-runs-the-whole-suite.md) | 2026-10-17 |

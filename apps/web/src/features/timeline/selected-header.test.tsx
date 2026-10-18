@@ -26,7 +26,7 @@ function renderHeader({
   return { onClear, onViewVersion };
 }
 
-test('a selected bin shows its time range, its edit count and Clear selection', async () => {
+test('a selected bin shows its time range, its character count and Clear selection', async () => {
   const { onClear } = renderHeader();
   expect(screen.getByText(SELECTION.rangeLabel)).toBeVisible();
   expect(screen.getByText('12 characters')).toBeVisible();

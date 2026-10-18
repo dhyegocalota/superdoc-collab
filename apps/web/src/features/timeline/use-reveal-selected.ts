@@ -6,16 +6,14 @@ const INSTANT_SCROLL: ScrollBehavior = 'auto';
 
 export function useRevealSelected({
   targetRef,
-  selectedIndex,
   selectionCount,
 }: {
   targetRef: RefObject<HTMLElement | null>;
-  selectedIndex?: number | null;
-  selectionCount?: number;
+  selectionCount: number;
 }): void {
   const behavior = useReducedMotion() ? INSTANT_SCROLL : SMOOTH_SCROLL;
   const isPointerPressed = useRef(false);
-  const previousIndex = useRef(selectedIndex);
+  const previousCount = useRef(selectionCount);
 
   useEffect(() => {
     function press(): void {
@@ -35,10 +33,10 @@ export function useRevealSelected({
   }, []);
 
   useEffect(() => {
-    const hasChanged = selectedIndex !== null && selectedIndex !== previousIndex.current;
-    previousIndex.current = selectedIndex;
+    const hasSelected = selectionCount !== previousCount.current;
+    previousCount.current = selectionCount;
     const target = targetRef.current;
-    if (!hasChanged || !isPointerPressed.current || !target) return;
+    if (!hasSelected || !isPointerPressed.current || !target) return;
     target.scrollIntoView({ block: 'nearest', behavior });
-  }, [selectedIndex]);
+  }, [selectionCount]);
 }

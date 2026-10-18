@@ -1,7 +1,7 @@
 import { DocumentRole, type DocumentTimeline, type EditSelection, type TimelineBin } from '@superdoc-collab/types';
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
 import { cellVolume } from '@superdoc-collab/history/timeline';
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
@@ -128,7 +128,8 @@ export function TimelinePanel({
     onBackToLive,
   });
   const headerRef = useRef<HTMLDivElement>(null);
-  useRevealSelected({ targetRef: headerRef, selectedIndex });
+  const [selectionCount, setSelectionCount] = useState(0);
+  useRevealSelected({ targetRef: headerRef, selectionCount });
   const { data: summaries } = useSummaries({ documentId, isOpen });
   const canEdit = role !== DocumentRole.Reader;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
@@ -192,7 +193,7 @@ export function TimelinePanel({
           selectedIndex={selectedIndex}
           highlightedBandId={search.topic}
           isLoadingVersion={isPhoneLayout && isLoadingVersion}
-          onSelectIndex={selectIndex}
+          onSelectIndex={selectAndCount}
           onClearSelection={clearSelection}
         />
       )}
@@ -200,6 +201,11 @@ export function TimelinePanel({
   );
   const isSelectedBinShown = selectedIndex !== null && binContaining({ timeline, time: search.at })?.index === selectedIndex;
   const canViewVersion = selectedBin !== null && selectedBin.versionSequence !== null && !isSelectedBinShown;
+  function selectAndCount(index: number): void {
+    setSelectionCount((count) => count + 1);
+    selectIndex(index);
+  }
+
   function viewSelectedVersion(): void {
     if (!selectedBin) return;
     onTravel(selectedBin.start);

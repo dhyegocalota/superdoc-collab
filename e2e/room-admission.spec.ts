@@ -36,6 +36,7 @@ const EDITOR_TEST_ID = 'document-editor';
 const CONNECTION_BANNER_TEST_ID = 'connection-banner';
 const CONNECTION_STATE_ATTRIBUTE = 'data-state';
 const SOCKETS_PER_UNINTERRUPTED_CREATE = 2;
+const FAILED_STATE = 'failed';
 const RECONNECTING_STATE = 'reconnecting';
 const WAITING_VIEWPORTS = [
   { name: '375 px', viewport: { width: 375, height: 812 } },
@@ -211,17 +212,31 @@ test('two editors open a fresh document at once and only the first is answered C
   expect(firstAnswers.filter((answer) => answer.status === HttpStatus.Conflict)).toHaveLength(1);
 });
 
-test('the holder opens a fresh document in two pages at once and the room holds one paragraph', async ({ browser }) => {
+test('a holder who reopens a fresh document supersedes its first page and the room holds one paragraph', async ({ browser }) => {
+  test.setTimeout(LARGE_TEST_TIMEOUT_MS);
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
-  const documentId = await uploadDocument({ page: ana.page, buffer: await seedBuffer([SEED_PARAGRAPH]) });
+  const documentId = await uploadDocument({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
+  const firstPageProgress = { hasSentFrame: false };
+  ana.page.on('websocket', (socket) => socket.on('framesent', () => (firstPageProgress.hasSentFrame = true)));
+  await ana.page.goto(documentPagePath(documentId));
+  await expect.poll(() => firstPageProgress.hasSentFrame).toBe(true);
   const secondPage = await ana.context.newPage();
-  await Promise.all([ana.page, secondPage].map((page) => page.goto(documentPagePath(documentId))));
+  await secondPage.goto(documentPagePath(documentId));
+  await expect(ana.page.getByTestId(CONNECTION_BANNER_TEST_ID)).toHaveAttribute(CONNECTION_STATE_ATTRIBUTE, FAILED_STATE, {
+    timeout: COMMIT_TIMEOUT_MS,
+  });
+  await expect(editorText(secondPage).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS });
   await expect
-    .poll(() => openDocument({ page: ana.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
+    .poll(() => openDocument({ page: secondPage, documentId }), { timeout: LARGE_COMMIT_TIMEOUT_MS })
     .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
-  await ana.page.reload();
-  await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
-  expect(occurrencesOf({ text: await readEditorText(ana.page), fragment: SEED_PARAGRAPH })).toBe(1);
+  await Promise.all([ana.page.reload(), secondPage.reload()]);
+  await Promise.all(
+    [ana.page, secondPage].map((page) =>
+      expect(editorText(page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_COMMIT_TIMEOUT_MS }),
+    ),
+  );
+  const texts = await Promise.all([ana.page, secondPage].map((page) => readEditorText(page)));
+  texts.forEach((text) => expect(occurrencesOf({ text, fragment: LARGE_PARAGRAPH })).toBe(1));
 });
 
 for (const { name, viewport } of WAITING_VIEWPORTS) {

@@ -14,7 +14,7 @@ import {
 import { BACK_TO_DOCUMENTS_LABEL } from './editor-copy';
 
 const MAX_TITLE_LENGTH = 41;
-const MAX_REASON_LENGTH = 64;
+const MAX_REASON_LENGTH = 40;
 const MAX_DETAIL_LENGTH = 70;
 const MAX_PARAGRAPH_LENGTH = 100;
 

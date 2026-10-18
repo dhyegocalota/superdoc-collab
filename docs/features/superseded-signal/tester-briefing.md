@@ -7,8 +7,8 @@ Every "it works" below is a hypothesis for the tester to attack, not a result.
 - The page cannot read the takeover close: `superdoc.socket` is only ever `null` in SuperDoc 2.23.0 (`superdoc.es.js:46416`) and the provider runs in the collaboration worker. ADR 0036 takes the members poll instead.
 - Server: `GET /api/documents/:id/members` accepts `attempt` and `epoch` (parsed by the shared `claimedTicketOf`, moved out of `collaboration-server.ts`) and answers `isAttemptSuperseded`. The rule lives in `DocumentRuntime.isAttemptSuperseded`: committed room plus another epoch is false, otherwise `!CreatorReservations.mayWrite`.
 - Web: `fetchMembers` sends the opened document's creator ticket; `useMembers` returns `isAttemptSuperseded`; `DocumentPage` reports `SUPERSEDED_REPORT` through `reportTransport` when it turns true. The banner may show before the first sync.
-- Copy: reason "This document was opened elsewhere and this tab stopped syncing."; warning "Download first to keep your edits."; action "Back to documents" (navigates to the documents list). Reload is not offered for this reason.
-- `connection-copy.test.ts`: the reason length cap went from 40 to 64 characters to fit the neutral copy; the one-paragraph cap of 100 still holds.
+- Copy: reason "This document was opened elsewhere."; warning "Download first to keep your edits."; action "Back to documents" (navigates to the documents list). Reload is not offered for this reason.
+- `connection-copy.test.ts`: the reason length cap went is unchanged: the neutral copy is 35 characters.
 - E2E: `SUPERSEDED_SIGNAL_TIMEOUT_MS = 15_000` in `e2e/room-admission.spec.ts`; the holder-reopens test waits for the first page's editor and a frame before the second open, then expects the Failed banner with the Superseded copy and the Back to documents button.
 
 ## How to run

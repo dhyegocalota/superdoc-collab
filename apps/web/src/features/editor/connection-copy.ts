@@ -20,7 +20,7 @@ export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.SyncTimeout]: 'The server did not answer in time.',
   [ConnectionFailureReason.WorkerTransportFailed]: 'The editor lost its background link.',
   [ConnectionFailureReason.SessionEnded]: 'Your session ended. Sign in again.',
-  [ConnectionFailureReason.Superseded]: 'This document was opened elsewhere and this tab stopped syncing.',
+  [ConnectionFailureReason.Superseded]: 'This document was opened elsewhere.',
   [ConnectionFailureReason.Unknown]: 'The cause could not be identified.',
 };
 

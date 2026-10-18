@@ -17,7 +17,7 @@ The members poll, which the page already runs every `MEMBERS_REFRESH_MS`, carrie
 
 The page maps `isAttemptSuperseded === true` to a Failed report with the new reason `ConnectionFailureReason.Superseded` through the existing connection state. Because the signal comes from the poll and not from the editor, it may show the Failed banner before the first sync; this is an explicit exception to the connection-state rule that the banner applies after the first sync, because the tab has a clear action.
 
-The copy is neutral, because the same ticket check also covers another user's takeover after expiry, an abandoned creator returning after someone else committed, and a refused reconnect after a restart: "This document was opened elsewhere and this tab stopped syncing." The action is "Back to documents", not Reload: a Reload on the holder's old tab would reserve a new attempt and supersede the newer tab in turn (newest wins, ADR 0033), a ping-pong.
+The copy is neutral, because the same ticket check also covers another user's takeover after expiry, an abandoned creator returning after someone else committed, and a refused reconnect after a restart: "This document was opened elsewhere." The action is "Back to documents", not Reload: a Reload on the holder's old tab would reserve a new attempt and supersede the newer tab in turn (newest wins, ADR 0033), a ping-pong.
 
 ## Alternatives considered
 

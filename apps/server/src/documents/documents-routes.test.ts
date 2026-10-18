@@ -354,11 +354,20 @@ test('a second editor opening a live reservation gets 409 NOT_READY', async () =
   await server.stop();
 });
 
-test('the 61st open of uncommitted documents by one user within a minute answers 429 and another user is still served', async () => {
+function uncommittedDocuments({ server, owner, count }: { server: TestServer; owner: TestUser; count: number }): string[] {
+  return Array.from({ length: count }, () => {
+    const documentId = randomUUID();
+    server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
+    return documentId;
+  });
+}
+
+test('the 61st distinct uncommitted document opened by one user within a minute answers 429 and another user is still served', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const others = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE });
   const statuses = await Promise.all(
-    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE + 1 }, () => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })),
+    [documentId, ...others].map((openedId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId: openedId }) })),
   );
   const limited = statuses.filter((response) => response.status === HttpStatus.TooManyRequests);
   expect([limited.length, statuses.filter((response) => response.status === HttpStatus.Ok).length]).toEqual([
@@ -371,14 +380,24 @@ test('the 61st open of uncommitted documents by one user within a minute answers
   await server.stop();
 });
 
-test('the 61st open of an uncommitted document makes no query to the log', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  await Promise.all(
-    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }, () => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })),
-  );
+test('the 61st distinct uncommitted document makes no query to the log', async () => {
+  const { server, owner } = await documentWithOwner();
+  const opened = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE + 1 });
+  await Promise.all(opened.slice(0, -1).map((documentId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })));
   const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
-  const limited = await request({ server, cookie: owner.cookie, path: pathOf({ documentId }) });
+  const limited = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: opened.at(-1)! }) });
   expect([limited.status, readBatch.mock.calls.length]).toEqual([HttpStatus.TooManyRequests, 0]);
+  await server.stop();
+});
+
+test('a waiting editor polling the same uncommitted document is answered 409 every time, never 429', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  await openedBy({ server, user: owner, documentId });
+  const statuses = await Promise.all(
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE + 1 }, () => request({ server, cookie: editor.cookie, path: pathOf({ documentId }) })),
+  );
+  expect(new Set(statuses.map((response) => response.status))).toEqual(new Set([HttpStatus.Conflict]));
   await server.stop();
 });
 

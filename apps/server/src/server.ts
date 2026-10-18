@@ -14,7 +14,9 @@ import {
   OPEN_UNCOMMITTED_PER_MINUTE,
   TOPICS_INTERRUPTED_MESSAGE,
 } from '@superdoc-collab/types';
-import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
+import { OpenBudget } from './limits/open-budget';
+import { agentRoomMode } from './agent/agent-room-mode';
+import { createRoomModes } from './collaboration/room-modes';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
 import { AdminUsersRepository } from './admin/users';
@@ -154,14 +156,15 @@ function createServices({
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now });
   const bootstrap = createBootstrapState({ updateLog, readModel });
-  const openLimits = new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: OPEN_UNCOMMITTED_PER_MINUTE, now });
+  const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: OPEN_UNCOMMITTED_PER_MINUTE, now });
+  const roomModes = createRoomModes({ bootstrap, openBudget });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
     updateLog,
     reservations,
     bootstrap,
-    openLimits,
+    roomModes,
     onLogged: (documentId) => throttle.request(documentId),
     onStored: (documentId) => {
       documents.touch(documentId);
@@ -208,12 +211,13 @@ function createServices({
     insights,
     reservations,
     bootstrap,
+    roomModes,
   });
   const agentSessions = new AgentSessions({
     issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.AgentCollaboration}`,
     roleOf: ({ userId, documentId }) => documents.findRole({ documentId, userId }),
-    locateRoom: (documentId) => ({ roomMode: runtime.roomMode(documentId) }),
+    locateRoom: ({ documentId, userId }) => ({ roomMode: agentRoomMode({ runtime, documentId, userId }) }),
   });
   const services: ServerServices = {
     documents,
@@ -231,7 +235,7 @@ function createServices({
     insightsRepository,
     throttle,
     reservations,
-    openLimits,
+    openBudget,
     timelinePipelines,
     insights,
     versions,

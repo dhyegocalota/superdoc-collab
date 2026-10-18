@@ -155,3 +155,14 @@ test('the scan progress of a document is dropped once a snapshot answers for it'
   expect(readBatch.mock.calls[0]![0].afterSequence).toBe(0);
   close();
 });
+
+test('a room with a projection cursor is known committed without reading the log', () => {
+  const { updateLog, readModel, close } = stateOver();
+  const bootstrap = createBootstrapState({ updateLog, readModel });
+  expect(bootstrap.isKnownCommitted(DOCUMENT_ID)).toBe(false);
+  readModel.commit({ documentName: DOCUMENT_ID, events: [], marks: [], lastSequence: 1 });
+  const readBatch = vi.spyOn(updateLog, 'readBatch');
+  expect(bootstrap.isKnownCommitted(DOCUMENT_ID)).toBe(true);
+  expect(readBatch).not.toHaveBeenCalled();
+  close();
+});

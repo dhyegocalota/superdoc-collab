@@ -5,6 +5,7 @@ import {
   AgentTool,
   DocumentRole,
   documentPagePath,
+  OPEN_UNCOMMITTED_PER_MINUTE,
   ShareLinkRole,
   type DocumentMembers,
 } from '@superdoc-collab/types';
@@ -36,7 +37,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Join);
+  vi.spyOn(server.services.runtime, 'roomModeFor').mockReturnValue({ isSpent: false, roomMode: RoomMode.Join });
 });
 
 afterEach(() => {
@@ -124,6 +125,18 @@ test('export_docx returns the live document as an embedded DOCX resource, record
   expect(existsSync(dirname(written[0]!))).toBe(false);
 });
 
+test('export_docx with the open budget spent is refused before any log scan', async () => {
+  vi.restoreAllMocks();
+  Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
+    server.services.openBudget.record({ userId: reader.id, documentId: `spent-${index}` }),
+  );
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const save = vi.fn();
+  const { context, recorded } = toolContext({ server, userId: reader.id, sessions: sessionsOn({ save }) });
+  const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });
+  expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
+});
+
 test('export_docx hides the cause, logs it, removes the temporary file and records nothing when the save fails', async () => {
   const written: string[] = [];
   const save = vi.fn(async ({ out }: { out: string }) => {
@@ -195,7 +208,7 @@ test('rotate_share_link with an unknown role is a tool error and rotates nothing
 });
 
 test('export_docx on a room nobody opened returns the stored file without opening a session', async () => {
-  vi.spyOn(server.services.runtime, 'roomMode').mockReturnValue(RoomMode.Create);
+  vi.spyOn(server.services.runtime, 'roomModeFor').mockReturnValue({ isSpent: false, roomMode: RoomMode.Create });
   await server.services.storage.put({ documentId, bytes: DOCX_BYTES });
   const { context, recorded } = toolContext({ server, userId: reader.id });
   const result = await callAgentTool({ tool: AgentTool.ExportDocx, input: { documentId }, context });

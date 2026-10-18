@@ -282,3 +282,9 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 - **MCP rate limit** uses the same `KeyedSlidingWindow`; its tests are unchanged and green. The impossible empty-window default is gone.
 - **Session lookup at the upgrade:** a lookup that throws destroys the connection (the provider retries); only a null session closes with 4401 and the reason `Session expired`.
 - **Scan cache:** a pin test shows the scan progress is dropped when a snapshot answers.
+
+### G3 fourth review round
+
+- **Distinct-document budget:** `OpenBudget` (in `limits/`) counts a document once per user and minute and replaces `services.openLimits` with `services.openBudget`. `runtime.roomModeFor` (built from `createRoomModes`) is the only way the open route, `onAuthenticate`, the agent room locator (`locateRoom` now takes `{ documentId, userId }`) and the export tool decide a room mode; a spent budget is 429, access denied, or an `AgentToolError` with `OPEN_RATE_LIMITED_MESSAGE`. Hypotheses: 61 opens of one uncommitted document are all 409; the 61st distinct document makes no `readBatch` call on the route, the socket or the export tool. Gap: `runtime.roomMode` (the raw scan) still exists for tests and `waitForCommit`; production code outside `roomModeFor` does not call it.
+- **Known committed:** also true when the projection cursor exists, so a restart with a spent budget does not refuse committed rooms.
+- **Tests tightened:** the throwing lookup asserts close code 1006; the budget refusal asserts the exact log text.

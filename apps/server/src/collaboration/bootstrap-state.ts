@@ -50,7 +50,7 @@ export function createBootstrapState({ updateLog, readModel }: { updateLog: Upda
     return isBootstrapCommitted({ document: fromSnapshot });
   }
   return {
-    isKnownCommitted: (documentId) => committed.has(documentId),
+    isKnownCommitted: (documentId) => committed.has(documentId) || readModel.cursor(documentId) !== null,
     isCommitted: (documentId) => {
       if (committed.has(documentId)) return true;
       if (!hasCommittedBootstrap(documentId)) return false;

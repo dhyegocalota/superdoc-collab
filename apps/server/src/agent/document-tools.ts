@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
 import type { AgentToolContext } from './agent-tool-context';
+import { agentRoomMode } from './agent-room-mode';
 import { AgentChangeMode } from './agent-change-mode';
 import {
   DESTRUCTIVE_ANNOTATIONS,
@@ -84,7 +85,8 @@ function requireAppliedReceipt(receipt: unknown): void {
 
 async function exportedBytes({ context, documentId }: { context: AgentToolContext; documentId: string }): Promise<Uint8Array> {
   const { runtime, storage } = context.services;
-  if (runtime.roomMode(documentId) === RoomMode.Create) return storage.read(documentId);
+  const roomMode = agentRoomMode({ runtime, documentId, userId: context.principal.userId });
+  if (roomMode === RoomMode.Create) return storage.read(documentId);
   const directory = await mkdtemp(join(tmpdir(), EXPORT_DIRECTORY_PREFIX));
   const out = join(directory, EXPORT_FILE_NAME);
   try {

@@ -21,6 +21,7 @@ type StreamgraphProps = {
   width: number;
   selectedIndex: number | null;
   highlightedBandId: string | null;
+  isLoadingVersion: boolean;
   onSelectIndex: (index: number) => void;
   onClearSelection: () => void;
 };
@@ -66,7 +67,15 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
   return { '--topic-hue': String(band.hue), '--topic-saturation': `${saturation}%` } as CSSProperties;
 }
 
-export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId, onSelectIndex, onClearSelection }: StreamgraphProps) {
+export function Streamgraph({
+  timeline,
+  width,
+  selectedIndex,
+  highlightedBandId,
+  isLoadingVersion,
+  onSelectIndex,
+  onClearSelection,
+}: StreamgraphProps) {
   const { timeZone } = timeline;
   const titleId = useId();
   const descriptionId = useId();
@@ -93,6 +102,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   function handlePointerDown(event: PointerEvent<SVGSVGElement>): void {
     isPointerFocus.current = true;
     setHasKeyboardFocus(false);
+    if (isLoadingVersion) return;
     onSelectIndex(layout.binAt(offsetOf(event)));
   }
 
@@ -108,7 +118,9 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
     const index = layout.binAt(offsetOf(event));
     setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top });
-    if (event.buttons === PRIMARY_BUTTON_PRESSED) onSelectIndex(index);
+    const isScrubbing = event.buttons === PRIMARY_BUTTON_PRESSED && !isLoadingVersion;
+    const isOtherBin = index !== selectedIndex;
+    if (isScrubbing && isOtherBin) onSelectIndex(index);
   }
 
   function handleFocus(): void {
@@ -177,7 +189,7 @@ export function Streamgraph({ timeline, width, selectedIndex, highlightedBandId,
   }
 
   return (
-    <div className="relative flex flex-col gap-1">
+    <div aria-busy={isLoadingVersion} className="relative flex flex-col gap-1">
       <svg
         width={width}
         height={CHART_HEIGHT}

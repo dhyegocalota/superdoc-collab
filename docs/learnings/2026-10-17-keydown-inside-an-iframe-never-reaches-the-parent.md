@@ -7,6 +7,7 @@
 - Revisited: 2026-10-17 — still true; the UX lane touched `version-view-page.tsx` only for the tab title. Its zoom work met the sibling trap (`matchMedia` inside the frame measures the frame). Both promoted to `.claude/rules/web-ui.md`
 - Revisited: 2026-10-17 — still true; final-visuals sends nothing new over the frame channel, and the frame follows the theme through the same inline script and the `storage` event instead
 - Revisited: 2026-10-17 — still true: `version-view-page.tsx` posts `ViewerMessageKind.Exit` from `useEscapeKey`
+- Revisited: 2026-10-18 — still true: summary-mobile added `onReady` to `version-frame.tsx`; the Exit message path is unchanged
 - Revisited: 2026-10-18 — still true; `author-colours` only adds a prop to the version view page
 
 ## Signal

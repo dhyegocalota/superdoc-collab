@@ -34,7 +34,7 @@ Refinement after the five slices:
 
 | Fix | Closes | Status |
 |-----|--------|--------|
-| [`author-colours`](author-colours/) | One colour per member of a document: the server assigns slots by join order, and the members and open responses carry `colorSlot` ([ADR 0037](../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md)) | Building |
+| [`author-colours`](author-colours/) | One colour per member of a document: the server assigns slots by join order, and the members and open responses carry `colorSlot` ([ADR 0037](../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md)) | Shipped 2026-10-18 ([PR #49](https://github.com/dhyegocalota/superdoc-collab/pull/49)) |
 | [`known-minors`](known-minors/) | Escape out of the editor and the version frame, pending-topics notice with bands, summary staleness on any edit, comma names in summary authors | Shipped 2026-10-17 |
 | [`refinement-structure`](refinement-structure/) | Prettier, the version viewer in `features/versions`, one date-time formatter, `repository-shape` and `testing` folder names | Shipped 2026-10-17 ([PR #9](https://github.com/dhyegocalota/superdoc-take-home/pull/9)) |
 | [`spec-only-rulings`](spec-only-rulings/) | Bin budget overshoot fixed, ADRs 0015–0017 for the rulings that lived only in specs, `NB ADR` pointers in code | Shipped 2026-10-17 ([PR #10](https://github.com/dhyegocalota/superdoc-take-home/pull/10)) |
@@ -49,6 +49,7 @@ Refinement after the five slices:
 | [`refinement-readability-server`](refinement-readability-server/) | Server names, a split `startServer`, one handler per projection request kind, shared `LruMap`, `KeyedCooldown`, `SlidingWindow`, `withTimeout` and `retryLater` | Shipped 2026-10-17 ([PR #17](https://github.com/dhyegocalota/superdoc-take-home/pull/17)) |
 | [`refinement-ux-care`](refinement-ux-care/) | The UX audit's P1 and P2 items and five P3 items: home link, explained chart, collapsed rail, one-date bin ranges, labelled units, phone header, loading states, dialog care, copy rules | Shipped 2026-10-17 ([PR #18](https://github.com/dhyegocalota/superdoc-take-home/pull/18)) |
 | [`refinement-readability-web`](refinement-readability-web/) | `useTimeTravel` and `TimelinePanel` split, one web API layer for pollers and query keys, both auth pages rebuilt on shared parts | Building |
+| [`summary-mobile`](summary-mobile/) | The Edits panel on a phone: the selected time pinned under the chart, a second tap before travelling to a version, a visible loading state ([ADR 0038](../adr/0038-phone-time-travel-confirms-with-an-inline-second-tap.md)) | Building |
 | [`package-readmes`](package-readmes/) | READMEs for every package and `e2e`, a Stop hook that names the docs describing a change, link checks on every README | Shipped 2026-10-17 ([PR #19](https://github.com/dhyegocalota/superdoc-take-home/pull/19)) |
 | [`e2e-only-when-it-matters`](e2e-only-when-it-matters/) | Suggest the CI E2E run before a merge only when the diff can change what the suite exercises | Shipped 2026-10-17 |
 | [`invite-only-access`](invite-only-access/) | First sign-up claims the instance as admin, single-use invite links, `/admin`, no seed in production, newcomer README with an agent install prompt | Shipped 2026-10-17 ([PR #23](https://github.com/dhyegocalota/superdoc-collab/pull/23)) |

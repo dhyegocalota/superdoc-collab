@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: the tester's restart walk for `docs/features/connection-state/` (`lost (3 ms)` on one of three runs); the restart spec failed at `4f02874` with `Expected: "lost"`, `Received: "reconnecting"`
 - Revisited: 2026-10-17 — still true; the spec and ADR 0032 now call Lost optional
+- Revisited: 2026-10-18 — still true; summary-mobile moved the version bar between layouts and the eight-widths run caught a sign-in redirect it caused (see the layout-switch remount learning); the connection-state spec itself is unchanged
 
 ## Signal
 Stopping the server under an open editor shows the Reconnecting banner at once. The Lost banner is visible for a few milliseconds on some runs and never on others, so an assertion that waits for it fails or passes by chance.

@@ -8,11 +8,14 @@ import { signInPathFor } from '@/features/auth/sign-in-path';
 import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
+import { LOADING_VERSION_MESSAGE } from '@/features/timeline/timeline-copy';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
+import { useTimeZone } from '@/lib/use-time-zone';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
@@ -40,7 +43,8 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
   [PanelPosition.Bottom]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-y-visible',
   [PanelPosition.Side]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible',
 };
-const FAILED_EDITOR_AREA_CLASS = 'opacity-60';
+const DIMMED_EDITOR_AREA_CLASS = 'opacity-60';
+const VERSION_PROGRESS_CLASS = 'h-0.5 w-full animate-pulse bg-primary motion-reduce:animate-none';
 
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
@@ -78,6 +82,8 @@ export function DocumentPage() {
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
   const { position } = usePanelPosition();
+  const isPhoneLayout = useIsPhoneLayout();
+  const { timeZone } = useTimeZone();
   const summarize = useSummarize({ documentId });
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
@@ -150,6 +156,13 @@ export function DocumentPage() {
     navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
+  const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
+  const versionBar = (
+    <>
+      <VersionBanner timeTravel={timeTravel} timeZone={timeZone} />
+      {isLoadingRequestedVersion && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
+    </>
+  );
   function backToDocuments(): void {
     navigate(AppRoute.Documents);
   }
@@ -198,10 +211,14 @@ export function DocumentPage() {
         isRunning={summarize.isRunning}
         onSummarize={summarizeAndOpenPanel}
       />
+      {isPhoneLayout && versionBar}
       <div className={PANEL_LAYOUT_CLASS[position]}>
-        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>
-          <VersionBanner timeTravel={timeTravel} />
-          <div className="relative flex min-h-0 min-w-0 flex-1">
+        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && DIMMED_EDITOR_AREA_CLASS)}>
+          {!isPhoneLayout && versionBar}
+          <div
+            data-testid="editor-surface"
+            className={cn('relative flex min-h-0 min-w-0 flex-1', isLoadingRequestedVersion && DIMMED_EDITOR_AREA_CLASS)}
+          >
             {editorSetup && isToolbarReady && (
               <SuperDocEditor
                 key={editorGeneration}
@@ -225,6 +242,7 @@ export function DocumentPage() {
               version={timeTravel.shownVersion}
               requestedSequence={timeTravel.requestedSequence}
               runs={timeTravel.runs}
+              onReady={timeTravel.reportReady}
               onFailed={timeTravel.reportFailure}
               onExit={timeTravel.backToLive}
             />
@@ -237,6 +255,7 @@ export function DocumentPage() {
           isOpen={isPanelOpen}
           onOpenChange={setIsPanelOpen}
           summarize={summarize}
+          isLoadingVersion={isLoadingRequestedVersion}
           onTravel={timeTravel.travelTo}
           onBackToLive={timeTravel.backToLive}
         />

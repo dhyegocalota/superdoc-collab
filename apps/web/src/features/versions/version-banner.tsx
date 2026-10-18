@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, versionAtLabel } from '@/features/timeline/timeline-copy';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
 import { formatVersionMoment } from '@/lib/format-date-time';
-import { useTimeZone } from '@/lib/use-time-zone';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 
 function loadingMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }): string {
   if (timeTravel.requestedBinEnd === null) return LOADING_VERSION_MESSAGE;
@@ -16,8 +16,8 @@ function bannerMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZ
   return versionAtLabel(formatVersionMoment({ time: timeTravel.shownVersion.serverTime, timeZone }));
 }
 
-export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
-  const { timeZone } = useTimeZone();
+export function VersionBanner({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }) {
+  const isPhoneLayout = useIsPhoneLayout();
   if (timeTravel.state === VersionViewerState.Live) return null;
   const message = bannerMessage({ timeTravel, timeZone });
   return (
@@ -28,7 +28,7 @@ export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
       className="flex items-center justify-between gap-2 border-b bg-muted px-4 py-2 text-sm"
     >
       <p>{message}</p>
-      <Button type="button" variant="outline" size="sm" onClick={timeTravel.backToLive}>
+      <Button type="button" variant="outline" size={isPhoneLayout ? 'touch' : 'sm'} onClick={timeTravel.backToLive}>
         {BACK_TO_LIVE_LABEL}
       </Button>
     </div>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { isTypingInField } from '@/lib/keyboard';
 import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { binContaining } from './bin-containing';
 import { VersionLoadKind } from './timeline-api';
 import { useBinRuns } from './use-bin-runs';
@@ -26,6 +27,7 @@ export type TimeTravel = {
   travelTo: (binStart: number) => void;
   backToLive: () => void;
   reportFailure: (sequence: number) => void;
+  reportReady: (sequence: number) => void;
 };
 
 function sequenceOf(bin: TimelineBin | undefined): number | null {
@@ -41,7 +43,9 @@ function pinnedSequenceAt({ pin, at }: { pin: VersionPin | null; at: number | nu
 export function useTimeTravel({ documentId, isEnabled }: { documentId: string; isEnabled: boolean }): TimeTravel {
   const { search, update } = useTimelineSearch();
   const at = search.at;
+  const isPhoneLayout = useIsPhoneLayout();
   const [pendingBinStart, setPendingBinStart] = useState<number | null>(null);
+  const [readyFrameSequence, setReadyFrameSequence] = useState<number | null>(null);
   const [shownVersion, setShownVersion] = useState<VersionSummary | null>(null);
   const [failedFrameSequence, setFailedFrameSequence] = useState<number | null>(null);
   const [pinnedVersion, setPinnedVersion] = useState<VersionPin | null>(null);
@@ -65,6 +69,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     if (at === null) {
       setPinnedVersion(null);
       setShownVersion(null);
+      setReadyFrameSequence(null);
       return;
     }
     if (isAlreadyPinned) return;
@@ -76,9 +81,13 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     setPinnedVersion({ at, sequence: binSequence });
   }, [at, bin, binSequence, pinnedVersion]);
 
+  function writeAt(binStart: number): void {
+    update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
+  }
+
   const { schedule, cancel } = useDebouncedCallback({
     callback: (binStart: number) => {
-      update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
+      writeAt(binStart);
       setPendingBinStart(null);
     },
     delayMs: SCRUB_DEBOUNCE_MS,
@@ -90,9 +99,19 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     setFailedFrameSequence(null);
   }, [at, cancel]);
 
-  function travelTo(binStart: number): void {
+  function startTravel(binStart: number): void {
     setPendingBinStart(binStart);
     schedule(binStart);
+  }
+
+  function travelNow(binStart: number): void {
+    cancel();
+    writeAt(binStart);
+  }
+
+  function travelTo(binStart: number): void {
+    if (isPhoneLayout) return travelNow(binStart);
+    startTravel(binStart);
   }
 
   function backToLive(): void {
@@ -112,6 +131,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
 
   const requestedBinStart = pendingBinStart !== null ? pendingBinStart : at;
   const requestedBin = timeline?.bins.find((candidate) => candidate.start === requestedBinStart);
+  const isRequestedFrameReady = requestedSequence !== null && readyFrameSequence === requestedSequence;
   const isShownFailed = shownVersion !== null && shownVersion.sequence === failedFrameSequence;
 
   return {
@@ -120,11 +140,12 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     requestedBinEnd: requestedBin ? requestedBin.end : null,
     requestedSequence,
     shownVersion: at === null || isShownFailed ? null : shownVersion,
-    isLoading: state === VersionViewerState.Viewing && !hasFailed && version?.kind !== VersionLoadKind.Ready,
+    isLoading: state === VersionViewerState.Viewing && !hasFailed && !isRequestedFrameReady,
     hasFailed,
     runs,
     travelTo,
     backToLive,
     reportFailure: setFailedFrameSequence,
+    reportReady: setReadyFrameSequence,
   };
 }

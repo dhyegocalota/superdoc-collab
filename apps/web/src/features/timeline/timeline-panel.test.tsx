@@ -28,6 +28,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
+import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR, timelineWith } from '@/testing/timeline-fixtures';
@@ -35,20 +36,25 @@ import { TIMELINE_POLL_MS } from './timeline-api';
 import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
+  CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
+  LOADING_TIMELINE_LABEL,
   NO_EDITS_IN_BIN_MESSAGE,
   NO_EDITS_YET_MESSAGE,
   RESIZE_PANEL_LABEL,
   RETRY_SUMMARY_LABEL,
   RETRY_TOPICS_LABEL,
   SELECTION_SUMMARY_HEADING,
+  SHOWING_WHOLE_DOCUMENT_MESSAGE,
   SUMMARIZE_EDITS_LABEL,
   SUMMARIZING_EDITS_MESSAGE,
   PANEL_POSITION_LABEL,
   PANEL_POSITION_LABELS,
   TIMELINE_HEADING,
   TOP_EDITS_LABEL,
+  VIEW_VERSION_LABEL,
 } from './timeline-copy';
+import { CHART_HEIGHT } from './streamgraph-layout';
 import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
@@ -101,6 +107,9 @@ const UNAVAILABLE_VIEW: SelectionSummaryView = {
   step: SummarizeStep.Idle,
 };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
+
+const VERSION_SEQUENCE = 10;
+const INSIDE_BIN_OFFSET_MS = 1000;
 
 const scrollIntoView = vi.fn();
 
@@ -173,6 +182,8 @@ type PanelOptions = {
   isOpen?: boolean;
   summarize?: SummarizeControl;
   onOpenChange?: (isOpen: boolean) => void;
+  onTravel?: (binStart: number) => void;
+  isLoadingVersion?: boolean;
 };
 
 function PanelHarness({
@@ -181,6 +192,8 @@ function PanelHarness({
   initiallyOpen,
   summarize,
   onOpenChange,
+  onTravel,
+  isLoadingVersion,
 }: Required<Omit<PanelOptions, 'route' | 'isOpen'>> & { initiallyOpen: boolean }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen);
 
@@ -197,7 +210,8 @@ function PanelHarness({
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       summarize={summarize}
-      onTravel={vi.fn()}
+      isLoadingVersion={isLoadingVersion}
+      onTravel={onTravel}
       onBackToLive={vi.fn()}
     />
   );
@@ -210,9 +224,19 @@ function renderPanel({
   isOpen = true,
   summarize = idleSummarize(),
   onOpenChange = vi.fn(),
+  onTravel = vi.fn(),
+  isLoadingVersion = false,
 }: PanelOptions = {}) {
   return renderWithProviders(
-    <PanelHarness role={role} position={position} initiallyOpen={isOpen} summarize={summarize} onOpenChange={onOpenChange} />,
+    <PanelHarness
+      role={role}
+      position={position}
+      initiallyOpen={isOpen}
+      summarize={summarize}
+      onOpenChange={onOpenChange}
+      onTravel={onTravel}
+      isLoadingVersion={isLoadingVersion}
+    />,
     { route },
   );
 }
@@ -737,4 +761,180 @@ test('below md the bottom columns take their content height so the chart never o
     expect(classes).not.toContain('min-h-0');
     expect(classes).toContain('md:min-h-0');
   });
+});
+
+function wholeDocumentHeader(): HTMLElement {
+  return screen.getByText(SHOWING_WHOLE_DOCUMENT_MESSAGE).closest<HTMLElement>('[aria-live]')!;
+}
+
+function isFollowing({ before, after }: { before: Element; after: Element }): boolean {
+  return Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
+test('below md the order is chart, header, filter, card, edits and the header is sticky', async () => {
+  mockTimelineApi({ selectionViews: [READY_VIEW] });
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = await screen.findByLabelText(/^Budget/);
+  const header = wholeDocumentHeader();
+  const filter = screen.getByLabelText(FILTER_LABEL);
+  const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
+  const edits = screen.getByRole('heading', { name: TOP_EDITS_LABEL });
+  expect(isFollowing({ before: chart, after: header })).toBe(true);
+  expect(isFollowing({ before: header, after: filter })).toBe(true);
+  expect(isFollowing({ before: filter, after: card })).toBe(true);
+  expect(isFollowing({ before: card, after: edits })).toBe(true);
+  expect(header).toHaveClass('sticky', 'top-0');
+});
+
+test('the header lives under the chart in the chart column and its scroller is the panel body', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  const chartColumn = document.querySelector<HTMLElement>(`[data-column="${PanelColumn.Chart}"]`)!;
+  expect(chartColumn).toContainElement(wholeDocumentHeader());
+  expect(chartColumn).toHaveClass('contents', 'md:flex');
+});
+
+test('from the large breakpoint there is no header', async () => {
+  const sharedMatchMedia = window.matchMedia;
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  onTestFinished(() => {
+    vi.stubGlobal('matchMedia', sharedMatchMedia);
+  });
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  expect(screen.queryByText(SHOWING_WHOLE_DOCUMENT_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('selecting a bin puts its range and edit count in the header and Clear selection empties it', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  const header = (await screen.findByText('10 characters')).closest<HTMLElement>('[aria-live]')!;
+  expect(within(header).getByText(/Oct 16/)).toBeInTheDocument();
+  await userEvent.click(within(header).getByRole('button', { name: CLEAR_SELECTION_LABEL }));
+  expect(await screen.findByText(SHOWING_WHOLE_DOCUMENT_MESSAGE)).toBeInTheDocument();
+});
+
+test('a tap on the chart scrolls the header into view', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = (await screen.findByLabelText(/^Budget/)).closest('svg')!;
+  const header = wholeDocumentHeader();
+  fireEvent.pointerDown(chart, { clientX: 0 });
+  await waitFor(() => {
+    const revealedHeader = scrollIntoView.mock.contexts.includes(header);
+    expect(revealedHeader).toBe(true);
+  });
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+});
+
+test('a tap on the bin already selected scrolls the header into view again', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = (await screen.findByLabelText(/^Budget/)).closest('svg')!;
+  const header = wholeDocumentHeader();
+  fireEvent.pointerDown(chart, { clientX: 0 });
+  await waitFor(() => expect(scrollIntoView.mock.contexts.includes(header)).toBe(true));
+  fireEvent.pointerUp(chart);
+  scrollIntoView.mockClear();
+  fireEvent.pointerDown(chart, { clientX: 0 });
+  await waitFor(() => expect(scrollIntoView.mock.contexts.includes(header)).toBe(true));
+});
+
+test('the first load shows a status skeleton with the chart height', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => undefined));
+  renderPanel({ position: PanelPosition.Bottom });
+  const skeleton = await screen.findByRole('status', { name: LOADING_TIMELINE_LABEL });
+  expect(skeleton).toHaveStyle({ height: `${CHART_HEIGHT}px` });
+  expect(skeleton).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
+});
+
+test('once the timeline is loaded the skeleton is gone', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  expect(screen.queryByRole('status', { name: LOADING_TIMELINE_LABEL })).not.toBeInTheDocument();
+});
+
+const versionedTimeline: DocumentTimeline = {
+  ...baseTimeline,
+  bins: baseTimeline.bins.map((bin, index) => ({ ...bin, versionSequence: VERSION_SEQUENCE + index })),
+};
+
+test('below lg selecting a versioned bin by key never travels and View version does', async () => {
+  const onTravel = vi.fn();
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, onTravel });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  const viewVersion = await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  expect(onTravel).not.toHaveBeenCalled();
+  await userEvent.click(viewVersion);
+  expect(onTravel).toHaveBeenCalledExactlyOnceWith(versionedTimeline.bins[0]!.start);
+});
+
+test('the bin already shown offers no View version', async () => {
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${versionedTimeline.bins[0]!.start}` });
+  await screen.findByText('10 characters');
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('an at inside the selected bin offers no View version', async () => {
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${versionedTimeline.bins[0]!.start + INSIDE_BIN_OFFSET_MS}` });
+  await screen.findByText('10 characters');
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('a bin without a version offers no View version', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  await screen.findByText('10 characters');
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('View version is disabled while a version loads', async () => {
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, isLoadingVersion: true });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  expect(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })).toBeDisabled();
+});
+
+test('from lg selecting a versioned bin travels at once and there is no header', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  const onTravel = vi.fn();
+  mockTimelineApi({ timeline: versionedTimeline });
+  renderPanel({ position: PanelPosition.Bottom, onTravel });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  expect(onTravel).toHaveBeenCalledExactlyOnceWith(versionedTimeline.bins[0]!.start);
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('below md the header sits in a contents wrapper whose parent is a scrolling flex column, because a grid item sticks only inside its own row', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  expect(wholeDocumentHeader().parentElement).toHaveClass('contents');
+  const body = wholeDocumentHeader().parentElement!.parentElement!;
+  expect(body).toHaveAttribute('data-panel-body');
+  expect(body).toHaveClass('flex', 'flex-col', 'overflow-y-auto', 'md:grid');
+  expect(body).not.toHaveClass('grid');
+});
+
+test('from md to lg the header tops the list column', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  const listColumn = document.querySelector<HTMLElement>(`[data-column="${PanelColumn.List}"]`)!;
+  expect(wholeDocumentHeader().parentElement).toBe(listColumn);
+  expect(listColumn.firstElementChild).toBe(wholeDocumentHeader());
 });

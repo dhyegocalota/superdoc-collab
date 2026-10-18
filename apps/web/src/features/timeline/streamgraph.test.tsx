@@ -37,7 +37,8 @@ function asRendered(text: string): string {
 function renderGraph({
   selectedIndex = 1,
   highlightedBandId = null,
-}: { selectedIndex?: number | null; highlightedBandId?: string | null } = {}) {
+  isLoadingVersion = false,
+}: { selectedIndex?: number | null; highlightedBandId?: string | null; isLoadingVersion?: boolean } = {}) {
   const onSelectIndex = vi.fn();
   const onClearSelection = vi.fn();
   const view = render(
@@ -47,6 +48,7 @@ function renderGraph({
       selectedIndex={selectedIndex}
       highlightedBandId={highlightedBandId}
       onSelectIndex={onSelectIndex}
+      isLoadingVersion={isLoadingVersion}
       onClearSelection={onClearSelection}
     />,
   );
@@ -91,6 +93,38 @@ test('pressing the chart selects the bin under the pointer', () => {
   const { container, onSelectIndex } = renderGraph();
   fireEvent.pointerDown(container.querySelector('svg')!, { clientX: WIDTH, buttons: 1 });
   expect(onSelectIndex).toHaveBeenLastCalledWith(2);
+});
+
+test('taps are ignored while a version loads and the chart is busy', () => {
+  const { container, onSelectIndex } = renderGraph({ isLoadingVersion: true });
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerDown(chart, { clientX: WIDTH, buttons: 1 });
+  fireEvent.pointerMove(chart, { clientX: 0, buttons: 1 });
+  expect(onSelectIndex).not.toHaveBeenCalled();
+  expect(chart.parentElement).toHaveAttribute('aria-busy', 'true');
+});
+
+test('taps select and the chart is not busy once no version loads', () => {
+  const { container, onSelectIndex } = renderGraph({ isLoadingVersion: false });
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerDown(chart, { clientX: WIDTH, buttons: 1 });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(2);
+  expect(chart.parentElement).toHaveAttribute('aria-busy', 'false');
+});
+
+test('keys still move the selection while a version loads', () => {
+  const { onSelectIndex } = renderGraph({ selectedIndex: 1, isLoadingVersion: true });
+  fireEvent.keyDown(budgetBand(), { key: 'ArrowRight' });
+  expect(onSelectIndex).toHaveBeenLastCalledWith(2);
+});
+
+test('a drag inside the selected bin selects nothing and a drag into another bin selects it', () => {
+  const { container, onSelectIndex } = renderGraph({ selectedIndex: 1 });
+  const chart = container.querySelector('svg')!;
+  fireEvent.pointerMove(chart, { clientX: WIDTH / 2, buttons: 1 });
+  expect(onSelectIndex).not.toHaveBeenCalled();
+  fireEvent.pointerMove(chart, { clientX: WIDTH, buttons: 1 });
+  expect(onSelectIndex).toHaveBeenCalledExactlyOnceWith(2);
 });
 
 test('hovering a bin shows its range, bands, sizes and contributors', () => {
@@ -166,6 +200,7 @@ test('Escape clears the selection and hides the keyboard tooltip', () => {
       selectedIndex={null}
       highlightedBandId={null}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={onClearSelection}
     />,
   );
@@ -181,6 +216,7 @@ test('the tooltip never grows wider than a narrow chart', () => {
       selectedIndex={1}
       highlightedBandId={null}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={vi.fn()}
     />,
   );
@@ -233,6 +269,7 @@ test('a chart whose bands all carry their label has no legend', () => {
       selectedIndex={null}
       highlightedBandId={null}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={vi.fn()}
     />,
   );
@@ -260,6 +297,7 @@ test('the chart is one tab stop on the active band', () => {
       selectedIndex={1}
       highlightedBandId={timeline.bands[1]!.id}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={vi.fn()}
     />,
   );
@@ -327,6 +365,7 @@ function renderAgentGraph() {
       selectedIndex={1}
       highlightedBandId={null}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={vi.fn()}
     />,
   );
@@ -384,6 +423,7 @@ function renderActionGraph(source = actionTimeline) {
       selectedIndex={null}
       highlightedBandId={null}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={vi.fn()}
     />,
   );
@@ -433,6 +473,7 @@ test('a tooltip for an action that disappears is gone with it', () => {
       selectedIndex={null}
       highlightedBandId={null}
       onSelectIndex={vi.fn()}
+      isLoadingVersion={false}
       onClearSelection={vi.fn()}
     />,
   );
@@ -441,7 +482,14 @@ test('a tooltip for an action that disappears is gone with it', () => {
 
 test('the bins are labelled in the zone the timeline was built in, not the current preference', () => {
   const saoPaulo = timelineWith({ volumes: [[100]], names: ['Budget'], timeZone: SAO_PAULO_TIME_ZONE });
-  const props = { width: WIDTH, selectedIndex: 0, highlightedBandId: null, onSelectIndex: vi.fn(), onClearSelection: vi.fn() };
+  const props = {
+    width: WIDTH,
+    selectedIndex: 0,
+    highlightedBandId: null,
+    isLoadingVersion: false,
+    onSelectIndex: vi.fn(),
+    onClearSelection: vi.fn(),
+  };
   render(<Streamgraph timeline={saoPaulo} {...props} />);
   const first = saoPaulo.bins[0]!;
   expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();

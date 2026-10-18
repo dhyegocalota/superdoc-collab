@@ -37,15 +37,17 @@ import {
   LOADING_VERSION_MESSAGE,
   STREAMGRAPH_TITLE,
   VERSION_FRAME_TITLE,
+  VIEW_VERSION_LABEL,
 } from '@/features/timeline/timeline-copy';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
+import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
-import { renameTitleLabel, TITLE_LABEL } from '@/features/editor/editor-copy';
+import { renameTitleLabel, TIMELINE_TOGGLE_LABEL, TITLE_LABEL } from '@/features/editor/editor-copy';
 import { DocumentPage } from '@/features/editor/document-page';
 
 type VersionReply = { status: HttpStatus; body?: VersionSummary; headers?: Record<string, string> };
@@ -178,7 +180,13 @@ function pressChartAt(index: number): void {
   fireEvent.pointerDown(chart, { clientX: (index * 600) / (SEQUENCES.length - 1) });
 }
 
+async function openPanel(): Promise<void> {
+  await userEvent.click(await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
+  await screen.findByTitle(STREAMGRAPH_TITLE);
+}
+
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
   SuperDoc.mockClear();
   installAuthorPalette();
   vi.spyOn(window, 'matchMedia').mockImplementation(
@@ -197,6 +205,7 @@ test('an at link opens the version in a same-origin frame and Back to live remov
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   const frame = await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT);
   expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }));
+  sendFromFrame({ frame: frame as HTMLIFrameElement });
   expect(await screen.findByText(/Version at/)).toBeVisible();
   expect(screen.getByTestId('version-banner')).toHaveAttribute('data-sequence', '42');
   await userEvent.click(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL }));
@@ -479,4 +488,152 @@ test('Escape on a focused band leaves the version once', async () => {
   await waitFor(() => expect(router.state.location.search).toBe(''));
   unsubscribe();
   expect(locations).toEqual(['']);
+});
+
+test('below lg selecting a versioned bin never travels and View version writes at at once', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await openPanel();
+  pressChartAt(1);
+  await screen.findByRole('button', { name: VIEW_VERSION_LABEL });
+  fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowRight' });
+  fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowLeft' });
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
+  expect(router.state.location.search).toBe('');
+  await act(async () => fireEvent.click(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })));
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
+});
+
+test('from lg a versioned bin travels on the tap and offers no View version', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await screen.findByTitle(STREAMGRAPH_TITLE);
+  pressChartAt(1);
+  await waitFor(() => expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`), SLOW_WAIT);
+  expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
+});
+
+const BIN_AFTER_LAST_MS = 600_000;
+const PENDING_REPLY: VersionReply = { status: HttpStatus.Accepted, headers: { 'Retry-After': '1' } };
+
+test('a loading version dims the editor area and shows a progress line under the bar until the frame is visible', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY, readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
+  expect(screen.getByTestId('editor-surface')).toHaveClass('opacity-60');
+  expect(screen.getByTestId('editor-area')).not.toHaveClass('opacity-60');
+  expect(banner.closest('.opacity-60')).toBeNull();
+  expect(progress).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
+  expect(banner.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const frame = await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT);
+  expect(screen.getByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeInTheDocument();
+  sendFromFrame({ frame: frame as HTMLIFrameElement });
+  await waitFor(() => expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull());
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass('opacity-60');
+});
+
+test('below lg a pointer tap during a load is ignored', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
+  const rule = screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.querySelector('line')!;
+  const before = rule.getAttribute('x1');
+  pressChartAt(3);
+  expect(screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.querySelector('line')).toHaveAttribute('x1', before!);
+  expect(screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.parentElement).toHaveAttribute('aria-busy', 'true');
+});
+
+test('from lg a tap during a load still travels after the debounce', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY], 51: [readyReply(51)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByRole('status', { name: LOADING_VERSION_MESSAGE });
+  pressChartAt(3);
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 2);
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[3]}`);
+});
+
+test('an at beyond the last bin never dims the editor or shows a progress line', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi();
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[4]! + BIN_AFTER_LAST_MS}` });
+  await screen.findByTestId('version-banner');
+  await screen.findByTitle(STREAMGRAPH_TITLE);
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass('opacity-60');
+  expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull();
+});
+
+test('an at with no version never locks the chart', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi();
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[4]! + BIN_AFTER_LAST_MS}` });
+  await openPanel();
+  pressChartAt(1);
+  expect(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })).toBeEnabled();
+});
+
+test('below lg the progress line follows the bar outside the dimmed editor area', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
+  expect(banner.nextElementSibling).toBe(progress);
+  expect(screen.getByTestId('editor-area').parentElement).not.toContainElement(progress);
+});
+
+test('below lg the version bar sits before the layout, outside the shared scroller, with a 44 px button', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  const layout = screen.getByTestId('editor-area').parentElement!;
+  expect(layout).not.toContainElement(banner);
+  expect(banner.compareDocumentPosition(layout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'touch');
+});
+
+test('from lg the version bar keeps its place and its small button', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  expect(screen.getByTestId('editor-area')).toContainElement(banner);
+  expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'sm');
+});
+
+function sessionRequests(fetchSpy: ReturnType<typeof mockDocumentApi>): number {
+  return fetchSpy.mock.calls.filter(([path]) => String(path).split('?')[0] === ApiPath.Me).length;
+}
+
+test('moving the version bar between layouts does not ask the server for the session again', async () => {
+  const listeners: Array<(event: { matches: boolean }) => void> = [];
+  let width = WIDE_VIEWPORT_WIDTH;
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+    const minimumWidth = Number(/min-width:\s*(\d+)px/.exec(query)?.[1]);
+    return {
+      get matches() {
+        return width >= minimumWidth;
+      },
+      media: query,
+      addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.push(listener),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList;
+  });
+  const fetchSpy = mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByTestId('version-banner');
+  const before = sessionRequests(fetchSpy);
+  width = NARROW_VIEWPORT_WIDTH;
+  act(() => listeners.forEach((listener) => listener({ matches: false })));
+  await waitFor(() => expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'touch'));
+  await act(async () => undefined);
+  expect(sessionRequests(fetchSpy)).toBe(before);
 });

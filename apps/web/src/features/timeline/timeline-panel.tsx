@@ -1,21 +1,30 @@
-import { DocumentRole, type EditSelection } from '@superdoc-collab/types';
+import { DocumentRole, type DocumentTimeline, type EditSelection, type TimelineBin } from '@superdoc-collab/types';
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
-import { useEffect, type CSSProperties } from 'react';
+import { cellVolume } from '@superdoc-collab/history/timeline';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
+import { MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { formatBinRange } from '@/lib/format-date-time';
 import { useElementWidth } from '@/lib/use-element-width';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
+import { useMinWidth } from '@/lib/use-min-width';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
 import { BinEdits } from './bin-edits';
+import { binContaining } from './bin-containing';
 import { FilterBox } from './filter-box';
 import { PanelPositionToggle } from './panel-position-toggle';
 import { ResizeHandle } from './resize-handle';
 import { timelineStamp } from './selection-summary';
+import { SelectedHeader, type SelectedHeaderSelection } from './selected-header';
 import { SelectionSummaryCard } from './selection-summary-card';
 import { Streamgraph } from './streamgraph';
+import { CHART_HEIGHT } from './streamgraph-layout';
 import { TimelineCollapsedBar } from './timeline-collapsed-bar';
-import { TIMELINE_HEADING } from './timeline-copy';
+import { LOADING_TIMELINE_LABEL, TIMELINE_HEADING } from './timeline-copy';
 import { TimelineNotices } from './timeline-notices';
 import { TopEdits } from './top-edits';
 import { useBinSelection } from './use-bin-selection';
@@ -24,6 +33,7 @@ import { MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, useAreaHeight, useIsCompact, usePane
 import type { SummarizeControl } from './use-summarize';
 import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
+import { useRevealSelected } from './use-reveal-selected';
 import { useTimeline } from './use-timeline';
 import { useTimelineSearch } from './use-timeline-search';
 
@@ -44,6 +54,7 @@ type TimelinePanelProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   summarize: SummarizeControl;
+  isLoadingVersion: boolean;
   onTravel: (binStart: number) => void;
   onBackToLive: () => void;
 };
@@ -80,7 +91,26 @@ function PanelHeader({ position, isOpen, onOpenChange }: Pick<TimelinePanelProps
   );
 }
 
-export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange, summarize, onTravel, onBackToLive }: TimelinePanelProps) {
+function selectionOf({ timeline, bin }: { timeline: DocumentTimeline; bin: TimelineBin }): SelectedHeaderSelection {
+  return {
+    rangeLabel: formatBinRange({ start: bin.start, end: bin.end, binMs: timeline.binMs, timeZone: timeline.timeZone }),
+    volume: Object.values(bin.byBand).reduce((total, cell) => total + cellVolume(cell), 0),
+  };
+}
+
+function ignoreTravel(): void {}
+
+export function TimelinePanel({
+  documentId,
+  role,
+  position,
+  isOpen,
+  onOpenChange,
+  summarize,
+  isLoadingVersion,
+  onTravel,
+  onBackToLive,
+}: TimelinePanelProps) {
   const isBottom = position === PanelPosition.Bottom;
   const { ref: chartRef, width: chartWidth } = useElementWidth();
   const { ref: areaRef, height: areaHeight } = useAreaHeight();
@@ -88,8 +118,18 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   const isCompact = useIsCompact();
   const bottomSize = usePanelHeight({ areaHeight, isCompact });
   const { search } = useTimelineSearch();
-  const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
-  const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({ timeline, at: search.at, onTravel, onBackToLive });
+  const { data: timeline, isPending: isTimelinePending } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
+  const isPhoneLayout = useIsPhoneLayout();
+  const isStackedLayout = !useMinWidth(MEDIUM_BREAKPOINT_PX);
+  const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({
+    timeline,
+    at: search.at,
+    onTravel: isPhoneLayout ? ignoreTravel : onTravel,
+    onBackToLive,
+  });
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [selectionCount, setSelectionCount] = useState(0);
+  useRevealSelected({ targetRef: headerRef, selectionCount });
   const { data: summaries } = useSummaries({ documentId, isOpen });
   const canEdit = role !== DocumentRole.Reader;
   const hasFilter = search.filter.term !== null || search.filter.author !== null;
@@ -143,17 +183,43 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
   );
   const chart = (
     <div ref={chartRef} className="shrink-0 overflow-visible">
+      {isTimelinePending && (
+        <Skeleton role="status" aria-label={LOADING_TIMELINE_LABEL} className="w-full" style={{ height: CHART_HEIGHT }} />
+      )}
       {timeline && chartWidth > 0 && (
         <Streamgraph
           timeline={timeline}
           width={chartWidth}
           selectedIndex={selectedIndex}
           highlightedBandId={search.topic}
-          onSelectIndex={selectIndex}
+          isLoadingVersion={isPhoneLayout && isLoadingVersion}
+          onSelectIndex={selectAndCount}
           onClearSelection={clearSelection}
         />
       )}
     </div>
+  );
+  const isSelectedBinShown = selectedIndex !== null && binContaining({ timeline, time: search.at })?.index === selectedIndex;
+  const canViewVersion = selectedBin !== null && selectedBin.versionSequence !== null && !isSelectedBinShown;
+  function selectAndCount(index: number): void {
+    setSelectionCount((count) => count + 1);
+    selectIndex(index);
+  }
+
+  function viewSelectedVersion(): void {
+    if (!selectedBin) return;
+    onTravel(selectedBin.start);
+  }
+
+  const header = isPhoneLayout && (
+    <SelectedHeader
+      ref={headerRef}
+      selection={timeline && selectedBin ? selectionOf({ timeline, bin: selectedBin }) : null}
+      canViewVersion={canViewVersion}
+      isViewVersionDisabled={isLoadingVersion}
+      onClear={clearSelection}
+      onViewVersion={viewSelectedVersion}
+    />
   );
   const filter = (
     <div className="w-full md:ml-auto md:w-72">
@@ -193,12 +259,23 @@ export function TimelinePanel({ documentId, role, position, isOpen, onOpenChange
             </div>
           )}
           {isOpen && isBottom && (
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto px-4 pb-4 md:grid-cols-[minmax(0,1fr)_380px] md:overflow-hidden">
-              <div data-column={PanelColumn.Chart} className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto">
+            <div
+              data-panel-body
+              className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 md:grid md:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:overflow-hidden"
+            >
+              <div
+                data-column={PanelColumn.Chart}
+                className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"
+              >
                 {chart}
+                {isStackedLayout && header}
                 {filter}
               </div>
-              <div data-column={PanelColumn.List} className="flex min-w-0 flex-col gap-3 md:min-h-0 md:overflow-y-auto">
+              <div
+                data-column={PanelColumn.List}
+                className="contents md:flex md:min-h-0 md:min-w-0 md:flex-col md:gap-3 md:overflow-y-auto"
+              >
+                {!isStackedLayout && header}
                 {notices}
                 {card}
                 {edits}

@@ -18,6 +18,7 @@ export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: Ti
   const { topics, projection, bins, bands } = timeline;
   const isLagging = projection.isBehind && projection.lagMs !== null && projection.lagMs >= PROJECTION_LAG_NOTICE_MS;
   const hasNoMatches = hasFilter && bins.length > 0 && bands.every((band) => band.volume === 0);
+  const isEmpty = bins.length === 0 && !projection.isBehind;
   const isNamingTopics = topics.state === TopicState.Pending && bins.length > 0;
   return (
     <div className="flex flex-col gap-2 text-sm">
@@ -39,7 +40,7 @@ export function TimelineNotices({ timeline, hasFilter, canRefresh, onRetry }: Ti
           <p className="text-muted-foreground">{lagBehindLabel(Math.round(projection.lagMs! / SECOND_MS))}</p>
         </div>
       )}
-      {bins.length === 0 && <p role="status">{NO_EDITS_YET_MESSAGE}</p>}
+      {isEmpty && <p role="status">{NO_EDITS_YET_MESSAGE}</p>}
       {hasNoMatches && <p role="status">{NO_MATCHING_EDITS_MESSAGE}</p>}
     </div>
   );

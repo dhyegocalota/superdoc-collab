@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
 import { useSession } from '@/features/auth/use-session';
-import { UseWithAiDialog } from '@/features/connected-apps/use-with-ai-dialog';
+import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
@@ -75,8 +75,8 @@ export function DocumentPage() {
   const isViewingPastVersion = timeTravel.state === VersionViewerState.Viewing;
   const isToolbarReady = isReader || toolbarContainer !== null;
 
-  function renderUseWithAi(trigger?: ReactNode): ReactNode {
-    return <UseWithAiDialog title={title} canEdit={!isReader} trigger={trigger} />;
+  function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
+    return <UseWithAiDialog title={title} canEdit={!isReader} {...slot} />;
   }
 
   function summarizeAndOpenPanel(): void {

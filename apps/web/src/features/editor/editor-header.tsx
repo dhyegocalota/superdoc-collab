@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AccountMenu } from '@/features/account/account-menu';
 import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
+import type { UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { cn } from '@/lib/utils';
 import { deleteDocument } from './editor-api';
@@ -82,7 +83,7 @@ type DocumentActionsMenuProps = DocumentIdentity & {
   isOwner: boolean;
   isReady: boolean;
   onDownload: (format: DownloadFormat) => void;
-  renderUseWithAi: (trigger?: ReactNode) => ReactNode;
+  renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
 function keepMenuOpen(event: Event): void {
@@ -107,12 +108,15 @@ function DocumentActionsMenu({ documentId, isOwner, isReady, onDownload, renderU
           <TooltipContent>{MORE_ACTIONS_LABEL}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end">
-          {renderUseWithAi(
-            <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
-              <Bot aria-hidden />
-              {USE_WITH_AI_LABEL}
-            </DropdownMenuItem>,
-          )}
+          {renderUseWithAi({
+            trigger: (
+              <DropdownMenuItem className="sm:hidden" onSelect={keepMenuOpen}>
+                <Bot aria-hidden />
+                {USE_WITH_AI_LABEL}
+              </DropdownMenuItem>
+            ),
+            returnFocusRef: triggerRef,
+          })}
           {Object.values(DownloadFormat).map((format) => (
             <DropdownMenuItem
               key={format}
@@ -143,7 +147,7 @@ type EditorHeaderProps = {
   superdoc: SuperDoc | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
-  renderUseWithAi: (trigger?: ReactNode) => ReactNode;
+  renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
 export function EditorHeader({

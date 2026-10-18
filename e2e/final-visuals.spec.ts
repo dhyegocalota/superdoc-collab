@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import {
   ApiPath,
   AppRoute,
+  DEMO_ADMIN,
   DEMO_USERS,
   DOCX_MIME_TYPE,
   documentPagePath,
@@ -78,7 +79,7 @@ import {
   waitForSummarizeResponse,
 } from './timeline';
 
-const [anaUser, brunoUser, caioUser] = DEMO_USERS;
+const [anaUser, brunoUser, caioUser, daniUser] = DEMO_USERS;
 const PARAGRAPHS = [BUDGET_PARAGRAPH, HIRING_PARAGRAPH];
 const ROADMAP = 'Roadmap';
 const ROADMAP_PARAGRAPH = 'Roadmap: we ship in March.';
@@ -90,6 +91,8 @@ const VIEWPORT_WIDTHS = [320, 375, 768, 1024, 1280, 1536, 1920, 2560];
 const VIEWPORT_HEIGHT = 800;
 const TWO_MEMBER_WIDTHS = [640, 700, 768, 800, 1023];
 const MINIMUM_TITLE_WIDTH_PX = 96;
+const FIVE_MEMBER_WIDTH = 640;
+const MINIMUM_FIVE_MEMBER_TITLE_WIDTH_PX = 80;
 const PAGE_CENTRE_TOLERANCE_PX = 2;
 const PAGE_CENTRED_FROM_WIDTH_PX = 1024;
 const LONG_DOCUMENT_LINES = 40;
@@ -105,6 +108,7 @@ const PRINT_TIMEOUT_MS = 60_000;
 const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
 const LONG_DOCUMENT_PARAGRAPH_COUNT = 60;
 const LONG_DOCUMENT_MIN_PAGES = 4;
+const LONG_DOCUMENT_FIRST_LINE = 'Opening line of the long plan.';
 const EDITED_PHRASE = 'edited';
 const RETRY_IN_PATTERN = /Try again in \d+ s\./;
 const DARK_CLASS_PATTERN = /(^|\s)dark(\s|$)/;
@@ -314,7 +318,9 @@ test('Download PDF prepares the print view and calls print once every page has t
 test('Download PDF of a document of at least 4 pages prints only when every page has text', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: anaUser! });
   await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
-  const paragraphs = Array.from({ length: LONG_DOCUMENT_PARAGRAPH_COUNT }, (_, index) => `Paragraph ${index} `.repeat(40));
+  const paragraphs = Array.from({ length: LONG_DOCUMENT_PARAGRAPH_COUNT }, (_, index) =>
+    index === 0 ? LONG_DOCUMENT_FIRST_LINE : `Paragraph ${index} `.repeat(40),
+  );
   await uploadSeed({ page: ana.page, paragraphs });
   await downloadPdf(ana.page);
   await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: LONG_DOCUMENT_MIN_PAGES });
@@ -503,6 +509,19 @@ test('the top bar fits between 640 and 1023 px with two members and keeps a read
     const titleBox = await titleButton({ page: ana.page, title }).boundingBox();
     expect(titleBox!.width).toBeGreaterThanOrEqual(MINIMUM_TITLE_WIDTH_PX);
   }
+});
+
+test('the top bar fits at 640 px with five members and keeps a readable title', async ({ browser }) => {
+  const { ana, title, documentId } = await ownerOpensDocument({ browser });
+  const otherMembers = [brunoUser!, caioUser!, daniUser!, DEMO_ADMIN];
+  for (const user of otherMembers) {
+    const member = await signedInContext({ browser, user });
+    await shareAndAccept({ owner: ana.page, member: member.page, documentId, role: ShareLinkRole.Edit });
+  }
+  await ana.page.setViewportSize({ width: FIVE_MEMBER_WIDTH, height: VIEWPORT_HEIGHT });
+  await expectChromeFits({ page: ana.page, name: anaUser!.name });
+  const titleBox = await titleButton({ page: ana.page, title }).boundingBox();
+  expect(titleBox!.width).toBeGreaterThanOrEqual(MINIMUM_FIVE_MEMBER_TITLE_WIDTH_PX);
 });
 
 for (const width of VIEWPORT_WIDTHS) {

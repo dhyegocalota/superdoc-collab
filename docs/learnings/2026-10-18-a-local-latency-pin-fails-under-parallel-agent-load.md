@@ -10,7 +10,7 @@
 The pin measures wall-clock latency of a local request. It is a performance budget, not a correctness test, and it reads the machine's load as a regression.
 
 ## Do
-Rerun that file alone (`pnpm exec vitest run src/history/timeline-routes.test.ts` in `apps/server`) before reading the failure as a regression; run the full gate when no other heavy process shares the machine. Record the isolated run as the evidence when the gate is otherwise green. Do not raise the budget or skip the pin locally: it protects the latency goal of ADR 0010.
+Rerun that file alone (`pnpm exec vitest run src/history/timeline-routes.test.ts` in `apps/server`) before reading the failure as a regression; run the full gate when no other heavy process shares the machine. Record the isolated run as the evidence when the gate is otherwise green. Do not raise the budget or skip the pin locally: it protects the latency goal of ADR 0001 (event sourcing over Yjs).
 
 ## Anchor
 `apps/server/src/history/timeline-routes.test.ts` (the `isContinuousIntegration` guard around the budget assertion), `.agents/skills/verify/SKILL.md`

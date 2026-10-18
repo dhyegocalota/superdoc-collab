@@ -13,8 +13,8 @@ The readability survey (top-ten items 2 and 10, plus the libs part of its lane s
 
 ## Goals
 
-1. `libs/history/src/timeline/runs.ts`: the binary search loses its `else` and its non-null assertion.
-2. `isBlank` in `libs/types/src/text.ts`, with a unit test, replaces the blank-string compares where the text is already trimmed or trimmed on the spot: `topics-service.ts`, `document-title.tsx`, `print-page.tsx`, `author-palette.ts` and `format-date-time.ts`.
+1. `libs/history/src/timeline/runs.ts`: the binary search loses its `else`; its non-null assertions stay (see Known gaps).
+2. `isBlank` in `libs/types/src/text.ts`, with a unit test, replaces the blank-string compares where the text is already trimmed or trimmed on the spot: `topics-service.ts`, `document-title.tsx`, `print-page.tsx` and `author-palette.ts`.
 3. Dead exports in the libraries are un-exported or removed after a grep across the repository, tests included.
 4. A sweep of both libraries for the code conventions; the clear cases are fixed and the rest are listed under Known gaps.
 
@@ -22,7 +22,7 @@ The readability survey (top-ten items 2 and 10, plus the libs part of its lane s
 
 - Everything in the survey's server and web lanes, and every deferred item.
 - `libs/types/src/constants.ts`, which another lane edits.
-- Two blank compares that must not trim: `filter-box.tsx` (Escape clears a draft that is only spaces) and `keyboard.ts` (a text field holding only spaces still counts as filled). Trimming them would change behaviour.
+- Three blank compares on raw, untrimmed text: `filter-box.tsx` (Escape clears a draft that is only spaces), `keyboard.ts` (a text field holding only spaces still counts as filled) and `format-date-time.ts` (the offset slice is never trimmed). Trimming them would change behaviour.
 - Sharing `transitionsOf` between the two zoned-time tests. Verification showed they are not duplicates: one scans a year every fifteen minutes, the other scans seventy years every fourteen days and bisects each hit to the second. A shared helper would change what each test proves.
 
 ## Design
@@ -33,7 +33,7 @@ The readability survey (top-ten items 2 and 10, plus the libs part of its lane s
 |------|------|-----------|
 | `isBlank` | `libs/types/src/text.ts` | `isBlank(text: string): boolean`, true when the text is empty after trimming |
 
-`runMatchesTerm` (runs.ts) and `PASSWORD_MIN_LENGTH` (auth.ts) are only used inside their own files, so they stop being exported.
+Seventeen names used only inside their own files stop being exported: `runMatchesTerm`, `isAgentAuthorKey`, `TOPIC_HUE_START`, `TOPIC_HUE_END`, `TimeZonePartsError`, `PROJECTION_BATCH_SIZE`, `MissingBootstrapUpdateError`, `DUPLICATE_TOPIC_NAMES_MESSAGE`, `extractStructClientIds`, `AGENT_NAME_SUFFIX`, `PASSWORD_MIN_LENGTH`, `NAME_MIN_LENGTH`, `TIME_ZONE_MAX_LENGTH`, `AGENT_KEY_SUFFIX`, `HASH_OFFSET_BASIS`, `HASH_PRIME` and `SOCKET_MESSAGE_UPLOAD_MULTIPLE`.
 
 ### Failure handling
 

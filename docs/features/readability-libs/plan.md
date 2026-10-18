@@ -4,13 +4,13 @@
 **Tier:** 🟢
 **Seam:** `libs/history/src`, `libs/types/src` and seven blank-string call sites.
 **Assumptions (decided, owner can override):**
-- `isBlank` trims, so the two raw compares in `filter-box.tsx` and `keyboard.ts` stay as they are.
+- `isBlank` trims, so the three raw compares in `filter-box.tsx`, `keyboard.ts` and `format-date-time.ts` stay as they are.
 
 ## File map
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `libs/history/src/**`, `libs/types/src/**` except `constants.ts`, the five call sites named in the spec | `developer-ss` |
+| G1 | `libs/history/src/**`, `libs/types/src/**` except `constants.ts`, the four call sites named in the spec | `developer-ss` |
 
 ## Sequencing
 
@@ -18,8 +18,8 @@ One developer, steps in order. Step 2 comes before its call sites.
 
 ## Steps
 
-- [x] **Step 1:** remove the `else` and the non-null assertion in `binStartContaining`; the runs and bins tests pin it.
-- [x] **Step 2:** `isBlank` test first, then `isBlank`, then the five call sites.
+- [x] **Step 1:** remove the `else` in `binStartContaining`; the runs and bins tests pin it.
+- [x] **Step 2:** `isBlank` test first, then `isBlank`, then the four call sites.
 - [x] **Step 3:** un-export `runMatchesTerm` and `PASSWORD_MIN_LENGTH` after a repository-wide grep.
 - [x] **Step 4:** examine the two `transitionsOf` helpers; they differ, so nothing is shared and the spec says why.
 - [x] **Step 5:** sweep the libraries for the conventions; fix the clear cases and list the rest in the spec.

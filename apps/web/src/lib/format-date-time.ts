@@ -1,4 +1,4 @@
-import { DATE_TIME_LOCALE, DAY_MS, HOUR_MS, isBlank, MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { DATE_TIME_LOCALE, DAY_MS, HOUR_MS, MINUTE_MS, UTC_TIME_ZONE } from '@superdoc-collab/types';
 
 const TIMESTAMP_PARTS: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
 const VERSION_TIME_PARTS: Intl.DateTimeFormatOptions = { timeStyle: 'medium' };
@@ -85,7 +85,7 @@ export function formatTimeZoneOffset({ time, timeZone }: { time: number; timeZon
     .find((candidate) => candidate.type === OFFSET_PART_TYPE);
   if (!part) throw new Error(`No offset for ${timeZone}`);
   const offset = part.value.slice(OFFSET_PREFIX.length);
-  if (isBlank(offset)) return `${UTC_TIME_ZONE}${ZERO_OFFSET}`;
+  if (offset === '') return `${UTC_TIME_ZONE}${ZERO_OFFSET}`;
   return `${UTC_TIME_ZONE}${offset}`;
 }
 

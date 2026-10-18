@@ -17,6 +17,7 @@ export const LOADING_VERSION_MESSAGE = 'Loading this version…';
 export const SHOWING_WHOLE_DOCUMENT_MESSAGE = 'Showing the whole document';
 export const CLEAR_SELECTION_LABEL = 'Clear selection';
 export const VIEW_VERSION_LABEL = 'View version';
+export const LOADING_TIMELINE_MESSAGE = 'Loading edits…';
 export const VERSION_FRAME_TITLE = 'Document version';
 export const RESIZE_PANEL_LABEL = 'Resize edits panel';
 export const PANEL_POSITION_LABEL = 'Panel position';

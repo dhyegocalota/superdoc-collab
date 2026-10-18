@@ -35,13 +35,16 @@ import { TIMELINE_POLL_MS } from './timeline-api';
 import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
+  CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
+  LOADING_TIMELINE_MESSAGE,
   NO_EDITS_IN_BIN_MESSAGE,
   NO_EDITS_YET_MESSAGE,
   RESIZE_PANEL_LABEL,
   RETRY_SUMMARY_LABEL,
   RETRY_TOPICS_LABEL,
   SELECTION_SUMMARY_HEADING,
+  SHOWING_WHOLE_DOCUMENT_MESSAGE,
   SUMMARIZE_EDITS_LABEL,
   SUMMARIZING_EDITS_MESSAGE,
   PANEL_POSITION_LABEL,
@@ -49,6 +52,7 @@ import {
   TIMELINE_HEADING,
   TOP_EDITS_LABEL,
 } from './timeline-copy';
+import { CHART_HEIGHT } from './streamgraph-layout';
 import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
@@ -737,4 +741,88 @@ test('below md the bottom columns take their content height so the chart never o
     expect(classes).not.toContain('min-h-0');
     expect(classes).toContain('md:min-h-0');
   });
+});
+
+function wholeDocumentHeader(): HTMLElement {
+  return screen.getByText(SHOWING_WHOLE_DOCUMENT_MESSAGE).closest<HTMLElement>('[aria-live]')!;
+}
+
+function isFollowing({ before, after }: { before: Element; after: Element }): boolean {
+  return Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
+test('below md the order is chart, header, filter, card, edits and the header is sticky', async () => {
+  mockTimelineApi({ selectionViews: [READY_VIEW] });
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = await screen.findByLabelText(/^Budget/);
+  const header = wholeDocumentHeader();
+  const filter = screen.getByLabelText(FILTER_LABEL);
+  const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
+  const edits = screen.getByRole('heading', { name: TOP_EDITS_LABEL });
+  expect(isFollowing({ before: chart, after: header })).toBe(true);
+  expect(isFollowing({ before: header, after: filter })).toBe(true);
+  expect(isFollowing({ before: filter, after: card })).toBe(true);
+  expect(isFollowing({ before: card, after: edits })).toBe(true);
+  expect(header).toHaveClass('sticky', 'top-0');
+});
+
+test('the header lives under the chart in the chart column and its scroller is the panel body', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  const chartColumn = document.querySelector<HTMLElement>(`[data-column="${PanelColumn.Chart}"]`)!;
+  expect(chartColumn).toContainElement(wholeDocumentHeader());
+  expect(chartColumn).toHaveClass('contents', 'md:flex');
+});
+
+test('from the large breakpoint there is no header', async () => {
+  const sharedMatchMedia = window.matchMedia;
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  onTestFinished(() => vi.stubGlobal('matchMedia', sharedMatchMedia));
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  expect(screen.queryByText(SHOWING_WHOLE_DOCUMENT_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('selecting a bin puts its range and edit count in the header and Clear selection empties it', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
+  const header = (await screen.findByText('10 edits')).closest<HTMLElement>('[aria-live]')!;
+  expect(within(header).getByText(/Oct 16/)).toBeInTheDocument();
+  await userEvent.click(within(header).getByRole('button', { name: CLEAR_SELECTION_LABEL }));
+  expect(await screen.findByText(SHOWING_WHOLE_DOCUMENT_MESSAGE)).toBeInTheDocument();
+});
+
+test('a tap on the chart scrolls the header into view', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = (await screen.findByLabelText(/^Budget/)).closest('svg')!;
+  const header = wholeDocumentHeader();
+  fireEvent.pointerDown(chart, { clientX: 0 });
+  await waitFor(() => {
+    const revealedHeader = scrollIntoView.mock.contexts.includes(header);
+    expect(revealedHeader).toBe(true);
+  });
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+});
+
+test('the first load shows a status skeleton with the chart height', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => undefined));
+  renderPanel({ position: PanelPosition.Bottom });
+  const skeleton = await screen.findByRole('status', { name: LOADING_TIMELINE_MESSAGE });
+  expect(skeleton).toHaveStyle({ height: `${CHART_HEIGHT}px` });
+});
+
+test('once the timeline is loaded the skeleton is gone', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  expect(screen.queryByRole('status', { name: LOADING_TIMELINE_MESSAGE })).not.toBeInTheDocument();
 });

@@ -525,3 +525,47 @@ test('below lg Back to live drops the pending version', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).toBeNull();
 });
+
+const PENDING_REPLY: VersionReply = { status: HttpStatus.Accepted, headers: { 'Retry-After': '1' } };
+
+test('a loading version dims the editor area and shows a progress line under the bar', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY, readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
+  expect(screen.getByTestId('editor-area')).toHaveClass('opacity-60');
+  expect(progress).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
+  expect(banner.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await waitFor(() => expect(screen.queryByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeNull(), SLOW_WAIT);
+  expect(screen.getByTestId('editor-area')).not.toHaveClass('opacity-60');
+});
+
+test('a tap on the chart during a load is ignored', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY], 50: [readyReply(50)] } });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await screen.findByRole('status', { name: LOADING_VERSION_MESSAGE });
+  pressChartAt(2);
+  await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 3);
+  expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
+});
+
+test('below lg the version bar is pinned above the editor with a 44 px button', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  expect(banner).toHaveClass('sticky', 'top-0', 'min-h-11');
+  expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'touch');
+});
+
+test('from lg the version bar keeps its place and its small button', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [readyReply(42)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  expect(banner).not.toHaveClass('sticky');
+  expect(screen.getByRole('button', { name: BACK_TO_LIVE_LABEL })).toHaveAttribute('data-size', 'sm');
+});

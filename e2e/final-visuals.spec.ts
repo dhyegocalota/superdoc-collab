@@ -27,6 +27,7 @@ import {
   FIND_IN_DOCUMENT_LABEL,
   DOWNLOAD_PDF_LABEL,
   goToCursorLabel,
+  memberLabel,
   movedToCursorMessage,
   offlineMemberReason,
   PREPARING_PDF_MESSAGE,
@@ -62,6 +63,7 @@ import {
 } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import {
+  ANA,
   BANDS_TIMEOUT_MS,
   BRUNO,
   BUDGET,
@@ -102,6 +104,7 @@ const DISCARDED_TITLE = 'Discard';
 const FIRST_EDIT = ' More money';
 const SECOND_EDIT = ' and more';
 const BRUNO_EDIT = ' from Bruno';
+const ANA_EDIT = ' from Ana';
 const SUMMARY_TIMEOUT_MS = 30_000;
 const WAITING_TIMEOUT_MS = 30_000;
 const PRINT_TIMEOUT_MS = 60_000;
@@ -452,6 +455,35 @@ test('a member avatar scrolls the editor to that member’s caret and offline me
   const offlineButton = topBar(ana.page).getByRole('button', { name: new RegExp(BRUNO) });
   await expect(offlineButton).toHaveAttribute('aria-disabled', 'true', { timeout: WAITING_TIMEOUT_MS });
   await expect(offlineButton).toHaveAccessibleDescription(offlineMemberReason(BRUNO), { timeout: WAITING_TIMEOUT_MS });
+});
+
+async function swatchColorOf({ page, label }: { page: Page; label: string }): Promise<string> {
+  const swatch = topBar(page).getByRole('button', { name: label }).locator('span').first();
+  return swatch.evaluate((element) => getComputedStyle(element).backgroundColor);
+}
+
+async function remoteCaretColorOf(page: Page): Promise<string> {
+  return page
+    .locator(REMOTE_CARET_SELECTOR)
+    .first()
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+}
+
+test('two members of one document get two colours that agree between the members list and the remote cursor', async ({ browser }) => {
+  const { ana, documentId } = await ownerOpensDocument({ browser });
+  const bruno = await signedInContext({ browser, user: brunoUser! });
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  await insertInParagraph({ page: ana.page, paragraphText: BUDGET_PARAGRAPH, text: ANA_EDIT });
+  await insertInParagraph({ page: bruno.page, paragraphText: HIRING_PARAGRAPH, text: BRUNO_EDIT });
+  await expect(ana.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
+  await expect(bruno.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
+  const anaOwnSwatch = await swatchColorOf({ page: ana.page, label: memberLabel({ name: ANA, isOnline: true }) });
+  const brunoSwatchForAna = await swatchColorOf({ page: ana.page, label: goToCursorLabel(BRUNO) });
+  const anaSwatchForBruno = await swatchColorOf({ page: bruno.page, label: goToCursorLabel(ANA) });
+  expect(brunoSwatchForAna).not.toBe(anaOwnSwatch);
+  expect(anaSwatchForBruno).toBe(anaOwnSwatch);
+  expect(await remoteCaretColorOf(ana.page)).toBe(brunoSwatchForAna);
+  expect(await remoteCaretColorOf(bruno.page)).toBe(anaSwatchForBruno);
 });
 
 test('a document opened before its owner syncs it shows the waiting page and enters on its own', async ({ browser }) => {

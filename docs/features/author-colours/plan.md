@@ -26,7 +26,7 @@ One group, server first (steps 1-2), then web (3-5), then E2E (6).
 - [x] **Step 3:** `authorPaletteOf` takes the slot; the editor mounts with `opened.colorSlot`; tests.
 - [x] **Step 4:** `members.tsx` and `use-member-cursors.ts` read `member.colorSlot`; tests.
 - [x] **Step 5:** `useAuthorColorSlots` for the timeline avatars and the version viewer, with the non-member branch; tests.
-- [ ] **Step 6:** E2E: two colliding demo users on one document see two colours, consistent across cursor and members list; `pnpm typecheck`; tester briefing.
+- [x] **Step 6:** E2E: two colliding demo users on one document see two colours, consistent across cursor and members list; `pnpm typecheck`; tester briefing.
 
 ## Failure modes
 

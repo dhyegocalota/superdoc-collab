@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
+import { layoutStreamgraph } from './streamgraph-layout';
 import {
   AGENT_ACTION_LABELS,
   AGENT_LEGEND_LABEL,
@@ -494,3 +495,67 @@ test('the bins are labelled in the zone the timeline was built in, not the curre
   const first = saoPaulo.bins[0]!;
   expect(screen.getByText(formatBinMoment({ time: first.start, binMs: saoPaulo.binMs, timeZone: SAO_PAULO_TIME_ZONE }))).toBeVisible();
 });
+
+const EDGE_BINS = 4;
+const SILENT_BINS = 6;
+const SILENCE_FIRST = EDGE_BINS;
+const AFTER_SILENCE = EDGE_BINS + SILENT_BINS;
+const LAST_BIN = 2 * EDGE_BINS + SILENT_BINS - 1;
+const breakTimeline = timelineWith({
+  volumes: [
+    ...Array.from({ length: EDGE_BINS }, () => [100, 20]),
+    ...Array.from({ length: SILENT_BINS }, () => [0, 0]),
+    ...Array.from({ length: EDGE_BINS }, () => [100, 20]),
+  ],
+  names: ['Budget', 'Hiring'],
+  agentActions: [
+    {
+      authorKey: FIXTURE_AGENT_AUTHOR_KEY,
+      kind: AgentActionKind.DocumentExported,
+      createdAt: timeline.bins[0]!.start + (SILENCE_FIRST + 2) * 60_000,
+    },
+  ],
+});
+const breakColumn = layoutStreamgraph({ timeline: breakTimeline, width: WIDTH }).breaks[0]!;
+
+function renderBreakGraph({ selectedIndex = null }: { selectedIndex?: number | null } = {}) {
+  const onSelectIndex = vi.fn();
+  const view = render(
+    <Streamgraph
+      timeline={breakTimeline}
+      width={WIDTH}
+      selectedIndex={selectedIndex}
+      highlightedBandId={null}
+      onSelectIndex={onSelectIndex}
+      isLoadingVersion={false}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  const focusableBand = view.container.querySelector('path[tabindex="0"]')!;
+  return { ...view, onSelectIndex, focusableBand };
+}
+
+test('a break is one dashed divider hidden from assistive technology', () => {
+  const { container } = renderBreakGraph();
+  const dividers = container.querySelectorAll('line[stroke-dasharray]');
+  expect(dividers).toHaveLength(1);
+  const [divider] = dividers;
+  expect(divider).toHaveAttribute('aria-hidden', 'true');
+  expect(divider!.getAttribute('class')).toContain('stroke-');
+  expect(divider!.outerHTML).not.toMatch(/#[0-9a-f]{3,8}/i);
+  expect(Number(divider!.getAttribute('x1'))).toBeCloseTo(breakColumn.centerX);
+});
+
+test('a chart without a break has no divider', () => {
+  const { container } = renderGraph();
+  expect(container.querySelectorAll('line[stroke-dasharray]')).toHaveLength(0);
+});
+
+test('the description says long stretches are shortened only when a break is drawn', () => {
+  const withBreak = renderBreakGraph();
+  expect(withBreak.container.querySelector('desc')!.textContent).toContain('Long stretches without edits are shortened.');
+  withBreak.unmount();
+  const withoutBreak = renderGraph();
+  expect(withoutBreak.container.querySelector('desc')!.textContent).not.toContain('shortened');
+});
+

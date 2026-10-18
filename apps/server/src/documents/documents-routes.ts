@@ -132,11 +132,20 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       });
     }
     const { roomMode } = answer;
-    if (roomMode === RoomMode.Join) return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null });
+    const colorSlotOf = () => documents.colorSlotOf({ documentId, userId });
+    if (roomMode === RoomMode.Join)
+      return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null, colorSlot: colorSlotOf() });
     if (role === DocumentRole.Reader) return notReady({ context, documentId });
     const ticket = runtime.reserveCreator({ documentId, userId });
     if (ticket === null) return notReady({ context, documentId });
-    return context.json({ document: summary, role, roomMode, creatorAttempt: ticket.attempt, creatorEpoch: ticket.epoch });
+    return context.json({
+      document: summary,
+      role,
+      roomMode,
+      creatorAttempt: ticket.attempt,
+      creatorEpoch: ticket.epoch,
+      colorSlot: colorSlotOf(),
+    });
   });
 
   routes.patch(
@@ -181,7 +190,7 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       ? runtime.onlineTabIds({ documentId, userId: context.var.user.id }).has(tab)
       : online.has(context.var.user.id);
     return context.json({
-      members: documents.members(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
+      members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,
     });
   });

@@ -512,10 +512,12 @@ test('open answers the colorSlot the members route gives the same user', async (
   const { server, documentId, users } = await documentWithSixMembers();
   const path = pathOf({ documentId, resource: DocumentResource.Members });
   const { members }: DocumentMembers = await (await request({ server, cookie: users[0]!.cookie, path })).json();
-  const opened = await Promise.all(users.map((user) => openedBy({ server, user, documentId })));
-  const openedSlots = opened.map((answer) => answer.colorSlot);
-  expect(new Set(openedSlots).size).toBe(AUTHOR_COLOR_SLOT_COUNT);
-  expect(openedSlots).toEqual(members.map((member) => member.colorSlot));
+  commitRoom({ services: server.services, documentId, userId: users[0]!.id });
+  const openedSlots = new Map(
+    await Promise.all(users.map(async (user) => [user.id, (await openedBy({ server, user, documentId })).colorSlot] as const)),
+  );
+  expect(new Set(openedSlots.values()).size).toBe(AUTHOR_COLOR_SLOT_COUNT);
+  expect(openedSlots).toEqual(new Map(members.map((member) => [member.user.id, member.colorSlot])));
   await server.stop();
 });
 

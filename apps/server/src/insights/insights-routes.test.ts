@@ -366,6 +366,25 @@ test("the Retry-After is the longer of the cooldown and the model's busy wait", 
   await server.stop();
 });
 
+test('a POST one millisecond before the cooldown ends answers 429 with Retry-After 1, and one at the end is accepted', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const { server, documentId, editor } = await twoAuthorsInTwoBlocks({
+    languageModel: readyModel(modelAnswering(SELECTION_ANSWER, SELECTION_ANSWER)),
+  });
+  await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
+  await server.services.insights.jobRunner.idle();
+  const startedAt = Date.now();
+  vi.setSystemTime(startedAt + SUMMARIZE_COOLDOWN_MS - 1);
+  const before = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: 'term=designer' });
+  expect(before.status).toBe(HttpStatus.TooManyRequests);
+  expect(before.headers.get(RETRY_AFTER_HEADER)).toBe('1');
+  vi.setSystemTime(startedAt + SUMMARIZE_COOLDOWN_MS);
+  const atEnd = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: 'term=designer' });
+  expect(atEnd.status).toBe(HttpStatus.Accepted);
+  await server.services.insights.jobRunner.idle();
+  await server.stop();
+});
+
 test('GET selection returns step idle when no job runs', async () => {
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(modelAnswering(SELECTION_ANSWER)) });
   expect((await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY })).step).toBe(SummarizeStep.Idle);

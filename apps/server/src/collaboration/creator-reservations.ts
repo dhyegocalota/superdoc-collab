@@ -36,16 +36,16 @@ export class CreatorReservations {
     if (this.lapses.remainingMs(lapseKey) > 0) return null;
     const current = this.held.get(documentId);
     const isLive = current !== undefined && current.expiresAt > this.now();
-    const isHolderReopening = isLive && current.userId === userId;
-    if (isLive && !isHolderReopening) return null;
-    const hasLapsedAtCap = current !== undefined && current.userId === userId && this.now() >= current.reservedAt + this.maxLifetimeMs;
+    const isContinuation = current !== undefined && current.userId === userId && this.now() < current.expiresAt + this.reservationMs;
+    if (isLive && !isContinuation) return null;
+    const hasLapsedAtCap = isContinuation && this.now() >= current.reservedAt + this.maxLifetimeMs;
     if (hasLapsedAtCap) {
       this.lapses.start(lapseKey);
       this.held.delete(documentId);
       return null;
     }
     const attempt = this.latestAttemptOf(documentId) + 1;
-    const reservedAt = isHolderReopening ? current.reservedAt : this.now();
+    const reservedAt = isContinuation ? current.reservedAt : this.now();
     const expiresAt = Math.min(this.now() + this.reservationMs, reservedAt + this.maxLifetimeMs);
     this.held.set(documentId, { documentId, userId, attempt, reservedAt, expiresAt });
     this.latestAttempts.set(documentId, attempt);

@@ -40,6 +40,7 @@ The room mode is Create until the update log holds a committed bootstrap. Today 
 - A reservation is live while any socket of its attempt is connected. Silence (no appended update) after the last close expires it after `CREATOR_RESERVATION_MS`, and its total lifetime is capped at `CREATOR_RESERVATION_MAX_MS`, after which it lapses even with a socket connected. A holder that lapsed at the cap waits one `CREATOR_RESERVATION_MS` cooldown before it can reserve the same document again, so a slow or hostile holder cannot keep a document closed to everyone else.
 - Opens of documents not yet known committed are limited per user to `OPEN_UNCOMMITTED_PER_MINUTE` distinct documents per minute (never above the scan cache size), one budget consulted before any log scan on the open route, socket authentication, the agent room locator and the export tool, so one user cannot thrash the bounded scan cache on any path. A document counts once per user and minute, so waiting-page polls and reconnects are free.
 - The holder opening the document again (a second tab or a reload mid-create) is issued a new attempt and its old sockets are closed with 4403: the newest tab wins, which restarts a create cleanly instead of leaving two pages seeding one attempt.
+- A holder that releases and reopens within `CREATOR_RESERVATION_MS` keeps the original start of its lifetime, so closing the last socket and reopening cannot reset the cap; a creator returning after that window gets a fresh start.
 
 ## Evidence
 

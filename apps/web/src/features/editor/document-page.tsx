@@ -8,6 +8,7 @@ import { signInPathFor } from '@/features/auth/sign-in-path';
 import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
+import { LOADING_VERSION_MESSAGE } from '@/features/timeline/timeline-copy';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
@@ -39,7 +40,8 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
   [PanelPosition.Bottom]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-y-visible',
   [PanelPosition.Side]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible',
 };
-const FAILED_EDITOR_AREA_CLASS = 'opacity-60';
+const DIMMED_EDITOR_AREA_CLASS = 'opacity-60';
+const VERSION_PROGRESS_CLASS = 'h-0.5 w-full animate-pulse bg-primary motion-reduce:animate-none';
 
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
@@ -144,6 +146,7 @@ export function DocumentPage() {
   }
 
   const isFailed = connectionState === ConnectionState.Failed;
+  const isDimmed = isFailed || timeTravel.isLoading;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
   const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
@@ -186,8 +189,9 @@ export function DocumentPage() {
         onSummarize={summarizeAndOpenPanel}
       />
       <div className={PANEL_LAYOUT_CLASS[position]}>
-        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>
+        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isDimmed && DIMMED_EDITOR_AREA_CLASS)}>
           <VersionBanner timeTravel={timeTravel} />
+          {timeTravel.isLoading && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
           <div className="relative flex min-h-0 min-w-0 flex-1">
             {editorSetup && isToolbarReady && (
               <SuperDocEditor

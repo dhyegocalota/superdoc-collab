@@ -22,6 +22,7 @@ vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const FORM_TEXT = 'sign-in form';
+const SLOW_SIGN_IN_RENDER_MILLISECONDS = 10;
 
 let isSignedIn = true;
 
@@ -35,15 +36,29 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
+function BusyForm({ renderMilliseconds }: { renderMilliseconds: number }) {
+  const renderEnd = performance.now() + renderMilliseconds;
+  while (performance.now() < renderEnd);
+  return FORM_TEXT;
+}
+
 function renderApp({
   initialEntries = [AppRoute.Documents],
   seededUser = null,
-}: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null } = {}) {
+  signInRenderMilliseconds = 0,
+}: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null; signInRenderMilliseconds?: number } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   if (seededUser) queryClient.setQueryData(SESSION_QUERY_KEY, seededUser);
   const router = createMemoryRouter(
     [
-      { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
+      {
+        path: AppRoute.SignIn,
+        element: (
+          <RedirectIfSession>
+            <BusyForm renderMilliseconds={signInRenderMilliseconds} />
+          </RedirectIfSession>
+        ),
+      },
       {
         path: AppRoute.Documents,
         element: (
@@ -76,6 +91,17 @@ test('signing out lands on the bare sign-in route and stays there', async () => 
   await waitFor(() => expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toBeNull());
   await waitFor(() => expect(router.state.location.state).toBeNull());
   expect(router.state.location.pathname).toBe(AppRoute.SignIn);
+  expect(router.state.location.search).toBe('');
+});
+
+test('a sign-in route that renders slowly still ends on the bare sign-in route', async () => {
+  const { router } = renderApp({ signInRenderMilliseconds: SLOW_SIGN_IN_RENDER_MILLISECONDS });
+  const visitedSearches: string[] = [];
+  router.subscribe((state) => visitedSearches.push(state.location.search));
+  await signOut();
+  expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
+  await waitFor(() => expect(router.state.location.state).toBeNull());
+  expect(visitedSearches).not.toContain('?next=%2Fdocuments');
   expect(router.state.location.search).toBe('');
 });
 

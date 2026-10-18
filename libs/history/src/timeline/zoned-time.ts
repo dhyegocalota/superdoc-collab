@@ -85,7 +85,8 @@ function steppedBack({ next, start, binMs, timeZone }: { next: number; start: nu
 
 function probedBinStart({ start, binMs, timeZone, shiftMs }: { start: number; binMs: number; timeZone: string; shiftMs: number }): number {
   const probed = zonedBinStartOf({ time: start + binMs + shiftMs, binMs, timeZone });
-  if (probed > start || shiftMs >= MAX_PROBE_SHIFT_MS) return probed;
+  const isSettled = probed > start || shiftMs >= MAX_PROBE_SHIFT_MS;
+  if (isSettled) return probed;
   return probedBinStart({ start, binMs, timeZone, shiftMs: shiftMs + PROBE_STEP_MS });
 }
 

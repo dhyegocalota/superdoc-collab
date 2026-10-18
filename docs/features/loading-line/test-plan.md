@@ -4,8 +4,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## The failing test first
 
-- [ ] `apps/web/src/features/editor/document-page.test.tsx::while the document loads the status line is for assistive technology only and still describes the Download button` — input: the editor mounted but not ready; expected: the loading text has `role="status"` and the `sr-only` class and the Download button is described by it
-- [ ] Confirmed it fails for the right reason: `expect(element).toHaveClass("sr-only")`
+- [ ] No unit test pins the `sr-only` class: `.claude/rules/testing.md` line 27 forbids pinning Tailwind classes. The behaviour is pinned by the existing `document-page.test.tsx::the header stays while the document opens` (`role="status"`) and the two Download-description tests. The visual proof is the tester's before and after screenshots at 1280 and 375 under `.pr-media/loading-line/`.
 
 ## Unit
 
@@ -32,4 +31,4 @@ Empty on purpose. The tester adds one checkbox per new case (input, exact expect
 
 ## Coverage honesty
 
-- The visual absence of the line is asserted through the `sr-only` class, not a pixel check; the walk looks at it.
+- The visual absence of the line is proven by the before and after screenshots, not by a unit test.

@@ -3,7 +3,7 @@
 ## What changed
 
 - `apps/web/src/features/editor/document-page.tsx`: the status paragraph shown while `superdoc === null` now has the class `sr-only` instead of the visible text classes. Copy, role and wrapper are unchanged.
-- `document-page.test.tsx`: one new test.
+- No unit test pins the class (testing.md forbids pinning Tailwind classes); the red commit's test was removed in the review commit. The proof is the before and after screenshots.
 
 ## How to run
 
@@ -13,9 +13,7 @@ pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/document-
 
 ## Red today, green after
 
-| Commit | Test | Red failure text |
-|---|---|---|
-| red commit on `fix/loading-line` | `document-page.test.tsx::while the document loads the status line is for assistive technology only and still describes the Download button` | `expect(element).toHaveClass("sr-only")` |
+The red commit `d324987` failed with `expect(element).toHaveClass("sr-only")`; that test was deleted in the review commit and replaced by screenshots.
 
 ## Hypotheses to attack
 
@@ -26,4 +24,4 @@ pnpm --filter @superdoc-collab/web exec vitest run src/features/editor/document-
 
 ## Known gaps
 
-- Only the targeted file and the type check were run by the developer; no E2E and no browser walk.
+- Only the targeted file and the type check were run by the developer; no E2E and no browser walk. The visible absence is unproven by any automated test.

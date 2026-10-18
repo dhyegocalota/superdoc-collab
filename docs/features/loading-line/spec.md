@@ -5,7 +5,7 @@
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-18 (the owner asked for it directly: the visible "Loading document…" line above the toolbar is unnecessary)
 **ADRs:** none
-**Not changing:** the copy, the `role="status"`, the `LOADING_DOCUMENT_REASON_ID` wrapper that the Download button and the header reference through `aria-describedby`, the file-error message (still visible), the superseded case, SuperDoc's own loading overlay.
+**Not changing:** the copy, the `role="status"`, the `LOADING_DOCUMENT_REASON_ID` wrapper that the Download button (`download-menu.tsx`) and the More actions download items (`editor-header.tsx`) reference through `aria-describedby`, the file-error message (still visible), the superseded case, SuperDoc's own loading overlay.
 
 ## Problem
 
@@ -14,3 +14,7 @@ While the document opens, the editor page shows a small "Loading document…" li
 ## Change
 
 In `apps/web/src/features/editor/document-page.tsx` the status paragraph rendered while `superdoc === null` becomes visually hidden (`sr-only`). Assistive technology still hears it and the Download button is still described by it. Unit test in `document-page.test.tsx`: while loading the status is in the document with the `sr-only` class and the Download button is described by it; the existing superseded test keeps asserting the line is gone.
+
+## Rule exception
+
+`.claude/rules/web-ui.md` asks a disabled control to carry a visible reason. While the document loads, SuperDoc's loading overlay on the paper is the visible reason, so the Download description may be screen-reader only. The file-error message stays visible.

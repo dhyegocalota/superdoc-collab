@@ -546,19 +546,6 @@ test('an editor gets the toolbar container of the row and a reader gets none', a
   expect(screen.queryByTestId('toolbar-container')).toBeNull();
 });
 
-test('while the document loads the status line is for assistive technology only and still describes the Download button', async () => {
-  SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
-    return { destroy: superDocDestroy, export: superDocExport };
-  });
-  matchMediaAlwaysMatching();
-  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toHaveAttribute('role', 'status');
-  expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toHaveClass('sr-only');
-  expect(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toHaveAccessibleDescription(LOADING_DOCUMENT_MESSAGE);
-});
-
 test('while the editor is mounted but not ready, the Download button is described by the loading reason', async () => {
   SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
     return { destroy: superDocDestroy, export: superDocExport };

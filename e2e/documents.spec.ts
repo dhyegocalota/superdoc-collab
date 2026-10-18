@@ -15,6 +15,7 @@ import {
 } from '../libs/types/src';
 import {
   acceptShareLink,
+  documentIdOf,
   downloadButton,
   EDITOR_READY_TIMEOUT_MS,
   editorText,
@@ -46,14 +47,6 @@ const NARROW_VIEWPORT = { width: 375, height: 812 };
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
 const FIRST_PARAGRAPH_CLICK_POSITION = { x: 120, y: 120 };
 const TYPED_SENTENCE = 'Typed into a new document.';
-
-const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
-
-function documentIdOf(url: string): string {
-  const match = DOCUMENT_URL_PATTERN.exec(url);
-  if (!match) throw new Error(`no document id in ${url}`);
-  return match[1]!;
-}
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;

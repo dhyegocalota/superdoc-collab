@@ -14,5 +14,5 @@
 After New document, wait for the editor surface, click the first paragraph, press End, then type with key presses (`browser_press_key`, or `browser_type` with `slowly: true` after the click). Never fill a blank surface. `e2e/documents.spec.ts` covers the human path.
 
 ## Anchor
-- `docs/scenarios/core-realtime.md` (Setup), `.agents/skills/scenario/SKILL.md` step 3
-- `e2e/documents.spec.ts`: `a new document accepts typing after a click`
+- `docs/scenarios/core-realtime.md` (Setup), `.agents/skills/scenario/SKILL.md` step 3: the browser-tool path (click, End, key presses)
+- `e2e/documents.spec.ts`: `a new document accepts typing after a click`, which clicks the first page, presses End through `focusEditorAtEnd` and inserts the sentence in one go

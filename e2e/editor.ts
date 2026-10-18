@@ -96,7 +96,13 @@ export async function uploadSeed({
   await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer });
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
   await expect(editorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
-  return DOCUMENT_URL_PATTERN.exec(page.url())![1]!;
+  return documentIdOf(page.url());
+}
+
+export function documentIdOf(url: string): string {
+  const match = DOCUMENT_URL_PATTERN.exec(url);
+  if (!match) throw new Error(`no document id in ${url}`);
+  return match[1]!;
 }
 
 export async function readShareLinks({ page, documentId }: { page: Page; documentId: string }): Promise<ShareLinks> {

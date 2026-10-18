@@ -1,4 +1,4 @@
-import { RoomMode, versionCollaborationPath, type SessionUser } from '@superdoc-collab/types';
+import { RoomMode, SuperdocCollaborationState, versionCollaborationPath, type SessionUser } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SuperDoc } from 'superdoc';
@@ -8,11 +8,6 @@ import { ExceptionOutcome, exceptionOutcome } from '@/features/editor/superdoc-e
 import { DocumentMode, superdocOptions } from '@/features/editor/superdoc-options';
 import { FITTED_PAGE_CLASS, followViewportZoom } from '@/features/editor/superdoc-zoom';
 import { cn } from '@/lib/utils';
-
-enum ViewerConnectionState {
-  Degraded = 'degraded',
-  Failed = 'failed',
-}
 
 type VersionViewerProps = {
   documentId: string;
@@ -51,7 +46,7 @@ export function VersionViewer({ documentId, sequence, user, onReady, onFailed, o
         onReady(superdoc);
       },
       onCollaborationConnectionChange: ({ state }) => {
-        const isRefused = state === ViewerConnectionState.Failed || (state === ViewerConnectionState.Degraded && !isReady);
+        const isRefused = state === SuperdocCollaborationState.Failed || (state === SuperdocCollaborationState.Degraded && !isReady);
         if (isRefused) onConnectionFailed();
       },
       onException: (payload) => {

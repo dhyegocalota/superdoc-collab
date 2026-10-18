@@ -14,3 +14,10 @@ export enum ConnectionFailureReason {
   SessionEnded = 'session-ended',
   Unknown = 'unknown',
 }
+
+export enum SuperdocCollaborationState {
+  Connecting = 'connecting',
+  Synced = 'synced',
+  Degraded = 'degraded',
+  Failed = 'failed',
+}

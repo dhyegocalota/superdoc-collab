@@ -7,5 +7,6 @@
       "@modelcontextprotocol/sdk/*": ["../apps/server/node_modules/@modelcontextprotocol/sdk/dist/esm/*"]
     }
   },
-  "include": ["."]
+  "include": ["."],
+  "exclude": ["_*"]
 }

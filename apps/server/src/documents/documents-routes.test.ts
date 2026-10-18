@@ -362,7 +362,7 @@ function uncommittedDocuments({ server, owner, count }: { server: TestServer; ow
   });
 }
 
-test('the 61st distinct uncommitted document opened by one user within a minute answers 429 and another user is still served', async () => {
+test('the first distinct uncommitted document over the budget answers 429 and another user is still served', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   const others = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE });
@@ -380,7 +380,7 @@ test('the 61st distinct uncommitted document opened by one user within a minute 
   await server.stop();
 });
 
-test('the 61st distinct uncommitted document makes no query to the log', async () => {
+test('the first distinct uncommitted document over the budget makes no query to the log', async () => {
   const { server, owner } = await documentWithOwner();
   const opened = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE + 1 });
   await Promise.all(opened.slice(0, -1).map((documentId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })));

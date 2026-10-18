@@ -157,7 +157,7 @@ const SCENARIOS: Scenario[] = [
     name: 'a committed room accepts a socket that claims no attempt and the attempt that committed',
     act: ({ reservations, reserveAs, mayWrite }) => {
       reserveAs(FIRST_EDITOR);
-      reservations.commit({ documentId: DOCUMENT_ID, attempt: FIRST_ATTEMPT });
+      reservations.commit(DOCUMENT_ID);
       return [null, FIRST_ATTEMPT, SECOND_ATTEMPT].map((attempt) => mayWrite({ attempt, isCommitted: true }));
     },
     expected: [true, true, false],
@@ -168,7 +168,7 @@ const SCENARIOS: Scenario[] = [
       reserveAs(FIRST_EDITOR);
       advance(PAST_EXPIRY_MS);
       reserveAs(SECOND_EDITOR);
-      reservations.commit({ documentId: DOCUMENT_ID, attempt: SECOND_ATTEMPT });
+      reservations.commit(DOCUMENT_ID);
       return mayWrite({ attempt: FIRST_ATTEMPT, isCommitted: true });
     },
     expected: false,

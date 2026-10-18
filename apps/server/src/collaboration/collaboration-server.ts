@@ -198,20 +198,16 @@ export function createCollaborationServer({
       const isCommittingUpdate = creatorAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });
-        reservations.commit({ documentId, attempt: creatorAttempt });
+        reservations.commit(documentId);
         return onLogged(documentId);
       }
       updateLog.append({ documentName: documentId, connectionUserId: userId, connectionActor: actor, update });
       if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
       onLogged(documentId);
     },
-    async onDisconnect({ context, document }) {
+    async onDisconnect({ context }) {
       const { documentId, creatorAttempt } = context as CollaborationContext;
       if (creatorAttempt === null) return;
-      const isAttemptStillConnected = [...document.connections.values()].some(
-        ({ connection }) => (connection.context as CollaborationContext).creatorAttempt === creatorAttempt,
-      );
-      if (isAttemptStillConnected) return;
       reservations.release({ documentId, attempt: creatorAttempt });
     },
     async onStoreDocument({ documentName }) {

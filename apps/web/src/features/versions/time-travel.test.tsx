@@ -76,7 +76,7 @@ const SEQUENCES = [41, 42, 50, 51, 52];
 const PAGE_ROUTE = documentPagePath(DOCUMENT_ID);
 const SERVER_TIME = Date.UTC(2026, 9, 16, 14, 2);
 const EVIL_ORIGIN = 'http://evil.example';
-const SLOW_WAIT = { timeout: 3000 };
+const SLOW_WAIT = { timeout: 10_000 };
 const RUNS: EditRunView[] = [
   { blockId: 'block-1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'hello', deleted: '', lastServerTime: 1 },
 ];

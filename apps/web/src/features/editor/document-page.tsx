@@ -1,7 +1,11 @@
-import { DocumentRole, VersionViewerState } from '@superdoc-collab/types';
+import { ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
+import { signInPathFor } from '@/features/auth/sign-in-path';
+import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -10,6 +14,10 @@ import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { useRequiredParam } from '@/lib/use-required-param';
+import { cn } from '@/lib/utils';
+import { ConnectionBanner } from './connection-banner';
+import { RELOAD_FAILED_MESSAGE } from './connection-copy';
+import { documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
 import { EditorToolbarRow } from './editor-toolbar-row';
@@ -19,6 +27,7 @@ import { VersionFrame } from '@/features/versions/version-frame';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
 import { SuperDocEditor } from './superdoc-editor';
+import { useConnectionState } from './use-connection-state';
 import { useDocumentFile } from './use-document-file';
 import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
@@ -30,6 +39,7 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
   [PanelPosition.Bottom]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-y-visible',
   [PanelPosition.Side]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible',
 };
+const FAILED_EDITOR_AREA_CLASS = 'opacity-60';
 
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
@@ -37,7 +47,24 @@ export function DocumentPage() {
   const { data: opened, readiness, keepWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
-  const { members, isUnavailable } = useMembers(documentId);
+  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const {
+    state: connectionState,
+    failureReason,
+    reportTransport,
+    resetConnection,
+  } = useConnectionState({
+    documentId,
+    isCurrentUserOnline,
+    membersAnsweredAt,
+    isSessionEnded,
+  });
+  const [editorGeneration, setEditorGeneration] = useState(0);
+  const [isReloading, setIsReloading] = useState(false);
+  const [hasReloadFailed, setHasReloadFailed] = useState(false);
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
@@ -45,7 +72,7 @@ export function DocumentPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
   const { position } = usePanelPosition();
   const summarize = useSummarize({ documentId });
-  const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file });
+  const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
 
@@ -72,6 +99,7 @@ export function DocumentPage() {
   if (!opened) return withAnnouncement(<OpeningDocument />);
 
   const { title } = opened.document;
+  const { roomMode } = opened;
   const isReader = opened.role === DocumentRole.Reader;
   const isViewingPastVersion = timeTravel.state === VersionViewerState.Viewing;
   const isToolbarReady = isReader || toolbarContainer !== null;
@@ -90,6 +118,30 @@ export function DocumentPage() {
     setHasExportFailed(false);
     superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
   }
+
+  async function reload(): Promise<void> {
+    setIsReloading(true);
+    setHasReloadFailed(false);
+    try {
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true }, { throwOnError: true }),
+        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode }), exact: true }, { throwOnError: true }),
+      ]);
+      resetConnection();
+      setEditorGeneration((generation) => generation + 1);
+    } catch {
+      setHasReloadFailed(true);
+    } finally {
+      setIsReloading(false);
+    }
+  }
+
+  function signInAgain(): void {
+    navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
+  }
+
+  const isFailed = connectionState === ConnectionState.Failed;
+  const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
   return withAnnouncement(
     <div className="flex h-dvh flex-col">
@@ -114,6 +166,13 @@ export function DocumentPage() {
         </div>
       )}
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
+      <ConnectionBanner
+        state={connectionState}
+        failureReason={failureReason}
+        isReloading={isReloading}
+        onAction={isSessionEndedFailure ? signInAgain : reload}
+      />
+      {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
       <EditorToolbarRow
         role={opened.role}
         containerRef={setToolbarContainer}
@@ -122,11 +181,12 @@ export function DocumentPage() {
         onSummarize={summarizeAndOpenPanel}
       />
       <div className={PANEL_LAYOUT_CLASS[position]}>
-        <div data-testid="editor-area" className={EDITOR_AREA_CLASS}>
+        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && FAILED_EDITOR_AREA_CLASS)}>
           <VersionBanner timeTravel={timeTravel} />
           <div className="relative flex min-h-0 min-w-0 flex-1">
             {editorSetup && isToolbarReady && (
               <SuperDocEditor
+                key={editorGeneration}
                 onSuperdocChange={setSuperdoc}
                 onContainerChange={setEditorContainer}
                 toolbarContainer={toolbarContainer}
@@ -135,7 +195,8 @@ export function DocumentPage() {
                 role={editorSetup.role}
                 user={editorSetup.user}
                 file={editorSetup.file}
-                isInert={isViewingPastVersion}
+                isInert={isViewingPastVersion || isFailed}
+                onTransportReport={reportTransport}
               />
             )}
             <VersionFrame

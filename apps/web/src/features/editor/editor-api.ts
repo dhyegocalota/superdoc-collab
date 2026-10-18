@@ -6,7 +6,7 @@ import {
   HttpMethod,
   HttpStatus,
   RoomMode,
-  SECOND_MS,
+  TAB_QUERY_KEY,
   type DocumentMembers,
   type OpenedDocument,
   type ShareLinkRole,
@@ -14,12 +14,12 @@ import {
 } from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, DocumentUnavailableError, apiSend, assertDocumentAvailable, assertOk, readJson } from '@/lib/api';
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
+import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export class DocumentNotReadyError extends ApiRequestError {}
 
 export const BLANK_DOCX_PATH = '/blank.docx';
-export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 
 export function openedDocumentQueryKey(documentId: string): unknown[] {
   return documentQueryKey({ documentId, segments: [] });
@@ -61,7 +61,7 @@ export async function fetchDocumentFile({ documentId, roomMode }: { documentId: 
 }
 
 export async function fetchMembers(documentId: string): Promise<DocumentMembers> {
-  const response = await apiGet(documentApiPath({ documentId, resource: DocumentResource.Members }));
+  const response = await apiGet(`${documentApiPath({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${tabId()}`);
   assertDocumentAvailable(response);
   return readJson<DocumentMembers>({ response, subject: 'Members request' });
 }

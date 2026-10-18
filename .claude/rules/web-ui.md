@@ -31,10 +31,13 @@ paths:
 - The ellipsis is `…`, never `...`. (refinement-ux-care spec P2-17)
 - A disabled control carries a visible reason, linked with `aria-describedby`. (docs/learnings/2026-10-17-a-disabled-button-never-shows-its-title.md)
 
+## Banners
+- A page-level state banner (`ConnectionBanner`, `VersionBanner`) sits full width between the top bar and the content, carries `data-testid` and `data-state`, and wraps its action under the text at narrow widths (`flex-wrap`, `gap-2`, `px-4 py-2`, `text-sm`). `role="status"` announces progress; only a failure uses `role="alert"`. A spinner carries `motion-reduce:animate-none`. (apps/web/src/features/editor/connection-banner.tsx, apps/web/src/features/versions/version-banner.tsx)
+
 ## SuperDoc 2.23.0 in the browser
 - The editing surface is a `textarea`, not a contenteditable; in viewing mode it is a `role="document"` element. (`EDITING_SURFACE_SELECTOR` in superdoc-editor.tsx, `EDITOR_INPUT_SELECTOR` in e2e/editor.ts)
 - A programmatic `focus()` on a fresh blank document before the user's first click, from `onReady` or `onCollaborationReady`, leaves the composition textarea focused without a selection, and the first keystroke throws "This edit couldn't be completed". Never auto-focus a new document. (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md)
-- `onException` reports `code: 'edit-rejected'` once per rejected document-surface event (key, paste, cut, drop, pointer up), for example a keystroke aimed at a paragraph another author deleted; the instance keeps syncing, so the editor shows a status line instead of the fatal message (`isRecoverableException` in superdoc-exceptions.ts). (docs/features/editor-survives-rejected-edits/)
+- `onException` reports `code: 'edit-rejected'` once per rejected document-surface event (key, paste, cut, drop, pointer up), for example a keystroke aimed at a paragraph another author deleted; the instance keeps syncing, so the editor shows a status line instead of the fatal message (`exceptionOutcome` in superdoc-exceptions.ts). (docs/features/editor-survives-rejected-edits/)
 - `zoom: { mode: 'fit-width' }` in the config, and `setZoomMode`, `setZoom` and `focus()` on the instance, exist. (apps/web/src/features/editor/superdoc-zoom.ts)
 - The version viewer fits the page to the frame width with the shared `FIT_WIDTH_ZOOM` (`fit-width`, capped at 100 %) and `FITTED_PAGE_CLASS`, and passes no toolbar container. It takes the author palette from `authorPaletteOf`, the helper the live editor uses. (apps/web/src/features/editor/superdoc-zoom.ts, apps/web/src/features/versions/version-viewer.tsx)
 - `ui: { comments: { layout: 'auto', responsive: { breakpoint } } }` moves the tracked-change and comment cards inline below the breakpoint; the default sidebar layer squeezes the page to a thumbnail at 375 px. (apps/web/src/features/editor/superdoc-options.ts)

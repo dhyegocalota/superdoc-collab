@@ -3,6 +3,7 @@ import {
   AdminResource,
   adminApiPath,
   DocumentResource,
+  isTabId,
   documentApiPath,
   selectionSummaryApiPath,
   sharePagePath,
@@ -43,4 +44,17 @@ test('invite and admin paths encode their parameters', () => {
   expect(adminApiPath(AdminResource.Users)).toBe('/api/admin/users');
   expect(adminApiPath(AdminResource.Invites)).toBe('/api/admin/invites');
   expect(signUpPagePath('x/y')).toBe('/sign-up?invite=x%2Fy');
+});
+
+const TAB_ID = '3f2b8c1e-9d4a-4e7b-8a6c-5d1e2f3a4b5c';
+const OVERSIZED_TAB_ID_LENGTH = 16 * 1024;
+
+test.each([
+  { name: 'a UUID', value: TAB_ID, expected: true },
+  { name: 'an empty string', value: '', expected: false },
+  { name: 'a word', value: 'tab', expected: false },
+  { name: 'a UUID followed by text', value: `${TAB_ID}x`, expected: false },
+  { name: 'a 16 KB string', value: 'a'.repeat(OVERSIZED_TAB_ID_LENGTH), expected: false },
+])('isTabId accepts only a UUID: $name', ({ value, expected }) => {
+  expect(isTabId(value)).toBe(expected);
 });

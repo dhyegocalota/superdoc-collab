@@ -29,12 +29,28 @@ export async function expectSignedInAs({ page, name }: { page: Page; name: strin
   await expect(page.getByRole('banner').getByText(name, { exact: true })).toBeVisible();
 }
 
+function baseUrlOption(origin?: string): { baseURL?: string } {
+  if (origin === undefined) return {};
+  return { baseURL: origin };
+}
+
 const openedContexts: BrowserContext[] = [];
 
 export type SignedInContext = { context: BrowserContext; page: Page; userId: string };
 
-export async function signedInContext({ browser, user }: { browser: Browser; user: DemoUser }): Promise<SignedInContext> {
-  const context = await browser.newContext({ extraHTTPHeaders: { [FORWARDED_FOR_HEADER]: randomClientAddress() } });
+export async function signedInContext({
+  browser,
+  user,
+  origin,
+}: {
+  browser: Browser;
+  user: DemoUser;
+  origin?: string;
+}): Promise<SignedInContext> {
+  const context = await browser.newContext({
+    extraHTTPHeaders: { [FORWARDED_FOR_HEADER]: randomClientAddress() },
+    ...baseUrlOption(origin),
+  });
   openedContexts.push(context);
   const page = await context.newPage();
   await page.goto(AppRoute.SignIn);
@@ -47,8 +63,20 @@ export async function signedInContext({ browser, user }: { browser: Browser; use
 
 export type OpenedContext = { context: BrowserContext; page: Page };
 
-export async function openedContext({ browser, permissions }: { browser: Browser; permissions?: string[] }): Promise<OpenedContext> {
-  const context = await browser.newContext({ extraHTTPHeaders: { [FORWARDED_FOR_HEADER]: randomClientAddress() }, permissions });
+export async function openedContext({
+  browser,
+  permissions,
+  origin,
+}: {
+  browser: Browser;
+  permissions?: string[];
+  origin?: string;
+}): Promise<OpenedContext> {
+  const context = await browser.newContext({
+    extraHTTPHeaders: { [FORWARDED_FOR_HEADER]: randomClientAddress() },
+    permissions,
+    ...baseUrlOption(origin),
+  });
   openedContexts.push(context);
   const page = await context.newPage();
   return { context, page };

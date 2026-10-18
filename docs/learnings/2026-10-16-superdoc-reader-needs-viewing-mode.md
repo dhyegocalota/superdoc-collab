@@ -5,6 +5,7 @@
 - Revisited: 2026-10-16 — product applies both flags
 - Revisited: 2026-10-17 — still true; final-visuals leaves both flags as they are and a reader gets no toolbar row
 - Revisited: 2026-10-17 — still true: `superdoc-editor.tsx` maps the reader role to `DocumentMode.Viewing` and the print view and version viewer are viewing too
+- Revisited: 2026-10-17 — still true; `connection.readOnly` is still set in `onAuthenticate` and the viewing document mode is unchanged; connection-state added the tab id to the same context only
 
 ## Signal
 A reader types, the text stays on their screen, nobody else sees it, `onChange` never fires, and no error appears anywhere.

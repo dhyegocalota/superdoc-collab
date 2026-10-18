@@ -40,6 +40,7 @@ function renderEditor({
       user={SESSION_USER}
       file={new Blob()}
       isInert={false}
+      onTransportReport={vi.fn()}
     />,
   );
   const firstCall = SuperDoc.mock.calls.at(0);

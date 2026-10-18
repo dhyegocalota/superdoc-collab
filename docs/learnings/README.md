@@ -26,6 +26,8 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A tracked edit through a cached SDK session returns ok and nothing reaches the update log | [2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md](2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md) | 2026-10-17 |
 | 2026-10-17 | The jump to a member lands on the wrong person or on nobody | [2026-10-17-superdoc-remote-caret-overlay-carries-no-user-id.md](2026-10-17-superdoc-remote-caret-overlay-carries-no-user-id.md) | 2026-10-17 |
 | 2026-10-17 | A member's cursor is drawn in a colour the app never declared | [2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md](2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md) | 2026-10-17 |
+| 2026-10-17 | A removed session shows lost, reconnecting and failed within milliseconds, with no reason anywhere | [2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md](2026-10-17-the-collaboration-transport-reports-no-reason-for-a-removed-session.md) | 2026-10-17 |
+| 2026-10-17 | An E2E that waits for the Lost banner after a server stop times out or fails intermittently | [2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md](2026-10-17-lost-is-subsumed-by-reconnecting-so-an-e2e-that-waits-for-lost-flakes.md) | 2026-10-17 |
 
 ### history
 
@@ -48,6 +50,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | `shouldAdvanceTime` lets real lag move the fake clock, so a timer test passes alone and fails under load | [2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md](2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md) | 2026-10-17 |
 | 2026-10-17 | A component test throws a missing author colour error although the component is untouched | [2026-10-17-get-computed-style-is-empty-in-jsdom-so-a-token-reader-needs-the-palette-stub.md](2026-10-17-get-computed-style-is-empty-in-jsdom-so-a-token-reader-needs-the-palette-stub.md) | 2026-10-17 |
 | 2026-10-17 | A feature works in the page and silently does nothing in an isolated render | [2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md](2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md) | 2026-10-17 |
+| 2026-10-17 | A banner whose copy passes its length pins still wraps to more lines than the design allows on a phone | [2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md](2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md) | 2026-10-17 |
 
 ### tooling
 
@@ -58,7 +61,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | A commit from one lane sweeps in files another lane staged | [2026-10-16-parallel-lanes-share-one-git-index.md](2026-10-16-parallel-lanes-share-one-git-index.md) | 2026-10-17 |
 | 2026-10-16 | A worker_threads exception with no 'error' listener exits the server | [2026-10-16-worker-threads-need-an-error-listener.md](2026-10-16-worker-threads-need-an-error-listener.md) | 2026-10-16 |
 | 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-17 |
-| 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-16 |
+| 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-17 |
 | 2026-10-16 | AI SDK 7 deprecates generateObject; structured output is generateText + Output.object | [2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md](2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md) | 2026-10-16 |
 | 2026-10-17 | A repository folder named `deploy/` breaks `pnpm deploy` inside the image build | [2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md](2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md) | 2026-10-17 |
 | 2026-10-16 | A red-first commit must fail on the named assertion, not on a missing module | [2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md](2026-10-16-a-red-first-commit-must-fail-on-the-named-assertion.md) | 2026-10-17 |
@@ -80,3 +83,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | The print view of a four-page document has text on the first pages and blank pages after them | [2026-10-17-superdoc-paints-only-the-pages-near-the-viewport-even-with-virtualization-off.md](2026-10-17-superdoc-paints-only-the-pages-near-the-viewport-even-with-virtualization-off.md) | 2026-10-17 |
 | 2026-10-17 | The SuperDoc toolbar appears inside the page, overflows, or lists items we removed | [2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md](2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md) | 2026-10-17 |
 | 2026-10-17 | The typecheck fails with a duplicate declaration in libs/types right after a lane merge | [2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md](2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md) | 2026-10-17 |
+| 2026-10-17 | Sign in after an ended session lands on the documents list instead of the document | [2026-10-17-a-signed-out-landing-that-navigates-to-the-path-drops-the-query.md](2026-10-17-a-signed-out-landing-that-navigates-to-the-path-drops-the-query.md) | 2026-10-17 |
+| 2026-10-17 | A query refetch fires more requests than the one query named | [2026-10-17-refetchqueries-without-exact-refetches-every-query-under-the-prefix.md](2026-10-17-refetchqueries-without-exact-refetches-every-query-under-the-prefix.md) | 2026-10-17 |
+| 2026-10-17 | `pnpm test:e2e -- <file>` runs every spec and holds the E2E ports | [2026-10-17-pnpm-test-e2e-with-a-file-argument-runs-the-whole-suite.md](2026-10-17-pnpm-test-e2e-with-a-file-argument-runs-the-whole-suite.md) | 2026-10-17 |

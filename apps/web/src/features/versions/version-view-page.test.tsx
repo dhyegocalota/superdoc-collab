@@ -8,6 +8,7 @@ import {
   versionCollaborationPath,
   versionViewPagePath,
   RoomMode,
+  TAB_QUERY_KEY,
   VERSION_FAILED_MESSAGE,
   type EditRunView,
 } from '@superdoc-collab/types';
@@ -17,6 +18,7 @@ import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
 import { DocumentMode } from '@/features/editor/superdoc-options';
 import { FIT_WIDTH_ZOOM } from '@/features/editor/superdoc-zoom';
 import { ViewerMessageKind } from './viewer-messages';
+import { tabId } from '@/lib/tab-id';
 import { pageTitle } from '@/lib/use-document-title';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { jsonResponse } from '@/testing/json-response';
@@ -100,7 +102,7 @@ test('the frame page opens a read-only SuperDoc on the version endpoint and repo
   expect(config.documents[0]!.v2Collaboration).toMatchObject({
     documentId: DOCUMENT_ID,
     roomMode: RoomMode.Join,
-    serverUrl: `ws://localhost:3000${versionCollaborationPath({ documentId: DOCUMENT_ID, sequence: SEQUENCE })}`,
+    serverUrl: `ws://localhost:3000${versionCollaborationPath({ documentId: DOCUMENT_ID, sequence: SEQUENCE })}?${TAB_QUERY_KEY}=${tabId()}`,
   });
   config.onCollaborationReady();
   expect(postToParent).toHaveBeenCalledWith({ kind: ViewerMessageKind.Ready }, window.location.origin);

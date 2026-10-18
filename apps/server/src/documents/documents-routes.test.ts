@@ -13,6 +13,7 @@ import {
   MAX_UPLOAD_BYTES,
   TITLE_MAX_LENGTH,
   RoomMode,
+  TAB_QUERY_KEY,
   UPLOAD_FIELD,
   type DocumentMembers,
   type DocumentsList,
@@ -362,6 +363,71 @@ test('members marks the connected owner online', async () => {
     [owner.id, true],
     [reader.id, false],
   ]);
+  client.close();
+  await server.stop();
+});
+
+test('members reports whether the current user is online', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  const ownerAnswer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  const readerAnswer: DocumentMembers = await (await request({ server, cookie: reader.cookie, path })).json();
+  expect([ownerAnswer.isCurrentUserOnline, readerAnswer.isCurrentUserOnline]).toEqual([true, false]);
+  client.close();
+  await server.stop();
+});
+
+test('members answers isCurrentUserOnline for the tab that asks, not for another tab of the same user', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connectedTab = randomUUID();
+  const otherTab = randomUUID();
+  const client = await connectToDocument({
+    server,
+    cookie: owner.cookie,
+    documentId,
+    path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${connectedTab}`,
+  });
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  async function answerFor(query: string): Promise<boolean | undefined> {
+    const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path: `${path}${query}` })).json();
+    return answer.isCurrentUserOnline;
+  }
+  expect(await answerFor(`?${TAB_QUERY_KEY}=${connectedTab}`)).toBe(true);
+  expect(await answerFor(`?${TAB_QUERY_KEY}=${otherTab}`)).toBe(false);
+  expect(await answerFor('')).toBe(true);
+  client.close();
+  await server.stop();
+});
+
+test('a socket of another user carrying a tab id does not make that tab online for the asking user', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const readerTab = randomUUID();
+  const client = await connectToDocument({
+    server,
+    cookie: reader.cookie,
+    documentId,
+    path: `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${readerTab}`,
+  });
+  const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${readerTab}`;
+  const ownerAnswer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  const readerAnswer: DocumentMembers = await (await request({ server, cookie: reader.cookie, path })).json();
+  expect([ownerAnswer.isCurrentUserOnline, readerAnswer.isCurrentUserOnline]).toEqual([false, true]);
+  client.close();
+  await server.stop();
+});
+
+test.each([
+  { name: 'empty', tab: '' },
+  { name: 'not a UUID', tab: 'a'.repeat(1024) },
+])('members treats a $name tab as absent and answers per user', async ({ tab }) => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${tab}`;
+  const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  expect(answer.isCurrentUserOnline).toBe(true);
   client.close();
   await server.stop();
 });

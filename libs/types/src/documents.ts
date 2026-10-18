@@ -52,6 +52,6 @@ export type DocumentSummary = { id: string; title: string; owner: UserReference;
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
 export type OpenedDocument = { document: DocumentSummary; role: DocumentRole; roomMode: RoomMode };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean };
-export type DocumentMembers = { members: DocumentMember[] };
+export type DocumentMembers = { members: DocumentMember[]; isCurrentUserOnline: boolean };
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };

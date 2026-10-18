@@ -10,3 +10,4 @@ export * from './text';
 export * from './agent';
 export * from './invites';
 export * from './author-colors';
+export * from './connection';

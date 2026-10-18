@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import {
   ApiRequestError,
+  AuthenticationError,
   assertDocumentAvailable,
   assertOk,
   DocumentUnavailableError,
@@ -44,4 +45,15 @@ test('polling continues at its interval until the document is gone', () => {
   expect(poll({ state: { error: null } })).toBe(INTERVAL_MS);
   expect(poll({ state: { error: new ApiRequestError('busy') } })).toBe(INTERVAL_MS);
   expect(poll({ state: { error: new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE) } })).toBe(false);
+});
+
+test('a 401 is an authentication error', () => {
+  const failed = { response: new Response(null, { status: HttpStatus.Unauthorized }), subject: SUBJECT };
+  expect(() => assertOk(failed)).toThrow(AuthenticationError);
+  expect(() => assertOk(failed)).toThrow(requestFailedMessage({ subject: SUBJECT, status: HttpStatus.Unauthorized }));
+});
+
+test('polling stops once the session has ended', () => {
+  const poll = pollWhileAvailable(INTERVAL_MS);
+  expect(poll({ state: { error: new AuthenticationError('ended') } })).toBe(false);
 });

@@ -566,7 +566,7 @@ The one full-suite attempt (killed early, first filter mistake) showed `auth.spe
 - Red `095d5f3`: `moving from Waiting to Ready announces that the document is ready` and the Paused variant fail on `toHaveTextContent`; `a document that opens Ready at once announces nothing` is a pin. Green is the commit after it.
 - `document-page.test.tsx::the header stays while the document opens` now finds its status region by text, because the page has a second status region.
 - Hypothesis: a screen reader says "The document is ready." once when a waiting page gives way to the editor, and says nothing when a document opens at once. Break it by: a screen reader pass of both entries; a reload on the editor; Keep waiting then ready.
-- Gap: no page-level test drives Waiting to Ready through `DocumentPage`; the unit tests cover the component only.
+- Pin: `document-page.test.tsx::a waiting page that gets a 200 on a poll announces the document is ready and mounts the editor` drives a 409 then a 200 through `DocumentPage` with a real two-second poll; green when it landed.
 ### G2 print rework: the PDF print runs in a frame on its own route (9cbab7c)
 
 The tester refuted the first print view. Measured in a browser on a 7-page document at 1280 × 800, with my own stack on port 3600:

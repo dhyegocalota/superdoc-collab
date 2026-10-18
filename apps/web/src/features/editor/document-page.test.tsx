@@ -1,6 +1,7 @@
 import {
   ApiPath,
   DOCUMENT_NOT_READY_ERROR,
+  DOCUMENT_READY_POLL_MS,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   documentPagePath,
@@ -47,7 +48,7 @@ import { DocumentPage } from './document-page';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { ZoomMode } from './superdoc-zoom';
-import { PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
+import { DOCUMENT_READY_ANNOUNCEMENT, PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
 import { BLANK_DOCX_PATH, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = {
@@ -90,11 +91,14 @@ const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: Docum
 const SUMMARIES_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries });
 const EMPTY_TIMELINE = timelineWith({ volumes: [], names: [] });
 const RENAMED_TITLE = 'Renamed';
+const READY_WAIT_MS = 2 * DOCUMENT_READY_POLL_MS;
+const TEST_TIMEOUT_MS = 3 * DOCUMENT_READY_POLL_MS;
 
 function mockDocumentApi({
   opened,
   renamedTitle,
   openStatus = HttpStatus.Ok,
+  currentOpenStatus = () => openStatus,
   openBody = opened,
   downloadStatus = HttpStatus.Ok,
   currentMembersStatus = () => HttpStatus.Ok,
@@ -102,6 +106,7 @@ function mockDocumentApi({
   opened: OpenedDocument;
   renamedTitle?: string;
   openStatus?: HttpStatus;
+  currentOpenStatus?: () => HttpStatus;
   openBody?: unknown;
   downloadStatus?: HttpStatus;
   currentMembersStatus?: () => HttpStatus;
@@ -128,7 +133,10 @@ function mockDocumentApi({
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
     }
-    if (input === DOCUMENT_PATH) return jsonResponse({ body: openStatus === HttpStatus.Ok ? current : openBody, status: openStatus });
+    if (input === DOCUMENT_PATH) {
+      const status = currentOpenStatus();
+      return jsonResponse({ body: status === HttpStatus.Ok ? current : openBody, status });
+    }
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -179,6 +187,25 @@ test('a 409 not ready shows the waiting page and never builds the editor', async
   expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
+
+test(
+  'a waiting page that gets a 200 on a poll announces the document is ready and mounts the editor',
+  async () => {
+    let isOwnerSynced = false;
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Reader),
+      openBody: { error: DOCUMENT_NOT_READY_ERROR },
+      currentOpenStatus: () => (isOwnerSynced ? HttpStatus.Ok : HttpStatus.Conflict),
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await screen.findByText(PREPARING_DOCUMENT_MESSAGE);
+    isOwnerSynced = true;
+    const announcement = await screen.findByText(DOCUMENT_READY_ANNOUNCEMENT, {}, { timeout: READY_WAIT_MS });
+    expect(announcement).toHaveAttribute('role', 'status');
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  },
+  TEST_TIMEOUT_MS,
+);
 
 test('a 404 shows the unavailable message and a link to the documents list', async () => {
   mockDocumentApi({

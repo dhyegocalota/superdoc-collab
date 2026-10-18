@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
-import { LARGE_BREAKPOINT_PX, MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { formatBinRange } from '@/lib/format-date-time';
 import { useElementWidth } from '@/lib/use-element-width';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useMinWidth } from '@/lib/use-min-width';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { cn } from '@/lib/utils';
@@ -118,7 +119,7 @@ export function TimelinePanel({
   const bottomSize = usePanelHeight({ areaHeight, isCompact });
   const { search } = useTimelineSearch();
   const { data: timeline, isPending: isTimelinePending } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
-  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
+  const isPhoneLayout = useIsPhoneLayout();
   const isStackedLayout = !useMinWidth(MEDIUM_BREAKPOINT_PX);
   const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({
     timeline,

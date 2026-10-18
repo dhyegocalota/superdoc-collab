@@ -1,10 +1,9 @@
 import { VersionViewerState, VERSION_FAILED_MESSAGE } from '@superdoc-collab/types';
 import { Button } from '@/components/ui/button';
-import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { BACK_TO_LIVE_LABEL, LOADING_VERSION_MESSAGE, versionAtLabel } from '@/features/timeline/timeline-copy';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
 import { formatVersionMoment } from '@/lib/format-date-time';
-import { useMinWidth } from '@/lib/use-min-width';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useTimeZone } from '@/lib/use-time-zone';
 
 function loadingMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZone: string }): string {
@@ -20,7 +19,7 @@ function bannerMessage({ timeTravel, timeZone }: { timeTravel: TimeTravel; timeZ
 
 export function VersionBanner({ timeTravel }: { timeTravel: TimeTravel }) {
   const { timeZone } = useTimeZone();
-  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
+  const isPhoneLayout = useIsPhoneLayout();
   if (timeTravel.state === VersionViewerState.Live) return null;
   const message = bannerMessage({ timeTravel, timeZone });
   return (

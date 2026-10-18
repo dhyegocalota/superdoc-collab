@@ -14,8 +14,7 @@ import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/feature
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
-import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
-import { useMinWidth } from '@/lib/use-min-width';
+import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
@@ -75,7 +74,7 @@ export function DocumentPage() {
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
   const { position } = usePanelPosition();
-  const isPhoneLayout = !useMinWidth(LARGE_BREAKPOINT_PX);
+  const isPhoneLayout = useIsPhoneLayout();
   const summarize = useSummarize({ documentId });
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });

@@ -6,8 +6,9 @@ const DOCUMENT_ID_PARAM = 'documentId';
 
 export type AuthorColorSlotOf = (author: Pick<EventAuthor, 'id' | 'name'>) => AuthorColorSlot;
 
-export function useAuthorColorSlots(): AuthorColorSlotOf {
+export function useAuthorColorSlots(): AuthorColorSlotOf | null {
   const { members } = useMembers(useRequiredParam(DOCUMENT_ID_PARAM));
+  if (members.length === 0) return null;
   return (author) => {
     const key = authorColorKeyOf(author);
     const member = members.find((candidate) => candidate.user.id === key);

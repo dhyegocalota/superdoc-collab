@@ -22,7 +22,9 @@ const COLOR_CLASSES: Record<AuthorColorSlot, string> = {
   6: 'bg-author-6',
 };
 
-type UserAvatarProps = { name: string; colorSlot: AuthorColorSlot; size: UserAvatarSize; isAgent: boolean; isOnline: boolean };
+const NEUTRAL_COLOR_CLASS = 'bg-muted';
+
+type UserAvatarProps = { name: string; colorSlot: AuthorColorSlot | null; size: UserAvatarSize; isAgent: boolean; isOnline: boolean };
 
 export function UserAvatar({ name, colorSlot, size, isAgent, isOnline }: UserAvatarProps) {
   return (
@@ -30,7 +32,7 @@ export function UserAvatar({ name, colorSlot, size, isAgent, isOnline }: UserAva
       className={cn(
         'relative flex shrink-0 items-center justify-center rounded-full font-medium text-primary-foreground',
         SIZE_CLASSES[size],
-        COLOR_CLASSES[colorSlot],
+        colorSlot === null ? NEUTRAL_COLOR_CLASS : COLOR_CLASSES[colorSlot],
       )}
     >
       {initialsOf(name)}

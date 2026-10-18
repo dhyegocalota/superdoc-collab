@@ -19,7 +19,7 @@ export function AuthorAvatar({ author }: { author: Pick<EventAuthor, 'id' | 'nam
     <li title={titleOf({ id: author.id, name })}>
       <UserAvatar
         name={name}
-        colorSlot={colorSlotOf(author)}
+        colorSlot={colorSlotOf === null ? null : colorSlotOf(author)}
         size={UserAvatarSize.Small}
         isAgent={author.actor === ClientActor.Agent}
         isOnline={false}

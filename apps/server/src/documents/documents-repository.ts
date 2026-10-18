@@ -13,6 +13,8 @@ import { user } from '../database/schema/auth';
 import { documentMembers, documents } from '../database/schema/documents';
 import { DocumentNotFoundError } from './require-document-role';
 
+class MemberColorSlotMissingError extends Error {}
+
 export class DocumentsRepository {
   private readonly database: AuthDatabase;
 
@@ -80,14 +82,14 @@ export class DocumentsRepository {
     const slots = assignAuthorColorSlots({ memberIds: members.map((member) => member.user.id) });
     return members.map((member) => {
       const colorSlot = slots.get(member.user.id);
-      if (colorSlot === undefined) throw new DocumentNotFoundError();
+      if (colorSlot === undefined) throw new MemberColorSlotMissingError(member.user.id);
       return { ...member, colorSlot };
     });
   }
 
   colorSlotOf({ documentId, userId }: { documentId: string; userId: string }): AuthorColorSlot {
     const member = this.membersWithColorSlots(documentId).find((candidate) => candidate.user.id === userId);
-    if (!member) throw new DocumentNotFoundError();
+    if (!member) throw new MemberColorSlotMissingError(userId);
     return member.colorSlot;
   }
 

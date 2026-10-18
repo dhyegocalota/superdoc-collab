@@ -14,7 +14,8 @@ afterEach(() => {
 });
 
 test('counts down each second to zero and stops there', () => {
-  const { result } = renderHook(() => useCountdown(Date.now() + COUNTDOWN_SECONDS * SECOND_MS));
+  const untilMs = Date.now() + COUNTDOWN_SECONDS * SECOND_MS;
+  const { result } = renderHook(() => useCountdown(untilMs));
   expect(result.current).toBe(COUNTDOWN_SECONDS);
   act(() => vi.advanceTimersByTime(SECOND_MS));
   expect(result.current).toBe(COUNTDOWN_SECONDS - 1);
@@ -29,7 +30,8 @@ test('a null deadline reports null and runs no timer', () => {
 });
 
 test('the interval is cleared on unmount', () => {
-  const { unmount } = renderHook(() => useCountdown(Date.now() + COUNTDOWN_SECONDS * SECOND_MS));
+  const untilMs = Date.now() + COUNTDOWN_SECONDS * SECOND_MS;
+  const { unmount } = renderHook(() => useCountdown(untilMs));
   expect(vi.getTimerCount()).toBe(1);
   unmount();
   expect(vi.getTimerCount()).toBe(0);

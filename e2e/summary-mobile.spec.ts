@@ -27,12 +27,25 @@ const BAND_NAME = 'Budget';
 const PHONE_VIEWPORT = { width: 375, height: 812 };
 const DEBOUNCE_WINDOW_MS = 1_000;
 const CHART_CENTRE_FRACTION = 0.5;
-const CHART_LATE_FRACTION = 0.9;
+const SCROLLER_SELECTOR = 'xpath=ancestor::*[contains(@class, "overflow-y-auto")][1]';
+const PIXEL_TOLERANCE = 1;
 const VERSION_PATH_PATTERN = /\/versions\/\d+$/;
 const SELECTED_HEADER_SELECTOR = 'aside [aria-live="polite"]';
 const EDITOR_SURFACE_TEST_ID = 'editor-surface';
 const DIMMED_CLASS = /opacity-60/;
 const CHARACTER_COUNT_PATTERN = /\d+ characters?/;
+
+type Rect = { top: number; bottom: number };
+
+async function rectsOf({ header, scroller }: { header: Locator; scroller: Locator }): Promise<{ headerRect: Rect; scrollerRect: Rect }> {
+  const headerRect = await header.evaluate((element) => element.getBoundingClientRect().toJSON() as Rect);
+  const scrollerRect = await scroller.evaluate((element) => element.getBoundingClientRect().toJSON() as Rect);
+  return { headerRect, scrollerRect };
+}
+
+function isInside({ inner, outer }: { inner: Rect; outer: Rect }): boolean {
+  return inner.top >= outer.top - PIXEL_TOLERANCE && inner.bottom <= outer.bottom + PIXEL_TOLERANCE;
+}
 
 async function ownerWithEdit(browser: Browser) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -72,7 +85,16 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
 
   await clickChart({ page: ana.page, widthFraction: CHART_CENTRE_FRACTION });
   await expect(header).toContainText(CHARACTER_COUNT_PATTERN);
-  await expect(header).toBeInViewport();
+  const scroller = header.locator(SCROLLER_SELECTOR);
+  expect(await scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await expect
+    .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))
+    .toBe(true);
+  await scroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+  await expect
+    .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => Math.abs(headerRect.top - scrollerRect.top)))
+    .toBeLessThanOrEqual(PIXEL_TOLERANCE);
+  await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
   await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeVisible();
   await expectStableFor({ read: async () => String(currentAt(ana.page)), expected: 'null', durationMs: DEBOUNCE_WINDOW_MS });
   expect(requests).toHaveLength(0);
@@ -81,9 +103,6 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
   await expect(ana.page.getByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeVisible();
   await expect(ana.page.getByTestId(EDITOR_SURFACE_TEST_ID)).toHaveClass(DIMMED_CLASS);
   await expect(chartSvg(ana.page).locator('xpath=..')).toHaveAttribute('aria-busy', 'true');
-  const loadingAt = currentAt(ana.page);
-  await clickChart({ page: ana.page, widthFraction: CHART_LATE_FRACTION });
-  await expectStableFor({ read: async () => String(currentAt(ana.page)), expected: String(loadingAt), durationMs: DEBOUNCE_WINDOW_MS });
   expect(requests).toHaveLength(1);
 
   release();

@@ -17,13 +17,18 @@ export const SOCKET_CLOSE_GRACE_MS = SECOND_MS;
 export const BOOTSTRAP_SCAN_CACHE_ENTRIES = 32;
 export const OPEN_UNCOMMITTED_PER_MINUTE = 30;
 export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
-export const MAX_SOCKET_MESSAGES_PER_SECOND = 120;
+// NB ADR 0040: update frames peak near 264 per second at fifty keys per second, so 1000 leaves room and still closes a flood.
+export const MAX_SOCKET_UPDATE_FRAMES_PER_SECOND = 1000;
+// NB ADR 0040: the provider flushes about three awareness frames per keystroke in one burst at the next pause, and the per-connection client id cap bounds what each frame costs.
+export const MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND = 5000;
 export const POLICY_VIOLATION_CLOSE_CODE = 1008;
 export const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
 export const SOCKET_RATE_LIMIT_REASON = 'Too many messages per second';
 export const UNAUTHORIZED_CLOSE_CODE = 4401;
 export const UNAUTHORIZED_CLOSE_REASON = 'Session expired';
 export const SOCKET_SINGLE_DOCUMENT_REASON = 'One document per socket';
+export const MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION = 8;
+export const SOCKET_AWARENESS_IDS_REASON = 'Too many awareness clients on one connection';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;

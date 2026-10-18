@@ -14,12 +14,15 @@ export function createClientDeclarer(updateLog: UpdateLog) {
         const { actor } = connection.context as CollaborationContext;
         return !connection.readOnly && actor === ClientActor.Human;
       });
-      const holders = [...document.connections.values()].flatMap(({ clients }) => [...clients] as number[]);
+      const seen = new Set<number>();
+      const contested = new Set<number>();
+      [...document.connections.values()].forEach(({ clients }) =>
+        clients.forEach((clientId: number) => (seen.has(clientId) ? contested : seen).add(clientId)),
+      );
       const declarations = writable.flatMap(({ clients, connection }) => {
         const { userId, documentId, actor } = connection.context as CollaborationContext;
-        const isContested = (clientId: number) => holders.filter((holder) => holder === clientId).length > 1;
         return [...clients]
-          .filter((clientId: number) => states.get(clientId)?.userId === userId && !isContested(clientId))
+          .filter((clientId: number) => states.get(clientId)?.userId === userId && !contested.has(clientId))
           .map((clientId: number) => ({ documentName: documentId, yjsClientId: clientId, userId, actor }));
       });
       const signature = JSON.stringify(declarations.map(({ yjsClientId, userId }) => `${yjsClientId}:${userId}`).sort());

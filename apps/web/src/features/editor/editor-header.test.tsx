@@ -70,6 +70,7 @@ function renderHeader({ role = DocumentRole.Editor, members = [], superdoc = nul
       members={members}
       currentUserId={SESSION_USER.id}
       superdoc={superdoc}
+      editorContainer={null}
       isPastVersion={isPastVersion}
       onDownloadDocx={onDownloadDocx}
       renderUseWithAi={renderUseWithAi}

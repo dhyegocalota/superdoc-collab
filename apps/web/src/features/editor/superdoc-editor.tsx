@@ -15,6 +15,7 @@ const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="doc
 
 type SuperDocEditorProps = {
   onSuperdocChange: (superdoc: SuperDoc | null) => void;
+  onContainerChange: (container: HTMLElement | null) => void;
   toolbarContainer: HTMLElement | null;
   documentId: string;
   roomMode: RoomMode;
@@ -26,6 +27,7 @@ type SuperDocEditorProps = {
 
 export function SuperDocEditor({
   onSuperdocChange,
+  onContainerChange,
   toolbarContainer,
   documentId,
   roomMode,
@@ -89,7 +91,10 @@ export function SuperDocEditor({
       )}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div
-        ref={containerRef}
+        ref={(element) => {
+          containerRef.current = element;
+          onContainerChange(element);
+        }}
         data-testid="document-editor"
         inert={isInert}
         className={cn(

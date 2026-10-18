@@ -39,6 +39,7 @@ export function DocumentPage() {
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { members, isUnavailable } = useMembers(documentId);
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
+  const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
@@ -97,6 +98,7 @@ export function DocumentPage() {
         members={members}
         currentUserId={user ? user.id : null}
         superdoc={superdoc}
+        editorContainer={editorContainer}
         isPastVersion={isViewingPastVersion}
         onDownloadDocx={downloadLiveDocument}
         renderUseWithAi={renderUseWithAi}
@@ -121,6 +123,7 @@ export function DocumentPage() {
             {editorSetup && isToolbarReady && (
               <SuperDocEditor
                 onSuperdocChange={setSuperdoc}
+                onContainerChange={setEditorContainer}
                 toolbarContainer={toolbarContainer}
                 documentId={documentId}
                 roomMode={editorSetup.roomMode}

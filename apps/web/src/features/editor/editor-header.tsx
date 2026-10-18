@@ -145,6 +145,7 @@ type EditorHeaderProps = {
   members: DocumentMember[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
+  editorContainer: HTMLElement | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
@@ -155,6 +156,7 @@ export function EditorHeader({
   members,
   currentUserId,
   superdoc,
+  editorContainer,
   isPastVersion,
   onDownloadDocx,
   renderUseWithAi,
@@ -178,7 +180,13 @@ export function EditorHeader({
         right={
           <>
             <div className="hidden sm:block">
-              <Members members={members} currentUserId={currentUserId} superdoc={superdoc} isPastVersion={isPastVersion} />
+              <Members
+                members={members}
+                currentUserId={currentUserId}
+                superdoc={superdoc}
+                editorContainer={editorContainer}
+                isPastVersion={isPastVersion}
+              />
             </div>
             <FindButton superdoc={superdoc} />
             <div className="hidden sm:block">{renderUseWithAi()}</div>

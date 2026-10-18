@@ -4,19 +4,6 @@ import { useReducedMotion } from '@/lib/use-reduced-motion';
 const SMOOTH_SCROLL: ScrollBehavior = 'smooth';
 const INSTANT_SCROLL: ScrollBehavior = 'auto';
 
-enum InputSource {
-  Pointer = 'pointer',
-  Keyboard = 'keyboard',
-}
-
-function isInsideScroller(target: HTMLElement): boolean {
-  const scroller = target.parentElement;
-  if (!scroller) return false;
-  const targetRect = target.getBoundingClientRect();
-  const scrollerRect = scroller.getBoundingClientRect();
-  return targetRect.top >= scrollerRect.top && targetRect.bottom <= scrollerRect.bottom;
-}
-
 export function useRevealSelected({
   targetRef,
   selectedIndex,
@@ -25,21 +12,23 @@ export function useRevealSelected({
   selectedIndex: number | null;
 }): void {
   const behavior = useReducedMotion() ? INSTANT_SCROLL : SMOOTH_SCROLL;
-  const lastInput = useRef(InputSource.Pointer);
+  const isPointerPressed = useRef(false);
   const previousIndex = useRef(selectedIndex);
 
   useEffect(() => {
-    function rememberPointer(): void {
-      lastInput.current = InputSource.Pointer;
+    function press(): void {
+      isPointerPressed.current = true;
     }
-    function rememberKeyboard(): void {
-      lastInput.current = InputSource.Keyboard;
+    function release(): void {
+      isPointerPressed.current = false;
     }
-    window.addEventListener('pointerdown', rememberPointer, true);
-    window.addEventListener('keydown', rememberKeyboard, true);
+    window.addEventListener('pointerdown', press, true);
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
     return () => {
-      window.removeEventListener('pointerdown', rememberPointer, true);
-      window.removeEventListener('keydown', rememberKeyboard, true);
+      window.removeEventListener('pointerdown', press, true);
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('pointercancel', release, true);
     };
   }, []);
 
@@ -47,9 +36,7 @@ export function useRevealSelected({
     const hasChanged = selectedIndex !== null && selectedIndex !== previousIndex.current;
     previousIndex.current = selectedIndex;
     const target = targetRef.current;
-    if (!hasChanged || !target) return;
-    const isKeyboardWithHeaderInView = lastInput.current === InputSource.Keyboard && isInsideScroller(target);
-    if (isKeyboardWithHeaderInView) return;
+    if (!hasChanged || !isPointerPressed.current || !target) return;
     target.scrollIntoView({ block: 'nearest', behavior });
   }, [selectedIndex]);
 }

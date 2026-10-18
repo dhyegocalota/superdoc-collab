@@ -20,7 +20,9 @@ Measured on 2026-10-18 with a temporary per-socket per-second log, in two rounds
 Two buckets, each a rolling one-second window per socket, counted at the `ws` layer from the first frame, before authentication:
 
 - `MAX_SOCKET_UPDATE_FRAMES_PER_SECOND = 1000` for every frame that is not awareness: updates, sync steps, auth and any frame that cannot be parsed. Updates peak near 264 per second at 50 keys per second.
-- `MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND = 5000` for awareness frames. An awareness frame is an in-memory state set plus a broadcast, with no update-log append, and the provider flushes them in a burst proportional to the keystrokes since the last pause.
+- `MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND = 5000` for awareness frames. An awareness frame sets in-memory state, runs the client declarer (one pass over the room's connections and client ids per update, plus a SQLite upsert only when the declared set changes) and is encoded and sent once per member; it appends nothing to the update log. The provider flushes them in a burst proportional to the keystrokes since the last pause. The figure of 5000 rests on that cost being bounded by the per-connection id cap.
+
+A third limit bounds the cost of an awareness frame: `MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION = 8`. A real provider holds one awareness client id per connection, so eight leaves room for a reconnect overlap, and `onAwarenessUpdate` closes a connection that holds more with 1008 before the declarer runs. Without it one awareness frame (up to the 80 MiB payload cap) can claim about a million client ids, which Hocuspocus adds to the connection, and every later frame then pays a rebuild over all of them.
 
 The kind is read from the two leading varints every frame carries (the room name length, then the message type), which is available before authentication. A breach of either bucket closes with 1008, as in ADR 0034, and the rest of 0034 stays.
 
@@ -39,7 +41,7 @@ The kind is read from the two leading varints every frame carries (the room name
 ## Consequences
 
 - Typing at any realistic speed, the paste and the pause flush stay under the caps with room. Updates have about four times headroom over 264 per second; awareness has about four times headroom over the largest flush measured (1285).
-- The caps bound rate, not volume. A client that sends 999 update frames per second is never closed. Each update frame is one synchronous append to the update log (`onChange` in `collaboration-server.ts`) plus a room broadcast, so one socket's sustained ceiling goes from 120 to 1000 log rows per second, multiplied by the sockets a member opens. Awareness adds up to 5000 broadcasts per second per socket. Bytes were never bounded either, beyond the 80 MiB payload cap per frame.
+- The caps bound rate, not volume. A client that sends 999 update frames per second is never closed. Each update frame is one synchronous append to the update log (`onChange` in `collaboration-server.ts`) plus a room broadcast, so one socket's sustained ceiling goes from 120 to 1000 log rows per second, multiplied by the sockets a member opens. Awareness adds up to 5000 declarer passes and per-member broadcasts per second per socket, each bounded by eight ids per connection. Bytes were never bounded either, beyond the 80 MiB payload cap per frame.
 - A flush larger than 5000 frames, a non-stop run of about 1700 keystrokes without a pause, still closes the socket once and the provider reconnects.
 - The payload cap, one document per socket and the same caps on the version-room sockets from ADR 0034 are unchanged.
 - Follow-ups for the owner, not part of this decision: no per-user or per-IP cap on concurrent sockets exists (count sockets per user id in `upgradeMember` against a constant in `libs/types`), and the declaration loop in `client-declarations.ts` is quadratic (a separate lane).
@@ -52,5 +54,6 @@ The measurements above (`docs/learnings/2026-10-18-the-hocuspocus-provider-defer
 ## Revisit when
 
 - A legitimate client is measured above about 500 update frames or about 2500 awareness frames in a rolling second.
+- About 1700 uninterrupted keystrokes (no pause for the provider to flush) reach 5000 awareness frames at the next pause and close the socket once; a longer measured run than that with real typists moves the awareness cap.
 - The update log grows noticeably from one member's sockets.
 - A flooding client is seen to cost the server more than one closed socket per second can bound.

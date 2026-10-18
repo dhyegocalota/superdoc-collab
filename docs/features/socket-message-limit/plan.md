@@ -10,7 +10,7 @@
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `libs/types/src/constants.ts`, `apps/server/src/collaboration/frame-bucket.ts` and its test, `apps/server/src/collaboration/socket-message-limit.ts`, `apps/server/src/testing/socket-frames.ts`, `apps/server/src/collaboration/attach-collaboration.test.ts`, `socket-message-limit.test.ts`, `apps/server/src/limits/sliding-window.ts` and its test, `docs/adr/0040-*`, `docs/adr/0034-*` status line, `docs/adr/README.md`, `docs/features/socket-message-limit/`, `docs/features/README.md`, `docs/learnings/`, `.claude/rules/collaboration.md` | `developer-dt` |
+| G1 | `libs/types/src/constants.ts`, `apps/server/src/collaboration/frame-bucket.ts` and its test, `apps/server/src/collaboration/awareness-client-cap.ts` and its test, `apps/server/src/collaboration/collaboration-server.ts`, `apps/server/src/collaboration/client-declarations.ts` and its test, `apps/server/src/collaboration/socket-message-limit.ts`, `apps/server/src/testing/socket-frames.ts`, `apps/server/src/collaboration/attach-collaboration.test.ts`, `socket-message-limit.test.ts`, `apps/server/src/limits/sliding-window.ts` and its test, `docs/adr/0040-*`, `docs/adr/0034-*` status line, `docs/adr/README.md`, `docs/features/socket-message-limit/`, `docs/features/README.md`, `docs/learnings/`, `.claude/rules/collaboration.md` | `developer-dt` |
 
 ## Sequencing
 
@@ -25,6 +25,7 @@ One group, red test first.
 - [ ] **Step 2:** `frameBucketOf`, two windows per socket, the two constants with their ADR pointers; green.
 - [ ] **Step 3:** ADR 0040, ADR 0034 status line, the feature folder, the learning, the collaboration rule.
 - [ ] **Step 3b:** the limiter's prune drops only the stale prefix: a pin test first (green when it lands, behaviour preserved), then the rewrite.
+- [ ] **Step 3c:** the per-connection awareness id cap and the linear declarer: red tests first (overfull connections, a socket claiming cap plus one ids closes with 1008, a 100000-id declare in linear time), then the change.
 - [ ] **Step 4:** re-run the driver against a stack of the lane; the log line is gone.
 
 ## Failure modes

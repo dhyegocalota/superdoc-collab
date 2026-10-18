@@ -34,6 +34,7 @@ The copy is neutral, because the same ticket check also covers another user's ta
 
 - The superseded tab shows the Failed banner within one poll interval, synced or not.
 - The members response gains `isAttemptSuperseded`. It reveals only whether the caller's own attempt is current; the ticket already travels on the socket URL.
+- The answer is per document, not per user: a member who knows the process epoch (any upload of their own reveals it) can probe attempt numbers on another document they can read and learn that document's latest attempt number and when a new one is issued. It gives no read, write or takeover advantage, because the socket still requires the attempt to belong to the user. Answering only for the caller's own issued attempts would close this, but needs a per-user record of attempts; not taken.
 - Reload is not offered on a superseded tab, so two tabs of one holder cannot supersede each other in a loop by the banner's action.
 - A ticket from a restarted server (another epoch on an uncommitted room) shows the same banner, which matches the refusal the socket gets.
 

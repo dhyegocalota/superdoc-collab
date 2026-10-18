@@ -169,3 +169,15 @@ test('an overlay that appears after mount is picked up', async () => {
   });
   expect(result.current.hasCursor(bruno)).toBe(true);
 });
+
+test('many distinct caret colours never add a colour normalisation beyond the six palette colours', () => {
+  const createElement = vi.spyOn(document, 'createElement');
+  Array.from({ length: 50 }, (_, index) =>
+    addCaret({ overlay, name: `Peer ${index}`, color: `#${index.toString(16).padStart(2, '0')}0000` }),
+  );
+  const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
+  [bruno, clara].forEach(result.current.hasCursor);
+  const probes = createElement.mock.calls.filter(([tag]) => tag === 'span');
+  createElement.mockRestore();
+  expect(probes.length).toBeLessThanOrEqual(AUTHOR_PALETTE.length);
+});

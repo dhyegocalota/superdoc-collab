@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test';
 import { DEMO_USERS, documentApiPath, DocumentResource, type DocumentTimeline, type TimelineBin } from '../libs/types/src';
-import { TIMELINE_TOGGLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { IDLE_BREAK_MS } from '../apps/web/src/features/timeline/streamgraph-layout';
 import { NO_EDITS_FOR_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph, uploadSeed } from './editor';
@@ -61,18 +60,9 @@ test('a silence of more than five minutes is one break the keyboard crosses in o
   const lastEditedBefore = real.bins.findLastIndex(hasEdits);
   const firstEditedAfter = real.bins.length + silentBinCount + real.bins.findIndex(hasEdits);
 
-  ana.page.on('pageerror', (error) => console.log('PAGEERROR', error.message));
-  ana.page.on('console', (message) => message.type() === 'error' && console.log('CONSOLEERROR', message.text()));
-  console.log(
-    'SERVED',
-    JSON.stringify(served.bins.map((bin) => [bin.start, bin.versionSequence, Object.keys(bin.byBand).length])),
-    served.binMs,
-    JSON.stringify(served.bands),
-  );
   await serveTimeline({ page: ana.page, documentId, timeline: served });
   await ana.page.reload();
-  await ana.page.getByRole('button', { name: TIMELINE_TOGGLE_LABEL }).click();
-  await waitForBands({ page: ana.page, names: [BUDGET] });
+  await expect(chartSvg(ana.page)).toBeVisible();
 
   const dividers = chartSvg(ana.page).locator(DIVIDER_SELECTOR);
   await expect(dividers).toHaveCount(1);

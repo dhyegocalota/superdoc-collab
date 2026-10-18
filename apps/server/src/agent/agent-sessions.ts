@@ -21,6 +21,8 @@ const AGENT_HOST_NAME = 'SuperDoc History agent';
 const AGENT_HOST_EMAIL = 'agent@superdoc-history.local';
 const SDK_RUNTIME = 'v2';
 const COLLABORATION_PROVIDER = 'hocuspocus';
+const SESSION_BUSY_MESSAGE = 'Every document room is in use';
+const SESSION_OPEN_TIMEOUT_MESSAGE = 'The document did not open in time';
 
 export type AgentSessionsClient = Pick<SuperDocClient, 'connect' | 'open' | 'dispose'>;
 export type LocatedRoom = { roomMode: RoomMode };
@@ -37,13 +39,13 @@ type SessionTraits = { role: DocumentRole | null; userName: string };
 
 export class AgentSessionBusyError extends AgentToolError {
   constructor(retryAfterSeconds: number) {
-    super({ message: 'Every document room is in use', details: { retryAfterSeconds } });
+    super({ message: SESSION_BUSY_MESSAGE, details: { retryAfterSeconds } });
   }
 }
 
 export class AgentSessionOpenTimeoutError extends AgentToolError {
   constructor() {
-    super({ message: 'The document did not open in time' });
+    super({ message: SESSION_OPEN_TIMEOUT_MESSAGE });
   }
 }
 

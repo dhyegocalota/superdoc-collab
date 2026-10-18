@@ -9,6 +9,7 @@ export const MAX_CONTACT_LENGTH = 254;
 export const REGISTER_PATH = '/oauth2/register';
 const METADATA_URI_FIELDS = ['logo_uri', 'client_uri', 'policy_uri', 'tos_uri'];
 const INVALID_CLIENT_METADATA = 'invalid_client_metadata';
+const CLIENT_METADATA_TOO_LARGE_MESSAGE = 'Client metadata is too large.';
 
 function isLongerThan({ value, limit }: { value: unknown; limit: number }): boolean {
   return typeof value === 'string' && value.length > limit;
@@ -24,7 +25,7 @@ const limitRegistration = createAuthMiddleware(async (context) => {
   const hasLongContact = Array.isArray(contacts) && contacts.some((contact) => isLongerThan({ value: contact, limit: MAX_CONTACT_LENGTH }));
   const isOversized = isNameTooLong || hasTooManyRedirects || hasLongUri || hasTooManyContacts || hasLongContact;
   if (!isOversized) return;
-  throw new APIError('BAD_REQUEST', { error: INVALID_CLIENT_METADATA, error_description: 'Client metadata is too large.' });
+  throw new APIError('BAD_REQUEST', { error: INVALID_CLIENT_METADATA, error_description: CLIENT_METADATA_TOO_LARGE_MESSAGE });
 });
 
 export function registrationLimitsPlugin() {

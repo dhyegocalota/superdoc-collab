@@ -46,6 +46,8 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
 const DIMMED_EDITOR_AREA_CLASS = 'opacity-60';
 const VERSION_PROGRESS_CLASS = 'h-0.5 w-full animate-pulse bg-primary motion-reduce:animate-none';
 
+function ignoreEditorUpdate(): void {}
+
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
@@ -235,6 +237,7 @@ export function DocumentPage() {
                 isInert={isEditingSurfaceInert}
                 isSuperseded={isSuperseded}
                 onTransportReport={reportTransport}
+                onEditorUpdate={ignoreEditorUpdate}
               />
             )}
             <VersionFrame

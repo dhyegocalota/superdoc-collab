@@ -99,6 +99,7 @@ Route answers (`documents-routes.test.ts`):
 - [ ] Reader, live reservation — input: GET open; expected: 409 `NOT_READY`.
 - [ ] Editor, committed room — input: GET open; expected: 200, `roomMode` join, `creatorAttempt` and `creatorEpoch` null.
 - [ ] Agent, uncommitted — input: agent open; expected: `NOT_READY`, nothing seeded.
+- [ ] Rename during the create window (`document-page.test.tsx`) — input: a title rename on an editor page; expected: no second GET open, the title updates, and the page's attempt is not superseded.
 
 ## E2E (`e2e/room-admission.spec.ts`, two browsers)
 

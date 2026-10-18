@@ -12,6 +12,9 @@ paths:
 - `scrollIntoView` runs on state transitions only (running → result), never on every key change and never on the first render with a cached result. (apps/web/src/features/timeline/selection-summary-card.tsx)
 - Every time on screen goes through `apps/web/src/lib/format-date-time.ts` with the effective zone from `useTimeZone()` and the `en-US` locale; its `Intl.DateTimeFormat` instances are cached per zone and options. Nothing else formats a time. (ADR 0024)
 
+## Layout
+- Below `lg` the documents list is stacked rows (title clamped to two lines, one muted line), never a table, and no page scrolls sideways at 320 px. (apps/web/src/features/documents/document-table.tsx, docs/features/mobile-horizontal-scroll/spec.md)
+
 ## Focus and keyboard
 - A Radix `Dialog` opened without a `DialogTrigger` returns focus to `body` on close. Pass `onCloseAutoFocus` that prevents the default and focuses the opener. (apps/web/src/features/editor/editor-header.tsx, docs/learnings/2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md)
 - A Dialog opened from a dropdown item needs the menu `modal={false}`, or closing leaves `pointer-events: none` on `body`. (refinement-ux-care spec)
@@ -37,7 +40,7 @@ paths:
 
 ## SuperDoc 2.23.0 in the browser
 - The editing surface is a `textarea`, not a contenteditable; in viewing mode it is a `role="document"` element. (`EDITING_SURFACE_SELECTOR` in superdoc-editor.tsx, `EDITOR_INPUT_SELECTOR` in e2e/editor.ts)
-- A programmatic `focus()` on a fresh blank document before the user's first click, from `onReady` or `onCollaborationReady`, leaves the composition textarea focused without a selection, and the first keystroke throws "This edit couldn't be completed". Never auto-focus a new document. (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md)
+- Any focus of a fresh blank document without a click (a programmatic `focus()` from `onReady` or `onCollaborationReady`, or a browser-tool fill of the textarea) leaves the composition textarea focused without a selection, and the first keystroke throws "This edit couldn't be completed". Never auto-focus a new document; drive it with a click, End and key presses. (docs/learnings/2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md, docs/learnings/2026-10-18-an-mcp-fill-on-a-blank-superdoc-surface-is-rejected-because-no-selection-exists.md)
 - `onException` reports `code: 'edit-rejected'` once per rejected document-surface event (key, paste, cut, drop, pointer up), for example a keystroke aimed at a paragraph another author deleted; the instance keeps syncing, so the editor shows a status line instead of the fatal message (`exceptionOutcome` in superdoc-exceptions.ts). (docs/features/editor-survives-rejected-edits/)
 - `zoom: { mode: 'fit-width' }` in the config, and `setZoomMode`, `setZoom` and `focus()` on the instance, exist. (apps/web/src/features/editor/superdoc-zoom.ts)
 - The version viewer fits the page to the frame width with the shared `FIT_WIDTH_ZOOM` (`fit-width`, capped at 100 %) and `FITTED_PAGE_CLASS`, and passes no toolbar container. It takes the author palette from `authorPaletteOf`, the helper the live editor uses. (apps/web/src/features/editor/superdoc-zoom.ts, apps/web/src/features/versions/version-viewer.tsx)

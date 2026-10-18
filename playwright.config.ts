@@ -25,6 +25,7 @@ const DATABASE_DIR = process.env.E2E_DATABASE_DIR;
 
 export default defineConfig({
   testDir: 'e2e',
+  testIgnore: ['**/_*'],
   timeout: TEST_TIMEOUT_MS,
   workers: process.env.CI ? CONTINUOUS_INTEGRATION_WORKERS : LOCAL_WORKERS,
   retries: 0,

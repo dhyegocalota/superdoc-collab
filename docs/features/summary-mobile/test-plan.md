@@ -18,10 +18,13 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `use-reveal-selected.test.ts::a keyboard selection with the header in view does not scroll` — expected: no call
 - [ ] `timeline-panel.test.tsx::below md the order is chart, header, filter, card, edits` — expected: DOM order, header `sticky`
 - [ ] `timeline-panel.test.tsx::the first load shows a skeleton` — input: timeline pending; expected: a status skeleton with the chart height
-- [ ] `use-panel-width.test.ts::the phone default share is 46 percent` — expected: the compact default equals the constant
-- [ ] `time-travel.test.tsx::below lg a versioned bin waits for confirmTravel` — expected: no `at` change on tap; `at` set after `confirmTravel`
+- [ ] `time-travel.test.tsx::below lg selecting a versioned bin never travels, View version writes at at once` — expected: no `at` change on tap or key; `at` set right after the click, no debounce
+- [ ] `timeline-panel.test.tsx::the bin already shown offers no View version` — input: `at` equals the selected bin; expected: no button
 - [ ] `time-travel.test.tsx::at lg a versioned bin travels on tap` — expected: `at` set after the debounce
-- [ ] `streamgraph.test.tsx::taps are ignored while a version loads` — input: `isLoadingVersion: true`; expected: `onSelectIndex` not called, the selected bin `aria-busy="true"`
+- [ ] `streamgraph.test.tsx::taps are ignored while a version loads` — input: `isLoadingVersion: true`; expected: `onSelectIndex` not called, the chart wrapper `aria-busy="true"`
+- [ ] `time-travel.test.tsx::an at with no version never locks the chart` — expected: taps select
+- [ ] `time-travel.test.tsx::loading ends when the frame is visible` — expected: dim and progress line gone after the ready message
+- [ ] `timeline-panel.test.tsx::the header's parent is the scroll container below md, and at 768 it tops the list column`
 - [ ] `streamgraph.test.tsx::keys still move the selection while a version loads` — expected: `onSelectIndex` called on ArrowRight
 - [ ] `document-page.test.tsx::a loading version dims the editor and shows the progress line` — expected: the editor area has the dim class, a `role="status"` line under the bar
 - [ ] `document-page.test.tsx::the version bar is pinned below lg` — expected: the bar sits above the editor with the touch height
@@ -31,18 +34,19 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/summary-mobile.spec.ts::on a phone a tap keeps the selected header in view and a version needs a second tap` — viewport 375 x 812; steps: open a document with bins and a version, open the panel, tap a bin; expected: the header is inside the viewport and names the bin; tap a versioned bin; expected: the URL has no `at`; press View version; expected: the progress line, the dimmed editor, then the version frame ready and the pinned bar with Back to live; press it; expected: live again
+- [ ] `e2e/summary-mobile.spec.ts::on a phone a tap keeps the selected header in view and a version needs View version` — viewport 375 x 812; steps: open a document with bins and a version, open the panel, tap a bin; expected: the header is inside the viewport and names the bin; tap a versioned bin; expected: the URL has no `at`; press View version; expected: the progress line, the dimmed editor, then the version frame ready and the pinned bar with Back to live; press it; expected: live again
 - [ ] `e2e/summary-mobile.spec.ts::on desktop a tap travels at once` — viewport 1280; expected: `at` set after one tap
 
 ## Prove it for real — Playwright MCP
 
-- [ ] Happy path at 375 x 812: sign in, open a document with edits over several minutes, open the panel; expected: 46 dvh panel, chart on top, the header under it
+- [ ] Happy path at 375 x 812: sign in, open a document with edits over several minutes, open the panel; expected: the usual panel height, chart on top, the header under it
 - [ ] Tap three different bins; expected: the header updates and stays in view each time, the card scrolls under it
-- [ ] Versioned bin: first tap selects, "View version" visible; second tap: progress line, dimmed editor, the old version, the pinned "Back to live"; Back to live restores the live editor
+- [ ] Versioned bin: a tap selects, "View version" visible; pressing it: progress line, dimmed editor (not the bar), View version disabled, the old version, the bar at the top with "Back to live"; Back to live restores the live editor
 - [ ] Double tap during a load; expected: one version load only, the second tap ignored
 - [ ] 320 x 568: no horizontal scroll, the header and the bar readable, the buttons at least 44 px
 - [ ] Reduced motion (emulate `prefers-reduced-motion: reduce`): the scroll is instant and the progress line does not pulse
 - [ ] Dark theme at 375: the header, the bar and the progress line readable
+- [ ] 768 x 1024: the header tops the list column, View version works, nothing overflows
 - [ ] Desktop 1280: side panel unchanged, a tap travels at once, no header pinned
 - [ ] Keyboard at 375: arrow keys move the selection, the live region announces the time, Enter on View version travels
 - [ ] Console and network clean: zero console errors, zero failed requests

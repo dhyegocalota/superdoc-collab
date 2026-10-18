@@ -2,7 +2,7 @@
 
 - Date: 2026-10-18
 - Inspired by: eight `pnpm verify` runs of the connected-apps-content lane (a web-only diff) on 2026-10-18, each red on a different test
-- Revisited: 2026-10-18 — changed because the band starvation was not a queue: the job runner refuses a third concurrent topic job as Busy, `TopicsService` marks that first computation failed and never retries it, so the band never appears. The E2E stack now allows 8 topic jobs, above the worker count; the production default stays 2.
+- Revisited: 2026-10-18 — changed because the band starvation was not a queue: the job runner refuses a third concurrent insights job (topic naming and Summarize share the runner) as Busy, `TopicsService` marks that first computation failed and never retries it automatically (a Summarize click regroups a failed computation, the band wait makes no such click), so the band never appears. The E2E stack now allows 8 insights jobs, above the worker count; the production default stays 2.
 
 ## Signal
 
@@ -14,7 +14,7 @@ The flock hook serializes playwright, vitest and tsc, but not the stacks and bro
 
 ## Do
 
-The E2E stack allows eight topic jobs (`e2e/stack.ts`), so a refused first naming no longer starves a band wait; keep that cap above the worker count. Before a gate: check `lsof -iTCP:3200,3400,3500,3700 -sTCP:LISTEN` and `ps -eo pid,etime,pcpu,command | grep -E 'vitest|scenario-stack'`, stop what nobody uses, and wait for the active tester walks to end. Run the gate as `CI=1 pnpm verify` when the machine is still busy: nothing else reads `CI`, and `playwright.config.ts` drops to four workers. Rerun each red test alone as evidence, record the run numbers in the PR comment, and never merge before a run prints `verify exit 0`.
+The E2E stack allows eight insights jobs (`e2e/stack.ts`), so a refused first naming no longer starves a band wait; keep that cap above the worker count. Before a gate: check `lsof -iTCP:3200,3400,3500,3700 -sTCP:LISTEN` and `ps -eo pid,etime,pcpu,command | grep -E 'vitest|scenario-stack'`, stop what nobody uses, and wait for the active tester walks to end. Run the gate as `CI=1 pnpm verify` when the machine is still busy: nothing else reads `CI`, and `playwright.config.ts` drops to four workers. Rerun each red test alone as evidence, record the run numbers in the PR comment, and never merge before a run prints `verify exit 0`.
 
 ## Anchor
 

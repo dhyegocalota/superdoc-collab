@@ -12,6 +12,9 @@ paths:
 - `scrollIntoView` runs on state transitions only (running → result), never on every key change and never on the first render with a cached result. (apps/web/src/features/timeline/selection-summary-card.tsx)
 - Every time on screen goes through `apps/web/src/lib/format-date-time.ts` with the effective zone from `useTimeZone()` and the `en-US` locale; its `Intl.DateTimeFormat` instances are cached per zone and options. Nothing else formats a time. (ADR 0024)
 
+## Layout
+- Below `lg` the documents list is stacked rows (title clamped to two lines, one muted line), never a table, and no page scrolls sideways at 320 px. (apps/web/src/features/documents/document-table.tsx, docs/features/mobile-horizontal-scroll/spec.md)
+
 ## Focus and keyboard
 - A Radix `Dialog` opened without a `DialogTrigger` returns focus to `body` on close. Pass `onCloseAutoFocus` that prevents the default and focuses the opener. (apps/web/src/features/editor/editor-header.tsx, docs/learnings/2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md)
 - A Dialog opened from a dropdown item needs the menu `modal={false}`, or closing leaves `pointer-events: none` on `body`. (refinement-ux-care spec)

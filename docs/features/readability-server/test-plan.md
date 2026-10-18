@@ -4,7 +4,7 @@ Behaviour-preserving refactor: no tester run. The existing unit files, `pnpm typ
 
 ## The failing test first
 
-- [ ] `apps/server/src/history/projection-queues.test.ts` — input: an Import request then a Stop request; expected: the import reply is posted before the worker stops.
+- [ ] `apps/server/src/history/projection-queues.test.ts` — input: an Import held open, then a Stop, a Forget and a Project; expected: Stop runs without waiting for the import, Forget and Project wait for it. Red on: createProjectionQueues is not implemented (4367a7b0).
 
 ## Pinning tests
 

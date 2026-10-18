@@ -15,7 +15,7 @@ The survey of `origin/main` (`ba25379d`) found server code a first-time reader h
 
 Each item is one commit, pinned by the existing unit tests of the files it touches, with a new test first where behaviour could drift.
 
-1. **Projection dispatch by record.** `projection-handler.ts` `handle` and the message listener in `projection-worker.ts` dispatch from a record keyed by `ProjectionRequestKind`. The queue choice stays exact: Stop and Project and Version and Blocks join the serial queue, Import joins the import queue, Forget waits for both. A test pins the order of replies for a Stop after an Import.
+1. **Projection dispatch by record.** `projection-handler.ts` `handle` and the message listener in `projection-worker.ts` dispatch from a record keyed by `ProjectionRequestKind`. The queue choice stays exact: Project, Version, Blocks and Stop join the serial queue, Import joins the import queue, Forget waits for both. A test pins that a Stop does not wait for a pending Import.
 2. **Inline messages become constants.** The two `AgentToolError` messages in `agent/agent-sessions.ts` and the client-metadata message in `auth/registration-limits.ts` become named constants at the top of their file, the server pattern (`IMPORT_FAILED_MESSAGE` in `projection-messages.ts`).
 3. **Promise names.** `queue`, `importQueue`, `stopping`, `work`, `expired`, `started` and `turn` carry a `Promise` suffix.
 4. **Shared time constants.** `testing/oauth-client.ts` and `testing/timeline-client.ts` import `SECOND_MS` from `libs/types`.

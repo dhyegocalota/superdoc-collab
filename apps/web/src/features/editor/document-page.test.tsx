@@ -727,6 +727,30 @@ test.each(RELOAD_FILE_FAILURES)(
   },
 );
 
+test(
+  'Reload that is answered 409 while another editor creates shows the waiting page, which enters on the 200',
+  async () => {
+    let status = HttpStatus.Ok;
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Create),
+      openBody: { error: DOCUMENT_NOT_READY_ERROR },
+      currentOpenStatus: () => status,
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+    act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+    status = HttpStatus.Conflict;
+    await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
+    expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText(RELOAD_FAILED_MESSAGE)).not.toBeInTheDocument();
+    status = HttpStatus.Ok;
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
+    expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  },
+  TEST_TIMEOUT_MS,
+);
+
 test('an ended session names its reason and sends the author to sign in with the way back', async () => {
   let membersStatus = HttpStatus.Ok;
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner), currentMembersStatus: () => membersStatus });

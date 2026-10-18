@@ -4,7 +4,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## The failing test first
 
-- [ ] `apps/web/src/features/timeline/selected-header.test.tsx::a selected bin shows its time range, its edit count and Clear selection` — input: a selection with 12 edits; expected: the range, "12 edits" and a "Clear selection" button
+- [ ] `apps/web/src/features/timeline/selected-header.test.tsx::a selected bin shows its time range, its edit count and Clear selection` — input: a selection with 12 characters; expected: the range, "12 characters" and a "Clear selection" button
 - [ ] Confirmed it fails for the right reason: `SelectedHeader is not implemented`
 
 ## Unit

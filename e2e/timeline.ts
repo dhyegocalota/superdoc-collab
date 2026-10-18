@@ -132,8 +132,11 @@ export function chartSvg(page: Page): Locator {
   return page.locator('aside svg', { has: page.locator('title', { hasText: STREAMGRAPH_TITLE }) });
 }
 
-export async function clickChart({ page, position }: { page: Page; position: { x: number; y: number } }): Promise<void> {
-  await chartSvg(page).click({ position });
+export async function clickChart({ page, widthFraction }: { page: Page; widthFraction: number }): Promise<void> {
+  const chart = chartSvg(page);
+  const box = await chart.boundingBox();
+  if (box === null) throw new Error('The chart has no bounding box');
+  await chart.click({ position: { x: box.width * widthFraction, y: box.height / 2 } });
 }
 
 export async function ruleX(page: Page): Promise<number> {

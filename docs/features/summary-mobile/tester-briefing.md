@@ -6,15 +6,15 @@ Written by developer-sm. The developer did not run `test-plan.md`, did not run t
 
 Reworked after the plan review (spec, plan and test plan commit ff9f841). One phone rule: below `lg`.
 
-- `selected-header.tsx` (new): sticky header with the bin's range, edit count, Clear selection and View version (`canViewVersion`, disabled while a version loads). Live region `aria-live="polite"`.
+- `selected-header.tsx` (new): sticky header with the bin's range, character count, Clear selection and View version (`canViewVersion`, disabled while a version loads). Live region `aria-live="polite"`.
 - `use-reveal-selected.ts`, `lib/use-reduced-motion.ts` (new): only a pointer press reveals the header (`block: 'nearest'`, smooth or instant by motion preference); keys and history changes never do. The outer page scroller may move too; accepted.
 - `timeline-panel.tsx`: below `lg` the header renders. Below `md` the column wrappers are `contents`, so the header's layout parent is the scrolling grid; from `md` to `lg` it tops the list column. `canViewVersion` derives from the selected bin and `at` (versioned and not the bin viewed). Below `lg` selecting never calls `onTravel`; View version calls `onTravel(selectedBin.start)`. A skeleton (`role="status"`, `LOADING_TIMELINE_LABEL`) shows while the timeline is pending. The height share is unchanged.
 - `use-time-travel.ts`: below `lg` `travelTo` writes `at` at once; from `lg` it keeps the 300 ms debounce. `isLoading` ends when the version frame is visible (`reportReady`).
 - `version-frame.tsx`: `onReady(sequence)` when the requested frame is visible.
 - `streamgraph.tsx`: `isLoadingVersion` drops pointer presses and drags; `aria-busy` is on the chart wrapper. The panel passes it only below `lg` and only with a requested sequence. Keys untouched.
-- `document-page.tsx`: the inner editor div (`editor-surface`) dims while a version loads; the failed connection still dims the whole area. A progress line (`role="status"`) sits between the banner and the editor. Below `lg` the version bar renders before the layout div, outside the shared scroller.
+- `document-page.tsx`: the inner editor div (`editor-surface`) dims while a version loads; the failed connection still dims the whole area. A progress line (`role="status"`) sits between the banner and the editor. Below `lg` the version bar and the progress line render before the layout div, outside the shared scroller and the dimmed area.
 - `version-banner.tsx`: "Back to live" uses the 44 px `touch` size below `lg`.
-- `components/ui/button.tsx` (`touch`), `components/ui/skeleton.tsx` (`motion-reduce:animate-none`), `timeline-copy.ts` (new strings, `EditUnit.Edit`).
+- `components/ui/button.tsx` (`touch`), `components/ui/skeleton.tsx` (`motion-reduce:animate-none`), `timeline-copy.ts` (new strings).
 - `e2e/summary-mobile.spec.ts` (new), `e2e/timeline.ts` (`chartSvg`, `clickChart`), `docs/features/README.md` row.
 
 ## How to run
@@ -76,9 +76,9 @@ The keyboard cases of `use-reveal-selected.test.ts` were corrected in f9444b4: t
 
 ## Known gaps
 
-- The E2E spec was typechecked, not run. Its click positions (`x: 1` and `x: 340`) assume a chart about 343 px wide at 375.
+- The E2E spec was typechecked, not run. Its clicks use fractions of the chart svg bounding box (centre and 90 percent), never fixed pixels.
 - The header's layout parent below `md` is the scrolling grid, but its DOM parent is the `contents` wrapper of the chart column; the unit test asserts exactly that.
-- The "edit count" is the bin's inserted plus deleted characters labelled "edits"; a volume, not a count of operations.
+- The header's count is the bin's inserted plus deleted characters, labelled with the existing character unit ("12 characters"), like the tooltip.
 - With one bin in the E2E, the second chart click during a load hits the same bin, so it proves the lock but not a change of selection.
 - Smooth scroll is unit-tested with a mock, not observed in a browser. jsdom has no `scrollIntoView`, so tests that render the panel below `lg` stub it on the prototype.
 - Real touch input is not exercised; the E2E uses mouse clicks at a phone viewport.

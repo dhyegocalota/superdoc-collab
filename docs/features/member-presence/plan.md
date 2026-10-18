@@ -22,15 +22,15 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 
 ### G1: stale presence
 
-- [ ] **Step 1:** red test that a peer caret leaving invalidates the members query; `Members` takes `documentId`; `presenceKey` and the invalidation.
+- [x] **Step 1:** red test that a peer caret leaving invalidates the members query; `Members` takes `documentId`; `presenceKey` and the invalidation. — evidence: red c637a309, green 24f8cbfa
 
 ### G2: one label rule
 
-- [ ] **Step 2:** red test that a jumpable member is named `Bruno, online` and described by the jump text; name by `memberLabel`, describe by the jump text or the reason.
+- [x] **Step 2:** red test that a jumpable member is named `Bruno, online` and described by the jump text; name by `memberLabel`, describe by the jump text or the reason. — evidence: red 1a3a3be5, green 75598460
 
 ### G3: empty copy
 
-- [ ] **Step 3:** red test that no empty copy shows while the projection is behind; add the condition.
+- [x] **Step 3:** red test that no empty copy shows while the projection is behind; add the condition. — evidence: red 5c0039b3, green 278f4285
 
 ## Failure modes
 
@@ -44,7 +44,7 @@ G1, G2, G3 in order (G1 and G2 share `members.tsx`).
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.

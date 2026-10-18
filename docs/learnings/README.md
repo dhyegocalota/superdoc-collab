@@ -19,11 +19,13 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-15 | A second test stack reuses the first server's hooks and port | [2026-10-15-hocuspocus-server-export-is-a-singleton.md](2026-10-15-hocuspocus-server-export-is-a-singleton.md) | 2026-10-16 |
 | 2026-10-15 | Every awareness update appears to come from the first user who opened the room | [2026-10-15-awareness-hook-context-is-the-creator.md](2026-10-15-awareness-hook-context-is-the-creator.md) | 2026-10-16 |
 | 2026-10-15 | Backspace at a paragraph start and Delete at a paragraph end do nothing in collaboration mode | [2026-10-15-keyboard-paragraph-merge-is-a-no-op-in-collab.md](2026-10-15-keyboard-paragraph-merge-is-a-no-op-in-collab.md) | 2026-10-16 |
-| 2026-10-16 | A SuperDoc version cannot be renamed into its own room; isolate it by endpoint | [2026-10-16-a-superdoc-version-cannot-be-renamed-into-its-own-room.md](2026-10-16-a-superdoc-version-cannot-be-renamed-into-its-own-room.md) | 2026-10-16 |
-| 2026-10-16 | Version endpoints must not declare identities or awareness | [2026-10-16-version-endpoints-must-skip-awareness-declarations.md](2026-10-16-version-endpoints-must-skip-awareness-declarations.md) | 2026-10-16 |
+| 2026-10-16 | A SuperDoc version cannot be renamed into its own room; isolate it by endpoint | [2026-10-16-a-superdoc-version-cannot-be-renamed-into-its-own-room.md](2026-10-16-a-superdoc-version-cannot-be-renamed-into-its-own-room.md) | 2026-10-17 |
+| 2026-10-16 | Version endpoints must not declare identities or awareness | [2026-10-16-version-endpoints-must-skip-awareness-declarations.md](2026-10-16-version-endpoints-must-skip-awareness-declarations.md) | 2026-10-17 |
 | 2026-10-16 | An async upgrade handler leaves the raw socket with no 'error' listener | [2026-10-16-async-upgrade-handlers-drop-the-socket-error-listener.md](2026-10-16-async-upgrade-handlers-drop-the-socket-error-listener.md) | 2026-10-16 |
 | 2026-10-17 | The SDK opens a document with a `collaboration` block, no error is raised, and the room on the server stays empty | [2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md](2026-10-17-sdk-collaboration-is-silently-ignored-without-runtime-v2.md) | 2026-10-17 |
 | 2026-10-17 | A tracked edit through a cached SDK session returns ok and nothing reaches the update log | [2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md](2026-10-17-a-reused-sdk-session-keeps-the-room-token-and-read-only-flag-from-open.md) | 2026-10-17 |
+| 2026-10-17 | The jump to a member lands on the wrong person or on nobody | [2026-10-17-superdoc-remote-caret-overlay-carries-no-user-id.md](2026-10-17-superdoc-remote-caret-overlay-carries-no-user-id.md) | 2026-10-17 |
+| 2026-10-17 | A member's cursor is drawn in a colour the app never declared | [2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md](2026-10-17-superdoc-user-colour-must-be-a-six-digit-hex-and-colors-an-array-of-them.md) | 2026-10-17 |
 
 ### history
 
@@ -34,6 +36,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | Shrinking the snapshot interval barely moves open-room latency | [2026-10-16-yjs-decode-not-sqlite-is-the-load-cost.md](2026-10-16-yjs-decode-not-sqlite-is-the-load-cost.md) | 2026-10-16 |
 | 2026-10-16 | Keystroke-level events must be grouped into runs before any term search | [2026-10-16-keystroke-events-need-runs-before-search.md](2026-10-16-keystroke-events-need-runs-before-search.md) | 2026-10-16 |
 | 2026-10-17 | A spend budget must count only jobs that reach the model | [2026-10-17-count-only-real-model-calls-toward-a-budget.md](2026-10-17-count-only-real-model-calls-toward-a-budget.md) | 2026-10-17 |
+| 2026-10-17 | One Summarize click uses two process-wide job slots and a regroup is refused as busy | [2026-10-17-a-keyed-job-started-inside-another-keyed-job-holds-two-slots.md](2026-10-17-a-keyed-job-started-inside-another-keyed-job-holds-two-slots.md) | 2026-10-17 |
 
 ### testing
 
@@ -43,6 +46,8 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A spec that reads a call counter off the fake upstream passes alone and fails as soon as its file runs in parallel | [2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md](2026-10-17-a-process-wide-call-counter-breaks-parallel-specs.md) | 2026-10-17 |
 | 2026-10-17 | Text typed keystroke by keystroke can land in two runs | [2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md](2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md) | 2026-10-17 |
 | 2026-10-17 | `shouldAdvanceTime` lets real lag move the fake clock, so a timer test passes alone and fails under load | [2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md](2026-10-17-should-advance-time-lets-real-lag-move-the-fake-clock.md) | 2026-10-17 |
+| 2026-10-17 | A component test throws a missing author colour error although the component is untouched | [2026-10-17-get-computed-style-is-empty-in-jsdom-so-a-token-reader-needs-the-palette-stub.md](2026-10-17-get-computed-style-is-empty-in-jsdom-so-a-token-reader-needs-the-palette-stub.md) | 2026-10-17 |
+| 2026-10-17 | A feature works in the page and silently does nothing in an isolated render | [2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md](2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md) | 2026-10-17 |
 
 ### tooling
 
@@ -52,7 +57,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-16 | A red-first claim cannot be verified when test and code share a commit | [2026-10-16-commit-the-failing-test-first.md](2026-10-16-commit-the-failing-test-first.md) | 2026-10-16 |
 | 2026-10-16 | A commit from one lane sweeps in files another lane staged | [2026-10-16-parallel-lanes-share-one-git-index.md](2026-10-16-parallel-lanes-share-one-git-index.md) | 2026-10-17 |
 | 2026-10-16 | A worker_threads exception with no 'error' listener exits the server | [2026-10-16-worker-threads-need-an-error-listener.md](2026-10-16-worker-threads-need-an-error-listener.md) | 2026-10-16 |
-| 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-16 |
+| 2026-10-16 | A read-only connection alone lets the reader's editor diverge | [2026-10-16-superdoc-reader-needs-viewing-mode.md](2026-10-16-superdoc-reader-needs-viewing-mode.md) | 2026-10-17 |
 | 2026-10-16 | History lags up to Hocuspocus maxDebounce under continuous typing | [2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md](2026-10-16-hocuspocus-maxdebounce-bounds-history-latency.md) | 2026-10-16 |
 | 2026-10-16 | AI SDK 7 deprecates generateObject; structured output is generateText + Output.object | [2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md](2026-10-16-ai-sdk-7-replaces-generateobject-with-output-object.md) | 2026-10-16 |
 | 2026-10-17 | A repository folder named `deploy/` breaks `pnpm deploy` inside the image build | [2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md](2026-10-17-a-repo-folder-named-deploy-breaks-pnpm-deploy.md) | 2026-10-17 |
@@ -72,3 +77,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | `Intl.supportedValuesOf('timeZone')` does not list `UTC` | [2026-10-17-intl-supported-time-zones-omit-utc.md](2026-10-17-intl-supported-time-zones-omit-utc.md) | 2026-10-17 |
 | 2026-10-17 | A session-start hook runs whatever a repository file contains when bash compares it with -ge | [2026-10-17-a-session-start-hook-runs-whatever-a-repository-file-contains.md](2026-10-17-a-session-start-hook-runs-whatever-a-repository-file-contains.md) | 2026-10-17 |
 | 2026-10-17 | A `pnpm <name>` step is green in under a second and prints nothing the script would print | [2026-10-17-a-script-named-like-a-pnpm-built-in-never-runs.md](2026-10-17-a-script-named-like-a-pnpm-built-in-never-runs.md) | 2026-10-17 |
+| 2026-10-17 | The print view of a four-page document has text on the first pages and blank pages after them | [2026-10-17-superdoc-paints-only-the-pages-near-the-viewport-even-with-virtualization-off.md](2026-10-17-superdoc-paints-only-the-pages-near-the-viewport-even-with-virtualization-off.md) | 2026-10-17 |
+| 2026-10-17 | The SuperDoc toolbar appears inside the page, overflows, or lists items we removed | [2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md](2026-10-17-superdoc-toolbar-needs-a-container-and-a-typed-exclude-list.md) | 2026-10-17 |
+| 2026-10-17 | The typecheck fails with a duplicate declaration in libs/types right after a lane merge | [2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md](2026-10-17-merging-lanes-that-mirror-one-shared-constant-duplicates-the-declaration.md) | 2026-10-17 |

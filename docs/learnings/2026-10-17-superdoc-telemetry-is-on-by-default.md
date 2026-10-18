@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: the first Railway walk (`docs/features/deploy/runbook-railway.md` → Check it): the tester saw `POST https://ingest.superdoc.dev/v1/collect` answering 200 from the editor page; the brief allows no third party but the LLM provider
 - Revisited: 2026-10-17 — `telemetry: SUPERDOC_TELEMETRY` on both `new SuperDoc(...)` calls; `document-page.test.tsx` and `version-view-page.test.tsx` pin it
+- Revisited: 2026-10-17 — still true: `SUPERDOC_TELEMETRY` is set in both `superdocOptions` and `printSuperdocOptions`, the third constructor; walk the network panel after the print view lands
 
 ## Signal
 The network panel shows requests to `ingest.superdoc.dev` although the app code never names that host; the local test suite cannot see them because it mocks `superdoc`.

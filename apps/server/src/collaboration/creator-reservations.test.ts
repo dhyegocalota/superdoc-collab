@@ -130,16 +130,6 @@ const SCENARIOS: Scenario[] = [
     expected: null,
   },
   {
-    name: 'closing one of two tabs keeps the reservation',
-    act: ({ reserveAs, advance }) => {
-      reserveAs(FIRST_EDITOR);
-      reserveAs(FIRST_EDITOR);
-      advance(BEFORE_EXPIRY_MS);
-      return reserveAs(SECOND_EDITOR);
-    },
-    expected: undefined,
-  },
-  {
     name: 'an update at 50 s extends the expiry',
     act: ({ reservations, reserveAs, advance }) => {
       reserveAs(FIRST_EDITOR);
@@ -246,4 +236,17 @@ test('a holder that reopens after the release window starts a fresh lifetime', (
   context.advance(CREATOR_RESERVATION_MAX_MS - 2 * SECOND_MS);
   context.reservations.touch({ documentId: DOCUMENT_ID, attempt: SECOND_ATTEMPT });
   expect(context.reserveAs(FIRST_EDITOR)).toBe(3);
+});
+
+test('a holder reopening every 59 seconds past the lifetime cap lapses and the next editor takes over', () => {
+  const context = contextAt(0);
+  const reopenInterval = CREATOR_RESERVATION_MS - SECOND_MS;
+  const reopens = Math.ceil(CREATOR_RESERVATION_MAX_MS / reopenInterval) + 1;
+  context.reserveAs(FIRST_EDITOR);
+  const answers = Array.from({ length: reopens }, () => {
+    context.advance(reopenInterval);
+    return context.reserveAs(FIRST_EDITOR);
+  });
+  expect(answers.at(-1)).toBeUndefined();
+  expect(context.reserveAs(SECOND_EDITOR)).toBe(reopens);
 });

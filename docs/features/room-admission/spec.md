@@ -43,7 +43,9 @@ The reservation of one document moves through these states. The attempt counter 
 ```
 Unreserved ──open by editor──▶ Reserved(n)
 Reserved(n) ──open by other, live──▶ Reserved(n)        (other gets 409)
-Reserved(n) ──open by same user──▶ Reserved(n+1)        (newest tab wins: n is fenced and its sockets closed 4403; lifetime cap kept)
+Reserved(n) ──open by same user──▶ Reserved(n+1)        (newest tab wins: n is fenced and its sockets closed 4403; the lifetime cap carries over)
+Reserved(n) or Expired(n) ──same user reopens within the release window──▶ Reserved(n+1), cap carried over
+Released(n) ──same user reopens after the window──▶ Reserved(n+1), fresh lifetime
 Reserved(n) ──update from n──▶ Reserved(n)              (silence timer refreshed, never past reservedAt + 5 min)
 Reserved(n) ──socket of n connected──▶ Reserved(n)      (live while any socket of n is connected)
 Reserved(n) ──last connection of n closes──▶ Unreserved (attempt counter kept at n)

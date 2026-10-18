@@ -311,3 +311,8 @@ The step 12 abandoned-partial test failed at the reservation, not at the "receiv
 ### Trap: a rename reopens the document
 
 `DOCUMENTS_QUERY_KEY` (`['documents']`) is a prefix of `openedDocumentQueryKey` (`['documents', id]`), so the rename success handler's `invalidateQueries` refetched GET open. While the room is uncommitted that GET is a holder reopen: it issues attempt n+1 and the page's own attempt-n socket closes with 4403. The setup captured the ticket once and the provider does not retry, so the page showed Failed for the whole create window. The rename now updates the title on the opened query with `setQueryData` and invalidates the list with `exact: true`; the delete handler is exact too. The other prefix invalidations (`upload-dialog.tsx`, `use-create-document.ts`, `share-landing-page.tsx`) run where no opened query is mounted, and its `gcTime` is 0. Pinned by `document-page.test.tsx::a title rename never opens the document again` (8044462 red).
+
+### G3 sixth review round
+
+- **Pin of the kept start:** `a holder reopening every 59 seconds past the lifetime cap lapses and the next editor takes over` fails if the reopen resets `reservedAt` (mutation checked: with `reservedAt = now`, it and the release-and-reopen row both go red). It was green when it landed, so it is a pin, not a red-first row.
+- **Test cleanups:** the duplicate "closing one of two tabs" row is dropped (the row "refuses a second editor while the reservation is live" covers it, and the two-socket case is `collaboration-server.test.ts`); the agent budget test removes its member in `finally`.

@@ -13,7 +13,7 @@ While the document opens, the editor page shows a small "Loading document…" li
 
 ## Change
 
-In `apps/web/src/features/editor/document-page.tsx` the status paragraph rendered while `superdoc === null` becomes visually hidden (`sr-only`). Assistive technology still hears it and the Download button is still described by it. Unit test in `document-page.test.tsx`: while loading the status is in the document with the `sr-only` class and the Download button is described by it; the existing superseded test keeps asserting the line is gone.
+In `apps/web/src/features/editor/document-page.tsx` the status paragraph rendered while `superdoc === null` becomes visually hidden (`sr-only`). Assistive technology still hears it and the Download button is still described by it. No unit test pins the class (testing.md:27 forbids pinning Tailwind classes); the existing tests in `document-page.test.tsx` pin the `role="status"` line and the Download button's and the More actions items' descriptions, and the tester's before and after screenshots at 1280 and 375 under `.pr-media/loading-line/` are the visual proof; the existing superseded test still pins that the line is hidden on a superseded page.
 
 ## Rule exception
 

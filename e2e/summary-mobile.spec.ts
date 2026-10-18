@@ -30,7 +30,7 @@ const CHART_CENTRE_FRACTION = 0.5;
 const PANEL_BODY_SELECTOR = 'aside [data-panel-body]';
 const PIXEL_TOLERANCE = 1;
 const VERSION_PATH_PATTERN = /\/versions\/\d+$/;
-const SELECTED_HEADER_SELECTOR = 'aside [aria-live="polite"]';
+const SELECTED_HEADER_SELECTOR = 'aside [data-selected-header]';
 const EDITOR_SURFACE_TEST_ID = 'editor-surface';
 const DIMMED_CLASS = /opacity-60/;
 const CHARACTER_COUNT_PATTERN = /\d+ characters?/;

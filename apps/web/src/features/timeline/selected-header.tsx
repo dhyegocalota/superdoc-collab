@@ -17,6 +17,7 @@ export function SelectedHeader({ ref, selection, canViewVersion, isViewVersionDi
   return (
     <div
       ref={ref}
+      data-selected-header
       aria-live="polite"
       className="sticky top-0 z-10 flex items-center justify-between gap-2 rounded-md border bg-muted px-3 py-1 text-sm"
     >

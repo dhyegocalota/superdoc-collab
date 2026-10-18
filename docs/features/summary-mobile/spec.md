@@ -4,7 +4,7 @@
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the owner's phone report; the design options were decided by the lead under the owner's delegation: height C, time travel B, loading B, the 44 px size variant accepted)
 **ADRs:** [0038](../../adr/0038-phone-time-travel-confirms-with-an-inline-second-tap.md), [0031](../../adr/0031-one-summarize-job-runs-only-what-is-stale.md)
-**Not changing:** the side panel at `lg` and up (resize handle, 420 px minimum, 40 % width, scrubbing on tap); the chart's key handlers and, from `lg`, its pointer handlers; the panel's height share; Escape and "Back to live" semantics; the summary job and its freshness rules; the `at` search parameter.
+**Not changing:** the side panel at `lg` and up (resize handle, 420 px minimum, 40 % width, scrubbing on tap); the chart's key handlers and, from `lg`, its pointer handlers (except that a drag inside the selected bin no longer re-selects it); the panel's height share; Escape and "Back to live" semantics; the summary job and its freshness rules; the `at` search parameter.
 
 ## Problem
 

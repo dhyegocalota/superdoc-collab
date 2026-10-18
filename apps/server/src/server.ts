@@ -52,6 +52,7 @@ import { ShareLinksRepository } from './documents/share-links';
 import { InsightsJobRunner } from './insights/insights-job-runner';
 import { SelectionSummariesService } from './insights/selection-summaries-service';
 import { SummariesService } from './insights/summaries-service';
+import { SummarizeService } from './insights/summarize-service';
 import { TopicsService } from './insights/topics-service';
 import { buildSelectionSnapshot, readTimelinePipeline } from './history/timeline-service';
 import { InsightsRepository } from './insights/insights-repository';
@@ -178,27 +179,31 @@ function createServices({
     maxConcurrentJobs: environment.llm.maxConcurrentJobs,
     maxCallsPerHour: environment.llm.maxCallsPerHour,
   });
+  const topics = new TopicsService({
+    repository: insightsRepository,
+    scheduler,
+    languageModel,
+    jobRunner,
+    readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
+  });
+  const summaries = new SummariesService({
+    repository: insightsRepository,
+    languageModel,
+    jobRunner,
+    readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
+  });
+  const selection = new SelectionSummariesService({
+    repository: insightsRepository,
+    languageModel,
+    jobRunner,
+    readSelection: ({ documentId, selection: requested }) => buildSelectionSnapshot({ services, documentId, selection: requested }),
+  });
   const insights: InsightsServices = {
     jobRunner,
-    topics: new TopicsService({
-      repository: insightsRepository,
-      scheduler,
-      languageModel,
-      jobRunner,
-      readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
-    }),
-    summaries: new SummariesService({
-      repository: insightsRepository,
-      languageModel,
-      jobRunner,
-      readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
-    }),
-    selection: new SelectionSummariesService({
-      repository: insightsRepository,
-      languageModel,
-      jobRunner,
-      readSelection: ({ documentId, selection }) => buildSelectionSnapshot({ services, documentId, selection }),
-    }),
+    topics,
+    summaries,
+    selection,
+    summarize: new SummarizeService({ topics, summaries, selection, jobRunner, languageModel }),
   };
   const runtime = createCollaborationRuntime({
     hocuspocus,

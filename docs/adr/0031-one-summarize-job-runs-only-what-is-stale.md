@@ -18,11 +18,13 @@ Three model jobs exist today. Topics are computed and refreshed with a 30 s cool
 - **Selection summary.** Write the summary for the selection in the request when it is missing or stale.
 - **Topic sentences.** Rewrite them when they are older than the topic set.
 - A fresh step is skipped with no model call. A job whose steps are all fresh makes no call and ends as Done.
-- Progress is a step enum the client polls: Grouping, Summarizing, Done, and Failed at a step. The card shows "Grouping edits into topics…" and then "Summarizing edits…" from it.
+- Progress is a step enum the client polls: Idle, Grouping, Summarizing. A failed step returns the step to Idle and the view carries the failure text. The card shows "Grouping edits into topics…" and then "Summarizing edits…" from it.
 - The job answers busy or cooling down with one message and one retry-after, the longest of the underlying cooldowns.
-- A failed regroup keeps the previous ready topics. The busy rule of 0015 stays.
+- A failed regroup keeps the previous ready topics and ends the job only when the selection names a topic; otherwise the summary and sentence steps still run against the previous topics, so a grouping that fails every time cannot lock the summary out. The busy rule of 0015 stays.
+- The regroup runs inside the Summarize slot and awaits a topics job that is already running instead of computing again. The per-document cooldown starts at the first model call of the job (ADR 0012); a job that makes no call leaves none.
 - The automatic topic recompute trigger of 0015 (five new blocks, one minute) stays as it is.
 - "Regroup topics" leaves the interface. The Summarize job is the way to re-cluster on demand.
+- The agent's summarize tool runs the same job with scope `SummaryOnly`: the summary step only, no regroup and no sentence rewrite, so a read-only token never spends the regroup. It starts the shared per-document cooldown.
 
 ## Alternatives considered
 
@@ -44,8 +46,8 @@ Three model jobs exist today. Topics are computed and refreshed with a 30 s cool
 
 Both tests are added by the final-visuals plan.
 
-- `apps/server/src/insights/summarize-job.test.ts` pins the skip rules, the step order and the longest retry-after.
-- `apps/web/src/features/timeline/use-summarize.test.ts` pins the step display.
+- `apps/server/src/insights/summarize-service.test.ts` pins the skip rules and the step order. `apps/server/src/insights/insights-routes.test.ts` pins the longest retry-after.
+- `apps/web/src/features/timeline/use-selection-summary.test.ts` pins the polling by step.
 
 ## Revisit when
 

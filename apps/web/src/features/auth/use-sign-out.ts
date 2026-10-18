@@ -1,21 +1,13 @@
 import { AppRoute } from '@superdoc-collab/types';
 import { useNavigate } from 'react-router';
-import { Button } from '@/components/ui/button';
 import { authClient } from './auth-client';
-import { SIGN_OUT_LABEL } from './auth-copy';
 import { SIGNED_OUT_STATE } from './sign-out-state';
 
-export function SignOutButton() {
+export function useSignOut(): () => Promise<void> {
   const navigate = useNavigate();
 
-  async function signOut(): Promise<void> {
+  return async function signOut(): Promise<void> {
     await authClient.signOut();
     await navigate(AppRoute.SignIn, { replace: true, state: SIGNED_OUT_STATE });
-  }
-
-  return (
-    <Button variant="outline" onClick={signOut}>
-      {SIGN_OUT_LABEL}
-    </Button>
-  );
+  };
 }

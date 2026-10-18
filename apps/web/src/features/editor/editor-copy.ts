@@ -1,5 +1,6 @@
 import { ShareLinkRole } from '@superdoc-collab/types';
 import { APP_NAME } from '../../lib/app-copy';
+import { DownloadFormat } from './download-format';
 
 export const TITLE_LABEL = 'Title';
 export const SHARE_LABEL = 'Share';
@@ -9,6 +10,19 @@ export const DELETE_CONFIRM_LABEL = 'Delete document';
 export const DELETE_DIALOG_TITLE = 'Delete this document?';
 export const DELETE_DIALOG_DESCRIPTION = 'The document and its history are removed for everyone.';
 export const DOWNLOAD_LABEL = 'Download .docx';
+export const FIND_IN_DOCUMENT_LABEL = 'Find in document';
+export const DOWNLOAD_BUTTON_LABEL = 'Download';
+export const DOWNLOAD_OPTIONS_LABEL = 'More download formats';
+export const DOWNLOAD_PDF_LABEL = 'Download PDF';
+export const PREPARING_PDF_MESSAGE = 'Preparing the PDF…';
+export const PDF_FAILED_MESSAGE = 'The PDF could not be prepared.';
+export const PDF_PRINT_HINT = 'Choose “Save as PDF” in the print dialog.';
+export const DOWNLOAD_FORMAT_LABELS: Record<DownloadFormat, string> = {
+  [DownloadFormat.Docx]: DOWNLOAD_LABEL,
+  [DownloadFormat.Pdf]: DOWNLOAD_PDF_LABEL,
+};
+export const SELF_MEMBER_REASON = 'This is you';
+export const BACK_TO_LIVE_TO_JUMP_REASON = 'Go back to live to jump to a cursor';
 export const BACK_TO_DOCUMENTS_LABEL = 'Back to documents';
 export const ONLINE_LABEL = 'online';
 export const COPY_LABEL = 'Copy';
@@ -17,7 +31,7 @@ export const CANCEL_LABEL = 'Cancel';
 export const SHARE_DIALOG_TITLE = 'Share this document';
 export const SHARE_DIALOG_DESCRIPTION =
   'Anyone signed in with a link joins with that link’s access. Resetting a link stops the old one from working.';
-export const TIMELINE_TOGGLE_LABEL = 'Toggle timeline';
+export const TIMELINE_TOGGLE_LABEL = 'Edits panel';
 export const DOCUMENT_LOAD_ERROR_MESSAGE = 'The document could not be loaded.';
 export const LOADING_DOCUMENT_MESSAGE = 'Loading document…';
 export const EXPORT_FAILED_MESSAGE = 'The document could not be exported.';
@@ -45,4 +59,32 @@ export const HOME_LINK_LABEL = `${APP_NAME}, back to documents`;
 export function memberLabel({ name, isOnline }: { name: string; isOnline: boolean }): string {
   if (!isOnline) return name;
   return `${name}, ${ONLINE_LABEL}`;
+}
+
+export function renameTitleLabel(title: string): string {
+  return `Rename ${title}`;
+}
+
+export function goToCursorLabel(name: string): string {
+  return `Go to ${name}’s cursor`;
+}
+
+export function movedToCursorMessage(name: string): string {
+  return `Moved to ${name}’s cursor.`;
+}
+
+export function cursorNotFoundMessage(name: string): string {
+  return `${name}’s cursor could not be found.`;
+}
+
+export function offlineMemberReason(name: string): string {
+  return `${name} is offline`;
+}
+
+export function cursorOffScreenReason(name: string): string {
+  return `${name}’s cursor is off screen`;
+}
+
+export function moreMembersLabel(count: number): string {
+  return `${count} more people`;
 }

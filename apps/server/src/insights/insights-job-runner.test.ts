@@ -27,13 +27,13 @@ test('a job over the concurrency cap is rejected while the cap is full and runs 
 test('the model call after the hourly cap is refused and the window rolls over', () => {
   let now = 0;
   const jobRunner = new InsightsJobRunner({ now: () => now });
-  const consumed = Array.from({ length: LLM_MAX_CALLS_PER_HOUR }, () => jobRunner.consumeCall());
+  const consumed = Array.from({ length: LLM_MAX_CALLS_PER_HOUR }, () => jobRunner.consumeDocumentCall('d1'));
   expect(consumed.every(Boolean)).toBe(true);
-  expect(jobRunner.consumeCall()).toBe(false);
+  expect(jobRunner.consumeDocumentCall('d1')).toBe(false);
   now += LLM_WINDOW_MS - MINUTE_MS;
-  expect(jobRunner.consumeCall()).toBe(false);
+  expect(jobRunner.consumeDocumentCall('d1')).toBe(false);
   now += MINUTE_MS + 1;
-  expect(jobRunner.consumeCall()).toBe(true);
+  expect(jobRunner.consumeDocumentCall('d1')).toBe(true);
 });
 
 test('jobs that never reach the model do not consume the hourly budget', async () => {
@@ -43,7 +43,7 @@ test('jobs that never reach the model do not consume the hourly budget', async (
     expect(jobRunner.run({ key: `idle-${index}`, job: async () => undefined })).toBe(JobOutcome.Started);
     await jobRunner.idle();
   }, Promise.resolve());
-  expect(jobRunner.consumeCall()).toBe(true);
+  expect(jobRunner.consumeDocumentCall('d1')).toBe(true);
 });
 
 test('the worker honours the configured limits', async () => {
@@ -53,14 +53,18 @@ test('the worker honours the configured limits', async () => {
   expect(jobRunner.run({ key: 'second', job: async () => undefined })).toBe(JobOutcome.Busy);
   held.open();
   await jobRunner.idle();
-  expect([jobRunner.consumeCall(), jobRunner.consumeCall(), jobRunner.consumeCall()]).toEqual([true, true, false]);
+  expect([jobRunner.consumeDocumentCall('d1'), jobRunner.consumeDocumentCall('d1'), jobRunner.consumeDocumentCall('d1')]).toEqual([
+    true,
+    true,
+    false,
+  ]);
 });
 
 test('checking the call budget never spends it', () => {
   const jobRunner = new InsightsJobRunner({ maxCallsPerHour: 1 });
   expect(jobRunner.hasCallBudget()).toBe(true);
   expect(jobRunner.hasCallBudget()).toBe(true);
-  expect(jobRunner.consumeCall()).toBe(true);
+  expect(jobRunner.consumeDocumentCall('d1')).toBe(true);
   expect(jobRunner.hasCallBudget()).toBe(false);
 });
 
@@ -68,7 +72,7 @@ test('the wait for a call slot runs until the oldest call leaves the window and 
   const clock = { time: 0 };
   const jobRunner = new InsightsJobRunner({ now: () => clock.time, maxCallsPerHour: 1 });
   expect(jobRunner.retryAfterMs()).toBe(MIN_RETRY_AFTER_MS);
-  jobRunner.consumeCall();
+  jobRunner.consumeDocumentCall('d1');
   clock.time = 10 * MINUTE_MS;
   expect(jobRunner.retryAfterMs()).toBe(LLM_WINDOW_MS - 10 * MINUTE_MS);
   clock.time = LLM_WINDOW_MS - 1;

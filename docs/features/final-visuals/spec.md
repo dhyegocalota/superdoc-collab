@@ -47,7 +47,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 
 - The client sends one `POST` to `selectionSummaryApiPath(documentId)` with the current selection query, as today. The request starts the job or answers at once.
 - The job runs these checks in order, and starts only what is stale:
-  1. Topics: regroup when the topic status is failed, or when `computedAtSequence` is older than the newest projected edit. A failed regroup keeps the ready topics (ADR 0015).
+  1. Topics: regroup when the topic status is failed, or when `computedAtSequence` is older than the newest projected edit. A failed regroup keeps the ready topics (ADR 0015) and ends the job only when the selection names a topic; otherwise the summary and sentence steps still run against the previous topics. The regroup runs inside the Summarize slot and awaits a topics job that is already running instead of computing again.
   2. Selection summary: write it when it is missing, failed, or stamped with another cursor or topics time.
   3. Topic sentences: rewrite each topic sentence that is older than the topic set.
 - If nothing is stale, the job makes no model call and the answer is 200. This check runs before the cooldown.
@@ -59,12 +59,12 @@ The product works, but the chrome around the document does not. The walk of 2026
   - 429 with `Retry-After` and one message, `SUMMARIZE_BUSY_MESSAGE`, for any wait. The seconds are the longer of the remaining cooldown and the model's busy wait.
   - 503 with the reason when the model is unavailable, as today.
 - Cooldowns:
-  - `SUMMARIZE_COOLDOWN_MS` (30 s, renamed from `SELECTION_SUMMARY_COOLDOWN_MS`, same value) is per document. It is consumed only when a model call starts (ADR 0012): a POST that finds nothing stale, or joins a running job, does not consume it.
+  - `SUMMARIZE_COOLDOWN_MS` (30 s, renamed from `SELECTION_SUMMARY_COOLDOWN_MS`, same value) is per document. It starts at the job's first model call (ADR 0012): a POST that finds nothing stale, or joins a running job, does not consume it.
   - `TOPIC_REFRESH_COOLDOWN_MS` is retired with the refresh endpoint.
   - `SUMMARY_MIN_INTERVAL_MS` is retired. Reading the summaries no longer starts a rewrite; sentence rewrites happen only inside a Summarize click.
   - `TOPIC_RECOMPUTE_MIN_INTERVAL_MS` stays for the automatic recompute of ADR 0015.
 - Removed: `POST /api/documents/:documentId/topics/refresh`, its path helper `topicsRefreshApiPath`, `RefreshOutcome`, `TopicsService.refresh`, and the call to `refreshStale` on read.
-- The new orchestration lives in `apps/server/src/insights/summarize-service.ts`, which calls the topics and summaries services. The job runner's per-key guard stays as it is. The agent's summarize tool in `agent/read-tools.ts` goes through the same service and answers `SUMMARIZE_BUSY_MESSAGE` when busy. On the client, `features/timeline/use-summarize.ts` owns the mutation (see Interfaces).
+- The new orchestration lives in `apps/server/src/insights/summarize-service.ts`, which calls the topics and summaries services. The job runner's per-key guard stays as it is. The agent's summarize tool in `agent/read-tools.ts` goes through the same service and answers `SUMMARIZE_BUSY_MESSAGE` when busy. On the client, `features/timeline/use-summarize.ts` owns the mutation (see Interfaces). The agent runs `SummarizeScope.SummaryOnly`: it writes only the selection summary, never regroups or rewrites sentences, and starts the shared per-document cooldown when it makes its model call.
 
 **2. Theme.**
 
@@ -111,12 +111,14 @@ The product works, but the chrome around the document does not. The walk of 2026
 - `superdoc-editor.tsx` replaces `[&_.superdoc-page]:bg-background` with `bg-paper`, so the page stays white in dark mode (decision 7.8).
 - The print view alone sets `layoutEngineOptions.virtualization.enabled: false` (data flow 7).
 
-**7. The print view.** No route and no second socket.
+**7. The print view.** One more route, no second socket.
 
 - `DownloadMenu` exports the live document to a Blob with `superdoc.export({ triggerDownload: false })`.
-- It mounts `PrintView` off-screen in the page: a non-collaborative SuperDoc in viewing mode from that Blob, with `layoutEngineOptions.virtualization.enabled: false`. Its container height is the `.superdoc-page` count times 1056 px, measured after `onReady`.
-- It calls `window.print()` only after the last `.superdoc-page` has text, found with a bounded `requestAnimationFrame` loop. It never sleeps on a timer.
-- A print stylesheet (`@media print`) hides everything but the print view. `afterprint` unmounts it.
+- It mounts `PrintView` in the page: an off-screen same-origin frame on `AppRoute.Print` (`/print`). The route needs no session, carries no document id and holds no document data. [ADR 0035](../../adr/0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md).
+- The frame announces `Ready`; the page answers with the exported Blob by `postMessage`. Both sides check `origin` and `source` on every message, and the Blob never leaves the origin.
+- The frame opens a non-collaborative SuperDoc in viewing mode with `layoutEngineOptions.virtualization.enabled: false`, reports the `.superdoc-page` count after `onReady`, and the page sizes the frame to the count times 1056 px so its own viewport covers every page.
+- The frame announces the page count again if it grows, and reports `Painted` only after every `.superdoc-page` has text, found with a `requestAnimationFrame` loop. The page then posts `Print`, the frame calls its own `window.print()` so only the document prints, and its `afterprint` posts `Closed`, which unmounts the frame.
+- A frame that does not report `Painted` within `PRINT_READY_TIMEOUT_MS` fails the preparation: the `PDF_FAILED_MESSAGE` toast and the frame unmounts.
 
 ### Interfaces
 
@@ -127,6 +129,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 | `timeline.ts` | `SummarizeStep` (enum: `Idle`, `Grouping`, `Summarizing`) | new |
 | `timeline.ts` | `SelectionSummaryView.step` | new field, added with every fixture that builds a view |
 | `timeline.ts` | `SummarizeOutcome` (enum: `Started`, `Running`, `UpToDate`) | new, next to the view in the POST body |
+| `timeline.ts` | `SummarizeScope` (enum: `Full`, `SummaryOnly`) | new, `SummaryOnly` is what the agent's summarize tool passes |
 | `timeline.ts` | `SUMMARIZE_COOLDOWN_MS` | renamed from `SELECTION_SUMMARY_COOLDOWN_MS` |
 | `timeline.ts` | `SUMMARIZE_BUSY_MESSAGE` | new |
 | `timeline.ts` | `TOPICS_REFRESH_TOO_SOON_MESSAGE` | removed |
@@ -197,7 +200,8 @@ The product works, but the chrome around the document does not. The walk of 2026
 | `features/timeline/timeline-copy.ts` | Panel and summary copy. `importedAuthorLabel`. |
 | `features/timeline/contributor-avatars.tsx` | Renders `UserAvatar` with the author's colour. |
 | `features/connected-apps/use-with-ai-dialog.tsx`, `features/connected-apps/connected-apps-copy.ts` | New dialog with `Tabs` per client. |
-| `features/versions/print-view.tsx` | New, PDF option A only. A non-collaborative viewing-mode SuperDoc from an exported Blob, mounted off-screen by `DownloadMenu` (data flow 7). No route. |
+| `features/versions/print-view.tsx` | New, PDF option A only. The parent side: an off-screen frame on the print route, handed the exported Blob and sized to its pages (data flow 7). |
+| `features/versions/print-page.tsx`, `print-messages.ts` | New. The page inside the frame: a non-collaborative viewing-mode SuperDoc from the received Blob, with the message kinds both sides share. |
 | `features/versions/version-view-page.tsx` | A non-Ready readiness renders the error card and does not poll. |
 
 ### Failure handling
@@ -207,8 +211,9 @@ The product works, but the chrome around the document does not. The walk of 2026
 | Rename fails | `RENAME_FAILED_MESSAGE` under the top bar. The title keeps its old value. |
 | DOCX export fails | `EXPORT_FAILED_MESSAGE` under the top bar. |
 | PDF preparation fails | Toast `downloadFailedMessage(DownloadFormat.Pdf)`. No file is downloaded. |
-| A Summarize step fails | `step` returns to `Idle`. The card shows the step's message and "Retry summary" (`timeline-notices.tsx`), which calls `summarize` and reruns the whole job. A failed regroup keeps the old topics (ADR 0015). |
+| A Summarize step fails | `step` returns to `Idle`. The card shows the step's message and "Retry summary" (`timeline-notices.tsx`), which calls `summarize` and reruns the whole job. A failed regroup keeps the old topics (ADR 0015); it ends the job only for a topic selection. |
 | Busy or cooling down | One 429 answer with one countdown, the longer wait. The card reads "Try again in N s.". |
+| A POST for another selection while a job runs | 202 with that selection's view, `outcome` `Running` and the document job's `step`. The job never writes that selection; the card shows it again after the next Summarize. |
 | Unknown stored theme or panel value | Removed from storage, then treated as absent. |
 | Awareness position is stale | The button stays. The tooltip shows the cursor-not-found copy for `JUMP_FAILED_NOTICE_MS`. |
 | Waiting page error | The error card, "Try again" refetches once. |

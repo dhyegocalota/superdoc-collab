@@ -53,3 +53,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0032](0032-connection-state-truth-callback-for-transitions-server-presence-for-recovery.md) | Connection state truth: the SuperDoc callback for transitions, server presence for recovery | Accepted | 2026-10-17 |
 | [0033](0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md) | One creator per room: a reservation with per-attempt write fencing and expiry | Accepted | 2026-10-17 |
 | [0034](0034-collaboration-socket-payload-and-rate-limits.md) | Collaboration socket limits: a per-message payload cap and a per-connection rate cap | Accepted | 2026-10-17 |
+| [0035](0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md) | The PDF prints from a same-origin frame with its own viewport | Accepted | 2026-10-17 |

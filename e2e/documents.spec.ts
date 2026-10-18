@@ -3,7 +3,6 @@ import {
   ApiPath,
   AppRoute,
   DEMO_USERS,
-  DOCUMENT_NOT_READY_MESSAGE,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   DocumentRole,
   HttpMethod,
@@ -16,23 +15,20 @@ import {
 } from '../libs/types/src';
 import {
   acceptShareLink,
+  downloadButton,
   editorText,
   readEditorText,
   readEvents,
   readShareLinks,
   shareAndAccept,
+  titleButton,
   typeInParagraph,
   uploadSeed,
   insertedBy,
 } from './editor';
 import { ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
-import {
-  DELETE_CONFIRM_LABEL,
-  DELETE_LABEL,
-  DOWNLOAD_LABEL,
-  MORE_ACTIONS_LABEL,
-  TITLE_LABEL,
-} from '../apps/web/src/features/editor/editor-copy';
+import { DELETE_CONFIRM_LABEL, DELETE_LABEL, MORE_ACTIONS_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
+import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import { expect, signedInContext, test } from './fixtures';
 
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
@@ -88,7 +84,7 @@ test('a reader waits until the room exists', async ({ browser }) => {
   const created = await ana.page.request.post(ApiPath.Documents, { data: { title: titleOf(uniqueFileName('blank')) } });
   const { id: documentId } = (await created.json()) as DocumentSummary;
   await acceptShareLink({ page: bruno.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
-  await expect(bruno.page.getByText(DOCUMENT_NOT_READY_MESSAGE)).toBeVisible();
+  await expect(bruno.page.getByText(PREPARING_DOCUMENT_MESSAGE)).toBeVisible();
   await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
   await ana.page.goto(documentPagePath(documentId));
   await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
@@ -122,15 +118,17 @@ test('an invalid share link says so', async ({ browser }) => {
 
 test('rename persists after reload', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
-  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: uniqueFileName('rename') });
+  const originalFileName = uniqueFileName('rename');
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: originalFileName });
   const renamed = titleOf(uniqueFileName('renamed'));
+  await titleButton({ page: ana.page, title: titleOf(originalFileName) }).click();
   const titleInput = ana.page.getByLabel(TITLE_LABEL, { exact: true });
   await titleInput.fill(renamed);
   const renameResponse = ana.page.waitForResponse((response) => response.request().method() === HttpMethod.Patch);
   await titleInput.press('Enter');
   expect((await renameResponse).ok()).toBe(true);
   await ana.page.reload();
-  await expect(ana.page.getByLabel(TITLE_LABEL, { exact: true })).toHaveValue(renamed);
+  await expect(titleButton({ page: ana.page, title: renamed })).toBeVisible();
 });
 
 test('delete removes the document for everyone', async ({ browser }) => {
@@ -176,11 +174,11 @@ test('on a narrow viewport the page starts at the left edge and the editor never
     .toBe(0);
 });
 
-test('the header download exports the live document', async ({ browser }) => {
+test('the Download button exports the live document', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const fileName = uniqueFileName('export');
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
   const download = ana.page.waitForEvent('download');
-  await ana.page.getByRole('button', { name: DOWNLOAD_LABEL }).click();
+  await downloadButton(ana.page).click();
   expect((await download).suggestedFilename()).toBe(fileName);
 });

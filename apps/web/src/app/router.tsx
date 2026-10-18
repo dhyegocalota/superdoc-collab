@@ -12,6 +12,7 @@ import { DocumentsPage } from '@/features/documents/documents-page';
 import { OAuthConsentPage } from '@/features/oauth-consent/oauth-consent-page';
 import { SettingsPage } from '@/features/settings/settings-page';
 import { ShareLandingPage } from '@/features/sharing/share-landing-page';
+import { PrintPage } from '@/features/versions/print-page';
 import { VersionViewPage } from '@/features/versions/version-view-page';
 
 const UNKNOWN_PATH = '*';
@@ -66,6 +67,7 @@ export const routes: RouteObject[] = [
       </RequireSession>
     ),
   },
+  { path: AppRoute.Print, element: <PrintPage /> },
   {
     path: AppRoute.OAuthConsent,
     element: (

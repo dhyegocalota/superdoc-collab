@@ -176,6 +176,6 @@ test('startServer hands the configured LLM limits to the insights worker', async
   const { jobRunner } = running.services.insights;
   expect(jobRunner.run({ key: 'held', job: () => new Promise<void>((resolve) => setTimeout(resolve, 50)) })).toBe(JobOutcome.Started);
   expect(jobRunner.run({ key: 'other', job: async () => undefined })).toBe(JobOutcome.Busy);
-  expect([jobRunner.consumeCall(), jobRunner.consumeCall()]).toEqual([true, false]);
+  expect([jobRunner.consumeDocumentCall('d1'), jobRunner.consumeDocumentCall('d1')]).toEqual([true, false]);
   await running.stop();
 });

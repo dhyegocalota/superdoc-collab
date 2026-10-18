@@ -1,7 +1,7 @@
 import {
+  AppRoute,
   ClientActor,
   UTC_TIME_ZONE,
-  AppRoute,
   documentApiPath,
   documentPagePath,
   DocumentResource,
@@ -10,18 +10,14 @@ import {
   HttpMethod,
   HttpStatus,
   NO_MATCHING_EDITS_MESSAGE,
-  RETRY_AFTER_HEADER,
-  SECOND_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  SummarizeStep,
   TimelineBandKind,
   timelineEditsApiPath,
   TOPICS_PENDING_MESSAGE,
-  TOPICS_REFRESH_TOO_SOON_MESSAGE,
   TOPICS_UNAVAILABLE_MESSAGE,
-  topicsRefreshApiPath,
   TopicState,
   type BinEdits,
   type DocumentTimeline,
@@ -29,6 +25,7 @@ import {
 } from '@superdoc-collab/types';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
@@ -40,45 +37,53 @@ import {
   EARLIER_STATE_LABEL,
   FILTER_LABEL,
   NO_EDITS_IN_BIN_MESSAGE,
-  NO_EDITS_TO_SUMMARIZE_MESSAGE,
   NO_EDITS_YET_MESSAGE,
-  NOTHING_TO_GROUP_MESSAGE,
-  REGROUP_TOPICS_LABEL,
   RESIZE_PANEL_LABEL,
   RETRY_SUMMARY_LABEL,
   RETRY_TOPICS_LABEL,
-  retryInLabel,
   SELECTION_SUMMARY_HEADING,
-  SUMMARIES_UNAVAILABLE_MESSAGE,
   SUMMARIZE_EDITS_LABEL,
   SUMMARIZING_EDITS_MESSAGE,
-  SUMMARY_UP_TO_DATE_MESSAGE,
+  PANEL_POSITION_LABEL,
+  PANEL_POSITION_LABELS,
+  TIMELINE_HEADING,
   TOP_EDITS_LABEL,
 } from './timeline-copy';
-import { PanelState, TimelinePanel } from './timeline-panel';
+import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
-import { MIN_EDITOR_WIDTH, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
+import type { SummarizeControl } from './use-summarize';
+import { PANEL_POSITION_STORAGE_KEY, PanelPosition } from './use-panel-position';
+import { MIN_EDITOR_HEIGHT, MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
 const SUMMARIES_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Summaries });
 const EDITS_PATH = timelineEditsApiPath(DOCUMENT_ID);
 const ROUTE = documentPagePath(DOCUMENT_ID);
+const REGROUP_TOPICS_LABEL = 'Regroup topics';
 const FAILURE_TEXT = 'The model refused';
 const LAG_MS = 12_000;
 const SMALL_LAG_MS = 2000;
 const DRAGGED_WIDTH = 500;
 const SHRUNK_WINDOW_WIDTH = 800;
-const REFRESH_STATUS = { state: TopicState.Pending, failure: null, computedAtSequence: null };
+const AREA_HEIGHT = 1000;
+const DEFAULT_HEIGHT = 580;
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
-const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const NONE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.None,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const READY_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Ready,
   summary: { key: 'k', sentence: 'Ana raised the budget.', authors: [FIXTURE_SUMMARY_AUTHOR], computedAtSequence: 3, isStale: false },
   failure: null,
   isModelAvailable: true,
+  step: SummarizeStep.Idle,
 };
 const STALE_VIEW: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, isStale: true } };
 const FAILED_VIEW: SelectionSummaryView = {
@@ -86,12 +91,14 @@ const FAILED_VIEW: SelectionSummaryView = {
   summary: null,
   failure: SELECTION_SUMMARY_FAILED_MESSAGE,
   isModelAvailable: true,
+  step: SummarizeStep.Idle,
 };
 const UNAVAILABLE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Failed,
   summary: null,
   failure: 'The language model is unavailable: LLM_MODEL is not set on the server.',
   isModelAvailable: false,
+  step: SummarizeStep.Idle,
 };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
 
@@ -112,23 +119,16 @@ afterEach(() => {
 function json(body: unknown, status = HttpStatus.Ok): Response {
   return jsonResponse({ body, status });
 }
-
 function mockTimelineApi({
   timeline = baseTimeline,
   edits,
-  refreshStatus = HttpStatus.Accepted,
-  refreshHeaders,
   selectionViews = [NONE_VIEW],
   timelines = [timeline],
-  summarizeResponse = () => json(RUNNING_VIEW, HttpStatus.Accepted),
 }: {
   timeline?: DocumentTimeline;
   edits?: BinEdits;
-  refreshStatus?: HttpStatus;
-  refreshHeaders?: Record<string, string>;
   selectionViews?: SelectionSummaryView[];
   timelines?: DocumentTimeline[];
-  summarizeResponse?: () => Response | Promise<Response>;
 } = {}) {
   const remainingViews = [...selectionViews];
   const remainingTimelines = [...timelines];
@@ -140,15 +140,12 @@ function mockTimelineApi({
     if (remainingViews.length > 1) return remainingViews.shift()!;
     return remainingViews[0]!;
   }
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const path = String(input).split('?')[0];
     if (path === TIMELINE_PATH) return json(nextTimeline());
     if (path === SUMMARIES_PATH) return json({ summaries: [] });
     if (path === EDITS_PATH) return json(edits);
-    if (path === SELECTION_PATH && init?.method === HttpMethod.Post) return summarizeResponse();
     if (path === SELECTION_PATH) return json(nextView());
-    if (path === topicsRefreshApiPath(DOCUMENT_ID) && init?.method === HttpMethod.Post)
-      return jsonResponse({ body: REFRESH_STATUS, status: refreshStatus, headers: refreshHeaders });
     throw new Error(`unexpected request ${String(input)}`);
   });
 }
@@ -157,14 +154,181 @@ function timelineRequests(fetchSpy: ReturnType<typeof mockTimelineApi>): number 
   return fetchSpy.mock.calls.filter(([input]) => String(input).split('?')[0] === TIMELINE_PATH).length;
 }
 
-function renderPanel({ role = DocumentRole.Editor, route = ROUTE }: { role?: DocumentRole; route?: string } = {}) {
-  return renderWithProviders(<TimelinePanel documentId={DOCUMENT_ID} role={role} onTravel={vi.fn()} onBackToLive={vi.fn()} />, { route });
+function idleSummarize(overrides: Partial<SummarizeControl> = {}): SummarizeControl {
+  return {
+    summarize: vi.fn(),
+    isRunning: false,
+    outcome: null,
+    error: null,
+    retryAfterSeconds: null,
+    showSelection: vi.fn(),
+    ...overrides,
+  };
+}
+
+type PanelOptions = {
+  role?: DocumentRole;
+  route?: string;
+  position?: PanelPosition;
+  isOpen?: boolean;
+  summarize?: SummarizeControl;
+  onOpenChange?: (isOpen: boolean) => void;
+};
+
+function PanelHarness({
+  role,
+  position,
+  initiallyOpen,
+  summarize,
+  onOpenChange,
+}: Required<Omit<PanelOptions, 'route' | 'isOpen'>> & { initiallyOpen: boolean }) {
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
+
+  function handleOpenChange(next: boolean): void {
+    onOpenChange(next);
+    setIsOpen(next);
+  }
+
+  return (
+    <TimelinePanel
+      documentId={DOCUMENT_ID}
+      role={role}
+      position={position}
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+      summarize={summarize}
+      onTravel={vi.fn()}
+      onBackToLive={vi.fn()}
+    />
+  );
+}
+
+function renderPanel({
+  role = DocumentRole.Editor,
+  route = ROUTE,
+  position = PanelPosition.Side,
+  isOpen = true,
+  summarize = idleSummarize(),
+  onOpenChange = vi.fn(),
+}: PanelOptions = {}) {
+  return renderWithProviders(
+    <PanelHarness role={role} position={position} initiallyOpen={isOpen} summarize={summarize} onOpenChange={onOpenChange} />,
+    { route },
+  );
 }
 
 const failedTimeline: DocumentTimeline = {
   ...baseTimeline,
   topics: { state: TopicState.Failed, failure: FAILURE_TEXT, computedAtSequence: null },
 };
+
+test('the heading reads Edits and the header has no Regroup topics button', async () => {
+  mockTimelineApi();
+  renderPanel();
+  expect(await screen.findByRole('heading', { name: TIMELINE_HEADING, level: 2 })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: REGROUP_TOPICS_LABEL })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: SUMMARIZE_EDITS_LABEL })).not.toBeInTheDocument();
+});
+
+test('the Timeline toggle is gone and the collapse button is named Edits panel', async () => {
+  mockTimelineApi();
+  renderPanel();
+  const collapse = await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL });
+  expect(collapse).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.queryByRole('button', { name: 'Timeline' })).not.toBeInTheDocument();
+});
+
+test('the collapse button calls onOpenChange and summarize reaches the card', async () => {
+  const onOpenChange = vi.fn();
+  const summarize = idleSummarize({ error: new Error('The model refused.') });
+  mockTimelineApi({ selectionViews: [NONE_VIEW] });
+  renderPanel({ onOpenChange, summarize });
+  expect(await screen.findByRole('alert')).toHaveTextContent('The model refused.');
+  await userEvent.click(screen.getByRole('button', { name: RETRY_SUMMARY_LABEL }));
+  expect(summarize.summarize).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
+  expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  expect(screen.getByRole('complementary')).toHaveAttribute('data-state', PanelState.Collapsed);
+});
+
+test('the side panel keeps one column and no position toggle below the large breakpoint', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Side });
+  await screen.findByLabelText(/^Budget/);
+  expect(screen.getByRole('complementary')).toHaveAttribute('data-position', PanelPosition.Side);
+  expect(document.querySelector(`[data-column="${PanelColumn.Chart}"]`)).toBeNull();
+  expect(screen.queryByRole('radiogroup', { name: PANEL_POSITION_LABEL })).not.toBeInTheDocument();
+});
+
+test('the bottom panel has a chart column with the filter and a list column with the summary and Top edits', async () => {
+  mockTimelineApi({ selectionViews: [READY_VIEW] });
+  renderPanel({ position: PanelPosition.Bottom });
+  const chartColumn = (await screen.findByLabelText(/^Budget/)).closest(`[data-column="${PanelColumn.Chart}"]`)!;
+  expect(chartColumn).not.toBeNull();
+  expect(within(chartColumn as HTMLElement).getByLabelText(FILTER_LABEL)).toBeInTheDocument();
+  const listColumn = (await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING })).closest(
+    `[data-column="${PanelColumn.List}"]`,
+  )!;
+  expect(listColumn).not.toBeNull();
+  expect(within(listColumn as HTMLElement).getByRole('heading', { name: TOP_EDITS_LABEL })).toBeInTheDocument();
+  expect(within(listColumn as HTMLElement).queryByLabelText(FILTER_LABEL)).not.toBeInTheDocument();
+  expect(screen.getByRole('complementary')).toHaveAttribute('data-position', PanelPosition.Bottom);
+});
+
+test('the bottom panel has a row resize handle on its top edge that grows with the arrow keys', async () => {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ height: AREA_HEIGHT } as DOMRect);
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  const separator = await screen.findByRole('separator', { name: RESIZE_PANEL_LABEL });
+  expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
+  expect(separator).toHaveAttribute('aria-valuenow', String(DEFAULT_HEIGHT));
+  expect(separator).toHaveAttribute('aria-valuemin', String(MIN_PANEL_HEIGHT));
+  expect(separator).toHaveAttribute('aria-valuemax', String(AREA_HEIGHT - MIN_EDITOR_HEIGHT));
+  fireEvent.keyDown(separator, { key: 'ArrowUp' });
+  expect(separator).toHaveAttribute('aria-valuenow', String(DEFAULT_HEIGHT + PANEL_RESIZE_STEP));
+  expect(screen.getByRole('complementary')).toHaveStyle({ height: `${DEFAULT_HEIGHT + PANEL_RESIZE_STEP}px` });
+  fireEvent.keyDown(separator, { key: 'ArrowDown' });
+  fireEvent.keyDown(separator, { key: 'ArrowDown' });
+  expect(separator).toHaveAttribute('aria-valuenow', String(DEFAULT_HEIGHT - PANEL_RESIZE_STEP));
+});
+
+test('collapsed at the bottom the panel is a bar with the largest topic chips, and a chip click filters and opens it', async () => {
+  const onOpenChange = vi.fn();
+  mockTimelineApi();
+  const { router } = renderPanel({ position: PanelPosition.Bottom, isOpen: false, onOpenChange });
+  await userEvent.click(await screen.findByRole('button', { name: 'Budget' }));
+  expect(router.state.location.search).toBe(`?topic=${baseTimeline.bands[0]!.id}`);
+  expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
+  expect(screen.getByRole('complementary')).toHaveAttribute('data-state', PanelState.Open);
+  expect(screen.queryByRole('separator')).toBeInTheDocument();
+});
+
+test('from the large breakpoint the header shows the position toggle and choosing stores the position', async () => {
+  const sharedMatchMedia = window.matchMedia;
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  onTestFinished(() => {
+    vi.stubGlobal('matchMedia', sharedMatchMedia);
+    localStorage.clear();
+  });
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  const toggle = await screen.findByRole('radiogroup', { name: PANEL_POSITION_LABEL });
+  await userEvent.click(within(toggle).getByRole('radio', { name: PANEL_POSITION_LABELS[PanelPosition.Side] }));
+  expect(localStorage.getItem(PANEL_POSITION_STORAGE_KEY)).toBe(PanelPosition.Side);
+});
+
+test('collapsed at the side the panel keeps its rail with no chips', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Side, isOpen: false });
+  expect(await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Budget' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+});
 
 test('failed topics explain why and let an editor retry', async () => {
   mockTimelineApi({ timeline: failedTimeline });
@@ -174,21 +338,19 @@ test('failed topics explain why and let an editor retry', async () => {
   expect(screen.getByRole('button', { name: RETRY_TOPICS_LABEL })).toBeInTheDocument();
 });
 
-test('a reader sees the failure but cannot retry or refresh', async () => {
+test('a reader sees the failure but cannot retry', async () => {
   mockTimelineApi({ timeline: failedTimeline });
   renderPanel({ role: DocumentRole.Reader });
   expect(await screen.findByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: RETRY_TOPICS_LABEL })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: REGROUP_TOPICS_LABEL })).not.toBeInTheDocument();
 });
 
-test('Retry posts the refresh once and loads the timeline again', async () => {
-  const fetchSpy = mockTimelineApi({ timeline: failedTimeline });
-  renderPanel();
+test('Retry runs the single Summarize job', async () => {
+  const summarize = idleSummarize();
+  mockTimelineApi({ timeline: failedTimeline });
+  renderPanel({ summarize });
   await userEvent.click(await screen.findByRole('button', { name: RETRY_TOPICS_LABEL }));
-  await waitFor(() => expect(timelineRequests(fetchSpy)).toBe(2));
-  const refreshCalls = fetchSpy.mock.calls.filter(([input]) => input === topicsRefreshApiPath(DOCUMENT_ID));
-  expect(refreshCalls).toHaveLength(1);
+  expect(summarize.summarize).toHaveBeenCalledTimes(1);
 });
 
 test('pending topics without topic bands say the topics are being named', async () => {
@@ -290,13 +452,6 @@ test('the separator resizes with the arrow keys and never below the minimum', as
   expect(separator).toHaveAttribute('aria-valuenow', String(MIN_PANEL_WIDTH));
 });
 
-test('a refresh that is too soon explains why', async () => {
-  mockTimelineApi({ refreshStatus: HttpStatus.TooManyRequests });
-  renderPanel();
-  await userEvent.click(await screen.findByRole('button', { name: REGROUP_TOPICS_LABEL }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(TOPICS_REFRESH_TOO_SOON_MESSAGE);
-});
-
 test('dragging the separator resizes within the limits', async () => {
   mockTimelineApi();
   renderPanel();
@@ -326,193 +481,43 @@ test('shrinking the window re-clamps the panel and its maximum', async () => {
   expect(separator).toHaveAttribute('aria-valuenow', String(SHRUNK_WINDOW_WIDTH - MIN_EDITOR_WIDTH));
 });
 
-test('the too-soon notice goes away when the cooldown ends', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  mockTimelineApi({ refreshStatus: HttpStatus.TooManyRequests, refreshHeaders: { 'Retry-After': '5' } });
-  renderPanel();
-  fireEvent.click(await screen.findByRole('button', { name: REGROUP_TOPICS_LABEL }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(TOPICS_REFRESH_TOO_SOON_MESSAGE);
-  await vi.advanceTimersByTimeAsync(4 * SECOND_MS);
-  expect(screen.getByRole('alert')).toBeInTheDocument();
-  await vi.advanceTimersByTimeAsync(2 * SECOND_MS);
-  expect(screen.queryByRole('alert')).toBeNull();
-});
-
-function postCalls(fetchSpy: ReturnType<typeof mockTimelineApi>): string[] {
-  return fetchSpy.mock.calls
-    .filter(([input, init]) => String(input).split('?')[0] === SELECTION_PATH && init?.method === HttpMethod.Post)
-    .map(([input]) => String(input));
-}
-
-test('an editor summarizes the filtered selection, waits on a disabled button and sees who edited', async () => {
-  let release: (response: Response) => void = () => undefined;
-  const pending = new Promise<Response>((resolve) => {
-    release = resolve;
-  });
-  const fetchSpy = mockTimelineApi({ selectionViews: [NONE_VIEW, READY_VIEW], summarizeResponse: () => pending });
-  renderPanel({ route: `${ROUTE}?author=ana` });
-  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(fetchSpy).toHaveBeenCalledWith(`${SELECTION_PATH}?timeZone=UTC&author=ana`, expect.objectContaining({ method: HttpMethod.Post }));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARIZING_EDITS_MESSAGE),
-  );
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
-  release(json(READY_VIEW, HttpStatus.Accepted));
-  const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
-  await waitFor(() => expect(card).toHaveTextContent(READY_VIEW.summary!.sentence));
-  expect(within(card).getByTitle(FIXTURE_AUTHOR_NAME)).toBeInTheDocument();
-  expect(postCalls(fetchSpy)).toHaveLength(1);
-});
-
-test('a reader reads the summary but has no Summarize button', async () => {
+test('a reader reads the summary but has no Retry summary button', async () => {
   mockTimelineApi({ selectionViews: [READY_VIEW] });
-  renderPanel({ role: DocumentRole.Reader });
+  renderPanel({ role: DocumentRole.Reader, summarize: idleSummarize({ error: new Error('The model refused.') }) });
   expect(await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING })).toHaveTextContent(READY_VIEW.summary!.sentence);
-  expect(screen.queryByRole('button', { name: SUMMARIZE_EDITS_LABEL })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: RETRY_SUMMARY_LABEL })).not.toBeInTheDocument();
-});
-
-test('Summarize is disabled with a reason when nothing matches', async () => {
-  mockTimelineApi({ timeline: timelineWith({ volumes: [[0], [0]], names: ['Budget'] }) });
-  renderPanel();
-  const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
-  expect(button).toBeDisabled();
-  expect(button).toHaveAttribute('title', NO_EDITS_TO_SUMMARIZE_MESSAGE);
-  expect(screen.getByText(NO_EDITS_TO_SUMMARIZE_MESSAGE)).toBeVisible();
-  expect(button).toHaveAccessibleDescription(NO_EDITS_TO_SUMMARIZE_MESSAGE);
-});
-
-test('a selected bin with no edits disables Summarize', async () => {
-  const timeline = timelineWith({ volumes: [[10], [0]], names: ['Budget'] });
-  mockTimelineApi({ timeline, edits: { binStart: timeline.bins[1]!.start, binMs: timeline.binMs, runs: [], authors: {} } });
-  renderPanel({ route: `${ROUTE}?at=${timeline.bins[1]!.start}` });
-  expect(await screen.findByText(NO_EDITS_IN_BIN_MESSAGE)).toBeInTheDocument();
-  const button = screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL });
-  expect(button).toBeDisabled();
-  expect(button).toHaveAttribute('title', NO_EDITS_TO_SUMMARIZE_MESSAGE);
-  expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
-});
-
-test('an at outside every bin summarizes the whole selection', async () => {
-  const fetchSpy = mockTimelineApi();
-  renderPanel({ route: `${ROUTE}?at=1` });
-  const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
-  await waitFor(() => expect(button).toBeEnabled());
-  await userEvent.click(button);
-  await waitFor(() => expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC`]));
-});
-
-test('clicking a bin without a version mark summarizes that bin', async () => {
-  const fetchSpy = mockTimelineApi();
-  renderPanel();
-  const band = await screen.findByLabelText('Budget, 30 characters');
-  fireEvent.keyDown(band, { key: 'ArrowRight' });
-  fireEvent.keyDown(band, { key: 'ArrowRight' });
-  await userEvent.click(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  await waitFor(() =>
-    expect(postCalls(fetchSpy)).toEqual([`${SELECTION_PATH}?timeZone=UTC&at=${baseTimeline.bins[1]!.start}&binMs=${baseTimeline.binMs}`]),
-  );
-  expect(window.location.search).not.toContain('at=');
-});
-
-test('an up-to-date summary disables Summarize and a stale one shows the badge and enables it', async () => {
-  mockTimelineApi({ selectionViews: [READY_VIEW] });
-  renderPanel();
-  await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeDisabled();
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toHaveAttribute('title', SUMMARY_UP_TO_DATE_MESSAGE);
-  expect(screen.getByText(SUMMARY_UP_TO_DATE_MESSAGE)).toBeVisible();
-  cleanup();
-  vi.restoreAllMocks();
-  mockTimelineApi({ selectionViews: [STALE_VIEW] });
-  renderPanel();
-  expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeEnabled();
-});
-
-test('a request too soon shows the seconds from Retry-After', async () => {
-  const tooSoon = () =>
-    jsonResponse({
-      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
-      status: HttpStatus.TooManyRequests,
-      headers: { [RETRY_AFTER_HEADER]: '12' },
-    });
-  mockTimelineApi({ summarizeResponse: tooSoon });
-  renderPanel();
-  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(`${SELECTION_SUMMARY_TOO_SOON_MESSAGE} ${retryInLabel(12)}`);
-});
-
-test('the cooldown message belongs to the selection that caused it', async () => {
-  const tooSoon = () =>
-    jsonResponse({
-      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
-      status: HttpStatus.TooManyRequests,
-      headers: { [RETRY_AFTER_HEADER]: '12' },
-    });
-  mockTimelineApi({ summarizeResponse: tooSoon });
-  renderPanel({ route: `${ROUTE}?author=ana` });
-  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(await screen.findByText(new RegExp(retryInLabel(12)))).toBeInTheDocument();
-  await userEvent.type(screen.getByLabelText(FILTER_LABEL), '@bruno{Enter}');
-  await waitFor(() => expect(screen.queryByText(new RegExp(retryInLabel(12)))).toBeNull());
 });
 
 test('a failed summary offers a retry to editors only', async () => {
-  const fetchSpy = mockTimelineApi({ selectionViews: [FAILED_VIEW] });
-  renderPanel();
+  const summarize = idleSummarize();
+  mockTimelineApi({ selectionViews: [FAILED_VIEW] });
+  renderPanel({ summarize });
   expect(await screen.findByText(SELECTION_SUMMARY_FAILED_MESSAGE)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: RETRY_SUMMARY_LABEL }));
-  await waitFor(() => expect(postCalls(fetchSpy)).toHaveLength(1));
+  expect(summarize.summarize).toHaveBeenCalledTimes(1);
   cleanup();
   renderPanel({ role: DocumentRole.Reader });
   expect(await screen.findByText(SELECTION_SUMMARY_FAILED_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: RETRY_SUMMARY_LABEL })).not.toBeInTheDocument();
 });
 
-test('without a language model Summarize is disabled and the card stays quiet', async () => {
+test('without a language model the card stays quiet', async () => {
   mockTimelineApi({ selectionViews: [UNAVAILABLE_VIEW] });
   renderPanel();
-  const button = await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
-  await waitFor(() => expect(button).toHaveAttribute('title', SUMMARIES_UNAVAILABLE_MESSAGE));
-  expect(button).toBeDisabled();
-  expect(screen.getByText(SUMMARIES_UNAVAILABLE_MESSAGE)).toBeVisible();
+  await screen.findByLabelText(/^Budget/);
   expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
 });
 
-test('the summary cooldown message goes away when the cooldown ends', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  const tooSoon = () =>
-    jsonResponse({
-      body: { error: SELECTION_SUMMARY_TOO_SOON_MESSAGE },
-      status: HttpStatus.TooManyRequests,
-      headers: { [RETRY_AFTER_HEADER]: '5' },
-    });
-  mockTimelineApi({ summarizeResponse: tooSoon });
+test('a stale summary shows the earlier-state badge', async () => {
+  mockTimelineApi({ selectionViews: [STALE_VIEW] });
   renderPanel();
-  fireEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(retryInLabel(5));
-  await vi.advanceTimersByTimeAsync(4 * SECOND_MS);
-  expect(screen.getByRole('alert')).toBeInTheDocument();
-  await vi.advanceTimersByTimeAsync(2 * SECOND_MS);
-  expect(screen.queryByRole('alert')).toBeNull();
-});
-
-test('Retry is disabled while its request is pending', async () => {
-  const pending = new Promise<Response>(() => undefined);
-  const fetchSpy = mockTimelineApi({ selectionViews: [FAILED_VIEW], summarizeResponse: () => pending });
-  renderPanel();
-  const retry = await screen.findByRole('button', { name: RETRY_SUMMARY_LABEL });
-  await userEvent.click(retry);
-  await waitFor(() => expect(retry).toBeDisabled());
-  await userEvent.click(retry);
-  expect(postCalls(fetchSpy)).toHaveLength(1);
+  expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
 });
 
 test('the summary card sits in a polite live region that exists before it has content', async () => {
   mockTimelineApi();
   renderPanel();
-  await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL });
+  await screen.findByLabelText(/^Budget/);
   expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
   expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
 });
@@ -545,7 +550,6 @@ test('a timeline that advances reads the summary once and shows it for an earlie
   expect(selectionReads(fetchSpy)).toBe(1);
   await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS);
   expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeEnabled();
   await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 3);
   expect(selectionReads(fetchSpy)).toBe(2);
 });
@@ -569,15 +573,6 @@ test('every topic compute reads the summary again even when the volume is the sa
   expect(screen.getByText(READY_VIEW.summary!.sentence)).toBeInTheDocument();
 });
 
-test('refreshing the topics reads the summary again', async () => {
-  const fetchSpy = mockTimelineApi({ selectionViews: [READY_VIEW] });
-  renderPanel();
-  await screen.findByText(READY_VIEW.summary!.sentence);
-  const before = selectionReads(fetchSpy);
-  await userEvent.click(screen.getByRole('button', { name: REGROUP_TOPICS_LABEL }));
-  await waitFor(() => expect(selectionReads(fetchSpy)).toBe(before + 1));
-});
-
 test('collapsing the panel drops its width and the resize handle', async () => {
   mockTimelineApi();
   renderPanel();
@@ -587,16 +582,14 @@ test('collapsing the panel drops its width and the resize handle', async () => {
   expect(screen.getByRole('complementary')).toHaveAttribute('data-state', PanelState.Collapsed);
 });
 
-test('the summary card sits under the filter, before the top edits, and scrolls into view when it starts', async () => {
-  mockTimelineApi({ selectionViews: [NONE_VIEW, RUNNING_VIEW] });
+test('the summary card sits under the filter and before the top edits', async () => {
+  mockTimelineApi({ selectionViews: [RUNNING_VIEW] });
   renderPanel();
-  await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
   const card = await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING });
   expect(within(card).getByText(SUMMARIZING_EDITS_MESSAGE)).toBeInTheDocument();
   const topEdits = screen.getByRole('heading', { name: TOP_EDITS_LABEL });
   expect(screen.getByLabelText(FILTER_LABEL).compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(card.compareDocumentPosition(topEdits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
 });
 
 test('a summary already cached when the panel opens does not scroll the page', async () => {
@@ -606,7 +599,7 @@ test('a summary already cached when the panel opens does not scroll the page', a
   expect(scrollIntoView).not.toHaveBeenCalled();
 });
 
-test('an empty document says only that there are no edits and explains the disabled Regroup topics', async () => {
+test('an empty document says only that there are no edits', async () => {
   const emptyPending: DocumentTimeline = {
     ...timelineWith({ volumes: [], names: [] }),
     topics: { state: TopicState.Pending, failure: null, computedAtSequence: null },
@@ -616,10 +609,6 @@ test('an empty document says only that there are no edits and explains the disab
   expect(await screen.findByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByText(TOPICS_PENDING_MESSAGE)).not.toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: TOP_EDITS_LABEL })).not.toBeInTheDocument();
-  const regroup = screen.getByRole('button', { name: REGROUP_TOPICS_LABEL });
-  expect(regroup).toBeDisabled();
-  expect(regroup).toHaveAccessibleDescription(NOTHING_TO_GROUP_MESSAGE);
-  expect(screen.getByText(NOTHING_TO_GROUP_MESSAGE)).toBeVisible();
 });
 
 test('bin edits mark insertions and deletions without quotes or padding', async () => {
@@ -702,4 +691,50 @@ test('the header names the zone times are shown in and links to settings', async
     'href',
     AppRoute.Settings,
   );
+});
+
+test('the panel tells the summarize control which selection it shows, including a bin without a version', async () => {
+  const summarize = idleSummarize();
+  mockTimelineApi();
+  renderPanel({ summarize });
+  const band = await screen.findByLabelText('Budget, 30 characters');
+  fireEvent.keyDown(band, { key: 'ArrowRight' });
+  fireEvent.keyDown(band, { key: 'ArrowRight' });
+  await waitFor(() =>
+    expect(summarize.showSelection).toHaveBeenLastCalledWith({ term: null, author: null, topic: null, at: baseTimeline.bins[1]!.start }),
+  );
+});
+
+test('while the timeline is loading the panel reports no selection, so the URL selection stands', async () => {
+  const summarize = idleSummarize();
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => undefined));
+  renderPanel({ summarize, route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
+  await screen.findByRole('heading', { name: TIMELINE_HEADING, level: 2 });
+  expect(summarize.showSelection).not.toHaveBeenCalled();
+});
+
+test('the bottom panel puts the chart first in a block that keeps its height, and the notices over the card', async () => {
+  mockTimelineApi({ timeline: failedTimeline, selectionViews: [READY_VIEW] });
+  renderPanel({ position: PanelPosition.Bottom });
+  const chart = await screen.findByLabelText(/^Budget/);
+  const chartColumn = chart.closest(`[data-column="${PanelColumn.Chart}"]`) as HTMLElement;
+  const listColumn = (await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING })).closest(
+    `[data-column="${PanelColumn.List}"]`,
+  ) as HTMLElement;
+  expect(chartColumn.firstElementChild).toHaveClass('shrink-0');
+  expect(chartColumn.firstElementChild).toContainElement(chart);
+  expect(chart.compareDocumentPosition(screen.getByLabelText(FILTER_LABEL)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(listColumn).getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
+  expect(within(chartColumn).queryByText(TOPICS_UNAVAILABLE_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('below md the bottom columns take their content height so the chart never overlaps the card', async () => {
+  mockTimelineApi();
+  renderPanel({ position: PanelPosition.Bottom });
+  await screen.findByLabelText(/^Budget/);
+  document.querySelectorAll('[data-column]').forEach((column) => {
+    const classes = column.className.split(' ');
+    expect(classes).not.toContain('min-h-0');
+    expect(classes).toContain('md:min-h-0');
+  });
 });

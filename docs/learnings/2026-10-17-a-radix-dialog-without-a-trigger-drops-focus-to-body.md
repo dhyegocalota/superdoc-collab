@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: UX lane tester walk of the delete dialog opened from the "More actions" menu; fixed in `14a4264` with the pin `651ae45`
 - Revisited: 2026-10-17
+- Revisited: 2026-10-17 — still true: `onCloseAutoFocus` still prevents default and focuses the opener; the pin is at `editor-header.test.tsx`, and `2ce9e84` applied the same move to Use with AI
 
 ## Signal
 After Cancel or Escape on a dialog opened from a dropdown item, the next Tab starts from the top of the page and `document.activeElement` is `body`. Keyboard users lose their place; no error is logged.

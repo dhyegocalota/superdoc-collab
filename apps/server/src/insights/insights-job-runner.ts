@@ -14,6 +14,7 @@ export enum JobOutcome {
 
 export class InsightsJobRunner {
   private readonly running = new Map<string, Promise<void>>();
+  private readonly firstCallWatchers = new Map<string, () => void>();
   private readonly calls: SlidingWindow;
   private readonly now: () => number;
   private readonly maxConcurrentJobs: number;
@@ -40,10 +41,24 @@ export class InsightsJobRunner {
     return JobOutcome.Started;
   }
 
-  consumeCall(): boolean {
+  private consumeCall(): boolean {
     if (this.calls.count() >= this.maxCallsPerHour) return false;
     this.calls.record();
     return true;
+  }
+
+  consumeDocumentCall(documentId: string): boolean {
+    if (!this.consumeCall()) return false;
+    const watcher = this.firstCallWatchers.get(documentId);
+    if (watcher === undefined) return true;
+    this.firstCallWatchers.delete(documentId);
+    watcher();
+    return true;
+  }
+
+  watchFirstCall({ documentId, onFirstCall }: { documentId: string; onFirstCall: () => void }): () => void {
+    this.firstCallWatchers.set(documentId, onFirstCall);
+    return () => this.firstCallWatchers.delete(documentId);
   }
 
   hasCallBudget(): boolean {
@@ -55,6 +70,12 @@ export class InsightsJobRunner {
     const oldest = this.calls.oldest();
     if (oldest === null) return MIN_RETRY_AFTER_MS;
     return Math.max(MIN_RETRY_AFTER_MS, oldest + LLM_WINDOW_MS - this.now());
+  }
+
+  settled(key: string): Promise<void> {
+    const running = this.running.get(key);
+    if (running === undefined) return Promise.resolve();
+    return running;
   }
 
   isRunning(key: string): boolean {

@@ -102,6 +102,7 @@ Each width box uses one of these common checks, on the documents list, the edito
 Width boxes, each run in both themes (light is chosen in the account menu, dark too):
 
 - [ ] Width 320, light — viewport 320×640; expected: checks (a) to (d) hold; members hidden; Use with AI in More actions.
+- [ ] Dark comment and tracked-change cards — steps: Dark chosen, open a document with one tracked change and one comment, open both cards, hover one, resolve one; expected: card text is readable on its card background (neither near-white on near-white nor dark on dark), active and hover cards use the popover surface, separators are visible.
 - [ ] Width 320, dark — viewport 320×640, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
 - [ ] Width 375, light — viewport 375×812; expected: checks (a) to (d) hold; panel collapsed by default; `Use with AI`, `Download PDF` and `Delete` sit in More actions, not in the bar.
 - [ ] Width 375, dark — viewport 375×812, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
@@ -111,6 +112,7 @@ Width boxes, each run in both themes (light is chosen in the account menu, dark 
 - [ ] Width 1024, dark — viewport 1024×768, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
 - [ ] Width 1024, Side chosen — viewport 1024×768, the toggle set to Side; expected: checks (a) to (d) hold; the panel beside the page with no clipped control.
 - [ ] Width 1280, light — viewport 1280×800; expected: checks (a) to (d) hold; the page centred with no horizontal scroll; panel at the bottom.
+- [ ] Width 1280×800, panel at the bottom, default height — viewport 1280×800, no manual resize; expected: the streamgraph is the first thing in the panel and is fully visible without scrolling (no part of it below the fold of the viewport), the filter and axis may scroll under it, only the summary and Top edits column scrolls, and at 375×812 with the panel open the chart ends above the "Summary of these edits" card with no overlap.
 - [ ] Width 1280, dark — viewport 1280×800, Dark chosen; expected: checks (a) to (d) hold, same layout as light.
 - [ ] Width 1280, Side chosen — viewport 1280×800, the toggle set to Side; expected: checks (a) to (d) hold; the page fits beside the panel with no horizontal scroll.
 - [ ] Width 1536, light — viewport 1536×864; expected: checks (a) to (d) hold; panel at the side by default with no stored choice.

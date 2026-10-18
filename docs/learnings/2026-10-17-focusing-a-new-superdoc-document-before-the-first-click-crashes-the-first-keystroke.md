@@ -5,6 +5,7 @@
 - Revisited: 2026-10-17
 - Revisited: 2026-10-17 — still true; the same "couldn't be completed" rejection also reaches `onException` as `code: 'edit-rejected'` when another author deletes the paragraph under the caret, and the editor now shows a status line for it instead of the fatal message (docs/features/editor-survives-rejected-edits/)
 - Revisited: 2026-10-17 — still true; the editor gained a creator ticket prop and no focus call
+- Revisited: 2026-10-17 — still true: no `superdoc.focus()` anywhere in `features/editor`
 - Revisited: 2026-10-17 — still true; connection-state added transport reports to `superdoc-editor.tsx` and no `focus()` on the SuperDoc instance
 
 ## Signal

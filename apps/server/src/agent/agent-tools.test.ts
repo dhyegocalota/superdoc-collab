@@ -2,13 +2,12 @@ import {
   AgentScope,
   AgentTool,
   DocumentRole,
-  SELECTION_SUMMARY_TOO_SOON_MESSAGE,
+  SUMMARIZE_BUSY_MESSAGE,
   type DocumentsList,
   type DocumentTopics,
   UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
-import { LLM_BUSY_MESSAGE } from '../insights/llm-client';
 import { JobOutcome } from '../insights/insights-job-runner';
 import { modelAnswering, readyModel } from '../testing/language-model';
 import { documentWithOwner, memberWithRole } from '../testing/collaboration-client';
@@ -136,7 +135,7 @@ test('summarize_selection answers busy with retryAfterSeconds', async () => {
   const { context } = toolContext({ server, userId: editor.id });
   const result = await callAgentTool({ tool: AgentTool.SummarizeSelection, input: { documentId, ...OTHER_SELECTION }, context });
   expect(result.isError).toBe(true);
-  expect(resultJson(result)).toEqual({ error: LLM_BUSY_MESSAGE, retryAfterSeconds: expect.any(Number) });
+  expect(resultJson(result)).toEqual({ error: SUMMARIZE_BUSY_MESSAGE, retryAfterSeconds: expect.any(Number) });
   vi.restoreAllMocks();
 });
 
@@ -149,7 +148,7 @@ test('summarize_selection starts the summary and then reads it, and the cooldown
   expect(resultJson(read)).toMatchObject({ summary: { sentence: SELECTION_ANSWER.sentence } });
   const tooSoon = await callAgentTool({ tool: AgentTool.SummarizeSelection, input: { documentId, ...OTHER_SELECTION }, context });
   const tooSoonBody = resultJson(tooSoon) as { error: string; retryAfterSeconds: number };
-  expect([tooSoon.isError, tooSoonBody.error]).toEqual([true, SELECTION_SUMMARY_TOO_SOON_MESSAGE]);
+  expect([tooSoon.isError, tooSoonBody.error]).toEqual([true, SUMMARIZE_BUSY_MESSAGE]);
   expect(tooSoonBody.retryAfterSeconds).toBeGreaterThan(0);
 });
 
@@ -171,4 +170,27 @@ test.each(TOOLS_ON_A_DOCUMENT)('$tool without a documentId is a tool error that 
   const result = await callAgentTool({ tool, input: {}, context });
   expect(result.isError).toBe(true);
   expect(JSON.stringify(resultJson(result))).toContain('documentId');
+});
+
+test('summarize_selection never regroups the topics, even when they are stale', async () => {
+  const model = modelAnswering(SELECTION_ANSWER);
+  const own = await documentWithOwner({ languageModel: readyModel(model) });
+  commitBulkEvents({ server: own.server, documentId: own.documentId, userId: own.owner.id, count: EVENT_COUNT });
+  own.server.services.insightsRepository.saveTopics({
+    documentId: own.documentId,
+    topics: [{ id: null, name: 'Budget', blockIds: ['b0'] }],
+    computedAtSequence: 0,
+  });
+  const regroup = vi.spyOn(own.server.services.insights.topics, 'regroup');
+  const { context } = toolContext({ server: own.server, userId: own.owner.id });
+  const result = await callAgentTool({
+    tool: AgentTool.SummarizeSelection,
+    input: { documentId: own.documentId, ...OWNER_SELECTION },
+    context,
+  });
+  await own.server.services.insights.jobRunner.idle();
+  expect(result.isError).toBeUndefined();
+  expect(regroup).not.toHaveBeenCalled();
+  expect(model.doGenerateCalls).toHaveLength(1);
+  await own.server.stop();
 });

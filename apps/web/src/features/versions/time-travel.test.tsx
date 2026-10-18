@@ -11,6 +11,7 @@ import {
   RoomMode,
   selectionSummaryApiPath,
   SelectionSummaryState,
+  SummarizeStep,
   timelineEditsApiPath,
   UTC_TIME_ZONE,
   VERSION_FAILED_MESSAGE,
@@ -37,13 +38,14 @@ import {
   STREAMGRAPH_TITLE,
   VERSION_FRAME_TITLE,
 } from '@/features/timeline/timeline-copy';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { jsonResponse } from '@/testing/json-response';
-import { DOCUMENT_ID, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { TIMELINE_POLL_MS } from '@/features/timeline/timeline-api';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
-import { TITLE_LABEL } from '@/features/editor/editor-copy';
+import { renameTitleLabel, TITLE_LABEL } from '@/features/editor/editor-copy';
 import { DocumentPage } from '@/features/editor/document-page';
 
 type VersionReply = { status: HttpStatus; body?: VersionSummary; headers?: Record<string, string> };
@@ -61,7 +63,13 @@ const { SuperDoc, superDocDestroy } = vi.hoisted(() => {
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
 
-const NONE_VIEW: SelectionSummaryView = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true };
+const NONE_VIEW: SelectionSummaryView = {
+  state: SelectionSummaryState.None,
+  summary: null,
+  failure: null,
+  isModelAvailable: true,
+  step: SummarizeStep.Idle,
+};
 const SEQUENCES = [41, 42, 50, 51, 52];
 const PAGE_ROUTE = documentPagePath(DOCUMENT_ID);
 const SERVER_TIME = Date.UTC(2026, 9, 16, 14, 2);
@@ -170,8 +178,15 @@ function pressChartAt(index: number): void {
   fireEvent.pointerDown(chart, { clientX: (index * 600) / (SEQUENCES.length - 1) });
 }
 
-beforeEach(() => SuperDoc.mockClear());
+beforeEach(() => {
+  SuperDoc.mockClear();
+  installAuthorPalette();
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList,
+  );
+});
 afterEach(() => {
+  removeAuthorPalette();
   vi.restoreAllMocks();
   vi.useRealTimers();
   superDocDestroy.mockClear();
@@ -431,6 +446,7 @@ test('Escape leaves the version from anywhere but a field being typed in', async
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
   await screen.findByTitle(VERSION_FRAME_TITLE);
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
   fireEvent.keyDown(screen.getByLabelText(TITLE_LABEL), { key: 'Escape' });
   expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`);
   const filter = screen.getByLabelText(FILTER_LABEL);

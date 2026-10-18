@@ -23,12 +23,45 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.55 0.22 263);
   --topic-lightness: 62%;
+  --topic-tint-lightness: 94%;
   --topic-other: oklch(0.87 0 0);
   --inserted: oklch(0.93 0.07 150);
   --deleted: oklch(0.93 0.06 25);
   --online: oklch(0.65 0.17 150);
+  --paper: oklch(1 0 0);
+  --author-1: #2e39b8;
+  --author-2: #5a2eb8;
+  --author-3: #912eb8;
+  --author-4: #b82ea8;
+  --author-5: #b82e70;
+  --author-6: #b82e39;
   --sd-comment-highlight-internal: var(--inserted);
   --sd-comment-highlight-external: var(--inserted);
+}
+
+html:root {
+  --sd-ui-font-family: var(--font-sans);
+  --sd-ui-text: var(--foreground);
+  --sd-ui-text-muted: var(--muted-foreground);
+  --sd-ui-bg: var(--background);
+  --sd-ui-toolbar-bg: var(--background);
+  --sd-ui-hover-bg: var(--accent);
+  --sd-ui-border: var(--border);
+  --sd-ui-action: var(--primary);
+  --sd-ui-action-hover: var(--primary);
+  --sd-layout-page-bg: var(--paper);
+  --sd-comment-bg: var(--card);
+  --sd-comment-bg-hover: var(--popover);
+  --sd-comment-bg-active: var(--popover);
+  --sd-comment-bg-resolved: var(--muted);
+  --sd-comment-separator: var(--border);
+}
+
+html:root.dark {
+  --sd-comment-tc-insert-color: #4ade80;
+  --sd-comment-tc-delete-color: #f87171;
+  --sd-comment-highlight-internal: #4ade804d;
+  --sd-comment-highlight-external: #4ade804d;
 }
 
 .dark {
@@ -38,7 +71,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.62 0.2 263);
+  --primary: oklch(0.55 0.2 263);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -51,10 +84,12 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.62 0.2 263);
   --topic-lightness: 48%;
+  --topic-tint-lightness: 22%;
   --topic-other: oklch(0.4 0 0);
   --inserted: oklch(0.35 0.07 150);
   --deleted: oklch(0.35 0.08 25);
   --online: oklch(0.7 0.17 150);
+  --paper: oklch(1 0 0);
 }
 
 @theme inline {
@@ -84,6 +119,13 @@
   --color-inserted: var(--inserted);
   --color-deleted: var(--deleted);
   --color-online: var(--online);
+  --color-paper: var(--paper);
+  --color-author-1: var(--author-1);
+  --color-author-2: var(--author-2);
+  --color-author-3: var(--author-3);
+  --color-author-4: var(--author-4);
+  --color-author-5: var(--author-5);
+  --color-author-6: var(--author-6);
 }
 
 @layer base {
@@ -104,6 +146,12 @@
   }
   .topic-swatch {
     background-color: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-lightness));
+  }
+  .topic-tint {
+    background-color: hsl(var(--topic-hue) var(--topic-saturation) var(--topic-tint-lightness));
+  }
+  .member-glow {
+    box-shadow: 0 0 0 3px var(--ring);
   }
   .topic-swatch-other {
     background-color: var(--topic-other);

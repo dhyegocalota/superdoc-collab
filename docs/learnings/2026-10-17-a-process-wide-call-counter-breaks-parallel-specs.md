@@ -4,6 +4,7 @@
 - Inspired by: the `faster-ci` measurement of `pnpm test:e2e --fully-parallel --workers=4` (`docs/features/faster-ci/plan.md` Step 8, ADR 0018): `selection-summary.spec.ts:49` expected 3 calls and received 10
 - Revisited: 2026-10-17
 - Revisited: 2026-10-17 — still true; `e2e/timeline.ts` changed in the UX lane without touching the counter. Promoted to `.claude/rules/e2e.md`
+- Revisited: 2026-10-17 — still true: `readSelectionCalls` in `e2e/timeline.ts` is unchanged and the config stays serial
 
 ## Signal
 A green E2E spec starts failing on an exact-count assertion (`expected 3, received 10`) only when the suite runs with more workers or with `fullyParallel`; it passes alone and passes under file-level parallelism.

@@ -1,6 +1,7 @@
 import {
   HttpStatus,
   SelectionSummaryState,
+  SummarizeStep,
   TimelineQueryParam,
   type EditSelection,
   type SelectionSummaryView,
@@ -19,8 +20,8 @@ const SELECTION: EditSelection = { term: null, author: null, topic: null, at: nu
 const POLL_COUNT = 3;
 const TIMELINE_TIME_ZONE = 'America/Sao_Paulo';
 
-function viewIn(state: SelectionSummaryState): SelectionSummaryView {
-  return { state, summary: null, failure: null, isModelAvailable: true };
+function viewIn(state: SelectionSummaryState, step: SummarizeStep = SummarizeStep.Idle): SelectionSummaryView {
+  return { state, summary: null, failure: null, isModelAvailable: true, step };
 }
 
 function respondWith(response: () => Response) {
@@ -54,6 +55,17 @@ test('a running summary is polled until it settles', async () => {
   expect(await pollsAfterFirstRead(() => jsonResponse({ body: viewIn(SelectionSummaryState.Running) }))).toBeGreaterThanOrEqual(
     POLL_COUNT - 1,
   );
+});
+
+test('polls while step is not idle and stops at idle', async () => {
+  const steps = [SummarizeStep.Grouping, SummarizeStep.Summarizing, SummarizeStep.Idle];
+  let reads = 0;
+  const pollCount = await pollsAfterFirstRead(() => {
+    const step = steps[Math.min(reads, steps.length - 1)]!;
+    reads += 1;
+    return jsonResponse({ body: viewIn(SelectionSummaryState.None, step) });
+  });
+  expect(pollCount).toBe(steps.length - 1);
 });
 
 test.each([SelectionSummaryState.None, SelectionSummaryState.Ready, SelectionSummaryState.Failed])(

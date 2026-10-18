@@ -3,6 +3,7 @@
 - Date: 2026-10-16
 - Inspired by: slice 3 Task 9 review (version rooms registered no `onAwarenessUpdate`, `onChange` or `onStoreDocument`), ADR 0002 identities
 - Revisited: 2026-10-16
+- Revisited: 2026-10-17 — still true: `version-rooms.ts` is untouched by final-visuals; only the reader spec moved with the new chrome
 
 ## Signal
 A reader opening a past version would appear as an author in the identity log, and the live document would show a ghost cursor from the viewer.

@@ -47,7 +47,7 @@ Two authors, Ana and Bruno, work on one document at the same time while the hist
 
 ### T4 Every edit is attributed to its author on the timeline
 
-- Ana clicks **Regroup topics** and waits for the timeline bands `Budget` and `Hiring` (before the regroup the bands carry the authors' names).
+- Ana clicks **Summarize edits** in the toolbar row and waits for the timeline bands `Budget` and `Hiring` (before the first summarize the bands carry the authors' names).
 - Expect: the Budget band's contributors show Ana; the Hiring band's contributors show Bruno; the edit events endpoint (`/api/documents/<id>/events`) attributes ` More money and tax` to Ana's user id and ` A designer` to Bruno's.
 
 ### T5 A reload keeps everything

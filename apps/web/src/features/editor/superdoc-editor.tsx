@@ -1,20 +1,23 @@
 import { ApiPath, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { KeyboardKey } from '@/lib/keyboard';
+import { authorPaletteOf } from './author-palette';
 import { ExceptionOutcome, exceptionOutcome, failureReasonOf } from './superdoc-exceptions';
 import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
-import { FITTED_PAGE_CLASS, followViewportZoom } from './superdoc-zoom';
+import { FITTED_PAGE_CLASS } from './superdoc-zoom';
 import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
 type SuperDocEditorProps = {
-  superdocRef: RefObject<SuperDoc | null>;
+  onSuperdocChange: (superdoc: SuperDoc | null) => void;
+  onContainerChange: (container: HTMLElement | null) => void;
+  toolbarContainer: HTMLElement | null;
   documentId: string;
   roomMode: RoomMode;
   creatorTicket: CreatorTicket | null;
@@ -26,7 +29,9 @@ type SuperDocEditorProps = {
 };
 
 export function SuperDocEditor({
-  superdocRef,
+  onSuperdocChange,
+  onContainerChange,
+  toolbarContainer,
   documentId,
   roomMode,
   creatorTicket,
@@ -40,6 +45,13 @@ export function SuperDocEditor({
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [hasRejectedEdit, setHasRejectedEdit] = useState(false);
+  const attachContainer = useCallback(
+    (element: HTMLDivElement | null) => {
+      containerRef.current = element;
+      onContainerChange(element);
+    },
+    [onContainerChange],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -58,6 +70,7 @@ export function SuperDocEditor({
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
+        toolbarContainer,
         documentId,
         file,
         documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
@@ -65,8 +78,9 @@ export function SuperDocEditor({
         roomMode,
         creatorTicket,
         user,
-        viewport: window,
+        ...authorPaletteOf(user),
       }),
+      onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
       onCollaborationConnectionChange: (payload) => {
         if (!isActive) return;
         onTransportReport(transportReportOf(payload));
@@ -76,16 +90,13 @@ export function SuperDocEditor({
         exceptionHandlers[exceptionOutcome(payload)](payload);
       },
     });
-    superdocRef.current = superdoc;
-    const stopFollowingViewport = followViewportZoom({ superdoc, viewport: window });
     return () => {
       isActive = false;
-      stopFollowingViewport();
-      superdocRef.current = null;
+      onSuperdocChange(null);
       superdoc.destroy();
       setHasRejectedEdit(false);
     };
-  }, [superdocRef, documentId, roomMode, creatorTicket, role, user, file, onTransportReport]);
+  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport]);
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);
@@ -109,11 +120,11 @@ export function SuperDocEditor({
       )}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
       <div
-        ref={containerRef}
+        ref={attachContainer}
         data-testid="document-editor"
         inert={isInert}
         className={cn(
-          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted [&_.superdoc-page]:bg-background [&_.superdoc-page]:shadow-sm',
+          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
           FITTED_PAGE_CLASS,
         )}
       />

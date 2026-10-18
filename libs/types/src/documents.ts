@@ -17,7 +17,6 @@ export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
 export const SUPERDOC_ROOM_PREFIX = 'sd2/v2.1/';
 export const DOCUMENT_NOT_READY_ERROR = 'NOT_READY';
-export const DOCUMENT_NOT_READY_MESSAGE = 'The owner has not opened this document yet.';
 export const DOCUMENT_UNAVAILABLE_MESSAGE = 'This document is no longer available.';
 export const READ_ONLY_BADGE_LABEL = 'Read only';
 export const LINK_COPIED_MESSAGE = 'Link copied';

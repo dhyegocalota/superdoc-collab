@@ -3,6 +3,7 @@
 - Date: 2026-10-17
 - Inspired by: slice 3 fix wave (`apps/server/src/insights/insights-worker.ts`): the first version of the hourly cap counted every job, so an empty document polled every 3 s exhausted sixty calls in three minutes and every other document showed "busy"; slice 4 repeated the rule for the per-document cooldown and the selection summaries
 - Revisited: 2026-10-17 — `consumeCall()` and `cooldown.start()` sit right before `generateStructured`; `hasCallBudget()` reads without spending
+- Revisited: 2026-10-17 — still true: `consumeCall` is the single point where the paid call starts in both `topics-service.ts` and `selection-summaries-service.ts`; the Summarize cooldown starts in `summarize-service.ts` once, see [the nested keyed job](2026-10-17-a-keyed-job-started-inside-another-keyed-job-holds-two-slots.md)
 
 ## Signal
 Topics flip to "busy" across the process although the provider dashboard shows almost no calls; the budget drained on no-ops.

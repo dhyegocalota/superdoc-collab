@@ -1,34 +1,23 @@
 import { groupIntoRuns, summariesOutputSchema, type EditRun } from '@superdoc-collab/history';
-import { HOUR_MS, MINUTE_MS, UTC_TIME_ZONE, type TopicSummaries } from '@superdoc-collab/types';
-import { KeyedCooldown } from '../limits/keyed-cooldown';
+import { HOUR_MS, UTC_TIME_ZONE, type TopicSummaries } from '@superdoc-collab/types';
 import { describeError } from '../logging/describe-error';
 import type { TimelinePipeline } from '../history/timeline-pipeline-cache';
 import type { InsightsRepository, StoredTopic } from './insights-repository';
-import { JobOutcome, type InsightsJobRunner } from './insights-job-runner';
+import type { InsightsJobRunner } from './insights-job-runner';
 import { LanguageModelAvailability, generateStructured, type LanguageModelChoice } from './llm-client';
 import { authorLabel, promptEditsOf, SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
 
-export const SUMMARY_MIN_INTERVAL_MS = MINUTE_MS;
 export const SUMMARIES_BUSY_MESSAGE = 'Skipped summarizing topics, the language model is busy, for document';
 export const SUMMARIES_FAILED_MESSAGE = 'Summarizing topics failed for document';
 const SUMMARY_RUN_BIN_MS = HOUR_MS;
 
 type StaleTopic = { topic: StoredTopic; runs: EditRun[] };
 
-function summariesKey(documentId: string): string {
-  return `summaries:${documentId}`;
-}
-
-function lastSequenceOf(sequences: number[]): number {
-  return sequences.reduce((latest, sequence) => Math.max(latest, sequence), 0);
-}
-
 export class SummariesService {
   private readonly repository: InsightsRepository;
   private readonly languageModel: LanguageModelChoice;
   private readonly jobRunner: InsightsJobRunner;
   private readonly readPipeline: (documentId: string) => TimelinePipeline;
-  readonly cooldown = new KeyedCooldown({ durationMs: SUMMARY_MIN_INTERVAL_MS });
 
   constructor({
     repository,
@@ -51,38 +40,22 @@ export class SummariesService {
     return { summaries: this.repository.summaries(documentId) };
   }
 
-  refreshStale(documentId: string): void {
-    if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
-    if (this.jobRunner.isRunning(summariesKey(documentId))) return;
-    if (this.cooldown.remainingMs(documentId) > 0) return;
+  isStale(documentId: string): boolean {
+    return this.staleTopics(documentId).stale.length > 0;
+  }
+
+  // NB ADR 0031: a sentence is rewritten only when it is older than the topic set it was written for.
+  async rewriteStale(documentId: string): Promise<void> {
+    const { stale, pipeline, topicSetSequence } = this.staleTopics(documentId);
+    if (stale.length === 0 || topicSetSequence === null) return;
+    await this.summarize({ documentId, stale, pipeline, computedAtSequence: topicSetSequence });
+  }
+
+  private staleTopics(documentId: string): { stale: StaleTopic[]; pipeline: TimelinePipeline; topicSetSequence: number | null } {
     const topics = this.repository.topics(documentId);
-    if (topics.length === 0) return;
     const pipeline = this.readPipeline(documentId);
-    const stale = this.staleTopics({ documentId, topics, pipeline });
-    if (stale.length === 0) return;
-    const computedAtSequence = lastSequenceOf(pipeline.events.map((event) => event.sequence));
-    this.cooldown.start(documentId);
-    const outcome = this.jobRunner.run({
-      key: summariesKey(documentId),
-      job: () => this.summarize({ documentId, stale, pipeline, computedAtSequence }),
-    });
-    if (outcome !== JobOutcome.Busy) return;
-    console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
-  }
-
-  forget(documentId: string): void {
-    this.cooldown.forget(documentId);
-  }
-
-  private staleTopics({
-    documentId,
-    topics,
-    pipeline,
-  }: {
-    documentId: string;
-    topics: StoredTopic[];
-    pipeline: TimelinePipeline;
-  }): StaleTopic[] {
+    const status = this.repository.status(documentId);
+    const topicSetSequence = status === null ? null : status.computedAtSequence;
     const topicIds = new Set(topics.map((topic) => topic.id));
     // NB ADR 0024: runs only bound the prompt size here, so the zone does not change what the sentences say.
     const runs = groupIntoRuns({
@@ -91,13 +64,14 @@ export class SummariesService {
       timeZone: UTC_TIME_ZONE,
     });
     const summarized = new Map(this.repository.summaries(documentId).map((summary) => [summary.topicId, summary.computedAtSequence]));
-    return topics
+    const stale = topics
       .map((topic) => ({ topic, runs: runs.filter((run) => run.bandId === topic.id) }))
       .filter(({ topic, runs: topicRuns }) => {
         if (topicRuns.length === 0) return false;
         const computedAt = summarized.get(topic.id);
-        return computedAt === undefined || lastSequenceOf(topicRuns.map((run) => run.lastSequence)) > computedAt;
+        return computedAt === undefined || (topicSetSequence !== null && computedAt < topicSetSequence);
       });
+    return { stale, pipeline, topicSetSequence };
   }
 
   private promptTopics({ stale, pipeline }: { stale: StaleTopic[]; pipeline: TimelinePipeline }): PromptTopic[] {
@@ -124,7 +98,7 @@ export class SummariesService {
     computedAtSequence: number;
   }): Promise<void> {
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable) return;
-    if (!this.jobRunner.consumeCall()) {
+    if (!this.jobRunner.consumeDocumentCall(documentId)) {
       console.warn(`${SUMMARIES_BUSY_MESSAGE} ${documentId}`);
       return;
     }

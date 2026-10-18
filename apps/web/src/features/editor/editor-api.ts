@@ -1,6 +1,5 @@
 import {
   DOCUMENT_NOT_READY_ERROR,
-  DOCUMENT_NOT_READY_MESSAGE,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentResource,
@@ -13,10 +12,12 @@ import {
   type ShareLinkRole,
   type ShareLinks,
 } from '@superdoc-collab/types';
-import { ApiRequestError, apiGet, apiSend, assertDocumentAvailable, assertOk, readJson } from '@/lib/api';
+import { ApiRequestError, apiGet, DocumentUnavailableError, apiSend, assertDocumentAvailable, assertOk, readJson } from '@/lib/api';
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
+
+export class DocumentNotReadyError extends ApiRequestError {}
 
 export const BLANK_DOCX_PATH = '/blank.docx';
 
@@ -44,9 +45,10 @@ export function documentFileQueryKey({
 
 export async function openDocument(documentId: string): Promise<OpenedDocument> {
   const response = await apiGet(documentApiPath({ documentId }));
-  if (response.status === HttpStatus.NotFound) throw new ApiRequestError(DOCUMENT_UNAVAILABLE_MESSAGE);
+  const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
+  if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
   if (response.status === HttpStatus.Conflict && (await response.json()).error === DOCUMENT_NOT_READY_ERROR)
-    throw new ApiRequestError(DOCUMENT_NOT_READY_MESSAGE);
+    throw new DocumentNotReadyError(DOCUMENT_NOT_READY_ERROR);
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);
   return response.json();
 }

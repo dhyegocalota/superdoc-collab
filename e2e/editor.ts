@@ -68,6 +68,8 @@ export async function chooseTheme({ page, name, theme }: { page: Page; name: str
   await accountTrigger({ page, name }).click();
   await page.getByRole('menuitemradio', { name: THEME_LABELS[theme] }).click();
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toBeHidden();
+  await expect(accountTrigger({ page, name })).toBeFocused();
 }
 
 export async function signOut({ page, name }: { page: Page; name: string }): Promise<void> {

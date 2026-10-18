@@ -29,7 +29,7 @@ function renderHeader({
 test('a selected bin shows its time range, its edit count and Clear selection', async () => {
   const { onClear } = renderHeader();
   expect(screen.getByText(SELECTION.rangeLabel)).toBeVisible();
-  expect(screen.getByText('12 edits')).toBeVisible();
+  expect(screen.getByText('12 characters')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: CLEAR_SELECTION_LABEL }));
   expect(onClear).toHaveBeenCalledTimes(1);
 });

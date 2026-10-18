@@ -815,7 +815,7 @@ test('selecting a bin puts its range and edit count in the header and Clear sele
   mockTimelineApi();
   renderPanel({ position: PanelPosition.Bottom });
   fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
-  const header = (await screen.findByText('10 edits')).closest<HTMLElement>('[aria-live]')!;
+  const header = (await screen.findByText('10 characters')).closest<HTMLElement>('[aria-live]')!;
   expect(within(header).getByText(/Oct 16/)).toBeInTheDocument();
   await userEvent.click(within(header).getByRole('button', { name: CLEAR_SELECTION_LABEL }));
   expect(await screen.findByText(SHOWING_WHOLE_DOCUMENT_MESSAGE)).toBeInTheDocument();
@@ -868,7 +868,7 @@ test('below lg selecting a versioned bin by key never travels and View version d
 test('the bin already shown offers no View version', async () => {
   mockTimelineApi({ timeline: versionedTimeline });
   renderPanel({ position: PanelPosition.Bottom, route: `${ROUTE}?at=${versionedTimeline.bins[0]!.start}` });
-  await screen.findByText('10 edits');
+  await screen.findByText('10 characters');
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
 });
 
@@ -876,7 +876,7 @@ test('a bin without a version offers no View version', async () => {
   mockTimelineApi();
   renderPanel({ position: PanelPosition.Bottom });
   fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
-  await screen.findByText('10 edits');
+  await screen.findByText('10 characters');
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
 });
 

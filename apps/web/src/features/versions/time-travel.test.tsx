@@ -570,6 +570,16 @@ test('an at with no version never locks the chart', async () => {
   expect(await screen.findByRole('button', { name: VIEW_VERSION_LABEL })).toBeEnabled();
 });
 
+test('below lg the progress line follows the bar outside the dimmed editor area', async () => {
+  stubViewportWidth(NARROW_VIEWPORT_WIDTH);
+  mockDocumentApi({ versions: { 42: [PENDING_REPLY] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  const banner = await screen.findByTestId('version-banner');
+  const progress = screen.getByRole('status', { name: LOADING_VERSION_MESSAGE });
+  expect(banner.nextElementSibling).toBe(progress);
+  expect(screen.getByTestId('editor-area').parentElement).not.toContainElement(progress);
+});
+
 test('below lg the version bar sits before the layout, outside the shared scroller, with a 44 px button', async () => {
   stubViewportWidth(NARROW_VIEWPORT_WIDTH);
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });

@@ -1,4 +1,4 @@
-import { AppRoute, authorColorSlot, UserRole } from '@superdoc-collab/types';
+import { AppRoute, authorColorSlot, UserRole, type AuthorColorSlot } from '@superdoc-collab/types';
 import { Plug, Settings, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
@@ -24,7 +24,7 @@ function keepMenuOpen(event: Event): void {
   event.preventDefault();
 }
 
-export function AccountMenu() {
+export function AccountMenu({ colorSlot }: { colorSlot: AuthorColorSlot | null }) {
   const { user } = useSession();
   const { preference, choosePreference } = useTheme();
 
@@ -35,6 +35,8 @@ export function AccountMenu() {
 
   if (!user) return null;
 
+  const avatarColorSlot = colorSlot === null ? authorColorSlot(user.id) : colorSlot;
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -43,7 +45,7 @@ export function AccountMenu() {
           aria-label={accountMenuLabel(user.name)}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          <UserAvatar name={user.name} colorSlot={authorColorSlot(user.id)} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />
+          <UserAvatar name={user.name} colorSlot={avatarColorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

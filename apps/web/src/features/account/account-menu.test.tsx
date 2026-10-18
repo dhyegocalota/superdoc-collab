@@ -1,4 +1,4 @@
-import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
+import { AppRoute, authorColorSlot, UserRole, type AuthorColorSlot, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,10 +16,10 @@ import { THEME_LABEL, accountMenuLabel } from './account-copy';
 const USER: SessionUser = { id: 'user-1', name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: null };
 const ADMIN: SessionUser = { ...USER, id: 'user-2', name: 'Bruno', email: 'bruno@example.com', role: UserRole.Admin };
 
-function renderMenu(user: SessionUser) {
+function renderMenu(user: SessionUser, colorSlot: AuthorColorSlot | null = null) {
   const queryClient = new QueryClient();
   queryClient.setQueryData(SESSION_QUERY_KEY, user);
-  renderWithProviders(<AccountMenu />, { queryClient });
+  renderWithProviders(<AccountMenu colorSlot={colorSlot} />, { queryClient });
 }
 
 async function openMenu(user: SessionUser): Promise<void> {
@@ -70,6 +70,19 @@ test('the menu stays open after a theme choice', async () => {
 });
 
 test('renders nothing while there is no session', () => {
-  renderWithProviders(<AccountMenu />);
+  renderWithProviders(<AccountMenu colorSlot={null} />);
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
+});
+
+test('the avatar takes the document slot when the page gives one', () => {
+  const documentSlot = authorColorSlot(USER.id) === 1 ? 2 : 1;
+  renderMenu(USER, documentSlot);
+  expect(screen.getByRole('button', { name: accountMenuLabel(USER.name) }).firstElementChild).toHaveClass(`bg-author-${documentSlot}`);
+});
+
+test('the avatar keeps the hash colour on a page with no document', () => {
+  renderMenu(USER, null);
+  expect(screen.getByRole('button', { name: accountMenuLabel(USER.name) }).firstElementChild).toHaveClass(
+    `bg-author-${authorColorSlot(USER.id)}`,
+  );
 });

@@ -1,4 +1,4 @@
-import { authorColorSlot, DocumentRole, RoomMode } from '@superdoc-collab/types';
+import { DocumentRole, RoomMode } from '@superdoc-collab/types';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
@@ -11,6 +11,8 @@ type EditorConfig = {
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
 };
+
+const DISPLACED_COLOR_SLOT = 2;
 
 const { SuperDoc, superdocDestroy } = vi.hoisted(() => {
   const superdocDestroy = vi.fn();
@@ -39,6 +41,7 @@ function renderEditor({
       creatorTicket={null}
       role={DocumentRole.Editor}
       user={SESSION_USER}
+      colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
       isInert={false}
       onTransportReport={vi.fn()}
@@ -57,9 +60,9 @@ afterEach(() => {
   superdocDestroy.mockClear();
 });
 
-test('passes the current author colour and six palette colours to SuperDoc', () => {
+test('passes the colour of the slot the server assigned and six palette colours to SuperDoc', () => {
   const { config } = renderEditor();
-  expect(config.user.color).toBe(AUTHOR_PALETTE[authorColorSlot(SESSION_USER.id) - 1]);
+  expect(config.user.color).toBe(AUTHOR_PALETTE[DISPLACED_COLOR_SLOT - 1]);
   expect(config.colors).toEqual(AUTHOR_PALETTE);
 });
 

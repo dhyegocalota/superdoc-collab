@@ -2,6 +2,7 @@ import { DocumentRole, RoomMode, UserRole, type DocumentSummary, type OpenedDocu
 
 export const DOCUMENT_ID = 'doc-1';
 export const DOCUMENT_TITLE = 'Plan';
+export const EDITOR_COLOR_SLOT = 1;
 export const EDITOR_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com' };
 export const SESSION_USER: SessionUser = { ...EDITOR_USER, role: UserRole.User, timeZone: 'UTC' };
 
@@ -10,5 +11,5 @@ export function summaryAs(role: DocumentRole): DocumentSummary {
 }
 
 export function openedAs(role: DocumentRole, roomMode = RoomMode.Create): OpenedDocument {
-  return { document: summaryAs(role), role, roomMode, creatorAttempt: null, creatorEpoch: null };
+  return { document: summaryAs(role), role, roomMode, creatorAttempt: null, creatorEpoch: null, colorSlot: EDITOR_COLOR_SLOT };
 }

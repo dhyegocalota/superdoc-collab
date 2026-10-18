@@ -1,10 +1,12 @@
 import { authorColorKeyOf, authorColorSlot, JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { useMinWidth } from '@/lib/use-min-width';
 import {
   BACK_TO_LIVE_TO_JUMP_REASON,
   cursorNotFoundMessage,
@@ -21,6 +23,7 @@ import { JumpOutcome, useMemberCursors } from './use-member-cursors';
 
 const MAX_MEMBERS_WITHOUT_MENU = 5;
 const MEMBERS_BESIDE_MENU = 4;
+const NARROW_MEMBERS_WITHOUT_MENU = 3;
 
 type JumpState = { member: DocumentMember; isOnline: boolean; reason: string | null };
 
@@ -61,6 +64,7 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
   const name = member.user.name;
   const [isOpen, setIsOpen] = useState(false);
   const [isFailed, setIsFailed] = useState(false);
+  const reasonId = useId();
 
   useEffect(() => {
     if (!isFailed) return;
@@ -81,10 +85,16 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
 
   return (
     <Tooltip open={isOpen || isFailed} onOpenChange={setIsOpen}>
+      {reason !== null && (
+        <span id={reasonId} className="sr-only">
+          {reason}
+        </span>
+      )}
       <TooltipTrigger asChild>
         <button
           type="button"
           aria-label={reason === null ? goToCursorLabel(name) : memberLabel({ name, isOnline })}
+          aria-describedby={reason === null ? undefined : reasonId}
           aria-disabled={reason !== null}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={jump}
@@ -154,9 +164,12 @@ export function Members({
     const isInDocument = hasCursor(member);
     return { member, isOnline: member.online || isSelf, reason: jumpReasonOf({ member, currentUserId, isPastVersion, isInDocument }) };
   });
-  const hasMenu = states.length > MAX_MEMBERS_WITHOUT_MENU;
-  const visible = hasMenu ? states.slice(0, MEMBERS_BESIDE_MENU) : states;
-  const rest = hasMenu ? states.slice(MEMBERS_BESIDE_MENU) : [];
+  const isMedium = useMinWidth(MEDIUM_BREAKPOINT_PX);
+  const maxWithoutMenu = isMedium ? MAX_MEMBERS_WITHOUT_MENU : NARROW_MEMBERS_WITHOUT_MENU;
+  const besideMenu = isMedium ? MEMBERS_BESIDE_MENU : NARROW_MEMBERS_WITHOUT_MENU;
+  const hasMenu = states.length > maxWithoutMenu;
+  const visible = hasMenu ? states.slice(0, besideMenu) : states;
+  const rest = hasMenu ? states.slice(besideMenu) : [];
 
   return (
     <div className="flex items-center gap-1">

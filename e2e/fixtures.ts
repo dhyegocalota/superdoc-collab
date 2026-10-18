@@ -1,6 +1,7 @@
 import { expect, test as base, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { randomInt, randomUUID } from 'node:crypto';
 import { ApiPath, AppRoute, type DemoUser } from '../libs/types/src';
+import { accountMenuLabel } from '../apps/web/src/features/account/account-copy';
 
 const OCTET_LIMIT = 256;
 const EMAIL_SUFFIX_LENGTH = 8;
@@ -26,7 +27,7 @@ export async function signIn({ page, email, password }: { page: Page; email: str
 
 export async function expectSignedInAs({ page, name }: { page: Page; name: string }): Promise<void> {
   await expect(page).toHaveURL(AppRoute.Documents);
-  await expect(page.getByRole('banner').getByText(name, { exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: accountMenuLabel(name) })).toBeVisible();
 }
 
 function baseUrlOption(origin?: string): { baseURL?: string } {

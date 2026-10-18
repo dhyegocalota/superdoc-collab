@@ -267,6 +267,7 @@ test('a creator who closes its tab mid-create leaves no duplicated paragraph for
   const buffer = await seedBuffer([SEED_PARAGRAPH]);
   const abandonedDocumentId = await uploadDocument({ page: ana.page, buffer });
   await ana.page.goto(documentPagePath(abandonedDocumentId));
+  await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   await expect
     .poll(() => openDocument({ page: ana.page, documentId: abandonedDocumentId }), { timeout: COMMIT_TIMEOUT_MS })
     .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });

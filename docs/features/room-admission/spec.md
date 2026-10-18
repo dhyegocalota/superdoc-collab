@@ -130,7 +130,7 @@ export class CreatorReservations {
 }
 ```
 
-`CreatorTicket` is declared in `libs/types/src/documents.ts`. `reserve` returns a ticket with the new attempt (also for the holder, who supersedes its own live attempt), or `null` for a live holder and for a holder that lapsed at the cap and is still in its cooldown. Every ticket carries the per-process `epoch`, so an attempt from before a restart never matches. The constructor takes `reservationMs`, `maxLifetimeMs` (default `CREATOR_RESERVATION_MAX_MS`) and `now`, following `KeyedCooldown`, which also times the lapse cooldown. `commit` records the committing attempt, which `mayWrite` then accepts on the committed room, and clears the reservation. `touch` never moves `expiresAt` past `reservedAt + maxLifetimeMs`.
+`CreatorTicket` is declared in `libs/types/src/documents.ts`. `reserve` returns a ticket with the new attempt (also for the holder, who supersedes its own live attempt), or `null` for a live holder and for a holder that lapsed at the cap and is still in its cooldown. Every ticket carries the per-process `epoch`, so an attempt from before a restart never matches. The constructor takes `reservationMs`, `maxLifetimeMs` (default `CREATOR_RESERVATION_MAX_MS`) and `now`, following `KeyedCooldown`, which also times the lapse cooldown. `commit` clears the reservation. `touch` never moves `expiresAt` past `reservedAt + maxLifetimeMs`.
 
 **`apps/server/src/collaboration/bootstrap-state.ts`** (new)
 

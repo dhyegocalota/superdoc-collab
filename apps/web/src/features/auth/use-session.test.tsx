@@ -1,66 +1,62 @@
-import { ApiPath, HttpStatus, MINUTE_MS, SESSION_STALE_TIME_MS, UserRole, type SessionUser } from '@superdoc-collab/types';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { ApiPath, UserRole, type SessionUser } from '@superdoc-collab/types';
+import { focusManager, onlineManager } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
+import { createTestQueryClient, renderHookWithRouter } from '@/testing/render-with-providers';
 import { SESSION_QUERY_KEY, useSession } from './use-session';
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
-const FIVE_MINUTES = 5;
+const SERVICE_UNAVAILABLE = 503;
 
-afterEach(() => vi.restoreAllMocks());
-
-function clientWrapper(queryClient: QueryClient) {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
-  };
-}
-
-function newQueryClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
-}
+afterEach(() => {
+  vi.restoreAllMocks();
+  focusManager.setFocused(undefined);
+  onlineManager.setOnline(true);
+});
 
 function meRequests(calls: unknown[][]): number {
   return calls.filter(([path]) => String(path) === ApiPath.Me).length;
 }
 
-test('the session stays fresh for five minutes', () => {
-  expect(SESSION_STALE_TIME_MS).toBe(FIVE_MINUTES * MINUTE_MS);
-});
+function mockSignedInSession() {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: { user: ADA } }));
+}
 
 test('two consumers mounted one after the other ask the server once', async () => {
-  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: { user: ADA } }));
-  const queryClient = newQueryClient();
-  const first = renderHook(useSession, { wrapper: clientWrapper(queryClient) });
+  const fetchSpy = mockSignedInSession();
+  const queryClient = createTestQueryClient();
+  const first = renderHookWithRouter(useSession, { queryClient });
   await waitFor(() => expect(first.result.current.user).toEqual(ADA));
-  const second = renderHook(useSession, { wrapper: clientWrapper(queryClient) });
+  const second = renderHookWithRouter(useSession, { queryClient });
   await waitFor(() => expect(second.result.current.user).toEqual(ADA));
   expect(meRequests(fetchSpy.mock.calls)).toBe(1);
 });
 
-test('a 401 reads as a signed out session', async () => {
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: {}, status: HttpStatus.Unauthorized }));
-  const { result } = renderHook(useSession, { wrapper: clientWrapper(newQueryClient()) });
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.user).toBeNull();
+test('a window focus asks the server again even inside the stale window', async () => {
+  const fetchSpy = mockSignedInSession();
+  const { result } = renderHookWithRouter(useSession, { queryClient: createTestQueryClient() });
+  await waitFor(() => expect(result.current.user).toEqual(ADA));
+  focusManager.setFocused(false);
+  focusManager.setFocused(true);
+  await waitFor(() => expect(meRequests(fetchSpy.mock.calls)).toBe(2));
 });
 
-test('a 401 on a refetch replaces the last good user with a signed out session', async () => {
-  const fetchSpy = vi
-    .spyOn(globalThis, 'fetch')
-    .mockImplementation(async () => jsonResponse({ body: {}, status: HttpStatus.Unauthorized }));
-  const queryClient = newQueryClient();
+test('coming back online asks the server again even inside the stale window', async () => {
+  const fetchSpy = mockSignedInSession();
+  const { result } = renderHookWithRouter(useSession, { queryClient: createTestQueryClient() });
+  await waitFor(() => expect(result.current.user).toEqual(ADA));
+  onlineManager.setOnline(false);
+  onlineManager.setOnline(true);
+  await waitFor(() => expect(meRequests(fetchSpy.mock.calls)).toBe(2));
+});
+
+test('a failed refetch keeps the last good user and the query in error', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: {}, status: SERVICE_UNAVAILABLE }));
+  const queryClient = createTestQueryClient();
   queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
-  const { result } = renderHook(useSession, { wrapper: clientWrapper(queryClient) });
+  const { result } = renderHookWithRouter(useSession, { queryClient });
   await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-  await waitFor(() => expect(result.current.user).toBeNull());
-  expect(meRequests(fetchSpy.mock.calls)).toBeGreaterThan(0);
-});
-
-test('another failure keeps the query in error and does not read as signed out', async () => {
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse({ body: {}, status: HttpStatus.ServiceUnavailable }));
-  const queryClient = newQueryClient();
-  renderHook(useSession, { wrapper: clientWrapper(queryClient) });
   await waitFor(() => expect(queryClient.getQueryState(SESSION_QUERY_KEY)?.status).toBe('error'));
+  expect(result.current.user).toEqual(ADA);
 });

@@ -157,7 +157,7 @@ test('the glow goes only to the selection that shares the caret peer rank', () =
 test('it observes the overlay layer and never the whole editor container once the overlay exists', () => {
   const observe = vi.spyOn(MutationObserver.prototype, 'observe');
   renderHook(() => useMemberCursors({ superdoc, container }));
-  expect(observe.mock.calls.map(([target]) => target)).toEqual([overlay]);
+  expect(observe.mock.calls.filter(([, options]) => options?.subtree === true).map(([target]) => target)).toEqual([overlay]);
   observe.mockRestore();
 });
 
@@ -180,4 +180,17 @@ test('many distinct caret colours never add a colour normalisation beyond the si
   const probes = createElement.mock.calls.filter(([tag]) => tag === 'span');
   createElement.mockRestore();
   expect(probes.length).toBeLessThanOrEqual(AUTHOR_PALETTE.length);
+});
+
+test('a replaced overlay node is watched in place of the old one', async () => {
+  const { result } = renderHook(() => useMemberCursors({ superdoc, container }));
+  const replacement = document.createElement('div');
+  replacement.dataset.v2CollaborationOverlay = 'true';
+  await act(async () => {
+    overlay.replaceWith(replacement);
+  });
+  await act(async () => {
+    addCaret({ overlay: replacement, name: 'Bruno', color: colorOf(bruno) });
+  });
+  expect(result.current.hasCursor(bruno)).toBe(true);
 });

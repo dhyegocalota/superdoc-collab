@@ -22,6 +22,10 @@ import { marksAround, VersionLookupKind } from './versions-service';
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 
+function retryVersionLater(retry: Omit<Parameters<typeof retryLater>[0], 'retryAfterSeconds'>): Response {
+  return retryLater({ ...retry, retryAfterSeconds: RETRY_AFTER_SECONDS });
+}
+
 export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
 
@@ -44,27 +48,24 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const mark = services.versions.resolve({ documentId, sequence: Number(sequenceText) });
     if (!mark && services.scheduler.isRebuilding(documentId))
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { sequence: Number(sequenceText) },
         status: HttpStatus.Accepted,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     if (!mark) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
     const lookup = services.versions.peek({ documentId, sequence: mark.sequence });
     if (lookup.kind === VersionLookupKind.Failed)
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { error: VERSION_FAILED_ERROR },
         status: HttpStatus.ServiceUnavailable,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     if (lookup.kind === VersionLookupKind.Pending)
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { sequence: mark.sequence },
         status: HttpStatus.Accepted,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     const summary: VersionSummary = {
       sequence: lookup.version.sequence,
@@ -85,11 +86,10 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
       const body: VersionText = { sequence, text };
       return context.json(body);
     } catch {
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { error: VERSION_FAILED_ERROR },
         status: HttpStatus.ServiceUnavailable,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     }
   });

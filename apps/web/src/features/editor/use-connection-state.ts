@@ -53,6 +53,12 @@ const FAILED_REPORT: TransportReport = {
   hasSynced: false,
 };
 
+export const SUPERSEDED_REPORT: TransportReport = {
+  reading: TransportReading.Failed,
+  failureReason: ConnectionFailureReason.Superseded,
+  hasSynced: false,
+};
+
 const REPORT_BY_KIND: Record<SuperDocCollaborationConnectionKind, TransportReport> = {
   initial: { reading: TransportReading.Clear, failureReason: null, hasSynced: false },
   lost: { reading: TransportReading.Lost, failureReason: null, hasSynced: false },

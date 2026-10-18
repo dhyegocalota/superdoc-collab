@@ -17,7 +17,7 @@ type MembersResult = {
 export function useMembers({ documentId, creatorTicket }: { documentId: string; creatorTicket: CreatorTicket | null }): MembersResult {
   const { data, error, dataUpdatedAt } = useQuery({
     queryKey: membersQueryKey(documentId),
-    queryFn: () => fetchMembers(documentId),
+    queryFn: () => fetchMembers({ documentId, creatorTicket }),
     refetchInterval: pollWhileAvailable(MEMBERS_REFRESH_MS),
     retry: false,
   });
@@ -47,6 +47,6 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
     isCurrentUserOnline: data.isCurrentUserOnline,
     membersAnsweredAt: dataUpdatedAt,
     isSessionEnded,
-    isAttemptSuperseded: false,
+    isAttemptSuperseded: data.isAttemptSuperseded,
   };
 }

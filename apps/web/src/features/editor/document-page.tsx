@@ -1,6 +1,6 @@
-import { ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
+import { AppRoute, ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
 import { ErrorMessage } from '@/components/error-message';
@@ -17,6 +17,7 @@ import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { ConnectionBanner } from './connection-banner';
 import { RELOAD_FAILED_MESSAGE } from './connection-copy';
+import { creatorTicketOf } from './collaboration-config';
 import { DocumentNotReadyError, documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
@@ -27,7 +28,7 @@ import { VersionFrame } from '@/features/versions/version-frame';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
 import { SuperDocEditor } from './superdoc-editor';
-import { useConnectionState } from './use-connection-state';
+import { SUPERSEDED_REPORT, useConnectionState } from './use-connection-state';
 import { useDocumentFile } from './use-document-file';
 import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
@@ -47,9 +48,9 @@ export function DocumentPage() {
   const { data: opened, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
-  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers({
+  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded, isAttemptSuperseded } = useMembers({
     documentId,
-    creatorTicket: null,
+    creatorTicket: openedAfterMount ? creatorTicketOf(openedAfterMount) : null,
   });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -65,6 +66,9 @@ export function DocumentPage() {
     membersAnsweredAt,
     isSessionEnded,
   });
+  useEffect(() => {
+    if (isAttemptSuperseded) reportTransport(SUPERSEDED_REPORT);
+  }, [isAttemptSuperseded, reportTransport]);
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [isReloading, setIsReloading] = useState(false);
   const [hasReloadFailed, setHasReloadFailed] = useState(false);
@@ -146,9 +150,18 @@ export function DocumentPage() {
     navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
   }
 
+  function backToDocuments(): void {
+    navigate(AppRoute.Documents);
+  }
+
+  function failureAction(): () => void {
+    if (failureReason === ConnectionFailureReason.SessionEnded) return signInAgain;
+    if (failureReason === ConnectionFailureReason.Superseded) return backToDocuments;
+    return reload;
+  }
+
   const isFailed = connectionState === ConnectionState.Failed;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
-  const isSessionEndedFailure = failureReason === ConnectionFailureReason.SessionEnded;
 
   return withAnnouncement(
     <div className="flex h-dvh flex-col">
@@ -173,12 +186,7 @@ export function DocumentPage() {
         </div>
       )}
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
-      <ConnectionBanner
-        state={connectionState}
-        failureReason={failureReason}
-        isReloading={isReloading}
-        onAction={isSessionEndedFailure ? signInAgain : reload}
-      />
+      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={isReloading} onAction={failureAction()} />
       {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
       <EditorToolbarRow
         role={opened.role}

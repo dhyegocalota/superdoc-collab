@@ -816,11 +816,12 @@ async function renderSupersededPage(): Promise<ReturnType<typeof renderWithProvi
 
 test('the members poll carries the creator ticket of the opened document', async () => {
   const fetchSpy = mockDocumentApi({ opened: ticketedCreate() });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
   const membersUrls = fetchSpy.mock.calls.map(([input]) => String(input)).filter((url) => url.startsWith(MEMBERS_PATH));
-  const ticketOfFirstPoll = new URL(membersUrls.at(-1)!, window.location.origin).searchParams;
-  expect([ticketOfFirstPoll.get(CREATOR_ATTEMPT_QUERY_KEY), ticketOfFirstPoll.get(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
+  const ticketOfLatestPoll = new URL(membersUrls.at(-1)!, window.location.origin).searchParams;
+  expect([ticketOfLatestPoll.get(CREATOR_ATTEMPT_QUERY_KEY), ticketOfLatestPoll.get(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
     String(CREATOR_TICKET.creatorAttempt),
     CREATOR_TICKET.creatorEpoch,
   ]);

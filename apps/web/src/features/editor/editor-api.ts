@@ -1,4 +1,6 @@
 import {
+  CREATOR_ATTEMPT_QUERY_KEY,
+  CREATOR_EPOCH_QUERY_KEY,
   DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
@@ -7,6 +9,7 @@ import {
   HttpStatus,
   RoomMode,
   TAB_QUERY_KEY,
+  type CreatorTicket,
   type DocumentMembers,
   type OpenedDocument,
   type ShareLinkRole,
@@ -60,8 +63,19 @@ export async function fetchDocumentFile({ documentId, roomMode }: { documentId: 
   return response.blob();
 }
 
-export async function fetchMembers(documentId: string): Promise<DocumentMembers> {
-  const response = await apiGet(`${documentApiPath({ documentId, resource: DocumentResource.Members })}?${TAB_QUERY_KEY}=${tabId()}`);
+export async function fetchMembers({
+  documentId,
+  creatorTicket,
+}: {
+  documentId: string;
+  creatorTicket: CreatorTicket | null;
+}): Promise<DocumentMembers> {
+  const query = new URLSearchParams({ [TAB_QUERY_KEY]: tabId() });
+  if (creatorTicket) {
+    query.set(CREATOR_ATTEMPT_QUERY_KEY, String(creatorTicket.attempt));
+    query.set(CREATOR_EPOCH_QUERY_KEY, creatorTicket.epoch);
+  }
+  const response = await apiGet(`${documentApiPath({ documentId, resource: DocumentResource.Members })}?${query}`);
   assertDocumentAvailable(response);
   return readJson<DocumentMembers>({ response, subject: 'Members request' });
 }

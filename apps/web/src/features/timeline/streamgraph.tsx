@@ -21,6 +21,7 @@ type StreamgraphProps = {
   width: number;
   selectedIndex: number | null;
   highlightedBandId: string | null;
+  isLoadingVersion: boolean;
   onSelectIndex: (index: number) => void;
   onClearSelection: () => void;
 };

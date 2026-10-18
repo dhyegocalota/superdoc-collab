@@ -54,6 +54,7 @@ type TimelinePanelProps = {
   onOpenChange: (isOpen: boolean) => void;
   summarize: SummarizeControl;
   pendingVersion: VersionReference | null;
+  isLoadingVersion: boolean;
   onTravel: (binStart: number) => void;
   onConfirmTravel: () => void;
   onBackToLive: () => void;
@@ -106,6 +107,7 @@ export function TimelinePanel({
   onOpenChange,
   summarize,
   pendingVersion,
+  isLoadingVersion,
   onTravel,
   onConfirmTravel,
   onBackToLive,
@@ -184,6 +186,7 @@ export function TimelinePanel({
           width={chartWidth}
           selectedIndex={selectedIndex}
           highlightedBandId={search.topic}
+          isLoadingVersion={isLoadingVersion}
           onSelectIndex={selectIndex}
           onClearSelection={clearSelection}
         />

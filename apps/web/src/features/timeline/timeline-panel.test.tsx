@@ -208,6 +208,7 @@ function PanelHarness({
       onOpenChange={handleOpenChange}
       summarize={summarize}
       pendingVersion={pendingVersion}
+      isLoadingVersion={false}
       onTravel={vi.fn()}
       onConfirmTravel={onConfirmTravel}
       onBackToLive={vi.fn()}
@@ -233,6 +234,7 @@ function renderPanel({
       summarize={summarize}
       onOpenChange={onOpenChange}
       pendingVersion={pendingVersion}
+      isLoadingVersion={false}
       onConfirmTravel={onConfirmTravel}
     />,
     { route },

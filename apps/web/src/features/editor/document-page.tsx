@@ -223,6 +223,7 @@ export function DocumentPage() {
           onOpenChange={setIsPanelOpen}
           summarize={summarize}
           pendingVersion={timeTravel.pendingVersion}
+          isLoadingVersion={timeTravel.isLoading}
           onTravel={timeTravel.travelTo}
           onConfirmTravel={timeTravel.confirmTravel}
           onBackToLive={timeTravel.backToLive}

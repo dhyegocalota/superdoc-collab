@@ -51,7 +51,7 @@ function toLoggedUpdate(row: UpdateRow): LoggedUpdate {
   };
 }
 
-export function extractStructClientIds(update: Uint8Array): number[] {
+function extractStructClientIds(update: Uint8Array): number[] {
   const { structs } = Y.decodeUpdate(update);
   return [...new Set(structs.map((struct) => struct.id.client))].sort((left, right) => left - right);
 }

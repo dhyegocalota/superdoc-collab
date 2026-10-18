@@ -5,9 +5,9 @@ import type { ReadModel } from './read-model';
 import { materialize, type UpdateLog } from './update-log';
 import { markOf, type VersionMark } from './version-marks';
 
-export const PROJECTION_BATCH_SIZE = 2000;
+const PROJECTION_BATCH_SIZE = 2000;
 
-export class MissingBootstrapUpdateError extends Error {
+class MissingBootstrapUpdateError extends Error {
   constructor(sequence: number) {
     super(`Bootstrap update ${sequence} is missing from the log.`);
   }

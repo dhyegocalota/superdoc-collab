@@ -37,7 +37,7 @@ export function authorKey(author: EventAuthor): string {
   return author.id;
 }
 
-export function isAgentAuthorKey(key: string): boolean {
+function isAgentAuthorKey(key: string): boolean {
   return key.endsWith(AGENT_AUTHOR_SUFFIX);
 }
 
@@ -112,7 +112,7 @@ export function runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number {
   return run.inserted.length + run.deleted.length;
 }
 
-export function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {
+function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {
   const searchText = term.toLocaleLowerCase();
   const backspacedDeletion = [...run.deleted].reverse().join('');
   return [run.inserted, run.deleted, backspacedDeletion].some((text) => text.toLocaleLowerCase().includes(searchText));

@@ -24,7 +24,7 @@ function partsFormat(timeZone: string): Intl.DateTimeFormat {
   return created;
 }
 
-export class TimeZonePartsError extends Error {
+class TimeZonePartsError extends Error {
   constructor(type: string) {
     super(`Time zone parts have no ${type}.`);
   }

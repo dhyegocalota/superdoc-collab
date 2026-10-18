@@ -1,9 +1,22 @@
-import { authorColorKeyOf, authorColorSlot, ClientActor } from '@superdoc-collab/types';
+import {
+  authorColorKeyOf,
+  authorColorSlot,
+  ClientActor,
+  documentPagePath,
+  DocumentRole,
+  type DocumentMember,
+} from '@superdoc-collab/types';
 import { render, screen } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+import { DOCUMENT_ID } from '@/testing/opened-document';
+import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AUTHOR_KEY, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { AuthorAvatar, ContributorAvatars } from './contributor-avatars';
 import { agentMarkLabel, importedAuthorLabel } from './timeline-copy';
+
+const { useMembers } = vi.hoisted(() => ({ useMembers: vi.fn() }));
+
+vi.mock('@/features/editor/use-members', () => ({ useMembers }));
 
 const ACCOUNT_AUTHOR = { id: 'u1', name: 'Ana', actor: ClientActor.Human };
 const IMPORTED_AUTHOR = { id: null, name: ' Chris Crawford ', actor: ClientActor.Human };
@@ -53,4 +66,17 @@ test('a human whose name looks like an AI shows no AI icon', () => {
   render(<ContributorAvatars authors={lookalike} contributors={[{ authorKey: 'bob', ...contributor }]} />);
   expect(screen.getByTitle('Bob · AI')).toBeInTheDocument();
   expect(screen.queryByRole('img')).not.toBeInTheDocument();
+});
+
+test('an author who is a member takes the slot the server assigned', () => {
+  const memberSlot = authorColorSlot('u1') === 6 ? 1 : 6;
+  const member: DocumentMember = { user: { id: 'u1', name: 'Ana' }, role: DocumentRole.Editor, online: true, colorSlot: memberSlot };
+  useMembers.mockReturnValue({ members: [member] });
+  renderWithProviders(
+    <ul>
+      <AuthorAvatar author={ACCOUNT_AUTHOR} />
+    </ul>,
+    { route: documentPagePath(DOCUMENT_ID) },
+  );
+  expect(screen.getByTitle(ACCOUNT_AUTHOR.name).firstElementChild).toHaveClass(`bg-author-${memberSlot}`);
 });

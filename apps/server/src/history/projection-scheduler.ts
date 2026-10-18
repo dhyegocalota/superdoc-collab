@@ -61,7 +61,7 @@ export class ProjectionScheduler {
   private isAlive = true;
   isDegraded = false;
   private readonly loggedImportFailures = new Set<string>();
-  private stopping: Promise<void> | null = null;
+  private stoppingPromise: Promise<void> | null = null;
 
   constructor({ databaseDirectory, projectionWorkerFile = null }: { databaseDirectory: string; projectionWorkerFile?: URL | null }) {
     this.databaseDirectory = databaseDirectory;
@@ -113,17 +113,17 @@ export class ProjectionScheduler {
   }
 
   stop(): Promise<void> {
-    if (this.stopping) return this.stopping;
+    if (this.stoppingPromise) return this.stoppingPromise;
     if (!this.isAlive) return Promise.resolve();
     this.waitingRequests.rejectAll(() => new ProjectionStoppedError());
-    this.stopping = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
+    this.stoppingPromise = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
-    return this.stopping;
+    return this.stoppingPromise;
   }
 
   private serve(request: ServedRequest): Promise<ServedReply> {
     if (this.isDegraded) return Promise.reject(new ProjectionDegradedError());
-    if (this.stopping) return Promise.reject(new ProjectionStoppedError());
+    if (this.stoppingPromise) return Promise.reject(new ProjectionStoppedError());
     return new Promise((resolve, reject) => {
       const isNewRequest = this.waitingRequests.add({ request, waiter: { resolve, reject } });
       if (isNewRequest) this.currentWorker.postMessage(request);
@@ -203,7 +203,7 @@ export class ProjectionScheduler {
   }
 
   private restart(): void {
-    if (this.stopping) return;
+    if (this.stoppingPromise) return;
     if (!this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
     const pending = [...this.inFlight];

@@ -139,7 +139,7 @@ export class VersionsService {
 
   private start({ key, documentId, sequence }: { key: string; documentId: string; sequence: number }): Promise<LoadedVersion> {
     const generation = this.generationOf(documentId);
-    const started: Promise<LoadedVersion> = this.scheduler
+    const startedPromise: Promise<LoadedVersion> = this.scheduler
       .version({ documentId, sequence })
       .then(({ serverTime, state, text }) => this.store({ key, documentId, generation, version: { sequence, serverTime, state, text } }))
       .catch((error) => {
@@ -147,11 +147,11 @@ export class VersionsService {
         throw error;
       })
       .finally(() => {
-        if (this.loading.get(key) === started) this.loading.delete(key);
+        if (this.loading.get(key) === startedPromise) this.loading.delete(key);
       });
-    this.loading.set(key, started);
-    started.catch(() => undefined);
-    return started;
+    this.loading.set(key, startedPromise);
+    startedPromise.catch(() => undefined);
+    return startedPromise;
   }
 
   private generationOf(documentId: string): number {

@@ -116,8 +116,8 @@ export class AgentSessions implements AgentDocumentSessions {
   run<Result>(options: SessionWork<Result>): Promise<Result> {
     const { userId } = options.person;
     const previous = this.turns.get(userId);
-    const turn = previous ? this.untilTurn(previous).then(() => this.runOnSession(options)) : this.runOnSession(options);
-    const turnEnded = turn.then(
+    const turnPromise = previous ? this.untilTurn(previous).then(() => this.runOnSession(options)) : this.runOnSession(options);
+    const turnEnded = turnPromise.then(
       () => undefined,
       () => undefined,
     );
@@ -126,7 +126,7 @@ export class AgentSessions implements AgentDocumentSessions {
     void tail.then(() => {
       if (this.turns.get(userId) === tail) this.turns.delete(userId);
     });
-    return turn;
+    return turnPromise;
   }
 
   async close(): Promise<void> {

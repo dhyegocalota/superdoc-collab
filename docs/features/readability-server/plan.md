@@ -23,7 +23,7 @@ One developer, one commit per item, in the order of the spec.
 
 - [x] **Step 1:** pin which queue each request kind joins (4367a7b0), then dispatch the worker listener and `handle` from records keyed by request kind.
 - [x] **Step 2:** message constants in `agent-sessions.ts` and `registration-limits.ts`.
-- [ ] **Step 3:** `Promise` suffix on seven names.
+- [x] **Step 3:** `Promise` suffix on seven names.
 - [ ] **Step 4:** `SECOND_MS` in the two testing clients.
 - [ ] **Step 5:** `temporaryDirectory` under `apps/server/src/testing`.
 - [ ] **Step 6:** one retry helper in `versions-routes.ts`.

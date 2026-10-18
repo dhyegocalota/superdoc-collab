@@ -1,4 +1,5 @@
 # An MCP fill on a blank SuperDoc surface is rejected because no selection exists
+
 - Date: 2026-10-18
 - Inspired by: the scenario walk of `docs/scenarios/core-realtime.md`, which could not type into a document created with New document
 - Revisited: 2026-10-18 — still true at SuperDoc 2.23.0

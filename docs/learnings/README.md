@@ -40,7 +40,6 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-18 | A listener on `superdoc.socket` never fires, and a mocked socket in a unit test passes anyway | [2026-10-18-a-documented-superdoc-socket-property-is-null-on-the-v2-path.md](2026-10-18-a-documented-superdoc-socket-property-is-null-on-the-v2-path.md) | 2026-10-18 |
 | 2026-10-18 | The caret vanishes in dark mode and `caret-color` changes nothing | [2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md](2026-10-18-superdoc-paints-the-caret-as-an-overlay-div-so-caret-color-does-nothing.md) | 2026-10-18 |
 | 2026-10-18 | One request per E2E run fails with `read ECONNRESET` on a plain GET | [2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md](2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md) | 2026-10-18 |
-| 2026-10-18 | An MCP fill on a blank SuperDoc surface is rejected because no selection exists | [2026-10-18-an-mcp-fill-on-a-blank-superdoc-surface-is-rejected-because-no-selection-exists.md](2026-10-18-an-mcp-fill-on-a-blank-superdoc-surface-is-rejected-because-no-selection-exists.md) | 2026-10-18 |
 
 ### history
 
@@ -90,6 +89,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A Radix dialog without a trigger drops focus to body on close | [2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md](2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md) | 2026-10-18 |
 | 2026-10-17 | GitHub Actions may create no run for a push or PR, and tight API polling trips the secondary rate limit | [2026-10-17-github-actions-may-create-no-run-and-tight-polling-trips-the-rate-limit.md](2026-10-17-github-actions-may-create-no-run-and-tight-polling-trips-the-rate-limit.md) | 2026-10-17 |
 | 2026-10-17 | Focusing a new SuperDoc document before the first click crashes the first keystroke | [2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md](2026-10-17-focusing-a-new-superdoc-document-before-the-first-click-crashes-the-first-keystroke.md) | 2026-10-18 |
+| 2026-10-18 | An MCP fill on a blank SuperDoc surface is rejected because no selection exists | [2026-10-18-an-mcp-fill-on-a-blank-superdoc-surface-is-rejected-because-no-selection-exists.md](2026-10-18-an-mcp-fill-on-a-blank-superdoc-surface-is-rejected-because-no-selection-exists.md) | 2026-10-18 |
 | 2026-10-17 | A hook that parses `git status --porcelain` maps a path with a space to the wrong folder | [2026-10-17-git-status-porcelain-quotes-paths-with-spaces.md](2026-10-17-git-status-porcelain-quotes-paths-with-spaces.md) | 2026-10-17 |
 | 2026-10-17 | Better Auth hooks cannot be composed by hand; add a plugin with matcher hooks | [2026-10-17-better-auth-hooks-cannot-be-composed-by-hand.md](2026-10-17-better-auth-hooks-cannot-be-composed-by-hand.md) | 2026-10-17 |
 | 2026-10-17 | `Intl.supportedValuesOf('timeZone')` does not list `UTC` | [2026-10-17-intl-supported-time-zones-omit-utc.md](2026-10-17-intl-supported-time-zones-omit-utc.md) | 2026-10-17 |

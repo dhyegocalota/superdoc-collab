@@ -1,6 +1,6 @@
 # Admin users: one Actions menu per row
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's requirement 30, translated: "replace the several buttons per row in Admin → Users with one icon-only Actions button that opens a dropdown")
 **ADRs:** none

@@ -32,7 +32,7 @@ const schema = z.object({
   TRUST_PROXY: z.enum(BooleanFlag),
 });
 
-export class InvalidLlmLimitError extends Error {
+export class InvalidEnvironmentIntegerError extends Error {
   constructor({ name, value }: { name: string; value: string }) {
     super(`Environment variable ${name} must be an integer greater than zero, received: ${value}`);
   }
@@ -71,7 +71,7 @@ export type Environment = {
 function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
   if (!value) return fallback;
   const parsed = limitSchema.safeParse(value);
-  if (!parsed.success) throw new InvalidLlmLimitError({ name, value });
+  if (!parsed.success) throw new InvalidEnvironmentIntegerError({ name, value });
   return parsed.data;
 }
 

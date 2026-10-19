@@ -1,7 +1,7 @@
 import { OPEN_UNCOMMITTED_PER_MINUTE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
-import { InvalidLlmLimitError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
+import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
 
 const complete: Record<string, string> = {
   PORT: '3000',
@@ -100,7 +100,7 @@ describe('loadEnvironment', () => {
     ['LLM_MAX_CALLS_PER_HOUR', '-3'],
     ['LLM_MAX_CALLS_PER_HOUR', '1.5'],
   ])('fails startup when %s is %s', (name, value) => {
-    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidLlmLimitError({ name, value }));
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test('reads the open budget when it is set', () => {
     expect(loadEnvironment({ ...complete, OPEN_UNCOMMITTED_PER_MINUTE: '5000' }).openUncommittedPerMinute).toBe(5000);
@@ -110,6 +110,6 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when OPEN_UNCOMMITTED_PER_MINUTE is %s', (value) => {
     const name = 'OPEN_UNCOMMITTED_PER_MINUTE';
-    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidLlmLimitError({ name, value }));
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
 });

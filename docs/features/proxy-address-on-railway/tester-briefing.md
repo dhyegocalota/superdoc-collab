@@ -32,7 +32,7 @@ Expected in both runs: three 401 then 429. A fourth 401 with the header means th
 | `client-address.test.ts` fewer entries than hops | resolved `7.7.7.7`, expected the remote address | `at(-2)` of one entry is absent |
 | `environment.test.ts` parses a complete environment | no `trustedProxyHops` field | field defaults to 1 |
 | `environment.test.ts` TRUSTED_PROXY_HOPS parse | `undefined` instead of 2 | parsed |
-| `environment.test.ts` refuses 0, -1, 1.5, two | did not throw | `InvalidLlmLimitError` names the variable |
+| `environment.test.ts` refuses 0, -1, 1.5, two | did not throw | `InvalidEnvironmentIntegerError` names the variable |
 
 ## Hypotheses to attack
 
@@ -43,4 +43,4 @@ Expected in both runs: three 401 then 429. A fourth 401 with the header means th
 ## Known gaps
 
 - The real behaviour of Railway's edge is proven only by the post-deploy probe.
-- The error class for an invalid hop count is the limit error, whose name mentions the model.
+- None beyond the probe.

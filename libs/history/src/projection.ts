@@ -37,11 +37,24 @@ function findBootstrapStart({ log, documentName }: { log: UpdateLog; documentNam
   return findBootstrapSequence({ updates: log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }) });
 }
 
+function backfillPreview({ projection, cursor }: { projection: Projection; cursor: number }): number {
+  const { log, readModel, documentName } = projection;
+  if (readModel.previews([documentName]).has(documentName)) return cursor;
+  readModel.commit({
+    documentName,
+    events: [],
+    marks: [],
+    lastSequence: cursor,
+    preview: previewAt({ log, documentName, sequence: cursor }),
+  });
+  return cursor;
+}
+
 function continueProjection({ projection, cursor }: { projection: Projection; cursor: number }): number {
   const { log, readModel, documentName, batchSize } = projection;
   const batch = log.readBatch({ documentName, afterSequence: cursor, limit: batchSize });
   const last = batch.at(-1);
-  if (!last) return cursor;
+  if (!last) return backfillPreview({ projection, cursor });
   const baselineState = Y.encodeStateAsUpdate(materialize({ log, documentName, untilSequence: cursor }));
   const { events, marks } = projectEditEvents({ baselineState, updates: batch });
   readModel.commit({

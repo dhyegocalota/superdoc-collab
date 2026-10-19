@@ -152,3 +152,12 @@ test('the preview stops at the maximum number of characters', () => {
   projectPending({ log, readModel, documentName: DOCUMENT });
   expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('x'.repeat(PREVIEW_MAX_CHARACTERS));
 });
+
+test('a document projected before previews existed gets its preview on the next projection with no new update', () => {
+  bootstrapped(['Hello', 'World']);
+  const bootstrapSequence = lastLoggedSequence();
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: bootstrapSequence });
+  expect(readModel.previews([DOCUMENT]).size).toBe(0);
+  expect(projectPending({ log, readModel, documentName: DOCUMENT })).toBe(bootstrapSequence);
+  expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('Hello\nWorld');
+});

@@ -79,3 +79,10 @@ test('the card has one tap target, the link', () => {
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
   expect(screen.getAllByRole('link')).toHaveLength(1);
 });
+
+test('the card fills its grid cell and reserves two title lines so cards in a row share one height', () => {
+  renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
+  expect(screen.getByRole('article')).toHaveClass('h-full', 'flex', 'flex-col');
+  expect(screen.getByRole('heading', { level: 3 })).toHaveClass('line-clamp-2', 'min-h-[2lh]');
+  expect(screen.getByText(/ago|just now/)).toHaveClass('truncate');
+});

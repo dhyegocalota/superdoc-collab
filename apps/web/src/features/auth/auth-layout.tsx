@@ -1,11 +1,12 @@
 import { AppRoute } from '@superdoc-collab/types';
-import { FileText } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { AppMark } from '@/components/app-mark';
 import { HistoryIllustration } from '@/components/history-illustration';
 import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
 import { APP_NAME } from '@/lib/app-copy';
 import { cn } from '@/lib/utils';
+import { SessionSkeleton } from './session-skeleton';
 import { AUTH_TAGLINE, AUTH_VALUE_LINES } from './auth-copy';
 
 const VALUE_DOT_CLASSES = ['bg-author-1', 'bg-author-2', 'bg-author-3'];
@@ -15,9 +16,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-2">
       <aside className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-3 lg:order-2 lg:flex-col lg:items-stretch lg:justify-between lg:gap-10 lg:border-b-0 lg:border-l lg:bg-linear-to-br lg:from-muted lg:to-background lg:p-12">
         <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <FileText aria-hidden className="size-4" />
-          </span>
+          <AppMark className="size-8 rounded-md" />
           <span className="font-semibold">{APP_NAME}</span>
         </div>
         <div className="order-last w-full lg:order-none lg:space-y-8">
@@ -41,5 +40,13 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       </aside>
       {children}
     </div>
+  );
+}
+
+export function AuthSkeleton() {
+  return (
+    <AuthLayout>
+      <SessionSkeleton />
+    </AuthLayout>
   );
 }

@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { AuthSkeleton } from './auth-layout';
 import { safeNextPath } from './safe-next-path';
-import { SessionSkeleton } from './session-skeleton';
 import { isSignedOutState } from './sign-out-state';
 import { SESSION_QUERY_KEY, useSession } from './use-session';
 
@@ -22,7 +22,7 @@ export function RedirectIfSession({ children }: { children: ReactNode }) {
   }, [isSigningOut, queryClient, navigate, location.pathname, location.search]);
 
   if (isSigningOut) return children;
-  if (isLoading) return <SessionSkeleton />;
+  if (isLoading) return <AuthSkeleton />;
   if (user) return <Navigate to={safeNextPath(searchParams.get('next'))} replace />;
   return children;
 }

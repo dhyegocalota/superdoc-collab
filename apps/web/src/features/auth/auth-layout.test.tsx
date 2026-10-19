@@ -5,7 +5,7 @@ import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
 import { APP_NAME } from '@/lib/app-copy';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { AUTH_TAGLINE, AUTH_VALUE_LINES } from './auth-copy';
-import { AuthLayout } from './auth-layout';
+import { AuthLayout, AuthSkeleton } from './auth-layout';
 
 const CARD_TEXT = 'Card content';
 
@@ -40,4 +40,9 @@ test('below lg the panel collapses to a compact header, with the value lines and
   expect(screen.getByRole('list')).toHaveClass('hidden', 'lg:block');
   expect(document.querySelector('svg.w-full')).toHaveClass('hidden', 'lg:block');
   expect(screen.getByRole('complementary')).toHaveClass('lg:order-2');
+});
+
+test('the loading skeleton sits beside the same panel', () => {
+  renderWithProviders(<AuthSkeleton />);
+  expect(screen.getByRole('complementary')).toHaveTextContent(AUTH_TAGLINE);
 });

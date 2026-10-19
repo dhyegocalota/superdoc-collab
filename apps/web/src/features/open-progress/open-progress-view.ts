@@ -2,12 +2,12 @@ import { BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
 import {
   bytesProgressDetail,
   convertingDetail,
-  convertingProgressDetail,
   detailLine,
   elapsedLabel,
   LAYING_OUT_DETAIL,
   pagesSoFarDetail,
   QUEUED_DETAIL,
+  receivedDetail,
   receivingDetail,
   UNKNOWN_DOWNLOAD_DETAIL,
   UNKNOWN_PREPARING_DETAIL,
@@ -32,7 +32,7 @@ function preparingDetailOf({ bootstrap, elapsed }: { bootstrap: BootstrapProgres
   if (!bootstrap) return detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]);
   const { stage, done, total } = bootstrap;
   if (stage === BootstrapStage.Queued) return detailLine([QUEUED_DETAIL, elapsed]);
-  if (done > 0) return detailLine([convertingProgressDetail({ doneBytes: done, totalBytes: total }), elapsed]);
+  if (done > 0) return detailLine([receivedDetail(done), elapsed]);
   if (total > 0) return detailLine([convertingDetail(total), elapsed]);
   return detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]);
 }

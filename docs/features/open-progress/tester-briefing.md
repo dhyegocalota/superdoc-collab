@@ -5,7 +5,7 @@ Written by the developer of lane `lane/instant-progress`. Every "works" below is
 ## What changed
 
 - The open answer is read as `OpenedDocument & { bootstrap }`. Readiness follows `bootstrap.stage`; `data` reaches the page only once Ready; `bootstrap` reaches it at every stage; the poll is 1 s while Preparing.
-- A centred `OpenProgressPanel` (title, stage list, bar, detail line) shows on the waiting page for Preparing and over the editor for Downloading and Rendering, after 400 ms, until the first `.superdoc-fragment`.
+- A centred `OpenProgressPanel` (title, stage list, bar, detail line) shows on the waiting page for Preparing and over the editor for Downloading and Rendering, after 2 s, until the first `.superdoc-fragment`.
 - The upload uses `XMLHttpRequest` and the dialog and the drop zone show bytes sent over bytes total.
 - New: `components/ui/progress.tsx`, `features/open-progress/`, `features/documents/upload-progress-status.tsx`, `lib/format-quantity.ts`, `lib/api.ts` `apiSendWithProgress`, three constants in `libs/types`.
 
@@ -31,7 +31,7 @@ Pins, green when they landed: the document page tests "a Failed bootstrap shows 
 
 ## Hypotheses to attack
 
-- A document that opens in under 400 ms never renders the panel (document page test with a real 500 ms wait).
+- A document that opens in under 2 s never renders the panel (document page test with a real 2.1 s wait).
 - The panel never covers the Failed connection banner or the file error.
 - A reload (editor generation change) brings the panel back until the first paragraph paints again.
 - With reduced motion on, nothing in the panel animates.

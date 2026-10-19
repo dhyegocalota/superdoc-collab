@@ -1,6 +1,6 @@
 # Client address behind Railway's proxy
 
-**Status:** Approved
+**Status:** Building
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner: "tem trechos do codigo que dizem que rodamos embaixo do traefik ... agora estamos published no Railway... revisa esse codigo e make sure it works with Railway safely")
 **ADRs:** [0019](../../adr/0019-deploy-on-railway.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)
@@ -17,6 +17,11 @@
 - `X-Forwarded-Proto`: check whether anything derives the scheme from the request (cookie `secure`, OAuth redirect validation, `APP_ORIGIN` comparison); production terminates TLS at Railway's edge, so the app must not require `request.url` to be https. Record the finding in this spec.
 - Docs: `.env.example` (production values live in Railway, not Dokploy; the TRUST_PROXY note names "a reverse proxy that sets X-Forwarded-For (Railway)"), `docs/install.md` table, `docs/features/deploy/runbook-railway.md` adds `TRUSTED_PROXY_HOPS` (unset = 1), `.claude/rules/*` facts that name Traefik, `docker/docker-compose.yml` comment-free but its env stays.
 - A probe for after the deploy, kept in the lane's briefing as a command (never committed as code): with `curl` and a spoofed `X-Forwarded-For: 203.0.113.9`, repeated sign-in failures from one machine must still hit the limiter's 429 at the same count as without the header.
+
+### Audit findings (2026-10-19)
+
+- The resolved address has one consumer: better-auth (`ipAddressHeaders` and its rate limit), fed by the auth handler route, which is the only place `withClientAddress` runs. The documents open budget is keyed by user and document; share-link accept, the MCP route and the collaboration socket limits read no address (a search for `remoteAddress`, `remote.address`, `x-client-ip` and `x-forwarded-for` outside tests finds only the resolver, the auth route and the better-auth option), and the WebSocket upgrade reads only `socket.remoteAddress` to keep the agent endpoint on loopback. No path reads `x-forwarded-for` directly.
+- `X-Forwarded-Proto`: nothing reads it or derives a scheme from `request.url`. better-auth takes its base URL from `APP_ORIGIN`, so secure cookies follow the configured `https://` origin, and the origin check compares the `Origin` header with `APP_ORIGIN`. TLS termination at Railway's edge needs no change.
 
 ### Failure handling
 

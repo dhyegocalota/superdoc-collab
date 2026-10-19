@@ -73,7 +73,8 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `PORT` | `3000` | Port of the one Node process |
 | `DATABASE_DIR` | `./data` (`/data` in the image) | Where the SQLite files and `documents/<id>.docx` live; mount a volume here |
 | `WEB_DIST_DIR` | `/app/web` in the image | The built SPA the server serves |
-| `TRUST_PROXY` | `false` | `true` only behind a proxy that overwrites `X-Forwarded-For` (Railway) |
+| `TRUST_PROXY` | `false` | `true` only behind a reverse proxy that sets `X-Forwarded-For` (Railway); the client address is the entry that proxy added, counted from the right ([ADR 0042](adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)) |
+| `TRUSTED_PROXY_HOPS` | `1` | Trusted proxies in front of the app, counted from the right of `X-Forwarded-For`; a positive integer, read only when `TRUST_PROXY=true` |
 | `OPENROUTER_API_KEY` | empty | The model key; empty keeps the app running without topics and summaries |
 | `LLM_MODEL` | `openai/gpt-6-luna` in `.env.example` | The OpenRouter model id |
 | `OPENROUTER_BASE_URL` | empty | Another OpenRouter-compatible endpoint; tests point it at a fake |

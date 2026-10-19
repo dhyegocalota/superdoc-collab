@@ -15,6 +15,8 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { AppShell } from '@/app/app-shell';
 import { RequireAdmin } from '@/features/admin/require-admin';
+import { ExitConfirmationDialog } from '@/features/editor/exit-confirmation-dialog';
+import { clearUnsyncedEdits, setUnsynced } from '@/features/editor/unsynced-edits-store';
 import { documentQueryKey } from '@/features/documents/documents-api';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -59,7 +61,10 @@ function mockApi({ sessions, stopStatus = HttpStatus.Ok }: { sessions: SessionUs
   });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  clearUnsyncedEdits();
+});
 
 test('while impersonating a status banner names the user, says the actions are theirs and offers Stop', async () => {
   mockApi({ sessions: [CAIO] });
@@ -109,50 +114,62 @@ test('the account menu shows the impersonated user, not the admin', async () => 
   expect(screen.queryByRole('button', { name: accountMenuLabel(ADMIN.name) })).not.toBeInTheDocument();
 });
 
-function EditorStub() {
+function EditorStub({ isUnsynced = false }: { isUnsynced?: boolean }) {
   useQuery({
     queryKey: documentQueryKey({ documentId: EDITOR_DOCUMENT_ID, segments: [] }),
     queryFn: () => fetch(documentPath).then((response) => response.json()),
   });
-  return <p>Editor</p>;
+  return (
+    <>
+      <p>Editor</p>
+      <ExitConfirmationDialog isUnsynced={isUnsynced} onDownload={() => undefined} />
+    </>
+  );
 }
 
-test('stopping from inside the editor unmounts it before the session changes, so no document request follows', async () => {
-  const fetchSpy = mockApi({ sessions: [CAIO, ADMIN] });
-  const respond = fetchSpy.getMockImplementation()!;
-  fetchSpy.mockImplementation(async (input, init) => {
-    if (input === documentPath) return jsonResponse({ body: {} });
-    return respond(input, init);
-  });
-  const user = userEvent.setup();
-  const router = createMemoryRouter(
-    [
-      {
-        element: <AppShell />,
-        children: [
-          { path: AppRoute.Document, element: <EditorStub /> },
-          {
-            path: AppRoute.Admin,
-            element: (
-              <RequireAdmin>
-                <p>Admin home</p>
-              </RequireAdmin>
-            ),
-          },
-          { path: AppRoute.Documents, element: <p>Documents home</p> },
-        ],
-      },
-    ],
-    { initialEntries: [documentPagePath(EDITOR_DOCUMENT_ID)] },
-  );
-  render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  );
-  await user.click(await screen.findByRole('button', { name: STOP_IMPERSONATING_LABEL }));
-  expect(await screen.findByText('Admin home')).toBeInTheDocument();
-  await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
-  const documentRequests = fetchSpy.mock.calls.filter(([input]) => input === documentPath);
-  expect(documentRequests).toHaveLength(1);
-});
+test.each([
+  { name: 'in sync', isUnsynced: false },
+  { name: 'with unsynced edits and the leave guard armed', isUnsynced: true },
+])(
+  'stopping from inside the editor $name unmounts it before the session changes, so no document request follows',
+  async ({ isUnsynced }) => {
+    setUnsynced(isUnsynced);
+    const fetchSpy = mockApi({ sessions: [CAIO, ADMIN] });
+    const respond = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation(async (input, init) => {
+      if (input === documentPath) return jsonResponse({ body: {} });
+      return respond(input, init);
+    });
+    const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [
+        {
+          element: <AppShell />,
+          children: [
+            { path: AppRoute.Document, element: <EditorStub isUnsynced={isUnsynced} /> },
+            {
+              path: AppRoute.Admin,
+              element: (
+                <RequireAdmin>
+                  <p>Admin home</p>
+                </RequireAdmin>
+              ),
+            },
+            { path: AppRoute.Documents, element: <p>Documents home</p> },
+          ],
+        },
+      ],
+      { initialEntries: [documentPagePath(EDITOR_DOCUMENT_ID)] },
+    );
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole('button', { name: STOP_IMPERSONATING_LABEL }));
+    expect(await screen.findByText('Admin home')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+    const documentRequests = fetchSpy.mock.calls.filter(([input]) => input === documentPath);
+    expect(documentRequests).toHaveLength(1);
+  },
+);

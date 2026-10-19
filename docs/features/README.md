@@ -108,4 +108,4 @@ Refinement after the five slices:
 | [`edits-panel-empty-state`](edits-panel-empty-state/) | The edits panel starts collapsed at every width, shows an illustrated empty state while a document has no edits, and the page keeps a small top margin from the header | Shipped 2026-10-19 |
 | [`documents-cards`](documents-cards/) | The documents home shows cards by default with a CSS-drawn thumbnail from a preview the projection worker writes once per change, and a toggle to the table stored in the browser | Shipped 2026-10-19 |
 | [`pr-visual-explainer`](pr-visual-explainer/) | Every PR body carries a Visual explainer section for humans: a row per user-visible change with an annotated screenshot or before/after, and a Mermaid diagram per data-flow change; template, harness and open-pr skill updated | Shipped 2026-10-19 |
-| [`whats-next`](whats-next/) | `docs/next.md`: scale as signal, change and the ADR it revisits; integrations; product; the questions for SuperDoc whose answers would retire code | Shipped 2026-10-19 |
+| [`whats-next`](whats-next/) | `docs/next.md`: scale as signal, change and the ADR it revisits; integrations; product | Shipped 2026-10-19 |

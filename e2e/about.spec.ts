@@ -44,3 +44,8 @@ test.describe('public assets', () => {
     });
   });
 });
+
+test('the served page carries an absolute share image URL', async ({ request, baseURL }) => {
+  const html = await (await request.get(AppRoute.About)).text();
+  expect(html).toContain(`<meta property="og:image" content="${baseURL}/og-image.png" />`);
+});

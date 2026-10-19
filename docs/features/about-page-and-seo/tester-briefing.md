@@ -40,8 +40,13 @@ The test that pins `SUPERDOC_VERSION` to the installed `superdoc` package landed
 
 ## Gaps
 
-- A 32 px PNG replaces `favicon.ico`; browsers that only request `/favicon.ico` get the SPA index.
-- `og:image` is a root-relative path as the spec says; some crawlers need an absolute URL, which is deploy-time.
-- The apple-touch icon has transparent corners; iOS paints them black.
+- The apple-touch icon is opaque (PNG colour type 2, white paper background); the unit test pins the colour type, not a decoded corner pixel, because no PNG decoder is installed.
 - No live crawler or social-card validator was run.
 - The Dockerfile claim in the test plan (Claim 3) was read, not run: it copies `apps/web/dist`, which `vite build` fills from `public/`.
+
+## Follow-up (favicon.ico, opaque touch icon, absolute og:image)
+
+- Red commit 9d1402d7. Failures: `expected [ '/favicon.svg', …(3) ] to deeply equal ArrayContaining{…}`, `ENOENT … favicon.ico`, `expected 6 to be 2` (the touch icon was RGBA), and in `static-web.test.ts` `expected '<html><head>…' to contain '<meta property="og:image" content="https://…'`.
+- `favicon.ico` is a one-image ICO wrapping `favicon-32.png`, linked with `sizes="32x32"`.
+- `mountStaticWeb` now takes `appOrigin` and rewrites `og:image` and `twitter:image` once at startup; the source `index.html` keeps the root-relative path.
+- Hypotheses: `/favicon.ico` answers 200 with an icon type; the served page's `og:image` starts with the app origin; `/api` paths and other root-relative URLs are untouched.

@@ -45,6 +45,8 @@ import {
   DOCUMENT_LOAD_ERROR_MESSAGE,
   DOWNLOAD_BUTTON_LABEL,
   DOWNLOAD_PDF_LABEL,
+  DELETE_CONFIRM_LABEL,
+  DELETE_LABEL,
   MORE_ACTIONS_LABEL,
   EDITOR_ESCAPE_HINT,
   EDITOR_EXIT_LABEL,
@@ -975,9 +977,11 @@ function isExitPrevented(): boolean {
   return event.defaultPrevented;
 }
 
+let router: ReturnType<typeof renderWithProviders>['router'];
+
 async function openAsWhileLost(role: DocumentRole): Promise<SuperDocConfig> {
   mockDocumentApi({ opened: openedAs(role), isCurrentUserOnline: () => false });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  ({ router } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) }));
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const config = constructedConfig();
   act(() => config.onCollaborationConnectionChange(SYNCED_CALLBACK));
@@ -1055,4 +1059,15 @@ test('the page publishes the unsynced state for the sign-out menu and clears it 
   expect(getUnsyncedEditsSnapshot().isUnsynced).toBe(true);
   cleanup();
   expect(getUnsyncedEditsSnapshot().isUnsynced).toBe(false);
+});
+
+test('deleting the document navigates to the list with no prompt even while the connection is lost', async () => {
+  const config = await openAsWhileLost(DocumentRole.Owner);
+  act(() => config.onEditorUpdate());
+  expect(isExitPrevented()).toBe(true);
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: DELETE_LABEL }));
+  await userEvent.click(await screen.findByRole('button', { name: DELETE_CONFIRM_LABEL }));
+  await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
+  expect(screen.queryByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeNull();
 });

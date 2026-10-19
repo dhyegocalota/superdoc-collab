@@ -22,12 +22,14 @@ One group.
 
 - [x] **Step 1:** failing test first: `prompts.test.ts` asserts that the topic summaries prompt and the selection prompt both carry the rule `Write in English (en-US), whatever the language of the edited text.` and that neither carries `Write in the language of the edited text.`; red on the current prompts. Evidence: 87fef18c.
 - [x] **Step 2:** `prompts.ts`: one `SUMMARY_LANGUAGE` constant and one rule line built from it, used by both summary prompts; the quoted prompt in `docs/features/llm-insights/plan.md` follows; green. Evidence: 1c8a824f.
+- [x] **Step 4 (reviewer's IMPORTANT):** migration `0007_clear-summaries` (drizzle-kit custom: the SQL, its snapshot and the journal entry) deletes every cached sentence; `migrate.test.ts` proves it empties both tables on a migrated database. Evidence: the commit after 32198f5f.
 - [x] **Step 3:** `tester-briefing.md` written by the developer. Evidence: 84ad5e81 on this branch.
 
 ## Failure modes
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
+| 4 | A production sentence stays in the old language because the migration did not run | the Railway deploy log shows no `0007` and a known Portuguese document keeps its sentence | run the deploy again; the migration is idempotent and the tables are caches |
 | 2 | The model keeps the document's language despite the rule | the tester's real-model probe returns a Portuguese sentence | move the rule to the task sentence and add an example with Portuguese edits and an English sentence |
 
 **Steps with no backout:** none.

@@ -14,9 +14,10 @@ The two summary prompts (`SUMMARIES_SYSTEM_PROMPT` for the topic summaries and `
 
 - One rule shared by both summary prompts replaces the language-of-the-text rule: write in English (en-US), whatever the language of the edited text.
 - The plan of `llm-insights` that quotes the selection prompt follows.
+- Migration `0007_clear-summaries` empties `selection_summaries` and `topic_summaries` on deploy, as `0006` did for the previous prompt change: a sentence written in the document's language before this change is never served again; the topic summaries are rewritten on the next read because a topic with no sentence counts as stale, and a selection summary is rewritten on the next request. Both tables are regenerable caches; nothing is lost.
 
 ## Test list
 
-- Unit: both summary prompts carry the en-US rule and neither carries the language-of-the-text rule; the topics prompt still names topics in the document's language.
+- Unit: the migration empties both summary tables on a migrated database; both summary prompts carry the en-US rule and neither carries the language-of-the-text rule; the topics prompt still names topics in the document's language.
 - Real model (tester, with the server's `OPENROUTER_API_KEY`): a Portuguese selection and Portuguese topic edits come back as English sentences naming the people sent.
 - Real model, in the browser: Ana types a Portuguese paragraph and presses "Summarize edits with AI"; the card shows an English sentence.

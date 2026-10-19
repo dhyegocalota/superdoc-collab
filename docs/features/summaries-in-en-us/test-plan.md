@@ -32,6 +32,7 @@ Empty on purpose. The tester adds one checkbox per new case (input, exact expect
 
 The reviewer picks the three claims most likely to be wrong and tries to refute each.
 
+- [ ] Claim 0: after the migration a document with topics but no sentences gets its sentences rewritten without an edit — attack: read `staleTopics` in `summaries-service.ts`; result:
 - [ ] Claim 1: the rule reaches every call of both summary prompts (no other copy of the prompt text exists) — attack: search the server and the docs for the old rule; result:
 - [ ] Claim 2: the examples in the prompts agree with the rule (English sentences over edits in any language) — attack: read each example; result:
 - [ ] Claim 3: the fake models of the unit and E2E tests do not depend on the language rule — attack: read `testing/language-model` and `e2e/`; result:

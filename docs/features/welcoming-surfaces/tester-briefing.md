@@ -53,4 +53,4 @@ Green: 159 unit tests across auth, components and documents; E2E `documents.spec
 
 - Walked sign-in and sign-up at 1280 and 375 in both themes, the invite flow end to end, the empty page, the one-document page, drag messages and a real CDP drag and drop. Hypotheses 1, 2, 3, 5, 7, 8 held.
 - Defect to confirm (medium): the drop overlay stays up after a cancelled drag and nothing dismisses it. Claim 1 (card roles diff) not done.
-- Console: one resource error on a reload during the drag tests.
+- Console: one expected 415 for the pdf drop.

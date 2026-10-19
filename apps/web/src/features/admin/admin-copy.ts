@@ -36,7 +36,8 @@ export const SET_ROLE_SUBJECT = 'Set role';
 export const CREATE_PASSWORD_RESET_SUBJECT = 'Create password reset';
 export const CREATE_SHOWCASE_SUBJECT = 'Create showcase';
 
-export const USERS_COLUMN_LABELS: string[] = ['Name', 'Email', 'Role', 'Joined', 'Actions'];
+export const USERS_ACTIONS_COLUMN_LABEL = 'Actions';
+export const USERS_COLUMN_LABELS: string[] = ['Name', 'Email', 'Role', 'Joined', USERS_ACTIONS_COLUMN_LABEL];
 export const INVITES_COLUMN_LABELS: string[] = ['State', 'Created', 'Expires', 'Created by', 'Accepted by', 'Actions'];
 
 export const INVITE_STATE_LABELS: Record<InviteState, string> = {

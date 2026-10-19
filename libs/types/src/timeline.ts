@@ -72,6 +72,7 @@ export enum TimelineSearchParam {
   Author = 'author',
   At = 'at',
   Topic = 'topic',
+  Sequence = 'sequence',
 }
 export enum TimelineQueryParam {
   Term = 'term',
@@ -83,6 +84,7 @@ export enum TimelineQueryParam {
   Around = 'around',
   Topic = 'topic',
   At = 'at',
+  Sequence = 'sequence',
   TimeZone = 'timeZone',
 }
 
@@ -129,7 +131,8 @@ export type EditRunView = {
   deleted: string;
   lastServerTime: number;
 };
-export type BinEdits = { binStart: number; binMs: number; runs: EditRunView[]; authors: Record<string, EventAuthor> };
+export type BinEditRun = EditRunView & { versionSequence: number };
+export type BinEdits = { binStart: number; binMs: number; runs: BinEditRun[]; authors: Record<string, EventAuthor> };
 export type VersionSummary = { sequence: number; serverTime: number; collaborationPath: string };
 export type VersionText = { sequence: number; text: string };
 export type VersionMarks = { marks: { sequence: number; serverTime: number }[] };

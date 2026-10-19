@@ -18,9 +18,9 @@ import {
   versionApiPath,
   versionCollaborationPath,
   versionViewPagePath,
+  type BinEditRun,
   type BinEdits,
   type DocumentTimeline,
-  type EditRunView,
   type OpenedDocument,
   type SelectionSummaryView,
   type VersionSummary,
@@ -37,6 +37,7 @@ import {
   LOADING_VERSION_MESSAGE,
   STREAMGRAPH_TITLE,
   VERSION_FRAME_TITLE,
+  VIEW_EDIT_VERSION_LABEL,
   VIEW_VERSION_LABEL,
 } from '@/features/timeline/timeline-copy';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
@@ -78,8 +79,17 @@ const PAGE_ROUTE = documentPagePath(DOCUMENT_ID);
 const SERVER_TIME = Date.UTC(2026, 9, 16, 14, 2);
 const EVIL_ORIGIN = 'http://evil.example';
 const SLOW_WAIT = { timeout: 10_000 };
-const RUNS: EditRunView[] = [
-  { blockId: 'block-1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'hello', deleted: '', lastServerTime: 1 },
+const EDIT_VERSION_SEQUENCE = 47;
+const RUNS: BinEditRun[] = [
+  {
+    blockId: 'block-1',
+    bandId: 'band-0',
+    authorKeys: ['ana'],
+    inserted: 'hello',
+    deleted: '',
+    lastServerTime: 1,
+    versionSequence: EDIT_VERSION_SEQUENCE,
+  },
 ];
 const baseTimeline = timelineWith({ volumes: SEQUENCES.map(() => [10]), names: ['Budget'] });
 const versionedTimeline: DocumentTimeline = {
@@ -252,6 +262,38 @@ test('the previous frame stays until the next one is ready and foreign messages 
   sendFromFrame({ frame: frameB });
   await waitFor(() => expect(screen.getAllByTitle(VERSION_FRAME_TITLE)).toHaveLength(1));
   expect(frameFor(50)).not.toHaveAttribute('aria-hidden', 'true');
+});
+
+test('an at link with a sequence opens exactly that sequence', async () => {
+  mockDocumentApi({ versions: { [EDIT_VERSION_SEQUENCE]: [readyReply(EDIT_VERSION_SEQUENCE)] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}&sequence=${EDIT_VERSION_SEQUENCE}` });
+  const frame = await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT);
+  expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: EDIT_VERSION_SEQUENCE }));
+});
+
+test('an edit row opens the version after that edit', async () => {
+  mockDocumentApi({
+    versions: { 42: [readyReply(42)], [EDIT_VERSION_SEQUENCE]: [readyReply(EDIT_VERSION_SEQUENCE)] },
+    edits: {
+      binStart: BIN_STARTS[1]!,
+      binMs: versionedTimeline.binMs,
+      runs: RUNS,
+      authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
+    },
+  });
+  const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  expect(await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT)).toHaveAttribute(
+    'src',
+    versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }),
+  );
+  await userEvent.click(await screen.findByRole('button', { name: VIEW_EDIT_VERSION_LABEL }));
+  expect(new URLSearchParams(router.state.location.search).get('sequence')).toBe(String(EDIT_VERSION_SEQUENCE));
+  await waitFor(() =>
+    expect(screen.getByTitle(VERSION_FRAME_TITLE)).toHaveAttribute(
+      'src',
+      versionViewPagePath({ documentId: DOCUMENT_ID, sequence: EDIT_VERSION_SEQUENCE }),
+    ),
+  );
 });
 
 test('the selected bin runs are sent to the ready frame', async () => {

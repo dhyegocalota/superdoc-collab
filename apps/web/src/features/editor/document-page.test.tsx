@@ -66,7 +66,7 @@ import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
-import { DOCUMENT_READY_ANNOUNCEMENT, PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
+import { DOCUMENT_READY_ANNOUNCEMENT, PREPARATION_FAILED_MESSAGE, PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
 import { BLANK_DOCX_PATH, documentFileQueryKey, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = {
@@ -975,7 +975,7 @@ test('a Preparing bootstrap shows the Preparing panel after the delay and never 
 test('a Failed bootstrap shows the error card instead of a panel', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Reader), bootstrapStage: () => BootstrapStage.Failed });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(DOCUMENT_LOAD_ERROR_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByText(PREPARATION_FAILED_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
 });
 

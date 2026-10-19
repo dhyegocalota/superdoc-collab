@@ -7,6 +7,7 @@ import {
   CANNOT_IMPERSONATE_SELF_MESSAGE,
   HttpMethod,
   HttpStatus,
+  IMPERSONATION_SESSION_MS,
   LAST_ADMIN_MESSAGE,
   STOP_IMPERSONATING_API_PATH,
   UserAction,
@@ -249,6 +250,57 @@ describe('impersonate and stop', () => {
     const server = await startTestServer();
     const response = await act({ server, userId: 'nope', action: UserAction.Impersonate, cookie: server.admin.cookie });
     expect(response.status).toBe(HttpStatus.NotFound);
+    await server.stop();
+  });
+});
+
+describe('impersonation sessions follow the impersonator', () => {
+  async function adminImpersonating({ server }: { server: TestServer }) {
+    const eve = await signedInUser({ server, name: 'Eve' });
+    makeAdmin({ server, userId: eve.id });
+    const caio = await signedInUser({ server, name: 'Caio' });
+    const response = await act({ server, userId: caio.id, action: UserAction.Impersonate, cookie: eve.cookie });
+    return { eve, caio, cookie: cookieAfter({ response, previous: eve.cookie }) };
+  }
+
+  test('archiving the impersonating admin ends the session they opened and closes its sockets', async () => {
+    const server = await startTestServer();
+    const { eve, caio, cookie } = await adminImpersonating({ server });
+    expect(await meOf({ server, cookie })).toMatchObject({ id: caio.id, impersonatedBy: eve.id });
+    const closeSockets = vi.spyOn(server.services.runtime, 'closeConnectionsOfUser').mockImplementation(() => undefined);
+    await act({ server, userId: eve.id, action: UserAction.Archive, cookie: server.admin.cookie });
+    expect(await meOf({ server, cookie })).toBeNull();
+    expect(closeSockets).toHaveBeenCalledWith(caio.id);
+    await server.stop();
+  });
+
+  test('demoting the impersonating admin makes the session they opened read as signed out', async () => {
+    const server = await startTestServer();
+    const { eve, cookie } = await adminImpersonating({ server });
+    server.database.sqlite.prepare('update user set role = ? where id = ?').run(UserRole.User, eve.id);
+    expect(await meOf({ server, cookie })).toBeNull();
+    await server.stop();
+  });
+
+  test('an impersonation session older than the impersonation hour reads as signed out', async () => {
+    const server = await startTestServer();
+    const { cookie } = await adminImpersonating({ server });
+    server.database.sqlite
+      .prepare('update session set created_at = ? where impersonated_by is not null')
+      .run(Date.now() - 2 * IMPERSONATION_SESSION_MS);
+    expect(await meOf({ server, cookie })).toBeNull();
+    await server.stop();
+  });
+
+  test('an impersonating admin cannot grant OAuth consent', async () => {
+    const server = await startTestServer();
+    const { cookie } = await adminImpersonating({ server });
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/consent`, {
+      method: HttpMethod.Post,
+      headers: { cookie, origin: server.baseUrl, 'content-type': 'application/json' },
+      body: JSON.stringify({ accept: true }),
+    });
+    expect(response.status).toBe(HttpStatus.Forbidden);
     await server.stop();
   });
 });

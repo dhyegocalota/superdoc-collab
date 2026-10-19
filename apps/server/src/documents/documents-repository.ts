@@ -1,3 +1,4 @@
+import type { ReadModel } from '@superdoc-collab/history';
 import {
   assignAuthorColorSlots,
   DOCUMENT_ROLE_RANK,
@@ -17,9 +18,11 @@ class MemberColorSlotMissingError extends Error {}
 
 export class DocumentsRepository {
   private readonly database: AuthDatabase;
+  private readonly readModel: ReadModel;
 
-  constructor(database: AuthDatabase) {
+  constructor({ database, readModel }: { database: AuthDatabase; readModel: ReadModel }) {
     this.database = database;
+    this.readModel = readModel;
   }
 
   create({ id, title, ownerUserId }: { id: string; title: string; ownerUserId: string }): void {
@@ -107,6 +110,13 @@ export class DocumentsRepository {
       .run();
   }
 
+  revoke({ documentId, userId }: { documentId: string; userId: string }): void {
+    this.database.drizzle
+      .delete(documentMembers)
+      .where(and(eq(documentMembers.documentId, documentId), eq(documentMembers.userId, userId)))
+      .run();
+  }
+
   userNames(userIds: string[]): Map<string, string> {
     if (userIds.length === 0) return new Map();
     const rows = this.database.drizzle.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, userIds)).all();
@@ -124,7 +134,7 @@ export class DocumentsRepository {
   }
 
   private selectSummaries(condition: SQL | undefined): DocumentSummary[] {
-    return this.database.drizzle
+    const rows = this.database.drizzle
       .select({
         id: documents.id,
         title: documents.title,
@@ -138,13 +148,15 @@ export class DocumentsRepository {
       .innerJoin(user, eq(user.id, documents.ownerUserId))
       .where(condition)
       .orderBy(desc(documents.updatedAt))
-      .all()
-      .map((row) => ({
-        id: row.id,
-        title: row.title,
-        updatedAt: row.updatedAt.getTime(),
-        role: row.role,
-        owner: { id: row.ownerId, name: row.ownerName },
-      }));
+      .all();
+    const previews = this.readModel.previews(rows.map((row) => row.id));
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      updatedAt: row.updatedAt.getTime(),
+      role: row.role,
+      owner: { id: row.ownerId, name: row.ownerName },
+      preview: previews.get(row.id) ?? null,
+    }));
   }
 }

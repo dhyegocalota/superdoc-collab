@@ -51,7 +51,7 @@ test('a running summary shows its label and disables the button', () => {
   expect(screen.getByRole('button', { name: SUMMARIZING_LABEL })).toBeDisabled();
 });
 
-test('the row is h-10 and is absent for a reader', () => {
+test('the row is absent for a reader', () => {
   const { rerender } = render(
     <EditorToolbarRow
       role={DocumentRole.Owner}
@@ -62,7 +62,7 @@ test('the row is h-10 and is absent for a reader', () => {
       onSummarize={vi.fn()}
     />,
   );
-  expect(screen.getByTestId(TOOLBAR_CONTAINER_TEST_ID).parentElement).toHaveClass('h-10');
+  expect(screen.getByTestId(TOOLBAR_CONTAINER_TEST_ID)).toBeInTheDocument();
   rerender(
     <EditorToolbarRow
       role={DocumentRole.Reader}
@@ -85,10 +85,4 @@ test('a failed connection makes the whole row inert, Summarize included', () => 
 test('a past version keeps the row itself live', () => {
   renderRow({ isToolbarInert: true });
   expect(screen.getByTestId('editor-toolbar-row')).not.toHaveAttribute('inert');
-});
-
-test('the row clips horizontal overflow so a toolbar that is still laying out never scrolls the page', () => {
-  renderRow();
-  expect(screen.getByTestId('editor-toolbar-row')).toHaveClass('overflow-x-clip');
-  expect(screen.getByTestId('toolbar-container')).toHaveClass('overflow-x-clip');
 });

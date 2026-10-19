@@ -5,7 +5,7 @@ import { INVITE_SUBJECT, SETUP_SUBJECT } from './auth-copy';
 export const SETUP_QUERY_KEY = ['setup'];
 export const INVITE_QUERY_KEY = ['invite'];
 
-export class InviteNotValidError extends ApiRequestError {}
+class InviteNotValidError extends ApiRequestError {}
 
 export async function fetchSetup(): Promise<SetupStatus> {
   const response = await apiGet(ApiPath.Setup);

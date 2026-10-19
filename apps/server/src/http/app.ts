@@ -9,6 +9,7 @@ import { createAdminRoutes } from '../admin/admin-routes';
 import { createInviteRoutes } from '../admin/invite-routes';
 import type { InvitesRepository } from '../admin/invites';
 import { createSetupRoutes } from '../admin/setup-routes';
+import type { PasswordResets } from '../admin/password-reset-links';
 import type { AdminUsersRepository } from '../admin/users';
 import type { Auth } from '../auth/auth';
 import { REGISTER_PATH } from '../auth/registration-limits';
@@ -23,6 +24,7 @@ import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { createDocumentsRoutes } from '../documents/documents-routes';
 import type { DocumentFileStorage } from '../documents/file-storage';
+import type { ShowcaseDocuments } from '../documents/showcase-documents';
 import { createShareLinksRoutes } from '../documents/share-links-routes';
 import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
@@ -67,6 +69,7 @@ export type InsightsServices = {
 export type AppServices = {
   documents: DocumentsRepository;
   storage: DocumentFileStorage;
+  showcase: ShowcaseDocuments;
   runtime: DocumentRuntime;
   openBudget: OpenBudget;
   shareLinks: ShareLinksRepository;
@@ -84,6 +87,7 @@ export type AppServices = {
   jwksUrl: () => string;
   invites: InvitesRepository;
   adminUsers: AdminUsersRepository;
+  passwordResets: PasswordResets;
 };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
@@ -119,7 +123,14 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, async (context) => {
     const remoteAddress = getConnInfo(context).remote.address;
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
-    return auth.handler(withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy }));
+    return auth.handler(
+      withClientAddress({
+        request: context.req.raw,
+        remoteAddress,
+        trustProxy: environment.trustProxy,
+        trustedProxyHops: environment.trustedProxyHops,
+      }),
+    );
   });
   mountOAuthDiscovery({ app, auth });
   app.route(

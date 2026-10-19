@@ -1,4 +1,5 @@
 import { buildSeedDocx, TrackedChangeKind } from '@superdoc-collab/history';
+import { MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
@@ -18,6 +19,7 @@ import {
   IMPORT_SKIPPED_MESSAGE,
   IMPORT_TIMEOUT_MS,
   PROJECTION_FAILED_MESSAGE,
+  ProjectionBusyError,
   ProjectionDegradedError,
   ProjectionReplyKind,
   ProjectionRequestCrashedError,
@@ -532,4 +534,28 @@ test('a missing worker file crashes the first request then degrades the schedule
   await expect(scheduler.blocks(randomUUID())).rejects.toBeInstanceOf(ProjectionDegradedError);
   consoleError.mockRestore();
   await scheduler.stop();
+});
+
+test('above the pending cap a version is refused instead of queued', async () => {
+  const { server, documentId, client } = await projectedDocument();
+  const { scheduler } = server.services;
+  const pending = Array.from({ length: MAX_PENDING_VERSION_JOBS }, (_, index) => scheduler.version({ documentId, sequence: index + 1 }));
+  const settled = Promise.allSettled(pending);
+  await expect(scheduler.version({ documentId, sequence: MAX_PENDING_VERSION_JOBS + 1 })).rejects.toBeInstanceOf(ProjectionBusyError);
+  await settled;
+  client.close();
+  await server.stop();
+});
+
+test('a full version queue refuses a new version but lets a pending one be joined', async () => {
+  const { server, documentId, client } = await projectedDocument();
+  const { scheduler } = server.services;
+  const settled = Promise.allSettled(
+    Array.from({ length: MAX_PENDING_VERSION_JOBS }, (_, index) => scheduler.version({ documentId, sequence: index + 1 })),
+  );
+  expect(scheduler.refusesVersion({ documentId, sequence: MAX_PENDING_VERSION_JOBS + 1 })).toBe(true);
+  expect(scheduler.refusesVersion({ documentId, sequence: 1 })).toBe(false);
+  await settled;
+  client.close();
+  await server.stop();
 });

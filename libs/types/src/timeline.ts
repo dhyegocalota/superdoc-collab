@@ -27,6 +27,8 @@ export const HISTORY_CATCHING_UP_MESSAGE = 'History is catching up.';
 export const NO_MATCHING_EDITS_MESSAGE = 'No edits match.';
 export const TOPICS_INTERRUPTED_MESSAGE = 'Naming topics was interrupted. Try again.';
 export const VERSION_FAILED_ERROR = 'VERSION_FAILED';
+export const VERSION_THROTTLED_ERROR = 'VERSION_THROTTLED';
+export const VERSION_BUSY_ERROR = 'VERSION_BUSY';
 export const VERSION_FAILED_MESSAGE = 'This version could not be opened. Try another moment.';
 
 export enum TopicState {
@@ -72,6 +74,7 @@ export enum TimelineSearchParam {
   Author = 'author',
   At = 'at',
   Topic = 'topic',
+  Sequence = 'sequence',
 }
 export enum TimelineQueryParam {
   Term = 'term',
@@ -83,6 +86,7 @@ export enum TimelineQueryParam {
   Around = 'around',
   Topic = 'topic',
   At = 'at',
+  Sequence = 'sequence',
   TimeZone = 'timeZone',
 }
 
@@ -129,7 +133,8 @@ export type EditRunView = {
   deleted: string;
   lastServerTime: number;
 };
-export type BinEdits = { binStart: number; binMs: number; runs: EditRunView[]; authors: Record<string, EventAuthor> };
+export type BinEditRun = EditRunView & { versionSequence: number };
+export type BinEdits = { binStart: number; binMs: number; runs: BinEditRun[]; authors: Record<string, EventAuthor> };
 export type VersionSummary = { sequence: number; serverTime: number; collaborationPath: string };
 export type VersionText = { sequence: number; text: string };
 export type VersionMarks = { marks: { sequence: number; serverTime: number }[] };

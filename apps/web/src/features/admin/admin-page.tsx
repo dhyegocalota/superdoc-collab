@@ -6,6 +6,7 @@ import { useSession } from '@/features/auth/use-session';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { ADMIN_HEADING, ADMIN_LOAD_ERROR_MESSAGE, INVITES_HEADING, USERS_HEADING } from './admin-copy';
 import { InvitesTable } from './invites-table';
+import { ShowcaseButton } from './showcase-button';
 import { useAdminUsers } from './use-admin-users';
 import { useInvites } from './use-invites';
 import { UsersTable } from './users-table';
@@ -24,7 +25,10 @@ export function AdminPage() {
         <h1 className="text-2xl font-semibold">{ADMIN_HEADING}</h1>
         {(users.isError || invites.isError) && <ErrorMessage>{ADMIN_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">{USERS_HEADING}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">{USERS_HEADING}</h2>
+            <ShowcaseButton />
+          </div>
           {users.data && <UsersTable users={users.data} signedInUserId={user.id} />}
         </section>
         <section className="space-y-4">

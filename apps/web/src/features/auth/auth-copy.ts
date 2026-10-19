@@ -20,3 +20,14 @@ export const CLAIM_LINK_LABEL = 'Claim this instance';
 export const SETUP_SUBJECT = 'Setup request';
 export const INVITE_SUBJECT = 'Invite request';
 export const SETUP_FAILED_MESSAGE = 'This instance could not be reached. Reload the page.';
+export const RESET_PASSWORD_HEADING = 'Choose a new password';
+export const RESET_PASSWORD_DESCRIPTION = 'Pick a password you have not used here before.';
+export const NEW_PASSWORD_FIELD_LABEL = 'New password';
+export const RESET_PASSWORD_LABEL = 'Change password';
+export const RESET_PASSWORD_PENDING_LABEL = 'Changing password…';
+export const AUTH_TAGLINE = 'See how every document came to be.';
+export const AUTH_VALUE_LINES = [
+  'Watch a document evolve, edit by edit.',
+  'See who changed what, in their own colour.',
+  'Read a plain-language summary of any stretch of edits.',
+];

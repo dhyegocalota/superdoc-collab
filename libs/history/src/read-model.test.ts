@@ -80,3 +80,20 @@ test('a projected event keeps the actor', () => {
   const [stored] = readModel.read({ documentName: DOCUMENT, afterSequence: null });
   expect(stored!.connectionActor).toBe(ClientActor.Agent);
 });
+
+test('a committed preview is read back by document and replaced by the next commit', () => {
+  const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: FIRST_SEQUENCE, preview: 'First draft' });
+  readModel.commit({ documentName: 'other-room', events: [], marks: [], lastSequence: FIRST_SEQUENCE });
+  expect(readModel.previews([DOCUMENT, 'other-room'])).toEqual(new Map([[DOCUMENT, 'First draft']]));
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: SECOND_SEQUENCE, preview: 'Second draft' });
+  expect(readModel.previews([DOCUMENT])).toEqual(new Map([[DOCUMENT, 'Second draft']]));
+});
+
+test('previews of no documents is empty and forget clears the preview', () => {
+  const readModel = new ReadModel(openTestDatabase({ set: MigrationSet.ReadModel }));
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: FIRST_SEQUENCE, preview: 'Kept' });
+  expect(readModel.previews([])).toEqual(new Map());
+  readModel.forget(DOCUMENT);
+  expect(readModel.previews([DOCUMENT])).toEqual(new Map());
+});

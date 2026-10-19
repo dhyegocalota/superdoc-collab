@@ -19,18 +19,21 @@ function sequenceOf(bin: TimelineBin | undefined): number | null {
   return bin.versionSequence;
 }
 
-function pinnedSequenceAt({ pin, at }: { pin: VersionPin | null; at: number | null }): number | null {
+function pinnedSequenceAt({ pin, at, sequence }: { pin: VersionPin | null; at: number | null; sequence: number | null }): number | null {
   if (pin === null || pin.at !== at) return null;
+  if (sequence !== null && pin.sequence !== sequence) return null;
   return pin.sequence;
 }
 
 export function useVersionPin({
   documentId,
   at,
+  sequence,
   bin,
 }: {
   documentId: string;
   at: number | null;
+  sequence: number | null;
   bin: TimelineBin | undefined;
 }): VersionPinState {
   const [readyFrameSequence, setReadyFrameSequence] = useState<number | null>(null);
@@ -38,7 +41,7 @@ export function useVersionPin({
   const [failedFrameSequence, setFailedFrameSequence] = useState<number | null>(null);
   const [pinnedVersion, setPinnedVersion] = useState<VersionPin | null>(null);
   const binSequence = sequenceOf(bin);
-  const requestedSequence = pinnedSequenceAt({ pin: pinnedVersion, at });
+  const requestedSequence = pinnedSequenceAt({ pin: pinnedVersion, at, sequence });
   const { version, isError } = useVersionLoad({ documentId, sequence: requestedSequence });
   const hasFailedFrame = requestedSequence !== null && failedFrameSequence === requestedSequence;
   const isShownFailed = loadedVersion !== null && loadedVersion.sequence === failedFrameSequence;
@@ -48,7 +51,7 @@ export function useVersionPin({
   }, [version]);
 
   useEffect(() => {
-    const isAlreadyPinned = pinnedSequenceAt({ pin: pinnedVersion, at }) !== null;
+    const isAlreadyPinned = pinnedSequenceAt({ pin: pinnedVersion, at, sequence }) !== null;
     const hasBinWithoutVersion = bin !== undefined && binSequence === null;
     if (at === null) {
       setPinnedVersion(null);
@@ -57,13 +60,17 @@ export function useVersionPin({
       return;
     }
     if (isAlreadyPinned) return;
+    if (sequence !== null) {
+      setPinnedVersion({ at, sequence });
+      return;
+    }
     if (hasBinWithoutVersion) {
       setLoadedVersion(null);
       return;
     }
     if (binSequence === null) return;
     setPinnedVersion({ at, sequence: binSequence });
-  }, [at, bin, binSequence, pinnedVersion]);
+  }, [at, sequence, bin, binSequence, pinnedVersion]);
 
   useEffect(() => {
     setFailedFrameSequence(null);

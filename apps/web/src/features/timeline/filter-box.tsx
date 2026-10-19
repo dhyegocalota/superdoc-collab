@@ -1,10 +1,10 @@
 import { TimelineFilterKind, TimelineSearchParam } from '@superdoc-collab/types';
-import { X } from 'lucide-react';
-import { useState, type KeyboardEvent } from 'react';
+import { Search, X } from 'lucide-react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KeyboardKey } from '@/lib/keyboard';
-import { CLEAR_FILTERS_LABEL, FILTER_LABEL, FILTER_PLACEHOLDER, removeFilterLabel } from './timeline-copy';
+import { CLEAR_FILTER_TEXT_LABEL, CLEAR_FILTERS_LABEL, FILTER_LABEL, FILTER_PLACEHOLDER, removeFilterLabel } from './timeline-copy';
 import { AUTHOR_PREFIX, parseFilterInput, useTimelineSearch } from './use-timeline-search';
 
 const PARAM_BY_KIND: Record<TimelineFilterKind, TimelineSearchParam> = {
@@ -20,6 +20,7 @@ function chipText({ param, value }: { param: TimelineSearchParam; value: string 
 export function FilterBox() {
   const { search, update } = useTimelineSearch();
   const [draft, setDraft] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const chips = [
     { param: TimelineSearchParam.Term, value: search.filter.term },
     { param: TimelineSearchParam.Author, value: search.filter.author },
@@ -39,19 +40,41 @@ export function FilterBox() {
     setDraft('');
   }
 
+  function clearDraft(): void {
+    setDraft('');
+    inputRef.current?.focus();
+  }
+
   function clearFilters(): void {
     update({ changes: { [TimelineSearchParam.Term]: null, [TimelineSearchParam.Author]: null }, replace: true });
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <Input
-        aria-label={FILTER_LABEL}
-        placeholder={FILTER_PLACEHOLDER}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={handleKeyDown}
-      />
+      <div className="relative">
+        <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          ref={inputRef}
+          aria-label={FILTER_LABEL}
+          placeholder={FILTER_PLACEHOLDER}
+          value={draft}
+          className="rounded-full pr-9 pl-9"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        {draft !== '' && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={CLEAR_FILTER_TEXT_LABEL}
+            className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-full text-muted-foreground"
+            onClick={clearDraft}
+          >
+            <X />
+          </Button>
+        )}
+      </div>
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
           {chips.map((chip) => (

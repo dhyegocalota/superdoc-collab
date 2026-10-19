@@ -1,5 +1,12 @@
 import { Hocuspocus } from '@hocuspocus/server';
-import { ApiPath, SECOND_MS, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-collab/types';
+import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
+  ApiPath,
+  SECOND_MS,
+  VERSION_ROOM_IDLE_MS,
+  VERSION_ROOMS_LIMIT,
+} from '@superdoc-collab/types';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -16,10 +23,11 @@ import { DOCUMENT_ID_PATTERN, documentIdFromRoomName } from './room-name';
 const SEQUENCE_PATTERN = /^[1-9]\d{0,15}$/;
 const VERSION_PATH_PREFIX = `${ApiPath.Collaboration}/versions/`;
 const PATH_SEPARATOR = '/';
-export const STOP_TIMEOUT_MS = 5 * SECOND_MS;
+const STOP_TIMEOUT_MS = 5 * SECOND_MS;
 const ROOM_DESTROY_FAILED_MESSAGE = 'Destroying a version instance failed for';
 
 export type VersionRoomPolicy = { idleMs: number; limit: number };
+type VersionRoomContext = { userId: string; documentId: string };
 type VersionRoom = { hocuspocus: Hocuspocus; idleTimer: NodeJS.Timeout | null };
 
 export const DEFAULT_VERSION_ROOM_POLICY: VersionRoomPolicy = { idleMs: VERSION_ROOM_IDLE_MS, limit: VERSION_ROOMS_LIMIT };
@@ -89,6 +97,25 @@ export class VersionRooms {
     this.roomFor(endpoint).hocuspocus.handleConnection(webSocket, request);
   }
 
+  closeUser({ documentId, userId }: { documentId: string; userId: string }): void {
+    const prefix = versionKeyPrefixOf(documentId);
+    this.closeMatching({ isRoomKey: (key) => key.startsWith(prefix), userId });
+  }
+
+  closeAllOfUser(userId: string): void {
+    this.closeMatching({ isRoomKey: () => true, userId });
+  }
+
+  private closeMatching({ isRoomKey, userId }: { isRoomKey: (key: string) => boolean; userId: string }): void {
+    this.rooms
+      .keys()
+      .filter(isRoomKey)
+      .flatMap((key) => [...this.rooms.peek(key)!.hocuspocus.documents.values()])
+      .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection))
+      .filter((connection) => (connection.context as VersionRoomContext).userId === userId)
+      .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
+  }
+
   size(): number {
     return this.rooms.size();
   }
@@ -129,10 +156,16 @@ export class VersionRooms {
         connection.readOnly = true;
         return { userId, documentId: endpoint.documentId };
       },
-      async onLoadDocument({ document }) {
-        Y.applyUpdate(document, (await versions.load(endpoint)).state, LOADING_ORIGIN);
+      async onLoadDocument({ document, context }) {
+        const { userId } = context as { userId: string };
+        Y.applyUpdate(document, (await versions.load({ ...endpoint, userId })).state, LOADING_ORIGIN);
       },
-      connected: async () => this.cancelIdle(key),
+      connected: async ({ context, connectionInstance }) => {
+        this.cancelIdle(key);
+        const { userId } = context as VersionRoomContext;
+        if (documents.findRole({ documentId: endpoint.documentId, userId }) !== null) return;
+        connectionInstance.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+      },
       afterUnloadDocument: async () => this.scheduleIdle(key),
     });
     return {

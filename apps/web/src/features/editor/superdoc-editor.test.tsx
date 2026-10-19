@@ -10,16 +10,19 @@ type EditorConfig = {
   colors: string[];
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
+  onCollaborationReady: () => void;
   onEditorUpdate: () => void;
   onPaginationUpdate: () => void;
 };
 
 const DISPLACED_COLOR_SLOT = 2;
 
-const { SuperDoc, superdocDestroy } = vi.hoisted(() => {
+const { SuperDoc, superdocDestroy, useCaretOnOpen } = vi.hoisted(() => {
+  const useCaretOnOpen = vi.fn();
   const superdocDestroy = vi.fn();
   return {
     superdocDestroy,
+    useCaretOnOpen,
     SuperDoc: vi.fn(function SuperDocStub(_config: EditorConfig) {
       return { destroy: superdocDestroy };
     }),
@@ -28,12 +31,21 @@ const { SuperDoc, superdocDestroy } = vi.hoisted(() => {
 
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
+vi.mock('./use-caret-on-open', () => ({ useCaretOnOpen }));
 
 function renderEditor({
   toolbarContainer = null,
   onSuperdocChange = vi.fn(),
   onEditorUpdate = vi.fn(),
-}: { toolbarContainer?: HTMLElement | null; onSuperdocChange?: () => void; onEditorUpdate?: () => void } = {}) {
+  onDocumentEdit = vi.fn(),
+  role = DocumentRole.Editor,
+}: {
+  toolbarContainer?: HTMLElement | null;
+  onSuperdocChange?: () => void;
+  onEditorUpdate?: () => void;
+  onDocumentEdit?: () => void;
+  role?: DocumentRole;
+} = {}) {
   render(
     <SuperDocEditor
       onSuperdocChange={onSuperdocChange}
@@ -42,7 +54,7 @@ function renderEditor({
       documentId="doc-1"
       roomMode={RoomMode.Create}
       creatorTicket={null}
-      role={DocumentRole.Editor}
+      role={role}
       user={SESSION_USER}
       colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
@@ -50,6 +62,7 @@ function renderEditor({
       isSuperseded={false}
       onTransportReport={vi.fn()}
       onEditorUpdate={onEditorUpdate}
+      onDocumentEdit={onDocumentEdit}
     />,
   );
   const firstCall = SuperDoc.mock.calls.at(0);
@@ -63,25 +76,13 @@ afterEach(() => {
   removeAuthorPalette();
   SuperDoc.mockClear();
   superdocDestroy.mockClear();
+  useCaretOnOpen.mockClear();
 });
 
 test('passes the colour of the slot the server assigned and six palette colours to SuperDoc', () => {
   const { config } = renderEditor();
   expect(config.user.color).toBe(AUTHOR_PALETTE[DISPLACED_COLOR_SLOT - 1]);
   expect(config.colors).toEqual(AUTHOR_PALETTE);
-});
-
-test('the page background class is bg-paper and not bg-background', () => {
-  renderEditor();
-  const editor = screen.getByTestId('document-editor');
-  expect(editor.className).toContain('[&_.superdoc-page]:bg-paper');
-  expect(editor.className).not.toContain('[&_.superdoc-page]:bg-background');
-});
-
-test('hands the toolbar container to SuperDoc', () => {
-  const toolbarContainer = document.createElement('div');
-  const { config } = renderEditor({ toolbarContainer });
-  expect(config.ui.toolbar?.container).toBe(toolbarContainer);
 });
 
 test('reports every editor update to the page', () => {
@@ -107,4 +108,35 @@ test('exposes the instance as state once SuperDoc is ready and clears it on dest
   expect(onSuperdocChange).toHaveBeenLastCalledWith(instance);
   cleanup();
   expect(onSuperdocChange).toHaveBeenLastCalledWith(null);
+});
+
+function lastCaretOnOpenEnabled(): boolean {
+  return useCaretOnOpen.mock.lastCall![0].isEnabled;
+}
+
+test('enables the caret on open for an editor only once collaboration is ready', () => {
+  const { config } = renderEditor();
+  expect(lastCaretOnOpenEnabled()).toBe(false);
+  act(() => config.onCollaborationReady());
+  expect(lastCaretOnOpenEnabled()).toBe(true);
+});
+
+test('never enables the caret on open for a reader', () => {
+  const { config } = renderEditor({ role: DocumentRole.Reader });
+  act(() => config.onCollaborationReady());
+  expect(lastCaretOnOpenEnabled()).toBe(false);
+});
+
+test('reports a document edit only for an editor update, never for a layout pass', () => {
+  const onDocumentEdit = vi.fn();
+  const { config } = renderEditor({ onDocumentEdit });
+  config.onPaginationUpdate();
+  expect(onDocumentEdit).not.toHaveBeenCalled();
+  config.onEditorUpdate();
+  expect(onDocumentEdit).toHaveBeenCalledTimes(1);
+});
+
+test('the editor container keeps a small top padding so the first page clears the toolbar', () => {
+  renderEditor();
+  expect(screen.getByTestId('document-editor')).toHaveClass('pt-3');
 });

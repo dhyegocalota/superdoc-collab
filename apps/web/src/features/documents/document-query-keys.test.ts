@@ -7,7 +7,6 @@ import {
   selectionSummaryQueryKey,
   summariesQueryKey,
   timelineQueryKey,
-  topicsQueryKey,
   versionQueryKey,
 } from '@/features/timeline/timeline-api';
 import { documentQueryKey, DOCUMENTS_QUERY_KEY } from './documents-api';
@@ -40,7 +39,6 @@ test('every document key keeps its value', () => {
     TIME_ZONE,
   ]);
   expect(summariesQueryKey(DOCUMENT_ID)).toEqual(['documents', DOCUMENT_ID, DocumentResource.Summaries]);
-  expect(topicsQueryKey(DOCUMENT_ID)).toEqual(['documents', DOCUMENT_ID, DocumentResource.Topics]);
   expect(binEditsQueryKey({ documentId: DOCUMENT_ID, binStart: BIN_START, binMs: BIN_MS, filter: FILTER, timeZone: TIME_ZONE })).toEqual([
     'documents',
     DOCUMENT_ID,
@@ -78,8 +76,8 @@ test('the timeline prefix reaches the timeline and its bin edits, and the docume
     timeZone: TIME_ZONE,
   });
   const fileKey = documentFileQueryKey({ documentId: DOCUMENT_ID, roomMode: RoomMode.Create });
-  [timelineKey, binEditsKey, summariesQueryKey(DOCUMENT_ID), topicsQueryKey(DOCUMENT_ID), membersQueryKey(DOCUMENT_ID), fileKey].forEach(
-    (queryKey) => queryClient.setQueryData(queryKey, {}),
+  [timelineKey, binEditsKey, summariesQueryKey(DOCUMENT_ID), membersQueryKey(DOCUMENT_ID), fileKey].forEach((queryKey) =>
+    queryClient.setQueryData(queryKey, {}),
   );
   const timelinePrefix = [...DOCUMENTS_QUERY_KEY, DOCUMENT_ID, DocumentResource.Timeline];
   expect(keysMatching({ queryClient, queryKey: timelinePrefix })).toEqual([timelineKey, binEditsKey]);

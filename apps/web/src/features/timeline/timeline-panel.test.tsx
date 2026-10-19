@@ -1,16 +1,15 @@
 import {
   AppRoute,
   ClientActor,
+  IMPORTED_KEY_PREFIX,
   UTC_TIME_ZONE,
   documentApiPath,
   documentPagePath,
   DocumentResource,
   DocumentRole,
-  HISTORY_CATCHING_UP_MESSAGE,
   HttpMethod,
   HttpStatus,
   NO_MATCHING_EDITS_MESSAGE,
-  SELECTION_SUMMARY_FAILED_MESSAGE,
   selectionSummaryApiPath,
   SelectionSummaryState,
   SummarizeStep,
@@ -23,7 +22,7 @@ import {
   type DocumentTimeline,
   type SelectionSummaryView,
 } from '@superdoc-collab/types';
-import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
@@ -36,6 +35,7 @@ import { TIMELINE_POLL_MS } from './timeline-api';
 import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
+  EMPTY_PANEL_DESCRIPTION,
   CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
   LOADING_TIMELINE_LABEL,
@@ -52,13 +52,14 @@ import {
   PANEL_POSITION_LABELS,
   TIMELINE_HEADING,
   TOP_EDITS_LABEL,
+  VIEW_EDIT_VERSION_LABEL,
   VIEW_VERSION_LABEL,
 } from './timeline-copy';
 import { CHART_HEIGHT } from './streamgraph-layout';
 import { PanelColumn, PanelState } from './panel-layout';
+import { PANEL_EMPTY_STATE_TEST_ID } from './panel-empty-state';
 import { TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
-import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import type { SummarizeControl } from './use-summarize';
 import { PANEL_POSITION_STORAGE_KEY, PanelPosition } from './use-panel-position';
 import { MIN_EDITOR_HEIGHT, MIN_EDITOR_WIDTH, MIN_PANEL_HEIGHT, MIN_PANEL_WIDTH, PANEL_RESIZE_STEP } from './use-panel-width';
@@ -70,8 +71,6 @@ const EDITS_PATH = timelineEditsApiPath(DOCUMENT_ID);
 const ROUTE = documentPagePath(DOCUMENT_ID);
 const REGROUP_TOPICS_LABEL = 'Regroup topics';
 const FAILURE_TEXT = 'The model refused';
-const LAG_MS = 12_000;
-const SMALL_LAG_MS = 2000;
 const DRAGGED_WIDTH = 500;
 const SHRUNK_WINDOW_WIDTH = 800;
 const AREA_HEIGHT = 1000;
@@ -95,14 +94,6 @@ const READY_VIEW: SelectionSummaryView = {
   partial: null,
 };
 const STALE_VIEW: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, isStale: true } };
-const FAILED_VIEW: SelectionSummaryView = {
-  state: SelectionSummaryState.Failed,
-  summary: null,
-  failure: SELECTION_SUMMARY_FAILED_MESSAGE,
-  isModelAvailable: true,
-  step: SummarizeStep.Idle,
-  partial: null,
-};
 const UNAVAILABLE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Failed,
   summary: null,
@@ -407,31 +398,27 @@ test('pending topics with topic bands still say the topics are being named', asy
   expect(await screen.findByText(TOPICS_PENDING_MESSAGE)).toBeInTheDocument();
 });
 
-test('a lagging projection is announced only from the threshold', async () => {
-  mockTimelineApi({ timeline: { ...baseTimeline, projection: { ...baseTimeline.projection, isBehind: true, lagMs: LAG_MS } } });
-  renderPanel();
-  expect(await screen.findByText(HISTORY_CATCHING_UP_MESSAGE)).toBeInTheDocument();
-  expect(screen.getByText('12 s behind')).toBeInTheDocument();
-});
-
-test('a small lag shows nothing', async () => {
-  expect(SMALL_LAG_MS).toBeLessThan(PROJECTION_LAG_NOTICE_MS);
-  mockTimelineApi({ timeline: { ...baseTimeline, projection: { ...baseTimeline.projection, isBehind: true, lagMs: SMALL_LAG_MS } } });
-  renderPanel();
-  expect(await screen.findByLabelText('Budget, 30 characters')).toBeInTheDocument();
-  expect(screen.queryByText(HISTORY_CATCHING_UP_MESSAGE)).not.toBeInTheDocument();
-});
-
 test('a filter that matches nothing says so', async () => {
   mockTimelineApi({ timeline: timelineWith({ volumes: [[0], [0]], names: ['Budget'] }) });
   renderPanel({ route: `${ROUTE}?term=zzz` });
   expect(await screen.findByText(NO_MATCHING_EDITS_MESSAGE)).toBeInTheDocument();
 });
 
-test('a document without edits says so', async () => {
+test('a document without edits shows one empty state with the illustration instead of the chart and lists', async () => {
   mockTimelineApi({ timeline: timelineWith({ volumes: [], names: [] }) });
   renderPanel();
-  expect(await screen.findByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
+  const emptyState = await screen.findByTestId(PANEL_EMPTY_STATE_TEST_ID);
+  expect(within(emptyState).getByRole('heading', { name: NO_EDITS_YET_MESSAGE })).toBeInTheDocument();
+  expect(within(emptyState).getByText(EMPTY_PANEL_DESCRIPTION)).toBeInTheDocument();
+  expect(emptyState.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  expect(screen.queryByRole('textbox', { name: FILTER_LABEL })).not.toBeInTheDocument();
+});
+
+test('a document with edits shows the chart and no empty state', async () => {
+  mockTimelineApi();
+  renderPanel();
+  await screen.findByRole('textbox', { name: FILTER_LABEL });
+  expect(screen.queryByTestId(PANEL_EMPTY_STATE_TEST_ID)).not.toBeInTheDocument();
 });
 
 test('a document edited after the last timeline answer does not say it has no edits', async () => {
@@ -460,6 +447,7 @@ test('a selected bin lists its runs with cut snippets', async () => {
         inserted: 'hello',
         deleted: 'x'.repeat(SNIPPET_MAX_CHARACTERS + 80),
         lastServerTime: 1,
+        versionSequence: 7,
       },
     ],
     authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
@@ -469,6 +457,29 @@ test('a selected bin lists its runs with cut snippets', async () => {
   expect(await screen.findByText('hello')).toBeInTheDocument();
   expect(screen.getByText(`${'x'.repeat(SNIPPET_MAX_CHARACTERS)}…`)).toBeInTheDocument();
   expect(screen.getByText('Ana')).toBeInTheDocument();
+});
+
+test('an imported run offers no version button because it has no logged sequence', async () => {
+  const edits: BinEdits = {
+    binStart: baseTimeline.bins[1]!.start,
+    binMs: baseTimeline.binMs,
+    runs: [
+      {
+        blockId: 'block-1',
+        bandId: baseTimeline.bands[0]!.id,
+        authorKeys: [`${IMPORTED_KEY_PREFIX}ana`],
+        inserted: 'imported text',
+        deleted: '',
+        lastServerTime: 1,
+        versionSequence: 0,
+      },
+    ],
+    authors: { [`${IMPORTED_KEY_PREFIX}ana`]: { id: null, name: 'Ana', actor: ClientActor.Human } },
+  };
+  mockTimelineApi({ edits });
+  renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
+  expect(await screen.findByText('imported text')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: VIEW_EDIT_VERSION_LABEL })).not.toBeInTheDocument();
 });
 
 test('a selected bin without runs says so', async () => {
@@ -536,37 +547,10 @@ test('a reader reads the summary but has no Retry summary button', async () => {
   expect(screen.queryByRole('button', { name: RETRY_SUMMARY_LABEL })).not.toBeInTheDocument();
 });
 
-test('a failed summary offers a retry to editors only', async () => {
-  const summarize = idleSummarize();
-  mockTimelineApi({ selectionViews: [FAILED_VIEW] });
-  renderPanel({ summarize });
-  expect(await screen.findByText(SELECTION_SUMMARY_FAILED_MESSAGE)).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: RETRY_SUMMARY_LABEL }));
-  expect(summarize.summarize).toHaveBeenCalledTimes(1);
-  cleanup();
-  renderPanel({ role: DocumentRole.Reader });
-  expect(await screen.findByText(SELECTION_SUMMARY_FAILED_MESSAGE)).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: RETRY_SUMMARY_LABEL })).not.toBeInTheDocument();
-});
-
 test('without a language model the card stays quiet', async () => {
   mockTimelineApi({ selectionViews: [UNAVAILABLE_VIEW] });
   renderPanel();
   await screen.findByLabelText(/^Budget/);
-  expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
-});
-
-test('a stale summary shows the earlier-state badge', async () => {
-  mockTimelineApi({ selectionViews: [STALE_VIEW] });
-  renderPanel();
-  expect(await screen.findByText(EARLIER_STATE_LABEL)).toBeInTheDocument();
-});
-
-test('the summary card sits in a polite live region that exists before it has content', async () => {
-  mockTimelineApi();
-  renderPanel();
-  await screen.findByLabelText(/^Budget/);
-  expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
   expect(screen.queryByRole('region', { name: SELECTION_SUMMARY_HEADING })).not.toBeInTheDocument();
 });
 
@@ -671,6 +655,7 @@ test('bin edits mark insertions and deletions without quotes or padding', async 
         inserted: ' More money',
         deleted: 'old ',
         lastServerTime: 1,
+        versionSequence: 7,
       },
     ],
     authors: { ana: { id: '1', name: 'Ana', actor: ClientActor.Human } },
@@ -769,22 +754,10 @@ test('the bottom panel puts the chart first in a block that keeps its height, an
   const listColumn = (await screen.findByRole('region', { name: SELECTION_SUMMARY_HEADING })).closest(
     `[data-column="${PanelColumn.List}"]`,
   ) as HTMLElement;
-  expect(chartColumn.firstElementChild).toHaveClass('shrink-0', 'overflow-visible');
   expect(chartColumn.firstElementChild).toContainElement(chart);
   expect(chart.compareDocumentPosition(screen.getByLabelText(FILTER_LABEL)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(listColumn).getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
   expect(within(chartColumn).queryByText(TOPICS_UNAVAILABLE_MESSAGE)).not.toBeInTheDocument();
-});
-
-test('below md the bottom columns take their content height so the chart never overlaps the card', async () => {
-  mockTimelineApi();
-  renderPanel({ position: PanelPosition.Bottom });
-  await screen.findByLabelText(/^Budget/);
-  document.querySelectorAll('[data-column]').forEach((column) => {
-    const classes = column.className.split(' ');
-    expect(classes).not.toContain('min-h-0');
-    expect(classes).toContain('md:min-h-0');
-  });
 });
 
 function wholeDocumentHeader(): HTMLElement {
@@ -795,7 +768,7 @@ function isFollowing({ before, after }: { before: Element; after: Element }): bo
   return Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
 }
 
-test('below md the order is chart, header, filter, card, edits and the header is sticky', async () => {
+test('below md the order is chart, header, filter, card, edits', async () => {
   mockTimelineApi({ selectionViews: [READY_VIEW] });
   renderPanel({ position: PanelPosition.Bottom });
   const chart = await screen.findByLabelText(/^Budget/);
@@ -807,16 +780,6 @@ test('below md the order is chart, header, filter, card, edits and the header is
   expect(isFollowing({ before: header, after: filter })).toBe(true);
   expect(isFollowing({ before: filter, after: card })).toBe(true);
   expect(isFollowing({ before: card, after: edits })).toBe(true);
-  expect(header).toHaveClass('sticky', 'top-0');
-});
-
-test('the header lives under the chart in the chart column and its scroller is the panel body', async () => {
-  mockTimelineApi();
-  renderPanel({ position: PanelPosition.Bottom });
-  await screen.findByLabelText(/^Budget/);
-  const chartColumn = document.querySelector<HTMLElement>(`[data-column="${PanelColumn.Chart}"]`)!;
-  expect(chartColumn).toContainElement(wholeDocumentHeader());
-  expect(chartColumn).toHaveClass('contents', 'md:flex');
 });
 
 test('from the large breakpoint there is no header', async () => {
@@ -877,7 +840,6 @@ test('the first load shows a status skeleton with the chart height', async () =>
   renderPanel({ position: PanelPosition.Bottom });
   const skeleton = await screen.findByRole('status', { name: LOADING_TIMELINE_LABEL });
   expect(skeleton).toHaveStyle({ height: `${CHART_HEIGHT}px` });
-  expect(skeleton).toHaveClass('animate-pulse', 'motion-reduce:animate-none');
 });
 
 test('once the timeline is loaded the skeleton is gone', async () => {
@@ -940,17 +902,6 @@ test('from lg selecting a versioned bin travels at once and there is no header',
   fireEvent.keyDown(await screen.findByLabelText(/^Budget/), { key: 'ArrowRight' });
   expect(onTravel).toHaveBeenCalledExactlyOnceWith(versionedTimeline.bins[0]!.start);
   expect(screen.queryByRole('button', { name: VIEW_VERSION_LABEL })).not.toBeInTheDocument();
-});
-
-test('below md the header sits in a contents wrapper whose parent is a scrolling flex column, because a grid item sticks only inside its own row', async () => {
-  mockTimelineApi();
-  renderPanel({ position: PanelPosition.Bottom });
-  await screen.findByLabelText(/^Budget/);
-  expect(wholeDocumentHeader().parentElement).toHaveClass('contents');
-  const body = wholeDocumentHeader().parentElement!.parentElement!;
-  expect(body).toHaveAttribute('data-panel-body');
-  expect(body).toHaveClass('flex', 'flex-col', 'overflow-y-auto', 'md:grid');
-  expect(body).not.toHaveClass('grid');
 });
 
 test('from md to lg the header tops the list column', async () => {

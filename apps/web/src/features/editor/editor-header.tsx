@@ -35,8 +35,12 @@ import { DownloadFormat } from './download-format';
 import { DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
 import { FindButton, openFindBar } from './find-button';
 import { Members } from './members';
+import { allowLeave } from './unsynced-edits-store';
 import { ShareDialog } from './share-dialog';
 
+const DIVIDER_CLASS = 'h-5 w-px shrink-0 bg-border';
+const EDITING_DIVIDER_CLASS = `max-md:hidden ${DIVIDER_CLASS}`;
+const EDITING_RIGHT_GROUPS_CLASS = 'hidden md:contents';
 const FOLDING_ACTION_CLASS = 'flex items-center max-lg:hidden';
 
 type DocumentIdentity = { documentId: string };
@@ -52,6 +56,7 @@ function DeleteDocumentDialog({
   const { mutate, isPending, isError } = useMutation({
     mutationFn: () => deleteDocument(documentId),
     onSuccess: async () => {
+      allowLeave();
       await navigate(AppRoute.Documents);
       await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY, exact: true });
     },
@@ -155,6 +160,7 @@ type EditorHeaderProps = {
   editorContainer: HTMLElement | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
+  onTitleDirtyChange: (isDirty: boolean) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
@@ -166,6 +172,7 @@ export function EditorHeader({
   editorContainer,
   isPastVersion,
   onDownloadDocx,
+  onTitleDirtyChange,
   renderUseWithAi,
 }: EditorHeaderProps) {
   const { document, role } = opened;
@@ -175,19 +182,29 @@ export function EditorHeader({
   const isLarge = useMinWidth(LARGE_BREAKPOINT_PX);
   const hasActionsMenu = !isLarge || isOwner;
   const [hasRenameFailed, setHasRenameFailed] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const dividerClass = isEditingTitle ? EDITING_DIVIDER_CLASS : DIVIDER_CLASS;
+  const rightGroupsClass = isEditingTitle ? EDITING_RIGHT_GROUPS_CLASS : 'contents';
 
   return (
     <>
       <AppTopBar
         left={
           <>
-            <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
-            <DocumentTitle documentId={document.id} title={document.title} role={role} onFailureChange={setHasRenameFailed} />
+            <span aria-hidden className={dividerClass} />
+            <DocumentTitle
+              documentId={document.id}
+              title={document.title}
+              role={role}
+              onFailureChange={setHasRenameFailed}
+              onDirtyChange={onTitleDirtyChange}
+              onEditingChange={setIsEditingTitle}
+            />
             {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
           </>
         }
         right={
-          <>
+          <div className={rightGroupsClass}>
             <div className="hidden sm:block">
               <Members
                 documentId={document.id}
@@ -221,7 +238,7 @@ export function EditorHeader({
               />
             )}
             <AccountMenu colorSlot={opened.colorSlot} />
-          </>
+          </div>
         }
       />
       {hasRenameFailed && <ErrorMessage className="px-4 py-2">{RENAME_FAILED_MESSAGE}</ErrorMessage>}

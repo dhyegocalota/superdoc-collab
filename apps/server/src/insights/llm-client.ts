@@ -6,7 +6,7 @@ import type { LlmSettings } from '../config/environment';
 
 export const LLM_MODEL_MISSING_MESSAGE = 'The language model is unavailable: LLM_MODEL is not set on the server.';
 export const LLM_BUSY_MESSAGE = 'The language model is busy; try again later.';
-export const LLM_TIMEOUT_MESSAGE = 'The language model took too long to answer.';
+const LLM_TIMEOUT_MESSAGE = 'The language model took too long to answer.';
 export const LLM_KEY_MISSING_MESSAGE = 'The language model is unavailable: OPENROUTER_API_KEY is not set on the server.';
 const LLM_TIMEOUT_MS = 30 * SECOND_MS;
 const LLM_MAX_RETRIES = 1;

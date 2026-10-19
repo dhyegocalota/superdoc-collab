@@ -7,6 +7,7 @@ import { formatTimestamp } from '@/lib/format-date-time';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { COLUMNS_BY_KIND, DocumentColumn, type DocumentListKind } from './document-columns';
+import { DocumentListEmpty } from './document-list-empty';
 import { COLUMN_LABELS, DOCUMENT_DETAILS_SEPARATOR, ROLE_LABELS } from './documents-copy';
 
 type CellArguments = { document: DocumentSummary; timeZone: string };
@@ -39,7 +40,7 @@ export function DocumentTable({ documents, emptyMessage, kind }: DocumentTablePr
   const isPhoneLayout = useIsPhoneLayout();
   const columns = COLUMNS_BY_KIND[kind];
 
-  if (documents.length === 0) return <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">{emptyMessage}</p>;
+  if (documents.length === 0) return <DocumentListEmpty message={emptyMessage} />;
   if (isPhoneLayout) {
     const detailColumns = columns.filter((column) => column !== DocumentColumn.Title);
     return (

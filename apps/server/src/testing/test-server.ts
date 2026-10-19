@@ -13,7 +13,7 @@ import type { Auth } from '../auth/auth';
 import type { Environment, LlmSettings } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collaboration/version-rooms';
-import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS, TRUSTED_PROXY_HOPS } from '../config/environment';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type RunningServer, type ServerServices } from '../server';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
@@ -62,6 +62,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy: true,
+    trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
@@ -82,19 +83,23 @@ function isAddressInUse(error: unknown): boolean {
 
 export async function startTestServer({
   trustProxy = true,
+  trustedProxyHops = TRUSTED_PROXY_HOPS,
   databaseDirectory = temporaryDirectory(),
   languageModel = chooseLanguageModel(NO_LLM_SETTINGS),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   attemptsLeft = START_ATTEMPTS,
   claim = true,
+  showcaseOnClaim = false,
   now = Date.now,
 }: {
   trustProxy?: boolean;
+  trustedProxyHops?: number;
   databaseDirectory?: string;
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   attemptsLeft?: number;
   claim?: boolean;
+  showcaseOnClaim?: boolean;
   now?: () => number;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
@@ -105,6 +110,7 @@ export async function startTestServer({
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy,
+    trustedProxyHops,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
@@ -115,6 +121,7 @@ export async function startTestServer({
       languageModel,
       versionRoomPolicy,
       projectionWorkerFile: prebuiltProjectionWorkerFile(),
+      createShowcaseOnClaim: showcaseOnClaim,
       now,
     });
     const unclaimed = buildTestServer({ running, databaseDirectory, admin: null });
@@ -122,7 +129,17 @@ export async function startTestServer({
     return buildTestServer({ running, databaseDirectory, admin: await claimOrSignInAdmin(unclaimed) });
   } catch (error) {
     if (!isAddressInUse(error) || attemptsLeft <= 1) throw error;
-    return startTestServer({ trustProxy, databaseDirectory, languageModel, versionRoomPolicy, attemptsLeft: attemptsLeft - 1, claim, now });
+    return startTestServer({
+      trustProxy,
+      trustedProxyHops,
+      databaseDirectory,
+      languageModel,
+      versionRoomPolicy,
+      attemptsLeft: attemptsLeft - 1,
+      claim,
+      showcaseOnClaim,
+      now,
+    });
   }
 }
 

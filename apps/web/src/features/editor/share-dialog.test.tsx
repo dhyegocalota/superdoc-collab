@@ -1,25 +1,34 @@
 import {
   documentApiPath,
   DocumentResource,
+  DocumentRole,
   HttpMethod,
   HttpStatus,
   LINK_COPIED_MESSAGE,
+  memberApiPath,
   ShareLinkRole,
+  type DocumentMember,
+  type DocumentMembers,
   type ShareLinks,
 } from '@superdoc-collab/types';
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
+import { ROLE_LABELS } from '@/features/documents/documents-copy';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   COPY_FAILED_MESSAGE,
   COPY_LABEL,
+  LOADING_MEMBERS_LABEL,
   LOADING_SHARE_LINKS_LABEL,
+  MEMBERS_LOAD_ERROR_MESSAGE,
+  PEOPLE_WITH_ACCESS_LABEL,
+  REMOVE_FAILED_MESSAGE,
+  removeMemberLabel,
   RESET_FAILED_MESSAGE,
   RESET_LINK_LABEL,
-  SHARE_DIALOG_DESCRIPTION,
   SHARE_LABEL,
   SHARE_LINK_LABELS,
   SHARE_LINKS_LOAD_ERROR_MESSAGE,
@@ -33,13 +42,28 @@ const LINKS: ShareLinks = {
   [ShareLinkRole.Read]: 'http://localhost/share/read-token',
 };
 const ROTATED_LINKS: ShareLinks = { ...LINKS, [ShareLinkRole.Edit]: 'http://localhost/share/rotated-token' };
+const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members });
+const OWNER_MEMBER: DocumentMember = { user: { id: 'owner-id', name: 'Ana' }, role: DocumentRole.Owner, online: true, colorSlot: 1 };
+const READER_MEMBER: DocumentMember = { user: { id: 'reader-id', name: 'Bruno' }, role: DocumentRole.Reader, online: false, colorSlot: 2 };
+const EDITOR_MEMBER: DocumentMember = { user: { id: 'editor-id', name: 'Carla' }, role: DocumentRole.Editor, online: false, colorSlot: 3 };
+const READER_PATH = memberApiPath({ documentId: DOCUMENT_ID, userId: READER_MEMBER.user.id });
 const NOTICE_FAKE_TIMERS = { toFake: ['setTimeout', 'clearTimeout'] } satisfies Parameters<typeof vi.useFakeTimers>[0];
 
 afterEach(() => vi.restoreAllMocks());
 
-function mockShareApi() {
+function membersAnswer(members: DocumentMember[]): DocumentMembers {
+  return { members, isCurrentUserOnline: true, isAttemptSuperseded: false };
+}
+
+function mockShareApi({ members = [OWNER_MEMBER, READER_MEMBER, EDITOR_MEMBER] }: { members?: DocumentMember[] } = {}) {
+  const remaining = [...members];
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (input === ROTATE_EDIT_PATH && init?.method === HttpMethod.Post) return jsonResponse({ body: ROTATED_LINKS });
+    if (input === READER_PATH && init?.method === HttpMethod.Delete) {
+      remaining.splice(remaining.indexOf(READER_MEMBER), 1);
+      return new Response(null, { status: HttpStatus.NoContent });
+    }
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return jsonResponse({ body: membersAnswer(remaining) });
     return jsonResponse({ body: LINKS });
   });
 }
@@ -81,6 +105,7 @@ test('Reset link on the edit row posts the rotation and shows the new url', asyn
 test('a failed reset shows an alert and keeps the old url', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (init?.method === HttpMethod.Post) return new Response(null, { status: HttpStatus.Forbidden });
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return jsonResponse({ body: membersAnswer([OWNER_MEMBER]) });
     return jsonResponse({ body: LINKS });
   });
   await openDialog();
@@ -88,12 +113,6 @@ test('a failed reset shows an alert and keeps the old url', async () => {
   await userEvent.click(within(editRow).getByRole('button', { name: RESET_LINK_LABEL }));
   expect(await within(editRow).findByRole('alert')).toHaveTextContent(RESET_FAILED_MESSAGE);
   expect(screen.getByDisplayValue(LINKS[ShareLinkRole.Edit])).toBeInTheDocument();
-});
-
-test('the dialog says resetting stops the old link', async () => {
-  mockShareApi();
-  await openDialog();
-  expect(screen.getByText(SHARE_DIALOG_DESCRIPTION)).toHaveTextContent('stops the old one from working');
 });
 
 test('two placeholder rows show while the links load', async () => {
@@ -163,7 +182,7 @@ test('copying again keeps Link copied for a full period from the second copy', a
 test('links that fail to load show an alert instead of placeholders', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
   await openDialog();
-  expect(await screen.findByRole('alert')).toHaveTextContent(SHARE_LINKS_LOAD_ERROR_MESSAGE);
+  expect(await screen.findByText(SHARE_LINKS_LOAD_ERROR_MESSAGE)).toHaveAttribute('role', 'alert');
   expect(screen.queryByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).not.toBeInTheDocument();
 });
 
@@ -178,4 +197,64 @@ test('copying the other link moves Link copied to that row', async () => {
   await user.click(within(readRow).getByRole('button', { name: COPY_LABEL }));
   expect(await within(readRow).findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
   expect(within(editRow).queryByText(LINK_COPIED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('the dialog lists the members with their role labels and no Remove on the owner', async () => {
+  mockShareApi();
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  const rows = within(people).getAllByRole('listitem');
+  expect(rows.map((row) => row.textContent)).toEqual([
+    expect.stringContaining(`Ana${ROLE_LABELS[DocumentRole.Owner]}`),
+    expect.stringContaining(`Bruno${ROLE_LABELS[DocumentRole.Reader]}`),
+    expect.stringContaining(`Carla${ROLE_LABELS[DocumentRole.Editor]}`),
+  ]);
+  expect(within(people).queryByRole('button', { name: removeMemberLabel('Ana') })).not.toBeInTheDocument();
+  expect(within(people).getByRole('button', { name: removeMemberLabel('Bruno') })).toBeInTheDocument();
+  expect(within(people).getByRole('button', { name: removeMemberLabel('Carla') })).toBeInTheDocument();
+});
+
+test('Remove deletes the member and the list refreshes without them', async () => {
+  const fetchSpy = mockShareApi();
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  await userEvent.click(within(people).getByRole('button', { name: removeMemberLabel('Bruno') }));
+  expect(fetchSpy).toHaveBeenCalledWith(READER_PATH, expect.objectContaining({ method: HttpMethod.Delete }));
+  await waitFor(() => expect(within(people).queryByText('Bruno')).not.toBeInTheDocument());
+  expect(within(people).getByText('Carla')).toBeInTheDocument();
+});
+
+test('a failed removal shows an alert and keeps the row', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    if (init?.method === HttpMethod.Delete) return new Response(null, { status: HttpStatus.InternalServerError });
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH))
+      return jsonResponse({ body: membersAnswer([OWNER_MEMBER, READER_MEMBER]) });
+    return jsonResponse({ body: LINKS });
+  });
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  await userEvent.click(within(people).getByRole('button', { name: removeMemberLabel('Bruno') }));
+  expect(await within(people).findByRole('alert')).toHaveTextContent(REMOVE_FAILED_MESSAGE);
+  expect(within(people).getByText('Bruno')).toBeInTheDocument();
+});
+
+test('a placeholder shows while the members load', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return new Promise<Response>(() => undefined);
+    return Promise.resolve(jsonResponse({ body: LINKS }));
+  });
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  expect(within(people).getByRole('status', { name: LOADING_MEMBERS_LABEL })).toBeInTheDocument();
+});
+
+test('members that fail to load show an alert inside the group', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return new Response(null, { status: HttpStatus.Forbidden });
+    return jsonResponse({ body: LINKS });
+  });
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  expect(await within(people).findByRole('alert')).toHaveTextContent(MEMBERS_LOAD_ERROR_MESSAGE);
+  expect(within(people).queryByRole('status', { name: LOADING_MEMBERS_LABEL })).not.toBeInTheDocument();
 });

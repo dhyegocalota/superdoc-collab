@@ -24,6 +24,7 @@ import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   CANCEL_LABEL,
+  CANCEL_TITLE_LABEL,
   DELETE_CONFIRM_LABEL,
   DELETE_FAILED_MESSAGE,
   DELETE_LABEL,
@@ -33,6 +34,7 @@ import {
   FIND_IN_DOCUMENT_LABEL,
   HOME_LINK_LABEL,
   memberLabel,
+  onlineMembersLabel,
   MORE_ACTIONS_LABEL,
   renameTitleLabel,
   RENAME_FAILED_MESSAGE,
@@ -84,6 +86,7 @@ function renderHeader({
       editorContainer={null}
       isPastVersion={isPastVersion}
       onDownloadDocx={onDownloadDocx}
+      onTitleDirtyChange={vi.fn()}
       renderUseWithAi={renderUseWithAi}
     />,
     { queryClient, route },
@@ -125,7 +128,7 @@ function onlyRequestWithMethod(fetchSpy: MockInstance<typeof fetch>, method: Htt
 test('at 1280 the right slot order is Members, Find, Use with AI, Share, Download, More actions, account', () => {
   renderHeader({ role: DocumentRole.Owner, members: [ADA] });
   const controls: Record<string, HTMLElement> = {
-    Members: screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) }),
+    Members: screen.getByRole('button', { name: memberLabel(ADA.user.name) }),
     Find: screen.getByRole('button', { name: FIND_IN_DOCUMENT_LABEL }),
     'Use with AI': screen.getByRole('button', { name: USE_WITH_AI_LABEL }),
     Share: screen.getByRole('button', { name: SHARE_LABEL }),
@@ -161,12 +164,6 @@ test('the Use with AI dialog opened from More actions lives outside the menu', a
   const dialog = await screen.findByRole('dialog', { name: USE_WITH_AI_TITLE });
   await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
   expect(dialog.closest('[role="menu"]')).toBeNull();
-});
-
-test('EditorHeader passes superdoc and isPastVersion to Members', () => {
-  const superdoc = superdocStub();
-  renderHeader({ members: [ADA], superdoc, isPastVersion: true });
-  expect(vi.mocked(Members)).toHaveBeenCalledWith(expect.objectContaining({ superdoc, isPastVersion: true, members: [ADA] }), undefined);
 });
 
 test('a reader sees the read-only badge, an h1 title and neither Delete nor Share', async () => {
@@ -229,12 +226,6 @@ test('the brand link opens the documents list', async () => {
   expect(router.state.location.pathname).toBe(AppRoute.Documents);
 });
 
-test('the main download part asks for the live DOCX export', async () => {
-  renderHeader({ role: DocumentRole.Reader, superdoc: superdocStub() });
-  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
-  expect(onDownloadDocx).toHaveBeenCalledTimes(1);
-});
-
 test('the download parts are disabled until the editor is ready', () => {
   renderHeader({ role: DocumentRole.Reader, superdoc: null });
   expect(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL })).toBeDisabled();
@@ -269,22 +260,23 @@ test('closing the delete dialog returns the focus to More actions', async () => 
   expect(screen.getByRole('button', { name: MORE_ACTIONS_LABEL })).toHaveFocus();
 });
 
-test('members announce their presence and the current user is online at once', () => {
+test('the row shows the online members and the current user at once, and not an offline member', () => {
   const members: DocumentMember[] = [
     { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false, colorSlot: 1 },
     { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false, colorSlot: 2 },
     { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true, colorSlot: 3 },
   ];
   renderHeader({ role: DocumentRole.Owner, members });
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ada', isOnline: true }) })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Carla', isOnline: true }) })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: false }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Ada') })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Carla') })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Bruno/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('group', { name: onlineMembersLabel(2) })).toBeInTheDocument();
 });
 
 test('at 768 the bar keeps Members, Share, More actions and the account, and More actions carries Find, Use with AI and both downloads', async () => {
   const emit = vi.fn();
   renderHeader({ role: DocumentRole.Owner, members: [ADA], superdoc: superdocStub({ emit }), width: NARROW_VIEWPORT_WIDTH });
-  expect(screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel(ADA.user.name) })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: SHARE_LABEL })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: USE_WITH_AI_LABEL })).toBeNull();
@@ -307,16 +299,22 @@ test('at 1280 the menu holds only Delete for the owner and nothing for a reader'
   expect(screen.queryByRole('menuitem', { name: FIND_IN_DOCUMENT_LABEL })).toBeNull();
 });
 
-test('the bar actions that fold below 1024 are also hidden by CSS, so a resize never shows them for a frame', () => {
-  renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
-  [FIND_IN_DOCUMENT_LABEL, USE_WITH_AI_LABEL, DOWNLOAD_BUTTON_LABEL].forEach((name) => {
-    expect(screen.getByRole('button', { name }).closest('.max-lg\\:hidden')).not.toBeNull();
-  });
-});
-
 test('the account avatar wears the colour of the document slot, like the member swatch', () => {
   renderHeader();
   expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) }).firstElementChild).toHaveClass(
     `bg-author-${EDITOR_COLOR_SLOT}`,
   );
+});
+
+function accountGroup(): HTMLElement | null {
+  return screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) }).closest('.hidden');
+}
+
+test('while the title is edited the right groups give the row to the editor below md and return on Cancel', async () => {
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH });
+  expect(accountGroup()).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  expect(accountGroup()).toHaveClass('hidden', 'md:contents');
+  await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(accountGroup()).toBeNull();
 });

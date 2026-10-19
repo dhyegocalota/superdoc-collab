@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PeopleWithAccess } from './people-with-access';
 import { fetchShareLinks, rotateShareLink, shareLinksQueryKey } from './editor-api';
 import {
   COPY_FAILED_MESSAGE,
@@ -143,6 +144,7 @@ export function ShareDialog({ documentId }: { documentId: string }) {
               onReset={() => forgetCopied(role)}
             />
           ))}
+        <PeopleWithAccess documentId={documentId} />
       </DialogContent>
     </Dialog>
   );

@@ -36,10 +36,13 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
   const { data: timeline } = useTimeline({ documentId, filter: search.filter, isOpen: isEnabled && at !== null });
   const bin = binContaining({ timeline, time: at })?.bin;
   const runs = useBinRuns({ documentId, timeline, bin, filter: search.filter });
-  const versionPin = useVersionPin({ documentId, at, bin });
+  const versionPin = useVersionPin({ documentId, at, sequence: search.sequence, bin });
 
   function writeAt(binStart: number): void {
-    update({ changes: { [TimelineSearchParam.At]: String(binStart) }, replace: state === VersionViewerState.Viewing });
+    update({
+      changes: { [TimelineSearchParam.At]: String(binStart), [TimelineSearchParam.Sequence]: null },
+      replace: state === VersionViewerState.Viewing,
+    });
   }
 
   const { schedule, cancel } = useDebouncedCallback({
@@ -74,7 +77,7 @@ export function useTimeTravel({ documentId, isEnabled }: { documentId: string; i
     cancel();
     setPendingBinStart(null);
     if (at === null) return;
-    update({ changes: { [TimelineSearchParam.At]: null }, replace: false });
+    update({ changes: { [TimelineSearchParam.At]: null, [TimelineSearchParam.Sequence]: null }, replace: false });
   }
 
   useEscapeKey({

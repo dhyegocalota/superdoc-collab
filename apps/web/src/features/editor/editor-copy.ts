@@ -3,6 +3,9 @@ import { APP_NAME } from '../../lib/app-copy';
 import { DownloadFormat } from './download-format';
 
 export const TITLE_LABEL = 'Title';
+export const SAVE_TITLE_LABEL = 'Save';
+export const CANCEL_TITLE_LABEL = 'Cancel';
+export const SAVE_TITLE_DISABLED_REASON = 'Type a different title to save';
 export const SHARE_LABEL = 'Share';
 export const DELETE_LABEL = 'Delete';
 export const MORE_ACTIONS_LABEL = 'More actions';
@@ -48,6 +51,11 @@ export const RESET_FAILED_MESSAGE = 'The link could not be reset.';
 export const COPY_FAILED_MESSAGE = 'The link could not be copied. It is selected, so copy it with your keyboard.';
 export const LOADING_SHARE_LINKS_LABEL = 'Loading links';
 export const SHARE_LINKS_LOAD_ERROR_MESSAGE = 'The links could not be loaded.';
+export const LOADING_MEMBERS_LABEL = 'Loading people';
+export const MEMBERS_LOAD_ERROR_MESSAGE = 'The people with access could not be loaded.';
+export const REMOVE_LABEL = 'Remove';
+export const PEOPLE_WITH_ACCESS_LABEL = 'People with access';
+export const REMOVE_FAILED_MESSAGE = 'That person could not be removed.';
 
 export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
   [ShareLinkRole.Edit]: 'Edit link',
@@ -56,9 +64,12 @@ export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
 export const HIGHLIGHT_COMMENT_TEXT = 'Edited in this period';
 export const HOME_LINK_LABEL = `${APP_NAME}, back to documents`;
 
-export function memberLabel({ name, isOnline }: { name: string; isOnline: boolean }): string {
-  if (!isOnline) return name;
+export function memberLabel(name: string): string {
   return `${name}, ${ONLINE_LABEL}`;
+}
+
+export function removeMemberLabel(name: string): string {
+  return `Remove ${name}`;
 }
 
 export function renameTitleLabel(title: string): string {
@@ -77,8 +88,8 @@ export function cursorNotFoundMessage(name: string): string {
   return `${name}’s cursor could not be found.`;
 }
 
-export function offlineMemberReason(name: string): string {
-  return `${name} is offline`;
+export function onlineMembersLabel(count: number): string {
+  return `${count} online`;
 }
 
 export function cursorOffScreenReason(name: string): string {
@@ -88,3 +99,9 @@ export function cursorOffScreenReason(name: string): string {
 export function moreMembersLabel(count: number): string {
   return `${count} more people`;
 }
+
+export const EXIT_CONFIRMATION_TITLE = 'Leave without your latest edits?';
+export const EXIT_CONFIRMATION_DESCRIPTION =
+  'Edits made while the connection was down have not reached the server yet. Download the document first to keep them.';
+export const STAY_LABEL = 'Stay';
+export const LEAVE_LABEL = 'Leave';

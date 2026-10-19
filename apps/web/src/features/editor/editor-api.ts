@@ -7,6 +7,7 @@ import {
   DocumentResource,
   HttpMethod,
   HttpStatus,
+  memberApiPath,
   RoomMode,
   TAB_QUERY_KEY,
   type CreatorTicket,
@@ -89,6 +90,11 @@ export async function rotateShareLink({ documentId, role }: { documentId: string
   const path = `${documentApiPath({ documentId, resource: DocumentResource.ShareLinks })}/${role}/rotate`;
   const response = await apiSend({ path, method: HttpMethod.Post, body: null });
   return readJson<ShareLinks>({ response, subject: 'Rotate' });
+}
+
+export async function revokeMember({ documentId, userId }: { documentId: string; userId: string }): Promise<void> {
+  const response = await apiSend({ path: memberApiPath({ documentId, userId }), method: HttpMethod.Delete, body: null });
+  assertOk({ response, subject: 'Remove member' });
 }
 
 export async function renameDocument({ documentId, title }: { documentId: string; title: string }): Promise<void> {

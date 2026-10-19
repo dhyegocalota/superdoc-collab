@@ -1,11 +1,11 @@
 import { ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
-import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
+import { PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -18,15 +18,18 @@ import { EditorHeader } from './editor-header';
 import { EditorStatus } from './editor-status';
 import { DIMMED_EDITOR_AREA_CLASS, EditorSurface } from './editor-surface';
 import { EditorToolbarRow } from './editor-toolbar-row';
+import { ExitConfirmationDialog } from './exit-confirmation-dialog';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
-import { SUPERSEDED_REPORT, useConnectionState } from './use-connection-state';
+import { SUPERSEDED_REPORT, useConnectionState, type TransportReport } from './use-connection-state';
 import { useConnectionFailureAction } from './use-connection-failure-action';
 import { useDocumentFile } from './use-document-file';
 import { useDocumentReload } from './use-document-reload';
 import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
+import { clearUnsyncedEdits, setUnsynced } from './unsynced-edits-store';
+import { useUnsyncedEdits } from './use-unsynced-edits';
 import { VersionBar } from './version-bar';
 import { WaitingForDocument } from './waiting-for-document';
 
@@ -72,7 +75,8 @@ export function DocumentPage() {
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
-  const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
+  const [isTitleDirty, setIsTitleDirty] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
   const { timeZone } = useTimeZone();
@@ -80,6 +84,24 @@ export function DocumentPage() {
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
+  const {
+    isUnsynced,
+    reportEdit,
+    reportTransport: reportSyncedTransport,
+  } = useUnsyncedEdits({
+    connectionState,
+    isTitleDirty,
+    isReader: opened?.role === DocumentRole.Reader,
+  });
+  useEffect(() => setUnsynced(isUnsynced), [isUnsynced]);
+  useEffect(() => clearUnsyncedEdits, []);
+  const handleTransportReport = useCallback(
+    (report: TransportReport): void => {
+      reportTransport(report);
+      reportSyncedTransport(report);
+    },
+    [reportTransport, reportSyncedTransport],
+  );
 
   function withAnnouncement(page: ReactNode): ReactNode {
     return (
@@ -135,6 +157,7 @@ export function DocumentPage() {
         editorContainer={editorContainer}
         isPastVersion={isViewingPastVersion}
         onDownloadDocx={downloadLiveDocument}
+        onTitleDirtyChange={setIsTitleDirty}
         renderUseWithAi={renderUseWithAi}
       />
       <EditorStatus
@@ -172,8 +195,9 @@ export function DocumentPage() {
             timeTravel={timeTravel}
             onSuperdocChange={setSuperdoc}
             onContainerChange={setEditorContainer}
-            onTransportReport={reportTransport}
+            onTransportReport={handleTransportReport}
             onEditorUpdate={markEdit}
+            onDocumentEdit={reportEdit}
           />
         </div>
         <TimelinePanel
@@ -189,6 +213,7 @@ export function DocumentPage() {
           onBackToLive={timeTravel.backToLive}
         />
       </div>
+      <ExitConfirmationDialog isUnsynced={isUnsynced} onDownload={downloadLiveDocument} />
     </div>,
   );
 }

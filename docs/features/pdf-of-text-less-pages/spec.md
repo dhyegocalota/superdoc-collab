@@ -1,6 +1,6 @@
 # PDF of text-less pages
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner: "download to pdf is failing, fix it")
 **ADRs:** [0035](../../adr/0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md)

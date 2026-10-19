@@ -1,0 +1,14 @@
+{
+  "name": "SuperDoc Collab",
+  "short_name": "SuperDoc Collab",
+  "description": "Edit a DOCX together in real time and see how it evolves over time and across contributors.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

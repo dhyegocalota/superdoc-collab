@@ -32,7 +32,7 @@ export function AuthCard<Values extends FieldValues>({
   const rootError = form.formState.errors.root;
   const isSubmitting = form.formState.isSubmitting;
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex flex-1 items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{title}</CardTitle>

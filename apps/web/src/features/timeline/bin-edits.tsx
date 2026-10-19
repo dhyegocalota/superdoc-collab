@@ -1,12 +1,21 @@
-import type { DocumentTimeline, EditRunView, TimelineBin, TimelineFilter } from '@superdoc-collab/types';
+import {
+  IMPORTED_KEY_PREFIX,
+  TimelineSearchParam,
+  type BinEditRun,
+  type DocumentTimeline,
+  type TimelineBin,
+  type TimelineFilter,
+} from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
 import { pollWhileAvailable } from '@/lib/api';
 import { formatBinRange } from '@/lib/format-date-time';
 import { AuthorNames } from './author-names';
 import { maxBandVolume } from './max-band-volume';
 import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
-import { NO_EDITS_IN_BIN_MESSAGE } from './timeline-copy';
+import { NO_EDITS_IN_BIN_MESSAGE, VIEW_EDIT_VERSION_LABEL } from './timeline-copy';
 import { TopicChip } from './topic-chip';
+import { useTimelineSearch } from './use-timeline-search';
 
 export const SNIPPET_MAX_CHARACTERS = 120;
 const ELLIPSIS = '…';
@@ -29,8 +38,17 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
     retry: false,
   });
   const maxVolume = maxBandVolume(timeline);
+  const { search, update } = useTimelineSearch();
 
-  function renderRun(run: EditRunView) {
+  function viewVersionAfter(run: BinEditRun): void {
+    update({
+      changes: { [TimelineSearchParam.At]: String(bin.start), [TimelineSearchParam.Sequence]: String(run.versionSequence) },
+      replace: search.at !== null,
+    });
+  }
+
+  function renderRun(run: BinEditRun) {
+    const isImported = run.authorKeys.every((key) => key.startsWith(IMPORTED_KEY_PREFIX));
     const band = timeline.bands.find((candidate) => candidate.id === run.bandId);
     if (!band) throw new MissingBandError(run.bandId);
     const inserted = run.inserted.trim();
@@ -45,6 +63,11 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
         </div>
         {inserted && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
         {deleted && <del className="rounded-sm bg-deleted px-1 text-sm">{snippetOf(deleted)}</del>}
+        {!isImported && (
+          <Button type="button" variant="outline" size="xs" onClick={() => viewVersionAfter(run)}>
+            {VIEW_EDIT_VERSION_LABEL}
+          </Button>
+        )}
       </li>
     );
   }

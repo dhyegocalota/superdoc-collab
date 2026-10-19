@@ -1,0 +1,14 @@
+{
+  "name": "@superdoc-collab/repository-shape",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run"
+  },
+  "devDependencies": {
+    "@superdoc-collab/types": "workspace:*",
+    "@types/node": "24.19.2",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,5 +1,8 @@
 import type { BetterAuthPlugin } from 'better-auth';
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
+import { eq } from 'drizzle-orm';
+import type { AuthDatabase } from '../database/connection';
+import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../database/schema/auth';
 
 const DELETE_CONSENT_PATH = '/oauth2/delete-consent';
 const UPDATE_CONSENT_PATH = '/oauth2/update-consent';
@@ -21,6 +24,14 @@ const revokeTokensOfConsent = createAuthMiddleware(async (context) => {
   ];
   await Promise.all(TOKEN_MODELS.map((model) => adapter.deleteMany({ model, where: owner })));
 });
+
+export function revokeOAuthGrantsOf({ database, userId }: { database: AuthDatabase; userId: string }): void {
+  database.drizzle.transaction((transaction) => {
+    transaction.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId)).run();
+    transaction.delete(oauthRefreshToken).where(eq(oauthRefreshToken.userId, userId)).run();
+    transaction.delete(oauthConsent).where(eq(oauthConsent.userId, userId)).run();
+  });
+}
 
 export function consentRevocationPlugin() {
   return {

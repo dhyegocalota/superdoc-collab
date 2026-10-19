@@ -117,7 +117,7 @@ The product works, but the chrome around the document does not. The walk of 2026
 - It mounts `PrintView` in the page: an off-screen same-origin frame on `AppRoute.Print` (`/print`). The route needs no session, carries no document id and holds no document data. [ADR 0035](../../adr/0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md).
 - The frame announces `Ready`; the page answers with the exported Blob by `postMessage`. Both sides check `origin` and `source` on every message, and the Blob never leaves the origin.
 - The frame opens a non-collaborative SuperDoc in viewing mode with `layoutEngineOptions.virtualization.enabled: false`, reports the `.superdoc-page` count after `onReady`, and the page sizes the frame to the count times 1056 px so its own viewport covers every page.
-- The frame announces the page count again if it grows, and reports `Painted` only after every `.superdoc-page` has text, found with a `requestAnimationFrame` loop. The page then posts `Print`, the frame calls its own `window.print()` so only the document prints, and its `afterprint` posts `Closed`, which unmounts the frame.
+- The frame announces the page count again if it grows, and reports `Painted` only after every `.superdoc-page` holds a `.superdoc-fragment`, found with a `requestAnimationFrame` loop. The page then posts `Print`, the frame calls its own `window.print()` so only the document prints, and its `afterprint` posts `Closed`, which unmounts the frame.
 - A frame that does not report `Painted` within `PRINT_READY_TIMEOUT_MS` fails the preparation: the `PDF_FAILED_MESSAGE` toast and the frame unmounts.
 
 ### Interfaces

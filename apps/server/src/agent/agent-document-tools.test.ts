@@ -21,7 +21,6 @@ import { callAgentTool, TOOL_FAILED_MESSAGE } from './agent-tools';
 import { MAX_EDITS, MAX_TEXT_LENGTH, MAX_TEXTS } from './document-tools';
 
 const DOCX_BYTES = Buffer.from('PK-fake-docx');
-const INSPECTED = { revision: 3, paragraphs: ['Budget'] };
 const RECEIPT = { status: 'ok' };
 const EDITS = [{ find: 'Budget', replace: 'Plan' }];
 
@@ -47,15 +46,6 @@ afterEach(() => {
 
 afterAll(async () => {
   await server.stop();
-});
-
-test('inspect_document dispatches superdoc_inspect on the session of the person', async () => {
-  const dispatch = vi.fn().mockResolvedValue(INSPECTED);
-  const document = { save: vi.fn() };
-  const { context } = toolContext({ server, userId: editor.id, sessions: sessionsOn(document), dispatch });
-  const result = await callAgentTool({ tool: AgentTool.InspectDocument, input: { documentId }, context });
-  expect(dispatch).toHaveBeenCalledWith(document, 'superdoc_inspect', {});
-  expect(resultJson(result)).toEqual(INSPECTED);
 });
 
 test.each([

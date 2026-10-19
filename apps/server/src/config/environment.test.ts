@@ -1,7 +1,7 @@
 import { OPEN_UNCOMMITTED_PER_MINUTE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
-import { InvalidLlmLimitError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
+import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
 
 const complete: Record<string, string> = {
   PORT: '3000',
@@ -28,6 +28,7 @@ describe('loadEnvironment', () => {
       authSecret: 'x'.repeat(32),
       databaseDirectory: '/tmp/data',
       trustProxy: false,
+      trustedProxyHops: 1,
       llm: noLlm,
       openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
     });
@@ -46,6 +47,13 @@ describe('loadEnvironment', () => {
   });
   test('rejects an invalid TRUST_PROXY', () => {
     expect(() => loadEnvironment({ ...complete, TRUST_PROXY: 'yes' })).toThrow();
+  });
+  test('parses TRUSTED_PROXY_HOPS and defaults it to one', () => {
+    expect(loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: '2' }).trustedProxyHops).toBe(2);
+    expect(loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: '' }).trustedProxyHops).toBe(1);
+  });
+  test.each(['0', '-1', '1.5', 'two'])('refuses to start with TRUSTED_PROXY_HOPS %s, naming the variable', (value) => {
+    expect(() => loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: value })).toThrow(/TRUSTED_PROXY_HOPS/);
   });
   test('rejects a short AUTH_SECRET', () => {
     expect(() => loadEnvironment({ ...complete, AUTH_SECRET: 'short' })).toThrow(/AUTH_SECRET/);
@@ -92,7 +100,7 @@ describe('loadEnvironment', () => {
     ['LLM_MAX_CALLS_PER_HOUR', '-3'],
     ['LLM_MAX_CALLS_PER_HOUR', '1.5'],
   ])('fails startup when %s is %s', (name, value) => {
-    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidLlmLimitError({ name, value }));
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test('reads the open budget when it is set', () => {
     expect(loadEnvironment({ ...complete, OPEN_UNCOMMITTED_PER_MINUTE: '5000' }).openUncommittedPerMinute).toBe(5000);
@@ -102,6 +110,6 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when OPEN_UNCOMMITTED_PER_MINUTE is %s', (value) => {
     const name = 'OPEN_UNCOMMITTED_PER_MINUTE';
-    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidLlmLimitError({ name, value }));
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
 });

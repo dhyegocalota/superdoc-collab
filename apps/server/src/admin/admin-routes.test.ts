@@ -1,23 +1,34 @@
 import {
   AdminResource,
+  AppRoute,
   adminApiPath,
   ApiPath,
   HttpMethod,
   HttpStatus,
   INVITE_QUERY_PARAMETER,
   INVITE_TOKEN_HEADER,
+  PASSWORD_RESET_QUERY_PARAMETER,
   InviteState,
   LAST_ADMIN_MESSAGE,
   UserRole,
   UTC_TIME_ZONE,
   type AdminUser,
   type CreatedInvite,
+  type CreatedPasswordReset,
+  PASSWORD_RESET_TTL_MS,
+  SHOWCASE_API_PATH,
+  SHOWCASE_TITLE,
+  type DocumentsList,
+  passwordResetApiPath,
+  passwordResetTokenOf,
   type InviteSummary,
   inviteTokenOf,
 } from '@superdoc-collab/types';
-import { describe, expect, test } from 'vitest';
-import { signedInUser, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
+import { describe, expect, test, vi } from 'vitest';
+import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../database/schema/auth';
+import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
 
+const USER_NOT_FOUND_MESSAGE = 'User not found';
 const USERS_PATH = adminApiPath(AdminResource.Users);
 const INVITES_PATH = adminApiPath(AdminResource.Invites);
 const ADMIN_CALLS = [
@@ -26,7 +37,13 @@ const ADMIN_CALLS = [
   { method: HttpMethod.Post, path: INVITES_PATH },
   { method: HttpMethod.Delete, path: `${INVITES_PATH}/x` },
   { method: HttpMethod.Post, path: `${USERS_PATH}/x/role` },
+  { method: HttpMethod.Post, path: passwordResetApiPath('x') },
+  { method: HttpMethod.Post, path: SHOWCASE_API_PATH },
 ];
+const NOW = Date.UTC(2026, 9, 19);
+const NEW_PASSWORD = 'a-brand-new-password';
+const REQUEST_RESET_PATH = `${ApiPath.Auth}/request-password-reset`;
+const RESET_PASSWORD_PATH = `${ApiPath.Auth}/reset-password`;
 let clientAddress = 1;
 
 function call({
@@ -64,7 +81,34 @@ function signUpWithToken({ server, email, token }: { server: TestServer; email: 
   });
 }
 
+async function createResetToken({ server, userId }: { server: TestServer; userId: string }): Promise<string> {
+  const created = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath(userId), cookie: server.admin.cookie });
+  return passwordResetTokenOf(((await created.json()) as CreatedPasswordReset).url);
+}
+
+function resetPasswordWith({ server, token }: { server: TestServer; token: string }): Promise<Response> {
+  return call({ server, method: HttpMethod.Post, path: RESET_PASSWORD_PATH, body: { newPassword: NEW_PASSWORD, token } });
+}
+
 describe('admin routes', () => {
+  test('an admin creates the showcase document and owns it', async () => {
+    const server = await startTestServer();
+    const response = await call({ server, method: HttpMethod.Post, path: SHOWCASE_API_PATH, cookie: server.admin.cookie });
+    expect(response.status).toBe(HttpStatus.Created);
+    expect(await response.json()).toMatchObject({ title: SHOWCASE_TITLE, owner: { id: server.admin.id } });
+    const listed = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { headers: { cookie: server.admin.cookie } });
+    expect(((await listed.json()) as DocumentsList).mine.map((document) => document.title)).toEqual([SHOWCASE_TITLE]);
+    await server.stop();
+  });
+
+  test('pressing it twice makes two showcase documents', async () => {
+    const server = await startTestServer();
+    await call({ server, method: HttpMethod.Post, path: SHOWCASE_API_PATH, cookie: server.admin.cookie });
+    await call({ server, method: HttpMethod.Post, path: SHOWCASE_API_PATH, cookie: server.admin.cookie });
+    expect(server.services.documents.list(server.admin.id).mine).toHaveLength(2);
+    await server.stop();
+  });
+
   test.each(ADMIN_CALLS)('$method $path is 401 signed out and 403 for a user', async ({ method, path }) => {
     const server = await startTestServer();
     const user = await signedInUser({ server, name: 'Eve' });
@@ -137,6 +181,102 @@ describe('admin routes', () => {
     ]);
     const admins = server.database.sqlite.prepare("select count(*) as n from user where role = 'admin'").get() as { n: number };
     expect(admins.n).toBe(1);
+    await server.stop();
+  });
+
+  test('an admin creates a password reset link on the app origin that expires in one hour', async () => {
+    const server = await startTestServer({ now: () => NOW });
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const response = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath(eve.id), cookie: server.admin.cookie });
+    expect(response.status).toBe(HttpStatus.Created);
+    const reset = (await response.json()) as CreatedPasswordReset;
+    expect(reset.url.startsWith(`${server.baseUrl}${AppRoute.ResetPassword}?${PASSWORD_RESET_QUERY_PARAMETER}=`)).toBe(true);
+    expect(passwordResetTokenOf(reset.url)).not.toBe('');
+    expect(reset.expiresAt).toBe(NOW + PASSWORD_RESET_TTL_MS);
+    await server.stop();
+  });
+
+  test('a password reset for an unknown user answers 404', async () => {
+    const server = await startTestServer();
+    const response = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath('nope'), cookie: server.admin.cookie });
+    expect(response.status).toBe(HttpStatus.NotFound);
+    expect(await response.json()).toEqual({ error: USER_NOT_FOUND_MESSAGE });
+    await server.stop();
+  });
+
+  test('the link sets a new password once, ends the other sessions and the old password stops working', async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const created = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath(eve.id), cookie: server.admin.cookie });
+    const token = passwordResetTokenOf(((await created.json()) as CreatedPasswordReset).url);
+    const reset = () => call({ server, method: HttpMethod.Post, path: RESET_PASSWORD_PATH, body: { newPassword: NEW_PASSWORD, token } });
+    expect((await reset()).status).toBe(HttpStatus.Ok);
+    expect((await reset()).status).toBe(HttpStatus.BadRequest);
+    const sessionResponse = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: eve.cookie } });
+    expect(((await sessionResponse.json()) as { user: unknown }).user).toBeNull();
+    await expect(signInExisting({ server, email: eve.email, password: TEST_USER_PASSWORD })).rejects.toThrow();
+    await expect(signInExisting({ server, email: eve.email, password: NEW_PASSWORD })).resolves.toContain('=');
+    await server.stop();
+  });
+
+  test('a reset closes the sockets of that user in every room', async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const closeSockets = vi.spyOn(server.services.runtime, 'closeConnectionsOfUser').mockImplementation(() => undefined);
+    const token = await createResetToken({ server, userId: eve.id });
+    await resetPasswordWith({ server, token });
+    expect(closeSockets).toHaveBeenCalledWith(eve.id);
+    await server.stop();
+  });
+
+  test("a reset deletes the OAuth consents and tokens of that user and keeps everyone else's", async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const { drizzle } = server.database;
+    drizzle.insert(oauthClient).values({ id: 'client-row', clientId: 'agent-client', redirectUris: [] }).run();
+    [eve.id, server.admin.id].forEach((userId) => {
+      const scopes = ['read'];
+      drizzle
+        .insert(oauthConsent)
+        .values({ id: `consent-${userId}`, clientId: 'agent-client', userId, scopes })
+        .run();
+      drizzle
+        .insert(oauthRefreshToken)
+        .values({ id: `refresh-${userId}`, token: `refresh-token-${userId}`, clientId: 'agent-client', userId, scopes })
+        .run();
+      drizzle
+        .insert(oauthAccessToken)
+        .values({ id: `access-${userId}`, token: `access-token-${userId}`, clientId: 'agent-client', userId, scopes })
+        .run();
+    });
+    await resetPasswordWith({ server, token: await createResetToken({ server, userId: eve.id }) });
+    const remainingOwners = [oauthConsent, oauthRefreshToken, oauthAccessToken].map((table) =>
+      drizzle
+        .select({ userId: table.userId })
+        .from(table)
+        .all()
+        .map((row) => row.userId),
+    );
+    expect(remainingOwners).toEqual([[server.admin.id], [server.admin.id], [server.admin.id]]);
+    await server.stop();
+  });
+
+  test('simultaneous resets of one user each get their own working token', async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const created = await Promise.all([1, 2, 3, 4].map(() => server.services.passwordResets.create({ email: eve.email })));
+    const tokens = created.map(({ url }) => passwordResetTokenOf(url));
+    expect(new Set(tokens).size).toBe(tokens.length);
+    const statuses = await Promise.all(tokens.map(async (token) => (await resetPasswordWith({ server, token })).status));
+    expect(statuses).toEqual(tokens.map(() => HttpStatus.Ok));
+    await server.stop();
+  });
+
+  test.each([undefined, 'admin'])('the public request-password-reset path answers 404 (cookie of %s)', async (who) => {
+    const server = await startTestServer();
+    const cookie = who && server.admin.cookie;
+    const response = await call({ server, method: HttpMethod.Post, path: REQUEST_RESET_PATH, cookie, body: { email: server.admin.email } });
+    expect(response.status).toBe(HttpStatus.NotFound);
     await server.stop();
   });
 });

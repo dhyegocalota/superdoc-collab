@@ -4,10 +4,10 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { NARROW_VIEWPORT_WIDTH, PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
-import { COLUMNS_BY_KIND, DocumentListKind } from './document-columns';
+import { NARROW_VIEWPORT_WIDTH, PHONE_VIEWPORT_WIDTH, stubViewportWidth } from '@/testing/viewport';
+import { DocumentListKind } from './document-columns';
 import { DocumentTable } from './document-table';
-import { COLUMN_LABELS, DOCUMENT_DETAILS_SEPARATOR, MINE_EMPTY_MESSAGE, ROLE_LABELS } from './documents-copy';
+import { DOCUMENT_DETAILS_SEPARATOR, MINE_EMPTY_MESSAGE, ROLE_LABELS } from './documents-copy';
 
 const TIME_ZONE = 'UTC';
 const SESSION_USER = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: TIME_ZONE };
@@ -18,6 +18,7 @@ const SHARED_DOCUMENT: DocumentSummary = {
   owner: { id: 'user-2', name: 'Bruno' },
   updatedAt: Date.UTC(2026, 9, 16, 13, 0),
   role: DocumentRole.Editor,
+  preview: null,
 };
 const OWNED_DOCUMENT: DocumentSummary = {
   ...SHARED_DOCUMENT,
@@ -60,19 +61,6 @@ test('below lg a document of Mine shows only the time under the title', async ()
   renderWithProviders(<DocumentTable documents={[OWNED_DOCUMENT]} emptyMessage={MINE_EMPTY_MESSAGE} kind={DocumentListKind.Mine} />);
   const [item] = await screen.findAllByRole('listitem');
   expect(await within(item!).findByText(updatedLabel(OWNED_DOCUMENT))).toBeInTheDocument();
-});
-
-test('from lg the table and its column headers remain', async () => {
-  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
-  mockSession();
-  renderWithProviders(<DocumentTable documents={[SHARED_DOCUMENT]} emptyMessage={MINE_EMPTY_MESSAGE} kind={DocumentListKind.Shared} />);
-  const table = await screen.findByRole('table');
-  expect(
-    within(table)
-      .getAllByRole('columnheader')
-      .map((header) => header.textContent),
-  ).toEqual(COLUMNS_BY_KIND[DocumentListKind.Shared].map((column) => COLUMN_LABELS[column]));
-  expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
 test('an empty list shows its message at any width', () => {

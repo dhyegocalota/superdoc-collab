@@ -1,12 +1,4 @@
-import {
-  ApiPath,
-  type AuthorColorSlot,
-  ConnectionFailureReason,
-  type CreatorTicket,
-  DocumentRole,
-  type RoomMode,
-  type SessionUser,
-} from '@superdoc-collab/types';
+import { ApiPath, type AuthorColorSlot, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -18,6 +10,7 @@ import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS } from './superdoc-zoom';
+import { useCaretOnOpen } from './use-caret-on-open';
 import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
 export const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
@@ -38,6 +31,7 @@ type SuperDocEditorProps = {
   isSuperseded: boolean;
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
+  onDocumentEdit: () => void;
 };
 
 export function SuperDocEditor({
@@ -55,11 +49,13 @@ export function SuperDocEditor({
   isSuperseded,
   onTransportReport,
   onEditorUpdate,
+  onDocumentEdit,
 }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [hasRejectedEdit, setHasRejectedEdit] = useState(false);
+  const [isCollaborationReady, setIsCollaborationReady] = useState(false);
   const attachContainer = useCallback(
     (element: HTMLDivElement | null) => {
       containerRef.current = element;
@@ -92,6 +88,11 @@ export function SuperDocEditor({
       if (!isActive) return;
       onEditorUpdate();
     }
+    function reportDocumentEdit(): void {
+      if (!isActive) return;
+      onEditorUpdate();
+      onDocumentEdit();
+    }
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
@@ -106,10 +107,12 @@ export function SuperDocEditor({
         ...authorPaletteOf({ colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
-      onEditorUpdate: reportEditorUpdate,
+      onEditorUpdate: reportDocumentEdit,
       onPaginationUpdate: reportEditorUpdate,
       onCollaborationReady: () => {
         isReady = true;
+        if (!isActive) return;
+        setIsCollaborationReady(true);
       },
       onCollaborationConnectionChange: (payload) => {
         if (!isActive) return;
@@ -124,9 +127,24 @@ export function SuperDocEditor({
       isActive = false;
       onSuperdocChange(null);
       superdoc.destroy();
+      setIsCollaborationReady(false);
       setHasRejectedEdit(false);
     };
-  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport, onEditorUpdate]);
+  }, [
+    onSuperdocChange,
+    toolbarContainer,
+    documentId,
+    roomMode,
+    creatorTicket,
+    role,
+    user,
+    file,
+    onTransportReport,
+    onEditorUpdate,
+    onDocumentEdit,
+  ]);
+
+  useCaretOnOpen({ containerRef, isEnabled: isCollaborationReady && role !== DocumentRole.Reader });
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);
@@ -154,7 +172,7 @@ export function SuperDocEditor({
         data-testid="document-editor"
         inert={isInert}
         className={cn(
-          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
+          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted pt-3 [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
           FITTED_PAGE_CLASS,
           isSuperseded && HIDDEN_LOADING_OVERLAY_CLASS,
         )}

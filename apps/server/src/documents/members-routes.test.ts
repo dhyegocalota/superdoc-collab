@@ -61,12 +61,3 @@ test.each([
   client.close();
   await server.stop();
 });
-
-test('members never says an attempt was superseded or restarted', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  const answer: DocumentMembers = await (
-    await request({ server, cookie: owner.cookie, path: pathOf({ documentId, resource: DocumentResource.Members }) })
-  ).json();
-  expect([answer.isAttemptSuperseded, answer.isAttemptRestarted]).toEqual([false, false]);
-  await server.stop();
-});

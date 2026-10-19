@@ -6,7 +6,7 @@
 **Assumptions (decided, owner can override):**
 - Progress is bytes of the upload over the upload size; the SDK offers nothing finer.
 - `Failed` is terminal until the server restarts.
-- libs/types and apps/web stay untouched except the required `bootstrap` field and one web test fixture. The server answers null tickets and false flags.
+- The shared ticket types and the web's uses were deleted in a final sweep once the progress lane merged.
 
 ## File map
 
@@ -57,8 +57,6 @@ One lane. Docs and ADR first, then red tests, then the worker, the registry, the
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.
 
-## Dead symbols for the integration sweep
+## Dead symbols
 
-- `libs/types`: `CreatorTicket`, `CREATOR_ATTEMPT_QUERY_KEY`, `CREATOR_EPOCH_QUERY_KEY`, `CREATOR_RESERVATION_MS`, `CREATOR_RESERVATION_MAX_MS`, `SUPERSEDED_ATTEMPT_CLOSE_CODE`, `SUPERSEDED_ATTEMPT_REASON`, `RESTARTED_ATTEMPT_REASON`, `OpenedDocument.creatorAttempt`, `OpenedDocument.creatorEpoch`, `DocumentMembers.isAttemptSuperseded`, `DocumentMembers.isAttemptRestarted`.
-- `apps/web/src/features/editor`: `collaboration-config.ts` (`creatorTicketOf`, the ticket queries), `editor-api.ts` (`DocumentNotReadyError`, the ticket query), `use-members.ts`, `use-opened-document.ts` (`useOpenedCreatorTicket`, the Waiting poll on 409), `document-page.tsx`, `use-editor-setup.ts`, `superdoc-editor.tsx`, `superdoc-options.ts` and their tests; `apps/web/src/testing/opened-document.ts`.
-- `DOCUMENT_NOT_READY_ERROR` stays: agents still use it.
+Deleted on 2026-10-19 after lane-progress merged: every ticket type, query key, close code, members flag, the superseded banner branches and their tests, in `libs/types`, `apps/web` and `apps/server`. `DOCUMENT_NOT_READY_ERROR` stays for agents and the legacy 409 branch of the web, which the integration sweep removes.

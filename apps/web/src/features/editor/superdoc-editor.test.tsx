@@ -57,13 +57,11 @@ function renderEditor({
       toolbarContainer={toolbarContainer}
       documentId="doc-1"
       roomMode={RoomMode.Create}
-      creatorTicket={null}
       role={role}
       user={SESSION_USER}
       colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
       isInert={false}
-      isSuperseded={false}
       onTransportReport={vi.fn()}
       onEditorUpdate={onEditorUpdate}
       onDocumentEdit={onDocumentEdit}

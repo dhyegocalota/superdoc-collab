@@ -1,4 +1,4 @@
-import { MEMBERS_REFRESH_MS, type CreatorTicket, type DocumentMember } from '@superdoc-collab/types';
+import { MEMBERS_REFRESH_MS, type DocumentMember } from '@superdoc-collab/types';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AuthenticationError, DocumentUnavailableError, pollWhileAvailable } from '@/lib/api';
 import { fetchMembers, membersQueryKey } from './editor-api';
@@ -11,16 +11,13 @@ type MembersResult = {
   isCurrentUserOnline: boolean | null;
   membersAnsweredAt: number | null;
   isSessionEnded: boolean;
-  isAttemptSuperseded: boolean;
-  isAttemptRestarted: boolean;
 };
 
-export function useMembers({ documentId, creatorTicket }: { documentId: string; creatorTicket: CreatorTicket | null }): MembersResult {
-  const ticketSegments = creatorTicket ? [creatorTicket.attempt, creatorTicket.epoch] : [];
-  const { data, error, dataUpdatedAt, isPlaceholderData } = useQuery({
-    queryKey: [...membersQueryKey(documentId), ...ticketSegments],
+export function useMembers(documentId: string): MembersResult {
+  const { data, error, dataUpdatedAt } = useQuery({
+    queryKey: membersQueryKey(documentId),
     placeholderData: keepPreviousData,
-    queryFn: () => fetchMembers({ documentId, creatorTicket }),
+    queryFn: () => fetchMembers(documentId),
     refetchInterval: pollWhileAvailable(MEMBERS_REFRESH_MS),
     retry: false,
   });
@@ -33,8 +30,6 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
       isCurrentUserOnline: null,
       membersAnsweredAt: null,
       isSessionEnded,
-      isAttemptSuperseded: false,
-      isAttemptRestarted: false,
     };
   if (error)
     return {
@@ -43,8 +38,6 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
       isCurrentUserOnline: null,
       membersAnsweredAt: null,
       isSessionEnded,
-      isAttemptSuperseded: false,
-      isAttemptRestarted: false,
     };
   return {
     members: data.members,
@@ -52,7 +45,5 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
     isCurrentUserOnline: data.isCurrentUserOnline,
     membersAnsweredAt: dataUpdatedAt,
     isSessionEnded,
-    isAttemptSuperseded: data.isAttemptSuperseded && !isPlaceholderData,
-    isAttemptRestarted: data.isAttemptRestarted && !isPlaceholderData,
   };
 }

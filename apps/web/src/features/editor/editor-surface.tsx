@@ -20,7 +20,6 @@ type EditorSurfaceProps = {
   isToolbarReady: boolean;
   toolbarContainer: HTMLElement | null;
   isInert: boolean;
-  isSuperseded: boolean;
   isDimmed: boolean;
   timeTravel: TimeTravel;
   onSuperdocChange: (superdoc: SuperDoc | null) => void;
@@ -40,7 +39,6 @@ export function EditorSurface({
   isToolbarReady,
   toolbarContainer,
   isInert,
-  isSuperseded,
   isDimmed,
   timeTravel,
   onSuperdocChange,
@@ -67,13 +65,11 @@ export function EditorSurface({
           toolbarContainer={toolbarContainer}
           documentId={documentId}
           roomMode={editorSetup.roomMode}
-          creatorTicket={editorSetup.creatorTicket}
           role={editorSetup.role}
           user={editorSetup.user}
           colorSlot={editorSetup.colorSlot}
           file={editorSetup.file}
           isInert={isInert}
-          isSuperseded={isSuperseded}
           onTransportReport={onTransportReport}
           onEditorUpdate={onEditorUpdate}
           onDocumentEdit={onDocumentEdit}

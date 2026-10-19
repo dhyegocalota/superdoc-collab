@@ -42,7 +42,7 @@ The conversion CPU moved into the SDK host and did not shrink (SuperDoc's cost).
 |------|------|
 | Server bootstrap | Right after the upload (and for a blank document), the server queues a bootstrap on the projection worker. The worker opens the stored DOCX through a `SuperDocClient` with a long request timeout, joins the room with `roomMode: 'create'` on `ApiPath.BootstrapCollaboration`, waits for the commit and closes without discarding. One bootstrap runs at a time. |
 | Authorship | The bootstrap socket authenticates as the document owner (the uploader) with actor Human, exactly as a browser creator did, so the update log, the snapshot and the timeline keep their shape. |
-| Everyone joins | The open answer is `RoomMode.Join` for every opener, uploader included. `creatorAttempt` and `creatorEpoch` answer null and the members flags answer false until the integration sweep deletes them with the web's uses; the 409 `NOT_READY` of the open route is gone. |
+| Everyone joins | The open answer is `RoomMode.Join` for every opener, uploader included. `creatorAttempt`, `creatorEpoch` and the members flags no longer exist; the 409 `NOT_READY` of the open route is gone. |
 | Progress | The open answer is always 200 with `bootstrap: BootstrapProgress`. `total` is the DOCX size times `BOOTSTRAP_STATE_BYTES_RATIO` (4, the measured 36.6 / 9.5 rounded up). While Queued, `done` is 0. While Preparing, `done` is the bytes of Yjs state the room has received from the SDK host so far, never reaching `total - 1`. At Ready `done` equals `total` and `stateBytes` is the committed size. Failed reports `done` 0. A document committed before this change reports Ready 0 of 0 with null `stateBytes`. |
 | No hang | A bootstrap that throws, times out (`BOOTSTRAP_TIMEOUT_MS`, 135 s: three times the measured 4.5 s per megabyte at the 10 MB upload cap; past it the worker answers failed and the stage is Failed) or loses its worker is `Failed`, logged once, and stays `Failed` until the server restarts. The open answer says `Failed`; the web shows the existing error copy. |
 | Old documents | An uncommitted document nobody bootstrapped (uploaded before this change, or after a restart that interrupted a bootstrap) is bootstrapped by its first open. |
@@ -72,7 +72,7 @@ GET /api/documents/:id -> { ..., roomMode: Join, bootstrap }   (web polls until 
 
 ### Interfaces
 
-- `OpenedDocument` gains a required `bootstrap: BootstrapProgress`. `creatorAttempt`, `creatorEpoch`, `isAttemptSuperseded` and `isAttemptRestarted` stay in the shared types as always null or false, for the integration sweep.
+- `OpenedDocument` gains a required `bootstrap: BootstrapProgress`. `creatorAttempt`, `creatorEpoch`, `isAttemptSuperseded` and `isAttemptRestarted` are removed, with the web's uses.
 - `ApiPath.BootstrapCollaboration = '/collaboration/bootstrap'`, upgraded only from a loopback address, no `Origin` check.
 - Room token claims gain `attempt: string | null`. Agent tokens carry null and the agent path requires actor Agent; the bootstrap path requires actor Human and an attempt.
 - `ProjectionRequestKind.Bootstrap` with its own queue in the worker; the reply carries nothing but the document id.

@@ -38,7 +38,6 @@ const SCRIPTED_STEP_TIMEOUT_MS = 15_000;
 const UPLOAD_BYTES_PER_SECOND = 2_000_000;
 const PERCENT = 100;
 const PAGES_SO_FAR_PATTERN = /([\d,]+) so far/;
-const READY_BOOTSTRAP: BootstrapProgress = { stage: BootstrapStage.Ready, done: 0, total: 0, stateBytes: null };
 
 type Reading = { testId: string; stage: string | null; detail: string; value: string | null };
 
@@ -70,10 +69,9 @@ async function scriptOpenAnswers({
     if (route.request().method() !== HttpMethod.Get) return route.fallback();
     const scripted = remaining.shift();
     const real = await route.fetch();
-    const body = (await real.json()) as OpenedDocument & { bootstrap?: BootstrapProgress };
+    const body = (await real.json()) as OpenedDocument;
     if (scripted) return route.fulfill({ status: HttpStatus.Ok, json: { ...body, bootstrap: scripted } });
-    if ('bootstrap' in body) return route.fulfill({ response: real });
-    return route.fulfill({ response: real, json: { ...body, bootstrap: READY_BOOTSTRAP } });
+    return route.fulfill({ response: real });
   });
 }
 
@@ -210,6 +208,11 @@ test('a normal document leaves no panel behind once its first paragraph is visib
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const buffer = await buildSeedDocx([{ text: SEED_PARAGRAPH, trackedChanges: [] }]);
   const documentId = await uploadDocument({ page: ana.page, buffer });
+  await expect
+    .poll(async () => ((await (await ana.page.request.get(documentApiPath({ documentId }))).json()) as OpenedDocument).bootstrap.stage, {
+      timeout: EDITOR_READY_TIMEOUT_MS,
+    })
+    .toBe(BootstrapStage.Ready);
   await scriptOpenAnswers({ page: ana.page, documentId, bootstraps: [] });
   await recordReadings(ana.page);
   await ana.page.goto(documentPagePath(documentId));

@@ -1,6 +1,6 @@
 import type { RoomMode } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { DocumentNotReadyError, documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
 
 type DocumentReload = {
@@ -13,13 +13,11 @@ type DocumentReload = {
 export function useDocumentReload({
   documentId,
   roomMode,
-  isAttemptRestarted,
   restartWaiting,
   resetConnection,
 }: {
   documentId: string;
   roomMode: RoomMode | undefined;
-  isAttemptRestarted: boolean;
   restartWaiting: () => void;
   resetConnection: () => void;
 }): DocumentReload {
@@ -45,10 +43,6 @@ export function useDocumentReload({
     resetConnection();
     setEditorGeneration((generation) => generation + 1);
   }
-
-  useEffect(() => {
-    if (isAttemptRestarted) reload();
-  }, [isAttemptRestarted]);
 
   return { editorGeneration, isReloading, hasReloadFailed, reload };
 }

@@ -8,7 +8,6 @@ import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_ME
 type EditorStatusProps = {
   isDocumentLoading: boolean;
   hasFileError: boolean;
-  isSuperseded: boolean;
   hasExportFailed: boolean;
   hasReloadFailed: boolean;
   isReloading: boolean;
@@ -20,7 +19,6 @@ type EditorStatusProps = {
 export function EditorStatus({
   isDocumentLoading,
   hasFileError,
-  isSuperseded,
   hasExportFailed,
   hasReloadFailed,
   isReloading,
@@ -28,7 +26,7 @@ export function EditorStatus({
   failureReason,
   onConnectionAction,
 }: EditorStatusProps) {
-  const isLoadingLineShown = !hasFileError && !isSuperseded;
+  const isLoadingLineShown = !hasFileError;
   return (
     <>
       {isDocumentLoading && (

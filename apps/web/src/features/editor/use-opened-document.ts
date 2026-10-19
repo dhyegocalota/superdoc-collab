@@ -4,13 +4,12 @@ import {
   DOCUMENT_READY_POLL_MS,
   PREPARING_POLL_MS,
   type BootstrapProgress,
-  type CreatorTicket,
+  type OpenedDocument,
 } from '@superdoc-collab/types';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
-import { creatorTicketOf } from './collaboration-config';
-import { DocumentNotReadyError, openDocument, openedDocumentQueryKey, type OpenedAnswer } from './editor-api';
+import { DocumentNotReadyError, openDocument, openedDocumentQueryKey } from './editor-api';
 
 const GIVE_UP_POLL_COUNT = DOCUMENT_READY_GIVE_UP_MS / DOCUMENT_READY_POLL_MS;
 
@@ -30,7 +29,7 @@ const READINESS_BY_STAGE: Record<BootstrapStage, DocumentReadiness> = {
   [BootstrapStage.Failed]: DocumentReadiness.Failed,
 };
 
-type ReadinessInput = { data: OpenedAnswer | undefined; error: Error | null; errorCount: number; resumedAt: number };
+type ReadinessInput = { data: OpenedDocument | undefined; error: Error | null; errorCount: number; resumedAt: number };
 
 function readinessOf({ data, error, errorCount, resumedAt }: ReadinessInput): DocumentReadiness {
   if (data) return READINESS_BY_STAGE[data.bootstrap.stage];
@@ -42,12 +41,12 @@ function readinessOf({ data, error, errorCount, resumedAt }: ReadinessInput): Do
   return DocumentReadiness.Waiting;
 }
 
-function pollIntervalOf(data: OpenedAnswer | undefined): number {
+function pollIntervalOf(data: OpenedDocument | undefined): number {
   if (data?.bootstrap.stage === BootstrapStage.Preparing) return PREPARING_POLL_MS;
   return DOCUMENT_READY_POLL_MS;
 }
 
-function bootstrapOf(data: OpenedAnswer | undefined): BootstrapProgress | null {
+function bootstrapOf(data: OpenedDocument | undefined): BootstrapProgress | null {
   if (!data) return null;
   return data.bootstrap;
 }
@@ -111,10 +110,4 @@ export function useOpenedDocument(documentId: string) {
 
 export function useOpenedDocumentWithoutPolling(documentId: string) {
   return useOpenedDocumentQuery({ documentId, shouldPoll: false });
-}
-
-export function useOpenedCreatorTicket(documentId: string): CreatorTicket | null {
-  const { data } = useQuery({ ...openedDocumentQueryOptions(documentId), enabled: false });
-  if (!data) return null;
-  return creatorTicketOf(data);
 }

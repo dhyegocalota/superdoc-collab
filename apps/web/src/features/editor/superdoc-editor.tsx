@@ -1,4 +1,4 @@
-import { ApiPath, type AuthorColorSlot, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import { ApiPath, type AuthorColorSlot, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -14,8 +14,9 @@ import { FITTED_PAGE_CLASS } from './superdoc-zoom';
 import { useCaretOnOpen } from './use-caret-on-open';
 import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
-export const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
+
+export const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
 
 type SuperDocEditorProps = {
   onSuperdocChange: (superdoc: SuperDoc | null) => void;
@@ -23,13 +24,11 @@ type SuperDocEditorProps = {
   toolbarContainer: HTMLElement | null;
   documentId: string;
   roomMode: RoomMode;
-  creatorTicket: CreatorTicket | null;
   role: DocumentRole;
   user: SessionUser;
   colorSlot: AuthorColorSlot;
   file: Blob;
   isInert: boolean;
-  isSuperseded: boolean;
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
   onDocumentEdit: () => void;
@@ -42,13 +41,11 @@ export function SuperDocEditor({
   toolbarContainer,
   documentId,
   roomMode,
-  creatorTicket,
   role,
   user,
   colorSlot,
   file,
   isInert,
-  isSuperseded,
   onTransportReport,
   onEditorUpdate,
   onDocumentEdit,
@@ -106,7 +103,6 @@ export function SuperDocEditor({
         documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
         collaborationPath: ApiPath.Collaboration,
         roomMode,
-        creatorTicket,
         user,
         ...authorPaletteOf({ colorSlot }),
       }),
@@ -138,19 +134,7 @@ export function SuperDocEditor({
       setPageCount(0);
       setHasRejectedEdit(false);
     };
-  }, [
-    onSuperdocChange,
-    toolbarContainer,
-    documentId,
-    roomMode,
-    creatorTicket,
-    role,
-    user,
-    file,
-    onTransportReport,
-    onEditorUpdate,
-    onDocumentEdit,
-  ]);
+  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, role, user, file, onTransportReport, onEditorUpdate, onDocumentEdit]);
 
   useEffect(
     () => onLoadProgress({ isSynced: isCollaborationReady, pageCount, hasFailed }),
@@ -173,7 +157,7 @@ export function SuperDocEditor({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={leaveEditingSurface} onClick={clearRejectedEdit}>
-      {hasFailed && !isSuperseded && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
+      {hasFailed && <ErrorMessage className="p-4">{EDITOR_FAILED_MESSAGE}</ErrorMessage>}
       {hasRejectedEdit && (
         <p role="status" className="px-4 py-1 text-xs text-muted-foreground">
           {EDIT_REJECTED_MESSAGE}
@@ -187,7 +171,6 @@ export function SuperDocEditor({
         className={cn(
           'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted pt-3 [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
           FITTED_PAGE_CLASS,
-          isSuperseded && HIDDEN_LOADING_OVERLAY_CLASS,
         )}
       />
       <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">

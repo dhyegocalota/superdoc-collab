@@ -69,13 +69,10 @@ export type DocumentSummary = {
   thumbnailUpdatedAt: number | null;
 };
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
-export type CreatorTicket = { attempt: number; epoch: string };
 export type OpenedDocument = {
   document: DocumentSummary;
   role: DocumentRole;
   roomMode: RoomMode;
-  creatorAttempt: number | null;
-  creatorEpoch: string | null;
   bootstrap: BootstrapProgress;
   colorSlot: AuthorColorSlot;
 };
@@ -83,8 +80,6 @@ export type DocumentMember = { user: UserReference; role: DocumentRole; online: 
 export type DocumentMembers = {
   members: DocumentMember[];
   isCurrentUserOnline: boolean;
-  isAttemptSuperseded: boolean;
-  isAttemptRestarted: boolean;
 };
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };

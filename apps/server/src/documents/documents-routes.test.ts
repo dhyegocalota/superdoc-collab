@@ -293,7 +293,6 @@ test('every member opening an uncommitted document gets Join and the bootstrap i
     [RoomMode.Join, BootstrapStage.Preparing],
     [RoomMode.Join, BootstrapStage.Preparing],
   ]);
-  answers.forEach((answer) => expect([answer.creatorAttempt, answer.creatorEpoch]).toEqual([null, null]));
   expect(answers[0]!.colorSlot).toBe(authorColorSlot(owner.id));
   await server.stop();
 });

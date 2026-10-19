@@ -17,7 +17,6 @@ import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
-import { creatorTicketOf } from './collaboration-config';
 import { EditorHeader } from './editor-header';
 import { EditorStatus } from './editor-status';
 import { DIMMED_EDITOR_AREA_CLASS, EditorSurface } from './editor-surface';
@@ -25,7 +24,7 @@ import { EditorToolbarRow } from './editor-toolbar-row';
 import { ExitConfirmationDialog } from './exit-confirmation-dialog';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
-import { SUPERSEDED_REPORT, useConnectionState, type TransportReport } from './use-connection-state';
+import { useConnectionState, type TransportReport } from './use-connection-state';
 import { useConnectionFailureAction } from './use-connection-failure-action';
 import { useDocumentFile } from './use-document-file';
 import { useDocumentReload } from './use-document-reload';
@@ -52,11 +51,7 @@ export function DocumentPage() {
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
-  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded, isAttemptSuperseded, isAttemptRestarted } =
-    useMembers({
-      documentId,
-      creatorTicket: openedAfterMount ? creatorTicketOf(openedAfterMount) : null,
-    });
+  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const {
     state: connectionState,
     failureReason,
@@ -68,13 +63,9 @@ export function DocumentPage() {
     membersAnsweredAt,
     isSessionEnded,
   });
-  useEffect(() => {
-    if (isAttemptSuperseded) reportTransport(SUPERSEDED_REPORT);
-  }, [isAttemptSuperseded, reportTransport]);
   const { editorGeneration, isReloading, hasReloadFailed, reload } = useDocumentReload({
     documentId,
     roomMode: opened?.roomMode,
-    isAttemptRestarted,
     restartWaiting,
     resetConnection,
   });
@@ -163,7 +154,6 @@ export function DocumentPage() {
   const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
   const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
   const isFailed = connectionState === ConnectionState.Failed;
-  const isSuperseded = failureReason === ConnectionFailureReason.Superseded;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
   const isOpenFailing = isFailed || loadProgress.hasFailed || fileError !== null;
   const isOpenProgressVisible = isProgressShown && !hasPaintedParagraph && !isOpenFailing;
@@ -189,7 +179,6 @@ export function DocumentPage() {
       <EditorStatus
         isDocumentLoading={superdoc === null}
         hasFileError={fileError !== null}
-        isSuperseded={isSuperseded}
         hasExportFailed={hasExportFailed}
         hasReloadFailed={hasReloadFailed}
         isReloading={isReloading}
@@ -218,7 +207,6 @@ export function DocumentPage() {
             isToolbarReady={isToolbarReady}
             toolbarContainer={toolbarContainer}
             isInert={isEditingSurfaceInert}
-            isSuperseded={isSuperseded}
             isDimmed={isLoadingRequestedVersion}
             timeTravel={timeTravel}
             onSuperdocChange={setSuperdoc}

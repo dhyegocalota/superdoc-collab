@@ -1,6 +1,4 @@
 import {
-  CREATOR_ATTEMPT_QUERY_KEY,
-  CREATOR_EPOCH_QUERY_KEY,
   DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
@@ -11,8 +9,6 @@ import {
   RoomMode,
   TAB_QUERY_KEY,
   thumbnailApiPath,
-  type BootstrapProgress,
-  type CreatorTicket,
   type DocumentMembers,
   type OpenedDocument,
   type ShareLinkRole,
@@ -24,8 +20,6 @@ import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export class DocumentNotReadyError extends ApiRequestError {}
-
-export type OpenedAnswer = OpenedDocument & { bootstrap: BootstrapProgress };
 
 export const BLANK_DOCX_PATH = '/blank.docx';
 
@@ -51,7 +45,7 @@ export function documentFileQueryKey({
   return [...DOCUMENT_FILE_QUERY_KEY, documentId, roomMode];
 }
 
-export async function openDocument(documentId: string): Promise<OpenedAnswer> {
+export async function openDocument(documentId: string): Promise<OpenedDocument> {
   const response = await apiGet(documentApiPath({ documentId }));
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
@@ -68,18 +62,8 @@ export async function fetchDocumentFile({ documentId, roomMode }: { documentId: 
   return response.blob();
 }
 
-export async function fetchMembers({
-  documentId,
-  creatorTicket,
-}: {
-  documentId: string;
-  creatorTicket: CreatorTicket | null;
-}): Promise<DocumentMembers> {
+export async function fetchMembers(documentId: string): Promise<DocumentMembers> {
   const query = new URLSearchParams({ [TAB_QUERY_KEY]: tabId() });
-  if (creatorTicket) {
-    query.set(CREATOR_ATTEMPT_QUERY_KEY, String(creatorTicket.attempt));
-    query.set(CREATOR_EPOCH_QUERY_KEY, creatorTicket.epoch);
-  }
   const response = await apiGet(`${documentApiPath({ documentId, resource: DocumentResource.Members })}?${query}`);
   assertDocumentAvailable(response);
   return readJson<DocumentMembers>({ response, subject: 'Members request' });

@@ -5,7 +5,7 @@ import { useLocation, useSearchParams } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { useDocumentTitle } from '@/lib/use-document-title';
-import { AuthLayout } from './auth-layout';
+import { AuthLayout, AuthSkeleton } from './auth-layout';
 import { AuthCard, type AuthCardLink } from './auth-card';
 import { authClient } from './auth-client';
 import {
@@ -26,7 +26,6 @@ import {
 } from './auth-copy';
 import { signedQuerySearch } from './signed-query-search';
 import { AuthFieldType, AuthTextField } from './auth-text-field';
-import { SessionSkeleton } from './session-skeleton';
 import { useAuthSubmit } from './use-auth-submit';
 import { useInvite } from './use-invite';
 import { useSetup } from './use-setup';
@@ -80,10 +79,10 @@ export function SignUpPage() {
   useDocumentTitle(SIGN_UP_HEADING);
 
   if (setup.isError) return <ErrorMessage className="p-4">{SETUP_FAILED_MESSAGE}</ErrorMessage>;
-  if (!setup.data) return <SessionSkeleton />;
+  if (!setup.data) return <AuthSkeleton />;
   if (!setup.data.claimed) return <SignUpCard title={CLAIM_TITLE} description={CLAIM_DESCRIPTION} token={null} />;
   if (token === null) return <LinkInvalidCard message={INVITE_INVALID_MESSAGE} />;
-  if (invite.isPending) return <SessionSkeleton />;
+  if (invite.isPending) return <AuthSkeleton />;
   if (invite.isError) return <LinkInvalidCard message={INVITE_INVALID_MESSAGE} />;
   return <SignUpCard title={INVITED_TITLE} description={INVITED_DESCRIPTION} token={token} />;
 }

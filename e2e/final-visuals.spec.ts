@@ -42,7 +42,7 @@ import {
   TIMELINE_TOGGLE_LABEL,
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
-import { FILE_INPUT_LABEL, NEW_DOCUMENT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
+import { FILE_INPUT_LABEL, NEW_DOCUMENT_LABEL } from '../apps/web/src/features/documents/documents-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import {
   GROUPING_TOPICS_MESSAGE,
@@ -63,6 +63,7 @@ import {
   downloadOptionsButton,
   EDITOR_READY_TIMEOUT_MS,
   insertInParagraph,
+  openDocumentFileInput,
   REMOTE_CARET_SELECTOR,
   shareAndAccept,
   signOut,
@@ -312,7 +313,7 @@ async function downloadPdf(page: Page): Promise<void> {
 
 async function uploadBrief(page: Page): Promise<void> {
   await page.goto(AppRoute.Documents);
-  await page.getByRole('button', { name: UPLOAD_LABEL }).click();
+  await openDocumentFileInput(page);
   await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: 'brief.docx', mimeType: DOCX_MIME_TYPE, buffer: readFileSync(BRIEF_PATH) });
   await expect(page.locator(PAGE_SELECTOR).first()).toBeVisible({ timeout: PRINT_TIMEOUT_MS });
 }

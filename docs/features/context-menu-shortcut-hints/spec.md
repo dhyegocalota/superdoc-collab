@@ -1,6 +1,6 @@
 # Shortcut hints in the editor's right-click menu
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** requested 2026-10-19 (owner's request, translated: "every item of the editor's right-click menu that has a shortcut shows it there too, and the items that have a Word equivalent get one")
 **ADRs:** none new

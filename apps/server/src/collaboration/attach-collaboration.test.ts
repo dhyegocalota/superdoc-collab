@@ -481,7 +481,12 @@ async function openCountedSocket() {
     handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
   } as unknown as Hocuspocus;
   const auth = {
-    api: { getSession: async () => ({ user: { id: 'user-1', name: 'Eva', email: 'eva@example.test', role: 'user', timeZone: null } }) },
+    api: {
+      getSession: async () => ({
+        session: { impersonatedBy: null },
+        user: { id: 'user-1', name: 'Eva', email: 'eva@example.test', role: 'user', timeZone: null },
+      }),
+    },
   } as unknown as Auth;
   const httpServer = createServer();
   attachCollaboration({

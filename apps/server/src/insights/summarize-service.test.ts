@@ -25,6 +25,7 @@ enum ModelCall {
 }
 
 const POLL_TIMEOUT_MS = 15_000;
+const SETTLE_MS = 50;
 const SELECTION: RequestedSelection = { term: null, author: null, topic: null, at: null, binMs: null, timeZone: UTC_TIME_ZONE };
 const TOPICS = [
   { name: 'Budget', blockIds: ['b0'] },
@@ -353,6 +354,60 @@ test('pin: a selection with a topic regroups before the sentence', async () => {
   release();
   await jobRunner.idle();
   expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  client.close();
+  await server.stop();
+});
+
+async function unhandledRejectionsDuring(run: () => Promise<void>): Promise<unknown[]> {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', record);
+  await run();
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off('unhandledRejection', record);
+  return unhandled;
+}
+
+test('a regroup that rejects while the sentence is written leaves no unhandled rejection and keeps the sentence', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Summary, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  vi.spyOn(server.services.insightsRepository, 'markPending').mockImplementation(() => {
+    throw new Error('database is locked');
+  });
+  const unhandled = await unhandledRejectionsDuring(async () => {
+    summarize.request({ documentId, selection: SELECTION });
+    await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+    release();
+    await jobRunner.idle();
+  });
+  expect(unhandled).toEqual([]);
+  expect(selection.read({ documentId, selection: SELECTION })).toMatchObject({
+    step: SummarizeStep.Idle,
+    summary: { sentence: COMBINED_ANSWER.sentence },
+  });
+  client.close();
+  await server.stop();
+});
+
+test('a sentence write that throws beside a rejecting regroup ends the job with no unhandled rejection', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { server, documentId, client, summarize } = await documentWithTopics({ isFresh: false, modelFor: modelAnsweringWith });
+  const { selection, jobRunner } = server.services.insights;
+  vi.spyOn(selection, 'write').mockRejectedValue(new Error('sentence write exploded'));
+  vi.spyOn(server.services.insightsRepository, 'markPending').mockImplementation(() => {
+    throw new Error('database is locked');
+  });
+  const unhandled = await unhandledRejectionsDuring(async () => {
+    summarize.request({ documentId, selection: SELECTION });
+    await jobRunner.idle();
+  });
+  expect(unhandled).toEqual([]);
+  expect(selection.read({ documentId, selection: SELECTION }).step).toBe(SummarizeStep.Idle);
   client.close();
   await server.stop();
 });

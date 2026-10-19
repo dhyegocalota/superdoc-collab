@@ -66,3 +66,10 @@ test('unmounting clears the timer', () => {
   unmount();
   expect(vi.getTimerCount()).toBe(0);
 });
+
+test('a suppressed change ends the pulse that was running', () => {
+  const { result, rerender } = render({ change: null, isSuppressed: false });
+  rerender({ change: FIRST, isSuppressed: false });
+  rerender({ change: SECOND, isSuppressed: true });
+  expect(result.current).toBeNull();
+});

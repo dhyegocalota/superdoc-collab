@@ -227,7 +227,8 @@ export async function fetchBinEdits({
 export async function fetchVersion({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionLoad> {
   const response = await apiGet(versionApiPath({ documentId, sequence }));
   assertDocumentAvailable(response);
-  if (response.status === HttpStatus.Accepted) return { kind: VersionLoadKind.Pending, retryAfterMs: readRetryAfterMs(response) };
+  const isWaiting = response.status === HttpStatus.Accepted || response.status === HttpStatus.TooManyRequests;
+  if (isWaiting) return { kind: VersionLoadKind.Pending, retryAfterMs: readRetryAfterMs(response) };
   if (!response.ok) return { kind: VersionLoadKind.Failed };
   return { kind: VersionLoadKind.Ready, version: await response.json() };
 }

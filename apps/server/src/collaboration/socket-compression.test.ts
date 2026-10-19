@@ -17,6 +17,9 @@ const TEXT_NAME = 't';
 const TEST_TIMEOUT_MS = 60_000;
 
 type ClientSocketInternals = { _isServer: boolean; _socket: { bytesRead: number } };
+type SocketPrototype = { setSocket: (this: ClientSocketInternals, ...parameters: unknown[]) => void };
+
+const socketPrototype = WebSocket.prototype as unknown as SocketPrototype;
 
 function upgradeRequest({ path, origin, cookie }: { path: string; origin: string; cookie: string }): string {
   return [
@@ -69,11 +72,10 @@ describe('collaboration socket compression', () => {
       state,
     });
     const clientSockets: ClientSocketInternals[] = [];
-    const setSocket = WebSocket.prototype.setSocket;
-    const spy = vi.spyOn(WebSocket.prototype, 'setSocket').mockImplementation(function (this: WebSocket, ...parameters) {
-      const internals = this as unknown as ClientSocketInternals;
+    const setSocket = socketPrototype.setSocket;
+    const spy = vi.spyOn(socketPrototype, 'setSocket').mockImplementation(function (this: ClientSocketInternals, ...parameters) {
       setSocket.apply(this, parameters);
-      if (!internals._isServer) clientSockets.push(internals);
+      if (!this._isServer) clientSockets.push(this);
     });
     const joiner = await connectToDocument({ server, cookie: owner.cookie, documentId, ticket: null });
     spy.mockRestore();

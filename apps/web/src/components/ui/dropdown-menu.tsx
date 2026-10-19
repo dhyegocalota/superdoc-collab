@@ -69,6 +69,10 @@ function DropdownMenuLabel({
   );
 }
 
+function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'span'>) {
+  return <span data-slot="dropdown-menu-shortcut" aria-hidden className={cn('ml-auto pl-4 text-muted-foreground', className)} {...props} />;
+}
+
 function DropdownMenuSeparator({ className, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
   return (
     <DropdownMenuPrimitive.Separator
@@ -110,6 +114,7 @@ export {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 };

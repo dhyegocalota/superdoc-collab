@@ -2,7 +2,7 @@ import { detectPlatform, type Platform } from '@/lib/platform';
 import { shortcutKeyParts } from './shortcut-keys';
 import type { ShortcutId } from './shortcuts';
 
-const PILL_CLASS = 'rounded border bg-muted px-1 py-0.5 font-mono text-[0.6875rem] leading-none text-muted-foreground';
+const PILL_CLASS = 'rounded border border-current/30 px-1 py-0.5 font-mono text-[0.6875rem] leading-none';
 
 export function ShortcutKeyPills({ shortcutId, platform }: { shortcutId: ShortcutId; platform: Platform }) {
   return (

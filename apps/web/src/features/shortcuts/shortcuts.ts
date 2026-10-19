@@ -194,3 +194,7 @@ export function shortcutOf(id: ShortcutId): ShortcutDefinition {
   if (!found) throw new Error(`no shortcut declared for ${id}`);
   return found;
 }
+
+export const READER_SHORTCUT_GROUPS: readonly ShortcutGroup[] = Object.values(ShortcutGroup).filter(
+  (group) => !EDITING_SHORTCUT_GROUPS.includes(group),
+);

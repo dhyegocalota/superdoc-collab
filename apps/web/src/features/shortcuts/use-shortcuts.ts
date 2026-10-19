@@ -3,6 +3,7 @@ import type { SuperDoc } from 'superdoc';
 import { DownloadFormat } from '@/features/editor/download-format';
 import { isTypingInField } from '@/lib/keyboard';
 import { detectPlatform, Platform } from '@/lib/platform';
+import { commandHandleOf } from './shortcut-availability';
 import {
   EDITING_SHORTCUT_GROUPS,
   ShortcutActionKind,
@@ -45,12 +46,6 @@ function isMatch({ event, combination }: { event: KeyboardEvent; combination: Ke
 
 function isOutsideTextControl(target: EventTarget | null): boolean {
   return !(target instanceof HTMLElement && target.matches(TEXT_CONTROL_SELECTOR));
-}
-
-function commandHandleOf({ superdoc, commandId }: { superdoc: SuperDoc | null; commandId: string }) {
-  if (!superdoc) return null;
-  const handle = superdoc.ui.commands.get(commandId);
-  return handle.getState().supported ? handle : null;
 }
 
 function steppedFontSize({ currentSize, direction }: { currentSize: number; direction: 1 | -1 }): number {

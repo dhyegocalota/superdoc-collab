@@ -36,5 +36,5 @@ Failure text is in `test-plan.md`. Commit 0362f03d is red, 8cde4c06 is green.
 
 ## Known gaps
 
-- Save is disabled with no visible reason (the web-ui rule asks for one on disabled controls); the spec does not ask for it.
+- A disabled Save carries `SAVE_TITLE_DISABLED_REASON` through `aria-describedby` (commit 98ec9a38); the reason shows whenever Save is disabled, not only while the input is focused.
 - Leaving the input open on blur means a typed draft is lost only on Escape, Cancel or reload.

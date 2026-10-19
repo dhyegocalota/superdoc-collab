@@ -40,7 +40,7 @@ export function createProjectionQueues({
       queuePromise = queuePromise.then(stop);
     },
     [ProjectionRequestKind.Recycle]: () => {
-      queuePromise = queuePromise.then(stop);
+      queuePromise = Promise.all([queuePromise, importQueuePromise, bootstrapQueuePromise]).then(stop);
     },
   };
 

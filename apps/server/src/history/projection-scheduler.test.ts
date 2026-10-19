@@ -765,7 +765,7 @@ test('a request posted after the stop is posted again to the fresh worker and re
   const postMessage = vi.spyOn(heavyWorker, 'postMessage');
   const firstReply = await scheduler.blocks(randomUUID());
   await expect
-    .poll(() => postMessage.mock.calls.some(([message]) => (message as ProjectionRequest).kind === ProjectionRequestKind.Stop))
+    .poll(() => postMessage.mock.calls.some(([message]) => (message as ProjectionRequest).kind === ProjectionRequestKind.Recycle))
     .toBe(true);
   const lateReply = await scheduler.blocks(randomUUID());
   expect(lateReply.sequence).not.toBe(firstReply.sequence);

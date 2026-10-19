@@ -94,14 +94,15 @@ new_repository() {
   write_package apps/server @superdoc-collab/server '{"@superdoc-collab/history":"workspace:*","@superdoc-collab/types":"workspace:*"}'
   write_package libs/history @superdoc-collab/history '{"@superdoc-collab/types":"workspace:*"}'
   write_package libs/types @superdoc-collab/types '{}'
+  write_package tools/repository-shape @superdoc-collab/repository-shape '{}'
   printf '#!/usr/bin/env bash\n[[ "${1:-}" == --fix ]] && { echo "install $2"; exit 0; }\necho doctor >> "$STUB_LOG"\n' > "$repository/.agents/hooks/doctor.sh"
   printf '#!/usr/bin/env bash\necho "probe $*" >> "$STUB_LOG"\n' > "$repository/.github/scripts/secret-rules-probe.sh"
   chmod +x "$repository/.agents/hooks/doctor.sh" "$repository/.github/scripts/secret-rules-probe.sh" "$repository/scripts/verify.sh"
   local tracked
-  for tracked in README.md LICENSE AGENTS.md pnpm-lock.yaml docs/install.md docker/Dockerfile .agents/skills/x/SKILL.md .github/workflows/verify.yml apps/web/README.md apps/web/vite.config.ts apps/web/src/a.ts apps/server/src/x.ts apps/server/src/repository-shape/x.test.ts libs/types/src/x.ts; do
+  for tracked in README.md LICENSE AGENTS.md pnpm-lock.yaml docs/install.md docker/Dockerfile .agents/skills/x/SKILL.md .github/workflows/verify.yml apps/web/README.md apps/web/vite.config.ts apps/web/src/a.ts apps/server/src/x.ts tools/repository-shape/src/x.test.ts libs/types/src/x.ts; do
     change "$tracked"
   done
-  in_repository add -- scripts apps libs .agents .github docker docs README.md LICENSE AGENTS.md pnpm-lock.yaml
+  in_repository add -- scripts apps libs tools .agents .github docker docs README.md LICENSE AGENTS.md pnpm-lock.yaml
   in_repository commit -q -m initial
   git init -q --bare "$scratch/origin.git"
   in_repository remote add origin "$scratch/origin.git"
@@ -151,7 +152,7 @@ expect_line "a web file" "$output" packages @superdoc-collab/web
 
 classify apps/server/src/x.ts
 expect_line "a server file" "$output" packages @superdoc-collab/server
-expect_line "a server file" "$output" gates "doctor format secrets typecheck audit unit e2e"
+expect_line "a server file" "$output" gates "doctor format secrets typecheck audit shape unit e2e"
 
 classify libs/types/src/x.ts
 expect_line "a types file" "$output" packages "$ALL_PACKAGES"
@@ -167,9 +168,12 @@ classify .github/workflows/verify.yml
 expect_line "a workflow" "$output" class tooling
 expect_no_match "a workflow" "$output" 'e2e'
 
-classify apps/server/src/repository-shape/x.test.ts
+classify tools/repository-shape/src/x.test.ts
 expect_line "a repository shape test" "$output" gates "doctor format secrets typecheck audit shape"
 expect_no_match "a repository shape test" "$output" 'e2e'
+
+classify tools/repository-shape/package.json
+expect_line "a tools manifest" "$output" gates "$ALL_GATES"
 
 classify pnpm-lock.yaml
 expect_line "the lockfile" "$output" class product

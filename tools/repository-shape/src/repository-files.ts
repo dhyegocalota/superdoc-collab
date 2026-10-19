@@ -3,10 +3,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const REPOSITORY_ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+export const REPOSITORY_ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 export const DEPLOY_COMPOSE_FILE = 'docker/docker-compose.yml';
 const README_PATHSPEC = '*README.md';
-const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
+const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs', 'tools'];
 export const PACKAGE_MANIFEST = 'package.json';
 export const DOCUMENTED_FOLDERS = ['e2e'];
 const LINE_SEPARATOR = '\n';

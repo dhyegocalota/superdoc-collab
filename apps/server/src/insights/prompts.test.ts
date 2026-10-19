@@ -5,8 +5,11 @@ import {
   mentionedAuthors,
   namesOf,
   PROMPT_TOPIC_MAX_CHARACTERS,
+  SELECTION_SYSTEM_PROMPT,
   selectionPrompt,
   summariesPrompt,
+  SUMMARIES_SYSTEM_PROMPT,
+  TOPICS_SYSTEM_PROMPT,
   type SelectionEdit,
 } from './prompts';
 import { fitEdits } from './prompt-budget';
@@ -17,6 +20,9 @@ const AUTHOR_TAG_PATTERN = /<author name=/g;
 const TOPIC_BODY_PATTERN = /<topic [^>]*>\n([\s\S]*)\n<\/topic>/;
 const NO_OVERHEAD = () => 0;
 const ESCAPED_QUOTE_LENGTH = '&quot;'.length;
+const ENGLISH_SUMMARY_RULE = '- Write in English (en-US), whatever the language of the edited text.';
+const EDITED_TEXT_LANGUAGE_RULE = 'Write in the language of the edited text.';
+const DOCUMENT_LANGUAGE_TOPIC_RULE = "in the document's language";
 
 function edit({ authors = ['Ana'], inserted, deleted = '' }: { authors?: string[]; inserted: string; deleted?: string }): SelectionEdit {
   return { authors: authors.map((name) => ({ key: name, name, actor: ClientActor.Human, label: name })), inserted, deleted };
@@ -145,4 +151,15 @@ test('a name the model split at its comma is matched back to the sent name', () 
   expect(mentionedAuthors({ returned: ['Bruno', 'Bruno'], names: ['Silva, Ana', 'Bruno'] })).toEqual(['Bruno']);
   expect(mentionedAuthors({ returned: ['Ana'], names: ['Silva, Ana'] })).toEqual([]);
   expect(mentionedAuthors({ returned: ['Silva, Ana'], names: ['Silva, Ana'] })).toEqual(['Silva, Ana']);
+});
+
+test('the summary prompts ask for en-US whatever the language of the edits', () => {
+  [SUMMARIES_SYSTEM_PROMPT, SELECTION_SYSTEM_PROMPT].forEach((prompt) => {
+    expect(prompt).toContain(ENGLISH_SUMMARY_RULE);
+    expect(prompt).not.toContain(EDITED_TEXT_LANGUAGE_RULE);
+  });
+});
+
+test("the topics prompt keeps naming topics in the document's language", () => {
+  expect(TOPICS_SYSTEM_PROMPT).toContain(DOCUMENT_LANGUAGE_TOPIC_RULE);
 });

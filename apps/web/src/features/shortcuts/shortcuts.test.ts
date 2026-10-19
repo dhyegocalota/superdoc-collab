@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { expect, test } from 'vitest';
 import { ShortcutActionKind, ShortcutGroup, ShortcutId, shortcutOf, SHORTCUTS, type KeyCombination } from './shortcuts';
 
-const CATALOG_DECLARATION_PATH = new URL('../../../node_modules/superdoc/dist/superdoc/src/public/ui/commands.d.ts', import.meta.url);
+const CATALOG_DECLARATION_PATH = resolve('node_modules/superdoc/dist/superdoc/src/public/ui/commands.d.ts');
 const CATALOG_ID_PATTERN = /readonly id: "([^"]+)"/g;
 const ALL_IDS = Object.values(ShortcutId);
 

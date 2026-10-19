@@ -1,10 +1,12 @@
 import type { Platform } from '@/lib/platform';
-import type { ShortcutId } from './shortcuts';
+import { KEY_SEPARATORS, MODIFIER_LABELS } from './shortcuts-copy';
+import { shortcutOf, type ShortcutId } from './shortcuts';
 
 export function shortcutKeyParts({ id, platform }: { id: ShortcutId; platform: Platform }): string[] {
-  throw new Error(`shortcutKeyParts is not implemented for ${id} on ${platform}`);
+  const { modifiers, label } = shortcutOf(id).keys[platform];
+  return [...modifiers.map((modifier) => MODIFIER_LABELS[platform][modifier]), label];
 }
 
 export function shortcutLabel({ id, platform }: { id: ShortcutId; platform: Platform }): string {
-  throw new Error(`shortcutLabel is not implemented for ${id} on ${platform}`);
+  return shortcutKeyParts({ id, platform }).join(KEY_SEPARATORS[platform]);
 }

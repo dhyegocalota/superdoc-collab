@@ -33,6 +33,7 @@ import {
   FIND_IN_DOCUMENT_LABEL,
   HOME_LINK_LABEL,
   memberLabel,
+  onlineMembersLabel,
   MORE_ACTIONS_LABEL,
   renameTitleLabel,
   RENAME_FAILED_MESSAGE,
@@ -126,7 +127,7 @@ function onlyRequestWithMethod(fetchSpy: MockInstance<typeof fetch>, method: Htt
 test('at 1280 the right slot order is Members, Find, Use with AI, Share, Download, More actions, account', () => {
   renderHeader({ role: DocumentRole.Owner, members: [ADA] });
   const controls: Record<string, HTMLElement> = {
-    Members: screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) }),
+    Members: screen.getByRole('button', { name: memberLabel(ADA.user.name) }),
     Find: screen.getByRole('button', { name: FIND_IN_DOCUMENT_LABEL }),
     'Use with AI': screen.getByRole('button', { name: USE_WITH_AI_LABEL }),
     Share: screen.getByRole('button', { name: SHARE_LABEL }),
@@ -258,22 +259,23 @@ test('closing the delete dialog returns the focus to More actions', async () => 
   expect(screen.getByRole('button', { name: MORE_ACTIONS_LABEL })).toHaveFocus();
 });
 
-test('members announce their presence and the current user is online at once', () => {
+test('the row shows the online members and the current user at once, and not an offline member', () => {
   const members: DocumentMember[] = [
     { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: false, colorSlot: 1 },
     { user: { id: 'user-2', name: 'Bruno' }, role: DocumentRole.Editor, online: false, colorSlot: 2 },
     { user: { id: 'user-3', name: 'Carla' }, role: DocumentRole.Editor, online: true, colorSlot: 3 },
   ];
   renderHeader({ role: DocumentRole.Owner, members });
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ada', isOnline: true }) })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Carla', isOnline: true }) })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: false }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Ada') })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Carla') })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Bruno/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('group', { name: onlineMembersLabel(2) })).toBeInTheDocument();
 });
 
 test('at 768 the bar keeps Members, Share, More actions and the account, and More actions carries Find, Use with AI and both downloads', async () => {
   const emit = vi.fn();
   renderHeader({ role: DocumentRole.Owner, members: [ADA], superdoc: superdocStub({ emit }), width: NARROW_VIEWPORT_WIDTH });
-  expect(screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel(ADA.user.name) })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: SHARE_LABEL })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: USE_WITH_AI_LABEL })).toBeNull();

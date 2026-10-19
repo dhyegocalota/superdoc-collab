@@ -64,8 +64,7 @@ export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
 export const HIGHLIGHT_COMMENT_TEXT = 'Edited in this period';
 export const HOME_LINK_LABEL = `${APP_NAME}, back to documents`;
 
-export function memberLabel({ name, isOnline }: { name: string; isOnline: boolean }): string {
-  if (!isOnline) return name;
+export function memberLabel(name: string): string {
   return `${name}, ${ONLINE_LABEL}`;
 }
 
@@ -91,10 +90,6 @@ export function cursorNotFoundMessage(name: string): string {
 
 export function onlineMembersLabel(count: number): string {
   return `${count} online`;
-}
-
-export function offlineMemberReason(name: string): string {
-  return `${name} is offline`;
 }
 
 export function cursorOffScreenReason(name: string): string {

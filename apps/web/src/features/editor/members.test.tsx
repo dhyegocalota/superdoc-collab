@@ -103,7 +103,7 @@ function renderMembers({ members, isPastVersion = false }: { members: DocumentMe
 }
 
 async function findJumpButton(name: string): Promise<HTMLElement> {
-  const button = await screen.findByRole('button', { name: memberLabel({ name, isOnline: true }) });
+  const button = await screen.findByRole('button', { name: memberLabel(name) });
   await waitFor(() => expect(button).toHaveAccessibleDescription(goToCursorLabel(name)));
   return button;
 }
@@ -234,7 +234,7 @@ test('an online member with no position and the current user are aria-disabled w
     { member: bruno, reason: cursorOffScreenReason('Bruno') },
   ];
   for (const { member, reason } of reasons) {
-    const button = screen.getByRole('button', { name: memberLabel({ name: member.user.name, isOnline: true }) });
+    const button = screen.getByRole('button', { name: memberLabel(member.user.name) });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     await user.tab();
     expect(button).toHaveFocus();
@@ -321,19 +321,15 @@ test('a jump whose caret left shows the not-found message in the tooltip for thr
 test('a peer who borrows the name of an online member does not make that member jumpable', async () => {
   addCaret({ name: 'Bruno', color: '#000000' });
   renderMembers({ members: [ana, bruno] });
-  const button = screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) });
+  const button = screen.getByRole('button', { name: memberLabel('Bruno') });
   expect(button).toHaveAttribute('aria-disabled', 'true');
 });
 
 test('a member with no position is described by its reason while the tooltip is closed', () => {
   renderMembers({ members: [ana, bruno] });
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) })).toHaveAccessibleDescription(
-    cursorOffScreenReason('Bruno'),
-  );
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ana', isOnline: true }) })).toHaveAccessibleDescription(
-    SELF_MEMBER_REASON,
-  );
+  expect(screen.getByRole('button', { name: memberLabel('Bruno') })).toHaveAccessibleDescription(cursorOffScreenReason('Bruno'));
+  expect(screen.getByRole('button', { name: memberLabel('Ana') })).toHaveAccessibleDescription(SELF_MEMBER_REASON);
 });
 
 test('below 768 five members show three avatars and a button named 2 more people', () => {
@@ -352,8 +348,8 @@ test('below 768 three members still show all three with no menu', () => {
 
 test('offline members are not in the row and online ones are', () => {
   renderMembers({ members: [ana, bruno, clara] });
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ana', isOnline: true }) })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Ana') })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Bruno') })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Clara/ })).not.toBeInTheDocument();
 });
 

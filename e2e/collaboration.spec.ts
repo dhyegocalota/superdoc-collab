@@ -82,7 +82,7 @@ test('a member shows in the top bar while in the document and leaves it when the
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: ['Paragraph owned by ana.'] });
-  const brunoAvatar = topBar(ana.page).getByRole('button', { name: memberLabel({ name: DEMO_USERS[1]!.name, isOnline: true }) });
+  const brunoAvatar = topBar(ana.page).getByRole('button', { name: memberLabel(DEMO_USERS[1]!.name) });
   await expect(brunoAvatar).toHaveCount(0);
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   await expect(brunoAvatar).toBeVisible({ timeout: ATTRIBUTION_TIMEOUT_MS });

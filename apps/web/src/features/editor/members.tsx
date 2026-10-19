@@ -88,7 +88,7 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={memberLabel({ name, isOnline: true })}
+          aria-label={memberLabel(name)}
           aria-describedby={reasonId}
           aria-disabled={reason !== null}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"

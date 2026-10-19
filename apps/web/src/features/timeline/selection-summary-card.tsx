@@ -27,6 +27,7 @@ import {
   TOPICS_GROUPED_LABEL,
 } from './timeline-copy';
 import type { SummarizeControl } from './use-summarize';
+import { useWordReveal } from './use-word-reveal';
 
 type SelectionSummaryCardProps = {
   view: SelectionSummaryView | undefined;
@@ -38,6 +39,21 @@ type SelectionSummaryCardProps = {
 function errorMessage({ error, secondsLeft }: { error: Error; secondsLeft: number | null }): string {
   if (secondsLeft === null) return error.message;
   return `${error.message} ${retryInLabel(secondsLeft)}`;
+}
+
+function hasPartialWord(partial: string | null): partial is string {
+  return partial !== null && partial.trim() !== '';
+}
+
+function displayedSentence({ partial, summary }: SelectionSummaryView): string | null {
+  if (hasPartialWord(partial)) return partial;
+  if (summary !== null) return summary.sentence;
+  return null;
+}
+
+function Sentence({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+  const revealed = useWordReveal({ text, isStreaming });
+  return <p className="text-sm">{revealed}</p>;
 }
 
 function Spinner() {
@@ -99,6 +115,8 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
   const isGrouping = view.step === SummarizeStep.Grouping;
   const isSummarizing = view.step === SummarizeStep.Summarizing;
   const isRunning = summarize.isRunning || view.state === SelectionSummaryState.Running || isGrouping || isSummarizing;
+  const isStreamingSentence = hasPartialWord(view.partial);
+  const sentence = displayedSentence(view);
   const isRunningWithoutStep = isRunning && !isGrouping && !isSummarizing;
   const isAnsweredUpToDate = summarize.outcome === SummarizeOutcome.UpToDate;
   const isEmpty = isAnsweredUpToDate && summary === null;
@@ -111,31 +129,38 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
   useRevealRun({ isRunning, summaryKey: summary?.key, targetRef: sectionRef });
   if (!hasContent) return null;
   return (
-    <section ref={sectionRef} aria-labelledby={headingId} className="flex flex-col gap-2 rounded-md border p-3">
+    <section
+      ref={sectionRef}
+      aria-labelledby={headingId}
+      aria-busy={isStreamingSentence}
+      className="flex flex-col gap-2 rounded-md border p-3"
+    >
       <h3 id={headingId} className="text-sm font-medium">
         {SELECTION_SUMMARY_HEADING}
       </h3>
-      {isGrouping && <GroupingProgress />}
-      {isSummarizing && <SummarizingProgress />}
-      {isRunningWithoutStep && (
+      {isGrouping && !isStreamingSentence && <GroupingProgress />}
+      {isSummarizing && !isStreamingSentence && <SummarizingProgress />}
+      {isRunningWithoutStep && !isStreamingSentence && (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner />
           {SUMMARIZING_EDITS_MESSAGE}
         </p>
       )}
-      {summary && (
+      {sentence !== null && (
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-2">
-            <ul className="flex items-center gap-1">
-              {summary.authors.map((author, index) => {
-                const known = authorByName({ authors, name: author.name, actor: author.actor });
-                const avatarAuthor = known ? known : { id: null, name: author.name, actor: author.actor };
-                return <AuthorAvatar key={`${index}-${author.name}`} author={avatarAuthor} />;
-              })}
-            </ul>
-            {summary.isStale && <Badge variant="secondary">{EARLIER_STATE_LABEL}</Badge>}
-          </div>
-          <p className="text-sm">{summary.sentence}</p>
+          {summary && !isStreamingSentence && (
+            <div className="flex items-center justify-between gap-2">
+              <ul className="flex items-center gap-1">
+                {summary.authors.map((author, index) => {
+                  const known = authorByName({ authors, name: author.name, actor: author.actor });
+                  const avatarAuthor = known ? known : { id: null, name: author.name, actor: author.actor };
+                  return <AuthorAvatar key={`${index}-${author.name}`} author={avatarAuthor} />;
+                })}
+              </ul>
+              {summary.isStale && <Badge variant="secondary">{EARLIER_STATE_LABEL}</Badge>}
+            </div>
+          )}
+          <Sentence text={sentence} isStreaming={isStreamingSentence} />
         </div>
       )}
       {isEmpty && (

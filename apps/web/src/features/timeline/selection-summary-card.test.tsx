@@ -65,9 +65,11 @@ const FAILED_VIEW: SelectionSummaryView = {
   failure: 'The edits could not be summarized. Try again.',
 };
 const scrollIntoView = vi.fn();
+const originalMatchMedia = window.matchMedia;
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.stubGlobal('matchMedia', originalMatchMedia);
 });
 
 beforeEach(() => {
@@ -265,7 +267,6 @@ test('shows the partial sentence at once under reduced motion', () => {
   stubReducedMotion();
   render(card({ view: STREAMING_VIEW }));
   expect(screen.getByText('Ana raised')).toBeInTheDocument();
-  vi.unstubAllGlobals();
 });
 
 test('keeps the busy label until the first partial word', () => {

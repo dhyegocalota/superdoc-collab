@@ -8,36 +8,18 @@ A collaborative DOCX editor that records every edit and shows who changed what, 
 
 An AI client connected through OAuth edits the document through MCP tools, as tracked changes the person can accept or reject. The timeline attributes its edits as the agent, a hatched layer with an AI mark beside the human bands, as the [agentic history spec](docs/features/agentic-history-mcp/spec.md) describes.
 
-## Features
+## What you can do
 
-**Edit together**
+1. **Write together.** Open a Word document in the browser and edit it with other people at the same time, each with a cursor in their own colour.
+2. **See how the document changed.** A chart beside the page shows how much was edited over time, one coloured band per subject that the AI names, such as "Pricing" or "Timeline". Hover any moment to see who was working on what.
+3. **Go back to any moment.** Click a point in the chart to open the document exactly as it was then, read-only, with that moment's edits highlighted.
+4. **Find who changed what.** Type a word to see every edit that touched it, or `@Ana` to see only Ana's edits; the chart and the list follow.
+5. **Get a summary.** "Summarize edits with AI" writes a few sentences about the edits you are looking at, such as "Bruno rewrote the pricing section and Ana added two risks".
+6. **Let an AI edit for you.** Connect your own AI assistant, such as Claude, ChatGPT or Cursor. It reads the history and edits as tracked changes you accept or reject, each marked as made by your AI, not by you.
+7. **Share it.** Send an edit link or a read-only link, and remove anyone later.
+8. **Start from a full example.** A new install opens on a sample document written over five days by four people, so the chart is full from the first click.
 
-- Live DOCX editing in SuperDoc: cursors, one colour per author, a jump to any member's cursor, the caret in the page on open.
-- Upload or drop a `.docx`, or start blank; rename, and download as DOCX or PDF. The home shows documents as cards or a table.
-- Sharing by an edit link and a read-only link the owner rotates; removing a member closes their sockets at once.
-- Connection state on screen: lost, reconnecting, recovered. Offline edits are kept, and leaving with unsynced ones asks first.
-
-**See the history**
-
-- Every edit recorded on the server with its author, tracked changes in an uploaded file included.
-- A streamgraph of edit volume per topic, or per author before topics exist, with idle stretches collapsed into marked breaks.
-- One filter box, text or `@person`, narrowing the chart, the list and the highlights, kept in the URL.
-- Top edits per topic: the contributors, the word delta and one sentence written by the model.
-- Time travel: click or scrub to open a read-only version, or open the version right after any edit.
-- Summarize edits with AI: one to three sentences about exactly the current selection, streamed word by word and cached for every member.
-
-**AI clients**
-
-- A remote MCP server behind OAuth: an AI client reads the history, edits in tracked mode, exports and shares as the person who authorized it. Its edits are signed "Name · AI", and the person revokes it under Connected apps.
-
-**Accounts and running it**
-
-- Invite only: the first sign-up claims the instance as admin, who hands out single-use invites and password reset links; no email needed.
-- A showcase document with five days of edits by four authors, so the first timeline is full.
-- Dark theme, a time zone preference, and layouts from a 320 px phone to a wide screen.
-- One Docker image, one Node process, SQLite; the demo runs on Railway.
-
-Every feature in detail, with its limits: [Architecture, features and limits](docs/architecture.md#features).
+Also: upload by drag and drop, download as Word or PDF, dark mode, a phone layout, and accounts by invitation. How each feature works, and its limits: [Architecture, features and limits](docs/architecture.md#features).
 
 ## Quick install
 

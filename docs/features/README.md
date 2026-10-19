@@ -118,3 +118,4 @@ Refinement after the five slices:
 | [`admin-actions-menu`](admin-actions-menu/) | Admin → Users shows one icon-only Actions menu per row instead of several buttons | Shipped 2026-10-19 |
 | [`account-menu-sections`](account-menu-sections/) | The account menu groups Account, Workspace, Help and Theme with Sign out alone; More actions drops Keyboard shortcuts | Shipped 2026-10-19 |
 | [`large-documents`](large-documents/) | A document of any size opens: Word revisions import only up to 2 MB, the server and projection worker heaps follow the container limit, and a creator refused after a restart re-opens the document instead of seeing "opened elsewhere" | Shipped 2026-10-19 |
+| [`server-bootstrap`](server-bootstrap/) | The server builds the room right after the upload through the SuperDoc SDK in the projection worker, so every opener joins a snapshot and the open answer reports bootstrap progress; the creator tickets go | Building |

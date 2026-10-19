@@ -1,27 +1,11 @@
 import { AppRoute, PRINT_READY_TIMEOUT_MS } from '@superdoc-collab/types';
 import { act, render } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { frameWindowOf, printFrame, sendFromFrame } from '@/testing/print-frame';
 import { PrintMessageKind, type PrintMessage } from './print-messages';
 import { PrintView } from './print-view';
 
 const FILE = new Blob(['docx']);
-
-function printFrame(): HTMLIFrameElement {
-  const frame = document.querySelector<HTMLIFrameElement>('iframe[data-print-view]');
-  if (!frame) throw new Error('print view is not mounted');
-  return frame;
-}
-
-function frameWindowOf(frame: HTMLIFrameElement): Window {
-  if (!frame.contentWindow) throw new Error('the print frame has no window');
-  return frame.contentWindow;
-}
-
-function sendFromFrame({ message, source = frameWindowOf(printFrame()) }: { message: PrintMessage; source?: MessageEventSource }): void {
-  act(() => {
-    window.dispatchEvent(new MessageEvent('message', { data: message, origin: window.location.origin, source }));
-  });
-}
 
 function renderPrintView() {
   const onClose = vi.fn();

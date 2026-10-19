@@ -32,3 +32,7 @@ export function readPrintMessage({
   if (!data || !PRINT_MESSAGE_KINDS.includes(String(data.kind))) return null;
   return event.data;
 }
+
+export function postToParent(message: PrintMessage): void {
+  window.parent.postMessage(message, window.location.origin);
+}

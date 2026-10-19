@@ -222,7 +222,11 @@ function createServices({
   const agentActions = new AgentActionsLog(historySqlite);
   const readModel = new ReadModel(readModelSqlite);
   const documents = new DocumentsRepository({ database, readModel });
-  const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: environment.databaseDirectory,
+    projectionWorkerFile,
+    workerHeapMegabytes: environment.projectionWorkerHeapMegabytes,
+  });
   const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
   const passwordResetLinks = new PasswordResetLinkCapture();
   const auth = createAuth({

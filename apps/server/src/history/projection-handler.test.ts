@@ -73,6 +73,16 @@ test('a file above the revisions cap is not imported, is logged with its size an
   warn.mockRestore();
 });
 
+test('a file whose size cannot be read answers the error instead of throwing', async () => {
+  const importRevisions = vi.fn(async () => null);
+  const unreadable = () => {
+    throw new Error('no such file');
+  };
+  const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
+  expect(await createProjectionHandler(storesWith(importRevisions, unreadable))(request)).toMatchObject({ importError: 'Error: no such file' });
+  expect(importRevisions).not.toHaveBeenCalled();
+});
+
 test('a file exactly at the revisions cap is imported', async () => {
   const importRevisions = vi.fn(async () => null);
   const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;

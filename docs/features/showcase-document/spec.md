@@ -1,6 +1,6 @@
 # Showcase document
 
-**Status:** Approved
+**Status:** Building
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner: "Um documento de exemplo pré-carregado com história rica ... DOCX seeded com dias de edição por 3 ou 4 autores, tópicos nomeados e idle gaps marcados faz o streamgraph aparecer completo no primeiro clique")
 **ADRs:** [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md), [0039](../../adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md)

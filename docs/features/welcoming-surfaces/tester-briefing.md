@@ -48,3 +48,9 @@ Green: 159 unit tests across auth, components and documents; E2E `documents.spec
 - Safari drag events and a real desktop drag are not exercised; the E2E dispatches synthetic events.
 - The `frontend-design` skill could not be loaded in this lane (no Skill tool); the visual direction stays inside the existing tokens.
 - Commit trailers name Claude Sonnet 5.5, the model that wrote them.
+
+## Tester run 2026-10-19
+
+- Walked sign-in and sign-up at 1280 and 375 in both themes, the invite flow end to end, the empty page, the one-document page, drag messages and a real CDP drag and drop. Hypotheses 1, 2, 3, 5, 7, 8 held.
+- Defect to confirm (medium): the drop overlay stays up after a cancelled drag and nothing dismisses it. Claim 1 (card roles diff) not done.
+- Console: one expected 415 for the pdf drop.

@@ -46,3 +46,8 @@ pnpm test:e2e e2e/time-travel.spec.ts
 - A run groups an author's edits of one block in one bin, so one row opens the version after the last inserting edit, not after every edit.
 - The build time was measured on a synthetic 12 802-update log, not on the 4-page fixture.
 - `sequence` is also a `TimelineQueryParam` only to satisfy the rule that every page parameter is a query parameter; no route reads it.
+
+## Tester run 2026-10-19
+
+- Walked the owner's five steps by hand, then a second document with the add, delete and re-add steps in separate bins, a reader on the shared URL, an unknown sequence, Back, Forward and Back to live. Hypotheses 1 to 4 held; 5 not run.
+- Defects: none. Note the known gap is visible: the bin of the five steps shows the document without the deleted paragraph while its edit row shows the edited paragraph. Console errors: none.

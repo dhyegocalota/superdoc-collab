@@ -61,3 +61,8 @@ Smallest gap between the end of one burst and the start of the next is 1 h 48 mi
 - The Playwright MCP walk, the 375 px check and the adversarial attacks in `test-plan.md` are the tester's.
 - The break divider element is a zero-size SVG line, so the E2E counts it rather than asserting visibility.
 - Not run: the full server suite. Only the files above, `documents-routes.test.ts` (53 passed) and `pnpm typecheck` (green).
+
+## Tester run 2026-10-19
+
+- Walked the admin button twice, the list, the showcase timeline at 1280 and 375, the bins of the four authors and one summary. Hypotheses held except the in-place list refresh (not tested) and the visible four contributors (the top edits row shows three).
+- Defects: none blocking. Minor: the top edits avatar row caps at three without an overflow marker, hiding the fourth showcase author. Console errors: none.

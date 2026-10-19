@@ -50,3 +50,9 @@ The test that pins `SUPERDOC_VERSION` to the installed `superdoc` package landed
 - `favicon.ico` is a one-image ICO wrapping `favicon-32.png`, linked with `sizes="32x32"`.
 - `mountStaticWeb` now takes `appOrigin` and rewrites `og:image` and `twitter:image` once at startup; the source `index.html` keeps the root-relative path.
 - Hypotheses: `/favicon.ico` answers 200 with an icon type; the served page's `og:image` starts with the app origin; `/api` paths and other root-relative URLs are untouched.
+
+## Tester run 2026-10-19
+
+- Walked /about signed out and signed in, the metadata, the manifest and icons, and the headers of every static file.
+- Defect (medium): the root path serves a relative og:image because the index file is served by the static middleware before the origin rewrite. Everything else held; the Docker claim and unit and E2E boxes were left to the lead.
+- Console errors: none.

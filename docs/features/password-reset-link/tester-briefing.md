@@ -37,3 +37,8 @@
 - Token expiry by the clock is not exercised.
 - Concurrent resets for the same user share one slot; the later request overwrites the earlier token before `take`, which is harmless because each request takes its own.
 - 375 px layout, console and network cleanliness, and the adversarial claims in the test plan are for the tester.
+
+## Tester run 2026-10-19
+
+- Walked the whole flow with an admin browser, a signed-out browser and a second signed-in browser for the session revocation; hypotheses 1 to 7 held (6 checked against the stack log only).
+- Defects: none. Console: expected 401/403/404/400 responses of the attacks only.

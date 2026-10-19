@@ -5,7 +5,13 @@ import {
   SECOND_MS,
 } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { awarenessFrame, awarenessFrameClaiming, syncStepOneFrame } from '../testing/socket-frames';
+import {
+  awarenessFrame,
+  awarenessFrameClaiming,
+  PaddedVarintField,
+  paddedAwarenessFrame,
+  syncStepOneFrame,
+} from '../testing/socket-frames';
 import { SocketMessageLimit } from './socket-message-limit';
 
 const ROOM_NAME = 'superdoc-room-1';
@@ -65,6 +71,15 @@ test('an awareness frame claiming one entry more than the frame cap claims too m
   const limit = new SocketMessageLimit();
   expect(limit.claimsTooManyEntries(claimingFrame(MAX_AWARENESS_ENTRIES_PER_FRAME + 1))).toBe(true);
 });
+
+const PADDED_ENTRY_COUNT = 100_000;
+
+Object.values(PaddedVarintField).forEach((paddedField) =>
+  test(`an awareness frame with a padded ${paddedField} claims too many`, () => {
+    const frame = paddedAwarenessFrame({ roomName: ROOM_NAME, paddedField, claimedEntryCount: PADDED_ENTRY_COUNT });
+    expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(true);
+  }),
+);
 
 test('awareness frames claiming up to the frame cap, other frames and unreadable frames do not', () => {
   const limit = new SocketMessageLimit();

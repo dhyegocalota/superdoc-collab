@@ -1,6 +1,13 @@
 import { expect, test } from 'vitest';
-import { authFrame, awarenessFrame, awarenessFrameClaiming, syncStepOneFrame } from '../testing/socket-frames';
-import { awarenessEntryCountOf, FrameBucket, frameBucketOf } from './frame-bucket';
+import {
+  authFrame,
+  awarenessFrame,
+  awarenessFrameClaiming,
+  PaddedVarintField,
+  paddedAwarenessFrame,
+  syncStepOneFrame,
+} from '../testing/socket-frames';
+import { awarenessEntryCountOf, FrameBucket, frameBucketOf, UNREADABLE_ENTRY_COUNT } from './frame-bucket';
 
 const ROOM_NAME = 'superdoc-room-1';
 const SINGLE_BYTE_FRAME = Buffer.from([0]);
@@ -77,5 +84,14 @@ test('a truncated or unterminated count has no entry count', () => {
   const unterminated = Buffer.concat([frame.subarray(0, afterLength), UNTERMINATED_VARINT]);
   expect(
     [frame.subarray(0, afterType), frame.subarray(0, afterLength), unterminated, SINGLE_BYTE_FRAME].map(awarenessEntryCountOf),
-  ).toEqual([null, null, null, null]);
+  ).toEqual([UNREADABLE_ENTRY_COUNT, UNREADABLE_ENTRY_COUNT, UNREADABLE_ENTRY_COUNT, null]);
 });
+
+const PADDED_ENTRY_COUNT = 100_000;
+
+Object.values(PaddedVarintField).forEach((paddedField) =>
+  test(`an awareness frame with a padded ${paddedField} claims an unbounded entry count`, () => {
+    const frame = paddedAwarenessFrame({ roomName: ROOM_NAME, paddedField, claimedEntryCount: PADDED_ENTRY_COUNT });
+    expect(awarenessEntryCountOf(frame)).toBe(UNREADABLE_ENTRY_COUNT);
+  }),
+);

@@ -11,6 +11,8 @@ const VARINT_PAYLOAD_MASK = 0x7f;
 const VARINT_BITS_PER_BYTE = 7;
 const MAX_VARINT_BYTES = 5;
 
+export const UNREADABLE_ENTRY_COUNT = Number.POSITIVE_INFINITY;
+
 type VarUint = { value: number; next: number };
 
 function readVarUint({ bytes, offset }: { bytes: Buffer; offset: number }): VarUint | null {

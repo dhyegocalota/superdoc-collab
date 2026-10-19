@@ -31,7 +31,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
 import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
-import { awarenessFrame, awarenessFrameClaiming } from '../testing/socket-frames';
+import { awarenessFrame, awarenessFrameClaiming, PaddedVarintField, paddedAwarenessFrame } from '../testing/socket-frames';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
@@ -46,6 +46,7 @@ const AWARENESS_ROOM_NAME = 'superdoc-room-1';
 const CLAIMED_ID_BASE = 1_000_000;
 const SECOND_CLAIMED_ID_BASE = 2_000_000;
 const SPLIT_CLAIM_IDS_PER_FRAME = 5;
+const PADDED_ENTRY_COUNT = 100_000;
 const REPLAY_CLOCK = 2;
 const REPLAYED_ID_COUNT = 5;
 const OWN_UPDATES = 5;
@@ -577,6 +578,16 @@ test('claims split over frames that together pass the connection cap close the s
   client.close();
   await server.stop();
 });
+
+Object.values(PaddedVarintField).forEach((paddedField) =>
+  test(`an awareness frame with a padded ${paddedField} never reaches the room handler and closes the socket with 1008`, async () => {
+    const { socket, closed, received, httpServer } = await openCountedSocket();
+    socket.send(paddedAwarenessFrame({ roomName: AWARENESS_ROOM_NAME, paddedField, claimedEntryCount: PADDED_ENTRY_COUNT }));
+    expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+    expect(received).not.toHaveBeenCalled();
+    await new Promise((resolve) => httpServer.close(resolve));
+  }),
+);
 
 test('a frame claiming exactly the frame cap of entries reaches the room handler and keeps the socket open', async () => {
   const { socket, received, httpServer } = await openCountedSocket();

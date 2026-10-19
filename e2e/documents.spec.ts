@@ -34,6 +34,7 @@ import {
   insertedBy,
 } from './editor';
 import {
+  CARDS_VIEW_LABEL,
   DROP_OVERLAY_LABEL,
   DROP_ZONE_LABEL,
   EMPTY_STATE_HEADING,
@@ -41,6 +42,7 @@ import {
   ONE_FILE_AT_A_TIME_MESSAGE,
   ROLE_LABELS,
   SHARED_HEADING,
+  TABLE_VIEW_LABEL,
   UPLOAD_LABEL,
 } from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, MORE_ACTIONS_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
@@ -76,10 +78,21 @@ const TYPED_SENTENCE = 'Typed into a new document.';
 const FRESH_MEMBER_NAME = 'Fresh';
 const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
 const BRIEF_FILE_NAME = 'brief.docx';
+const THUMBNAIL_TEST_ID = 'document-thumbnail';
+const CARDS_GRID_TEST_ID = 'document-cards';
 const DOCUMENT_PATH_PATTERN = /\/documents\/[^/?#]+/;
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
+}
+
+async function chooseTableView(page: Page): Promise<void> {
+  await page.getByRole('radio', { name: TABLE_VIEW_LABEL }).click();
+  await expect(page.getByRole('radio', { name: TABLE_VIEW_LABEL })).toBeChecked();
+}
+
+function cardOf({ page, title }: { page: Page; title: string }) {
+  return page.getByRole('article').filter({ hasText: title });
 }
 
 function titleOf(fileName: string): string {
@@ -140,6 +153,7 @@ test('a share link adds the document to Shared with me', async ({ browser }) => 
   await caio.page.goto(new URL(links[ShareLinkRole.Edit]).pathname);
   await expect(caio.page).toHaveURL(documentPagePath(documentId));
   await caio.page.goto(AppRoute.Documents);
+  await chooseTableView(caio.page);
   const sharedSection = caio.page.locator('section', { has: caio.page.getByRole('heading', { name: SHARED_HEADING }) });
   const row = sharedSection.getByRole('row', { name: new RegExp(titleOf(fileName)) });
   await expect(row).toContainText(ROLE_LABELS[DocumentRole.Editor]);
@@ -224,6 +238,7 @@ test('the list never scrolls sideways at 375 and clamps a long title to two line
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
   await ana.page.setViewportSize(NARROW_VIEWPORT);
   await ana.page.goto(AppRoute.Documents);
+  await chooseTableView(ana.page);
   const titleLink = ana.page.getByRole('link', { name: titleOf(fileName) });
   const titleText = titleLink.locator('span');
   await expect(titleLink).toBeVisible();
@@ -323,4 +338,51 @@ test('the overlay follows the drag, and two dropped files upload nothing', async
   await expect(ana.page.getByRole('alert')).toHaveText(ONE_FILE_AT_A_TIME_MESSAGE);
   await expect(ana.page.getByText(DROP_OVERLAY_LABEL)).toHaveCount(0);
   await expect(ana.page).toHaveURL(AppRoute.Documents);
+});
+
+test('the home opens in cards and a card shows the text typed into its document', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const fileName = uniqueFileName('card');
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
+  await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: MINE_MARKER });
+  await ana.page.goto(AppRoute.Documents);
+  await expect(ana.page.getByRole('radio', { name: CARDS_VIEW_LABEL })).toBeChecked();
+  await expect(ana.page.getByRole('table')).toHaveCount(0);
+  await expect
+    .poll(
+      async () => {
+        await ana.page.reload();
+        return cardOf({ page: ana.page, title: titleOf(fileName) })
+          .getByTestId(THUMBNAIL_TEST_ID)
+          .textContent({ timeout: LIVE_TIMEOUT_MS });
+      },
+      { timeout: EVENTS_TIMEOUT_MS },
+    )
+    .toContain(MINE_MARKER.trim());
+});
+
+test('the toggle switches to the table and the choice survives a reload', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: uniqueFileName('toggle') });
+  await ana.page.goto(AppRoute.Documents);
+  await expect(ana.page.getByRole('article').first()).toBeVisible();
+  await chooseTableView(ana.page);
+  await expect(ana.page.getByRole('table').first()).toBeVisible();
+  await ana.page.reload();
+  await expect(ana.page.getByRole('radio', { name: TABLE_VIEW_LABEL })).toBeChecked();
+  await expect(ana.page.getByRole('table').first()).toBeVisible();
+  await expect(ana.page.getByRole('article')).toHaveCount(0);
+});
+
+test('at 375 the cards are one column and the page never scrolls sideways', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: uniqueFileName(LONG_TITLE_PREFIX) });
+  await ana.page.setViewportSize(NARROW_VIEWPORT);
+  await ana.page.goto(AppRoute.Documents);
+  const grid = ana.page.getByTestId(CARDS_GRID_TEST_ID).first();
+  await expect(grid).toBeVisible();
+  await expect.poll(() => grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(1);
+  await expect
+    .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+    .toBeLessThanOrEqual(0);
 });

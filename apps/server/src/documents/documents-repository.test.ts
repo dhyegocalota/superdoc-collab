@@ -54,6 +54,7 @@ test('the owner sees it as mine and a member as shared, with the owner named', a
     updatedAt: expect.any(Number),
     role: DocumentRole.Reader,
     owner: { id: ana, name: 'Ana' },
+    preview: null,
   };
   expect(documents.list(bruno)).toEqual({ mine: [], shared: [expected] });
   expect(documents.list(ana).mine).toEqual([{ ...expected, role: DocumentRole.Owner }]);
@@ -103,5 +104,19 @@ test('rename and touch update the summary', async () => {
 test('userNames of an empty list is an empty map', async () => {
   const { server } = await twoUsers();
   expect(server.services.documents.userNames([])).toEqual(new Map());
+  await server.stop();
+});
+
+test('the list carries the preview the projection wrote and null for a document not yet projected', async () => {
+  const { server, ana } = await twoUsers();
+  const { documents, readModel } = server.services;
+  const projectedId = randomUUID();
+  const pendingId = randomUUID();
+  documents.create({ id: projectedId, title: 'Projected', ownerUserId: ana });
+  documents.create({ id: pendingId, title: 'Pending', ownerUserId: ana });
+  readModel.commit({ documentName: projectedId, events: [], marks: [], lastSequence: 1, preview: 'First line\nSecond line' });
+  const previews = Object.fromEntries(documents.list(ana).mine.map((document) => [document.id, document.preview]));
+  expect(previews).toEqual({ [projectedId]: 'First line\nSecond line', [pendingId]: null });
+  expect(documents.summary({ documentId: projectedId, userId: ana }).preview).toBe('First line\nSecond line');
   await server.stop();
 });

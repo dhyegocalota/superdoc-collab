@@ -106,3 +106,11 @@ export async function deleteDocument(documentId: string): Promise<void> {
   const response = await apiSend({ path: documentApiPath({ documentId }), method: HttpMethod.Delete, body: null });
   assertOk({ response, subject: 'Delete' });
 }
+
+export async function uploadThumbnail({ documentId, blob }: { documentId: string; blob: Blob }): Promise<boolean> {
+  throw new Error(`uploadThumbnail is not implemented for ${documentId} ${blob.size}`);
+}
+
+export function sendThumbnailBeacon({ documentId, blob }: { documentId: string; blob: Blob }): boolean {
+  throw new Error(`sendThumbnailBeacon is not implemented for ${documentId} ${blob.size}`);
+}

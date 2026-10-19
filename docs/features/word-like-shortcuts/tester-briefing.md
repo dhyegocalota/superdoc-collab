@@ -4,11 +4,11 @@ Every "it works" below is a hypothesis for the tester to disprove.
 
 ## What changed
 
-- A registry of 28 shortcuts in `apps/web/src/features/shortcuts/shortcuts.ts`. Each entry is `native` (SuperDoc handles it, listed only), `command` (runs through `superdoc.ui.commands`) or `app` (an app action).
+- A registry of 44 shortcuts in `apps/web/src/features/shortcuts/shortcuts.ts`. Each entry is `native` (SuperDoc handles it, listed only), `command` (runs through `superdoc.ui.commands`) or `app` (an app action).
 - `useShortcuts` listens on `document` while the editor header is mounted, so only on the document page. It stands down on `defaultPrevented`, on a text field with content, and for formatting keys when the role is reader or a past version shows.
 - `ShortcutsDialog` opens with Mod+/ , with `?` outside any text control, from the account menu and from the last row of the More actions menu.
 - Hints: `ShortcutHint` pills in the Find and Download tooltips, in the Download, Find and Keyboard shortcuts menu items, and as plain text in SuperDoc's toolbar tooltips through `ui.toolbar.strings`.
-- `lib/platform.ts` detects Mac from `userAgentData` first, then `navigator.platform`.
+- `lib/platform.ts` detects Mac from `navigator.platform` first, then `userAgentData` when the platform is empty.
 
 ## Spike-driven decisions (see spec.md "Spike")
 

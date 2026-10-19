@@ -2,12 +2,13 @@ import { useState, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { CHART_HEIGHT, type BreakColumn } from './streamgraph-layout';
 import { GLIDE_ANIMATION_STYLE } from './streamgraph-motion';
+import { useWidthChanged } from './use-width-changed';
 
 const BREAK_DASH_ARRAY = '4 4';
 
-function IdleBreakDivider({ centerX }: { centerX: number }) {
+function IdleBreakDivider({ centerX, isResize }: { centerX: number; isResize: boolean }) {
   const [glide, setGlide] = useState({ centerX, offset: 0 });
-  if (glide.centerX !== centerX) setGlide({ centerX, offset: glide.centerX - centerX });
+  if (glide.centerX !== centerX) setGlide({ centerX, offset: isResize ? 0 : glide.centerX - centerX });
   return (
     <line
       key={centerX}
@@ -23,8 +24,9 @@ function IdleBreakDivider({ centerX }: { centerX: number }) {
   );
 }
 
-export function IdleBreakMarkers({ breaks }: { breaks: BreakColumn[] }) {
-  return breaks.map((column) => <IdleBreakDivider key={column.firstIndex} centerX={column.centerX} />);
+export function IdleBreakMarkers({ breaks, width }: { breaks: BreakColumn[]; width: number }) {
+  const isResize = useWidthChanged(width);
+  return breaks.map((column, index) => <IdleBreakDivider key={index} centerX={column.centerX} isResize={isResize} />);
 }
 
 export function SelectionMarker({ x }: { x: number }) {

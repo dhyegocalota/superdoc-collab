@@ -89,7 +89,7 @@ export function Streamgraph({
             y={layout.bandCenterY({ bandId: pulse.bandId, index: pulse.binIndex })}
           />
         )}
-        <IdleBreakMarkers breaks={layout.breaks} />
+        <IdleBreakMarkers breaks={layout.breaks} width={width} />
         {selectedIndex !== null && <SelectionMarker x={layout.binX(selectedIndex)} />}
       </svg>
       {timeline.agentActions.length > 0 && (

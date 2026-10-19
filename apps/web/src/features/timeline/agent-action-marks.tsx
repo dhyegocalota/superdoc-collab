@@ -1,11 +1,13 @@
 import type { AgentActionView, EventAuthor } from '@superdoc-collab/types';
-import { useId, useState } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { authorOf } from './author-of';
+import { useWidthChanged } from './use-width-changed';
 import { GLIDE_TRANSITION_STYLE, TRANSITION_CLASS_NAME, translateXOf } from './streamgraph-motion';
 import { agentActionLabel } from './timeline-copy';
 import { ALIGNMENT_CLASS, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_WIDTH } from './timeline-tooltip';
 
+const SNAP_STYLE: CSSProperties = { transitionProperty: 'none' };
 const CENTERED_DIAMOND = 'translateX(-50%) rotate(45deg)';
 
 type AgentActionMarksProps = {
@@ -20,6 +22,7 @@ function markKey(action: AgentActionView): string {
 }
 
 export function AgentActionMarks({ actions, authors, timeX, chartWidth }: AgentActionMarksProps) {
+  const isResize = useWidthChanged(chartWidth);
   const tooltipId = useId();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const marks = actions.map((action) => ({
@@ -43,7 +46,7 @@ export function AgentActionMarks({ actions, authors, timeX, chartWidth }: AgentA
             'absolute left-0 top-0.5 size-2 bg-primary outline-none focus-visible:ring-2 focus-visible:ring-ring',
             TRANSITION_CLASS_NAME,
           )}
-          style={{ ...GLIDE_TRANSITION_STYLE, transform: `${translateXOf(mark.left)} ${CENTERED_DIAMOND}` }}
+          style={{ ...(isResize ? SNAP_STYLE : GLIDE_TRANSITION_STYLE), transform: `${translateXOf(mark.left)} ${CENTERED_DIAMOND}` }}
           onPointerEnter={() => setActiveKey(mark.key)}
           onPointerLeave={() => setActiveKey(null)}
           onFocus={() => setActiveKey(mark.key)}

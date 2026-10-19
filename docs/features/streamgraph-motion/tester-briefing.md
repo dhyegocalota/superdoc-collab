@@ -38,6 +38,7 @@ Red failure text is what the red run printed. Rows marked pin were green when th
 | `streamgraph.test.tsx` tween | `AssertionError: expected 'M0,92.482L50,91.372C100,90.263…' to be 'M0,27.601L50,24.608C100,21.616…'` | `StreamgraphBands` uses the hook |
 | `streamgraph.test.tsx` pulse (2 of 5; the other 3 are pins that pass vacuously) | `TypeError: Cannot read properties of null (reading 'getAttribute')` and `expected null not to be null` | the glow, the band class and the suppression |
 | `streamgraph.test.tsx` divider | `expected +0 to be close to 300` and `expected '' to be '0px'` | the divider keeps `x1` and glides from its old x |
+| `streamgraph.test.tsx` width change (tester defect) | `expected '0px' to be '-73px'` and `expected '150px' to be '0px'` | dividers and marks snap on a width change |
 | `streamgraph-layout.test.ts` `bandCenterY` | `Error: bandCenterY is not implemented` | middle of the band at the bin |
 | `timeline-copy.test.ts`, `use-live-announcement.test.ts` (5), `live-cue.test.tsx` (3) | `… is not implemented` | implemented |
 | `timeline-collapsed-bar.test.tsx` ring (1 of 3; the other 2 are pins) | the chip had no ring | the ring |
@@ -59,6 +60,7 @@ Red failure text is what the red run printed. Rows marked pin were green when th
 - The collapsed bar's chips show no count, so the chip pulses as a whole; the spec said "count".
 - "N new edits" counts changes since the last announcement, not characters, and an identical text twice in a row is not re-read by a screen reader.
 - The x axis labels sit at fixed edges, so there is nothing to move; dividers and agent marks glide.
+- A width change (panel drag) snaps dividers and agent marks like the bands; only a data change glides them (`use-width-changed.ts`). Dividers are keyed by position in the list so a break that shifts index still glides.
 - Agent marks use a `transform` transition; dividers use a keyframe so that `e2e/timeline-idle-gaps.spec.ts` keeps reading `x1`.
 - Band labels (the in-chart text) snap while the shapes tween.
 - When a break appears or disappears, bands with a different segment count snap instead of tweening.

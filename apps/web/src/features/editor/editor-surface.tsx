@@ -61,6 +61,7 @@ export function EditorSurface({
           onTransportReport={onTransportReport}
           onEditorUpdate={onEditorUpdate}
           onDocumentEdit={onDocumentEdit}
+          onLoadProgress={() => undefined}
         />
       )}
       <VersionFrame

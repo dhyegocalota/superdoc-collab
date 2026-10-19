@@ -3,6 +3,7 @@ import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ErrorMessage } from '@/components/error-message';
+import type { EditorLoadProgress } from '@/features/open-progress/open-progress-view';
 import { KeyboardKey } from '@/lib/keyboard';
 import { authorPaletteOf } from './author-palette';
 import { ExceptionOutcome, exceptionOutcome, failureReasonOf } from './superdoc-exceptions';
@@ -32,6 +33,7 @@ type SuperDocEditorProps = {
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
   onDocumentEdit: () => void;
+  onLoadProgress: (progress: EditorLoadProgress) => void;
 };
 
 export function SuperDocEditor({

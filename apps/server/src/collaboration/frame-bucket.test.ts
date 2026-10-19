@@ -7,7 +7,7 @@ import {
   paddedAwarenessFrame,
   syncStepOneFrame,
 } from '../testing/socket-frames';
-import { awarenessClocksOf, awarenessEntryCountOf, FrameBucket, frameBucketOf, UNREADABLE_ENTRY_COUNT } from './frame-bucket';
+import { awarenessEntriesOf, awarenessEntryCountOf, FrameBucket, frameBucketOf, UNREADABLE_ENTRY_COUNT } from './frame-bucket';
 
 const ROOM_NAME = 'superdoc-room-1';
 const SINGLE_BYTE_FRAME = Buffer.from([0]);
@@ -91,14 +91,19 @@ const PADDED_ENTRY_COUNT = 100_000;
 const PINNED_CLOCK = 2 ** 53;
 const TRUNCATED_STATE_BYTES = 3;
 
-test('the clocks of an awareness frame are the clocks its entries declare', () => {
+test('the entries of an awareness frame are the client ids and clocks it declares', () => {
   const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [7, 8, 9], clock: 5 });
-  expect(awarenessClocksOf(frame)).toEqual([5, 5, 5]);
+  expect(awarenessEntriesOf(frame)).toEqual([
+    { clientId: 7, clock: 5 },
+    { clientId: 8, clock: 5 },
+    { clientId: 9, clock: 5 },
+  ]);
 });
 
-test('a clock of 2 to the 53 is read as it is', () => {
+test('a well-formed clock of 2 to the 53 is read as it is', () => {
   const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [FIRST_CLAIMED_ID], clock: PINNED_CLOCK, state: null });
-  expect(awarenessClocksOf(frame)).toEqual([PINNED_CLOCK]);
+  expect(awarenessEntriesOf(frame)).toEqual([{ clientId: FIRST_CLAIMED_ID, clock: PINNED_CLOCK }]);
+  expect(awarenessEntryCountOf(frame)).toBe(1);
 });
 
 test('a clock varint that never ends within eight bytes makes the entry count unreadable', () => {
@@ -106,16 +111,17 @@ test('a clock varint that never ends within eight bytes makes the entry count un
   const clockIndex = frame.indexOf(Buffer.from([FIRST_CLAIMED_ID, 1])) + 1;
   const overlong = Buffer.concat([frame.subarray(0, clockIndex), Buffer.alloc(9, 0x80), frame.subarray(clockIndex + 1)]);
   expect(awarenessEntryCountOf(overlong)).toBe(UNREADABLE_ENTRY_COUNT);
+  expect(awarenessEntriesOf(overlong)).toEqual([]);
 });
 
-test('a frame that is not awareness has no clocks', () => {
-  expect(awarenessClocksOf(syncStepOneFrame(ROOM_NAME))).toEqual([]);
+test('a frame that is not awareness has no entries', () => {
+  expect(awarenessEntriesOf(syncStepOneFrame(ROOM_NAME))).toEqual([]);
 });
 
 test('an entry cut inside its state makes the entry count unreadable', () => {
   const frame = claimingFrame({ count: 2 });
   expect(awarenessEntryCountOf(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES))).toBe(UNREADABLE_ENTRY_COUNT);
-  expect(awarenessClocksOf(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES))).toEqual([]);
+  expect(awarenessEntriesOf(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES))).toEqual([]);
 });
 
 test('canonical entries with a null state at a small clock keep their declared count', () => {

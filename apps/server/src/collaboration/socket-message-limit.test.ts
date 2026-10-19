@@ -1,5 +1,4 @@
 import {
-  MAX_AWARENESS_CLOCK,
   MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
@@ -92,21 +91,9 @@ Object.values(PaddedVarintField).forEach((paddedField) =>
 const PINNED_CLOCK = 2 ** 53;
 const TRUNCATED_STATE_BYTES = 3;
 
-function clockFrame({ clock }: { clock: number }): Buffer {
-  return awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [1], clock, state: null });
-}
-
-test('a clock of 2 to the 53 is pinned and a clock just under the ceiling is not', () => {
-  const limit = new SocketMessageLimit();
-  expect(limit.claimsPinnedClock(clockFrame({ clock: PINNED_CLOCK }))).toBe(true);
-  expect(limit.claimsPinnedClock(clockFrame({ clock: MAX_AWARENESS_CLOCK }))).toBe(true);
-  expect(limit.claimsPinnedClock(clockFrame({ clock: MAX_AWARENESS_CLOCK - 1 }))).toBe(false);
-});
-
-test('frames that are not awareness and awareness frames at small clocks pin nothing', () => {
-  const limit = new SocketMessageLimit();
-  const frames = [syncStepOneFrame(ROOM_NAME), awarenessFrame(ROOM_NAME), claimingFrame(MAX_AWARENESS_ENTRIES_PER_FRAME)];
-  expect(frames.map((frame) => limit.claimsPinnedClock(frame))).toEqual([false, false, false]);
+test('a well-formed clock of 2 to the 53 claims nothing at the ws layer', () => {
+  const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [1], clock: PINNED_CLOCK, state: null });
+  expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(false);
 });
 
 test('an entry cut inside its state claims too many', () => {

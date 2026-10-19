@@ -4,14 +4,12 @@ import {
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
-  MAX_AWARENESS_CLOCK,
   MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
-  SOCKET_AWARENESS_CLOCK_REASON,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_AWARENESS_ORIGIN_REASON,
@@ -61,6 +59,10 @@ const SPLIT_CLAIM_IDS_PER_FRAME = 5;
 const PADDED_ENTRY_COUNT = 100_000;
 const OVERCLAIMING_BURST_FRAMES = 10;
 const PINNED_CLOCK = 2 ** 53;
+const JUST_UNDER_CEILING_CLOCK = 2 ** 52 - 1;
+const HELD_CLOCK = 1;
+const CLAIMED_USER_ID = 'claimed';
+const FORGED_STATE = { userId: 'forged' };
 const TRUNCATED_STATE_BYTES = 3;
 const REPLAY_CLOCK = 2;
 const REPLAYED_ID_COUNT = 5;
@@ -694,6 +696,12 @@ function highestAwarenessClock({ server, clientIds }: { server: TestServer; clie
   return Math.max(...clocks);
 }
 
+function stateUserIdOf({ server, clientId }: { server: TestServer; clientId: number }): unknown {
+  return [...server.services.hocuspocus.documents.values()]
+    .map((document) => (document.awareness.getStates().get(clientId) as { userId?: unknown } | undefined)?.userId)
+    .find((userId) => userId !== undefined);
+}
+
 async function holderOfClaimedIds({ hasSameUser }: { hasSameUser: boolean }) {
   const { server, documentId, owner } = await documentWithOwner();
   const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
@@ -733,13 +741,13 @@ test('a second connection of the same user updating an awareness id that a half-
   await server.stop();
 });
 
-test('a member pinning the clocks of its peers at 2 to the 53 is closed before the room applies them', async () => {
+test('a member sending a clock of 2 to the 53 for the ids of its peers is closed with the origin reason before the room applies it', async () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
   const pin = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: PINNED_CLOCK, state: null });
   intruder.webSocket.send(new Uint8Array(pin));
-  await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_CLOCK_REASON });
-  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(MAX_AWARENESS_CLOCK);
+  await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(REPLAY_CLOCK);
   expect(warn).toHaveBeenCalledTimes(1);
   expect(holder.closedSocket()).toBeNull();
   warn.mockRestore();
@@ -747,9 +755,32 @@ test('a member pinning the clocks of its peers at 2 to the 53 is closed before t
   await server.stop();
 });
 
-test('a clock just under the ceiling is applied and keeps the socket open', async () => {
+test('a member removing its peers at a clock just under 2 to the 52 is the only socket closed', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
+  const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: JUST_UNDER_CEILING_CLOCK, state: null });
+  intruder.webSocket.send(new Uint8Array(removal));
+  await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(REPLAY_CLOCK);
+  expect(holder.closedSocket()).toBeNull();
+  expect(holder.webSocket.readyState).toBe(WebSocket.OPEN);
+  holder.client.close();
+  await server.stop();
+});
+
+test('a member forging the state of a peer at the next clock is closed before the room applies it', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
+  const forgery = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: FORGED_STATE });
+  intruder.webSocket.send(new Uint8Array(forgery));
+  await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
+  expect(clientIds.map((clientId) => stateUserIdOf({ server, clientId }))).toEqual(clientIds.map(() => CLAIMED_USER_ID));
+  expect(holder.closedSocket()).toBeNull();
+  holder.client.close();
+  await server.stop();
+});
+
+test('a member sending a clock of 2 to the 53 for ids it announced itself keeps the socket open', async () => {
   const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
-  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds, clock: MAX_AWARENESS_CLOCK - 1 });
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds, clock: PINNED_CLOCK });
   await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
   expect(closedSocket()).toBeNull();
   client.close();
@@ -781,7 +812,7 @@ test('a connection relaying an awareness state at the clock the room already hol
 
 test('a connection removing an awareness id that another live connection holds, as a reconnect queue does, keeps the socket open', async () => {
   const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
-  const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: null });
+  const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: HELD_CLOCK, state: null });
   intruder.webSocket.send(new Uint8Array(removal));
   const { provider, document } = intruder.client;
   provider.setAwarenessField('cursor', 0);

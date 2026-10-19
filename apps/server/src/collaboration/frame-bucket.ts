@@ -117,6 +117,10 @@ export function awarenessEntryCountOf(frame: RawData): number | null {
   return reading === null ? null : reading.entryCount;
 }
 
+export function awarenessEntriesOf(frame: RawData): { clientId: number; clock: number }[] {
+  throw new Error('awarenessEntriesOf is not implemented');
+}
+
 export function awarenessClocksOf(frame: RawData): number[] {
   const reading = readAwareness(frame);
   return reading === null ? [] : reading.clocks;

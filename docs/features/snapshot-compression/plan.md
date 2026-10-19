@@ -35,6 +35,8 @@ One developer, in order: red tests, the option, measurements, docs.
 
 **Steps with no backout:** none
 
+**Noted, not chased:** `two editors open an uploaded document` failed once under machine load after the unreadable-document test ("The bootstrap finished without committing the room"). It passed alone and in the next full run. It matches the stalled-queue cause the bootstrap lane is fixing.
+
 ## Z. Prove and ship
 
 - [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.

@@ -7,11 +7,11 @@ const PRIMARY_BUTTON = 0;
 const POINTER_IDENTIFIER = 1;
 const POINTER_TYPE = 'mouse';
 
-function pressAtDocumentStart(fragment: Element): void {
+function pressAtDocumentStart({ fragment, root }: { fragment: Element; root: HTMLElement }): void {
   const bounds = fragment.getBoundingClientRect();
   const position = { clientX: bounds.left + CARET_OFFSET_PX, clientY: bounds.top + bounds.height / 2 };
   const target = document.elementFromPoint(position.clientX, position.clientY);
-  if (!target) return;
+  if (!target || !root.contains(target)) return;
   const pressed = { ...position, bubbles: true, cancelable: true, composed: true, button: PRIMARY_BUTTON, buttons: 1 };
   const released = { ...pressed, buttons: 0 };
   const pointer = { pointerId: POINTER_IDENTIFIER, pointerType: POINTER_TYPE, isPrimary: true };
@@ -37,8 +37,9 @@ export function useCaretOnOpen({ containerRef, isEnabled }: { containerRef: RefO
         return;
       }
       const isFocusElsewhere = document.activeElement !== document.body && !root.contains(document.activeElement);
-      if (isFocusElsewhere) return;
-      pressAtDocumentStart(fragment);
+      const isCaretPlaced = document.activeElement !== null && root.contains(document.activeElement);
+      if (isFocusElsewhere || isCaretPlaced) return;
+      pressAtDocumentStart({ fragment, root });
     }
     frame = requestAnimationFrame(placeCaret);
     return () => cancelAnimationFrame(frame);

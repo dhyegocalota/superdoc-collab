@@ -25,3 +25,6 @@
 
 - Walked new document, joiner, reader, reload and a title rename right after open. The hook works in each. Not run: E2E specs, the 10-run attack, the socket-cut attack.
 - Defects: none. Console errors: none.
+
+## Reviewer follow-up
+- The press happens only when the element under the point sits inside the editor root, and never when focus is already inside the root. Red commit: the two tests `does not press an element outside the editor...` and `does not move a caret the person already placed...` failed with `expected [ 'pointerdown', 'mousedown', ... ] to deeply equal []`.

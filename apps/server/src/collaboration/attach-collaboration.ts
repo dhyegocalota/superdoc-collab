@@ -45,7 +45,7 @@ const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
 };
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
-const SOCKET_INFLATED_BUDGET_LOG = 'Collaboration socket closed for inflating too many bytes in a second';
+const SOCKET_INFLATED_BUDGET_LOG = 'Collaboration socket closed for inflating too many bytes';
 const SOCKET_AWARENESS_ENTRIES_LOG = 'Collaboration socket closed for claiming too many awareness entries in one frame';
 const MESSAGE_EVENT = 'message';
 
@@ -92,10 +92,19 @@ export function attachCollaboration({
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
   function closeOnInflatedBreach(this: WebSocket, frame: RawData): void {
-    if (!messageLimit.exceedsInflatedBudget({ socket: this, frame })) return;
+    const isOverBudget = messageLimit.exceedsInflatedBudget({ socket: this, frame });
+    const isOverBeforeAnswer = messageLimit.exceedsPreAuthenticationBudget({ socket: this, frame });
+    if (!isOverBudget && !isOverBeforeAnswer) return;
     console.warn(SOCKET_INFLATED_BUDGET_LOG);
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+  }
+  function markAnsweredOnFirstSend(webSocket: WebSocket): void {
+    const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
+    webSocket.send = ((...parameters: unknown[]) => {
+      messageLimit.markAnswered(webSocket);
+      return send(...parameters);
+    }) as WebSocket['send'];
   }
   function withholdOverclaims(webSocket: WebSocket): void {
     const emit = webSocket.emit.bind(webSocket);
@@ -127,6 +136,7 @@ export function attachCollaboration({
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
       if (!isBootstrapSocket) webSocket.on(MESSAGE_EVENT, closeOnInflatedBreach);
+      markAnsweredOnFirstSend(webSocket);
       withholdOverclaims(webSocket);
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);

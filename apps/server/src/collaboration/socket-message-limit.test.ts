@@ -12,7 +12,7 @@ import {
   paddedAwarenessFrame,
   syncStepOneFrame,
 } from '../testing/socket-frames';
-import { MAX_INFLATED_BYTES_PER_SECOND, SocketMessageLimit } from './socket-message-limit';
+import { MAX_INFLATED_BYTES_PER_SECOND, PRE_AUTHENTICATION_MAX_INFLATED_BYTES, SocketMessageLimit } from './socket-message-limit';
 
 const ROOM_NAME = 'superdoc-room-1';
 const AWARENESS_BURST_FRAMES = 3000;
@@ -138,4 +138,33 @@ test('the maximum update burst of a typing second stays far under the budget', (
     limit.exceedsInflatedBudget({ socket, frame: typingFrame }),
   );
   expect(results.some(Boolean)).toBe(false);
+});
+
+test('frames up to the pre-authentication total are accepted and the next byte is over', () => {
+  const limit = new SocketMessageLimit({ now: () => 0 });
+  const socket = {};
+  expect(limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES) })).toBe(false);
+  expect(limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(1) })).toBe(true);
+});
+
+test('the pre-authentication total does not reset with time', () => {
+  const clock = { time: 0 };
+  const limit = new SocketMessageLimit({ now: () => clock.time });
+  const socket = {};
+  limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES) });
+  clock.time += SECOND_MS * 60;
+  expect(limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(1) })).toBe(true);
+});
+
+test('a socket the server has answered is no longer held to the pre-authentication total', () => {
+  const limit = new SocketMessageLimit({ now: () => 0 });
+  const socket = {};
+  limit.markAnswered(socket);
+  expect(limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(2 * PRE_AUTHENTICATION_MAX_INFLATED_BYTES) })).toBe(false);
+});
+
+test('each socket has its own pre-authentication total', () => {
+  const limit = new SocketMessageLimit({ now: () => 0 });
+  limit.exceedsPreAuthenticationBudget({ socket: {}, frame: Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES) });
+  expect(limit.exceedsPreAuthenticationBudget({ socket: {}, frame: Buffer.alloc(1) })).toBe(false);
 });

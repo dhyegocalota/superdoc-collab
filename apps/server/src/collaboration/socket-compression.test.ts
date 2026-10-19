@@ -11,7 +11,9 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/pro
 import { describe, expect, test } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
+import { PRE_AUTHENTICATION_MAX_INFLATED_BYTES } from './socket-message-limit';
 import { documentWithOwner } from '../testing/collaboration-client';
+import { commitBootstrap, waitForCommit } from '../testing/committed-room';
 import type { TestServer } from '../testing/test-server';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
@@ -29,7 +31,7 @@ const INFLATING_FRAMES = 2;
 const INFLATING_FRAME_BYTES = (MAX_SOCKET_MESSAGE_BYTES * 3) / 4;
 const SETTLE_AFTER_FRAMES_MS = 3_000;
 
-type UpgradeObserver = { sockets: Socket[] };
+type UpgradeObserver = { sockets: Socket[]; webSockets: WebSocket[] };
 
 function observingSocketClass({
   cookie,
@@ -44,6 +46,7 @@ function observingSocketClass({
     constructor(url: string, protocols?: string | string[]) {
       super(url, protocols, { headers: { cookie }, origin });
       this.on('error', () => undefined);
+      observer.webSockets.push(this);
       this.on('upgrade', (response) => observer.sockets.push(response.socket));
     }
   } as unknown as typeof WebSocket;
@@ -58,7 +61,7 @@ function joinObservingBytes({
   cookie: string;
   documentId: string;
 }): Promise<{ document: Y.Doc; observer: UpgradeObserver; close: () => void }> {
-  const observer: UpgradeObserver = { sockets: [] };
+  const observer: UpgradeObserver = { sockets: [], webSockets: [] };
   const document = new Y.Doc();
   return new Promise((resolve) => {
     const websocketProvider = new HocuspocusProviderWebsocket({
@@ -112,14 +115,20 @@ function upgradeResponseHeaders({ baseUrl, cookie }: { baseUrl: string; cookie: 
   });
 }
 
-function sendInflatingFrames({
+function inflatingFrames(): Buffer[] {
+  return Array.from({ length: INFLATING_FRAMES }, () => Buffer.alloc(INFLATING_FRAME_BYTES));
+}
+
+function sendFrames({
   server,
   path,
   headers,
+  frames,
 }: {
   server: TestServer;
   path: string;
   headers: Record<string, string>;
+  frames: Buffer[];
 }): Promise<{ closeCode: number | null }> {
   const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${path}`, {
     origin: server.baseUrl,
@@ -127,7 +136,7 @@ function sendInflatingFrames({
     perMessageDeflate: true,
   });
   socket.on('error', () => undefined);
-  socket.on('open', () => Array.from({ length: INFLATING_FRAMES }, () => socket.send(Buffer.alloc(INFLATING_FRAME_BYTES))));
+  socket.on('open', () => frames.forEach((frame) => socket.send(frame)));
   return new Promise((resolve) => {
     socket.on('close', (code) => resolve({ closeCode: code }));
     setTimeout(() => resolve({ closeCode: null }), SETTLE_AFTER_FRAMES_MS);
@@ -185,17 +194,43 @@ describe('collaboration socket compression', () => {
     await server.stop();
   });
 
-  test('frames that inflate past the budget within a second close the socket with 1008', { timeout: TEST_TIMEOUT_MS }, async () => {
-    const { server, owner } = await documentWithOwner();
-    const { closeCode } = await sendInflatingFrames({ server, path: ApiPath.Collaboration, headers: { cookie: owner.cookie } });
-    expect(closeCode).toBe(POLICY_VIOLATION_CLOSE_CODE);
-    await server.stop();
-  });
+  test(
+    'an authenticated socket whose frames inflate past the budget within a second is closed with 1008',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      const { server, documentId, owner } = await documentWithOwner();
+      commitBootstrap({ services: server.services, documentId, userId: owner.id });
+      await waitForCommit({ services: server.services, documentId });
+      const joiner = await joinObservingBytes({ server, cookie: owner.cookie, documentId });
+      const [webSocket] = joiner.observer.webSockets;
+      const closeCode = new Promise<number>((resolve) => webSocket!.on('close', (code) => resolve(code)));
+      inflatingFrames().forEach((frame) => webSocket!.send(frame));
+      expect(await closeCode).toBe(POLICY_VIOLATION_CLOSE_CODE);
+      joiner.close();
+      await server.stop();
+    },
+  );
 
   test('the loopback bootstrap socket is exempt from the inflated budget', { timeout: TEST_TIMEOUT_MS }, async () => {
     const { server } = await documentWithOwner();
-    const { closeCode } = await sendInflatingFrames({ server, path: ApiPath.BootstrapCollaboration, headers: {} });
+    const { closeCode } = await sendFrames({ server, path: ApiPath.BootstrapCollaboration, headers: {}, frames: inflatingFrames() });
     expect(closeCode).not.toBe(POLICY_VIOLATION_CLOSE_CODE);
     await server.stop();
   });
+
+  test(
+    'a frame inflating past the pre-authentication total on a socket that never authenticates closes it with 1008',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      const { server, owner } = await documentWithOwner();
+      const { closeCode } = await sendFrames({
+        server,
+        path: ApiPath.Collaboration,
+        headers: { cookie: owner.cookie },
+        frames: [Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES + 1)],
+      });
+      expect(closeCode).toBe(POLICY_VIOLATION_CLOSE_CODE);
+      await server.stop();
+    },
+  );
 });

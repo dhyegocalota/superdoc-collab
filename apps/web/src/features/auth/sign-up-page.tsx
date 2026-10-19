@@ -29,7 +29,7 @@ import { SessionSkeleton } from './session-skeleton';
 import { useAuthSubmit } from './use-auth-submit';
 import { useInvite } from './use-invite';
 import { useSetup } from './use-setup';
-import { InviteInvalidCard } from './invite-invalid-card';
+import { LinkInvalidCard } from './link-invalid-card';
 
 function signInLinkOf(search: string): AuthCardLink {
   return { prompt: HAVE_ACCOUNT_PROMPT, label: SIGN_IN_LABEL, to: `${AppRoute.SignIn}${signedQuerySearch(search)}` };
@@ -79,8 +79,8 @@ export function SignUpPage() {
   if (setup.isError) return <ErrorMessage className="p-4">{SETUP_FAILED_MESSAGE}</ErrorMessage>;
   if (!setup.data) return <SessionSkeleton />;
   if (!setup.data.claimed) return <SignUpCard title={CLAIM_TITLE} description={CLAIM_DESCRIPTION} token={null} />;
-  if (token === null) return <InviteInvalidCard />;
+  if (token === null) return <LinkInvalidCard message={INVITE_INVALID_MESSAGE} />;
   if (invite.isPending) return <SessionSkeleton />;
-  if (invite.isError) return <InviteInvalidCard />;
+  if (invite.isError) return <LinkInvalidCard message={INVITE_INVALID_MESSAGE} />;
   return <SignUpCard title={INVITED_TITLE} description={INVITED_DESCRIPTION} token={token} />;
 }

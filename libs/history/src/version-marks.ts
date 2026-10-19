@@ -41,11 +41,7 @@ export function clampToMark({ marks, sequence }: { marks: VersionMarkSummary[]; 
   return atOrBefore;
 }
 
-function markWithSequence({ marks, sequence }: { marks: VersionMarkSummary[]; sequence: number }): VersionMarkSummary | null {
-  const found = marks.find((mark) => mark.sequence === sequence);
-  if (!found) return null;
-  return found;
-}
+export type ResolvedVersion = { sequence: number; serverTime: number };
 
 export function resolveMark({
   marks,
@@ -55,14 +51,10 @@ export function resolveMark({
   marks: VersionMarkSummary[];
   sequence: number;
   serverTime: number | null;
-}): VersionMarkSummary | null {
+}): ResolvedVersion | null {
   const first = marks[0];
   if (!first) return null;
   if (sequence <= first.sequence) return first;
-  const exact = markWithSequence({ marks, sequence });
-  if (exact) return exact;
   if (serverTime === null) return clampToMark({ marks, sequence });
-  const minuteSequence = versionSequenceAt({ marks, time: serverTime });
-  if (minuteSequence === null) return null;
-  return markWithSequence({ marks, sequence: minuteSequence });
+  return { sequence, serverTime };
 }

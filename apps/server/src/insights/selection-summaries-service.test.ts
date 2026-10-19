@@ -48,7 +48,7 @@ function runBy({ author, inserted, lastServerTime }: { author: { id: string }; i
     deleted: '',
     firstServerTime: lastServerTime,
     lastServerTime,
-    lastSequence: lastServerTime,
+    versionSequence: lastServerTime,
   };
 }
 

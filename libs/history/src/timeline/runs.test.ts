@@ -40,7 +40,7 @@ function runOf({ author, inserted, deleted }: { author: string; inserted: string
     deleted,
     firstServerTime: 0,
     lastServerTime: 0,
-    lastSequence: 0,
+    versionSequence: 0,
   };
 }
 
@@ -57,6 +57,31 @@ test('keystrokes of one author in one block and bin join into one run', () => {
     [['ana'], 'budget'],
     [['bruno'], 'hire'],
   ]);
+});
+
+test('a run opens the version after its last inserting event, not after a later delete', () => {
+  const [run] = groupIntoRuns({
+    events: [
+      { sequence: 10, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: 'Added', deleted: '' },
+      { sequence: 11, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: ' edited', deleted: '' },
+      { sequence: 12, serverTime: 2, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'Added edited' },
+    ],
+    binMs: BIN_MS,
+    timeZone: UTC,
+  });
+  expect(run!.versionSequence).toBe(11);
+});
+
+test('a run of only deletions opens the version after its last event', () => {
+  const [run] = groupIntoRuns({
+    events: [
+      { sequence: 20, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'a' },
+      { sequence: 21, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'b' },
+    ],
+    binMs: BIN_MS,
+    timeZone: UTC,
+  });
+  expect(run!.versionSequence).toBe(21);
 });
 
 test('a term with regex metacharacters matches literally', () => {

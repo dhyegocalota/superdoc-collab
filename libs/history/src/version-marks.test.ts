@@ -69,17 +69,15 @@ test('clampToMark snaps down and lifts a sequence before the first mark', () => 
   expect(clampToMark({ marks: SUMMARIES, sequence: 99 })?.sequence).toBe(14);
 });
 
-test('a sequence whose mark was pruned resolves to the surviving mark of its minute', () => {
-  const prunedInThirdMinute = { sequence: 12, serverTime: 125 * SECOND };
-  expect(
-    resolveMark({ marks: MINUTES, sequence: prunedInThirdMinute.sequence, serverTime: prunedInThirdMinute.serverTime })?.sequence,
-  ).toBe(14);
+test('a sequence the log knows resolves to itself whether or not it is a mark', () => {
+  const unmarked = { sequence: 12, serverTime: 125 * SECOND };
+  expect(resolveMark({ marks: MINUTES, ...unmarked })).toEqual(unmarked);
   expect(resolveMark({ marks: MINUTES, sequence: 9, serverTime: 70 * SECOND })?.sequence).toBe(9);
 });
 
-test('a sequence pruned in the bootstrap minute resolves to the mark that ends that minute, not the bootstrap', () => {
+test('a known sequence inside the bootstrap minute resolves to itself, not the bootstrap', () => {
   const bootstrapMinute = [MINUTES[0]!, { sequence: 5, serverTime: 50 * SECOND, minuteStart: 0, isBootstrap: false }];
-  expect(resolveMark({ marks: bootstrapMinute, sequence: 4, serverTime: 30 * SECOND })?.sequence).toBe(5);
+  expect(resolveMark({ marks: bootstrapMinute, sequence: 4, serverTime: 30 * SECOND })?.sequence).toBe(4);
 });
 
 test('a sequence before the first mark resolves to the first mark even when later marks share its minute', () => {

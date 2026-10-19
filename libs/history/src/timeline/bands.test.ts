@@ -23,7 +23,7 @@ function runOf({
     deleted: '',
     firstServerTime,
     lastServerTime: firstServerTime,
-    lastSequence: firstServerTime,
+    versionSequence: firstServerTime,
   };
 }
 

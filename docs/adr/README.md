@@ -20,6 +20,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 
 | Number | Title | Status | Date |
 |--------|-------|--------|------|
+| [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) | A known version sequence resolves exactly; marks anchor the timeline | Accepted | 2026-10-19 |
 | [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |
 | [0001](0001-event-sourcing-over-yjs.md) | Capture live history by event-sourcing the Yjs update stream | Accepted | 2026-10-16 |
 | [0002](0002-authorship-observed-vs-declared.md) | Bind Yjs clientIds to users in two tiers | Accepted | 2026-10-16 |
@@ -46,7 +47,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0024](0024-times-follow-the-readers-zone-storage-stays-epoch.md) | Times follow the reader's zone; storage stays epoch milliseconds | Accepted | 2026-10-17 |
 | [0025](0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md) | MCP clients authorize with OAuth; agents join rooms with a short-lived room token | Accepted | 2026-10-17 |
 | [0026](0026-the-agent-repairs-its-own-machine-doctor-reports-never-installs.md) | The agent repairs its own machine: a doctor reports at session start and never installs | Accepted | 2026-10-17 |
-| [0027](0027-a-pruned-version-sequence-resolves-to-its-minute.md) | A pruned version sequence resolves to the surviving mark of its minute | Accepted | 2026-10-17 |
+| [0027](0027-a-pruned-version-sequence-resolves-to-its-minute.md) | A pruned version sequence resolves to the surviving mark of its minute | Superseded by [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) | 2026-10-17 |
 | [0028](0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md) | The actor, not the name, marks an AI in our interface | Accepted | 2026-10-17 |
 | [0029](0029-agent-edits-carry-a-human-or-agent-actor.md) | Agent edits carry an actor next to the user they act for | Accepted | 2026-10-17 |
 | [0030](0030-the-local-gate-runs-what-the-diff-can-break.md) | The local gate runs what the diff can break | Accepted | 2026-10-17 |

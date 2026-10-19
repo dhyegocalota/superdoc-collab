@@ -5,6 +5,7 @@ import { MigrationSet } from './migrations';
 import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
+import { readMainStoryText } from './document-content';
 import { UpdateLog, replay } from './update-log';
 import { GcFreeReplays, REPLAY_CACHE_SIZE } from './version-state';
 
@@ -20,6 +21,8 @@ const LCG_MULTIPLIER = 1664525;
 const LCG_INCREMENT = 1013904223;
 const LCG_MODULUS = 2 ** 32;
 const MAX_RANDOM_LENGTH = 40;
+const START_TIME = Date.UTC(2026, 9, 16, 9, 0);
+const STEP_MS = 2000;
 
 function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadModel; ana: Y.Doc } {
   const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
@@ -36,9 +39,7 @@ function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadMode
 function expectEveryMarkRestored({ log, readModel }: { log: UpdateLog; readModel: ReadModel }): void {
   const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
   readModel.marks(DOCUMENT).forEach(({ sequence }) => {
-    const mark = readModel.mark({ documentName: DOCUMENT, sequence });
-    if (!mark) throw new Error(`mark ${sequence} missing`);
-    const restored = replays.version({ log, documentName: DOCUMENT, mark });
+    const restored = replays.versionAt({ log, documentName: DOCUMENT, sequence });
     const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
     expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
     expect(restored.getText('draft').toString()).toBe(expected.getText('draft').toString());
@@ -53,7 +54,7 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2026, 9, 16, 9, 0) }));
+beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: START_TIME }));
 afterEach(() => vi.useRealTimers());
 
 test('every mark restores the document exactly as a full replay at its sequence', () => {
@@ -95,4 +96,39 @@ test('a seeded random history restores exactly at every mark', () => {
   });
   projectPending({ log, readModel, documentName: DOCUMENT, batchSize: BATCH_SIZE });
   expectEveryMarkRestored({ log, readModel });
+});
+
+function expectEveryLoggedSequenceRestored(log: UpdateLog): void {
+  const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
+  log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).forEach(({ sequence }) => {
+    const restored = replays.versionAt({ log, documentName: DOCUMENT, sequence });
+    const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
+    expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
+  });
+}
+
+test('the version at the sequence of an edit shows the edit after a later delete in the same minute', () => {
+  const { log, ana } = bootstrappedLog(['Plan']);
+  vi.advanceTimersByTime(STEP_MS);
+  writeStory({ document: ana, texts: ['Plan', 'Added'] });
+  vi.advanceTimersByTime(STEP_MS);
+  writeStory({ document: ana, texts: ['Plan', 'Added and edited'] });
+  vi.advanceTimersByTime(STEP_MS);
+  writeStory({ document: ana, texts: ['Plan'] });
+  const sequences = log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).map(({ sequence }) => sequence);
+  const editSequence = sequences.at(-2)!;
+  const version = new GcFreeReplays(REPLAY_CACHE_SIZE).versionAt({ log, documentName: DOCUMENT, sequence: editSequence });
+  expect(readMainStoryText(version)).toBe('PlanAdded and edited');
+});
+
+test('every logged sequence restores exactly as a full replay, deletes included', () => {
+  const { log, ana } = bootstrappedLog(['Plan']);
+  const draft = ana.getText('draft');
+  Array.from({ length: DELETE_ROUNDS }).forEach((_, round) => {
+    vi.advanceTimersByTime(STEP_MS);
+    draft.insert(0, 'x'.repeat(INSERTED_PER_ROUND));
+    draft.delete(0, DELETED_PER_ROUND);
+    writeStory({ document: ana, texts: ['Plan', round % 2 === 0 ? `Line ${round}` : ''] });
+  });
+  expectEveryLoggedSequenceRestored(log);
 });

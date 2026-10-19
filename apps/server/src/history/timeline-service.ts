@@ -307,13 +307,14 @@ export function buildBinEdits({
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const runs = matchedRuns
     .filter((run) => run.binStart === binStart)
-    .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }) => ({
+    .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime, versionSequence }) => ({
       blockId,
       bandId,
       authorKeys,
       inserted,
       deleted,
       lastServerTime,
+      versionSequence,
     }));
   const authorKeys = new Set(runs.flatMap((run) => run.authorKeys));
   const authors = Object.fromEntries(Object.entries(pipeline.authors).filter(([key]) => authorKeys.has(key)));

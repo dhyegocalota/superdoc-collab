@@ -1,6 +1,5 @@
 import * as Y from 'yjs';
 import type { UpdateLog } from './update-log';
-import type { VersionMark } from './version-marks';
 
 export const REPLAY_CACHE_SIZE = 2;
 
@@ -14,8 +13,10 @@ export class GcFreeReplays {
     this.capacity = capacity;
   }
 
-  version({ log, documentName, mark }: { log: UpdateLog; documentName: string; mark: VersionMark }): Y.Doc {
-    return Y.createDocFromSnapshot(this.caughtUp({ log, documentName }), Y.decodeSnapshot(mark.snapshot));
+  versionAt({ log, documentName, sequence }: { log: UpdateLog; documentName: string; sequence: number }): Y.Doc {
+    const merged = Y.mergeUpdates(log.read({ documentName, untilSequence: sequence }).map((update) => update.update));
+    const snapshot = new Y.Snapshot(Y.decodeUpdate(merged).ds, Y.decodeStateVector(Y.encodeStateVectorFromUpdate(merged)));
+    return Y.createDocFromSnapshot(this.caughtUp({ log, documentName }), snapshot);
   }
 
   forget(documentName: string): void {

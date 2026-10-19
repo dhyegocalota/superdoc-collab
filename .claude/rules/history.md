@@ -57,6 +57,8 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - Snapshot + tail equals a full replay at every sequence. (poc/RESULTS.md)
 - `onLoadDocument` restores the room with `materialize` and applies it with origin `update-log-replay`. (poc/server/collaboration-server.ts)
 - Time travel will use native Yjs snapshots; the design is proposed, not proven. (ADR 0003)
+- A version mark is the last update of each minute and anchors the timeline's bins; `/versions/<sequence>` resolves a sequence the log knows to itself, with `GcFreeReplays.versionAt` merging the log up to it, and only an unknown sequence clamps to the latest mark. (libs/history/src/version-state.ts, libs/history/src/version-marks.ts, ADR 0043)
+- A bin edit run carries `versionSequence`, the sequence of its last inserting event, or of its last event when it inserted nothing. (libs/history/src/timeline/runs.ts, ADR 0043)
 
 ## SingleFlight
 - Concurrent calls with the same key share one computation; a settled value is cached by key. (poc/lib/single-flight.ts)

@@ -24,7 +24,7 @@ function runAt({ time, binMs }: { time: number; binMs: number }): EditRun {
     deleted: '',
     firstServerTime: time,
     lastServerTime: time,
-    lastSequence: 1,
+    versionSequence: 1,
   };
 }
 

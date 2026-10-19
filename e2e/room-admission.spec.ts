@@ -25,6 +25,7 @@ const EDITOR_TEST_ID = 'document-editor';
 const SEED_PARAGRAPH = 'Paragraph written by the server.';
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const READY_TIMEOUT_MS = 60_000;
+const BLANK_READY_LIMIT_MS = 5_000;
 const LARGE_READY_TIMEOUT_MS = 180_000;
 const LARGE_TEST_TIMEOUT_MS = 360_000;
 const STAGE_POLL_INTERVALS_MS = [250];
@@ -108,6 +109,21 @@ test('a document the server cannot read is reported Failed, never left preparing
     roomMode: RoomMode.Join,
     stage: BootstrapStage.Failed,
   });
+});
+
+test('a document the server cannot read does not hold back the next blank document', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadDocument({ page: ana.page, buffer: buildBrokenDocx() });
+  const startedAt = Date.now();
+  const created = await ana.page.request.post(ApiPath.Documents, { data: { title: `blank-${startedAt}` } });
+  const { id: blankId } = (await created.json()) as DocumentSummary;
+  await expect
+    .poll(async () => (await openAnswer({ page: ana.page, documentId: blankId })).stage, {
+      timeout: BLANK_READY_LIMIT_MS,
+      intervals: STAGE_POLL_INTERVALS_MS,
+    })
+    .toBe(BootstrapStage.Ready);
+  console.log(`blank-after-broken: ready ${Date.now() - startedAt} ms after the create`);
 });
 
 test('two editors open an uploaded document once it is ready and see one paragraph, written by neither browser', async ({ browser }) => {

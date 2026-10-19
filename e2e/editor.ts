@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type APIResponse, type Locator, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import {
   ApiPath,
@@ -6,6 +6,7 @@ import {
   DocumentResource,
   documentApiPath,
   DOCX_MIME_TYPE,
+  HttpStatus,
   TimelineQueryParam,
   UPLOAD_FIELD,
   type DocumentEditEvent,
@@ -34,6 +35,8 @@ const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';
 const ORIGIN_HEADER = 'origin';
 const UNIQUE_NAME_LENGTH = 8;
+const UPLOAD_QUEUE_TIMEOUT_MS = 300_000;
+const UPLOAD_RETRY_INTERVAL_MS = 2_000;
 const FOCUS_TIMEOUT_MS = 30_000;
 export const EDITOR_READY_TIMEOUT_MS = 60_000;
 const TYPING_DELAY_MS = 20;
@@ -117,12 +120,21 @@ export function sameOriginHeaders(page: Page): Record<string, string> {
 
 export async function uploadDocument({ page, buffer }: { page: Page; buffer: Buffer }): Promise<string> {
   const name = `upload-${randomUUID().slice(0, UNIQUE_NAME_LENGTH)}.docx`;
-  const response = await page.request.post(ApiPath.Documents, {
-    headers: sameOriginHeaders(page),
-    multipart: { [UPLOAD_FIELD]: { name, mimeType: DOCX_MIME_TYPE, buffer } },
-  });
-  expect(response.ok()).toBe(true);
-  const { id } = (await response.json()) as DocumentSummary;
+  const posted: { response: APIResponse | null } = { response: null };
+  await expect
+    .poll(
+      async () => {
+        posted.response = await page.request.post(ApiPath.Documents, {
+          headers: sameOriginHeaders(page),
+          multipart: { [UPLOAD_FIELD]: { name, mimeType: DOCX_MIME_TYPE, buffer } },
+        });
+        return posted.response.status();
+      },
+      { timeout: UPLOAD_QUEUE_TIMEOUT_MS, intervals: [UPLOAD_RETRY_INTERVAL_MS] },
+    )
+    .not.toBe(HttpStatus.TooManyRequests);
+  expect(posted.response!.ok()).toBe(true);
+  const { id } = (await posted.response!.json()) as DocumentSummary;
   return id;
 }
 

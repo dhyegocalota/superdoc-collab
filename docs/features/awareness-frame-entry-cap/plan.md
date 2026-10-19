@@ -27,7 +27,7 @@ G1, then G2, then G3, one developer, one commit per step with the red test commi
 
 ### G2
 
-- [x] **Step 2:** red tests for the replay, the foreign id and the three pins, then `closeSendersOfForeignIds` registered in `afterLoadDocument`. — evidence: red 23022237, fix 193d27cc, which also adds the same-clock relay test.
+- [x] **Step 2:** red tests for the replay, the foreign id and the three pins, then `trackAwarenessOwners` registered in `afterLoadDocument`. — evidence: red 23022237, fix 193d27cc, which also adds the same-clock relay test.
 
 ### G3
 
@@ -39,8 +39,8 @@ G1, then G2, then G3, one developer, one commit per step with the red test commi
 |------|-------------|------------------------------------|----------------|
 | 1 | A room holding more than 64 awareness states closes a provider that joins it | the log line "Collaboration socket closed for claiming too many awareness entries in one frame" in a room of 65 tabs | raise `MAX_AWARENESS_ENTRIES_PER_FRAME`, or revert the fix commit |
 | 1 | The wrapped `emit` withholds a frame it should deliver | a provider that never syncs; every `attach-collaboration.test.ts` case fails | revert the fix commit |
-| 2 | A relay of the stock provider closes its sender with the origin reason | the same-clock relay test turns red; a closed socket right after a provider joins a populated room | revert the fix commit |
-| 2 | A legitimate provider is closed with the origin reason | the reconnect pin turns red; a closed socket right after a reconnect in a loaded room | revert the fix commit |
+| 2 | A relay of the stock provider is dropped or closes its sender | the same-clock relay test turns red; a closed socket right after a provider joins a populated room | revert the fix commit |
+| 2 | A legitimate provider is dropped or closed | the reconnect pin turns red; a closed socket right after a reconnect in a loaded room | revert the fix commit |
 
 **Steps with no backout:** none; both fixes are plain reverts and lose no data.
 

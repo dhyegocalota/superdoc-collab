@@ -4,8 +4,8 @@
 
 - `apps/server/src/collaboration/frame-bucket.ts`: `awarenessEntryCountOf` reads the payload length and the entry count of an awareness frame with a varint reader that looks at most six bytes deep and treats a varint still continuing at its sixth byte as an unbounded entry count; the entries are walked once, in the hook.
 - `apps/server/src/collaboration/socket-message-limit.ts` and `attach-collaboration.ts`: a frame claiming more than `MAX_AWARENESS_ENTRIES_PER_FRAME` (64) entries is withheld from every listener and its socket closes with 1008 and `SOCKET_AWARENESS_ENTRIES_REASON`.
-- `apps/server/src/collaboration/awareness-owners.ts`, `awareness-origin.ts` and `collaboration-server.ts`: an id no connection holds joins its sender; a sender updating an id another connection of another user holds, or sending any entry for another user's bound id at a clock above the room's held clock, is rejected before the apply and closed with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`; a removal of a held id at the held clock passes.
-- `libs/types/src/constants.ts`: the new cap and the origin reason. `apps/server/src/testing/socket-frames.ts`: the frame builders take a clock and a state and can pad a varint.
+- `apps/server/src/collaboration/awareness-owners.ts`, `awareness-origin.ts` and `collaboration-server.ts`: an id no connection holds joins its sender; every id a connection adds or takes over is bound to its user; a frame with an entry for another user's bound id at a clock above the room's held clock is dropped before the apply and nothing closes on the origin of an id (`SOCKET_AWARENESS_ORIGIN_REASON` is gone); a removal of a held id at the held clock passes.
+- `libs/types/src/constants.ts`: the new cap, the per-document binding ceiling and the entries reason. `apps/server/src/testing/socket-frames.ts`: the frame builders take a clock and a state and can pad a varint.
 - ADR 0040, the socket-message-limit spec and test plan, the collaboration rule, a learning and the index READMEs.
 
 ## How to run
@@ -35,6 +35,8 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 2. Hypothesis: a provider joining a room of up to 64 states is not closed. Break it by: open nine tabs on one document; the ninth sends relays of eight peers.
 3. Hypothesis: a frame of 65 entries never reaches the room. Break it by: send one from a raw socket and check that no claimed id appears in the presence list.
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
+
+Eighth round: red f630a17d (`expected [ 1008 ] to not include 1008`: the owner was closed when it announced an id that an attacker had claimed with a null entry and then an update), fix c72ddd55: every id a connection takes over is bound, and the close on the origin of an id is gone.
 
 Seventh round: red 21d7ae29 (`awarenessEntriesOf` read `[]` where null is expected for a never-ending clock, a cut entry and a 65-entry frame; the ceiling on first-come bindings was not enforced), fix 8399c53c: the hook walks the entries once and closes a malformed one with the entries reason; first-come bindings stop at 256 per document and are pruned when their connection left. The unbind variant and the cut-entry end-to-end test are pins.
 

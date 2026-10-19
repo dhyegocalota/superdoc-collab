@@ -33,6 +33,19 @@ The chosen mechanism lives in `apps/web/src/features/editor/use-caret-on-open.ts
 | No approach passes the acceptance test | stop; report to the lead with the evidence; ship nothing for this lane |
 | The page is not painted within `PRINT_READY_TIMEOUT_MS` | give up silently; the click still works |
 
+## Spike
+
+Run on 2026-10-19 against SuperDoc 2.23.0 in a production build, one fresh page per attempt, after the first `.superdoc-page .superdoc-fragment` existed. Acceptance: `keyboard.type('x')` right after lands in the page text, no rejected-edit status, `[data-v2-local-selection-caret='true']` visible.
+
+| Approach | New document | Joiner | Evidence |
+|----------|--------------|--------|----------|
+| 1a. `superdoc.focus()` | fails | fails | typed 0 characters, caret count 0, status "That edit could not be applied" |
+| 1b. `superdoc.focus({ restoreSelection: true })` | fails | fails | same as 1a |
+| 2. runtime `getSelectionSnapshot()` token, `reveal({ kind: 'position' })`, then `focus()` | fails | fails | the snapshot is `null` on a document nobody has clicked, so no position token can be minted; same rejected status as 1a |
+| 3. synthetic `pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click` at the first fragment's rect, dispatched on the element under that point | passes | passes | typed 1 character at the document start, caret count 1, no status; 3 repeats of both flows all passed |
+
+Chosen: approach 3.
+
 ## Test strategy summary
 
 Unit: the hook waits for the first fragment, runs once, and never runs for a reader. E2E (`e2e/documents.spec.ts` or a new spec): New document → type without clicking → text appears, no rejected-edit status; Bruno joins an existing document → types without clicking → text appears; a reader has no caret.

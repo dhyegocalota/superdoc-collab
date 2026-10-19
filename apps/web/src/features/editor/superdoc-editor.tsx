@@ -18,6 +18,7 @@ import { DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS } from './superdoc-zoom';
+import { useCaretOnOpen } from './use-caret-on-open';
 import { TransportReading, transportReportOf, type TransportReport } from './use-connection-state';
 
 export const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
@@ -60,6 +61,7 @@ export function SuperDocEditor({
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [hasRejectedEdit, setHasRejectedEdit] = useState(false);
+  const [isCollaborationReady, setIsCollaborationReady] = useState(false);
   const attachContainer = useCallback(
     (element: HTMLDivElement | null) => {
       containerRef.current = element;
@@ -110,6 +112,8 @@ export function SuperDocEditor({
       onPaginationUpdate: reportEditorUpdate,
       onCollaborationReady: () => {
         isReady = true;
+        if (!isActive) return;
+        setIsCollaborationReady(true);
       },
       onCollaborationConnectionChange: (payload) => {
         if (!isActive) return;
@@ -124,9 +128,12 @@ export function SuperDocEditor({
       isActive = false;
       onSuperdocChange(null);
       superdoc.destroy();
+      setIsCollaborationReady(false);
       setHasRejectedEdit(false);
     };
   }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport, onEditorUpdate]);
+
+  useCaretOnOpen({ containerRef, isEnabled: isCollaborationReady && role !== DocumentRole.Reader });
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);

@@ -10,16 +10,19 @@ type EditorConfig = {
   colors: string[];
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
+  onCollaborationReady: () => void;
   onEditorUpdate: () => void;
   onPaginationUpdate: () => void;
 };
 
 const DISPLACED_COLOR_SLOT = 2;
 
-const { SuperDoc, superdocDestroy } = vi.hoisted(() => {
+const { SuperDoc, superdocDestroy, useCaretOnOpen } = vi.hoisted(() => {
+  const useCaretOnOpen = vi.fn();
   const superdocDestroy = vi.fn();
   return {
     superdocDestroy,
+    useCaretOnOpen,
     SuperDoc: vi.fn(function SuperDocStub(_config: EditorConfig) {
       return { destroy: superdocDestroy };
     }),
@@ -28,12 +31,14 @@ const { SuperDoc, superdocDestroy } = vi.hoisted(() => {
 
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
+vi.mock('./use-caret-on-open', () => ({ useCaretOnOpen }));
 
 function renderEditor({
   toolbarContainer = null,
   onSuperdocChange = vi.fn(),
   onEditorUpdate = vi.fn(),
-}: { toolbarContainer?: HTMLElement | null; onSuperdocChange?: () => void; onEditorUpdate?: () => void } = {}) {
+  role = DocumentRole.Editor,
+}: { toolbarContainer?: HTMLElement | null; onSuperdocChange?: () => void; onEditorUpdate?: () => void; role?: DocumentRole } = {}) {
   render(
     <SuperDocEditor
       onSuperdocChange={onSuperdocChange}
@@ -42,7 +47,7 @@ function renderEditor({
       documentId="doc-1"
       roomMode={RoomMode.Create}
       creatorTicket={null}
-      role={DocumentRole.Editor}
+      role={role}
       user={SESSION_USER}
       colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
@@ -63,6 +68,7 @@ afterEach(() => {
   removeAuthorPalette();
   SuperDoc.mockClear();
   superdocDestroy.mockClear();
+  useCaretOnOpen.mockClear();
 });
 
 test('passes the colour of the slot the server assigned and six palette colours to SuperDoc', () => {
@@ -107,4 +113,21 @@ test('exposes the instance as state once SuperDoc is ready and clears it on dest
   expect(onSuperdocChange).toHaveBeenLastCalledWith(instance);
   cleanup();
   expect(onSuperdocChange).toHaveBeenLastCalledWith(null);
+});
+
+function lastCaretOnOpenEnabled(): boolean {
+  return useCaretOnOpen.mock.lastCall![0].isEnabled;
+}
+
+test('enables the caret on open for an editor only once collaboration is ready', () => {
+  const { config } = renderEditor();
+  expect(lastCaretOnOpenEnabled()).toBe(false);
+  act(() => config.onCollaborationReady());
+  expect(lastCaretOnOpenEnabled()).toBe(true);
+});
+
+test('never enables the caret on open for a reader', () => {
+  const { config } = renderEditor({ role: DocumentRole.Reader });
+  act(() => config.onCollaborationReady());
+  expect(lastCaretOnOpenEnabled()).toBe(false);
 });

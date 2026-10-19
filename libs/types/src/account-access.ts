@@ -6,6 +6,7 @@ export const CANNOT_ARCHIVE_SELF_MESSAGE = 'You cannot archive your own account.
 export const CANNOT_IMPERSONATE_SELF_MESSAGE = 'You cannot impersonate yourself.';
 export const CANNOT_IMPERSONATE_ARCHIVED_MESSAGE = 'An archived account cannot be impersonated.';
 export const CANNOT_IMPERSONATE_ADMIN_MESSAGE = 'An admin cannot be impersonated.';
+export const IMPERSONATED_CONSENT_MESSAGE = 'An impersonated session cannot grant access to AI clients.';
 export const IMPERSONATION_SESSION_MS = HOUR_MS;
 
 export enum UserAction {

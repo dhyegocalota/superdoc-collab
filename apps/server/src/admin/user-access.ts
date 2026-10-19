@@ -1,7 +1,9 @@
 import { ARCHIVED_REASON } from '@superdoc-collab/types';
+import { eq } from 'drizzle-orm';
 import type { Auth } from '../auth/auth';
 import { revokeOAuthGrantsOf } from '../auth/consent-revocation';
 import type { AuthDatabase } from '../database/connection';
+import { session } from '../database/schema/auth';
 
 export class UserAccess {
   private readonly auth: Auth;
@@ -24,8 +26,16 @@ export class UserAccess {
 
   async archive({ userId, headers }: { userId: string; headers: Headers }): Promise<void> {
     await this.auth.api.banUser({ headers, body: { userId, banReason: ARCHIVED_REASON } });
+    const impersonatedUserIds = this.endImpersonationsBy(userId);
     revokeOAuthGrantsOf({ database: this.database, userId });
-    this.closeConnectionsOfUser(userId);
+    [userId, ...impersonatedUserIds].forEach((affectedUserId) => this.closeConnectionsOfUser(affectedUserId));
+  }
+
+  private endImpersonationsBy(adminId: string): string[] {
+    const { drizzle } = this.database;
+    const impersonated = drizzle.select({ userId: session.userId }).from(session).where(eq(session.impersonatedBy, adminId)).all();
+    drizzle.delete(session).where(eq(session.impersonatedBy, adminId)).run();
+    return impersonated.map((row) => row.userId);
   }
 
   async restore({ userId, headers }: { userId: string; headers: Headers }): Promise<void> {

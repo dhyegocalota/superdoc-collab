@@ -31,6 +31,9 @@ An admin can neither take a person out of the instance without deleting them nor
 
 - `AdminUser` and `SessionUser` gain the archived flag and `impersonatedBy` respectively.
 - An impersonation session lasts one hour; after it the next request answers 401 and the app shows Sign in. The admin's own session is untouched.
+- better-auth refreshes a session to its seven-day default when the client drops the `dont_remember` cookie, so `readSession` itself enforces the hour: an impersonation session created more than `IMPERSONATION_SESSION_MS` ago reads as signed out.
+- An impersonation session is valid only while its impersonator is an active admin: `readSession` returns null once they are demoted or archived, and archiving also deletes their impersonation sessions and closes the sockets opened through them.
+- An impersonated session cannot grant OAuth consent, so no grant outlives the hour.
 - Archiving the only active admin is refused; an archived admin still counts in the role toggle's last-admin rule (known gap, recorded in the tester briefing).
 
 ## Evidence

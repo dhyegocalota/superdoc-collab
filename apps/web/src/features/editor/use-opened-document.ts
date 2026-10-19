@@ -1,4 +1,10 @@
-import { DOCUMENT_READY_GIVE_UP_MS, DOCUMENT_READY_POLL_MS, type CreatorTicket, type OpenedDocument } from '@superdoc-collab/types';
+import {
+  DOCUMENT_READY_GIVE_UP_MS,
+  DOCUMENT_READY_POLL_MS,
+  type BootstrapProgress,
+  type CreatorTicket,
+  type OpenedDocument,
+} from '@superdoc-collab/types';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
@@ -73,6 +79,7 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
     data: query.data,
     error: isNotReady ? null : query.error,
     isFetchedAfterMount: query.isFetchedAfterMount,
+    bootstrap: null as BootstrapProgress | null,
     readiness,
     keepWaiting,
     restartWaiting,

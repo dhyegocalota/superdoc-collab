@@ -11,6 +11,7 @@ import {
   RoomMode,
   TAB_QUERY_KEY,
   thumbnailApiPath,
+  type BootstrapProgress,
   type CreatorTicket,
   type DocumentMembers,
   type OpenedDocument,
@@ -23,6 +24,8 @@ import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export class DocumentNotReadyError extends ApiRequestError {}
+
+export type OpenedAnswer = OpenedDocument & { bootstrap: BootstrapProgress };
 
 export const BLANK_DOCX_PATH = '/blank.docx';
 
@@ -48,7 +51,7 @@ export function documentFileQueryKey({
   return [...DOCUMENT_FILE_QUERY_KEY, documentId, roomMode];
 }
 
-export async function openDocument(documentId: string): Promise<OpenedDocument> {
+export async function openDocument(documentId: string): Promise<OpenedAnswer> {
   const response = await apiGet(documentApiPath({ documentId }));
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);

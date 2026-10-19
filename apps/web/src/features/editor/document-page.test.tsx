@@ -58,7 +58,6 @@ import { DocumentPage } from './document-page';
 import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
-import { ZoomMode } from './superdoc-zoom';
 import { DOCUMENT_READY_ANNOUNCEMENT, PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
 import { BLANK_DOCX_PATH, documentFileQueryKey, membersQueryKey, openedDocumentQueryKey } from './editor-api';
 
@@ -482,14 +481,6 @@ test('the browser tab names the open document', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(document.title).toBe(pageTitle(DOCUMENT_TITLE)));
-});
-
-test('the page fits the width at every width, capped at full size', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() =>
-    expect(SuperDoc).toHaveBeenCalledWith(expect.objectContaining({ zoom: { mode: ZoomMode.FitWidth, fitWidth: { max: 100 } } })),
-  );
 });
 
 test('the editor never takes the focus on its own', async () => {

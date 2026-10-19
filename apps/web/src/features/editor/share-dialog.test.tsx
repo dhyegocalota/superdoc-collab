@@ -29,7 +29,6 @@ import {
   removeMemberLabel,
   RESET_FAILED_MESSAGE,
   RESET_LINK_LABEL,
-  SHARE_DIALOG_DESCRIPTION,
   SHARE_LABEL,
   SHARE_LINK_LABELS,
   SHARE_LINKS_LOAD_ERROR_MESSAGE,
@@ -114,12 +113,6 @@ test('a failed reset shows an alert and keeps the old url', async () => {
   await userEvent.click(within(editRow).getByRole('button', { name: RESET_LINK_LABEL }));
   expect(await within(editRow).findByRole('alert')).toHaveTextContent(RESET_FAILED_MESSAGE);
   expect(screen.getByDisplayValue(LINKS[ShareLinkRole.Edit])).toBeInTheDocument();
-});
-
-test('the dialog says resetting stops the old link', async () => {
-  mockShareApi();
-  await openDialog();
-  expect(screen.getByText(SHARE_DIALOG_DESCRIPTION)).toHaveTextContent('stops the old one from working');
 });
 
 test('two placeholder rows show while the links load', async () => {

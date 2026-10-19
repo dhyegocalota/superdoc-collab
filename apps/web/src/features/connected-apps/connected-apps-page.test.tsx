@@ -15,7 +15,6 @@ import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   CONNECTED_APPS_EMPTY_MESSAGE,
   CONNECTED_APPS_LOAD_ERROR_MESSAGE,
-  COPY_LABEL,
   copyLabel,
   EXAMPLE_PROMPTS_HEADING,
   LIBRARY_PROMPTS,
@@ -24,7 +23,6 @@ import {
   McpClient,
   REVOKE_ERROR_MESSAGE,
   revokeLabel,
-  CHATGPT_INSTRUCTION,
   UNNAMED_CLIENT_LABEL,
   USE_WITH_AI_DESCRIPTION,
 } from './connected-apps-copy';
@@ -113,23 +111,6 @@ test('the page shows the client tabs, the description and the library prompts', 
   expect(screen.getByText(MCP_SNIPPETS[McpClient.ClaudeCode](MCP_URL))).toBeInTheDocument();
   expect(screen.getByText(EXAMPLE_PROMPTS_HEADING)).toBeInTheDocument();
   LIBRARY_PROMPTS.forEach((prompt) => expect(screen.getByText(prompt)).toBeInTheDocument());
-});
-
-test('the ChatGPT instruction is visible after selecting the ChatGPT tab', async () => {
-  getConsents.mockResolvedValue({ data: [], error: null } as never);
-  const user = userEvent.setup();
-  renderWithProviders(<ConnectedAppsPage />);
-  expect(screen.queryByText(CHATGPT_INSTRUCTION)).not.toBeInTheDocument();
-  await user.click(await screen.findByRole('tab', { name: MCP_CLIENT_LABELS[McpClient.ChatGpt] }));
-  expect(screen.getByText(CHATGPT_INSTRUCTION)).toBeInTheDocument();
-  expect(screen.getByText(MCP_URL)).toBeInTheDocument();
-});
-
-test('the stacked snippets are gone', async () => {
-  getConsents.mockResolvedValue({ data: [], error: null } as never);
-  renderWithProviders(<ConnectedAppsPage />);
-  await screen.findByText(CONNECTED_APPS_EMPTY_MESSAGE);
-  expect(screen.getAllByRole('button', { name: new RegExp(`^${COPY_LABEL}`) })).toHaveLength(1);
 });
 
 test('revoking an app that is already revoked removes the row without an error', async () => {

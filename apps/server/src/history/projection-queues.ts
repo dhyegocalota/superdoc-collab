@@ -1,3 +1,4 @@
+import { BootstrapLane } from '@superdoc-collab/types';
 import { ProjectionRequestKind, type AnsweredRequest, type ProjectionRequestsByKind } from './projection-messages';
 
 type Enqueuers = { [Kind in ProjectionRequestKind]: (request: ProjectionRequestsByKind[Kind]) => void };
@@ -11,7 +12,10 @@ export function createProjectionQueues({
 }): <Kind extends ProjectionRequestKind>(request: ProjectionRequestsByKind[Kind]) => void {
   let queuePromise = Promise.resolve();
   let importQueuePromise = Promise.resolve();
-  let bootstrapQueuePromise = Promise.resolve();
+  const bootstrapQueuePromises: Record<BootstrapLane, Promise<void>> = {
+    [BootstrapLane.Light]: Promise.resolve(),
+    [BootstrapLane.Heavy]: Promise.resolve(),
+  };
 
   function enqueueSerial(request: AnsweredRequest): void {
     queuePromise = queuePromise.then(() => reply(request));
@@ -21,8 +25,8 @@ export function createProjectionQueues({
     importQueuePromise = importQueuePromise.then(() => reply(request));
   }
 
-  function enqueueBootstrap(request: AnsweredRequest): void {
-    bootstrapQueuePromise = bootstrapQueuePromise.then(() => reply(request));
+  function enqueueBootstrap(request: ProjectionRequestsByKind[ProjectionRequestKind.Bootstrap]): void {
+    bootstrapQueuePromises[request.lane] = bootstrapQueuePromises[request.lane].then(() => reply(request));
   }
 
   function enqueueAfterImports(request: AnsweredRequest): void {

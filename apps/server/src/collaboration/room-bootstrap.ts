@@ -2,14 +2,17 @@ import {
   BOOTSTRAP_COMMIT_GRACE_MS,
   BOOTSTRAP_INTERRUPTED_RETRIES,
   BOOTSTRAP_PROGRESS_ENTRIES,
+  BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
+  BootstrapLane,
   bootstrapLaneOf,
   BootstrapStage,
   type BootstrapProgress,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { LruMap } from '../limits/lru-map';
+import { OwnerRoundRobinQueue } from '../limits/owner-round-robin-queue';
 import { withTimeout } from '../limits/with-timeout';
 import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError, type BootstrapRequest } from '../history/projection-messages';
 import { describeError } from '../logging/describe-error';
@@ -41,9 +44,12 @@ export class BootstrapUncommittedError extends Error {
 
 export class RoomBootstrap {
   private readonly jobs = new LruMap<BootstrapJob>({ isOverBudget: (entries) => entries.size > BOOTSTRAP_PROGRESS_ENTRIES });
-  private readonly waiting: string[] = [];
+  private readonly queues: Record<BootstrapLane, OwnerRoundRobinQueue<string>> = {
+    [BootstrapLane.Light]: new OwnerRoundRobinQueue(),
+    [BootstrapLane.Heavy]: new OwnerRoundRobinQueue(),
+  };
+  private readonly running: Record<BootstrapLane, boolean> = { [BootstrapLane.Light]: false, [BootstrapLane.Heavy]: false };
   private readonly commitWaiters = new Map<string, () => void>();
-  private isRunning = false;
   private readonly run: BootstrapRun;
   private readonly issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
   private readonly collaborationUrl: () => string;
@@ -91,17 +97,20 @@ export class RoomBootstrap {
   }
 
   queueWaitMs({ ownerId, fileBytes }: { ownerId: string; fileBytes: number }): number | null {
-    throw new Error(`RoomBootstrap.queueWaitMs is not implemented ${ownerId} ${fileBytes}`);
+    if (!this.queues[bootstrapLaneOf(fileBytes)].hasOwner(ownerId)) return null;
+    return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return existing.progress;
-    const total = this.fileBytesOf(documentId) * BOOTSTRAP_STATE_BYTES_RATIO;
+    const fileBytes = this.fileBytesOf(documentId);
+    const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
     const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null };
     this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null } });
-    this.waiting.push(documentId);
-    this.pump();
+    const lane = bootstrapLaneOf(fileBytes);
+    this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
+    this.pump(lane);
     return progress;
   }
 
@@ -145,8 +154,7 @@ export class RoomBootstrap {
 
   forget(documentId: string): void {
     this.jobs.delete(documentId);
-    const queuedAt = this.waiting.indexOf(documentId);
-    if (queuedAt !== -1) this.waiting.splice(queuedAt, 1);
+    Object.values(this.queues).forEach((queue) => queue.remove(documentId));
   }
 
   private isRetryable(job: BootstrapJob): boolean {
@@ -165,27 +173,26 @@ export class RoomBootstrap {
     return progress.total;
   }
 
-  private pump(): void {
-    if (this.isRunning) return;
-    const next = this.waiting.shift();
+  private pump(lane: BootstrapLane): void {
+    if (this.running[lane]) return;
+    const next = this.queues[lane].shift();
     if (next === undefined) return;
-    this.isRunning = true;
-    void this.runJob({ documentId: next, retries: BOOTSTRAP_INTERRUPTED_RETRIES }).finally(() => {
-      this.isRunning = false;
-      this.pump();
+    this.running[lane] = true;
+    void this.runJob({ documentId: next, lane, retries: BOOTSTRAP_INTERRUPTED_RETRIES }).finally(() => {
+      this.running[lane] = false;
+      this.pump(lane);
     });
   }
 
-  private async runJob({ documentId, retries }: { documentId: string; retries: number }): Promise<void> {
+  private async runJob({ documentId, lane, retries }: { documentId: string; lane: BootstrapLane; retries: number }): Promise<void> {
     try {
       const token = this.begin(documentId);
-      const lane = bootstrapLaneOf(this.fileBytesOf(documentId));
       await this.run({ documentId, filePath: this.filePathOf(documentId), url: this.collaborationUrl(), token, lane });
       await this.awaitCommit(documentId);
       this.endAttempt(documentId);
     } catch (error) {
       const isRetryable = error instanceof BootstrapInterruptedError && retries > 0;
-      if (isRetryable) return this.runJob({ documentId, retries: retries - 1 });
+      if (isRetryable) return this.runJob({ documentId, lane, retries: retries - 1 });
       this.fail({ documentId, error });
     }
   }

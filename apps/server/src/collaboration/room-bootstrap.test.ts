@@ -309,6 +309,7 @@ const LARGE_FILE_BYTES = BOOTSTRAP_LIGHT_MAX_BYTES + 1;
 const OWNERS: Record<string, string> = {
   'ana-heavy': ANA,
   'ana-heavy-2': ANA,
+  'ana-heavy-3': ANA,
   'bruno-heavy': BRUNO,
   'carla-heavy': CARLA,
   'bruno-light': BRUNO,
@@ -337,7 +338,7 @@ test('a light bootstrap runs at once while a heavy one of another owner is runni
 
 test('heavy bootstraps give each owner a turn before an owner gets a second one', async () => {
   const { bootstrap, pending } = bootstrapWithOwners();
-  ['ana-heavy', 'ana-heavy-2', 'bruno-heavy', 'carla-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  ['ana-heavy', 'ana-heavy-2', 'ana-heavy-3', 'bruno-heavy', 'carla-heavy'].forEach((documentId) => bootstrap.request(documentId));
   const orderOfRuns = async (): Promise<string[]> => {
     await vi.waitFor(() => expect(pending.length).toBeGreaterThan(0));
     return pending.map(({ request }) => request.documentId);
@@ -351,7 +352,14 @@ test('heavy bootstraps give each owner a turn before an owner gets a second one'
   await finishNext(0);
   await finishNext(1);
   await finishNext(2);
-  expect(pending.map(({ request }) => request.documentId)).toEqual(['ana-heavy', 'bruno-heavy', 'carla-heavy', 'ana-heavy-2']);
+  await finishNext(3);
+  expect(pending.map(({ request }) => request.documentId)).toEqual([
+    'ana-heavy',
+    'ana-heavy-2',
+    'bruno-heavy',
+    'carla-heavy',
+    'ana-heavy-3',
+  ]);
 });
 
 test('an owner is asked to wait only while a bootstrap of theirs is queued in the lane of the new file', async () => {

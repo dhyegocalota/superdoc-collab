@@ -50,6 +50,7 @@ import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
 const TYPING_BURST_FRAMES = 600;
+const AUTHENTICATED_ANSWER = Buffer.from([0]);
 const AWARENESS_BURST_FRAMES = 3000;
 const AWARENESS_ROOM_NAME = 'superdoc-room-1';
 const CLAIMED_ID_BASE = 1_000_000;
@@ -488,7 +489,10 @@ describe('attachCollaboration', () => {
 async function openCountedSocket() {
   const received = vi.fn();
   const hocuspocus = {
-    handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
+    handleConnection: (webSocket: WebSocket) => {
+      webSocket.on('message', received);
+      webSocket.send(AUTHENTICATED_ANSWER);
+    },
   } as unknown as Hocuspocus;
   const auth = {
     api: {

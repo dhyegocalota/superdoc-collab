@@ -297,3 +297,16 @@ test('a failure keeps the last sentence with the failure line and Retry', () => 
   expect(screen.getByText(FAILED_VIEW.failure!)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: RETRY_SUMMARY_LABEL })).toBeInTheDocument();
 });
+
+test('the authors sit below the sentence, so a landing sentence never moves', () => {
+  render(card({ view: FIRST_VIEW }));
+  const sentence = screen.getByText(FIRST_VIEW.summary!.sentence);
+  const authorList = screen.getByRole('list');
+  expect(sentence.compareDocumentPosition(authorList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test('a summarizing step with no grouping before it does not claim the topics are grouped', () => {
+  render(card({ view: { ...RUNNING_VIEW, step: SummarizeStep.Summarizing } }));
+  expect(screen.getByText(SUMMARIZING_EDITS_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(TOPICS_GROUPED_LABEL)).not.toBeInTheDocument();
+});

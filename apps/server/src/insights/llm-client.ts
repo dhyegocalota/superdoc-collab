@@ -10,6 +10,8 @@ export const LLM_KEY_MISSING_MESSAGE = 'The language model is unavailable: OPENR
 const LLM_TIMEOUT_MS = 30 * SECOND_MS;
 const LLM_MAX_RETRIES = 1;
 
+export class LanguageModelTimeoutError extends Error {}
+
 export enum LanguageModelAvailability {
   Ready = 'ready',
   Unavailable = 'unavailable',
@@ -58,12 +60,14 @@ export async function streamStructured<Schema extends z.ZodType>({
   system,
   prompt,
   onPartial,
+  timeoutMs = LLM_TIMEOUT_MS,
 }: {
   model: LanguageModel;
   schema: Schema;
   system: string;
   prompt: string;
   onPartial: (partial: Partial<z.infer<Schema>>) => void;
+  timeoutMs?: number;
 }): Promise<z.infer<Schema>> {
   const result = streamText({
     model,
@@ -71,7 +75,7 @@ export async function streamStructured<Schema extends z.ZodType>({
     system,
     prompt,
     maxRetries: LLM_MAX_RETRIES,
-    abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    abortSignal: AbortSignal.timeout(timeoutMs),
     onError: () => undefined,
   });
   for await (const partial of result.partialOutputStream) onPartial(partial);

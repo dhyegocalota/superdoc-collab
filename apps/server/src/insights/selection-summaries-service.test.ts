@@ -5,6 +5,7 @@ import {
   SECOND_MS,
   SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
+  SELECTION_SUMMARY_TIMEOUT_MESSAGE,
   SelectionSummaryState,
   SummarizeStep,
   UTC_TIME_ZONE,
@@ -14,7 +15,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';
 import { failingModel, modelAnswering, readyModel, streamingModel } from '../testing/language-model';
 import { InsightsJobRunner } from './insights-job-runner';
-import { type LanguageModelChoice } from './llm-client';
+import { LanguageModelTimeoutError, type LanguageModelChoice } from './llm-client';
 import { selectionKeyOf } from './selection-key';
 import {
   SELECTION_SUMMARY_FAILED_LOG,
@@ -482,6 +483,20 @@ test('a stream that breaks clears the partial, saves no half sentence and keeps 
     failure: SELECTION_SUMMARY_FAILED_MESSAGE,
     partial: null,
     summary: { sentence: ANSWER.sentence, isStale: true },
+  });
+  await server.stop();
+});
+
+test('a timeout stores the timeout line instead of the generic one', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { server, documentId, service } = await serviceWith({
+    languageModel: readyModel(failingModel(new LanguageModelTimeoutError())),
+    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
+  });
+  await service.write({ documentId, selection: BRUNO_SELECTION });
+  expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
+    state: SelectionSummaryState.Failed,
+    failure: SELECTION_SUMMARY_TIMEOUT_MESSAGE,
   });
   await server.stop();
 });

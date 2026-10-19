@@ -17,6 +17,7 @@ export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
 export const SUMMARY_RUNNING_POLL_MS = SECOND_MS;
 export const SUMMARIZE_BUSY_MESSAGE = 'Summaries are busy. Try again in a moment.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
+export const SELECTION_SUMMARY_TIMEOUT_MESSAGE = 'The model took too long. Try again.';
 export const GROUPING_FAILED_MESSAGE = 'The edits could not be grouped into topics. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
 export const TOPICS_UNAVAILABLE_MESSAGE = 'Topics unavailable';

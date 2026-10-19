@@ -33,6 +33,7 @@ Expected in both runs: three 401 then 429. A fourth 401 with the header means th
 | `environment.test.ts` parses a complete environment | no `trustedProxyHops` field | field defaults to 1 |
 | `environment.test.ts` TRUSTED_PROXY_HOPS parse | `undefined` instead of 2 | parsed |
 | `environment.test.ts` refuses 0, -1, 1.5, two | did not throw | `InvalidEnvironmentIntegerError` names the variable |
+| `app.test.ts` two trusted hops key on the second entry from the right | `[401, 401, 401, 401]`, no 429: the red commit (4c3ace84) ignored the option in the test server and `app.ts` passed a literal 1 | `app.ts` passes `environment.trustedProxyHops` |
 
 ## Hypotheses to attack
 

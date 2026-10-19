@@ -27,7 +27,15 @@ function connectionOfUser(userId: string): FakeConnection {
   return { context: { creatorAttempt: null, userId }, close: vi.fn() };
 }
 
-function runtimeWith({ rooms, reservations }: { rooms: Record<string, FakeConnection[]>; reservations: CreatorReservations }) {
+function runtimeWith({
+  rooms,
+  reservations,
+  versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() },
+}: {
+  rooms: Record<string, FakeConnection[]>;
+  reservations: CreatorReservations;
+  versionRooms?: { closeUser: ReturnType<typeof vi.fn>; closeAllOfUser: ReturnType<typeof vi.fn> };
+}) {
   const documents = new Map(
     Object.entries(rooms).map(([documentId, connections]) => [
       `${SUPERDOC_ROOM_PREFIX}${documentId}`,
@@ -40,6 +48,7 @@ function runtimeWith({ rooms, reservations }: { rooms: Record<string, FakeConnec
   return createCollaborationRuntime({
     hocuspocus: { documents } as unknown as Hocuspocus,
     reservations,
+    versionRooms,
   } as unknown as Parameters<typeof createCollaborationRuntime>[0]);
 }
 
@@ -122,4 +131,20 @@ test("closeConnectionsOfUser closes that user's sockets in every document and le
   expect(firstDocumentSocket.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
   expect(secondDocumentSocket.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
   expect(stayingUser.close).not.toHaveBeenCalled();
+});
+
+test('closeUserConnections also closes the version sockets of that user', () => {
+  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
+  const versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() };
+  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, reservations, versionRooms });
+  runtime.closeUserConnections({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
+  expect(versionRooms.closeUser).toHaveBeenCalledWith({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
+});
+
+test('closeConnectionsOfUser also closes the version sockets of that user in every document', () => {
+  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
+  const versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() };
+  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, reservations, versionRooms });
+  runtime.closeConnectionsOfUser(FIRST_EDITOR);
+  expect(versionRooms.closeAllOfUser).toHaveBeenCalledWith(FIRST_EDITOR);
 });

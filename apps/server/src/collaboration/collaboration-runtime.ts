@@ -90,13 +90,16 @@ export function createCollaborationRuntime({
         (connection) => (connection.context as CollaborationContext).userId === userId,
       );
       revokedConnections.forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
+      versionRooms.closeUser({ documentId, userId });
       console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
     },
-    closeConnectionsOfUser: (userId) =>
+    closeConnectionsOfUser: (userId) => {
       [...hocuspocus.documents.values()]
         .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection))
         .filter((connection) => (connection.context as CollaborationContext).userId === userId)
-        .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON })),
+        .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
+      versionRooms.closeAllOfUser(userId);
+    },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
     isAttemptSuperseded: ({ documentId, attempt, epoch }) => {
       const isCommitted = bootstrap.isCommitted(documentId);

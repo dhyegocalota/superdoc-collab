@@ -83,6 +83,7 @@ function isAddressInUse(error: unknown): boolean {
 
 export async function startTestServer({
   trustProxy = true,
+  trustedProxyHops = TRUSTED_PROXY_HOPS,
   databaseDirectory = temporaryDirectory(),
   languageModel = chooseLanguageModel(NO_LLM_SETTINGS),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
@@ -92,6 +93,7 @@ export async function startTestServer({
   now = Date.now,
 }: {
   trustProxy?: boolean;
+  trustedProxyHops?: number;
   databaseDirectory?: string;
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
@@ -108,7 +110,7 @@ export async function startTestServer({
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy,
-    trustedProxyHops: TRUSTED_PROXY_HOPS,
+    trustedProxyHops,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
@@ -129,6 +131,7 @@ export async function startTestServer({
     if (!isAddressInUse(error) || attemptsLeft <= 1) throw error;
     return startTestServer({
       trustProxy,
+      trustedProxyHops,
       databaseDirectory,
       languageModel,
       versionRoomPolicy,

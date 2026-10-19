@@ -9,6 +9,8 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `apps/server/src/collaboration/collaboration-runtime.ts` — `closeUserConnections` closes that user's connections in every room of the document with 4404 and logs the document id only.
 - `apps/server/src/documents/documents-routes.ts` — `DELETE /:documentId/members/:userId`, owner only: unknown member 404, owner 400, otherwise delete the row, then close the sockets, then 204.
 - `apps/web/src/features/editor/people-with-access.tsx` (new), `share-dialog.tsx`, `editor-api.ts` (`revokeMember`), `editor-copy.ts` — the "People with access" group in the share dialog; success invalidates the members query key, failure shows `REMOVE_FAILED_MESSAGE`. Role labels reuse `ROLE_LABELS` of the documents feature.
+- `apps/server/src/collaboration/version-rooms.ts` — `closeUser` closes that user's sockets in the version instances of the document; the runtime calls it.
+- `apps/server/src/collaboration/collaboration-server.ts` — `connected` re-checks the role and closes a socket admitted just before the removal with 4404.
 - `.claude/rules/collaboration.md` — one bullet.
 - `e2e/revoke-access.spec.ts` — Ana removes Bruno.
 
@@ -33,6 +35,9 @@ pnpm test:e2e e2e/revoke-access.spec.ts
 | `member-removal-routes.test.ts::owner cannot remove themself` | `expected [ 404, { error: 'Not found' } ] to deeply equal [ 400, … ]` | the owner role is refused |
 | `member-removal-routes.test.ts::unknown member answers 404` | the 404 body was the guard's `Not found`, not `MEMBER_NOT_FOUND_MESSAGE` | the route answers its own message |
 | `member-removal-routes.test.ts::an editor cannot remove anyone`, `::a stranger removing a member…` | pins: green when they landed (the guard already refuses) | unchanged |
+| `version-rooms.test.ts::closeUser closes only that user version sockets…` (a6885a60) | `Error: closeUser is not implemented` | closes the user's connections in the document's version instances |
+| `collaboration-runtime.test.ts::closeUserConnections also closes the version sockets…` (a6885a60) | `expected "vi.fn()" to be called with arguments` | the runtime calls `versionRooms.closeUser` |
+| `collaboration-server.test.ts::a socket admitted just before its member was removed…` (a6885a60) | timed out at 20 s: the socket stayed open | `connected` finds no role and closes with 4404 |
 | `share-dialog.test.tsx` three new tests (17725e44) | `Unable to find role="group" and name "People with access"` | the section renders |
 | `e2e/revoke-access.spec.ts` | not run red (written after the unit layer) | passed once alone, 5.0 s |
 
@@ -47,6 +52,8 @@ pnpm test:e2e e2e/revoke-access.spec.ts
 
 ## Known gaps
 
+- The admission race is simulated by a `findRole` spy that answers null after the authentication call; no real timing race was produced.
+- The removal of a member does not wait for a version socket that is mid-handshake; the version room has no `connected` re-check.
 - The spec and the lead's prompt say a non-owner gets 404 from the guard. The existing guard answers 403 to a member below the required role and 404 only to a non-member; the tests pin that. The spec wording should say 403 for an editor or reader.
 - The route tests live in `member-removal-routes.test.ts`, not `documents-routes.test.ts`: the auth rate limit (100 requests per 10 seconds per process) is exhausted by the sign-ups of that file and later tests got 429.
 - A failed member list fetch hides the "People with access" group silently; there is no loading skeleton or error line for it.

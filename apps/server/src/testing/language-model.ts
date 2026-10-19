@@ -22,6 +22,10 @@ export function modelAnsweringWith(answer: () => unknown): MockLanguageModelV4 {
   return new MockLanguageModelV4({ doGenerate: async () => generateResult(answer()) });
 }
 
+export function modelResponding(respond: (options: Parameters<MockLanguageModelV4['doGenerate']>[0]) => unknown): MockLanguageModelV4 {
+  return new MockLanguageModelV4({ doGenerate: async (options) => generateResult(await respond(options)) });
+}
+
 export function gatedModel({ gate, answer }: { gate: Promise<void>; answer: unknown }): MockLanguageModelV4 {
   return new MockLanguageModelV4({
     doGenerate: async () => {

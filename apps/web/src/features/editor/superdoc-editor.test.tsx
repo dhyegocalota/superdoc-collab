@@ -11,6 +11,7 @@ type EditorConfig = {
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
+  onPaginationUpdate: () => void;
 };
 
 const DISPLACED_COLOR_SLOT = 2;
@@ -87,6 +88,13 @@ test('reports every editor update to the page', () => {
   const onEditorUpdate = vi.fn();
   const { config } = renderEditor({ onEditorUpdate });
   config.onEditorUpdate();
+  expect(onEditorUpdate).toHaveBeenCalledTimes(1);
+});
+
+test('reports a layout pass to the page, which is how a peer’s edit arrives', () => {
+  const onEditorUpdate = vi.fn();
+  const { config } = renderEditor({ onEditorUpdate });
+  config.onPaginationUpdate();
   expect(onEditorUpdate).toHaveBeenCalledTimes(1);
 });
 

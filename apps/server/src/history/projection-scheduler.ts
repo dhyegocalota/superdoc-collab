@@ -302,10 +302,10 @@ export class ProjectionScheduler {
     if (this.stoppingPromise) return;
     const wasRecycled = this.isRecycling;
     this.isRecycling = false;
-    if (wasRecycled) this.repostBootstrapping();
     if (!wasRecycled) this.rejectBootstrapping(() => new BootstrapInterruptedError());
     if (!wasRecycled && !this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
+    this.repostBootstrapping();
     const pending = [...this.inFlight];
     this.inFlight.clear();
     pending.forEach((documentId) => this.schedule(documentId));

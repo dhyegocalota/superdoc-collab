@@ -763,3 +763,26 @@ test('a request posted after the stop is posted again to the fresh worker and re
   expect(scheduler.currentWorker).not.toBe(heavyWorker);
   await scheduler.currentWorker.terminate();
 });
+
+test('a bootstrap posted while the worker is being recycled is posted again to the fresh worker and resolves', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  writeFileSync(
+    join(directory, PROBE_WORKER_FILE_NAME),
+    `import { parentPort } from 'node:worker_threads';
+parentPort.on('message', (request) => {
+  if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
+  if (request.kind === '${ProjectionRequestKind.Blocks}') parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: 0, blocks: [], heapTotalBytes: ${LARGE_DOCUMENT_HEAP_BYTES + 1} });
+  if (request.kind === '${ProjectionRequestKind.Bootstrap}') parentPort.postMessage({ kind: '${ProjectionRequestKind.Bootstrap}', documentId: request.documentId, heapTotalBytes: 0 });
+});
+`,
+  );
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+  });
+  const heavyWorker = scheduler.currentWorker;
+  (scheduler as unknown as { recycleWhenIdle: (heapTotalBytes: number) => void }).recycleWhenIdle(LARGE_DOCUMENT_HEAP_BYTES + 1);
+  await expect(scheduler.bootstrap(BOOTSTRAP_REQUEST)).resolves.toBeUndefined();
+  expect(scheduler.currentWorker).not.toBe(heavyWorker);
+  await scheduler.currentWorker.terminate();
+});

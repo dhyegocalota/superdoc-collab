@@ -9,6 +9,14 @@ type KeyOptions = KeyboardEventInit & { target?: HTMLElement };
 
 const onDownload = vi.fn();
 const onShowShortcuts = vi.fn();
+const onToggleEditsPanel = vi.fn();
+const onSummarize = vi.fn();
+const onAddComment = vi.fn();
+const setZoom = vi.fn();
+const scrollToComment = vi.fn();
+const COMMENT_IDS = ['first', 'second', 'third'];
+let zoomValue: number;
+let isSelectionEmpty: boolean;
 const execute = vi.fn();
 let commandState: { enabled: boolean; supported: boolean; value?: string };
 let requestedCommandIds: string[];
@@ -18,7 +26,14 @@ function superdocWithCommands(): SuperDoc {
     requestedCommandIds.push(commandId);
     return { getState: () => commandState, execute };
   });
-  return superdocStub({ ui: { commands: { get } } });
+  return superdocStub({
+    ui: {
+      commands: { get },
+      zoom: { getSnapshot: () => ({ value: zoomValue, min: 25, max: 500 }), set: setZoom },
+      selection: { getSnapshot: () => ({ empty: isSelectionEmpty }) },
+      comments: { list: () => COMMENT_IDS.map((id) => ({ id })), scrollTo: scrollToComment },
+    },
+  });
 }
 
 function pressKey({ target = document.body, ...init }: KeyOptions): KeyboardEvent {
@@ -28,7 +43,7 @@ function pressKey({ target = document.body, ...init }: KeyOptions): KeyboardEven
 }
 
 function renderShortcuts({ superdoc = superdocWithCommands(), canEdit = true }: { superdoc?: SuperDoc | null; canEdit?: boolean } = {}) {
-  return renderHook(() => useShortcuts({ superdoc, canEdit, onDownload, onShowShortcuts }));
+  return renderHook(() => useShortcuts({ superdoc, canEdit, onDownload, onShowShortcuts, onToggleEditsPanel, onSummarize, onAddComment }));
 }
 
 function appendField(tagName: 'input' | 'textarea', value: string): HTMLElement {
@@ -41,6 +56,8 @@ function appendField(tagName: 'input' | 'textarea', value: string): HTMLElement 
 beforeEach(() => {
   commandState = { enabled: true, supported: true };
   requestedCommandIds = [];
+  zoomValue = 100;
+  isSelectionEmpty = false;
   vi.stubGlobal('navigator', { platform: 'Win32' });
 });
 
@@ -162,4 +179,102 @@ test('the listener is removed on unmount', () => {
   unmount();
   expect(pressKey({ code: 'KeyL', key: 'l', ctrlKey: true }).defaultPrevented).toBe(false);
   expect(execute).not.toHaveBeenCalled();
+});
+
+const OPTION_KEYS = { ctrlKey: true, altKey: true };
+
+test('a held toggle key is swallowed before it reaches the editing surface', () => {
+  renderShortcuts();
+  const surface = appendField('textarea', '');
+  const reached = vi.fn();
+  surface.addEventListener('keydown', reached);
+  pressKey({ code: 'KeyB', key: 'b', ctrlKey: true, target: surface });
+  const held = pressKey({ code: 'KeyB', key: 'b', ctrlKey: true, repeat: true, target: surface });
+  expect(reached).toHaveBeenCalledTimes(1);
+  expect(held.defaultPrevented).toBe(true);
+});
+
+test('a held one-shot app key runs once', () => {
+  renderShortcuts();
+  pressKey({ code: 'KeyS', key: 's', ctrlKey: true });
+  pressKey({ code: 'KeyS', key: 's', ctrlKey: true, repeat: true });
+  expect(onDownload).toHaveBeenCalledTimes(1);
+});
+
+test('a held zoom, font size or indent key keeps repeating', () => {
+  renderShortcuts();
+  pressKey({ code: 'Equal', key: '=', ...OPTION_KEYS, repeat: true });
+  pressKey({ code: 'KeyM', key: 'm', ctrlKey: true, repeat: true });
+  expect(setZoom).toHaveBeenCalledTimes(1);
+  expect(execute).toHaveBeenCalledWith(undefined);
+});
+
+test('zoom in and out step through the zoom steps and stop at the ends', () => {
+  renderShortcuts();
+  pressKey({ code: 'Equal', key: '=', ...OPTION_KEYS });
+  expect(setZoom).toHaveBeenLastCalledWith(125);
+  pressKey({ code: 'Minus', key: '-', ...OPTION_KEYS });
+  expect(setZoom).toHaveBeenLastCalledWith(90);
+  zoomValue = 200;
+  pressKey({ code: 'Equal', key: '=', ...OPTION_KEYS });
+  expect(setZoom).toHaveBeenLastCalledWith(200);
+});
+
+test('a reader can zoom and toggle the edits panel but not summarize or comment', () => {
+  renderShortcuts({ canEdit: false });
+  expect(pressKey({ code: 'Equal', key: '=', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(pressKey({ code: 'KeyE', key: 'e', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(onToggleEditsPanel).toHaveBeenCalledTimes(1);
+  expect(pressKey({ code: 'KeyS', key: 's', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(pressKey({ code: 'KeyM', key: 'm', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(onSummarize).not.toHaveBeenCalled();
+  expect(onAddComment).not.toHaveBeenCalled();
+});
+
+test('an editor summarizes with Ctrl+Alt+S', () => {
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyS', key: 's', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(onSummarize).toHaveBeenCalledTimes(1);
+});
+
+test('add comment needs a selection', () => {
+  isSelectionEmpty = true;
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyM', key: 'm', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(onAddComment).not.toHaveBeenCalled();
+  isSelectionEmpty = false;
+  expect(pressKey({ code: 'KeyM', key: 'm', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(onAddComment).toHaveBeenCalledTimes(1);
+});
+
+test('next and previous comment walk the list and wrap', () => {
+  renderShortcuts();
+  pressKey({ code: 'KeyN', key: 'n', ...OPTION_KEYS });
+  pressKey({ code: 'KeyN', key: 'n', ...OPTION_KEYS });
+  expect(scrollToComment.mock.calls.map(([id]) => id)).toEqual(['first', 'second']);
+  pressKey({ code: 'KeyP', key: 'p', ...OPTION_KEYS });
+  pressKey({ code: 'KeyP', key: 'p', ...OPTION_KEYS });
+  pressKey({ code: 'KeyP', key: 'p', ...OPTION_KEYS });
+  expect(scrollToComment.mock.calls.map(([id]) => id).slice(2)).toEqual(['first', 'third', 'second']);
+});
+
+test('Alt zero and the platform clear-formatting keys run their commands', () => {
+  renderShortcuts();
+  pressKey({ code: 'Digit0', key: '0', ...OPTION_KEYS });
+  expect(requestedCommandIds.at(-1)).toBe('linked-style');
+  expect(execute).toHaveBeenLastCalledWith('Normal');
+  pressKey({ code: 'Space', key: ' ', ctrlKey: true });
+  expect(requestedCommandIds.at(-1)).toBe('clear-formatting');
+});
+
+test('on a Mac indent and clear formatting use the Docs keys', () => {
+  vi.stubGlobal('navigator', { platform: 'MacIntel' });
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyM', key: 'm', metaKey: true }).defaultPrevented).toBe(false);
+  expect(pressKey({ code: 'BracketRight', key: ']', metaKey: true }).defaultPrevented).toBe(true);
+  expect(requestedCommandIds.at(-1)).toBe('indent-increase');
+  pressKey({ code: 'BracketLeft', key: '[', metaKey: true });
+  expect(requestedCommandIds.at(-1)).toBe('indent-decrease');
+  pressKey({ code: 'Backslash', key: '\\', metaKey: true });
+  expect(requestedCommandIds.at(-1)).toBe('clear-formatting');
 });

@@ -44,3 +44,48 @@ test('the title keys are native entries in the Title group', () => {
   expect(shortcutOf(ShortcutId.SaveTitle)).toMatchObject({ group: ShortcutGroup.Title, action: { kind: ShortcutActionKind.Native } });
   expect(shortcutOf(ShortcutId.CancelTitle)).toMatchObject({ group: ShortcutGroup.Title, action: { kind: ShortcutActionKind.Native } });
 });
+
+test('SuperDoc keys listed for the owner are native', () => {
+  [ShortcutId.SelectAll, ShortcutId.Heading4, ShortcutId.Heading5, ShortcutId.Heading6].forEach((id) => {
+    expect(shortcutOf(id).action.kind).toBe(ShortcutActionKind.Native);
+  });
+});
+
+test('the comment, review and zoom keys are app entries in the right groups', () => {
+  [ShortcutId.AddComment, ShortcutId.NextComment, ShortcutId.PreviousComment, ShortcutId.SummarizeEdits].forEach((id) => {
+    expect(shortcutOf(id)).toMatchObject({ group: ShortcutGroup.Review, action: { kind: ShortcutActionKind.App } });
+  });
+  [ShortcutId.ZoomIn, ShortcutId.ZoomOut, ShortcutId.ToggleEditsPanel].forEach((id) => {
+    expect(shortcutOf(id)).toMatchObject({ group: ShortcutGroup.Navigation, action: { kind: ShortcutActionKind.App } });
+  });
+});
+
+test('a Mac keeps ⌘M and ⌘Space free: indent uses the brackets and clear formatting the backslash', () => {
+  expect(shortcutOf(ShortcutId.Indent).keys.mac.code).toBe('BracketRight');
+  expect(shortcutOf(ShortcutId.Indent).keys.other.code).toBe('KeyM');
+  expect(shortcutOf(ShortcutId.Outdent).keys.mac.code).toBe('BracketLeft');
+  expect(shortcutOf(ShortcutId.ClearFormatting).keys.mac.code).toBe('Backslash');
+  expect(shortcutOf(ShortcutId.ClearFormatting).keys.other.code).toBe('Space');
+});
+
+test('toggle and one-shot entries ignore key repeat and the others keep it', () => {
+  [
+    ShortcutId.Bold,
+    ShortcutId.Italic,
+    ShortcutId.Underline,
+    ShortcutId.Strikethrough,
+    ShortcutId.BulletedList,
+    ShortcutId.NumberedList,
+  ].forEach((id) => expect(shortcutOf(id).ignoresRepeat).toBe(true));
+  [
+    ShortcutId.DownloadDocx,
+    ShortcutId.DownloadPdf,
+    ShortcutId.ShowShortcuts,
+    ShortcutId.ToggleEditsPanel,
+    ShortcutId.SummarizeEdits,
+    ShortcutId.AddComment,
+  ].forEach((id) => expect(shortcutOf(id).ignoresRepeat).toBe(true));
+  [ShortcutId.Undo, ShortcutId.ZoomIn, ShortcutId.FontGrow, ShortcutId.Indent].forEach((id) =>
+    expect(shortcutOf(id).ignoresRepeat).toBe(false),
+  );
+});

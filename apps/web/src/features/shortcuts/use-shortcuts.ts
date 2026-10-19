@@ -19,6 +19,9 @@ export type UseShortcutsOptions = {
   canEdit: boolean;
   onDownload: (format: DownloadFormat) => void;
   onShowShortcuts: () => void;
+  onToggleEditsPanel: () => void;
+  onSummarize: () => void;
+  onAddComment: () => void;
 };
 
 type ShortcutRun = { definition: ShortcutDefinition; options: UseShortcutsOptions; event: KeyboardEvent };

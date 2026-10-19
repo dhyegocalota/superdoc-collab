@@ -26,10 +26,14 @@ import { parseVersionPath, VersionAdmission, type VersionRooms } from './version
 
 const SOCKET_COMPRESSION_THRESHOLD_BYTES = 1024;
 const SOCKET_COMPRESSION_CONCURRENCY = 4;
+const SOCKET_COMPRESSION_WINDOW_BITS = 12;
+const SOCKET_COMPRESSION_MEMORY_LEVEL = 3;
 const SOCKET_COMPRESSION_OPTIONS: PerMessageDeflateOptions = {
   threshold: SOCKET_COMPRESSION_THRESHOLD_BYTES,
   concurrencyLimit: SOCKET_COMPRESSION_CONCURRENCY,
-  zlibDeflateOptions: { level: constants.Z_BEST_SPEED },
+  zlibDeflateOptions: { level: constants.Z_BEST_SPEED, memLevel: SOCKET_COMPRESSION_MEMORY_LEVEL },
+  serverMaxWindowBits: SOCKET_COMPRESSION_WINDOW_BITS,
+  clientMaxWindowBits: SOCKET_COMPRESSION_WINDOW_BITS,
   serverNoContextTakeover: true,
   clientNoContextTakeover: true,
 };

@@ -5,7 +5,7 @@ import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
-import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
+import { PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -76,7 +76,7 @@ export function DocumentPage() {
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isTitleDirty, setIsTitleDirty] = useState(false);
-  const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
   const { timeZone } = useTimeZone();

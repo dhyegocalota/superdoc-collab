@@ -125,7 +125,7 @@ export function TimelinePanel({
   const isDocumentEmpty = timeline !== undefined && timeline.bins.length === 0 && !timeline.projection.isBehind && !isLogAhead;
   const isBodyShown = isOpen && !isDocumentEmpty;
   const notices = timeline && (
-    <TimelineNotices timeline={timeline} hasFilter={hasFilter} isLogAhead={isLogAhead} canRefresh={canEdit} onRetry={summarize.summarize} />
+    <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={summarize.summarize} />
   );
   const chart = (
     <PanelChart

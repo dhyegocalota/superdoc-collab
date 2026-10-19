@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { LARGE_BREAKPOINT_PX, WIDE_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { stubMatchMedia, type MatchMediaStub } from '@/testing/match-media';
-import { isPanelOpenByDefault, PANEL_POSITION_STORAGE_KEY, PanelPosition, usePanelPosition } from './use-panel-position';
+import { PANEL_POSITION_STORAGE_KEY, PanelPosition, usePanelPosition } from './use-panel-position';
 
 const NARROW_VIEWPORT_PX = 800;
 const LARGE_VIEWPORT_PX = 1280;
@@ -85,11 +85,4 @@ test('blocked storage still works for the session', () => {
   expect(result.current.position).toBe(PanelPosition.Bottom);
   act(() => result.current.choosePosition(PanelPosition.Side));
   expect(result.current.position).toBe(PanelPosition.Side);
-});
-
-test('the panel starts collapsed at every width', () => {
-  [NARROW_VIEWPORT_PX, LARGE_BREAKPOINT_PX, WIDE_BREAKPOINT_PX].forEach((width) => {
-    viewportWidth = width;
-    expect(isPanelOpenByDefault()).toBe(false);
-  });
 });

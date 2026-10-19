@@ -9,7 +9,7 @@ import { DocumentTitle } from './document-title';
 
 const RENAMED_TITLE = 'Renamed';
 
-function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChange = vi.fn()): void {
+function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChange = vi.fn(), onEditingChange = vi.fn()): void {
   renderWithProviders(
     <DocumentTitle
       documentId={DOCUMENT_ID}
@@ -17,6 +17,7 @@ function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChang
       role={role}
       onFailureChange={onFailureChange}
       onDirtyChange={onDirtyChange}
+      onEditingChange={onEditingChange}
     />,
   );
 }
@@ -212,4 +213,14 @@ test('an enabled Save shows no tooltip', async () => {
   await userEvent.keyboard(RENAMED_TITLE);
   await userEvent.hover(screen.getByRole('button', { name: SAVE_TITLE_LABEL }).parentElement as HTMLElement);
   expect(screen.queryByRole('tooltip')).toBeNull();
+});
+
+test('it reports when editing starts and stops', async () => {
+  const onEditingChange = vi.fn();
+  renderTitle(DocumentRole.Editor, vi.fn(), vi.fn(), onEditingChange);
+  expect(onEditingChange).toHaveBeenLastCalledWith(false);
+  await startEditing();
+  expect(onEditingChange).toHaveBeenLastCalledWith(true);
+  await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(onEditingChange).toHaveBeenLastCalledWith(false);
 });

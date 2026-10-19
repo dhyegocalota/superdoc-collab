@@ -91,6 +91,10 @@ export async function rotateShareLink({ documentId, role }: { documentId: string
   return readJson<ShareLinks>({ response, subject: 'Rotate' });
 }
 
+export async function revokeMember(_parameters: { documentId: string; userId: string }): Promise<void> {
+  throw new Error('revokeMember is not implemented');
+}
+
 export async function renameDocument({ documentId, title }: { documentId: string; title: string }): Promise<void> {
   const response = await apiSend({ path: documentApiPath({ documentId }), method: HttpMethod.Patch, body: JSON.stringify({ title }) });
   assertOk({ response, subject: 'Rename' });

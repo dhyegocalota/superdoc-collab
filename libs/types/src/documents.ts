@@ -11,6 +11,11 @@ export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_TIMEOUT_MS = BOOTSTRAP_TIMEOUT_MARGIN * MAX_UPLOAD_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE;
 export const BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS = 10 * SECOND_MS;
 export const BOOTSTRAP_HOST_TIMEOUT_MS = BOOTSTRAP_TIMEOUT_MS + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
+export const MAX_DOCUMENT_XML_MEGABYTES = 64;
+export const MAX_DOCUMENT_XML_BYTES = MAX_DOCUMENT_XML_MEGABYTES * BYTES_PER_MEGABYTE;
+export const BOOTSTRAP_LIGHT_MAX_BYTES = BYTES_PER_MEGABYTE;
+export const BOOTSTRAP_QUEUE_RETRY_AFTER_MS = 5 * SECOND_MS;
+export const UPLOADS_PER_MINUTE = 30;
 export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const LARGE_ROOM_STATE_BYTES = 16 * BYTES_PER_MEGABYTE;
 export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
@@ -21,6 +26,9 @@ export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
 export const UPLOAD_TOO_LARGE_MESSAGE = `Files up to ${MAX_UPLOAD_MEGABYTES} MB can be uploaded.`;
 export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
+export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUMENT_XML_MEGABYTES} MB of text and layout cannot be opened.`;
+export const UPLOAD_RATE_LIMITED_MESSAGE = 'Too many uploads in a minute';
+export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'Another document of yours is still waiting to be prepared';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
@@ -92,6 +100,16 @@ export enum BootstrapStage {
   Preparing = 'preparing',
   Ready = 'ready',
   Failed = 'failed',
+}
+
+export enum BootstrapLane {
+  Light = 'light',
+  Heavy = 'heavy',
+}
+
+export function bootstrapLaneOf(fileBytes: number): BootstrapLane {
+  if (fileBytes <= BOOTSTRAP_LIGHT_MAX_BYTES) return BootstrapLane.Light;
+  return BootstrapLane.Heavy;
 }
 
 export type BootstrapProgress = {

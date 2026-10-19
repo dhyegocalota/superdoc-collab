@@ -85,6 +85,7 @@ const BRIEF_FILE_NAME = 'brief.docx';
 const THUMBNAIL_TEST_ID = 'document-thumbnail';
 const CARDS_GRID_TEST_ID = 'document-cards';
 const THUMBNAIL_PATH_FRAGMENT = '/thumbnail';
+const READER_QUIET_MS = 3000;
 const THUMBNAIL_TIMEOUT_MS = THUMBNAIL_CAPTURE_DELAY_MS + LIVE_TIMEOUT_MS;
 const DOCUMENT_PATH_PATTERN = /\/documents\/[^/?#]+/;
 
@@ -360,7 +361,15 @@ test('the home opens in cards and a card shows the text typed into its document'
         await ana.page.reload();
         return cardOf({ page: ana.page, title: titleOf(fileName) })
           .getByTestId(THUMBNAIL_TEST_ID)
-          .textContent({ timeout: LIVE_TIMEOUT_MS });
+          .evaluate(
+            (thumbnail) => {
+              const image = thumbnail.querySelector('img');
+              if (image) return image.alt;
+              return thumbnail.textContent;
+            },
+            undefined,
+            { timeout: LIVE_TIMEOUT_MS },
+          );
       },
       { timeout: EVENTS_TIMEOUT_MS },
     )
@@ -430,15 +439,17 @@ test('a reader sees the edits and uploads no thumbnail', async ({ browser }) => 
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
-  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Read });
-  const readerRequests: string[] = [];
-  bruno.page.on('request', (request) => {
-    if (request.url().includes(THUMBNAIL_PATH_FRAGMENT)) readerRequests.push(`${request.method()} ${request.url()}`);
-  });
   await bruno.page.clock.install();
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Read });
   await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: AFTER_MARKER });
   await expect.poll(() => readEditorText(bruno.page), { timeout: LIVE_TIMEOUT_MS }).toContain(AFTER_MARKER.trim());
+  const isThumbnailSent = bruno.page
+    .waitForRequest((request) => request.url().includes(THUMBNAIL_PATH_FRAGMENT), { timeout: READER_QUIET_MS })
+    .then(
+      () => true,
+      () => false,
+    );
   await bruno.page.clock.fastForward(THUMBNAIL_CAPTURE_DELAY_MS * 2);
-  expect(readerRequests).toEqual([]);
+  expect(await isThumbnailSent).toBe(false);
   await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).not.toHaveAttribute(THUMBNAIL_UPLOADS_ATTRIBUTE);
 });

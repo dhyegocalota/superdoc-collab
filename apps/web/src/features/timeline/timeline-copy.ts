@@ -7,6 +7,7 @@ export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 export const FILTER_LABEL = 'Filter';
 export const FILTER_PLACEHOLDER = 'Filter by text or @person';
 export const CLEAR_FILTERS_LABEL = 'Clear filters';
+export const CLEAR_FILTER_TEXT_LABEL = 'Clear filter text';
 export const REMOVE_FILTER_LABEL = 'Remove filter';
 export const TOP_EDITS_LABEL = 'Top edits';
 export const NO_EDITS_YET_MESSAGE = 'No edits yet';
@@ -95,6 +96,11 @@ export function streamgraphDescription({
 
 export function noEditsForLabel({ duration }: { duration: string }): string {
   return `${NO_EDITS_FOR_LABEL} ${duration}`;
+}
+
+export function moreContributorsLabel(count: number): string {
+  if (count === SINGLE_COUNT) return `${count} more contributor`;
+  return `${count} more contributors`;
 }
 
 export function removeFilterLabel(value: string): string {

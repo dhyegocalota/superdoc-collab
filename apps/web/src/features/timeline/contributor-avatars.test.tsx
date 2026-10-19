@@ -13,7 +13,7 @@ import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AUTHOR_KEY, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
 import { AuthorAvatar, ContributorAvatars } from './contributor-avatars';
-import { agentMarkLabel, importedAuthorLabel } from './timeline-copy';
+import { agentMarkLabel, importedAuthorLabel, moreContributorsLabel } from './timeline-copy';
 
 const ROUTE = documentPagePath(DOCUMENT_ID);
 
@@ -101,4 +101,24 @@ test('before the members answer an avatar is neutral, never the hash colour', ()
   const swatch = screen.getByTitle(ACCOUNT_AUTHOR.name).firstElementChild;
   expect(swatch).toHaveClass('bg-muted', 'text-muted-foreground');
   expect(swatch?.className).not.toMatch(/bg-author-/);
+});
+
+const MANY_AUTHORS = Object.fromEntries(
+  ['a', 'b', 'c', 'd', 'e'].map((key) => [key, { id: `user-${key}`, name: `Person ${key}`, actor: ClientActor.Human }]),
+);
+
+function contributorsOf(keys: string[]) {
+  return keys.map((authorKey) => ({ authorKey, ...contributor }));
+}
+
+test('more contributors than avatars show a plus marker named by the hidden count', () => {
+  renderAvatars(<ContributorAvatars authors={MANY_AUTHORS} contributors={contributorsOf(['a', 'b', 'c', 'd', 'e'])} />);
+  const marker = screen.getByLabelText(moreContributorsLabel(2));
+  expect(marker).toHaveTextContent('+2');
+  expect(marker).toHaveClass('size-6', 'text-muted-foreground');
+});
+
+test('no more contributors than avatars show no marker', () => {
+  renderAvatars(<ContributorAvatars authors={MANY_AUTHORS} contributors={contributorsOf(['a', 'b', 'c'])} />);
+  expect(screen.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
 });

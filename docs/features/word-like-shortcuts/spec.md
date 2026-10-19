@@ -62,3 +62,25 @@ Scratch E2E on a new document with a typed, selected line, SuperDoc 2.23.0, Chro
 **Toolbar tooltips.** `ui.toolbar.strings` (`Partial<Record<ToolbarStringId, string>>`) overrides the text of a toolbar item and the tooltip shows it; the `aria-label` keeps the original name. A hint can be appended as plain text, for example `Bold (⌘B)`, never as `<kbd>` pills.
 
 **Events.** Digits arrive as `¡ ™ £` with ⌥ on a Mac, and `>` needs ⇧: the handler matches `event.code`, not `event.key`.
+
+### Spike 2: comments, review and the Docs keys
+
+Owner request, translated: "I also want a shortcut for comments and the non-obvious things to mimic Microsoft Word and Google Docs". Same scratch method as above, plus the `superdoc.ui` surface (`comments`, `document`, `zoom`, `selection`). The "Consumed" column is seen after the app handler ran, so it only says something for keys outside the registry.
+
+| Key (⌘ or Ctrl) | Consumed by SuperDoc | Decision |
+|---|---|---|
+| A | yes | `native`, listed |
+| ⌥4, ⌥5, ⌥6 | yes | `native` headings 4 to 6, listed |
+| ⌥0 | no | `command` `linked-style` with `Normal` (Docs' normal text) |
+| \ and Space | no | `command` `clear-formatting`: ⌘\ on a Mac, Ctrl+Space elsewhere, because ⌘Space is Spotlight |
+| Enter | yes, no visible effect | unavailable: the catalog has no page-break command and the key shows no page break |
+| ⇧E | yes (centre) | unavailable: track changes on ⌘⇧E is consumed for centring before the handler runs, so a handler could never run it. SuperDoc's `ui.document.setMode('suggesting')` exists and can take another key if the owner picks one |
+| ⌥M | no | `app` add comment: `ui.selection.capture()` then `ui.comments.createFromCapture(capture, { text })` after a small composer, because SuperDoc has no composer of its own |
+| ⌥N, ⌥P | no | `app` next and previous comment: `ui.comments.list()` then `ui.comments.scrollTo(id)` |
+| ⌥=, ⌥- | no | `app` zoom in and out: `ui.zoom.set(value)` stepped through the app's zoom steps |
+| ⌥E, ⌥S | no | `app` toggle the edits panel and Summarize edits (the page's own state) |
+| M, ⇧M | not consumed natively | indent and outdent stay on Ctrl+M and Ctrl+Shift+M elsewhere; on a Mac ⌘M minimises the window before the page sees it, so a Mac uses Google Docs' ⌘] and ⌘[ |
+
+**Repeat.** Holding a toggle key repeats the keydown. SuperDoc toggles on every repeat, so a capture-phase guard swallows repeated keydowns of toggle entries (bold, italic, underline, strikethrough, the two lists) and of one-shot app entries (save, print, the modal, the panel, Summarize, add comment). Undo, redo, zoom, font size and indent keep repeating.
+
+**Toolbar tooltips.** The toolbar has no comment or track-changes item (the tracked-change items are excluded), so no tooltip string is added for them.

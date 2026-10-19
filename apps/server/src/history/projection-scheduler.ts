@@ -64,7 +64,15 @@ export class ProjectionScheduler {
   private readonly loggedImportFailures = new Set<string>();
   private stoppingPromise: Promise<void> | null = null;
 
-  constructor({ databaseDirectory, projectionWorkerFile = null }: { databaseDirectory: string; projectionWorkerFile?: URL | null }) {
+  constructor({
+    databaseDirectory,
+    projectionWorkerFile = null,
+    workerHeapMegabytes = null,
+  }: {
+    databaseDirectory: string;
+    projectionWorkerFile?: URL | null;
+    workerHeapMegabytes?: number | null;
+  }) {
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
     this.currentWorker = this.spawn();

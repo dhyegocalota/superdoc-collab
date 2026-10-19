@@ -66,6 +66,7 @@ export type Environment = {
   trustedProxyHops: number;
   llm: LlmSettings;
   openUncommittedPerMinute: number;
+  projectionWorkerHeapMegabytes: number | null;
 };
 
 function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
@@ -110,5 +111,6 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.OPEN_UNCOMMITTED_PER_MINUTE,
       fallback: OPEN_UNCOMMITTED_PER_MINUTE,
     }),
+    projectionWorkerHeapMegabytes: null,
   };
 }

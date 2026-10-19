@@ -40,6 +40,7 @@ const PROBE_SEQUENCE = 4242;
 const PROBE_WORKER_FILE_NAME = 'probe-worker.js';
 const MISSING_WORKER_FILE_NAME = 'missing-worker.js';
 const MISSING_FILE_ERRORS_BEFORE_CRASH = 2;
+const WORKER_HEAP_MEGABYTES = 192;
 
 test('a terminated worker is restarted and completes without duplicates', async () => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -517,6 +518,29 @@ parentPort.on('message', (request) => {
   const reply = await scheduler.blocks(randomUUID());
   expect(reply.sequence).toBe(PROBE_SEQUENCE);
   await scheduler.stop();
+});
+
+test('a worker heap limit is the old generation limit of the spawned worker', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-heap-'));
+  writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), 'setInterval(() => undefined, 1000);\n');
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+    workerHeapMegabytes: WORKER_HEAP_MEGABYTES,
+  });
+  expect(scheduler.currentWorker.resourceLimits?.maxOldGenerationSizeMb).toBe(WORKER_HEAP_MEGABYTES);
+  await scheduler.currentWorker.terminate();
+});
+
+test('without a worker heap limit the spawned worker keeps the default limits', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-heap-'));
+  writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), 'setInterval(() => undefined, 1000);\n');
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+  });
+  expect(scheduler.currentWorker.resourceLimits?.maxOldGenerationSizeMb).not.toBe(WORKER_HEAP_MEGABYTES);
+  await scheduler.currentWorker.terminate();
 });
 
 test('a missing worker file crashes the first request then degrades the scheduler', async () => {

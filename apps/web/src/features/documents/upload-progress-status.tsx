@@ -7,7 +7,7 @@ import { UPLOADING_MESSAGE } from './documents-copy';
 export function UploadProgressStatus({ progress }: { progress: UploadProgress | null }) {
   const view = progress && uploadingView(progress);
   return (
-    <div role="status" className="w-full space-y-2">
+    <div role="status" data-testid="upload-progress" className="w-full space-y-2">
       <p className="text-sm text-muted-foreground">{UPLOADING_MESSAGE}</p>
       <Progress
         value={view ? progressValueOf(view.fraction) : null}
@@ -15,7 +15,7 @@ export function UploadProgressStatus({ progress }: { progress: UploadProgress | 
         aria-valuetext={view ? view.detail : undefined}
       />
       {view && (
-        <p aria-live="off" className="text-sm text-muted-foreground tabular-nums">
+        <p data-testid="upload-progress-detail" aria-live="off" className="text-sm text-muted-foreground tabular-nums">
           {view.detail}
         </p>
       )}

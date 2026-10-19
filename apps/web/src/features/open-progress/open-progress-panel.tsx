@@ -60,7 +60,7 @@ export function OpenProgressPanel({ title, stages, view, action }: OpenProgressP
             })}
           </ol>
           <Progress value={progressValueOf(view.fraction)} aria-label={OPEN_PROGRESS_LABEL} aria-valuetext={view.detail} />
-          <p aria-live="off" className="text-sm text-muted-foreground tabular-nums">
+          <p data-testid="open-progress-detail" aria-live="off" className="text-sm text-muted-foreground tabular-nums">
             {view.detail}
           </p>
         </CardContent>

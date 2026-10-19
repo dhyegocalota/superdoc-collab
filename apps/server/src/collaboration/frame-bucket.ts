@@ -81,13 +81,6 @@ function readEntry({ bytes, offset }: { bytes: Buffer; offset: number }): ReadEn
   return { clientId: clientId.value, clock: clock.value, next };
 }
 
-function isWellFormed({ bytes, offset, remaining }: { bytes: Buffer; offset: number; remaining: number }): boolean {
-  if (remaining === 0) return true;
-  const entry = readEntry({ bytes, offset });
-  if (entry === null) return false;
-  return isWellFormed({ bytes, offset: entry.next, remaining: remaining - 1 });
-}
-
 function collectEntries({
   bytes,
   offset,
@@ -98,10 +91,10 @@ function collectEntries({
   offset: number;
   remaining: number;
   entries: AwarenessEntry[];
-}): AwarenessEntry[] {
+}): AwarenessEntry[] | null {
   if (remaining === 0) return entries;
   const entry = readEntry({ bytes, offset });
-  if (entry === null) return [];
+  if (entry === null) return null;
   entries.push({ clientId: entry.clientId, clock: entry.clock });
   return collectEntries({ bytes, offset: entry.next, remaining: remaining - 1, entries });
 }
@@ -131,14 +124,13 @@ function locateAwareness(frame: RawData): AwarenessLocation | null {
 export function awarenessEntryCountOf(frame: RawData): number | null {
   const location = locateAwareness(frame);
   if (location === null) return null;
-  const { bytes, entryCount, entriesOffset } = location;
-  if (entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME) return entryCount;
-  return isWellFormed({ bytes, offset: entriesOffset, remaining: entryCount }) ? entryCount : UNREADABLE_ENTRY_COUNT;
+  return location.entryCount;
 }
 
-export function awarenessEntriesOf(frame: RawData): AwarenessEntry[] {
+export function awarenessEntriesOf(frame: RawData): AwarenessEntry[] | null {
   const location = locateAwareness(frame);
-  if (location === null || location.entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME) return [];
+  if (location === null) return [];
+  if (location.entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME) return null;
   const { bytes, entryCount, entriesOffset } = location;
   return collectEntries({ bytes, offset: entriesOffset, remaining: entryCount, entries: [] });
 }

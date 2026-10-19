@@ -27,7 +27,13 @@ export function closeSendersOfForeignIds({ document, owners }: { document: Docum
     const sender = members.find(({ connection }) => connection.webSocket === origin);
     if (sender === undefined) return;
     const isOverCap = sender.clients.size > MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION;
-    if (!isOverCap) owners.bind({ documentName: document.name, clientIds: added, userId: userIdOf(sender), isHeld: () => true });
+    if (!isOverCap)
+      owners.bind({
+        documentName: document.name,
+        clientIds: added,
+        userId: userIdOf(sender),
+        isHeld: (clientId) => members.some(({ clients }) => clients.has(clientId)),
+      });
     const others = members.filter((member) => member !== sender);
     const claims = updated
       .filter((clientId) => !sender.clients.has(clientId))

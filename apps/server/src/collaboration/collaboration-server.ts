@@ -9,6 +9,7 @@ import {
   RoomMode,
   POLICY_VIOLATION_CLOSE_CODE,
   SECOND_MS,
+  SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_SINGLE_DOCUMENT_REASON,
   TAB_QUERY_KEY,
@@ -46,12 +47,22 @@ const PARSE_BASE_URL = 'http://localhost';
 const NO_TICKET: ClaimedTicket = { attempt: null, epoch: null };
 export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
 const DROP_LOG_COOLDOWN_MS = MINUTE_MS;
+export const AWARENESS_MALFORMED_LOG = 'Collaboration socket closed for sending an awareness frame with an unreadable entry';
 export const AWARENESS_DROP_LOG = 'Dropped an awareness frame that touches an awareness client another user announced';
 export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too many awareness clients';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
 export const UNTICKETED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
 export const REFUSED_TICKET_LOG = 'Refused a socket whose creator ticket is not the latest on an uncommitted room';
+
+export class MalformedAwarenessError extends Error {
+  readonly code = POLICY_VIOLATION_CLOSE_CODE;
+  readonly reason = SOCKET_AWARENESS_ENTRIES_REASON;
+
+  constructor() {
+    super(SOCKET_AWARENESS_ENTRIES_REASON);
+  }
+}
 
 export class CollaborationSupersededError extends Error {
   readonly code = SUPERSEDED_ATTEMPT_CLOSE_CODE;
@@ -202,6 +213,10 @@ export function createCollaborationServer({
       const { userId } = context as CollaborationContext;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
       const entries = awarenessEntriesOf(frame);
+      if (entries === null) {
+        console.warn(AWARENESS_MALFORMED_LOG);
+        throw new MalformedAwarenessError();
+      }
       if (!awarenessOwners.forbids({ documentName: document.name, userId, entries, meta: document.awareness.meta })) return;
       silenceAwarenessEntries(frame);
       if (dropLogCooldown.remainingMs(socketId) > 0) return;

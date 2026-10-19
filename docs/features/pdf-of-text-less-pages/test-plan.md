@@ -17,8 +17,8 @@ Tests  2 failed | 8 passed (10)
 
 ## Unit
 
-- [ ] `print-page.test.tsx::does not report Painted for a page shell without a fragment` — input: one page, no children; expected: no `Painted`
-- [ ] `print-page.test.tsx::reports Painted only after every page has a fragment` — input: two pages, the second gains its fragment later; expected: exactly one `Painted`, after it
+- [x] `print-page.test.tsx::does not report Painted for a page shell without a fragment` — input: one page, no children; expected: no `Painted`
+- [x] `print-page.test.tsx::reports Painted only after every page has a fragment` — input: two pages, the second gains its fragment later; expected: exactly one `Painted`, after it
 
 ## E2E (Playwright specs)
 

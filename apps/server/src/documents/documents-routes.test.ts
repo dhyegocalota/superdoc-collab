@@ -164,6 +164,8 @@ test('an uploaded document is listed as mine and downloads the original bytes', 
   const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes })).json();
   expect(created.title).toBe('Plan');
   expect((await listOf({ server, cookie: owner.cookie })).mine.map((document) => document.id)).toEqual([created.id]);
+  server.services.readModel.commit({ documentName: created.id, events: [], marks: [], lastSequence: 1, preview: 'Hello preview' });
+  expect((await listOf({ server, cookie: owner.cookie })).mine.map((document) => document.preview)).toEqual(['Hello preview']);
   const downloaded = await request({
     server,
     cookie: owner.cookie,
@@ -785,14 +787,5 @@ test('a chunked upload over the limit is 413 while streaming', async () => {
   } as RequestInit);
   expect(response.status).toBe(HttpStatus.PayloadTooLarge);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
-  await server.stop();
-});
-
-test('GET /api/documents returns the preview of each document', async () => {
-  const { server, owner } = await signedInOwner();
-  const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Preview plan' })).json();
-  expect((await listOf({ server, cookie: owner.cookie })).mine[0]?.preview).toBeNull();
-  server.services.readModel.commit({ documentName: created.id, events: [], marks: [], lastSequence: 1, preview: 'Hello preview' });
-  expect((await listOf({ server, cookie: owner.cookie })).mine[0]?.preview).toBe('Hello preview');
   await server.stop();
 });

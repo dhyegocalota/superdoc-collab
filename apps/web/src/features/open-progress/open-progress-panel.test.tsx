@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { expect, test } from 'vitest';
-import { OPEN_STAGE_LABELS } from './open-progress-copy';
+import { OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
 import { OpenProgressPanel, type OpenProgressView } from './open-progress-panel';
 import { EDITOR_OPEN_STAGES, OpenStage } from './open-stage';
 
@@ -46,6 +46,7 @@ test('the panel is one polite status that carries the stage and the document tit
   const status = screen.getByRole('status');
   expect(status).toHaveAttribute('aria-live', 'polite');
   expect(within(status).getByText('Heavy')).toBeInTheDocument();
+  expect(within(status).getByText(stageAnnouncement(OpenStage.Rendering))).toBeInTheDocument();
   expect(screen.getByTestId('open-progress')).toHaveAttribute('data-stage', OpenStage.Rendering);
 });
 

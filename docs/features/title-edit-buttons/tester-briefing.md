@@ -38,3 +38,9 @@ Failure text is in `test-plan.md`. Commit 0362f03d is red, 8cde4c06 is green.
 
 - A disabled Save carries `SAVE_TITLE_DISABLED_REASON` through `aria-describedby` (commit 98ec9a38); the reason shows whenever Save is disabled, not only while the input is focused.
 - Leaving the input open on blur means a typed draft is lost only on Escape, Cancel or reload.
+
+## Tester run 2026-10-19
+
+- Walked at 1280, 375 and 320 with real pointer clicks. Hypotheses 1, 3, 4, 5 held. Hypothesis 2 held for scroll (none) but the input is 27 px wide at 320 px.
+- Defect (minor): title input unusably narrow at 320 px with the two icon buttons. Not run: vitest, typecheck, e2e (lead's gates).
+- Console errors: none.

@@ -37,8 +37,15 @@ function renderEditor({
   toolbarContainer = null,
   onSuperdocChange = vi.fn(),
   onEditorUpdate = vi.fn(),
+  onDocumentEdit = vi.fn(),
   role = DocumentRole.Editor,
-}: { toolbarContainer?: HTMLElement | null; onSuperdocChange?: () => void; onEditorUpdate?: () => void; role?: DocumentRole } = {}) {
+}: {
+  toolbarContainer?: HTMLElement | null;
+  onSuperdocChange?: () => void;
+  onEditorUpdate?: () => void;
+  onDocumentEdit?: () => void;
+  role?: DocumentRole;
+} = {}) {
   render(
     <SuperDocEditor
       onSuperdocChange={onSuperdocChange}
@@ -55,6 +62,7 @@ function renderEditor({
       isSuperseded={false}
       onTransportReport={vi.fn()}
       onEditorUpdate={onEditorUpdate}
+      onDocumentEdit={onDocumentEdit}
     />,
   );
   const firstCall = SuperDoc.mock.calls.at(0);
@@ -130,4 +138,13 @@ test('never enables the caret on open for a reader', () => {
   const { config } = renderEditor({ role: DocumentRole.Reader });
   act(() => config.onCollaborationReady());
   expect(lastCaretOnOpenEnabled()).toBe(false);
+});
+
+test('reports a document edit only for an editor update, never for a layout pass', () => {
+  const onDocumentEdit = vi.fn();
+  const { config } = renderEditor({ onDocumentEdit });
+  config.onPaginationUpdate();
+  expect(onDocumentEdit).not.toHaveBeenCalled();
+  config.onEditorUpdate();
+  expect(onDocumentEdit).toHaveBeenCalledTimes(1);
 });

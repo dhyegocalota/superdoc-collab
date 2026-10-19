@@ -22,6 +22,7 @@ type EditorSurfaceProps = {
   onContainerChange: (container: HTMLElement | null) => void;
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
+  onDocumentEdit: () => void;
 };
 
 export function EditorSurface({
@@ -38,6 +39,7 @@ export function EditorSurface({
   onContainerChange,
   onTransportReport,
   onEditorUpdate,
+  onDocumentEdit,
 }: EditorSurfaceProps) {
   return (
     <div data-testid="editor-surface" className={cn('relative flex min-h-0 min-w-0 flex-1', isDimmed && DIMMED_EDITOR_AREA_CLASS)}>
@@ -58,6 +60,7 @@ export function EditorSurface({
           isSuperseded={isSuperseded}
           onTransportReport={onTransportReport}
           onEditorUpdate={onEditorUpdate}
+          onDocumentEdit={onDocumentEdit}
         />
       )}
       <VersionFrame

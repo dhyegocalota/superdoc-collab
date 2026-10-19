@@ -92,10 +92,6 @@ export function DocumentPage() {
     isTitleDirty,
     isReader: opened?.role === DocumentRole.Reader,
   });
-  const handleEditorUpdate = useCallback((): void => {
-    markEdit();
-    reportEdit();
-  }, [markEdit, reportEdit]);
   const handleTransportReport = useCallback(
     (report: TransportReport): void => {
       reportTransport(report);
@@ -197,7 +193,8 @@ export function DocumentPage() {
             onSuperdocChange={setSuperdoc}
             onContainerChange={setEditorContainer}
             onTransportReport={handleTransportReport}
-            onEditorUpdate={handleEditorUpdate}
+            onEditorUpdate={markEdit}
+            onDocumentEdit={reportEdit}
           />
         </div>
         <TimelinePanel

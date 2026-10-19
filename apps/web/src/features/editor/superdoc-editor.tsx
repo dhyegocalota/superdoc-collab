@@ -39,6 +39,7 @@ type SuperDocEditorProps = {
   isSuperseded: boolean;
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
+  onDocumentEdit: () => void;
 };
 
 export function SuperDocEditor({

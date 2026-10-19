@@ -1,7 +1,8 @@
-import { AgentActionKind, MINUTE_MS, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { AgentActionKind, MINUTE_MS, STREAMGRAPH_TRANSITION_MS, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
+import { REDUCED_MOTION_QUERY } from '@/lib/use-reduced-motion';
 import { formatBinMoment, formatBinRange, formatTimestamp } from '@/lib/format-date-time';
 import { Streamgraph } from './streamgraph';
 import { layoutStreamgraph } from './streamgraph-layout';
@@ -612,4 +613,68 @@ test('an agent action inside the break is drawn at the column centre', () => {
   expect(screen.getByRole('tooltip')).toHaveTextContent(
     `${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[AgentActionKind.DocumentExported]}`,
   );
+});
+
+const grownTimeline = timelineWith({
+  volumes: [
+    [100, 20, 5],
+    [120, 30, 5],
+    [400, 40, 5],
+  ],
+  names: ['Budget', 'Hiring', 'Other'],
+  kinds: [TimelineBandKind.Topic, TimelineBandKind.Topic, TimelineBandKind.Other],
+});
+const TWEEN_STEP_MS = STREAMGRAPH_TRANSITION_MS / 2;
+
+function budgetPathOf(container: HTMLElement): string {
+  return container.querySelector('path.topic-band')!.getAttribute('d')!;
+}
+
+function renderGrowth() {
+  vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+  const view = renderGraph();
+  const before = budgetPathOf(view.container);
+  view.rerender(
+    <Streamgraph
+      timeline={grownTimeline}
+      width={WIDTH}
+      selectedIndex={1}
+      highlightedBandId={null}
+      isLoadingVersion={false}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />,
+  );
+  return { ...view, before };
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+test('new data tweens the band shapes through intermediate paths and lands on the new layout', () => {
+  const { container, before } = renderGrowth();
+  expect(budgetPathOf(container)).toBe(before);
+  act(() => vi.advanceTimersByTime(TWEEN_STEP_MS));
+  const midway = budgetPathOf(container);
+  act(() => vi.advanceTimersByTime(STREAMGRAPH_TRANSITION_MS));
+  const landed = budgetPathOf(container);
+  expect(midway).not.toBe(before);
+  expect(midway).not.toBe(landed);
+  expect(landed).not.toBe(before);
+});
+
+test('under reduced motion new data snaps the band shapes at once', () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === REDUCED_MOTION_QUERY,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const { container, before } = renderGrowth();
+  const snapped = budgetPathOf(container);
+  expect(snapped).not.toBe(before);
+  act(() => vi.advanceTimersByTime(TWEEN_STEP_MS));
+  expect(budgetPathOf(container)).toBe(snapped);
 });

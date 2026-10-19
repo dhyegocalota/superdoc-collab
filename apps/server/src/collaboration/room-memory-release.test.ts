@@ -1,6 +1,6 @@
 import { LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
-import { expect, test, vi } from 'vitest';
-import { createRoomMemoryRelease, ROOM_MEMORY_RELEASED_MESSAGE } from './room-memory-release';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { createRoomMemoryRelease, ROOM_MEMORY_RELEASE_DELAY_MS, ROOM_MEMORY_RELEASED_MESSAGE } from './room-memory-release';
 
 const RESIDENT_BEFORE_BYTES = 3_000_000_000;
 const RESIDENT_AFTER_BYTES = 900_000_000;
@@ -21,8 +21,8 @@ function residentReadings(readings: number[]): () => NodeJS.MemoryUsage {
   };
 }
 
-function nextMacrotask(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve));
+async function afterReleaseDelay(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(ROOM_MEMORY_RELEASE_DELAY_MS);
 }
 
 function releaseWith({ readings, clock = () => 0 }: { readings: number[]; clock?: () => number }) {
@@ -36,7 +36,15 @@ function releaseWith({ readings, clock = () => 0 }: { readings: number[]; clock?
   return { collectGarbage, release };
 }
 
-test('a heavy room that unloads gets one last-resort, synchronous collection after the unload returns, logged with the pause', async () => {
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test('a heavy room that unloads gets one regular, synchronous collection once the delay has passed, logged with the pause', async () => {
   const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
   const times = [0, 0, PAUSE_MS];
   const { collectGarbage, release } = releaseWith({
@@ -45,9 +53,10 @@ test('a heavy room that unloads gets one last-resort, synchronous collection aft
   });
   release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded(HEAVY_ROOM);
+  await vi.advanceTimersByTimeAsync(ROOM_MEMORY_RELEASE_DELAY_MS - 1);
   expect(collectGarbage).not.toHaveBeenCalled();
-  await nextMacrotask();
-  expect(collectGarbage).toHaveBeenCalledExactlyOnceWith({ type: 'major', execution: 'sync', flavor: 'last-resort' });
+  await vi.advanceTimersByTimeAsync(1);
+  expect(collectGarbage).toHaveBeenCalledExactlyOnceWith({ type: 'major', execution: 'sync', flavor: 'regular' });
   expect(consoleInfo).toHaveBeenCalledWith(`${ROOM_MEMORY_RELEASED_MESSAGE} ${RESIDENT_BEFORE_BYTES} ${RESIDENT_AFTER_BYTES} ${PAUSE_MS}`);
   consoleInfo.mockRestore();
 });
@@ -56,7 +65,7 @@ test('a small room that unloads while a heavy one is open collects nothing', asy
   const { collectGarbage, release } = releaseWith({ readings: [] });
   release.observe({ documentName: SMALL_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES });
   release.unloaded(SMALL_ROOM);
-  await nextMacrotask();
+  await afterReleaseDelay();
   expect(collectGarbage).not.toHaveBeenCalled();
 });
 
@@ -67,7 +76,7 @@ test('a second heavy unload inside the cooldown collects nothing', async () => {
     release.observe({ documentName, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
     release.unloaded(documentName);
   });
-  await nextMacrotask();
+  await afterReleaseDelay();
   expect(collectGarbage).toHaveBeenCalledOnce();
 });
 
@@ -77,7 +86,7 @@ test('a room unloaded twice is collected for once', async () => {
   release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded(HEAVY_ROOM);
   release.unloaded(HEAVY_ROOM);
-  await nextMacrotask();
+  await afterReleaseDelay();
   expect(collectGarbage).toHaveBeenCalledOnce();
 });
 
@@ -91,7 +100,7 @@ test('without an exposed collector nothing runs and nothing is logged', async ()
   });
   release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded(HEAVY_ROOM);
-  await nextMacrotask();
+  await afterReleaseDelay();
   expect(consoleInfo).not.toHaveBeenCalled();
   consoleInfo.mockRestore();
 });

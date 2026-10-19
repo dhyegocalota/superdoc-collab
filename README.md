@@ -6,6 +6,12 @@ A collaborative DOCX editor that records every edit and shows who changed what, 
 
 ![The editor beside the timeline panel: one band per topic, and the top edits per topic with who made them and one sentence each](docs/media/readme/timeline.png)
 
+## An AI client edits beside the humans
+
+![Ana types two paragraphs, an AI client connected through OAuth inserts one and rewrites another, tracked changes signed Ana · AI appear, a hatched layer joins the timeline, and Connected apps lists the client](docs/media/readme/ai-edit.gif)
+
+An AI client connected through OAuth edits the document through MCP tools, as tracked changes the person can accept or reject. The timeline attributes its edits as the agent, a hatched layer with an AI mark beside the human bands, as the [agentic history spec](docs/features/agentic-history-mcp/spec.md) describes.
+
 ## Quick install
 
 **With an agent.** Paste this into Claude Code, Codex or any agent with a shell; it asks you one question, installs, and stops where only you can continue:

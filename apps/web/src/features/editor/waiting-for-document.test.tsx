@@ -1,4 +1,11 @@
-import { AppRoute, BootstrapStage, DOCUMENT_UNAVAILABLE_MESSAGE, DocumentRole, type DocumentsList } from '@superdoc-collab/types';
+import {
+  AppRoute,
+  BootstrapStage,
+  documentPagePath,
+  DOCUMENT_UNAVAILABLE_MESSAGE,
+  DocumentRole,
+  type DocumentsList,
+} from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,7 +16,7 @@ import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, summaryAs } from '@/testing/o
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
-import { LOAD_RETRY_HINT, TRY_AGAIN_LABEL } from './waiting-copy';
+import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
 import { WaitingForDocument, type WaitingProgress, type WaitingReadiness } from './waiting-for-document';
 
 const CACHED_LIST: DocumentsList = { mine: [], shared: [summaryAs(DocumentRole.Reader)] };
@@ -31,10 +38,11 @@ function renderWaiting({
   const queryClient = new QueryClient();
   if (cached) queryClient.setQueryData(DOCUMENTS_QUERY_KEY, CACHED_LIST);
   const onRetry = vi.fn();
-  renderWithProviders(<WaitingForDocument documentId={DOCUMENT_ID} readiness={readiness} progress={progress} onRetry={onRetry} />, {
-    queryClient,
-  });
-  return { onRetry };
+  const { router } = renderWithProviders(
+    <WaitingForDocument documentId={DOCUMENT_ID} readiness={readiness} progress={progress} onRetry={onRetry} />,
+    { queryClient, route: documentPagePath(DOCUMENT_ID) },
+  );
+  return { onRetry, router };
 }
 
 test('the waiting state shows the Preparing panel and Back to documents once the delay has passed', () => {
@@ -61,6 +69,28 @@ test('the error state shows the retry hint and Try again first', async () => {
   await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN_LABEL }));
   expect(onRetry).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toBeInTheDocument();
+});
+
+test('a connection failure keeps the connection copy', () => {
+  renderWaiting({ readiness: DocumentReadiness.Failed, progress: { ...SHOWN_PROGRESS, bootstrap: null } });
+  expect(screen.queryByText(PREPARATION_FAILED_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.getByText(LOAD_RETRY_HINT)).toBeInTheDocument();
+});
+
+test('a failed preparation says the file could not be prepared, not that the connection failed, and offers no retry', () => {
+  renderWaiting({ readiness: DocumentReadiness.Failed, progress: { ...SHOWN_PROGRESS, bootstrap: bootstrapAt(BootstrapStage.Failed) } });
+  const alert = screen.getByRole('alert');
+  expect(within(alert).getByText(PREPARATION_FAILED_MESSAGE)).toBeInTheDocument();
+  expect(within(alert).getByText(PREPARATION_FAILED_HINT)).toBeInTheDocument();
+  expect(screen.queryByText(LOAD_RETRY_HINT)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: TRY_AGAIN_LABEL })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toBeInTheDocument();
+});
+
+test('Escape on the Preparing panel goes back to the documents', async () => {
+  const { router } = renderWaiting({ readiness: DocumentReadiness.Waiting, progress: SHOWN_PROGRESS });
+  await userEvent.keyboard('{Escape}');
+  expect(router.state.location.pathname).toBe(AppRoute.Documents);
 });
 
 test('an unavailable document shows its own message and no retry', () => {

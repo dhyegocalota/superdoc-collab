@@ -264,8 +264,12 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
         x: 0,
       }).index;
     },
-    bandCenterY: () => {
-      throw new Error('bandCenterY is not implemented');
+    bandCenterY: ({ bandId, index }) => {
+      const points = series.find((candidate) => candidate.key === bandId);
+      if (!points) throw new MissingBandError(bandId);
+      const point = points[index];
+      if (!point) throw new UnknownBinError(String(index));
+      return (y(point[0]) + y(point[1])) / HALF;
     },
     timeX: (time) => {
       const position = Math.min(lastIndex, Math.max(0, (time - firstBinStart(timeline)) / timeline.binMs));

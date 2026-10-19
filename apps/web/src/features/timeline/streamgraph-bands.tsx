@@ -1,15 +1,14 @@
-import { ClientActor, TimelineBandKind, type TimelineBand } from '@superdoc-collab/types';
-import type { CSSProperties } from 'react';
+import { ClientActor, TimelineBandKind } from '@superdoc-collab/types';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { cn } from '@/lib/utils';
 import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { BandLabel } from './band-label';
+import { bandFillClass, bandStyle } from './band-style';
 import type { BandShape } from './streamgraph-layout';
+import { PULSE_STYLE } from './streamgraph-pulse';
 import type { StreamgraphInteraction } from './use-streamgraph-interaction';
 import { bandAriaLabel } from './timeline-copy';
 import { useTweenedPaths } from './use-tweened-paths';
-
-class MissingBandHueError extends Error {}
 
 function focusableBandIdOf({ shapes, highlightedBandId }: { shapes: BandShape[]; highlightedBandId: string | null }): string | null {
   const highlighted = shapes.find((shape) => shape.band.id === highlightedBandId);
@@ -19,22 +18,18 @@ function focusableBandIdOf({ shapes, highlightedBandId }: { shapes: BandShape[];
   return first.band.id;
 }
 
-function bandStyle(band: TimelineBand, saturation: number): CSSProperties | undefined {
-  if (band.kind === TimelineBandKind.Other) return undefined;
-  if (band.hue === null) throw new MissingBandHueError(band.id);
-  return { '--topic-hue': String(band.hue), '--topic-saturation': `${saturation}%` } as CSSProperties;
-}
-
 export function StreamgraphBands({
   shapes: targetShapes,
   width,
   highlightedBandId,
+  pulsedBandId,
   describedById,
   bandHandlers,
 }: {
   shapes: BandShape[];
   width: number;
   highlightedBandId: string | null;
+  pulsedBandId: string | null;
   describedById: string | undefined;
   bandHandlers: StreamgraphInteraction['bandHandlers'];
 }) {
@@ -61,8 +56,8 @@ export function StreamgraphBands({
   }
 
   function renderBand(shape: BandShape) {
-    const isOther = shape.band.kind === TimelineBandKind.Other;
     const isFaded = isFadedBand(shape);
+    const isPulsed = shape.band.id === pulsedBandId;
     return (
       <path
         key={shape.band.id}
@@ -71,11 +66,12 @@ export function StreamgraphBands({
         aria-label={bandAriaLabel({ name: shape.band.name, volume: shape.band.volume })}
         data-faded={isFaded}
         className={cn(
-          isOther ? 'topic-band-other' : 'topic-band',
+          bandFillClass(shape.band),
           'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2',
           isFaded && 'opacity-40',
+          isPulsed && 'streamgraph-band-pulse',
         )}
-        style={bandStyle(shape.band, shape.saturation)}
+        style={isPulsed ? { ...bandStyle(shape.band, shape.saturation), ...PULSE_STYLE } : bandStyle(shape.band, shape.saturation)}
         aria-describedby={describedById}
         {...bandHandlers}
       />
@@ -90,7 +86,7 @@ export function StreamgraphBands({
             <AgentHatchPattern
               key={shape.band.id}
               bandId={shape.band.id}
-              stripeClassName={shape.band.kind === TimelineBandKind.Other ? 'topic-band-other' : 'topic-band'}
+              stripeClassName={bandFillClass(shape.band)}
               stripeStyle={bandStyle(shape.band, shape.saturation)}
             />
           ))}

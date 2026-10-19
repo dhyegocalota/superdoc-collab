@@ -1,5 +1,6 @@
 import type { DocumentTimeline } from '@superdoc-collab/types';
 import { useId, useMemo } from 'react';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
 import { AgentActionMarks } from './agent-action-marks';
 import { AgentLegend } from './agent-legend';
@@ -8,8 +9,10 @@ import { StreamgraphBands } from './streamgraph-bands';
 import { CHART_HEIGHT, layoutStreamgraph } from './streamgraph-layout';
 import { StreamgraphLegend } from './streamgraph-legend';
 import { IdleBreakMarkers, SelectionMarker } from './streamgraph-markers';
+import { PulseGlow } from './streamgraph-pulse';
 import { StreamgraphTooltip } from './streamgraph-tooltip';
 import { CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
+import { useChangePulse } from './use-change-pulse';
 import type { TimelineChange } from './use-timeline-change';
 import { useStreamgraphInteraction } from './use-streamgraph-interaction';
 
@@ -26,6 +29,7 @@ type StreamgraphProps = {
 
 export function Streamgraph({
   timeline,
+  change,
   width,
   selectedIndex,
   highlightedBandId,
@@ -39,7 +43,7 @@ export function Streamgraph({
   const tooltipId = useId();
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
   const lastIndex = timeline.bins.length - 1;
-  const { hasKeyboardFocus, tooltipAnchor, chartHandlers, bandHandlers } = useStreamgraphInteraction({
+  const { hasKeyboardFocus, isSelecting, tooltipAnchor, chartHandlers, bandHandlers } = useStreamgraphInteraction({
     layout,
     lastIndex,
     selectedIndex,
@@ -47,7 +51,10 @@ export function Streamgraph({
     onSelectIndex,
     onClearSelection,
   });
+  const isReducedMotion = useReducedMotion();
+  const pulse = useChangePulse({ change, isSuppressed: isSelecting || isReducedMotion });
   if (timeline.bins.length === 0) return null;
+  const pulsedShape = pulse ? layout.shapes.find((shape) => shape.band.id === pulse.bandId) : undefined;
   const maxVolume = maxBandVolume(timeline);
   const hasAgentLayer = layout.shapes.some((shape) => shape.agentPath !== null);
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
@@ -70,9 +77,18 @@ export function Streamgraph({
           shapes={layout.shapes}
           width={width}
           highlightedBandId={highlightedBandId}
+          pulsedBandId={pulse ? pulse.bandId : null}
           describedById={hasKeyboardFocus && tooltipAnchor !== null ? tooltipId : undefined}
           bandHandlers={bandHandlers}
         />
+        {pulse && pulsedShape && (
+          <PulseGlow
+            key={pulse.token}
+            shape={pulsedShape}
+            x={layout.binX(pulse.binIndex)}
+            y={layout.bandCenterY({ bandId: pulse.bandId, index: pulse.binIndex })}
+          />
+        )}
         <IdleBreakMarkers breaks={layout.breaks} />
         {selectedIndex !== null && <SelectionMarker x={layout.binX(selectedIndex)} />}
       </svg>

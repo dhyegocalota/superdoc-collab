@@ -1,14 +1,8 @@
 import type { Document } from '@hocuspocus/server';
-import {
-  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
-  POLICY_VIOLATION_CLOSE_CODE,
-  SOCKET_AWARENESS_ORIGIN_REASON,
-} from '@superdoc-collab/types';
+import { MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION } from '@superdoc-collab/types';
 import { AwarenessOwners } from './awareness-owners';
 import type { CollaborationContext } from './collaboration-context';
 import type { DocumentConnection } from './document-connection';
-
-export const AWARENESS_ORIGIN_LOG = 'Collaboration socket closed for updating an awareness client another connection holds';
 
 type AwarenessChange = { added: number[]; updated: number[] };
 
@@ -20,33 +14,28 @@ function holdersOf({ others, clientId }: { others: DocumentConnection[]; clientI
   return others.filter(({ clients }) => clients.has(clientId));
 }
 
-// NB ADR 0040: ids a sender does not hold move to it from the same user's other sockets, an update of an id another user holds closes it, and a removal never does because a reconnecting provider relays its peers' removals.
-export function closeSendersOfForeignIds({ document, owners }: { document: Document; owners: AwarenessOwners }): void {
+// NB ADR 0040: every id a connection adds or takes over is bound to its user, an id held by the same user's other socket moves to the sender, and an id held by another user stays where it is.
+export function trackAwarenessOwners({ document, owners }: { document: Document; owners: AwarenessOwners }): void {
   document.awareness.on('update', ({ added, updated }: AwarenessChange, origin: unknown) => {
     const members = [...document.connections.values()];
     const sender = members.find(({ connection }) => connection.webSocket === origin);
     if (sender === undefined) return;
-    const isOverCap = sender.clients.size > MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION;
-    if (!isOverCap)
-      owners.bind({
-        documentName: document.name,
-        clientIds: added,
-        userId: userIdOf(sender),
-        isHeld: (clientId) => members.some(({ clients }) => clients.has(clientId)),
-      });
     const others = members.filter((member) => member !== sender);
-    const claims = updated
+    const movable = updated
       .filter((clientId) => !sender.clients.has(clientId))
-      .map((clientId) => ({ clientId, holders: holdersOf({ others, clientId }) }));
-    const isHeldByAnotherUser = claims.some(({ holders }) => holders.some((holder) => userIdOf(holder) !== userIdOf(sender)));
-    if (isHeldByAnotherUser) {
-      console.warn(AWARENESS_ORIGIN_LOG);
-      sender.connection.close({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
-      return;
-    }
-    claims.forEach(({ clientId, holders }) => {
+      .map((clientId) => ({ clientId, holders: holdersOf({ others, clientId }) }))
+      .filter(({ holders }) => holders.every((holder) => userIdOf(holder) === userIdOf(sender)));
+    movable.forEach(({ clientId, holders }) => {
       holders.forEach(({ clients }) => clients.delete(clientId));
       sender.clients.add(clientId);
+    });
+    const isOverCap = sender.clients.size > MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION;
+    if (isOverCap) return;
+    owners.bind({
+      documentName: document.name,
+      clientIds: [...added, ...movable.map(({ clientId }) => clientId)],
+      userId: userIdOf(sender),
+      isHeld: (clientId) => members.some(({ clients }) => clients.has(clientId)),
     });
   });
 }

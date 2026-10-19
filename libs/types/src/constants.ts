@@ -34,7 +34,6 @@ export const SOCKET_AWARENESS_IDS_REASON = 'Too many awareness clients on one co
 // NB ADR 0040: first-come awareness bindings per room are bounded by 32 connections of eight ids, because a binding costs memory and the recorded identities are seeded apart from this bound.
 export const MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT = 256;
 export const SOCKET_AWARENESS_ENTRIES_REASON = 'Too many awareness entries in one frame';
-export const SOCKET_AWARENESS_ORIGIN_REASON = 'Awareness client not owned by this connection';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;

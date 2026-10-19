@@ -25,7 +25,7 @@ import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { overfullConnections } from './awareness-client-cap';
-import { closeSendersOfForeignIds } from './awareness-origin';
+import { trackAwarenessOwners } from './awareness-origin';
 import { AwarenessOwners } from './awareness-owners';
 import { awarenessEntriesOf, silenceAwarenessEntries } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
@@ -207,7 +207,7 @@ export function createCollaborationServer({
     },
     async afterLoadDocument({ document, documentName }) {
       awarenessOwners.seed({ documentName, bindings: updateLog.clientIdentities(requireDocumentId(documentName)) });
-      closeSendersOfForeignIds({ document, owners: awarenessOwners });
+      trackAwarenessOwners({ document, owners: awarenessOwners });
     },
     async beforeHandleMessage({ update, context, document, socketId }) {
       const { userId } = context as CollaborationContext;

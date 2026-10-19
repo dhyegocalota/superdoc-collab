@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
@@ -21,10 +23,13 @@ import {
   LICENSE_NAME,
   REPOSITORY_LABEL,
   REPOSITORY_URL,
+  SUPERDOC_VERSION,
 } from './about-copy';
 import { AboutPage } from './about-page';
 
 const USER: SessionUser = { id: 'user-1', name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: null };
+const SUPERDOC_PACKAGE = 'superdoc';
+const SUPERDOC_DIRECTORY = '/node_modules/superdoc/';
 const EXTERNAL_LINKS = [
   { name: AUTHOR_NAME, href: AUTHOR_URL },
   { name: REPOSITORY_LABEL, href: REPOSITORY_URL },
@@ -69,4 +74,11 @@ test('a signed-out visitor goes to sign in', () => {
 test('the document title names the page', () => {
   renderPage(null);
   expect(document.title).toBe(pageTitle(ABOUT_HEADING));
+});
+
+test('the SuperDoc version in the copy is the installed one', () => {
+  const entryPath = createRequire(import.meta.url).resolve(SUPERDOC_PACKAGE);
+  const packageDirectory = entryPath.slice(0, entryPath.lastIndexOf(SUPERDOC_DIRECTORY) + SUPERDOC_DIRECTORY.length);
+  const installed = JSON.parse(readFileSync(`${packageDirectory}package.json`, 'utf8')) as { version: string };
+  expect(SUPERDOC_VERSION).toBe(installed.version);
 });

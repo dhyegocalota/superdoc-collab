@@ -1,5 +1,5 @@
 import { AppRoute, authorColorSlot, UserRole, type AuthorColorSlot } from '@superdoc-collab/types';
-import { Plug, Settings, ShieldCheck } from 'lucide-react';
+import { Info, Plug, Settings, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { SignOutMenuItem } from '@/features/auth/sign-out-menu-item';
 import { useSession } from '@/features/auth/use-session';
@@ -74,6 +75,12 @@ export function AccountMenu({ colorSlot }: { colorSlot: AuthorColorSlot | null }
             </Link>
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem asChild>
+          <Link to={AppRoute.About}>
+            <Info aria-hidden />
+            {ABOUT_LINK_LABEL}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>{THEME_LABEL}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={preference} onValueChange={chooseTheme}>

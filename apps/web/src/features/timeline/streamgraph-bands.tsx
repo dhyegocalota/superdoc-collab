@@ -1,11 +1,13 @@
 import { ClientActor, TimelineBandKind, type TimelineBand } from '@superdoc-collab/types';
 import type { CSSProperties } from 'react';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { cn } from '@/lib/utils';
 import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { BandLabel } from './band-label';
 import type { BandShape } from './streamgraph-layout';
 import type { StreamgraphInteraction } from './use-streamgraph-interaction';
 import { bandAriaLabel } from './timeline-copy';
+import { useTweenedPaths } from './use-tweened-paths';
 
 class MissingBandHueError extends Error {}
 
@@ -24,16 +26,19 @@ function bandStyle(band: TimelineBand, saturation: number): CSSProperties | unde
 }
 
 export function StreamgraphBands({
-  shapes,
+  shapes: targetShapes,
+  width,
   highlightedBandId,
   describedById,
   bandHandlers,
 }: {
   shapes: BandShape[];
+  width: number;
   highlightedBandId: string | null;
   describedById: string | undefined;
   bandHandlers: StreamgraphInteraction['bandHandlers'];
 }) {
+  const shapes = useTweenedPaths({ shapes: targetShapes, isEnabled: !useReducedMotion(), snapKey: width });
   const focusableBandId = focusableBandIdOf({ shapes, highlightedBandId });
   const agentShapes = shapes.filter((shape) => shape.agentPath !== null);
 

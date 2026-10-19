@@ -66,6 +66,7 @@ export function Streamgraph({
         </desc>
         <StreamgraphBands
           shapes={layout.shapes}
+          width={width}
           highlightedBandId={highlightedBandId}
           describedById={hasKeyboardFocus && tooltipAnchor !== null ? tooltipId : undefined}
           bandHandlers={bandHandlers}

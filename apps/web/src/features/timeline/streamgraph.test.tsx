@@ -624,6 +624,7 @@ const grownTimeline = timelineWith({
   names: ['Budget', 'Hiring', 'Other'],
   kinds: [TimelineBandKind.Topic, TimelineBandKind.Topic, TimelineBandKind.Other],
 });
+const defaultMatchMedia = window.matchMedia;
 const TWEEN_STEP_MS = STREAMGRAPH_TRANSITION_MS / 2;
 
 function budgetPathOf(container: HTMLElement): string {
@@ -650,7 +651,7 @@ function renderGrowth() {
 
 afterEach(() => {
   vi.useRealTimers();
-  vi.unstubAllGlobals();
+  vi.stubGlobal('matchMedia', defaultMatchMedia);
 });
 
 test('new data tweens the band shapes through intermediate paths and lands on the new layout', () => {

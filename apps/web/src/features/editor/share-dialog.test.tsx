@@ -21,7 +21,9 @@ import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   COPY_FAILED_MESSAGE,
   COPY_LABEL,
+  LOADING_MEMBERS_LABEL,
   LOADING_SHARE_LINKS_LABEL,
+  MEMBERS_LOAD_ERROR_MESSAGE,
   PEOPLE_WITH_ACCESS_LABEL,
   REMOVE_FAILED_MESSAGE,
   removeMemberLabel,
@@ -187,7 +189,7 @@ test('copying again keeps Link copied for a full period from the second copy', a
 test('links that fail to load show an alert instead of placeholders', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
   await openDialog();
-  expect(await screen.findByRole('alert')).toHaveTextContent(SHARE_LINKS_LOAD_ERROR_MESSAGE);
+  expect(await screen.findByText(SHARE_LINKS_LOAD_ERROR_MESSAGE)).toHaveAttribute('role', 'alert');
   expect(screen.queryByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).not.toBeInTheDocument();
 });
 
@@ -241,4 +243,25 @@ test('a failed removal shows an alert and keeps the row', async () => {
   await userEvent.click(within(people).getByRole('button', { name: removeMemberLabel('Bruno') }));
   expect(await within(people).findByRole('alert')).toHaveTextContent(REMOVE_FAILED_MESSAGE);
   expect(within(people).getByText('Bruno')).toBeInTheDocument();
+});
+
+test('a placeholder shows while the members load', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return new Promise<Response>(() => undefined);
+    return Promise.resolve(jsonResponse({ body: LINKS }));
+  });
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  expect(within(people).getByRole('status', { name: LOADING_MEMBERS_LABEL })).toBeInTheDocument();
+});
+
+test('members that fail to load show an alert inside the group', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return new Response(null, { status: HttpStatus.Forbidden });
+    return jsonResponse({ body: LINKS });
+  });
+  await openDialog();
+  const people = await screen.findByRole('group', { name: PEOPLE_WITH_ACCESS_LABEL });
+  expect(await within(people).findByRole('alert')).toHaveTextContent(MEMBERS_LOAD_ERROR_MESSAGE);
+  expect(within(people).queryByRole('status', { name: LOADING_MEMBERS_LABEL })).not.toBeInTheDocument();
 });

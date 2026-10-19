@@ -2,9 +2,17 @@ import { DocumentRole, type DocumentMember } from '@superdoc-collab/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ROLE_LABELS } from '@/features/documents/documents-copy';
 import { fetchMembers, membersQueryKey, revokeMember } from './editor-api';
-import { PEOPLE_WITH_ACCESS_LABEL, REMOVE_FAILED_MESSAGE, REMOVE_LABEL, removeMemberLabel } from './editor-copy';
+import {
+  LOADING_MEMBERS_LABEL,
+  MEMBERS_LOAD_ERROR_MESSAGE,
+  PEOPLE_WITH_ACCESS_LABEL,
+  REMOVE_FAILED_MESSAGE,
+  REMOVE_LABEL,
+  removeMemberLabel,
+} from './editor-copy';
 
 function MemberRow({ documentId, member }: { documentId: string; member: DocumentMember }) {
   const queryClient = useQueryClient();
@@ -44,20 +52,27 @@ function MemberRow({ documentId, member }: { documentId: string; member: Documen
 }
 
 export function PeopleWithAccess({ documentId }: { documentId: string }) {
-  const { data } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: membersQueryKey(documentId),
     queryFn: () => fetchMembers({ documentId, creatorTicket: null }),
   });
-  if (!data) return null;
 
   return (
     <div role="group" aria-label={PEOPLE_WITH_ACCESS_LABEL} className="space-y-2">
       <p className="text-sm font-medium">{PEOPLE_WITH_ACCESS_LABEL}</p>
-      <ul className="space-y-2">
-        {data.members.map((member) => (
-          <MemberRow key={member.user.id} documentId={documentId} member={member} />
-        ))}
-      </ul>
+      {isError && <ErrorMessage>{MEMBERS_LOAD_ERROR_MESSAGE}</ErrorMessage>}
+      {isPending && (
+        <div role="status" aria-label={LOADING_MEMBERS_LABEL}>
+          <Skeleton className="h-8 w-full" />
+        </div>
+      )}
+      {data && (
+        <ul className="space-y-2">
+          {data.members.map((member) => (
+            <MemberRow key={member.user.id} documentId={documentId} member={member} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

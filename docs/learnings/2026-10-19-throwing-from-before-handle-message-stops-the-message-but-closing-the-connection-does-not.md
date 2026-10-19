@@ -13,7 +13,7 @@ A forged awareness update is applied and broadcast, and the sender is closed onl
 
 ## Do
 
-Put a per-message authorization check in `beforeHandleMessage`. Throwing an error that carries `code` and `reason` stops the message and closes the socket, which is right for a structural breach. When the socket also carries document sync, drop the message instead: empty the frame in place (zero the awareness entry count) so Hocuspocus applies a no-op, and keep the socket open. Read the raw frame from `update` as a view (`Buffer.from(update.buffer, update.byteOffset, update.byteLength)`), never as a copy, because update frames can be 80 MiB.
+Put a per-message authorization check in `beforeHandleMessage`. Throwing an error that carries `code` and `reason` stops the message and closes the socket, which is right for a structural breach because one document per socket (ADR 0034) means the close costs only that document. When the socket also carries document sync, drop the message instead: empty the frame in place (zero the awareness entry count) so Hocuspocus applies a no-op, and keep the socket open. Read the raw frame from `update` as a view (`Buffer.from(update.buffer, update.byteOffset, update.byteLength)`), never as a copy, because update frames can be 80 MiB.
 
 ## Anchor
 

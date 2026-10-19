@@ -1,4 +1,4 @@
-export type LruEntry<Value> = { key: string; value: Value };
+type LruEntry<Value> = { key: string; value: Value };
 
 export class LruMap<Value> {
   private readonly entries = new Map<string, Value>();

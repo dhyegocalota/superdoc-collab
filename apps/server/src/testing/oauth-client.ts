@@ -1,5 +1,5 @@
 import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID, type KeyObject } from 'node:crypto';
-import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE } from '@superdoc-collab/types';
+import { AgentScope, ApiPath, OFFLINE_ACCESS_SCOPE, SECOND_MS } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 import type { TestServer, TestUser } from './test-server';
 
@@ -23,7 +23,6 @@ const DPOP_CURVE = 'prime256v1';
 const SIGNATURE_ENCODING = 'ieee-p1363';
 const REGISTRATION_ADDRESS_PREFIX = '10.201.0';
 const TOKEN_ADDRESS_PREFIX = '10.202.0';
-const MILLISECONDS_PER_SECOND = 1000;
 
 enum OAuthPath {
   Register = '/oauth2/register',
@@ -36,7 +35,7 @@ enum OAuthPath {
 
 let nextAddress = 0;
 
-export class OAuthStepFailedError extends Error {
+class OAuthStepFailedError extends Error {
   constructor({ step, status, body }: { step: string; status: number; body: string }) {
     super(`OAuth step ${step} failed with status ${status}: ${body}`);
   }
@@ -44,7 +43,7 @@ export class OAuthStepFailedError extends Error {
 
 export type RequestedScope = AgentScope | typeof OFFLINE_ACCESS_SCOPE;
 
-export type DpopKey = { privateKey: KeyObject; publicJwk: JsonWebKey };
+type DpopKey = { privateKey: KeyObject; publicJwk: JsonWebKey };
 
 export function createDpopKey(): DpopKey {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: DPOP_CURVE });
@@ -61,7 +60,7 @@ export function dpopProof({ key, method, url, accessToken }: { key: DpopKey; met
   const claims = encodeSegment({
     htm: method,
     htu: url,
-    iat: Math.floor(Date.now() / MILLISECONDS_PER_SECOND),
+    iat: Math.floor(Date.now() / SECOND_MS),
     jti: randomUUID(),
     ...accessTokenHash,
   });
@@ -86,7 +85,7 @@ function authUrl({ server, path }: { server: TestServer; path: string }): string
   return `${server.baseUrl}${ApiPath.Auth}${path}`;
 }
 
-export async function registerAgentClient({ server, dpopBound = false }: { server: TestServer; dpopBound?: boolean }): Promise<string> {
+async function registerAgentClient({ server, dpopBound = false }: { server: TestServer; dpopBound?: boolean }): Promise<string> {
   const response = await requireOk({
     step: 'register',
     response: await fetch(authUrl({ server, path: OAuthPath.Register }), {

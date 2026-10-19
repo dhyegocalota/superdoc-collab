@@ -3,7 +3,7 @@ import { minWidthQuery } from '@/lib/breakpoints';
 import { CHART_HEIGHT } from './streamgraph-layout';
 
 export const MIN_PANEL_WIDTH = 420;
-export const DEFAULT_PANEL_SHARE = 0.4;
+const DEFAULT_PANEL_SHARE = 0.4;
 export const PANEL_RESIZE_STEP = 24;
 export const MIN_EDITOR_WIDTH = 360;
 
@@ -38,7 +38,7 @@ export const COMPACT_PANEL_HEIGHT_SHARE = 0.58;
 export const MIN_EDITOR_HEIGHT = 240;
 export const PANEL_CHROME_PX = 72;
 export const PANEL_MIN_CONTENT_PX = CHART_HEIGHT + PANEL_CHROME_PX;
-export const SMALL_BREAKPOINT_PX = 640;
+const SMALL_BREAKPOINT_PX = 640;
 
 function clampHeight({ height, areaHeight }: { height: number; areaHeight: number }): number {
   return Math.round(Math.max(MIN_PANEL_HEIGHT, Math.min(height, areaHeight - MIN_EDITOR_HEIGHT)));

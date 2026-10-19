@@ -13,6 +13,7 @@ export const FILE_INPUT_LABEL = 'Document file';
 export const DOCUMENTS_LOAD_ERROR_MESSAGE = 'Documents could not be loaded.';
 export const UPLOAD_SUBJECT = 'Upload';
 export const CREATE_SUBJECT = 'Create';
+export const LIST_SUBJECT = 'Documents request';
 export const CREATE_ERROR_MESSAGE = 'The document could not be created.';
 export const DOCUMENTS_HEADING = 'Documents';
 export const LOADING_DOCUMENTS_LABEL = 'Loading documents';

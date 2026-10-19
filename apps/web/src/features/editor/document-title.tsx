@@ -1,4 +1,4 @@
-import { DocumentRole, type OpenedDocument } from '@superdoc-collab/types';
+import { DocumentRole, isBlank, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange }: Docu
   function finishEditing(event: FocusEvent<HTMLInputElement>): void {
     const nextTitle = event.currentTarget.value.trim();
     setIsEditing(false);
-    const isRename = !isCancelledRef.current && nextTitle !== '' && nextTitle !== title;
+    const isRename = !isCancelledRef.current && !isBlank(nextTitle) && nextTitle !== title;
     if (!isRename) return;
     mutate({ documentId, title: nextTitle });
   }

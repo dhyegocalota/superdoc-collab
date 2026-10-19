@@ -12,10 +12,10 @@ import {
 import { escapeXml } from './escape-xml';
 import { fitEdits } from './prompt-budget';
 
-export const PROMPT_BLOCK_MAX_CHARACTERS = 500;
-export const PROMPT_MAX_BLOCKS = 400;
+const PROMPT_BLOCK_MAX_CHARACTERS = 500;
+const PROMPT_MAX_BLOCKS = 400;
 export const PROMPT_TOPIC_MAX_CHARACTERS = 2000;
-export const SELECTION_MAX_AUTHORS_PER_EDIT = 3;
+const SELECTION_MAX_AUTHORS_PER_EDIT = 3;
 const AUTHOR_SEPARATOR = ', ';
 const AGENT_LABEL_SUFFIX = "'s AI";
 const LINE_SEPARATOR = '\n';
@@ -23,9 +23,9 @@ const SELECTION_OPEN = '<selection>\n';
 const SELECTION_CLOSE = '\n</selection>';
 const AUTHOR_CLOSE = '\n</author>';
 
-export type PromptEdit = { author: string; inserted: string; deleted: string };
+type PromptEdit = { author: string; inserted: string; deleted: string };
 export type PromptTopic = { id: string; name: string; edits: PromptEdit[] };
-export type PromptAuthor = SummaryAuthor & { key: string; label: string };
+type PromptAuthor = SummaryAuthor & { key: string; label: string };
 export type SelectionEdit = { authors: PromptAuthor[]; inserted: string; deleted: string };
 
 export const TOPICS_SYSTEM_PROMPT = `<role>You name the topics of one document.</role>
@@ -94,7 +94,7 @@ export const SELECTION_SYSTEM_PROMPT = `<role>You summarize a selection of edits
 </examples>
 <output>JSON: {sentence, authors}</output>`;
 
-export function promptNameOf(author: SummaryAuthor): string {
+function promptNameOf(author: SummaryAuthor): string {
   if (author.actor === ClientActor.Agent) return `${author.name}${AGENT_LABEL_SUFFIX}`;
   return author.name;
 }

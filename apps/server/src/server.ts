@@ -74,12 +74,12 @@ export type RunningServer = {
   stop: () => Promise<void>;
 };
 
-export function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
+function closeAllConnectionsWhenSupported(httpServer: ServerType): void {
   if (!('closeAllConnections' in httpServer)) return;
   httpServer.closeAllConnections();
 }
 
-export function closeServer(httpServer: ServerType): Promise<void> {
+function closeServer(httpServer: ServerType): Promise<void> {
   return new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
 }
 
@@ -122,6 +122,71 @@ function closeDatabases({ database, historySqlite, readModelSqlite }: Databases)
   database.sqlite.close();
   historySqlite.close();
   readModelSqlite.close();
+}
+
+function createInsights({
+  insightsRepository,
+  scheduler,
+  languageModel,
+  environment,
+  currentServices,
+}: {
+  insightsRepository: InsightsRepository;
+  scheduler: ProjectionScheduler;
+  languageModel: LanguageModelChoice;
+  environment: Environment;
+  currentServices: () => ServerServices;
+}): InsightsServices {
+  const jobRunner = new InsightsJobRunner({
+    maxConcurrentJobs: environment.llm.maxConcurrentJobs,
+    maxCallsPerHour: environment.llm.maxCallsPerHour,
+  });
+  const topics = new TopicsService({
+    repository: insightsRepository,
+    scheduler,
+    languageModel,
+    jobRunner,
+    readPipeline: (documentId) => readTimelinePipeline({ services: currentServices(), documentId }),
+  });
+  const summaries = new SummariesService({
+    repository: insightsRepository,
+    languageModel,
+    jobRunner,
+    readPipeline: (documentId) => readTimelinePipeline({ services: currentServices(), documentId }),
+  });
+  const selection = new SelectionSummariesService({
+    repository: insightsRepository,
+    languageModel,
+    jobRunner,
+    readSelection: ({ documentId, selection: requested }) =>
+      buildSelectionSnapshot({ services: currentServices(), documentId, selection: requested }),
+  });
+  return {
+    jobRunner,
+    topics,
+    summaries,
+    selection,
+    summarize: new SummarizeService({ topics, summaries, selection, jobRunner, languageModel }),
+  };
+}
+
+function createAgentSessions({
+  environment,
+  documents,
+  runtime,
+  listeningPort,
+}: {
+  environment: Environment;
+  documents: DocumentsRepository;
+  runtime: ServerServices['runtime'];
+  listeningPort: { value: number };
+}): AgentSessions {
+  return new AgentSessions({
+    issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),
+    collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.AgentCollaboration}`,
+    roleOf: ({ userId, documentId }) => documents.findRole({ documentId, userId }),
+    locateRoom: ({ documentId, userId }) => ({ roomMode: agentRoomMode({ runtime, documentId, userId }) }),
+  });
 }
 
 function createServices({
@@ -178,36 +243,7 @@ function createServices({
   const timelinePipelines = new TimelinePipelineCache();
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
-  const jobRunner = new InsightsJobRunner({
-    maxConcurrentJobs: environment.llm.maxConcurrentJobs,
-    maxCallsPerHour: environment.llm.maxCallsPerHour,
-  });
-  const topics = new TopicsService({
-    repository: insightsRepository,
-    scheduler,
-    languageModel,
-    jobRunner,
-    readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
-  });
-  const summaries = new SummariesService({
-    repository: insightsRepository,
-    languageModel,
-    jobRunner,
-    readPipeline: (documentId) => readTimelinePipeline({ services, documentId }),
-  });
-  const selection = new SelectionSummariesService({
-    repository: insightsRepository,
-    languageModel,
-    jobRunner,
-    readSelection: ({ documentId, selection: requested }) => buildSelectionSnapshot({ services, documentId, selection: requested }),
-  });
-  const insights: InsightsServices = {
-    jobRunner,
-    topics,
-    summaries,
-    selection,
-    summarize: new SummarizeService({ topics, summaries, selection, jobRunner, languageModel }),
-  };
+  const insights = createInsights({ insightsRepository, scheduler, languageModel, environment, currentServices: () => services });
   const runtime = createCollaborationRuntime({
     hocuspocus,
     updateLog,
@@ -221,18 +257,12 @@ function createServices({
     bootstrap,
     roomModes,
   });
-  const agentSessions = new AgentSessions({
-    issueRoomToken: ({ userId, documentId }) => signRoomToken({ secret: environment.authSecret, userId, documentId, now: Date.now() }),
-    collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.AgentCollaboration}`,
-    roleOf: ({ userId, documentId }) => documents.findRole({ documentId, userId }),
-    locateRoom: ({ documentId, userId }) => ({ roomMode: agentRoomMode({ runtime, documentId, userId }) }),
-  });
   const services: ServerServices = {
     documents,
     storage,
     updateLog,
     agentActions,
-    agentSessions,
+    agentSessions: createAgentSessions({ environment, documents, runtime, listeningPort }),
     agentToolkit,
     jwksUrl: () => `${LOOPBACK_HTTP_ORIGIN}:${listeningPort.value}${ApiPath.Auth}/jwks`,
     hocuspocus,

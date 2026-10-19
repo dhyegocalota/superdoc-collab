@@ -1,23 +1,16 @@
-import { ClientActor, TimelineBandKind, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
-import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import type { DocumentTimeline } from '@superdoc-collab/types';
+import { useId, useMemo } from 'react';
 import { formatBinMoment, formatTimestamp } from '@/lib/format-date-time';
-import { KeyboardKey } from '@/lib/keyboard';
-import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
-import { cn } from '@/lib/utils';
 import { AgentActionMarks } from './agent-action-marks';
-import { AgentHatchPattern, agentPatternId } from './agent-hatch';
 import { AgentLegend } from './agent-legend';
-import { BandLabel } from './band-label';
-import { StepDirection, stepOutOfBreaks, type IdleBreak } from './idle-breaks';
 import { maxBandVolume } from './max-band-volume';
-import { CHART_HEIGHT, layoutStreamgraph, type BandShape, type BreakColumn } from './streamgraph-layout';
+import { StreamgraphBands } from './streamgraph-bands';
+import { CHART_HEIGHT, layoutStreamgraph } from './streamgraph-layout';
 import { StreamgraphLegend } from './streamgraph-legend';
-import { bandAriaLabel, CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
-import { IdleBreakTooltip, TimelineTooltip, TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
-
-const BREAK_DASH_ARRAY = '4 4';
-
-class MissingBandHueError extends Error {}
+import { IdleBreakMarkers, SelectionMarker } from './streamgraph-markers';
+import { StreamgraphTooltip } from './streamgraph-tooltip';
+import { CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
+import { useStreamgraphInteraction } from './use-streamgraph-interaction';
 
 type StreamgraphProps = {
   timeline: DocumentTimeline;
@@ -28,59 +21,6 @@ type StreamgraphProps = {
   onSelectIndex: (index: number) => void;
   onClearSelection: () => void;
 };
-
-function nextIndex({
-  key,
-  selectedIndex,
-  lastIndex,
-  breaks,
-}: {
-  key: string;
-  selectedIndex: number | null;
-  lastIndex: number;
-  breaks: IdleBreak[];
-}): number | null {
-  const isStep = key === KeyboardKey.ArrowRight || key === KeyboardKey.ArrowLeft;
-  if (key === KeyboardKey.Home) return 0;
-  if (key === KeyboardKey.End) return lastIndex;
-  if (!isStep) return null;
-  if (selectedIndex === null && key === KeyboardKey.ArrowRight) return 0;
-  if (selectedIndex === null) return lastIndex;
-  if (key === KeyboardKey.ArrowRight)
-    return Math.min(lastIndex, stepOutOfBreaks({ breaks, index: selectedIndex + 1, direction: StepDirection.Forward }));
-  return Math.max(0, stepOutOfBreaks({ breaks, index: selectedIndex - 1, direction: StepDirection.Backward }));
-}
-
-type Hovered = { index: number; y: number; idleBreak: BreakColumn | null };
-type TooltipAnchor = { index: number; top: number; idleBreak: BreakColumn | null };
-
-function tooltipAnchorOf({
-  hovered,
-  selectedIndex,
-  hasFocus,
-}: {
-  hovered: Hovered | null;
-  selectedIndex: number | null;
-  hasFocus: boolean;
-}): TooltipAnchor | null {
-  if (hovered !== null) return { index: hovered.index, top: hovered.y + TOOLTIP_POINTER_OFFSET, idleBreak: hovered.idleBreak };
-  if (!hasFocus || selectedIndex === null) return null;
-  return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET, idleBreak: null };
-}
-
-function focusableBandIdOf({ shapes, highlightedBandId }: { shapes: BandShape[]; highlightedBandId: string | null }): string | null {
-  const highlighted = shapes.find((shape) => shape.band.id === highlightedBandId);
-  if (highlighted) return highlighted.band.id;
-  const [first] = shapes;
-  if (!first) return null;
-  return first.band.id;
-}
-
-function bandStyle(band: TimelineBand, saturation: number): CSSProperties | undefined {
-  if (band.kind === TimelineBandKind.Other) return undefined;
-  if (band.hue === null) throw new MissingBandHueError(band.id);
-  return { '--topic-hue': String(band.hue), '--topic-saturation': `${saturation}%` } as CSSProperties;
-}
 
 export function Streamgraph({
   timeline,
@@ -95,126 +35,26 @@ export function Streamgraph({
   const titleId = useId();
   const descriptionId = useId();
   const tooltipId = useId();
-  const [hovered, setHovered] = useState<Hovered | null>(null);
-  const [hasKeyboardFocus, setHasKeyboardFocus] = useState(false);
-  const isPointerFocus = useRef(false);
   const layout = useMemo(() => layoutStreamgraph({ timeline, width }), [timeline, width]);
   const lastIndex = timeline.bins.length - 1;
-  const tooltipAnchor = tooltipAnchorOf({ hovered, selectedIndex, hasFocus: hasKeyboardFocus });
+  const { hasKeyboardFocus, tooltipAnchor, chartHandlers, bandHandlers } = useStreamgraphInteraction({
+    layout,
+    lastIndex,
+    selectedIndex,
+    isLoadingVersion,
+    onSelectIndex,
+    onClearSelection,
+  });
   if (timeline.bins.length === 0) return null;
   const maxVolume = maxBandVolume(timeline);
-  const focusableBandId = focusableBandIdOf({ shapes: layout.shapes, highlightedBandId });
-  const agentShapes = layout.shapes.filter((shape) => shape.agentPath !== null);
-  const hasAgentLayer = agentShapes.length > 0;
+  const hasAgentLayer = layout.shapes.some((shape) => shape.agentPath !== null);
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);
   const firstMoment = timeline.bins[0]!.start;
   const lastMoment = timeline.bins[lastIndex]!.end;
 
-  function offsetOf(event: PointerEvent<SVGSVGElement>): number {
-    return event.clientX - event.currentTarget.getBoundingClientRect().left;
-  }
-
-  function handlePointerDown(event: PointerEvent<SVGSVGElement>): void {
-    isPointerFocus.current = true;
-    setHasKeyboardFocus(false);
-    if (isLoadingVersion) return;
-    onSelectIndex(layout.binAt(offsetOf(event)));
-  }
-
-  function endPointerPress(): void {
-    isPointerFocus.current = false;
-  }
-
-  function handlePointerLeave(): void {
-    endPointerPress();
-    setHovered(null);
-  }
-
-  function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
-    const index = layout.binAt(offsetOf(event));
-    setHovered({ index, y: event.clientY - event.currentTarget.getBoundingClientRect().top, idleBreak: layout.breakAt(offsetOf(event)) });
-    const isScrubbing = event.buttons === PRIMARY_BUTTON_PRESSED && !isLoadingVersion;
-    const isOtherBin = index !== selectedIndex;
-    if (isScrubbing && isOtherBin) onSelectIndex(index);
-  }
-
-  function handleFocus(): void {
-    setHasKeyboardFocus(!isPointerFocus.current);
-  }
-
-  function handleBlur(): void {
-    isPointerFocus.current = false;
-    setHasKeyboardFocus(false);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<SVGPathElement>): void {
-    isPointerFocus.current = false;
-    setHasKeyboardFocus(true);
-    if (event.key === KeyboardKey.Escape) {
-      event.stopPropagation();
-      onClearSelection();
-      return;
-    }
-    const index = nextIndex({ key: event.key, selectedIndex, lastIndex, breaks: layout.breaks });
-    if (index === null) return;
-    event.preventDefault();
-    onSelectIndex(index);
-  }
-
-  function isFadedBand(shape: BandShape): boolean {
-    return highlightedBandId !== null && highlightedBandId !== shape.band.id;
-  }
-
-  function renderAgentLayer(shape: BandShape) {
-    if (shape.agentPath === null) return null;
-    return (
-      <path
-        key={shape.band.id}
-        d={shape.agentPath}
-        data-actor={ClientActor.Agent}
-        fill={`url(#${agentPatternId(shape.band.id)})`}
-        aria-hidden
-        className={cn('pointer-events-none', isFadedBand(shape) && 'opacity-40')}
-      />
-    );
-  }
-
-  function renderBand(shape: BandShape) {
-    const isOther = shape.band.kind === TimelineBandKind.Other;
-    const isFaded = isFadedBand(shape);
-    return (
-      <path
-        key={shape.band.id}
-        d={shape.path}
-        tabIndex={shape.band.id === focusableBandId ? 0 : -1}
-        aria-label={bandAriaLabel({ name: shape.band.name, volume: shape.band.volume })}
-        data-faded={isFaded}
-        className={cn(
-          isOther ? 'topic-band-other' : 'topic-band',
-          'cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:stroke-2',
-          isFaded && 'opacity-40',
-        )}
-        style={bandStyle(shape.band, shape.saturation)}
-        aria-describedby={hasKeyboardFocus && tooltipAnchor !== null ? tooltipId : undefined}
-        onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-      />
-    );
-  }
-
   return (
     <div aria-busy={isLoadingVersion} className="relative flex flex-col gap-1">
-      <svg
-        width={width}
-        height={CHART_HEIGHT}
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endPointerPress}
-        onPointerLeave={handlePointerLeave}
-      >
+      <svg width={width} height={CHART_HEIGHT} aria-labelledby={titleId} aria-describedby={descriptionId} {...chartHandlers}>
         <title id={titleId}>{STREAMGRAPH_TITLE}</title>
         <desc id={descriptionId}>
           {streamgraphDescription({
@@ -224,46 +64,14 @@ export function Streamgraph({
             hasIdleBreaks: layout.breaks.length > 0,
           })}
         </desc>
-        {hasAgentLayer && (
-          <defs>
-            {agentShapes.map((shape) => (
-              <AgentHatchPattern
-                key={shape.band.id}
-                bandId={shape.band.id}
-                stripeClassName={shape.band.kind === TimelineBandKind.Other ? 'topic-band-other' : 'topic-band'}
-                stripeStyle={bandStyle(shape.band, shape.saturation)}
-              />
-            ))}
-          </defs>
-        )}
-        {layout.shapes.map(renderBand)}
-        {layout.shapes.map(renderAgentLayer)}
-        {layout.shapes
-          .filter((shape) => shape.label !== null)
-          .map((shape) => (
-            <BandLabel key={shape.band.id} name={shape.band.name} x={shape.label!.x} y={shape.label!.y} />
-          ))}
-        {layout.breaks.map((column) => (
-          <line
-            key={column.firstIndex}
-            x1={column.centerX}
-            x2={column.centerX}
-            y1={0}
-            y2={CHART_HEIGHT}
-            strokeDasharray={BREAK_DASH_ARRAY}
-            aria-hidden
-            className="pointer-events-none stroke-muted-foreground"
-          />
-        ))}
-        {selectedIndex !== null && (
-          <line
-            x1={layout.binX(selectedIndex)}
-            x2={layout.binX(selectedIndex)}
-            y1={0}
-            y2={CHART_HEIGHT}
-            className="pointer-events-none stroke-foreground"
-          />
-        )}
+        <StreamgraphBands
+          shapes={layout.shapes}
+          highlightedBandId={highlightedBandId}
+          describedById={hasKeyboardFocus && tooltipAnchor !== null ? tooltipId : undefined}
+          bandHandlers={bandHandlers}
+        />
+        <IdleBreakMarkers breaks={layout.breaks} />
+        {selectedIndex !== null && <SelectionMarker x={layout.binX(selectedIndex)} />}
       </svg>
       {timeline.agentActions.length > 0 && (
         <AgentActionMarks actions={timeline.agentActions} authors={timeline.authors} timeX={layout.timeX} chartWidth={width} />
@@ -277,25 +85,7 @@ export function Streamgraph({
       {hasUnlabelledBand && <StreamgraphLegend bands={layout.shapes.map((shape) => shape.band)} maxVolume={maxVolume} />}
       {hasAgentLayer && <AgentLegend />}
       <p className="text-xs text-muted-foreground">{CHART_HINT}</p>
-      {tooltipAnchor !== null && tooltipAnchor.idleBreak === null && (
-        <TimelineTooltip
-          id={tooltipId}
-          timeline={timeline}
-          index={tooltipAnchor.index}
-          left={layout.binX(tooltipAnchor.index)}
-          top={tooltipAnchor.top}
-          chartWidth={width}
-        />
-      )}
-      {tooltipAnchor !== null && tooltipAnchor.idleBreak !== null && (
-        <IdleBreakTooltip
-          id={tooltipId}
-          durationMs={tooltipAnchor.idleBreak.durationMs}
-          left={tooltipAnchor.idleBreak.centerX}
-          top={tooltipAnchor.top}
-          chartWidth={width}
-        />
-      )}
+      <StreamgraphTooltip id={tooltipId} anchor={tooltipAnchor} timeline={timeline} layout={layout} chartWidth={width} />
     </div>
   );
 }

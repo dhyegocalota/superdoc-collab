@@ -16,6 +16,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 
 | Date | Title | File | Last revisited |
 |------|-------|------|----------------|
+| 2026-10-18 | `await navigate()` resolves before the old route unmounts, so a null session still reaches the guard | [2026-10-18-await-navigate-resolves-before-the-old-route-unmounts.md](2026-10-18-await-navigate-resolves-before-the-old-route-unmounts.md) | 2026-10-18 |
 | 2026-10-18 | A component rendered in one of two slots by a media-query flag remounts at the breakpoint and refetches the session | [2026-10-18-a-component-that-moves-between-layouts-remounts-and-refetches-the-session.md](2026-10-18-a-component-that-moves-between-layouts-remounts-and-refetches-the-session.md) | 2026-10-18 |
 | 2026-10-18 | An E2E that finds a scroll container by a class substring picks a responsive variant on a box-less wrapper | [2026-10-18-an-e2e-that-finds-a-scroll-container-by-a-class-substring-picks-a-responsive-variant.md](2026-10-18-an-e2e-that-finds-a-scroll-container-by-a-class-substring-picks-a-responsive-variant.md) | 2026-10-18 |
 | 2026-10-15 | A second test stack reuses the first server's hooks and port | [2026-10-15-hocuspocus-server-export-is-a-singleton.md](2026-10-15-hocuspocus-server-export-is-a-singleton.md) | 2026-10-18 |

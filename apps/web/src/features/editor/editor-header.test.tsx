@@ -39,6 +39,7 @@ import {
   SHARE_LABEL,
 } from './editor-copy';
 import { EditorHeader } from './editor-header';
+import { superdocStub } from '@/testing/superdoc-stub';
 import { Members } from './members';
 
 vi.mock('./members', async (importOriginal) => {
@@ -163,7 +164,7 @@ test('the Use with AI dialog opened from More actions lives outside the menu', a
 });
 
 test('EditorHeader passes superdoc and isPastVersion to Members', () => {
-  const superdoc = {} as SuperDoc;
+  const superdoc = superdocStub();
   renderHeader({ members: [ADA], superdoc, isPastVersion: true });
   expect(vi.mocked(Members)).toHaveBeenCalledWith(expect.objectContaining({ superdoc, isPastVersion: true, members: [ADA] }), undefined);
 });
@@ -229,7 +230,7 @@ test('the brand link opens the documents list', async () => {
 });
 
 test('the main download part asks for the live DOCX export', async () => {
-  renderHeader({ role: DocumentRole.Reader, superdoc: {} as SuperDoc });
+  renderHeader({ role: DocumentRole.Reader, superdoc: superdocStub() });
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
   expect(onDownloadDocx).toHaveBeenCalledTimes(1);
 });
@@ -240,7 +241,7 @@ test('the download parts are disabled until the editor is ready', () => {
 });
 
 test('More actions offers Download .docx too, and Delete only to the owner', async () => {
-  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc, width: NARROW_VIEWPORT_WIDTH });
+  renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub(), width: NARROW_VIEWPORT_WIDTH });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_LABEL }));
   expect(onDownloadDocx).toHaveBeenCalledTimes(1);
@@ -250,7 +251,7 @@ test('More actions offers Download .docx too, and Delete only to the owner', asy
 
 test('Cancel closes the delete dialog, sends nothing and leaves the page clickable', async () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch');
-  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc });
+  renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
   await openDeleteDialog();
   await userEvent.click(await screen.findByRole('button', { name: CANCEL_LABEL }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -282,7 +283,7 @@ test('members announce their presence and the current user is online at once', (
 
 test('at 768 the bar keeps Members, Share, More actions and the account, and More actions carries Find, Use with AI and both downloads', async () => {
   const emit = vi.fn();
-  renderHeader({ role: DocumentRole.Owner, members: [ADA], superdoc: { emit } as unknown as SuperDoc, width: NARROW_VIEWPORT_WIDTH });
+  renderHeader({ role: DocumentRole.Owner, members: [ADA], superdoc: superdocStub({ emit }), width: NARROW_VIEWPORT_WIDTH });
   expect(screen.getByRole('button', { name: memberLabel({ name: ADA.user.name, isOnline: true }) })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: SHARE_LABEL })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
@@ -299,7 +300,7 @@ test('at 768 the bar keeps Members, Share, More actions and the account, and Mor
 });
 
 test('at 1280 the menu holds only Delete for the owner and nothing for a reader', async () => {
-  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc });
+  renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   expect(await screen.findByRole('menuitem', { name: DELETE_LABEL })).toBeVisible();
   expect(screen.queryByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toBeNull();
@@ -307,7 +308,7 @@ test('at 1280 the menu holds only Delete for the owner and nothing for a reader'
 });
 
 test('the bar actions that fold below 1024 are also hidden by CSS, so a resize never shows them for a frame', () => {
-  renderHeader({ role: DocumentRole.Owner, superdoc: {} as SuperDoc });
+  renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
   [FIND_IN_DOCUMENT_LABEL, USE_WITH_AI_LABEL, DOWNLOAD_BUTTON_LABEL].forEach((name) => {
     expect(screen.getByRole('button', { name }).closest('.max-lg\\:hidden')).not.toBeNull();
   });

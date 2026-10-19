@@ -10,6 +10,7 @@ import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { LOADING_VERSION_MESSAGE } from '@/features/timeline/timeline-copy';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
+import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
 import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
@@ -52,6 +53,7 @@ export function DocumentPage() {
   const { data: opened, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
+  const { lastEditAt, markEdit } = useLastEditAt();
   const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded, isAttemptSuperseded } = useMembers({
     documentId,
     creatorTicket: openedAfterMount ? creatorTicketOf(openedAfterMount) : null,
@@ -235,6 +237,7 @@ export function DocumentPage() {
                 isInert={isEditingSurfaceInert}
                 isSuperseded={isSuperseded}
                 onTransportReport={reportTransport}
+                onEditorUpdate={markEdit}
               />
             )}
             <VersionFrame
@@ -256,6 +259,7 @@ export function DocumentPage() {
           onOpenChange={setIsPanelOpen}
           summarize={summarize}
           isLoadingVersion={isLoadingRequestedVersion}
+          lastEditAt={lastEditAt}
           onTravel={timeTravel.travelTo}
           onBackToLive={timeTravel.backToLive}
         />

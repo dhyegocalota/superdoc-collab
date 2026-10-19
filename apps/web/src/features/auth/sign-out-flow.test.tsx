@@ -2,7 +2,8 @@ import { AppRoute, UserRole, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider, type InitialEntry } from 'react-router';
+import { createMemoryRouter, type InitialEntry } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { AccountMenu } from '@/features/account/account-menu';
@@ -22,6 +23,8 @@ vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
 const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
 const FORM_TEXT = 'sign-in form';
+const SIGN_IN_REDIRECT_WITH_NEXT_SEARCH = `?next=${encodeURIComponent(AppRoute.Documents)}`;
+const SLOW_SIGN_IN_RENDER_MILLISECONDS = 10;
 
 let isSignedIn = true;
 
@@ -35,15 +38,29 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
+function BusyForm({ renderMilliseconds }: { renderMilliseconds: number }) {
+  const renderEnd = performance.now() + renderMilliseconds;
+  while (performance.now() < renderEnd);
+  return FORM_TEXT;
+}
+
 function renderApp({
   initialEntries = [AppRoute.Documents],
   seededUser = null,
-}: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null } = {}) {
+  signInRenderMilliseconds = 0,
+}: { initialEntries?: InitialEntry[]; seededUser?: SessionUser | null; signInRenderMilliseconds?: number } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   if (seededUser) queryClient.setQueryData(SESSION_QUERY_KEY, seededUser);
   const router = createMemoryRouter(
     [
-      { path: AppRoute.SignIn, element: <RedirectIfSession>{FORM_TEXT}</RedirectIfSession> },
+      {
+        path: AppRoute.SignIn,
+        element: (
+          <RedirectIfSession>
+            <BusyForm renderMilliseconds={signInRenderMilliseconds} />
+          </RedirectIfSession>
+        ),
+      },
       {
         path: AppRoute.Documents,
         element: (
@@ -79,7 +96,18 @@ test('signing out lands on the bare sign-in route and stays there', async () => 
   expect(router.state.location.search).toBe('');
 });
 
-test('signing out leaves the page before the cached session flips, so no sign-in redirect with next can start', async () => {
+test('a sign-in route that renders slowly still ends on the bare sign-in route', async () => {
+  const { router } = renderApp({ signInRenderMilliseconds: SLOW_SIGN_IN_RENDER_MILLISECONDS });
+  const visitedSearches: string[] = [];
+  router.subscribe((state) => visitedSearches.push(state.location.search));
+  await signOut();
+  expect(await screen.findByText(FORM_TEXT)).toBeInTheDocument();
+  await waitFor(() => expect(router.state.location.state).toBeNull());
+  expect(visitedSearches).not.toContain(SIGN_IN_REDIRECT_WITH_NEXT_SEARCH);
+  expect(router.state.location.search).toBe('');
+});
+
+test('navigates before it clears the cached session', async () => {
   const queryClient = new QueryClient();
   queryClient.setQueryData(SESSION_QUERY_KEY, ADA);
   const { result, router } = renderHookWithRouter(useSignOut, { queryClient });

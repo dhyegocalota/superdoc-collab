@@ -2,8 +2,25 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { KeyboardKey } from '@/lib/keyboard';
 import { PRIMARY_BUTTON_PRESSED } from '@/lib/pointer';
 import { nextIndex } from './streamgraph-navigation';
-import type { StreamgraphLayout } from './streamgraph-layout';
-import { tooltipAnchorOf, type Hovered, type TooltipAnchor } from './streamgraph-tooltip';
+import type { BreakColumn, StreamgraphLayout } from './streamgraph-layout';
+import { TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
+
+type Hovered = { index: number; y: number; idleBreak: BreakColumn | null };
+export type TooltipAnchor = { index: number; top: number; idleBreak: BreakColumn | null };
+
+export function tooltipAnchorOf({
+  hovered,
+  selectedIndex,
+  hasFocus,
+}: {
+  hovered: Hovered | null;
+  selectedIndex: number | null;
+  hasFocus: boolean;
+}): TooltipAnchor | null {
+  if (hovered !== null) return { index: hovered.index, top: hovered.y + TOOLTIP_POINTER_OFFSET, idleBreak: hovered.idleBreak };
+  if (!hasFocus || selectedIndex === null) return null;
+  return { index: selectedIndex, top: TOOLTIP_POINTER_OFFSET, idleBreak: null };
+}
 
 export type StreamgraphInteraction = {
   hasKeyboardFocus: boolean;

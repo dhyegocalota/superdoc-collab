@@ -1,7 +1,7 @@
 import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentMember } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
-import type { SuperDoc } from 'superdoc';
+import type { SuperDoc, SuperDocAwarenessUpdatePayload } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -30,7 +30,7 @@ const NARROW_MEMBERS_WITHOUT_MENU = 3;
 
 const AWARENESS_UPDATE_EVENT = 'awareness-update';
 
-type AwarenessChange = { added: number[]; removed: number[] };
+type AwarenessChange = Pick<SuperDocAwarenessUpdatePayload, 'added' | 'removed'>;
 type JumpState = { member: DocumentMember; isOnline: boolean; reason: string | null };
 
 function jumpReasonOf({

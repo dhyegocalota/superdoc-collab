@@ -7,10 +7,12 @@ export function withClientAddress({
   request,
   remoteAddress,
   trustProxy,
+  trustedProxyHops,
 }: {
   request: Request;
   remoteAddress: string;
   trustProxy: boolean;
+  trustedProxyHops: number;
 }): Request {
   const headers = new Headers(request.headers);
   const forwardedFor = headers.get(FORWARDED_FOR_HEADER);

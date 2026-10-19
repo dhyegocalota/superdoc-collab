@@ -37,6 +37,7 @@ const FONT_SIZE_COMMAND_ID = 'font-size';
 const FONT_SIZE_STEPS = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 const ZOOM_STEPS = [50, 75, 90, 100, 125, 150, 200];
 const NO_COMMENT_VISITED = -1;
+const FOOTNOTE_TYPE = 'footnote';
 const TRACK_CHANGES_MODE_SWITCH: Partial<Record<DocumentMode, DocumentMode>> = {
   [DocumentMode.Editing]: DocumentMode.Suggesting,
   [DocumentMode.Suggesting]: DocumentMode.Editing,
@@ -125,6 +126,12 @@ const appRunners: Partial<Record<ShortcutId, ShortcutRunner>> = {
     const nextMode = mode ? TRACK_CHANGES_MODE_SWITCH[mode as DocumentMode] : undefined;
     if (!nextMode) return false;
     document.setMode(nextMode);
+    return true;
+  },
+  [ShortcutId.InsertFootnote]: ({ options }) => {
+    const document = options.superdoc?.activeEditor?.doc;
+    if (!document) return false;
+    void document.footnotes.insert({ type: FOOTNOTE_TYPE, content: '' });
     return true;
   },
   [ShortcutId.ZoomIn]: zoomRunner(1),

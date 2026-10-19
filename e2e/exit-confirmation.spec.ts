@@ -8,7 +8,7 @@ import {
   STAY_LABEL,
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
-import { brandLink, insertInParagraph, readEditorText, titleButton, uploadSeed } from './editor';
+import { brandLink, insertInParagraph, readEditorText, signOut, titleButton, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import { ensureServerRunning, startRestartableStack, startServer, stopRestartableStack, stopServer } from './restartable-stack';
 
@@ -22,6 +22,7 @@ const ANA_PARAGRAPH = 'owned by ana';
 const OFFLINE_MARKER = ' <ANA-OFFLINE>';
 const DRAFT_TITLE = 'Unsaved title';
 const SEED_TITLE = 'Plan';
+const DOCUMENT_URL_PATTERN = /\/documents\/[^/]+$/;
 const BEFORE_UNLOAD_EVENT = 'beforeunload';
 
 let origin: string;
@@ -83,6 +84,24 @@ test('Leave goes to the documents list while the edit is still unsynced', async 
   await brandLink(page).click();
   await page.getByRole('alertdialog').getByRole('button', { name: LEAVE_LABEL }).click();
   await expect(page).toHaveURL(new RegExp(`${AppRoute.Documents}$`));
+});
+
+test('signing out while the title is changed asks first and Leave signs out', async ({ browser }) => {
+  const { page } = await openOwnedDocument(browser);
+  await titleButton({ page, title: SEED_TITLE }).click();
+  await page.getByRole('textbox', { name: TITLE_LABEL }).fill(DRAFT_TITLE);
+  await signOut({ page, name: ana!.name });
+  const dialog = page.getByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE });
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
+
+  await dialog.getByRole('button', { name: STAY_LABEL }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
+
+  await signOut({ page, name: ana!.name });
+  await dialog.getByRole('button', { name: LEAVE_LABEL }).click();
+  await expect(page).toHaveURL(new RegExp(`${AppRoute.SignIn}`));
 });
 
 test('closing the tab while an edit is unsynced asks the browser to confirm', async ({ browser }) => {

@@ -8,7 +8,8 @@
 - `apps/web/src/features/editor/document-title.tsx` — `onDirtyChange`.
 - `apps/web/src/features/editor/editor-header.tsx` — two-line pass-through of `onTitleDirtyChange` (outside the lane's file list, approved by the lead), plus its test.
 - `apps/web/src/components/ui/alert-dialog.tsx`, `editor-copy.ts` — primitive and copy.
-- `e2e/exit-confirmation.spec.ts` — five scenarios.
+- `apps/web/src/features/editor/unsynced-edits-store.ts`, `apps/web/src/features/auth/sign-out-menu-item.tsx` — sign-out asks first while unsynced.
+- `e2e/exit-confirmation.spec.ts` — six scenarios.
 
 ## How to run
 
@@ -40,4 +41,4 @@ Pins (green on arrival): the reader, online-edit and synced-release page tests, 
 
 - `onPaginationUpdate` shares the editor-update callback in `superdoc-editor.tsx` (outside the lane), so a layout change during an outage also arms the prompt.
 - The browser's `beforeunload` text is not ours; E2E checks the event is cancelled, not the native dialog.
-- Sign out while unsynced is covered by the same blocker but has no dedicated test.
+- Sign out while unsynced is covered by the store and the pending leave, not the blocker; the E2E uses a changed title because a signed-out request cannot complete while the server is down.

@@ -88,6 +88,7 @@ export async function startTestServer({
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   attemptsLeft = START_ATTEMPTS,
   claim = true,
+  showcaseOnClaim = false,
   now = Date.now,
 }: {
   trustProxy?: boolean;
@@ -96,6 +97,7 @@ export async function startTestServer({
   versionRoomPolicy?: VersionRoomPolicy;
   attemptsLeft?: number;
   claim?: boolean;
+  showcaseOnClaim?: boolean;
   now?: () => number;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
@@ -117,6 +119,7 @@ export async function startTestServer({
       languageModel,
       versionRoomPolicy,
       projectionWorkerFile: prebuiltProjectionWorkerFile(),
+      createShowcaseOnClaim: showcaseOnClaim,
       now,
     });
     const unclaimed = buildTestServer({ running, databaseDirectory, admin: null });
@@ -124,7 +127,16 @@ export async function startTestServer({
     return buildTestServer({ running, databaseDirectory, admin: await claimOrSignInAdmin(unclaimed) });
   } catch (error) {
     if (!isAddressInUse(error) || attemptsLeft <= 1) throw error;
-    return startTestServer({ trustProxy, databaseDirectory, languageModel, versionRoomPolicy, attemptsLeft: attemptsLeft - 1, claim, now });
+    return startTestServer({
+      trustProxy,
+      databaseDirectory,
+      languageModel,
+      versionRoomPolicy,
+      attemptsLeft: attemptsLeft - 1,
+      claim,
+      showcaseOnClaim,
+      now,
+    });
   }
 }
 

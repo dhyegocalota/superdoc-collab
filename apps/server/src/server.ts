@@ -339,6 +339,7 @@ export async function startServer({
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   projectionWorkerFile?: URL | null;
+  createShowcaseOnClaim?: boolean;
   now?: () => number;
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);

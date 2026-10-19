@@ -1,6 +1,7 @@
 import {
   AppRoute,
   ClientActor,
+  IMPORTED_KEY_PREFIX,
   UTC_TIME_ZONE,
   documentApiPath,
   documentPagePath,
@@ -51,6 +52,7 @@ import {
   PANEL_POSITION_LABELS,
   TIMELINE_HEADING,
   TOP_EDITS_LABEL,
+  VIEW_EDIT_VERSION_LABEL,
   VIEW_VERSION_LABEL,
 } from './timeline-copy';
 import { CHART_HEIGHT } from './streamgraph-layout';
@@ -455,6 +457,29 @@ test('a selected bin lists its runs with cut snippets', async () => {
   expect(await screen.findByText('hello')).toBeInTheDocument();
   expect(screen.getByText(`${'x'.repeat(SNIPPET_MAX_CHARACTERS)}…`)).toBeInTheDocument();
   expect(screen.getByText('Ana')).toBeInTheDocument();
+});
+
+test('an imported run offers no version button because it has no logged sequence', async () => {
+  const edits: BinEdits = {
+    binStart: baseTimeline.bins[1]!.start,
+    binMs: baseTimeline.binMs,
+    runs: [
+      {
+        blockId: 'block-1',
+        bandId: baseTimeline.bands[0]!.id,
+        authorKeys: [`${IMPORTED_KEY_PREFIX}ana`],
+        inserted: 'imported text',
+        deleted: '',
+        lastServerTime: 1,
+        versionSequence: 0,
+      },
+    ],
+    authors: { [`${IMPORTED_KEY_PREFIX}ana`]: { id: null, name: 'Ana', actor: ClientActor.Human } },
+  };
+  mockTimelineApi({ edits });
+  renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
+  expect(await screen.findByText('imported text')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: VIEW_EDIT_VERSION_LABEL })).not.toBeInTheDocument();
 });
 
 test('a selected bin without runs says so', async () => {

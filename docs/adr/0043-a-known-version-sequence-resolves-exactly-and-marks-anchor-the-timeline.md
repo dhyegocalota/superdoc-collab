@@ -11,7 +11,7 @@ A version mark is the last update of each minute. ADR 0027 made a sequence whose
 
 ## Decision
 
-`/versions/<sequence>` resolves a sequence the update log knows to that very sequence. The worker builds its state with `GcFreeReplays.versionAt`: the log merged up to the sequence gives a Yjs snapshot, which `Y.createDocFromSnapshot` restores over the gc-free replay. Marks stay what ADR 0003 made them, one per minute, the anchors the timeline hands out per bin. A sequence the log does not know still clamps down to the latest mark at or before it, and a sequence at or before the bootstrap resolves to the bootstrap. Each edit row of a bin carries `versionSequence`, the sequence of its last inserting event, and its View version button pins that sequence in the URL next to `at`.
+`/versions/<sequence>` resolves a sequence the update log knows to that very sequence. The worker builds its state with `GcFreeReplays.versionAt`: the latest compaction snapshot at or before the sequence merged with the log tail up to it gives a Yjs snapshot, which `Y.createDocFromSnapshot` restores over the gc-free replay. Marks stay what ADR 0003 made them, one per minute, the anchors the timeline hands out per bin. A sequence the log does not know still clamps down to the latest mark at or before it, and a sequence at or before the bootstrap resolves to the bootstrap. Each edit row of a bin carries `versionSequence`, the sequence of its last inserting event, and its View version button pins that sequence in the URL next to `at`.
 
 This supersedes the resolution rule of ADR 0027 and keeps its clamp for unknown sequences.
 
@@ -27,7 +27,7 @@ This supersedes the resolution rule of ADR 0027 and keeps its clamp for unknown 
 
 - The version cache, the version rooms and the replay cache are keyed and bounded as before, now by exact sequence.
 - `resolveMark` returns `{ sequence, serverTime }`; the pruned-minute tests of ADR 0027 became exact-sequence tests.
-- A bin still opens the mark of its last instant; only the edit row opens the version after its own edit.
+- A bin opens the exact sequence of its last event at or before its last instant, not a mark; the edit row opens the version after its own edit, so a delete later in the same bin still blanks the bin but not the row.
 
 ## Evidence
 

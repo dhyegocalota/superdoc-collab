@@ -6,7 +6,7 @@ import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
 import { readMainStoryText } from './document-content';
-import { UpdateLog, replay } from './update-log';
+import { compact, UpdateLog, replay } from './update-log';
 import { GcFreeReplays, REPLAY_CACHE_SIZE } from './version-state';
 
 const DOCUMENT = 'version-room';
@@ -130,5 +130,29 @@ test('every logged sequence restores exactly as a full replay, deletes included'
     draft.delete(0, DELETED_PER_ROUND);
     writeStory({ document: ana, texts: ['Plan', round % 2 === 0 ? `Line ${round}` : ''] });
   });
+  expectEveryLoggedSequenceRestored(log);
+});
+
+const SNAPSHOT_EVERY_UPDATES = 5;
+const TAIL_UPDATES = 3;
+
+test('a version after a compaction snapshot reads only the tail and still equals a full replay', () => {
+  const { log, ana } = bootstrappedLog(['Plan']);
+  const draft = ana.getText('draft');
+  Array.from({ length: SNAPSHOT_EVERY_UPDATES * 2 + TAIL_UPDATES }).forEach((_, round) => {
+    vi.advanceTimersByTime(STEP_MS);
+    draft.insert(0, 'x'.repeat(INSERTED_PER_ROUND));
+    draft.delete(0, DELETED_PER_ROUND);
+    writeStory({ document: ana, texts: ['Plan', round % 2 === 0 ? `Line ${round}` : ''] });
+  });
+  compact({ log, documentName: DOCUMENT, everyUpdates: SNAPSHOT_EVERY_UPDATES });
+  const sequence = log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).at(-2)!.sequence;
+  const snapshotSequence = log.latestSnapshot({ documentName: DOCUMENT, atOrBefore: sequence })!.sequence;
+  const readRange = vi.spyOn(log, 'readRange');
+  const restored = new GcFreeReplays(REPLAY_CACHE_SIZE).versionAt({ log, documentName: DOCUMENT, sequence });
+  const versionRead = readRange.mock.calls.find(([range]) => range.untilSequence === sequence)!;
+  expect(versionRead[0].afterSequence).toBe(snapshotSequence);
+  const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
+  expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
   expectEveryLoggedSequenceRestored(log);
 });

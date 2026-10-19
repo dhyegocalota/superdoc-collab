@@ -60,7 +60,7 @@ The first fix attempt, a mark per narrowest bin, was dropped: the owner adds, ed
 
 Both limits come from [ADR 0044](../../adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md): exact resolution makes every sequence a cache miss, so one reader could otherwise keep the serial projection queue busy for every document.
 
-The 4-page fixture was not measured on its own: a DOCX import is a handful of updates, so its build time sits at the cheap end of this table. The cost is the merge of the log up to the sequence, not the replay, which the cache already keeps current.
+The 4-page fixture was not measured on its own: a DOCX import is a handful of updates, so its build time sits at the cheap end of this table. The cost is the merge of the latest compaction snapshot and the log tail up to the sequence, not the replay, which the cache already keeps current. The figures above were taken before the snapshot start and are an upper bound.
 
 Tests: the unit test replays add, edit, delete two seconds apart and asks for the version at the edit; every logged sequence restores exactly as a full replay; the E2E follows the owner's five steps with no waiting.
 

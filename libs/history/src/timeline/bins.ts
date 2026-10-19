@@ -112,14 +112,26 @@ export function buildBins({
   });
 }
 
-export function lastEventSequenceAt({
-  events,
-  time,
-}: {
-  events: Pick<TimelineEvent, 'sequence' | 'serverTime'>[];
-  time: number;
-}): number | null {
-  const sequences = events.filter((event) => event.serverTime <= time).map((event) => event.sequence);
-  if (sequences.length === 0) return null;
-  return Math.max(...sequences);
+export function eventSequenceLookup(events: Pick<TimelineEvent, 'sequence' | 'serverTime'>[]): (time: number) => number | null {
+  const byTime = [...events].sort((left, right) => left.serverTime - right.serverTime);
+  const latestSequences: number[] = [];
+  byTime.reduce((latest, event) => {
+    const next = Math.max(latest, event.sequence);
+    latestSequences.push(next);
+    return next;
+  }, 0);
+  return (time) => {
+    let low = 0;
+    let high = byTime.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (byTime[middle]!.serverTime <= time) {
+        low = middle + 1;
+        continue;
+      }
+      high = middle;
+    }
+    if (low === 0) return null;
+    return latestSequences[low - 1]!;
+  };
 }

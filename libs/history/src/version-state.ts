@@ -14,9 +14,12 @@ export class GcFreeReplays {
   }
 
   versionAt({ log, documentName, sequence }: { log: UpdateLog; documentName: string; sequence: number }): Y.Doc {
-    const merged = Y.mergeUpdates(log.read({ documentName, untilSequence: sequence }).map((update) => update.update));
-    const snapshot = new Y.Snapshot(Y.decodeUpdate(merged).ds, Y.decodeStateVector(Y.encodeStateVectorFromUpdate(merged)));
-    return Y.createDocFromSnapshot(this.caughtUp({ log, documentName }), snapshot);
+    const snapshot = log.latestSnapshot({ documentName, atOrBefore: sequence });
+    const baseStates = snapshot ? [snapshot.state] : [];
+    const tail = log.readRange({ documentName, afterSequence: snapshot ? snapshot.sequence : 0, untilSequence: sequence });
+    const merged = Y.mergeUpdates([...baseStates, ...tail.map((update) => update.update)]);
+    const versionSnapshot = new Y.Snapshot(Y.decodeUpdate(merged).ds, Y.decodeStateVector(Y.encodeStateVectorFromUpdate(merged)));
+    return Y.createDocFromSnapshot(this.caughtUp({ log, documentName }), versionSnapshot);
   }
 
   forget(documentName: string): void {

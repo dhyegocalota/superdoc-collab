@@ -565,7 +565,9 @@ test('a break is one dashed divider hidden from assistive technology', () => {
   expect(divider).toHaveAttribute('aria-hidden', 'true');
   expect(divider!.getAttribute('class')).toContain('stroke-');
   expect(divider!.outerHTML).not.toMatch(/#[0-9a-f]{3,8}/i);
-  expect(Number(divider!.getAttribute('x1'))).toBeCloseTo(breakColumn.centerX);
+  expect(divider).toHaveStyle({ transform: `translateX(${breakColumn.centerX}px)` });
+  expect(divider).toHaveStyle({ transitionDuration: `${STREAMGRAPH_TRANSITION_MS}ms` });
+  expect(divider).toHaveClass('motion-reduce:transition-none');
 });
 
 test('a chart without a break has no divider', () => {
@@ -626,7 +628,9 @@ test('an agent action inside the break is drawn at the column centre', () => {
   const mark = screen.getByRole('img', {
     name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: AgentActionKind.DocumentExported }),
   });
-  expect(parseFloat(mark.style.left)).toBeCloseTo(breakColumn.centerX);
+  expect(mark).toHaveStyle({ transform: `translateX(${breakColumn.centerX}px)` });
+  expect(mark).toHaveStyle({ transitionDuration: `${STREAMGRAPH_TRANSITION_MS}ms` });
+  expect(mark).toHaveClass('motion-reduce:transition-none');
   fireEvent.pointerEnter(mark);
   expect(screen.getByRole('tooltip')).toHaveTextContent(
     `${FIXTURE_AGENT_AUTHOR_NAME}'s AI ${AGENT_ACTION_LABELS[AgentActionKind.DocumentExported]}`,

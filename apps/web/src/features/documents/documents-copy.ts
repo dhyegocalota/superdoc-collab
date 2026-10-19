@@ -42,3 +42,19 @@ export const DROP_ZONE_LIMIT = `Up to ${MAX_UPLOAD_MEGABYTES} MB`;
 export const CHOOSE_FILE_LABEL = 'Choose a file';
 export const DROP_OVERLAY_LABEL = 'Drop to upload';
 export const ONE_FILE_AT_A_TIME_MESSAGE = 'Drop one file at a time.';
+
+export const DOCUMENTS_VIEW_LABEL = 'Documents view';
+export const CARDS_VIEW_LABEL = 'Cards';
+export const TABLE_VIEW_LABEL = 'Table';
+export const OPEN_DOCUMENT_LABEL = 'Open';
+export const COPY_DOCUMENT_LINK_LABEL = 'Copy link';
+export const COPY_DOCUMENT_LINK_FAILED_MESSAGE = 'The link could not be copied.';
+export const EDITED_JUST_NOW_LABEL = 'Edited just now';
+
+export function documentActionsLabel(title: string): string {
+  return `Actions for ${title}`;
+}
+
+export function editedAgoLabel(duration: string): string {
+  return `Edited ${duration} ago`;
+}

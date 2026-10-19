@@ -17,6 +17,8 @@ export const CREATOR_RESERVATION_MS = MINUTE_MS;
 export const CREATOR_RESERVATION_MAX_MS = 5 * MINUTE_MS;
 export const SOCKET_CLOSE_GRACE_MS = SECOND_MS;
 export const BOOTSTRAP_SCAN_CACHE_ENTRIES = 32;
+export const BOOTSTRAP_TIMEOUT_MS = 5 * MINUTE_MS;
+export const BOOTSTRAP_PROGRESS_ENTRIES = 1024;
 export const OPEN_UNCOMMITTED_PER_MINUTE = 30;
 export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 // NB ADR 0040: update frames peak near 264 per second at fifty keys per second, so 1000 leaves room and still closes a flood.

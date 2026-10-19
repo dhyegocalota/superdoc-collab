@@ -7,7 +7,7 @@ import {
   UpdateLog,
   type ListedTrackedChange,
 } from '@superdoc-collab/history';
-import { SECOND_MS } from '@superdoc-collab/types';
+import { BOOTSTRAP_TIMEOUT_MS, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
@@ -88,6 +88,10 @@ const handle = createProjectionHandler({
   replays,
   importRevisions,
   fileSizeBytes: (filePath) => statSync(filePath).size,
+  bootstrapRoom: async () => {
+    throw new Error('bootstrapRoom is not implemented');
+  },
+  bootstrapTimeoutMs: BOOTSTRAP_TIMEOUT_MS,
 });
 
 function failureOf({ request, message }: { request: AnsweredRequest; message: string }): ProjectionFailedReply {

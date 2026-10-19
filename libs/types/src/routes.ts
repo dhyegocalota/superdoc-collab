@@ -28,6 +28,7 @@ export enum ApiPath {
   ShareLinks = '/api/share-links',
   Mcp = '/api/mcp',
   AgentCollaboration = '/collaboration/agent',
+  BootstrapCollaboration = '/collaboration/bootstrap',
   Setup = '/api/setup',
   Invites = '/api/invites',
   Admin = '/api/admin',

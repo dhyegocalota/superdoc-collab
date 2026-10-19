@@ -29,6 +29,7 @@ export function createProjectionQueues({
     [ProjectionRequestKind.Version]: enqueueSerial,
     [ProjectionRequestKind.Blocks]: enqueueSerial,
     [ProjectionRequestKind.Import]: enqueueImport,
+    [ProjectionRequestKind.Bootstrap]: enqueueSerial,
     [ProjectionRequestKind.Forget]: enqueueAfterImports,
     [ProjectionRequestKind.Stop]: () => {
       queuePromise = queuePromise.then(stop);

@@ -6,12 +6,14 @@ import {
   IMPORT_FAILED_MESSAGE,
   IMPORT_SKIPPED_MESSAGE,
   PROJECTION_FAILED_MESSAGE,
+  BootstrapInterruptedError,
   ProjectionBusyError,
   ProjectionDegradedError,
   ProjectionReplyKind,
   ProjectionRequestKind,
   ProjectionStoppedError,
   type BlocksReply,
+  type BootstrapReply,
   type ProjectionDoneReply,
   type ProjectionFailedReply,
   type ProjectionReply,
@@ -51,6 +53,9 @@ function createWorker({
 
 export const MAX_REQUEST_POSTS = 2;
 
+type BootstrapWaiter = { resolve: () => void; reject: (error: Error) => void };
+export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string };
+
 export class ProjectionScheduler {
   currentWorker: Worker;
   private readonly databaseDirectory: string;
@@ -63,6 +68,7 @@ export class ProjectionScheduler {
   private readonly reimportedDocuments = new Set<string>();
   private readonly waitingRequests = new WaitingRequests();
   private readonly forgetting = new Map<string, (() => void)[]>();
+  private readonly bootstrapping = new Map<string, BootstrapWaiter>();
   private readonly restarts = new SlidingWindow({ windowMs: WORKER_RESTART_WINDOW_MS });
   private readonly loggedProjectionFailures = new Set<string>();
   private isAlive = true;
@@ -99,6 +105,10 @@ export class ProjectionScheduler {
     if (this.isDegraded) return console.error(`${IMPORT_SKIPPED_MESSAGE} ${documentId}`);
     this.pendingImports.set(documentId, filePath);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath });
+  }
+
+  bootstrap(request: BootstrapRequest): Promise<void> {
+    throw new Error('bootstrap is not implemented');
   }
 
   rebuild({ documentId, filePath }: { documentId: string; filePath: string }): Promise<void> {
@@ -173,6 +183,7 @@ export class ProjectionScheduler {
   private settle(reply: ProjectionReply): void {
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
     if (isServedReply(reply)) return this.waitingRequests.resolve(reply);
+    if (reply.kind === ProjectionRequestKind.Bootstrap) return this.settleBootstrap(reply);
     if (reply.kind === ProjectionRequestKind.Forget) return this.settleForget(reply.documentId);
     if (reply.kind === ProjectionRequestKind.Import) return this.settleImport(reply);
     return this.settleProject(reply);
@@ -194,6 +205,8 @@ export class ProjectionScheduler {
     this.loggedProjectionFailures.add(documentId);
     console.error(`${PROJECTION_FAILED_MESSAGE} ${documentId}: ${message}`);
   }
+
+  private settleBootstrap(reply: BootstrapReply): void {}
 
   private settleImport({ documentId, importError }: ProjectionDoneReply): void {
     this.pendingImports.delete(documentId);

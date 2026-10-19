@@ -19,7 +19,9 @@ import {
   type AnsweredReply,
   type AnsweredRequestKind,
   type BlocksReply,
+  type BootstrapReply,
   type ProjectionDoneReply,
+  type ProjectionRequest,
   type ProjectionRequestsByKind,
   type VersionReply,
 } from './projection-messages';
@@ -32,6 +34,8 @@ type ProjectionStores = {
   replays: GcFreeReplays;
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
   fileSizeBytes: (filePath: string) => number;
+  bootstrapRoom: (request: { documentId: string; filePath: string; url: string; token: string }) => Promise<void>;
+  bootstrapTimeoutMs: number;
 };
 
 export function createProjectionHandler({
@@ -40,6 +44,8 @@ export function createProjectionHandler({
   replays,
   importRevisions,
   fileSizeBytes,
+  bootstrapRoom,
+  bootstrapTimeoutMs,
 }: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
     compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
@@ -98,12 +104,17 @@ export function createProjectionHandler({
     };
   }
 
+  async function handleBootstrap(request: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
+    throw new Error('handleBootstrap is not implemented');
+  }
+
   const handlers: Handlers = {
     [ProjectionRequestKind.Project]: (request) => handleProject(request.documentId),
     [ProjectionRequestKind.Import]: handleImport,
     [ProjectionRequestKind.Forget]: (request) => handleForget(request.documentId),
     [ProjectionRequestKind.Version]: versionReply,
     [ProjectionRequestKind.Blocks]: (request) => blocksReply(request.documentId),
+    [ProjectionRequestKind.Bootstrap]: handleBootstrap,
   };
 
   return async function handle<Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]): Promise<AnsweredReply> {

@@ -19,6 +19,7 @@ import {
   IMPORT_SKIPPED_MESSAGE,
   IMPORT_TIMEOUT_MS,
   PROJECTION_FAILED_MESSAGE,
+  BootstrapInterruptedError,
   ProjectionBusyError,
   ProjectionDegradedError,
   ProjectionReplyKind,
@@ -582,4 +583,56 @@ test('a full version queue refuses a new version but lets a pending one be joine
   await settled;
   client.close();
   await server.stop();
+});
+
+const BOOTSTRAP_REQUEST = { documentId: 'bootstrapped', filePath: 'plan.docx', url: 'ws://127.0.0.1:1', token: 'token' };
+
+function schedulerWithProbe(probeSource: string): ProjectionScheduler {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-probe-'));
+  writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), probeSource);
+  return new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+  });
+}
+
+test('a bootstrap resolves when the worker answers it', async () => {
+  const scheduler = schedulerWithProbe(`import { parentPort } from 'node:worker_threads';
+parentPort.on('message', (request) => {
+  if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
+  if (request.kind === '${ProjectionRequestKind.Bootstrap}') parentPort.postMessage({ kind: '${ProjectionRequestKind.Bootstrap}', documentId: request.documentId });
+});
+`);
+  await expect(scheduler.bootstrap(BOOTSTRAP_REQUEST)).resolves.toBeUndefined();
+  await scheduler.stop();
+});
+
+test('a bootstrap the worker fails rejects with the message of the worker', async () => {
+  const scheduler = schedulerWithProbe(`import { parentPort } from 'node:worker_threads';
+parentPort.on('message', (request) => {
+  if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
+  if (request.kind === '${ProjectionRequestKind.Bootstrap}') parentPort.postMessage({ kind: '${ProjectionReplyKind.Failed}', requestKind: request.kind, documentId: request.documentId, sequence: null, message: 'not a document' });
+});
+`);
+  await expect(scheduler.bootstrap(BOOTSTRAP_REQUEST)).rejects.toThrow('not a document');
+  await scheduler.stop();
+});
+
+test('a bootstrap in flight when the worker dies is rejected as interrupted and not posted again', async () => {
+  const scheduler = schedulerWithProbe('setInterval(() => undefined, 1000);\n');
+  const crashed = scheduler.currentWorker;
+  const bootstrap = scheduler.bootstrap(BOOTSTRAP_REQUEST);
+  bootstrap.catch(() => undefined);
+  await crashed.terminate();
+  await expect(bootstrap).rejects.toBeInstanceOf(BootstrapInterruptedError);
+  await expect.poll(() => scheduler.currentWorker !== crashed).toBe(true);
+  await scheduler.stop();
+});
+
+test('a degraded scheduler rejects a bootstrap at once', async () => {
+  const scheduler = schedulerWithProbe('setInterval(() => undefined, 1000);\n');
+  scheduler.isDegraded = true;
+  await expect(scheduler.bootstrap(BOOTSTRAP_REQUEST)).rejects.toBeInstanceOf(ProjectionDegradedError);
+  scheduler.isDegraded = false;
+  await scheduler.currentWorker.terminate();
 });

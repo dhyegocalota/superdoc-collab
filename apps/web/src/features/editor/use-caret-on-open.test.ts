@@ -127,3 +127,27 @@ test('stops looping when unmounted', () => {
   unmount();
   expect(pendingFrames.size).toBe(0);
 });
+
+test('does not press an element outside the editor that covers the first fragment', () => {
+  const fragment = addFragment();
+  const overlay = document.createElement('div');
+  document.body.append(overlay);
+  const received = recordEvents(overlay);
+  document.elementFromPoint = vi.fn(() => overlay);
+  renderCaretOnOpen(true);
+  flushFrames();
+  expect(received).toEqual([]);
+  expect(recordEvents(fragment)).toEqual([]);
+});
+
+test('does not move a caret the person already placed inside the editor', () => {
+  const fragment = addFragment();
+  const received = recordEvents(fragment);
+  document.elementFromPoint = vi.fn(() => fragment);
+  const surface = document.createElement('textarea');
+  container.append(surface);
+  surface.focus();
+  renderCaretOnOpen(true);
+  flushFrames();
+  expect(received).toEqual([]);
+});

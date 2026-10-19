@@ -6,6 +6,7 @@ import { useTimeZone } from '@/lib/use-time-zone';
 import { ARCHIVED_CHIP_LABEL, USER_ROLE_LABELS, USERS_ACTIONS_COLUMN_LABEL, USERS_COLUMN_LABELS, USERS_TABLE_LABEL } from './admin-copy';
 import { UserActionsMenu } from './user-actions-menu';
 
+const ACTIONS_LABEL_CLASS_NAME = 'sr-only sm:not-sr-only';
 const ROW_TINT_CLASS_NAME = 'bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]';
 const ACTIONS_COLUMN_CLASS_NAME = `sticky right-0 bg-background shadow-[inset_1px_0_0_var(--border)] [tr:hover>&]:${ROW_TINT_CLASS_NAME} [tr:has([aria-expanded=true])>&]:${ROW_TINT_CLASS_NAME}`;
 
@@ -18,7 +19,7 @@ export function UsersTable({ users, signedInUserId }: { users: AdminUser[]; sign
           <TableRow>
             {USERS_COLUMN_LABELS.map((label) => (
               <TableHead key={label} className={label === USERS_ACTIONS_COLUMN_LABEL ? ACTIONS_COLUMN_CLASS_NAME : undefined}>
-                {label}
+                {label === USERS_ACTIONS_COLUMN_LABEL ? <span className={ACTIONS_LABEL_CLASS_NAME}>{label}</span> : label}
               </TableHead>
             ))}
           </TableRow>

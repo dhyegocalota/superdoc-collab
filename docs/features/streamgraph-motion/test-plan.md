@@ -32,7 +32,7 @@ Unit files run one at a time with `pnpm --filter @superdoc-collab/web exec vites
 
 - [x] 375 px, bottom panel open, Bruno types — evidence: 64 distinct path values, document scrollWidth 375 on every frame (min and max), no sideways scroll; {M}motion-mid-tween-1-375.png, {M}motion-mid-tween-2-375.png
 - [x] The timeline answer arrives about 1.6 s after Bruno's last key (522 ms after a call that began 1.1 s after the typing)
-- [ ] Dividers lag a panel drag by about 0.5 s while the bands do not — FAILED against "the chart follows the drag": see the drag row; needs a regression test that a width change snaps the dividers like the bands (keep the glide for a data rescale only)
+- [x] Dividers lag a panel drag by about 0.5 s while the bands do not — evidence: closed by d4aa288e (a width change snaps dividers and marks); the third walk measured 0 ms lag on the showcase document (dividers move 839 to 577 px in the same frame as the width)
 - [x] Tool note: the Playwright MCP calls of one block run one after another, so the sampler is installed first, the other author types in the next call and the result is read in a third call
 
 ## Third walk (2026-10-19, lane/testing2 at 66e1cc88)

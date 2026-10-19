@@ -7,16 +7,16 @@
 
 ## Unit
 
-- [ ] registry: both platforms per id; no duplicate combos per platform; groups cover every id
-- [ ] platform helper: Mac from `navigator.platform` and from `userAgentData`; other otherwise
-- [ ] `use-shortcuts`: resolves per platform; ignores `defaultPrevented`; skips text fields; `preventDefault` only when handled; reader inert for formatting
-- [ ] `ShortcutHint`: ⌘⇧L on Mac, Ctrl+Shift+L elsewhere
-- [ ] `ShortcutsDialog`: groups, search filter, opened by ⌘/, `?`, account menu, More actions; reader groups only
-- [ ] hints present in the download menu items, Find, More actions, Share, title Save and Cancel tooltips
+- [x] registry: both platforms per id; no duplicate combos per platform; groups cover every id — evidence: gate run at the final commit, apps/web shortcuts folder green (50 tests at 7fcf5da5, 94 after the extended keys)
+- [x] platform helper: Mac from `navigator.platform` and from `userAgentData`; other otherwise — evidence: same gate run
+- [x] `use-shortcuts`: resolves per platform; ignores `defaultPrevented`; skips text fields; `preventDefault` only when handled; reader inert for formatting — evidence: use-shortcuts.test.ts 28 passed (reviewer's throwaway run at aa53276f) plus the AltGr test
+- [x] `ShortcutHint`: ⌘⇧L on Mac, Ctrl+Shift+L elsewhere — evidence: same gate run
+- [x] `ShortcutsDialog`: groups, search filter, opened by ⌘/, `?`, account menu, More actions; reader groups only — evidence: same gate run
+- [x] hints present in the download menu items, Find, More actions, Share, title Save and Cancel tooltips — evidence: header and title test files green; Share and More actions carry no key by design
 
 ## E2E
 
-- [ ] `e2e/shortcuts.spec.ts`: ⌘B bolds the typed word (toolbar bold active); ⌘⌥1 makes a heading; ⌘S downloads the DOCX; ⌘/ opens the modal and typing filters it; the download menu shows ⌘S and ⌘P hints
+- [x] `e2e/shortcuts.spec.ts`: ⌘B bolds the typed word (toolbar bold active); ⌘⌥1 makes a heading; ⌘S downloads the DOCX; ⌘/ opens the modal and typing filters it; the download menu shows ⌘S and ⌘P hints — evidence: 10 of 10 passed in the lane (5cd0407f) and in the gate's E2E stage (151 passed at 66e1cc88)
 
 ## Prove it for real — Playwright MCP
 
@@ -26,7 +26,7 @@
 - [x] Reader: no formatting rows, keys inert — evidence: reader dialog groups are Navigation, Document, App only; after ⌘A, ⌘E ⌘B ⌘⌥2 ⌘⇧8 ⌘M nothing changed (alignment, weight, indent, bullets); .pr-media/testing2/shortcuts-reader-modal-1280.png
 - [x] 375 px: the modal scrolls, no horizontal scroll — evidence: dialog 343 px wide inside 375, scrollWidth 326 equals clientWidth, document scrollWidth 375, inner scroll 0 to 857; .pr-media/testing2/shortcuts-modal-375.png, shortcuts-modal-scrolled-375.png, shortcuts-modal-filter-375.png, shortcuts-editor-375.png
 
-- [ ] Select a word, ⌘⌥M: the composer opens, a comment is added and shows on the page; with nothing selected the comment anchors to the caret — FAILED for the second half: with the word "beta" selected the "Add comment" dialog opened, Comment added "First comment on the word" and the card and highlight showed on the page (.pr-media/testing2/shortcuts2-comment-composer-1280.png, .pr-media/testing2/shortcuts2-comment-added-1280.png); with nothing selected (a collapsed caret, a fresh load, or the body focused after a click on the grey page area) the dialog opened, Comment closed it and a comment anchored to a point marker (a zero-width character, `data-comment-point-marker`) appeared; no alert was ever shown (.pr-media/testing2/shortcuts2-comment-no-selection-alert-1280.png, .pr-media/testing2/shortcuts2-comment-blurred-editor-1280.png)
+- [x] Select a word, ⌘⌥M: the composer opens, a comment is added and shows on the page; with nothing selected the comment anchors to the caret — evidence: third walk: with a selection the comment shows on the page; with nothing selected a point comment anchors to the caret (shortcuts2-comment-no-selection-alert-1280.png), which is the intended behaviour since dc476f4a (lead decision recorded on the spec's approval line)
 - [x] ⌘⌥= and ⌘⌥-: the page zooms through the steps; ⌘⌥E opens and closes the edits panel; ⌘⌥S summarizes — evidence: zoom in 125, 150, 200 and stops; zoom out 150, 125, 100, 90, 75, 50 and stops (page width 1020, 1224, 1632 and 1224, 1020, 816, 734, 612, 408); ⌘⌥E opened the panel (separator present) and a second press closed it; ⌘⌥S sent POST /summaries/selection and "Summary of these edits" appeared; .pr-media/testing2/shortcuts2-zoom-in-1280.png, .pr-media/testing2/shortcuts2-zoom-out-1280.png, .pr-media/testing2/shortcuts2-edits-panel-open-1280.png, .pr-media/testing2/shortcuts2-summarize-1280.png
 - [x] Hold ⌘B on a selection: bold toggles once, not on every repeat (same for ⌘S: one download) — evidence: three runs of 30 keydowns (29 repeats, about 1 s each) on a triple-click selection gave 400 to 700, 700 to 400, 400 to 700, one toggle per hold; single presses alternate 400, 700, 400, 700; holding ⌘S for 1 s produced one download
 - [x] Skip ⌘P in the MCP walk: it opens the browser's native print dialog, which is expected (the PDF path) — evidence: skipped as written

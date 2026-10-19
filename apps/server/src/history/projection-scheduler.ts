@@ -1,4 +1,4 @@
-import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
+import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS, PROJECTION_WORKER_QUIET_MS } from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
@@ -82,10 +82,12 @@ export class ProjectionScheduler {
     databaseDirectory,
     projectionWorkerFile = null,
     workerHeapMegabytes = null,
+    recycleQuietMs = PROJECTION_WORKER_QUIET_MS,
   }: {
     databaseDirectory: string;
     projectionWorkerFile?: URL | null;
     workerHeapMegabytes?: number | null;
+    recycleQuietMs?: number;
   }) {
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;

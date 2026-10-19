@@ -3,7 +3,7 @@
 ## The failing test first
 
 - [ ] `router.test.tsx::/about renders without a session` — expected: the About heading
-- [ ] Confirmed it fails for the right reason: <paste>
+- [x] Confirmed it fails for the right reason (red commit 9bb8159b): `TestingLibraryElementError: Unable to find role="heading" and name "About"` (the route was missing, so the router redirected to sign-in). Account menu: `Unable to find an accessible element with the role "menuitem" and name "About"`. `index-html.test.ts`: `Error: index.html has no meta description`, `index.html has no meta og:type`, `index.html has no JSON-LD`, and `expected [] to deeply equal [ …(2) ]` for theme-color. The page tests failed with `AboutPage is not implemented` from the stub.
 
 ## Unit
 

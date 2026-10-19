@@ -24,6 +24,7 @@ The documents home is a table only. The owner wants cards by default, each with 
 |------|-----------|
 | Preview row missing | `preview: null`, the card draws the title page |
 | Projection behind | the previous preview stays until the next batch |
+| Document projected before previews existed | at start the server finds every cursor with no preview row and schedules it once; the projection writes the preview with no new update |
 | localStorage unavailable | the default (`Cards`) is used; the choice is not kept |
 
 ## Open questions → answers

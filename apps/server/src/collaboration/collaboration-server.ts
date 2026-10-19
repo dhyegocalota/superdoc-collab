@@ -187,6 +187,15 @@ export function createCollaborationServer({
   }
   return new Hocuspocus({
     quiet: true,
+    extensions: [
+      {
+        async beforeUnloadDocument({ instance, documentName }) {
+          const document = instance.documents.get(documentName);
+          if (!document) return;
+          roomMemory.observe({ documentName, stateBytes: Y.encodeStateAsUpdate(document).byteLength });
+        },
+      },
+    ],
     timeout: COLLABORATION_SOCKET_TIMEOUT_MS,
     debounce: STORE_DEBOUNCE_MS,
     maxDebounce: MAX_STORE_DEBOUNCE_MS,
@@ -284,11 +293,6 @@ export function createCollaborationServer({
       });
       if (overfull.length > 0) return;
       declarer.declare(document);
-    },
-    async beforeUnloadDocument({ instance, documentName }) {
-      const document = instance.documents.get(documentName);
-      if (!document) return;
-      roomMemory.observe({ documentName, stateBytes: Y.encodeStateAsUpdate(document).byteLength });
     },
     async afterUnloadDocument({ documentName }) {
       awarenessOwners.forget(documentName);

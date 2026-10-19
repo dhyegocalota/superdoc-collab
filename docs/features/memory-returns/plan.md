@@ -24,7 +24,8 @@
 | Step | What breaks | How I notice | How I back out |
 |------|-------------|--------------|----------------|
 | 2 | A recycle drops a request | a version or blocks request rejected after a heavy job | revert the scheduler change, crashes still respawn |
-| 3 | The collection pauses the loop | the log line shows seconds | raise the constant |
+| 2 | A recycle makes the next time-travel step replay cold | the first version request after a quiet period is slower | raise `PROJECTION_WORKER_QUIET_MS` |
+| 3 | The collection pauses the loop | the log line prints the pause | raise `LARGE_ROOM_STATE_BYTES` |
 | 4 | The flag is refused by the runtime | the server does not start | revert the entrypoint |
 
 **Steps with no backout:** none

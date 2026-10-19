@@ -1,7 +1,7 @@
 # Architecture docs review
 
 **Lane:** docs
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "review the architecture docs and update them if needed")
 **Not changing:** ADRs (new facts get new ADRs, never edits), the README's run block

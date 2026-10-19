@@ -1,6 +1,6 @@
 # Password reset link from the admin
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "create a password recovery link from the admin for a user")
 **ADRs:** [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md) (invite-only accounts; no email)

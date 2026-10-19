@@ -1,6 +1,6 @@
 # Compose files under docker/
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "move deploy/docker-compose to docker/; move the root docker-compose to docker too, maybe with a dev name if it is the dev one")
 **ADRs:** [0013](../../adr/0013-deploy-with-dokploy-compose.md) (unchanged; its file path is historical)

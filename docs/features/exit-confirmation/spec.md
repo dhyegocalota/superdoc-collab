@@ -1,6 +1,6 @@
 # Exit confirmation while edits are unsynced
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "don't let the user exit without saving changes; show an exit confirmation")
 **ADRs:** [0032](../../adr/0032-connection-state.md) (connection state machine)

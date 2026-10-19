@@ -1,6 +1,6 @@
 # Test pruning
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "review and remove unit, e2e or integration tests that are useless; example of a useless test: all or almost all in globals.test.ts")
 **Not changing:** product code; the gates in `scripts/verify*`; tests owned by lanes still building (listed in plan.md)

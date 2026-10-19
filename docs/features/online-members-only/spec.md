@@ -1,6 +1,6 @@
 # Only online members in the top bar
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "no need to show offline collaborators' avatars in the top bar; whoever is shown there must be online")
 **Not changing:** the members API and its `online` flag, the share dialog's "People with access" list (it keeps every member), the jump-to-cursor behaviour for online members

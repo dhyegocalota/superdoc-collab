@@ -1,6 +1,6 @@
 # Documents home as cards, with a table option
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "make the home support cards and table instead of table only; the cards need a thumbnail generated performantly; cards by default, they are prettier and must work very well on mobile, without jank and without overloading the server")
 **ADRs:** [0007](../../adr/0007-read-model.md) (the projection worker writes the read model)

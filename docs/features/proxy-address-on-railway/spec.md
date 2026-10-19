@@ -1,6 +1,6 @@
 # Client address behind Railway's proxy
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "parts of the code say we run behind Traefik, which was the plan with Dokploy, but now we are published on Railway; review that code and make sure it works with Railway safely")
 **ADRs:** [0019](../../adr/0019-deploy-on-railway.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)

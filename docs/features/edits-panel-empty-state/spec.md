@@ -1,6 +1,6 @@
 # Edits panel empty state, collapsed start, and page top margin
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "also make a nice empty state in the edits panel, always starting with that panel collapsed/hidden; give the document a small top margin instead of sticking to the header")
 **Not changing:** the panel's position preference, the timeline data, the chart

@@ -1,6 +1,6 @@
 # Version view after a delete
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's repro: new document, add a paragraph, edit it, delete it, open the edit's version from the timeline → the document shows blank)
 **ADRs:** [0003](../../adr/0003-time-travel.md), pruned-version-resolves-to-its-minute

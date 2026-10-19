@@ -1,6 +1,6 @@
 # Caret on open
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "when clicking New document or an existing document, the cursor must appear automatically, both for who created the document and for who joined later")
 **ADRs:** none

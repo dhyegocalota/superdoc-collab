@@ -1,6 +1,6 @@
 # Showcase document
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "A pre-loaded example document with rich history (it can be the brief itself) so it looks like the mock screenshot. The team will test with their own documents, but the first contact will be yours. A DOCX seeded with days of editing by 3 or 4 authors, named topics and marked idle gaps makes the streamgraph appear complete on the first click instead of empty")
 **ADRs:** [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md), [0039](../../adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md)

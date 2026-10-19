@@ -1,6 +1,6 @@
 # Welcoming surfaces: sign-in and the first documents page
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "make the sign-in page beautiful with images, and the home page with a beautiful empty state and an attractive upload")
 **ADRs:** none

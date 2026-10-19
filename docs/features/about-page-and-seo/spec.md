@@ -1,6 +1,6 @@
 # About page and SEO metadata
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's requests, translated: "also put the GitHub repo link on a new About page in the user dropdown, very short: about me the author, the library, the licence, the credits"; "do SEO/GEO optimisations such as title, metas, favicon")
 **ADRs:** none

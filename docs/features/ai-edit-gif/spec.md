@@ -1,7 +1,7 @@
 # AI edit GIF in the README
 
 **Lane:** docs (media plus one README section)
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "An AI client editing the document like a real person, with AI attribution showing on the timeline beside the humans, is the kind of thing nobody else will show. It deserves a GIF in the README")
 **Not changing:** product code

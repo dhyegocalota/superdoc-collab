@@ -1,6 +1,6 @@
 # Revoke a person's access
 
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner: "remove an existing read-only or edit permissions of people")
 **ADRs:** none new; builds on the share-link model of documents-and-history

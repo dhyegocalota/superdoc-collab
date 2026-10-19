@@ -1,6 +1,6 @@
 # Repository-shape tests in their own package
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "that test folder apps/server/src/repository-shape seems to be in the wrong place")
 **ADRs:** [0030](../../adr/0030-the-local-gate-runs-what-the-diff-can-break.md) (the shape gate stays the fourth gate of `pnpm verify`)

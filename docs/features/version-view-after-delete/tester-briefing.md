@@ -25,6 +25,7 @@ pnpm test:e2e e2e/time-travel.spec.ts
 | `version-marks.test.ts::a sequence the log knows resolves to itself…` | the pruned sequence resolved to its minute's mark | known sequences resolve to themselves |
 | `versions-routes.test.ts::a logged sequence that is not a mark resolves to itself` | resolved to the newest mark | resolves to itself |
 | `runs.test.ts::a run opens the version after its last inserting event…` | `versionSequence` was the last event, the delete (7e8dacd5) | last inserting event |
+| `bins.test.ts::the version of a bin is the last event at or before its last instant…` | stub threw `lastEventSequenceAt is not implemented` | exact last event |
 | `time-travel.test.tsx::an edit row opens the version after that edit` | no button on the edit row | button pins `sequence` |
 | `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` | no edit row button | edit row opens the edited paragraph |
 
@@ -38,7 +39,7 @@ pnpm test:e2e e2e/time-travel.spec.ts
 
 ## Known gaps
 
-- A bin click still shows the bin's last instant, so a delete in the same bin still blanks the bin version; only the edit row shows the document after its own edit.
+- A bin click shows the exact state at the bin's last event, so a delete in the same bin still blanks the bin version; only the edit row shows the document after its own edit.
 - A run groups an author's edits of one block in one bin, so one row opens the version after the last inserting edit, not after every edit.
 - The build time was measured on a synthetic 12 802-update log, not on the 4-page fixture.
 - `sequence` is also a `TimelineQueryParam` only to satisfy the rule that every page parameter is a query parameter; no route reads it.

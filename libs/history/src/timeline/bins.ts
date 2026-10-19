@@ -119,5 +119,7 @@ export function lastEventSequenceAt({
   events: Pick<TimelineEvent, 'sequence' | 'serverTime'>[];
   time: number;
 }): number | null {
-  throw new Error('lastEventSequenceAt is not implemented');
+  const sequences = events.filter((event) => event.serverTime <= time).map((event) => event.sequence);
+  if (sequences.length === 0) return null;
+  return Math.max(...sequences);
 }

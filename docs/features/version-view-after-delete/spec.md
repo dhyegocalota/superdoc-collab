@@ -41,7 +41,7 @@ The first fix attempt, a mark per narrowest bin, was dropped: the owner adds, ed
 ## Change
 
 - `libs/history`: `GcFreeReplays.versionAt` merges the log up to a sequence into a Yjs snapshot and restores it over the gc-free replay; `resolveMark` returns the sequence itself when the log knows it and clamps only an unknown one; a run carries `versionSequence`, the sequence of its last inserting event.
-- `apps/server`: the worker builds a version at the resolved sequence; the bin edits answer `versionSequence` per run.
+- `apps/server`: the worker builds a version at the resolved sequence; the bin edits answer `versionSequence` per run; a timeline bin's `versionSequence` is the sequence of its last event at or before its last instant (`lastEventSequenceAt`), not a mark.
 - `apps/web`: the edit row has a View version after this edit button that pins `?at=<bin>&sequence=<n>`; the version pin honours an explicit sequence; selecting a bin or Back to live drops it.
 - [ADR 0043](../../adr/0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) supersedes the resolution rule of ADR 0027 and keeps its clamp for unknown sequences. Marks stay one per minute.
 
@@ -59,6 +59,12 @@ The first fix attempt, a mark per narrowest bin, was dropped: the owner adds, ed
 The 4-page fixture was not measured on its own: a DOCX import is a handful of updates, so its build time sits at the cheap end of this table. The cost is the merge of the log up to the sequence, not the replay, which the cache already keeps current.
 
 Tests: the unit test replays add, edit, delete two seconds apart and asks for the version at the edit; every logged sequence restores exactly as a full replay; the E2E follows the owner's five steps with no waiting.
+
+## Open questions → answers
+
+| Question | Options | Owner's answer | Date |
+|----------|---------|----------------|------|
+| Where does the version after an edit open from, and what does a bin open? | the edit row of a bin, with a button; separate rows per event | the lead approved: one row per run keeps its shape and gets a View version button for the last inserting event (a run of only deletions carries its last event), pinned through `?sequence=` beside `at`; a bin opens the exact sequence of its last event, and `?at=` links already shared keep working | 2026-10-19 |
 
 ## Failure handling
 

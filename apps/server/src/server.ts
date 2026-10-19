@@ -13,6 +13,7 @@ import { createRoomModes } from './collaboration/room-modes';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
 import { PasswordResetLinkCapture, PasswordResets } from './admin/password-reset-links';
+import { UserAccess } from './admin/user-access';
 import { AdminUsersRepository } from './admin/users';
 import { AgentChangeMode } from './agent/agent-change-mode';
 import { AgentSessions } from './agent/agent-sessions';
@@ -293,6 +294,11 @@ function createServices({
     versionRooms,
     invites,
     adminUsers: new AdminUsersRepository(database),
+    userAccess: new UserAccess({
+      auth,
+      database,
+      closeConnectionsOfUser: (userId) => services.runtime.closeConnectionsOfUser(userId),
+    }),
     passwordResets: new PasswordResets({ auth, capture: passwordResetLinks, appOrigin: environment.appOrigin, now }),
   };
   return { auth, services };

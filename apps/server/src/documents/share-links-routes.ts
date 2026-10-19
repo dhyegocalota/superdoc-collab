@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_ARCHIVED_MESSAGE,
   ApiPath,
   DocumentResource,
   DocumentRole,
@@ -18,7 +19,7 @@ const roleSchema = z.enum(ShareLinkRole);
 const DOCUMENT_SHARE_LINKS_PATH = `${ApiPath.Documents}/:documentId/${DocumentResource.ShareLinks}`;
 
 export function createShareLinksRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { documents, shareLinks } = services;
+  const { documents, shareLinks, adminUsers } = services;
   const routes = new Hono<SignedIn>();
 
   routes.get(DOCUMENT_SHARE_LINKS_PATH, (context) => {
@@ -36,6 +37,7 @@ export function createShareLinksRoutes({ services }: { services: AppServices }):
   routes.post(`${ApiPath.ShareLinks}/:token/accept`, (context) => {
     const resolved = shareLinks.resolve(context.req.param('token'));
     if (!resolved) return context.json({ error: INVALID_SHARE_LINK_MESSAGE }, HttpStatus.NotFound);
+    if (adminUsers.isArchived(context.var.user.id)) return context.json({ error: ACCOUNT_ARCHIVED_MESSAGE }, HttpStatus.Forbidden);
     documents.grant({ documentId: resolved.documentId, userId: context.var.user.id, role: SHARE_LINK_GRANTS[resolved.role] });
     return context.json({ documentId: resolved.documentId });
   });

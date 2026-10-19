@@ -1,8 +1,10 @@
 import { mcp } from '@better-auth/mcp';
 import {
+  ACCOUNT_ARCHIVED_MESSAGE,
   AgentScope,
   ApiPath,
   AppRoute,
+  IMPERSONATION_SESSION_MS,
   OFFLINE_ACCESS_SCOPE,
   PASSWORD_RESET_TTL_MS,
   signInSchema,
@@ -119,7 +121,12 @@ export function createAuth({
     },
     disabledPaths: DISABLED_PATHS,
     plugins: [
-      admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] }),
+      admin({
+        defaultRole: UserRole.User,
+        adminRoles: [UserRole.Admin],
+        bannedUserMessage: ACCOUNT_ARCHIVED_MESSAGE,
+        impersonationSessionDuration: IMPERSONATION_SESSION_MS / MILLISECONDS_PER_SECOND,
+      }),
       createSignUpGate({ invites, database, createShowcase }),
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
       registrationLimitsPlugin(),

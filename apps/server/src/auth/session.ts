@@ -22,5 +22,8 @@ export async function readSession({ auth, headers }: { auth: Auth; headers: Head
   const session = await auth.api.getSession({ headers });
   if (!session) return null;
   const { id, name, email, role, timeZone } = session.user;
-  return { id, name, email, role: roleOf({ userId: id, role }), timeZone: timeZoneOf(timeZone) };
+  const sessionUser = { id, name, email, role: roleOf({ userId: id, role }), timeZone: timeZoneOf(timeZone) };
+  const { impersonatedBy } = session.session;
+  if (!impersonatedBy) return sessionUser;
+  return { ...sessionUser, impersonatedBy };
 }

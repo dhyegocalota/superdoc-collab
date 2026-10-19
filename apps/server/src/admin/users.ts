@@ -50,6 +50,10 @@ export class AdminUsersRepository {
     return adminUserOf(row);
   }
 
+  isArchived(id: string): boolean {
+    return this.find(id)?.isArchived === true;
+  }
+
   countActiveAdmins(): number {
     return this.database.drizzle
       .select({ id: user.id })

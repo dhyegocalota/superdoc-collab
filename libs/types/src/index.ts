@@ -1,8 +1,10 @@
 export * from './routes';
 export * from './auth';
+export * from './account-access';
 export * from './http';
 export * from './demo-users';
 export * from './documents';
+export * from './thumbnails';
 export * from './history';
 export * from './timeline';
 export * from './constants';
@@ -13,3 +15,4 @@ export * from './password-reset';
 export * from './author-colors';
 export * from './connection';
 export * from './showcase';
+export * from './layout';

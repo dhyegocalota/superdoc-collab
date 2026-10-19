@@ -11,7 +11,14 @@ import { SIGNED_OUT_STATE } from './sign-out-state';
 
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 
-const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
+const ADA: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: 'UTC',
+  impersonatedBy: null,
+};
 const FORM_TEXT = 'sign-in form';
 const DOCUMENTS_TEXT = 'documents page';
 const ADMIN_TEXT = 'admin page';

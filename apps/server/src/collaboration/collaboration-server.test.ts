@@ -53,7 +53,15 @@ function contextOf({
   attempt: number;
   epoch: string;
 }): CollaborationContext {
-  return { userId, documentId, actor: ClientActor.Human, creatorAttempt: attempt, creatorEpoch: epoch, tabId: null };
+  return {
+    userId,
+    documentId,
+    actor: ClientActor.Human,
+    creatorAttempt: attempt,
+    creatorEpoch: epoch,
+    tabId: null,
+    impersonationEndsAt: null,
+  };
 }
 
 function sendChange({

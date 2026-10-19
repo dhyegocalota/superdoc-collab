@@ -45,7 +45,7 @@ function clientDisplayName({ clientName, redirectName }: { clientName: string | 
 
 function ConsentShell({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex min-h-full items-center justify-center p-4">
       <Card className="w-full max-w-sm">{children}</Card>
     </main>
   );

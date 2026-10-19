@@ -51,6 +51,10 @@ export const MEMBERS_PRESENCE_DEBOUNCE_MS = SECOND_MS;
 export const LAST_EDIT_MARK_INTERVAL_MS = SECOND_MS;
 export const RECOVERED_NOTICE_MS = 3 * SECOND_MS;
 export const CARET_ON_OPEN_TIMEOUT_MS = 20 * SECOND_MS;
+export const STREAMGRAPH_TRANSITION_MS = 0.6 * SECOND_MS;
+export const STREAMGRAPH_PULSE_MS = 0.9 * SECOND_MS;
+export const LIVE_ANNOUNCE_MS = 5 * SECOND_MS;
+export const MAX_TWEENED_BANDS = 12;
 export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 
 export function secondsRoundedUp(milliseconds: number): number {

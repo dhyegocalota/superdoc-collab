@@ -1,0 +1,1 @@
+ALTER TABLE `documents` ADD `thumbnail_updated_at` integer;

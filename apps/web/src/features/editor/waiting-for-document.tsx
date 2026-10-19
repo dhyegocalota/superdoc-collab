@@ -141,7 +141,7 @@ export function WaitingForDocument({ documentId, readiness, onKeepWaiting, onRet
   const title = cachedTitleOf({ documentList: queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId });
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-full flex-col">
       <AppTopBar
         left={
           <>

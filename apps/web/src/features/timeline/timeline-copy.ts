@@ -135,3 +135,8 @@ export function retryInLabel(seconds: number): string {
 export function importedAuthorLabel(name: string): string {
   return `${name}, imported from the DOCX`;
 }
+
+export function liveEditsLabel(count: number): string {
+  if (count === SINGLE_COUNT) return `${count} new edit`;
+  return `${count} new edits`;
+}

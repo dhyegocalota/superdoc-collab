@@ -13,6 +13,9 @@ import {
   INVALID_SHARE_LINK_MESSAGE,
   READ_ONLY_BADGE_LABEL,
   ShareLinkRole,
+  THUMBNAIL_CAPTURE_DELAY_MS,
+  THUMBNAIL_UPLOADS_ATTRIBUTE,
+  THUMBNAIL_WIDTH_PX,
   documentApiPath,
   documentPagePath,
   type DocumentSummary,
@@ -58,6 +61,7 @@ import {
   uniqueEmail,
   type OpenedContext,
 } from './fixtures';
+import { expectNoSidewaysScroll } from './layout';
 
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
 const OWNER_PARAGRAPH = 'owned by ana';
@@ -69,6 +73,7 @@ const LIVE_TIMEOUT_MS = 30_000;
 const EDITOR_TEST_ID = 'document-editor';
 const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
+const WIDE_VIEWPORT = { width: 1280, height: 800 };
 const LONG_TITLE_PREFIX =
   'Quarterly operating plan with every regional hiring forecast and the full budget review for each office across the whole company next year';
 const TITLE_LINE_CLAMP = '2';
@@ -80,6 +85,9 @@ const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
 const BRIEF_FILE_NAME = 'brief.docx';
 const THUMBNAIL_TEST_ID = 'document-thumbnail';
 const CARDS_GRID_TEST_ID = 'document-cards';
+const THUMBNAIL_PATH_FRAGMENT = '/thumbnail';
+const READER_QUIET_MS = 3000;
+const THUMBNAIL_TIMEOUT_MS = THUMBNAIL_CAPTURE_DELAY_MS + LIVE_TIMEOUT_MS;
 const DOCUMENT_PATH_PATTERN = /\/documents\/[^/?#]+/;
 
 function uniqueFileName(prefix: string): string {
@@ -201,7 +209,7 @@ test('the editor page never scrolls horizontally on a narrow viewport', async ({
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
   await ana.page.setViewportSize(NARROW_VIEWPORT);
-  await expect.poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+  await expectNoSidewaysScroll(ana.page);
 });
 
 test('on a narrow viewport the page starts at the left edge and the editor never scrolls sideways', async ({ browser }) => {
@@ -252,9 +260,7 @@ test('the list never scrolls sideways at 375 and clamps a long title to two line
         .evaluate((element) => element.scrollWidth - element.clientWidth),
     )
     .toBeLessThanOrEqual(0);
-  await expect
-    .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
-    .toBeLessThanOrEqual(0);
+  await expectNoSidewaysScroll(ana.page);
 });
 
 test('a new document accepts typing after a click', async ({ browser }) => {
@@ -354,7 +360,15 @@ test('the home opens in cards and a card shows the text typed into its document'
         await ana.page.reload();
         return cardOf({ page: ana.page, title: titleOf(fileName) })
           .getByTestId(THUMBNAIL_TEST_ID)
-          .textContent({ timeout: LIVE_TIMEOUT_MS });
+          .evaluate(
+            (thumbnail) => {
+              const image = thumbnail.querySelector('img');
+              if (image) return image.alt;
+              return thumbnail.textContent;
+            },
+            undefined,
+            { timeout: LIVE_TIMEOUT_MS },
+          );
       },
       { timeout: EVENTS_TIMEOUT_MS },
     )
@@ -382,7 +396,57 @@ test('at 375 the cards are one column and the page never scrolls sideways', asyn
   const grid = ana.page.getByTestId(CARDS_GRID_TEST_ID).first();
   await expect(grid).toBeVisible();
   await expect.poll(() => grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(1);
-  await expect
-    .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
-    .toBeLessThanOrEqual(0);
+  await expectNoSidewaysScroll(ana.page);
+});
+
+for (const viewport of [WIDE_VIEWPORT, NARROW_VIEWPORT]) {
+  test(`a long-title card and a short-title card are equally tall at ${viewport.width}`, async ({ browser }) => {
+    const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+    const longFileName = uniqueFileName(LONG_TITLE_PREFIX);
+    const shortFileName = uniqueFileName('short');
+    await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: longFileName });
+    await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: shortFileName });
+    await ana.page.setViewportSize(viewport);
+    await ana.page.goto(AppRoute.Documents);
+    const longCard = cardOf({ page: ana.page, title: titleOf(longFileName) });
+    const shortCard = cardOf({ page: ana.page, title: titleOf(shortFileName) });
+    await expect(longCard).toBeVisible();
+    await expect(shortCard).toBeVisible();
+    const heightOf = (card: typeof longCard): Promise<number> => card.evaluate((element) => element.getBoundingClientRect().height);
+    await expect.poll(async () => (await heightOf(longCard)) - (await heightOf(shortCard))).toBe(0);
+  });
+}
+
+test('a typed document returns to the home with its captured page on the card', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const fileName = uniqueFileName('captured');
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
+  await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: MINE_MARKER });
+  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toHaveAttribute(THUMBNAIL_UPLOADS_ATTRIBUTE, /^[1-9]\d*$/, {
+    timeout: THUMBNAIL_TIMEOUT_MS,
+  });
+  await ana.page.goto(AppRoute.Documents);
+  const image = cardOf({ page: ana.page, title: titleOf(fileName) })
+    .getByTestId(THUMBNAIL_TEST_ID)
+    .getByRole('img', { includeHidden: true });
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(THUMBNAIL_WIDTH_PX);
+});
+
+test('a reader sees the edits and uploads no thumbnail', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  const documentId = await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
+  await bruno.page.clock.install();
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Read });
+  await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: AFTER_MARKER });
+  await expect.poll(() => readEditorText(bruno.page), { timeout: LIVE_TIMEOUT_MS }).toContain(AFTER_MARKER.trim());
+  const isThumbnailSent = bruno.page
+    .waitForRequest((request) => request.url().includes(THUMBNAIL_PATH_FRAGMENT), { timeout: READER_QUIET_MS })
+    .then(
+      () => true,
+      () => false,
+    );
+  await bruno.page.clock.fastForward(THUMBNAIL_CAPTURE_DELAY_MS * 2);
+  expect(await isThumbnailSent).toBe(false);
+  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).not.toHaveAttribute(THUMBNAIL_UPLOADS_ATTRIBUTE);
 });

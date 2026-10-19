@@ -9,7 +9,14 @@ vi.mock('./browser-time-zone', () => ({ browserTimeZone: () => 'Europe/Lisbon' }
 
 const ACCOUNT_ZONE = 'Asia/Kathmandu';
 const BROWSER_ZONE = 'Europe/Lisbon';
-const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: ACCOUNT_ZONE };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: ACCOUNT_ZONE,
+  impersonatedBy: null,
+};
 
 function zoneFor(user: SessionUser) {
   const queryClient = new QueryClient();

@@ -1,7 +1,15 @@
 import { DAY_MS, MINUTE_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { timelineWith } from '@/testing/timeline-fixtures';
-import { BREAK_WIDTH_PX, layoutStreamgraph, MIN_LABEL_HEIGHT, SATURATION_MAX, SATURATION_MIN, saturationOf } from './streamgraph-layout';
+import {
+  BREAK_WIDTH_PX,
+  CHART_HEIGHT,
+  layoutStreamgraph,
+  MIN_LABEL_HEIGHT,
+  SATURATION_MAX,
+  SATURATION_MIN,
+  saturationOf,
+} from './streamgraph-layout';
 
 const RAMP_HALF_LENGTH = 8;
 
@@ -352,4 +360,26 @@ test('on a dense narrow chart the break column shrinks to one interval between v
   const visibleIntervals = 2 * DENSE_EDGE_BINS - 1;
   expect(column!.right - column!.left).toBeCloseTo(NARROW_CHART_WIDTH / visibleIntervals);
   expect(column!.right - column!.left).toBeLessThan(BREAK_WIDTH_PX);
+});
+
+test('bandCenterY is the middle of the band at a bin, inside the chart, and differs per band', () => {
+  const timeline = timelineWith({
+    volumes: [
+      [300, 100],
+      [300, 100],
+    ],
+    names: ['Budget', 'Hiring'],
+  });
+  const layout = layoutStreamgraph({ timeline, width: 420 });
+  const [budget, hiring] = timeline.bands.map((band) => layout.bandCenterY({ bandId: band.id, index: 1 }));
+  expect(budget).toBeGreaterThan(0);
+  expect(hiring).toBeLessThan(CHART_HEIGHT);
+  expect(budget).not.toBe(hiring);
+});
+
+test('bandCenterY rejects a band or a bin the chart does not have', () => {
+  const timeline = timelineWith({ volumes: [[3], [4]], names: ['Budget'] });
+  const layout = layoutStreamgraph({ timeline, width: 420 });
+  expect(() => layout.bandCenterY({ bandId: 'missing', index: 0 })).toThrow();
+  expect(() => layout.bandCenterY({ bandId: timeline.bands[0]!.id, index: 2 })).toThrow();
 });

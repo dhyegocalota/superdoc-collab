@@ -25,6 +25,7 @@ import { KeyedCooldown } from '../limits/keyed-cooldown';
 import type { RoomModes } from './room-modes';
 import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
+import { ImpersonationTimers } from './impersonation-timers';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { overfullConnections } from './awareness-client-cap';
 import { trackAwarenessOwners } from './awareness-origin';
@@ -151,6 +152,7 @@ export function createCollaborationServer({
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
   const dropLogCooldown = new KeyedCooldown({ durationMs: DROP_LOG_COOLDOWN_MS });
+  const impersonationTimers = new ImpersonationTimers();
   const refusedConnections = new WeakSet<CollaborationContext>();
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   return new Hocuspocus({
@@ -166,9 +168,9 @@ export function createCollaborationServer({
     async onAuthenticate({ requestHeaders, requestParameters, request, token, documentName, connection }): Promise<CollaborationContext> {
       const documentId = requireDocumentId(documentName);
       const actor = connectionActorOf(request);
-      const { userId, role } =
+      const { userId, role, impersonationEndsAt } =
         actor === ClientActor.Agent
-          ? await authenticateAgent({ auth, documents, token, documentId })
+          ? { ...(await authenticateAgent({ auth, documents, token, documentId })), impersonationEndsAt: null }
           : await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
       if (role === DocumentRole.Reader) connection.readOnly = true;
       const claimedTicket = claimedTicketFrom(request);
@@ -193,10 +195,25 @@ export function createCollaborationServer({
         throw new CollaborationSupersededError();
       }
       if (!mayWrite) connection.readOnly = true;
-      return { userId, documentId, actor, creatorAttempt: attempt, creatorEpoch: epoch, tabId: tabIdOf(requestParameters) };
+      return {
+        userId,
+        documentId,
+        actor,
+        creatorAttempt: attempt,
+        creatorEpoch: epoch,
+        tabId: tabIdOf(requestParameters),
+        impersonationEndsAt,
+      };
     },
-    async connected({ context, connectionInstance }) {
-      const { documentId, userId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
+    async connected({ context, connectionInstance, socketId }) {
+      const { documentId, userId, creatorAttempt, creatorEpoch, impersonationEndsAt } = context as CollaborationContext;
+      if (impersonationEndsAt !== null) {
+        impersonationTimers.arm({
+          socketId,
+          endsAt: impersonationEndsAt,
+          onEnd: () => connectionInstance.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }),
+        });
+      }
       const isRevoked = documents.findRole({ documentId, userId }) === null;
       if (isRevoked) {
         console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
@@ -250,6 +267,7 @@ export function createCollaborationServer({
     },
     async onDisconnect({ context, socketId }) {
       dropLogCooldown.forget(socketId);
+      impersonationTimers.clear(socketId);
       const { documentId, creatorAttempt } = context as CollaborationContext;
       if (creatorAttempt === null) return;
       reservations.release({ documentId, attempt: creatorAttempt });

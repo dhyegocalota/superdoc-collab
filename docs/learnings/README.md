@@ -70,6 +70,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A feature works in the page and silently does nothing in an isolated render | [2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md](2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md) | 2026-10-18 |
 | 2026-10-17 | A banner whose copy passes its length pins still wraps to more lines than the design allows on a phone | [2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md](2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md) | 2026-10-18 |
 | 2026-10-18 | A page-level test waits one second by default and times out under machine load | [2026-10-18-a-page-level-test-waits-one-second-by-default-and-times-out-under-machine-load.md](2026-10-18-a-page-level-test-waits-one-second-by-default-and-times-out-under-machine-load.md) | 2026-10-18 |
+| 2026-10-19 | Six E2E workers starve the single projection worker | [2026-10-19-six-e2e-workers-starve-the-single-projection-worker.md](2026-10-19-six-e2e-workers-starve-the-single-projection-worker.md) | 2026-10-19 |
 
 ### tooling
 
@@ -114,3 +115,4 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-19 | An ownership check that closes the connection from a Hocuspocus hook still lets the message through | [2026-10-19-throwing-from-before-handle-message-stops-the-message-but-closing-the-connection-does-not.md](2026-10-19-throwing-from-before-handle-message-stops-the-message-but-closing-the-connection-does-not.md) | 2026-10-19 |
 | 2026-10-19 | A version resolved to a mark shows edits that came later in the same minute | [2026-10-19-a-version-mark-per-minute-lets-a-later-delete-blank-an-earlier-bin.md](2026-10-19-a-version-mark-per-minute-lets-a-later-delete-blank-an-earlier-bin.md) | 2026-10-19 |
 | 2026-10-19 | A self-test that greps the whole output matches a commit hash | [2026-10-19-a-self-test-that-greps-the-whole-output-matches-a-commit-hash.md](2026-10-19-a-self-test-that-greps-the-whole-output-matches-a-commit-hash.md) | 2026-10-19 |
+| 2026-10-19 | A bodyless POST to a better-auth endpoint answers 415 and the button looks dead | [2026-10-19-a-bodyless-post-to-a-better-auth-endpoint-answers-415.md](2026-10-19-a-bodyless-post-to-a-better-auth-endpoint-answers-415.md) | 2026-10-19 |

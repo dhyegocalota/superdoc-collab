@@ -1,7 +1,9 @@
 import { Search } from 'lucide-react';
 import type { SuperDoc } from 'superdoc';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShortcutTooltipContent } from '@/features/shortcuts/shortcut-tooltip-content';
+import { ShortcutId } from '@/features/shortcuts/shortcuts';
 import { FIND_IN_DOCUMENT_LABEL } from './editor-copy';
 
 const SEARCH_OPEN_EVENT = 'search:open';
@@ -18,7 +20,7 @@ export function FindButton({ superdoc }: { superdoc: SuperDoc | null }) {
           <Search aria-hidden />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{FIND_IN_DOCUMENT_LABEL}</TooltipContent>
+      <ShortcutTooltipContent label={FIND_IN_DOCUMENT_LABEL} shortcutId={ShortcutId.Find} />
     </Tooltip>
   );
 }

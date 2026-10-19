@@ -7,4 +7,5 @@ export type CollaborationContext = {
   creatorAttempt: number | null;
   creatorEpoch: string | null;
   tabId: string | null;
+  impersonationEndsAt: number | null;
 };

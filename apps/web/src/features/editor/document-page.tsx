@@ -29,6 +29,7 @@ import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
 import { clearUnsyncedEdits, setUnsynced } from './unsynced-edits-store';
+import { useThumbnailCapture } from './use-thumbnail-capture';
 import { useUnsyncedEdits } from './use-unsynced-edits';
 import { VersionBar } from './version-bar';
 import { WaitingForDocument } from './waiting-for-document';
@@ -95,6 +96,7 @@ export function DocumentPage() {
   });
   useEffect(() => setUnsynced(isUnsynced), [isUnsynced]);
   useEffect(() => clearUnsyncedEdits, []);
+  useThumbnailCapture({ documentId, isReader: opened?.role === DocumentRole.Reader, connectionState, lastEditAt, editorContainer });
   const handleTransportReport = useCallback(
     (report: TransportReport): void => {
       reportTransport(report);
@@ -148,7 +150,7 @@ export function DocumentPage() {
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
 
   return withAnnouncement(
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-full flex-col">
       <EditorHeader
         opened={opened}
         members={members}
@@ -157,6 +159,8 @@ export function DocumentPage() {
         editorContainer={editorContainer}
         isPastVersion={isViewingPastVersion}
         onDownloadDocx={downloadLiveDocument}
+        onToggleEditsPanel={() => setIsPanelOpen((isOpen) => !isOpen)}
+        onSummarize={summarizeAndOpenPanel}
         onTitleDirtyChange={setIsTitleDirty}
         renderUseWithAi={renderUseWithAi}
       />

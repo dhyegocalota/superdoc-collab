@@ -1,8 +1,10 @@
 import { mcp } from '@better-auth/mcp';
 import {
+  ACCOUNT_ARCHIVED_MESSAGE,
   AgentScope,
   ApiPath,
   AppRoute,
+  IMPERSONATION_SESSION_MS,
   OFFLINE_ACCESS_SCOPE,
   PASSWORD_RESET_TTL_MS,
   signInSchema,
@@ -22,6 +24,7 @@ import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
 import { consentRevocationPlugin, revokeOAuthGrantsOf } from './consent-revocation';
+import { impersonationExpiryPlugin } from './impersonation-expiry';
 import { registrationLimitsPlugin } from './registration-limits';
 
 const RATE_LIMIT_WINDOW_SECONDS = 10;
@@ -119,10 +122,16 @@ export function createAuth({
     },
     disabledPaths: DISABLED_PATHS,
     plugins: [
-      admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] }),
+      admin({
+        defaultRole: UserRole.User,
+        adminRoles: [UserRole.Admin],
+        bannedUserMessage: ACCOUNT_ARCHIVED_MESSAGE,
+        impersonationSessionDuration: IMPERSONATION_SESSION_MS / MILLISECONDS_PER_SECOND,
+      }),
       createSignUpGate({ invites, database, createShowcase }),
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
       registrationLimitsPlugin(),
+      impersonationExpiryPlugin(),
       consentRevocationPlugin(),
       defaultResourcePlugin(mcpResourceOf(environment.appOrigin)),
       mcp({

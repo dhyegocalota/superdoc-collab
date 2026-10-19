@@ -19,6 +19,7 @@ const SHARED_DOCUMENT: DocumentSummary = {
   updatedAt: Date.UTC(2026, 9, 16, 13, 0),
   role: DocumentRole.Editor,
   preview: null,
+  thumbnailUpdatedAt: null,
 };
 const OWNED_DOCUMENT: DocumentSummary = {
   ...SHARED_DOCUMENT,

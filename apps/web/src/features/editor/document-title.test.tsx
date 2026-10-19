@@ -7,6 +7,10 @@ import { renderWithProviders } from '@/testing/render-with-providers';
 import { CANCEL_TITLE_LABEL, renameTitleLabel, SAVE_TITLE_DISABLED_REASON, SAVE_TITLE_LABEL, TITLE_LABEL } from './editor-copy';
 import { DocumentTitle } from './document-title';
 
+function pillTexts(element: HTMLElement): (string | null)[] {
+  return [...element.querySelectorAll('kbd')].map((pill) => pill.textContent);
+}
+
 const RENAMED_TITLE = 'Renamed';
 
 function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChange = vi.fn(), onEditingChange = vi.fn()): void {
@@ -207,12 +211,21 @@ test('a disabled Save shows its reason in a tooltip', async () => {
   expect(await screen.findByRole('tooltip')).toHaveTextContent(SAVE_TITLE_DISABLED_REASON);
 });
 
-test('an enabled Save shows no tooltip', async () => {
+test('an enabled Save shows its Enter hint and not the reason', async () => {
   renderTitle(DocumentRole.Editor);
   await startEditing();
   await userEvent.keyboard(RENAMED_TITLE);
   await userEvent.hover(screen.getByRole('button', { name: SAVE_TITLE_LABEL }).parentElement as HTMLElement);
-  expect(screen.queryByRole('tooltip')).toBeNull();
+  const tooltip = await screen.findByRole('tooltip');
+  expect(pillTexts(tooltip)).toEqual(['Enter']);
+  expect(tooltip).not.toHaveTextContent(SAVE_TITLE_DISABLED_REASON);
+});
+
+test('Cancel shows its Esc hint', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  await userEvent.hover(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(pillTexts(await screen.findByRole('tooltip'))).toEqual(['Esc']);
 });
 
 test('it reports when editing starts and stops', async () => {
@@ -223,4 +236,26 @@ test('it reports when editing starts and stops', async () => {
   expect(onEditingChange).toHaveBeenLastCalledWith(true);
   await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
   expect(onEditingChange).toHaveBeenLastCalledWith(false);
+});
+
+test('the editing row has one uniform gap and no per-button margin', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const row = screen.getByLabelText(TITLE_LABEL).parentElement as HTMLElement;
+  expect(row).toHaveClass('gap-1.5');
+  expect(row.className).not.toMatch(/(^|\s)gap-1(\s|$)/);
+  [SAVE_TITLE_LABEL, CANCEL_TITLE_LABEL].forEach((name) => {
+    const button = screen.getByRole('button', { name });
+    expect(button.className).not.toMatch(/(^|\s)-?m[lr]-/);
+    expect((button.parentElement as HTMLElement).className).not.toMatch(/(^|\s)-?m[lr]-/);
+  });
+});
+
+test('Cancel is an outlined box like Save', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const cancelButton = screen.getByRole('button', { name: CANCEL_TITLE_LABEL });
+  expect(cancelButton).toHaveAttribute('data-variant', 'outline');
+  expect(cancelButton).toHaveClass('border', 'size-8');
+  expect(screen.getByRole('button', { name: SAVE_TITLE_LABEL })).toHaveAttribute('data-variant', 'default');
 });

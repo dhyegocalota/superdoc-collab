@@ -9,6 +9,8 @@ import {
   SHOWCASE_API_PATH,
   passwordResetApiPath,
   type InviteSummary,
+  UserAction,
+  userActionApiPath,
   type UserRole,
 } from '@superdoc-collab/types';
 import { apiGet, apiSend, assertOk, readJson } from '@/lib/api';
@@ -17,13 +19,17 @@ import {
   CREATE_INVITE_SUBJECT,
   CREATE_PASSWORD_RESET_SUBJECT,
   CREATE_SHOWCASE_SUBJECT,
+  ARCHIVE_USER_SUBJECT,
+  IMPERSONATE_USER_SUBJECT,
+  RESTORE_USER_SUBJECT,
   INVITES_SUBJECT,
   REVOKE_INVITE_SUBJECT,
   SET_ROLE_SUBJECT,
 } from './admin-copy';
 
-export const ADMIN_USERS_QUERY_KEY = ['admin', 'users'];
-export const INVITES_QUERY_KEY = ['admin', 'invites'];
+export const ADMIN_QUERY_KEY = ['admin'];
+export const ADMIN_USERS_QUERY_KEY = [...ADMIN_QUERY_KEY, 'users'];
+export const INVITES_QUERY_KEY = [...ADMIN_QUERY_KEY, 'invites'];
 
 const USERS_PATH = adminApiPath(AdminResource.Users);
 const INVITES_PATH = adminApiPath(AdminResource.Invites);
@@ -62,4 +68,21 @@ export async function createPasswordReset(userId: string): Promise<CreatedPasswo
 export async function createShowcase(): Promise<DocumentSummary> {
   const response = await apiSend({ path: SHOWCASE_API_PATH, method: HttpMethod.Post, body: null });
   return readJson<DocumentSummary>({ response, subject: CREATE_SHOWCASE_SUBJECT });
+}
+
+async function sendUserAction({ id, action, subject }: { id: string; action: UserAction; subject: string }): Promise<void> {
+  const response = await apiSend({ path: userActionApiPath({ userId: id, action }), method: HttpMethod.Post, body: null });
+  assertOk({ response, subject });
+}
+
+export function archiveUser(id: string): Promise<void> {
+  return sendUserAction({ id, action: UserAction.Archive, subject: ARCHIVE_USER_SUBJECT });
+}
+
+export function restoreUser(id: string): Promise<void> {
+  return sendUserAction({ id, action: UserAction.Restore, subject: RESTORE_USER_SUBJECT });
+}
+
+export function impersonateUser(id: string): Promise<void> {
+  return sendUserAction({ id, action: UserAction.Impersonate, subject: IMPERSONATE_USER_SUBJECT });
 }

@@ -258,3 +258,33 @@ export async function waitForSettledTimeline({ page, documentId }: { page: Page;
     durationMs: SETTLE_WINDOW_MS,
   });
 }
+
+const BAND_PATH_SELECTOR = 'aside svg path[tabindex]';
+export const PULSE_SELECTOR = 'aside svg .streamgraph-pulse';
+const LIVE_REGION_SELECTOR = 'aside [aria-live="polite"]';
+const SAMPLES_KEY = '__streamgraphMotionSamples';
+
+export type MotionSamples = { paths: { d: string; at: number }[]; pulseCount: number; announcements: string[] };
+
+export async function startMotionSampling(page: Page): Promise<void> {
+  await page.evaluate(
+    ({ bandSelector, pulseSelector, liveSelector, key }) => {
+      const samples: MotionSamples = { paths: [], pulseCount: 0, announcements: [] };
+      (window as unknown as Record<string, MotionSamples>)[key] = samples;
+      function sample(): void {
+        const d = document.querySelector(bandSelector)?.getAttribute('d');
+        if (d && samples.paths.at(-1)?.d !== d) samples.paths.push({ d, at: performance.now() });
+        if (document.querySelector(pulseSelector)) samples.pulseCount += 1;
+        const announcement = document.querySelector(liveSelector)?.textContent;
+        if (announcement && samples.announcements.at(-1) !== announcement) samples.announcements.push(announcement);
+        requestAnimationFrame(sample);
+      }
+      sample();
+    },
+    { bandSelector: BAND_PATH_SELECTOR, pulseSelector: PULSE_SELECTOR, liveSelector: LIVE_REGION_SELECTOR, key: SAMPLES_KEY },
+  );
+}
+
+export function readMotionSamples(page: Page): Promise<MotionSamples> {
+  return page.evaluate((key) => (window as unknown as Record<string, MotionSamples>)[key]!, SAMPLES_KEY);
+}

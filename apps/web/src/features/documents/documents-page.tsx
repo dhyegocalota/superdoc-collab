@@ -50,7 +50,7 @@ export function DocumentsPage() {
   useDocumentTitle(DOCUMENTS_HEADING);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-full">
       <AppTopBar
         right={
           <>

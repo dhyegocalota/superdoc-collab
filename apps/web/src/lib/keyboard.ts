@@ -15,3 +15,7 @@ export function isTypingInField(target: EventTarget | null): boolean {
   const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
   return isTextField && target.value !== '';
 }
+
+export function focusedElement(): HTMLElement | null {
+  return document.activeElement instanceof HTMLElement ? document.activeElement : null;
+}

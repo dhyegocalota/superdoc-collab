@@ -7,6 +7,7 @@ import {
   editDeltaLabel,
   EditUnit,
   importedAuthorLabel,
+  liveEditsLabel,
   LOADING_TIMELINE_LABEL,
   noEditsForLabel,
   PANEL_POSITION_LABELS,
@@ -60,4 +61,9 @@ test('the description says long stretches are shortened only when the chart has 
   expect(plain).toBe('3 bands, from a to b');
   expect(shortened.startsWith(plain)).toBe(true);
   expect(shortened.endsWith('Long stretches without edits are shortened.')).toBe(true);
+});
+
+test('the live cue counts the new edits and agrees with one', () => {
+  expect(liveEditsLabel(1)).toBe('1 new edit');
+  expect(liveEditsLabel(4)).toBe('4 new edits');
 });

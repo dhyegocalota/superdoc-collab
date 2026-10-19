@@ -1,6 +1,6 @@
 import type { DocumentRole } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
-import { readSession } from '../auth/session';
+import { readSessionDetails } from '../auth/session';
 import type { DocumentsRepository } from '../documents/documents-repository';
 
 export class CollaborationAuthenticationError extends Error {
@@ -19,11 +19,11 @@ export async function authenticateMember({
   documents: DocumentsRepository;
   cookie: string | undefined;
   documentId: string;
-}): Promise<{ userId: string; role: DocumentRole }> {
+}): Promise<{ userId: string; role: DocumentRole; impersonationEndsAt: number | null }> {
   if (!cookie) throw new CollaborationAuthenticationError();
-  const user = await readSession({ auth, headers: new Headers({ cookie }) });
-  if (!user) throw new CollaborationAuthenticationError();
-  const role = documents.findRole({ documentId, userId: user.id });
+  const details = await readSessionDetails({ auth, headers: new Headers({ cookie }) });
+  if (!details) throw new CollaborationAuthenticationError();
+  const role = documents.findRole({ documentId, userId: details.user.id });
   if (!role) throw new CollaborationAuthenticationError();
-  return { userId: user.id, role };
+  return { userId: details.user.id, role, impersonationEndsAt: details.impersonationEndsAt };
 }

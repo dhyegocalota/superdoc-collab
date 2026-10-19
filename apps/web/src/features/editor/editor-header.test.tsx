@@ -9,7 +9,7 @@ import {
   type DocumentMember,
 } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
@@ -30,6 +30,7 @@ import {
   DELETE_LABEL,
   DOWNLOAD_BUTTON_LABEL,
   DOWNLOAD_LABEL,
+  DOWNLOAD_OPTIONS_LABEL,
   DOWNLOAD_PDF_LABEL,
   FIND_IN_DOCUMENT_LABEL,
   HOME_LINK_LABEL,
@@ -43,6 +44,9 @@ import {
 import { EditorHeader } from './editor-header';
 import { superdocStub } from '@/testing/superdoc-stub';
 import { Members } from './members';
+import { ADD_COMMENT_FAILED_MESSAGE, ADD_COMMENT_SUBMIT_LABEL, ADD_COMMENT_TITLE, COMMENT_TEXT_LABEL } from './editor-copy';
+import { SHORTCUT_GROUP_LABELS, SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
+import { ShortcutGroup } from '@/features/shortcuts/shortcuts';
 
 vi.mock('./members', async (importOriginal) => {
   const original = await importOriginal<typeof import('./members')>();
@@ -52,6 +56,8 @@ vi.mock('./members', async (importOriginal) => {
 const RENAMED_TITLE = 'Renamed';
 const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true, colorSlot: 1 };
 const onDownloadDocx = vi.fn();
+const onToggleEditsPanel = vi.fn();
+const onSummarize = vi.fn();
 
 function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
   return <UseWithAiDialog title={DOCUMENT_TITLE} canEdit {...slot} />;
@@ -86,6 +92,8 @@ function renderHeader({
       editorContainer={null}
       isPastVersion={isPastVersion}
       onDownloadDocx={onDownloadDocx}
+      onToggleEditsPanel={onToggleEditsPanel}
+      onSummarize={onSummarize}
       onTitleDirtyChange={vi.fn()}
       renderUseWithAi={renderUseWithAi}
     />,
@@ -291,7 +299,7 @@ test('at 768 the bar keeps Members, Share, More actions and the account, and Mor
   expect(emit).toHaveBeenCalledWith('search:open');
 });
 
-test('at 1280 the menu holds only Delete for the owner and nothing for a reader', async () => {
+test('at 1280 the menu holds only Delete and the shortcuts row for the owner and nothing for a reader', async () => {
   renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   expect(await screen.findByRole('menuitem', { name: DELETE_LABEL })).toBeVisible();
@@ -317,4 +325,175 @@ test('while the title is edited the right groups give the row to the editor belo
   expect(accountGroup()).toHaveClass('hidden', 'md:contents');
   await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
   expect(accountGroup()).toBeNull();
+});
+
+const SAVE_KEY = { code: 'KeyS', key: 's', ctrlKey: true };
+const ALIGN_LEFT_KEY = { code: 'KeyL', key: 'l', ctrlKey: true };
+
+function superdocWithAlignCommand(execute: () => void): SuperDoc {
+  const handle = { getState: () => ({ enabled: true, supported: true }), execute };
+  return superdocStub({ ui: { commands: { get: () => handle } } });
+}
+
+test('Ctrl+S downloads the DOCX and is consumed', () => {
+  renderHeader({ superdoc: superdocStub() });
+  expect(fireEvent.keyDown(document.body, SAVE_KEY)).toBe(false);
+  expect(onDownloadDocx).toHaveBeenCalledTimes(1);
+});
+
+test('a formatting key runs on the instance for an editor', () => {
+  const execute = vi.fn();
+  renderHeader({ superdoc: superdocWithAlignCommand(execute) });
+  expect(fireEvent.keyDown(document.body, ALIGN_LEFT_KEY)).toBe(false);
+  expect(execute).toHaveBeenCalledWith('left');
+});
+
+test.each([
+  ['a reader', { role: DocumentRole.Reader }],
+  ['a past version', { isPastVersion: true }],
+])('%s has no formatting keys and keeps the download key', (_, options) => {
+  const execute = vi.fn();
+  renderHeader({ superdoc: superdocWithAlignCommand(execute), ...options });
+  expect(fireEvent.keyDown(document.body, ALIGN_LEFT_KEY)).toBe(true);
+  expect(execute).not.toHaveBeenCalled();
+  expect(fireEvent.keyDown(document.body, SAVE_KEY)).toBe(false);
+  expect(onDownloadDocx).toHaveBeenCalledTimes(1);
+});
+
+const SHORTCUTS_KEY = { code: 'Slash', key: '/', ctrlKey: true };
+
+function pillTexts(element: HTMLElement): (string | null)[] {
+  return [...element.querySelectorAll('kbd')].map((pill) => pill.textContent);
+}
+
+test('Ctrl+/ opens the shortcuts dialog and Escape returns focus to where it was', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  const findButton = screen.getByRole('button', { name: FIND_IN_DOCUMENT_LABEL });
+  findButton.focus();
+  fireEvent.keyDown(findButton, SHORTCUTS_KEY);
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(findButton).toHaveFocus();
+});
+
+test('a question mark outside a field opens the dialog', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  fireEvent.keyDown(document.body, { code: 'Slash', key: '?', shiftKey: true });
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+});
+
+test("a reader's dialog has no formatting group", async () => {
+  renderHeader({ role: DocumentRole.Reader });
+  fireEvent.keyDown(document.body, SHORTCUTS_KEY);
+  const dialog = await screen.findByRole('dialog', { name: SHORTCUTS_TITLE });
+  expect(within(dialog).getByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Document] })).toBeVisible();
+  expect(within(dialog).queryByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Formatting] })).toBeNull();
+});
+
+test('More actions ends with the shortcuts row, which carries its hint and opens the dialog', async () => {
+  renderHeader({ role: DocumentRole.Owner, width: NARROW_VIEWPORT_WIDTH, superdoc: superdocStub() });
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  const items = await screen.findAllByRole('menuitem');
+  const lastItem = items[items.length - 1]!;
+  expect(lastItem).toHaveTextContent(SHORTCUTS_TITLE);
+  expect(pillTexts(lastItem)).toEqual(['Ctrl', '/']);
+  await userEvent.click(lastItem);
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+});
+
+test('the download menu items carry the save and print hints', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
+  expect(pillTexts(await screen.findByRole('menuitem', { name: new RegExp(DOWNLOAD_LABEL) }))).toEqual(['Ctrl', 'S']);
+  expect(pillTexts(screen.getByRole('menuitem', { name: new RegExp(DOWNLOAD_PDF_LABEL) }))).toEqual(['Ctrl', 'P']);
+});
+
+test('the More actions menu below lg shows the find, save and print hints', async () => {
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH, superdoc: superdocStub() });
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  expect(pillTexts(await screen.findByRole('menuitem', { name: new RegExp(FIND_IN_DOCUMENT_LABEL) }))).toEqual(['Ctrl', 'F']);
+  expect(pillTexts(screen.getByRole('menuitem', { name: new RegExp(DOWNLOAD_LABEL) }))).toEqual(['Ctrl', 'S']);
+  expect(pillTexts(screen.getByRole('menuitem', { name: new RegExp(DOWNLOAD_PDF_LABEL) }))).toEqual(['Ctrl', 'P']);
+});
+
+test.each([
+  [FIND_IN_DOCUMENT_LABEL, ['Ctrl', 'F']],
+  [DOWNLOAD_BUTTON_LABEL, ['Ctrl', 'S']],
+])('the %s tooltip carries its hint', async (name, keys) => {
+  renderHeader({ superdoc: superdocStub() });
+  await userEvent.hover(screen.getByRole('button', { name }));
+  expect(pillTexts(await screen.findByRole('tooltip'))).toEqual(keys);
+});
+
+const OPTION_KEYS = { ctrlKey: true, altKey: true };
+const COMMENT_KEY = { code: 'KeyM', key: 'm', ...OPTION_KEYS };
+const COMMENT_TEXT = 'Check this figure';
+
+function superdocWithComments(createFromSelection: () => unknown): SuperDoc {
+  const handle = { getState: () => ({ enabled: true, supported: true }), execute: vi.fn() };
+  return superdocStub({
+    ui: {
+      commands: { get: () => handle },
+      comments: { createFromSelection },
+    },
+  });
+}
+
+test('Ctrl+Alt+E and Ctrl+Alt+S reach the page callbacks', () => {
+  renderHeader({ superdoc: superdocStub() });
+  fireEvent.keyDown(document.body, { code: 'KeyE', key: 'e', ...OPTION_KEYS });
+  fireEvent.keyDown(document.body, { code: 'KeyS', key: 's', ...OPTION_KEYS });
+  expect(onToggleEditsPanel).toHaveBeenCalledTimes(1);
+  expect(onSummarize).toHaveBeenCalledTimes(1);
+});
+
+test('Ctrl+Alt+M opens the composer and sends the comment on the live selection', async () => {
+  const createFromSelection = vi.fn().mockResolvedValue({ success: true });
+  renderHeader({ superdoc: superdocWithComments(createFromSelection) });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
+  await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(createFromSelection).toHaveBeenCalledWith({ text: COMMENT_TEXT });
+});
+
+test('a rejected comment keeps the composer open with an alert', async () => {
+  renderHeader({ superdoc: superdocWithComments(vi.fn().mockResolvedValue({ success: false })) });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
+  await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent(ADD_COMMENT_FAILED_MESSAGE);
+});
+
+test('the comment button stays disabled until there is text', async () => {
+  renderHeader({ superdoc: superdocWithComments(vi.fn()) });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  expect(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL })).toBeDisabled();
+});
+
+test('the shortcuts dialog lists the review group for an editor', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  fireEvent.keyDown(document.body, SHORTCUTS_KEY);
+  expect(await screen.findByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Review] })).toBeVisible();
+});
+
+test('Ctrl+Alt+M before the editor is ready opens no composer and is not consumed', () => {
+  renderHeader({ superdoc: null });
+  expect(fireEvent.keyDown(document.body, COMMENT_KEY)).toBe(true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('with no selection the comment anchors to the caret', async () => {
+  const createFromSelection = vi.fn().mockResolvedValue({ success: true });
+  const superdoc = superdocWithComments(createFromSelection);
+  renderHeader({ superdoc });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
+  await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
+  await waitFor(() => expect(createFromSelection).toHaveBeenCalledWith({ text: COMMENT_TEXT }));
 });

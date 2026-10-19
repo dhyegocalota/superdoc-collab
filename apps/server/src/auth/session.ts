@@ -1,5 +1,7 @@
-import { UserRole, type SessionUser } from '@superdoc-collab/types';
+import { HttpStatus, UserRole, type SessionUser } from '@superdoc-collab/types';
 import type { Auth } from './auth';
+import { APIError } from 'better-auth/api';
+import { impersonationEndOf } from './impersonation-validity';
 
 export class SessionUserWithoutRoleError extends Error {
   constructor(userId: string) {
@@ -18,9 +20,25 @@ function timeZoneOf(value: string | null | undefined): string | null {
   return value;
 }
 
-export async function readSession({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionUser | null> {
-  const session = await auth.api.getSession({ headers });
+function nullWhenUnauthorized(error: unknown): null {
+  if (error instanceof APIError && error.statusCode === HttpStatus.Unauthorized) return null;
+  throw error;
+}
+
+export type SessionDetails = { user: SessionUser; impersonationEndsAt: number | null };
+
+export async function readSessionDetails({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionDetails | null> {
+  const session = await auth.api.getSession({ headers }).catch(nullWhenUnauthorized);
   if (!session) return null;
   const { id, name, email, role, timeZone } = session.user;
-  return { id, name, email, role: roleOf({ userId: id, role }), timeZone: timeZoneOf(timeZone) };
+  const user = { id, name, email, role: roleOf({ userId: id, role }), timeZone: timeZoneOf(timeZone), impersonatedBy: null };
+  const { impersonatedBy, createdAt } = session.session;
+  if (!impersonatedBy) return { user, impersonationEndsAt: null };
+  return { user: { ...user, impersonatedBy }, impersonationEndsAt: impersonationEndOf(createdAt) };
+}
+
+export async function readSession({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionUser | null> {
+  const details = await readSessionDetails({ auth, headers });
+  if (!details) return null;
+  return details.user;
 }

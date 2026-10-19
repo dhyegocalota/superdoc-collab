@@ -10,10 +10,12 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   const { user, isLoading } = useSession();
   const location = useLocation();
   const isUserNotAdmin = user !== null && user.role !== UserRole.Admin;
+  const isImpersonated = user !== null && user.impersonatedBy !== null;
+  const shouldToast = isUserNotAdmin && !isImpersonated;
 
   useEffect(() => {
-    if (isUserNotAdmin) toast(ADMINS_ONLY_TOAST);
-  }, [isUserNotAdmin]);
+    if (shouldToast) toast(ADMINS_ONLY_TOAST);
+  }, [shouldToast]);
 
   if (isLoading) return <SessionSkeleton />;
   if (!user) return <Navigate to={`${AppRoute.SignIn}?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;

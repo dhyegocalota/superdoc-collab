@@ -1,6 +1,6 @@
 import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Ellipsis, Search } from 'lucide-react';
+import { Bot, Ellipsis, Keyboard, Search } from 'lucide-react';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
@@ -9,13 +9,25 @@ import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AccountMenu } from '@/features/account/account-menu';
 import { USE_WITH_AI_LABEL } from '@/features/connected-apps/connected-apps-copy';
 import type { UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
+import { ShortcutHint } from '@/features/shortcuts/shortcut-hint';
+import { ShortcutId } from '@/features/shortcuts/shortcuts';
+import { SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
+import { ShortcutsDialog } from '@/features/shortcuts/shortcuts-dialog';
+import { useShortcuts } from '@/features/shortcuts/use-shortcuts';
 import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { focusedElement } from '@/lib/keyboard';
 import { useMinWidth } from '@/lib/use-min-width';
 import { deleteDocument } from './editor-api';
 import {
@@ -30,9 +42,10 @@ import {
   MORE_ACTIONS_LABEL,
   RENAME_FAILED_MESSAGE,
 } from './editor-copy';
+import { AddCommentDialog } from './add-comment-dialog';
 import { DocumentTitle } from './document-title';
 import { DownloadFormat } from './download-format';
-import { DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
+import { DOWNLOAD_SHORTCUT_IDS, DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
 import { FindButton, openFindBar } from './find-button';
 import { Members } from './members';
 import { allowLeave } from './unsynced-edits-store';
@@ -93,10 +106,19 @@ type DocumentActionsMenuProps = DocumentIdentity & {
   isLarge: boolean;
   superdoc: SuperDoc | null;
   onDownload: (format: DownloadFormat) => void;
+  onShowShortcuts: (opener: HTMLElement | null) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
-function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownload, renderUseWithAi }: DocumentActionsMenuProps) {
+function DocumentActionsMenu({
+  documentId,
+  isOwner,
+  isLarge,
+  superdoc,
+  onDownload,
+  onShowShortcuts,
+  renderUseWithAi,
+}: DocumentActionsMenuProps) {
   const isReady = superdoc !== null;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isUseWithAiOpen, setIsUseWithAiOpen] = useState(false);
@@ -120,6 +142,9 @@ function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownloa
             <DropdownMenuItem onSelect={() => openFindBar(superdoc)}>
               <Search aria-hidden />
               {FIND_IN_DOCUMENT_LABEL}
+              <DropdownMenuShortcut>
+                <ShortcutHint shortcutId={ShortcutId.Find} />
+              </DropdownMenuShortcut>
             </DropdownMenuItem>
           )}
           {!isLarge && (
@@ -137,6 +162,9 @@ function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownloa
                 onSelect={() => onDownload(format)}
               >
                 {DOWNLOAD_FORMAT_LABELS[format]}
+                <DropdownMenuShortcut>
+                  <ShortcutHint shortcutId={DOWNLOAD_SHORTCUT_IDS[format]} />
+                </DropdownMenuShortcut>
               </DropdownMenuItem>
             ))}
           {isOwner && (
@@ -144,6 +172,13 @@ function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownloa
               {DELETE_LABEL}
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem onSelect={() => onShowShortcuts(triggerRef.current)}>
+            <Keyboard aria-hidden />
+            {SHORTCUTS_TITLE}
+            <DropdownMenuShortcut>
+              <ShortcutHint shortcutId={ShortcutId.ShowShortcuts} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {renderUseWithAi({ isOpen: isUseWithAiOpen, onOpenChange: setIsUseWithAiOpen, returnFocusRef: triggerRef })}
@@ -160,6 +195,8 @@ type EditorHeaderProps = {
   editorContainer: HTMLElement | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
+  onToggleEditsPanel: () => void;
+  onSummarize: () => void;
   onTitleDirtyChange: (isDirty: boolean) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
@@ -172,6 +209,8 @@ export function EditorHeader({
   editorContainer,
   isPastVersion,
   onDownloadDocx,
+  onToggleEditsPanel,
+  onSummarize,
   onTitleDirtyChange,
   renderUseWithAi,
 }: EditorHeaderProps) {
@@ -179,6 +218,39 @@ export function EditorHeader({
   const isReader = role === DocumentRole.Reader;
   const isOwner = role === DocumentRole.Owner;
   const { download, printView } = useDownload({ superdoc, onDownloadDocx });
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const shortcutsReturnFocusRef = useRef<HTMLElement | null>(null);
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
+  const commentReturnFocusRef = useRef<HTMLElement | null>(null);
+  const canEdit = !isReader && !isPastVersion;
+
+  function showShortcuts(opener: HTMLElement | null): void {
+    shortcutsReturnFocusRef.current = opener;
+    setIsShortcutsOpen(true);
+  }
+
+  function openCommentComposer(): boolean {
+    if (!superdoc) return false;
+    commentReturnFocusRef.current = focusedElement();
+    setIsCommentOpen(true);
+    return true;
+  }
+
+  async function addComment(text: string): Promise<boolean> {
+    if (!superdoc) return false;
+    const receipt = await superdoc.ui.comments.createFromSelection({ text });
+    return receipt.success;
+  }
+
+  useShortcuts({
+    superdoc,
+    canEdit,
+    onDownload: download,
+    onShowShortcuts: () => showShortcuts(focusedElement()),
+    onToggleEditsPanel,
+    onSummarize,
+    onAddComment: openCommentComposer,
+  });
   const isLarge = useMinWidth(LARGE_BREAKPOINT_PX);
   const hasActionsMenu = !isLarge || isOwner;
   const [hasRenameFailed, setHasRenameFailed] = useState(false);
@@ -234,15 +306,29 @@ export function EditorHeader({
                 isLarge={isLarge}
                 superdoc={superdoc}
                 onDownload={download}
+                onShowShortcuts={showShortcuts}
                 renderUseWithAi={renderUseWithAi}
               />
             )}
-            <AccountMenu colorSlot={opened.colorSlot} />
+            <AccountMenu colorSlot={opened.colorSlot} canEditShortcuts={!isReader} />
           </div>
         }
       />
       {hasRenameFailed && <ErrorMessage className="px-4 py-2">{RENAME_FAILED_MESSAGE}</ErrorMessage>}
       {printView}
+      <AddCommentDialog
+        isOpen={isCommentOpen}
+        onOpenChange={setIsCommentOpen}
+        onSubmit={addComment}
+        returnFocusRef={commentReturnFocusRef}
+      />
+      <ShortcutsDialog
+        isOpen={isShortcutsOpen}
+        onOpenChange={setIsShortcutsOpen}
+        canEdit={!isReader}
+        superdoc={superdoc}
+        returnFocusRef={shortcutsReturnFocusRef}
+      />
     </>
   );
 }

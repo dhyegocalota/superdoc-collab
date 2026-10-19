@@ -5,7 +5,14 @@ import type { SignedIn } from '../http/require-user';
 import type { DocumentsRepository } from './documents-repository';
 import { authorizedDocumentId } from './require-document-role';
 
-const USER: SessionUser = { id: 'u1', name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: UTC_TIME_ZONE };
+const USER: SessionUser = {
+  id: 'u1',
+  name: 'Ana',
+  email: 'ana@example.com',
+  role: UserRole.User,
+  timeZone: UTC_TIME_ZONE,
+  impersonatedBy: null,
+};
 
 function appWith(role: DocumentRole | null) {
   const findRole = vi.fn(() => role);

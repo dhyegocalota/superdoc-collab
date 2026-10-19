@@ -42,7 +42,14 @@ const CONSENT = {
   createdAt: new Date(Date.UTC(2026, 9, 16, 12, 0)).toISOString(),
 };
 const CLIENT_NAME = 'Claude Desktop';
-const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: 'UTC',
+  impersonatedBy: null,
+};
 const MCP_URL = `${window.location.origin}${ApiPath.Mcp}`;
 
 beforeEach(() => {

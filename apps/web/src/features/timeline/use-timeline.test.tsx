@@ -11,7 +11,14 @@ import { useTimeline } from './use-timeline';
 const DOCUMENT_ID = 'doc-1';
 const SAO_PAULO = 'America/Sao_Paulo';
 const KATHMANDU = 'Asia/Kathmandu';
-const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: SAO_PAULO };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: SAO_PAULO,
+  impersonatedBy: null,
+};
 const FILTER = { term: null, author: null };
 
 afterEach(() => vi.restoreAllMocks());

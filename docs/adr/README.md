@@ -20,6 +20,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 
 | Number | Title | Status | Date |
 |--------|-------|--------|------|
+| [0045](0045-thumbnails-are-captured-by-the-client-that-already-rendered-the-page.md) | Thumbnails are captured by the client that already rendered the page | Accepted | 2026-10-19 |
 | [0044](0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md) | Version builds are budgeted per user and capped in the projection queue | Accepted | 2026-10-19 |
 | [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) | A known version sequence resolves exactly; marks anchor the timeline | Accepted | 2026-10-19 |
 | [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |
@@ -63,3 +64,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0039](0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) | The edits chart collapses idle stretches into marked breaks | Accepted | 2026-10-18 |
 | [0041](0041-the-summary-card-shows-the-sentence-as-it-is-written.md) | The summary card shows the sentence as it is written, through the job and the poll | Accepted | 2026-10-18 |
 | [0042](0042-the-client-address-is-the-rightmost-trusted-hop.md) | The client address is the rightmost trusted hop | Accepted | 2026-10-19 |
+| [0046](0046-archiving-is-a-ban-plus-full-access-revocation-impersonation-is-a-visible-session.md) | Archiving is a ban plus full access revocation; impersonation is a visible session | Accepted | 2026-10-19 |

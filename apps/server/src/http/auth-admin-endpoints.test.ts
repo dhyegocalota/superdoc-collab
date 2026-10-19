@@ -1,4 +1,4 @@
-import { ApiPath, HttpMethod, HttpStatus, UserRole } from '@superdoc-collab/types';
+import { ApiPath, HttpMethod, HttpStatus, STOP_IMPERSONATING_API_PATH, UserRole } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { signedInUser, startTestServer, TEST_USER_PASSWORD } from '../testing/test-server';
 
@@ -69,5 +69,16 @@ test('update-user stores the canonical spelling of a time zone alias', async () 
   });
   const row = server.database.sqlite.prepare('select time_zone as timeZone from user where id = ?').get(eve.id) as { timeZone: string };
   expect(row.timeZone).toBe('America/New_York');
+  await server.stop();
+});
+
+test('stop-impersonating is the one plugin admin path that reaches the plugin: signed out it answers 401, not 404', async () => {
+  const server = await startTestServer();
+  const response = await fetch(`${server.baseUrl}${STOP_IMPERSONATING_API_PATH}`, {
+    method: HttpMethod.Post,
+    headers: { 'content-type': 'application/json', origin: server.baseUrl },
+    body: '{}',
+  });
+  expect(response.status).toBe(HttpStatus.Unauthorized);
   await server.stop();
 });

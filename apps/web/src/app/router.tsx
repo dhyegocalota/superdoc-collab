@@ -16,10 +16,11 @@ import { SettingsPage } from '@/features/settings/settings-page';
 import { ShareLandingPage } from '@/features/sharing/share-landing-page';
 import { PrintPage } from '@/features/versions/print-page';
 import { VersionViewPage } from '@/features/versions/version-view-page';
+import { AppShell } from './app-shell';
 
 const UNKNOWN_PATH = '*';
 
-export const routes: RouteObject[] = [
+const pageRoutes: RouteObject[] = [
   { path: '/', element: <Navigate to={AppRoute.Documents} replace /> },
   {
     path: AppRoute.SignIn,
@@ -62,15 +63,6 @@ export const routes: RouteObject[] = [
       </RequireSession>
     ),
   },
-  {
-    path: AppRoute.VersionView,
-    element: (
-      <RequireSession>
-        <VersionViewPage />
-      </RequireSession>
-    ),
-  },
-  { path: AppRoute.Print, element: <PrintPage /> },
   { path: AppRoute.About, element: <AboutPage /> },
   {
     path: AppRoute.OAuthConsent,
@@ -106,5 +98,19 @@ export const routes: RouteObject[] = [
   },
   { path: UNKNOWN_PATH, element: <Navigate to={AppRoute.Documents} replace /> },
 ];
+
+const framedRoutes: RouteObject[] = [
+  {
+    path: AppRoute.VersionView,
+    element: (
+      <RequireSession>
+        <VersionViewPage />
+      </RequireSession>
+    ),
+  },
+  { path: AppRoute.Print, element: <PrintPage /> },
+];
+
+export const routes: RouteObject[] = [...framedRoutes, { element: <AppShell />, children: pageRoutes }];
 
 export const router = createBrowserRouter(routes);

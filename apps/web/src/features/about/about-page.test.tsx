@@ -27,7 +27,14 @@ import {
 } from './about-copy';
 import { AboutPage } from './about-page';
 
-const USER: SessionUser = { id: 'user-1', name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: null };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ana',
+  email: 'ana@example.com',
+  role: UserRole.User,
+  timeZone: null,
+  impersonatedBy: null,
+};
 const SUPERDOC_PACKAGE = 'superdoc';
 const SUPERDOC_DIRECTORY = '/node_modules/superdoc/';
 const EXTERNAL_LINKS = [

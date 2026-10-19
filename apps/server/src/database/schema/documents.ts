@@ -10,6 +10,7 @@ export const documents = sqliteTable('documents', {
     .references(() => user.id, { onDelete: 'cascade' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  thumbnailUpdatedAt: integer('thumbnail_updated_at', { mode: 'timestamp_ms' }),
 });
 
 export const documentMembers = sqliteTable(

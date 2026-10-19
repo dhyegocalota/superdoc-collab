@@ -3,6 +3,7 @@ export enum HttpStatus {
   Accepted = 202,
   Created = 201,
   NoContent = 204,
+  NotModified = 304,
   BadRequest = 400,
   Unauthorized = 401,
   Forbidden = 403,
@@ -19,6 +20,7 @@ export enum HttpStatus {
 export enum HttpMethod {
   Get = 'GET',
   Post = 'POST',
+  Put = 'PUT',
   Patch = 'PATCH',
   Delete = 'DELETE',
 }

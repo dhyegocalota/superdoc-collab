@@ -18,3 +18,10 @@ test('is enabled when idle, and while running is disabled, reads Summarizing… 
   expect(running).toBeDisabled();
   expect(running).toHaveAttribute('aria-busy', 'true');
 });
+
+test('its tooltip carries the Ctrl+Alt+S hint', async () => {
+  render(<SummarizeEditsButton isRunning={false} onSummarize={vi.fn()} />);
+  await userEvent.hover(screen.getByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
+  const tooltip = await screen.findByRole('tooltip');
+  expect([...tooltip.querySelectorAll('kbd')].map((pill) => pill.textContent)).toEqual(['Ctrl', 'Alt', 'S']);
+});

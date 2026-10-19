@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { UserAction } from './account-access';
 import {
   AdminResource,
   adminApiPath,
@@ -8,7 +9,9 @@ import {
   selectionSummaryApiPath,
   sharePagePath,
   signUpPagePath,
+  STOP_IMPERSONATING_API_PATH,
   timelineEditsApiPath,
+  userActionApiPath,
   VersionResource,
   versionApiPath,
   versionCollaborationPath,
@@ -57,4 +60,10 @@ test.each([
   { name: 'a 16 KB string', value: 'a'.repeat(OVERSIZED_TAB_ID_LENGTH), expected: false },
 ])('isTabId accepts only a UUID: $name', ({ value, expected }) => {
   expect(isTabId(value)).toBe(expected);
+});
+
+test('user action paths encode the user id and name the action', () => {
+  expect(userActionApiPath({ userId: 'a/b', action: UserAction.Archive })).toBe('/api/admin/users/a%2Fb/archive');
+  expect(userActionApiPath({ userId: 'u', action: UserAction.Impersonate })).toBe('/api/admin/users/u/impersonate');
+  expect(STOP_IMPERSONATING_API_PATH).toBe('/api/auth/admin/stop-impersonating');
 });

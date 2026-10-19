@@ -24,6 +24,7 @@ function tooltipAnchorOf({
 
 export type StreamgraphInteraction = {
   hasKeyboardFocus: boolean;
+  isSelecting: boolean;
   tooltipAnchor: TooltipAnchor | null;
   chartHandlers: {
     onPointerDown: (event: PointerEvent<SVGSVGElement>) => void;
@@ -55,6 +56,7 @@ export function useStreamgraphInteraction({
 }): StreamgraphInteraction {
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const [hasKeyboardFocus, setHasKeyboardFocus] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
   const isPointerFocus = useRef(false);
   const tooltipAnchor = tooltipAnchorOf({ hovered, selectedIndex, hasFocus: hasKeyboardFocus });
 
@@ -64,6 +66,7 @@ export function useStreamgraphInteraction({
 
   function handlePointerDown(event: PointerEvent<SVGSVGElement>): void {
     isPointerFocus.current = true;
+    setIsSelecting(true);
     setHasKeyboardFocus(false);
     if (isLoadingVersion) return;
     onSelectIndex(layout.binAt(offsetOf(event)));
@@ -71,6 +74,7 @@ export function useStreamgraphInteraction({
 
   function endPointerPress(): void {
     isPointerFocus.current = false;
+    setIsSelecting(false);
   }
 
   function handlePointerLeave(): void {
@@ -111,6 +115,7 @@ export function useStreamgraphInteraction({
 
   return {
     hasKeyboardFocus,
+    isSelecting,
     tooltipAnchor,
     chartHandlers: {
       onPointerDown: handlePointerDown,

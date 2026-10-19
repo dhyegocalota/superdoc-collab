@@ -1,4 +1,5 @@
 import { INVITE_QUERY_PARAMETER } from './invites';
+import type { UserAction } from './account-access';
 import { PASSWORD_RESET_QUERY_PARAMETER, PASSWORD_RESET_SEGMENT } from './password-reset';
 
 export enum AppRoute {
@@ -49,6 +50,7 @@ export enum DocumentResource {
   Topics = 'topics',
   Summaries = 'summaries',
   Versions = 'versions',
+  Thumbnail = 'thumbnail',
 }
 
 export enum VersionResource {
@@ -130,6 +132,12 @@ export function signUpPagePath(token: string): string {
 
 export function resetPasswordPagePath(token: string): string {
   return `${AppRoute.ResetPassword}?${PASSWORD_RESET_QUERY_PARAMETER}=${encodeURIComponent(token)}`;
+}
+
+export const STOP_IMPERSONATING_API_PATH = `${ApiPath.Auth}/admin/stop-impersonating`;
+
+export function userActionApiPath({ userId, action }: { userId: string; action: UserAction }): string {
+  return `${adminApiPath(AdminResource.Users)}/${encodeURIComponent(userId)}/${action}`;
 }
 
 export function passwordResetApiPath(userId: string): string {

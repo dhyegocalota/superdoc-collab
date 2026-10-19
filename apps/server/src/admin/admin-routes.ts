@@ -20,7 +20,7 @@ const USER_NOT_FOUND_MESSAGE = 'User not found';
 const roleSchema = z.object({ role: z.enum(UserRole) });
 
 export function createAdminRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { invites, adminUsers, passwordResets, showcase, documents } = services;
+  const { invites, adminUsers, passwordResets, showcase, documents, userAccess } = services;
   const routes = new Hono<SignedIn>();
 
   routes.get(`/${AdminResource.Users}`, (context) => context.json(adminUsers.list()));
@@ -32,6 +32,7 @@ export function createAdminRoutes({ services }: { services: AppServices }): Hono
     const outcome = adminUsers.setRole({ id, role: parsed.data.role });
     if (outcome === SetRoleOutcome.NotFound) return context.json({ error: USER_NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
     if (outcome === SetRoleOutcome.LastAdmin) return context.json({ error: LAST_ADMIN_MESSAGE }, HttpStatus.Conflict);
+    if (parsed.data.role === UserRole.User) userAccess.endImpersonationsBy(id);
     return context.json({ id, role: parsed.data.role });
   });
 

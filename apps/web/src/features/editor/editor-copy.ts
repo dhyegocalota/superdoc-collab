@@ -105,3 +105,9 @@ export const EXIT_CONFIRMATION_DESCRIPTION =
   'Edits made while the connection was down have not reached the server yet. Download the document first to keep them.';
 export const STAY_LABEL = 'Stay';
 export const LEAVE_LABEL = 'Leave';
+
+export const ADD_COMMENT_TITLE = 'Add comment';
+export const ADD_COMMENT_DESCRIPTION = 'The comment is attached to the selected text, or to the caret when nothing is selected.';
+export const COMMENT_TEXT_LABEL = 'Comment';
+export const ADD_COMMENT_SUBMIT_LABEL = 'Comment';
+export const ADD_COMMENT_FAILED_MESSAGE = 'The comment could not be added.';

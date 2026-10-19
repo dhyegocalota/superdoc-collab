@@ -7,6 +7,8 @@ import {
   TAB_QUERY_KEY,
 } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
+import { toolbarShortcutStrings } from '@/features/shortcuts/toolbar-shortcut-strings';
+import { detectPlatform } from '@/lib/platform';
 import { tabId } from '@/lib/tab-id';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';
@@ -75,7 +77,12 @@ test('the options open the file in its room as the signed-in user, fitted to the
     zoom: { mode: ZoomMode.FitWidth, fitWidth: { max: 100 } },
     ui: {
       comments: { layout: 'auto', responsive: { breakpoint: 480 } },
-      toolbar: { container: toolbarContainer, responsiveTo: 'container', excludeItems: TOOLBAR_EXCLUDED_ITEMS },
+      toolbar: {
+        container: toolbarContainer,
+        responsiveTo: 'container',
+        excludeItems: TOOLBAR_EXCLUDED_ITEMS,
+        strings: toolbarShortcutStrings(detectPlatform()),
+      },
       search: true,
     },
   });

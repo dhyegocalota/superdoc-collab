@@ -1,4 +1,4 @@
-import { ApiPath, AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE, HttpStatus, UserRole } from '@superdoc-collab/types';
+import { ACCOUNT_ARCHIVED_MESSAGE, ApiPath, AUTH_ERROR_MESSAGE, EMAIL_INVALID_MESSAGE, HttpStatus, UserRole } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -145,6 +145,13 @@ test('a 429 says how many seconds to wait', async () => {
   await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
   const expected = authFailureMessage({ status: HttpStatus.TooManyRequests, retryAfterSeconds: RETRY_SECONDS, serverMessage: undefined });
   expect(await screen.findByRole('alert')).toHaveTextContent(expected);
+});
+
+test('an archived account shows the archived message from the server', async () => {
+  signInEmail.mockResolvedValue({ data: null, error: { status: HttpStatus.Forbidden, message: ACCOUNT_ARCHIVED_MESSAGE } } as never);
+  const user = renderSignInPage();
+  await submitCredentials({ user, email: 'ada@example.com', password: 'long-enough-password' });
+  expect(await screen.findByRole('alert')).toHaveTextContent(ACCOUNT_ARCHIVED_MESSAGE);
 });
 
 test('an expired signed query asks to start again from the AI client', async () => {

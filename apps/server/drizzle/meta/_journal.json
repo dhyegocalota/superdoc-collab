@@ -57,6 +57,13 @@
       "when": 1792401575459,
       "tag": "0007_clear-summaries",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792421000167,
+      "tag": "0008_thumbnail-updated-at",
+      "breakpoints": true
     }
   ]
 }

@@ -72,19 +72,28 @@ function GroupingProgress() {
   );
 }
 
-function SummarizingProgress() {
+function SummarizingProgress({ hasGrouped }: { hasGrouped: boolean }) {
   return (
     <div role="status" className="flex flex-col gap-1 text-sm">
-      <p className="flex items-center gap-2">
-        <Check aria-hidden className="size-4 shrink-0" />
-        {TOPICS_GROUPED_LABEL}
-      </p>
+      {hasGrouped && (
+        <p className="flex items-center gap-2">
+          <Check aria-hidden className="size-4 shrink-0" />
+          {TOPICS_GROUPED_LABEL}
+        </p>
+      )}
       <p className="flex items-center gap-2">
         <Spinner />
         {SUMMARIZING_EDITS_MESSAGE}
       </p>
     </div>
   );
+}
+
+function useSawGrouping(step: SummarizeStep): boolean {
+  const sawGrouping = useRef(false);
+  if (step === SummarizeStep.Grouping) sawGrouping.current = true;
+  if (step === SummarizeStep.Idle) sawGrouping.current = false;
+  return sawGrouping.current;
 }
 
 function useRevealRun({
@@ -115,6 +124,7 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
   const isGrouping = view.step === SummarizeStep.Grouping;
   const isSummarizing = view.step === SummarizeStep.Summarizing;
   const isRunning = summarize.isRunning || view.state === SelectionSummaryState.Running || isGrouping || isSummarizing;
+  const hasGrouped = useSawGrouping(view.step);
   const isStreamingSentence = hasPartialWord(view.partial);
   const sentence = displayedSentence(view);
   const isRunningWithoutStep = isRunning && !isGrouping && !isSummarizing;
@@ -139,7 +149,7 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
         {SELECTION_SUMMARY_HEADING}
       </h3>
       {isGrouping && !isStreamingSentence && <GroupingProgress />}
-      {isSummarizing && !isStreamingSentence && <SummarizingProgress />}
+      {isSummarizing && !isStreamingSentence && <SummarizingProgress hasGrouped={hasGrouped} />}
       {isRunningWithoutStep && !isStreamingSentence && (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner />
@@ -148,6 +158,7 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
       )}
       {sentence !== null && (
         <div className="flex flex-col gap-1">
+          <Sentence text={sentence} isStreaming={isStreamingSentence} />
           {summary && !isStreamingSentence && (
             <div className="flex items-center justify-between gap-2">
               <ul className="flex items-center gap-1">
@@ -160,7 +171,6 @@ function SummarySection({ view, summarize, canRequest, authors }: SelectionSumma
               {summary.isStale && <Badge variant="secondary">{EARLIER_STATE_LABEL}</Badge>}
             </div>
           )}
-          <Sentence text={sentence} isStreaming={isStreamingSentence} />
         </div>
       )}
       {isEmpty && (

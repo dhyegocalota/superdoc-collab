@@ -58,7 +58,10 @@ test('Stop impersonating posts the stop, refetches the session and returns to Ad
   const { router } = renderWithProviders(<ImpersonationBanner />, { route: AppRoute.Documents });
   await user.click(await screen.findByRole('button', { name: STOP_IMPERSONATING_LABEL }));
   await waitFor(() =>
-    expect(fetchSpy).toHaveBeenCalledWith(STOP_IMPERSONATING_API_PATH, expect.objectContaining({ method: HttpMethod.Post })),
+    expect(fetchSpy).toHaveBeenCalledWith(
+      STOP_IMPERSONATING_API_PATH,
+      expect.objectContaining({ method: HttpMethod.Post, headers: { 'content-type': 'application/json' } }),
+    ),
   );
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Admin));
   await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());

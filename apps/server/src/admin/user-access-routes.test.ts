@@ -203,6 +203,18 @@ describe('impersonate and stop', () => {
     await server.stop();
   });
 
+  test('a stop without a JSON content type answers 415 and keeps the impersonation', async () => {
+    const server = await startTestServer();
+    const { eve, cookie } = await impersonating({ server });
+    const stopped = await fetch(`${server.baseUrl}${STOP_IMPERSONATING_API_PATH}`, {
+      method: HttpMethod.Post,
+      headers: { cookie, origin: server.baseUrl },
+    });
+    expect(stopped.status).toBe(HttpStatus.UnsupportedMediaType);
+    expect(await meOf({ server, cookie })).toMatchObject({ id: eve.id });
+    await server.stop();
+  });
+
   test.each([
     { name: 'yourself', message: CANNOT_IMPERSONATE_SELF_MESSAGE, prepare: async (server: TestServer) => server.admin.id },
     {

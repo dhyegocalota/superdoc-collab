@@ -79,6 +79,11 @@ test('fetchVersion maps 202, 200 and 503 and throws on 404', async () => {
   await expect(fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).rejects.toBeInstanceOf(DocumentUnavailableError);
 });
 
+test('fetchVersion treats a throttled 429 like a pending load', async () => {
+  respondWith(new Response(null, { status: HttpStatus.TooManyRequests, headers: { [RETRY_AFTER_HEADER]: '3' } }));
+  expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({ kind: VersionLoadKind.Pending, retryAfterMs: 3000 });
+});
+
 test('fetchVersion never retries faster than the minimum delay', async () => {
   respondWith(new Response(null, { status: HttpStatus.Accepted }));
   expect(await fetchVersion({ documentId: DOCUMENT_ID, sequence: 7 })).toEqual({

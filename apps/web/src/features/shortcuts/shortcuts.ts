@@ -67,6 +67,7 @@ export enum ShortcutId {
   AddComment = 'add-comment',
   NextComment = 'next-comment',
   PreviousComment = 'previous-comment',
+  ToggleTrackChanges = 'toggle-track-changes',
 }
 
 export type KeyCombination = { modifiers: readonly ShortcutModifier[]; code: string; label: string };

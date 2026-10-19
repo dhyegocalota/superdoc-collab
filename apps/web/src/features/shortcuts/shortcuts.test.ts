@@ -52,7 +52,13 @@ test('SuperDoc keys listed for the owner are native', () => {
 });
 
 test('the comment, review and zoom keys are app entries in the right groups', () => {
-  [ShortcutId.AddComment, ShortcutId.NextComment, ShortcutId.PreviousComment, ShortcutId.SummarizeEdits].forEach((id) => {
+  [
+    ShortcutId.AddComment,
+    ShortcutId.NextComment,
+    ShortcutId.PreviousComment,
+    ShortcutId.SummarizeEdits,
+    ShortcutId.ToggleTrackChanges,
+  ].forEach((id) => {
     expect(shortcutOf(id)).toMatchObject({ group: ShortcutGroup.Review, action: { kind: ShortcutActionKind.App } });
   });
   [ShortcutId.ZoomIn, ShortcutId.ZoomOut, ShortcutId.ToggleEditsPanel].forEach((id) => {

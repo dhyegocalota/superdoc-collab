@@ -120,3 +120,10 @@ test('under reduced motion a change pulses nothing', () => {
   renderGrowing(budget!.id);
   expect(document.querySelector(PULSE_RING_SELECTOR)).toBeNull();
 });
+
+test('the expand button tooltip carries the Ctrl+Alt+E hint', async () => {
+  renderWithProviders(<TimelineCollapsedBar timeline={timeline} change={null} onExpand={vi.fn()} />, { route: ROUTE });
+  await userEvent.hover(screen.getByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
+  const tooltip = await screen.findByRole('tooltip');
+  expect([...tooltip.querySelectorAll('kbd')].map((pill) => pill.textContent)).toEqual(['Ctrl', 'Alt', 'E']);
+});

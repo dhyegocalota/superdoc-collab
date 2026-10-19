@@ -63,6 +63,7 @@ export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
   [ShortcutId.AddComment]: 'Add comment',
   [ShortcutId.NextComment]: 'Next comment',
   [ShortcutId.PreviousComment]: 'Previous comment',
+  [ShortcutId.ToggleTrackChanges]: 'Track changes on or off',
 };
 
 export const SHORTCUTS_TITLE = SHORTCUT_LABELS[ShortcutId.ShowShortcuts];

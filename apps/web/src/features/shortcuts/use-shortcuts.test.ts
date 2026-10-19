@@ -15,6 +15,8 @@ const onAddComment = vi.fn();
 const setZoom = vi.fn();
 const scrollToComment = vi.fn();
 const COMMENT_IDS = ['first', 'second', 'third'];
+const setDocumentMode = vi.fn();
+let documentMode: string | null;
 let zoomValue: number;
 const execute = vi.fn();
 let commandState: { enabled: boolean; supported: boolean; value?: string };
@@ -29,6 +31,7 @@ function superdocWithCommands(): SuperDoc {
     ui: {
       commands: { get },
       zoom: { getSnapshot: () => ({ value: zoomValue, min: 25, max: 500 }), set: setZoom },
+      document: { getSnapshot: () => ({ mode: documentMode }), setMode: setDocumentMode },
       comments: { list: () => COMMENT_IDS.map((id) => ({ id })), scrollTo: scrollToComment },
     },
   });
@@ -55,6 +58,7 @@ beforeEach(() => {
   commandState = { enabled: true, supported: true };
   requestedCommandIds = [];
   zoomValue = 100;
+  documentMode = 'editing';
   onAddComment.mockReturnValue(true);
   vi.stubGlobal('navigator', { platform: 'Win32' });
 });
@@ -275,4 +279,22 @@ test('on a Mac indent and clear formatting use the Docs keys', () => {
   expect(requestedCommandIds.at(-1)).toBe('indent-decrease');
   pressKey({ code: 'Backslash', key: '\\', metaKey: true });
   expect(requestedCommandIds.at(-1)).toBe('clear-formatting');
+});
+
+test('Ctrl+Alt+T switches between editing and suggesting and leaves viewing alone', () => {
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyT', key: 't', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(setDocumentMode).toHaveBeenLastCalledWith('suggesting');
+  documentMode = 'suggesting';
+  pressKey({ code: 'KeyT', key: 't', ...OPTION_KEYS });
+  expect(setDocumentMode).toHaveBeenLastCalledWith('editing');
+  documentMode = 'viewing';
+  expect(pressKey({ code: 'KeyT', key: 't', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(setDocumentMode).toHaveBeenCalledTimes(2);
+});
+
+test('a reader cannot switch track changes', () => {
+  renderShortcuts({ canEdit: false });
+  expect(pressKey({ code: 'KeyT', key: 't', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(setDocumentMode).not.toHaveBeenCalled();
 });

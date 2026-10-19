@@ -61,8 +61,13 @@ export class DocumentsRepository {
     this.database.drizzle.update(documents).set({ title, updatedAt: new Date() }).where(eq(documents.id, documentId)).run();
   }
 
-  recordThumbnail(documentId: string): void {
-    this.database.drizzle.update(documents).set({ thumbnailUpdatedAt: new Date() }).where(eq(documents.id, documentId)).run();
+  recordThumbnail(documentId: string): boolean {
+    const result = this.database.drizzle
+      .update(documents)
+      .set({ thumbnailUpdatedAt: new Date() })
+      .where(eq(documents.id, documentId))
+      .run();
+    return result.changes === 1;
   }
 
   touch(documentId: string): void {

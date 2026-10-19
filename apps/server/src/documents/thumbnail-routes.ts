@@ -3,7 +3,7 @@ import type { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
-import { authorizedDocumentId } from './require-document-role';
+import { authorizedDocumentId, DocumentNotFoundError } from './require-document-role';
 import { thumbnailMimeTypeOf } from './thumbnail-image';
 
 const THUMBNAIL_TOO_LARGE_MESSAGE = 'The thumbnail is too large';
@@ -30,8 +30,10 @@ export function mountThumbnail({ routes, services }: { routes: Hono<SignedIn>; s
       const isDeclaredAsDetected = mimeType !== null && context.req.header('content-type') === mimeType;
       if (!isDeclaredAsDetected) return context.json({ error: NOT_A_THUMBNAIL_MESSAGE }, HttpStatus.UnsupportedMediaType);
       await storage.putThumbnail({ documentId, bytes });
-      documents.recordThumbnail(documentId);
-      return context.body(null, HttpStatus.NoContent);
+      const isRecorded = documents.recordThumbnail(documentId);
+      if (isRecorded) return context.body(null, HttpStatus.NoContent);
+      await storage.remove(documentId);
+      throw new DocumentNotFoundError();
     },
   );
 

@@ -12,6 +12,15 @@ export function createRoomMemoryRelease({
   memoryUsage: () => NodeJS.MemoryUsage;
 }): () => void {
   return function release(): void {
-    throw new Error('createRoomMemoryRelease is not implemented');
+    if (collectGarbage === null) return;
+    const { heapUsed, rss: residentBefore } = memoryUsage();
+    if (heapUsed <= LARGE_DOCUMENT_HEAP_BYTES) return;
+    collectGarbage({ type: 'major', execution: 'sync', flavor: 'last-resort' });
+    console.info(`${ROOM_MEMORY_RELEASED_MESSAGE} ${residentBefore} ${memoryUsage().rss}`);
   };
+}
+
+export function createProcessRoomMemoryRelease(): () => void {
+  const collectGarbage = typeof globalThis.gc === 'function' ? (globalThis.gc as CollectGarbage) : null;
+  return createRoomMemoryRelease({ collectGarbage, memoryUsage: () => process.memoryUsage() });
 }

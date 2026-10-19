@@ -36,6 +36,7 @@ import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { CreatorReservations } from './creator-reservations';
 import { claimedTicketOf, type ClaimedTicket } from './claimed-ticket';
+import { createProcessRoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade } from './upgrade-path';
 
@@ -149,6 +150,7 @@ export function createCollaborationServer({
   roomModes,
   onLogged,
   onStored,
+  releaseRoomMemory = createProcessRoomMemoryRelease(),
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -158,6 +160,7 @@ export function createCollaborationServer({
   roomModes: RoomModes;
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
+  releaseRoomMemory?: () => void;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
@@ -298,6 +301,7 @@ export function createCollaborationServer({
     async afterUnloadDocument({ documentName }) {
       awarenessOwners.forget(documentName);
       declarer.forget(documentName);
+      releaseRoomMemory();
     },
   });
 }

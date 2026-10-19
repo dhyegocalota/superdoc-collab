@@ -292,13 +292,19 @@ describe('impersonation sessions follow the impersonator', () => {
     await server.stop();
   });
 
-  test('an impersonating admin cannot grant OAuth consent', async () => {
+  test.each([
+    { path: '/oauth2/consent', method: HttpMethod.Post },
+    { path: '/oauth2/authorize', method: HttpMethod.Get },
+    { path: '/revoke-other-sessions', method: HttpMethod.Post },
+  ])('an impersonated session is refused $method $path with 403', async ({ path, method }) => {
     const server = await startTestServer();
     const { cookie } = await adminImpersonating({ server });
-    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/consent`, {
-      method: HttpMethod.Post,
+    const isPost = method === HttpMethod.Post;
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
+      method,
       headers: { cookie, origin: server.baseUrl, 'content-type': 'application/json' },
-      body: JSON.stringify({ accept: true }),
+      body: isPost ? JSON.stringify({ accept: true }) : undefined,
+      redirect: 'manual',
     });
     expect(response.status).toBe(HttpStatus.Forbidden);
     await server.stop();

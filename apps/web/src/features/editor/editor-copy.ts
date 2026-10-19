@@ -89,6 +89,10 @@ export function cursorNotFoundMessage(name: string): string {
   return `${name}’s cursor could not be found.`;
 }
 
+export function onlineMembersLabel(count: number): string {
+  throw new Error(`onlineMembersLabel is not implemented for ${count}`);
+}
+
 export function offlineMemberReason(name: string): string {
   return `${name} is offline`;
 }

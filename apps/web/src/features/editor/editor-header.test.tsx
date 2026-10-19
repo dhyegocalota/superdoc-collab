@@ -391,15 +391,11 @@ test("a reader's dialog has no formatting group", async () => {
   expect(within(dialog).queryByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Formatting] })).toBeNull();
 });
 
-test('More actions ends with the shortcuts row, which carries its hint and opens the dialog', async () => {
+test('More actions has no Keyboard shortcuts item', async () => {
   renderHeader({ role: DocumentRole.Owner, width: NARROW_VIEWPORT_WIDTH, superdoc: superdocStub() });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   const items = await screen.findAllByRole('menuitem');
-  const lastItem = items[items.length - 1]!;
-  expect(lastItem).toHaveTextContent(SHORTCUTS_TITLE);
-  expect(pillTexts(lastItem)).toEqual(['Ctrl', '/']);
-  await userEvent.click(lastItem);
-  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+  expect(items.map((item) => item.textContent).filter((text) => text?.includes(SHORTCUTS_TITLE))).toEqual([]);
 });
 
 test('the download menu items carry the save and print hints', async () => {

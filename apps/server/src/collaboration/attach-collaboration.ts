@@ -41,6 +41,7 @@ const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
 };
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
+const SOCKET_INFLATED_BUDGET_LOG = 'Collaboration socket closed for inflating too many bytes in a second';
 const SOCKET_AWARENESS_ENTRIES_LOG = 'Collaboration socket closed for claiming too many awareness entries in one frame';
 const MESSAGE_EVENT = 'message';
 
@@ -86,6 +87,12 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
+  function closeOnInflatedBreach(this: WebSocket, frame: RawData): void {
+    if (!messageLimit.exceedsInflatedBudget({ socket: this, frame })) return;
+    console.warn(SOCKET_INFLATED_BUDGET_LOG);
+    this.removeAllListeners(MESSAGE_EVENT);
+    this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+  }
   function withholdOverclaims(webSocket: WebSocket): void {
     const emit = webSocket.emit.bind(webSocket);
     webSocket.emit = (event: string | symbol, ...parameters: unknown[]): boolean => {
@@ -111,9 +118,11 @@ export function attachCollaboration({
     head: Buffer;
     endpoint: VersionEndpoint | null;
   }): void {
+    const isBootstrapSocket = request.url !== undefined && isBootstrapUpgrade(request.url);
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
+      if (!isBootstrapSocket) webSocket.on(MESSAGE_EVENT, closeOnInflatedBreach);
       withholdOverclaims(webSocket);
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);

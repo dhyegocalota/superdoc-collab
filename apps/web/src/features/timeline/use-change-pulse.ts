@@ -9,7 +9,10 @@ export function useChangePulse({ change, isSuppressed }: { change: TimelineChang
   useEffect(() => {
     if (!change || change.token === handledToken.current) return;
     handledToken.current = change.token;
-    if (isSuppressed) return;
+    if (isSuppressed) {
+      setPulse(null);
+      return;
+    }
     setPulse(change);
     const timer = setTimeout(() => setPulse(null), STREAMGRAPH_PULSE_MS);
     return () => clearTimeout(timer);

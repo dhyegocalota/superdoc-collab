@@ -22,7 +22,7 @@ One group.
 
 - [x] **Step 1:** failing test first: `prompts.test.ts` asserts that the topic summaries prompt and the selection prompt both carry the rule `Write in English (en-US), whatever the language of the edited text.` and that neither carries `Write in the language of the edited text.`; red on the current prompts. Evidence: 87fef18c.
 - [x] **Step 2:** `prompts.ts`: one `SUMMARY_LANGUAGE` constant and one rule line built from it, used by both summary prompts; the quoted prompt in `docs/features/llm-insights/plan.md` follows; green. Evidence: 1c8a824f.
-- [x] **Step 3:** `tester-briefing.md` written by the developer. Evidence: the commit that follows 1c8a824f on this branch.
+- [x] **Step 3:** `tester-briefing.md` written by the developer. Evidence: 84ad5e81 on this branch.
 
 ## Failure modes
 

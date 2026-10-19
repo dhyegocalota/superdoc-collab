@@ -1,5 +1,6 @@
 import type { Browser, Page } from '@playwright/test';
 import {
+  APP_SHELL_SCROLLER_TEST_ID,
   AppRoute,
   ConnectionState,
   DEMO_USERS,
@@ -96,12 +97,14 @@ function readObservedStates(page: Page): Promise<string[]> {
 
 async function measureBannerProblems(page: Page): Promise<string[]> {
   const layout = await page.evaluate(
-    ({ bannerTestId }) => {
+    ({ bannerTestId, scrollerTestId }) => {
       const element = document.querySelector(`[data-testid="${bannerTestId}"]`)!;
       const textBlock = element.querySelector('div')!;
       const reload = element.querySelector('button');
       const reloadBox = reload ? reload.getBoundingClientRect() : null;
+      const scroller = document.querySelector(`[data-testid="${scrollerTestId}"]`);
       return {
+        scrollerOverflow: scroller ? scroller.scrollWidth - scroller.clientWidth : 0,
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
         viewportWidth: window.innerWidth,
@@ -109,7 +112,7 @@ async function measureBannerProblems(page: Page): Promise<string[]> {
         reload: reloadBox ? { left: reloadBox.left, right: reloadBox.right } : null,
       };
     },
-    { bannerTestId: BANNER_TEST_ID },
+    { bannerTestId: BANNER_TEST_ID, scrollerTestId: APP_SHELL_SCROLLER_TEST_ID },
   );
   const state = await banner(page).getAttribute(STATE_ATTRIBUTE);
   const isFailed = state === ConnectionState.Failed;
@@ -117,7 +120,7 @@ async function measureBannerProblems(page: Page): Promise<string[]> {
   const maxTextLines = isFailed ? MAX_PHONE_FAILED_TEXT_LINES : MAX_PHONE_TEXT_LINES;
   const isReloadOutside = isFailed && (layout.reload === null || layout.reload.left < 0 || layout.reload.right > layout.viewportWidth);
   const problems = [
-    layout.scrollWidth > layout.clientWidth && 'the page scrolls horizontally',
+    (layout.scrollWidth > layout.clientWidth || layout.scrollerOverflow > 0) && 'the page scrolls horizontally',
     isPhone && layout.textLines > maxTextLines && `the text takes ${layout.textLines} lines, more than ${maxTextLines}`,
     isReloadOutside && 'Reload is not fully inside the viewport',
   ];

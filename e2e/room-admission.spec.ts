@@ -35,6 +35,7 @@ import { BACK_TO_DOCUMENTS_LABEL } from '../apps/web/src/features/editor/editor-
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
+import { expectNoSidewaysScroll } from './layout';
 
 const EDITOR_TEST_ID = 'document-editor';
 const CONNECTION_BANNER_TEST_ID = 'connection-banner';
@@ -259,14 +260,14 @@ for (const { name, viewport } of WAITING_VIEWPORTS) {
     await bruno.page.goto(documentPagePath(documentId));
     expect((await firstOpen).status()).toBe(HttpStatus.Conflict);
     await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
-    await expect.poll(() => bruno.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+    await expectNoSidewaysScroll(bruno.page);
     await ana.page.goto(documentPagePath(documentId));
     await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
     await expect
       .poll(() => openDocument({ page: bruno.page, documentId }), { timeout: COMMIT_TIMEOUT_MS })
       .toEqual({ status: HttpStatus.Ok, roomMode: RoomMode.Join });
     await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: COMMIT_TIMEOUT_MS });
-    await expect.poll(() => bruno.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+    await expectNoSidewaysScroll(bruno.page);
   });
 }
 

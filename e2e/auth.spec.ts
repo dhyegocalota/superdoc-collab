@@ -11,6 +11,7 @@ import {
   signIn,
   test,
 } from './fixtures';
+import { expectNoSidewaysScroll } from './layout';
 
 const [ana, bruno] = DEMO_USERS;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
@@ -103,7 +104,6 @@ test('the fourth failed attempt shows the retry message', async ({ page }) => {
 test('narrow viewport keeps the form usable', async ({ page }) => {
   await page.setViewportSize(NARROW_VIEWPORT);
   await page.goto(AppRoute.SignIn);
-  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-  expect(scrollWidth).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+  await expectNoSidewaysScroll(page);
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeInViewport();
 });

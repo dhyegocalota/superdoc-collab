@@ -34,6 +34,7 @@ import {
   waitForBands,
   waitForSettledTimeline,
 } from './timeline';
+import { expectNoSidewaysScroll } from './layout';
 
 const MOTION_WINDOW_MS = 700;
 const MIN_INTERMEDIATE_PATHS = 3;
@@ -157,7 +158,7 @@ test('narrow viewport stacks the panel and fits the summary', async ({ browser }
   await summarizeButton(ana.page).click();
   await expect(summaryCard(ana.page)).toContainText(EDITED_PHRASE, { timeout: SUMMARY_TIMEOUT_MS });
   await expect(summarizeButton(ana.page)).toBeVisible();
-  expect(await ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+  await expectNoSidewaysScroll(ana.page);
 });
 
 async function brunoGrowsBudget({

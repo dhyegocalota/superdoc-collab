@@ -61,6 +61,7 @@ import {
   uniqueEmail,
   type OpenedContext,
 } from './fixtures';
+import { expectNoSidewaysScroll } from './layout';
 
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
 const OWNER_PARAGRAPH = 'owned by ana';
@@ -208,7 +209,7 @@ test('the editor page never scrolls horizontally on a narrow viewport', async ({
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
   await ana.page.setViewportSize(NARROW_VIEWPORT);
-  await expect.poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+  await expectNoSidewaysScroll(ana.page);
 });
 
 test('on a narrow viewport the page starts at the left edge and the editor never scrolls sideways', async ({ browser }) => {
@@ -259,9 +260,7 @@ test('the list never scrolls sideways at 375 and clamps a long title to two line
         .evaluate((element) => element.scrollWidth - element.clientWidth),
     )
     .toBeLessThanOrEqual(0);
-  await expect
-    .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
-    .toBeLessThanOrEqual(0);
+  await expectNoSidewaysScroll(ana.page);
 });
 
 test('a new document accepts typing after a click', async ({ browser }) => {
@@ -397,9 +396,7 @@ test('at 375 the cards are one column and the page never scrolls sideways', asyn
   const grid = ana.page.getByTestId(CARDS_GRID_TEST_ID).first();
   await expect(grid).toBeVisible();
   await expect.poll(() => grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(1);
-  await expect
-    .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
-    .toBeLessThanOrEqual(0);
+  await expectNoSidewaysScroll(ana.page);
 });
 
 for (const viewport of [WIDE_VIEWPORT, NARROW_VIEWPORT]) {

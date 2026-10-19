@@ -15,3 +15,4 @@ export * from './password-reset';
 export * from './author-colors';
 export * from './connection';
 export * from './showcase';
+export * from './layout';

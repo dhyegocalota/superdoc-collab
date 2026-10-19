@@ -93,6 +93,7 @@ import {
   waitForSettledTimeline,
   waitForSummarizeResponse,
 } from './timeline';
+import { expectNoSidewaysScroll } from './layout';
 
 const [anaUser, brunoUser, caioUser, daniUser] = DEMO_USERS;
 const PARAGRAPHS = [BUDGET_PARAGRAPH, HIRING_PARAGRAPH];
@@ -259,7 +260,7 @@ async function expectChromeFits({ page, name }: { page: Page; name: string }): P
   await expect(brandLink(page)).toBeInViewport({ ratio: 1 });
   await expect(accountTrigger({ page, name })).toBeInViewport({ ratio: 1 });
   await expect(summarizeButton(page)).toBeInViewport({ ratio: 1 });
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expectNoSidewaysScroll(page);
   const tops = await readTopBarTops(page);
   expect(tops.length).toBeGreaterThan(0);
   expect(tops.filter((top) => top !== 0)).toEqual([]);

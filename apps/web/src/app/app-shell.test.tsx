@@ -1,4 +1,4 @@
-import { ApiPath, UserRole } from '@superdoc-collab/types';
+import { ApiPath, APP_SHELL_SCROLLER_TEST_ID, UserRole } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -35,6 +35,7 @@ test('the shell is a viewport-high column: the banner is a normal child and the 
   expect(banner.parentElement).toBe(shell);
   expect(banner).toHaveClass('shrink-0');
   expect(pageSlot).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+  expect(pageSlot).toHaveAttribute('data-testid', APP_SHELL_SCROLLER_TEST_ID);
 });
 
 test('without a banner the routed page still fills the shell', async () => {

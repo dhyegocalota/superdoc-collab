@@ -57,6 +57,7 @@ export function SuperDocEditor({
   isSuperseded,
   onTransportReport,
   onEditorUpdate,
+  onDocumentEdit,
 }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
@@ -95,6 +96,11 @@ export function SuperDocEditor({
       if (!isActive) return;
       onEditorUpdate();
     }
+    function reportDocumentEdit(): void {
+      if (!isActive) return;
+      onEditorUpdate();
+      onDocumentEdit();
+    }
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
@@ -109,7 +115,7 @@ export function SuperDocEditor({
         ...authorPaletteOf({ colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
-      onEditorUpdate: reportEditorUpdate,
+      onEditorUpdate: reportDocumentEdit,
       onPaginationUpdate: reportEditorUpdate,
       onCollaborationReady: () => {
         isReady = true;
@@ -132,7 +138,19 @@ export function SuperDocEditor({
       setIsCollaborationReady(false);
       setHasRejectedEdit(false);
     };
-  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport, onEditorUpdate]);
+  }, [
+    onSuperdocChange,
+    toolbarContainer,
+    documentId,
+    roomMode,
+    creatorTicket,
+    role,
+    user,
+    file,
+    onTransportReport,
+    onEditorUpdate,
+    onDocumentEdit,
+  ]);
 
   useCaretOnOpen({ containerRef, isEnabled: isCollaborationReady && role !== DocumentRole.Reader });
 

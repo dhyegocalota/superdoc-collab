@@ -237,3 +237,16 @@ test('it reports when editing starts and stops', async () => {
   await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
   expect(onEditingChange).toHaveBeenLastCalledWith(false);
 });
+
+test('the editing row has one uniform gap and no per-button margin', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const row = screen.getByLabelText(TITLE_LABEL).parentElement as HTMLElement;
+  expect(row).toHaveClass('gap-1.5');
+  expect(row.className).not.toMatch(/(^|\s)gap-1(\s|$)/);
+  [SAVE_TITLE_LABEL, CANCEL_TITLE_LABEL].forEach((name) => {
+    const button = screen.getByRole('button', { name });
+    expect(button.className).not.toMatch(/(^|\s)-?m[lr]-/);
+    expect((button.parentElement as HTMLElement).className).not.toMatch(/(^|\s)-?m[lr]-/);
+  });
+});

@@ -264,7 +264,7 @@ describe('admin routes', () => {
   test('simultaneous resets of one user each get their own working token', async () => {
     const server = await startTestServer();
     const eve = await signedInUser({ server, name: 'Eve' });
-    const created = await Promise.all([1, 2, 3, 4].map(() => server.services.passwordResets.create({ userId: eve.id, email: eve.email })));
+    const created = await Promise.all([1, 2, 3, 4].map(() => server.services.passwordResets.create({ email: eve.email })));
     const tokens = created.map(({ url }) => passwordResetTokenOf(url));
     expect(new Set(tokens).size).toBe(tokens.length);
     const statuses = await Promise.all(tokens.map(async (token) => (await resetPasswordWith({ server, token })).status));

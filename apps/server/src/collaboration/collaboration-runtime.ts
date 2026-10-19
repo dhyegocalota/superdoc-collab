@@ -92,9 +92,11 @@ export function createCollaborationRuntime({
       revokedConnections.forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
       console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
     },
-    closeConnectionsOfUser: () => {
-      throw new Error('closeConnectionsOfUser is not implemented');
-    },
+    closeConnectionsOfUser: (userId) =>
+      [...hocuspocus.documents.values()]
+        .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection))
+        .filter((connection) => (connection.context as CollaborationContext).userId === userId)
+        .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON })),
     roomModeFor: (parameters) => roomModes.resolve(parameters),
     isAttemptSuperseded: ({ documentId, attempt, epoch }) => {
       const isCommitted = bootstrap.isCommitted(documentId);

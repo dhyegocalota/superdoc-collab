@@ -3,19 +3,19 @@ import { PasswordResetLinkCapture, PasswordResetLinkNotCapturedError } from './p
 
 test('take returns the stored token and clears the slot', () => {
   const capture = new PasswordResetLinkCapture();
-  capture.store({ userId: 'user-one', token: 'token-one' });
-  expect(capture.take('user-one')).toBe('token-one');
-  expect(() => capture.take('user-one')).toThrow(PasswordResetLinkNotCapturedError);
+  capture.store({ nonce: 'nonce-one', token: 'token-one' });
+  expect(capture.take('nonce-one')).toBe('token-one');
+  expect(() => capture.take('nonce-one')).toThrow(PasswordResetLinkNotCapturedError);
 });
 
 test('take on an empty slot throws the named error', () => {
-  expect(() => new PasswordResetLinkCapture().take('user-one')).toThrow(PasswordResetLinkNotCapturedError);
+  expect(() => new PasswordResetLinkCapture().take('nonce-one')).toThrow(PasswordResetLinkNotCapturedError);
 });
 
-test('slots of different users do not mix', () => {
+test('slots of different requests do not mix', () => {
   const capture = new PasswordResetLinkCapture();
-  capture.store({ userId: 'user-one', token: 'token-one' });
-  capture.store({ userId: 'user-two', token: 'token-two' });
-  expect(capture.take('user-two')).toBe('token-two');
-  expect(capture.take('user-one')).toBe('token-one');
+  capture.store({ nonce: 'nonce-one', token: 'token-one' });
+  capture.store({ nonce: 'nonce-two', token: 'token-two' });
+  expect(capture.take('nonce-two')).toBe('token-two');
+  expect(capture.take('nonce-one')).toBe('token-one');
 });

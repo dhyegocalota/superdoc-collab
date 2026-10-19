@@ -1,6 +1,6 @@
 import { DAY_MS, HOUR_MS, MINUTE_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { MAX_BINS, NonAdvancingBinError, TooManyBinsError, binStartsCovering, buildBins, chooseBinMs, lastEventSequenceAt } from './bins';
+import { MAX_BINS, NonAdvancingBinError, TooManyBinsError, binStartsCovering, buildBins, chooseBinMs, eventSequenceLookup } from './bins';
 import type { EditRun } from './runs';
 import { offsetAt, zonedBinStartOf } from './zoned-time';
 
@@ -228,7 +228,18 @@ test('the version of a bin is the last event at or before its last instant, and 
     { sequence: 6, serverTime: 150 },
     { sequence: 9, serverTime: 300 },
   ];
-  expect(lastEventSequenceAt({ events, time: 199 })).toBe(6);
-  expect(lastEventSequenceAt({ events, time: 300 })).toBe(9);
-  expect(lastEventSequenceAt({ events, time: 99 })).toBeNull();
+  const lookup = eventSequenceLookup(events);
+  expect(lookup(199)).toBe(6);
+  expect(lookup(300)).toBe(9);
+  expect(lookup(99)).toBeNull();
+});
+
+const MANY_EVENTS = 200_000;
+
+test('the version lookup of a bin handles hundreds of thousands of events and unsorted input', () => {
+  const events = Array.from({ length: MANY_EVENTS }, (_, index) => ({ sequence: MANY_EVENTS - index, serverTime: MANY_EVENTS - index }));
+  const lookup = eventSequenceLookup(events);
+  expect(lookup(MANY_EVENTS)).toBe(MANY_EVENTS);
+  expect(lookup(1234)).toBe(1234);
+  expect(lookup(0)).toBeNull();
 });

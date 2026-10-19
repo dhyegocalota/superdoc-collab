@@ -112,14 +112,6 @@ export function buildBins({
   });
 }
 
-export function lastEventSequenceAt({
-  events,
-  time,
-}: {
-  events: Pick<TimelineEvent, 'sequence' | 'serverTime'>[];
-  time: number;
-}): number | null {
-  const sequences = events.filter((event) => event.serverTime <= time).map((event) => event.sequence);
-  if (sequences.length === 0) return null;
-  return Math.max(...sequences);
+export function eventSequenceLookup(_: Pick<TimelineEvent, 'sequence' | 'serverTime'>[]): (time: number) => number | null {
+  throw new Error('eventSequenceLookup is not implemented');
 }

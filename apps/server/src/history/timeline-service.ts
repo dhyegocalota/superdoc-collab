@@ -3,7 +3,7 @@ import {
   assignBlocks,
   authorKey,
   binStartsCovering,
-  lastEventSequenceAt,
+  eventSequenceLookup,
   nextZonedBinStart,
   buildBands,
   buildBins,
@@ -278,7 +278,7 @@ export function buildDocumentTimeline({
       binStarts,
       binMs: chosenBinMs,
       timeZone,
-      versionSequenceAt: (time) => versionSequenceOf({ events: pipeline.events, marks, time }),
+      versionSequenceAt: versionSequenceResolver({ events: pipeline.events, marks }),
     }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
@@ -290,10 +290,19 @@ export function buildDocumentTimeline({
 }
 
 // NB ADR 0043: a bin opens the exact sequence of its last event; only a bin before every event falls back to the first mark.
-function versionSequenceOf({ events, marks, time }: { events: TimelineEvent[]; marks: VersionMarkSummary[]; time: number }): number | null {
-  const eventSequence = lastEventSequenceAt({ events, time });
-  if (eventSequence !== null) return eventSequence;
-  return versionSequenceAt({ marks, time });
+function versionSequenceResolver({
+  events,
+  marks,
+}: {
+  events: TimelineEvent[];
+  marks: VersionMarkSummary[];
+}): (time: number) => number | null {
+  const lastEventSequenceAt = eventSequenceLookup(events);
+  return (time) => {
+    const eventSequence = lastEventSequenceAt(time);
+    if (eventSequence !== null) return eventSequence;
+    return versionSequenceAt({ marks, time });
+  };
 }
 
 export function buildBinEdits({

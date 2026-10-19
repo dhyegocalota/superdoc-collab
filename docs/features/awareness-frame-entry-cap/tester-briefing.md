@@ -4,7 +4,7 @@
 
 - `apps/server/src/collaboration/frame-bucket.ts`: `awarenessEntryCountOf` reads the payload length and the entry count of an awareness frame with the bounded varint reader.
 - `apps/server/src/collaboration/socket-message-limit.ts` and `attach-collaboration.ts`: a frame claiming more than `MAX_AWARENESS_ENTRIES_PER_FRAME` (64) entries is withheld from every listener and its socket closes with 1008 and `SOCKET_AWARENESS_ENTRIES_REASON`.
-- `apps/server/src/collaboration/awareness-origin.ts` and `collaboration-server.ts`: on the awareness `update` event, an id no connection holds joins its sender, and a sender touching an id another connection holds closes with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`.
+- `apps/server/src/collaboration/awareness-origin.ts` and `collaboration-server.ts`: on the awareness `update` event, an id no connection holds joins its sender, and a sender updating an id another connection holds closes with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`; a removal of such an id never closes it. `frame-bucket.ts` follows a varint to its last byte and treats an awareness frame with a varint over five bytes as claiming an unbounded entry count.
 - `libs/types/src/constants.ts`: the new cap and the origin reason. `apps/server/src/testing/socket-frames.ts`: the frame builder takes a clock and a state.
 - ADR 0040, the socket-message-limit spec and test plan, the collaboration rule, a learning and the index READMEs.
 
@@ -23,6 +23,8 @@ Red texts below are the ones recorded when the red commits landed; this develope
 | `attach-collaboration.test.ts::ids a closed connection left behind and a second connection replays leave with that second connection` (red 23022237) | the replayed states outlived their second connection | the replayed ids join the replayer and leave with it |
 | `attach-collaboration.test.ts::a connection updating an awareness id that another live connection holds is closed with the origin reason` and the removing twin (red 23022237) | the sender was never closed | the sender is closed with the origin reason |
 
+Security round: red 67f0da77 (padded varints: `expected null to be Infinity`, `expected false to be true`, end-to-end timeout with no close), fix 3da4d073; red d7e64933 (a removal relayed from a reconnect queue closed its sender: `expected { code: 1008, … } to be null`), fix 507f67b4.
+
 Pins (green when they landed): updating and removing its own id, a provider reconnecting in a loaded room, exactly 64 entries reaching the room handler, a relay at the held clock keeping both sockets open, eight ids in one frame and ids split over two frames.
 
 ## Hypotheses to attack
@@ -33,6 +35,9 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
 
 ## Known gaps
+
+- A forged update of a live peer's id at clock plus one is applied once before the close, and the victim spreads the forged fields afterwards.
+- Canonical frames of 64 fresh ids with a null state grow `awareness.meta` without any event for the checks.
 
 - A room holding more than 64 awareness states closes a provider that joins it.
 - A refused foreign update lands once before its sender is closed.

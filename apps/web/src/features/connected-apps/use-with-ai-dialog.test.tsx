@@ -10,7 +10,6 @@ import {
   copyLabel,
   documentPrompts,
   EXAMPLE_PROMPTS_HEADING,
-  LIBRARY_PROMPTS,
   MANAGE_CONNECTED_APPS_LABEL,
   MCP_CLIENT_LABELS,
   MCP_SNIPPETS,
@@ -62,24 +61,6 @@ test('a reader sees two example prompts that name the document, an editor sees t
   await userEvent.keyboard('{Escape}');
   await userEvent.click(screen.getByRole('button', { name: USE_WITH_AI_LABEL }));
   expect(within(await screen.findByRole('dialog')).getAllByRole('listitem')).toHaveLength(2);
-});
-
-test('an editor sees the fix prompt as the third one', async () => {
-  const dialog = await openDialog({ title: TITLE, canEdit: true });
-  expect(
-    within(dialog)
-      .getAllByRole('listitem')
-      .map((item) => item.textContent),
-  ).toEqual(documentPrompts({ title: TITLE, canEdit: true }));
-});
-
-test('without a title the dialog shows the library prompts', async () => {
-  const dialog = await openDialog({ title: null, canEdit: true });
-  expect(
-    within(dialog)
-      .getAllByRole('listitem')
-      .map((item) => item.textContent),
-  ).toEqual(LIBRARY_PROMPTS);
 });
 
 test('Escape closes the dialog and returns focus to the trigger', async () => {

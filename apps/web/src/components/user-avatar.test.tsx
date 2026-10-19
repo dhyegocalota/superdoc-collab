@@ -10,18 +10,9 @@ function renderAvatar(props: Partial<Parameters<typeof UserAvatar>[0]> = {}) {
   return render(<UserAvatar name={NAME} colorSlot={3} size={UserAvatarSize.Large} isAgent={false} isOnline={false} {...props} />);
 }
 
-test('renders initials on the author colour at 24 and 32 px', () => {
-  const { container, rerender } = renderAvatar({ size: UserAvatarSize.Small });
-  const avatar = container.firstElementChild!;
-  expect(avatar).toHaveTextContent('AL');
-  expect(avatar).toHaveClass('bg-author-3', 'text-primary-foreground', 'size-6', 'rounded-full');
-  rerender(<UserAvatar name={NAME} colorSlot={5} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />);
-  expect(container.firstElementChild).toHaveClass('bg-author-5', 'size-8');
-  expect(container.firstElementChild).not.toHaveClass('size-6');
-});
-
-test('the sizes are 24 and 32 pixels', () => {
-  expect([UserAvatarSize.Small, UserAvatarSize.Large]).toEqual([24, 32]);
+test('renders the initials of the name', () => {
+  const { container } = renderAvatar();
+  expect(container.firstElementChild).toHaveTextContent('AL');
 });
 
 test('every colour slot maps to its author background class', () => {

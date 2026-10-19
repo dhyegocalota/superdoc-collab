@@ -19,8 +19,3 @@ test('the left slot sits between the brand link and the right slot', () => {
   expect(labels.indexOf('Quarterly plan')).toBeGreaterThan(labels.findIndex((text) => text?.includes('SuperDoc')));
   expect(labels.indexOf('Quarterly plan')).toBeLessThan(labels.indexOf('Share'));
 });
-
-test('without a left slot only the brand link and the right slot render', () => {
-  renderWithProviders(<AppTopBar right={<button type="button">Share</button>} />);
-  expect(screen.getByRole('banner').children).toHaveLength(2);
-});

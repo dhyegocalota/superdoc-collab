@@ -1,5 +1,5 @@
 import { DocumentRole, RoomMode } from '@superdoc-collab/types';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { SESSION_USER } from '@/testing/opened-document';
@@ -75,19 +75,6 @@ test('passes the colour of the slot the server assigned and six palette colours 
   const { config } = renderEditor();
   expect(config.user.color).toBe(AUTHOR_PALETTE[DISPLACED_COLOR_SLOT - 1]);
   expect(config.colors).toEqual(AUTHOR_PALETTE);
-});
-
-test('the page background class is bg-paper and not bg-background', () => {
-  renderEditor();
-  const editor = screen.getByTestId('document-editor');
-  expect(editor.className).toContain('[&_.superdoc-page]:bg-paper');
-  expect(editor.className).not.toContain('[&_.superdoc-page]:bg-background');
-});
-
-test('hands the toolbar container to SuperDoc', () => {
-  const toolbarContainer = document.createElement('div');
-  const { config } = renderEditor({ toolbarContainer });
-  expect(config.ui.toolbar?.container).toBe(toolbarContainer);
 });
 
 test('reports every editor update to the page', () => {

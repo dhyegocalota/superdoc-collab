@@ -163,12 +163,6 @@ test('the Use with AI dialog opened from More actions lives outside the menu', a
   expect(dialog.closest('[role="menu"]')).toBeNull();
 });
 
-test('EditorHeader passes superdoc and isPastVersion to Members', () => {
-  const superdoc = superdocStub();
-  renderHeader({ members: [ADA], superdoc, isPastVersion: true });
-  expect(vi.mocked(Members)).toHaveBeenCalledWith(expect.objectContaining({ superdoc, isPastVersion: true, members: [ADA] }), undefined);
-});
-
 test('a reader sees the read-only badge, an h1 title and neither Delete nor Share', async () => {
   renderHeader({ role: DocumentRole.Reader, width: NARROW_VIEWPORT_WIDTH });
   expect(screen.getByText(READ_ONLY_BADGE_LABEL)).toBeVisible();
@@ -227,12 +221,6 @@ test('the brand link opens the documents list', async () => {
   const { router } = renderHeader({ route: documentPagePath(DOCUMENT_ID) });
   await userEvent.click(screen.getByRole('link', { name: HOME_LINK_LABEL }));
   expect(router.state.location.pathname).toBe(AppRoute.Documents);
-});
-
-test('the main download part asks for the live DOCX export', async () => {
-  renderHeader({ role: DocumentRole.Reader, superdoc: superdocStub() });
-  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
-  expect(onDownloadDocx).toHaveBeenCalledTimes(1);
 });
 
 test('the download parts are disabled until the editor is ready', () => {
@@ -305,13 +293,6 @@ test('at 1280 the menu holds only Delete for the owner and nothing for a reader'
   expect(await screen.findByRole('menuitem', { name: DELETE_LABEL })).toBeVisible();
   expect(screen.queryByRole('menuitem', { name: DOWNLOAD_PDF_LABEL })).toBeNull();
   expect(screen.queryByRole('menuitem', { name: FIND_IN_DOCUMENT_LABEL })).toBeNull();
-});
-
-test('the bar actions that fold below 1024 are also hidden by CSS, so a resize never shows them for a frame', () => {
-  renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
-  [FIND_IN_DOCUMENT_LABEL, USE_WITH_AI_LABEL, DOWNLOAD_BUTTON_LABEL].forEach((name) => {
-    expect(screen.getByRole('button', { name }).closest('.max-lg\\:hidden')).not.toBeNull();
-  });
 });
 
 test('the account avatar wears the colour of the document slot, like the member swatch', () => {

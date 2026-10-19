@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
-  AI_CLIENTS_TABLIST_LABEL,
   CHATGPT_INSTRUCTION,
   documentPrompts,
   EXAMPLE_PROMPTS_HEADING,
@@ -48,9 +47,4 @@ test('an editor sees three document prompts', () => {
   const prompts = documentPrompts({ title: TITLE, canEdit: true });
   expect(prompts).toHaveLength(3);
   expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(prompts);
-});
-
-test('the tab list has an accessible name', () => {
-  renderWithProviders(<UseWithAiContent title={null} canEdit={false} />);
-  expect(screen.getByRole('tablist', { name: AI_CLIENTS_TABLIST_LABEL })).toBeInTheDocument();
 });

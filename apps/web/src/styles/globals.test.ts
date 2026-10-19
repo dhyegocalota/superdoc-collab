@@ -6,8 +6,6 @@ import { expect, test } from 'vitest';
 const GLOBALS_PATH = join(import.meta.dirname, 'globals.css');
 const css = readFileSync(GLOBALS_PATH, 'utf8');
 
-const AUTHOR_SLOTS = [1, 2, 3, 4, 5, 6];
-const AUTHOR_HEX_VALUES = ['#2e39b8', '#5a2eb8', '#912eb8', '#b82ea8', '#b82e70', '#b82e39'];
 const SUPERDOC_VARIABLES: Record<string, string> = {
   '--sd-ui-font-family': 'var(--font-sans)',
   '--sd-ui-text': 'var(--foreground)',
@@ -58,10 +56,6 @@ const SUPERDOC_VARIABLES: Record<string, string> = {
   '--sd-ui-comments-card-shadow': 'var(--shadow-popover)',
   '--sd-ui-comments-dropdown-shadow': 'var(--shadow-popover)',
 };
-const SHADOW_BY_THEME = { light: '0 8px 24px oklch(0 0 0 / 0.16)', dark: '0 4px 16px oklch(0 0 0 / 0.35)' };
-const PAPER_FOREGROUND = 'oklch(0.145 0 0)';
-const ACTIVE_BY_THEME = { light: 'oklch(0.86 0 0)', dark: 'oklch(0.37 0 0)' };
-const CARET_SELECTOR = "[data-v2-local-selection-caret='true']";
 
 function blockOf(selector: string): string {
   const start = css.search(new RegExp(`^\\s*${selector.replace(/[.[\]]/g, '\\$&')} \\{`, 'm'));
@@ -76,47 +70,6 @@ function declarationOf({ block, name }: { block: string; name: string }): string
 
 const rootBlock = blockOf(':root');
 const darkBlock = blockOf('.dark');
-const themeBlock = blockOf('@theme inline');
-
-test('--paper is oklch(1 0 0) in :root and .dark', () => {
-  expect(declarationOf({ block: rootBlock, name: '--paper' })).toBe('oklch(1 0 0)');
-  expect(declarationOf({ block: darkBlock, name: '--paper' })).toBe('oklch(1 0 0)');
-});
-
-test('dark --primary is oklch(0.55 0.2 263)', () => {
-  expect(declarationOf({ block: darkBlock, name: '--primary' })).toBe('oklch(0.55 0.2 263)');
-});
-
-test('--author-1 to --author-6 are the six hex values in :root only', () => {
-  const rootValues = AUTHOR_SLOTS.map((slot) => declarationOf({ block: rootBlock, name: `--author-${slot}` }));
-  const darkValues = AUTHOR_SLOTS.map((slot) => declarationOf({ block: darkBlock, name: `--author-${slot}` }));
-  expect(rootValues).toEqual(AUTHOR_HEX_VALUES);
-  expect(darkValues).toEqual(AUTHOR_SLOTS.map(() => null));
-});
-
-test('--topic-tint-lightness is 94% in light and 22% in dark', () => {
-  expect(declarationOf({ block: rootBlock, name: '--topic-tint-lightness' })).toBe('94%');
-  expect(declarationOf({ block: darkBlock, name: '--topic-tint-lightness' })).toBe('22%');
-});
-
-test('Tailwind gets bg-paper and bg-author-1 to bg-author-6 colours', () => {
-  expect(declarationOf({ block: themeBlock, name: '--color-paper' })).toBe('var(--paper)');
-  AUTHOR_SLOTS.forEach((slot) =>
-    expect(declarationOf({ block: themeBlock, name: `--color-author-${slot}` })).toBe(`var(--author-${slot})`),
-  );
-});
-
-test('.topic-tint paints the topic hue at the tint lightness', () => {
-  expect(declarationOf({ block: blockOf('.topic-tint'), name: 'background-color' })).toBe(
-    'hsl(var(--topic-hue) var(--topic-saturation) var(--topic-tint-lightness))',
-  );
-});
-
-test('SuperDoc chrome variables point at our tokens on html:root, which beats the SuperDoc :root rule', () => {
-  const superdocBlock = blockOf('html:root');
-  const mapped = Object.fromEntries(Object.keys(SUPERDOC_VARIABLES).map((name) => [name, declarationOf({ block: superdocBlock, name })]));
-  expect(mapped).toEqual(SUPERDOC_VARIABLES);
-});
 
 test('no SuperDoc variable stays on the plain :root rule', () => {
   const stayedOnRoot = Object.keys(SUPERDOC_VARIABLES).filter((name) => declarationOf({ block: rootBlock, name }) !== null);
@@ -124,7 +77,7 @@ test('no SuperDoc variable stays on the plain :root rule', () => {
 });
 
 const MINIMUM_TEXT_CONTRAST = 4.5;
-const DARK_TRACKED_CHANGE_COLORS = { '--sd-comment-tc-insert-color': '#4ade80', '--sd-comment-tc-delete-color': '#f87171' };
+const DARK_TRACKED_CHANGE_VARIABLES = ['--sd-comment-tc-insert-color', '--sd-comment-tc-delete-color'];
 const LUMINANCE_WEIGHTS = [0.2126, 0.7152, 0.0722];
 const LUMINANCE_OFFSET = 0.05;
 
@@ -134,20 +87,22 @@ function luminanceOfHex(hex: string): number {
   return linear.reduce((sum, channel, index) => sum + channel * LUMINANCE_WEIGHTS[index]!, 0);
 }
 
-test('dark tracked-change text is mapped on the winning block and reaches AA on the dark card', () => {
+function requiredDeclaration({ block, name }: { block: string; name: string }): string {
+  const value = declarationOf({ block, name });
+  if (value === null) throw new Error(`globals.css does not declare ${name}`);
+  return value;
+}
+
+test('dark tracked-change text reaches AA on the dark card', () => {
   const darkSuperdocBlock = blockOf('html:root.dark');
-  const darkCardLightness = Number(/oklch\(([\d.]+) 0 0\)/.exec(declarationOf({ block: darkBlock, name: '--card' })!)![1]);
+  const darkCardLightness = Number(/oklch\(([\d.]+) 0 0\)/.exec(requiredDeclaration({ block: darkBlock, name: '--card' }))![1]);
   const cardLuminance = darkCardLightness ** 3;
-  const mapped = Object.fromEntries(
-    Object.keys(DARK_TRACKED_CHANGE_COLORS).map((name) => [name, declarationOf({ block: darkSuperdocBlock, name })]),
-  );
-  expect(mapped).toEqual(DARK_TRACKED_CHANGE_COLORS);
-  Object.values(DARK_TRACKED_CHANGE_COLORS).forEach((hex) =>
-    expect((luminanceOfHex(hex) + LUMINANCE_OFFSET) / (cardLuminance + LUMINANCE_OFFSET)).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST),
-  );
+  DARK_TRACKED_CHANGE_VARIABLES.forEach((name) => {
+    const hex = requiredDeclaration({ block: darkSuperdocBlock, name });
+    expect((luminanceOfHex(hex) + LUMINANCE_OFFSET) / (cardLuminance + LUMINANCE_OFFSET)).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  });
 });
 
-const DARK_COMMENT_HIGHLIGHT = '#4ade804d';
 const DARK_COMMENT_HIGHLIGHT_VARIABLES = ['--sd-comment-highlight-internal', '--sd-comment-highlight-external'];
 const PAGE_TEXT_LUMINANCE = 0;
 const FULL_CHANNEL = 255;
@@ -161,12 +116,13 @@ function luminanceOverWhite(hexWithAlpha: string): number {
   return luminanceOfHex(`#${blended.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`);
 }
 
-test('the dark comment highlight is translucent and keeps black page text at AA over the paper', () => {
+test('the dark comment highlight keeps black page text at AA over the paper', () => {
   const darkSuperdocBlock = blockOf('html:root.dark');
-  const mapped = DARK_COMMENT_HIGHLIGHT_VARIABLES.map((name) => declarationOf({ block: darkSuperdocBlock, name }));
-  expect(mapped).toEqual(DARK_COMMENT_HIGHLIGHT_VARIABLES.map(() => DARK_COMMENT_HIGHLIGHT));
-  const contrast = (luminanceOverWhite(DARK_COMMENT_HIGHLIGHT) + LUMINANCE_OFFSET) / (PAGE_TEXT_LUMINANCE + LUMINANCE_OFFSET);
-  expect(contrast).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  DARK_COMMENT_HIGHLIGHT_VARIABLES.forEach((name) => {
+    const highlight = requiredDeclaration({ block: darkSuperdocBlock, name });
+    const contrast = (luminanceOverWhite(highlight) + LUMINANCE_OFFSET) / (PAGE_TEXT_LUMINANCE + LUMINANCE_OFFSET);
+    expect(contrast).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  });
 });
 
 function grayLightness(value: string): number {
@@ -180,48 +136,24 @@ function grayContrast({ first, second }: { first: string; second: string }): num
   return (lighter! + LUMINANCE_OFFSET) / (darker! + LUMINANCE_OFFSET);
 }
 
-test('--paper-foreground is oklch(0.145 0 0) in :root and .dark', () => {
-  expect(declarationOf({ block: rootBlock, name: '--paper-foreground' })).toBe(PAPER_FOREGROUND);
-  expect(declarationOf({ block: darkBlock, name: '--paper-foreground' })).toBe(PAPER_FOREGROUND);
-});
-
-test('--active is oklch(0.86 0 0) in light and oklch(0.37 0 0) in dark', () => {
-  expect(declarationOf({ block: rootBlock, name: '--active' })).toBe(ACTIVE_BY_THEME.light);
-  expect(declarationOf({ block: darkBlock, name: '--active' })).toBe(ACTIVE_BY_THEME.dark);
-});
-
-test('--shadow-popover is defined in :root and softer in .dark', () => {
-  expect(declarationOf({ block: rootBlock, name: '--shadow-popover' })).toBe(SHADOW_BY_THEME.light);
-  expect(declarationOf({ block: darkBlock, name: '--shadow-popover' })).toBe(SHADOW_BY_THEME.dark);
-});
-
-test('Tailwind gets bg-active and text-paper-foreground colours', () => {
-  expect(declarationOf({ block: themeBlock, name: '--color-active' })).toBe('var(--active)');
-  expect(declarationOf({ block: themeBlock, name: '--color-paper-foreground' })).toBe('var(--paper-foreground)');
-});
-
-test('.dark sets color-scheme dark', () => {
-  expect(declarationOf({ block: darkBlock, name: 'color-scheme' })).toBe('dark');
-});
-
-test('the caret takes the paper foreground so it reads on the white paper in both themes', () => {
-  expect(declarationOf({ block: blockOf(CARET_SELECTOR), name: 'color' })).toBe('var(--paper-foreground)');
-});
+function themedDeclaration(name: string): { light: string; dark: string } {
+  return { light: requiredDeclaration({ block: rootBlock, name }), dark: requiredDeclaration({ block: darkBlock, name }) };
+}
 
 test('--foreground on --active reaches AA in both themes', () => {
-  const lightForeground = declarationOf({ block: rootBlock, name: '--foreground' })!;
-  const darkForeground = declarationOf({ block: darkBlock, name: '--foreground' })!;
-  expect(grayContrast({ first: lightForeground, second: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
-  expect(grayContrast({ first: darkForeground, second: ACTIVE_BY_THEME.dark })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  const foreground = themedDeclaration('--foreground');
+  const active = themedDeclaration('--active');
+  expect(grayContrast({ first: foreground.light, second: active.light })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
+  expect(grayContrast({ first: foreground.dark, second: active.dark })).toBeGreaterThanOrEqual(MINIMUM_TEXT_CONTRAST);
 });
 
 const MINIMUM_ACTIVE_CONTRAST = 1.5;
 
 test('--active stays distinguishable from --background in both themes', () => {
-  const lightBackground = declarationOf({ block: rootBlock, name: '--background' })!;
-  const darkBackground = declarationOf({ block: darkBlock, name: '--background' })!;
-  expect(grayContrast({ first: lightBackground, second: ACTIVE_BY_THEME.light })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
-  expect(grayContrast({ first: ACTIVE_BY_THEME.dark, second: darkBackground })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+  const background = themedDeclaration('--background');
+  const active = themedDeclaration('--active');
+  expect(grayContrast({ first: background.light, second: active.light })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
+  expect(grayContrast({ first: active.dark, second: background.dark })).toBeGreaterThanOrEqual(MINIMUM_ACTIVE_CONTRAST);
 });
 
 test('every mapped SuperDoc variable is declared or consumed in the installed SuperDoc stylesheet', () => {

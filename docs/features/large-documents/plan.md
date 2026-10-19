@@ -23,20 +23,20 @@ One developer, in order: docs, import gate, heap sizing, creator recovery, Scale
 
 ### G3
 
-- [ ] **Step 1:** the feature folder and its index row.
+- [x] **Step 1:** the feature folder and its index row.
 
 ### G1
 
-- [ ] **Step 2:** red test for the import gate in the projection handler's unit file, then the cap constant and the gate.
-- [ ] **Step 3:** red tests for the environment variable and the worker option, then the parsing, the scheduler option and the entrypoint.
+- [x] **Step 2:** red test for the import gate in the projection handler's unit file, then the cap constant and the gate.
+- [x] **Step 3:** red tests for the environment variable and the worker option, then the parsing, the scheduler option and the entrypoint. The SuperDoc host process has no memory option in the SDK; the size gate is its only protection.
 
 ### G2
 
-- [ ] **Step 4:** red tests for the restart refusal reason, the members answer and the page's branch per reason, then the code and the ADR 0033 consequence.
+- [x] **Step 4:** red tests for the restart refusal reason, the members answer and the page's branch per reason, then the code and the ADR 0033 consequence.
 
 ### G3
 
-- [ ] **Step 5:** the Scale row in `docs/next.md`.
+- [x] **Step 5:** the Scale row in `docs/next.md`.
 
 ## Failure modes
 

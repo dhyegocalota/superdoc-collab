@@ -46,3 +46,8 @@
 - [ ] ⌘⇧N pressed in the same tick as Enter (no gap at all) — FAILED: the first paragraph lost the heading and the second became the heading ("Walk heading" 13.3 px, "Bold body text" 26.7 px); a human cannot press keys in the same tick, so this is a note and not a defect; .pr-media/testing2/shortcuts-heading-rapid-sequence-1280.png
 - [ ] ⌘P on the editor — BLOCKED: Download PDF calls window.print(), which opens the native print dialog and froze the Playwright MCP server for about 5 minutes (it recovered with a blank page); the hint and the key binding are proven only by the dialog and menu text
 - [x] Console at error level during the whole walk — evidence: 0 errors in the editor; the 401s after archiving belong to the archive plan
+
+## Retest 2026-10-19 (second walk)
+
+- [x] Title Save and Cancel tooltips after lane-shortcuts added the hints — evidence: with a changed title, Save reads "Save Enter" and Cancel "Cancel Esc"; .pr-media/testing2/title-save-tooltip-retest-1280.png, .pr-media/testing2/title-cancel-tooltip-retest-1280.png
+- [ ] The title row's Cancel is an outlined box — FAILED: in this worktree (HEAD e799a0a5) the Cancel button is `variant="ghost"`, computed border 0 px, transparent background, a bare "×" next to the filled blue Save; `document-title.tsx` line 130 still passes `variant="ghost"`; .pr-media/testing2/title-row-edit-state-1280.png. The change is not in lane/testing2.

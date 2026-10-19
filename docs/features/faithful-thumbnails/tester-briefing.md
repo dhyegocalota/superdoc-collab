@@ -30,3 +30,12 @@
 - Opening a document as an editor uploads once after the first pagination even without typing.
 
 **Not covered.** There is no limit on how often an editor may PUT; each write is at most 200 KB and replaces the previous file.
+
+## Tester run 2026-10-19
+
+Walk on the scenario stack at 1280 and 375. Unit and E2E boxes were not re-run in this lane.
+
+- Confirmed: after typing, 11 s and a return home the card shows a 320 by 414 image of the page with heading, bold text and images, in the editor's font and weight; a never-opened document keeps the text preview; a reader sends no thumbnail request; leaving inside 8 s keeps the previous image with no console error; 415, 413, 404 and delete-cleanup behave as written.
+- Confirmed hypothesis: opening a document as an editor uploads once without typing.
+- Noted: the server checks only the magic bytes, so a header-only WebP of 200 KB is stored; the card falls back to the text preview. Exactly 200 KB is accepted, one byte more gives 413.
+- Console at error level: 0 on the capture, leave-early and reader flows.

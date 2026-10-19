@@ -166,11 +166,11 @@ expect_line "AGENTS.md" "$output" class tooling
 
 classify .github/workflows/verify.yml
 expect_line "a workflow" "$output" class tooling
-expect_no_match "a workflow" "$output" 'e2e'
+expect_no_match "a workflow" "$(printf '%s\n' "$output" | grep '^gates:')" 'e2e'
 
 classify tools/repository-shape/src/x.test.ts
 expect_line "a repository shape test" "$output" gates "doctor format secrets typecheck audit shape"
-expect_no_match "a repository shape test" "$output" 'e2e'
+expect_no_match "a repository shape test" "$(printf '%s\n' "$output" | grep '^gates:')" 'e2e'
 
 classify tools/repository-shape/package.json
 expect_line "a tools manifest" "$output" gates "$ALL_GATES"

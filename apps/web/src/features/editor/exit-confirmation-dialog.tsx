@@ -18,20 +18,22 @@ type ExitConfirmationDialogProps = { isUnsynced: boolean; onDownload: () => void
 
 export function ExitConfirmationDialog({ isUnsynced, onDownload }: ExitConfirmationDialogProps) {
   const blocker = useBlocker(isUnsynced);
-  const isBlocked = blocker.state === BLOCKED_STATE;
-  const shouldProceed = isBlocked && !isUnsynced;
 
   useEffect(() => {
+    const shouldProceed = blocker.state === BLOCKED_STATE && !isUnsynced;
     if (shouldProceed) blocker.proceed();
-  }, [shouldProceed, blocker]);
+  }, [blocker, isUnsynced]);
+
+  if (blocker.state !== BLOCKED_STATE) return null;
+
+  const { proceed, reset } = blocker;
 
   function handleOpenChange(isOpen: boolean): void {
-    if (isOpen || !isBlocked) return;
-    blocker.reset();
+    if (!isOpen) reset();
   }
 
   return (
-    <AlertDialog open={isBlocked} onOpenChange={handleOpenChange}>
+    <AlertDialog open onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{EXIT_CONFIRMATION_TITLE}</AlertDialogTitle>
@@ -42,7 +44,7 @@ export function ExitConfirmationDialog({ isUnsynced, onDownload }: ExitConfirmat
           <Button variant="outline" onClick={onDownload}>
             {DOWNLOAD_BUTTON_LABEL}
           </Button>
-          <Button variant="destructive" onClick={() => blocker.proceed()}>
+          <Button variant="destructive" onClick={proceed}>
             {LEAVE_LABEL}
           </Button>
         </AlertDialogFooter>

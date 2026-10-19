@@ -68,16 +68,12 @@ export class AdminUsersRepository {
     return row.email;
   }
 
-  countAdmins(): number {
-    return this.database.drizzle.select({ id: user.id }).from(user).where(eq(user.role, UserRole.Admin)).all().length;
-  }
-
   setRole({ id, role }: { id: string; role: UserRole }): SetRoleOutcome {
     return this.database.drizzle.transaction((transaction) => {
-      const row = transaction.select({ role: user.role }).from(user).where(eq(user.id, id)).get();
+      const row = transaction.select({ role: user.role, banned: user.banned }).from(user).where(eq(user.id, id)).get();
       if (!row) return SetRoleOutcome.NotFound;
-      const demotesAnAdmin = row.role === UserRole.Admin && role === UserRole.User;
-      if (demotesAnAdmin && this.countAdmins() === 1) return SetRoleOutcome.LastAdmin;
+      const demotesAnActiveAdmin = row.role === UserRole.Admin && !row.banned && role === UserRole.User;
+      if (demotesAnActiveAdmin && this.countActiveAdmins() === 1) return SetRoleOutcome.LastAdmin;
       transaction.update(user).set({ role }).where(eq(user.id, id)).run();
       return SetRoleOutcome.Updated;
     });

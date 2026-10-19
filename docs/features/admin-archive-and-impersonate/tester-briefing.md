@@ -48,7 +48,6 @@ The commit `69704600` is not self-contained: it missed the shell files, which `a
 - Deviation from the spec: the better-auth `banUser` already deletes the user's sessions, so `revokeUserSessions` is not called.
 - Deviation from the spec: Impersonate is also hidden for admin rows, because the plugin refuses admin targets (`allowImpersonatingAdmins` stays unset); the route answers 400 with its own message.
 - Deviation from the spec: the banner sits above each page's own top bar, because every page draws its own top bar and there is no shared one.
-- The role toggle's last-admin rule still counts archived admins, so demoting the only active admin is allowed when an archived admin exists. Archive guards use active admins only.
 - The 409 for the last admin is reachable only when the sole active admin archives themself; with two admins that case is a 400.
 - A page that fills the viewport with a fixed height (the editor) scrolls by the banner's height while impersonating; the editor is another lane's file and was not touched.
 - Not run: the Playwright MCP walk, the one-hour expiry edge case, the version viewer and MCP client after archiving.

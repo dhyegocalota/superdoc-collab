@@ -6,9 +6,9 @@
 
 ## Steps
 
-- [ ] **Step 1:** red: the admin page unit test (one button per row, the menu lists the actions, each action through the menu) and the E2E spec opening the menu first.
-- [ ] **Step 2:** green: `UserActionsMenu` replaces the role toggle, reset, archive, restore and impersonate buttons.
-- [ ] **Step 3:** typecheck, changed unit files, the admin E2E spec.
+- [x] **Step 1:** red: the admin page unit test (one button per row, the menu lists the actions, each action through the menu) and the E2E spec opening the menu first.
+- [x] **Step 2:** green: `UserActionsMenu` replaces the role toggle, reset, archive, restore and impersonate buttons.
+- [x] **Step 3:** typecheck, changed unit files, the admin E2E spec.
 
 ## Failure modes
 

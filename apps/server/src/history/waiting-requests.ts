@@ -48,6 +48,14 @@ export class WaitingRequests {
     return true;
   }
 
+  has(request: ServedRequest): boolean {
+    return this.waiting.has(keyOfRequest(request));
+  }
+
+  pendingOfKind(kind: ServedRequest['kind']): number {
+    return [...this.waiting.values()].filter((waiting) => waiting.request.kind === kind).length;
+  }
+
   resolve(reply: ServedReply): void {
     const entry = this.take(requestKeyOf(reply));
     if (entry) entry.waiters.forEach(({ resolve }) => resolve(reply));

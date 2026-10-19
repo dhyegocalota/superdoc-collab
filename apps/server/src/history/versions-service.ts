@@ -1,9 +1,16 @@
 import { resolveMark, type ReadModel, type ResolvedVersion, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
-import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
+import {
+  MINUTE_MS,
+  VERSION_CACHE_MAX_BYTES,
+  VERSION_CACHE_SIZE,
+  VERSION_FAILURE_TTL_MS,
+  VERSION_LOADS_PER_MINUTE,
+} from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
+import { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import { LruMap } from '../limits/lru-map';
 import { describeError } from '../logging/describe-error';
-import { ProjectionStoppedError } from './projection-messages';
+import { ProjectionBusyError, ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 
 const VERSION_LOAD_FAILED_MESSAGE = 'Loading a version failed for';
@@ -92,6 +99,7 @@ export class VersionsService {
   private readonly loading = new Map<string, Promise<LoadedVersion>>();
   private readonly failures = new KeyedCooldown({ durationMs: VERSION_FAILURE_TTL_MS });
   private readonly generations = new Map<string, number>();
+  private readonly loadBudget = new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: VERSION_LOADS_PER_MINUTE });
 
   constructor({
     readModel,
@@ -123,6 +131,8 @@ export class VersionsService {
     if (!lookup) throw new VersionNotReadyError(endpoint.documentId);
     if (lookup.cached) return { kind: VersionLookupKind.Ready, version: lookup.cached };
     if (this.isFailedRecently(lookup.key)) return { kind: VersionLookupKind.Failed };
+    const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
+    if (retryAfterMs !== null) return { kind: VersionLookupKind.Throttled, retryAfterMs };
     this.load(endpoint).catch(() => undefined);
     return { kind: VersionLookupKind.Pending };
   }
@@ -134,6 +144,9 @@ export class VersionsService {
     if (this.isFailedRecently(lookup.key)) return Promise.reject(new VersionLoadFailedError(lookup.key));
     const inFlight = this.loading.get(lookup.key);
     if (inFlight) return inFlight;
+    const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
+    if (retryAfterMs !== null) return Promise.reject(new VersionThrottledError(retryAfterMs));
+    this.loadBudget.record(endpoint.userId);
     return this.start({ key: lookup.key, documentId: endpoint.documentId, sequence: lookup.sequence });
   }
 
@@ -142,6 +155,12 @@ export class VersionsService {
     keysOfDocument({ keys: this.cache.keys(), documentId }).forEach((key) => this.cache.delete(key));
     keysOfDocument({ keys: this.failures.keys(), documentId }).forEach((key) => this.failures.forget(key));
     keysOfDocument({ keys: this.loading.keys(), documentId }).forEach((key) => this.loading.delete(key));
+  }
+
+  // NB ADR 0044: only a build that is not cached, in flight or failed spends the user's minute budget.
+  private throttledForMs({ key, userId }: { key: string; userId: string }): number | null {
+    if (this.loading.has(key)) return null;
+    return this.loadBudget.waitMs(userId);
   }
 
   private cachedLookup(endpoint: VersionLoadRequest): CachedLookup | null {
@@ -197,7 +216,7 @@ export class VersionsService {
   }): void {
     if (generation !== this.generationOf(documentId)) return;
     this.failures.start(key);
-    if (error instanceof ProjectionStoppedError) return;
+    if (error instanceof ProjectionStoppedError || error instanceof ProjectionBusyError) return;
     console.error(`${VERSION_LOAD_FAILED_MESSAGE} ${key}: ${describeError(error)}`);
   }
 

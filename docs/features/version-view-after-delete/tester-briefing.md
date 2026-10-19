@@ -28,6 +28,9 @@ pnpm test:e2e e2e/time-travel.spec.ts
 | `bins.test.ts::the version of a bin is the last event at or before its last instant…` | stub threw `lastEventSequenceAt is not implemented` | exact last event |
 | `timeline-routes.test.ts::a bin opens the sequence of its own last event, not the mark of its minute` | pin (the fix landed in 8cc6f830; with no marks the old code answered null) | each filled bin answers its own last event |
 | `e2e/time-travel.spec.ts::selecting the bin of an edit shows the edited paragraph when the delete is in the next bin` | mutation: with the bin sequence taken from the minute mark it received the seed text without the paragraph | the bin shows `Added line edited` |
+| `versions-routes.test.ts::the load after a user spent the minute budget is throttled…` | the thirty-first miss resolved (b7c22aba) | rejects with the throttled error; a cached hit and another user are unaffected |
+| `versions-routes.test.ts::the text route answers 429 with Retry-After…` | answered 200 | 429 with a positive `Retry-After` |
+| `projection-scheduler.test.ts::above the pending cap a version is refused instead of queued` | the request ended in `MissingVersionMarkError`, so it was queued | `ProjectionBusyError` |
 | `time-travel.test.tsx::an edit row opens the version after that edit` | no button on the edit row | button pins `sequence` |
 | `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` | no edit row button | edit row opens the edited paragraph |
 
@@ -39,7 +42,12 @@ pnpm test:e2e e2e/time-travel.spec.ts
 4. Hypothesis: an unknown sequence in the URL clamps like before. Break it by: `?sequence=999999`.
 5. Hypothesis: scrubbing exact versions stays inside the cache bounds. Break it by: opening more than sixteen edit rows in turn.
 
+5. Hypothesis: a person scrubbing the timeline never meets 429. Break it by: clicking thirty-one different edit rows within a minute.
+6. Hypothesis: a busy queue answers 503 with Retry-After and recovers. Break it by: many readers opening distinct versions of a large log at once.
+
 ## Known gaps
+
+- The version room open path counts against the same budget through its load; a refusal there closes the viewer without a 429 body.
 
 - A bin click shows the exact state at the bin's last event. A delete in the same bin still blanks the bin version; a delete in the next bin does not. The edit row shows the document after its own edit in either case.
 - The new bin E2E waits up to about 30 s of wall clock to keep the edits and the delete in one minute.

@@ -12,7 +12,7 @@ sed -i.bak "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -base64 48)|; s|^APP_OR
 docker compose --env-file .env -f docker/docker-compose.local.yml up --build -d
 ```
 
-The compose file pins the project name `superdoc-collab`, so a data volume created before the files moved under `docker/` keeps working.
+The local compose file runs as project `superdoc-collab-local`, apart from the production file. A data volume created before the compose files moved under `docker/` is not carried over: `docker volume ls` shows it, and you copy its data or discard it.
 
 Open <http://localhost:3000> and claim the instance: the first account you create becomes the administrator. `docker compose --env-file .env -f docker/docker-compose.local.yml down -v` erases all data and returns the instance to unclaimed. The healthcheck calls `/api/health`.
 

@@ -1,4 +1,4 @@
-name: superdoc-collab
+name: superdoc-collab-local
 services:
   app:
     build:

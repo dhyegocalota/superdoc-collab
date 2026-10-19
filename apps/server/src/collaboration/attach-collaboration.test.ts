@@ -1,13 +1,17 @@
 import {
   ApiPath,
+  ClientActor,
+  DocumentRole,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
@@ -27,19 +31,42 @@ import type { AddressInfo } from 'node:net';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
-import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
-import { awarenessFrame, awarenessFrameClaiming } from '../testing/socket-frames';
+import {
+  CollaborationRefusedError,
+  connectAgentToDocument,
+  connectToDocument,
+  documentWithOwner,
+  memberWithRole,
+} from '../testing/collaboration-client';
+import { commitBootstrap, waitForCommit } from '../testing/committed-room';
+import { awarenessFrame, awarenessFrameClaiming, PaddedVarintField, paddedAwarenessFrame } from '../testing/socket-frames';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { Auth } from '../auth/auth';
 import { attachCollaboration } from './attach-collaboration';
+import { AWARENESS_DROP_LOG, AWARENESS_IDS_LOG } from './collaboration-server';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
 const TYPING_BURST_FRAMES = 600;
 const AWARENESS_BURST_FRAMES = 3000;
 const AWARENESS_ROOM_NAME = 'superdoc-room-1';
+const CLAIMED_ID_BASE = 1_000_000;
+const SECOND_CLAIMED_ID_BASE = 2_000_000;
+const SPLIT_CLAIM_IDS_PER_FRAME = 5;
+const PADDED_ENTRY_COUNT = 100_000;
+const OVERCLAIMING_BURST_FRAMES = 10;
+const PINNED_CLOCK = 2 ** 53;
+const JUST_UNDER_CEILING_CLOCK = 2 ** 52 - 1;
+const HELD_CLOCK = 1;
+const REFUSED_BURST_FRAMES = 5;
+const FORGED_STATE = { userId: 'forged' };
+const TRUNCATED_STATE_BYTES = 3;
+const REPLAY_CLOCK = 2;
+const REPLAYED_ID_COUNT = 5;
+const OWN_UPDATES = 5;
+const RECONNECTED_CURSOR = 99;
 const UNMASKED_BINARY_FRAME = Buffer.from([0x82, 0x01, 0x00]);
 const FOREIGN_ORIGIN = 'https://evil.example';
 const HEALTH_OK_STATUS = 200;
@@ -511,29 +538,109 @@ test('the awareness frame past its own cap closes the socket with 1008 and nothi
   await new Promise((resolve) => httpServer.close(resolve));
 });
 
-async function sendClaimingFrame({ clientIds }: { clientIds: number[] }) {
-  const { server, documentId, owner } = await documentWithOwner();
-  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+async function connectWatched({ server, documentId, cookie }: { server: TestServer; documentId: string; cookie: string }) {
+  const client = await connectToDocument({ server, cookie, documentId });
   let closedSocket: { code: number; reason: string } | null = null;
   void client.closed.then((event) => (closedSocket = event));
+  const closedSockets: { code: number; reason: string }[] = [];
+  client.provider.on('close', ({ event }: { event: { code: number; reason: string } }) =>
+    closedSockets.push({ code: event.code, reason: event.reason }),
+  );
   const roomName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
   const webSocket = client.provider.configuration.websocketProvider.webSocket!;
-  webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName, clientIds })));
-  return { server, client, closedSocket: () => closedSocket, webSocket, roomName };
+  return { client, closedSocket: () => closedSocket, closedSockets: () => closedSockets, webSocket, roomName };
 }
 
-const CLAIMED_ID_BASE = 1_000_000;
+async function sendClaimingFrame({ clientIds, clock }: { clientIds: number[]; clock?: number }) {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
+  connection.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: connection.roomName, clientIds, clock })));
+  return { server, ...connection };
+}
 
-test('an awareness frame claiming one client id more than the connection cap closes the socket with 1008', async () => {
-  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 }, (_, index) => CLAIMED_ID_BASE + index);
+function claimedIds({ base, count }: { base: number; count: number }): number[] {
+  return Array.from({ length: count }, (_, index) => base + index);
+}
+
+function isKnownToAwareness({ server, clientId }: { server: TestServer; clientId: number }): boolean {
+  return [...server.services.hocuspocus.documents.values()].some((document) => document.awareness.meta.has(clientId));
+}
+
+test('an awareness frame claiming one entry more than the frame cap closes the socket with 1008 before the room decodes it', async () => {
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 });
   const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
+  await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ENTRIES_REASON });
+  expect(clientIds.some((clientId) => isKnownToAwareness({ server, clientId }))).toBe(false);
+  client.close();
+  await server.stop();
+});
+
+test('one frame claiming one client id more than the connection cap closes the socket with the client ids reason and a log line', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
+  await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+  expect(warn).toHaveBeenCalledWith(AWARENESS_IDS_LOG);
+  warn.mockRestore();
+  client.close();
+  await server.stop();
+});
+
+test('claims split over frames that together pass the connection cap close the socket with the client ids reason', async () => {
+  const firstIds = claimedIds({ base: CLAIMED_ID_BASE, count: SPLIT_CLAIM_IDS_PER_FRAME });
+  const secondIds = claimedIds({ base: SECOND_CLAIMED_ID_BASE, count: SPLIT_CLAIM_IDS_PER_FRAME });
+  const { server, client, closedSocket, webSocket, roomName } = await sendClaimingFrame({ clientIds: firstIds });
+  webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName, clientIds: secondIds })));
   await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
   client.close();
   await server.stop();
 });
 
+Object.values(PaddedVarintField).forEach((paddedField) =>
+  test(`an awareness frame with a padded ${paddedField} never reaches the room handler and closes the socket with 1008`, async () => {
+    const { socket, closed, received, httpServer } = await openCountedSocket();
+    socket.send(paddedAwarenessFrame({ roomName: AWARENESS_ROOM_NAME, paddedField, claimedEntryCount: PADDED_ENTRY_COUNT }));
+    expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+    expect(received).not.toHaveBeenCalled();
+    await new Promise((resolve) => httpServer.close(resolve));
+  }),
+);
+
+test('a burst of overclaiming frames logs one line and closes once', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { socket, closed, httpServer } = await openCountedSocket();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 });
+  Array.from({ length: OVERCLAIMING_BURST_FRAMES }).forEach(() =>
+    socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds })),
+  );
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(warn).toHaveBeenCalledTimes(1);
+  warn.mockRestore();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('a frame claiming exactly the frame cap of entries reaches the room handler and keeps the socket open', async () => {
+  const { socket, received, httpServer } = await openCountedSocket();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME });
+  socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds }));
+  await expect.poll(() => received.mock.calls.length).toBe(1);
+  expect(socket.readyState).toBe(WebSocket.OPEN);
+  socket.close();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('the frame claiming too many entries never reaches the room handler and nothing after it does', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 });
+  socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds }));
+  socket.send(awarenessFrame(AWARENESS_ROOM_NAME));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
 test('an awareness frame claiming exactly the connection cap of client ids keeps the socket open', async () => {
-  const clientIds = Array.from({ length: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION }, (_, index) => CLAIMED_ID_BASE + index);
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION });
   const { server, client, closedSocket, webSocket } = await sendClaimingFrame({ clientIds });
   await expect
     .poll(() =>
@@ -543,5 +650,361 @@ test('an awareness frame claiming exactly the connection cap of client ids keeps
   expect(closedSocket()).toBeNull();
   expect(webSocket.readyState).toBe(WebSocket.OPEN);
   client.close();
+  await server.stop();
+});
+
+function awarenessStateCount({ server, clientIds }: { server: TestServer; clientIds: number[] }): number {
+  return [...server.services.hocuspocus.documents.values()].reduce(
+    (count, document) => count + clientIds.filter((clientId) => document.awareness.getStates().has(clientId)).length,
+    0,
+  );
+}
+
+test('ids a closed connection left behind and a second connection replays leave with that second connection', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  const anchor = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const first = await connectWatched({ server, documentId, cookie: owner.cookie });
+  first.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: first.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  first.client.close();
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(0);
+  const replayer = await connectWatched({ server, documentId, cookie: owner.cookie });
+  replayer.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: replayer.roomName, clientIds, clock: REPLAY_CLOCK })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  replayer.client.close();
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(0);
+  expect(anchor.closedSocket()).toBeNull();
+  anchor.client.close();
+  await server.stop();
+});
+
+function serverCursorOf({ server, clientId }: { server: TestServer; clientId: number }): unknown {
+  return [...server.services.hocuspocus.documents.values()]
+    .map((document) => (document.awareness.getStates().get(clientId) as { cursor?: unknown } | undefined)?.cursor)
+    .find((cursor) => cursor !== undefined);
+}
+
+function highestAwarenessClock({ server, clientIds }: { server: TestServer; clientIds: number[] }): number {
+  const clocks = [...server.services.hocuspocus.documents.values()].flatMap((document) =>
+    clientIds.flatMap((clientId) => {
+      const meta = document.awareness.meta.get(clientId);
+      return meta === undefined ? [] : [meta.clock];
+    }),
+  );
+  return Math.max(...clocks);
+}
+
+function stateUserIdOf({ server, clientId }: { server: TestServer; clientId: number }): unknown {
+  return [...server.services.hocuspocus.documents.values()]
+    .map((document) => (document.awareness.getStates().get(clientId) as { userId?: unknown } | undefined)?.userId)
+    .find((userId) => userId !== undefined);
+}
+
+async function holderOfClaimedIds({ hasSameUser }: { hasSameUser: boolean }) {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  const holder = await connectWatched({ server, documentId, cookie: owner.cookie });
+  holder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: holder.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  const intruderCookie = hasSameUser ? owner.cookie : (await memberWithRole({ server, documentId, role: DocumentRole.Editor })).cookie;
+  const intruder = await connectWatched({ server, documentId, cookie: intruderCookie });
+  return { server, clientIds, holder, intruder };
+}
+
+async function expectDropped({ server, clientIds, holder, intruder }: Awaited<ReturnType<typeof holderOfClaimedIds>>): Promise<void> {
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
+  expect(intruder.webSocket.readyState).toBe(WebSocket.OPEN);
+  expect(holder.closedSocket()).toBeNull();
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(REPLAY_CLOCK);
+  expect(clientIds.map((clientId) => stateUserIdOf({ server, clientId }))).not.toContain(FORGED_STATE.userId);
+}
+
+test('a connection of another user updating an awareness id that a live connection holds is dropped, keeps its socket and logs a line', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const scenario = await holderOfClaimedIds({ hasSameUser: false });
+  const { clientIds, intruder } = scenario;
+  const forgery = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: FORGED_STATE });
+  intruder.webSocket.send(new Uint8Array(forgery));
+  await expectDropped(scenario);
+  expect(warn).toHaveBeenCalledWith(AWARENESS_DROP_LOG);
+  warn.mockRestore();
+  scenario.holder.client.close();
+  intruder.client.close();
+  await scenario.server.stop();
+});
+
+test('refused awareness frames from one socket log one line', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const scenario = await holderOfClaimedIds({ hasSameUser: false });
+  const { clientIds, intruder } = scenario;
+  const forgery = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: FORGED_STATE });
+  Array.from({ length: REFUSED_BURST_FRAMES }).forEach(() => intruder.webSocket.send(new Uint8Array(forgery)));
+  await expectDropped(scenario);
+  expect(warn.mock.calls.filter(([line]) => line === AWARENESS_DROP_LOG)).toHaveLength(1);
+  warn.mockRestore();
+  scenario.holder.client.close();
+  intruder.client.close();
+  await scenario.server.stop();
+});
+
+test('an id recorded for a user before the room loaded stays with its author: another user announcing it is dropped and the author passes', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  clientIds.forEach((yjsClientId) =>
+    server.services.updateLog.declareClientIdentity({ documentName: documentId, yjsClientId, userId: owner.id, actor: ClientActor.Human }),
+  );
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  attacker.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds })));
+  attacker.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: attacker.client.document.clientID })).toBe(0);
+  expect(awarenessStateCount({ server, clientIds })).toBe(0);
+  expect(attacker.closedSocket()).toBeNull();
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(victim.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
+});
+
+test('an id observed under its owner before the room loaded seeds the binding: another user announcing it is dropped and the owner passes', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  clientIds.forEach((yjsClientId) =>
+    server.services.updateLog.observeClientIdentity({ documentName: documentId, yjsClientId, userId: owner.id, actor: ClientActor.Human }),
+  );
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  attacker.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds })));
+  attacker.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: attacker.client.document.clientID })).toBe(0);
+  expect(awarenessStateCount({ server, clientIds })).toBe(0);
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(attacker.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
+});
+
+test('a frame of 64 fresh ids from one connection closes it for the ids cap and binds none of them', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const anchor = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const flooder = await connectWatched({ server, documentId, cookie: editor.cookie });
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME });
+  flooder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: flooder.roomName, clientIds })));
+  await expect.poll(flooder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+  anchor.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: anchor.roomName, clientIds: [CLAIMED_ID_BASE], clock: REPLAY_CLOCK })),
+  );
+  await expect.poll(() => awarenessStateCount({ server, clientIds: [CLAIMED_ID_BASE] })).toBe(1);
+  expect(anchor.closedSocket()).toBeNull();
+  anchor.client.close();
+  await server.stop();
+});
+
+test('a second connection of the same user updating an awareness id that a half-open first one holds takes the id over and stays open', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: true });
+  intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK })));
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
+  expect(holder.closedSocket()).toBeNull();
+  intruder.client.close();
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(0);
+  holder.client.close();
+  await server.stop();
+});
+
+test('a member sending a clock of 2 to the 53 for the ids of its peers is dropped and keeps its socket', async () => {
+  const scenario = await holderOfClaimedIds({ hasSameUser: false });
+  const { clientIds, intruder } = scenario;
+  intruder.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: PINNED_CLOCK, state: null })),
+  );
+  await expectDropped(scenario);
+  scenario.holder.client.close();
+  intruder.client.close();
+  await scenario.server.stop();
+});
+
+test('a member removing its peers at a clock just under 2 to the 52 is dropped and nobody is closed', async () => {
+  const scenario = await holderOfClaimedIds({ hasSameUser: false });
+  const { clientIds, intruder } = scenario;
+  const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: JUST_UNDER_CEILING_CLOCK, state: null });
+  intruder.webSocket.send(new Uint8Array(removal));
+  await expectDropped(scenario);
+  scenario.holder.client.close();
+  intruder.client.close();
+  await scenario.server.stop();
+});
+
+test('a member sending a clock of 2 to the 53 for ids it announced itself keeps the socket open', async () => {
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds, clock: PINNED_CLOCK });
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(closedSocket()).toBeNull();
+  client.close();
+  await server.stop();
+});
+
+test('an entry cut inside its state closes the socket with the entries reason and the room records nothing', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: 2 });
+  const frame = awarenessFrameClaiming({ roomName: connection.roomName, clientIds });
+  connection.webSocket.send(new Uint8Array(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES)));
+  await expect.poll(connection.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ENTRIES_REASON });
+  expect(clientIds.some((clientId) => isKnownToAwareness({ server, clientId }))).toBe(false);
+  connection.client.close();
+  await server.stop();
+});
+
+test('a null entry sent first for an id recorded for another user is dropped, so the author still binds it and a later forgery is dropped', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  clientIds.forEach((yjsClientId) =>
+    server.services.updateLog.declareClientIdentity({ documentName: documentId, yjsClientId, userId: owner.id, actor: ClientActor.Human }),
+  );
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  const unbind = awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: HELD_CLOCK, state: null });
+  attacker.webSocket.send(new Uint8Array(unbind));
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  const forgery = awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: PINNED_CLOCK, state: FORGED_STATE });
+  attacker.webSocket.send(new Uint8Array(forgery));
+  attacker.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: attacker.client.document.clientID })).toBe(0);
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(REPLAY_CLOCK);
+  expect(attacker.closedSocket()).toBeNull();
+  expect(victim.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
+});
+
+test('an id another user claimed with a null entry and then an update is bound to that user, and the owner announcing it later keeps its socket', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  attacker.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: HELD_CLOCK, state: null })),
+  );
+  attacker.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: REPLAY_CLOCK })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  victim.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds, clock: REPLAY_CLOCK + 1, state: FORGED_STATE })),
+  );
+  victim.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: victim.client.document.clientID })).toBe(0);
+  expect(victim.closedSockets().map(({ code }) => code)).not.toContain(POLICY_VIOLATION_CLOSE_CODE);
+  expect(victim.webSocket.readyState).toBe(WebSocket.OPEN);
+  expect(attacker.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
+});
+
+test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
+  intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds })));
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
+  expect(holder.closedSocket()).toBeNull();
+  expect(intruder.webSocket.readyState).toBe(WebSocket.OPEN);
+  holder.client.close();
+  intruder.client.close();
+  await server.stop();
+});
+
+test('a connection removing an awareness id that another live connection holds, as a reconnect queue does, keeps the socket open', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
+  const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: HELD_CLOCK, state: null });
+  intruder.webSocket.send(new Uint8Array(removal));
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
+  expect(holder.closedSocket()).toBeNull();
+  expect(intruder.webSocket.readyState).toBe(WebSocket.OPEN);
+  holder.client.close();
+  intruder.client.close();
+  await server.stop();
+});
+
+test('a connection updating its own awareness id keeps the socket open', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
+  Array.from({ length: OWN_UPDATES }).forEach((_, index) => connection.client.provider.setAwarenessField('cursor', index));
+  await expect.poll(() => awarenessStateCount({ server, clientIds: [connection.client.document.clientID] })).toBe(1);
+  expect(connection.closedSocket()).toBeNull();
+  expect(connection.webSocket.readyState).toBe(WebSocket.OPEN);
+  connection.client.close();
+  await server.stop();
+});
+
+test('a connection removing its own awareness id on leave keeps the socket open', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const { clientID } = connection.client.document;
+  connection.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => awarenessStateCount({ server, clientIds: [clientID] })).toBe(1);
+  connection.client.provider.awareness!.setLocalState(null);
+  await expect.poll(() => awarenessStateCount({ server, clientIds: [clientID] })).toBe(0);
+  expect(connection.closedSocket()).toBeNull();
+  expect(connection.webSocket.readyState).toBe(WebSocket.OPEN);
+  connection.client.close();
+  await server.stop();
+});
+
+test('a provider that reconnects and resends its own awareness id keeps its new socket open', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const anchor = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const { provider, document } = connection.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  connection.webSocket.close();
+  await expect
+    .poll(() => {
+      const { webSocket } = provider.configuration.websocketProvider;
+      return webSocket !== connection.webSocket && webSocket?.readyState === WebSocket.OPEN;
+    })
+    .toBe(true);
+  provider.setAwarenessField('cursor', RECONNECTED_CURSOR);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(RECONNECTED_CURSOR);
+  expect(provider.configuration.websocketProvider.webSocket?.readyState).toBe(WebSocket.OPEN);
+  expect(connection.closedSockets().length).toBeGreaterThan(0);
+  expect(connection.closedSockets().map(({ code }) => code)).not.toContain(POLICY_VIOLATION_CLOSE_CODE);
+  expect(anchor.closedSocket()).toBeNull();
+  connection.client.close();
+  anchor.client.close();
   await server.stop();
 });

@@ -1,7 +1,12 @@
-import { MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND, MAX_SOCKET_UPDATE_FRAMES_PER_SECOND, SECOND_MS } from '@superdoc-collab/types';
+import {
+  MAX_AWARENESS_ENTRIES_PER_FRAME,
+  MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
+  MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
+  SECOND_MS,
+} from '@superdoc-collab/types';
 import type { RawData } from 'ws';
 import { SlidingWindow } from '../limits/sliding-window';
-import { FrameBucket, frameBucketOf } from './frame-bucket';
+import { awarenessEntryCountOf, FrameBucket, frameBucketOf } from './frame-bucket';
 
 const CAP_BY_BUCKET: Record<FrameBucket, number> = {
   [FrameBucket.Updates]: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
@@ -22,6 +27,12 @@ export class SocketMessageLimit {
     const window = this.windowsOf(socket)[bucket];
     window.record();
     return window.count() > CAP_BY_BUCKET[bucket];
+  }
+
+  // NB ADR 0040: the ws layer reads an awareness frame only as far as its entry count, so a frame claiming more entries than the frame cap never reaches the room.
+  claimsTooManyEntries(frame: RawData): boolean {
+    const entryCount = awarenessEntryCountOf(frame);
+    return entryCount !== null && entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME;
   }
 
   private windowsOf(socket: object): Record<FrameBucket, SlidingWindow> {

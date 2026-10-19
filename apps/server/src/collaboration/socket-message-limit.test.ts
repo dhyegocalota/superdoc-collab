@@ -1,6 +1,17 @@
-import { MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND, MAX_SOCKET_UPDATE_FRAMES_PER_SECOND, SECOND_MS } from '@superdoc-collab/types';
+import {
+  MAX_AWARENESS_ENTRIES_PER_FRAME,
+  MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
+  MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
+  SECOND_MS,
+} from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { awarenessFrame, syncStepOneFrame } from '../testing/socket-frames';
+import {
+  awarenessFrame,
+  awarenessFrameClaiming,
+  PaddedVarintField,
+  paddedAwarenessFrame,
+  syncStepOneFrame,
+} from '../testing/socket-frames';
 import { SocketMessageLimit } from './socket-message-limit';
 
 const ROOM_NAME = 'superdoc-room-1';
@@ -50,4 +61,42 @@ test('each socket has its own windows', () => {
   const frame = syncStepOneFrame(ROOM_NAME);
   burst({ limit, socket: {}, frame, count: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND + 1 });
   expect(limit.breached({ socket: {}, frame })).toBe(false);
+});
+
+function claimingFrame(count: number): Buffer {
+  return awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: Array.from({ length: count }, (_, index) => index + 1) });
+}
+
+test('an awareness frame claiming one entry more than the frame cap claims too many', () => {
+  const limit = new SocketMessageLimit();
+  expect(limit.claimsTooManyEntries(claimingFrame(MAX_AWARENESS_ENTRIES_PER_FRAME + 1))).toBe(true);
+});
+
+const PADDED_ENTRY_COUNT = 100_000;
+const OVERLONG_FRAME_BYTES = 1024;
+const CONTINUING_BYTE = 0x80;
+
+test('a frame whose room name length never ends claims too many', () => {
+  const frame = Buffer.alloc(OVERLONG_FRAME_BYTES, CONTINUING_BYTE);
+  expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(true);
+});
+
+Object.values(PaddedVarintField).forEach((paddedField) =>
+  test(`an awareness frame with a padded ${paddedField} claims too many`, () => {
+    const frame = paddedAwarenessFrame({ roomName: ROOM_NAME, paddedField, claimedEntryCount: PADDED_ENTRY_COUNT });
+    expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(true);
+  }),
+);
+
+const PINNED_CLOCK = 2 ** 53;
+
+test('a well-formed clock of 2 to the 53 claims nothing at the ws layer', () => {
+  const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [1], clock: PINNED_CLOCK, state: null });
+  expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(false);
+});
+
+test('awareness frames claiming up to the frame cap, other frames and unreadable frames do not', () => {
+  const limit = new SocketMessageLimit();
+  const frames = [claimingFrame(MAX_AWARENESS_ENTRIES_PER_FRAME), awarenessFrame(ROOM_NAME), syncStepOneFrame(ROOM_NAME), Buffer.from([0])];
+  expect(frames.map((frame) => limit.claimsTooManyEntries(frame))).toEqual([false, false, false, false]);
 });

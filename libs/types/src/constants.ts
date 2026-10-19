@@ -19,7 +19,7 @@ export const OPEN_UNCOMMITTED_PER_MINUTE = 30;
 export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 // NB ADR 0040: update frames peak near 264 per second at fifty keys per second, so 1000 leaves room and still closes a flood.
 export const MAX_SOCKET_UPDATE_FRAMES_PER_SECOND = 1000;
-// NB ADR 0040: the provider flushes about three awareness frames per keystroke in one burst at the next pause, and the per-connection client id cap bounds what each frame costs.
+// NB ADR 0040: the provider flushes about three awareness frames per keystroke in one burst at the next pause, and the frame entry cap bounds what each frame costs.
 export const MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND = 5000;
 export const POLICY_VIOLATION_CLOSE_CODE = 1008;
 export const SUPERSEDED_ATTEMPT_CLOSE_CODE = 4403;
@@ -28,7 +28,12 @@ export const UNAUTHORIZED_CLOSE_CODE = 4401;
 export const UNAUTHORIZED_CLOSE_REASON = 'Session expired';
 export const SOCKET_SINGLE_DOCUMENT_REASON = 'One document per socket';
 export const MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION = 8;
+// NB ADR 0040: the stock provider relays one entry per changed peer, so a join into a full room or a mass leave sends one entry per peer and the frame cap must not close it.
+export const MAX_AWARENESS_ENTRIES_PER_FRAME = 64;
 export const SOCKET_AWARENESS_IDS_REASON = 'Too many awareness clients on one connection';
+// NB ADR 0040: first-come awareness bindings per room are bounded by 32 connections of eight ids, because a binding costs memory and the recorded identities are seeded apart from this bound.
+export const MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT = 256;
+export const SOCKET_AWARENESS_ENTRIES_REASON = 'Too many awareness entries in one frame';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;

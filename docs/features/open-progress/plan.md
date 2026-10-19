@@ -24,28 +24,28 @@ G1 first, then G2 and G3, then G4.
 
 ### G1
 
-- [ ] **Step 1:** `formatCount` and `formatByteCount` with their constants, test first.
-- [ ] **Step 2:** `Progress` component, determinate and indeterminate.
-- [ ] **Step 3:** `useDelayedReveal`, test first with fake timers.
-- [ ] **Step 4:** `OpenProgressPanel` and the stage copy, test first for each stage.
+- [x] **Step 1:** `formatCount` and `formatByteCount` with their constants, test first.
+- [x] **Step 2:** `Progress` component, determinate and indeterminate.
+- [x] **Step 3:** `useDelayedReveal`, test first with fake timers.
+- [x] **Step 4:** `OpenProgressPanel` and the stage copy, test first for each stage.
 
 ### G2
 
-- [ ] **Step 5:** `readinessOf` maps the bootstrap stage; `bootstrap` is exposed for every stage and `data` only once Ready; test first.
-- [ ] **Step 6:** Poll interval from the stage; test first.
-- [ ] **Step 7:** Waiting page shows the Preparing panel behind the delay; test first.
-- [ ] **Step 8:** `SuperDocEditor` reports synced and page count; `useFirstFragment`; the editor view builder for Downloading and Rendering; test first.
-- [ ] **Step 9:** `DocumentPage` and `EditorSurface` mount the panel and hide SuperDoc's overlay while it shows.
+- [x] **Step 5:** `readinessOf` maps the bootstrap stage; `bootstrap` is exposed for every stage and `data` only once Ready; test first.
+- [x] **Step 6:** Poll interval from the stage; test first.
+- [x] **Step 7:** Waiting page shows the Preparing panel behind the delay; test first.
+- [x] **Step 8:** `SuperDocEditor` reports synced, page count and failure; `useHasPaintedParagraph`; the editor view builder for Downloading and Rendering; test first.
+- [x] **Step 9:** `DocumentPage` and `EditorSurface` mount the panel and hide SuperDoc's overlay while it shows.
 
 ### G3
 
-- [ ] **Step 10:** `apiSendWithProgress` over `XMLHttpRequest`; `uploadDocument` reports progress; test first.
-- [ ] **Step 11:** `useUploadDocument` exposes progress; the dialog and the drop zone show the bar and the bytes; test first.
+- [x] **Step 10:** `apiSendWithProgress` over `XMLHttpRequest`; `uploadDocument` reports progress; test first.
+- [x] **Step 11:** `useUploadDocument` exposes progress; the dialog and the drop zone show the bar and the bytes; test first.
 
 ### G4
 
-- [ ] **Step 12:** `e2e/open-progress.spec.ts`: Preparing numbers rise, large fixture stages in order, no panel for a normal document.
-- [ ] **Step 13:** Screenshots at 1280 and 375, tester briefing.
+- [x] **Step 12:** `e2e/open-progress.spec.ts`: the Preparing bar rises, a joiner of the large fixture watches the download tick and the panel leave, the upload bar fills; a normal document leaves no panel behind.
+- [x] **Step 13:** Screenshots at 1280 and 375, tester briefing.
 
 ## Failure modes
 

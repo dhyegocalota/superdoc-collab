@@ -22,9 +22,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/open-progress.spec.ts::preparing shows its stage and a rising bar` — steps: script open answers Queued, Preparing 0 of N, Preparing 40% of N, then continue to the real answer; expected: the panel at Preparing with an indeterminate bar, then a bar of 40, then the editor
-- [ ] `e2e/open-progress.spec.ts::a large document shows its stages in order` — steps: upload the large fixture, open it; expected: Downloading, then Rendering with a non-decreasing page count, then no panel once the first paragraph is visible
-- [ ] `e2e/open-progress.spec.ts::a small document never shows the panel` — steps: upload a one-paragraph document; expected: the panel is never in the page
+- [ ] `e2e/open-progress.spec.ts::the Preparing panel names the wait, then the file being converted, then fills with the bytes done` — steps: script open answers Queued, Preparing 0, Preparing 40%, Preparing 80% of 1,000,000 bytes, then the real answer; expected: stage Preparing, detail "Waiting for its turn", then "Converting a", an indeterminate bar, then `aria-valuenow` 40, then 80, then the editor with no panel
+- [ ] `e2e/open-progress.spec.ts::a joiner of a large document watches the download tick and the panel leaves at the first paragraph` — steps: the owner opens the large fixture, a second member opens it through a share link; expected: stages in order Preparing, Downloading, Rendering without going back, more than two distinct detail lines, no panel once the first paragraph is visible
+- [ ] `e2e/open-progress.spec.ts::uploading a large document fills the bar with the bytes sent before the page opens` — steps: throttle the upload to 2 MB/s, upload the large fixture from the documents home; expected: the upload bar's value never decreases, shows more than one value and more than one detail line, then the document page opens
+- [ ] `e2e/open-progress.spec.ts::a normal document leaves no panel behind once its first paragraph is visible` — steps: open a one-paragraph document; expected: no panel once the paragraph is visible, and any stage seen was Downloading or Rendering. The panel does show for about a second on this open because it takes 1.5 to 1.8 s against a 400 ms delay; the no-flash rule is proven by the unit tests
 
 ## Prove it for real — Playwright MCP
 

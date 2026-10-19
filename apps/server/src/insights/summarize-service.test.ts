@@ -1,5 +1,6 @@
 import { writeStory } from '@superdoc-collab/history/testing';
 import {
+  documentApiPath,
   GROUPING_FAILED_MESSAGE,
   SelectionSummaryState,
   SummarizeOutcome,
@@ -431,5 +432,31 @@ test('a request for another selection while the topic sentences are rewritten st
   release();
   await jobRunner.idle();
   client.close();
+  await server.stop();
+});
+
+test('pin: a document deleted while the sentence and the regroup are held ends both jobs with no unhandled rejection', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, owner, client, model, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: () => gatedModel({ gate, answer: COMBINED_ANSWER }),
+  });
+  const { jobRunner } = server.services.insights;
+  const unhandled = await unhandledRejectionsDuring(async () => {
+    summarize.request({ documentId, selection: SELECTION });
+    await expect.poll(() => model.doGenerateCalls.length, { timeout: POLL_TIMEOUT_MS }).toBe(2);
+    client.close();
+    const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
+      method: 'DELETE',
+      headers: { cookie: owner.cookie, origin: server.baseUrl },
+    });
+    expect(deleted.ok).toBe(true);
+    release();
+    await jobRunner.idle();
+  });
+  expect(unhandled).toEqual([]);
+  expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(false);
+  expect(jobRunner.isRunning(`summarize-topics:${documentId}`)).toBe(false);
   await server.stop();
 });

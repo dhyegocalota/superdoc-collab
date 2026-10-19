@@ -26,6 +26,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `summarize-service.test.ts::a request for another selection while the topic sentences are rewritten starts a job instead of answering Running` — input: the topic sentence call is held after the sentence landed; expected: Started, never Running with an Idle view.
 - [ ] `insights-job-runner.test.ts::stopping a watcher leaves a watcher registered after it in place` — expected: only the later watcher fires.
 - [ ] `selection-summary-card.test.tsx::the authors sit below the sentence, so a landing sentence never moves` and `::a summarizing step with no grouping before it does not claim the topics are grouped`.
+- [ ] `summarize-service.test.ts::pin: a document deleted while the sentence and the regroup are held ends both jobs with no unhandled rejection` — input: DELETE while both calls are held, then released; expected: no `unhandledRejection`, both job keys released.
 - [ ] Edge: a second click while the job runs — input: POST twice; expected: the second answers Running and the model call count is unchanged.
 
 ## E2E (Playwright specs)

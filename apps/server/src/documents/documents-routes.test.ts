@@ -293,6 +293,7 @@ test('every member opening an uncommitted document gets Join and the bootstrap i
     [RoomMode.Join, BootstrapStage.Preparing],
   ]);
   answers.forEach((answer) => expect(Object.keys(answer)).not.toContain('creatorAttempt'));
+  expect(answers[0]!.colorSlot).toBe(authorColorSlot(owner.id));
   await server.stop();
 });
 

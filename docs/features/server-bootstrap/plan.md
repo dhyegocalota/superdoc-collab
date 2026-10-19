@@ -23,20 +23,20 @@ One lane. Docs and ADR first, then red tests, then the worker, the registry, the
 
 ### G1
 
-- [ ] **Step 1:** spec, plan, test plan, ADR 0048, consequence line in ADR 0033, index rows.
-- [ ] **Step 2:** `libs/types`: `ApiPath.BootstrapCollaboration`, `BOOTSTRAP_TIMEOUT_MS`, `BOOTSTRAP_PROGRESS_ENTRIES`, `OpenedDocument.bootstrap`; drop the ticket types, constants and members flags.
-- [ ] **Step 3:** `.claude/rules/collaboration.md` and `docs/features/room-admission/spec.md` facts.
+- [x] **Step 1:** spec, plan, test plan, ADR 0048, consequence line in ADR 0033, index rows.
+- [x] **Step 2:** `libs/types`: `ApiPath.BootstrapCollaboration`, `BOOTSTRAP_TIMEOUT_MS`, `BOOTSTRAP_PROGRESS_ENTRIES`, `OpenedDocument.bootstrap`; drop the ticket types, constants and members flags. The web build fails on the dropped exports until the web lane deletes its uses.
+- [x] **Step 3:** `.claude/rules/collaboration.md` and `docs/features/room-admission/spec.md` facts.
 
 ### G2
 
-- [ ] **Step 4:** red tests for the worker handler and message, the registry, the token claim, the socket admission, the open answer; stubs that throw.
-- [ ] **Step 5:** worker: `Bootstrap` request kind, own queue, handler with the SDK, timeout.
-- [ ] **Step 6:** scheduler: `bootstrap` promise, crash rejects it.
-- [ ] **Step 7:** room tokens carry the attempt; `/collaboration/bootstrap` upgrade, authentication and context.
-- [ ] **Step 8:** `RoomBootstrap` registry; `bootstrap-state` reports the commit; runtime exposes `bootstrapRoom`.
-- [ ] **Step 9:** `storeDocument` starts the bootstrap; the open route answers Join with progress; the members route drops the flags.
-- [ ] **Step 10:** remove `CreatorReservations`, claimed ticket, reserve, takeover and their tests; adapt the remaining tests.
-- [ ] **Step 11:** `e2e/room-admission.spec.ts` to the new behaviour; the large case timed.
+- [x] **Step 4:** red tests for the worker handler and message, the registry, the token claim, the socket admission, the open answer; stubs that throw.
+- [x] **Step 5:** worker: `Bootstrap` request kind, own queue, handler with the SDK, timeout.
+- [x] **Step 6:** scheduler: `bootstrap` promise, crash rejects it.
+- [x] **Step 7:** room tokens carry the attempt; `/collaboration/bootstrap` upgrade, authentication and context.
+- [x] **Step 8:** `RoomBootstrap` registry; `bootstrap-state` reports the commit; runtime exposes `bootstrapRoom`.
+- [x] **Step 9:** `storeDocument` starts the bootstrap; the open route answers Join with progress; the members route drops the flags.
+- [x] **Step 10:** remove `CreatorReservations`, claimed ticket, reserve, takeover and their tests; adapt the remaining tests.
+- [x] **Step 11:** `e2e/room-admission.spec.ts` to the new behaviour; the large case timed.
 
 ## Failure modes
 

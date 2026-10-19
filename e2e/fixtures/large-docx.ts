@@ -57,6 +57,10 @@ function paragraphXml(text: string): string {
   return `<w:p><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
 }
 
+export function buildBrokenDocx(): Buffer {
+  return storedZip([{ name: 'word/document.xml', data: Buffer.from('<w:document><broken') }]);
+}
+
 export function buildLargeDocx(firstParagraph: string): Buffer {
   const paragraphs = Array.from({ length: PARAGRAPH_COUNT }, (_, index) => paragraphXml(`Clause ${index + 1}. ${FILLER_SENTENCE}`));
   const documentXml = `${XML_HEADER}<w:document xmlns:w="${WORD_NAMESPACE}"><w:body>${paragraphXml(firstParagraph)}${paragraphs.join('')}<w:sectPr/></w:body></w:document>`;

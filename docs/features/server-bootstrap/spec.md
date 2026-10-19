@@ -24,6 +24,18 @@ Question: can the SuperDoc SDK produce the room headlessly, so the browser never
 
 The answer: join the room as the bootstrapping client, on a loopback-only socket that the server admits as the uploader with actor Human.
 
+## Measured (2026-10-19, local, `e2e/fixtures/large-docx.ts`, 9.5 MB, 56,800 paragraphs)
+
+| What | Before (browser creator) | After (server bootstrap) |
+|------|--------------------------|--------------------------|
+| Browser CPU converting the DOCX | 42 s | none |
+| Bytes the uploader's browser sends | 36.6 MB over 40 frames | under 1 MB, asserted |
+| Upload until the open answer is Ready | not applicable | 38.9 s |
+| A page opened after Ready until the first paragraph | not applicable | 13.4 s |
+| Uploader opens at once: first paragraph | 55 s | about 52 s (38.9 s + 13.4 s) |
+
+The conversion CPU moved into the SDK host and did not shrink. The win is that nobody's browser is busy, a second opener never waits on the first, and a document opened after it is ready shows its first paragraph in 13 s.
+
 ## Goals
 
 | Goal | Rule |

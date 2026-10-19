@@ -2,8 +2,8 @@ import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-collab/histo
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
+  BootstrapStage,
   ClientActor,
-  DOCUMENT_NOT_READY_ERROR,
   DOCX_MIME_TYPE,
   DocumentResource,
   DocumentRole,
@@ -28,11 +28,13 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import * as Y from 'yjs';
-import { connectToDocument, documentWithOwner, memberWithRole, reserveOwner } from '../testing/collaboration-client';
+import { connectToDocument, documentWithOwner, memberWithRole, beginOwnerBootstrap } from '../testing/collaboration-client';
 import { commitBootstrap as commitRoom } from '../testing/committed-room';
 import { openedBy, pathOf, request } from '../testing/documents-client';
 import { readEvents } from '../testing/events-client';
-import { signedInOwner, signedInUser, type TestServer, type TestUser } from '../testing/test-server';
+import { signedInOwner, signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
+import { verifyBootstrapToken } from '../agent/room-tokens';
+import { COMMITTED_WITHOUT_BOOTSTRAP } from '../collaboration/room-bootstrap';
 import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
 import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtime';
 
@@ -43,7 +45,6 @@ const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
 const LONG_LOG_EXTRA_UPDATES = 20;
-const FIRST_ATTEMPT = 1;
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 async function upload({
@@ -281,61 +282,86 @@ test('roomMode scans a long log in pages until the first committed bootstrap', a
   await server.stop();
 });
 
-test('a reader opening a never-created room gets 409 NOT_READY', async () => {
+test('every member opening an uncommitted document gets Join and the bootstrap in progress', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
-  const notReady = await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) });
-  expect([notReady.status, await notReady.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
-  const editorOpen = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
-  expect(editorOpen.status).toBe(HttpStatus.Conflict);
+  const answers = await Promise.all([owner, reader, editor].map((user) => openedBy({ server, user, documentId })));
+  expect(answers.map(({ roomMode, bootstrap }) => [roomMode, bootstrap.stage])).toEqual([
+    [RoomMode.Join, BootstrapStage.Preparing],
+    [RoomMode.Join, BootstrapStage.Preparing],
+    [RoomMode.Join, BootstrapStage.Preparing],
+  ]);
+  answers.forEach((answer) => expect(Object.keys(answer)).not.toContain('creatorAttempt'));
+  await server.stop();
+});
+
+test('the open answer turns ready with the size of the state once the bootstrap commits', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: ['Hello'] });
   commitBootstrap(client.document);
-  await expect
-    .poll(async () => (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).status)
-    .toBe(HttpStatus.Ok);
-  const readerOpen: OpenedDocument = await (await request({ server, cookie: reader.cookie, path: pathOf({ documentId }) })).json();
-  expect(readerOpen.roomMode).toBe(RoomMode.Join);
+  await expect.poll(async () => (await openedBy({ server, user: owner, documentId })).bootstrap.stage).toBe(BootstrapStage.Ready);
+  const { bootstrap } = await openedBy({ server, user: owner, documentId });
+  expect(bootstrap.stateBytes).toBeGreaterThan(0);
   client.close();
   await server.stop();
 });
 
-test('the first editor to open a fresh room is reserved as creator with attempt 1', async () => {
+test('opening an uncommitted document nobody bootstrapped starts one bootstrap as the owner and never a second', async () => {
   const { server, owner } = await signedInOwner();
-  const [documentId] = uncommittedDocuments({ server, owner, count: 1 });
-  const opened = await openedBy({ server, user: owner, documentId: documentId! });
-  expect([opened.roomMode, opened.creatorAttempt, opened.creatorEpoch]).toEqual([
-    RoomMode.Create,
-    FIRST_ATTEMPT,
-    server.services.reservations.epoch,
-  ]);
-  expect(opened.colorSlot).toBe(authorColorSlot(owner.id));
-  await server.stop();
-});
-
-test('a second open by the holder supersedes its own attempt with the next one', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
+  const documentId = randomUUID();
+  server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
+  const bytes = await docxBytes('Budget');
+  await server.services.storage.put({ documentId, bytes });
+  const bootstrap = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
   const first = await openedBy({ server, user: owner, documentId });
-  const second = await openedBy({ server, user: owner, documentId });
-  expect(second.creatorAttempt).toBe(first.creatorAttempt! + 1);
-  expect(second.creatorEpoch).toBe(first.creatorEpoch);
+  await expect.poll(() => bootstrap.mock.calls.length).toBe(1);
+  await openedBy({ server, user: owner, documentId });
+  expect(bootstrap).toHaveBeenCalledTimes(1);
+  const [request] = bootstrap.mock.calls[0]!;
+  expect(first.bootstrap).toMatchObject({ stage: BootstrapStage.Queued, done: 0, total: bytes.byteLength });
+  expect(request).toMatchObject({ documentId, filePath: server.services.storage.pathOf(documentId) });
+  expect(request.url).toMatch(new RegExp(`${ApiPath.BootstrapCollaboration}$`));
+  expect(verifyBootstrapToken({ secret: TEST_AUTH_SECRET, token: request.token, documentId, now: Date.now() })?.userId).toBe(owner.id);
   await server.stop();
 });
 
-test('a second editor opening a live reservation gets 409 NOT_READY', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
-  await openedBy({ server, user: owner, documentId });
-  const refused = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
-  expect([refused.status, await refused.json()]).toEqual([HttpStatus.Conflict, { error: DOCUMENT_NOT_READY_ERROR }]);
+test('an upload and a blank create each start a bootstrap for the new document', async () => {
+  const { server, owner } = await signedInOwner();
+  const bootstrap = vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const uploaded: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan') })).json();
+  const blank: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Blank' })).json();
+  expect(bootstrap.mock.calls.map(([documentId]) => documentId)).toEqual([uploaded.id, blank.id]);
   await server.stop();
 });
+
+test(
+  'an uploaded document is bootstrapped by the server: ready, joined by the owner as a person, with the text',
+  { timeout: IMPORT_TIMEOUT_MS + 10_000 },
+  async () => {
+    const { server, owner } = await signedInOwner();
+    const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Server made') })).json();
+    await expect
+      .poll(async () => (await openedBy({ server, user: owner, documentId: created.id })).bootstrap.stage, { timeout: IMPORT_TIMEOUT_MS })
+      .toBe(BootstrapStage.Ready);
+    const opened = await openedBy({ server, user: owner, documentId: created.id });
+    expect(opened.roomMode).toBe(RoomMode.Join);
+    expect(opened.bootstrap.done).toBe(opened.bootstrap.total);
+    const [committed] = server.services.updateLog.read({ documentName: created.id, untilSequence: Number.MAX_SAFE_INTEGER });
+    expect(committed).toMatchObject({ connectionUserId: owner.id, connectionActor: ClientActor.Human });
+    const joiner = await connectToDocument({ server, cookie: owner.cookie, documentId: created.id, bootstrapToken: null });
+    expect(joiner.document.getMap('content').size).toBeGreaterThan(0);
+    joiner.close();
+    await server.stop();
+  },
+);
 
 function uncommittedDocuments({ server, owner, count }: { server: TestServer; owner: TestUser; count: number }): string[] {
   return Array.from({ length: count }, () => {
     const documentId = randomUUID();
     server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
+    server.services.roomBootstrap.begin(documentId);
     return documentId;
   });
 }
@@ -354,7 +380,7 @@ test('the first distinct uncommitted document over the budget answers 429 and an
   ]);
   expect(Number(limited[0]!.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   const other = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
-  expect(other.status).toBe(HttpStatus.Conflict);
+  expect(other.status).toBe(HttpStatus.Ok);
   await server.stop();
 });
 
@@ -368,26 +394,14 @@ test('the first distinct uncommitted document over the budget makes no query to 
   await server.stop();
 });
 
-test('a waiting editor polling the same uncommitted document is answered 409 every time, never 429', async () => {
+test('a waiting editor polling the same uncommitted document is answered 200 every time, never 429', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
   await openedBy({ server, user: owner, documentId });
   const statuses = await Promise.all(
     Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE + 1 }, () => request({ server, cookie: editor.cookie, path: pathOf({ documentId }) })),
   );
-  expect(new Set(statuses.map((response) => response.status))).toEqual(new Set([HttpStatus.Conflict]));
-  await server.stop();
-});
-
-test('a reader opening an unreserved uncommitted room gets 409 and reserves nothing (mutation: drop the reader check)', async () => {
-  const { server, owner } = await signedInOwner();
-  const [documentId] = uncommittedDocuments({ server, owner, count: 1 });
-  const reader = await memberWithRole({ server, documentId: documentId!, role: DocumentRole.Reader });
-  const response = await request({ server, cookie: reader.cookie, path: pathOf({ documentId: documentId! }) });
-  expect([response.status, server.services.reservations.attemptOf({ documentId: documentId!, userId: reader.id })]).toEqual([
-    HttpStatus.Conflict,
-    null,
-  ]);
+  expect(new Set(statuses.map((response) => response.status))).toEqual(new Set([HttpStatus.Ok]));
   await server.stop();
 });
 
@@ -403,7 +417,7 @@ test('a known committed room answers Join while the open budget is spent (mutati
   await server.stop();
 });
 
-test('a committed room answers Join with creatorAttempt null for a reader and an editor', async () => {
+test('a committed room answers Join and ready for a reader and an editor', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
@@ -412,9 +426,9 @@ test('a committed room answers Join with creatorAttempt null for a reader and an
   commitBootstrap(client.document);
   await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
   const answers = await Promise.all([reader, editor].map((user) => openedBy({ server, user, documentId })));
-  expect(answers.map(({ roomMode, creatorAttempt, creatorEpoch }) => [roomMode, creatorAttempt, creatorEpoch])).toEqual([
-    [RoomMode.Join, null, null],
-    [RoomMode.Join, null, null],
+  expect(answers.map(({ roomMode, bootstrap }) => [roomMode, bootstrap.stage])).toEqual([
+    [RoomMode.Join, BootstrapStage.Ready],
+    [RoomMode.Join, BootstrapStage.Ready],
   ]);
   client.close();
   await server.stop();
@@ -521,7 +535,7 @@ test('signed-out requests get 401', async () => {
 test('delete removes the row, the file, the log and the events, and closes the room', async () => {
   const { server, owner } = await signedInOwner();
   const created: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Doomed' })).json();
-  reserveOwner({ server, documentId: created.id, owner });
+  beginOwnerBootstrap({ server, documentId: created.id, owner });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId: created.id });
   const closed = new Promise<void>((resolve) => client.provider.on('close', () => resolve()));
   writeStory({ document: client.document, texts: ['Hello'] });

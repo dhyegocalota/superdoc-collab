@@ -101,9 +101,9 @@ test('a member of one document is refused on another', async () => {
 
 test('an upgrade the server destroys rejects the connection promptly', async () => {
   const { server, documentId, owner } = await documentWithOwner();
-  await expect(connectToDocument({ server, cookie: owner.cookie, documentId, origin: 'https://evil.example' })).rejects.toBeInstanceOf(
-    CollaborationRefusedError,
-  );
+  await expect(
+    connectToDocument({ server, cookie: owner.cookie, documentId, origin: 'https://evil.example', bootstrapToken: null }),
+  ).rejects.toBeInstanceOf(CollaborationRefusedError);
   await server.stop();
 });
 

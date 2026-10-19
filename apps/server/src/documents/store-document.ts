@@ -25,6 +25,7 @@ export async function storeDocument({
     documents.remove(documentId);
     throw error;
   });
+  runtime.bootstrapRoom(documentId);
   if (importRevisions) runtime.importRevisions(documentId);
   return documentId;
 }

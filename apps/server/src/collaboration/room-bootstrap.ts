@@ -10,6 +10,13 @@ type BootstrapJob = { progress: BootstrapProgress; attempt: string | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
 
+export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
+  stage: BootstrapStage.Ready,
+  done: NOTHING_TO_PROCESS_BYTES,
+  total: NOTHING_TO_PROCESS_BYTES,
+  stateBytes: null,
+};
+
 export class BootstrapOwnerMissingError extends Error {
   constructor(documentId: string) {
     super(`Document ${documentId} has no owner to bootstrap as.`);

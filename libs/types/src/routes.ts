@@ -34,9 +34,6 @@ export enum ApiPath {
   Admin = '/api/admin',
 }
 
-export const CREATOR_ATTEMPT_QUERY_KEY = 'attempt';
-export const CREATOR_EPOCH_QUERY_KEY = 'epoch';
-
 export enum AdminResource {
   Users = 'users',
   Invites = 'invites',

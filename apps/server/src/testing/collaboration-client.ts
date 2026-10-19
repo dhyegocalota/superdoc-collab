@@ -1,12 +1,5 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
-import {
-  ApiPath,
-  COLLABORATION_TOKEN_PLACEHOLDER,
-  CREATOR_ATTEMPT_QUERY_KEY,
-  CREATOR_EPOCH_QUERY_KEY,
-  type CreatorTicket,
-  type DocumentRole,
-} from '@superdoc-collab/types';
+import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, type DocumentRole } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
@@ -17,28 +10,22 @@ import { signedInOwner, signedInUser, type TestServer, type TestUser } from './t
 
 const DOCUMENT_TITLE = 'Shared plan';
 const MEMBER_NAME = 'Member';
-const ticketsByCookieAndDocument = new Map<string, CreatorTicket>();
+const bootstrapTokensByCookieAndDocument = new Map<string, string>();
 
-function ticketKey({ cookie, documentId }: { cookie: string; documentId: string }): string {
+function tokenKey({ cookie, documentId }: { cookie: string; documentId: string }): string {
   return `${cookie}|${documentId}`;
 }
 
-function registeredTicket({ cookie, documentId }: { cookie: string; documentId: string }): CreatorTicket | null {
-  const ticket = ticketsByCookieAndDocument.get(ticketKey({ cookie, documentId }));
-  if (ticket === undefined) return null;
-  return ticket;
+function registeredBootstrapToken({ cookie, documentId }: { cookie: string; documentId: string }): string | null {
+  const token = bootstrapTokensByCookieAndDocument.get(tokenKey({ cookie, documentId }));
+  if (token === undefined) return null;
+  return token;
 }
 
-function ticketQuery(ticket: CreatorTicket | null): string {
-  if (ticket === null) return '';
-  return `?${new URLSearchParams({ [CREATOR_ATTEMPT_QUERY_KEY]: String(ticket.attempt), [CREATOR_EPOCH_QUERY_KEY]: ticket.epoch })}`;
-}
-
-export function reserveOwner({ server, documentId, owner }: { server: TestServer; documentId: string; owner: TestUser }): CreatorTicket {
-  const ticket = server.services.reservations.reserve({ documentId, userId: owner.id });
-  if (ticket === null) throw new Error(`The room ${documentId} is already reserved.`);
-  ticketsByCookieAndDocument.set(ticketKey({ cookie: owner.cookie, documentId }), ticket);
-  return ticket;
+export function beginOwnerBootstrap({ server, documentId, owner }: { server: TestServer; documentId: string; owner: TestUser }): string {
+  const token = server.services.roomBootstrap.begin(documentId);
+  bootstrapTokensByCookieAndDocument.set(tokenKey({ cookie: owner.cookie, documentId }), token);
+  return token;
 }
 
 type ClosedSocket = { code: number; reason: string };
@@ -73,7 +60,6 @@ function openProvider({
   documentId,
   document,
   path,
-  ticket,
 }: {
   server: TestServer;
   headers: Record<string, string>;
@@ -82,7 +68,6 @@ function openProvider({
   documentId: string;
   document: Y.Doc;
   path: string;
-  ticket: CreatorTicket | null;
 }): Promise<CollaborationClient> {
   return new Promise((resolve, reject) => {
     let isSynced = false;
@@ -91,7 +76,7 @@ function openProvider({
       reportClosed = resolveClosed;
     });
     const websocketProvider = new HocuspocusProviderWebsocket({
-      url: server.baseUrl.replace('http', 'ws') + path + ticketQuery(ticket),
+      url: server.baseUrl.replace('http', 'ws') + path,
       WebSocketPolyfill: socketWithHeaders({ headers, origin }),
       maxAttempts: 1,
       connect: false,
@@ -132,8 +117,8 @@ export function connectToDocument({
   documentId,
   document = new Y.Doc(),
   origin = server.baseUrl,
-  path = ApiPath.Collaboration,
-  ticket = registeredTicket({ cookie, documentId }),
+  path,
+  bootstrapToken = registeredBootstrapToken({ cookie, documentId }),
 }: {
   server: TestServer;
   cookie: string;
@@ -141,8 +126,11 @@ export function connectToDocument({
   document?: Y.Doc;
   origin?: string;
   path?: string;
-  ticket?: CreatorTicket | null;
+  bootstrapToken?: string | null;
 }): Promise<CollaborationClient> {
+  const isBootstrapping = bootstrapToken !== null && path === undefined;
+  if (isBootstrapping) return connectAsBootstrap({ server, token: bootstrapToken, documentId, document });
+  const socketPath = path === undefined ? ApiPath.Collaboration : path;
   return openProvider({
     server,
     headers: { cookie },
@@ -150,9 +138,24 @@ export function connectToDocument({
     token: COLLABORATION_TOKEN_PLACEHOLDER,
     documentId,
     document,
-    path,
-    ticket,
+    path: socketPath,
   });
+}
+
+export function connectAsBootstrap({
+  server,
+  token,
+  documentId,
+  document = new Y.Doc(),
+  path = ApiPath.BootstrapCollaboration,
+}: {
+  server: TestServer;
+  token: string;
+  documentId: string;
+  document?: Y.Doc;
+  path?: string;
+}): Promise<CollaborationClient> {
+  return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path });
 }
 
 export function connectAgentToDocument({
@@ -161,16 +164,14 @@ export function connectAgentToDocument({
   documentId,
   document = new Y.Doc(),
   path = ApiPath.AgentCollaboration,
-  ticket = null,
 }: {
   server: TestServer;
   token: string;
   documentId: string;
   document?: Y.Doc;
   path?: string;
-  ticket?: CreatorTicket | null;
 }): Promise<CollaborationClient> {
-  return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path, ticket });
+  return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path });
 }
 
 export async function documentWithOwner({
@@ -180,12 +181,13 @@ export async function documentWithOwner({
   server: TestServer;
   documentId: string;
   owner: TestUser;
+  bootstrapToken: string;
 }> {
   const { server, owner } = await signedInOwner({ languageModel, versionRoomPolicy });
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: DOCUMENT_TITLE, ownerUserId: owner.id });
-  reserveOwner({ server, documentId, owner });
-  return { server, documentId, owner };
+  const bootstrapToken = beginOwnerBootstrap({ server, documentId, owner });
+  return { server, documentId, owner, bootstrapToken };
 }
 
 export async function memberWithRole({

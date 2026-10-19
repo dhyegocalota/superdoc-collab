@@ -28,7 +28,13 @@ import { join } from 'node:path';
 import { READ_MODEL_DATABASE_FILE } from '../database/connection';
 import type { VersionRoomPolicy } from '../collaboration/version-rooms';
 import type { LanguageModelChoice } from '../insights/llm-client';
-import { connectToDocument, documentWithOwner, memberWithRole, reserveOwner, type CollaborationClient } from './collaboration-client';
+import {
+  connectToDocument,
+  documentWithOwner,
+  memberWithRole,
+  beginOwnerBootstrap,
+  type CollaborationClient,
+} from './collaboration-client';
 import { waitForCommit } from './committed-room';
 import { readEvents } from './events-client';
 import type { TestServer, TestUser } from './test-server';
@@ -282,7 +288,7 @@ export async function bootstrappedDocument({
 }): Promise<{ documentId: string; sequence: number }> {
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: ANOTHER_DOCUMENT_TITLE, ownerUserId: owner.id });
-  reserveOwner({ server, documentId, owner });
+  beginOwnerBootstrap({ server, documentId, owner });
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [ORIGINAL_TEXT] });
   commitBootstrap(client.document);

@@ -361,6 +361,18 @@ describe('attachCollaboration', () => {
     expect(response).toBe('');
     await server.stop();
   });
+  test('a bootstrap path upgrade without an origin reaches authentication', async () => {
+    const server = await startTestServer();
+    const response = await firstChunk({ server, path: ApiPath.BootstrapCollaboration, cookie: '', origin: '' });
+    expect(response.startsWith('HTTP/1.1 101')).toBe(true);
+    await server.stop();
+  });
+  test('an upgrade on a path that only extends the bootstrap path is destroyed', async () => {
+    const server = await startTestServer();
+    const response = await exchange({ server, path: `${ApiPath.BootstrapCollaboration}/other`, origin: '' });
+    expect(response).toBe('');
+    await server.stop();
+  });
   test('a socket that never authenticates is closed by the server as unauthorized', async () => {
     const server = await startTestServer();
     const { cookie } = await signedInUser({ server, name: 'Eva' });
@@ -453,26 +465,24 @@ describe('attachCollaboration', () => {
     expect(socket.destroyed).toBe(true);
   });
 
-  test('an agent upgrade from a non-loopback address is refused', () => {
-    const httpServer = new EventEmitter();
-    attachCollaboration({
-      httpServer: httpServer as unknown as Server,
-      auth: {} as Auth,
-      hocuspocus: {} as Hocuspocus,
-      versionRooms: {} as unknown as VersionRooms,
-      path: ApiPath.Collaboration,
-      allowedOrigin: ORIGIN,
-    });
-    const socket = new Duplex({ read: () => undefined, write: () => undefined });
-    const destroy = vi.spyOn(socket, 'destroy');
-    httpServer.emit(
-      'upgrade',
-      { url: ApiPath.AgentCollaboration, headers: {}, socket: { remoteAddress: FOREIGN_ADDRESS } },
-      socket,
-      Buffer.alloc(0),
-    );
-    expect(destroy).toHaveBeenCalledOnce();
-  });
+  test.each([ApiPath.AgentCollaboration, ApiPath.BootstrapCollaboration])(
+    'an upgrade on %s from a non-loopback address is refused',
+    (path) => {
+      const httpServer = new EventEmitter();
+      attachCollaboration({
+        httpServer: httpServer as unknown as Server,
+        auth: {} as Auth,
+        hocuspocus: {} as Hocuspocus,
+        versionRooms: {} as unknown as VersionRooms,
+        path: ApiPath.Collaboration,
+        allowedOrigin: ORIGIN,
+      });
+      const socket = new Duplex({ read: () => undefined, write: () => undefined });
+      const destroy = vi.spyOn(socket, 'destroy');
+      httpServer.emit('upgrade', { url: path, headers: {}, socket: { remoteAddress: FOREIGN_ADDRESS } }, socket, Buffer.alloc(0));
+      expect(destroy).toHaveBeenCalledOnce();
+    },
+  );
 });
 
 async function openCountedSocket() {

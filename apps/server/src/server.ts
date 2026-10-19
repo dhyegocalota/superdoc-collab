@@ -1,12 +1,13 @@
 import { serve, type ServerType } from '@hono/node-server';
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { Hono } from 'hono';
+import { statSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import { ApiPath, CREATOR_RESERVATION_MS, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import { ApiPath, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
@@ -17,13 +18,13 @@ import { UserAccess } from './admin/user-access';
 import { AdminUsersRepository } from './admin/users';
 import { AgentChangeMode } from './agent/agent-change-mode';
 import { AgentSessions } from './agent/agent-sessions';
-import { signRoomToken } from './agent/room-tokens';
+import { signBootstrapToken, signRoomToken } from './agent/room-tokens';
 import { createAuth, type Auth } from './auth/auth';
 import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
 import { createCollaborationServer } from './collaboration/collaboration-server';
 import { createBootstrapState } from './collaboration/bootstrap-state';
-import { CreatorReservations } from './collaboration/creator-reservations';
+import { RoomBootstrap } from './collaboration/room-bootstrap';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
 import {
@@ -65,7 +66,7 @@ const LOOPBACK_HTTP_ORIGIN = 'http://127.0.0.1';
 export const KEEP_ALIVE_TIMEOUT_MS = 65 * SECOND_MS;
 export const HEADERS_TIMEOUT_MS = KEEP_ALIVE_TIMEOUT_MS + SECOND_MS;
 
-export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle; reservations: CreatorReservations };
+export type ServerServices = AppServices & { hocuspocus: Hocuspocus; throttle: ProjectionThrottle; roomBootstrap: RoomBootstrap };
 
 export type RunningServer = {
   httpServer: ServerType;
@@ -240,15 +241,24 @@ function createServices({
   const versions = new VersionsService({ readModel, updateLog, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now });
-  const bootstrap = createBootstrapState({ updateLog, readModel });
+  const storage = createLocalDiskFileStorage(documentFilesDirectory);
+  const roomBootstrap = new RoomBootstrap({
+    run: (request) => scheduler.bootstrap(request),
+    issueToken: ({ userId, documentId, attempt }) =>
+      signBootstrapToken({ secret: environment.authSecret, userId, documentId, attempt, now: Date.now() }),
+    collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
+    ownerOf: (documentId) => documents.ownerOf(documentId),
+    fileBytesOf: (documentId) => statSync(storage.pathOf(documentId)).size,
+    filePathOf: (documentId) => storage.pathOf(documentId),
+  });
+  const bootstrap = createBootstrapState({ updateLog, readModel, onCommitted: (committed) => roomBootstrap.ready(committed) });
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
     updateLog,
-    reservations,
+    roomBootstrap,
     bootstrap,
     roomModes,
     onLogged: (documentId) => throttle.request(documentId),
@@ -258,7 +268,6 @@ function createServices({
     },
   });
   const timelinePipelines = new TimelinePipelineCache();
-  const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
   const insights = createInsights({ insightsRepository, scheduler, languageModel, environment, currentServices: () => services });
   const runtime = createCollaborationRuntime({
@@ -270,7 +279,7 @@ function createServices({
     versions,
     versionRooms,
     insights,
-    reservations,
+    roomBootstrap,
     bootstrap,
     roomModes,
   });
@@ -290,7 +299,7 @@ function createServices({
     shareLinks,
     insightsRepository,
     throttle,
-    reservations,
+    roomBootstrap,
     openBudget,
     timelinePipelines,
     insights,

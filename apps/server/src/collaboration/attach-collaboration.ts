@@ -20,7 +20,7 @@ import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
 import { SocketMessageLimit } from './socket-message-limit';
-import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
+import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
 const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
@@ -154,8 +154,9 @@ export function attachCollaboration({
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     const pathname = upgradePathname(request.url);
-    if (isAgentUpgrade(request.url) && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
-    if (isAgentUpgrade(request.url)) return upgrade({ request, socket, head, endpoint: null });
+    const isLoopbackOnly = isAgentUpgrade(request.url) || isBootstrapUpgrade(request.url);
+    if (isLoopbackOnly && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
+    if (isLoopbackOnly) return upgrade({ request, socket, head, endpoint: null });
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });

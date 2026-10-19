@@ -7,6 +7,7 @@ export const PREVIEW_MAX_CHARACTERS = 400;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
+export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;
 const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
 export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -75,6 +76,11 @@ export type OpenedDocument = {
   colorSlot: AuthorColorSlot;
 };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
-export type DocumentMembers = { members: DocumentMember[]; isCurrentUserOnline: boolean; isAttemptSuperseded: boolean };
+export type DocumentMembers = {
+  members: DocumentMember[];
+  isCurrentUserOnline: boolean;
+  isAttemptSuperseded: boolean;
+  isAttemptRestarted: boolean;
+};
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };

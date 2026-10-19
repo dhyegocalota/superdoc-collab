@@ -38,6 +38,7 @@ export const SOCKET_AWARENESS_IDS_REASON = 'Too many awareness clients on one co
 export const MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT = 256;
 export const SOCKET_AWARENESS_ENTRIES_REASON = 'Too many awareness entries in one frame';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
+export const RESTARTED_ATTEMPT_REASON = 'The server restarted after this attempt was issued';
 export const ACCESS_REVOKED_REASON = 'Access was revoked';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;

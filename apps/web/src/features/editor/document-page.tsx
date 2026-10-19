@@ -47,10 +47,11 @@ export function DocumentPage() {
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
-  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded, isAttemptSuperseded } = useMembers({
-    documentId,
-    creatorTicket: openedAfterMount ? creatorTicketOf(openedAfterMount) : null,
-  });
+  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded, isAttemptSuperseded, isAttemptRestarted } =
+    useMembers({
+      documentId,
+      creatorTicket: openedAfterMount ? creatorTicketOf(openedAfterMount) : null,
+    });
   const {
     state: connectionState,
     failureReason,
@@ -68,6 +69,7 @@ export function DocumentPage() {
   const { editorGeneration, isReloading, hasReloadFailed, reload } = useDocumentReload({
     documentId,
     roomMode: opened?.roomMode,
+    isAttemptRestarted,
     restartWaiting,
     resetConnection,
   });

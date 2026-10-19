@@ -66,13 +66,20 @@ export type Environment = {
   trustedProxyHops: number;
   llm: LlmSettings;
   openUncommittedPerMinute: number;
+  projectionWorkerHeapMegabytes: number | null;
 };
 
-function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
-  if (!value) return fallback;
+function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
+  if (!value) return null;
   const parsed = limitSchema.safeParse(value);
   if (!parsed.success) throw new InvalidEnvironmentIntegerError({ name, value });
   return parsed.data;
+}
+
+function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
+  const limit = optionalLimitFrom({ name, value });
+  if (limit === null) return fallback;
+  return limit;
 }
 
 export function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
@@ -109,6 +116,10 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'OPEN_UNCOMMITTED_PER_MINUTE',
       value: source.OPEN_UNCOMMITTED_PER_MINUTE,
       fallback: OPEN_UNCOMMITTED_PER_MINUTE,
+    }),
+    projectionWorkerHeapMegabytes: optionalLimitFrom({
+      name: 'PROJECTION_WORKER_HEAP_MEGABYTES',
+      value: source.PROJECTION_WORKER_HEAP_MEGABYTES,
     }),
   };
 }

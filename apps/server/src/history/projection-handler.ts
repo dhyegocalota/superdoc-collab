@@ -8,8 +8,11 @@ import {
   type ReadModel,
   type UpdateLog,
 } from '@superdoc-collab/history';
+import { MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
 import * as Y from 'yjs';
+import { describeError } from '../logging/describe-error';
 import {
+  IMPORT_TOO_LARGE_MESSAGE,
   MissingVersionMarkError,
   ProjectionRequestKind,
   SNAPSHOT_EVERY_UPDATES,
@@ -28,6 +31,7 @@ type ProjectionStores = {
   readModel: ReadModel;
   replays: GcFreeReplays;
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
+  fileSizeBytes: (filePath: string) => number;
 };
 
 export function createProjectionHandler({
@@ -35,6 +39,7 @@ export function createProjectionHandler({
   readModel,
   replays,
   importRevisions,
+  fileSizeBytes,
 }: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
     compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
@@ -46,9 +51,20 @@ export function createProjectionHandler({
     };
   }
 
+  async function importErrorOf(request: { documentId: string; filePath: string }): Promise<string | null> {
+    try {
+      const bytes = fileSizeBytes(request.filePath);
+      if (bytes <= MAX_REVISIONS_IMPORT_BYTES) return await importRevisions(request);
+      console.warn(`${IMPORT_TOO_LARGE_MESSAGE} ${request.documentId}: ${bytes} bytes`);
+      return null;
+    } catch (error) {
+      return describeError(error);
+    }
+  }
+
   async function handleImport(request: { documentId: string; filePath: string }): Promise<ProjectionDoneReply> {
     const cursor = readModel.cursor(request.documentId);
-    return { kind: ProjectionRequestKind.Import, documentId: request.documentId, cursor, importError: await importRevisions(request) };
+    return { kind: ProjectionRequestKind.Import, documentId: request.documentId, cursor, importError: await importErrorOf(request) };
   }
 
   function handleForget(documentId: string): ProjectionDoneReply {

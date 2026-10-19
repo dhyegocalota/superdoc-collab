@@ -14,11 +14,13 @@ const CREATOR_TICKET: CreatorTicket = { attempt: 2, epoch: 'epoch-1' };
 function membersAnswer({
   isCurrentUserOnline,
   isAttemptSuperseded = false,
+  isAttemptRestarted = false,
 }: {
   isCurrentUserOnline: boolean;
   isAttemptSuperseded?: boolean;
+  isAttemptRestarted?: boolean;
 }): Response {
-  return jsonResponse({ body: { members: [], isCurrentUserOnline, isAttemptSuperseded } });
+  return jsonResponse({ body: { members: [], isCurrentUserOnline, isAttemptSuperseded, isAttemptRestarted } });
 }
 
 function renderMembers(creatorTicket: CreatorTicket | null = null) {
@@ -151,6 +153,18 @@ test('isAttemptSuperseded is false before the first answer and follows the lates
   expect(result.current.isAttemptSuperseded).toBe(false);
   await poll();
   await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(true));
+});
+
+test('isAttemptRestarted is false before the first answer and follows the latest answer', async () => {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptRestarted: false }))
+    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptRestarted: true }));
+  const { result, poll } = renderMembers(CREATOR_TICKET);
+  expect(result.current.isAttemptRestarted).toBe(false);
+  await waitFor(() => expect(result.current.membersAnsweredAt).not.toBeNull());
+  expect(result.current.isAttemptRestarted).toBe(false);
+  await poll();
+  await waitFor(() => expect(result.current.isAttemptRestarted).toBe(true));
 });
 
 test('isAttemptSuperseded is false after a failed poll', async () => {

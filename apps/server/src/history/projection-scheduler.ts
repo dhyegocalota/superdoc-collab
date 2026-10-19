@@ -29,18 +29,23 @@ const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
 function createWorker({
   databaseDirectory,
   projectionWorkerFile,
+  workerHeapMegabytes,
 }: {
   databaseDirectory: string;
   projectionWorkerFile: URL | null;
+  workerHeapMegabytes: number | null;
 }): Worker {
   const workerData = { databaseDirectory };
-  if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData });
-  if (!import.meta.url.endsWith(SOURCE_EXTENSION)) return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData });
+  const heapLimit = workerHeapMegabytes === null ? {} : { resourceLimits: { maxOldGenerationSizeMb: workerHeapMegabytes } };
+  if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData, ...heapLimit });
+  if (!import.meta.url.endsWith(SOURCE_EXTENSION))
+    return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData, ...heapLimit });
   const entry = JSON.stringify(new URL('./projection-worker.ts', import.meta.url).href);
   const registerEntry = JSON.stringify(import.meta.resolve(TSX_REGISTER_SPECIFIER));
   return new Worker(`import(${registerEntry}).then(({ register }) => { register(); return import(${entry}); })`, {
     eval: true,
     workerData,
+    ...heapLimit,
   });
 }
 
@@ -50,6 +55,7 @@ export class ProjectionScheduler {
   currentWorker: Worker;
   private readonly databaseDirectory: string;
   private readonly projectionWorkerFile: URL | null;
+  private readonly workerHeapMegabytes: number | null;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
   private readonly documentsNeedingRerun = new Set<string>();
@@ -64,9 +70,18 @@ export class ProjectionScheduler {
   private readonly loggedImportFailures = new Set<string>();
   private stoppingPromise: Promise<void> | null = null;
 
-  constructor({ databaseDirectory, projectionWorkerFile = null }: { databaseDirectory: string; projectionWorkerFile?: URL | null }) {
+  constructor({
+    databaseDirectory,
+    projectionWorkerFile = null,
+    workerHeapMegabytes = null,
+  }: {
+    databaseDirectory: string;
+    projectionWorkerFile?: URL | null;
+    workerHeapMegabytes?: number | null;
+  }) {
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
+    this.workerHeapMegabytes = workerHeapMegabytes;
     this.currentWorker = this.spawn();
   }
 
@@ -140,7 +155,11 @@ export class ProjectionScheduler {
   }
 
   private spawn(): Worker {
-    const worker = createWorker({ databaseDirectory: this.databaseDirectory, projectionWorkerFile: this.projectionWorkerFile });
+    const worker = createWorker({
+      databaseDirectory: this.databaseDirectory,
+      projectionWorkerFile: this.projectionWorkerFile,
+      workerHeapMegabytes: this.workerHeapMegabytes,
+    });
     this.isAlive = true;
     worker.on('message', (reply: ProjectionReply) => this.settle(reply));
     worker.on('error', (error) => console.error(`${WORKER_ERROR_MESSAGE}: ${describeError(error)}`));

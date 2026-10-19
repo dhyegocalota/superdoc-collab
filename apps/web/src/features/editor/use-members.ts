@@ -12,6 +12,7 @@ type MembersResult = {
   membersAnsweredAt: number | null;
   isSessionEnded: boolean;
   isAttemptSuperseded: boolean;
+  isAttemptRestarted: boolean;
 };
 
 export function useMembers({ documentId, creatorTicket }: { documentId: string; creatorTicket: CreatorTicket | null }): MembersResult {
@@ -33,6 +34,7 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
       membersAnsweredAt: null,
       isSessionEnded,
       isAttemptSuperseded: false,
+      isAttemptRestarted: false,
     };
   if (error)
     return {
@@ -42,6 +44,7 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
       membersAnsweredAt: null,
       isSessionEnded,
       isAttemptSuperseded: false,
+      isAttemptRestarted: false,
     };
   return {
     members: data.members,
@@ -50,5 +53,6 @@ export function useMembers({ documentId, creatorTicket }: { documentId: string; 
     membersAnsweredAt: dataUpdatedAt,
     isSessionEnded,
     isAttemptSuperseded: data.isAttemptSuperseded && !isPlaceholderData,
+    isAttemptRestarted: data.isAttemptRestarted && !isPlaceholderData,
   };
 }

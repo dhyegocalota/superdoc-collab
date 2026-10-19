@@ -47,10 +47,12 @@ export type CollaborationClient = { document: Y.Doc; provider: HocuspocusProvide
 
 export class CollaborationRefusedError extends Error {
   readonly closeCode: number | null;
+  readonly reason: string | null;
 
-  constructor({ closeCode = null }: { closeCode?: number | null } = {}) {
+  constructor({ closeCode = null, reason = null }: { closeCode?: number | null; reason?: string | null } = {}) {
     super('The collaboration server refused the connection.');
     this.closeCode = closeCode;
+    this.reason = reason;
   }
 }
 
@@ -103,9 +105,9 @@ function openProvider({
         isSynced = true;
         resolve({ document, provider, closed, close });
       },
-      onAuthenticationFailed: () => {
+      onAuthenticationFailed: ({ reason }) => {
         close();
-        reject(new CollaborationRefusedError());
+        reject(new CollaborationRefusedError({ reason }));
       },
       onClose: ({ event }) => {
         reportClosed({ code: event.code, reason: event.reason });

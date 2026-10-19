@@ -24,6 +24,7 @@ import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { createDocumentsRoutes } from '../documents/documents-routes';
 import type { DocumentFileStorage } from '../documents/file-storage';
+import type { ShowcaseDocuments } from '../documents/showcase-documents';
 import { createShareLinksRoutes } from '../documents/share-links-routes';
 import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
@@ -68,6 +69,7 @@ export type InsightsServices = {
 export type AppServices = {
   documents: DocumentsRepository;
   storage: DocumentFileStorage;
+  showcase: ShowcaseDocuments;
   runtime: DocumentRuntime;
   openBudget: OpenBudget;
   shareLinks: ShareLinksRepository;

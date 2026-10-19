@@ -16,6 +16,9 @@ import {
   type CreatedInvite,
   type CreatedPasswordReset,
   PASSWORD_RESET_TTL_MS,
+  SHOWCASE_API_PATH,
+  SHOWCASE_TITLE,
+  type DocumentsList,
   passwordResetApiPath,
   passwordResetTokenOf,
   type InviteSummary,
@@ -34,6 +37,7 @@ const ADMIN_CALLS = [
   { method: HttpMethod.Delete, path: `${INVITES_PATH}/x` },
   { method: HttpMethod.Post, path: `${USERS_PATH}/x/role` },
   { method: HttpMethod.Post, path: passwordResetApiPath('x') },
+  { method: HttpMethod.Post, path: SHOWCASE_API_PATH },
 ];
 const NOW = Date.UTC(2026, 9, 19);
 const NEW_PASSWORD = 'a-brand-new-password';
@@ -77,6 +81,24 @@ function signUpWithToken({ server, email, token }: { server: TestServer; email: 
 }
 
 describe('admin routes', () => {
+  test('an admin creates the showcase document and owns it', async () => {
+    const server = await startTestServer();
+    const response = await call({ server, method: HttpMethod.Post, path: SHOWCASE_API_PATH, cookie: server.admin.cookie });
+    expect(response.status).toBe(HttpStatus.Created);
+    expect(await response.json()).toMatchObject({ title: SHOWCASE_TITLE, owner: { id: server.admin.id } });
+    const listed = await fetch(`${server.baseUrl}${ApiPath.Documents}`, { headers: { cookie: server.admin.cookie } });
+    expect(((await listed.json()) as DocumentsList).mine.map((document) => document.title)).toEqual([SHOWCASE_TITLE]);
+    await server.stop();
+  });
+
+  test('pressing it twice makes two showcase documents', async () => {
+    const server = await startTestServer();
+    await call({ server, method: HttpMethod.Post, path: SHOWCASE_API_PATH, cookie: server.admin.cookie });
+    await call({ server, method: HttpMethod.Post, path: SHOWCASE_API_PATH, cookie: server.admin.cookie });
+    expect(server.services.documents.list(server.admin.id).mine).toHaveLength(2);
+    await server.stop();
+  });
+
   test.each(ADMIN_CALLS)('$method $path is 401 signed out and 403 for a user', async ({ method, path }) => {
     const server = await startTestServer();
     const user = await signedInUser({ server, name: 'Eve' });

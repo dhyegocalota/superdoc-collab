@@ -3,13 +3,13 @@
 ## The failing test first
 
 - [ ] `showcase-paragraphs.test.ts::four authors across five days with gaps over five minutes` — expected: the invariants hold
-- [ ] Confirmed it fails for the right reason: <paste>
+- [x] Confirmed it fails for the right reason: `Error: buildShowcaseParagraphs is not implemented` (8 of 8 failed)
 
 ## Unit
 
-- [ ] `showcase-documents.test.ts`: row, file and import scheduled; storage failure removes the row
-- [ ] `admin-routes.test.ts`: admin creates the showcase (201); a user gets the guard's answer
-- [ ] `sign-up-gate.test.ts`: the first claim creates one showcase; a later sign-up creates none
+- [x] `showcase-documents.test.ts`: row, file and import scheduled; storage failure removes the row
+- [x] `admin-routes.test.ts`: admin creates the showcase (201); a user gets the guard's answer
+- [x] `sign-up-gate.test.ts`: the first claim creates one showcase; a later sign-up creates none
 
 ## E2E
 

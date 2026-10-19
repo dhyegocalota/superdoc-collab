@@ -5,6 +5,7 @@ import {
   INVITE_TOKEN_HEADER,
   INVITE_TTL_MS,
   InviteState,
+  SHOWCASE_TITLE,
   SIGN_UP_BY_INVITATION_MESSAGE,
   UserRole,
   type SessionUser,
@@ -58,6 +59,40 @@ test('the first sign-up on an unclaimed instance becomes admin and keeps its tim
   const server = await startTestServer({ claim: false });
   expect((await signUp({ server, email: 'first@example.com' })).status).toBe(HttpStatus.Ok);
   expect(await meOf({ server, email: 'first@example.com' })).toMatchObject({ role: UserRole.Admin, timeZone: TIME_ZONE });
+  await server.stop();
+});
+
+function titlesOf({ server, userId }: { server: TestServer; userId: string }): string[] {
+  return server.services.documents.list(userId).mine.map((document) => document.title);
+}
+
+test('the first claim creates one showcase document owned by the new admin', async () => {
+  const server = await startTestServer({ claim: false, showcaseOnClaim: true });
+  await signUp({ server, email: 'first@example.com' });
+  const admin = await meOf({ server, email: 'first@example.com' });
+  expect(titlesOf({ server, userId: admin.id })).toEqual([SHOWCASE_TITLE]);
+  await server.stop();
+});
+
+test('a later sign-up by invitation creates no showcase document', async () => {
+  const server = await startTestServer({ showcaseOnClaim: true });
+  const invite = server.services.invites.create({ createdBy: server.admin.id });
+  await signUp({ server, email: 'eve@example.com', token: inviteTokenOf(invite.url) });
+  const eve = await meOf({ server, email: 'eve@example.com' });
+  expect(titlesOf({ server, userId: eve.id })).toEqual([]);
+  expect(titlesOf({ server, userId: server.admin.id })).toEqual([SHOWCASE_TITLE]);
+  await server.stop();
+});
+
+test('a storage failure while creating the showcase never fails the first sign-up', async () => {
+  const server = await startTestServer({ claim: false, showcaseOnClaim: true });
+  vi.spyOn(server.services.storage, 'put').mockRejectedValue(new Error('disk full'));
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  expect((await signUp({ server, email: 'first@example.com' })).status).toBe(HttpStatus.Ok);
+  const admin = await meOf({ server, email: 'first@example.com' });
+  expect(admin.role).toBe(UserRole.Admin);
+  expect(titlesOf({ server, userId: admin.id })).toEqual([]);
+  vi.restoreAllMocks();
   await server.stop();
 });
 

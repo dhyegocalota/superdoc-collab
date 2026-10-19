@@ -5,6 +5,7 @@ import {
   INVITE_NOT_FOUND_MESSAGE,
   LAST_ADMIN_MESSAGE,
   PASSWORD_RESET_SEGMENT,
+  SHOWCASE_SEGMENT,
   UserRole,
 } from '@superdoc-collab/types';
 import { Hono } from 'hono';
@@ -19,7 +20,7 @@ const USER_NOT_FOUND_MESSAGE = 'User not found';
 const roleSchema = z.object({ role: z.enum(UserRole) });
 
 export function createAdminRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { invites, adminUsers, passwordResets } = services;
+  const { invites, adminUsers, passwordResets, showcase, documents } = services;
   const routes = new Hono<SignedIn>();
 
   routes.get(`/${AdminResource.Users}`, (context) => context.json(adminUsers.list()));
@@ -52,6 +53,12 @@ export function createAdminRoutes({ services }: { services: AppServices }): Hono
     if (outcome === RevokeOutcome.NotFound) return context.json({ error: INVITE_NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
     if (outcome === RevokeOutcome.AlreadyAccepted) return context.json({ error: INVITE_ALREADY_ACCEPTED_MESSAGE }, HttpStatus.Conflict);
     return context.body(null, HttpStatus.NoContent);
+  });
+
+  routes.post(`/${SHOWCASE_SEGMENT}`, async (context) => {
+    const userId = context.var.user.id;
+    const documentId = await showcase.create({ ownerUserId: userId });
+    return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   });
 
   return routes;

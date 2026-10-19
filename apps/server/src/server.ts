@@ -43,6 +43,7 @@ import { DEFAULT_VERSION_ROOM_POLICY, VersionRooms, type VersionRoomPolicy } fro
 import { createApp, NOT_FOUND_MESSAGE, type AppServices, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
+import { ShowcaseDocuments } from './documents/showcase-documents';
 import { InsightsJobRunner } from './insights/insights-job-runner';
 import { SelectionSummariesService } from './insights/selection-summaries-service';
 import { SummariesService } from './insights/summaries-service';
@@ -199,6 +200,7 @@ function createServices({
   projectionWorkerFile,
   agentToolkit,
   listeningPort,
+  createShowcaseOnClaim,
   now,
 }: {
   environment: Environment;
@@ -209,6 +211,7 @@ function createServices({
   projectionWorkerFile: URL | null;
   agentToolkit: ServerServices['agentToolkit'];
   listeningPort: { value: number };
+  createShowcaseOnClaim: boolean;
   now: () => number;
 }): { auth: Auth; services: ServerServices } {
   const { database, historySqlite, readModelSqlite } = databases;
@@ -221,7 +224,13 @@ function createServices({
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
   const passwordResetLinks = new PasswordResetLinkCapture();
-  const auth = createAuth({ database, environment, invites, passwordResetLinks });
+  const auth = createAuth({
+    database,
+    environment,
+    invites,
+    passwordResetLinks,
+    createShowcase: createShowcaseOnClaim ? (ownerUserId) => services.showcase.create({ ownerUserId }) : undefined,
+  });
   const versions = new VersionsService({ readModel, updateLog, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
@@ -262,6 +271,7 @@ function createServices({
   const services: ServerServices = {
     documents,
     storage,
+    showcase: new ShowcaseDocuments({ documents, storage, runtime, now }),
     updateLog,
     agentActions,
     agentSessions: createAgentSessions({ environment, documents, runtime, listeningPort }),
@@ -330,6 +340,7 @@ export async function startServer({
   languageModel = chooseLanguageModel(environment.llm),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   projectionWorkerFile = null,
+  createShowcaseOnClaim = true,
   now = Date.now,
 }: {
   environment: Environment;
@@ -337,6 +348,7 @@ export async function startServer({
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   projectionWorkerFile?: URL | null;
+  createShowcaseOnClaim?: boolean;
   now?: () => number;
 }): Promise<RunningServer> {
   const documentFilesDirectory = join(environment.databaseDirectory, DOCUMENT_FILES_DIRECTORY);
@@ -356,6 +368,7 @@ export async function startServer({
     projectionWorkerFile,
     agentToolkit,
     listeningPort,
+    createShowcaseOnClaim,
     now,
   });
   resumeProjections({ databases, services });

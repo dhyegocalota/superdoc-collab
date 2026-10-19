@@ -661,8 +661,8 @@ parentPort.on('message', (request) => {
     return void setTimeout(() => process.exit(0), ${stopDelayMs});
   }
   if (isStopping) return;
-  if (request.kind === '${ProjectionRequestKind.Bootstrap}') return parentPort.postMessage({ kind: request.kind, documentId: request.documentId, heapTotalBytes: 0 });
-  parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: threadId, blocks: [], heapTotalBytes: ${heapTotalBytes} });
+  if (request.kind === '${ProjectionRequestKind.Bootstrap}') return parentPort.postMessage({ kind: request.kind, documentId: request.documentId, retainedHeapBytes: 0 });
+  parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: threadId, blocks: [], retainedHeapBytes: ${heapTotalBytes} });
 });
 `;
   writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), source);

@@ -1,4 +1,4 @@
-import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, type DocumentsList } from '@superdoc-collab/types';
+import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, type BootstrapProgress, type DocumentsList } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, TriangleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
@@ -21,11 +21,13 @@ import {
   TRY_AGAIN_LABEL,
 } from './waiting-copy';
 
+export type WaitingProgress = { bootstrap: BootstrapProgress | null; elapsedSeconds: number; isShown: boolean };
+
 export type WaitingReadiness =
   DocumentReadiness.Waiting | DocumentReadiness.Paused | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
 
 type WaitingActions = { onKeepWaiting: () => void; onRetry: () => void };
-type WaitingForDocumentProps = WaitingActions & { documentId: string; readiness: WaitingReadiness };
+type WaitingForDocumentProps = WaitingActions & { documentId: string; readiness: WaitingReadiness; progress: WaitingProgress };
 
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 const PAGE_LINE_WIDTHS = ['w-2/5', 'w-full', 'w-11/12', 'w-full', 'w-4/5', 'w-full', 'w-3/5'];
@@ -136,7 +138,7 @@ const CARD_BY_READINESS: Record<WaitingReadiness, (actions: WaitingActions) => R
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
-export function WaitingForDocument({ documentId, readiness, onKeepWaiting, onRetry }: WaitingForDocumentProps) {
+export function WaitingForDocument({ documentId, readiness, progress, onKeepWaiting, onRetry }: WaitingForDocumentProps) {
   const queryClient = useQueryClient();
   const title = cachedTitleOf({ documentList: queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId });
 

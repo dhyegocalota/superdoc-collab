@@ -120,7 +120,13 @@ export function DocumentPage() {
   const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
   if (documentReadiness !== DocumentReadiness.Ready) {
     return withAnnouncement(
-      <WaitingForDocument documentId={documentId} readiness={documentReadiness} onKeepWaiting={keepWaiting} onRetry={retry} />,
+      <WaitingForDocument
+        documentId={documentId}
+        readiness={documentReadiness}
+        progress={{ bootstrap: null, elapsedSeconds: 0, isShown: false }}
+        onKeepWaiting={keepWaiting}
+        onRetry={retry}
+      />,
     );
   }
   if (!opened) return withAnnouncement(<OpeningDocument />);

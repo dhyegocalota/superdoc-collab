@@ -49,6 +49,7 @@ OPENROUTER_BASE_URL=
 LLM_MAX_CONCURRENT_JOBS=
 LLM_MAX_CALLS_PER_HOUR=
 OPEN_UNCOMMITTED_PER_MINUTE=
+TRUSTED_PROXY_HOPS=
 ```
 
 | Variable | Secret | What it does |
@@ -63,6 +64,7 @@ OPEN_UNCOMMITTED_PER_MINUTE=
 | `LLM_MAX_CONCURRENT_JOBS` | no | Empty keeps the default of 2 model jobs at once ([ADR 0011](../../adr/0011-process-wide-llm-cost-caps.md)). |
 | `LLM_MAX_CALLS_PER_HOUR` | no | Empty keeps the default of 60 model calls per rolling hour. |
 | `OPEN_UNCOMMITTED_PER_MINUTE` | no | Empty keeps the default of 30 distinct uncommitted documents per user per minute ([ADR 0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md)); only test stacks raise it. |
+| `TRUSTED_PROXY_HOPS` | no | Empty keeps one trusted hop: the client address is the rightmost entry of `X-Forwarded-For` ([ADR 0042](../../adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)). |
 
 Do not set `PORT`, `DATABASE_DIR`, `WEB_DIST_DIR` or `TRUST_PROXY`: the compose file pins them.
 

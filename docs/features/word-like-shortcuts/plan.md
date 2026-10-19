@@ -6,12 +6,12 @@
 
 ## Steps
 
-- [ ] **Step 1 (spike, never committed):** in a scratch E2E, press each Word key on a new document and record which SuperDoc 2.23.0 handles natively; find how the toolbar executes catalog commands (the public command surface on the instance) and whether toolbar tooltips accept extra text; write the table into `spec.md` under "Spike".
-- [ ] **Step 2 (red):** registry invariants, platform helper, `ShortcutHint`; commit red alone.
-- [ ] **Step 3 (green):** registry, platform helper, hint component.
-- [ ] **Step 4 (red → green):** `useShortcuts` handler and its page wiring; command execution through SuperDoc.
-- [ ] **Step 5 (red → green):** `ShortcutsDialog`, the account menu entry, the More actions row, hints in every tooltip and menu item.
-- [ ] **Step 6:** E2E `e2e/shortcuts.spec.ts`; screenshots at 1280 and 375 (modal, download menu with hints, tooltip with hint); tester briefing; rule bullet in `.claude/rules/web-ui.md` (Focus and keyboard).
+- [x] **Step 1 (spike, never committed):** in a scratch E2E, press each Word key on a new document and record which SuperDoc 2.23.0 handles natively; find how the toolbar executes catalog commands (the public command surface on the instance) and whether toolbar tooltips accept extra text; write the table into `spec.md` under "Spike".
+- [x] **Step 2 (red):** registry invariants, platform helper, `ShortcutHint`; commit red alone.
+- [x] **Step 3 (green):** registry, platform helper, hint component.
+- [x] **Step 4 (red → green):** `useShortcuts` handler and its page wiring; command execution through SuperDoc.
+- [x] **Step 5 (red → green):** `ShortcutsDialog`, the account menu entry, the More actions row, hints in every tooltip and menu item.
+- [x] **Step 6:** E2E `e2e/shortcuts.spec.ts`; screenshots at 1280 and 375 (modal, download menu with hints, tooltip with hint); tester briefing; rule bullet in `.claude/rules/web-ui.md` (Focus and keyboard).
 
 ## Failure modes
 

@@ -4,6 +4,7 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"],
     "paths": {
+      "@/*": ["../apps/web/src/*"],
       "@modelcontextprotocol/sdk/*": ["../apps/server/node_modules/@modelcontextprotocol/sdk/dist/esm/*"]
     }
   },

@@ -1,6 +1,6 @@
 # Final visuals
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Owner approval:** approved 2026-10-17 (design.md section 7, every recommendation)
 **Tier:** 🟡
 **ADRs:** [0009](../../adr/0009-design-system.md), [0015](../../adr/0015-topics-recompute-trigger-and-identity.md), [0031](../../adr/0031-one-summarize-job-runs-only-what-is-stale.md)

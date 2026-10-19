@@ -1,6 +1,6 @@
 # Time zone preference — spec
 
-- Status: Approved
+- Status: Shipped 2026-10-17
 - Tier: red (a user preference, every time label, the timeline bin alignment and the version a bin opens).
 - Owner approval: requirement stated 2026-10-17 ("tem que funcionar hiper bem e cuidadosamente a questão do timezone… uma página de preferência que por padrão utiliza o timezone do browser"; "tem que ficar claro pro usuário qual é o timezone dele mesmo quando tiver nulo"); design decided by the lead under the owner's "faça tudo sozinho" of the same day. Every ruling below is the lead's and can be overridden.
 - ADRs: [0024](../../adr/0024-times-follow-the-readers-zone-storage-stays-epoch.md).

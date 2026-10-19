@@ -1,6 +1,6 @@
 # The editor survives a rejected edit
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 ("fix os 5 achados", defect 1 of the first `/scenario core-realtime` walk)
 **ADRs:** none

@@ -1,6 +1,6 @@
 # Summarize edits with AI: the sentence appears first and grows while it is written
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Lane:** product
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the owner asked to make "Summarize edits with AI" more resilient and faster, with a wow effect; the options below were chosen from the research)

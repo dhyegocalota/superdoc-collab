@@ -1,6 +1,6 @@
 # One awareness frame is bounded by 64 entries before Hocuspocus decodes it
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Lane:** product
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18

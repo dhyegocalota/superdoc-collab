@@ -1,6 +1,6 @@
 # The Edits panel on a phone
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the owner's phone report; the design options were decided by the lead under the owner's delegation: height C, time travel B, loading B, the 44 px size variant accepted)
 **ADRs:** [0038](../../adr/0038-phone-time-travel-confirms-with-an-inline-second-tap.md), [0031](../../adr/0031-one-summarize-job-runs-only-what-is-stale.md)

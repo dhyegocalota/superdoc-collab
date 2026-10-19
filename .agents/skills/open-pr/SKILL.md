@@ -13,6 +13,7 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 - `spec.md` says `Owner approval: approved <date>`. Not approved → stop.
 - Run `pnpm verify --plan` and keep its `class:` line. A spec that says `**Lane:** docs` with a class other than `docs` → stop: the change left the docs lane (HARNESS §1).
 - Detect mode: an open PR for this branch (`gh pr view --json number,url`) means **update**, otherwise **create**.
+- Set the status to `In review` in `spec.md` and in the folder's row of `docs/features/README.md`; a folder without a row gets one (HARNESS §7 → Status). The `shape` gate fails on a disagreement.
 
 ## Gates, in order, stop at the first failure
 
@@ -39,7 +40,7 @@ Feature slug: first token of `$ARGUMENTS`. The folder `docs/features/<slug>/` mu
 The gate is local (ADR 0030): hosted runs are not waited for. Never run a scenario before the PR opens. When the owner asks for the merge:
 
 0. Read the `paths` front matter of every `docs/scenarios/*.md` and match the globs against `gh pr diff <n> --name-only`; name each scenario that matches and suggest `/scenario <slug>` to the owner, who decides (ADR 0023). When none matches, say so in one line.
-1. `git fetch origin`, merge `origin/main` into the branch (never rebase) and run `/verify`. It runs only what `origin/main` brought in that the branch's last green commit did not cover.
+1. Write `Shipped <today>` in `spec.md` and `Shipped <today> ([PR #<n>](<repository url>/pull/<n>))` in the folder's row of `docs/features/README.md`, `<today>` being the date in America/Sao_Paulo, and commit `docs(<slug>): shipped on <today>` on the branch when either line changed; never in a follow-up PR. Then `git fetch origin`, merge `origin/main` into the branch (never rebase) and run `/verify`. It runs only what `origin/main` brought in that the branch's last green commit did not cover.
 2. Post the verify summary (class, gates with times, commit) as a PR comment with `gh pr comment <n> --body-file <file>`.
 3. Green → push the branch, `git fetch origin` again and confirm `git merge-base --is-ancestor origin/main HEAD`; when `main` moved, go back to step 1. Then merge the way the owner asked (`gh pr merge <n> --merge`). Red → back to Build.
 4. Report the comment URL and the merge commit in the reply.

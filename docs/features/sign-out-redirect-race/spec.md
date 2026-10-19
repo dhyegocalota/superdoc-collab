@@ -1,6 +1,6 @@
 # Sign-out leaves the page before it clears the session
 
-**Status:** Building
+**Status:** Shipped 2026-10-18
 **Lane:** product
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-18 (the lead's request after a gate flake on main)

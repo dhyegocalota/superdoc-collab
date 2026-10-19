@@ -1,6 +1,6 @@
 # Test setup under testing, and the two Dependabot alerts
 
-**Status:** Shipped 2026-10-17 ([PR #42](https://github.com/dhyegocalota/superdoc-collab/pull/42))
+**Status:** Shipped 2026-10-17
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-17
 **ADRs:** [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md), [0030](../../adr/0030-the-local-gate-runs-what-the-diff-can-break.md)

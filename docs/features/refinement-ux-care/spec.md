@@ -1,6 +1,6 @@
 # Refinement: UX care
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡 (user-visible changes across every screen; no schema, no endpoint, no new dependency)
 **Owner approval:** approved 2026-10-17 (refinement proposal)
 **ADRs:** [0003](../../adr/0003-time-travel-with-native-yjs-snapshots.md) (version viewer in a same-origin frame), [0012](../../adr/0012-selection-summaries-cached-per-filter-and-cursor.md) (summary freshness)

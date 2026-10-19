@@ -1,6 +1,6 @@
 # The superseded creator's page learns of the takeover within a poll
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-18 ("ok fix isso", after the explanation of the 40 to 60 s delay); route and copy refined by the lead the same day after the plan review.
 **ADRs:** [0036](../../adr/0036-the-superseded-creator-page-learns-of-the-takeover-from-the-members-poll.md)

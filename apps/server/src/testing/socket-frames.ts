@@ -53,7 +53,9 @@ export function awarenessFrameClaiming({
 function paddedVarUint(value: number): number[] {
   const canonical = varUint(value);
   const zeroPayloadBytes = Array.from({ length: PADDED_VARINT_BYTES - canonical.length - 1 }, () => CONTINUATION_BIT);
-  return [...canonical.slice(0, -1), canonical[canonical.length - 1] | CONTINUATION_BIT, ...zeroPayloadBytes, 0];
+  const lastIndex = canonical.length - 1;
+  const continued = canonical.map((byte, index) => (index === lastIndex ? byte | CONTINUATION_BIT : byte));
+  return [...continued, ...zeroPayloadBytes, 0];
 }
 
 export function paddedAwarenessFrame({

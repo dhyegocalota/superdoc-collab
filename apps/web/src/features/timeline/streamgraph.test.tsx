@@ -773,23 +773,50 @@ test('under reduced motion a change does not pulse', () => {
   expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
 });
 
-test('a divider whose column moves glides from its old place and a steady one does not', () => {
+const MARK_NAME = agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: AgentActionKind.DocumentExported });
+const longerTimeline = {
+  ...timelineWith({
+    volumes: [[100, 20], [100, 20], ...silentTimeline.bins.map((bin) => Object.values(bin.byBand).map((cell) => cell.inserted))],
+    names: ['Budget', 'Hiring'],
+  }),
+  agentActions: breakTimeline.agentActions,
+};
+
+function renderMovable() {
   const props = {
     change: null,
-    timeline: breakTimeline,
     selectedIndex: null,
     highlightedBandId: null,
     isLoadingVersion: false,
     onSelectIndex: vi.fn(),
     onClearSelection: vi.fn(),
   };
-  const narrower = WIDTH / 2;
-  const { container, rerender } = render(<Streamgraph {...props} width={WIDTH} />);
-  const divider = () => container.querySelector<SVGLineElement>('line[stroke-dasharray]')!;
+  const view = render(<Streamgraph {...props} timeline={breakTimeline} width={WIDTH} />);
+  return {
+    divider: () => view.container.querySelector<SVGLineElement>('line[stroke-dasharray]')!,
+    mark: () => screen.getByRole('img', { name: MARK_NAME }),
+    change: ({ timeline: next, width }: { timeline: typeof breakTimeline; width: number }) =>
+      view.rerender(<Streamgraph {...props} timeline={next} width={width} />),
+  };
+}
+
+test('a data change that moves a divider glides it from its old place and keeps the mark transition', () => {
+  const { divider, mark, change } = renderMovable();
   expect(divider().style.getPropertyValue('--glide-offset')).toBe('0px');
-  rerender(<Streamgraph {...props} width={narrower} />);
-  const movedBy = breakColumn.centerX - layoutStreamgraph({ timeline: breakTimeline, width: narrower }).breaks[0]!.centerX;
+  change({ timeline: longerTimeline, width: WIDTH });
+  const movedBy = breakColumn.centerX - layoutStreamgraph({ timeline: longerTimeline, width: WIDTH }).breaks[0]!.centerX;
+  expect(movedBy).not.toBe(0);
   expect(divider().style.getPropertyValue('--glide-offset')).toBe(`${movedBy}px`);
   expect(divider()).toHaveClass('streamgraph-glide', 'motion-reduce:animate-none');
   expect(divider()).toHaveStyle({ animationDuration: `${STREAMGRAPH_TRANSITION_MS}ms` });
+  expect(mark().style.transitionProperty).toBe('transform');
+});
+
+test('a width change snaps the dividers and the marks instead of gliding them', () => {
+  const { divider, mark, change } = renderMovable();
+  change({ timeline: breakTimeline, width: WIDTH / 2 });
+  expect(divider().style.getPropertyValue('--glide-offset')).toBe('0px');
+  expect(mark().style.transitionProperty).toBe('none');
+  change({ timeline: longerTimeline, width: WIDTH / 2 });
+  expect(mark().style.transitionProperty).toBe('transform');
 });

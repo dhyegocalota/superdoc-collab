@@ -15,8 +15,8 @@ The brief asks for a summary of the edits that is interactive and filterable. On
 - There is one row per (document, key), stamped with the read-model cursor and, only when a topic is selected, the topic set's `updatedAt`.
 - Any edit anywhere marks every selection summary stale. The stale badge keeps the old sentence visible, which is the honest "as of now".
 - Any topic compute attempt marks the topic selections stale.
-- Summaries run as `202` plus polling on the existing `InsightsJobRunner`, never as a synchronous `POST`.
-- A per-document cooldown, `SUMMARIZE_COOLDOWN_MS` (30 s), is consumed only when a model call starts.
+- Summaries run as `202` plus polling on the existing `InsightsWorker`, never as a synchronous `POST`.
+- A per-document cooldown, `SELECTION_SUMMARY_COOLDOWN_MS` (30 s), is consumed only when a model call starts.
 
 ## Alternatives considered
 

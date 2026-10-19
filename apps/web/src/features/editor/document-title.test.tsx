@@ -173,3 +173,41 @@ test('a disabled Save is described by its reason, and an enabled Save is not', a
   expect(saveButton).not.toHaveAttribute('aria-describedby');
   expect(screen.queryByText(SAVE_TITLE_DISABLED_REASON)).toBeNull();
 });
+
+test('Save and Cancel are icon-only buttons with their labels as accessible names', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const saveButton = screen.getByRole('button', { name: SAVE_TITLE_LABEL });
+  const cancelButton = screen.getByRole('button', { name: CANCEL_TITLE_LABEL });
+  [saveButton, cancelButton].forEach((button) => {
+    expect(button.textContent).toBe('');
+    expect(button.querySelector('svg')).not.toBeNull();
+    expect(button).toHaveClass('size-8', 'shrink-0');
+  });
+});
+
+test('the editing row keeps one flex line with a shrinking input and nothing positioned over the header', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const input = screen.getByRole('textbox', { name: TITLE_LABEL });
+  const row = input.closest('form') as HTMLFormElement;
+  expect(row).toHaveClass('flex', 'min-w-0', 'items-center');
+  expect(row).not.toHaveClass('flex-wrap');
+  expect(input).toHaveClass('min-w-0', 'h-8');
+  const reason = screen.getByText(SAVE_TITLE_DISABLED_REASON);
+  expect(reason).toHaveClass('sr-only');
+  expect(reason.className).not.toMatch(/sm:/);
+});
+
+test('a disabled Save shows its reason in a tooltip, and an enabled Save shows none', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const saveButton = screen.getByRole('button', { name: SAVE_TITLE_LABEL });
+  await userEvent.hover(saveButton.parentElement as HTMLElement);
+  expect(await screen.findByRole('tooltip')).toHaveTextContent(SAVE_TITLE_DISABLED_REASON);
+  await userEvent.unhover(saveButton.parentElement as HTMLElement);
+  await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+  await userEvent.keyboard(RENAMED_TITLE);
+  await userEvent.hover(saveButton.parentElement as HTMLElement);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+});

@@ -62,7 +62,7 @@ export class DocumentsRepository {
   }
 
   recordThumbnail(documentId: string): void {
-    throw new Error(`recordThumbnail is not implemented for ${documentId}`);
+    this.database.drizzle.update(documents).set({ thumbnailUpdatedAt: new Date() }).where(eq(documents.id, documentId)).run();
   }
 
   touch(documentId: string): void {

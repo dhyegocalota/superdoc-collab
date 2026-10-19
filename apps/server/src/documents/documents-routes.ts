@@ -29,6 +29,7 @@ import { claimedTicketOf } from '../collaboration/claimed-ticket';
 import { retryLater } from '../http/retry-later';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
+import { mountThumbnail } from './thumbnail-routes';
 import { storeDocument } from './store-document';
 
 const MEMBER_USER_ID_PARAM = 'userId';
@@ -235,5 +236,6 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });
+  mountThumbnail({ routes, services });
   return routes;
 }

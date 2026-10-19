@@ -178,7 +178,11 @@ test('the thumbnail carries an ETag and a revalidating cache policy, and a match
 test('deleting the document removes its thumbnail file', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   await send({ server, cookie: owner.cookie, documentId, bytes: WEBP_BYTES });
-  await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, { method: HttpMethod.Delete, headers: { cookie: owner.cookie } });
+  const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
+    method: HttpMethod.Delete,
+    headers: { cookie: owner.cookie, origin: server.baseUrl },
+  });
+  expect(deleted.status).toBe(HttpStatus.NoContent);
   await expect(server.services.storage.readThumbnail(documentId)).rejects.toThrow();
   await server.stop();
 });

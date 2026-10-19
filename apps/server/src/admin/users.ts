@@ -1,5 +1,5 @@
 import { UserRole, type AdminUser } from '@superdoc-collab/types';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { user } from '../database/schema/auth';
 
@@ -7,6 +7,30 @@ export enum SetRoleOutcome {
   Updated = 'updated',
   NotFound = 'not-found',
   LastAdmin = 'last-admin',
+}
+
+const ADMIN_USER_COLUMNS = {
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  createdAt: user.createdAt,
+  banned: user.banned,
+};
+
+function adminUserOf({
+  banned,
+  createdAt,
+  ...row
+}: {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt: Date;
+  banned: boolean;
+}): AdminUser {
+  return { ...row, createdAt: createdAt.getTime(), isArchived: banned };
 }
 
 export class AdminUsersRepository {
@@ -17,12 +41,21 @@ export class AdminUsersRepository {
   }
 
   list(): AdminUser[] {
+    return this.database.drizzle.select(ADMIN_USER_COLUMNS).from(user).orderBy(asc(user.createdAt), asc(user.id)).all().map(adminUserOf);
+  }
+
+  find(id: string): AdminUser | null {
+    const row = this.database.drizzle.select(ADMIN_USER_COLUMNS).from(user).where(eq(user.id, id)).get();
+    if (!row) return null;
+    return adminUserOf(row);
+  }
+
+  countActiveAdmins(): number {
     return this.database.drizzle
-      .select({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt })
+      .select({ id: user.id })
       .from(user)
-      .orderBy(asc(user.createdAt), asc(user.id))
-      .all()
-      .map((row) => ({ ...row, createdAt: row.createdAt.getTime() }));
+      .where(and(eq(user.role, UserRole.Admin), eq(user.banned, false)))
+      .all().length;
   }
 
   emailOf(id: string): string | null {

@@ -61,6 +61,7 @@ const ADMIN_USER: AdminUser = {
   email: 'ada@example.com',
   role: UserRole.Admin,
   createdAt: Date.UTC(2026, 0, 5),
+  isArchived: false,
 };
 const MEMBER_USER: AdminUser = {
   id: 'user-2',
@@ -68,6 +69,7 @@ const MEMBER_USER: AdminUser = {
   email: 'bruno@example.com',
   role: UserRole.User,
   createdAt: Date.UTC(2026, 0, 6),
+  isArchived: false,
 };
 const PENDING_INVITE: InviteSummary = {
   id: 'invite-1',

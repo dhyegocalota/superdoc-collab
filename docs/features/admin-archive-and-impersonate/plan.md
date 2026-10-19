@@ -6,13 +6,13 @@
 
 ## Steps
 
-- [ ] **Step 1:** ADR 0046, spec and index to Building, this plan and the test plan.
-- [ ] **Step 2:** types: `ACCOUNT_ARCHIVED_MESSAGE`, `ARCHIVED_REASON`, the self and archived refusal messages, `IMPERSONATION_SESSION_MS`, `isArchived` on `AdminUser`, `impersonatedBy` on `SessionUser`.
-- [ ] **Step 3:** red then green, server archive and restore (ban, grants, sockets, 409, 400, 403, archived sign-in, share-link accept).
-- [ ] **Step 4:** red then green, server impersonate and stop (cookie with `impersonatedBy`, 400 self, archived and admin, one log line, stop returns the admin).
-- [ ] **Step 5:** red then green, web users table (Archive, Restore, Impersonate, Archived chip, confirm dialog).
-- [ ] **Step 6:** red then green, `ImpersonationBanner` in the app shell on every route with a session, Stop returns to Admin, the account menu shows the impersonated user.
-- [ ] **Step 7:** E2E `e2e/admin-archive-impersonate.spec.ts`, the archiving rule bullet, screenshots, tester briefing, `pnpm typecheck`.
+- [x] **Step 1:** ADR 0046, spec and index to Building, this plan and the test plan. — evidence: f285731e
+- [x] **Step 2:** types: `ACCOUNT_ARCHIVED_MESSAGE`, `ARCHIVED_REASON`, the self and archived refusal messages, `IMPERSONATION_SESSION_MS`, `isArchived` on `AdminUser`, optional `impersonatedBy` on `SessionUser`. — evidence: 3f7acdae
+- [x] **Step 3:** red then green, server archive and restore (ban, grants, sockets, 409, 400, 403, archived sign-in, share-link accept). — evidence: red 2dcb2ecf, green f838642a (16 server tests)
+- [x] **Step 4:** red then green, server impersonate and stop (cookie with `impersonatedBy`, 400 self, archived and admin, one log line, stop returns the admin). — evidence: same commits
+- [x] **Step 5:** red then green, web users table (Archive, Restore, Impersonate, Archived chip, confirm dialog). — evidence: red 094d170f, green 69704600 and adda2f76 (the first green commit missed the shell files)
+- [x] **Step 6:** red then green, `ImpersonationBanner` in the app shell on every route with a session, Stop returns to Admin, the account menu shows the impersonated user. — evidence: same commits, plus red 17b5ba1f and green 13c7896b for the JSON body
+- [x] **Step 7:** E2E `e2e/admin-archive-impersonate.spec.ts`, the archiving rule bullet, screenshots, tester briefing, `pnpm typecheck`. — evidence: efa3d2ee, 2 E2E passed in 13 s, typecheck clean, screenshots in `.pr-media/admin-archive-and-impersonate/`
 
 ## Failure modes
 

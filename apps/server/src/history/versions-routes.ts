@@ -5,6 +5,7 @@ import {
   RETRY_AFTER_SECONDS,
   SECOND_MS,
   TimelineQueryParam,
+  VERSION_BUSY_ERROR,
   VERSION_FAILED_ERROR,
   VERSION_THROTTLED_ERROR,
   VERSION_NOT_READY_ERROR,
@@ -19,6 +20,7 @@ import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater, type RetryLaterOptions } from '../http/retry-later';
+import { ProjectionBusyError } from './projection-messages';
 import { marksAround, VersionLookupKind, VersionThrottledError } from './versions-service';
 
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
@@ -65,6 +67,12 @@ function mountSummary({ routes, services }: RouteMount): void {
         body: { error: VERSION_FAILED_ERROR },
         status: HttpStatus.ServiceUnavailable,
       });
+    if (lookup.kind === VersionLookupKind.Busy)
+      return retryVersionLater({
+        context,
+        body: { error: VERSION_BUSY_ERROR },
+        status: HttpStatus.ServiceUnavailable,
+      });
     if (lookup.kind === VersionLookupKind.Throttled)
       return retryLater({
         context,
@@ -109,6 +117,12 @@ function mountText({ routes, services }: RouteMount): void {
           body: { error: VERSION_THROTTLED_ERROR },
           status: HttpStatus.TooManyRequests,
           retryAfterSeconds: Math.ceil(error.retryAfterMs / SECOND_MS),
+        });
+      if (error instanceof ProjectionBusyError)
+        return retryVersionLater({
+          context,
+          body: { error: VERSION_BUSY_ERROR },
+          status: HttpStatus.ServiceUnavailable,
         });
       return retryVersionLater({
         context,

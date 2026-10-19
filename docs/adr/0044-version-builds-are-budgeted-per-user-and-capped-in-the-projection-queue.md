@@ -12,7 +12,7 @@ ADR 0043 resolves every known sequence exactly, so each sequence is its own cach
 ## Decision
 
 - A user may start `VERSION_LOADS_PER_MINUTE = 30` version builds in a rolling minute. A build that is cached, already in flight or recently failed costs nothing; only the start of a new build is counted. Over the budget the text and summary routes answer 429 with `Retry-After`, and a version room refuses to load.
-- The scheduler admits at most `MAX_PENDING_VERSION_JOBS = 8` version jobs at once. A request for the same version joins the one in flight; any other request above the cap is refused with `ProjectionBusyError`, which the service records as a failed load, so the route answers 503 with `Retry-After`. Nothing is queued behind the cap.
+- The scheduler admits at most `MAX_PENDING_VERSION_JOBS = 8` version jobs at once. A request for the same version joins the one in flight; any other request above the cap is refused with `ProjectionBusyError`, which the routes answer as 503 with `Retry-After`. A refusal starts no failure cooldown on the version, so another member can build it at once. Nothing is queued behind the cap.
 
 Thirty a minute is one new version every two seconds sustained, above a person who clicks bins or edit rows and below a loop. Eight pending jobs bound the worst wait of the serial queue to eight builds, a few seconds on the largest log measured.
 
@@ -27,7 +27,8 @@ Thirty a minute is one new version every two seconds sustained, above a person w
 
 ## Consequences
 
-- A busy refusal is negatively cached for `VERSION_FAILURE_TTL_MS`, like any failed build.
+- A busy refusal is never cached: one reader filling the cap cannot blank a version for other members.
+- A version socket rechecks its member when it connects and closes with the access revoked code, so a removal during the build wait leaves no open socket.
 - The budget lives in memory per process, like ADR 0011's caps.
 
 ## Evidence

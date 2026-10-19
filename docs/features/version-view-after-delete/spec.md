@@ -56,7 +56,7 @@ The first fix attempt, a mark per narrowest bin, was dropped: the owner adds, ed
 | Version rooms | an `LruMap` by exact sequence, 32 rooms (`VERSION_ROOMS_LIMIT`), idle after a minute |
 | Replay cache in the worker | 2 gc-free documents; a version adds one temporary merged update |
 | Builds per user | 30 in a rolling minute (`VERSION_LOADS_PER_MINUTE`), counted only for a build that is not cached, in flight or failed; 429 with `Retry-After` above it |
-| Pending version jobs | 8 (`MAX_PENDING_VERSION_JOBS`); the next distinct request is refused with 503 and `Retry-After`, never queued |
+| Pending version jobs | 8 (`MAX_PENDING_VERSION_JOBS`); the next distinct request is refused with 503 and `Retry-After`, never queued and never cooled down |
 
 Both limits come from [ADR 0044](../../adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md): exact resolution makes every sequence a cache miss, so one reader could otherwise keep the serial projection queue busy for every document.
 

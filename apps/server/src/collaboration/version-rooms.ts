@@ -160,7 +160,12 @@ export class VersionRooms {
         const { userId } = context as { userId: string };
         Y.applyUpdate(document, (await versions.load({ ...endpoint, userId })).state, LOADING_ORIGIN);
       },
-      connected: async () => this.cancelIdle(key),
+      connected: async ({ context, connectionInstance }) => {
+        this.cancelIdle(key);
+        const { userId } = context as VersionRoomContext;
+        if (documents.findRole({ documentId: endpoint.documentId, userId }) !== null) return;
+        connectionInstance.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+      },
       afterUnloadDocument: async () => this.scheduleIdle(key),
     });
     return {

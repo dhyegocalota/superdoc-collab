@@ -50,6 +50,7 @@ test('every group is a section with its heading and rows with the platform keys'
   });
   expect(pillTexts(rowOf('Bold'))).toEqual(['Ctrl', 'B']);
   expect(pillTexts(rowOf('Normal text'))).toEqual(['Ctrl', 'Shift', 'N']);
+  expect(screen.getByRole('searchbox', { name: SHORTCUTS_SEARCH_LABEL })).toHaveAttribute('placeholder', SHORTCUTS_SEARCH_LABEL);
 });
 
 test('the platform note names the detected platform and the toggle switches the keys', async () => {

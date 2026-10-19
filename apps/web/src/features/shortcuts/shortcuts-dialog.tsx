@@ -69,7 +69,13 @@ function ShortcutsDialogBody({ canEdit, superdoc }: { canEdit: boolean; superdoc
           {PLATFORM_TOGGLE_LABELS[platform]}
         </Button>
       </div>
-      <Input type="search" aria-label={SHORTCUTS_SEARCH_LABEL} value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
+      <Input
+        type="search"
+        aria-label={SHORTCUTS_SEARCH_LABEL}
+        placeholder={SHORTCUTS_SEARCH_LABEL}
+        value={query}
+        onChange={(event) => setQuery(event.currentTarget.value)}
+      />
       {sections.length === 0 && <p className="text-sm text-muted-foreground">{SHORTCUTS_EMPTY_MESSAGE}</p>}
       {sections.map(({ group, rows }) => (
         <section key={group} aria-labelledby={`${headingIdPrefix}-${group}`}>

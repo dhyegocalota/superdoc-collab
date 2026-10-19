@@ -1,5 +1,5 @@
 import { buildSeedDocx, TrackedChangeKind } from '@superdoc-collab/history';
-import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
+import { BootstrapLane, LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
@@ -590,7 +590,13 @@ test('a full version queue refuses a new version but lets a pending one be joine
   await server.stop();
 });
 
-const BOOTSTRAP_REQUEST = { documentId: 'bootstrapped', filePath: 'plan.docx', url: 'ws://127.0.0.1:1', token: 'token' };
+const BOOTSTRAP_REQUEST = {
+  documentId: 'bootstrapped',
+  filePath: 'plan.docx',
+  url: 'ws://127.0.0.1:1',
+  token: 'token',
+  lane: BootstrapLane.Light,
+};
 
 function schedulerWithProbe(probeSource: string): ProjectionScheduler {
   const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-probe-'));

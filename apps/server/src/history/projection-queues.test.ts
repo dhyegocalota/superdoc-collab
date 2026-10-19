@@ -1,3 +1,4 @@
+import { BootstrapLane } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { ProjectionRequestKind, type AnsweredRequest, type ProjectionRequest } from './projection-messages';
 import { createProjectionQueues } from './projection-queues';
@@ -15,6 +16,7 @@ const REQUESTS: Record<ProjectionRequestKind, ProjectionRequest> = {
     filePath: 'plan.docx',
     url: 'ws://127.0.0.1:1',
     token: 'token',
+    lane: BootstrapLane.Heavy,
   },
   [ProjectionRequestKind.Stop]: { kind: ProjectionRequestKind.Stop },
 };
@@ -79,6 +81,28 @@ test('bootstraps run one after another', async () => {
   enqueue({ ...REQUESTS[ProjectionRequestKind.Bootstrap], documentId: 'd2' } as ProjectionRequest);
   release();
   await expect.poll(() => events).toEqual([ProjectionRequestKind.Bootstrap, ProjectionRequestKind.Bootstrap]);
+});
+
+test('a light bootstrap is answered while a heavy one is still pending', async () => {
+  const answered: string[] = [];
+  const heavy = { ...REQUESTS[ProjectionRequestKind.Bootstrap], documentId: 'heavy', lane: BootstrapLane.Heavy } as ProjectionRequest;
+  const light = { ...REQUESTS[ProjectionRequestKind.Bootstrap], documentId: 'light', lane: BootstrapLane.Light } as ProjectionRequest;
+  let releaseHeavy: () => void = () => undefined;
+  const heavyHeld = new Promise<void>((resolve) => {
+    releaseHeavy = resolve;
+  });
+  const enqueue = createProjectionQueues({
+    reply: async (request: AnsweredRequest) => {
+      if (request.documentId === 'heavy') await heavyHeld;
+      answered.push(request.documentId);
+    },
+    stop: async () => undefined,
+  });
+  enqueue(heavy);
+  enqueue(light);
+  await expect.poll(() => answered).toEqual(['light']);
+  releaseHeavy();
+  await expect.poll(() => answered).toEqual(['light', 'heavy']);
 });
 
 test('project, version, blocks and stop run one after another in arrival order', async () => {

@@ -7,6 +7,7 @@ import {
   IMPORT_SKIPPED_MESSAGE,
   PROJECTION_FAILED_MESSAGE,
   BootstrapInterruptedError,
+  type BootstrapRequest,
   ProjectionBusyError,
   ProjectionDegradedError,
   ProjectionReplyKind,
@@ -55,7 +56,6 @@ function createWorker({
 export const MAX_REQUEST_POSTS = 2;
 
 type BootstrapWaiter = { request: BootstrapRequest; resolve: () => void; reject: (error: Error) => void };
-export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string };
 
 export class ProjectionScheduler {
   currentWorker: Worker;

@@ -1,11 +1,14 @@
 import {
   BOOTSTRAP_COMMIT_GRACE_MS,
+  BOOTSTRAP_LIGHT_MAX_BYTES,
+  BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
+  BootstrapLane,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
 } from '@superdoc-collab/types';
 import { afterEach, expect, test, vi } from 'vitest';
-import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError } from '../history/projection-messages';
+import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError, type BootstrapRequest } from '../history/projection-messages';
 import { RoomBootstrap } from './room-bootstrap';
 
 const DOCUMENT_ID = 'document-plan';
@@ -17,8 +20,7 @@ const ESTIMATED_BYTES = FILE_BYTES * BOOTSTRAP_STATE_BYTES_RATIO;
 const FRAME_BYTES = 1000;
 const URL = 'ws://127.0.0.1:4000/collaboration/bootstrap';
 
-type Run = { documentId: string; filePath: string; url: string; token: string };
-type Pending = { request: Run; resolve: () => void; reject: (error: Error) => void };
+type Pending = { request: BootstrapRequest; resolve: () => void; reject: (error: Error) => void };
 
 afterEach(() => {
   vi.useRealTimers();
@@ -27,7 +29,8 @@ afterEach(() => {
 function bootstrapWithPendingRuns({
   ownerOf = () => OWNER_ID,
   now = () => Date.now(),
-}: { ownerOf?: (documentId: string) => string | null; now?: () => number } = {}) {
+  fileBytesOf = () => FILE_BYTES,
+}: { ownerOf?: (documentId: string) => string | null; now?: () => number; fileBytesOf?: (documentId: string) => number } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
   const bootstrap = new RoomBootstrap({
@@ -35,7 +38,7 @@ function bootstrapWithPendingRuns({
     issueToken,
     collaborationUrl: () => URL,
     ownerOf,
-    fileBytesOf: () => FILE_BYTES,
+    fileBytesOf,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
     now,
   });
@@ -54,6 +57,7 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     filePath: `/files/${DOCUMENT_ID}.docx`,
     url: URL,
     token: `token-${attempt}`,
+    lane: BootstrapLane.Heavy,
   });
 });
 
@@ -295,4 +299,69 @@ test('a document is in flight while it is queued or preparing and neither before
   await vi.waitFor(() => expect(bootstrap.progressOf(OTHER_DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
   expect(bootstrap.isInFlight(OTHER_DOCUMENT_ID)).toBe(false);
   error.mockRestore();
+});
+
+const ANA = 'user-ana';
+const BRUNO = 'user-bruno';
+const CARLA = 'user-carla';
+const SMALL_FILE_BYTES = BOOTSTRAP_LIGHT_MAX_BYTES;
+const LARGE_FILE_BYTES = BOOTSTRAP_LIGHT_MAX_BYTES + 1;
+const OWNERS: Record<string, string> = {
+  'ana-heavy': ANA,
+  'ana-heavy-2': ANA,
+  'bruno-heavy': BRUNO,
+  'carla-heavy': CARLA,
+  'bruno-light': BRUNO,
+  'ana-light': ANA,
+};
+
+function bootstrapWithOwners() {
+  return bootstrapWithPendingRuns({
+    ownerOf: (documentId) => OWNERS[documentId]!,
+    fileBytesOf: (documentId) => (documentId.endsWith('light') ? SMALL_FILE_BYTES : LARGE_FILE_BYTES),
+  });
+}
+
+test('a light bootstrap runs at once while a heavy one of another owner is running', async () => {
+  const { bootstrap, pending } = bootstrapWithOwners();
+  bootstrap.request('ana-heavy');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.request('bruno-light');
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(pending.map(({ request }) => [request.documentId, request.lane])).toEqual([
+    ['ana-heavy', BootstrapLane.Heavy],
+    ['bruno-light', BootstrapLane.Light],
+  ]);
+  expect(bootstrap.progressOf('bruno-light')?.stage).toBe(BootstrapStage.Preparing);
+});
+
+test('heavy bootstraps give each owner a turn before an owner gets a second one', async () => {
+  const { bootstrap, pending } = bootstrapWithOwners();
+  ['ana-heavy', 'ana-heavy-2', 'bruno-heavy', 'carla-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  const orderOfRuns = async (): Promise<string[]> => {
+    await vi.waitFor(() => expect(pending.length).toBeGreaterThan(0));
+    return pending.map(({ request }) => request.documentId);
+  };
+  expect(await orderOfRuns()).toEqual(['ana-heavy']);
+  const finishNext = async (index: number): Promise<void> => {
+    bootstrap.ready({ documentId: pending[index]!.request.documentId, stateBytes: STATE_BYTES });
+    pending[index]!.resolve();
+    await vi.waitFor(() => expect(pending).toHaveLength(index + 2));
+  };
+  await finishNext(0);
+  await finishNext(1);
+  await finishNext(2);
+  expect(pending.map(({ request }) => request.documentId)).toEqual(['ana-heavy', 'bruno-heavy', 'carla-heavy', 'ana-heavy-2']);
+});
+
+test('an owner is asked to wait only while a bootstrap of theirs is queued in the lane of the new file', async () => {
+  const { bootstrap, pending } = bootstrapWithOwners();
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBeNull();
+  bootstrap.request('ana-heavy');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBeNull();
+  bootstrap.request('ana-heavy-2');
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBe(BOOTSTRAP_QUEUE_RETRY_AFTER_MS);
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: SMALL_FILE_BYTES })).toBeNull();
+  expect(bootstrap.queueWaitMs({ ownerId: BRUNO, fileBytes: LARGE_FILE_BYTES })).toBeNull();
 });

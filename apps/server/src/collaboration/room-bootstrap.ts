@@ -4,16 +4,17 @@ import {
   BOOTSTRAP_PROGRESS_ENTRIES,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
+  bootstrapLaneOf,
   BootstrapStage,
   type BootstrapProgress,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
-import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError } from '../history/projection-messages';
+import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError, type BootstrapRequest } from '../history/projection-messages';
 import { describeError } from '../logging/describe-error';
 
-export type BootstrapRun = (request: { documentId: string; filePath: string; url: string; token: string }) => Promise<void>;
+export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 
 type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null };
 
@@ -87,6 +88,10 @@ export class RoomBootstrap {
     const progress = this.progressOf(documentId);
     if (progress === null) return false;
     return progress.stage === BootstrapStage.Queued || progress.stage === BootstrapStage.Preparing;
+  }
+
+  queueWaitMs({ ownerId, fileBytes }: { ownerId: string; fileBytes: number }): number | null {
+    throw new Error(`RoomBootstrap.queueWaitMs is not implemented ${ownerId} ${fileBytes}`);
   }
 
   request(documentId: string): BootstrapProgress {
@@ -174,7 +179,8 @@ export class RoomBootstrap {
   private async runJob({ documentId, retries }: { documentId: string; retries: number }): Promise<void> {
     try {
       const token = this.begin(documentId);
-      await this.run({ documentId, filePath: this.filePathOf(documentId), url: this.collaborationUrl(), token });
+      const lane = bootstrapLaneOf(this.fileBytesOf(documentId));
+      await this.run({ documentId, filePath: this.filePathOf(documentId), url: this.collaborationUrl(), token, lane });
       await this.awaitCommit(documentId);
       this.endAttempt(documentId);
     } catch (error) {

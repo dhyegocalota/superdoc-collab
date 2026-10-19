@@ -8,12 +8,13 @@ import {
   type ReadModel,
   type UpdateLog,
 } from '@superdoc-collab/history';
-import { MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
+import { MAX_REVISIONS_IMPORT_BYTES, type BootstrapLane } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import {
   BootstrapTimeoutError,
+  type BootstrapRequest,
   IMPORT_TOO_LARGE_MESSAGE,
   MissingVersionMarkError,
   ProjectionRequestKind,
@@ -36,9 +37,9 @@ type ProjectionStores = {
   replays: GcFreeReplays;
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
   fileSizeBytes: (filePath: string) => number;
-  bootstrapRoom: (request: { documentId: string; filePath: string; url: string; token: string }) => Promise<void>;
+  bootstrapRoom: (request: BootstrapRequest) => Promise<void>;
   bootstrapTimeoutMs: number;
-  releaseBootstrapHost: () => Promise<void>;
+  releaseBootstrapHost: (lane: BootstrapLane) => Promise<void>;
 };
 
 export function createProjectionHandler({
@@ -113,17 +114,18 @@ export function createProjectionHandler({
     filePath,
     url,
     token,
+    lane,
   }: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
     try {
       await withTimeout({
-        work: bootstrapRoom({ documentId, filePath, url, token }),
+        work: bootstrapRoom({ documentId, filePath, url, token, lane }),
         milliseconds: bootstrapTimeoutMs,
         onTimeout: () => {
           throw new BootstrapTimeoutError(bootstrapTimeoutMs);
         },
       });
     } finally {
-      await releaseBootstrapHost();
+      await releaseBootstrapHost(lane);
     }
     return { kind: ProjectionRequestKind.Bootstrap, documentId };
   }

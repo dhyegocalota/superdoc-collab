@@ -1,5 +1,5 @@
 import type { Block } from '@superdoc-collab/history';
-import { SECOND_MS } from '@superdoc-collab/types';
+import { SECOND_MS, type BootstrapLane } from '@superdoc-collab/types';
 
 export const IMPORT_TIMEOUT_MS = 30 * SECOND_MS;
 export const SNAPSHOT_EVERY_UPDATES = 1000;
@@ -20,13 +20,15 @@ export enum ProjectionRequestKind {
   Stop = 'stop',
 }
 
+export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string; lane: BootstrapLane };
+
 export type ProjectionRequest =
   | { kind: ProjectionRequestKind.Project; documentId: string }
   | { kind: ProjectionRequestKind.Import; documentId: string; filePath: string }
   | { kind: ProjectionRequestKind.Forget; documentId: string }
   | { kind: ProjectionRequestKind.Version; documentId: string; sequence: number }
   | { kind: ProjectionRequestKind.Blocks; documentId: string }
-  | { kind: ProjectionRequestKind.Bootstrap; documentId: string; filePath: string; url: string; token: string }
+  | ({ kind: ProjectionRequestKind.Bootstrap } & BootstrapRequest)
   | { kind: ProjectionRequestKind.Stop };
 
 export enum ProjectionReplyKind {

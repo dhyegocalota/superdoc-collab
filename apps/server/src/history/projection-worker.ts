@@ -7,7 +7,7 @@ import {
   UpdateLog,
   type ListedTrackedChange,
 } from '@superdoc-collab/history';
-import { BOOTSTRAP_HOST_TIMEOUT_MS, BOOTSTRAP_TIMEOUT_MS, RoomMode, SECOND_MS } from '@superdoc-collab/types';
+import { BOOTSTRAP_HOST_TIMEOUT_MS, BOOTSTRAP_TIMEOUT_MS, BootstrapLane, RoomMode, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { COLLABORATION_PROVIDER, SDK_RUNTIME } from '../collaboration/sdk-room';
@@ -26,6 +26,7 @@ import {
   ProjectionReplyKind,
   type AnsweredReply,
   type AnsweredRequest,
+  type BootstrapRequest,
   type ProjectionFailedReply,
   type ProjectionReply,
   type ProjectionRequest,
@@ -80,11 +81,18 @@ function sharedSuperdocClient(options: SuperdocClientOptions): {
 }
 
 const importClient = sharedSuperdocClient({ env: bootstrapHostEnvironment({ source: process.env, heapMegabytes: null }) });
-const bootstrapClient = sharedSuperdocClient({
-  user: { name: BOOTSTRAP_HOST_NAME, email: BOOTSTRAP_HOST_EMAIL },
-  requestTimeoutMs: BOOTSTRAP_HOST_TIMEOUT_MS,
-  env: bootstrapHostEnvironment({ source: process.env, heapMegabytes: hostHeapMegabytes }),
-});
+function bootstrapSuperdocClient(): ReturnType<typeof sharedSuperdocClient> {
+  return sharedSuperdocClient({
+    user: { name: BOOTSTRAP_HOST_NAME, email: BOOTSTRAP_HOST_EMAIL },
+    requestTimeoutMs: BOOTSTRAP_HOST_TIMEOUT_MS,
+    env: bootstrapHostEnvironment({ source: process.env, heapMegabytes: hostHeapMegabytes }),
+  });
+}
+
+const bootstrapClients: Record<BootstrapLane, ReturnType<typeof sharedSuperdocClient>> = {
+  [BootstrapLane.Light]: bootstrapSuperdocClient(),
+  [BootstrapLane.Heavy]: bootstrapSuperdocClient(),
+};
 
 async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
   const opened = await (await importClient.connected()).open({ doc: filePath });
@@ -112,19 +120,9 @@ async function importRevisions({ documentId, filePath }: { documentId: string; f
   }
 }
 
-async function bootstrapRoom({
-  documentId,
-  filePath,
-  url,
-  token,
-}: {
-  documentId: string;
-  filePath: string;
-  url: string;
-  token: string;
-}): Promise<void> {
+async function bootstrapRoom({ documentId, filePath, url, token, lane }: BootstrapRequest): Promise<void> {
   const opened = await (
-    await bootstrapClient.connected()
+    await bootstrapClients[lane].connected()
   ).open(
     {
       runtime: SDK_RUNTIME,
@@ -145,7 +143,7 @@ const handle = createProjectionHandler({
   fileSizeBytes: (filePath) => statSync(filePath).size,
   bootstrapRoom,
   bootstrapTimeoutMs: BOOTSTRAP_TIMEOUT_MS,
-  releaseBootstrapHost: bootstrapClient.release,
+  releaseBootstrapHost: (lane) => bootstrapClients[lane].release(),
 });
 
 function failureOf({ request, message }: { request: AnsweredRequest; message: string }): ProjectionFailedReply {
@@ -187,7 +185,7 @@ async function disposeSuperdocClient({
 
 async function stopWorker(): Promise<void> {
   await Promise.all(
-    [importClient, bootstrapClient].map((client) =>
+    [importClient, ...Object.values(bootstrapClients)].map((client) =>
       disposeSuperdocClient({ pending: client.pending(), milliseconds: STOP_DISPOSE_TIMEOUT_MS }),
     ),
   );

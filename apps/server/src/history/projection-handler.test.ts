@@ -2,12 +2,18 @@ import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } 
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BOOTSTRAP_TIMEOUT_MS, MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
+import { BOOTSTRAP_TIMEOUT_MS, BootstrapLane, MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { runHistoryMigrations } from '../database/migrate';
 import { createProjectionHandler } from './projection-handler';
-import { BootstrapTimeoutError, IMPORT_TOO_LARGE_MESSAGE, MissingVersionMarkError, ProjectionRequestKind } from './projection-messages';
+import {
+  BootstrapTimeoutError,
+  IMPORT_TOO_LARGE_MESSAGE,
+  MissingVersionMarkError,
+  ProjectionRequestKind,
+  type BootstrapRequest,
+} from './projection-messages';
 
 const DOCUMENT_ID = 'd1';
 
@@ -19,16 +25,15 @@ const BOOTSTRAP_REQUEST = {
   filePath: 'plan.docx',
   url: 'ws://127.0.0.1:1/collaboration/bootstrap',
   token: 'bootstrap-token',
+  lane: BootstrapLane.Heavy,
 } as const;
-
-type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string };
 
 function storesWith(
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>,
   fileSizeBytes: (filePath: string) => number = () => SMALL_FILE_BYTES,
   bootstrapRoom: (request: BootstrapRequest) => Promise<void> = async () => undefined,
   bootstrapTimeoutMs = BOOTSTRAP_TIMEOUT_MS,
-  releaseBootstrapHost: () => Promise<void> = async () => undefined,
+  releaseBootstrapHost: (lane: BootstrapLane) => Promise<void> = async () => undefined,
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'projection-handler-'));
   const historySqlite = openSqliteFile({ directory, fileName: HISTORY_DATABASE_FILE });
@@ -152,6 +157,7 @@ test('a bootstrap joins the room of the stored file and answers its document', a
     filePath: BOOTSTRAP_REQUEST.filePath,
     url: BOOTSTRAP_REQUEST.url,
     token: BOOTSTRAP_REQUEST.token,
+    lane: BOOTSTRAP_REQUEST.lane,
   });
 });
 
@@ -194,7 +200,7 @@ test('a bootstrap releases the host once it joined the room', async () => {
     ),
   );
   await handle(BOOTSTRAP_REQUEST);
-  expect(releaseBootstrapHost).toHaveBeenCalledOnce();
+  expect(releaseBootstrapHost).toHaveBeenCalledExactlyOnceWith(BootstrapLane.Heavy);
 });
 
 test('a bootstrap that throws releases the host before it rejects', async () => {

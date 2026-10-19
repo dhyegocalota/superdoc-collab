@@ -52,12 +52,14 @@ export function SuperDocEditor({
   onTransportReport,
   onEditorUpdate,
   onDocumentEdit,
+  onLoadProgress,
 }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [hasRejectedEdit, setHasRejectedEdit] = useState(false);
   const [isCollaborationReady, setIsCollaborationReady] = useState(false);
+  const [pageCount, setPageCount] = useState(0);
   const attachContainer = useCallback(
     (element: HTMLDivElement | null) => {
       containerRef.current = element;
@@ -110,7 +112,10 @@ export function SuperDocEditor({
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
       onEditorUpdate: reportDocumentEdit,
-      onPaginationUpdate: reportEditorUpdate,
+      onPaginationUpdate: ({ totalPages }) => {
+        reportEditorUpdate();
+        if (isActive) setPageCount(totalPages);
+      },
       onCollaborationReady: () => {
         isReady = true;
         if (!isActive) return;
@@ -130,6 +135,7 @@ export function SuperDocEditor({
       onSuperdocChange(null);
       superdoc.destroy();
       setIsCollaborationReady(false);
+      setPageCount(0);
       setHasRejectedEdit(false);
     };
   }, [
@@ -145,6 +151,11 @@ export function SuperDocEditor({
     onEditorUpdate,
     onDocumentEdit,
   ]);
+
+  useEffect(
+    () => onLoadProgress({ isSynced: isCollaborationReady, pageCount, hasFailed }),
+    [onLoadProgress, isCollaborationReady, pageCount, hasFailed],
+  );
 
   useCaretOnOpen({ containerRef, isEnabled: isCollaborationReady && role !== DocumentRole.Reader });
 

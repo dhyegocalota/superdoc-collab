@@ -8,8 +8,10 @@ import {
   type ReadModel,
   type UpdateLog,
 } from '@superdoc-collab/history';
+import { MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import {
+  IMPORT_TOO_LARGE_MESSAGE,
   MissingVersionMarkError,
   ProjectionRequestKind,
   SNAPSHOT_EVERY_UPDATES,
@@ -49,8 +51,14 @@ export function createProjectionHandler({
   }
 
   async function handleImport(request: { documentId: string; filePath: string }): Promise<ProjectionDoneReply> {
-    const cursor = readModel.cursor(request.documentId);
-    return { kind: ProjectionRequestKind.Import, documentId: request.documentId, cursor, importError: await importRevisions(request) };
+    const { documentId } = request;
+    const cursor = readModel.cursor(documentId);
+    const bytes = fileSizeBytes(request.filePath);
+    if (bytes > MAX_REVISIONS_IMPORT_BYTES) {
+      console.warn(`${IMPORT_TOO_LARGE_MESSAGE} ${documentId}: ${bytes} bytes`);
+      return { kind: ProjectionRequestKind.Import, documentId, cursor, importError: null };
+    }
+    return { kind: ProjectionRequestKind.Import, documentId, cursor, importError: await importRevisions(request) };
   }
 
   function handleForget(documentId: string): ProjectionDoneReply {

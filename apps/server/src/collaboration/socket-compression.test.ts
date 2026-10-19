@@ -24,6 +24,7 @@ const MINIMUM_SHRINK_FACTOR = 4;
 const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
 const TEXT_NAME = 't';
 const TEST_TIMEOUT_MS = 60_000;
+const SOCKET_WINDOW_BITS = 12;
 const INFLATING_FRAMES = 2;
 const INFLATING_FRAME_BYTES = (MAX_SOCKET_MESSAGE_BYTES * 3) / 4;
 const SETTLE_AFTER_FRAMES_MS = 3_000;
@@ -138,6 +139,8 @@ describe('collaboration socket compression', () => {
     const { server, owner } = await documentWithOwner();
     const headers = await upgradeResponseHeaders({ baseUrl: server.baseUrl, cookie: owner.cookie });
     expect(headers).toContain(`${EXTENSIONS_HEADER}: ${DEFLATE_EXTENSION}`);
+    expect(headers).toContain(`server_max_window_bits=${SOCKET_WINDOW_BITS}`);
+    expect(headers).toContain(`client_max_window_bits=${SOCKET_WINDOW_BITS}`);
     await server.stop();
   });
 

@@ -95,3 +95,11 @@ test('toggle and one-shot entries ignore key repeat and the others keep it', () 
     expect(shortcutOf(id).ignoresRepeat).toBe(false),
   );
 });
+
+test('the clipboard keys are native and Insert footnote is an app entry', () => {
+  [ShortcutId.Cut, ShortcutId.Copy, ShortcutId.Paste, ShortcutId.PasteWithoutFormatting].forEach((id) => {
+    expect(shortcutOf(id)).toMatchObject({ group: ShortcutGroup.Editing, action: { kind: ShortcutActionKind.Native } });
+  });
+  expect(shortcutOf(ShortcutId.InsertFootnote)).toMatchObject({ group: ShortcutGroup.Review, action: { kind: ShortcutActionKind.App } });
+  expect(shortcutOf(ShortcutId.InsertFootnote).keys.other.code).toBe('KeyF');
+});

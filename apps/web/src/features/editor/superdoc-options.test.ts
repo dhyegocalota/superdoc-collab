@@ -120,3 +120,7 @@ test('user.color and colors come from the palette arguments', () => {
 test('without a toolbar container there is no toolbar', () => {
   expect(optionsFor(null).ui).not.toHaveProperty('toolbar');
 });
+
+test('the context menu gets the shortcut provider', () => {
+  expect(optionsFor(document.createElement('div'))).toMatchObject({ ui: { contextMenu: { menuProvider: expect.any(Function) } } });
+});

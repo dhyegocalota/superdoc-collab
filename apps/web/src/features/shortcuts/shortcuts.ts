@@ -68,6 +68,11 @@ export enum ShortcutId {
   NextComment = 'next-comment',
   PreviousComment = 'previous-comment',
   ToggleTrackChanges = 'toggle-track-changes',
+  Cut = 'cut',
+  Copy = 'copy',
+  Paste = 'paste',
+  PasteWithoutFormatting = 'paste-without-formatting',
+  InsertFootnote = 'insert-footnote',
 }
 
 export type KeyCombination = { modifiers: readonly ShortcutModifier[]; code: string; label: string };

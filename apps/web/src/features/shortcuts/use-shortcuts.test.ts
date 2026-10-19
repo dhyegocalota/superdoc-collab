@@ -16,6 +16,9 @@ const setZoom = vi.fn();
 const scrollToComment = vi.fn();
 const COMMENT_IDS = ['first', 'second', 'third'];
 const setDocumentMode = vi.fn();
+const invokeFootnote = vi.fn();
+let footnoteItems: { id: string; invoke: () => void }[];
+let anchorRect: { left: number; top: number } | null;
 let documentMode: string | null;
 let zoomValue: number;
 const execute = vi.fn();
@@ -29,8 +32,10 @@ function superdocWithCommands(): SuperDoc {
   });
   return superdocStub({
     ui: {
-      commands: { get },
+      commands: { get, getContextMenuItems: () => footnoteItems },
       zoom: { getSnapshot: () => ({ value: zoomValue, min: 25, max: 500 }), set: setZoom },
+      selection: { getAnchorRect: () => anchorRect },
+      contextMenu: { contextAt: ({ x, y }: { x: number; y: number }) => ({ point: { x, y } }) },
       document: { getSnapshot: () => ({ mode: documentMode }), setMode: setDocumentMode },
       comments: { list: () => COMMENT_IDS.map((id) => ({ id })), scrollTo: scrollToComment },
     },
@@ -59,6 +64,11 @@ beforeEach(() => {
   requestedCommandIds = [];
   zoomValue = 100;
   documentMode = 'editing';
+  anchorRect = { left: 10, top: 20 };
+  footnoteItems = [
+    { id: 'comment', invoke: vi.fn() },
+    { id: 'insert-footnote', invoke: invokeFootnote },
+  ];
   onAddComment.mockReturnValue(true);
   vi.stubGlobal('navigator', { platform: 'Win32' });
 });
@@ -306,4 +316,20 @@ test('AltGr characters are left to the editing surface', () => {
   expect(pressKey({ code: 'KeyM', key: 'µ', ...altGraph }).defaultPrevented).toBe(false);
   expect(onToggleEditsPanel).not.toHaveBeenCalled();
   expect(onAddComment).not.toHaveBeenCalled();
+});
+
+test('Ctrl+Alt+F invokes the insert-footnote menu item at the caret', () => {
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(invokeFootnote).toHaveBeenCalledTimes(1);
+});
+
+test('Ctrl+Alt+F is not consumed without a caret rect or a footnote item', () => {
+  renderShortcuts();
+  anchorRect = null;
+  expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  anchorRect = { left: 10, top: 20 };
+  footnoteItems = [];
+  expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(invokeFootnote).not.toHaveBeenCalled();
 });

@@ -3,7 +3,7 @@ import { DEMO_USERS, ShareLinkRole } from '../libs/types/src';
 import { ADD_COMMENT_SUBMIT_LABEL, ADD_COMMENT_TITLE, COMMENT_TEXT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { NEW_DOCUMENT_LABEL } from '../apps/web/src/features/documents/documents-copy';
 import { DOWNLOAD_LABEL, DOWNLOAD_PDF_LABEL } from '../apps/web/src/features/editor/editor-copy';
-import { shortcutKeyParts } from '../apps/web/src/features/shortcuts/shortcut-keys';
+import { shortcutKeyParts, shortcutLabel } from '../apps/web/src/features/shortcuts/shortcut-keys';
 import { ShortcutGroup, ShortcutId } from '../apps/web/src/features/shortcuts/shortcuts';
 import { SHORTCUT_GROUP_LABELS, SHORTCUTS_SEARCH_LABEL, SHORTCUTS_TITLE } from '../apps/web/src/features/shortcuts/shortcuts-copy';
 import { Platform } from '../apps/web/src/lib/platform';
@@ -165,4 +165,32 @@ test('Mod+Alt+T switches to suggesting, typing is tracked, and a second press st
   await ana.page.keyboard.type(UNTRACKED_TEXT);
   await expect(editorText(ana.page).filter({ hasText: UNTRACKED_TEXT }).first()).toBeVisible();
   await expect(trackedRuns).toHaveText(TRACKED_TEXT);
+});
+
+const CONTEXT_MENU_ITEM_SELECTOR = '.v2-context-menu__item';
+const CONTEXT_MENU_SHORTCUT_SELECTOR = '.v2-context-menu__shortcut';
+const FOOTNOTE_SELECTOR = '[data-footnote-id], .superdoc-footnote, [class*="footnote"]';
+
+test('the right-click menu shows the registry keys beside Comment and Insert link', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await openNewDocumentWithSelectedWord(ana.page);
+  await wordRun(ana.page).dblclick();
+  await wordRun(ana.page).click({ button: 'right' });
+  const platform = await platformOf(ana.page);
+  const hintOf = (name: string) =>
+    ana.page.locator(CONTEXT_MENU_ITEM_SELECTOR).filter({ hasText: name }).locator(CONTEXT_MENU_SHORTCUT_SELECTOR);
+  await expect(hintOf('Comment')).toHaveText(shortcutLabel({ id: ShortcutId.AddComment, platform }));
+  await expect(hintOf('Insert link')).toHaveText(shortcutLabel({ id: ShortcutId.Link, platform }));
+  await expect(hintOf('Cut')).toHaveText(shortcutLabel({ id: ShortcutId.Cut, platform }));
+  await expect(hintOf('Insert footnote')).toHaveText(shortcutLabel({ id: ShortcutId.InsertFootnote, platform }));
+  await expect(hintOf('Insert table')).toHaveCount(0);
+});
+
+test('Mod+Alt+F inserts a footnote', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await openNewDocumentWithSelectedWord(ana.page);
+  await ana.page.keyboard.press('End');
+  await expect(ana.page.locator(FOOTNOTE_SELECTOR)).toHaveCount(0);
+  await pressWithModifier({ page: ana.page, keys: 'Alt+F' });
+  await expect(ana.page.locator(FOOTNOTE_SELECTOR).first()).toBeVisible();
 });

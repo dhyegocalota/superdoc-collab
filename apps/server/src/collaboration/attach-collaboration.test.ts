@@ -778,6 +778,25 @@ test('an id recorded for a user before the room loaded stays with its author: an
   await server.stop();
 });
 
+test('a frame of 64 fresh ids from one connection closes it for the ids cap and binds none of them', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const anchor = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const flooder = await connectWatched({ server, documentId, cookie: editor.cookie });
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME });
+  flooder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: flooder.roomName, clientIds })));
+  await expect.poll(flooder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+  anchor.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: anchor.roomName, clientIds: [CLAIMED_ID_BASE], clock: REPLAY_CLOCK })),
+  );
+  await expect.poll(() => awarenessStateCount({ server, clientIds: [CLAIMED_ID_BASE] })).toBe(1);
+  expect(anchor.closedSocket()).toBeNull();
+  anchor.client.close();
+  await server.stop();
+});
+
 test('a second connection of the same user updating an awareness id that a half-open first one holds takes the id over and stays open', async () => {
   const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: true });
   intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK })));

@@ -22,7 +22,9 @@ type TimelineNoticesProps = {
 
 export function TimelineNotices({ timeline, hasFilter, isLogAhead, canRefresh, onRetry }: TimelineNoticesProps) {
   const { topics, projection, bins, bands } = timeline;
-  const isLagging = projection.isBehind && projection.lagMs !== null && projection.lagMs >= PROJECTION_LAG_NOTICE_MS;
+  const { lagMs } = projection;
+  const isLagging = projection.isBehind && lagMs !== null && lagMs >= PROJECTION_LAG_NOTICE_MS;
+  const lagSeconds = isLagging ? Math.round(lagMs / SECOND_MS) : null;
   const hasNoMatches = hasFilter && bins.length > 0 && bands.every((band) => band.volume === 0);
   const isEmpty = bins.length === 0 && !projection.isBehind && !isLogAhead;
   const isNamingTopics = topics.state === TopicState.Pending && bins.length > 0;
@@ -40,10 +42,10 @@ export function TimelineNotices({ timeline, hasFilter, isLogAhead, canRefresh, o
         </div>
       )}
       {isNamingTopics && <p role="status">{TOPICS_PENDING_MESSAGE}</p>}
-      {isLagging && (
+      {lagSeconds !== null && (
         <div role="status" className="flex items-center gap-2">
           <p>{HISTORY_CATCHING_UP_MESSAGE}</p>
-          <p className="text-muted-foreground">{lagBehindLabel(Math.round(projection.lagMs! / SECOND_MS))}</p>
+          <p className="text-muted-foreground">{lagBehindLabel(lagSeconds)}</p>
         </div>
       )}
       {isEmpty && <p role="status">{NO_EDITS_YET_MESSAGE}</p>}

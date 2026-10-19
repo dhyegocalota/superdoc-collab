@@ -55,7 +55,8 @@ import {
   VIEW_VERSION_LABEL,
 } from './timeline-copy';
 import { CHART_HEIGHT } from './streamgraph-layout';
-import { PanelColumn, PanelState, TimelinePanel } from './timeline-panel';
+import { PanelColumn, PanelState } from './panel-layout';
+import { TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
 import type { SummarizeControl } from './use-summarize';

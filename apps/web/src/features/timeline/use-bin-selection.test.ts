@@ -45,3 +45,10 @@ test('clearing the selection goes back to live', () => {
   expect(result.current.selectedIndex).toBeNull();
   expect(onBackToLive).toHaveBeenCalledTimes(1);
 });
+
+test('selecting a bin with a version only selects it when there is no travel handler', () => {
+  const onBackToLive = vi.fn();
+  const { result } = renderHook(() => useBinSelection({ timeline, at: null, onTravel: null, onBackToLive }));
+  act(() => result.current.selectIndex(2));
+  expect(result.current.selectedIndex).toBe(2);
+});

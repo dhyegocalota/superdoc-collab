@@ -1,14 +1,8 @@
-import { AppRoute, ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
-import { useQueryClient } from '@tanstack/react-query';
+import { ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
 import { useEffect, useState, type ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
-import { ErrorMessage } from '@/components/error-message';
-import { signInPathFor } from '@/features/auth/sign-in-path';
-import { SIGNED_OUT_STATE } from '@/features/auth/sign-out-state';
 import { useSession } from '@/features/auth/use-session';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
-import { LOADING_VERSION_MESSAGE } from '@/features/timeline/timeline-copy';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
 import { isPanelOpenByDefault, PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
@@ -19,24 +13,21 @@ import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useTimeZone } from '@/lib/use-time-zone';
 import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
-import { ConnectionBanner } from './connection-banner';
-import { RELOAD_FAILED_MESSAGE } from './connection-copy';
 import { creatorTicketOf } from './collaboration-config';
-import { DocumentNotReadyError, documentFileQueryKey, openedDocumentQueryKey } from './editor-api';
-import { DOCUMENT_LOAD_ERROR_MESSAGE, EXPORT_FAILED_MESSAGE, LOADING_DOCUMENT_MESSAGE } from './editor-copy';
 import { EditorHeader } from './editor-header';
+import { EditorStatus } from './editor-status';
+import { DIMMED_EDITOR_AREA_CLASS, EditorSurface } from './editor-surface';
 import { EditorToolbarRow } from './editor-toolbar-row';
-import { LOADING_DOCUMENT_REASON_ID } from './download-menu';
-import { VersionBanner } from '@/features/versions/version-banner';
-import { VersionFrame } from '@/features/versions/version-frame';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
-import { SuperDocEditor } from './superdoc-editor';
 import { SUPERSEDED_REPORT, useConnectionState } from './use-connection-state';
+import { useConnectionFailureAction } from './use-connection-failure-action';
 import { useDocumentFile } from './use-document-file';
+import { useDocumentReload } from './use-document-reload';
 import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
+import { VersionBar } from './version-bar';
 import { WaitingForDocument } from './waiting-for-document';
 
 const EDITOR_AREA_CLASS = 'relative flex min-h-[60dvh] min-w-0 flex-1 flex-col lg:min-h-0';
@@ -44,8 +35,6 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
   [PanelPosition.Bottom]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-y-visible',
   [PanelPosition.Side]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible',
 };
-const DIMMED_EDITOR_AREA_CLASS = 'opacity-60';
-const VERSION_PROGRESS_CLASS = 'h-0.5 w-full animate-pulse bg-primary motion-reduce:animate-none';
 
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
@@ -58,9 +47,6 @@ export function DocumentPage() {
     documentId,
     creatorTicket: openedAfterMount ? creatorTicketOf(openedAfterMount) : null,
   });
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const location = useLocation();
   const {
     state: connectionState,
     failureReason,
@@ -75,9 +61,13 @@ export function DocumentPage() {
   useEffect(() => {
     if (isAttemptSuperseded) reportTransport(SUPERSEDED_REPORT);
   }, [isAttemptSuperseded, reportTransport]);
-  const [editorGeneration, setEditorGeneration] = useState(0);
-  const [isReloading, setIsReloading] = useState(false);
-  const [hasReloadFailed, setHasReloadFailed] = useState(false);
+  const { editorGeneration, isReloading, hasReloadFailed, reload } = useDocumentReload({
+    documentId,
+    roomMode: opened?.roomMode,
+    restartWaiting,
+    resetConnection,
+  });
+  const connectionAction = useConnectionFailureAction({ failureReason, reload });
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
@@ -101,20 +91,15 @@ export function DocumentPage() {
   }
 
   if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
-  if (isUnavailable) {
+  const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
+  if (documentReadiness !== DocumentReadiness.Ready) {
     return withAnnouncement(
-      <WaitingForDocument documentId={documentId} readiness={DocumentReadiness.Unavailable} onKeepWaiting={keepWaiting} onRetry={retry} />,
-    );
-  }
-  if (readiness !== DocumentReadiness.Ready) {
-    return withAnnouncement(
-      <WaitingForDocument documentId={documentId} readiness={readiness} onKeepWaiting={keepWaiting} onRetry={retry} />,
+      <WaitingForDocument documentId={documentId} readiness={documentReadiness} onKeepWaiting={keepWaiting} onRetry={retry} />,
     );
   }
   if (!opened) return withAnnouncement(<OpeningDocument />);
 
   const { title } = opened.document;
-  const { roomMode } = opened;
   const isReader = opened.role === DocumentRole.Reader;
   const isViewingPastVersion = timeTravel.state === VersionViewerState.Viewing;
   const isToolbarReady = isReader || toolbarContainer !== null;
@@ -134,50 +119,10 @@ export function DocumentPage() {
     superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
   }
 
-  async function reload(): Promise<void> {
-    setIsReloading(true);
-    setHasReloadFailed(false);
-    try {
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true }, { throwOnError: true }),
-        queryClient.refetchQueries({ queryKey: documentFileQueryKey({ documentId, roomMode }), exact: true }, { throwOnError: true }),
-      ]);
-      resetConnection();
-      setEditorGeneration((generation) => generation + 1);
-    } catch (error) {
-      if (!(error instanceof DocumentNotReadyError)) return setHasReloadFailed(true);
-      restartWaiting();
-      resetConnection();
-      setEditorGeneration((generation) => generation + 1);
-    } finally {
-      setIsReloading(false);
-    }
-  }
-
-  function signInAgain(): void {
-    navigate(signInPathFor(location), { state: SIGNED_OUT_STATE });
-  }
-
   const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
-  const versionBar = (
-    <>
-      <VersionBanner timeTravel={timeTravel} timeZone={timeZone} />
-      {isLoadingRequestedVersion && <div role="status" aria-label={LOADING_VERSION_MESSAGE} className={VERSION_PROGRESS_CLASS} />}
-    </>
-  );
-  function backToDocuments(): void {
-    navigate(AppRoute.Documents);
-  }
-
-  function failureAction(): () => void {
-    if (failureReason === ConnectionFailureReason.SessionEnded) return signInAgain;
-    if (failureReason === ConnectionFailureReason.Superseded) return backToDocuments;
-    return reload;
-  }
-
+  const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
   const isFailed = connectionState === ConnectionState.Failed;
   const isSuperseded = failureReason === ConnectionFailureReason.Superseded;
-  const isLoadingLineShown = !fileError && !isSuperseded;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
 
   return withAnnouncement(
@@ -192,19 +137,17 @@ export function DocumentPage() {
         onDownloadDocx={downloadLiveDocument}
         renderUseWithAi={renderUseWithAi}
       />
-      {superdoc === null && (
-        <div id={LOADING_DOCUMENT_REASON_ID}>
-          {fileError && <ErrorMessage className="px-4 py-1">{DOCUMENT_LOAD_ERROR_MESSAGE}</ErrorMessage>}
-          {isLoadingLineShown && (
-            <p role="status" className="sr-only">
-              {LOADING_DOCUMENT_MESSAGE}
-            </p>
-          )}
-        </div>
-      )}
-      {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
-      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={isReloading} onAction={failureAction()} />
-      {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
+      <EditorStatus
+        isDocumentLoading={superdoc === null}
+        hasFileError={fileError !== null}
+        isSuperseded={isSuperseded}
+        hasExportFailed={hasExportFailed}
+        hasReloadFailed={hasReloadFailed}
+        isReloading={isReloading}
+        connectionState={connectionState}
+        failureReason={failureReason}
+        onConnectionAction={connectionAction}
+      />
       <EditorToolbarRow
         role={opened.role}
         containerRef={setToolbarContainer}
@@ -217,39 +160,21 @@ export function DocumentPage() {
       <div className={PANEL_LAYOUT_CLASS[position]}>
         <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && DIMMED_EDITOR_AREA_CLASS)}>
           {!isPhoneLayout && versionBar}
-          <div
-            data-testid="editor-surface"
-            className={cn('relative flex min-h-0 min-w-0 flex-1', isLoadingRequestedVersion && DIMMED_EDITOR_AREA_CLASS)}
-          >
-            {editorSetup && isToolbarReady && (
-              <SuperDocEditor
-                key={editorGeneration}
-                onSuperdocChange={setSuperdoc}
-                onContainerChange={setEditorContainer}
-                toolbarContainer={toolbarContainer}
-                documentId={documentId}
-                roomMode={editorSetup.roomMode}
-                creatorTicket={editorSetup.creatorTicket}
-                role={editorSetup.role}
-                user={editorSetup.user}
-                colorSlot={editorSetup.colorSlot}
-                file={editorSetup.file}
-                isInert={isEditingSurfaceInert}
-                isSuperseded={isSuperseded}
-                onTransportReport={reportTransport}
-                onEditorUpdate={markEdit}
-              />
-            )}
-            <VersionFrame
-              documentId={documentId}
-              version={timeTravel.shownVersion}
-              requestedSequence={timeTravel.requestedSequence}
-              runs={timeTravel.runs}
-              onReady={timeTravel.reportReady}
-              onFailed={timeTravel.reportFailure}
-              onExit={timeTravel.backToLive}
-            />
-          </div>
+          <EditorSurface
+            documentId={documentId}
+            editorSetup={editorSetup}
+            editorGeneration={editorGeneration}
+            isToolbarReady={isToolbarReady}
+            toolbarContainer={toolbarContainer}
+            isInert={isEditingSurfaceInert}
+            isSuperseded={isSuperseded}
+            isDimmed={isLoadingRequestedVersion}
+            timeTravel={timeTravel}
+            onSuperdocChange={setSuperdoc}
+            onContainerChange={setEditorContainer}
+            onTransportReport={reportTransport}
+            onEditorUpdate={markEdit}
+          />
         </div>
         <TimelinePanel
           documentId={documentId}

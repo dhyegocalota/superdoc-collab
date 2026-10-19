@@ -31,7 +31,8 @@ Railway, running from source, configuration and recovery: [Install and run](docs
 ## Read more
 
 - [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team; [develop with an agent](docs/install.md#develop-with-an-agent)
-- [Architecture, features and limits](docs/architecture.md), and [where it goes next](docs/next.md): scale, integrations, product
+- [Architecture, features and limits](docs/architecture.md)
+- [Where it goes next](docs/next.md): how it scales, the integrations and the product ahead
 - [Decisions](docs/adr/) and [features](docs/features/README.md#roadmap), one folder and one pull request each
 - [Why there are no comments](docs/why-no-comments.md): where the why lives instead
 - [How the work is done](.claude/HARNESS.md) with Claude Code, and the [credits](docs/credits.md)

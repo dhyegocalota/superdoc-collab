@@ -43,6 +43,7 @@ import { DEFAULT_VERSION_ROOM_POLICY, VersionRooms, type VersionRoomPolicy } fro
 import { createApp, NOT_FOUND_MESSAGE, type AppServices, type InsightsServices } from './http/app';
 import { findDocumentsToProject, findDocumentsWithoutMarks } from './history/pending-documents';
 import { ShareLinksRepository } from './documents/share-links';
+import { ShowcaseDocuments } from './documents/showcase-documents';
 import { InsightsJobRunner } from './insights/insights-job-runner';
 import { SelectionSummariesService } from './insights/selection-summaries-service';
 import { SummariesService } from './insights/summaries-service';
@@ -262,6 +263,7 @@ function createServices({
   const services: ServerServices = {
     documents,
     storage,
+    showcase: new ShowcaseDocuments({ documents, storage, runtime, now }),
     updateLog,
     agentActions,
     agentSessions: createAgentSessions({ environment, documents, runtime, listeningPort }),

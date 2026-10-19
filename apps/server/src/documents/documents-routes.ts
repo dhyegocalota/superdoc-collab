@@ -21,7 +21,6 @@ import {
   UPLOAD_FIELD,
   UPLOAD_TOO_LARGE_MESSAGE,
 } from '@superdoc-collab/types';
-import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -30,6 +29,7 @@ import { claimedTicketOf } from '../collaboration/claimed-ticket';
 import { retryLater } from '../http/retry-later';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
+import { storeDocument } from './store-document';
 
 const MEMBER_USER_ID_PARAM = 'userId';
 const RENAME_BODY_MAX_BYTES = 4 * 1024;
@@ -66,7 +66,7 @@ type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
 function mountCreation({ routes, services }: RouteMount): void {
   const { documents, storage, runtime } = services;
 
-  async function storeDocument({
+  async function respondWithStoredDocument({
     context,
     bytes,
     title,
@@ -77,21 +77,20 @@ function mountCreation({ routes, services }: RouteMount): void {
     title: string;
     importRevisions: boolean;
   }): Promise<Response> {
-    const documentId = randomUUID();
     const userId = context.var.user.id;
-    documents.create({ id: documentId, title, ownerUserId: userId });
-    await storage.put({ documentId, bytes }).catch((error: unknown) => {
-      documents.remove(documentId);
-      throw error;
-    });
-    if (importRevisions) runtime.importRevisions(documentId);
+    const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
 
   async function createBlank(context: Context<SignedIn>): Promise<Response> {
     const parsed = titleSchema.safeParse(await context.req.json().catch(() => null));
     if (!parsed.success) return context.json({ error: INVALID_TITLE_MESSAGE }, HttpStatus.BadRequest);
-    return storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title: parsed.data.title, importRevisions: false });
+    return respondWithStoredDocument({
+      context,
+      bytes: await buildSeedDocx(BLANK_DOCUMENT),
+      title: parsed.data.title,
+      importRevisions: false,
+    });
   }
 
   routes.get('/', (context) => context.json(documents.list(context.var.user.id)));
@@ -113,7 +112,7 @@ function mountCreation({ routes, services }: RouteMount): void {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
       if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-      return storeDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
+      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
     },
   );
 }

@@ -6,7 +6,7 @@ test('a tooltip names the item and its keys with symbols on a Mac', () => {
   expect(toolbarShortcutStrings(Platform.Mac)).toMatchObject({
     bold: 'Bold (⌘B)',
     undo: 'Undo (⌘Z)',
-    'indent-decrease': 'Decrease indent (⌘⇧M)',
+    'indent-decrease': 'Decrease indent (⌘[)',
   });
 });
 

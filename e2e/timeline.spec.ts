@@ -1,8 +1,16 @@
-import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
-import { bandAriaLabel, removeFilterLabel, RETRY_TOPICS_LABEL, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
-import { typeInParagraph } from './editor';
-import { expect, test } from './fixtures';
+import { DEMO_USERS, TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
 import {
+  bandAriaLabel,
+  EMPTY_PANEL_DESCRIPTION,
+  NO_EDITS_YET_MESSAGE,
+  removeFilterLabel,
+  RETRY_TOPICS_LABEL,
+  TOP_EDITS_LABEL,
+} from '../apps/web/src/features/timeline/timeline-copy';
+import { typeInParagraph, uploadSeed } from './editor';
+import { expect, signedInContext, test } from './fixtures';
+import {
+  ANA_TEXT,
   BRUNO,
   BUDGET,
   BUDGET_PARAGRAPH,
@@ -10,6 +18,7 @@ import {
   bandVolume,
   BANDS_TIMEOUT_MS,
   currentAt,
+  expandPanel,
   filterBy,
   HIRING,
   HIRING_PARAGRAPH,
@@ -32,10 +41,25 @@ const VERSION_REQUEST_PATTERN = /\/versions\/\d+$/;
 const FILTER_TIMEOUT_MS = 30_000;
 const SUMMARY_TIMEOUT_MS = 30_000;
 const EDITED_PHRASE = 'edited';
+const COLLAPSED_BAR_TEST_ID = 'timeline-collapsed-bar';
+const EMPTY_STATE_TEST_ID = 'panel-empty-state';
 
 function topEdits(page: Parameters<typeof waitForBands>[0]['page']) {
   return page.getByRole('heading', { name: TOP_EDITS_LABEL }).locator('..').getByRole('listitem');
 }
+
+test('a new document opens with the panel collapsed, expands to the empty state and shows the chart once edited', async ({ browser }) => {
+  const { page } = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page, paragraphs: [BUDGET_PARAGRAPH] });
+  await expect(page.getByTestId(COLLAPSED_BAR_TEST_ID)).toBeVisible();
+  await expandPanel(page);
+  const emptyState = page.getByTestId(EMPTY_STATE_TEST_ID);
+  await expect(emptyState.getByRole('heading', { name: NO_EDITS_YET_MESSAGE })).toBeVisible();
+  await expect(emptyState.getByText(EMPTY_PANEL_DESCRIPTION)).toBeVisible();
+  await typeInParagraph({ page, paragraphText: BUDGET, text: ANA_TEXT });
+  await waitForBands({ page, names: [BUDGET] });
+  await expect(emptyState).toHaveCount(0);
+});
 
 test('two authors type in two topics and the bands appear', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
@@ -70,6 +94,7 @@ test('filters by person and term hide the other author and survive a reload', as
   await filterBy({ page: ana.page, text: 'designer' });
   await expect(ana.page).toHaveURL(new RegExp(`${TimelineSearchParam.Term}=designer`));
   await ana.page.reload();
+  await expandPanel(ana.page);
   await expect(ana.page.getByRole('button', { name: removeFilterLabel('designer') })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
   await expect(ana.page).toHaveURL(new RegExp(`${TimelineSearchParam.Author}=bruno`));
   await expect(bandNamed({ page: ana.page, name: BUDGET })).toHaveAttribute('aria-label', bandAriaLabel({ name: BUDGET, volume: 0 }), {

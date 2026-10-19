@@ -24,6 +24,7 @@ import {
   type VersionMarks,
   type VersionText,
 } from '../libs/types/src';
+import { TIMELINE_TOGGLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, toolbarRow, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
@@ -68,7 +69,14 @@ export async function bandVolume({ page, name }: { page: Page; name: string }): 
   return Number(new RegExp(VOLUME_PATTERN).exec(label!.slice(name.length))![0]);
 }
 
+export async function expandPanel(page: Page): Promise<void> {
+  const toggle = page.getByRole('button', { name: TIMELINE_TOGGLE_LABEL });
+  if ((await toggle.getAttribute('aria-expanded')) === 'true') return;
+  await toggle.click();
+}
+
 export async function waitForBands({ page, names }: { page: Page; names: string[] }): Promise<void> {
+  await expandPanel(page);
   await Promise.all(names.map((name) => expect(bandNamed({ page, name })).toBeVisible({ timeout: BANDS_TIMEOUT_MS })));
 }
 
@@ -124,6 +132,7 @@ export async function readVersionText({
 }
 
 export async function pressInChart({ page, name, keys }: { page: Page; name: string; keys: string[] }): Promise<void> {
+  await expandPanel(page);
   await bandNamed({ page, name }).focus();
   for (const key of keys) await page.keyboard.press(key);
 }
@@ -133,6 +142,7 @@ export function chartSvg(page: Page): Locator {
 }
 
 export async function clickChart({ page, widthFraction }: { page: Page; widthFraction: number }): Promise<void> {
+  await expandPanel(page);
   const chart = chartSvg(page);
   const box = await chart.boundingBox();
   if (box === null) throw new Error('The chart has no bounding box');
@@ -208,6 +218,7 @@ export async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: 
 }
 
 export async function filterBy({ page, text }: { page: Page; text: string }): Promise<void> {
+  await expandPanel(page);
   const input = page.getByRole('textbox', { name: FILTER_LABEL });
   await input.fill(text);
   await input.press('Enter');

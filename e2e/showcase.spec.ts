@@ -3,7 +3,7 @@ import { ShowcaseAuthor } from '../libs/history/src';
 import { SHOWCASE_BUTTON_LABEL, SHOWCASE_CREATED_TOAST } from '../apps/web/src/features/admin/admin-copy';
 import { documentIdOf } from './editor';
 import { expect, signedInAdmin, test } from './fixtures';
-import { chartSvg, readTimeline, VERSION_TIMEOUT_MS } from './timeline';
+import { chartSvg, expandPanel, readTimeline, VERSION_TIMEOUT_MS } from './timeline';
 
 const DIVIDER_SELECTOR = 'line[stroke-dasharray]';
 const CONTRIBUTORS = Object.values(ShowcaseAuthor).sort();
@@ -27,5 +27,6 @@ test('the admin creates the guided tour and its timeline shows four contributors
       },
     )
     .toEqual(CONTRIBUTORS);
+  await expandPanel(admin.page);
   await expect.poll(() => chartSvg(admin.page).locator(DIVIDER_SELECTOR).count(), { timeout: VERSION_TIMEOUT_MS }).toBeGreaterThan(0);
 });

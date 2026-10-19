@@ -7,7 +7,7 @@ export function PanelEmptyState() {
   return (
     <section
       data-testid={PANEL_EMPTY_STATE_TEST_ID}
-      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-4 pb-4 text-center"
+      className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-4 text-center"
     >
       <HistoryIllustration className="max-w-32" />
       <h3 className="text-sm font-medium">{NO_EDITS_YET_MESSAGE}</h3>

@@ -46,6 +46,7 @@ import {
   VERSION_TIMEOUT_MS,
   versionBanner,
   viewerFrame,
+  expandPanel,
   waitForBands,
   waitForProjection,
   waitForSettledTimeline,
@@ -219,11 +220,13 @@ test('failed topics fall back to author bands and only the owner gets Retry', as
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: FAILING_PARAGRAPHS });
   await typeInParagraph({ page: ana.page, paragraphText: 'FAIL-TOPICS:', text: EDIT_TEXT });
+  await expandPanel(ana.page);
   await expect(ana.page.getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: VERSION_TIMEOUT_MS });
   await waitForBands({ page: ana.page, names: [ANA] });
   await expect(ana.page.getByRole('button', { name: RETRY_TOPICS_LABEL })).toBeVisible();
   const caio = await signedInContext({ browser, user: DEMO_USERS[2]! });
   await acceptShareLink({ page: caio.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
+  await expandPanel(caio.page);
   await expect(caio.page.getByText(TOPICS_UNAVAILABLE_MESSAGE)).toBeVisible({ timeout: VERSION_TIMEOUT_MS });
   await expect(caio.page.getByRole('button', { name: RETRY_TOPICS_LABEL })).toHaveCount(0);
 });

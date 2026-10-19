@@ -1,5 +1,7 @@
-import { IMPERSONATION_SESSION_MS, UserRole, type SessionUser } from '@superdoc-collab/types';
+import { HttpStatus, UserRole, type SessionUser } from '@superdoc-collab/types';
 import type { Auth } from './auth';
+import { APIError } from 'better-auth/api';
+import { impersonationEndOf } from './impersonation-validity';
 
 export class SessionUserWithoutRoleError extends Error {
   constructor(userId: string) {
@@ -18,32 +20,25 @@ function timeZoneOf(value: string | null | undefined): string | null {
   return value;
 }
 
-type ImpersonatorRow = { role: string | null; banned: boolean | null };
+function nullWhenUnauthorized(error: unknown): null {
+  if (error instanceof APIError && error.statusCode === HttpStatus.Unauthorized) return null;
+  throw error;
+}
 
-async function isImpersonationValid({
-  auth,
-  impersonatedBy,
-  createdAt,
-}: {
-  auth: Auth;
-  impersonatedBy: string;
-  createdAt: Date;
-}): Promise<boolean> {
-  const hasExpired = createdAt.getTime() + IMPERSONATION_SESSION_MS < Date.now();
-  if (hasExpired) return false;
-  const { adapter } = await auth.$context;
-  const impersonator = await adapter.findOne<ImpersonatorRow>({ model: 'user', where: [{ field: 'id', value: impersonatedBy }] });
-  if (!impersonator) return false;
-  return impersonator.role === UserRole.Admin && !impersonator.banned;
+export type SessionDetails = { user: SessionUser; impersonationEndsAt: number | null };
+
+export async function readSessionDetails({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionDetails | null> {
+  const session = await auth.api.getSession({ headers }).catch(nullWhenUnauthorized);
+  if (!session) return null;
+  const { id, name, email, role, timeZone } = session.user;
+  const user = { id, name, email, role: roleOf({ userId: id, role }), timeZone: timeZoneOf(timeZone), impersonatedBy: null };
+  const { impersonatedBy, createdAt } = session.session;
+  if (!impersonatedBy) return { user, impersonationEndsAt: null };
+  return { user: { ...user, impersonatedBy }, impersonationEndsAt: impersonationEndOf(createdAt) };
 }
 
 export async function readSession({ auth, headers }: { auth: Auth; headers: Headers }): Promise<SessionUser | null> {
-  const session = await auth.api.getSession({ headers });
-  if (!session) return null;
-  const { id, name, email, role, timeZone } = session.user;
-  const sessionUser = { id, name, email, role: roleOf({ userId: id, role }), timeZone: timeZoneOf(timeZone), impersonatedBy: null };
-  const { impersonatedBy, createdAt } = session.session;
-  if (!impersonatedBy) return sessionUser;
-  if (!(await isImpersonationValid({ auth, impersonatedBy, createdAt }))) return null;
-  return { ...sessionUser, impersonatedBy };
+  const details = await readSessionDetails({ auth, headers });
+  if (!details) return null;
+  return details.user;
 }

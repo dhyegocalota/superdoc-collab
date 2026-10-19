@@ -24,6 +24,7 @@ import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
 import { consentRevocationPlugin, revokeOAuthGrantsOf } from './consent-revocation';
+import { impersonationExpiryPlugin } from './impersonation-expiry';
 import { registrationLimitsPlugin } from './registration-limits';
 
 const RATE_LIMIT_WINDOW_SECONDS = 10;
@@ -130,6 +131,7 @@ export function createAuth({
       createSignUpGate({ invites, database, createShowcase }),
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
       registrationLimitsPlugin(),
+      impersonationExpiryPlugin(),
       consentRevocationPlugin(),
       defaultResourcePlugin(mcpResourceOf(environment.appOrigin)),
       mcp({

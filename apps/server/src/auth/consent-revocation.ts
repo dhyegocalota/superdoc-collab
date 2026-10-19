@@ -5,7 +5,8 @@ import { eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../database/schema/auth';
 
-const IMPERSONATION_REFUSED_PATHS = ['/oauth2/consent', '/oauth2/authorize', '/revoke-other-sessions'];
+const OAUTH_PATH_PREFIX = '/oauth2/';
+const IMPERSONATION_REFUSED_PATHS = ['/update-user', '/revoke-other-sessions'];
 const DELETE_CONSENT_PATH = '/oauth2/delete-consent';
 const UPDATE_CONSENT_PATH = '/oauth2/update-consent';
 const CONSENT_MODEL = 'oauthConsent';
@@ -41,6 +42,12 @@ export function revokeOAuthGrantsOf({ database, userId }: { database: AuthDataba
   });
 }
 
+function isRefusedToImpersonation(context: { path?: string }): boolean {
+  const { path } = context;
+  if (path === undefined) return false;
+  return path.startsWith(OAUTH_PATH_PREFIX) || IMPERSONATION_REFUSED_PATHS.includes(path);
+}
+
 export function consentRevocationPlugin() {
   return {
     id: 'consent-revocation',
@@ -51,7 +58,7 @@ export function consentRevocationPlugin() {
           handler: revokeTokensOfConsent,
         },
         {
-          matcher: (context: { path?: string }) => IMPERSONATION_REFUSED_PATHS.some((path) => path === context.path),
+          matcher: isRefusedToImpersonation,
           handler: refuseImpersonatedGrants,
         },
       ],

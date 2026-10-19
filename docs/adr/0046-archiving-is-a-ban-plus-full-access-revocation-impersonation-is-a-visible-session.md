@@ -31,9 +31,9 @@ An admin can neither take a person out of the instance without deleting them nor
 
 - `AdminUser` and `SessionUser` gain the archived flag and `impersonatedBy` respectively.
 - An impersonation session lasts one hour; after it the next request answers 401 and the app shows Sign in. The admin's own session is untouched.
-- better-auth refreshes a session to its seven-day default when the client drops the `dont_remember` cookie, so `readSession` itself enforces the hour: an impersonation session created more than `IMPERSONATION_SESSION_MS` ago reads as signed out.
-- An impersonation session is valid only while its impersonator is an active admin: `readSession` returns null once they are demoted or archived, and archiving also deletes their impersonation sessions and closes the sockets opened through them.
-- An impersonated session is refused OAuth consent, authorize and revoke-other-sessions, so no grant outlives the hour and no other session is ended through it.
+- better-auth refreshes a session to its seven-day default when the client drops the `dont_remember` cookie, and its own routes read sessions without our reader, so a local plugin runs a before hook on every auth path: an impersonation session older than `IMPERSONATION_SESSION_MS`, or whose impersonator is no longer an active admin, is deleted and answers 401 there and in `readSession`.
+- Demoting or archiving an admin deletes the impersonation sessions they opened and closes the sockets opened through them. A collaboration socket authorized through an impersonation session also closes, with the access-revoked code, when that hour ends (a bounded timer cleared on disconnect); version-room sockets are covered by the deletion and the session check at connect.
+- An impersonated session is refused every `/oauth2/*` path, `update-user` and `revoke-other-sessions`, so no grant outlives the hour, the profile cannot be changed and no other session is ended through it.
 - Archiving the only active admin is refused.
 
 ## Evidence

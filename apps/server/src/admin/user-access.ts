@@ -26,16 +26,16 @@ export class UserAccess {
 
   async archive({ userId, headers }: { userId: string; headers: Headers }): Promise<void> {
     await this.auth.api.banUser({ headers, body: { userId, banReason: ARCHIVED_REASON } });
-    const impersonatedUserIds = this.endImpersonationsBy(userId);
+    this.endImpersonationsBy(userId);
     revokeOAuthGrantsOf({ database: this.database, userId });
-    [userId, ...impersonatedUserIds].forEach((affectedUserId) => this.closeConnectionsOfUser(affectedUserId));
+    this.closeConnectionsOfUser(userId);
   }
 
-  private endImpersonationsBy(adminId: string): string[] {
+  endImpersonationsBy(adminId: string): void {
     const { drizzle } = this.database;
     const impersonated = drizzle.select({ userId: session.userId }).from(session).where(eq(session.impersonatedBy, adminId)).all();
     drizzle.delete(session).where(eq(session.impersonatedBy, adminId)).run();
-    return impersonated.map((row) => row.userId);
+    impersonated.forEach((row) => this.closeConnectionsOfUser(row.userId));
   }
 
   async restore({ userId, headers }: { userId: string; headers: Headers }): Promise<void> {

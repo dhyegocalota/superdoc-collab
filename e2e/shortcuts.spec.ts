@@ -16,6 +16,9 @@ const LINE_SELECTOR = '.superdoc-line';
 const TYPED_WORD = 'Shortcut';
 const SEED_PARAGRAPH = 'Paragraph owned by ana.';
 const BOLD_WEIGHT = 700;
+const TRACKED_TEXT = 'Zed';
+const UNTRACKED_TEXT = 'Quo';
+const TRACKED_INSERT_SELECTOR = '[data-track-change-kind="insert"]';
 const COMMENT_TEXT = 'Please check this word';
 const PANEL_SELECTOR = 'aside[data-position]';
 const CENTERED = 'center';
@@ -148,4 +151,18 @@ test('Mod+Alt+E opens the edits panel and a second press closes it', async ({ br
   await expect(panel).toHaveAttribute('data-state', 'open');
   await pressWithModifier({ page: ana.page, keys: 'Alt+E' });
   await expect(panel).toHaveAttribute('data-state', 'collapsed');
+});
+
+test('Mod+Alt+T switches to suggesting, typing is tracked, and a second press stops tracking', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await openNewDocumentWithSelectedWord(ana.page);
+  await ana.page.keyboard.press('End');
+  await pressWithModifier({ page: ana.page, keys: 'Alt+T' });
+  await ana.page.keyboard.type(TRACKED_TEXT);
+  const trackedRuns = ana.page.locator(TRACKED_INSERT_SELECTOR);
+  await expect(trackedRuns).toHaveText(TRACKED_TEXT);
+  await pressWithModifier({ page: ana.page, keys: 'Alt+T' });
+  await ana.page.keyboard.type(UNTRACKED_TEXT);
+  await expect(editorText(ana.page).filter({ hasText: UNTRACKED_TEXT }).first()).toBeVisible();
+  await expect(trackedRuns).toHaveText(TRACKED_TEXT);
 });

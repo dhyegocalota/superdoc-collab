@@ -74,7 +74,8 @@ Owner request, translated: "I also want a shortcut for comments and the non-obvi
 | ⌥0 | no | `command` `linked-style` with `Normal` (Docs' normal text) |
 | \ and Space | no | `command` `clear-formatting`: ⌘\ on a Mac, Ctrl+Space elsewhere, because ⌘Space is Spotlight |
 | Enter | yes, no visible effect | unavailable: the catalog has no page-break command and the key shows no page break |
-| ⇧E | yes (centre) | unavailable: track changes on ⌘⇧E is consumed for centring before the handler runs, so a handler could never run it. SuperDoc's `ui.document.setMode('suggesting')` exists and can take another key if the owner picks one |
+| ⇧E | yes (centre) | unavailable: track changes on ⌘⇧E is consumed for centring before the handler runs, so a handler could never run it. track changes is an `app` action on ⌘⌥T instead (see the next row) |
+| ⌥T | no | `app` track changes on or off: `ui.document.setMode` between `suggesting` and `editing` (viewing is left alone); the E2E types after the first press and sees a tracked insertion |
 | ⌥M | no | `app` add comment: a small composer (SuperDoc has none), then `ui.comments.createFromSelection({ text })` on the live selection. The selection slice stays `stale` and `capture()` returns null for keyboard and double-click selections, so the key cannot check for a selection first; a failed receipt shows an alert in the composer |
 | ⌥N, ⌥P | no | `app` next and previous comment: `ui.comments.list()` then `ui.comments.scrollTo(id)` |
 | ⌥=, ⌥- | no | `app` zoom in and out: `ui.zoom.set(value)` stepped through the app's zoom steps |

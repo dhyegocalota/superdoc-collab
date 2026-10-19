@@ -17,7 +17,7 @@ import { admin, jwt } from 'better-auth/plugins';
 import type { InvitesRepository } from '../admin/invites';
 import type { PasswordResetLinkCapture } from '../admin/password-reset-links';
 import type { Environment } from '../config/environment';
-import { createSignUpGate, SIGN_UP_PATH } from './sign-up-gate';
+import { createSignUpGate, SIGN_UP_PATH, type CreateShowcase } from './sign-up-gate';
 import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import { CLIENT_ADDRESS_HEADER } from '../http/client-address';
@@ -92,11 +92,13 @@ export function createAuth({
   environment,
   invites,
   passwordResetLinks,
+  createShowcase,
 }: {
   database: AuthDatabase;
   environment: Environment;
   invites: InvitesRepository;
   passwordResetLinks: PasswordResetLinkCapture;
+  createShowcase?: CreateShowcase;
 }) {
   return betterAuth({
     secret: environment.authSecret,
@@ -112,7 +114,7 @@ export function createAuth({
     disabledPaths: DISABLED_PATHS,
     plugins: [
       admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] }),
-      createSignUpGate({ invites, database }),
+      createSignUpGate({ invites, database, createShowcase }),
       jwt({ jwt: { issuer: environment.appOrigin, audience: mcpResourceOf(environment.appOrigin) }, disableSettingJwtHeader: true }),
       registrationLimitsPlugin(),
       consentRevocationPlugin(),

@@ -8,6 +8,9 @@ import { user } from '../database/schema/auth';
 
 export const SIGN_UP_PATH = '/sign-up/email';
 const PLUGIN_ID = 'sign-up-gate';
+const SHOWCASE_FAILED_MESSAGE = 'The showcase document could not be created for the new admin';
+
+export type CreateShowcase = (ownerUserId: string) => Promise<string>;
 
 type CreatedUser = { id: string };
 
@@ -43,7 +46,26 @@ function refuse({ database, userId }: { database: AuthDatabase; userId: string }
   throw new APIError('FORBIDDEN', { message: SIGN_UP_BY_INVITATION_MESSAGE });
 }
 
-export function createSignUpGate({ invites, database }: { invites: InvitesRepository; database: AuthDatabase }): BetterAuthPlugin {
+async function createShowcaseWithoutFailingSignUp({
+  createShowcase,
+  userId,
+}: {
+  createShowcase: CreateShowcase | undefined;
+  userId: string;
+}): Promise<void> {
+  if (!createShowcase) return;
+  await createShowcase(userId).catch((error: unknown) => console.error(SHOWCASE_FAILED_MESSAGE, error));
+}
+
+export function createSignUpGate({
+  invites,
+  database,
+  createShowcase,
+}: {
+  invites: InvitesRepository;
+  database: AuthDatabase;
+  createShowcase?: CreateShowcase;
+}): BetterAuthPlugin {
   const before = createAuthMiddleware(async (context) => {
     if (!invites.hasAnyUser()) return;
     const token = inviteTokenOf(context.headers);
@@ -54,7 +76,8 @@ export function createSignUpGate({ invites, database }: { invites: InvitesReposi
   const after = createAuthMiddleware(async (context) => {
     const created = createdUserOf(context.context.returned);
     if (!created) return;
-    if (claimAdmin({ database, userId: created.id })) return;
+    const isAdminClaimed = claimAdmin({ database, userId: created.id });
+    if (isAdminClaimed) return createShowcaseWithoutFailingSignUp({ createShowcase, userId: created.id });
     const token = inviteTokenOf(context.headers);
     if (!token) refuse({ database, userId: created.id });
     const pending = invites.resolvePending(token);

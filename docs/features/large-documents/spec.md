@@ -42,7 +42,7 @@ The owner's `heavy-document.docx` (9.5 MB, 56,800 paragraphs, `e2e/fixtures/larg
 
 The import request reaches the projection worker. The worker reads the file size before it starts the SDK host. Above the cap it logs and answers the import as done with no error, so a rebuild still goes on to project.
 
-The members poll already tells the page that its attempt was superseded. It now says why: `taken-over` (another attempt holds the room in this process) or `server-restarted` (the ticket's epoch is not this process's and the room is not committed). The page reports a takeover as before and re-opens the document on a restart.
+The members poll already tells the page that its attempt was superseded. It now also answers `isAttemptRestarted`: the ticket's epoch is not this process's and the room is not committed. A takeover stays `isAttemptSuperseded`. The page reports a takeover as before and re-opens the document on a restart. The socket refusal carries `RESTARTED_ATTEMPT_REASON` for a restart and `SUPERSEDED_ATTEMPT_REASON` for a takeover.
 
 ### Failure handling
 

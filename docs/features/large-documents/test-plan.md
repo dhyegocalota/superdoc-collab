@@ -8,7 +8,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `apps/server/src/config/environment.test.ts` — input: `PROJECTION_WORKER_HEAP_MEGABYTES=256`; expected: `projectionWorkerHeapMegabytes` is 256.
 - [ ] `apps/server/src/history/projection-scheduler.test.ts` — input: a scheduler with a worker heap of 64; expected: the spawned worker reports a 64 MB old generation limit.
 - [ ] `apps/server/src/collaboration/collaboration-server.test.ts` — input: a creator socket whose ticket carries another epoch on an uncommitted room; expected: closed with the restart reason.
-- [ ] `apps/web/src/features/editor/document-page.test.tsx` — input: a members answer of `server-restarted`; expected: the document is opened again and the banner does not show.
+- [ ] `apps/web/src/features/editor/document-page.test.tsx` — input: a members answer with `isAttemptRestarted` true; expected: the document is opened again and the banner does not show.
 
 ## Unit
 

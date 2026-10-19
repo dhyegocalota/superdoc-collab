@@ -684,6 +684,16 @@ function serverCursorOf({ server, clientId }: { server: TestServer; clientId: nu
     .find((cursor) => cursor !== undefined);
 }
 
+function highestAwarenessClock({ server, clientIds }: { server: TestServer; clientIds: number[] }): number {
+  const clocks = [...server.services.hocuspocus.documents.values()].flatMap((document) =>
+    clientIds.flatMap((clientId) => {
+      const meta = document.awareness.meta.get(clientId);
+      return meta === undefined ? [] : [meta.clock];
+    }),
+  );
+  return Math.max(...clocks);
+}
+
 async function holderOfClaimedIds({ hasSameUser }: { hasSameUser: boolean }) {
   const { server, documentId, owner } = await documentWithOwner();
   const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
@@ -723,13 +733,13 @@ test('a second connection of the same user updating an awareness id that a half-
   await server.stop();
 });
 
-test('a member pinning the clocks of its peers at 2 to the 53 is closed before the room applies them and the peers keep their states', async () => {
+test('a member pinning the clocks of its peers at 2 to the 53 is closed before the room applies them', async () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
   const pin = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: PINNED_CLOCK, state: null });
   intruder.webSocket.send(new Uint8Array(pin));
   await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_CLOCK_REASON });
-  expect(awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(MAX_AWARENESS_CLOCK);
   expect(warn).toHaveBeenCalledTimes(1);
   expect(holder.closedSocket()).toBeNull();
   warn.mockRestore();

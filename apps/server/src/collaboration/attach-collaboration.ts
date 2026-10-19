@@ -7,6 +7,7 @@ import {
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_AWARENESS_CLOCK_REASON,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
@@ -31,7 +32,12 @@ const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
 const SOCKET_AWARENESS_ENTRIES_LOG = 'Collaboration socket closed for claiming too many awareness entries in one frame';
+const SOCKET_AWARENESS_CLOCK_LOG = 'Collaboration socket closed for claiming an awareness clock out of range';
 const MESSAGE_EVENT = 'message';
+
+type AwarenessBreach = { reason: string; log: string };
+const ENTRIES_BREACH: AwarenessBreach = { reason: SOCKET_AWARENESS_ENTRIES_REASON, log: SOCKET_AWARENESS_ENTRIES_LOG };
+const CLOCK_BREACH: AwarenessBreach = { reason: SOCKET_AWARENESS_CLOCK_REASON, log: SOCKET_AWARENESS_CLOCK_LOG };
 
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
@@ -75,17 +81,22 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
+  function awarenessBreachOf(frame: RawData): AwarenessBreach | null {
+    if (messageLimit.claimsTooManyEntries(frame)) return ENTRIES_BREACH;
+    if (messageLimit.claimsPinnedClock(frame)) return CLOCK_BREACH;
+    return null;
+  }
   function withholdOverclaims(webSocket: WebSocket): void {
     const emit = webSocket.emit.bind(webSocket);
     webSocket.emit = (event: string | symbol, ...parameters: unknown[]): boolean => {
       const isMessage = event === MESSAGE_EVENT;
       const isReceivedAfterClose = isMessage && webSocket.readyState !== WebSocket.OPEN;
       if (isReceivedAfterClose) return false;
-      const isOverclaim = isMessage && messageLimit.claimsTooManyEntries(parameters[0] as RawData);
-      if (!isOverclaim) return emit(event, ...parameters);
-      console.warn(SOCKET_AWARENESS_ENTRIES_LOG);
+      const breach = isMessage ? awarenessBreachOf(parameters[0] as RawData) : null;
+      if (breach === null) return emit(event, ...parameters);
+      console.warn(breach.log);
       webSocket.removeAllListeners(MESSAGE_EVENT);
-      webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_AWARENESS_ENTRIES_REASON);
+      webSocket.close(POLICY_VIOLATION_CLOSE_CODE, breach.reason);
       return false;
     };
   }

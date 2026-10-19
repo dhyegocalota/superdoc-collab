@@ -101,11 +101,11 @@ test('a clock of 2 to the 53 is read as it is', () => {
   expect(awarenessClocksOf(frame)).toEqual([PINNED_CLOCK]);
 });
 
-test('a clock varint that never ends within eight bytes reads as unbounded', () => {
+test('a clock varint that never ends within eight bytes makes the entry count unreadable', () => {
   const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [FIRST_CLAIMED_ID], clock: 1 });
   const clockIndex = frame.indexOf(Buffer.from([FIRST_CLAIMED_ID, 1])) + 1;
   const overlong = Buffer.concat([frame.subarray(0, clockIndex), Buffer.alloc(9, 0x80), frame.subarray(clockIndex + 1)]);
-  expect(awarenessClocksOf(overlong)).toEqual([UNREADABLE_ENTRY_COUNT]);
+  expect(awarenessEntryCountOf(overlong)).toBe(UNREADABLE_ENTRY_COUNT);
 });
 
 test('a frame that is not awareness has no clocks', () => {

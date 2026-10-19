@@ -79,7 +79,9 @@ test('a file whose size cannot be read answers the error instead of throwing', a
     throw new Error('no such file');
   };
   const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
-  expect(await createProjectionHandler(storesWith(importRevisions, unreadable))(request)).toMatchObject({ importError: 'Error: no such file' });
+  expect(await createProjectionHandler(storesWith(importRevisions, unreadable))(request)).toMatchObject({
+    importError: 'Error: no such file',
+  });
   expect(importRevisions).not.toHaveBeenCalled();
 });
 

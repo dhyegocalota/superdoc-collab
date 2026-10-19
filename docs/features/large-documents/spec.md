@@ -1,6 +1,6 @@
 # Large documents: open any size without taking the server down
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-19 ("quero poder abrir qualquer tamanho de doc")
 **ADRs:** [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0001](../../adr/0001-event-sourcing-over-yjs.md), [0004](../../adr/0004-stack.md)

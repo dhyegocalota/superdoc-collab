@@ -5,7 +5,7 @@ export const ROOM_MEMORY_RELEASED_MESSAGE = 'Released the memory of a heavy room
 const RELEASE_COOLDOWN_MS = MINUTE_MS;
 const RELEASE_COOLDOWN_KEY = 'process';
 
-export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavor: 'regular' }) => void;
+export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavor: 'last-resort' }) => void;
 
 export type RoomMemoryRelease = {
   observe: (room: { documentName: string; stateBytes: number }) => void;
@@ -29,7 +29,7 @@ export function createRoomMemoryRelease({
   function collect(release: NonNullable<typeof collectGarbage>): void {
     const { rss: residentBefore } = memoryUsage();
     const startedAt = now();
-    release({ type: 'major', execution: 'sync', flavor: 'regular' });
+    release({ type: 'major', execution: 'sync', flavor: 'last-resort' });
     const pauseMs = now() - startedAt;
     console.info(`${ROOM_MEMORY_RELEASED_MESSAGE} ${residentBefore} ${memoryUsage().rss} ${pauseMs}`);
   }

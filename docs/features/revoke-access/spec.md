@@ -36,7 +36,7 @@ A person who accepted a read or edit link keeps the role for ever. The owner has
 
 | Case | Behaviour |
 |------|-----------|
-| Request by a non-owner | 404 through the existing role guard (enumeration-safe) |
+| Request by a member below Owner | 403 from the existing role guard; a non-member gets its 404 |
 | Removed user reconnects | `onAuthenticate` finds no role and refuses; the provider stops |
 | Removed user is mid-edit | socket closed with 4404; unsynced keystrokes are lost, which the unavailable state states |
 | Remove fails (network) | the row stays, `REMOVE_FAILED_MESSAGE` under the list |

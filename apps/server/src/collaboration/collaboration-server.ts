@@ -5,6 +5,7 @@ import {
   ClientActor,
   DocumentRole,
   isTabId,
+  MINUTE_MS,
   RoomMode,
   POLICY_VIOLATION_CLOSE_CODE,
   SECOND_MS,
@@ -17,14 +18,15 @@ import {
 import * as Y from 'yjs';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 import type { RoomModes } from './room-modes';
 import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { overfullConnections } from './awareness-client-cap';
-import { AWARENESS_ORIGIN_LOG, AwarenessOriginError, closeSendersOfForeignIds } from './awareness-origin';
+import { closeSendersOfForeignIds } from './awareness-origin';
 import { AwarenessOwners } from './awareness-owners';
-import { awarenessEntriesOf } from './frame-bucket';
+import { awarenessEntriesOf, silenceAwarenessEntries } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { CreatorReservations } from './creator-reservations';
@@ -43,6 +45,7 @@ export const LOADING_ORIGIN = 'update-log-replay';
 const PARSE_BASE_URL = 'http://localhost';
 const NO_TICKET: ClaimedTicket = { attempt: null, epoch: null };
 export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
+const DROP_LOG_COOLDOWN_MS = MINUTE_MS;
 export const AWARENESS_DROP_LOG = 'Dropped an awareness frame that touches an awareness client another user announced';
 export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too many awareness clients';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
@@ -133,6 +136,7 @@ export function createCollaborationServer({
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
+  const dropLogCooldown = new KeyedCooldown({ durationMs: DROP_LOG_COOLDOWN_MS });
   const refusedConnections = new WeakSet<CollaborationContext>();
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   return new Hocuspocus({
@@ -193,12 +197,15 @@ export function createCollaborationServer({
     async afterLoadDocument({ document }) {
       closeSendersOfForeignIds({ document, owners: awarenessOwners });
     },
-    async beforeHandleMessage({ update, context, document }) {
+    async beforeHandleMessage({ update, context, document, socketId }) {
       const { userId } = context as CollaborationContext;
-      const entries = awarenessEntriesOf(Buffer.from(update.buffer, update.byteOffset, update.byteLength));
+      const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
+      const entries = awarenessEntriesOf(frame);
       if (!awarenessOwners.forbids({ documentName: document.name, userId, entries, meta: document.awareness.meta })) return;
-      console.warn(AWARENESS_ORIGIN_LOG);
-      throw new AwarenessOriginError();
+      silenceAwarenessEntries(frame);
+      if (dropLogCooldown.remainingMs(socketId) > 0) return;
+      dropLogCooldown.start(socketId);
+      console.warn(AWARENESS_DROP_LOG);
     },
     async onChange({ update, context, transactionOrigin, document }) {
       if (transactionOrigin === LOADING_ORIGIN) return;
@@ -216,7 +223,8 @@ export function createCollaborationServer({
       if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
       onLogged(documentId);
     },
-    async onDisconnect({ context }) {
+    async onDisconnect({ context, socketId }) {
+      dropLogCooldown.forget(socketId);
       const { documentId, creatorAttempt } = context as CollaborationContext;
       if (creatorAttempt === null) return;
       reservations.release({ documentId, attempt: creatorAttempt });

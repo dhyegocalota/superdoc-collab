@@ -6,15 +6,6 @@ import type { DocumentConnection } from './document-connection';
 
 export const AWARENESS_ORIGIN_LOG = 'Collaboration socket closed for updating an awareness client another connection holds';
 
-export class AwarenessOriginError extends Error {
-  readonly code = POLICY_VIOLATION_CLOSE_CODE;
-  readonly reason = SOCKET_AWARENESS_ORIGIN_REASON;
-
-  constructor() {
-    super(SOCKET_AWARENESS_ORIGIN_REASON);
-  }
-}
-
 type AwarenessChange = { added: number[]; updated: number[] };
 
 function userIdOf({ connection }: DocumentConnection): string {

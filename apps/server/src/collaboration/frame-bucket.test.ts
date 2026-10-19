@@ -7,7 +7,14 @@ import {
   paddedAwarenessFrame,
   syncStepOneFrame,
 } from '../testing/socket-frames';
-import { awarenessEntriesOf, awarenessEntryCountOf, FrameBucket, frameBucketOf, UNREADABLE_ENTRY_COUNT } from './frame-bucket';
+import {
+  awarenessEntriesOf,
+  awarenessEntryCountOf,
+  silenceAwarenessEntries,
+  FrameBucket,
+  frameBucketOf,
+  UNREADABLE_ENTRY_COUNT,
+} from './frame-bucket';
 
 const ROOM_NAME = 'superdoc-room-1';
 const SINGLE_BYTE_FRAME = Buffer.from([0]);
@@ -146,3 +153,13 @@ Object.values(PaddedVarintField).forEach((paddedField) =>
     expect(awarenessEntryCountOf(frame)).toBe(UNREADABLE_ENTRY_COUNT);
   }),
 );
+
+test('silencing an awareness frame leaves it declaring no entries and leaves other frames alone', () => {
+  const frame = claimingFrame({ count: 3 });
+  silenceAwarenessEntries(frame);
+  expect([awarenessEntryCountOf(frame), awarenessEntriesOf(frame)]).toEqual([0, []]);
+  const syncFrame = syncStepOneFrame(ROOM_NAME);
+  const untouched = Buffer.from(syncFrame);
+  silenceAwarenessEntries(syncFrame);
+  expect(syncFrame.equals(untouched)).toBe(true);
+});

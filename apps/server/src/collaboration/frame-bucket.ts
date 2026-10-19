@@ -62,7 +62,7 @@ export function frameBucketOf(frame: RawData): FrameBucket {
 
 export type AwarenessEntry = { clientId: number; clock: number };
 
-type AwarenessLocation = { bytes: Buffer; entryCount: number; entriesOffset: number };
+type AwarenessLocation = { bytes: Buffer; entryCount: number; countOffset: number; entriesOffset: number };
 type ReadEntry = AwarenessEntry & { next: number };
 
 function isCanonical({ byteCount }: VarUint): boolean {
@@ -108,7 +108,12 @@ function collectEntries({
 
 function locateAwareness(frame: RawData): AwarenessLocation | null {
   const bytes = bufferOf(frame);
-  const unreadable: AwarenessLocation = { bytes, entryCount: UNREADABLE_ENTRY_COUNT, entriesOffset: bytes.length };
+  const unreadable: AwarenessLocation = {
+    bytes,
+    entryCount: UNREADABLE_ENTRY_COUNT,
+    countOffset: bytes.length,
+    entriesOffset: bytes.length,
+  };
   const header = headerOf(bytes);
   if (header === null) return null;
   const hasOverlongHeader = header.roomNameLength.isOverlong || header.messageType?.isOverlong;
@@ -120,7 +125,7 @@ function locateAwareness(frame: RawData): AwarenessLocation | null {
   if (entryCount === null) return unreadable;
   const varints = [header.roomNameLength, header.messageType, payloadLength, entryCount];
   if (!varints.every(isCanonical)) return unreadable;
-  return { bytes, entryCount: entryCount.value, entriesOffset: entryCount.next };
+  return { bytes, entryCount: entryCount.value, countOffset: payloadLength.next, entriesOffset: entryCount.next };
 }
 
 export function awarenessEntryCountOf(frame: RawData): number | null {
@@ -136,4 +141,10 @@ export function awarenessEntriesOf(frame: RawData): AwarenessEntry[] {
   if (location === null || location.entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME) return [];
   const { bytes, entryCount, entriesOffset } = location;
   return collectEntries({ bytes, offset: entriesOffset, remaining: entryCount, entries: [] });
+}
+
+export function silenceAwarenessEntries(frame: Buffer): void {
+  const location = locateAwareness(frame);
+  if (location === null) return;
+  frame[location.countOffset] = 0;
 }

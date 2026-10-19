@@ -1,6 +1,6 @@
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage } from 'node:http';
-import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
+import { IdentitySource, isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
   ClientActor,
   DocumentRole,
@@ -206,7 +206,12 @@ export function createCollaborationServer({
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
     },
     async afterLoadDocument({ document, documentName }) {
-      awarenessOwners.seed({ documentName, bindings: updateLog.clientIdentities(requireDocumentId(documentName)) });
+      const documentId = requireDocumentId(documentName);
+      const sources = updateLog.identitySources(documentId);
+      const declared = [...updateLog.clientIdentities(documentId)].filter(
+        ([clientId]) => sources.get(clientId) === IdentitySource.Declared,
+      );
+      awarenessOwners.seed({ documentName, bindings: new Map(declared) });
       trackAwarenessOwners({ document, owners: awarenessOwners });
     },
     async beforeHandleMessage({ update, context, document, socketId }) {

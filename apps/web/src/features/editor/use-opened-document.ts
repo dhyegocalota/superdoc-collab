@@ -1,6 +1,5 @@
 import {
   BootstrapStage,
-  DOCUMENT_READY_GIVE_UP_MS,
   DOCUMENT_READY_POLL_MS,
   PREPARING_POLL_MS,
   type BootstrapProgress,
@@ -9,15 +8,12 @@ import {
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
-import { DocumentNotReadyError, openDocument, openedDocumentQueryKey } from './editor-api';
-
-const GIVE_UP_POLL_COUNT = DOCUMENT_READY_GIVE_UP_MS / DOCUMENT_READY_POLL_MS;
+import { openDocument, openedDocumentQueryKey } from './editor-api';
 
 export enum DocumentReadiness {
   Opening = 'opening',
   Ready = 'ready',
   Waiting = 'waiting',
-  Paused = 'paused',
   Failed = 'failed',
   Unavailable = 'unavailable',
 }
@@ -29,16 +25,13 @@ const READINESS_BY_STAGE: Record<BootstrapStage, DocumentReadiness> = {
   [BootstrapStage.Failed]: DocumentReadiness.Failed,
 };
 
-type ReadinessInput = { data: OpenedDocument | undefined; error: Error | null; errorCount: number; resumedAt: number };
+type ReadinessInput = { data: OpenedDocument | undefined; error: Error | null };
 
-function readinessOf({ data, error, errorCount, resumedAt }: ReadinessInput): DocumentReadiness {
+function readinessOf({ data, error }: ReadinessInput): DocumentReadiness {
   if (data) return READINESS_BY_STAGE[data.bootstrap.stage];
   if (!error) return DocumentReadiness.Opening;
   if (error instanceof DocumentUnavailableError) return DocumentReadiness.Unavailable;
-  if (!(error instanceof DocumentNotReadyError)) return DocumentReadiness.Failed;
-  const hasGivenUp = errorCount - resumedAt >= GIVE_UP_POLL_COUNT;
-  if (hasGivenUp) return DocumentReadiness.Paused;
-  return DocumentReadiness.Waiting;
+  return DocumentReadiness.Failed;
 }
 
 function pollIntervalOf(data: OpenedDocument | undefined): number {
@@ -62,31 +55,17 @@ function openedDocumentQueryOptions(documentId: string) {
 }
 
 function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string; shouldPoll: boolean }) {
-  const queryClient = useQueryClient();
-  const [resume, setResume] = useState({ documentId, errorCount: 0 });
-  const resumedAt = resume.documentId === documentId ? resume.errorCount : 0;
   const query = useQuery({
     ...openedDocumentQueryOptions(documentId),
     refetchOnMount: 'always',
     refetchInterval: (current) => {
-      const { data, error, errorUpdateCount } = current.state;
-      const readiness = readinessOf({ data, error, errorCount: errorUpdateCount, resumedAt });
+      const { data, error } = current.state;
+      const readiness = readinessOf({ data, error });
       const isWaiting = readiness === DocumentReadiness.Waiting;
       return isWaiting && shouldPoll ? pollIntervalOf(data) : false;
     },
   });
-  const readiness = readinessOf({ data: query.data, error: query.error, errorCount: query.errorUpdateCount, resumedAt });
-  const isNotReady = readiness === DocumentReadiness.Waiting || readiness === DocumentReadiness.Paused;
-
-  function keepWaiting(): void {
-    setResume({ documentId, errorCount: query.errorUpdateCount });
-    void query.refetch();
-  }
-
-  function restartWaiting(): void {
-    queryClient.removeQueries({ queryKey: openedDocumentQueryKey(documentId), exact: true });
-    setResume({ documentId, errorCount: 0 });
-  }
+  const readiness = readinessOf({ data: query.data, error: query.error });
 
   function retry(): void {
     void query.refetch();
@@ -94,12 +73,10 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
 
   return {
     data: readiness === DocumentReadiness.Ready ? query.data : undefined,
-    error: isNotReady ? null : query.error,
+    error: query.error,
     isFetchedAfterMount: query.isFetchedAfterMount,
     bootstrap: bootstrapOf(query.data),
     readiness,
-    keepWaiting,
-    restartWaiting,
     retry,
   };
 }

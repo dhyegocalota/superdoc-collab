@@ -14,14 +14,13 @@ import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
-import { KEEP_WAITING_LABEL, LOAD_RETRY_HINT, NOT_READY_PAUSED_HEADING, NOT_READY_PAUSED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
+import { LOAD_RETRY_HINT, TRY_AGAIN_LABEL } from './waiting-copy';
 
 export type WaitingProgress = { bootstrap: BootstrapProgress | null; startedAt: number; isShown: boolean };
 
-export type WaitingReadiness =
-  DocumentReadiness.Waiting | DocumentReadiness.Paused | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
+export type WaitingReadiness = DocumentReadiness.Waiting | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
 
-type WaitingActions = { onKeepWaiting: () => void; onRetry: () => void };
+type WaitingActions = { onRetry: () => void };
 type WaitingForDocumentProps = WaitingActions & { documentId: string; readiness: WaitingReadiness; progress: WaitingProgress };
 
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
@@ -82,23 +81,6 @@ function PreparingCard({ title, progress }: { title: string | null; progress: Wa
   );
 }
 
-function PausedCard({ onKeepWaiting }: WaitingActions) {
-  return (
-    <StatusCard
-      role="status"
-      icon={null}
-      heading={NOT_READY_PAUSED_HEADING}
-      hint={NOT_READY_PAUSED_MESSAGE}
-      actions={
-        <>
-          <Button onClick={onKeepWaiting}>{KEEP_WAITING_LABEL}</Button>
-          <BackToDocumentsButton />
-        </>
-      }
-    />
-  );
-}
-
 function FailedCard({ onRetry }: WaitingActions) {
   return (
     <StatusCard
@@ -131,12 +113,11 @@ type CardInput = WaitingActions & { title: string | null; progress: WaitingProgr
 
 const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactElement | null> = {
   [DocumentReadiness.Waiting]: ({ title, progress }) => <PreparingCard title={title} progress={progress} />,
-  [DocumentReadiness.Paused]: (input) => <PausedCard {...input} />,
   [DocumentReadiness.Failed]: (input) => <FailedCard {...input} />,
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
-export function WaitingForDocument({ documentId, readiness, progress, onKeepWaiting, onRetry }: WaitingForDocumentProps) {
+export function WaitingForDocument({ documentId, readiness, progress, onRetry }: WaitingForDocumentProps) {
   const queryClient = useQueryClient();
   const title = cachedTitleOf({ documentList: queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId });
 
@@ -160,7 +141,7 @@ export function WaitingForDocument({ documentId, readiness, progress, onKeepWait
             <Skeleton key={`${width}-${index}`} className={`h-3 ${width}`} />
           ))}
         </div>
-        {CARD_BY_READINESS[readiness]({ title, progress, onKeepWaiting, onRetry })}
+        {CARD_BY_READINESS[readiness]({ title, progress, onRetry })}
       </main>
     </div>
   );

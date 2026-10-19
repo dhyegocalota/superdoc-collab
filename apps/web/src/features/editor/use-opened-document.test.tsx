@@ -1,7 +1,5 @@
 import {
   BootstrapStage,
-  DOCUMENT_NOT_READY_ERROR,
-  DOCUMENT_READY_GIVE_UP_MS,
   DOCUMENT_READY_POLL_MS,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   DocumentRole,
@@ -19,8 +17,6 @@ import { openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness, useOpenedDocument, useOpenedDocumentWithoutPolling } from './use-opened-document';
 
-const GIVE_UP_POLLS = DOCUMENT_READY_GIVE_UP_MS / DOCUMENT_READY_POLL_MS;
-const OVERSHOOT_POLLS = GIVE_UP_POLLS + 50;
 const HIDDEN_MS = 10 * MINUTE_MS;
 const FAKE_TIMERS: Parameters<typeof vi.useFakeTimers>[0] = {
   toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
@@ -30,7 +26,6 @@ const OPENED = openedAs(DocumentRole.Reader);
 
 type Answer = () => Response;
 
-const notReady: Answer = () => jsonResponse({ body: { error: DOCUMENT_NOT_READY_ERROR }, status: HttpStatus.Conflict });
 const serverError: Answer = () => jsonResponse({ body: {}, status: HttpStatus.InternalServerError });
 const notFound: Answer = () => jsonResponse({ body: {}, status: HttpStatus.NotFound });
 const entered: Answer = () => jsonResponse({ body: OPENED });
@@ -63,8 +58,8 @@ afterEach(() => {
   focusManager.setFocused(undefined);
 });
 
-test('a NOT_READY answer is a state that polls every 2 s and enters on 200', async () => {
-  const fetchSpy = answerInOrder(notReady, notReady, entered);
+test('a Queued answer is a state that polls every 2 s and enters once Ready', async () => {
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Queued), answeredAt(BootstrapStage.Queued), entered);
   const result = renderOpenedDocument();
   await advance(0);
   expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
@@ -80,49 +75,16 @@ test('a NOT_READY answer is a state that polls every 2 s and enters on 200', asy
   expect(fetchSpy).toHaveBeenCalledTimes(3);
 });
 
-test('after 150 polls the state is paused, and ten minutes hidden with zero polls keeps it waiting', async () => {
-  const fetchSpy = answerInOrder(notReady);
-  const result = renderOpenedDocument();
-  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
-  expect(result.current.readiness).toBe(DocumentReadiness.Paused);
-  expect(fetchSpy).toHaveBeenCalledTimes(GIVE_UP_POLLS);
-});
-
 test('ten minutes hidden with zero polls keeps it waiting', async () => {
   focusManager.setFocused(false);
-  const fetchSpy = answerInOrder(notReady);
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Queued));
   const result = renderOpenedDocument();
   await advance(HIDDEN_MS);
   expect(fetchSpy).toHaveBeenCalledTimes(1);
   expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
 });
 
-test('keepWaiting restarts the count', async () => {
-  const fetchSpy = answerInOrder(notReady);
-  const result = renderOpenedDocument();
-  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
-  expect(result.current.readiness).toBe(DocumentReadiness.Paused);
-  act(() => result.current.keepWaiting());
-  await advance(0);
-  expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
-  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
-  expect(result.current.readiness).toBe(DocumentReadiness.Paused);
-  expect(fetchSpy).toHaveBeenCalledTimes(GIVE_UP_POLLS * 2);
-});
-
-test('restartWaiting forgets the saved count, so the next wait gives up after a full count again', async () => {
-  answerInOrder(notReady);
-  const result = renderOpenedDocument();
-  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
-  act(() => result.current.keepWaiting());
-  await advance(DOCUMENT_READY_POLL_MS * 2);
-  act(() => result.current.restartWaiting());
-  await advance(0);
-  await advance(DOCUMENT_READY_POLL_MS * OVERSHOOT_POLLS);
-  expect(result.current.readiness).toBe(DocumentReadiness.Paused);
-});
-
-test('a non-409 error stays an error and retry refetches once', async () => {
+test('a server error stays an error and retry refetches once', async () => {
   const fetchSpy = answerInOrder(serverError, entered);
   const result = renderOpenedDocument();
   await advance(0);
@@ -144,8 +106,8 @@ test('a 404 is unavailable, not a failure to retry', async () => {
   expect(result.current.error?.message).toBe(DOCUMENT_UNAVAILABLE_MESSAGE);
 });
 
-test('without polling a NOT_READY answer is asked once and stays waiting', async () => {
-  const fetchSpy = answerInOrder(notReady, entered);
+test('without polling a Queued answer is asked once and stays waiting', async () => {
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Queued), entered);
   const result = renderHookWithRouter(() => useOpenedDocumentWithoutPolling(DOCUMENT_ID)).result;
   await advance(DOCUMENT_READY_POLL_MS * 5);
   expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -201,12 +163,4 @@ test('a Failed bootstrap is a failure that stops the poll', async () => {
   expect(result.current.data).toBeUndefined();
   await advance(DOCUMENT_READY_POLL_MS * 5);
   expect(fetchSpy).toHaveBeenCalledTimes(1);
-});
-
-test('the legacy NOT_READY answer waits with no bootstrap', async () => {
-  answerInOrder(notReady);
-  const result = renderOpenedDocument();
-  await advance(0);
-  expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
-  expect(result.current.bootstrap).toBeNull();
 });

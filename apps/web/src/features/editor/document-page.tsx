@@ -46,7 +46,7 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
-  const { data: opened, bootstrap, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
+  const { data: opened, bootstrap, readiness, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
@@ -65,7 +65,6 @@ export function DocumentPage() {
   const { editorGeneration, isReloading, hasReloadFailed, reload } = useDocumentReload({
     documentId,
     roomMode: opened?.roomMode,
-    restartWaiting,
     resetConnection,
   });
   const connectionAction = useConnectionFailureAction({ failureReason, reload });
@@ -123,7 +122,6 @@ export function DocumentPage() {
         documentId={documentId}
         readiness={documentReadiness}
         progress={{ bootstrap, startedAt, isShown: isProgressShown }}
-        onKeepWaiting={keepWaiting}
         onRetry={retry}
       />,
     );

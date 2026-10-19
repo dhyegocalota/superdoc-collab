@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DocumentReadiness } from './use-opened-document';
 import { DOCUMENT_READY_ANNOUNCEMENT } from './waiting-copy';
 
-const WAITING_READINESS: DocumentReadiness[] = [DocumentReadiness.Waiting, DocumentReadiness.Paused];
+const WAITING_READINESS: DocumentReadiness[] = [DocumentReadiness.Waiting];
 
 export function ReadinessAnnouncement({ readiness }: { readiness: DocumentReadiness }) {
   const previousReadiness = useRef(readiness);

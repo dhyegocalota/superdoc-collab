@@ -6,7 +6,6 @@ import {
   ClientActor,
   ConnectionFailureReason,
   ConnectionState,
-  DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_READY_POLL_MS,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
@@ -146,6 +145,7 @@ function mockDocumentApi({
   downloadStatus = HttpStatus.Ok,
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
+  bootstrapStage = () => BootstrapStage.Ready,
   timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
@@ -160,6 +160,7 @@ function mockDocumentApi({
   downloadStatus?: HttpStatus;
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
+  bootstrapStage?: () => BootstrapStage;
   timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
@@ -205,7 +206,8 @@ function mockDocumentApi({
       const reloadedBody = isReload && openedAfterReload ? openedAfterReload : current;
       if (isReload) await reloadGate;
       if (isReload && isReloadUnreachable) throw new TypeError('Failed to fetch');
-      return jsonResponse({ body: status === HttpStatus.Ok ? reloadedBody : openBody, status });
+      const answered = status === HttpStatus.Ok ? { ...reloadedBody, bootstrap: bootstrapAt(bootstrapStage()) } : openBody;
+      return jsonResponse({ body: answered, status });
     }
     throw new Error(`unexpected request ${String(input)}`);
   });
@@ -282,29 +284,17 @@ test('a title rename never opens the document again, so the creator ticket stays
   expect(openRequests).toHaveLength(1);
 });
 
-test('a 409 not ready shows the waiting page and never builds the editor', async () => {
-  mockDocumentApi({
-    opened: openedAs(DocumentRole.Reader),
-    openStatus: HttpStatus.Conflict,
-    openBody: { error: DOCUMENT_NOT_READY_ERROR },
-  });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
-  expect(SuperDoc).not.toHaveBeenCalled();
-});
-
 test(
-  'a waiting page that gets a 200 on a poll announces the document is ready and mounts the editor',
+  'a waiting page whose poll answers Ready announces the document is ready and mounts the editor',
   async () => {
-    let isOwnerSynced = false;
+    let isBootstrapped = false;
     mockDocumentApi({
       opened: openedAs(DocumentRole.Reader),
-      openBody: { error: DOCUMENT_NOT_READY_ERROR },
-      currentOpenStatus: () => (isOwnerSynced ? HttpStatus.Ok : HttpStatus.Conflict),
+      bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Queued),
     });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
     await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS });
-    isOwnerSynced = true;
+    isBootstrapped = true;
     const announcement = await screen.findByText(DOCUMENT_READY_ANNOUNCEMENT, {}, { timeout: READY_WAIT_MS });
     expect(announcement).toHaveAttribute('role', 'status');
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
@@ -763,23 +753,19 @@ test.each(RELOAD_FILE_FAILURES)(
 );
 
 test(
-  'Reload that is answered 409 while another editor creates shows the waiting page, which enters on the 200',
+  'a Reload answered with a Queued bootstrap shows the waiting page, which enters once Ready',
   async () => {
-    let status = HttpStatus.Ok;
-    mockDocumentApi({
-      opened: openedAs(DocumentRole.Owner, RoomMode.Create),
-      openBody: { error: DOCUMENT_NOT_READY_ERROR },
-      currentOpenStatus: () => status,
-    });
+    let stage = BootstrapStage.Ready;
+    mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => stage });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
     act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
     act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
-    status = HttpStatus.Conflict;
+    stage = BootstrapStage.Queued;
     await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
     expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
     expect(screen.queryByText(RELOAD_FAILED_MESSAGE)).not.toBeInTheDocument();
-    status = HttpStatus.Ok;
+    stage = BootstrapStage.Ready;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
     expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
   },
@@ -821,27 +807,6 @@ test('leaving a page with the timeline mounted removes the opened document from 
   await waitFor(() =>
     expect(queryClient.getQueryCache().find({ queryKey: openedDocumentQueryKey(DOCUMENT_ID), exact: true })).toBeUndefined(),
   );
-});
-
-test('a Reload answered 409 with the timeline mounted is not retried: the open, the reload and the waiting page restart make three requests', async () => {
-  let status = HttpStatus.Ok;
-  matchMediaAlwaysMatching();
-  const fetchSpy = mockDocumentApi({
-    opened: ownerCreate(),
-    openBody: { error: DOCUMENT_NOT_READY_ERROR },
-    currentOpenStatus: () => status,
-    timeline: TIMELINE_WITH_CONTRIBUTOR,
-  });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await userEvent.click(await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
-  await screen.findByTitle(CONTRIBUTOR_NAME);
-  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
-  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
-  status = HttpStatus.Conflict;
-  await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
-  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
-  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
-  expect(openRequests).toHaveLength(3);
 });
 
 test('with the timeline mounted the members are requested once per interval', async () => {
@@ -990,10 +955,6 @@ const PAINT_MARGIN_MS = 100;
 const PROGRESS_WAIT_MS = OPEN_PROGRESS_DELAY_MS + 1000;
 const EDITOR_TEST_ID = 'document-editor';
 
-function openedWithBootstrap(stage: BootstrapStage): OpenedDocument {
-  return { ...openedAs(DocumentRole.Reader), bootstrap: bootstrapAt(stage) };
-}
-
 function paintFirstParagraph(): void {
   const page = document.createElement('div');
   page.className = 'superdoc-page';
@@ -1004,7 +965,7 @@ function paintFirstParagraph(): void {
 }
 
 test('a Preparing bootstrap shows the Preparing panel after the delay and never builds the editor', async () => {
-  mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Preparing) });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Reader), bootstrapStage: () => BootstrapStage.Preparing });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   expect(panel).toHaveAttribute('data-stage', OpenStage.Preparing);
@@ -1012,7 +973,7 @@ test('a Preparing bootstrap shows the Preparing panel after the delay and never 
 });
 
 test('a Failed bootstrap shows the error card instead of a panel', async () => {
-  mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Failed) });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Reader), bootstrapStage: () => BootstrapStage.Failed });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   expect(await screen.findByText(DOCUMENT_LOAD_ERROR_MESSAGE)).toBeInTheDocument();
   expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();

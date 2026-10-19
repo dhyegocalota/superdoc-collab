@@ -46,7 +46,7 @@ test('the panel is one polite status that carries the stage and the document tit
   const status = screen.getByRole('status');
   expect(status).toHaveAttribute('aria-live', 'polite');
   expect(within(status).getByText('Heavy')).toBeInTheDocument();
-  expect(within(status).getByText(stageAnnouncement(OpenStage.Rendering))).toBeInTheDocument();
+  expect(within(status).getByText(stageAnnouncement({ stages: EDITOR_OPEN_STAGES, stage: OpenStage.Rendering }))).toBeInTheDocument();
   expect(screen.getByTestId('open-progress')).toHaveAttribute('data-stage', OpenStage.Rendering);
 });
 

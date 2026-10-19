@@ -1,6 +1,6 @@
 import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, type BootstrapProgress, type DocumentsList } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2Icon, TriangleAlertIcon } from 'lucide-react';
+import { TriangleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AppTopBar } from '@/components/app-top-bar';
@@ -9,17 +9,12 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccountMenu } from '@/features/account/account-menu';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
+import { OpenProgressPanel } from '@/features/open-progress/open-progress-panel';
+import { preparingView } from '@/features/open-progress/open-progress-view';
+import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
-import {
-  KEEP_WAITING_LABEL,
-  LOAD_RETRY_HINT,
-  NOT_READY_PAUSED_HEADING,
-  NOT_READY_PAUSED_MESSAGE,
-  PREPARING_DOCUMENT_HINT,
-  PREPARING_DOCUMENT_MESSAGE,
-  TRY_AGAIN_LABEL,
-} from './waiting-copy';
+import { KEEP_WAITING_LABEL, LOAD_RETRY_HINT, NOT_READY_PAUSED_HEADING, NOT_READY_PAUSED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
 
 export type WaitingProgress = { bootstrap: BootstrapProgress | null; elapsedSeconds: number; isShown: boolean };
 
@@ -74,14 +69,14 @@ function StatusCard({
   );
 }
 
-function PreparingCard() {
+function PreparingCard({ title, progress }: { title: string | null; progress: WaitingProgress }) {
+  if (!progress.isShown) return null;
   return (
-    <StatusCard
-      role="status"
-      icon={<Loader2Icon aria-hidden="true" className="size-4 animate-spin" />}
-      heading={PREPARING_DOCUMENT_MESSAGE}
-      hint={PREPARING_DOCUMENT_HINT}
-      actions={<BackToDocumentsButton />}
+    <OpenProgressPanel
+      title={title}
+      stages={EDITOR_OPEN_STAGES}
+      view={preparingView({ bootstrap: progress.bootstrap, elapsedSeconds: progress.elapsedSeconds })}
+      action={<BackToDocumentsButton />}
     />
   );
 }
@@ -131,10 +126,12 @@ function UnavailableCard() {
   );
 }
 
-const CARD_BY_READINESS: Record<WaitingReadiness, (actions: WaitingActions) => ReactElement> = {
-  [DocumentReadiness.Waiting]: () => <PreparingCard />,
-  [DocumentReadiness.Paused]: (actions) => <PausedCard {...actions} />,
-  [DocumentReadiness.Failed]: (actions) => <FailedCard {...actions} />,
+type CardInput = WaitingActions & { title: string | null; progress: WaitingProgress };
+
+const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactElement | null> = {
+  [DocumentReadiness.Waiting]: ({ title, progress }) => <PreparingCard title={title} progress={progress} />,
+  [DocumentReadiness.Paused]: (input) => <PausedCard {...input} />,
+  [DocumentReadiness.Failed]: (input) => <FailedCard {...input} />,
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
@@ -162,7 +159,7 @@ export function WaitingForDocument({ documentId, readiness, progress, onKeepWait
             <Skeleton key={`${width}-${index}`} className={`h-3 ${width}`} />
           ))}
         </div>
-        {CARD_BY_READINESS[readiness]({ onKeepWaiting, onRetry })}
+        {CARD_BY_READINESS[readiness]({ title, progress, onKeepWaiting, onRetry })}
       </main>
     </div>
   );

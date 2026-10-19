@@ -42,7 +42,7 @@ export function OpenProgressPanel({ title, stages, view, action }: OpenProgressP
       <Card data-testid="open-progress" data-stage={view.stage} className="w-full max-w-md gap-4">
         <CardContent role="status" aria-live="polite" className="flex flex-col gap-4">
           {title && <p className="truncate font-semibold">{title}</p>}
-          <p className="sr-only">{stageAnnouncement(view.stage)}</p>
+          <p className="sr-only">{stageAnnouncement({ stages, stage: view.stage })}</p>
           <ol className="flex flex-col gap-2 text-sm">
             {stages.map((listed) => {
               const state = stageStateOf({ stages, stage: view.stage, listed });

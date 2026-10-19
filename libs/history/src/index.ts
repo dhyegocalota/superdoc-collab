@@ -14,3 +14,4 @@ export * from './version-state';
 export * from './timeline';
 export * from './topics';
 export * from './showcase/showcase-paragraphs';
+export * from './showcase/showcase-bursts';

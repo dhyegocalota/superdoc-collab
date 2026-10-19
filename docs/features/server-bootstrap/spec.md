@@ -40,20 +40,23 @@ The conversion CPU moved into the SDK host and did not shrink (SuperDoc's cost).
 
 | Goal | Rule |
 |------|------|
-| Server bootstrap | Right after the upload (and for a blank document), the server queues a bootstrap on the projection worker. The worker opens the stored DOCX through a `SuperDocClient` with a long request timeout, joins the room with `roomMode: 'create'` on `ApiPath.BootstrapCollaboration`, waits for the commit and closes without discarding. One bootstrap runs at a time. |
+| Server bootstrap | Right after the upload (and for a blank document), the server queues a bootstrap on the projection worker. The worker opens the stored DOCX through a `SuperDocClient` with a long request timeout, joins the room with `roomMode: 'create'` on `ApiPath.BootstrapCollaboration`, waits for the commit, then closes with `close({ discard: true })` so the host never writes its copy back, and disposes the SDK host so its memory returns to the system. One bootstrap runs at a time in each lane. |
+| Lanes and turns | A file up to `BOOTSTRAP_LIGHT_MAX_BYTES` (2 MB, about nine seconds of conversion at the measured rate) is prepared in the light lane, a larger one in the heavy lane. Each lane has its own queue, its own runner in the registry, its own worker queue and its own SDK host process, so a blank document is ready in well under a second while a heavy one converts. Inside a lane the queue serves owners in turns, one bootstrap each. |
+| Limits | `POST /api/documents` answers 429 with `Retry-After` when the user spent `UPLOADS_PER_MINUTE` uploads in the minute or already has a bootstrap waiting in the lane of the new file (`BOOTSTRAP_QUEUE_RETRY_AFTER_MS`). A `word/document.xml` that inflates past `MAX_DOCUMENT_XML_BYTES` (64 MB, counted while streaming so a zip that lies about its size costs bounded memory) is answered 415 with `DOCUMENT_TOO_LARGE_MESSAGE`. |
+| Host hygiene | The SDK host runs with the server's secrets and database location removed from its environment, and with `--max-old-space-size` set to `PROJECTION_WORKER_HEAP_MEGABYTES` when that is configured. Its request timeout is `BOOTSTRAP_HOST_TIMEOUT_MS`, later than the server's `BOOTSTRAP_TIMEOUT_MS`, so the two never race. |
 | Authorship | The bootstrap socket authenticates as the document owner (the uploader) with actor Human, exactly as a browser creator did, so the update log, the snapshot and the timeline keep their shape. |
 | Everyone joins | The open answer is `RoomMode.Join` for every opener, uploader included. `creatorAttempt`, `creatorEpoch` and the members flags no longer exist; the 409 `NOT_READY` of the open route is gone. |
 | Progress | The open answer is always 200 with `bootstrap: BootstrapProgress`. `total` is the DOCX size times `BOOTSTRAP_STATE_BYTES_RATIO` (4, the measured 36.6 / 9.5 rounded up). While Queued, `done` is 0. While Preparing, `done` is the bytes of Yjs state the room has received from the SDK host so far, never reaching `total - 1`. At Ready `done` equals `total` and `stateBytes` is the committed size. Failed reports `done` 0. A document committed before this change reports Ready 0 of 0 with null `stateBytes`. |
-| No hang | A bootstrap that throws, times out (`BOOTSTRAP_TIMEOUT_MS`, 135 s: three times the measured 4.5 s per megabyte at the 10 MB upload cap; past it the worker answers failed and the stage is Failed) or loses its worker is `Failed`, logged once, and stays `Failed` until the server restarts. The open answer says `Failed`; the web shows the existing error copy. |
+| No hang | A bootstrap that throws, times out (`BOOTSTRAP_TIMEOUT_MS`, 135 s: three times the measured 4.5 s per megabyte at the 10 MB upload cap; past it the worker answers failed and the stage is Failed) or loses its worker is `Failed` and logged once. A run the worker's death interrupted is run once more with a new attempt first. After the run resolves the registry waits `BOOTSTRAP_COMMIT_GRACE_MS` for the commit before it declares `Failed`, and a host whose open result did not apply the bootstrap fails at once. A `Failed` bootstrap is started again by the first open after `BOOTSTRAP_RETRY_COOLDOWN_MS`; before that the open answer says `Failed` and the web shows the existing error copy. |
 | Old documents | An uncommitted document nobody bootstrapped (uploaded before this change, or after a restart that interrupted a bootstrap) is bootstrapped by its first open. |
 | Remove the unused | `CreatorReservations`, the claimed ticket, the reserve and takeover paths, the epoch, the `isAttemptSuperseded` and `isAttemptRestarted` members flags and their close reasons go. |
-| Keep the fence | The bootstrap token carries an attempt. A bootstrap socket writes only while its attempt is the registry's current one, so a host that outlives a restart or a failed job cannot merge a partial seed into a later bootstrap. |
+| Keep the fence | The bootstrap token carries an attempt. A bootstrap socket writes only while its attempt is the registry's current one, and the attempt ends when the run has ended and the commit is in, so a host that outlives a restart, a failed job or its own run cannot merge a partial seed into a later bootstrap. A bootstrap socket on a committed room is refused at authentication. The scheduler never posts a bootstrap to a worker that is being recycled: it holds the post until the fresh worker exists. |
 
 ## Non-goals
 
 - Making the conversion itself faster: it is the SDK's CPU.
 - Progress inside the conversion: the SDK offers none.
-- A bootstrap on more than one instance or a retry button for `Failed`.
+- A bootstrap on more than one instance or a retry button for `Failed`; the retry is the next open.
 
 ## Design
 
@@ -82,8 +85,8 @@ GET /api/documents/:id -> { ..., roomMode: Join, bootstrap }   (web polls until 
 | Failure | Behaviour |
 |---------|-----------|
 | Not a readable DOCX, SDK crash | Worker answers failed; stage `Failed`; one log line with the document id and message |
-| The conversion outlives `BOOTSTRAP_TIMEOUT_MS` | Worker answers failed with the timeout message |
-| The projection worker dies mid-bootstrap | The pending bootstrap rejects; stage `Failed` |
+| The conversion outlives `BOOTSTRAP_TIMEOUT_MS` | The worker disposes the SDK host, then answers failed with the timeout message |
+| The projection worker dies mid-bootstrap | The pending bootstrap rejects as interrupted; the registry runs it once more with a new attempt, then `Failed` |
 | The server restarts mid-bootstrap | The registry is empty and the old token's attempt is unknown, so a surviving host is refused; the first open starts a new bootstrap on the log's partial updates, which the projection already skips |
 | A member connects to an uncommitted room | Refused at authentication, as a ticketless socket was |
 | The owner left the document | The bootstrap token's role check fails; stage `Failed` |

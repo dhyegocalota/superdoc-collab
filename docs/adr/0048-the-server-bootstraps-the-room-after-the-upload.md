@@ -15,8 +15,8 @@ The spike showed that `@superdoc/sdk` 2.21.0 can open the stored DOCX in its v2 
 
 - The server bootstraps every new document in the projection worker, right after `storeDocument`. A document found uncommitted with no job (uploaded before this change, or interrupted by a restart) is bootstrapped by its first open.
 - The worker joins the room on a loopback-only path, `/collaboration/bootstrap`, with a room token that names the owner, the document and an attempt. The socket is admitted as the owner with actor Human, so the log, the snapshot and the timeline are what a browser creator produced.
-- The registry in the server process runs one bootstrap at a time and holds the stage: Queued, Preparing, Ready or Failed. The open answer is always `RoomMode.Join` and carries it. Failed is terminal until the server restarts.
-- The write fence keeps one rule: a bootstrap socket writes only while its attempt is the registry's current one. A member, a reader or an agent on an uncommitted room is refused.
+- The registry in the server process runs one bootstrap at a time in each of two lanes (a light one for files up to 2 MB, a heavy one above), serves owners in turns inside a lane, and holds the stage: Queued, Preparing, Ready or Failed. The open answer is always `RoomMode.Join` and carries it. A Failed bootstrap is started again by the first open after a cooldown.
+- The write fence keeps one rule: a bootstrap socket writes only while its attempt is the registry's current one, and the attempt ends when the run ends with the commit in. A bootstrap socket on a committed room is refused. A member, a reader or an agent on an uncommitted room is refused.
 - The reservation, the browser-claimed ticket, the epoch, the takeover and the restart reasons are removed.
 
 ## Alternatives considered
@@ -34,9 +34,10 @@ The spike showed that `@superdoc/sdk` 2.21.0 can open the stored DOCX in its v2 
 - Supersedes the reservation, expiry, takeover and restart parts of [ADR 0033](0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md). What stays: the commit is read from the latest snapshot, `isCommitted` answers from the server's state, and the open budget limits uncommitted opens.
 - The open route no longer answers 409 `NOT_READY`. A web client waits on `bootstrap.stage`.
 - The bootstrap runs in the SDK host process, which held 1.2 GB resident memory on the heavy fixture ([large-documents](../features/large-documents/spec.md)). The size gate of the revisions import does not apply to it.
-- Progress is the DOCX size in bytes and then the state size. The SDK gives nothing finer, so the web shows an indeterminate bar with the elapsed time.
+- Progress is the bytes of state the room has received from the SDK host against the DOCX size times a measured ratio, and then the state size. The SDK reports nothing during the conversion, so the bar moves when frames arrive, never reaches its end before the commit, and the web shows the elapsed time beside it.
 - A host process that outlives a failed job or a restart reconnects with an old attempt and is refused.
-- A document whose bootstrap failed stays failed until the process restarts.
+- A document whose bootstrap failed reports Failed until the cooldown passes, and the first open after it starts a new bootstrap on a new attempt.
+- Each lane has its own SDK host process, started without the server's secrets, disposed after every bootstrap, and capped in heap like the worker. Uploads are limited per user and per owner queue, and a `word/document.xml` that inflates past 64 MB is refused at upload.
 
 ## Evidence
 

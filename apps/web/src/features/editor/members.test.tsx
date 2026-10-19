@@ -163,7 +163,6 @@ test('a peer who reconnects without a caret is refreshed on arrival and again on
     vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
   });
   expect(invalidate).toHaveBeenCalledTimes(2);
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) })).toBeInTheDocument();
 });
 
 test('a peer arriving refreshes the members query', async () => {

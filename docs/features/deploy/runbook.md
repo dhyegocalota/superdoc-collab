@@ -32,7 +32,7 @@ Steps marked **(from memory, verify in the UI)** describe Dokploy screens that c
 
 1. Dokploy → **Projects** → **Create Project**, name `superdoc-collab`.
 2. Open the project → **Create Service** → **Compose**. Name `superdoc-collab`, compose type **Docker Compose** (not Stack) → **Create**.
-3. In the service, **General** tab: provider **GitHub** (or **Git** with the public URL), repository `dhyegocalota/superdoc-take-home`, branch `main`, **Compose Path** `./docker/docker-compose.yml` → **Save**.
+3. In the service, **General** tab: provider **GitHub** (or **Git** with the public URL), repository `dhyegocalota/superdoc-take-home`, branch `main`, **Compose Path** `./docker/docker-compose.yml` → **Save**. Services created before the compose file moved under `docker/` must switch the Compose Path to `./docker/docker-compose.yml` before the next deploy.
 
 ## 2. Set the environment (from memory, verify in the UI)
 

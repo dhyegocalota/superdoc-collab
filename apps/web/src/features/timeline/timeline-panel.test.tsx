@@ -36,6 +36,7 @@ import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
   EMPTY_PANEL_DESCRIPTION,
+  liveEditsLabel,
   CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
   LOADING_TIMELINE_LABEL,
@@ -912,4 +913,41 @@ test('from md to lg the header tops the list column', async () => {
   const listColumn = document.querySelector<HTMLElement>(`[data-column="${PanelColumn.List}"]`)!;
   expect(wholeDocumentHeader().parentElement).toBe(listColumn);
   expect(listColumn.firstElementChild).toBe(wholeDocumentHeader());
+});
+
+const GROWN_TIMELINE: DocumentTimeline = timelineWith({ volumes: [[10], [25]], names: ['Budget'] });
+const CHART_PULSE_SELECTOR = 'svg .streamgraph-pulse';
+const CHIP_PULSE_SELECTOR = '.chip-pulse-ring';
+
+test('an answer that grew a bin pulses the chart and announces the new edit once', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockTimelineApi({ timelines: [baseTimeline, GROWN_TIMELINE] });
+  renderPanel();
+  await screen.findByLabelText('Budget, 30 characters');
+  expect(document.querySelector(CHART_PULSE_SELECTOR)).toBeNull();
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS);
+  await screen.findByLabelText('Budget, 35 characters');
+  expect(document.querySelector(CHART_PULSE_SELECTOR)).not.toBeNull();
+  expect(screen.getByText(liveEditsLabel(1))).toBeInTheDocument();
+});
+
+test('an unchanged answer pulses nothing and announces nothing', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const fetchSpy = mockTimelineApi();
+  renderPanel();
+  await screen.findByLabelText('Budget, 30 characters');
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 2);
+  await waitFor(() => expect(timelineRequests(fetchSpy)).toBeGreaterThan(1));
+  expect(document.querySelector(CHART_PULSE_SELECTOR)).toBeNull();
+  expect(screen.queryByText(/new edit/)).not.toBeInTheDocument();
+});
+
+test('a collapsed bottom panel pulses the chip of the band that grew', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockTimelineApi({ timelines: [baseTimeline, GROWN_TIMELINE] });
+  renderPanel({ position: PanelPosition.Bottom, isOpen: false });
+  await screen.findByRole('button', { name: 'Budget' });
+  expect(document.querySelector(CHIP_PULSE_SELECTOR)).toBeNull();
+  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS);
+  await waitFor(() => expect(document.querySelector(CHIP_PULSE_SELECTOR)).not.toBeNull());
 });

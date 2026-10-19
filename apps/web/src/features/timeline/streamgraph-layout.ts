@@ -37,6 +37,7 @@ export type StreamgraphLayout = {
   breakAt: (position: number) => BreakColumn | null;
   binAt: (position: number) => number;
   timeX: (time: number) => number;
+  bandCenterY: (target: { bandId: string; index: number }) => number;
 };
 
 class MissingStackValueError extends Error {}
@@ -262,6 +263,13 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
         index: 0,
         x: 0,
       }).index;
+    },
+    bandCenterY: ({ bandId, index }) => {
+      const points = series.find((candidate) => candidate.key === bandId);
+      if (!points) throw new MissingBandError(bandId);
+      const point = points[index];
+      if (!point) throw new UnknownBinError(String(index));
+      return (y(point[0]) + y(point[1])) / HALF;
     },
     timeX: (time) => {
       const position = Math.min(lastIndex, Math.max(0, (time - firstBinStart(timeline)) / timeline.binMs));

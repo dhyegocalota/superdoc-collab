@@ -159,6 +159,8 @@ export function DocumentPage() {
         editorContainer={editorContainer}
         isPastVersion={isViewingPastVersion}
         onDownloadDocx={downloadLiveDocument}
+        onToggleEditsPanel={() => setIsPanelOpen((isOpen) => !isOpen)}
+        onSummarize={summarizeAndOpenPanel}
         onTitleDirtyChange={setIsTitleDirty}
         renderUseWithAi={renderUseWithAi}
       />

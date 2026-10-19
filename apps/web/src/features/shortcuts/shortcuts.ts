@@ -14,6 +14,7 @@ export enum ShortcutGroup {
   Document = 'document',
   App = 'app',
   Title = 'title',
+  Review = 'review',
 }
 
 export enum ShortcutActionKind {
@@ -53,6 +54,19 @@ export enum ShortcutId {
   ShowShortcutsOutsideField = 'show-shortcuts-outside-field',
   SaveTitle = 'save-title',
   CancelTitle = 'cancel-title',
+  SelectAll = 'select-all',
+  Heading4 = 'heading-4',
+  Heading5 = 'heading-5',
+  Heading6 = 'heading-6',
+  NormalTextAlternate = 'normal-text-alternate',
+  ClearFormatting = 'clear-formatting',
+  ZoomIn = 'zoom-in',
+  ZoomOut = 'zoom-out',
+  ToggleEditsPanel = 'toggle-edits-panel',
+  SummarizeEdits = 'summarize-edits',
+  AddComment = 'add-comment',
+  NextComment = 'next-comment',
+  PreviousComment = 'previous-comment',
 }
 
 export type KeyCombination = { modifiers: readonly ShortcutModifier[]; code: string; label: string };
@@ -63,13 +77,20 @@ export type ShortcutAction =
   | { kind: ShortcutActionKind.Command; commandId: BuiltInCommandId; payload?: string }
   | { kind: ShortcutActionKind.App };
 
-export type ShortcutDefinition = { id: ShortcutId; group: ShortcutGroup; keys: ShortcutKeys; action: ShortcutAction };
+export type ShortcutDefinition = {
+  id: ShortcutId;
+  group: ShortcutGroup;
+  keys: ShortcutKeys;
+  action: ShortcutAction;
+  ignoresRepeat: boolean;
+};
 
 export const EDITING_SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
   ShortcutGroup.Editing,
   ShortcutGroup.Formatting,
   ShortcutGroup.Paragraph,
   ShortcutGroup.Title,
+  ShortcutGroup.Review,
 ];
 
 const ESCAPE_KEY_LABEL = 'Esc';
@@ -90,9 +111,19 @@ function digit(character: string): Pick<KeyCombination, 'code' | 'label'> {
   return { code: `Digit${character}`, label: character };
 }
 
-function definition({ id, group, action, modifiers, code, label }: Omit<ShortcutDefinition, 'keys'> & KeyCombination): ShortcutDefinition {
+function definition({
+  id,
+  group,
+  action,
+  modifiers,
+  code,
+  label,
+  mac,
+  ignoresRepeat = false,
+}: Omit<ShortcutDefinition, 'keys' | 'ignoresRepeat'> &
+  KeyCombination & { mac?: KeyCombination; ignoresRepeat?: boolean }): ShortcutDefinition {
   const combination: KeyCombination = { modifiers, code, label };
-  return { id, group, action, keys: { mac: combination, other: combination } };
+  return { id, group, action, ignoresRepeat, keys: { mac: mac ? mac : combination, other: combination } };
 }
 
 export const SHORTCUTS: readonly ShortcutDefinition[] = [

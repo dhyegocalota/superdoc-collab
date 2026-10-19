@@ -44,6 +44,7 @@ import {
 import { EditorHeader } from './editor-header';
 import { superdocStub } from '@/testing/superdoc-stub';
 import { Members } from './members';
+import { ADD_COMMENT_FAILED_MESSAGE, ADD_COMMENT_SUBMIT_LABEL, ADD_COMMENT_TITLE, COMMENT_TEXT_LABEL } from './editor-copy';
 import { SHORTCUT_GROUP_LABELS, SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
 import { ShortcutGroup } from '@/features/shortcuts/shortcuts';
 
@@ -55,6 +56,8 @@ vi.mock('./members', async (importOriginal) => {
 const RENAMED_TITLE = 'Renamed';
 const ADA: DocumentMember = { user: { id: SESSION_USER.id, name: 'Ada' }, role: DocumentRole.Owner, online: true, colorSlot: 1 };
 const onDownloadDocx = vi.fn();
+const onToggleEditsPanel = vi.fn();
+const onSummarize = vi.fn();
 
 function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
   return <UseWithAiDialog title={DOCUMENT_TITLE} canEdit {...slot} />;
@@ -89,6 +92,8 @@ function renderHeader({
       editorContainer={null}
       isPastVersion={isPastVersion}
       onDownloadDocx={onDownloadDocx}
+      onToggleEditsPanel={onToggleEditsPanel}
+      onSummarize={onSummarize}
       onTitleDirtyChange={vi.fn()}
       renderUseWithAi={renderUseWithAi}
     />,
@@ -419,4 +424,61 @@ test.each([
   renderHeader({ superdoc: superdocStub() });
   await userEvent.hover(screen.getByRole('button', { name }));
   expect(pillTexts(await screen.findByRole('tooltip'))).toEqual(keys);
+});
+
+const OPTION_KEYS = { ctrlKey: true, altKey: true };
+const COMMENT_KEY = { code: 'KeyM', key: 'm', ...OPTION_KEYS };
+const SELECTION_CAPTURE = { capturedAt: 1 };
+const COMMENT_TEXT = 'Check this figure';
+
+function superdocWithComments(createFromCapture: () => unknown): SuperDoc {
+  const handle = { getState: () => ({ enabled: true, supported: true }), execute: vi.fn() };
+  return superdocStub({
+    ui: {
+      commands: { get: () => handle },
+      selection: { getSnapshot: () => ({ empty: false }), capture: () => SELECTION_CAPTURE },
+      comments: { createFromCapture },
+    },
+  });
+}
+
+test('Ctrl+Alt+E and Ctrl+Alt+S reach the page callbacks', () => {
+  renderHeader({ superdoc: superdocStub() });
+  fireEvent.keyDown(document.body, { code: 'KeyE', key: 'e', ...OPTION_KEYS });
+  fireEvent.keyDown(document.body, { code: 'KeyS', key: 's', ...OPTION_KEYS });
+  expect(onToggleEditsPanel).toHaveBeenCalledTimes(1);
+  expect(onSummarize).toHaveBeenCalledTimes(1);
+});
+
+test('Ctrl+Alt+M opens the composer and sends the comment on the captured selection', async () => {
+  const createFromCapture = vi.fn().mockResolvedValue({ success: true });
+  renderHeader({ superdoc: superdocWithComments(createFromCapture) });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
+  await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(createFromCapture).toHaveBeenCalledWith(SELECTION_CAPTURE, { text: COMMENT_TEXT });
+});
+
+test('a rejected comment keeps the composer open with an alert', async () => {
+  renderHeader({ superdoc: superdocWithComments(vi.fn().mockResolvedValue({ success: false })) });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
+  await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent(ADD_COMMENT_FAILED_MESSAGE);
+});
+
+test('the comment button stays disabled until there is text', async () => {
+  renderHeader({ superdoc: superdocWithComments(vi.fn()) });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  expect(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL })).toBeDisabled();
+});
+
+test('the shortcuts dialog lists the review group for an editor', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  fireEvent.keyDown(document.body, SHORTCUTS_KEY);
+  expect(await screen.findByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Review] })).toBeVisible();
 });

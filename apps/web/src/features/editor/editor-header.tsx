@@ -194,6 +194,8 @@ type EditorHeaderProps = {
   editorContainer: HTMLElement | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
+  onToggleEditsPanel: () => void;
+  onSummarize: () => void;
   onTitleDirtyChange: (isDirty: boolean) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
@@ -206,6 +208,8 @@ export function EditorHeader({
   editorContainer,
   isPastVersion,
   onDownloadDocx,
+  onToggleEditsPanel,
+  onSummarize,
   onTitleDirtyChange,
   renderUseWithAi,
 }: EditorHeaderProps) {
@@ -227,6 +231,9 @@ export function EditorHeader({
     canEdit,
     onDownload: download,
     onShowShortcuts: () => showShortcuts(focusedElement()),
+    onToggleEditsPanel,
+    onSummarize,
+    onAddComment: () => undefined,
   });
   const isLarge = useMinWidth(LARGE_BREAKPOINT_PX);
   const hasActionsMenu = !isLarge || isOwner;

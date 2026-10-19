@@ -84,7 +84,7 @@ test('a reader sees the navigation, document and app groups only', () => {
   [ShortcutGroup.Navigation, ShortcutGroup.Document, ShortcutGroup.App].forEach((group) => {
     expect(screen.getByRole('heading', { name: SHORTCUT_GROUP_LABELS[group] })).toBeVisible();
   });
-  [ShortcutGroup.Editing, ShortcutGroup.Formatting, ShortcutGroup.Paragraph].forEach((group) => {
+  [ShortcutGroup.Editing, ShortcutGroup.Formatting, ShortcutGroup.Paragraph, ShortcutGroup.Title, ShortcutGroup.Review].forEach((group) => {
     expect(screen.queryByRole('heading', { name: SHORTCUT_GROUP_LABELS[group] })).toBeNull();
   });
   expect(screen.queryByText('Bold', { selector: 'li span' })).toBeNull();

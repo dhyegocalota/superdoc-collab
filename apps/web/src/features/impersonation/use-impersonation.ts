@@ -1,25 +1,41 @@
 import { AppRoute } from '@superdoc-collab/types';
-import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type Query, type UseMutationResult } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { impersonateUser } from '@/features/admin/admin-api';
+import { ADMIN_QUERY_KEY, impersonateUser } from '@/features/admin/admin-api';
 import { stopImpersonating } from './impersonation-api';
 
-function useSwitchIdentity(destination: AppRoute): () => Promise<void> {
+function isOutsideAdmin(query: Query): boolean {
+  return query.queryKey[0] !== ADMIN_QUERY_KEY[0];
+}
+
+function useImpersonationChange(destination: AppRoute): () => Promise<void> {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  return async function switchIdentity(): Promise<void> {
+  return async function enter(): Promise<void> {
+    await queryClient.cancelQueries({ queryKey: ADMIN_QUERY_KEY });
+    queryClient.removeQueries({ queryKey: ADMIN_QUERY_KEY });
+    await queryClient.resetQueries({ predicate: isOutsideAdmin });
+    await navigate(destination);
+  };
+}
+
+function useImpersonationEnd(destination: AppRoute): () => Promise<void> {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  return async function end(): Promise<void> {
     await queryClient.resetQueries();
     await navigate(destination);
   };
 }
 
 export function useImpersonate(userId: string): UseMutationResult<void, Error, void> {
-  const switchIdentity = useSwitchIdentity(AppRoute.Documents);
-  return useMutation({ mutationFn: () => impersonateUser(userId), onSuccess: switchIdentity });
+  const enter = useImpersonationChange(AppRoute.Documents);
+  return useMutation({ mutationFn: () => impersonateUser(userId), onSuccess: enter });
 }
 
 export function useStopImpersonating(): UseMutationResult<void, Error, void> {
-  const switchIdentity = useSwitchIdentity(AppRoute.Admin);
-  return useMutation({ mutationFn: stopImpersonating, onSuccess: switchIdentity });
+  const end = useImpersonationEnd(AppRoute.Admin);
+  return useMutation({ mutationFn: stopImpersonating, onSuccess: end });
 }

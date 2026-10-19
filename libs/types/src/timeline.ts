@@ -28,6 +28,7 @@ export const NO_MATCHING_EDITS_MESSAGE = 'No edits match.';
 export const TOPICS_INTERRUPTED_MESSAGE = 'Naming topics was interrupted. Try again.';
 export const VERSION_FAILED_ERROR = 'VERSION_FAILED';
 export const VERSION_THROTTLED_ERROR = 'VERSION_THROTTLED';
+export const VERSION_BUSY_ERROR = 'VERSION_BUSY';
 export const VERSION_FAILED_MESSAGE = 'This version could not be opened. Try another moment.';
 
 export enum TopicState {

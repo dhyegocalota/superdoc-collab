@@ -24,7 +24,7 @@ import * as Y from 'yjs';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import { editedAfterBootstrap, pollVersion, readJson, seededRandom } from '../testing/timeline-client';
-import { ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
+import { ProjectionBusyError, ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 import { VersionLookupKind, VersionsService, VersionThrottledError } from './versions-service';
 import { waitForCommit } from '../testing/committed-room';
@@ -420,4 +420,30 @@ test('the text route answers 429 with Retry-After once a reader spent the minute
   expect((await statusOf(firstMark + VERSION_LOADS_PER_MINUTE)).status).toBe(HttpStatus.Ok);
   client.close();
   await server.stop();
+});
+
+test('a busy refusal starts no cooldown, so another user builds the same version at once', async () => {
+  const documentId = randomUUID();
+  const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
+  const refusals = [new ProjectionBusyError()];
+  const scheduler = {
+    refusesVersion: () => false,
+    version: async ({ sequence }: { sequence: number }) => {
+      const refusal = refusals.shift();
+      if (refusal) throw refusal;
+      return { kind: ProjectionRequestKind.Version, documentId, sequence, serverTime: 1, state: new Uint8Array(), text: '' };
+    },
+  } as unknown as ProjectionScheduler;
+  const versions = new VersionsService({ readModel, updateLog: knownSequenceLog, scheduler });
+  await expect(versions.load({ documentId, sequence: 2, userId: USER_ID })).rejects.toBeInstanceOf(ProjectionBusyError);
+  await expect(versions.load({ documentId, sequence: 2, userId: OTHER_USER_ID })).resolves.toMatchObject({ sequence: 2 });
+});
+
+test('a peek answers busy at once while the scheduler refuses, without spending the budget', () => {
+  const documentId = randomUUID();
+  const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
+  const scheduler = { refusesVersion: () => true, version: vi.fn() } as unknown as ProjectionScheduler;
+  const versions = new VersionsService({ readModel, updateLog: knownSequenceLog, scheduler });
+  expect(versions.peek({ documentId, sequence: 2, userId: USER_ID }).kind).toBe(VersionLookupKind.Busy);
+  expect(scheduler.version).not.toHaveBeenCalled();
 });

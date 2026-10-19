@@ -25,6 +25,7 @@ const FOREIGN_ORIGIN = 'https://evil.example';
 const ROOM_LIMIT = 2;
 const DEFAULT_LIMIT = 32;
 const DESTROY_FAILURE = 'destroy failed';
+const ADMISSION_ROLE_LOOKUPS = 2;
 
 function endpointOf({ documentId, sequence }: { documentId: string; sequence: number }): string {
   return versionCollaborationPath({ documentId, sequence });
@@ -235,5 +236,27 @@ test('closeAllOfUser closes that user version sockets whatever the document', as
     .poll(() => readerClose.socket, { timeout: POLL_TIMEOUT_MS })
     .toEqual({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
   [ownerViewer, readerViewer, client].forEach((connected) => connected.close());
+  await server.stop();
+});
+
+test('a version socket admitted just before its member was removed is closed with 4404 once connected', async () => {
+  const { server, documentId, client } = await editedAfterBootstrap();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const path = endpointOf({ documentId, sequence: server.services.readModel.marks(documentId)[0]!.sequence });
+  const { documents } = server.services;
+  const findRole = documents.findRole.bind(documents);
+  const readerLookups = { count: 0 };
+  vi.spyOn(documents, 'findRole').mockImplementation((parameters) => {
+    if (parameters.userId !== reader.id) return findRole(parameters);
+    readerLookups.count += 1;
+    if (readerLookups.count > ADMISSION_ROLE_LOOKUPS) return null;
+    return findRole(parameters);
+  });
+  const closeCode = await connectToDocument({ server, cookie: reader.cookie, documentId, path }).then(
+    (admitted) => admitted.closed.then(({ code }) => code),
+    (refused: CollaborationRefusedError) => refused.closeCode,
+  );
+  expect(closeCode).toBe(ACCESS_REVOKED_CLOSE_CODE);
+  client.close();
   await server.stop();
 });

@@ -546,3 +546,16 @@ test('above the pending cap a version is refused instead of queued', async () =>
   client.close();
   await server.stop();
 });
+
+test('a full version queue refuses a new version but lets a pending one be joined', async () => {
+  const { server, documentId, client } = await projectedDocument();
+  const { scheduler } = server.services;
+  const settled = Promise.allSettled(
+    Array.from({ length: MAX_PENDING_VERSION_JOBS }, (_, index) => scheduler.version({ documentId, sequence: index + 1 })),
+  );
+  expect(scheduler.refusesVersion({ documentId, sequence: MAX_PENDING_VERSION_JOBS + 1 })).toBe(true);
+  expect(scheduler.refusesVersion({ documentId, sequence: 1 })).toBe(false);
+  await settled;
+  client.close();
+  await server.stop();
+});

@@ -27,13 +27,15 @@ export enum VersionLookupKind {
   Pending = 'pending',
   Failed = 'failed',
   Throttled = 'throttled',
+  Busy = 'busy',
 }
 
 type VersionLookup =
   | { kind: VersionLookupKind.Ready; version: LoadedVersion }
   | { kind: VersionLookupKind.Pending }
   | { kind: VersionLookupKind.Failed }
-  | { kind: VersionLookupKind.Throttled; retryAfterMs: number };
+  | { kind: VersionLookupKind.Throttled; retryAfterMs: number }
+  | { kind: VersionLookupKind.Busy };
 
 export class VersionThrottledError extends Error {
   readonly retryAfterMs: number;

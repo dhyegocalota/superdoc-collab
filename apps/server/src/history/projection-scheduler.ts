@@ -96,6 +96,10 @@ export class ProjectionScheduler {
     return this.rebuildingDocuments.has(documentId);
   }
 
+  refusesVersion(_: { documentId: string; sequence: number }): boolean {
+    return false;
+  }
+
   // NB ADR 0044: above the pending cap a version build is refused, never queued behind the serial worker.
   version({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionReply> {
     const request = { kind: ProjectionRequestKind.Version, documentId, sequence } as const;

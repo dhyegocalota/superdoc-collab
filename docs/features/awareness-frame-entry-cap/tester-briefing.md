@@ -2,10 +2,10 @@
 
 ## What changed
 
-- `apps/server/src/collaboration/frame-bucket.ts`: `awarenessEntryCountOf` reads the payload length and the entry count of an awareness frame with a varint reader that looks at most six bytes deep and treats a varint still continuing at its sixth byte as an unbounded entry count.
+- `apps/server/src/collaboration/frame-bucket.ts`: `awarenessEntryCountOf` reads the payload length and the entry count of an awareness frame with a varint reader that looks at most six bytes deep and treats a varint still continuing at its sixth byte as an unbounded entry count; the entries are checked for well-formedness in one pass.
 - `apps/server/src/collaboration/socket-message-limit.ts` and `attach-collaboration.ts`: a frame claiming more than `MAX_AWARENESS_ENTRIES_PER_FRAME` (64) entries is withheld from every listener and its socket closes with 1008 and `SOCKET_AWARENESS_ENTRIES_REASON`.
-- `apps/server/src/collaboration/awareness-origin.ts` and `collaboration-server.ts`: on the awareness `update` event, an id no connection holds joins its sender, and a sender updating an id another connection holds closes with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`; a removal of such an id never closes it. `frame-bucket.ts` reads a varint at most six bytes deep and treats an awareness frame with a varint over five bytes, or a header varint still continuing at its sixth byte, as claiming an unbounded entry count.
-- `libs/types/src/constants.ts`: the new cap and the origin reason. `apps/server/src/testing/socket-frames.ts`: the frame builder takes a clock and a state.
+- `apps/server/src/collaboration/awareness-owners.ts`, `awareness-origin.ts` and `collaboration-server.ts`: an id no connection holds joins its sender; a sender updating an id another connection of another user holds, or sending any entry for another user's bound id at a clock above the room's held clock, is rejected before the apply and closed with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`; a removal of a held id at the held clock passes.
+- `libs/types/src/constants.ts`: the new cap and the origin reason. `apps/server/src/testing/socket-frames.ts`: the frame builders take a clock and a state and can pad a varint.
 - ADR 0040, the socket-message-limit spec and test plan, the collaboration rule, a learning and the index READMEs.
 
 ## How to run
@@ -36,13 +36,13 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 3. Hypothesis: a frame of 65 entries never reaches the room. Break it by: send one from a raw socket and check that no claimed id appears in the presence list.
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
 
-Fourth round: red 4c9a9e18 (clock reader and check are stubs; the end-to-end pin left the sender open: `expected null to deeply equal { code: 1008, … }`; a cut entry never closed: timeout), fix c067a611. `frame-bucket.ts` also walks at most 64 entries and `socket-message-limit.ts` has `claimsPinnedClock`; a frame with a clock at or above 2 to the 52 closes with `Awareness clock out of range`, a cut entry with the entries reason. The clock varint is read up to eight bytes deep, not six, because 2 to the 53 needs eight.
+Fourth round: red 4c9a9e18 and fix c067a611 built an absolute clock ceiling; it was replaced in the fifth round. Fifth round: red 664dc94e, fix 102836a3. `AwarenessOwners` binds each awareness client id to the user who first announced it; `beforeHandleMessage` throws the origin error, before Hocuspocus applies anything, for an entry on another user's bound id at a clock above the room's held clock. Red texts: the 2 to the 53 frame closed with the old clock reason, the removal at 2 to the 52 minus 1 was applied and left the sender open, the forged state was applied before the close, and a 2 to the 53 clock on the sender's own ids closed it.
 
 Third round: red 16f34250 (an 80 MiB frame of continuing bytes: `expected null to be Infinity`; `expected false to be true`), fix 7cff6ca6.
 
 ## Known gaps
 
-- A forged update of a live peer's id at a clock between the held one and 2 to the 52 is applied before the close and the victim spreads the forged fields until its clock passes it; a clock at or above 2 to the 52 is refused.
+- An equal-clock removal of a peer's state by another user passes the binding (it looks like the stock provider's relay) and is applied until the peer's next update. The only forgery left is by the first announcer of a fresh id.
 - Canonical frames of 64 fresh ids with a null state grow `awareness.meta` without any event for the checks.
 
 - A room holding more than 64 awareness states closes a provider that joins it.

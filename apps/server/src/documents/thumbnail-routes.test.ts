@@ -9,7 +9,7 @@ import {
   type DocumentsList,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
 
@@ -184,5 +184,20 @@ test('deleting the document removes its thumbnail file', async () => {
   });
   expect(deleted.status).toBe(HttpStatus.NoContent);
   await expect(server.services.storage.readThumbnail(documentId)).rejects.toThrow();
+  await server.stop();
+});
+
+test('a document deleted after the upload was authorized leaves no file', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const { documents, storage } = server.services;
+  const putThumbnail = storage.putThumbnail.bind(storage);
+  vi.spyOn(storage, 'putThumbnail').mockImplementation(async (input) => {
+    documents.remove(documentId);
+    await putThumbnail(input);
+  });
+  const refused = await send({ server, cookie: owner.cookie, documentId, bytes: WEBP_BYTES });
+  expect(refused.status).toBe(HttpStatus.NotFound);
+  await expect(storage.readThumbnail(documentId)).rejects.toThrow();
+  vi.restoreAllMocks();
   await server.stop();
 });

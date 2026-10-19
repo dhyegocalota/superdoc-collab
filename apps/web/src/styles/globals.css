@@ -216,6 +216,9 @@ html:root.dark {
   .chip-pulse-ring {
     animation: chip-pulse-ring ease-out forwards;
   }
+  .streamgraph-glide {
+    animation-name: streamgraph-glide;
+  }
   .live-cue-breath {
     animation: live-cue-breath ease-in-out;
   }
@@ -235,6 +238,11 @@ html:root.dark {
     }
     to {
       filter: brightness(1);
+    }
+  }
+  @keyframes streamgraph-glide {
+    from {
+      transform: translateX(var(--glide-offset));
     }
   }
   @keyframes chip-pulse-ring {
@@ -260,6 +268,7 @@ html:root.dark {
     .streamgraph-pulse,
     .streamgraph-band-pulse,
     .chip-pulse-ring,
+    .streamgraph-glide,
     .live-cue-breath {
       animation: none;
     }

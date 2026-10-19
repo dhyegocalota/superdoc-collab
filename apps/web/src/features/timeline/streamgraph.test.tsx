@@ -785,7 +785,7 @@ test('a divider whose column moves glides from its old place and a steady one do
   };
   const narrower = WIDTH / 2;
   const { container, rerender } = render(<Streamgraph {...props} width={WIDTH} />);
-  const divider = () => container.querySelector('line[stroke-dasharray]')!;
+  const divider = () => container.querySelector<SVGLineElement>('line[stroke-dasharray]')!;
   expect(divider().style.getPropertyValue('--glide-offset')).toBe('0px');
   rerender(<Streamgraph {...props} width={narrower} />);
   const movedBy = breakColumn.centerX - layoutStreamgraph({ timeline: breakTimeline, width: narrower }).breaks[0]!.centerX;

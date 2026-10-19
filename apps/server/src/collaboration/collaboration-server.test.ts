@@ -612,5 +612,9 @@ test('unloading a room reports its state size and then its unload to the room me
   await hocuspocus.hooks('beforeUnloadDocument', { instance: hocuspocus, documentName });
   await hocuspocus.hooks('afterUnloadDocument', { instance: hocuspocus, documentName });
   expect(roomMemory.observe).toHaveBeenCalledExactlyOnceWith({ documentName, stateBytes: Y.encodeStateAsUpdate(document).byteLength });
-  expect(roomMemory.unloaded).toHaveBeenCalledExactlyOnceWith(documentName);
+  expect(roomMemory.unloaded).toHaveBeenCalledOnce();
+  const [[{ isReloaded }]] = roomMemory.unloaded.mock.calls as [[{ isReloaded: () => boolean }]];
+  expect(isReloaded()).toBe(true);
+  hocuspocus.documents.delete(documentName);
+  expect(isReloaded()).toBe(false);
 });

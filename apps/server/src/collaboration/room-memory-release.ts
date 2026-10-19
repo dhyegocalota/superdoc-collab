@@ -11,7 +11,7 @@ export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavo
 
 export type RoomMemoryRelease = {
   observe: (room: { documentName: string; stateBytes: number }) => void;
-  unloaded: (documentName: string) => void;
+  unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
 };
 
 export function createRoomMemoryRelease({
@@ -40,7 +40,7 @@ export function createRoomMemoryRelease({
     observe({ documentName, stateBytes }) {
       if (stateBytes > LARGE_ROOM_STATE_BYTES) heavyRooms.add(documentName);
     },
-    unloaded(documentName) {
+    unloaded({ documentName }) {
       const wasHeavy = heavyRooms.delete(documentName);
       if (!wasHeavy || collectGarbage === null) return;
       if (cooldown.remainingMs(RELEASE_COOLDOWN_KEY) > 0) return;

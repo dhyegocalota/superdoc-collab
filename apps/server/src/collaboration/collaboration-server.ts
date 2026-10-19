@@ -294,10 +294,10 @@ export function createCollaborationServer({
       if (overfull.length > 0) return;
       declarer.declare(document);
     },
-    async afterUnloadDocument({ documentName }) {
+    async afterUnloadDocument({ instance, documentName }) {
       awarenessOwners.forget(documentName);
       declarer.forget(documentName);
-      roomMemory.unloaded(documentName);
+      roomMemory.unloaded({ documentName, isReloaded: () => instance.documents.has(documentName) });
     },
   });
 }

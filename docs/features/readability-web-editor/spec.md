@@ -45,3 +45,11 @@ Unit tests only, one targeted file at a time; the lane ends with `pnpm typecheck
 Deferred on purpose:
 
 - The `retryAfterMs` conversion in `selection-summary-card.tsx` stays until the summarize lane merges, because that lane owns the file.
+
+Left on purpose after the sweep of the editor and the timeline panel files:
+
+- `reduceMachine(machine, action)` in `use-connection-state.ts` keeps two positional parameters because it is a reducer for `useReducer`.
+- The `timeline!` and `bins[index]!` assertions in `use-bin-selection.ts`, `bin-containing.ts`, `idle-breaks.ts` and `timeline-tooltip.tsx` index arrays the caller has already bounded. Replacing them is a behaviour decision, not a readability one.
+- `DocumentPage` (about 150 lines) and `TimelinePanel` (about 130 lines) are shorter in JSX but still long. `DocumentPage` keeps its hooks above the readiness returns, and moving them into a child would reset state whenever the waiting screen shows. `TimelinePanel` keeps `useElementWidth` so the chart width survives a collapse and reopen.
+- The `forEach` calls in `highlight-edits.ts`, `use-member-cursors.ts` and `use-timeline-search.ts` are array methods that run side effects and read clearly.
+- Streamgraph, time travel and version files stay with the sibling lane.

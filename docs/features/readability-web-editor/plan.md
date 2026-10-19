@@ -16,10 +16,10 @@ One developer, steps in order, one commit per step.
 
 ## Steps
 
-- [ ] **Step 1:** `DocumentPage` folds the reload tails and the waiting branches, then splits into named parts; `document-page.test.tsx` pins it.
-- [ ] **Step 2:** `TimelinePanel` splits into named parts and drops `ignoreTravel`; `timeline-panel.test.tsx` pins it.
-- [ ] **Step 3:** `TimelineNotices` models `lagMs` explicitly; `timeline-notices.test.tsx` pins it.
-- [ ] **Step 4:** sweep the editor and timeline panel files; the touched unit files pin it.
+- [x] **Step 1:** `DocumentPage` folds the reload tails and the waiting branches, then splits into named parts; `document-page.test.tsx` pins it. Evidence: a380343c.
+- [x] **Step 2:** `TimelinePanel` splits into named parts and drops `ignoreTravel`; `timeline-panel.test.tsx` pins it. Evidence: 088aa807 (red), 0c8ccc7a, 7b57076e.
+- [x] **Step 3:** `TimelineNotices` models `lagMs` explicitly; `timeline-notices.test.tsx` pins it. Evidence: 043053a4.
+- [x] **Step 4:** sweep the editor and timeline panel files; the touched unit files pin it. Evidence: f5321241.
 
 ## Failure modes
 
@@ -34,6 +34,6 @@ One developer, steps in order, one commit per step.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **/open-pr:** the local gate green, learnings sweep stated, PR opened.

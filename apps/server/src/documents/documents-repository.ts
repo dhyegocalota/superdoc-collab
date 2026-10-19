@@ -107,6 +107,10 @@ export class DocumentsRepository {
       .run();
   }
 
+  revoke(_parameters: { documentId: string; userId: string }): void {
+    throw new Error('revoke is not implemented');
+  }
+
   userNames(userIds: string[]): Map<string, string> {
     if (userIds.length === 0) return new Map();
     const rows = this.database.drizzle.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, userIds)).all();

@@ -21,6 +21,7 @@ export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
+  closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   isAttemptSuperseded: (parameters: { documentId: string } & CreatorTicket) => boolean;
   onlineUserIds: (documentId: string) => Set<string>;
   onlineTabIds: ({ documentId, userId }: { documentId: string; userId: string }) => Set<string>;
@@ -74,6 +75,9 @@ export function createCollaborationRuntime({
           connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
         });
       return ticket;
+    },
+    closeUserConnections: () => {
+      throw new Error('closeUserConnections is not implemented');
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
     isAttemptSuperseded: ({ documentId, attempt, epoch }) => {

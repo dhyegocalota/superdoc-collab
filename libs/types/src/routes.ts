@@ -83,6 +83,10 @@ export function shareLinkAcceptPath(token: string): string {
   return `${ApiPath.ShareLinks}/${encodeURIComponent(token)}/accept`;
 }
 
+export function memberApiPath({ documentId, userId }: { documentId: string; userId: string }): string {
+  return `${documentApiPath({ documentId, resource: DocumentResource.Members })}/${encodeURIComponent(userId)}`;
+}
+
 export function selectionSummaryApiPath(documentId: string): string {
   return `${documentApiPath({ documentId, resource: DocumentResource.Summaries })}/${SELECTION_SEGMENT}`;
 }

@@ -25,6 +25,23 @@ test('grant upgrades a role and never downgrades it', async () => {
   await server.stop();
 });
 
+test('revoke removes one member and keeps the others', async () => {
+  const { server, ana, bruno } = await twoUsers();
+  const { documents } = server.services;
+  const documentId = randomUUID();
+  const carla = (await signedInUser({ server, name: 'Carla' })).id;
+  documents.create({ id: documentId, title: 'Plan', ownerUserId: ana });
+  documents.grant({ documentId, userId: bruno, role: DocumentRole.Reader });
+  documents.grant({ documentId, userId: carla, role: DocumentRole.Editor });
+  documents.revoke({ documentId, userId: bruno });
+  expect([
+    documents.findRole({ documentId, userId: bruno }),
+    documents.findRole({ documentId, userId: carla }),
+    documents.findRole({ documentId, userId: ana }),
+  ]).toEqual([null, DocumentRole.Editor, DocumentRole.Owner]);
+  await server.stop();
+});
+
 test('the owner sees it as mine and a member as shared, with the owner named', async () => {
   const { server, ana, bruno } = await twoUsers();
   const { documents } = server.services;

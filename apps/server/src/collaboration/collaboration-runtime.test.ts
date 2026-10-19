@@ -1,5 +1,7 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
   CREATOR_RESERVATION_MAX_MS,
   CREATOR_RESERVATION_MS,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
@@ -15,10 +17,14 @@ const OTHER_DOCUMENT_ID = '22222222-2222-4222-8222-222222222222';
 const FIRST_EDITOR = 'editor-1';
 const SECOND_EDITOR = 'editor-2';
 
-type FakeConnection = { context: { creatorAttempt: number | null }; close: ReturnType<typeof vi.fn> };
+type FakeConnection = { context: { creatorAttempt: number | null; userId?: string }; close: ReturnType<typeof vi.fn> };
 
 function connectionWithAttempt(creatorAttempt: number | null): FakeConnection {
   return { context: { creatorAttempt }, close: vi.fn() };
+}
+
+function connectionOfUser(userId: string): FakeConnection {
+  return { context: { creatorAttempt: null, userId }, close: vi.fn() };
 }
 
 function runtimeWith({ rooms, reservations }: { rooms: Record<string, FakeConnection[]>; reservations: CreatorReservations }) {
@@ -84,4 +90,21 @@ test('a takeover happens once the last socket is gone and the silence timer has 
   runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
   clock.time += CREATOR_RESERVATION_MS + 1;
   expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR })).toEqual({ attempt: 2, epoch: reservations.epoch });
+});
+
+test("closeUserConnections closes only that user's sockets of the document with 4404 and the reason", () => {
+  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
+  const removedFirstTab = connectionOfUser(FIRST_EDITOR);
+  const removedSecondTab = connectionOfUser(FIRST_EDITOR);
+  const stayingUser = connectionOfUser(SECOND_EDITOR);
+  const removedUserInOtherDocument = connectionOfUser(FIRST_EDITOR);
+  const runtime = runtimeWith({
+    rooms: { [DOCUMENT_ID]: [removedFirstTab, stayingUser, removedSecondTab], [OTHER_DOCUMENT_ID]: [removedUserInOtherDocument] },
+    reservations,
+  });
+  runtime.closeUserConnections({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
+  expect(removedFirstTab.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+  expect(removedSecondTab.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+  expect(stayingUser.close).not.toHaveBeenCalled();
+  expect(removedUserInOtherDocument.close).not.toHaveBeenCalled();
 });

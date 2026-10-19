@@ -1,6 +1,7 @@
 import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus, type HttpMethod } from '@superdoc-collab/types';
 
 const JSON_CONTENT_TYPE = 'application/json';
+const NETWORK_FAILURE_MESSAGE = 'Failed to fetch';
 
 export class ApiRequestError extends Error {}
 
@@ -32,6 +33,32 @@ export function apiGetWithHeaders({ path, headers }: { path: string; headers: Re
 export function apiSend({ path, method, body }: { path: string; method: HttpMethod; body: BodyInit | null }): Promise<Response> {
   const headers = typeof body === 'string' ? { 'content-type': JSON_CONTENT_TYPE } : undefined;
   return fetch(path, { method, body, headers, credentials: 'same-origin' });
+}
+
+export type UploadProgress = { sentBytes: number; totalBytes: number };
+
+export function apiSendWithProgress({
+  path,
+  method,
+  body,
+  onProgress,
+}: {
+  path: string;
+  method: HttpMethod;
+  body: FormData;
+  onProgress: (progress: UploadProgress) => void;
+}): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open(method, path);
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress({ sentBytes: event.loaded, totalBytes: event.total });
+    };
+    request.onload = () => resolve(new Response(request.responseText === '' ? null : request.responseText, { status: request.status }));
+    request.onerror = () => reject(new TypeError(NETWORK_FAILURE_MESSAGE));
+    request.send(body);
+  });
 }
 
 export function assertDocumentAvailable(response: Response): void {

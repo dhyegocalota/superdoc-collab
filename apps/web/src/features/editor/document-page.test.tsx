@@ -1,4 +1,6 @@
 import {
+  BootstrapStage,
+  OPEN_PROGRESS_DELAY_MS,
   ApiPath,
   AppRoute,
   ClientActor,
@@ -35,7 +37,9 @@ import { GROUPING_TOPICS_MESSAGE, SUMMARIZE_EDITS_LABEL } from '@/features/timel
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
-import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { pagesSoFarDetail } from '@/features/open-progress/open-progress-copy';
+import { OpenStage } from '@/features/open-progress/open-stage';
+import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL, SIGN_IN_LABEL } from './connection-copy';
@@ -66,7 +70,7 @@ import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { DOCUMENT_READY_ANNOUNCEMENT, PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
-import { BLANK_DOCX_PATH, documentFileQueryKey, membersQueryKey, openedDocumentQueryKey } from './editor-api';
+import { BLANK_DOCX_PATH, documentFileQueryKey, membersQueryKey, openedDocumentQueryKey, type OpenedAnswer } from './editor-api';
 
 const NONE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.None,
@@ -96,7 +100,7 @@ type SuperDocConfig = {
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
-  onPaginationUpdate: () => void;
+  onPaginationUpdate: (payload: { totalPages: number }) => void;
 };
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
@@ -1076,7 +1080,7 @@ test('a changed title blocks leaving until the edit is cancelled', async () => {
 
 test('a layout pass while the connection is lost does not block leaving', async () => {
   const config = await openAsWhileLost(DocumentRole.Owner);
-  act(() => config.onPaginationUpdate());
+  act(() => config.onPaginationUpdate({ totalPages: 1 }));
   expect(isExitPrevented()).toBe(false);
 });
 
@@ -1098,4 +1102,67 @@ test('deleting the document navigates to the list with no prompt even while the 
   await userEvent.click(await screen.findByRole('button', { name: DELETE_CONFIRM_LABEL }));
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
   expect(screen.queryByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeNull();
+});
+
+const PROGRESS_TEST_ID = 'open-progress';
+const PAINT_MARGIN_MS = 100;
+const EDITOR_TEST_ID = 'document-editor';
+
+function openedWithBootstrap(stage: BootstrapStage): OpenedAnswer {
+  return { ...openedAs(DocumentRole.Reader), bootstrap: bootstrapAt(stage) };
+}
+
+function paintFirstParagraph(): void {
+  const page = document.createElement('div');
+  page.className = 'superdoc-page';
+  const fragment = document.createElement('div');
+  fragment.className = 'superdoc-fragment';
+  page.append(fragment);
+  act(() => screen.getByTestId(EDITOR_TEST_ID).append(page));
+}
+
+test('a Preparing bootstrap shows the Preparing panel after the delay and never builds the editor', async () => {
+  mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Preparing) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID);
+  expect(panel).toHaveAttribute('data-stage', OpenStage.Preparing);
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('a Failed bootstrap shows the error card instead of a panel', async () => {
+  mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Failed) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByText(DOCUMENT_LOAD_ERROR_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+});
+
+test('the editor shows the download, then the rendering with the pages so far, and the panel leaves at the first paragraph', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID);
+  expect(panel).toHaveAttribute('data-stage', OpenStage.Downloading);
+  act(() => constructedConfig().onCollaborationReady());
+  await waitFor(() => expect(panel).toHaveAttribute('data-stage', OpenStage.Rendering));
+  act(() => constructedConfig().onPaginationUpdate({ totalPages: 7 }));
+  await waitFor(() => expect(panel).toHaveTextContent(pagesSoFarDetail(7)));
+  paintFirstParagraph();
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+test('a document painted before the delay never shows the panel', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  paintFirstParagraph();
+  await new Promise((resolve) => setTimeout(resolve, OPEN_PROGRESS_DELAY_MS + PAINT_MARGIN_MS));
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+});
+
+test('a failed connection hides the panel so the banner is not covered', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID);
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
 });

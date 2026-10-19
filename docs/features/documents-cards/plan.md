@@ -9,7 +9,7 @@
 - [x] **Step 1:** `ReadModel.commit` takes an optional `preview`, writes `document_previews` in the cursor transaction; `ReadModel.previews(documentNames)` reads many in one query; `forget` clears it. Migration `libs/history/drizzle/read-model/0003_conscious_war_machine.sql`. — red 751cc21b, green 6c3cd1df
 - [x] **Step 2:** `projectPending` passes the preview (main story paragraphs not merged away, newline-joined, first `PREVIEW_MAX_CHARACTERS`) on the bootstrap commit and on every batch. — 6c3cd1df
 - [x] **Step 3:** `DocumentSummary.preview`; `DocumentsRepository` takes the read model and `selectSummaries` makes one `previews` query for the whole list. — red 10816fed, green 20036629
-- [x] **Step 4:** `useDocumentsView`, `DocumentsViewToggle`, `DocumentThumbnail`, `DocumentCard`, `DocumentCardActions`, `DocumentCards`; the page picks the list by view. — red b6fa250d, green 11077ff6
+- [x] **Step 4:** `useDocumentsView`, `DocumentsViewToggle`, `DocumentThumbnail`, `DocumentCard`, `DocumentCards`; the page picks the list by view. — red b6fa250d, green 11077ff6
 - [x] **Step 5:** E2E: cards by default with the typed text on the card, the toggle surviving a reload, one column at 375. — 7b6fecc8
 
 ## Failure modes

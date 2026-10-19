@@ -8,23 +8,12 @@ import {
   type DocumentSummary,
 } from '@superdoc-collab/types';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { DocumentListKind } from './document-columns';
 import { DocumentCard } from './document-card';
-import {
-  COPY_DOCUMENT_LINK_FAILED_MESSAGE,
-  COPY_DOCUMENT_LINK_LABEL,
-  documentActionsLabel,
-  DOCUMENT_DETAILS_SEPARATOR,
-  EDITED_JUST_NOW_LABEL,
-  editedAgoLabel,
-  OPEN_DOCUMENT_LABEL,
-  ROLE_LABELS,
-} from './documents-copy';
+import { DOCUMENT_DETAILS_SEPARATOR, EDITED_JUST_NOW_LABEL, editedAgoLabel, ROLE_LABELS } from './documents-copy';
 
 const NOW = Date.UTC(2026, 9, 19, 12, 0);
 const FIVE_MINUTES_MS = 5 * MINUTE_MS;
@@ -55,7 +44,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  toast.dismiss();
 });
 
 test('the card links to the document by its title and draws the thumbnail with the preview', () => {
@@ -81,36 +69,13 @@ test('a document without a preview draws the title page', () => {
   expect(screen.getByTestId('document-thumbnail')).toHaveAttribute('data-state', 'title-only');
 });
 
-test('the card is skipped off screen and the More button is at least 44 pixels', () => {
+test('the card is skipped off screen', () => {
   renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
   expect(screen.getByRole('article')).toHaveClass('[content-visibility:auto]');
-  expect(screen.getByRole('button', { name: documentActionsLabel(OWNED_DOCUMENT.title) })).toHaveClass('size-11');
 });
 
-test('the More menu opens the document', async () => {
-  const { router } = renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
-  await userEvent.click(screen.getByRole('button', { name: documentActionsLabel(OWNED_DOCUMENT.title) }));
-  await userEvent.click(await screen.findByRole('menuitem', { name: OPEN_DOCUMENT_LABEL }));
-  expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
-});
-
-test('the More menu copies the absolute link and confirms it', async () => {
-  const writeText = vi.fn(async () => undefined);
-  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+test('the card has one tap target, the link', () => {
   renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
-  await userEvent.click(screen.getByRole('button', { name: documentActionsLabel(OWNED_DOCUMENT.title) }));
-  await userEvent.click(await screen.findByRole('menuitem', { name: COPY_DOCUMENT_LINK_LABEL }));
-  expect(writeText).toHaveBeenCalledExactlyOnceWith(`${window.location.origin}${documentPagePath(OWNED_DOCUMENT.id)}`);
-  expect(await screen.findByText(LINK_COPIED_MESSAGE)).toBeInTheDocument();
-});
-
-test('a refused copy says so', async () => {
-  const writeText = vi.fn(async () => {
-    throw new Error('denied');
-  });
-  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-  renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
-  await userEvent.click(screen.getByRole('button', { name: documentActionsLabel(OWNED_DOCUMENT.title) }));
-  await userEvent.click(await screen.findByRole('menuitem', { name: COPY_DOCUMENT_LINK_LABEL }));
-  expect(await screen.findByText(COPY_DOCUMENT_LINK_FAILED_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('link')).toHaveLength(1);
 });

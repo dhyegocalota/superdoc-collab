@@ -1,7 +1,6 @@
 import { documentPagePath, MINUTE_MS, type DocumentSummary } from '@superdoc-collab/types';
 import { Link } from 'react-router';
 import { formatIdleDuration } from '@/lib/format-date-time';
-import { DocumentCardActions } from './document-card-actions';
 import { DocumentListKind } from './document-columns';
 import { DocumentThumbnail } from './document-thumbnail';
 import { DOCUMENT_DETAILS_SEPARATOR, EDITED_JUST_NOW_LABEL, editedAgoLabel, ROLE_LABELS } from './documents-copy';
@@ -26,21 +25,18 @@ export function DocumentCard({ document, kind }: DocumentCardProps) {
   return (
     <article className={CARD_CLASS}>
       <DocumentThumbnail title={document.title} preview={document.preview} />
-      <div className="flex items-start gap-1 py-3 pr-1 pl-3">
-        <div className="min-w-0 flex-1 space-y-1">
-          <h3 className="line-clamp-2 font-medium break-words">
-            <Link
-              to={documentPagePath(document.id)}
-              className="outline-none after:absolute after:inset-0 hover:underline focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
-            >
-              {document.title}
-            </Link>
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {[IDENTITY_BY_KIND[kind](document), editedLabel(document.updatedAt)].join(DOCUMENT_DETAILS_SEPARATOR)}
-          </p>
-        </div>
-        <DocumentCardActions documentId={document.id} title={document.title} />
+      <div className="space-y-1 p-3">
+        <h3 className="line-clamp-2 font-medium break-words">
+          <Link
+            to={documentPagePath(document.id)}
+            className="outline-none after:absolute after:inset-0 hover:underline focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+          >
+            {document.title}
+          </Link>
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {[IDENTITY_BY_KIND[kind](document), editedLabel(document.updatedAt)].join(DOCUMENT_DETAILS_SEPARATOR)}
+        </p>
       </div>
     </article>
   );

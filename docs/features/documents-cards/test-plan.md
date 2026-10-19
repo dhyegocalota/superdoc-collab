@@ -16,7 +16,7 @@ Unit rows are the developer's loop; the tester runs the browser rows through Pla
 
 - [ ] Sign in as Ana, upload a docx and type a sentence, return to Documents — the card shows the sentence within seconds (reload if the list has not refetched)
 - [ ] Cards are the default; Mine and Shared follow the toggle; the choice survives a reload and a sign-out in the same browser
-- [ ] At 375 one column, no horizontal scroll, the More button is at least 44 px, Open and Copy link work
+- [ ] At 375 one column, no horizontal scroll, the whole card is one tap target
 - [ ] Light and dark at 1280 and 375: paper stays readable, the card border and muted line follow the theme
 - [ ] A new blank document shows the title page until its first text is projected
 - [ ] A long list (30 documents) scrolls smoothly; the network tab shows one `GET /api/documents` and no per-card request

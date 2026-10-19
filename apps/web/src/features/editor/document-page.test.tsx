@@ -97,7 +97,7 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
     superDocDestroy,
     superDocExport,
     SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
-      const instance = { destroy: superDocDestroy, export: superDocExport };
+      const instance = { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
       config.onReady({ superdoc: instance });
       return instance;
     }),

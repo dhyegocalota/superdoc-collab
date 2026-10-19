@@ -76,7 +76,7 @@ beforeEach(() => stubViewportWidth(WIDE_VIEWPORT_WIDTH));
 
 afterEach(() => vi.restoreAllMocks());
 
-test('the header holds Use with AI and the account menu only, with no Sign out button, and Upload is the primary action', async () => {
+test('the header holds Use with AI and the account menu only, with no Sign out button', async () => {
   mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   renderWithProviders(<DocumentsPage />);
   const header = screen.getByRole('banner');
@@ -84,9 +84,6 @@ test('the header holds Use with AI and the account menu only, with no Sign out b
   expect(within(header).getByRole('button', { name: USE_WITH_AI_LABEL })).toBeInTheDocument();
   expect(within(header).getAllByRole('link')).toHaveLength(1);
   expect(screen.queryByRole('button', { name: SIGN_OUT_LABEL })).not.toBeInTheDocument();
-  const upload = await screen.findByRole('button', { name: UPLOAD_LABEL });
-  expect(upload).toHaveClass('bg-primary');
-  expect(screen.getByRole('button', { name: NEW_DOCUMENT_LABEL })).not.toHaveClass('bg-primary');
 });
 
 test('Use with AI opens the dialog with the library prompts', async () => {

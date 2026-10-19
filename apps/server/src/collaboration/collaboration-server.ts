@@ -47,7 +47,7 @@ const PARSE_BASE_URL = 'http://localhost';
 const NO_TICKET: ClaimedTicket = { attempt: null, epoch: null };
 export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
 const DROP_LOG_COOLDOWN_MS = MINUTE_MS;
-export const AWARENESS_MALFORMED_LOG = 'Collaboration socket closed for sending an awareness frame with an unreadable entry';
+const AWARENESS_MALFORMED_LOG = 'Collaboration socket closed for sending an awareness frame with an unreadable entry';
 export const AWARENESS_DROP_LOG = 'Dropped an awareness frame that touches an awareness client another user announced';
 export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too many awareness clients';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
@@ -55,7 +55,7 @@ const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the c
 export const UNTICKETED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
 export const REFUSED_TICKET_LOG = 'Refused a socket whose creator ticket is not the latest on an uncommitted room';
 
-export class MalformedAwarenessError extends Error {
+class MalformedAwarenessError extends Error {
   readonly code = POLICY_VIOLATION_CLOSE_CODE;
   readonly reason = SOCKET_AWARENESS_ENTRIES_REASON;
 
@@ -64,7 +64,7 @@ export class MalformedAwarenessError extends Error {
   }
 }
 
-export class CollaborationSupersededError extends Error {
+class CollaborationSupersededError extends Error {
   readonly code = SUPERSEDED_ATTEMPT_CLOSE_CODE;
   readonly reason = SUPERSEDED_ATTEMPT_REASON;
 
@@ -73,7 +73,7 @@ export class CollaborationSupersededError extends Error {
   }
 }
 
-export class CollaborationSingleDocumentError extends Error {
+class CollaborationSingleDocumentError extends Error {
   readonly code = POLICY_VIOLATION_CLOSE_CODE;
   readonly reason = SOCKET_SINGLE_DOCUMENT_REASON;
 

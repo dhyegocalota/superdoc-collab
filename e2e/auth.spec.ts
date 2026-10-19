@@ -1,5 +1,4 @@
 import { CONNECTED_APPS_HEADING } from '../apps/web/src/features/connected-apps/connected-apps-copy';
-import { MINE_EMPTY_MESSAGE } from '../apps/web/src/features/documents/documents-copy';
 import { AUTH_ERROR_MESSAGE, AppRoute, DEMO_USERS, documentPagePath, ShareLinkRole } from '../libs/types/src';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readShareLinks, signOut, uploadSeed } from './editor';
 import {

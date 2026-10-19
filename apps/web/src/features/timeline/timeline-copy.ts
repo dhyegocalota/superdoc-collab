@@ -35,7 +35,6 @@ export const RETRY_SUMMARY_LABEL = 'Retry summary';
 export const SUMMARIZING_EDITS_MESSAGE = 'Summarizing edits…';
 export const NO_EDITS_TO_SUMMARIZE_MESSAGE = 'No edits to summarize';
 export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date.';
-export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
 export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
@@ -124,11 +123,6 @@ export function versionAtLabel(moment: string): string {
 
 export function retryInLabel(seconds: number): string {
   return `Try again in ${seconds} s.`;
-}
-
-export function topicCountLabel(count: number): string {
-  if (count === SINGLE_COUNT) return `${count} topic`;
-  return `${count} topics`;
 }
 
 export function importedAuthorLabel(name: string): string {

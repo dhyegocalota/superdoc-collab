@@ -136,3 +136,74 @@ Not read and not touched, because another lane edits them. A second pass should 
 - e2e/documents.spec.ts, e2e/auth.spec.ts, e2e/time-travel.spec.ts, e2e/final-visuals.spec.ts
 
 `scripts/` holds no other test file in scope. Test files under `apps/server/src` that were skimmed by test name and not read line by line: the large collaboration, insights and documents suites. They are behaviour tests that drive the server, and none matched a category by name.
+
+## Second pass (dead-code-sweep)
+
+Spec: [../dead-code-sweep/spec.md](../dead-code-sweep/spec.md). Same five categories, over the areas the first pass skipped for ownership. Read in full or by test name and then in full when a name matched a category: `apps/web/src/features/{documents,auth,timeline,versions}`, `components/history-illustration.test.tsx`, `features/editor/document-title.test.tsx`, `libs/history/**`, `apps/server/src/history/**`, `tools/repository-shape/src/*.test.ts` (the old `apps/server/src/repository-shape`), `scripts/verify.test.sh`, and `e2e/{documents,auth,time-travel,final-visuals}.spec.ts`.
+
+### Counts
+
+| Package | Tests before | Tests after | Deleted |
+|---|---|---|---|
+| libs/history | 366 | 362 | 4 |
+| apps/server | 899 (2 skipped) | 898 (2 skipped) | 1 |
+| apps/web | 1087 | 1069 | 18 |
+| e2e | not counted | not counted | 0 |
+
+The web figure starts after the two tests the dead code sweep removed with their subject. Deleted per category: 4 static markup 11, 5 duplicate layer 12. Total 23.
+
+### Deleted tests
+
+`path::name | category | what still covers the behaviour, or "no behaviour"`
+
+- apps/web/src/components/history-illustration.test.tsx::the illustration paints with %s (four tests) | 4 | no behaviour
+- apps/web/src/components/history-illustration.test.tsx::the illustration uses tokens only and no raster image | 4 | no behaviour
+- apps/web/src/components/history-illustration.test.tsx::the illustration forwards its class name | 4 | no behaviour
+- apps/web/src/features/auth/auth-layout.test.tsx::below lg the panel collapses to a compact header, with the value lines and the illustration shown from lg | 4 | no behaviour
+- apps/web/src/features/timeline/selected-header.test.tsx::the range text keeps a readable column and the buttons wrap onto their own row when the width is short | 4 | no behaviour
+- apps/web/src/features/timeline/timeline-panel.test.tsx::below md the bottom columns take their content height so the chart never overlaps the card | 4 | no behaviour
+- apps/web/src/features/timeline/timeline-panel.test.tsx::the header lives under the chart in the chart column and its scroller is the panel body | 4 | no behaviour
+- apps/web/src/features/timeline/timeline-panel.test.tsx::below md the header sits in a contents wrapper whose parent is a scrolling flex column, because a grid item sticks only inside its own row | 4 | no behaviour
+- apps/web/src/features/documents/document-table.test.tsx::from lg the table and its column headers remain | 5 | documents-page.test.tsx::Mine shows title and date, Shared adds the owner and a readable access label; mutation 6
+- apps/web/src/features/timeline/timeline-panel.test.tsx::a lagging projection is announced only from the threshold | 5 | timeline-notices.test.tsx::a projection behind by the threshold says it is catching up with the rounded seconds; mutation 1
+- apps/web/src/features/timeline/timeline-panel.test.tsx::a small lag shows nothing | 5 | timeline-notices.test.tsx::a projection behind by less than the threshold or by an unknown lag says nothing; mutation 1
+- apps/web/src/features/timeline/timeline-panel.test.tsx::a document without edits says so | 5 | timeline-notices.test.tsx::the empty copy shows when there are no bins and the projection caught up, and timeline-panel.test.tsx::a document edited before the last timeline answer and still empty says so; mutation 5
+- apps/web/src/features/timeline/timeline-panel.test.tsx::a failed summary offers a retry to editors only | 5 | selection-summary-card.test.tsx::a failed summary offers a retry to editors only; mutation 4
+- apps/web/src/features/timeline/timeline-panel.test.tsx::a stale summary shows the earlier-state badge | 5 | selection-summary-card.test.tsx::a stale summary shows the earlier-state badge; mutation 2
+- apps/web/src/features/timeline/timeline-panel.test.tsx::the summary card sits in a polite live region that exists before it has content | 5 | selection-summary-card.test.tsx::the card sits in a polite live region that exists before it has content; mutation 3
+- libs/history/src/timeline/zoned-time-zones.test.ts::Chatham fall-back with 2 minute bins moves forward | 5 | the generated hard-case test (Chatham at 2 minutes, strictly increasing starts); mutation 7
+- libs/history/src/timeline/zoned-time-zones.test.ts::Chatham 2 minute bins walk the whole fall-back window | 5 | the same hard-case test; mutation 7
+- libs/history/src/timeline/zoned-time-zones.test.ts::Troll 3 hour bins walk across the 2026-10-25 fall-back | 5 | the same hard-case test over Troll and 3 hours; mutation 8
+- libs/history/src/timeline/zoned-time-zones.test.ts::Jerusalem day bins start at local midnight | 5 | the hard-case test checks every start sits on the local grid; mutation 8
+- apps/server/src/history/timeline-routes.test.ts::a Sao Paulo day timeline starts every bin at local midnight and ends where the next starts | 5 | libs/history bins.test.ts::a day timeline in Sao Paulo starts every bin at local midnight and chains them for the computation, and timeline-routes.test.ts::edits of a Sao Paulo bin are found by the bin start the timeline returned for the wiring of the zone; mutations 9 and 10
+
+Assertions removed from tests that stay (class pins): `documents-empty-state.test.tsx` (primary class), `documents-page.test.tsx` (primary class on Upload and New document, title trimmed to match), `timeline-panel.test.tsx` (skeleton animation classes, sticky class, shrink class on the chart block).
+
+### Mutation checks (category 5)
+
+Product code broken, the survivors run alone, file restored with `git checkout -- <file>`.
+
+1. `timeline-notices.tsx` lag test `lagMs >= PROJECTION_LAG_NOTICE_MS` changed to `lagMs >= 0`: `timeline-notices.test.tsx::a projection behind by less than the threshold or by an unknown lag says nothing` went red.
+2. `selection-summary-card.tsx` stale badge replaced by `false &&`: `selection-summary-card.test.tsx::a stale summary shows the earlier-state badge` and `::an up-to-date outcome followed by a stale view shows the badge without the up-to-date line` went red.
+3. `selection-summary-card.tsx` `aria-live="polite"` removed: `selection-summary-card.test.tsx::the card sits in a polite live region that exists before it has content` went red.
+4. `selection-summary-card.tsx` `canRequest &&` removed from the retry condition: `selection-summary-card.test.tsx::a failed summary offers a retry to editors only` went red.
+5. `timeline-notices.tsx` empty condition `bins.length === 0` changed to `=== -1`: `timeline-notices.test.tsx::the empty copy shows when there are no bins and the projection caught up` and `timeline-panel.test.tsx::a document edited before the last timeline answer and still empty says so` went red.
+6. `document-table.tsx` first column dropped: `documents-page.test.tsx::Mine shows title and date, Shared adds the owner and a readable access label` and further page tests went red.
+7. `zoned-time.ts` `nextZonedBinStart` returns `start`: eleven Chatham hard-case tests went red.
+8. `zoned-time.ts` bin start floored on the UTC grid: seven Jerusalem hard-case tests and seven Troll hard-case tests went red.
+9. `zoned-time.ts` skipped-midnight branch disabled: the hard-case test for Santiago stayed green, so `Santiago day bin whose midnight is skipped starts at the transition instant` was restored and kept; it alone went red.
+10. `timeline-service.ts` bin starts computed in UTC: `timeline-routes.test.ts::edits of a Sao Paulo bin are found by the bin start the timeline returned` went red; the same break in `zoned-time.ts` turned four `bins.test.ts` tests red, among them the Sao Paulo chain test.
+
+### Kept but questionable
+
+- `tools/repository-shape/src/ci-workflow.test.ts`: most tests read `.github/workflows/verify.yml` and assert literals that live in it, which is category 1. HARNESS section 7 keeps them on purpose, so the workflow stays true to the gate for the day hosted runs return. Owner decision needed to drop them.
+- `apps/web/src/features/documents/document-query-keys.test.ts::every document key keeps its value`: restates the key arrays, but the keys are the invalidation contract of the documents feature.
+- `apps/web/src/features/documents/documents-page.test.tsx::clicking the title opens the document` and `::the title link opens the document from the keyboard with a single navigation`: the same destination by pointer and by keyboard, with the second asserting the navigation count.
+- `apps/web/src/features/timeline/timeline-panel.test.tsx::below md the order is chart, header, filter, card, edits`: DOM order, close to a markup pin, kept for the reading order on a phone.
+- `apps/web/src/features/documents/upload-drop-zone.test.tsx::Choose a file opens the file input`: spies on `click` of the input, a mock check with one branch behind it.
+- `e2e/final-visuals.spec.ts` four Download PDF tests: a seeded document, a blank document, a four-page document and the uploaded brief. The first and last overlap on a one-page upload but start from different files.
+- `e2e/documents.spec.ts` the two narrow-viewport tests: one asserts the document width, the other the editor width and the left edge after a reload.
+
+### E2E
+
+No test deleted. No E2E among the four skipped files repeats the steps and the assertions of another E2E.

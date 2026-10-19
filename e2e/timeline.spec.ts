@@ -1,5 +1,5 @@
-import { TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
-import { bandAriaLabel, removeFilterLabel, RETRY_TOPICS_LABEL, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
+import { TimelineSearchParam } from '../libs/types/src';
+import { bandAriaLabel, removeFilterLabel, TOP_EDITS_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph } from './editor';
 import { expect, test } from './fixtures';
 import {

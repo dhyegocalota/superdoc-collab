@@ -11,10 +11,8 @@ import {
   selectionSummaryApiPath,
   SelectionSummaryState,
   SummarizeStep,
-  TopicState,
   type EditSelection,
   type SelectionSummaryView,
-  type TopicStatus,
   type VersionSummary,
 } from '@superdoc-collab/types';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -33,7 +31,6 @@ import { SUMMARIZE_EDITS_SUBJECT } from './timeline-copy';
 const DOCUMENT_ID = 'doc-1';
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
 const VERSION: VersionSummary = { sequence: 7, serverTime: 1, collaborationPath: '/collaboration/versions/doc-1/7' };
-const STATUS: TopicStatus = { state: TopicState.Pending, failure: null, computedAtSequence: null };
 const SELECTION: EditSelection = { term: 'budget', author: 'ana', topic: 'band-0', at: 1_792_165_200_000 };
 const EMPTY_SELECTION: EditSelection = { term: null, author: null, topic: null, at: null };
 const NONE_VIEW: SelectionSummaryView = {

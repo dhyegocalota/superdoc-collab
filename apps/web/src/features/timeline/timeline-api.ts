@@ -17,7 +17,6 @@ import {
   type SelectionSummaryView,
   type SummarizeResponse,
   type TimelineFilter,
-  type TopicStatus,
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-collab/types';
@@ -63,10 +62,6 @@ export function timelineQueryKey({
 
 export function summariesQueryKey(documentId: string): unknown[] {
   return documentQueryKey({ documentId, segments: [DocumentResource.Summaries] });
-}
-
-export function topicsQueryKey(documentId: string): unknown[] {
-  return documentQueryKey({ documentId, segments: [DocumentResource.Topics] });
 }
 
 export function binEditsQueryKey({

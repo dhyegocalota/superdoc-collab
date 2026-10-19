@@ -1,6 +1,6 @@
 # Dead code sweep
 
-**Status:** Approved
+**Status:** Building
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner: "como passo final de tudo: revise e delete codigo nao usado")
 **Not changing:** behaviour; public API routes; anything a test or an E2E still exercises on purpose

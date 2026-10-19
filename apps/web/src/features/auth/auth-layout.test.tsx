@@ -35,13 +35,6 @@ test('the card content is rendered unchanged beside the panel', () => {
   expect(screen.getByRole('complementary')).toBeInTheDocument();
 });
 
-test('below lg the panel collapses to a compact header, with the value lines and the illustration shown from lg', () => {
-  renderLayout();
-  expect(screen.getByRole('list')).toHaveClass('hidden', 'lg:block');
-  expect(document.querySelector('svg.w-full')).toHaveClass('hidden', 'lg:block');
-  expect(screen.getByRole('complementary')).toHaveClass('lg:order-2');
-});
-
 test('the loading skeleton sits beside the same panel', () => {
   renderWithProviders(<AuthSkeleton />);
   expect(screen.getByRole('complementary')).toHaveTextContent(AUTH_TAGLINE);

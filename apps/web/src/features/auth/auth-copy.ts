@@ -25,3 +25,9 @@ export const RESET_PASSWORD_DESCRIPTION = 'Pick a password you have not used her
 export const NEW_PASSWORD_FIELD_LABEL = 'New password';
 export const RESET_PASSWORD_LABEL = 'Change password';
 export const RESET_PASSWORD_PENDING_LABEL = 'Changing password…';
+export const AUTH_TAGLINE = 'See how every document came to be.';
+export const AUTH_VALUE_LINES = [
+  'Watch a document evolve, edit by edit.',
+  'See who changed what, in their own colour.',
+  'Read a plain-language summary of any stretch of edits.',
+];

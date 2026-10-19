@@ -6,13 +6,13 @@ import { HistoryIllustration } from '@/components/history-illustration';
 import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
 import { APP_NAME } from '@/lib/app-copy';
 import { cn } from '@/lib/utils';
-import { AUTH_TAGLINE, AUTH_VALUE_LINES } from './auth-layout-copy';
+import { AUTH_TAGLINE, AUTH_VALUE_LINES } from './auth-copy';
 
 const VALUE_DOT_CLASSES = ['bg-author-1', 'bg-author-2', 'bg-author-3'];
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-2 [&>main]:min-h-0 [&>main]:flex-1">
+    <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-2">
       <aside className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-3 lg:order-2 lg:flex-col lg:items-stretch lg:justify-between lg:gap-10 lg:border-b-0 lg:border-l lg:bg-linear-to-br lg:from-muted lg:to-background lg:p-12">
         <div className="flex items-center gap-2">
           <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">

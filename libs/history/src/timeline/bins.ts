@@ -112,6 +112,26 @@ export function buildBins({
   });
 }
 
-export function eventSequenceLookup(_: Pick<TimelineEvent, 'sequence' | 'serverTime'>[]): (time: number) => number | null {
-  throw new Error('eventSequenceLookup is not implemented');
+export function eventSequenceLookup(events: Pick<TimelineEvent, 'sequence' | 'serverTime'>[]): (time: number) => number | null {
+  const byTime = [...events].sort((left, right) => left.serverTime - right.serverTime);
+  const latestSequences: number[] = [];
+  byTime.reduce((latest, event) => {
+    const next = Math.max(latest, event.sequence);
+    latestSequences.push(next);
+    return next;
+  }, 0);
+  return (time) => {
+    let low = 0;
+    let high = byTime.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (byTime[middle]!.serverTime <= time) {
+        low = middle + 1;
+        continue;
+      }
+      high = middle;
+    }
+    if (low === 0) return null;
+    return latestSequences[low - 1]!;
+  };
 }

@@ -76,7 +76,14 @@ describe('sign-up, sign-in and me', () => {
     expect(signedIn.status).toBe(200);
     const me = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: cookieOf(signedIn) } });
     expect(await me.json()).toEqual({
-      user: { id: expect.any(String), name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: TEST_TIME_ZONE },
+      user: {
+        id: expect.any(String),
+        name: 'Ana',
+        email: 'ana@example.com',
+        role: UserRole.User,
+        timeZone: TEST_TIME_ZONE,
+        impersonatedBy: null,
+      },
     });
   });
   test('me without a session returns a null user', async () => {

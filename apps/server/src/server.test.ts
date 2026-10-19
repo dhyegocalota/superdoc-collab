@@ -124,6 +124,7 @@ describe('startServer', () => {
         email: RESTART_CREDENTIALS.email,
         role: UserRole.Admin,
         timeZone: TEST_TIME_ZONE,
+        impersonatedBy: null,
       },
     });
   });

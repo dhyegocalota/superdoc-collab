@@ -51,11 +51,12 @@ export type ProjectionFailedReply = FailedReplyBase &
     | { requestKind: ProjectionRequestKind.Version; sequence: number }
     | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
   );
-export type ProjectionReply = ProjectionDoneReply | VersionReply | BlocksReply | ProjectionFailedReply;
+export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply;
+export type MeasuredReply<Reply extends AnsweredReply = AnsweredReply> = Reply & { heapTotalBytes: number };
+export type ProjectionReply = MeasuredReply | ProjectionFailedReply;
 export type ProjectionRequestsByKind = { [Kind in ProjectionRequestKind]: Extract<ProjectionRequest, { kind: Kind }> };
 export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>;
 export type AnsweredRequestKind = AnsweredRequest['kind'];
-export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply;
 
 export type ProjectionWorkerData = { databaseDirectory: string };
 

@@ -1,4 +1,4 @@
-import { MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
+import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
@@ -11,6 +11,7 @@ import {
   ProjectionReplyKind,
   ProjectionRequestKind,
   ProjectionStoppedError,
+  WORKER_RECYCLED_MESSAGE,
   type BlocksReply,
   type ProjectionDoneReply,
   type ProjectionFailedReply,
@@ -66,6 +67,7 @@ export class ProjectionScheduler {
   private readonly restarts = new SlidingWindow({ windowMs: WORKER_RESTART_WINDOW_MS });
   private readonly loggedProjectionFailures = new Set<string>();
   private isAlive = true;
+  private isRecycling = false;
   isDegraded = false;
   private readonly loggedImportFailures = new Set<string>();
   private stoppingPromise: Promise<void> | null = null;
@@ -171,11 +173,20 @@ export class ProjectionScheduler {
   }
 
   private settle(reply: ProjectionReply): void {
+    if (reply.kind !== ProjectionReplyKind.Failed) this.recycleWhenHeavy(reply.heapTotalBytes);
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
     if (isServedReply(reply)) return this.waitingRequests.resolve(reply);
     if (reply.kind === ProjectionRequestKind.Forget) return this.settleForget(reply.documentId);
     if (reply.kind === ProjectionRequestKind.Import) return this.settleImport(reply);
     return this.settleProject(reply);
+  }
+
+  private recycleWhenHeavy(heapTotalBytes: number): void {
+    const isHeavy = heapTotalBytes > LARGE_DOCUMENT_HEAP_BYTES;
+    if (!isHeavy || this.isRecycling || this.stoppingPromise) return;
+    this.isRecycling = true;
+    console.info(`${WORKER_RECYCLED_MESSAGE} ${heapTotalBytes}`);
+    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
   }
 
   private settleFailure(reply: ProjectionFailedReply): void {
@@ -232,7 +243,9 @@ export class ProjectionScheduler {
 
   private restart(): void {
     if (this.stoppingPromise) return;
-    if (!this.withinRestartBudget()) return this.degrade();
+    const wasRecycled = this.isRecycling;
+    this.isRecycling = false;
+    if (!wasRecycled && !this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
     const pending = [...this.inFlight];
     this.inFlight.clear();

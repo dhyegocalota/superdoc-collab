@@ -21,6 +21,7 @@ import {
   ProjectionRequestKind,
   ProjectionWorkerContextError,
   ProjectionReplyKind,
+  type AnsweredReply,
   type AnsweredRequest,
   type ProjectionFailedReply,
   type ProjectionReply,
@@ -96,12 +97,17 @@ function failureOf({ request, message }: { request: AnsweredRequest; message: st
   return { ...base, requestKind: request.kind, sequence: null };
 }
 
-async function answer(request: AnsweredRequest): Promise<ProjectionReply> {
+async function answer(request: AnsweredRequest): Promise<AnsweredReply | ProjectionFailedReply> {
   try {
     return await handle(request);
   } catch (error) {
     return failureOf({ request, message: describeError(error) });
   }
+}
+
+function measured(reply: AnsweredReply | ProjectionFailedReply): ProjectionReply {
+  if (reply.kind === ProjectionReplyKind.Failed) return reply;
+  return { ...reply, heapTotalBytes: process.memoryUsage().heapTotal };
 }
 
 async function stopWorker(): Promise<void> {
@@ -120,7 +126,7 @@ async function stopWorker(): Promise<void> {
 }
 
 const enqueue = createProjectionQueues({
-  reply: async (request) => port.postMessage(await answer(request)),
+  reply: async (request) => port.postMessage(measured(await answer(request))),
   stop: stopWorker,
 });
 

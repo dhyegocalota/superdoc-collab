@@ -94,7 +94,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
   return (
     <>
       {isEditing ? (
-        <form className="flex min-w-0 flex-1 items-center gap-1 sm:max-w-md" onSubmit={submit}>
+        <form className="flex min-w-0 flex-1 items-center gap-1.5 sm:max-w-md" onSubmit={submit}>
           <Input
             autoFocus
             aria-label={TITLE_LABEL}

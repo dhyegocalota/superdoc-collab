@@ -199,15 +199,17 @@ test('the editing row keeps one flex line with a shrinking input and nothing pos
   expect(reason.className).not.toMatch(/sm:/);
 });
 
-test('a disabled Save shows its reason in a tooltip, and an enabled Save shows none', async () => {
+test('a disabled Save shows its reason in a tooltip', async () => {
   renderTitle(DocumentRole.Editor);
   await startEditing();
-  const saveButton = screen.getByRole('button', { name: SAVE_TITLE_LABEL });
-  await userEvent.hover(saveButton.parentElement as HTMLElement);
+  await userEvent.hover(screen.getByRole('button', { name: SAVE_TITLE_LABEL }).parentElement as HTMLElement);
   expect(await screen.findByRole('tooltip')).toHaveTextContent(SAVE_TITLE_DISABLED_REASON);
-  await userEvent.unhover(saveButton.parentElement as HTMLElement);
-  await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+});
+
+test('an enabled Save shows no tooltip', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
   await userEvent.keyboard(RENAMED_TITLE);
-  await userEvent.hover(saveButton.parentElement as HTMLElement);
+  await userEvent.hover(screen.getByRole('button', { name: SAVE_TITLE_LABEL }).parentElement as HTMLElement);
   expect(screen.queryByRole('tooltip')).toBeNull();
 });

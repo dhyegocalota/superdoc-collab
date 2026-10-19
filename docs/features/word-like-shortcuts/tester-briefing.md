@@ -49,3 +49,14 @@ pnpm test:e2e e2e/shortcuts.spec.ts
 - Reader: no Editing, Formatting or Paragraph group in the dialog, and Mod+E does nothing.
 - 375 px: the dialog scrolls and the page does not scroll sideways.
 - Attack: Mod+S on the documents home still saves the page; Mod+B held on a selection toggles once per press.
+
+## Tester run 2026-10-19
+
+Walk on the scenario stack at 1280 and 375 with Playwright MCP; ⌘ sent as Meta. Unit tests and the E2E spec were not run in this lane. Evidence is in the test plan and under `.pr-media/testing2/`.
+
+- Confirmed: ⌘B ⌘I ⌘U ⌘E ⌘L ⌘R ⌘J ⌘⇧8 ⌘⇧7 ⌘⌥1 ⌘⌥2 ⌘⇧N ⌘M ⌘⇧M ⌘⇧X each apply and ⌘Z undoes; ⌘/ opens the dialog and typing filters it; Esc closes it and focus returns to the editor; the account menu and More actions entries open it; reader sees Navigation, Document and App only and keys stay inert; the 375 px dialog scrolls without sideways scroll; keys do nothing on the documents home.
+- Refuted: the briefing says hints on the title Save and Cancel are left out, but both tooltips show Enter and Esc. Share and More actions tooltips carry no hint, which the briefing says is by design, so the plan box that lists them is stale.
+- Found: a held ⌘B toggles on every key repeat (the handler does not read `event.repeat`). Low severity, Word behaves the same.
+- Found: ⌘⇧N in the same tick as Enter hits the previous paragraph. Not reachable by a person.
+- Blocked: ⌘P opens the native print dialog through window.print(), which froze the Playwright MCP server; the PDF output was not observed.
+- Console at error level: 0 on the editor flows.

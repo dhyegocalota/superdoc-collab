@@ -20,18 +20,29 @@
 
 ## Prove it for real — Playwright MCP
 
-- [ ] New document: type, ⌘B, ⌘I, ⌘U, ⌘E, ⌘⇧L, ⌘⌥2, ⌘M; each visibly applies; ⌘Z undoes
-- [ ] ⌘/ then search "head" shows the heading rows; Esc closes; account menu → Keyboard shortcuts opens it
-- [ ] Hover Download, Find, More actions, Share: the tooltip shows the hint; open the download menu: hints right-aligned
-- [ ] Reader: no formatting rows, keys inert
-- [ ] 375 px: the modal scrolls, no horizontal scroll
+- [x] New document: type, ⌘B, ⌘I, ⌘U, ⌘E, ⌘⇧L, ⌘⌥2, ⌘M; each visibly applies; ⌘Z undoes — evidence: computed styles after each key and after ⌘Z, bold 700 to 400, italic, underline, centre, right (⌘R), justify (⌘J, rewrapped to full width), ⌘⇧8 bullet marker, ⌘⌥2 17.3 px, ⌘M indent 48 px, ⌘⇧M back to 0; all undone by ⌘Z; .pr-media/testing2/shortcuts-b-1280.png, shortcuts-i-1280.png, shortcuts-u-1280.png, shortcuts-e-1280.png, shortcuts-r-1280.png, shortcuts-j-1280.png, shortcuts-bullets-1280.png, shortcuts-heading2-1280.png, shortcuts-indent-1280.png, shortcuts-outdent-1280.png, shortcuts-l-1280.png (⌘L and ⌘⇧L: ⌘L is align left, bullets are ⌘⇧8 per the briefing); also ⌘⌥1, ⌘⇧N, ⌘⇧7, ⌘⇧X verified
+- [x] ⌘/ then search "head" shows the heading rows; Esc closes; account menu → Keyboard shortcuts opens it — evidence: dialog text after filtering is Paragraph, Heading 1, Heading 2, Heading 3 only; "zzzz" shows "No shortcuts match your search."; Esc closes and focus returns to the editor input; account menu and More actions entries open it; .pr-media/testing2/shortcuts-modal-filter-head-1280.png, shortcuts-account-menu-1280.png, shortcuts-modal-windows-keys-1280.png
+- [ ] Hover Download, Find, More actions, Share: the tooltip shows the hint; open the download menu: hints right-aligned — FAILED against the plan text for two of four: Download shows "Download .docx ⌘S" and Find "Find in document ⌘F" (.pr-media/testing2/shortcuts-hover-download-1280.png, shortcuts-hover-find-1280.png); Share and More actions tooltips carry no hint (the briefing says left out by design, the box text is stale); the download menu shows ⌘S and ⌘P hints right-aligned, 8 px from the item edge (.pr-media/testing2/shortcuts-download-menu-1280.png)
+- [x] Reader: no formatting rows, keys inert — evidence: reader dialog groups are Navigation, Document, App only; after ⌘A, ⌘E ⌘B ⌘⌥2 ⌘⇧8 ⌘M nothing changed (alignment, weight, indent, bullets); .pr-media/testing2/shortcuts-reader-modal-1280.png
+- [x] 375 px: the modal scrolls, no horizontal scroll — evidence: dialog 343 px wide inside 375, scrollWidth 326 equals clientWidth, document scrollWidth 375, inner scroll 0 to 857; .pr-media/testing2/shortcuts-modal-375.png, shortcuts-modal-scrolled-375.png, shortcuts-modal-filter-375.png, shortcuts-editor-375.png
 
 ## Adversarial review
 
-- [ ] Claim 1: no key is double-applied — attack: hold ⌘B on a selection and count toggles; result:
-- [ ] Claim 2: browser keys outside the document page are untouched — attack: ⌘S on the documents home saves the page; result:
-- [ ] Claim 3: every hint matches the registry — attack: diff the rendered hints against the registry; result:
+- [ ] Claim 1: no key is double-applied — attack: hold ⌘B on a selection and count toggles; result: FAILED for key repeat. Five separate presses toggle five times (700, 400, 700, 400, 700), so a press is applied once. A held key (repeated keydown with `repeat` true) toggles once per repeat: 1, 2, 3, 5 repeats gave toggle, none, toggle, toggle, so holding ⌘B flickers bold at the repeat rate. Word and the browser do the same, so low severity; the handler does not ignore `event.repeat`
+- [x] Claim 2: browser keys outside the document page are untouched — attack: ⌘S on the documents home saves the page; result: on the documents home ⌘S, ⌘P, ⌘B, ⌘/, ⇧/ and ⌘F all arrive with defaultPrevented false and no dialog opens; inside the editor ⌘S downloaded "Untitled document.docx" (Playwright log: Downloaded file Untitled document.docx)
+- [x] Claim 3: every hint matches the registry — attack: diff the rendered hints against the registry; result: dialog rows say Download DOCX ⌘S, Download PDF ⌘P, Find ⌘F, Keyboard shortcuts ⌘/, Save title Enter, Cancel title edit Esc; the Download tooltip (⌘S), Find tooltip (⌘F), download menu (⌘S, ⌘P), More actions item (⌘/), title Save (Enter) and Cancel (Esc) tooltips and the toolbar Bold tooltip "Bold (⌘B)" all agree; Windows toggle shows Ctrl and Alt for the same rows
 
 ## Coverage honesty
 
 - Windows and Linux key labels are exercised only by unit tests of the platform helper.
+
+## Edge cases found during execution (tester run 2026-10-19)
+
+- [x] Title Save and Cancel tooltips — evidence: with a changed title the tooltips read "Save Enter" and "Cancel Esc"; with an unchanged title Save is disabled and the tooltip reads "Type a different title to save"; Enter saved the title ("Shortcut title · SuperDoc Collab"); the briefing lists these hints as left out, the build has them; .pr-media/testing2/shortcuts-title-save-tooltip-typed-1280.png, shortcuts-title-cancel-tooltip-typed-1280.png
+- [x] Toolbar tooltip through `ui.toolbar.strings` — evidence: the Bold button tooltip reads "Bold (⌘B)"; .pr-media/testing2/shortcuts-toolbar-bold-tooltip-1280.png
+- [x] More actions menu — evidence: items Delete and "Keyboard shortcuts ⌘/"; the item opens the dialog; Esc closes it after 0, 50, 150 and 400 ms
+- [x] Reload with the dialog open — evidence: the dialog is closed after reload; browser Back from the editor with the dialog open returns to the documents home with no dialog; ⌘/ opens it again after Forward
+- [x] ⌘⌥1 on an empty paragraph, then typing — evidence: 26.7 px heading; ⌘⇧N after Enter returns the new paragraph to 13.3 px with 50, 120 and 250 ms gaps
+- [ ] ⌘⇧N pressed in the same tick as Enter (no gap at all) — FAILED: the first paragraph lost the heading and the second became the heading ("Walk heading" 13.3 px, "Bold body text" 26.7 px); a human cannot press keys in the same tick, so this is a note and not a defect; .pr-media/testing2/shortcuts-heading-rapid-sequence-1280.png
+- [ ] ⌘P on the editor — BLOCKED: Download PDF calls window.print(), which opens the native print dialog and froze the Playwright MCP server for about 5 minutes (it recovered with a blank page); the hint and the key binding are proven only by the dialog and menu text
+- [x] Console at error level during the whole walk — evidence: 0 errors in the editor; the 401s after archiving belong to the archive plan

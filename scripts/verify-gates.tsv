@@ -9,7 +9,8 @@ tsconfig*.json	product	all
 .prettierignore	product	all
 apps/*/package.json	product	all
 libs/*/package.json	product	all
-apps/server/src/repository-shape/*	product	typecheck
+tools/*/package.json	product	all
+tools/repository-shape/*	product	typecheck
 apps/*/README.md	docs	-
 libs/*/README.md	docs	-
 e2e/README.md	docs	-

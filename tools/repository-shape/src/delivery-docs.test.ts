@@ -52,6 +52,7 @@ const ROOT_ENTRIES = [
   'pnpm-workspace.yaml',
   'railway.json',
   'scripts',
+  'tools',
   'tsconfig.base.json',
 ];
 const NESTED_PATH_PATTERN = /\/.*$/;

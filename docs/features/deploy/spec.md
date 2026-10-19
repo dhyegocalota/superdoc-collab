@@ -1,6 +1,6 @@
 # Deploy — spec
 
-Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
+Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure) and to `tools/repository-shape/src/` on 2026-10-19 (repository-shape-package): the tests cited below as `apps/server/src/deploy/` and `apps/server/src/testing/repository-files.ts` live there now.
 
 - Status: Shipped 2026-10-17
 - Tier: red (production, secrets, public exposure) — one ADR, a runbook, a rollback path.

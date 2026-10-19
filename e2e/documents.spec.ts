@@ -69,6 +69,7 @@ const LIVE_TIMEOUT_MS = 30_000;
 const EDITOR_TEST_ID = 'document-editor';
 const PAGE_SELECTOR = '.superdoc-page';
 const NARROW_VIEWPORT = { width: 375, height: 812 };
+const WIDE_VIEWPORT = { width: 1280, height: 800 };
 const LONG_TITLE_PREFIX =
   'Quarterly operating plan with every regional hiring forecast and the full budget review for each office across the whole company next year';
 const TITLE_LINE_CLAMP = '2';
@@ -386,3 +387,21 @@ test('at 375 the cards are one column and the page never scrolls sideways', asyn
     .poll(() => ana.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
     .toBeLessThanOrEqual(0);
 });
+
+for (const viewport of [WIDE_VIEWPORT, NARROW_VIEWPORT]) {
+  test(`a long-title card and a short-title card are equally tall at ${viewport.width}`, async ({ browser }) => {
+    const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+    const longFileName = uniqueFileName(LONG_TITLE_PREFIX);
+    const shortFileName = uniqueFileName('short');
+    await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: longFileName });
+    await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName: shortFileName });
+    await ana.page.setViewportSize(viewport);
+    await ana.page.goto(AppRoute.Documents);
+    const longCard = cardOf({ page: ana.page, title: titleOf(longFileName) });
+    const shortCard = cardOf({ page: ana.page, title: titleOf(shortFileName) });
+    await expect(longCard).toBeVisible();
+    await expect(shortCard).toBeVisible();
+    const heightOf = (card: typeof longCard): Promise<number> => card.evaluate((element) => element.getBoundingClientRect().height);
+    await expect.poll(async () => (await heightOf(longCard)) - (await heightOf(shortCard))).toBe(0);
+  });
+}

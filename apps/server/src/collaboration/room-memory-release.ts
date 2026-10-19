@@ -11,12 +11,16 @@ export function createRoomMemoryRelease({
   collectGarbage: CollectGarbage | null;
   memoryUsage: () => NodeJS.MemoryUsage;
 }): () => void {
-  return function release(): void {
+  function collect(): void {
     if (collectGarbage === null) return;
     const { heapUsed, rss: residentBefore } = memoryUsage();
     if (heapUsed <= LARGE_DOCUMENT_HEAP_BYTES) return;
     collectGarbage({ type: 'major', execution: 'sync', flavor: 'last-resort' });
     console.info(`${ROOM_MEMORY_RELEASED_MESSAGE} ${residentBefore} ${memoryUsage().rss}`);
+  }
+
+  return function release(): void {
+    setImmediate(collect);
   };
 }
 

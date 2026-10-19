@@ -84,3 +84,17 @@ export type DocumentMembers = {
 };
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };
+
+export enum BootstrapStage {
+  Queued = 'queued',
+  Preparing = 'preparing',
+  Ready = 'ready',
+  Failed = 'failed',
+}
+
+export type BootstrapProgress = {
+  stage: BootstrapStage;
+  done: number;
+  total: number;
+  stateBytes: number | null;
+};

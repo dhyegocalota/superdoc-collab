@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LARGE_BREAKPOINT_PX, minWidthQuery, WIDE_BREAKPOINT_PX } from '../../lib/breakpoints';
+import { LARGE_BREAKPOINT_PX, WIDE_BREAKPOINT_PX } from '../../lib/breakpoints';
 import { useMinWidth } from '../../lib/use-min-width';
 
 export enum PanelPosition {
@@ -68,5 +68,5 @@ export function usePanelPosition(): { position: PanelPosition; choosePosition: (
 }
 
 export function isPanelOpenByDefault(): boolean {
-  return window.matchMedia(minWidthQuery(LARGE_BREAKPOINT_PX)).matches;
+  return false;
 }

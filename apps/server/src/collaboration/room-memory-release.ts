@@ -44,7 +44,7 @@ export function createRoomMemoryRelease({
       if (!wasHeavy || collectGarbage === null) return;
       if (cooldown.remainingMs(RELEASE_COOLDOWN_KEY) > 0) return;
       cooldown.start(RELEASE_COOLDOWN_KEY);
-      setImmediate(() => collect(collectGarbage));
+      setTimeout(() => collect(collectGarbage), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
   };
 }

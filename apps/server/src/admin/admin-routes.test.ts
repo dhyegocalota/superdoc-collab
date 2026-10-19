@@ -1,23 +1,30 @@
 import {
   AdminResource,
+  AppRoute,
   adminApiPath,
   ApiPath,
   HttpMethod,
   HttpStatus,
   INVITE_QUERY_PARAMETER,
   INVITE_TOKEN_HEADER,
+  PASSWORD_RESET_QUERY_PARAMETER,
   InviteState,
   LAST_ADMIN_MESSAGE,
   UserRole,
   UTC_TIME_ZONE,
   type AdminUser,
   type CreatedInvite,
+  type CreatedPasswordReset,
+  PASSWORD_RESET_TTL_MS,
+  passwordResetApiPath,
+  passwordResetTokenOf,
   type InviteSummary,
   inviteTokenOf,
 } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
-import { signedInUser, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
+import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
 
+const USER_NOT_FOUND_MESSAGE = 'User not found';
 const USERS_PATH = adminApiPath(AdminResource.Users);
 const INVITES_PATH = adminApiPath(AdminResource.Invites);
 const ADMIN_CALLS = [
@@ -26,7 +33,12 @@ const ADMIN_CALLS = [
   { method: HttpMethod.Post, path: INVITES_PATH },
   { method: HttpMethod.Delete, path: `${INVITES_PATH}/x` },
   { method: HttpMethod.Post, path: `${USERS_PATH}/x/role` },
+  { method: HttpMethod.Post, path: passwordResetApiPath('x') },
 ];
+const NOW = Date.UTC(2026, 9, 19);
+const NEW_PASSWORD = 'a-brand-new-password';
+const REQUEST_RESET_PATH = `${ApiPath.Auth}/request-password-reset`;
+const RESET_PASSWORD_PATH = `${ApiPath.Auth}/reset-password`;
 let clientAddress = 1;
 
 function call({
@@ -137,6 +149,49 @@ describe('admin routes', () => {
     ]);
     const admins = server.database.sqlite.prepare("select count(*) as n from user where role = 'admin'").get() as { n: number };
     expect(admins.n).toBe(1);
+    await server.stop();
+  });
+
+  test('an admin creates a password reset link on the app origin that expires in one hour', async () => {
+    const server = await startTestServer({ now: () => NOW });
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const response = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath(eve.id), cookie: server.admin.cookie });
+    expect(response.status).toBe(HttpStatus.Created);
+    const reset = (await response.json()) as CreatedPasswordReset;
+    expect(reset.url.startsWith(`${server.baseUrl}${AppRoute.ResetPassword}?${PASSWORD_RESET_QUERY_PARAMETER}=`)).toBe(true);
+    expect(passwordResetTokenOf(reset.url)).not.toBe('');
+    expect(reset.expiresAt).toBe(NOW + PASSWORD_RESET_TTL_MS);
+    await server.stop();
+  });
+
+  test('a password reset for an unknown user answers 404', async () => {
+    const server = await startTestServer();
+    const response = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath('nope'), cookie: server.admin.cookie });
+    expect(response.status).toBe(HttpStatus.NotFound);
+    expect(await response.json()).toEqual({ error: USER_NOT_FOUND_MESSAGE });
+    await server.stop();
+  });
+
+  test('the link sets a new password once, ends the other sessions and the old password stops working', async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const created = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath(eve.id), cookie: server.admin.cookie });
+    const token = passwordResetTokenOf(((await created.json()) as CreatedPasswordReset).url);
+    const reset = () => call({ server, method: HttpMethod.Post, path: RESET_PASSWORD_PATH, body: { newPassword: NEW_PASSWORD, token } });
+    expect((await reset()).status).toBe(HttpStatus.Ok);
+    expect((await reset()).status).toBe(HttpStatus.BadRequest);
+    const sessionResponse = await fetch(`${server.baseUrl}${ApiPath.Me}`, { headers: { cookie: eve.cookie } });
+    expect(((await sessionResponse.json()) as { user: unknown }).user).toBeNull();
+    await expect(signInExisting({ server, email: eve.email, password: TEST_USER_PASSWORD })).rejects.toThrow();
+    await expect(signInExisting({ server, email: eve.email, password: NEW_PASSWORD })).resolves.toContain('=');
+    await server.stop();
+  });
+
+  test.each([undefined, 'admin'])('the public request-password-reset path answers 404 (cookie of %s)', async (who) => {
+    const server = await startTestServer();
+    const cookie = who && server.admin.cookie;
+    const response = await call({ server, method: HttpMethod.Post, path: REQUEST_RESET_PATH, cookie, body: { email: server.admin.email } });
+    expect(response.status).toBe(HttpStatus.NotFound);
     await server.stop();
   });
 });

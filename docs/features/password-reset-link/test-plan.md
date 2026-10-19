@@ -3,7 +3,7 @@
 ## The failing test first
 
 - [ ] `admin-routes.test.ts::admin creates a password reset link for a user` — expected: 201 with a URL on the app origin containing the token query and `expiresAt` one hour ahead
-- [ ] Confirmed it fails for the right reason: <paste>
+- [x] Confirmed it fails for the right reason (red run, commit below): `AssertionError: expected 404 to be 201` for the route test; capture tests `Error: PasswordResetLinkCapture.store is not implemented`; unknown user `expected { error: 'Not found' } to deeply equal { error: 'User not found' }`; public request path `expected 400 to be 404` (better-auth logged "Reset password isn't enabled")
 
 ## Unit
 

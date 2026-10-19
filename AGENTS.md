@@ -12,20 +12,21 @@ A full-stack app that visualizes how a collaborative DOCX evolves over time and 
 ## Layout
 
 ```
-apps/web          React 19 + Vite + TanStack Query + React Router (SuperDoc runs here)
-apps/server       Hono + Hocuspocus in one process; SQLite; worker threads
-libs/history      Yjs update log, authorship, projection, windows, snapshots
-libs/types        shared types, enums and constants
-docs/adr          architecture decision records
-docs/learnings    dated traps, with what inspired them and when they were revisited
-docs/features     one folder per feature: spec.md + plan.md + test-plan.md
-docs/scenarios    agentic walks of the product core, one file per flow, run with /scenario
-docs/media        screenshots the README embeds
-.agents/skills    skills (single source; `.claude/skills` links here)
-.agents/roles     agent role bodies shared by `.claude/agents` and `.codex/agents`
+apps/web                React 19 + Vite + TanStack Query + React Router (SuperDoc runs here)
+apps/server             Hono + Hocuspocus in one process; SQLite; worker threads
+libs/history            Yjs update log, authorship, projection, windows, snapshots
+libs/types              shared types, enums and constants
+tools/repository-shape  tests about the repository itself: README blocks, compose, workflows, feature statuses, scenarios
+docs/adr                architecture decision records
+docs/learnings          dated traps, with what inspired them and when they were revisited
+docs/features           one folder per feature: spec.md + plan.md + test-plan.md
+docs/scenarios          agentic walks of the product core, one file per flow, run with /scenario
+docs/media              screenshots the README embeds
+.agents/skills          skills (single source; `.claude/skills` links here)
+.agents/roles           agent role bodies shared by `.claude/agents` and `.codex/agents`
 ```
 
-Every workspace package and `e2e/` has a `README.md` that states purpose only: no commands, configuration, file paths or symbols, because prose is not compiled. The root README's Quick install section and the install guide's Run from source section are the one exception; `apps/server/src/repository-shape/readme-run-block.test.ts` pins them to `package.json`, `.env.example`, the workspace and the demo users. Update a README in the same change as the code it describes ([HARNESS → Build](.claude/HARNESS.md#4-build)).
+Every workspace package and `e2e/` has a `README.md` that states purpose only: no commands, configuration, file paths or symbols, because prose is not compiled. The root README's Quick install section and the install guide's Run from source section are the one exception; `tools/repository-shape/src/readme-run-block.test.ts` pins them to `package.json`, `.env.example`, the workspace and the demo users. Update a README in the same change as the code it describes ([HARNESS → Build](.claude/HARNESS.md#4-build)).
 
 ## Language
 

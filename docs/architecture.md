@@ -77,7 +77,7 @@ Topics, the per-topic sentences and the selection summaries go through the Verce
 | Command | Covers |
 |---|---|
 | `pnpm typecheck` | every package plus the E2E project |
-| `pnpm test:unit` | the shared types, the history library, the server (real HTTP, real SQLite, real WebSocket; the repository-shape checks render the compose file with the Docker CLI, verify every README's relative links and that every package has a README) and the web app (Vitest and Testing Library) |
+| `pnpm test:unit` | the shared types, the history library, the server (real HTTP, real SQLite, real WebSocket), the repository-shape checks (they render the compose file with the Docker CLI, verify every README's relative links and that every package has a README) and the web app (Vitest and Testing Library) |
 | `pnpm test:e2e` | Playwright specs for auth, documents and sharing, two-author collaboration, the timeline, time travel, topics and summaries; builds and starts the stack itself, needs Chromium (`pnpm exec playwright install chromium`) |
 | `pnpm verify` | the three above, in order; the same gate runs in CI next to the job that builds and boots the Docker image |
 

@@ -13,9 +13,9 @@ test('a Mac is read from userAgentData when navigator.platform is empty', () => 
   expect(detectPlatform()).toBe(Platform.Mac);
 });
 
-test('userAgentData wins over navigator.platform', () => {
+test('navigator.platform wins over userAgentData, as in the editor', () => {
   vi.stubGlobal('navigator', { platform: 'MacIntel', userAgentData: { platform: 'Windows' } });
-  expect(detectPlatform()).toBe(Platform.Other);
+  expect(detectPlatform()).toBe(Platform.Mac);
 });
 
 test('Windows and Linux are the other platform', () => {

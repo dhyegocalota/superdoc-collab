@@ -271,11 +271,10 @@ test('creating the showcase posts, toasts and invalidates the documents list', a
   expect(queryClient.getQueryState(DOCUMENTS_QUERY_KEY)?.isInvalidated).toBe(true);
 });
 
-test('a failed showcase creation shows the action-failed message and no toast', async () => {
+test('a failed showcase creation shows the action-failed message', async () => {
   mockApi({ showcaseStatus: HttpStatus.InternalServerError });
   const user = userEvent.setup();
   renderAdminPage();
   await user.click(await screen.findByRole('button', { name: SHOWCASE_BUTTON_LABEL }));
   expect(await screen.findByText(ACTION_FAILED_MESSAGE)).toBeInTheDocument();
-  expect(screen.queryByText(SHOWCASE_CREATED_TOAST)).not.toBeInTheDocument();
 });

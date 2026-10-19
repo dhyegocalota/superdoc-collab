@@ -5,6 +5,8 @@ import {
   type AdminUser,
   type CreatedInvite,
   type CreatedPasswordReset,
+  type DocumentSummary,
+  SHOWCASE_API_PATH,
   passwordResetApiPath,
   type InviteSummary,
   type UserRole,
@@ -14,6 +16,7 @@ import {
   ADMIN_USERS_SUBJECT,
   CREATE_INVITE_SUBJECT,
   CREATE_PASSWORD_RESET_SUBJECT,
+  CREATE_SHOWCASE_SUBJECT,
   INVITES_SUBJECT,
   REVOKE_INVITE_SUBJECT,
   SET_ROLE_SUBJECT,
@@ -54,4 +57,9 @@ export async function setUserRole({ id, role }: { id: string; role: UserRole }):
 export async function createPasswordReset(userId: string): Promise<CreatedPasswordReset> {
   const response = await apiSend({ path: passwordResetApiPath(userId), method: HttpMethod.Post, body: null });
   return readJson<CreatedPasswordReset>({ response, subject: CREATE_PASSWORD_RESET_SUBJECT });
+}
+
+export async function createShowcase(): Promise<DocumentSummary> {
+  const response = await apiSend({ path: SHOWCASE_API_PATH, method: HttpMethod.Post, body: null });
+  return readJson<DocumentSummary>({ response, subject: CREATE_SHOWCASE_SUBJECT });
 }

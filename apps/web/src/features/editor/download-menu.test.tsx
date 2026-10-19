@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
 import { afterEach, expect, test, vi } from 'vitest';
-import { findPrintFrame, printFrame, sendFromFrame } from '@/testing/print-frame';
+import { findPrintFrame, frameWindowOf, printFrame, sendFromFrame } from '@/testing/print-frame';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   DOWNLOAD_BUTTON_LABEL,
@@ -70,7 +70,7 @@ test('Download PDF exports the live document to a Blob with triggerDownload fals
   expect(await screen.findByText(PREPARING_PDF_MESSAGE)).toBeVisible();
   expect(screen.getByText(PDF_PRINT_HINT)).toBeVisible();
   await waitFor(() => expect(findPrintFrame()).not.toBeNull());
-  const frameWindow = printFrame().contentWindow!;
+  const frameWindow = frameWindowOf(printFrame());
   const postMessage = vi.spyOn(frameWindow, 'postMessage').mockImplementation(() => undefined);
 
   sendFromFrame({ source: frameWindow, message: { kind: PrintMessageKind.Ready } });
@@ -92,7 +92,7 @@ test('a failure reported by the print frame shows the PDF failure toast and remo
   await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
   await userEvent.click(await screen.findByRole('menuitem', { name: DOWNLOAD_PDF_LABEL }));
   await waitFor(() => expect(findPrintFrame()).not.toBeNull());
-  sendFromFrame({ source: printFrame().contentWindow!, message: { kind: PrintMessageKind.Failed } });
+  sendFromFrame({ source: frameWindowOf(printFrame()), message: { kind: PrintMessageKind.Failed } });
   await waitFor(() => expect(screen.getByText(PDF_FAILED_MESSAGE)).toBeVisible());
   expect(findPrintFrame()).toBeNull();
 });

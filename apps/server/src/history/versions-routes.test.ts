@@ -7,6 +7,8 @@ import {
   HttpStatus,
   VERSION_FAILED_ERROR,
   VERSION_FAILURE_TTL_MS,
+  VERSION_LOADS_PER_MINUTE,
+  RETRY_AFTER_HEADER,
   VERSION_MARK_MS,
   VERSION_NOT_READY_ERROR,
   VersionResource,
@@ -22,12 +24,16 @@ import * as Y from 'yjs';
 import { CollaborationRefusedError, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import { editedAfterBootstrap, pollVersion, readJson, seededRandom } from '../testing/timeline-client';
-import { ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
+import { ProjectionBusyError, ProjectionRequestKind, ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
-import { VersionLookupKind, VersionsService } from './versions-service';
+import { VersionLookupKind, VersionsService, VersionThrottledError } from './versions-service';
 import { waitForCommit } from '../testing/committed-room';
 
 const MINUTES = 3;
+const USER_ID = 'ana';
+const OTHER_USER_ID = 'bruno';
+const CACHE_ENTRIES = VERSION_LOADS_PER_MINUTE * 2;
+const knownSequenceLog = { serverTimeOf: () => 1 } as unknown as UpdateLog;
 const unknownSequenceLog = { serverTimeOf: () => null } as unknown as UpdateLog;
 const SETTLE_ROUND_TRIPS = 5;
 const PROPERTY_SEED = 20261016;
@@ -88,7 +94,7 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
   await server.stop();
 });
 
-test('a logged sequence that is not a mark resolves to the mark that ends its minute', async () => {
+test('a logged sequence that is not a mark resolves to itself', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
   const latestLogged = () =>
     server.services.updateLog.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER }).at(-1)!.sequence;
@@ -107,7 +113,7 @@ test('a logged sequence that is not a mark resolves to the mark that ends its mi
     .find((update) => minuteStartOf(update.serverTime) === newest.minuteStart);
   expect(prunedInNewestMinute).toBeDefined();
   const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: prunedInNewestMinute!.sequence });
-  expect(version.sequence).toBe(newest.sequence);
+  expect(version.sequence).toBe(prunedInNewestMinute!.sequence);
   client.close();
   await server.stop();
 });
@@ -230,6 +236,7 @@ test('the cache stays under its byte budget', async () => {
   const marks = [1, 2].map((sequence) => ({ sequence, serverTime: sequence, minuteStart: 0, isBootstrap: false }));
   const readModel = { marks: () => marks } as unknown as ReadModel;
   const scheduler = {
+    refusesVersion: () => false,
     version: async ({ sequence }: { sequence: number }) => ({
       kind: ProjectionRequestKind.Version,
       documentId,
@@ -240,10 +247,10 @@ test('the cache stays under its byte budget', async () => {
     }),
   } as unknown as ProjectionScheduler;
   const versions = new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler, maxBytes: SMALL_BUDGET_BYTES });
-  await versions.load({ documentId, sequence: 1 });
-  await versions.load({ documentId, sequence: 2 });
-  expect(versions.peek({ documentId, sequence: 2 }).kind).toBe(VersionLookupKind.Ready);
-  expect(versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Pending);
+  await versions.load({ documentId, sequence: 1, userId: USER_ID });
+  await versions.load({ documentId, sequence: 2, userId: USER_ID });
+  expect(versions.peek({ documentId, sequence: 2, userId: USER_ID }).kind).toBe(VersionLookupKind.Ready);
+  expect(versions.peek({ documentId, sequence: 1, userId: USER_ID }).kind).toBe(VersionLookupKind.Pending);
 });
 
 test('deleting the document closes its version instances', async () => {
@@ -315,7 +322,11 @@ function stubbedVersions(version: (request: { documentId: string; sequence: numb
   const documentId = randomUUID();
   const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
   return {
-    versions: new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler: { version } as unknown as ProjectionScheduler }),
+    versions: new VersionsService({
+      readModel,
+      updateLog: unknownSequenceLog,
+      scheduler: { version, refusesVersion: () => false } as unknown as ProjectionScheduler,
+    }),
     documentId,
   };
 }
@@ -329,17 +340,17 @@ test('peeks that land while a load is in flight log one line when it fails', asy
         fail = reject;
       }),
   );
-  Array.from({ length: 3 }).forEach(() => versions.peek({ documentId, sequence: 1 }));
+  Array.from({ length: 3 }).forEach(() => versions.peek({ documentId, sequence: 1, userId: USER_ID }));
   fail(new Error('boom'));
-  await expect.poll(() => versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Failed);
+  await expect.poll(() => versions.peek({ documentId, sequence: 1, userId: USER_ID }).kind).toBe(VersionLookupKind.Failed);
   expect(errors).toHaveBeenCalledTimes(1);
 });
 
 test('a stopped projection is not logged as a failed load', async () => {
   const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const { versions, documentId } = stubbedVersions(() => Promise.reject(new ProjectionStoppedError()));
-  versions.peek({ documentId, sequence: 1 });
-  await expect.poll(() => versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Failed);
+  versions.peek({ documentId, sequence: 1, userId: USER_ID });
+  await expect.poll(() => versions.peek({ documentId, sequence: 1, userId: USER_ID }).kind).toBe(VersionLookupKind.Failed);
   expect(errors).not.toHaveBeenCalled();
 });
 
@@ -351,9 +362,94 @@ test('a load that completes after forget does not refill the cache', async () =>
         finish = resolve;
       }),
   );
-  const loading = versions.load({ documentId, sequence: 1 });
+  const loading = versions.load({ documentId, sequence: 1, userId: USER_ID });
   versions.forget(documentId);
   finish({ kind: ProjectionRequestKind.Version, documentId, sequence: 1, serverTime: 1, state: new Uint8Array(1), text: '' });
   await loading;
-  expect(versions.peek({ documentId, sequence: 1 }).kind).toBe(VersionLookupKind.Pending);
+  expect(versions.peek({ documentId, sequence: 1, userId: USER_ID }).kind).toBe(VersionLookupKind.Pending);
+});
+
+function versionsOfKnownLog(): { versions: VersionsService; documentId: string } {
+  const documentId = randomUUID();
+  const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
+  const scheduler = {
+    refusesVersion: () => false,
+    version: async ({ sequence }: { sequence: number }) => ({
+      kind: ProjectionRequestKind.Version,
+      documentId,
+      sequence,
+      serverTime: 1,
+      state: new Uint8Array(),
+      text: '',
+    }),
+  } as unknown as ProjectionScheduler;
+  return { versions: new VersionsService({ readModel, updateLog: knownSequenceLog, scheduler, maxEntries: CACHE_ENTRIES }), documentId };
+}
+
+test('the load after a user spent the minute budget is throttled, a cached hit is not counted and another user is unaffected', async () => {
+  const { versions, documentId } = versionsOfKnownLog();
+  const sequences = Array.from({ length: VERSION_LOADS_PER_MINUTE }, (_, index) => index + 2);
+  await sequences.reduce<Promise<unknown>>(
+    (previous, sequence) => previous.then(() => versions.load({ documentId, sequence, userId: USER_ID })),
+    Promise.resolve(),
+  );
+  const overBudget = { documentId, sequence: VERSION_LOADS_PER_MINUTE + 2, userId: USER_ID };
+  await expect(versions.load(overBudget)).rejects.toBeInstanceOf(VersionThrottledError);
+  expect(versions.peek(overBudget).kind).toBe(VersionLookupKind.Throttled);
+  expect(versions.peek({ documentId, sequence: 2, userId: USER_ID }).kind).toBe(VersionLookupKind.Ready);
+  await expect(versions.load({ ...overBudget, userId: OTHER_USER_ID })).resolves.toBeDefined();
+});
+
+test('the text route answers 429 with Retry-After once a reader spent the minute budget on cache misses', async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  Array.from({ length: VERSION_LOADS_PER_MINUTE + 2 }).forEach((_, index) =>
+    writeStory({ document: client.document, texts: [`Edit ${index}`] }),
+  );
+  const latestLogged = () =>
+    server.services.updateLog.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER }).at(-1)!.sequence;
+  await expect.poll(latestLogged, { timeout: PROJECTION_TIMEOUT_MS }).toBeGreaterThan(VERSION_LOADS_PER_MINUTE + 2);
+  const firstMark = server.services.readModel.marks(documentId)[0]!.sequence;
+  const statusOf = async (sequence: number) => {
+    const response = await fetch(`${server.baseUrl}${versionApiPath({ documentId, sequence, resource: VersionResource.Text })}`, {
+      headers: { cookie: owner.cookie },
+    });
+    return { status: response.status, retryAfter: response.headers.get(RETRY_AFTER_HEADER) };
+  };
+  const spent = await Array.from({ length: VERSION_LOADS_PER_MINUTE }, (_, index) => firstMark + 1 + index).reduce<Promise<number[]>>(
+    async (previous, sequence) => [...(await previous), (await statusOf(sequence)).status],
+    Promise.resolve([]),
+  );
+  expect(spent.every((status) => status === HttpStatus.Ok)).toBe(true);
+  const refused = await statusOf(firstMark + VERSION_LOADS_PER_MINUTE + 1);
+  expect(refused.status).toBe(HttpStatus.TooManyRequests);
+  expect(Number(refused.retryAfter)).toBeGreaterThan(0);
+  expect((await statusOf(firstMark + VERSION_LOADS_PER_MINUTE)).status).toBe(HttpStatus.Ok);
+  client.close();
+  await server.stop();
+});
+
+test('a busy refusal starts no cooldown, so another user builds the same version at once', async () => {
+  const documentId = randomUUID();
+  const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
+  const refusals = [new ProjectionBusyError()];
+  const scheduler = {
+    refusesVersion: () => false,
+    version: async ({ sequence }: { sequence: number }) => {
+      const refusal = refusals.shift();
+      if (refusal) throw refusal;
+      return { kind: ProjectionRequestKind.Version, documentId, sequence, serverTime: 1, state: new Uint8Array(), text: '' };
+    },
+  } as unknown as ProjectionScheduler;
+  const versions = new VersionsService({ readModel, updateLog: knownSequenceLog, scheduler });
+  await expect(versions.load({ documentId, sequence: 2, userId: USER_ID })).rejects.toBeInstanceOf(ProjectionBusyError);
+  await expect(versions.load({ documentId, sequence: 2, userId: OTHER_USER_ID })).resolves.toMatchObject({ sequence: 2 });
+});
+
+test('a peek answers busy at once while the scheduler refuses, without spending the budget', () => {
+  const documentId = randomUUID();
+  const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
+  const scheduler = { refusesVersion: () => true, version: vi.fn() } as unknown as ProjectionScheduler;
+  const versions = new VersionsService({ readModel, updateLog: knownSequenceLog, scheduler });
+  expect(versions.peek({ documentId, sequence: 2, userId: USER_ID }).kind).toBe(VersionLookupKind.Busy);
+  expect(scheduler.version).not.toHaveBeenCalled();
 });

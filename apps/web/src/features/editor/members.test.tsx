@@ -14,7 +14,7 @@ import {
   moreMembersLabel,
   movedToCursorMessage,
   cursorOffScreenReason,
-  offlineMemberReason,
+  onlineMembersLabel,
   SELF_MEMBER_REASON,
 } from './editor-copy';
 import { initialsOf } from '@/lib/initials';
@@ -103,15 +103,13 @@ function renderMembers({ members, isPastVersion = false }: { members: DocumentMe
 }
 
 async function findJumpButton(name: string): Promise<HTMLElement> {
-  const button = await screen.findByRole('button', { name: memberLabel({ name, isOnline: true }) });
+  const button = await screen.findByRole('button', { name: memberLabel(name) });
   await waitFor(() => expect(button).toHaveAccessibleDescription(goToCursorLabel(name)));
   return button;
 }
 
 function manyMembers(count: number): DocumentMember[] {
-  return Array.from({ length: count }, (_, index) =>
-    memberNamed({ id: `m${index}`, name: `Person ${index}`, online: false, colorSlot: 1 }),
-  );
+  return Array.from({ length: count }, (_, index) => memberNamed({ id: `m${index}`, name: `Person ${index}`, online: true, colorSlot: 1 }));
 }
 
 beforeEach(() => {
@@ -228,16 +226,15 @@ test('a member with a live position is named Bruno, online and described by Go t
   expect(button).not.toHaveAttribute('aria-disabled', 'true');
 });
 
-test('an online member with no position, an offline member and the current user are aria-disabled with their reason', async () => {
-  renderMembers({ members: [ana, bruno, clara] });
+test('an online member with no position and the current user are aria-disabled with their reason', async () => {
+  renderMembers({ members: [ana, bruno] });
   const user = userEvent.setup();
   const reasons = [
-    { member: ana, reason: SELF_MEMBER_REASON, isOnline: true },
-    { member: bruno, reason: cursorOffScreenReason('Bruno'), isOnline: true },
-    { member: clara, reason: offlineMemberReason('Clara'), isOnline: false },
+    { member: ana, reason: SELF_MEMBER_REASON },
+    { member: bruno, reason: cursorOffScreenReason('Bruno') },
   ];
-  for (const { member, reason, isOnline } of reasons) {
-    const button = screen.getByRole('button', { name: memberLabel({ name: member.user.name, isOnline }) });
+  for (const { member, reason } of reasons) {
+    const button = screen.getByRole('button', { name: memberLabel(member.user.name) });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     await user.tab();
     expect(button).toHaveFocus();
@@ -282,7 +279,7 @@ test('the +N menu items for members who cannot be jumped to are aria-disabled wi
   const members = [
     ana,
     bruno,
-    clara,
+    memberNamed({ id: 'u7', name: 'Gil', online: true, colorSlot: 5 }),
     memberNamed({ id: 'u9', name: 'Eva', online: true, colorSlot: 2 }),
     dario,
     memberNamed({ id: 'u8', name: 'Fabio', online: true, colorSlot: 3 }),
@@ -324,19 +321,15 @@ test('a jump whose caret left shows the not-found message in the tooltip for thr
 test('a peer who borrows the name of an online member does not make that member jumpable', async () => {
   addCaret({ name: 'Bruno', color: '#000000' });
   renderMembers({ members: [ana, bruno] });
-  const button = screen.getByRole('button', { name: memberLabel({ name: 'Bruno', isOnline: true }) });
+  const button = screen.getByRole('button', { name: memberLabel('Bruno') });
   expect(button).toHaveAttribute('aria-disabled', 'true');
 });
 
-test('a disabled member is described by its reason while the tooltip is closed', () => {
-  renderMembers({ members: [ana, clara] });
+test('a member with no position is described by its reason while the tooltip is closed', () => {
+  renderMembers({ members: [ana, bruno] });
   expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Clara', isOnline: false }) })).toHaveAccessibleDescription(
-    offlineMemberReason('Clara'),
-  );
-  expect(screen.getByRole('button', { name: memberLabel({ name: 'Ana', isOnline: true }) })).toHaveAccessibleDescription(
-    SELF_MEMBER_REASON,
-  );
+  expect(screen.getByRole('button', { name: memberLabel('Bruno') })).toHaveAccessibleDescription(cursorOffScreenReason('Bruno'));
+  expect(screen.getByRole('button', { name: memberLabel('Ana') })).toHaveAccessibleDescription(SELF_MEMBER_REASON);
 });
 
 test('below 768 five members show three avatars and a button named 2 more people', () => {
@@ -351,4 +344,28 @@ test('below 768 three members still show all three with no menu', () => {
   renderMembers({ members: manyMembers(3) });
   expect(screen.queryByRole('button', { name: /more people/ })).not.toBeInTheDocument();
   expect(screen.getAllByRole('button')).toHaveLength(3);
+});
+
+test('offline members are not in the row and online ones are', () => {
+  renderMembers({ members: [ana, bruno, clara] });
+  expect(screen.getByRole('button', { name: memberLabel('Ana') })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: memberLabel('Bruno') })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Clara/ })).not.toBeInTheDocument();
+});
+
+test('the overflow count ignores offline members', () => {
+  const offline = Array.from({ length: 4 }, (_, index) =>
+    memberNamed({ id: `off${index}`, name: `Away ${index}`, online: false, colorSlot: 2 }),
+  );
+  const { unmount } = renderMembers({ members: [...manyMembers(5), ...offline] });
+  expect(screen.getAllByRole('button')).toHaveLength(5);
+  expect(screen.queryByRole('button', { name: /more people/ })).not.toBeInTheDocument();
+  unmount();
+  renderMembers({ members: [...manyMembers(6), ...offline] });
+  expect(screen.getByRole('button', { name: moreMembersLabel(2) })).toBeInTheDocument();
+});
+
+test('the row is a group whose label names the online count', () => {
+  renderMembers({ members: [ana, bruno, clara, dario] });
+  expect(screen.getByRole('group', { name: onlineMembersLabel(3) })).toBeInTheDocument();
 });

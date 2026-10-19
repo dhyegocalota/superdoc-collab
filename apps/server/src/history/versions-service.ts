@@ -1,9 +1,16 @@
-import { resolveMark, type ReadModel, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
-import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
+import { resolveMark, type ReadModel, type ResolvedVersion, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
+import {
+  MINUTE_MS,
+  VERSION_CACHE_MAX_BYTES,
+  VERSION_CACHE_SIZE,
+  VERSION_FAILURE_TTL_MS,
+  VERSION_LOADS_PER_MINUTE,
+} from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
+import { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import { LruMap } from '../limits/lru-map';
 import { describeError } from '../logging/describe-error';
-import { ProjectionStoppedError } from './projection-messages';
+import { ProjectionBusyError, ProjectionStoppedError } from './projection-messages';
 import type { ProjectionScheduler } from './projection-scheduler';
 
 const VERSION_LOAD_FAILED_MESSAGE = 'Loading a version failed for';
@@ -11,17 +18,33 @@ const VERSION_KEY_SEPARATOR = '/';
 export const VERSION_MARKS_AROUND = 10;
 
 export type VersionEndpoint = { documentId: string; sequence: number };
+export type VersionLoadRequest = VersionEndpoint & { userId: string };
 type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
-type CachedLookup = { key: string; sequence: number; cached: LoadedVersion | null };
+type CachedLookup = { key: string; documentId: string; sequence: number; cached: LoadedVersion | null };
 
 export enum VersionLookupKind {
   Ready = 'ready',
   Pending = 'pending',
   Failed = 'failed',
+  Throttled = 'throttled',
+  Busy = 'busy',
 }
 
 type VersionLookup =
-  { kind: VersionLookupKind.Ready; version: LoadedVersion } | { kind: VersionLookupKind.Pending } | { kind: VersionLookupKind.Failed };
+  | { kind: VersionLookupKind.Ready; version: LoadedVersion }
+  | { kind: VersionLookupKind.Pending }
+  | { kind: VersionLookupKind.Failed }
+  | { kind: VersionLookupKind.Throttled; retryAfterMs: number }
+  | { kind: VersionLookupKind.Busy };
+
+export class VersionThrottledError extends Error {
+  readonly retryAfterMs: number;
+
+  constructor(retryAfterMs: number) {
+    super('Too many version loads.');
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 class VersionNotReadyError extends Error {
   constructor(documentId: string) {
@@ -78,6 +101,7 @@ export class VersionsService {
   private readonly loading = new Map<string, Promise<LoadedVersion>>();
   private readonly failures = new KeyedCooldown({ durationMs: VERSION_FAILURE_TTL_MS });
   private readonly generations = new Map<string, number>();
+  private readonly loadBudget = new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: VERSION_LOADS_PER_MINUTE });
 
   constructor({
     readModel,
@@ -98,28 +122,35 @@ export class VersionsService {
     this.cache = new LruMap({ isOverBudget: (entries) => isOverVersionBudget({ entries, maxEntries, maxBytes }) });
   }
 
-  // NB ADR 0027: a sequence whose mark was pruned resolves to the surviving mark of its minute, never to an earlier one.
-  resolve({ documentId, sequence }: VersionEndpoint): VersionMarkSummary | null {
+  // NB ADR 0043: a sequence the log knows resolves to itself; only an unknown sequence clamps down to a mark.
+  resolve({ documentId, sequence }: VersionEndpoint): ResolvedVersion | null {
     const serverTime = this.updateLog.serverTimeOf({ documentName: documentId, sequence });
     return resolveMark({ marks: this.readModel.marks(documentId), sequence, serverTime });
   }
 
-  peek(endpoint: VersionEndpoint): VersionLookup {
+  peek(endpoint: VersionLoadRequest): VersionLookup {
     const lookup = this.cachedLookup(endpoint);
     if (!lookup) throw new VersionNotReadyError(endpoint.documentId);
     if (lookup.cached) return { kind: VersionLookupKind.Ready, version: lookup.cached };
     if (this.isFailedRecently(lookup.key)) return { kind: VersionLookupKind.Failed };
+    const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
+    if (retryAfterMs !== null) return { kind: VersionLookupKind.Throttled, retryAfterMs };
+    if (this.isRefusedByScheduler(lookup)) return { kind: VersionLookupKind.Busy };
     this.load(endpoint).catch(() => undefined);
     return { kind: VersionLookupKind.Pending };
   }
 
-  load(endpoint: VersionEndpoint): Promise<LoadedVersion> {
+  load(endpoint: VersionLoadRequest): Promise<LoadedVersion> {
     const lookup = this.cachedLookup(endpoint);
     if (!lookup) return Promise.reject(new VersionNotReadyError(endpoint.documentId));
     if (lookup.cached) return Promise.resolve(lookup.cached);
     if (this.isFailedRecently(lookup.key)) return Promise.reject(new VersionLoadFailedError(lookup.key));
     const inFlight = this.loading.get(lookup.key);
     if (inFlight) return inFlight;
+    const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
+    if (retryAfterMs !== null) return Promise.reject(new VersionThrottledError(retryAfterMs));
+    if (this.isRefusedByScheduler(lookup)) return Promise.reject(new ProjectionBusyError());
+    this.loadBudget.record(endpoint.userId);
     return this.start({ key: lookup.key, documentId: endpoint.documentId, sequence: lookup.sequence });
   }
 
@@ -130,11 +161,22 @@ export class VersionsService {
     keysOfDocument({ keys: this.loading.keys(), documentId }).forEach((key) => this.loading.delete(key));
   }
 
-  private cachedLookup(endpoint: VersionEndpoint): CachedLookup | null {
+  private isRefusedByScheduler(lookup: CachedLookup): boolean {
+    if (this.loading.has(lookup.key)) return false;
+    return this.scheduler.refusesVersion({ documentId: lookup.documentId, sequence: lookup.sequence });
+  }
+
+  // NB ADR 0044: only a build that is not cached, in flight or failed spends the user's minute budget.
+  private throttledForMs({ key, userId }: { key: string; userId: string }): number | null {
+    if (this.loading.has(key)) return null;
+    return this.loadBudget.waitMs(userId);
+  }
+
+  private cachedLookup(endpoint: VersionLoadRequest): CachedLookup | null {
     const mark = this.resolve(endpoint);
     if (!mark) return null;
     const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
-    return { key, sequence: mark.sequence, cached: this.cache.get(key) };
+    return { key, documentId: endpoint.documentId, sequence: mark.sequence, cached: this.cache.get(key) };
   }
 
   private start({ key, documentId, sequence }: { key: string; documentId: string; sequence: number }): Promise<LoadedVersion> {
@@ -182,6 +224,7 @@ export class VersionsService {
     error: unknown;
   }): void {
     if (generation !== this.generationOf(documentId)) return;
+    if (error instanceof ProjectionBusyError) return;
     this.failures.start(key);
     if (error instanceof ProjectionStoppedError) return;
     console.error(`${VERSION_LOAD_FAILED_MESSAGE} ${key}: ${describeError(error)}`);

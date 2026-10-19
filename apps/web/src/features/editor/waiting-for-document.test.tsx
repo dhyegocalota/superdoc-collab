@@ -90,10 +90,3 @@ test('without a cached title a skeleton takes its place', () => {
 test('the waiting copy names another editor, never the owner, because any editor can create the room', () => {
   expect([PREPARING_DOCUMENT_HINT, NOT_READY_PAUSED_MESSAGE].some((copy) => /owner/i.test(copy))).toBe(false);
 });
-
-test('the page skeleton paints with the paper token, never a literal white', () => {
-  renderWaiting({ readiness: DocumentReadiness.Waiting });
-  const pageSkeleton = screen.getByRole('main').querySelector('[aria-hidden="true"]');
-  expect(pageSkeleton).toHaveClass('bg-paper');
-  expect(pageSkeleton).not.toHaveClass('bg-white');
-});

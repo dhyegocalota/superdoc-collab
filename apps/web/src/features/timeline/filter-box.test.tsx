@@ -5,7 +5,7 @@ import { expect, test } from 'vitest';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { FilterBox } from './filter-box';
-import { CLEAR_FILTERS_LABEL, FILTER_LABEL, REMOVE_FILTER_LABEL, removeFilterLabel } from './timeline-copy';
+import { CLEAR_FILTER_TEXT_LABEL, CLEAR_FILTERS_LABEL, FILTER_LABEL, REMOVE_FILTER_LABEL, removeFilterLabel } from './timeline-copy';
 
 const ROUTE = documentPagePath(DOCUMENT_ID);
 
@@ -58,4 +58,22 @@ test('a person chip reads @name and a text chip does not', () => {
   renderWithProviders(<FilterBox />, { route: `${ROUTE}?${TimelineSearchParam.Term}=Bruno&${TimelineSearchParam.Author}=Bruno` });
   expect(screen.getByRole('button', { name: removeFilterLabel('@Bruno') })).toHaveTextContent('@Bruno');
   expect(screen.getByRole('button', { name: removeFilterLabel('Bruno') })).toHaveTextContent(/^Bruno$/);
+});
+
+test('the field carries a search icon', () => {
+  renderWithProviders(<FilterBox />, { route: ROUTE });
+  expect(document.querySelector('svg.lucide-search')).not.toBeNull();
+});
+
+test('the clear button appears only with text and clears the draft keeping focus', async () => {
+  const user = userEvent.setup();
+  const { router } = renderWithProviders(<FilterBox />, { route: `${ROUTE}?term=budget` });
+  const input = screen.getByLabelText(FILTER_LABEL);
+  expect(screen.queryByRole('button', { name: CLEAR_FILTER_TEXT_LABEL })).not.toBeInTheDocument();
+  await user.type(input, 'hir');
+  await user.click(screen.getByRole('button', { name: CLEAR_FILTER_TEXT_LABEL }));
+  expect(input).toHaveValue('');
+  expect(input).toHaveFocus();
+  expect(screen.queryByRole('button', { name: CLEAR_FILTER_TEXT_LABEL })).not.toBeInTheDocument();
+  expect(router.state.location.search).toBe('?term=budget');
 });

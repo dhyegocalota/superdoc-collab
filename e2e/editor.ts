@@ -81,6 +81,12 @@ export async function readEditorText(page: Page): Promise<string> {
   return (await editorText(page).allTextContents()).join('');
 }
 
+export async function openDocumentFileInput(page: Page): Promise<void> {
+  const uploadButton = page.getByRole('button', { name: UPLOAD_LABEL });
+  await uploadButton.or(page.getByLabel(FILE_INPUT_LABEL)).waitFor();
+  if (await uploadButton.isVisible()) await uploadButton.click();
+}
+
 export async function uploadSeed({
   page,
   paragraphs,
@@ -92,7 +98,7 @@ export async function uploadSeed({
 }): Promise<string> {
   const buffer = await buildSeedDocx(paragraphs.map((text) => ({ text, trackedChanges: [] })));
   await page.goto(AppRoute.Documents);
-  await page.getByRole('button', { name: UPLOAD_LABEL }).click();
+  await openDocumentFileInput(page);
   await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer });
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
   await expect(editorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
@@ -186,7 +192,7 @@ export async function typeInParagraph({ page, paragraphText, text }: { page: Pag
   }
 }
 
-export async function readEventsPage({
+async function readEventsPage({
   page,
   documentId,
   afterSequence,

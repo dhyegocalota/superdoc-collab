@@ -1,7 +1,7 @@
 import { DEMO_USERS, ShareLinkRole } from '../libs/types/src';
 import { shareAndAccept, typeInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
-import { BANDS_TIMEOUT_MS, bandNamed } from './timeline';
+import { BANDS_TIMEOUT_MS, bandNamed, expandPanel } from './timeline';
 
 const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
 const HIRING_PARAGRAPH = 'Hiring: we add two people.';
@@ -15,6 +15,7 @@ test('topics are named for a document opened right after upload without any clic
     typeInParagraph({ page: ana.page, paragraphText: 'Budget:', text: ' More money' }),
     typeInParagraph({ page: bruno.page, paragraphText: 'Hiring:', text: ' A designer' }),
   ]);
+  await expandPanel(ana.page);
   await expect(bandNamed({ page: ana.page, name: 'Budget' })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
   await expect(bandNamed({ page: ana.page, name: 'Hiring' })).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
 });

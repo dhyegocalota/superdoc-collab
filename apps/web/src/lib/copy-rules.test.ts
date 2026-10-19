@@ -15,7 +15,6 @@ const SENTENCES = [
   types.HISTORY_CATCHING_UP_MESSAGE,
   types.NO_MATCHING_EDITS_MESSAGE,
   timelineCopy.SUMMARY_UP_TO_DATE_MESSAGE,
-  timelineCopy.SUMMARIES_UNAVAILABLE_MESSAGE,
 ];
 
 function copyStrings(module: Record<string, unknown>): string[] {

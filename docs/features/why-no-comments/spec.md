@@ -1,9 +1,9 @@
 # Why no comments
 
 **Lane:** docs
-**Status:** Approved
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
-**Owner approval:** approved 2026-10-19 (owner: "Quero um doc docs/why-no-comments.md ... explicando a decisão: código são a própria documentação, ADRs carregam o porquê, NB ADR aponta do código para a decisão")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "I want a doc docs/why-no-comments.md (or a README section) explaining the decision: code is its own documentation, ADRs carry the why, NB ADR points from the code to the decision")
 **Not changing:** the convention itself, AGENTS.md wording
 
 ## Change

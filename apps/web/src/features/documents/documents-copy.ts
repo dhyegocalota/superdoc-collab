@@ -33,3 +33,21 @@ export const COLUMN_LABELS: Record<DocumentColumn, string> = {
 };
 
 export const DOCUMENT_DETAILS_SEPARATOR = ' · ';
+
+export const EMPTY_STATE_HEADING = 'Start with a document';
+export const EMPTY_STATE_DESCRIPTION =
+  'Every edit by every author is kept, so you can step back through the timeline and see who changed what.';
+export const DROP_ZONE_LABEL = 'Drop a .docx here, or choose a file';
+export const DROP_ZONE_LIMIT = `Up to ${MAX_UPLOAD_MEGABYTES} MB`;
+export const CHOOSE_FILE_LABEL = 'Choose a file';
+export const DROP_OVERLAY_LABEL = 'Drop to upload';
+export const ONE_FILE_AT_A_TIME_MESSAGE = 'Drop one file at a time.';
+
+export const DOCUMENTS_VIEW_LABEL = 'Documents view';
+export const CARDS_VIEW_LABEL = 'Cards';
+export const TABLE_VIEW_LABEL = 'Table';
+export const EDITED_JUST_NOW_LABEL = 'Edited just now';
+
+export function editedAgoLabel(duration: string): string {
+  return `Edited ${duration} ago`;
+}

@@ -13,7 +13,7 @@ Each step names the signal that calls for it and the decision it revisits. The o
 | The same, for the limits | The model caps, summary cooldowns, socket budgets, creator reservations and partial summaries move from process memory to Redis | [0012](adr/0012-selection-summaries-cached-per-filter-and-cursor.md), [0033](adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0041](adr/0041-the-summary-card-shows-the-sentence-as-it-is-written.md) |
 | Projection lag visible in the panel | The projection worker thread becomes a queue of jobs keyed by document, which keeps per-document order and spreads documents across machines | [0007](adr/0007-read-model-in-sqlite.md), [0018](adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md) |
 | Files past one volume | Object storage behind the existing file storage type; its local path accessor is the one disk assumption to remove first | [0010](adr/0010-documents-ownership-and-share-links.md), [0013](adr/0013-deploy-with-dokploy-compose.md) |
-| A document's history too large for one in-memory room | Compact the log below each kept snapshot, keeping every version mark exact | [0003](adr/0003-time-travel-with-native-yjs-snapshots.md) |
+| A document's update log too large for its volume | Compaction already writes a snapshot every thousand updates and keeps every update; move the updates below an old snapshot to cold storage, read back only to rebuild a version older than it | [0003](adr/0003-time-travel-with-native-yjs-snapshots.md) |
 | Histories too long for the chart's render budget | The streamgraph moves to canvas | [0016](adr/0016-timeline-bin-budget.md), [0039](adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) |
 
 ## Integrations

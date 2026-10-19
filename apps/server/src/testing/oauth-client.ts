@@ -140,7 +140,7 @@ async function requestConsentQuery({
   return new URL(url, server.baseUrl).search.slice(1);
 }
 
-export async function approveConsent({
+async function approveConsent({
   server,
   user,
   consentQuery,

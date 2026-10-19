@@ -1,1 +1,1 @@
-packages: ['apps/*', 'libs/*']
+packages: ['apps/*', 'libs/*', 'tools/*']

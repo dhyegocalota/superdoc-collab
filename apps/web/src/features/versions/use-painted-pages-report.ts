@@ -1,13 +1,13 @@
-import { isBlank } from '@superdoc-collab/types';
 import { useEffect, type RefObject } from 'react';
 import { PrintMessageKind, postToParent } from './print-messages';
 
 export const PAGE_SELECTOR = '.superdoc-page';
+const FRAGMENT_SELECTOR = '.superdoc-fragment';
 
 function arePagesPainted({ container, pageCount }: { container: HTMLElement; pageCount: number }): boolean {
   const pages = [...container.querySelectorAll(PAGE_SELECTOR)];
   const hasAllPages = pages.length >= pageCount;
-  return hasAllPages && pages.every((page) => page.textContent !== null && !isBlank(page.textContent));
+  return hasAllPages && pages.every((page) => page.querySelector(FRAGMENT_SELECTOR) !== null);
 }
 
 export function usePaintedPagesReport({

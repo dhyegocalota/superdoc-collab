@@ -33,13 +33,7 @@ function renderMenu() {
   render(<ThemeMenu />);
 }
 
-test('exports a label, a separator and a radio group with radio items', async () => {
-  expect([DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem].map((part) => typeof part)).toEqual([
-    'function',
-    'function',
-    'function',
-    'function',
-  ]);
+test('shows a label, a separator and a radio group with radio items', async () => {
   renderMenu();
   await userEvent.setup().click(screen.getByRole('button', { name: 'Open' }));
   expect(await screen.findByText('Theme')).toBeInTheDocument();

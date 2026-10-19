@@ -13,19 +13,25 @@ type PrintConfig = {
   onException: () => void;
 };
 
-const { SuperDoc, superdocDestroy, pagesToPaint } = vi.hoisted(() => {
+const { SuperDoc, superdocDestroy, pagesToPaint, buildPage } = vi.hoisted(() => {
   const superdocDestroy = vi.fn();
-  const pagesToPaint: string[] = [];
+  const pagesToPaint: (string | null)[] = [];
+  function buildPage(fragmentText: string | null): HTMLElement {
+    const page = document.createElement('div');
+    page.className = 'superdoc-page';
+    if (fragmentText === null) return page;
+    const fragment = document.createElement('div');
+    fragment.className = 'superdoc-fragment';
+    fragment.textContent = fragmentText;
+    page.append(fragment);
+    return page;
+  }
   return {
     superdocDestroy,
     pagesToPaint,
+    buildPage,
     SuperDoc: vi.fn(function SuperDocStub(config: { selector: HTMLElement }) {
-      pagesToPaint.forEach((text) => {
-        const page = document.createElement('div');
-        page.className = 'superdoc-page';
-        page.textContent = text;
-        config.selector.append(page);
-      });
+      pagesToPaint.forEach((fragmentText) => config.selector.append(buildPage(fragmentText)));
       return { destroy: superdocDestroy };
     }),
   };
@@ -44,12 +50,6 @@ function constructedConfig(): PrintConfig {
 
 function sentKinds(postMessage: MockInstance<typeof window.postMessage>): unknown[] {
   return postMessage.mock.calls.map(([message]) => (message as { kind: unknown }).kind);
-}
-
-function lastPage(): Element {
-  const page = document.querySelector('.superdoc-page:last-of-type');
-  if (!page) throw new Error('no page painted');
-  return page;
 }
 
 function sendFile(): void {
@@ -94,9 +94,30 @@ test('opens the file non-collaboratively in viewing mode with virtualization off
   expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.PageCount, pageCount: 4 }, window.location.origin);
 });
 
-test('reports Painted only after every page has text', () => {
+test('reports Painted for a page whose fragment has no text', () => {
   const postMessage = vi.spyOn(window, 'postMessage');
-  pagesToPaint.splice(0, pagesToPaint.length, 'one', '', 'three', 'four');
+  pagesToPaint.splice(0, pagesToPaint.length, '');
+  render(<PrintPage />);
+  sendFile();
+  act(() => constructedConfig().onReady());
+  act(() => vi.advanceTimersToNextFrame());
+  expect(sentKinds(postMessage).filter((kind) => kind === PrintMessageKind.Painted)).toHaveLength(1);
+});
+
+test('does not report Painted for a page shell without a fragment', () => {
+  const postMessage = vi.spyOn(window, 'postMessage');
+  pagesToPaint.splice(0, pagesToPaint.length, null);
+  render(<PrintPage />);
+  sendFile();
+  act(() => constructedConfig().onReady());
+  act(() => vi.advanceTimersToNextFrame());
+  act(() => vi.advanceTimersToNextFrame());
+  expect(sentKinds(postMessage)).not.toContain(PrintMessageKind.Painted);
+});
+
+test('reports Painted only after every page has a fragment', () => {
+  const postMessage = vi.spyOn(window, 'postMessage');
+  pagesToPaint.splice(0, pagesToPaint.length, 'one', null, 'three', 'four');
   render(<PrintPage />);
   sendFile();
   act(() => constructedConfig().onReady());
@@ -104,7 +125,7 @@ test('reports Painted only after every page has text', () => {
   act(() => vi.advanceTimersToNextFrame());
   expect(sentKinds(postMessage)).not.toContain(PrintMessageKind.Painted);
   const pages = document.querySelectorAll('.superdoc-page');
-  pages[1]!.textContent = 'two';
+  pages[1]!.append(buildPage('').firstElementChild!);
   act(() => vi.advanceTimersToNextFrame());
   expect(sentKinds(postMessage).filter((kind) => kind === PrintMessageKind.Painted)).toHaveLength(1);
 });
@@ -117,12 +138,7 @@ test('announces the page count again when more pages appear after onReady', () =
   act(() => constructedConfig().onReady());
   expect(postMessage).toHaveBeenLastCalledWith({ kind: PrintMessageKind.PageCount, pageCount: 2 }, window.location.origin);
   const container = document.querySelector('[data-testid="print-page"]')!;
-  ['three', 'four'].forEach((text) => {
-    const page = document.createElement('div');
-    page.className = 'superdoc-page';
-    page.textContent = text;
-    container.append(page);
-  });
+  ['three', 'four'].forEach((text) => container.append(buildPage(text)));
   act(() => vi.advanceTimersToNextFrame());
   expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.PageCount, pageCount: 4 }, window.location.origin);
   expect(sentKinds(postMessage)).toContain(PrintMessageKind.Painted);

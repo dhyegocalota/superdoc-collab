@@ -12,9 +12,10 @@ readonly ALREADY_GREEN_GATES="secrets audit"
 readonly EVERYTHING_GATES=all
 readonly NO_GATES=-
 readonly SERVER_PACKAGE=@superdoc-collab/server
+readonly SHAPE_PACKAGE=@superdoc-collab/repository-shape
 readonly TIME_ZONE_PROBE=Asia/Kolkata
 readonly IMAGE_TAG=superdoc-collab:verify
-readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when its own files change (docker/, deploy/, .dockerignore, railway.json, compose files)"
+readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when its own files change (docker/, .dockerignore, railway.json, compose files)"
 readonly NO_RECORD_UNFETCHED="verify: no record: origin main could not be fetched"
 readonly USAGE="usage: verify.sh [auto|all] [--plan]"
 
@@ -114,7 +115,7 @@ selected_gates() {
   for gate in $ALL_GATES; do
     has_word "$wanted_gates" "$gate" || continue
     [[ $gate == hooks && $run_everything == true ]] && continue
-    [[ $gate == shape ]] && has_word "$unit_packages" "$SERVER_PACKAGE" && continue
+    [[ $gate == shape ]] && has_word "$unit_packages" "$SHAPE_PACKAGE" && continue
     selected="${selected:+$selected }$gate"
   done
   echo "$selected"
@@ -148,7 +149,7 @@ gate_secrets() {
 gate_typecheck() { pnpm typecheck; }
 gate_audit() { pnpm security:audit; }
 gate_hooks() { pnpm test:hooks; }
-gate_shape() { pnpm --filter "$SERVER_PACKAGE" exec vitest run src/repository-shape; }
+gate_shape() { pnpm --filter "$SHAPE_PACKAGE" exec vitest run; }
 gate_e2e() { pnpm test:e2e; }
 
 unit_suites() {
@@ -204,7 +205,7 @@ recorded_base=""
 paths_since() { { git diff --name-only --no-renames "$1"; git ls-files --others --exclude-standard; } | sort -u; }
 changed_paths=$(paths_since "$base")
 branch_paths=$(paths_since "$merge_base")
-manifests=$(ls apps/*/package.json libs/*/package.json)
+manifests=$(ls apps/*/package.json libs/*/package.json tools/*/package.json)
 
 class=docs
 wanted_gates=$ALWAYS_GATES

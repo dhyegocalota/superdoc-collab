@@ -6,12 +6,12 @@
 
 ## Steps
 
-- [ ] **Step 1 (red):** `documents-repository.test.ts` revoke; `documents-routes.test.ts` the four route cases; `collaboration-runtime` test for `closeUserConnections`; commit red alone.
-- [ ] **Step 2 (green):** constants, messages and path helper in `libs/types`; repository `revoke`; runtime `closeUserConnections`; the route.
-- [ ] **Step 3 (red):** `share-dialog.test.tsx` lists members, no Remove on the owner, Remove calls `revokeMember` and invalidates members; commit red alone.
-- [ ] **Step 4 (green):** `revokeMember` in `editor-api.ts`, the "People with access" section, copy.
+- [x] **Step 1 (red):** `documents-repository.test.ts` revoke; `documents-routes.test.ts` the four route cases; `collaboration-runtime` test for `closeUserConnections`; commit red alone. Evidence: d41146f0.
+- [x] **Step 2 (green):** constants, messages and path helper in `libs/types`; repository `revoke`; runtime `closeUserConnections`; the route. Evidence: b82040da. The constants, messages, path helper and two throwing stubs landed in the red commit so typecheck stays green; the route tests moved to `member-removal-routes.test.ts` because the auth rate limit (100 requests per 10 s per process) is spent by the sign-ups of `documents-routes.test.ts`.
+- [x] **Step 3 (red):** `share-dialog.test.tsx` lists members, no Remove on the owner, Remove calls `revokeMember` and invalidates members; commit red alone. Evidence: 17725e44.
+- [x] **Step 4 (green):** `revokeMember` in `editor-api.ts`, the "People with access" section, copy. Evidence: 0c20ee58.
 - [ ] **Step 5:** E2E in a new `e2e/revoke-access.spec.ts` (two contexts, Ana removes Bruno); run that file alone.
-- [ ] **Step 6:** `.claude/rules/collaboration.md` gains the 4404 close fact; tester briefing.
+- [x] **Step 6:** `.claude/rules/collaboration.md` gains the 4404 close fact; tester briefing. Evidence: the docs commit of this lane.
 
 ## Failure modes
 

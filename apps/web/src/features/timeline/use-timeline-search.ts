@@ -10,7 +10,7 @@ import { useSearchParams } from 'react-router';
 
 export const AUTHOR_PREFIX = '@';
 
-export type TimelineSearch = { filter: TimelineFilter; at: number | null; topic: string | null };
+export type TimelineSearch = { filter: TimelineFilter; at: number | null; sequence: number | null; topic: string | null };
 export type TimelineSearchChanges = Partial<Record<TimelineSearchParam, string | null>>;
 
 export function parseFilterInput(value: string): { kind: TimelineFilterKind; value: string } | null {
@@ -21,7 +21,7 @@ export function parseFilterInput(value: string): { kind: TimelineFilterKind; val
   return { kind: isAuthor ? TimelineFilterKind.Author : TimelineFilterKind.Term, value: content };
 }
 
-function readBinStart(value: string | null): number | null {
+function readNonNegativeInteger(value: string | null): number | null {
   if (!value || !NON_NEGATIVE_INTEGER_PATTERN.test(value)) return null;
   return Number(value);
 }
@@ -33,7 +33,8 @@ export function useTimelineSearch(): {
   const [params, setParams] = useSearchParams();
   const search: TimelineSearch = {
     filter: { term: presentOrNull(params.get(TimelineSearchParam.Term)), author: presentOrNull(params.get(TimelineSearchParam.Author)) },
-    at: readBinStart(params.get(TimelineSearchParam.At)),
+    at: readNonNegativeInteger(params.get(TimelineSearchParam.At)),
+    sequence: readNonNegativeInteger(params.get(TimelineSearchParam.Sequence)),
     topic: presentOrNull(params.get(TimelineSearchParam.Topic)),
   };
 

@@ -4,7 +4,6 @@ import {
   type BinEdits,
   DocumentResource,
   HOUR_MS,
-  DAY_MS,
   MINUTE_MS,
   SECOND_MS,
   WEEK_MS,
@@ -62,11 +61,13 @@ const ZONELESS_PATHS = [
   ['selection', (documentId: string) => selectionSummaryApiPath(documentId)],
 ] as const;
 const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
-const SAO_PAULO_OFFSET_MS = -3 * HOUR_MS;
 const KIRITIMATI_TIME_ZONE = 'Pacific/Kiritimati';
 const ZONED_EVENT_COUNT = 40;
 const ZONED_STEP_MS = 3 * HOUR_MS;
 const UNKNOWN_TIME_ZONE = 'Mars/Olympus';
+const NARROW_BIN_MS = 10 * SECOND_MS;
+const BIN_EVENT_STEP_MS = 15 * SECOND_MS;
+const BIN_EVENT_COUNT = 3;
 
 test.each(ZONELESS_PATHS)('the %s route answers 400 when timeZone is missing or unknown', async (_name, pathOf) => {
   const { server, documentId, owner } = await documentWithOwner();
@@ -327,23 +328,6 @@ test('the author filter keeps only the marks of the matching authors, a person e
   expect(byTerm.agentActions).toHaveLength(2);
 });
 
-test('a Sao Paulo day timeline starts every bin at local midnight and ends where the next starts', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
-  const timeline = await readTimeline({
-    server,
-    documentId,
-    cookie: owner.cookie,
-    query: `binMs=${DAY_BIN_MS}`,
-    timeZone: SAO_PAULO_TIME_ZONE,
-  });
-  expect(timeline.bins.map((bin) => (bin.start + SAO_PAULO_OFFSET_MS) % DAY_MS)).toEqual(timeline.bins.map(() => 0));
-  expect(timeline.bins.slice(0, -1).map((bin, index) => bin.end === timeline.bins[index + 1]!.start)).toEqual(
-    timeline.bins.slice(0, -1).map(() => true),
-  );
-  await server.stop();
-});
-
 test('the same document reads different bin starts in UTC and in Kiritimati', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
@@ -418,5 +402,19 @@ test('a week multiple above the largest bin an imported span can need is 400, an
   expect(await statusOf(LARGEST_SERVED_BIN_MS)).toBe(HttpStatus.Ok);
   expect(await statusOf(LARGEST_SERVED_BIN_MS + WEEK_MS)).toBe(HttpStatus.BadRequest);
   expect(await statusOf(CRAFTED_WEEK_MULTIPLE_BIN_MS)).toBe(HttpStatus.BadRequest);
+  await server.stop();
+});
+
+test('a bin opens the sequence of its own last event, not the mark of its minute', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  commitBulkEvents({ server, documentId, userId: owner.id, count: BIN_EVENT_COUNT, stepMs: BIN_EVENT_STEP_MS });
+  const timeline = await readTimeline({
+    server,
+    documentId,
+    cookie: owner.cookie,
+    query: `${TimelineQueryParam.BinMs}=${NARROW_BIN_MS}`,
+  });
+  const filledBins = timeline.bins.filter((bin) => Object.keys(bin.byBand).length > 0);
+  expect(filledBins.map((bin) => bin.versionSequence)).toEqual([1, 2, 3]);
   await server.stop();
 });

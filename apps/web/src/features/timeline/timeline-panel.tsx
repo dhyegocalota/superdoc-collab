@@ -12,6 +12,7 @@ import { binContaining } from './bin-containing';
 import { BottomPanelBody } from './bottom-panel-body';
 import { PanelChart } from './panel-chart';
 import { PanelEdits } from './panel-edits';
+import { PanelEmptyState } from './panel-empty-state';
 import { PanelFilter } from './panel-filter';
 import { PanelHeader } from './panel-header';
 import { PanelState } from './panel-layout';
@@ -121,8 +122,10 @@ export function TimelinePanel({
   const panelState = isOpen ? PanelState.Open : PanelState.Collapsed;
 
   const isLogAhead = lastEditAt !== null && timelineUpdatedAt <= lastEditAt;
+  const isDocumentEmpty = timeline !== undefined && timeline.bins.length === 0 && !timeline.projection.isBehind && !isLogAhead;
+  const isBodyShown = isOpen && !isDocumentEmpty;
   const notices = timeline && (
-    <TimelineNotices timeline={timeline} hasFilter={hasFilter} isLogAhead={isLogAhead} canRefresh={canEdit} onRetry={summarize.summarize} />
+    <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={summarize.summarize} />
   );
   const chart = (
     <PanelChart
@@ -179,8 +182,9 @@ export function TimelinePanel({
       {(isOpen || !isBottom) && (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <PanelHeader position={position} isOpen={isOpen} onOpenChange={onOpenChange} />
-          {isOpen && !isBottom && <SidePanelBody notices={notices} chart={chart} filter={<PanelFilter />} card={card} edits={edits} />}
-          {isOpen && isBottom && (
+          {isOpen && isDocumentEmpty && <PanelEmptyState />}
+          {isBodyShown && !isBottom && <SidePanelBody notices={notices} chart={chart} filter={<PanelFilter />} card={card} edits={edits} />}
+          {isBodyShown && isBottom && (
             <BottomPanelBody
               isStackedLayout={isStackedLayout}
               notices={notices}

@@ -1,8 +1,10 @@
 import { INVITE_QUERY_PARAMETER } from './invites';
+import { PASSWORD_RESET_QUERY_PARAMETER, PASSWORD_RESET_SEGMENT } from './password-reset';
 
 export enum AppRoute {
   SignIn = '/sign-in',
   SignUp = '/sign-up',
+  ResetPassword = '/reset-password',
   Documents = '/documents',
   Document = '/documents/:documentId',
   Share = '/share/:token',
@@ -11,6 +13,7 @@ export enum AppRoute {
   ConnectedApps = '/settings/connected-apps',
   Admin = '/admin',
   Settings = '/settings',
+  About = '/about',
   // NB ADR 0035: the print route needs no session and holds no document; it only prints what its parent frame hands it.
   Print = '/print',
 }
@@ -83,6 +86,10 @@ export function shareLinkAcceptPath(token: string): string {
   return `${ApiPath.ShareLinks}/${encodeURIComponent(token)}/accept`;
 }
 
+export function memberApiPath({ documentId, userId }: { documentId: string; userId: string }): string {
+  return `${documentApiPath({ documentId, resource: DocumentResource.Members })}/${encodeURIComponent(userId)}`;
+}
+
 export function selectionSummaryApiPath(documentId: string): string {
   return `${documentApiPath({ documentId, resource: DocumentResource.Summaries })}/${SELECTION_SEGMENT}`;
 }
@@ -119,4 +126,12 @@ export function adminApiPath(resource: AdminResource): string {
 
 export function signUpPagePath(token: string): string {
   return `${AppRoute.SignUp}?${INVITE_QUERY_PARAMETER}=${encodeURIComponent(token)}`;
+}
+
+export function resetPasswordPagePath(token: string): string {
+  return `${AppRoute.ResetPassword}?${PASSWORD_RESET_QUERY_PARAMETER}=${encodeURIComponent(token)}`;
+}
+
+export function passwordResetApiPath(userId: string): string {
+  return `${adminApiPath(AdminResource.Users)}/${encodeURIComponent(userId)}/${PASSWORD_RESET_SEGMENT}`;
 }

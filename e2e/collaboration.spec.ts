@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import { DEMO_USERS, ShareLinkRole } from '../libs/types/src';
-import { EDIT_REJECTED_MESSAGE, EDITOR_FAILED_MESSAGE } from '../apps/web/src/features/editor/editor-copy';
+import { EDIT_REJECTED_MESSAGE, EDITOR_FAILED_MESSAGE, memberLabel } from '../apps/web/src/features/editor/editor-copy';
 import {
   editorText,
   expectEveryCharacterAccounted,
@@ -9,6 +9,7 @@ import {
   readEditorText,
   readEvents,
   shareAndAccept,
+  topBar,
   typeInParagraph,
   uploadSeed,
 } from './editor';
@@ -75,6 +76,18 @@ test('identities are declared from awareness', async ({ browser }) => {
   history.close();
   expect(new Set(rows.map((row) => row.user_id))).toEqual(new Set([ana.userId, bruno.userId]));
   expect(rows.every((row) => row.source === DECLARED_SOURCE)).toBe(true);
+});
+
+test('a member shows in the top bar while in the document and leaves it when the tab closes', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  const documentId = await uploadSeed({ page: ana.page, paragraphs: ['Paragraph owned by ana.'] });
+  const brunoAvatar = topBar(ana.page).getByRole('button', { name: memberLabel(DEMO_USERS[1]!.name) });
+  await expect(brunoAvatar).toHaveCount(0);
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
+  await expect(brunoAvatar).toBeVisible({ timeout: ATTRIBUTION_TIMEOUT_MS });
+  await bruno.page.close();
+  await expect(brunoAvatar).toHaveCount(0, { timeout: ATTRIBUTION_TIMEOUT_MS });
 });
 
 test('an edit rejected under a concurrent delete does not stop the editor', async ({ browser }) => {

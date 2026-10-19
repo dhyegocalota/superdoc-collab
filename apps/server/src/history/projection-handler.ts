@@ -58,14 +58,14 @@ export function createProjectionHandler({
   }
 
   function versionReply({ documentId, sequence }: { documentId: string; sequence: number }): VersionReply {
-    const mark = readModel.mark({ documentName: documentId, sequence });
-    if (!mark) throw new MissingVersionMarkError({ documentId, sequence });
-    const version = replays.version({ log: updateLog, documentName: documentId, mark });
+    const serverTime = updateLog.serverTimeOf({ documentName: documentId, sequence });
+    if (serverTime === null) throw new MissingVersionMarkError({ documentId, sequence });
+    const version = replays.versionAt({ log: updateLog, documentName: documentId, sequence });
     return {
       kind: ProjectionRequestKind.Version,
       documentId,
       sequence,
-      serverTime: mark.serverTime,
+      serverTime,
       state: Y.encodeStateAsUpdate(version),
       text: readMainStoryText(version),
     };

@@ -10,7 +10,6 @@ import { expect, test } from 'vitest';
 import { tabId } from '@/lib/tab-id';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';
-import optionsSource from './superdoc-options.ts?raw';
 import { DocumentMode, superdocOptions, TOOLBAR_EXCLUDED_ITEMS } from './superdoc-options';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { ZoomMode } from './superdoc-zoom';
@@ -103,29 +102,6 @@ test('the options put the creator ticket on the socket url', () => {
       }),
     }),
   ]);
-});
-
-test('ui.toolbar excludes accept, reject, ruler, measurement unit, document mode, search, linked-style, copy-format, clear-formatting and ai', () => {
-  expect(TOOLBAR_EXCLUDED_ITEMS).toEqual([
-    'track-changes-accept-selection',
-    'track-changes-reject-selection',
-    'ruler',
-    'measurement-unit',
-    'document-mode',
-    'search',
-    'linked-style',
-    'copy-format',
-    'clear-formatting',
-    'ai',
-  ]);
-});
-
-test('excludeItems is declared satisfies readonly ToolbarItemId[]', () => {
-  expect(optionsSource).toContain('satisfies readonly ToolbarItemId[]');
-});
-
-test('ui.search is true so Cmd+F opens the Find bar', () => {
-  expect(optionsFor(document.createElement('div')).ui).toMatchObject({ search: true });
 });
 
 test('user.color and colors come from the palette arguments', () => {

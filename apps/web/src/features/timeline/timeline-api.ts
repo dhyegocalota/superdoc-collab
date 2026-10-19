@@ -17,7 +17,6 @@ import {
   type SelectionSummaryView,
   type SummarizeResponse,
   type TimelineFilter,
-  type TopicStatus,
   type TopicSummaries,
   type VersionSummary,
 } from '@superdoc-collab/types';
@@ -63,10 +62,6 @@ export function timelineQueryKey({
 
 export function summariesQueryKey(documentId: string): unknown[] {
   return documentQueryKey({ documentId, segments: [DocumentResource.Summaries] });
-}
-
-export function topicsQueryKey(documentId: string): unknown[] {
-  return documentQueryKey({ documentId, segments: [DocumentResource.Topics] });
 }
 
 export function binEditsQueryKey({
@@ -232,7 +227,8 @@ export async function fetchBinEdits({
 export async function fetchVersion({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionLoad> {
   const response = await apiGet(versionApiPath({ documentId, sequence }));
   assertDocumentAvailable(response);
-  if (response.status === HttpStatus.Accepted) return { kind: VersionLoadKind.Pending, retryAfterMs: readRetryAfterMs(response) };
+  const isWaiting = response.status === HttpStatus.Accepted || response.status === HttpStatus.TooManyRequests;
+  if (isWaiting) return { kind: VersionLoadKind.Pending, retryAfterMs: readRetryAfterMs(response) };
   if (!response.ok) return { kind: VersionLoadKind.Failed };
   return { kind: VersionLoadKind.Ready, version: await response.json() };
 }

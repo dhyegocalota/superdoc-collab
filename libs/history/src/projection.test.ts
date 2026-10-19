@@ -1,4 +1,4 @@
-import { BlockChangeKind, ClientActor } from '@superdoc-collab/types';
+import { BlockChangeKind, ClientActor, PREVIEW_MAX_CHARACTERS } from '@superdoc-collab/types';
 import * as Y from 'yjs';
 import { beforeEach, expect, test } from 'vitest';
 import { MigrationSet } from './migrations';
@@ -136,4 +136,28 @@ test('a commit snapshot starts the projection although a replay of the whole log
   expect(findBootstrapSequence({ updates: log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }) })).toBeNull();
   projectPending({ log, readModel, documentName: DOCUMENT });
   expect(readModel.cursor(DOCUMENT)).toBe(sequence);
+});
+
+test('the preview is the paragraph texts joined by newlines and follows each batch', () => {
+  const ana = bootstrapped(['Hello', 'World']);
+  projectPending({ log, readModel, documentName: DOCUMENT });
+  expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('Hello\nWorld');
+  writeStory({ document: ana, texts: ['Hello', 'World', 'Again'] });
+  projectPending({ log, readModel, documentName: DOCUMENT });
+  expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('Hello\nWorld\nAgain');
+});
+
+test('the preview stops at the maximum number of characters', () => {
+  bootstrapped(['x'.repeat(PREVIEW_MAX_CHARACTERS + 50)]);
+  projectPending({ log, readModel, documentName: DOCUMENT });
+  expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('x'.repeat(PREVIEW_MAX_CHARACTERS));
+});
+
+test('a document projected before previews existed gets its preview on the next projection with no new update', () => {
+  bootstrapped(['Hello', 'World']);
+  const bootstrapSequence = lastLoggedSequence();
+  readModel.commit({ documentName: DOCUMENT, events: [], marks: [], lastSequence: bootstrapSequence });
+  expect(readModel.previews([DOCUMENT]).size).toBe(0);
+  expect(projectPending({ log, readModel, documentName: DOCUMENT })).toBe(bootstrapSequence);
+  expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('Hello\nWorld');
 });

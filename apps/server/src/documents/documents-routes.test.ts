@@ -164,6 +164,8 @@ test('an uploaded document is listed as mine and downloads the original bytes', 
   const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes })).json();
   expect(created.title).toBe('Plan');
   expect((await listOf({ server, cookie: owner.cookie })).mine.map((document) => document.id)).toEqual([created.id]);
+  server.services.readModel.commit({ documentName: created.id, events: [], marks: [], lastSequence: 1, preview: 'Hello preview' });
+  expect((await listOf({ server, cookie: owner.cookie })).mine.map((document) => document.preview)).toEqual(['Hello preview']);
   const downloaded = await request({
     server,
     cookie: owner.cookie,

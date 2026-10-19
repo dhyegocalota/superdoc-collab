@@ -3,6 +3,7 @@ import {
   assignBlocks,
   authorKey,
   binStartsCovering,
+  eventSequenceLookup,
   nextZonedBinStart,
   buildBands,
   buildBins,
@@ -17,6 +18,7 @@ import {
   type BandIdentity,
   type EditRun,
   type TimelineEvent,
+  type VersionMarkSummary,
 } from '@superdoc-collab/history';
 import {
   BlockChangeKind,
@@ -276,7 +278,7 @@ export function buildDocumentTimeline({
       binStarts,
       binMs: chosenBinMs,
       timeZone,
-      versionSequenceAt: (time) => versionSequenceAt({ marks, time }),
+      versionSequenceAt: versionSequenceResolver({ events: pipeline.events, marks }),
     }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
@@ -284,6 +286,22 @@ export function buildDocumentTimeline({
     agentActions: agentActions.actions.filter((action) => matchingKeys === null || matchingKeys.has(action.authorKey)),
     topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
+  };
+}
+
+// NB ADR 0043: a bin opens the exact sequence of its last event; only a bin before every event falls back to the first mark.
+function versionSequenceResolver({
+  events,
+  marks,
+}: {
+  events: TimelineEvent[];
+  marks: VersionMarkSummary[];
+}): (time: number) => number | null {
+  const lastEventSequenceAt = eventSequenceLookup(events);
+  return (time) => {
+    const eventSequence = lastEventSequenceAt(time);
+    if (eventSequence !== null) return eventSequence;
+    return versionSequenceAt({ marks, time });
   };
 }
 
@@ -307,13 +325,14 @@ export function buildBinEdits({
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const runs = matchedRuns
     .filter((run) => run.binStart === binStart)
-    .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime }) => ({
+    .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime, versionSequence }) => ({
       blockId,
       bandId,
       authorKeys,
       inserted,
       deleted,
       lastServerTime,
+      versionSequence,
     }));
   const authorKeys = new Set(runs.flatMap((run) => run.authorKeys));
   const authors = Object.fromEntries(Object.entries(pipeline.authors).filter(([key]) => authorKeys.has(key)));

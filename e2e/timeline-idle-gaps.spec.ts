@@ -5,7 +5,7 @@ import { IDLE_BREAK_MS } from '../apps/web/src/features/timeline/streamgraph-lay
 import { NO_EDITS_FOR_LABEL } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
-import { BUDGET, chartSvg, currentAt, pressInChart, readTimeline, waitForBands, waitForSettledTimeline } from './timeline';
+import { BUDGET, chartSvg, currentAt, expandPanel, pressInChart, readTimeline, waitForBands, waitForSettledTimeline } from './timeline';
 
 const PARAGRAPHS = ['Budget: the plan costs 10.', 'Hiring: we add two people.'];
 const EDIT_TEXT = ' More money for the plan, a second sentence about the budget lines and a third one about the hiring plan.';
@@ -64,6 +64,7 @@ test('a silence of more than five minutes is one break the keyboard crosses in o
 
   await serveTimeline({ page: ana.page, documentId, timeline: served });
   await ana.page.reload();
+  await expandPanel(ana.page);
   await expect(chartSvg(ana.page)).toBeVisible();
 
   const dividers = chartSvg(ana.page).locator(DIVIDER_SELECTOR);

@@ -11,7 +11,14 @@ import {
 import { insertInParagraph, readEditorText, readEvents, shareAndAccept, uploadSeed } from './editor';
 import { SIGN_IN_LABEL } from '../apps/web/src/features/editor/connection-copy';
 import { DEMO_PASSWORD, expect, signedInContext, signIn, test } from './fixtures';
-import { ensureServerRunning, startRestartableStack, startServer, stopRestartableStack, stopServer } from './restartable-stack';
+import {
+  ensureServerRunning,
+  RestartablePort,
+  startRestartableStack,
+  startServer,
+  stopRestartableStack,
+  stopServer,
+} from './restartable-stack';
 import { SERVER_HEALTH_PATH } from './stack';
 
 const [ana, bruno] = DEMO_USERS;
@@ -42,7 +49,7 @@ let origin: string;
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  origin = await startRestartableStack();
+  origin = await startRestartableStack(RestartablePort.ConnectionState);
 });
 
 test.afterEach(async () => {

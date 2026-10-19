@@ -1,12 +1,8 @@
 import { expect, test } from 'vitest';
 import { DAY_MS } from './constants';
-import { INVITE_TTL_MS, InviteState, inviteStateOf, inviteTokenOf, MissingInviteTokenError } from './invites';
+import { InviteState, inviteStateOf, inviteTokenOf, MissingInviteTokenError } from './invites';
 
 const NOW = Date.UTC(2026, 9, 17, 12, 0);
-
-test('the invite lifetime is seven days', () => {
-  expect(INVITE_TTL_MS).toBe(7 * DAY_MS);
-});
 
 test.each([
   ['pending', { expiresAt: NOW + DAY_MS, acceptedAt: null, revokedAt: null }, InviteState.Pending],

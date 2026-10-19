@@ -30,6 +30,7 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - A block's text change is diffed with `diffChars`; `inserted` joins added parts, `deleted` joins removed parts. (poc/lib/edit-events.ts)
 - A merge emits a `merged` event with empty `inserted` and `deleted`, followed by a text change if the text also changed. (poc/lib/edit-events.ts)
 - Projection costs 0.13-0.17 ms per update. (poc/RESULTS.md, ADR 0001)
+- The read model's `document_previews` row is written in the same transaction as the cursor, on the bootstrap commit, on every batch, and once on resume for a document projected before previews existed (apps/server/src/history/pending-documents.ts): the main story's paragraph texts (not merged away) joined by newlines, cut at `PREVIEW_MAX_CHARACTERS` (400). The documents list reads all previews in one query. (libs/history/src/projection.ts, libs/history/src/read-model.ts, apps/server/src/documents/documents-repository.ts)
 
 ## Agent volume
 - A timeline cell counts a run as agent volume only when every author key of the run is an agent key (`<userId>#agent`); a mixed human and agent run (a relay or reconnect sync) counts as human, while contributors still credit the agent key. (libs/history/src/timeline/runs.ts, ADR 0029)
@@ -57,6 +58,9 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - Snapshot + tail equals a full replay at every sequence. (poc/RESULTS.md)
 - `onLoadDocument` restores the room with `materialize` and applies it with origin `update-log-replay`. (poc/server/collaboration-server.ts)
 - Time travel will use native Yjs snapshots; the design is proposed, not proven. (ADR 0003)
+- A version mark is the last update of each minute and anchors the timeline's bins; `/versions/<sequence>` resolves a sequence the log knows to itself, with `GcFreeReplays.versionAt` merging the log up to it, and only an unknown sequence clamps to the latest mark. (libs/history/src/version-state.ts, libs/history/src/version-marks.ts, ADR 0043)
+- A user starts at most `VERSION_LOADS_PER_MINUTE` version builds per rolling minute (429 with `Retry-After` above it; cached, in-flight and failed lookups are free), and the scheduler holds at most `MAX_PENDING_VERSION_JOBS` version jobs, refusing the rest with 503 instead of queueing. (apps/server/src/history/versions-service.ts, apps/server/src/history/projection-scheduler.ts, ADR 0044)
+- A bin edit run carries `versionSequence`, the sequence of its last inserting event, or of its last event when it inserted nothing. (libs/history/src/timeline/runs.ts, ADR 0043)
 
 ## SingleFlight
 - Concurrent calls with the same key share one computation; a settled value is cached by key. (poc/lib/single-flight.ts)

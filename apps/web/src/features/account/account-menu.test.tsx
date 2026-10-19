@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test } from 'vitest';
+import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
 import { ADMIN_LINK_LABEL } from '@/features/admin/admin-copy';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
@@ -32,10 +33,11 @@ afterEach(() => {
   localStorage.clear();
 });
 
-test('lists Settings, Connected apps, the theme radio group and Sign out, and Admin only for admins', async () => {
+test('lists Settings, Connected apps, About, the theme radio group and Sign out, and Admin only for admins', async () => {
   await openMenu(USER);
   expect(await screen.findByRole('menuitem', { name: SETTINGS_LINK_LABEL })).toHaveAttribute('href', AppRoute.Settings);
   expect(screen.getByRole('menuitem', { name: CONNECTED_APPS_HEADING })).toHaveAttribute('href', AppRoute.ConnectedApps);
+  expect(screen.getByRole('menuitem', { name: ABOUT_LINK_LABEL })).toHaveAttribute('href', AppRoute.About);
   expect(screen.queryByRole('menuitem', { name: ADMIN_LINK_LABEL })).not.toBeInTheDocument();
   expect(screen.getByText(THEME_LABEL)).toBeInTheDocument();
   expect(screen.getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Light', 'Dark', 'System']);

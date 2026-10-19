@@ -1,19 +1,25 @@
 import { UserRole, type AdminUser } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatTimestamp } from '@/lib/format-date-time';
 import { useTimeZone } from '@/lib/use-time-zone';
-import { ADMIN_USERS_QUERY_KEY, setUserRole } from './admin-api';
+import { ADMIN_USERS_QUERY_KEY, createPasswordReset, setUserRole } from './admin-api';
 import {
   ACTION_FAILED_MESSAGE,
   MAKE_ADMIN_LABEL,
   MAKE_USER_LABEL,
+  PASSWORD_RESET_COPIED_TOAST,
+  PASSWORD_RESET_CREATED_DESCRIPTION,
+  PASSWORD_RESET_CREATED_TITLE,
+  RESET_PASSWORD_LABEL,
   USER_ROLE_LABELS,
   USERS_COLUMN_LABELS,
   USERS_TABLE_LABEL,
 } from './admin-copy';
+import { LinkCreatedDialog } from './link-created-dialog';
 
 const ROLE_TOGGLES: Record<UserRole, { label: string; nextRole: UserRole }> = {
   [UserRole.Admin]: { label: MAKE_USER_LABEL, nextRole: UserRole.User },
@@ -38,6 +44,30 @@ function RoleToggle({ user }: { user: AdminUser }) {
   );
 }
 
+function PasswordResetButton({ user }: { user: AdminUser }) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const { mutate, reset, data, isPending, isError } = useMutation({ mutationFn: () => createPasswordReset(user.id) });
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button ref={buttonRef} variant="outline" size="sm" disabled={isPending} onClick={() => mutate()}>
+        {RESET_PASSWORD_LABEL}
+      </Button>
+      {isError && <ErrorMessage>{ACTION_FAILED_MESSAGE}</ErrorMessage>}
+      {data && (
+        <LinkCreatedDialog
+          url={data.url}
+          title={PASSWORD_RESET_CREATED_TITLE}
+          description={PASSWORD_RESET_CREATED_DESCRIPTION}
+          copiedToast={PASSWORD_RESET_COPIED_TOAST}
+          onClose={reset}
+          returnFocusRef={buttonRef}
+        />
+      )}
+    </div>
+  );
+}
+
 export function UsersTable({ users, signedInUserId }: { users: AdminUser[]; signedInUserId: string }) {
   const { timeZone } = useTimeZone();
   return (
@@ -57,7 +87,12 @@ export function UsersTable({ users, signedInUserId }: { users: AdminUser[]; sign
               <TableCell>{user.email}</TableCell>
               <TableCell>{USER_ROLE_LABELS[user.role]}</TableCell>
               <TableCell>{formatTimestamp({ time: user.createdAt, timeZone })}</TableCell>
-              <TableCell>{user.id !== signedInUserId && <RoleToggle user={user} />}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap items-center gap-2">
+                  {user.id !== signedInUserId && <RoleToggle user={user} />}
+                  <PasswordResetButton user={user} />
+                </div>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

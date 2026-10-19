@@ -23,7 +23,7 @@ export type EditRun = {
   deleted: string;
   firstServerTime: number;
   lastServerTime: number;
-  lastSequence: number;
+  versionSequence: number;
 };
 
 // NB ADR 0029: the author key of an agent is `<userId>#agent`, so a person and their AI are separate authors with the same id.
@@ -93,16 +93,17 @@ export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEve
           deleted: event.deleted,
           firstServerTime: event.serverTime,
           lastServerTime: event.serverTime,
-          lastSequence: event.sequence,
+          versionSequence: event.sequence,
         });
         return;
       }
+      const keepsInsertingVersion = run.inserted.length > 0 && event.inserted.length === 0;
       runs.set(key, {
         ...run,
         inserted: run.inserted + event.inserted,
         deleted: run.deleted + event.deleted,
         lastServerTime: event.serverTime,
-        lastSequence: event.sequence,
+        versionSequence: keepsInsertingVersion ? run.versionSequence : event.sequence,
       });
     });
   return [...runs.values()];

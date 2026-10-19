@@ -10,6 +10,9 @@ import { createInvite, INVITES_QUERY_KEY, revokeInvite } from './admin-api';
 import {
   ACTION_FAILED_MESSAGE,
   GENERATE_INVITE_LABEL,
+  INVITE_COPIED_TOAST,
+  INVITE_CREATED_DESCRIPTION,
+  INVITE_CREATED_TITLE,
   INVITE_STATE_LABELS,
   INVITES_COLUMN_LABELS,
   INVITES_TABLE_LABEL,
@@ -17,7 +20,7 @@ import {
   NOT_ACCEPTED_LABEL,
   REVOKE_LABEL,
 } from './admin-copy';
-import { InviteCreatedDialog } from './invite-created-dialog';
+import { LinkCreatedDialog } from './link-created-dialog';
 
 function RevokeButton({ invite }: { invite: InviteSummary }) {
   const queryClient = useQueryClient();
@@ -87,7 +90,16 @@ export function InvitesTable({ invites }: { invites: InviteSummary[] }) {
         {isError && <ErrorMessage>{ACTION_FAILED_MESSAGE}</ErrorMessage>}
       </div>
       <InvitesList invites={invites} />
-      {created && <InviteCreatedDialog invite={created} onClose={() => setCreated(null)} returnFocusRef={generateButtonRef} />}
+      {created && (
+        <LinkCreatedDialog
+          url={created.url}
+          title={INVITE_CREATED_TITLE}
+          description={INVITE_CREATED_DESCRIPTION}
+          copiedToast={INVITE_COPIED_TOAST}
+          onClose={() => setCreated(null)}
+          returnFocusRef={generateButtonRef}
+        />
+      )}
     </div>
   );
 }

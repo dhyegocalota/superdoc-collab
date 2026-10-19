@@ -4,6 +4,7 @@ import { z } from 'zod';
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
 export const LLM_MAX_CONCURRENT_JOBS = 2;
 export const LLM_MAX_CALLS_PER_HOUR = 60;
+export const TRUSTED_PROXY_HOPS = 1;
 const AUTH_SECRET_MIN_LENGTH = 32;
 
 export class MissingEnvironmentVariableError extends Error {
@@ -31,7 +32,7 @@ const schema = z.object({
   TRUST_PROXY: z.enum(BooleanFlag),
 });
 
-export class InvalidLlmLimitError extends Error {
+export class InvalidEnvironmentIntegerError extends Error {
   constructor({ name, value }: { name: string; value: string }) {
     super(`Environment variable ${name} must be an integer greater than zero, received: ${value}`);
   }
@@ -62,6 +63,7 @@ export type Environment = {
   authSecret: string;
   databaseDirectory: string;
   trustProxy: boolean;
+  trustedProxyHops: number;
   llm: LlmSettings;
   openUncommittedPerMinute: number;
 };
@@ -69,7 +71,7 @@ export type Environment = {
 function limitFrom({ name, value, fallback }: { name: string; value: string | undefined; fallback: number }): number {
   if (!value) return fallback;
   const parsed = limitSchema.safeParse(value);
-  if (!parsed.success) throw new InvalidLlmLimitError({ name, value });
+  if (!parsed.success) throw new InvalidEnvironmentIntegerError({ name, value });
   return parsed.data;
 }
 
@@ -101,6 +103,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
     authSecret: parsed.AUTH_SECRET,
     databaseDirectory: parsed.DATABASE_DIR,
     trustProxy: parsed.TRUST_PROXY === BooleanFlag.True,
+    trustedProxyHops: limitFrom({ name: 'TRUSTED_PROXY_HOPS', value: source.TRUSTED_PROXY_HOPS, fallback: TRUSTED_PROXY_HOPS }),
     llm: loadLlmSettings(source),
     openUncommittedPerMinute: limitFrom({
       name: 'OPEN_UNCOMMITTED_PER_MINUTE',

@@ -6,11 +6,11 @@
 
 ## Steps
 
-- [ ] **Step 1 (red):** unit tests for `AuthLayout`, `HistoryIllustration` (aria-hidden, uses the author tokens), `DocumentsEmptyState` visibility; commit red alone.
-- [ ] **Step 2 (green):** the illustration, the layout, the three pages wrapped.
-- [ ] **Step 3 (red):** unit tests for `UploadDropZone` and `UploadDropOverlay` (enter/leave counting, Files-only, two files, non-DOCX, upload states); commit red alone.
-- [ ] **Step 4 (green):** the drop zone, the overlay, the empty state wired to the existing upload mutation (reuse the dialog's mutation; move it to a hook `use-upload-document.ts` if it lives in the dialog).
-- [ ] **Step 5:** E2E additions in `e2e/documents.spec.ts`; screenshots; tester briefing; `apps/web/README.md` if it lists pages.
+- [x] **Step 1 (red):** unit tests for `AuthLayout`, `HistoryIllustration` (aria-hidden, uses the author tokens), `DocumentsEmptyState` visibility; commit red alone. (d2199cce)
+- [x] **Step 2 (green):** the illustration, the layout, the three pages wrapped. (ec59e609)
+- [x] **Step 3 (red):** unit tests for `UploadDropZone` and `UploadDropOverlay` (enter/leave counting, Files-only, two files, non-DOCX, upload states); commit red alone. (9240fdc4)
+- [x] **Step 4 (green):** the drop zone, the overlay, the empty state wired to the existing upload mutation (reuse the dialog's mutation; move it to a hook `use-upload-document.ts` if it lives in the dialog). (03b1c49d)
+- [x] **Step 5:** E2E additions in `e2e/documents.spec.ts`; screenshots; tester briefing; `apps/web/README.md` if it lists pages. (f4c8094d; screenshots under `.pr-media/welcoming-surfaces/`)
 
 ## Failure modes
 

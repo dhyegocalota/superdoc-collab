@@ -16,7 +16,6 @@ const setZoom = vi.fn();
 const scrollToComment = vi.fn();
 const COMMENT_IDS = ['first', 'second', 'third'];
 let zoomValue: number;
-let isSelectionEmpty: boolean;
 const execute = vi.fn();
 let commandState: { enabled: boolean; supported: boolean; value?: string };
 let requestedCommandIds: string[];
@@ -30,7 +29,6 @@ function superdocWithCommands(): SuperDoc {
     ui: {
       commands: { get },
       zoom: { getSnapshot: () => ({ value: zoomValue, min: 25, max: 500 }), set: setZoom },
-      selection: { getSnapshot: () => ({ empty: isSelectionEmpty }) },
       comments: { list: () => COMMENT_IDS.map((id) => ({ id })), scrollTo: scrollToComment },
     },
   });
@@ -57,7 +55,7 @@ beforeEach(() => {
   commandState = { enabled: true, supported: true };
   requestedCommandIds = [];
   zoomValue = 100;
-  isSelectionEmpty = false;
+  onAddComment.mockReturnValue(true);
   vi.stubGlobal('navigator', { platform: 'Win32' });
 });
 
@@ -237,14 +235,14 @@ test('an editor summarizes with Ctrl+Alt+S', () => {
   expect(onSummarize).toHaveBeenCalledTimes(1);
 });
 
-test('add comment needs a selection', () => {
-  isSelectionEmpty = true;
+test('add comment is consumed only when the composer opens', () => {
+  onAddComment.mockReturnValue(false);
   renderShortcuts();
   expect(pressKey({ code: 'KeyM', key: 'm', ...OPTION_KEYS }).defaultPrevented).toBe(false);
-  expect(onAddComment).not.toHaveBeenCalled();
-  isSelectionEmpty = false;
-  expect(pressKey({ code: 'KeyM', key: 'm', ...OPTION_KEYS }).defaultPrevented).toBe(true);
   expect(onAddComment).toHaveBeenCalledTimes(1);
+  onAddComment.mockReturnValue(true);
+  expect(pressKey({ code: 'KeyM', key: 'm', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(onAddComment).toHaveBeenCalledTimes(2);
 });
 
 test('next and previous comment walk the list and wrap', () => {

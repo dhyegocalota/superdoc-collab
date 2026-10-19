@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { DEMO_USERS, ShareLinkRole } from '../libs/types/src';
+import { ADD_COMMENT_SUBMIT_LABEL, ADD_COMMENT_TITLE, COMMENT_TEXT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { NEW_DOCUMENT_LABEL } from '../apps/web/src/features/documents/documents-copy';
 import { DOWNLOAD_LABEL, DOWNLOAD_PDF_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { shortcutKeyParts } from '../apps/web/src/features/shortcuts/shortcut-keys';
@@ -15,6 +16,8 @@ const LINE_SELECTOR = '.superdoc-line';
 const TYPED_WORD = 'Shortcut';
 const SEED_PARAGRAPH = 'Paragraph owned by ana.';
 const BOLD_WEIGHT = 700;
+const COMMENT_TEXT = 'Please check this word';
+const PANEL_SELECTOR = 'aside[data-position]';
 const CENTERED = 'center';
 const MAC_PLATFORM_PATTERN = /mac/i;
 
@@ -124,4 +127,25 @@ test('a reader sees no formatting group in the dialog', async ({ browser }) => {
   const dialog = bruno.page.getByRole('dialog', { name: SHORTCUTS_TITLE });
   await expect(dialog.getByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Document] })).toBeVisible();
   await expect(dialog.getByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Formatting] })).toHaveCount(0);
+});
+
+test('Mod+Alt+M comments on the selected word', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await openNewDocumentWithSelectedWord(ana.page);
+  await pressWithModifier({ page: ana.page, keys: 'Alt+M' });
+  const dialog = ana.page.getByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await dialog.getByRole('textbox', { name: COMMENT_TEXT_LABEL }).fill(COMMENT_TEXT);
+  await dialog.getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }).click();
+  await expect(dialog).toBeHidden();
+  await expect(ana.page.getByText(COMMENT_TEXT)).toBeVisible();
+});
+
+test('Mod+Alt+E opens the edits panel and a second press closes it', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await openNewDocumentWithSelectedWord(ana.page);
+  const panel = ana.page.locator(PANEL_SELECTOR);
+  await pressWithModifier({ page: ana.page, keys: 'Alt+E' });
+  await expect(panel).toHaveAttribute('data-state', 'open');
+  await pressWithModifier({ page: ana.page, keys: 'Alt+E' });
+  await expect(panel).toHaveAttribute('data-state', 'closed');
 });

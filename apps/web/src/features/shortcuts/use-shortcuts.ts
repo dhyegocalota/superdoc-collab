@@ -21,7 +21,7 @@ export type UseShortcutsOptions = {
   onShowShortcuts: () => void;
   onToggleEditsPanel: () => void;
   onSummarize: () => void;
-  onAddComment: () => void;
+  onAddComment: () => boolean;
 };
 
 type ShortcutRun = {
@@ -123,11 +123,7 @@ const appRunners: Partial<Record<ShortcutId, ShortcutRunner>> = {
     options.onSummarize();
     return true;
   },
-  [ShortcutId.AddComment]: ({ options }) => {
-    if (!options.superdoc || options.superdoc.ui.selection.getSnapshot().empty) return false;
-    options.onAddComment();
-    return true;
-  },
+  [ShortcutId.AddComment]: ({ options }) => options.onAddComment(),
   [ShortcutId.ShowShortcutsOutsideField]: ({ options, event }) => {
     if (!isOutsideTextControl(event.target)) return false;
     options.onShowShortcuts();

@@ -231,11 +231,13 @@ export function EditorHeader({
     setIsShortcutsOpen(true);
   }
 
-  function openCommentComposer(): void {
-    if (!superdoc) return;
-    commentCaptureRef.current = superdoc.ui.selection.capture();
+  function openCommentComposer(): boolean {
+    const capture = superdoc ? superdoc.ui.selection.capture() : null;
+    if (!capture) return false;
+    commentCaptureRef.current = capture;
     commentReturnFocusRef.current = focusedElement();
     setIsCommentOpen(true);
+    return true;
   }
 
   async function addComment(text: string): Promise<boolean> {

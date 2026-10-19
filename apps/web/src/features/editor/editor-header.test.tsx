@@ -436,7 +436,7 @@ function superdocWithComments(createFromCapture: () => unknown): SuperDoc {
   return superdocStub({
     ui: {
       commands: { get: () => handle },
-      selection: { getSnapshot: () => ({ empty: false }), capture: () => SELECTION_CAPTURE },
+      selection: { capture: () => SELECTION_CAPTURE },
       comments: { createFromCapture },
     },
   });
@@ -481,4 +481,12 @@ test('the shortcuts dialog lists the review group for an editor', async () => {
   renderHeader({ superdoc: superdocStub() });
   fireEvent.keyDown(document.body, SHORTCUTS_KEY);
   expect(await screen.findByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Review] })).toBeVisible();
+});
+
+test('Ctrl+Alt+M with nothing selected opens no composer and is not consumed', () => {
+  const handle = { getState: () => ({ enabled: true, supported: true }), execute: vi.fn() };
+  const superdoc = superdocStub({ ui: { commands: { get: () => handle }, selection: { capture: () => null } } });
+  renderHeader({ superdoc });
+  expect(fireEvent.keyDown(document.body, COMMENT_KEY)).toBe(true);
+  expect(screen.queryByRole('dialog')).toBeNull();
 });

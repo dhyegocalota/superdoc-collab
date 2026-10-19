@@ -1,5 +1,5 @@
 import { buildSeedDocx, TrackedChangeKind } from '@superdoc-collab/history';
-import { MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
+import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
@@ -25,6 +25,7 @@ import {
   ProjectionRequestCrashedError,
   ProjectionRequestKind,
   ProjectionStoppedError,
+  WORKER_RECYCLED_MESSAGE,
   type ProjectionRequest,
 } from './projection-messages';
 import { MAX_REQUEST_POSTS, MAX_WORKER_RESTARTS_PER_WINDOW, ProjectionScheduler } from './projection-scheduler';
@@ -582,4 +583,73 @@ test('a full version queue refuses a new version but lets a pending one be joine
   await settled;
   client.close();
   await server.stop();
+});
+
+function writeHeapProbeWorker({ directory, heapTotalBytes }: { directory: string; heapTotalBytes: number }): URL {
+  const source = `import { parentPort, threadId } from 'node:worker_threads';
+parentPort.on('message', (request) => {
+  if (request.kind === '${ProjectionRequestKind.Stop}') process.exit(0);
+  parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: threadId, blocks: [], heapTotalBytes: ${heapTotalBytes} });
+});
+`;
+  writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), source);
+  return pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME));
+}
+
+test('a worker whose heap stays above the large document size is recycled and the next job runs on a fresh worker', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: writeHeapProbeWorker({ directory, heapTotalBytes: LARGE_DOCUMENT_HEAP_BYTES + 1 }),
+  });
+  const heavyWorker = scheduler.currentWorker;
+  const firstReply = await scheduler.blocks(randomUUID());
+  expect(firstReply.sequence).toBe(heavyWorker.threadId);
+  await expect.poll(() => scheduler.currentWorker !== heavyWorker).toBe(true);
+  const secondReply = await scheduler.blocks(randomUUID());
+  expect(secondReply.sequence).not.toBe(firstReply.sequence);
+  expect(consoleInfo).toHaveBeenCalledWith(expect.stringContaining(WORKER_RECYCLED_MESSAGE));
+  consoleInfo.mockRestore();
+  await scheduler.currentWorker.terminate();
+});
+
+test('requests already queued behind a heavy job still resolve when the worker is recycled', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: writeHeapProbeWorker({ directory, heapTotalBytes: LARGE_DOCUMENT_HEAP_BYTES + 1 }),
+  });
+  const replies = await Promise.all([scheduler.blocks(randomUUID()), scheduler.blocks(randomUUID()), scheduler.blocks(randomUUID())]);
+  expect(replies).toHaveLength(3);
+  await scheduler.currentWorker.terminate();
+});
+
+test('recycling a worker does not spend the restart budget', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: writeHeapProbeWorker({ directory, heapTotalBytes: LARGE_DOCUMENT_HEAP_BYTES + 1 }),
+  });
+  await Array.from({ length: MAX_WORKER_RESTARTS_PER_WINDOW + 2 }).reduce<Promise<unknown>>(async (previous) => {
+    await previous;
+    const worker = scheduler.currentWorker;
+    await scheduler.blocks(randomUUID());
+    await expect.poll(() => scheduler.currentWorker !== worker).toBe(true);
+  }, Promise.resolve());
+  expect(scheduler.isDegraded).toBe(false);
+  await scheduler.currentWorker.terminate();
+});
+
+test('a worker whose heap is below the large document size is kept', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: writeHeapProbeWorker({ directory, heapTotalBytes: LARGE_DOCUMENT_HEAP_BYTES }),
+  });
+  const worker = scheduler.currentWorker;
+  await scheduler.blocks(randomUUID());
+  await scheduler.blocks(randomUUID());
+  expect(scheduler.currentWorker).toBe(worker);
+  await worker.terminate();
 });

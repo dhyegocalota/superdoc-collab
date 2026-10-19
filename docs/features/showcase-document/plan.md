@@ -6,11 +6,11 @@
 
 ## Steps
 
-- [ ] **Step 1 (red):** unit tests for `showcase-paragraphs` invariants and `ShowcaseDocuments.create`; commit red alone.
-- [ ] **Step 2 (green):** the paragraphs, the shift helper, `ShowcaseDocuments`, wiring in `app.ts`.
-- [ ] **Step 3 (red → green):** the admin route and the first-claim hook, with tests.
-- [ ] **Step 4 (red → green):** the Admin button (`admin-page.tsx`, `admin-api.ts`, `admin-copy.ts`).
-- [ ] **Step 5:** E2E `e2e/showcase.spec.ts` on a fresh stack (first sign-up → showcase in the list → timeline with four contributors and a marked gap); tester briefing; README "Try it" mentions the showcase.
+- [x] **Step 1 (red):** unit tests for `showcase-paragraphs` invariants and `ShowcaseDocuments.create`; commit red alone. (0cd3d7fd)
+- [x] **Step 2 (green):** the paragraphs, the shift helper, `ShowcaseDocuments`, wiring in `app.ts`. (6cbd4d94)
+- [x] **Step 3 (red → green):** the admin route and the first-claim hook, with tests. (red 7d67c94c, green c3e8c57c)
+- [x] **Step 4 (red → green):** the Admin button (`admin-page.tsx`, `admin-api.ts`, `admin-copy.ts`). (red 7a6eb249, green 95ac2415)
+- [x] **Step 5 (partly, see tester-briefing):** E2E `e2e/showcase.spec.ts` on a fresh stack (first sign-up → showcase in the list → timeline with four contributors and a marked gap); tester briefing; README "Try it" mentions the showcase.
 
 ## Failure modes
 

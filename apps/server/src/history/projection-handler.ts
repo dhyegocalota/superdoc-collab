@@ -10,8 +10,10 @@ import {
 } from '@superdoc-collab/history';
 import { MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
 import * as Y from 'yjs';
+import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import {
+  BootstrapTimeoutError,
   IMPORT_TOO_LARGE_MESSAGE,
   MissingVersionMarkError,
   ProjectionRequestKind,
@@ -104,8 +106,20 @@ export function createProjectionHandler({
     };
   }
 
-  async function handleBootstrap(request: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
-    throw new Error('handleBootstrap is not implemented');
+  async function handleBootstrap({
+    documentId,
+    filePath,
+    url,
+    token,
+  }: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
+    await withTimeout({
+      work: bootstrapRoom({ documentId, filePath, url, token }),
+      milliseconds: bootstrapTimeoutMs,
+      onTimeout: () => {
+        throw new BootstrapTimeoutError(bootstrapTimeoutMs);
+      },
+    });
+    return { kind: ProjectionRequestKind.Bootstrap, documentId };
   }
 
   const handlers: Handlers = {

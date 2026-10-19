@@ -626,7 +626,7 @@ test('a bootstrap in flight when the worker dies is rejected as interrupted and 
   await crashed.terminate();
   await expect(bootstrap).rejects.toBeInstanceOf(BootstrapInterruptedError);
   await expect.poll(() => scheduler.currentWorker !== crashed).toBe(true);
-  await scheduler.stop();
+  await scheduler.currentWorker.terminate();
 });
 
 test('a degraded scheduler rejects a bootstrap at once', async () => {

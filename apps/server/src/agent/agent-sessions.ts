@@ -8,6 +8,7 @@ import {
   secondsRoundedUp,
 } from '@superdoc-collab/types';
 import { createSuperDocClient, type SuperDocClient, type SuperDocDocument } from '@superdoc/sdk';
+import { COLLABORATION_PROVIDER, SDK_RUNTIME } from '../collaboration/sdk-room';
 import { LruMap } from '../limits/lru-map';
 import { withTimeout } from '../limits/with-timeout';
 import type { AgentDocumentSessions, AgentPerson } from './agent-tool-context';
@@ -19,8 +20,6 @@ const AGENT_SESSION_IDLE_MS = 5 * MINUTE_MS;
 const AGENT_SESSION_OPEN_TIMEOUT_MS = 30 * SECOND_MS;
 const AGENT_HOST_NAME = 'SuperDoc History agent';
 const AGENT_HOST_EMAIL = 'agent@superdoc-history.local';
-const SDK_RUNTIME = 'v2';
-const COLLABORATION_PROVIDER = 'hocuspocus';
 const SESSION_BUSY_MESSAGE = 'Every document room is in use';
 const SESSION_OPEN_TIMEOUT_MESSAGE = 'The document did not open in time';
 

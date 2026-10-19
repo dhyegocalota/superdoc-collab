@@ -108,7 +108,12 @@ export class ProjectionScheduler {
   }
 
   bootstrap(request: BootstrapRequest): Promise<void> {
-    throw new Error('bootstrap is not implemented');
+    if (this.isDegraded) return Promise.reject(new ProjectionDegradedError());
+    if (this.stoppingPromise) return Promise.reject(new ProjectionStoppedError());
+    return new Promise((resolve, reject) => {
+      this.bootstrapping.set(request.documentId, { resolve, reject });
+      this.currentWorker.postMessage({ kind: ProjectionRequestKind.Bootstrap, ...request });
+    });
   }
 
   rebuild({ documentId, filePath }: { documentId: string; filePath: string }): Promise<void> {
@@ -150,6 +155,7 @@ export class ProjectionScheduler {
     if (this.stoppingPromise) return this.stoppingPromise;
     if (!this.isAlive) return Promise.resolve();
     this.waitingRequests.rejectAll(() => new ProjectionStoppedError());
+    this.rejectBootstrapping(() => new ProjectionStoppedError());
     this.stoppingPromise = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
     return this.stoppingPromise;
@@ -191,6 +197,7 @@ export class ProjectionScheduler {
 
   private settleFailure(reply: ProjectionFailedReply): void {
     const { documentId, message, requestKind } = reply;
+    if (requestKind === ProjectionRequestKind.Bootstrap) return this.takeBootstrapWaiter(documentId)?.reject(new Error(message));
     if (requestKind === ProjectionRequestKind.Version || requestKind === ProjectionRequestKind.Blocks)
       return this.waitingRequests.reject({
         key: requestKeyOf({ kind: requestKind, documentId, sequence: reply.sequence }),
@@ -206,7 +213,21 @@ export class ProjectionScheduler {
     console.error(`${PROJECTION_FAILED_MESSAGE} ${documentId}: ${message}`);
   }
 
-  private settleBootstrap(reply: BootstrapReply): void {}
+  private settleBootstrap({ documentId }: BootstrapReply): void {
+    this.takeBootstrapWaiter(documentId)?.resolve();
+  }
+
+  private takeBootstrapWaiter(documentId: string): BootstrapWaiter | null {
+    const waiter = this.bootstrapping.get(documentId);
+    this.bootstrapping.delete(documentId);
+    if (waiter === undefined) return null;
+    return waiter;
+  }
+
+  private rejectBootstrapping(errorOf: () => Error): void {
+    this.bootstrapping.forEach(({ reject }) => reject(errorOf()));
+    this.bootstrapping.clear();
+  }
 
   private settleImport({ documentId, importError }: ProjectionDoneReply): void {
     this.pendingImports.delete(documentId);
@@ -245,6 +266,7 @@ export class ProjectionScheduler {
 
   private restart(): void {
     if (this.stoppingPromise) return;
+    this.rejectBootstrapping(() => new BootstrapInterruptedError());
     if (!this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
     const pending = [...this.inFlight];

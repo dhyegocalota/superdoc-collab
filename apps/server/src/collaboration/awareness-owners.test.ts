@@ -1,4 +1,4 @@
-import { MAX_AWARENESS_ENTRIES_PER_FRAME } from '@superdoc-collab/types';
+import { MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT, MAX_AWARENESS_ENTRIES_PER_FRAME } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { AwarenessOwners } from './awareness-owners';
 import type { AwarenessEntry } from './frame-bucket';
@@ -10,11 +10,12 @@ const OTHER_USER = 'user-other';
 const CLIENT_ID = 1_000_000;
 const HELD_CLOCK = 5;
 const PINNED_CLOCK = 2 ** 53;
+const NOBODY_HOLDS = (): boolean => false;
 const META = new Map([[CLIENT_ID, { clock: HELD_CLOCK }]]);
 
 function boundOwners(): AwarenessOwners {
   const owners = new AwarenessOwners();
-  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OWNER });
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OWNER, isHeld: NOBODY_HOLDS });
   return owners;
 }
 
@@ -62,7 +63,7 @@ test('a binding belongs to its document and is forgotten with it', () => {
 
 test('a binding already made is not taken over by a later announcement', () => {
   const owners = boundOwners();
-  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OTHER_USER });
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OTHER_USER, isHeld: NOBODY_HOLDS });
   const entries = [{ clientId: CLIENT_ID, clock: HELD_CLOCK + 1 }];
   expect([OWNER, OTHER_USER].map((userId) => forbids({ owners, userId, entries }))).toEqual([false, true]);
 });
@@ -70,7 +71,7 @@ test('a binding already made is not taken over by a later announcement', () => {
 test('an honest relay of the full frame cap of bound ids at their held clocks is not forbidden', () => {
   const owners = new AwarenessOwners();
   const clientIds = Array.from({ length: MAX_AWARENESS_ENTRIES_PER_FRAME }, (_, index) => CLIENT_ID + index);
-  owners.bind({ documentName: DOCUMENT_NAME, clientIds, userId: OWNER });
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds, userId: OWNER, isHeld: NOBODY_HOLDS });
   const meta = new Map(clientIds.map((clientId) => [clientId, { clock: HELD_CLOCK }]));
   const entries = clientIds.map((clientId) => ({ clientId, clock: HELD_CLOCK }));
   expect(owners.forbids({ documentName: DOCUMENT_NAME, userId: OTHER_USER, entries, meta })).toBe(false);
@@ -79,10 +80,49 @@ test('an honest relay of the full frame cap of bound ids at their held clocks is
 test('ids seeded from persisted authorship are bound to their authors before anyone announces them', () => {
   const owners = new AwarenessOwners();
   owners.seed({ documentName: DOCUMENT_NAME, bindings: new Map([[CLIENT_ID, { userId: OWNER }]]) });
-  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OTHER_USER });
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OTHER_USER, isHeld: NOBODY_HOLDS });
   const entries = [{ clientId: CLIENT_ID, clock: 1 }];
   expect([OWNER, OTHER_USER].map((userId) => owners.forbids({ documentName: DOCUMENT_NAME, userId, entries, meta: new Map() }))).toEqual([
     false,
     true,
   ]);
+});
+
+function adoptedClientIds(count: number): number[] {
+  return Array.from({ length: count }, (_, index) => CLIENT_ID + index);
+}
+
+function isBoundToOwner({ owners, clientId }: { owners: AwarenessOwners; clientId: number }): boolean {
+  const entries = [{ clientId, clock: HELD_CLOCK + 1 }];
+  const meta = new Map([[clientId, { clock: HELD_CLOCK }]]);
+  return owners.forbids({ documentName: DOCUMENT_NAME, userId: OTHER_USER, entries, meta });
+}
+
+test('first-come bindings stop at the per-document ceiling while their connections are alive', () => {
+  const owners = new AwarenessOwners();
+  const crowded = adoptedClientIds(MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT);
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: crowded, userId: OWNER, isHeld: () => true });
+  const late = CLIENT_ID + MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT;
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [late], userId: OWNER, isHeld: () => true });
+  expect(isBoundToOwner({ owners, clientId: late })).toBe(false);
+  expect(isBoundToOwner({ owners, clientId: CLIENT_ID })).toBe(true);
+});
+
+test('first-come bindings whose connection left are pruned to make room at the ceiling', () => {
+  const owners = new AwarenessOwners();
+  const crowded = adoptedClientIds(MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT);
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: crowded, userId: OWNER, isHeld: () => true });
+  const late = CLIENT_ID + MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT;
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [late], userId: OWNER, isHeld: () => false });
+  expect(isBoundToOwner({ owners, clientId: late })).toBe(true);
+  expect(isBoundToOwner({ owners, clientId: CLIENT_ID })).toBe(false);
+});
+
+test('seeded bindings do not count against the ceiling', () => {
+  const owners = new AwarenessOwners();
+  const recorded = new Map(adoptedClientIds(MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT).map((clientId) => [clientId, { userId: OWNER }]));
+  owners.seed({ documentName: DOCUMENT_NAME, bindings: recorded });
+  const late = CLIENT_ID + MAX_ADOPTED_AWARENESS_BINDINGS_PER_DOCUMENT;
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [late], userId: OWNER, isHeld: () => true });
+  expect(isBoundToOwner({ owners, clientId: late })).toBe(true);
 });

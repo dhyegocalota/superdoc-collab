@@ -843,13 +843,43 @@ test('a member sending a clock of 2 to the 53 for ids it announced itself keeps 
   await server.stop();
 });
 
-test('an entry cut inside its state closes the socket with the entries reason', async () => {
-  const { socket, closed, received, httpServer } = await openCountedSocket();
-  const frame = awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds: claimedIds({ base: CLAIMED_ID_BASE, count: 2 }) });
-  socket.send(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES));
-  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
-  expect(received).not.toHaveBeenCalled();
-  await new Promise((resolve) => httpServer.close(resolve));
+test('an entry cut inside its state closes the socket with the entries reason and the room records nothing', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: 2 });
+  const frame = awarenessFrameClaiming({ roomName: connection.roomName, clientIds });
+  connection.webSocket.send(new Uint8Array(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES)));
+  await expect.poll(connection.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ENTRIES_REASON });
+  expect(clientIds.some((clientId) => isKnownToAwareness({ server, clientId }))).toBe(false);
+  connection.client.close();
+  await server.stop();
+});
+
+test('a null entry sent first for an id recorded for another user is dropped, so the author still binds it and a later forgery is dropped', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  clientIds.forEach((yjsClientId) =>
+    server.services.updateLog.declareClientIdentity({ documentName: documentId, yjsClientId, userId: owner.id, actor: ClientActor.Human }),
+  );
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  const unbind = awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: HELD_CLOCK, state: null });
+  attacker.webSocket.send(new Uint8Array(unbind));
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  const forgery = awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: PINNED_CLOCK, state: FORGED_STATE });
+  attacker.webSocket.send(new Uint8Array(forgery));
+  attacker.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: attacker.client.document.clientID })).toBe(0);
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(REPLAY_CLOCK);
+  expect(attacker.closedSocket()).toBeNull();
+  expect(victim.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
 });
 
 test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {

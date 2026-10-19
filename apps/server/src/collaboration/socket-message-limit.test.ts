@@ -89,16 +89,10 @@ Object.values(PaddedVarintField).forEach((paddedField) =>
 );
 
 const PINNED_CLOCK = 2 ** 53;
-const TRUNCATED_STATE_BYTES = 3;
 
 test('a well-formed clock of 2 to the 53 claims nothing at the ws layer', () => {
   const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [1], clock: PINNED_CLOCK, state: null });
   expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(false);
-});
-
-test('an entry cut inside its state claims too many', () => {
-  const frame = claimingFrame(2);
-  expect(new SocketMessageLimit().claimsTooManyEntries(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES))).toBe(true);
 });
 
 test('awareness frames claiming up to the frame cap, other frames and unreadable frames do not', () => {

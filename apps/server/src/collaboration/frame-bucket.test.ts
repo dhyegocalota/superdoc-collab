@@ -1,3 +1,4 @@
+import { MAX_AWARENESS_ENTRIES_PER_FRAME } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import {
   authFrame,
@@ -113,22 +114,27 @@ test('a well-formed clock of 2 to the 53 is read as it is', () => {
   expect(awarenessEntryCountOf(frame)).toBe(1);
 });
 
-test('a clock varint that never ends within eight bytes makes the entry count unreadable', () => {
+test('a clock varint that never ends within eight bytes leaves the declared count and no readable entries', () => {
   const frame = awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: [FIRST_CLAIMED_ID], clock: 1 });
   const clockIndex = frame.indexOf(Buffer.from([FIRST_CLAIMED_ID, 1])) + 1;
   const overlong = Buffer.concat([frame.subarray(0, clockIndex), Buffer.alloc(9, 0x80), frame.subarray(clockIndex + 1)]);
-  expect(awarenessEntryCountOf(overlong)).toBe(UNREADABLE_ENTRY_COUNT);
-  expect(awarenessEntriesOf(overlong)).toEqual([]);
+  expect(awarenessEntryCountOf(overlong)).toBe(1);
+  expect(awarenessEntriesOf(overlong)).toBeNull();
 });
 
 test('a frame that is not awareness has no entries', () => {
   expect(awarenessEntriesOf(syncStepOneFrame(ROOM_NAME))).toEqual([]);
 });
 
-test('an entry cut inside its state makes the entry count unreadable', () => {
+test('an entry cut inside its state leaves the declared count and no readable entries', () => {
   const frame = claimingFrame({ count: 2 });
-  expect(awarenessEntryCountOf(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES))).toBe(UNREADABLE_ENTRY_COUNT);
-  expect(awarenessEntriesOf(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES))).toEqual([]);
+  const cut = frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES);
+  expect(awarenessEntryCountOf(cut)).toBe(2);
+  expect(awarenessEntriesOf(cut)).toBeNull();
+});
+
+test('a frame claiming more entries than the frame cap has no readable entries', () => {
+  expect(awarenessEntriesOf(claimingFrame({ count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 }))).toBeNull();
 });
 
 test('canonical entries with a null state at a small clock keep their declared count', () => {

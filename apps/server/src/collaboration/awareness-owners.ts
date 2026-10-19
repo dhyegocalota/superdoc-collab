@@ -3,7 +3,17 @@ import type { AwarenessEntry } from './frame-bucket';
 export class AwarenessOwners {
   private readonly ownerByClientIdByDocument = new Map<string, Map<number, string>>();
 
-  bind({ documentName, clientIds, userId }: { documentName: string; clientIds: number[]; userId: string }): void {
+  bind({
+    documentName,
+    clientIds,
+    userId,
+    isHeld,
+  }: {
+    documentName: string;
+    clientIds: number[];
+    userId: string;
+    isHeld: (clientId: number) => boolean;
+  }): void {
     const ownerByClientId = this.ownersOf(documentName);
     clientIds.filter((clientId) => !ownerByClientId.has(clientId)).forEach((clientId) => ownerByClientId.set(clientId, userId));
   }

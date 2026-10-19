@@ -27,7 +27,7 @@ After the owner opened and closed `heavy-document.docx` (9.5 MB, 56,800 paragrap
 
 - The worker adds `heapTotalBytes` (`process.memoryUsage().heapTotal`, the isolate's own) to every answered reply. The scheduler arms a quiet timer on every heavy reply and clears it on every light one. When the timer fires and the scheduler is idle it recycles; otherwise the next reply arms it again.
 - The recycle posts the existing `Stop` request: the worker's serial queue finishes what it already holds, replies, and exits. The scheduler's `exit` handler respawns and re-posts what is still tracked, the same path a crash takes, minus the budget record.
-- `createRoomMemoryRelease` (new, `apps/server/src/collaboration/room-memory-release.ts`) takes the collection function, the memory reader, the cooldown and the clock. `beforeUnloadDocument` reports the room's encoded state size to it, `afterUnloadDocument` reports the unload, and the collection waits for the next macrotask because the unload frame still holds the room.
+- `createRoomMemoryRelease` (new, `apps/server/src/collaboration/room-memory-release.ts`) takes the collection function, the memory reader, the cooldown and the clock. `beforeUnloadDocument` reports the room's encoded state size to it, `afterUnloadDocument` reports the unload, and the collection waits `ROOM_MEMORY_RELEASE_DELAY_MS`, skips a room that is loaded again, and spends the cooldown only on a collection that ran.
 - The entrypoint adds `--expose-gc` next to `--max-old-space-size`; with no limit it also passes `--expose-gc`.
 
 ## Failure modes

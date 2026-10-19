@@ -131,7 +131,7 @@ test('one shared document is enough to keep the tables and drop the empty state'
 test('dropping one docx on the page uploads it and opens the document', async () => {
   const fetchSpy = mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   const { router } = renderWithProviders(<DocumentsPage />);
-  await screen.findByText(OWNED_DOCUMENT.title);
+  await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
   const file = new File(['x'], 'plan.docx', { type: DOCX_MIME_TYPE });
   fireEvent.drop(document.body, { dataTransfer: { types: ['Files'], files: [file] } });
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(CREATED_DOCUMENT.id)));
@@ -141,7 +141,7 @@ test('dropping one docx on the page uploads it and opens the document', async ()
 test('dropping two files on a page with documents shows the message under the toolbar', async () => {
   mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   renderWithProviders(<DocumentsPage />);
-  await screen.findByText(OWNED_DOCUMENT.title);
+  await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
   const files = [new File(['x'], 'a.docx'), new File(['x'], 'b.docx')];
   fireEvent.drop(document.body, { dataTransfer: { types: ['Files'], files } });
   expect(await screen.findByRole('alert')).toHaveTextContent(ONE_FILE_AT_A_TIME_MESSAGE);
@@ -212,7 +212,7 @@ test('a failed New document shows its alert under the heading, outside the butto
 test('clicking the title opens the document', async () => {
   mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   const { router } = renderWithProviders(<DocumentsPage />);
-  await userEvent.click(await screen.findByText(OWNED_DOCUMENT.title));
+  await userEvent.click(await screen.findByRole('link', { name: OWNED_DOCUMENT.title }));
   expect(router.state.location.pathname).toBe(documentPagePath(OWNED_DOCUMENT.id));
 });
 

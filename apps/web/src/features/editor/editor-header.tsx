@@ -37,6 +37,9 @@ import { FindButton, openFindBar } from './find-button';
 import { Members } from './members';
 import { ShareDialog } from './share-dialog';
 
+const DIVIDER_CLASS = 'h-5 w-px shrink-0 bg-border';
+const EDITING_DIVIDER_CLASS = `max-md:hidden ${DIVIDER_CLASS}`;
+const EDITING_RIGHT_GROUPS_CLASS = 'hidden md:contents';
 const FOLDING_ACTION_CLASS = 'flex items-center max-lg:hidden';
 
 type DocumentIdentity = { documentId: string };
@@ -177,25 +180,29 @@ export function EditorHeader({
   const isLarge = useMinWidth(LARGE_BREAKPOINT_PX);
   const hasActionsMenu = !isLarge || isOwner;
   const [hasRenameFailed, setHasRenameFailed] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const dividerClass = isEditingTitle ? EDITING_DIVIDER_CLASS : DIVIDER_CLASS;
+  const rightGroupsClass = isEditingTitle ? EDITING_RIGHT_GROUPS_CLASS : 'contents';
 
   return (
     <>
       <AppTopBar
         left={
           <>
-            <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
+            <span aria-hidden className={dividerClass} />
             <DocumentTitle
               documentId={document.id}
               title={document.title}
               role={role}
               onFailureChange={setHasRenameFailed}
               onDirtyChange={onTitleDirtyChange}
+              onEditingChange={setIsEditingTitle}
             />
             {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
           </>
         }
         right={
-          <>
+          <div className={rightGroupsClass}>
             <div className="hidden sm:block">
               <Members
                 documentId={document.id}
@@ -229,7 +236,7 @@ export function EditorHeader({
               />
             )}
             <AccountMenu colorSlot={opened.colorSlot} />
-          </>
+          </div>
         }
       />
       {hasRenameFailed && <ErrorMessage className="px-4 py-2">{RENAME_FAILED_MESSAGE}</ErrorMessage>}

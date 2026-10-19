@@ -1,10 +1,9 @@
-import { DEMO_USERS, TimelineSearchParam, TOPICS_UNAVAILABLE_MESSAGE } from '../libs/types/src';
+import { DEMO_USERS, TimelineSearchParam } from '../libs/types/src';
 import {
   bandAriaLabel,
   EMPTY_PANEL_DESCRIPTION,
   NO_EDITS_YET_MESSAGE,
   removeFilterLabel,
-  RETRY_TOPICS_LABEL,
   TOP_EDITS_LABEL,
 } from '../apps/web/src/features/timeline/timeline-copy';
 import { typeInParagraph, uploadSeed } from './editor';

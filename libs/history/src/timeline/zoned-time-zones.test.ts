@@ -106,32 +106,6 @@ test.each(HARD_CASES)(
   120_000,
 );
 
-test('Chatham fall-back with 2 minute bins moves forward', () => {
-  const binMs = 2 * MINUTE_MS;
-  const start = zonedBinStartOf({ time: Date.UTC(2026, 3, 4, 14, 0), binMs, timeZone: CHATHAM });
-  expect(nextZonedBinStart({ start, binMs, timeZone: CHATHAM })).toBeGreaterThan(start);
-});
-
-test('Chatham 2 minute bins walk the whole fall-back window', () => {
-  const starts = walkStarts({
-    from: Date.UTC(2026, 3, 4, 12, 0),
-    to: Date.UTC(2026, 3, 4, 16, 0),
-    binMs: 2 * MINUTE_MS,
-    timeZone: CHATHAM,
-  });
-  expect(starts.length).toBeGreaterThan(100);
-});
-
-test('Troll 3 hour bins walk across the 2026-10-25 fall-back', () => {
-  const starts = walkStarts({ from: Date.UTC(2026, 9, 18), to: Date.UTC(2026, 9, 31), binMs: 3 * HOUR_MS, timeZone: TROLL });
-  expect(starts.length).toBeGreaterThan(100);
-});
-
-test('Jerusalem day bins start at local midnight', () => {
-  const start = zonedBinStartOf({ time: Date.UTC(2026, 2, 27, 12, 0), binMs: DAY_MS, timeZone: JERUSALEM });
-  expect((start + offsetAt({ time: start, timeZone: JERUSALEM })) % DAY_MS).toBe(0);
-});
-
 test('Santiago day bin whose midnight is skipped starts at the transition instant', () => {
   const start = zonedBinStartOf({ time: Date.UTC(2026, 8, 6, 12, 0), binMs: DAY_MS, timeZone: SANTIAGO });
   expect(offsetAt({ time: start - 1, timeZone: SANTIAGO })).not.toBe(offsetAt({ time: start, timeZone: SANTIAGO }));

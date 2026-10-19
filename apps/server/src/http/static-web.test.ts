@@ -31,3 +31,9 @@ test('other root-relative URLs in index.html stay as they are', async () => {
   const html = await (await mountedApp().request('/')).text();
   expect(html).toContain('<link rel="icon" href="/favicon.svg" />');
 });
+
+test.each(['/', '/index.html'])('%s serves the rewritten index.html, not the file on disk', async (path) => {
+  const html = await (await mountedApp().request(path)).text();
+  expect(html).toContain(`<meta property="og:image" content="${APP_ORIGIN}${IMAGE_PATH}" />`);
+  expect(html).toContain(`<meta name="twitter:image" content="${APP_ORIGIN}${IMAGE_PATH}" />`);
+});

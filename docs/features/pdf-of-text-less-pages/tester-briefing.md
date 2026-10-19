@@ -34,3 +34,9 @@ Unit: 10 of 10 pass. E2E: the 4 Download PDF tests pass in one run.
 - The blank document prints exactly one page: the E2E only asserts at least one.
 - Image-only and page-break-only pages are not covered by a fixture.
 - The scenario in production (New document, Download PDF, print dialog) is not walked here.
+
+## Tester run 2026-10-19
+
+- Boxes ticked: New document PDF, uploaded brief PDF, console and network, adversarial claim 2. Not run: the E2E specs and claims 1 and 3 (E2E belongs to the lead's gate).
+- Print dialog: opens in the headed browser and blocks Playwright MCP for 60 s; asserted through the preparing toast, no failure toast in 25 s, and a scripted headless run with a print stub (3 runs: blank `pageCount: 1`, brief `pageCount: 3`, `emptyPageCount: 0`).
+- Defects: none. Console errors: none.

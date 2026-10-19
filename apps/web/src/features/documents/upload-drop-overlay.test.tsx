@@ -1,5 +1,5 @@
 import { DOCX_MIME_TYPE, NOT_A_DOCX_MESSAGE } from '@superdoc-collab/types';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { ErrorMessage } from '@/components/error-message';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -12,6 +12,12 @@ const TEXT_DRAG = { types: ['text/plain'], files: [] as File[] };
 
 function docx(name: string): File {
   return new File(['x'], name, { type: DOCX_MIME_TYPE });
+}
+
+function dragLeave({ target, relatedTarget }: { target: Element; relatedTarget: Element | null }): void {
+  const event = createEvent.dragLeave(target, { dataTransfer: FILES_DRAG });
+  Object.defineProperty(event, 'relatedTarget', { value: relatedTarget });
+  fireEvent(target, event);
 }
 
 function dropOf(files: File[]) {
@@ -47,9 +53,9 @@ test('leaving to a child element keeps the overlay and leaving the page hides it
   const child = screen.getByTestId('child');
   fireEvent.dragEnter(document.body, { dataTransfer: FILES_DRAG });
   fireEvent.dragEnter(child, { dataTransfer: FILES_DRAG });
-  fireEvent.dragLeave(document.body, { dataTransfer: FILES_DRAG });
+  dragLeave({ target: document.body, relatedTarget: child });
   expect(screen.getByText(DROP_OVERLAY_LABEL)).toBeVisible();
-  fireEvent.dragLeave(child, { dataTransfer: FILES_DRAG });
+  dragLeave({ target: child, relatedTarget: document.body });
   expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
 });
 
@@ -79,6 +85,40 @@ test('dragend and the pointer leaving the window reset a stuck overlay', () => {
   expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
   fireEvent.dragEnter(document.body, { dataTransfer: FILES_DRAG });
   fireEvent.mouseLeave(document.documentElement);
+  expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
+});
+
+function showOverlay(): void {
+  fireEvent.dragEnter(document.body, { dataTransfer: FILES_DRAG });
+  expect(screen.getByText(DROP_OVERLAY_LABEL)).toBeVisible();
+}
+
+test('Escape hides the overlay', () => {
+  renderWithProviders(<UploadDropOverlay onFiles={vi.fn()} />);
+  showOverlay();
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
+});
+
+test('a dragleave whose pointer left the window hides the overlay even when enters outnumber leaves', () => {
+  renderWithProviders(<Harness />);
+  showOverlay();
+  fireEvent.dragEnter(screen.getByTestId('child'), { dataTransfer: FILES_DRAG });
+  dragLeave({ target: document.body, relatedTarget: null });
+  expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
+});
+
+test('a drop that carries no files still hides the overlay', () => {
+  renderWithProviders(<UploadDropOverlay onFiles={vi.fn()} />);
+  showOverlay();
+  fireEvent.drop(screen.getByText(DROP_OVERLAY_LABEL), { dataTransfer: TEXT_DRAG });
+  expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
+});
+
+test('a pointer move with no button pressed hides a stuck overlay, because a cancelled drag sends no dragend', () => {
+  renderWithProviders(<UploadDropOverlay onFiles={vi.fn()} />);
+  showOverlay();
+  fireEvent(document.body, new MouseEvent('pointermove', { bubbles: true, buttons: 0 }));
   expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
 });
 

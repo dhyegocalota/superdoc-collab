@@ -1,12 +1,4 @@
-import {
-  ApiPath,
-  type AuthorColorSlot,
-  ConnectionFailureReason,
-  type CreatorTicket,
-  DocumentRole,
-  type RoomMode,
-  type SessionUser,
-} from '@superdoc-collab/types';
+import { ApiPath, type AuthorColorSlot, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';

@@ -12,7 +12,6 @@ import {
   PANEL_POSITION_LABELS,
   SHOWING_WHOLE_DOCUMENT_MESSAGE,
   streamgraphDescription,
-  topicCountLabel,
   VIEW_VERSION_LABEL,
 } from './timeline-copy';
 import { PanelPosition } from './use-panel-position';
@@ -37,10 +36,6 @@ test('messages with a verb end with a period', () => {
     'Timeline request failed with status 503.',
   );
   expect(HISTORY_CATCHING_UP_MESSAGE).toBe('History is catching up.');
-});
-
-test('a topic count is singular for one and plural otherwise', () => {
-  expect([0, 1, 2].map(topicCountLabel)).toEqual(['0 topics', '1 topic', '2 topics']);
 });
 
 test('an imported author names the DOCX and each panel position has a label', () => {

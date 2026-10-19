@@ -9,7 +9,7 @@ import { DocumentTitle } from './document-title';
 
 const RENAMED_TITLE = 'Renamed';
 
-function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChange = vi.fn()): void {
+function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChange = vi.fn(), onEditingChange = vi.fn()): void {
   renderWithProviders(
     <DocumentTitle
       documentId={DOCUMENT_ID}
@@ -17,6 +17,7 @@ function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChang
       role={role}
       onFailureChange={onFailureChange}
       onDirtyChange={onDirtyChange}
+      onEditingChange={onEditingChange}
     />,
   );
 }
@@ -172,4 +173,54 @@ test('a disabled Save is described by its reason, and an enabled Save is not', a
   await userEvent.keyboard(RENAMED_TITLE);
   expect(saveButton).not.toHaveAttribute('aria-describedby');
   expect(screen.queryByText(SAVE_TITLE_DISABLED_REASON)).toBeNull();
+});
+
+test('Save and Cancel are icon-only buttons with their labels as accessible names', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const saveButton = screen.getByRole('button', { name: SAVE_TITLE_LABEL });
+  const cancelButton = screen.getByRole('button', { name: CANCEL_TITLE_LABEL });
+  [saveButton, cancelButton].forEach((button) => {
+    expect(button.textContent).toBe('');
+    expect(button.querySelector('svg')).not.toBeNull();
+    expect(button).toHaveClass('size-8', 'shrink-0');
+  });
+});
+
+test('the editing row keeps one flex line with a shrinking input and nothing positioned over the header', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const input = screen.getByRole('textbox', { name: TITLE_LABEL });
+  const row = input.closest('form') as HTMLFormElement;
+  expect(row).toHaveClass('flex', 'min-w-0', 'items-center');
+  expect(row).not.toHaveClass('flex-wrap');
+  expect(input).toHaveClass('min-w-0', 'h-8');
+  const reason = screen.getByText(SAVE_TITLE_DISABLED_REASON);
+  expect(reason).toHaveClass('sr-only');
+  expect(reason.className).not.toMatch(/sm:/);
+});
+
+test('a disabled Save shows its reason in a tooltip', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  await userEvent.hover(screen.getByRole('button', { name: SAVE_TITLE_LABEL }).parentElement as HTMLElement);
+  expect(await screen.findByRole('tooltip')).toHaveTextContent(SAVE_TITLE_DISABLED_REASON);
+});
+
+test('an enabled Save shows no tooltip', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  await userEvent.keyboard(RENAMED_TITLE);
+  await userEvent.hover(screen.getByRole('button', { name: SAVE_TITLE_LABEL }).parentElement as HTMLElement);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+});
+
+test('it reports when editing starts and stops', async () => {
+  const onEditingChange = vi.fn();
+  renderTitle(DocumentRole.Editor, vi.fn(), vi.fn(), onEditingChange);
+  expect(onEditingChange).toHaveBeenLastCalledWith(false);
+  await startEditing();
+  expect(onEditingChange).toHaveBeenLastCalledWith(true);
+  await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(onEditingChange).toHaveBeenLastCalledWith(false);
 });

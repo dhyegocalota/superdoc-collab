@@ -1,10 +1,4 @@
-import {
-  HISTORY_CATCHING_UP_MESSAGE,
-  SECOND_MS,
-  TOPICS_UNAVAILABLE_MESSAGE,
-  TopicState,
-  type DocumentTimeline,
-} from '@superdoc-collab/types';
+import { HISTORY_CATCHING_UP_MESSAGE, TOPICS_UNAVAILABLE_MESSAGE, TopicState, type DocumentTimeline } from '@superdoc-collab/types';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';

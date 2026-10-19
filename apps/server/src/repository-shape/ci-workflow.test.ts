@@ -119,6 +119,10 @@ describe('CI workflow', () => {
     expect(job(UNIT_JOB)).toContain(UNIT_FILTER_STEP);
   });
 
+  test('the unit job checks out the full history, which the feature status check reads', () => {
+    expect(job(UNIT_JOB)).toContain(FULL_HISTORY_CHECKOUT);
+  });
+
   test('only the server unit matrix entry requires Docker Compose', () => {
     expect(job(UNIT_JOB)).toContain(DOCKER_COMPOSE_REQUIREMENT);
   });

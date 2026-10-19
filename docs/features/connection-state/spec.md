@@ -1,6 +1,6 @@
 # Connection state
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 (brief + design 1.14)
 **ADRs:** [0032](../../adr/0032-connection-state-truth-callback-for-transitions-server-presence-for-recovery.md)

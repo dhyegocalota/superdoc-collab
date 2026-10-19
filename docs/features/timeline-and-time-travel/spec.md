@@ -1,6 +1,6 @@
 # Timeline and time travel
 
-**Status:** Approved
+**Status:** Shipped 2026-10-16
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-16
 **ADRs:** [0001](../../adr/0001-event-sourcing-over-yjs.md) history capture · [0003](../../adr/0003-time-travel-with-native-yjs-snapshots.md) time travel (Proposed, spike first) · [0006](../../adr/0006-llm-via-vercel-ai-sdk.md) LLM via AI SDK + OpenRouter · [0007](../../adr/0007-read-model-in-sqlite.md) read model · [0008](../../adr/0008-vertical-slices.md) slices (addendum: topics in slice 3) · [0009](../../adr/0009-design-system.md) design system

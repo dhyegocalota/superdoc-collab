@@ -1,6 +1,6 @@
 # Nothing scrolls sideways on a phone
 
-**Status:** Building
+**Status:** Shipped 2026-10-18
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the owner reported the sideways scroll on their phone and asked for the fix)
 **ADRs:** none

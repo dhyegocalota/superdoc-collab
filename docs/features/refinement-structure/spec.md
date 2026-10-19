@@ -1,6 +1,6 @@
 # Refinement: structure — spec
 
-- Status: Approved
+- Status: Shipped 2026-10-17
 - Tier: green (moves, renames and a formatter; no behaviour change).
 - Owner approval: approved 2026-10-17 (refinement proposal, first of five lanes: structure → tests → readability-server ∥ ux-care → readability-web).
 - ADRs: none new; [0008](../../adr/0008-vertical-slices.md) (one folder per slice stays).

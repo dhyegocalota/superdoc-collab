@@ -1,6 +1,6 @@
 # Readability in the editor and the timeline panel
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Lane:** product
 **Tier:** 🟢 small. No new behaviour, no schema change and nothing the user sees.
 **Owner approval:** approved 2026-10-19

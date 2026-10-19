@@ -1,6 +1,6 @@
 # Scenario runs
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 (decisions taken in chat: one scenario per core flow, E2E-style stack on its own ports with the fake model, one Playwright MCP server per author, suggestion before merge and never before open)
 **ADRs:** [0023](../../adr/0023-agentic-scenario-runs-with-one-browser-per-author.md)

@@ -1,6 +1,6 @@
 # The session query is fresh for five minutes
 
-**Status:** Building
+**Status:** Shipped 2026-10-18
 **Lane:** product
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the lead's request after the summary-mobile gate caught a sign-in redirect caused by a remount)

@@ -15,7 +15,8 @@ Scaffold the feature folder. Process: `.claude/HARNESS.md` sections 1 and 3.
 4. Set the tier in `spec.md` and `plan.md` from the brainstorm: 🟢 small, 🟡 medium, 🔴 structural. When in doubt, take the heavier tier. If the tier is unclear, ask.
 5. Link every ADR the feature depends on in the `**ADRs:**` line. A decision with alternatives that has no ADR yet: run the `adr` skill first.
 6. Fill the `# Title` and `**Status:** Draft`. Leave `**Owner approval:** pending`. Leave every checkbox empty.
-7. Remind the owner, in one line each: spec approval precedes the plan, the plan precedes code, the test plan precedes the build.
-8. Print the folder tree of `docs/features/<slug>/`.
+7. Add the folder's row to the second table of `docs/features/README.md`: the slug link, one line of what it delivers, `Draft`. The row and the spec carry the same status from here to `Shipped` (HARNESS §7 → Status); `feature-status.test.ts` fails when they disagree.
+8. Remind the owner, in one line each: spec approval precedes the plan, the plan precedes code, the test plan precedes the build.
+9. Print the folder tree of `docs/features/<slug>/`.
 
 If anything in the request is ambiguous (slug, tier, whether it is a fix or a feature), stop and ask. Do not guess.

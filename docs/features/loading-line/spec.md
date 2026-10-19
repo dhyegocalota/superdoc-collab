@@ -1,6 +1,6 @@
 # The loading line above the toolbar is for screen readers only
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Lane:** product
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-18 (the owner asked for it directly: the visible "Loading document…" line above the toolbar is unnecessary)

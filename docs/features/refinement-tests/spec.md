@@ -1,6 +1,6 @@
 # Refinement: tests
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟢 small (tests only, plus one invisible `data-faded` attribute; no behaviour, schema, endpoint or dependency change)
 **Owner approval:** approved 2026-10-17 (refinement proposal)
 **ADRs:** [0001](../../adr/0001-event-sourcing-over-yjs.md) (gets a one-line addendum: the window grouping is gone)

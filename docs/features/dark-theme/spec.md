@@ -1,6 +1,6 @@
 # Dark theme: every SuperDoc surface follows the tokens
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 ("fix tambem o theme dark porque tem varias falhas (ex: cursor no doc nao da pra ver, dropdown da toolbar do doc onde tem font entre outros nao da pra ver, que mais???)")
 **ADRs:** [0009](../../adr/0009-design-system.md) (dark mode is a token switch, never per-component colours)

@@ -1,6 +1,6 @@
 # The edits chart shows idle stretches as marked breaks
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Lane:** product
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the owner asked for the fix after the production document showed a long silence drawn as an empty middle; the option chosen is A from the research, the collapse of idle stretches)

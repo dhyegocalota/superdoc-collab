@@ -96,3 +96,5 @@ Refinement after the five slices:
 | [`ai-edit-gif`](ai-edit-gif/) | A recorded walk in the README: an AI client edits through the MCP tools while a person watches the timeline show its mark beside the human bands | Approved |
 | [`architecture-docs-review`](architecture-docs-review/) | `docs/architecture.md`, the install guide, the credits and every package README reviewed against the code and the features shipped since their last edit | Approved |
 | [`showcase-document`](showcase-document/) | A fresh install opens on a showcase document whose timeline is already full: several authors, several days, named topics and marked idle gaps | Approved |
+| [`welcoming-surfaces`](welcoming-surfaces/) | Sign in, sign up and reset password share a two-column layout with an inline history illustration; the first documents page shows an empty state with a drag-and-drop upload zone and a page-level drop overlay | Approved |
+| [`title-edit-buttons`](title-edit-buttons/) | Save and Cancel buttons beside the document title while it is edited; blur alone no longer closes the editor | Approved |

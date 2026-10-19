@@ -29,7 +29,7 @@ test('a second waiter joins the first request instead of posting again', () => {
     documentId: 'd1',
     sequence: 9,
     blocks: [],
-    heapTotalBytes: 0,
+    retainedHeapBytes: 0,
   };
   requests.resolve(reply);
   expect([first.resolve, second.resolve].map((resolve) => resolve.mock.calls)).toEqual([[[reply]], [[reply]]]);

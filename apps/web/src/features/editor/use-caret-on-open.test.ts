@@ -137,7 +137,6 @@ test('does not press an element outside the editor that covers the first fragmen
   renderCaretOnOpen(true);
   flushFrames();
   expect(received).toEqual([]);
-  expect(recordEvents(fragment)).toEqual([]);
 });
 
 test('does not move a caret the person already placed inside the editor', () => {

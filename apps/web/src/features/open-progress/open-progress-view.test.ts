@@ -33,6 +33,11 @@ test('preparing with no progress yet names the file size on an indeterminate bar
   expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Converting a 9.5 MB file · 12 s', fraction: null });
 });
 
+test('bytes received beyond the estimated total fill the bar and no more', () => {
+  const view = preparing({ stage: BootstrapStage.Preparing, done: TOTAL_BYTES * 2, total: TOTAL_BYTES });
+  expect(view.fraction).toBe(1);
+});
+
 test('a queued bootstrap says it waits for its turn', () => {
   const view = preparing({ stage: BootstrapStage.Queued, done: 0, total: TOTAL_BYTES });
   expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Waiting for its turn · 12 s', fraction: null });

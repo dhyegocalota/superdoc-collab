@@ -1,3 +1,4 @@
+import { PERCENT_MULTIPLIER } from '@superdoc-collab/types';
 import { CheckIcon, CircleIcon, Loader2Icon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -15,8 +16,6 @@ enum StageState {
   Current = 'current',
   Pending = 'pending',
 }
-
-const PERCENT_MULTIPLIER = 100;
 
 const STAGE_ICONS: Record<StageState, ReactNode> = {
   [StageState.Done]: <CheckIcon aria-hidden="true" className="size-4 text-primary" />,

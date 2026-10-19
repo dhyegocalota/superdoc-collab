@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Progress as ProgressPrimitive } from 'radix-ui';
+import { PERCENT_MULTIPLIER } from '@superdoc-collab/types';
 import { cn } from '@/lib/utils';
 
 function Progress({ className, value, ...props }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
-  const percent = typeof value === 'number' ? value : 0;
+  const percent = typeof value === 'number' ? value : null;
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
@@ -13,8 +14,11 @@ function Progress({ className, value, ...props }: React.ComponentProps<typeof Pr
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className="h-full w-full flex-1 bg-primary transition-transform data-[state=indeterminate]:animate-pulse motion-reduce:animate-none motion-reduce:transition-none"
-        style={{ transform: `translateX(-${100 - percent}%)` }}
+        className={cn(
+          'h-full bg-primary motion-reduce:animate-none motion-reduce:transition-none',
+          percent === null ? 'w-1/3 animate-pulse' : 'w-full flex-1 transition-transform',
+        )}
+        style={percent === null ? undefined : { transform: `translateX(-${PERCENT_MULTIPLIER - percent}%)` }}
       />
     </ProgressPrimitive.Root>
   );

@@ -17,7 +17,7 @@ import { OpenStage } from './open-stage';
 
 function fractionOf({ doneBytes, totalBytes }: { doneBytes: number; totalBytes: number }): number | null {
   if (totalBytes <= 0) return null;
-  return doneBytes / totalBytes;
+  return Math.min(doneBytes / totalBytes, 1);
 }
 
 export function uploadingView({ sentBytes, totalBytes }: { sentBytes: number; totalBytes: number }): OpenProgressView {

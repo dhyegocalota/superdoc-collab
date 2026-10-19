@@ -37,3 +37,15 @@ Accounts are invite-only and the app sends no email, so a person who forgets the
 ## Test strategy summary
 
 Server unit: the capture (store/take/throw), the route (201 with a URL on the app origin, 404 unknown, admin-only through the existing guard, public request path disabled). Web unit: the users table action, the dialog, the reset page states (form, invalid token, success). E2E `e2e/password-reset.spec.ts`: admin creates the link for Bruno, Bruno opens it signed out, sets a new password, signs in with it; the old password no longer signs in; the link used twice shows the invalid message.
+
+## Deviations found while building (better-auth 1.7.10)
+
+- `requestPasswordReset` takes `{ email, redirectTo? }`, not a user id. The route looks the email up with `AdminUsersRepository.emailOf` and omits `redirectTo`, because the app builds its own URL from the captured token. `sendResetPassword` receives `{ user, url, token }`; only `user.id` and `token` are used.
+- `resetPasswordTokenExpiresIn` is in seconds, so it is `PASSWORD_RESET_TTL_MS / 1000`. `expiresAt` in the answer is the server clock plus `PASSWORD_RESET_TTL_MS`, not read back from the token row.
+- `revokeSessionsOnPasswordReset` defaults to false; it is set to true, which is what ends the user's other sessions (goal 2).
+- The client's `authClient.resetPassword({ newPassword, token })` sends the token in the body, as the library types allow, so no path token is needed.
+- The capture is wired through a small service, `PasswordResets` (`passwordResets` in `AppServices`), built in `server.ts` after `createAuth`; `seed.ts` passes its own capture to `createAuth`. Both files are wiring only.
+- The reset page is not wrapped in `RedirectIfSession`: the token is the credential, so it works with or without a session. The done notice is a toast shown on arrival at Sign in.
+- The Reset password action is on every row, including the signed-in admin's own row; only the role toggle stays hidden there.
+- The dialog states the one-hour expiry in its description, as the invite dialog does for seven days; it shows no separate expiry field.
+- The E2E resets a freshly invited user, not Bruno, so the shared demo accounts keep their password for the other specs.

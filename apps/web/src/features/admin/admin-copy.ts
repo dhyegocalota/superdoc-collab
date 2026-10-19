@@ -10,6 +10,11 @@ export const INVITES_TABLE_LABEL = 'Invites';
 export const GENERATE_INVITE_LABEL = 'Generate invite';
 export const INVITE_CREATED_TITLE = 'Invite link';
 export const INVITE_CREATED_DESCRIPTION = 'Send this link to one person. It works once and expires in seven days. It is shown only now.';
+export const RESET_PASSWORD_LABEL = 'Reset password';
+export const PASSWORD_RESET_CREATED_TITLE = 'Password reset link';
+export const PASSWORD_RESET_CREATED_DESCRIPTION =
+  'Send this link to the person. It works once and expires in one hour. It is shown only now.';
+export const PASSWORD_RESET_COPIED_TOAST = 'Password reset link copied';
 export const COPY_LINK_LABEL = 'Copy link';
 export const INVITE_COPIED_TOAST = 'Invite link copied';
 export const COPY_FAILED_MESSAGE = 'Copy failed. Select the link and copy it.';
@@ -24,6 +29,7 @@ export const INVITES_SUBJECT = 'Invites request';
 export const CREATE_INVITE_SUBJECT = 'Create invite';
 export const REVOKE_INVITE_SUBJECT = 'Revoke invite';
 export const SET_ROLE_SUBJECT = 'Set role';
+export const CREATE_PASSWORD_RESET_SUBJECT = 'Create password reset';
 
 export const USERS_COLUMN_LABELS: string[] = ['Name', 'Email', 'Role', 'Joined', 'Actions'];
 export const INVITES_COLUMN_LABELS: string[] = ['State', 'Created', 'Expires', 'Created by', 'Accepted by', 'Actions'];

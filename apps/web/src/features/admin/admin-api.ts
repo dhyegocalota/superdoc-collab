@@ -4,11 +4,20 @@ import {
   HttpMethod,
   type AdminUser,
   type CreatedInvite,
+  type CreatedPasswordReset,
+  passwordResetApiPath,
   type InviteSummary,
   type UserRole,
 } from '@superdoc-collab/types';
 import { apiGet, apiSend, assertOk, readJson } from '@/lib/api';
-import { ADMIN_USERS_SUBJECT, CREATE_INVITE_SUBJECT, INVITES_SUBJECT, REVOKE_INVITE_SUBJECT, SET_ROLE_SUBJECT } from './admin-copy';
+import {
+  ADMIN_USERS_SUBJECT,
+  CREATE_INVITE_SUBJECT,
+  CREATE_PASSWORD_RESET_SUBJECT,
+  INVITES_SUBJECT,
+  REVOKE_INVITE_SUBJECT,
+  SET_ROLE_SUBJECT,
+} from './admin-copy';
 
 export const ADMIN_USERS_QUERY_KEY = ['admin', 'users'];
 export const INVITES_QUERY_KEY = ['admin', 'invites'];
@@ -40,4 +49,9 @@ export async function setUserRole({ id, role }: { id: string; role: UserRole }):
   const path = `${USERS_PATH}/${encodeURIComponent(id)}/role`;
   const response = await apiSend({ path, method: HttpMethod.Post, body: JSON.stringify({ role }) });
   assertOk({ response, subject: SET_ROLE_SUBJECT });
+}
+
+export async function createPasswordReset(userId: string): Promise<CreatedPasswordReset> {
+  const response = await apiSend({ path: passwordResetApiPath(userId), method: HttpMethod.Post, body: null });
+  return readJson<CreatedPasswordReset>({ response, subject: CREATE_PASSWORD_RESET_SUBJECT });
 }

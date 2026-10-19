@@ -1,8 +1,10 @@
 import { INVITE_QUERY_PARAMETER } from './invites';
+import { PASSWORD_RESET_QUERY_PARAMETER, PASSWORD_RESET_SEGMENT } from './password-reset';
 
 export enum AppRoute {
   SignIn = '/sign-in',
   SignUp = '/sign-up',
+  ResetPassword = '/reset-password',
   Documents = '/documents',
   Document = '/documents/:documentId',
   Share = '/share/:token',
@@ -119,4 +121,12 @@ export function adminApiPath(resource: AdminResource): string {
 
 export function signUpPagePath(token: string): string {
   return `${AppRoute.SignUp}?${INVITE_QUERY_PARAMETER}=${encodeURIComponent(token)}`;
+}
+
+export function resetPasswordPagePath(token: string): string {
+  return `${AppRoute.ResetPassword}?${PASSWORD_RESET_QUERY_PARAMETER}=${encodeURIComponent(token)}`;
+}
+
+export function passwordResetApiPath(userId: string): string {
+  return `${adminApiPath(AdminResource.Users)}/${encodeURIComponent(userId)}/${PASSWORD_RESET_SEGMENT}`;
 }

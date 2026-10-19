@@ -12,6 +12,7 @@ import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
+import { PasswordResetLinkCapture, PasswordResets } from './admin/password-reset-links';
 import { AdminUsersRepository } from './admin/users';
 import { AgentChangeMode } from './agent/agent-change-mode';
 import { AgentSessions } from './agent/agent-sessions';
@@ -219,7 +220,8 @@ function createServices({
   const readModel = new ReadModel(readModelSqlite);
   const scheduler = new ProjectionScheduler({ databaseDirectory: environment.databaseDirectory, projectionWorkerFile });
   const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
-  const auth = createAuth({ database, environment, invites });
+  const passwordResetLinks = new PasswordResetLinkCapture();
+  const auth = createAuth({ database, environment, invites, passwordResetLinks });
   const versions = new VersionsService({ readModel, updateLog, scheduler });
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
@@ -280,6 +282,7 @@ function createServices({
     versionRooms,
     invites,
     adminUsers: new AdminUsersRepository(database),
+    passwordResets: new PasswordResets({ auth, capture: passwordResetLinks, appOrigin: environment.appOrigin, now }),
   };
   return { auth, services };
 }

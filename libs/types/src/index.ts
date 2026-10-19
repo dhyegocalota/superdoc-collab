@@ -9,5 +9,6 @@ export * from './constants';
 export * from './text';
 export * from './agent';
 export * from './invites';
+export * from './password-reset';
 export * from './author-colors';
 export * from './connection';

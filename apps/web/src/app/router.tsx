@@ -6,6 +6,7 @@ import { ConnectedAppsPage } from '@/features/connected-apps/connected-apps-page
 import { DocumentPage } from '@/features/editor/document-page';
 import { RedirectIfSession } from '@/features/auth/redirect-if-session';
 import { RequireSession } from '@/features/auth/require-session';
+import { ResetPasswordPage } from '@/features/auth/reset-password-page';
 import { SignInPage } from '@/features/auth/sign-in-page';
 import { SignUpPage } from '@/features/auth/sign-up-page';
 import { DocumentsPage } from '@/features/documents/documents-page';
@@ -35,6 +36,7 @@ export const routes: RouteObject[] = [
       </RedirectIfSession>
     ),
   },
+  { path: AppRoute.ResetPassword, element: <ResetPasswordPage /> },
   {
     path: AppRoute.Documents,
     element: (

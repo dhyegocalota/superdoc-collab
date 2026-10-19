@@ -3,7 +3,7 @@
 - [x] `vitest run src/features/editor/members.test.tsx` before the change — expected: 3 failed (evidence below)
 - [x] same file after the change — expected: 21 passed (evidence: 21 passed)
 - [x] `pnpm typecheck` — expected: clean (evidence: web, server and e2e clean)
-- [ ] `pnpm test:e2e e2e/collaboration.spec.ts` — expected: the new members test passes (evidence: pending, port busy)
+- [x] `pnpm test:e2e e2e/collaboration.spec.ts` — expected: the new members test passes (evidence: 4 passed, new test 5.5 s)
 - [ ] `editor-header.test.tsx` 'members announce their presence…' — expected: fails until the lead drops its offline Bruno assertion
 
 Red run, as printed:

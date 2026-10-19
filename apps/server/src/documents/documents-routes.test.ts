@@ -275,6 +275,7 @@ test('roomMode scans a long log in pages until the first committed bootstrap', a
     writeStory({ document, texts: ['x'.repeat(index + 1)] }),
   );
   commitBootstrap(document);
+  server.services.roomBootstrap.forget(documentId);
   const readAll = vi.spyOn(server.services.updateLog, 'read');
   const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
   expect((await openedBy({ server, user: owner, documentId })).roomMode).toBe(RoomMode.Join);
@@ -358,26 +359,30 @@ test(
   },
 );
 
-function uncommittedDocuments({ server, owner, count }: { server: TestServer; owner: TestUser; count: number }): string[] {
-  return Array.from({ length: count }, () => {
-    const documentId = randomUUID();
-    server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
-    server.services.roomBootstrap.begin(documentId);
-    return documentId;
-  });
+async function uncommittedDocuments({ server, owner, count }: { server: TestServer; owner: TestUser; count: number }): Promise<string[]> {
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxBytes('Budget');
+  return Promise.all(
+    Array.from({ length: count }, async () => {
+      const documentId = randomUUID();
+      server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
+      await server.services.storage.put({ documentId, bytes });
+      return documentId;
+    }),
+  );
 }
 
 test('the first distinct uncommitted document over the budget answers 429 and another user is still served', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
-  const others = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE });
+  const others = await uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE + 1 });
   const statuses = await Promise.all(
     [documentId, ...others].map((openedId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId: openedId }) })),
   );
   const limited = statuses.filter((response) => response.status === HttpStatus.TooManyRequests);
   expect([limited.length, statuses.filter((response) => response.status === HttpStatus.Ok).length]).toEqual([
     1,
-    OPEN_UNCOMMITTED_PER_MINUTE,
+    OPEN_UNCOMMITTED_PER_MINUTE + 1,
   ]);
   expect(Number(limited[0]!.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
   const other = await request({ server, cookie: editor.cookie, path: pathOf({ documentId }) });
@@ -387,11 +392,21 @@ test('the first distinct uncommitted document over the budget answers 429 and an
 
 test('the first distinct uncommitted document over the budget makes no query to the log', async () => {
   const { server, owner } = await documentWithOwner();
-  const opened = uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE + 1 });
+  const opened = await uncommittedDocuments({ server, owner, count: OPEN_UNCOMMITTED_PER_MINUTE + 1 });
   await Promise.all(opened.slice(0, -1).map((documentId) => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })));
   const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
   const limited = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: opened.at(-1)! }) });
   expect([limited.status, readBatch.mock.calls.length]).toEqual([HttpStatus.TooManyRequests, 0]);
+  await server.stop();
+});
+
+test('polling a document whose bootstrap is in flight makes no query to the log and spends no budget', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const statuses = await Promise.all(
+    Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE + 1 }, () => request({ server, cookie: owner.cookie, path: pathOf({ documentId }) })),
+  );
+  expect([new Set(statuses.map((response) => response.status)), readBatch.mock.calls.length]).toEqual([new Set([HttpStatus.Ok]), 0]);
   await server.stop();
 });
 

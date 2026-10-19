@@ -82,7 +82,10 @@ export function createCollaborationRuntime({
         .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
       versionRooms.closeAllOfUser(userId);
     },
-    roomModeFor: (parameters) => roomModes.resolve(parameters),
+    roomModeFor: (parameters) => {
+      if (roomBootstrap.isInFlight(parameters.documentId)) return { isSpent: false, roomMode: RoomMode.Join };
+      return roomModes.resolve(parameters);
+    },
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),

@@ -84,7 +84,9 @@ export class RoomBootstrap {
   }
 
   isInFlight(documentId: string): boolean {
-    throw new Error(`RoomBootstrap.isInFlight is not implemented ${documentId}`);
+    const progress = this.progressOf(documentId);
+    if (progress === null) return false;
+    return progress.stage === BootstrapStage.Queued || progress.stage === BootstrapStage.Preparing;
   }
 
   request(documentId: string): BootstrapProgress {

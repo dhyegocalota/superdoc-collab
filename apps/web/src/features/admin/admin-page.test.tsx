@@ -45,6 +45,7 @@ import {
   ARCHIVE_DIALOG_DESCRIPTION,
   ARCHIVE_LABEL,
   ARCHIVED_CHIP_LABEL,
+  actionFailedMessage,
   actionsMenuLabel,
   archiveDialogTitle,
   CANCEL_LABEL,
@@ -491,5 +492,38 @@ test('the Actions menu opens with Enter, moves with the arrows and Escape return
   expect(within(menu).getAllByRole('menuitem')).toContain(document.activeElement);
   await userEvent.keyboard('{Escape}');
   await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  expect(trigger).toHaveFocus();
+});
+
+test('a failed action names itself and a later action clears the message', async () => {
+  const fetchSpy = mockApi();
+  const respond = fetchSpy.getMockImplementation()!;
+  fetchSpy.mockImplementation(async (input, init) => {
+    if (input === userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Archive }))
+      return new Response(null, { status: HttpStatus.InternalServerError });
+    return respond(input, init);
+  });
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await chooseAction({ row, name: MEMBER_USER.name, label: ARCHIVE_LABEL });
+  await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: ARCHIVE_LABEL }));
+  expect(await screen.findByText(actionFailedMessage(ARCHIVE_LABEL))).toBeInTheDocument();
+  await chooseAction({ row, name: MEMBER_USER.name, label: MAKE_ADMIN_LABEL });
+  await waitFor(() => expect(screen.queryByText(actionFailedMessage(ARCHIVE_LABEL))).not.toBeInTheDocument());
+});
+
+test('focus returns to the Actions trigger after cancelling Archive and after closing the reset link dialog', async () => {
+  mockApi();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  const trigger = within(row).getByRole('button', { name: actionsMenuLabel(MEMBER_USER.name) });
+  await chooseAction({ row, name: MEMBER_USER.name, label: ARCHIVE_LABEL });
+  await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: CANCEL_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(trigger).toHaveFocus();
+  await chooseAction({ row, name: MEMBER_USER.name, label: RESET_PASSWORD_LABEL });
+  await screen.findByRole('textbox', { name: PASSWORD_RESET_CREATED_TITLE });
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(trigger).toHaveFocus();
 });

@@ -71,3 +71,7 @@ export function archiveDialogTitle(name: string): string {
 export function actionsMenuLabel(name: string): string {
   return `Actions for ${name}`;
 }
+
+export function actionFailedMessage(label: string): string {
+  return `${label} did not work. Try again.`;
+}

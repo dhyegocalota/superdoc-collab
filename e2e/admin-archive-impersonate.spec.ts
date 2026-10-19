@@ -26,6 +26,8 @@ import {
   type OpenedContext,
 } from './fixtures';
 
+const BRUNO_NAME = 'Bruno';
+const CAIO_NAME = 'Caio';
 const USERS_TABLE_NAME = 'Users';
 const ADMIN_NAME = 'Admin';
 const PARAGRAPHS = ['Paragraph written by the person who is about to be archived.'];
@@ -61,15 +63,15 @@ test('the admin archives a person who loses the open editor and cannot sign in, 
   const { person: bruno, email } = await invitedWithDocument({
     browser,
     admin,
-    name: 'Bruno',
+    name: BRUNO_NAME,
     title: `archive-${randomUUID().slice(0, 8)}`,
   });
 
-  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Bruno', label: ARCHIVE_LABEL });
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: BRUNO_NAME, label: ARCHIVE_LABEL });
   await admin.page.getByRole('alertdialog').getByRole('button', { name: ARCHIVE_LABEL }).click();
   await expect(userRow({ page: admin.page, email }).getByText(ARCHIVED_CHIP_LABEL)).toBeVisible();
   await userRow({ page: admin.page, email })
-    .getByRole('button', { name: actionsMenuLabel('Bruno') })
+    .getByRole('button', { name: actionsMenuLabel(BRUNO_NAME) })
     .click();
   await expect(admin.page.getByRole('menuitem', { name: RESTORE_LABEL })).toBeVisible();
   await expect(admin.page.getByRole('menuitem', { name: IMPERSONATE_LABEL })).toHaveCount(0);
@@ -84,27 +86,27 @@ test('the admin archives a person who loses the open editor and cannot sign in, 
   await expect(bruno.page.getByText(ACCOUNT_ARCHIVED_MESSAGE)).toBeVisible();
   await expect(bruno.page).toHaveURL(AppRoute.SignIn);
 
-  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Bruno', label: RESTORE_LABEL });
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: BRUNO_NAME, label: RESTORE_LABEL });
   await expect(userRow({ page: admin.page, email }).getByText(ARCHIVED_CHIP_LABEL)).toHaveCount(0);
 
   await signIn({ page: bruno.page, email, password: DEMO_PASSWORD });
-  await expectSignedInAs({ page: bruno.page, name: 'Bruno' });
+  await expectSignedInAs({ page: bruno.page, name: BRUNO_NAME });
 });
 
 test('the admin impersonates a person, sees their documents behind the banner, and stops', async ({ browser }) => {
   const admin = await signedInAdmin({ browser });
   const title = `impersonate-${randomUUID().slice(0, 8)}`;
-  const { email } = await invitedWithDocument({ browser, admin, name: 'Caio', title });
+  const { email } = await invitedWithDocument({ browser, admin, name: CAIO_NAME, title });
 
   const forbiddenResponses: string[] = [];
   admin.page.on('response', (response) => {
     if (response.status() === HttpStatus.Forbidden) forbiddenResponses.push(response.url());
   });
-  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Caio', label: IMPERSONATE_LABEL });
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: CAIO_NAME, label: IMPERSONATE_LABEL });
   await expect(admin.page).toHaveURL(AppRoute.Documents);
   const banner = admin.page.getByTestId('impersonation-banner');
-  await expect(banner.getByText(viewingAsLabel('Caio'))).toBeVisible();
-  await expect(admin.page.getByRole('banner').getByRole('button', { name: accountMenuLabel('Caio') })).toBeVisible();
+  await expect(banner.getByText(viewingAsLabel(CAIO_NAME))).toBeVisible();
+  await expect(admin.page.getByRole('banner').getByRole('button', { name: accountMenuLabel(CAIO_NAME) })).toBeVisible();
   await expect(admin.page.getByRole('link', { name: title })).toBeVisible();
   await expect(admin.page.getByText(ADMINS_ONLY_TOAST)).toHaveCount(0);
   expect(forbiddenResponses).toEqual([]);
@@ -119,9 +121,9 @@ test('the admin impersonates a person, sees their documents behind the banner, a
 test('stopping from inside the impersonated editor leaves no failed request behind', async ({ browser }) => {
   const admin = await signedInAdmin({ browser });
   const title = `stop-editor-${randomUUID().slice(0, 8)}`;
-  const { email } = await invitedWithDocument({ browser, admin, name: 'Caio', title });
+  const { email } = await invitedWithDocument({ browser, admin, name: CAIO_NAME, title });
 
-  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Caio', label: IMPERSONATE_LABEL });
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: CAIO_NAME, label: IMPERSONATE_LABEL });
   await expect(admin.page).toHaveURL(AppRoute.Documents);
   await admin.page.getByRole('link', { name: title }).click();
   await expect(admin.page).toHaveURL(DOCUMENT_URL_PATTERN);

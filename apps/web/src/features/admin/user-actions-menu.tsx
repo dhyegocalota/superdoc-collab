@@ -23,7 +23,7 @@ import {
 import { useImpersonate } from '@/features/impersonation/use-impersonation';
 import { ADMIN_USERS_QUERY_KEY, archiveUser, createPasswordReset, restoreUser, setUserRole } from './admin-api';
 import {
-  ACTION_FAILED_MESSAGE,
+  actionFailedMessage,
   actionsMenuLabel,
   ARCHIVE_DIALOG_DESCRIPTION,
   ARCHIVE_LABEL,
@@ -49,23 +49,30 @@ export function UserActionsMenu({ user, signedInUserId }: { user: AdminUser; sig
   const queryClient = useQueryClient();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isConfirmingArchive, setIsConfirmingArchive] = useState(false);
-  const invalidateUsers = () => queryClient.invalidateQueries({ queryKey: ADMIN_USERS_QUERY_KEY });
+  const [failedAction, setFailedAction] = useState<string | null>(null);
+  function invalidateUsers(): Promise<void> {
+    return queryClient.invalidateQueries({ queryKey: ADMIN_USERS_QUERY_KEY });
+  }
+
   const roleToggle = ROLE_TOGGLES[user.role];
   const setRole = useMutation({ mutationFn: () => setUserRole({ id: user.id, role: roleToggle.nextRole }), onSuccess: invalidateUsers });
   const resetPassword = useMutation({ mutationFn: () => createPasswordReset(user.id) });
   const archive = useMutation({ mutationFn: () => archiveUser(user.id), onSuccess: invalidateUsers });
   const restore = useMutation({ mutationFn: () => restoreUser(user.id), onSuccess: invalidateUsers });
   const impersonate = useImpersonate(user.id);
-  const mutations = [setRole, resetPassword, archive, restore, impersonate];
-  const isPending = mutations.some((mutation) => mutation.isPending);
-  const hasFailed = mutations.some((mutation) => mutation.isError);
+  const isPending = [setRole, resetPassword, archive, restore, impersonate].some((mutation) => mutation.isPending);
   const isOtherUser = user.id !== signedInUserId;
   const canArchive = isOtherUser && !user.isArchived;
   const canImpersonate = canArchive && user.role !== UserRole.Admin;
 
+  function perform({ label, start }: { label: string; start: (options: { onError: () => void }) => void }): void {
+    setFailedAction(null);
+    start({ onError: () => setFailedAction(label) });
+  }
+
   function confirmArchive(): void {
     setIsConfirmingArchive(false);
-    archive.mutate();
+    perform({ label: ARCHIVE_LABEL, start: (options) => archive.mutate(undefined, options) });
   }
 
   return (
@@ -78,20 +85,32 @@ export function UserActionsMenu({ user, signedInUserId }: { user: AdminUser; sig
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {isOtherUser && (
-            <DropdownMenuItem disabled={isPending} onSelect={() => setRole.mutate()}>
+            <DropdownMenuItem
+              disabled={isPending}
+              onSelect={() => perform({ label: roleToggle.label, start: (options) => setRole.mutate(undefined, options) })}
+            >
               {roleToggle.label}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem disabled={isPending} onSelect={() => resetPassword.mutate()}>
+          <DropdownMenuItem
+            disabled={isPending}
+            onSelect={() => perform({ label: RESET_PASSWORD_LABEL, start: (options) => resetPassword.mutate(undefined, options) })}
+          >
             {RESET_PASSWORD_LABEL}
           </DropdownMenuItem>
           {user.isArchived && (
-            <DropdownMenuItem disabled={isPending} onSelect={() => restore.mutate()}>
+            <DropdownMenuItem
+              disabled={isPending}
+              onSelect={() => perform({ label: RESTORE_LABEL, start: (options) => restore.mutate(undefined, options) })}
+            >
               {RESTORE_LABEL}
             </DropdownMenuItem>
           )}
           {canImpersonate && (
-            <DropdownMenuItem disabled={isPending} onSelect={() => impersonate.mutate()}>
+            <DropdownMenuItem
+              disabled={isPending}
+              onSelect={() => perform({ label: IMPERSONATE_LABEL, start: (options) => impersonate.mutate(undefined, options) })}
+            >
               {IMPERSONATE_LABEL}
             </DropdownMenuItem>
           )}
@@ -103,7 +122,7 @@ export function UserActionsMenu({ user, signedInUserId }: { user: AdminUser; sig
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      {hasFailed && <ErrorMessage>{ACTION_FAILED_MESSAGE}</ErrorMessage>}
+      {failedAction !== null && <ErrorMessage>{actionFailedMessage(failedAction)}</ErrorMessage>}
       {resetPassword.data && (
         <LinkCreatedDialog
           url={resetPassword.data.url}

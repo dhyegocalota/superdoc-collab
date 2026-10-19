@@ -39,7 +39,7 @@ export function createAdminRoutes({ services }: { services: AppServices }): Hono
     const userId = context.req.param('id');
     const email = adminUsers.emailOf(userId);
     if (email === null) return context.json({ error: USER_NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
-    return context.json(await passwordResets.create({ userId, email }), HttpStatus.Created);
+    return context.json(await passwordResets.create({ email }), HttpStatus.Created);
   });
 
   routes.get(`/${AdminResource.Invites}`, (context) => context.json(invites.list()));

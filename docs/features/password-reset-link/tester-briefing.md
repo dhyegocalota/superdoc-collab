@@ -29,13 +29,16 @@
 4. A non-admin gets 401 or 403 from the route; the public `/api/auth/request-password-reset` answers 404 signed out and signed in.
 5. The page without a token, with a wrong token, or with an expired token shows the invalid message; a password under eight characters shows the form's validation message and sends nothing.
 6. The token and URL are never logged by the server code written here.
-7. The page works for a visitor who is signed in elsewhere (no redirect away).
+7. After a reset the user's open editor sockets close (access revoked) and a connected AI client loses MCP access, because the consent and tokens are gone.
+8. Two admins resetting the same user at once each get a working, distinct link.
+9. The page works for a visitor who is signed in elsewhere (no redirect away).
 
 ## Gaps
 
 - The 500 path (capture empty after the call) has no test; it propagates the named error through the existing error handler.
 - Token expiry by the clock is not exercised.
-- Concurrent resets for the same user share one slot; the later request overwrites the earlier token before `take`, which is harmless because each request takes its own.
+- Agent sessions already open inside the server process are not closed by a reset; new MCP requests fail because the consent is gone.
+- The socket close is proven by a runtime unit test and a spy at the reset, not by a live socket.
 - 375 px layout, console and network cleanliness, and the adversarial claims in the test plan are for the tester.
 
 ## Tester run 2026-10-19

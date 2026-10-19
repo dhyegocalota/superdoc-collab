@@ -1,23 +1,38 @@
+import { randomUUID } from 'node:crypto';
 import { PASSWORD_RESET_TTL_MS, resetPasswordPagePath, type CreatedPasswordReset } from '@superdoc-collab/types';
 import type { Auth } from '../auth/auth';
 
+const NONCE_QUERY_PARAMETER = 'callbackURL';
+
+export function resetNonceOf(url: string): string {
+  const nonce = new URL(url).searchParams.get(NONCE_QUERY_PARAMETER);
+  if (!nonce) throw new PasswordResetNonceMissingError();
+  return nonce;
+}
+
+export class PasswordResetNonceMissingError extends Error {
+  constructor() {
+    super('The password reset callback carries no request nonce.');
+  }
+}
+
 export class PasswordResetLinkNotCapturedError extends Error {
-  constructor(userId: string) {
-    super(`No password reset token was captured for user ${userId}.`);
+  constructor(nonce: string) {
+    super(`No password reset token was captured for request ${nonce}.`);
   }
 }
 
 export class PasswordResetLinkCapture {
   private readonly tokens = new Map<string, string>();
 
-  store({ userId, token }: { userId: string; token: string }): void {
-    this.tokens.set(userId, token);
+  store({ nonce, token }: { nonce: string; token: string }): void {
+    this.tokens.set(nonce, token);
   }
 
-  take(userId: string): string {
-    const token = this.tokens.get(userId);
-    this.tokens.delete(userId);
-    if (token === undefined) throw new PasswordResetLinkNotCapturedError(userId);
+  take(nonce: string): string {
+    const token = this.tokens.get(nonce);
+    this.tokens.delete(nonce);
+    if (token === undefined) throw new PasswordResetLinkNotCapturedError(nonce);
     return token;
   }
 }
@@ -35,10 +50,11 @@ export class PasswordResets {
     this.now = now;
   }
 
-  async create({ userId, email }: { userId: string; email: string }): Promise<CreatedPasswordReset> {
+  async create({ email }: { email: string }): Promise<CreatedPasswordReset> {
     const expiresAt = this.now() + PASSWORD_RESET_TTL_MS;
-    await this.auth.api.requestPasswordReset({ body: { email } });
-    const token = this.capture.take(userId);
+    const nonce = randomUUID();
+    await this.auth.api.requestPasswordReset({ body: { email, redirectTo: nonce } });
+    const token = this.capture.take(nonce);
     return { url: `${this.appOrigin}${resetPasswordPagePath(token)}`, expiresAt };
   }
 }

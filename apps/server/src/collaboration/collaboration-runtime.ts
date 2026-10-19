@@ -30,6 +30,7 @@ export type DocumentRuntime = {
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
+  closeConnectionsOfUser: (userId: string) => void;
   isAttemptSuperseded: (parameters: { documentId: string } & CreatorTicket) => boolean;
   onlineUserIds: (documentId: string) => Set<string>;
   onlineTabIds: ({ documentId, userId }: { documentId: string; userId: string }) => Set<string>;
@@ -91,6 +92,13 @@ export function createCollaborationRuntime({
       revokedConnections.forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
       versionRooms.closeUser({ documentId, userId });
       console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
+    },
+    closeConnectionsOfUser: (userId) => {
+      [...hocuspocus.documents.values()]
+        .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection))
+        .filter((connection) => (connection.context as CollaborationContext).userId === userId)
+        .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
+      versionRooms.closeAllOfUser(userId);
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
     isAttemptSuperseded: ({ documentId, attempt, epoch }) => {

@@ -24,7 +24,8 @@ import {
   type InviteSummary,
   inviteTokenOf,
 } from '@superdoc-collab/types';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../database/schema/auth';
 import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD, type TestServer } from '../testing/test-server';
 
 const USER_NOT_FOUND_MESSAGE = 'User not found';
@@ -78,6 +79,15 @@ function signUpWithToken({ server, email, token }: { server: TestServer; email: 
     },
     body: JSON.stringify({ name: 'Eve', email, password: TEST_USER_PASSWORD, timeZone: UTC_TIME_ZONE }),
   });
+}
+
+async function createResetToken({ server, userId }: { server: TestServer; userId: string }): Promise<string> {
+  const created = await call({ server, method: HttpMethod.Post, path: passwordResetApiPath(userId), cookie: server.admin.cookie });
+  return passwordResetTokenOf(((await created.json()) as CreatedPasswordReset).url);
+}
+
+function resetPasswordWith({ server, token }: { server: TestServer; token: string }): Promise<Response> {
+  return call({ server, method: HttpMethod.Post, path: RESET_PASSWORD_PATH, body: { newPassword: NEW_PASSWORD, token } });
 }
 
 describe('admin routes', () => {
@@ -206,6 +216,59 @@ describe('admin routes', () => {
     expect(((await sessionResponse.json()) as { user: unknown }).user).toBeNull();
     await expect(signInExisting({ server, email: eve.email, password: TEST_USER_PASSWORD })).rejects.toThrow();
     await expect(signInExisting({ server, email: eve.email, password: NEW_PASSWORD })).resolves.toContain('=');
+    await server.stop();
+  });
+
+  test('a reset closes the sockets of that user in every room', async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const closeSockets = vi.spyOn(server.services.runtime, 'closeConnectionsOfUser').mockImplementation(() => undefined);
+    const token = await createResetToken({ server, userId: eve.id });
+    await resetPasswordWith({ server, token });
+    expect(closeSockets).toHaveBeenCalledWith(eve.id);
+    await server.stop();
+  });
+
+  test("a reset deletes the OAuth consents and tokens of that user and keeps everyone else's", async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const { drizzle } = server.database;
+    drizzle.insert(oauthClient).values({ id: 'client-row', clientId: 'agent-client', redirectUris: [] }).run();
+    [eve.id, server.admin.id].forEach((userId) => {
+      const scopes = ['read'];
+      drizzle
+        .insert(oauthConsent)
+        .values({ id: `consent-${userId}`, clientId: 'agent-client', userId, scopes })
+        .run();
+      drizzle
+        .insert(oauthRefreshToken)
+        .values({ id: `refresh-${userId}`, token: `refresh-token-${userId}`, clientId: 'agent-client', userId, scopes })
+        .run();
+      drizzle
+        .insert(oauthAccessToken)
+        .values({ id: `access-${userId}`, token: `access-token-${userId}`, clientId: 'agent-client', userId, scopes })
+        .run();
+    });
+    await resetPasswordWith({ server, token: await createResetToken({ server, userId: eve.id }) });
+    const remainingOwners = [oauthConsent, oauthRefreshToken, oauthAccessToken].map((table) =>
+      drizzle
+        .select({ userId: table.userId })
+        .from(table)
+        .all()
+        .map((row) => row.userId),
+    );
+    expect(remainingOwners).toEqual([[server.admin.id], [server.admin.id], [server.admin.id]]);
+    await server.stop();
+  });
+
+  test('simultaneous resets of one user each get their own working token', async () => {
+    const server = await startTestServer();
+    const eve = await signedInUser({ server, name: 'Eve' });
+    const created = await Promise.all([1, 2, 3, 4].map(() => server.services.passwordResets.create({ email: eve.email })));
+    const tokens = created.map(({ url }) => passwordResetTokenOf(url));
+    expect(new Set(tokens).size).toBe(tokens.length);
+    const statuses = await Promise.all(tokens.map(async (token) => (await resetPasswordWith({ server, token })).status));
+    expect(statuses).toEqual(tokens.map(() => HttpStatus.Ok));
     await server.stop();
   });
 

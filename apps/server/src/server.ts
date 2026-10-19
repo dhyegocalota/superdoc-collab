@@ -229,6 +229,7 @@ function createServices({
     environment,
     invites,
     passwordResetLinks,
+    closeConnectionsOfUser: (userId) => services.runtime.closeConnectionsOfUser(userId),
     createShowcase: createShowcaseOnClaim ? (ownerUserId) => services.showcase.create({ ownerUserId }) : undefined,
   });
   const versions = new VersionsService({ readModel, updateLog, scheduler });

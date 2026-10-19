@@ -221,3 +221,19 @@ test('closeUser closes only that user version sockets with 4404 and the reason',
   [ownerViewer, readerViewer, client].forEach((connected) => connected.close());
   await server.stop();
 });
+
+test('closeAllOfUser closes that user version sockets whatever the document', async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const path = endpointOf({ documentId, sequence: server.services.readModel.marks(documentId)[0]!.sequence });
+  const ownerViewer = await connectToDocument({ server, cookie: owner.cookie, documentId, path });
+  const readerViewer = await connectToDocument({ server, cookie: reader.cookie, documentId, path });
+  const readerClose = { socket: null as { code: number; reason: string } | null };
+  void readerViewer.closed.then((closedSocket) => (readerClose.socket = closedSocket));
+  server.services.versionRooms.closeAllOfUser(reader.id);
+  await expect
+    .poll(() => readerClose.socket, { timeout: POLL_TIMEOUT_MS })
+    .toEqual({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+  [ownerViewer, readerViewer, client].forEach((connected) => connected.close());
+  await server.stop();
+});

@@ -99,9 +99,17 @@ export class VersionRooms {
 
   closeUser({ documentId, userId }: { documentId: string; userId: string }): void {
     const prefix = versionKeyPrefixOf(documentId);
+    this.closeMatching({ isRoomKey: (key) => key.startsWith(prefix), userId });
+  }
+
+  closeAllOfUser(userId: string): void {
+    this.closeMatching({ isRoomKey: () => true, userId });
+  }
+
+  private closeMatching({ isRoomKey, userId }: { isRoomKey: (key: string) => boolean; userId: string }): void {
     this.rooms
       .keys()
-      .filter((key) => key.startsWith(prefix))
+      .filter(isRoomKey)
       .flatMap((key) => [...this.rooms.peek(key)!.hocuspocus.documents.values()])
       .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection))
       .filter((connection) => (connection.context as VersionRoomContext).userId === userId)

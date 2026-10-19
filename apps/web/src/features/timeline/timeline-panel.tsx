@@ -31,6 +31,7 @@ import { useSelectionSummary } from './use-selection-summary';
 import { useSummaries } from './use-summaries';
 import { useRevealSelected } from './use-reveal-selected';
 import { useTimeline } from './use-timeline';
+import { useTimelineChange } from './use-timeline-change';
 import { useTimelineSearch } from './use-timeline-search';
 
 type TimelinePanelProps = {
@@ -77,8 +78,10 @@ export function TimelinePanel({
   const {
     data: timeline,
     isPending: isTimelinePending,
+    isPlaceholderData: isTimelinePlaceholder,
     dataUpdatedAt: timelineUpdatedAt,
   } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
+  const change = useTimelineChange({ timeline: isTimelinePlaceholder ? undefined : timeline, scope: JSON.stringify(search.filter) });
   const isPhoneLayout = useIsPhoneLayout();
   const isStackedLayout = !useMinWidth(MEDIUM_BREAKPOINT_PX);
   const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({
@@ -132,7 +135,7 @@ export function TimelinePanel({
       chartRef={chartRef}
       chartWidth={chartWidth}
       timeline={timeline}
-      change={null}
+      change={change}
       isTimelinePending={isTimelinePending}
       selectedIndex={selectedIndex}
       highlightedBandId={search.topic}
@@ -179,10 +182,10 @@ export function TimelinePanel({
       style={style}
     >
       {isOpen && <ResizeHandle position={position} {...resize} />}
-      {isBottom && !isOpen && <TimelineCollapsedBar timeline={timeline} change={null} onExpand={() => onOpenChange(true)} />}
+      {isBottom && !isOpen && <TimelineCollapsedBar timeline={timeline} change={change} onExpand={() => onOpenChange(true)} />}
       {(isOpen || !isBottom) && (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <PanelHeader position={position} change={null} isOpen={isOpen} onOpenChange={onOpenChange} />
+          <PanelHeader position={position} change={change} isOpen={isOpen} onOpenChange={onOpenChange} />
           {isOpen && isDocumentEmpty && <PanelEmptyState />}
           {isBodyShown && !isBottom && <SidePanelBody notices={notices} chart={chart} filter={<PanelFilter />} card={card} edits={edits} />}
           {isBodyShown && isBottom && (

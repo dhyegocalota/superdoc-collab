@@ -136,6 +136,7 @@ export function importedAuthorLabel(name: string): string {
   return `${name}, imported from the DOCX`;
 }
 
-export function liveEditsLabel(_count: number): string {
-  throw new Error('liveEditsLabel is not implemented');
+export function liveEditsLabel(count: number): string {
+  if (count === SINGLE_COUNT) return `${count} new edit`;
+  return `${count} new edits`;
 }

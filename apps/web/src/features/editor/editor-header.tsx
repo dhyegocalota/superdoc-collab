@@ -155,6 +155,7 @@ type EditorHeaderProps = {
   editorContainer: HTMLElement | null;
   isPastVersion: boolean;
   onDownloadDocx: () => void;
+  onTitleDirtyChange: (isDirty: boolean) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
@@ -166,6 +167,7 @@ export function EditorHeader({
   editorContainer,
   isPastVersion,
   onDownloadDocx,
+  onTitleDirtyChange,
   renderUseWithAi,
 }: EditorHeaderProps) {
   const { document, role } = opened;
@@ -182,7 +184,13 @@ export function EditorHeader({
         left={
           <>
             <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
-            <DocumentTitle documentId={document.id} title={document.title} role={role} onFailureChange={setHasRenameFailed} />
+            <DocumentTitle
+              documentId={document.id}
+              title={document.title}
+              role={role}
+              onFailureChange={setHasRenameFailed}
+              onDirtyChange={onTitleDirtyChange}
+            />
             {isReader && <Badge variant="secondary">{READ_ONLY_BADGE_LABEL}</Badge>}
           </>
         }

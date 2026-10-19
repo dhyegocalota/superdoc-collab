@@ -9,8 +9,16 @@ import { DocumentTitle } from './document-title';
 
 const RENAMED_TITLE = 'Renamed';
 
-function renderTitle(role: DocumentRole, onFailureChange = vi.fn()): void {
-  renderWithProviders(<DocumentTitle documentId={DOCUMENT_ID} title={DOCUMENT_TITLE} role={role} onFailureChange={onFailureChange} />);
+function renderTitle(role: DocumentRole, onFailureChange = vi.fn(), onDirtyChange = vi.fn()): void {
+  renderWithProviders(
+    <DocumentTitle
+      documentId={DOCUMENT_ID}
+      title={DOCUMENT_TITLE}
+      role={role}
+      onFailureChange={onFailureChange}
+      onDirtyChange={onDirtyChange}
+    />,
+  );
 }
 
 function patchRequests(fetchSpy: MockInstance<typeof fetch>) {
@@ -125,6 +133,35 @@ test('blur alone neither saves nor closes the input', async () => {
   await userEvent.click(document.body);
   expect(screen.getByRole('textbox', { name: TITLE_LABEL })).toHaveValue(RENAMED_TITLE);
   expect(fetchSpy).not.toHaveBeenCalled();
+});
+
+test('the title reports dirty only while the input holds a changed value', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.NoContent }));
+  const onDirtyChange = vi.fn();
+  renderTitle(DocumentRole.Editor, vi.fn(), onDirtyChange);
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  await userEvent.keyboard(RENAMED_TITLE);
+  expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+  await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+});
+
+test('saving a changed title ends the dirty report', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.NoContent }));
+  const onDirtyChange = vi.fn();
+  renderTitle(DocumentRole.Owner, vi.fn(), onDirtyChange);
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  expect(onDirtyChange).toHaveBeenCalledWith(true);
+});
+
+test('a reader title is never dirty', () => {
+  const onDirtyChange = vi.fn();
+  renderTitle(DocumentRole.Reader, vi.fn(), onDirtyChange);
+  expect(onDirtyChange).not.toHaveBeenCalledWith(true);
 });
 
 test('a disabled Save is described by its reason, and an enabled Save is not', async () => {

@@ -104,3 +104,9 @@ export function cursorOffScreenReason(name: string): string {
 export function moreMembersLabel(count: number): string {
   return `${count} more people`;
 }
+
+export const EXIT_CONFIRMATION_TITLE = 'Leave without your latest edits?';
+export const EXIT_CONFIRMATION_DESCRIPTION =
+  'Edits made while the connection was down have not reached the server yet. Download the document first to keep them.';
+export const STAY_LABEL = 'Stay';
+export const LEAVE_LABEL = 'Leave';

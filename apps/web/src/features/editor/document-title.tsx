@@ -16,9 +16,15 @@ const ACTION_BUTTON_CLASS = 'max-sm:size-8 max-sm:px-0';
 const REASON_CLASS = 'sr-only sm:not-sr-only sm:absolute sm:top-full sm:left-0 sm:mt-1 sm:text-xs sm:text-muted-foreground';
 const TITLE_BUTTON_CLASS = `${TITLE_TEXT_CLASS} rounded-md hover:bg-accent`;
 
-type DocumentTitleProps = { documentId: string; title: string; role: DocumentRole; onFailureChange: (hasFailed: boolean) => void };
+type DocumentTitleProps = {
+  documentId: string;
+  title: string;
+  role: DocumentRole;
+  onFailureChange: (hasFailed: boolean) => void;
+  onDirtyChange: (isDirty: boolean) => void;
+};
 
-export function DocumentTitle({ documentId, title, role, onFailureChange }: DocumentTitleProps) {
+export function DocumentTitle({ documentId, title, role, onFailureChange, onDirtyChange }: DocumentTitleProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const titleButtonRef = useRef<HTMLButtonElement>(null);
@@ -47,6 +53,9 @@ export function DocumentTitle({ documentId, title, role, onFailureChange }: Docu
 
   const nextTitle = draft.trim();
   const isSaveDisabled = isBlank(nextTitle) || nextTitle === title || isPending;
+  const isDirty = isEditing && nextTitle !== title;
+
+  useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
   function startEditing(): void {
     setDraft(shownTitle);

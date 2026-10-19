@@ -4,7 +4,7 @@
 **Tier:** 🟡
 **Seam:** the readiness poll in `use-opened-document.ts`, the `SuperDocEditor` callbacks and `uploadDocument`.
 **Assumptions (decided, owner can override):**
-- The open answer is 409 with `{ error, bootstrap }` while Queued or Preparing, and 200 with `bootstrap` once Ready (told to the lead).
+- The open answer is 200 for every stage with `bootstrap` (server-bootstrap spec); Preparing reports `done` 0 of the DOCX bytes.
 - Downloading and Rendering carry no determinate number because SuperDoc exposes none.
 
 ## File map
@@ -31,8 +31,8 @@ G1 first, then G2 and G3, then G4.
 
 ### G2
 
-- [ ] **Step 5:** `DocumentNotReadyError` carries the bootstrap; `openDocument` parses it strictly; test first.
-- [ ] **Step 6:** Poll interval and Failed readiness from the stage; test first.
+- [ ] **Step 5:** `readinessOf` maps the bootstrap stage; `bootstrap` is exposed for every stage and `data` only once Ready; test first.
+- [ ] **Step 6:** Poll interval from the stage; test first.
 - [ ] **Step 7:** Waiting page shows the Preparing panel behind the delay; test first.
 - [ ] **Step 8:** `SuperDocEditor` reports synced and page count; `useFirstFragment`; the editor view builder for Downloading and Rendering; test first.
 - [ ] **Step 9:** `DocumentPage` and `EditorSurface` mount the panel and hide SuperDoc's overlay while it shows.
@@ -51,7 +51,7 @@ G1 first, then G2 and G3, then G4.
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
-| 5 | The server answers 409 without a bootstrap | The page shows the Failed card on a document that is only preparing | Parse the missing field as a wait again, or fix the server lane |
+| 5 | An answer without `bootstrap` (an old server) | A TypeError reading `bootstrap.stage` | Merge the server-bootstrap lane first; the E2E adds the field to real answers until then |
 | 8 | `onCollaborationReady` never fires | The panel stays on Downloading | The first-fragment rule ends the panel anyway |
 | 9 | The panel never leaves | `[data-testid=open-progress]` still there with the page painted | The first-fragment observer is the only exit; test it |
 | 10 | XHR differs from fetch for cookies | Upload answers 401 | `withCredentials` set on the request |

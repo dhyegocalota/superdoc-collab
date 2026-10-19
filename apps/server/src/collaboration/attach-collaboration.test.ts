@@ -777,23 +777,6 @@ test('an id recorded for a user before the room loaded stays with its author: an
   await server.stop();
 });
 
-test('an id that was only observed under another user does not seed the binding, so its announcer binds it first-come', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
-  commitBootstrap({ services: server.services, documentId, userId: owner.id });
-  await waitForCommit({ services: server.services, documentId });
-  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
-  clientIds.forEach((yjsClientId) =>
-    server.services.updateLog.observeClientIdentity({ documentName: documentId, yjsClientId, userId: editor.id, actor: ClientActor.Human }),
-  );
-  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
-  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
-  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
-  expect(victim.closedSocket()).toBeNull();
-  victim.client.close();
-  await server.stop();
-});
-
 test('a frame of 64 fresh ids from one connection closes it for the ids cap and binds none of them', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   commitBootstrap({ services: server.services, documentId, userId: owner.id });

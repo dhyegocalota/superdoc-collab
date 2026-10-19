@@ -12,7 +12,7 @@ const OFFSET_PREFIX = 'GMT';
 const ZERO_OFFSET = '+00:00';
 const DAY_PARTS: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
-export enum TimePrecision {
+enum TimePrecision {
   Minute = 'minute',
   Second = 'second',
 }
@@ -41,7 +41,7 @@ function formatFor({ timeZone, parts }: { timeZone: string; parts: Intl.DateTime
   return created;
 }
 
-export function precisionOf(binMs: number): TimePrecision {
+function precisionOf(binMs: number): TimePrecision {
   if (binMs < MINUTE_MS) return TimePrecision.Second;
   return TimePrecision.Minute;
 }

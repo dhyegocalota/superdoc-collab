@@ -24,6 +24,7 @@ import { NARROW_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   CANCEL_LABEL,
+  CANCEL_TITLE_LABEL,
   DELETE_CONFIRM_LABEL,
   DELETE_FAILED_MESSAGE,
   DELETE_LABEL,
@@ -303,4 +304,17 @@ test('the account avatar wears the colour of the document slot, like the member 
   expect(screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) }).firstElementChild).toHaveClass(
     `bg-author-${EDITOR_COLOR_SLOT}`,
   );
+});
+
+function accountGroup(): HTMLElement | null {
+  return screen.getByRole('button', { name: accountMenuLabel(SESSION_USER.name) }).closest('.hidden');
+}
+
+test('while the title is edited the right groups give the row to the editor below md and return on Cancel', async () => {
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH });
+  expect(accountGroup()).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  expect(accountGroup()).toHaveClass('hidden', 'md:contents');
+  await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(accountGroup()).toBeNull();
 });

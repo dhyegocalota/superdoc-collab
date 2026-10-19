@@ -15,6 +15,11 @@
 - [x] `projection-scheduler.test.ts::a request posted after the stop is posted again to the fresh worker and resolves` (pin) — the probe worker ignores everything after the stop and exits 300 ms later; a blocks request posted in that window; expected: it resolves from a fresh worker. The old worker drops it and the restart path posts it again, spending one of `MAX_REQUEST_POSTS` — evidence: c3528cc0.
 - [x] `collaboration-server.test.ts::unloading a room reports its state size and then its unload to the room memory` — a real `Document` in the server's map; expected: `observe` with the encoded size, `unloaded` once, and `isReloaded` true while the room is still in the map and false after it leaves — evidence: 3e60df72.
 
+- [x] `projection-queues.test.ts::a recycle waits for the pending import reply` and `...bootstrap reply` — a held reply, then a recycle; expected: the stop runs only after the release. Failed with `expected [ 'stop' ] to deeply equal []` — evidence: ea9fd12e, green in the next commit.
+- [x] `waiting-requests.test.ts::a repost that does not count its posts never rejects as crashed` — three reposts at a limit of two; expected: three posts, no rejection. Failed with `expected "vi.fn()" to be called 3 times, but got 1 times` — evidence: ea9fd12e.
+- [x] `projection-scheduler.test.ts::a second heavy period inside the recycle interval keeps the fresh worker` — evidence: ea9fd12e.
+- [x] `projection-scheduler.test.ts::a bootstrap requested while the worker is being recycled is held for the fresh worker` — expected: no bootstrap posted to the dying worker, the request resolves from the fresh one. Failed with a 20000 ms timeout — evidence: ea9fd12e. The fix also moves the bootstrap repost after the spawn; it used to post to the exited worker.
+
 ## Measurement (capped repro, heavy-document.docx, server heap 2867 MB and worker heap 2048 MB as the entrypoint computes for a 4 GB container, `--expose-gc`)
 
 Final code, commit 3e60df72. Sampler: one row per second per thread; the machine was under load (load average about 11) because a full gate ran at the same time. Evidence: scratchpad `instant-memory/run11-samples.jsonl`, `run11-server.log`.

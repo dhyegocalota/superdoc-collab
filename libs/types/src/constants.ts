@@ -5,6 +5,7 @@ export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 export const WEEK_MS = 7 * DAY_MS;
 export const PROJECTION_WORKER_QUIET_MS = 30 * SECOND_MS;
+export const PROJECTION_WORKER_RECYCLE_INTERVAL_MS = 5 * MINUTE_MS;
 export const VERSION_MARK_MS = MINUTE_MS;
 export const VERSION_ROOM_IDLE_MS = MINUTE_MS;
 export const VERSION_ROOMS_LIMIT = 32;

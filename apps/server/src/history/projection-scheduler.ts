@@ -1,5 +1,12 @@
-import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS, PROJECTION_WORKER_QUIET_MS } from '@superdoc-collab/types';
+import {
+  LARGE_DOCUMENT_HEAP_BYTES,
+  MAX_PENDING_VERSION_JOBS,
+  MINUTE_MS,
+  PROJECTION_WORKER_QUIET_MS,
+  PROJECTION_WORKER_RECYCLE_INTERVAL_MS,
+} from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
+import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
 import {
@@ -53,6 +60,7 @@ function createWorker({
 }
 
 export const MAX_REQUEST_POSTS = 2;
+const RECYCLE_COOLDOWN_KEY = 'recycle';
 
 type BootstrapWaiter = { request: BootstrapRequest; resolve: () => void; reject: (error: Error) => void };
 export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string };
@@ -64,6 +72,7 @@ export class ProjectionScheduler {
   private readonly workerHeapMegabytes: number | null;
   private readonly recycleQuietMs: number;
   private recycleTimer: NodeJS.Timeout | null = null;
+  private readonly recycleCooldown: KeyedCooldown;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
   private readonly documentsNeedingRerun = new Set<string>();
@@ -85,12 +94,15 @@ export class ProjectionScheduler {
     projectionWorkerFile = null,
     workerHeapMegabytes = null,
     recycleQuietMs = PROJECTION_WORKER_QUIET_MS,
+    recycleIntervalMs = PROJECTION_WORKER_RECYCLE_INTERVAL_MS,
   }: {
     databaseDirectory: string;
     projectionWorkerFile?: URL | null;
     workerHeapMegabytes?: number | null;
     recycleQuietMs?: number;
+    recycleIntervalMs?: number;
   }) {
+    this.recycleCooldown = new KeyedCooldown({ durationMs: recycleIntervalMs });
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
     this.workerHeapMegabytes = workerHeapMegabytes;
@@ -119,6 +131,7 @@ export class ProjectionScheduler {
     if (this.stoppingPromise) return Promise.reject(new ProjectionStoppedError());
     return new Promise((resolve, reject) => {
       this.bootstrapping.set(request.documentId, { request, resolve, reject });
+      if (this.isRecycling) return;
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Bootstrap, ...request });
     });
   }
@@ -219,10 +232,12 @@ export class ProjectionScheduler {
 
   private recycleWhenIdle(heapTotalBytes: number): void {
     this.recycleTimer = null;
-    if (!this.isIdle() || this.isRecycling || this.stoppingPromise) return;
+    const isRecyclable = this.isIdle() && !this.isRecycling && !this.stoppingPromise;
+    if (!isRecyclable || this.recycleCooldown.remainingMs(RECYCLE_COOLDOWN_KEY) > 0) return;
+    this.recycleCooldown.start(RECYCLE_COOLDOWN_KEY);
     this.isRecycling = true;
     console.info(`${WORKER_RECYCLED_MESSAGE} ${heapTotalBytes}`);
-    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
+    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Recycle });
   }
 
   private settleFailure(reply: ProjectionFailedReply): void {
@@ -302,10 +317,10 @@ export class ProjectionScheduler {
     if (this.stoppingPromise) return;
     const wasRecycled = this.isRecycling;
     this.isRecycling = false;
-    if (wasRecycled) this.repostBootstrapping();
     if (!wasRecycled) this.rejectBootstrapping(() => new BootstrapInterruptedError());
     if (!wasRecycled && !this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
+    if (wasRecycled) this.repostBootstrapping();
     const pending = [...this.inFlight];
     this.inFlight.clear();
     pending.forEach((documentId) => this.schedule(documentId));
@@ -313,7 +328,11 @@ export class ProjectionScheduler {
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }),
     );
     [...this.forgetting.keys()].forEach((documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId }));
-    this.waitingRequests.repost({ post: (request) => this.currentWorker.postMessage(request), maxPosts: MAX_REQUEST_POSTS });
+    this.waitingRequests.repost({
+      post: (request) => this.currentWorker.postMessage(request),
+      maxPosts: MAX_REQUEST_POSTS,
+      countsPosts: !wasRecycled,
+    });
   }
 
   private withinRestartBudget(): boolean {

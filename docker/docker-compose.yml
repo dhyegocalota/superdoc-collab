@@ -19,6 +19,7 @@ services:
       LLM_MAX_CONCURRENT_JOBS: ${LLM_MAX_CONCURRENT_JOBS-}
       LLM_MAX_CALLS_PER_HOUR: ${LLM_MAX_CALLS_PER_HOUR-}
       OPEN_UNCOMMITTED_PER_MINUTE: ${OPEN_UNCOMMITTED_PER_MINUTE-}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS-}
     volumes:
       - superdoc-data:/data
     restart: unless-stopped

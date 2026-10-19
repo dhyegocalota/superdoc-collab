@@ -108,3 +108,18 @@ test("closeUserConnections closes only that user's sockets of the document with 
   expect(stayingUser.close).not.toHaveBeenCalled();
   expect(removedUserInOtherDocument.close).not.toHaveBeenCalled();
 });
+
+test("closeConnectionsOfUser closes that user's sockets in every document and leaves other users alone", () => {
+  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
+  const firstDocumentSocket = connectionOfUser(FIRST_EDITOR);
+  const secondDocumentSocket = connectionOfUser(FIRST_EDITOR);
+  const stayingUser = connectionOfUser(SECOND_EDITOR);
+  const runtime = runtimeWith({
+    rooms: { [DOCUMENT_ID]: [firstDocumentSocket, stayingUser], [OTHER_DOCUMENT_ID]: [secondDocumentSocket] },
+    reservations,
+  });
+  runtime.closeConnectionsOfUser(FIRST_EDITOR);
+  expect(firstDocumentSocket.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+  expect(secondDocumentSocket.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+  expect(stayingUser.close).not.toHaveBeenCalled();
+});

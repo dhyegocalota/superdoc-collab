@@ -35,7 +35,7 @@ export const HIRING = 'Hiring';
 export const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
 export const HIRING_PARAGRAPH = 'Hiring: we add two people.';
 export const ANA_TEXT = ' More money';
-export const BRUNO_TEXT = ' A designer';
+const BRUNO_TEXT = ' A designer';
 const FAKE_CALLS_PATH = '/calls';
 const SETTLE_WINDOW_MS = 1_500;
 export const HIGHLIGHT_CLASS = 'superdoc-comment-highlight';
@@ -44,7 +44,7 @@ export const VERSION_TIMEOUT_MS = 60_000;
 const LIVE_EDITOR_SELECTOR = '[data-testid="document-editor"]';
 const BANNER_SELECTOR = '[data-testid="version-banner"]';
 const SEQUENCE_ATTRIBUTE = 'data-sequence';
-export const DETACHED_VIEWER_TEXT = '<viewer frame detached>';
+const DETACHED_VIEWER_TEXT = '<viewer frame detached>';
 const DETACHED_FRAME_MESSAGE = 'Frame was detached';
 const VOLUME_PLACEHOLDER = 987654321;
 const VOLUME_PATTERN = '\\d+';
@@ -143,7 +143,7 @@ export async function ruleX(page: Page): Promise<number> {
   return Number(await page.locator('svg line.pointer-events-none').first().getAttribute('x1'));
 }
 
-export async function readAccountTimeZone(page: Page): Promise<string> {
+async function readAccountTimeZone(page: Page): Promise<string> {
   const response = await page.request.get(ApiPath.Me);
   expect(response.ok()).toBe(true);
   const { user } = (await response.json()) as { user: SessionUser };

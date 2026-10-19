@@ -110,7 +110,7 @@ export async function approveConsentPage({
   return code;
 }
 
-export async function approveConsent({
+async function approveConsent({
   page,
   client,
   origin,
@@ -124,7 +124,7 @@ export async function approveConsent({
   return { code, verifier };
 }
 
-export async function exchangeCode({
+async function exchangeCode({
   request,
   origin,
   client,

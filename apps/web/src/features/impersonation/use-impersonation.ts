@@ -2,6 +2,7 @@ import { AppRoute } from '@superdoc-collab/types';
 import { useMutation, useQueryClient, type Query, type UseMutationResult } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { ADMIN_QUERY_KEY, impersonateUser } from '@/features/admin/admin-api';
+import { allowLeave } from '@/features/editor/unsynced-edits-store';
 import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { stopImpersonating } from './impersonation-api';
 
@@ -32,6 +33,7 @@ function useImpersonationEnd(destination: AppRoute): () => Promise<void> {
   return async function end(): Promise<void> {
     await queryClient.cancelQueries({ predicate: isOutsideSession });
     queryClient.removeQueries({ predicate: isOutsideSession });
+    allowLeave();
     await navigate(AppRoute.Documents, { replace: true });
     await queryClient.resetQueries();
     await navigate(destination, { replace: true });

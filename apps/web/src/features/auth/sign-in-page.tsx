@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useLocation } from 'react-router';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { AuthLayout } from './auth-layout';
 import { AuthCard, type AuthCardLink } from './auth-card';
 import { authClient } from './auth-client';
 import {
@@ -45,23 +46,25 @@ export function SignInPage() {
   useDocumentTitle(SIGN_IN_LABEL);
 
   return (
-    <AuthCard
-      form={form}
-      onSubmit={submit}
-      title={SIGN_IN_LABEL}
-      description={SIGN_IN_DESCRIPTION}
-      submitLabel={SIGN_IN_LABEL}
-      pendingLabel={SIGN_IN_PENDING_LABEL}
-      link={isUnclaimed ? claimLinkOf(search) : null}
-    >
-      <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />
-      <AuthTextField
-        control={form.control}
-        name="password"
-        label={PASSWORD_FIELD_LABEL}
-        type={AuthFieldType.Password}
-        autoComplete="current-password"
-      />
-    </AuthCard>
+    <AuthLayout>
+      <AuthCard
+        form={form}
+        onSubmit={submit}
+        title={SIGN_IN_LABEL}
+        description={SIGN_IN_DESCRIPTION}
+        submitLabel={SIGN_IN_LABEL}
+        pendingLabel={SIGN_IN_PENDING_LABEL}
+        link={isUnclaimed ? claimLinkOf(search) : null}
+      >
+        <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />
+        <AuthTextField
+          control={form.control}
+          name="password"
+          label={PASSWORD_FIELD_LABEL}
+          type={AuthFieldType.Password}
+          autoComplete="current-password"
+        />
+      </AuthCard>
+    </AuthLayout>
   );
 }

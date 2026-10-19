@@ -1,54 +1,29 @@
-import { documentPagePath } from '@superdoc-collab/types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DOCUMENTS_QUERY_KEY, uploadDocument, validateUpload } from './documents-api';
 import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOAD_LABEL, UPLOADING_MESSAGE } from './documents-copy';
+import { useUploadDocument } from './use-upload-document';
 
 const FILE_INPUT_ID = 'document-file';
 const DOCX_ACCEPT = '.docx';
 
-function uploadErrorMessage({ validationMessage, error }: { validationMessage: string | null; error: Error | null }): string | null {
-  if (validationMessage !== null) return validationMessage;
-  if (error === null) return null;
-  return error.message;
-}
-
 export function UploadDialog() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [validationMessage, setValidationMessage] = useState<string | null>(null);
-  const { mutate, error, reset, isPending } = useMutation({
-    mutationFn: uploadDocument,
-    onSuccess: async (document) => {
-      await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
-      setIsOpen(false);
-      await navigate(documentPagePath(document.id));
-    },
-  });
-  const message = uploadErrorMessage({ validationMessage, error });
+  const { uploadFiles, clear, message, isPending } = useUploadDocument({ onUploaded: () => setIsOpen(false) });
 
   function onOpenChange(nextIsOpen: boolean): void {
     setIsOpen(nextIsOpen);
-    setValidationMessage(null);
-    reset();
+    clear();
   }
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.item(0);
     event.target.value = '';
     if (!file) return;
-    reset();
-    const invalidMessage = validateUpload(file);
-    setValidationMessage(invalidMessage);
-    if (invalidMessage) return;
-    mutate(file);
+    uploadFiles([file]);
   }
 
   return (

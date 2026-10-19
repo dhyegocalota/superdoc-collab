@@ -1,6 +1,7 @@
 import {
   ApiPath,
   DocumentRole,
+  DOCX_MIME_TYPE,
   documentPagePath,
   HttpMethod,
   HttpStatus,
@@ -9,7 +10,7 @@ import {
   type DocumentsList,
   type DocumentSummary,
 } from '@superdoc-collab/types';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { APP_NAME } from '@/lib/app-copy';
@@ -27,9 +28,13 @@ import {
   COLUMN_LABELS,
   CREATE_ERROR_MESSAGE,
   DOCUMENTS_HEADING,
+  DROP_OVERLAY_LABEL,
+  DROP_ZONE_LABEL,
+  EMPTY_STATE_HEADING,
   LOADING_DOCUMENTS_LABEL,
   MINE_EMPTY_MESSAGE,
   NEW_DOCUMENT_LABEL,
+  ONE_FILE_AT_A_TIME_MESSAGE,
   ROLE_LABELS,
   SHARED_EMPTY_MESSAGE,
   UPLOAD_LABEL,
@@ -72,7 +77,7 @@ beforeEach(() => stubViewportWidth(WIDE_VIEWPORT_WIDTH));
 afterEach(() => vi.restoreAllMocks());
 
 test('the header holds Use with AI and the account menu only, with no Sign out button, and Upload is the primary action', async () => {
-  mockApi({ mine: [], shared: [] });
+  mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   renderWithProviders(<DocumentsPage />);
   const header = screen.getByRole('banner');
   expect(await within(header).findByRole('button', { name: accountMenuLabel(SESSION_USER.name) })).toBeInTheDocument();
@@ -96,12 +101,50 @@ test('Use with AI opens the dialog with the library prompts', async () => {
   ).toEqual(LIBRARY_PROMPTS);
 });
 
-test('empty lists show both empty messages', async () => {
+test('empty lists show the empty state instead of the tables', async () => {
   mockApi({ mine: [], shared: [] });
   renderWithProviders(<DocumentsPage />);
+  expect(await screen.findByRole('heading', { name: EMPTY_STATE_HEADING })).toBeVisible();
+  expect(screen.getByText(DROP_ZONE_LABEL)).toBeVisible();
+  expect(screen.queryByText(MINE_EMPTY_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByText(SHARED_EMPTY_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: UPLOAD_LABEL })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: NEW_DOCUMENT_LABEL })).toHaveLength(1);
+});
+
+test('one shared document is enough to keep the tables and drop the empty state', async () => {
+  mockApi({ mine: [], shared: [SHARED_DOCUMENT] });
+  renderWithProviders(<DocumentsPage />);
   expect(await screen.findByText(MINE_EMPTY_MESSAGE)).toBeInTheDocument();
-  expect(screen.getByText(SHARED_EMPTY_MESSAGE)).toBeInTheDocument();
-  expect(screen.queryAllByRole('columnheader')).toHaveLength(0);
+  expect(screen.queryByRole('heading', { name: EMPTY_STATE_HEADING })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: UPLOAD_LABEL })).toBeInTheDocument();
+});
+
+test('dropping one docx on the page uploads it and opens the document', async () => {
+  const fetchSpy = mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
+  const { router } = renderWithProviders(<DocumentsPage />);
+  await screen.findByText(OWNED_DOCUMENT.title);
+  const file = new File(['x'], 'plan.docx', { type: DOCX_MIME_TYPE });
+  fireEvent.drop(document.body, { dataTransfer: { types: ['Files'], files: [file] } });
+  await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(CREATED_DOCUMENT.id)));
+  expect(fetchSpy).toHaveBeenCalledWith(ApiPath.Documents, expect.objectContaining({ method: HttpMethod.Post }));
+});
+
+test('dropping two files on a page with documents shows the message under the toolbar', async () => {
+  mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  await screen.findByText(OWNED_DOCUMENT.title);
+  const files = [new File(['x'], 'a.docx'), new File(['x'], 'b.docx')];
+  fireEvent.drop(document.body, { dataTransfer: { types: ['Files'], files } });
+  expect(await screen.findByRole('alert')).toHaveTextContent(ONE_FILE_AT_A_TIME_MESSAGE);
+});
+
+test('dragging a file over the empty page shows the overlay', async () => {
+  mockApi({ mine: [], shared: [] });
+  renderWithProviders(<DocumentsPage />);
+  await screen.findByRole('heading', { name: EMPTY_STATE_HEADING });
+  fireEvent.dragEnter(document.body, { dataTransfer: { types: ['Files'], files: [] } });
+  expect(screen.getByText(DROP_OVERLAY_LABEL)).toBeVisible();
 });
 
 test('a row of Mine shows the title and the formatted date', async () => {

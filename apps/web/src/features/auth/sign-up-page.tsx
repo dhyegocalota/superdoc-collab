@@ -5,6 +5,7 @@ import { useLocation, useSearchParams } from 'react-router';
 import { ErrorMessage } from '@/components/error-message';
 import { browserTimeZone } from '@/lib/browser-time-zone';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { AuthLayout } from './auth-layout';
 import { AuthCard, type AuthCardLink } from './auth-card';
 import { authClient } from './auth-client';
 import {
@@ -47,25 +48,27 @@ function SignUpCard({ title, description, token }: { title: string; description:
   const { search } = useLocation();
 
   return (
-    <AuthCard
-      form={form}
-      onSubmit={submit}
-      title={title}
-      description={description}
-      submitLabel={SIGN_UP_LABEL}
-      pendingLabel={SIGN_UP_PENDING_LABEL}
-      link={signInLinkOf(search)}
-    >
-      <AuthTextField control={form.control} name="name" label={NAME_FIELD_LABEL} type={AuthFieldType.Text} autoComplete="name" />
-      <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />
-      <AuthTextField
-        control={form.control}
-        name="password"
-        label={PASSWORD_FIELD_LABEL}
-        type={AuthFieldType.Password}
-        autoComplete="new-password"
-      />
-    </AuthCard>
+    <AuthLayout>
+      <AuthCard
+        form={form}
+        onSubmit={submit}
+        title={title}
+        description={description}
+        submitLabel={SIGN_UP_LABEL}
+        pendingLabel={SIGN_UP_PENDING_LABEL}
+        link={signInLinkOf(search)}
+      >
+        <AuthTextField control={form.control} name="name" label={NAME_FIELD_LABEL} type={AuthFieldType.Text} autoComplete="name" />
+        <AuthTextField control={form.control} name="email" label={EMAIL_FIELD_LABEL} type={AuthFieldType.Email} autoComplete="email" />
+        <AuthTextField
+          control={form.control}
+          name="password"
+          label={PASSWORD_FIELD_LABEL}
+          type={AuthFieldType.Password}
+          autoComplete="new-password"
+        />
+      </AuthCard>
+    </AuthLayout>
   );
 }
 

@@ -34,6 +34,9 @@ The unit files run one at a time from `apps/server` and `apps/web`. The E2E is `
 | `llm-client.test.ts::streamStructured hands each partial sentence to the callback and returns the final output` (ca4dc1a8) | pin | n/a |
 | `selection-summaries-service.test.ts::a timeout stores the timeout line instead of the generic one` (ca4dc1a8, fix c7bb9e66) | `expected { Object (state, summary, ...) } to match object { state: 'failed', …(1) }` | the timeout error maps to its own line |
 | `summarize-service.test.ts::a regroup that rejects while the sentence is written leaves no unhandled rejection and keeps the sentence`, `::a sentence write that throws beside a rejecting regroup ends the job with no unhandled rejection` (65bbbfef, fix below) | `AssertionError: expected [ Error: database is locked ] to deeply equal []` | both promises are awaited together |
+| `summarize-service.test.ts::a request for another selection while the topic sentences are rewritten starts a job instead of answering Running` (e0e534a1, fix e94876d8) | `expected 'running' to be 'started'` | the topic work has its own job key |
+| `insights-job-runner.test.ts::stopping a watcher leaves a watcher registered after it in place` (e0e534a1, fix e94876d8) | `expected [] to deeply equal [ 'second' ]` | a stop removes only its own watcher |
+| `selection-summary-card.test.tsx::the authors sit below the sentence, so a landing sentence never moves`, `::a summarizing step with no grouping before it does not claim the topics are grouped` (80541250, fix bc3d7ef9) | `expected +0 to be truthy`; `not.toBeInTheDocument()` on Topics grouped | avatars after the sentence; grouped line needs a seen Grouping step |
 | `e2e/selection-summary.spec.ts::the sentence grows word by word while the slow model streams` (afec109e, fix 940568f1) | `expect(growingSentences.length).toBeGreaterThan(0)`: Expected > 0, Received 0 | the fake streams one word every 400 ms |
 
 ## Hypotheses to attack
@@ -49,6 +52,7 @@ The unit files run one at a time from `apps/server` and `apps/web`. The E2E is `
 
 - A real provider's streaming granularity is not tested; the fake streams word by word.
 - Departure from the brief: the partial is kept in memory, not written to the summary row, so there is no migration and no write throttle (`SUMMARY_PARTIAL_WRITE_INTERVAL_MS` was not added). ADR 0041 records why.
-- During a parallel regroup the step is Summarizing, so the card can show "Topics grouped" before the grouping has ended for a selection without a topic.
+- The card shows "Topics grouped" only after it saw Grouping; a reload during a topic selection's Summarizing step shows no grouped line.
+- A Summarize can hold both job slots (`summarize` and `summarize-topics`); a regroup refused for lack of a slot is reported as a grouping failure.
 - A grouping failure after the sentence landed shows on the next read only.
 - The new E2E ran green on scratch ports 3400 and 3499 together with the four existing specs of its file; the full suite and the Playwright MCP walk were not run by the developer.

@@ -23,6 +23,9 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `selection-summary-card.test.tsx::reveals the partial sentence word by word`, `::shows the partial sentence at once under reduced motion`, `::keeps the busy label until the first partial word`, `::the final sentence replaces the partial without hiding the words already shown`, `::a failure keeps the last sentence with the failure line and Retry`.
 - [ ] `summarize-service.test.ts::a regroup that rejects while the sentence is written leaves no unhandled rejection and keeps the sentence` — input: the topics compute throws while the sentence call is held; expected: no `unhandledRejection`, the step Idle, the sentence saved.
 - [ ] `summarize-service.test.ts::a sentence write that throws beside a rejecting regroup ends the job with no unhandled rejection` — expected: no `unhandledRejection`, the step Idle.
+- [ ] `summarize-service.test.ts::a request for another selection while the topic sentences are rewritten starts a job instead of answering Running` — input: the topic sentence call is held after the sentence landed; expected: Started, never Running with an Idle view.
+- [ ] `insights-job-runner.test.ts::stopping a watcher leaves a watcher registered after it in place` — expected: only the later watcher fires.
+- [ ] `selection-summary-card.test.tsx::the authors sit below the sentence, so a landing sentence never moves` and `::a summarizing step with no grouping before it does not claim the topics are grouped`.
 - [ ] Edge: a second click while the job runs — input: POST twice; expected: the second answers Running and the model call count is unchanged.
 
 ## E2E (Playwright specs)

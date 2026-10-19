@@ -17,8 +17,8 @@ One click on "Summarize edits with AI" could make three model calls in a row, an
 - `GET …/summaries/selection` only reads. While a step runs it returns that partial as `partial` when the key matches the requested selection, and `null` otherwise. The saved row is written once, when the stream ends, so no half sentence is ever stored.
 - The partial is dropped when the sentence lands or fails. A failure keeps the last good sentence and stores the failure, as before.
 - The client polls every second while a step runs and reveals the partial word by word, so a poll that brings five words reads as five words appearing, not one jump.
-- The step returns to Idle as soon as the sentence is saved. The topic sentences are rewritten afterwards in the same job and slot, and the card does not wait for them.
-- A selection that names no topic regroups at the same time as it writes the sentence, because its stamp ignores the topics. A selection with a topic still regroups first.
+- The step returns to Idle and the `summarize:<documentId>` job ends as soon as the sentence is saved, so the next Summarize request starts at once instead of answering Running with an Idle view.
+- The regroup of a selection that names no topic, and the rewrite of the topic sentences, run under their own job key `summarize-topics:<documentId>`, started beside the sentence job or after it. A selection with a topic still regroups first, inside the sentence job, because its stamp depends on the topics.
 
 ## Alternatives considered
 
@@ -35,6 +35,7 @@ One click on "Summarize edits with AI" could make three model calls in a row, an
 - The model call becomes a stream. The one retry covers the request that opens the stream, not a break in the middle; a stream that breaks fails the call and keeps the last sentence.
 - The 30 second deadline covers the whole stream, and a timeout has its own failure line.
 - The partial is one string per document, so memory is bounded by the sentence cap.
+- One Summarize can hold both job slots of the cap in [0011](0011-process-wide-llm-cost-caps.md), the sentence job and the topic job, so a first-time topics compute on another document can answer busy meanwhile. The hourly budget still counts each model call once, and no keyed job is started inside another.
 
 ## Evidence
 

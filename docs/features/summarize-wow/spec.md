@@ -5,7 +5,7 @@
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 (the owner asked to make "Summarize edits with AI" more resilient and faster, with a wow effect; the options below were chosen from the research)
 **ADRs:** [0041](../../adr/0041-the-summary-card-shows-the-sentence-as-it-is-written.md), [0012](../../adr/0012-selection-summaries-cached-per-filter-and-cursor.md), [0031](../../adr/0031-one-summarize-job-runs-only-what-is-stale.md), [0011](../../adr/0011-process-wide-llm-cost-caps.md)
-**Not changing:** the cooldown and the hourly budget rules (a call is counted once, where it starts); the one keyed job per document; the stale rules of ADR 0031; the agent's summarize tool and its `SummaryOnly` scope; the selection summary cache key and its stamp; the database schema.
+**Not changing:** the cooldown and the hourly budget rules (a call is counted once, where it starts); one `summarize` job per document, with the topic work under its own key; the stale rules of ADR 0031; the agent's summarize tool and its `SummaryOnly` scope; the selection summary cache key and its stamp; the database schema.
 
 ## Problem
 
@@ -34,9 +34,9 @@ A failure already keeps the last good sentence visible. A timeout of 30 seconds 
 ### Data flow
 
 1. `POST …/summaries/selection` starts the keyed job `summarize:<documentId>` and answers 202, as today.
-2. The job starts the regroup when the topics are stale. A selection with a topic awaits it first. A selection without a topic starts the sentence at once and awaits the regroup after.
+2. A selection with a topic regroups first, inside the `summarize:<documentId>` job. A selection without a topic starts the sentence at once, and its regroup runs beside it under the `summarize-topics:<documentId>` job.
 3. The sentence step streams the model output. The service keeps the partial sentence in memory, per document and selection key, and replaces it with the saved row when the stream ends.
-4. When the sentence is saved, or has failed, the step becomes Idle and the partial is dropped. The job then awaits the regroup and rewrites the stale topic sentences, still holding its one slot.
+4. When the sentence is saved, or has failed, the step becomes Idle, the partial is dropped and the `summarize` job ends. The stale topic sentences are rewritten under `summarize-topics:<documentId>`, so another Summarize can start meanwhile; the cooldown and the hourly budget still apply.
 5. `GET …/summaries/selection` only reads. While a step runs it returns the partial sentence of its own selection; no request waits on the model (ADR 0012).
 6. The client polls the GET every second while the view is running and renders the partial sentence word by word. The saved sentence replaces it.
 
@@ -56,14 +56,14 @@ A failure already keeps the last good sentence visible. A timeout of 30 seconds 
 | The sentence call times out after 30 s | Same, with the line "The model took too long. Try again." |
 | The regroup fails beside the sentence | The sentence lands; the grouping failure shows from the next read, as today. |
 | A second click while the job runs | The answer is Running and costs no call. |
-| The regroup beside the sentence rejects, or the sentence step throws | Both are awaited together, so no rejection is left without a handler; the sentence still lands when its call succeeds, the job ends Failed in the log and the step returns to Idle. |
+| The regroup beside the sentence rejects, or the sentence step throws | The two run as separate keyed jobs, each with its own handler, so no rejection is left unhandled; the sentence still lands when its call succeeds and the step returns to Idle. |
 | The stream breaks half-way | The partial is dropped and the failure rules above apply; no half sentence is saved. |
 
 ## Known gaps
 
 - A grouping failure that happens after the sentence landed shows only on the next read; the client has stopped polling by then and reads again when the timeline changes or the reader acts.
 - The partial lives in memory. A restart during a job loses it, and the job itself is lost as today.
-- During a parallel regroup the step is Summarizing, so the card can show "Topics grouped" before the grouping has ended.
+- The card shows "Topics grouped" only when it saw the Grouping step before Summarizing, so a selection without a topic never claims it. A reload in the middle of a topic selection's Summarizing step shows no grouped line.
 
 ## Open questions → answers
 

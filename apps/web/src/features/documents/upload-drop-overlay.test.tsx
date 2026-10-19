@@ -1,5 +1,5 @@
 import { DOCX_MIME_TYPE, NOT_A_DOCX_MESSAGE } from '@superdoc-collab/types';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { ErrorMessage } from '@/components/error-message';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -12,6 +12,12 @@ const TEXT_DRAG = { types: ['text/plain'], files: [] as File[] };
 
 function docx(name: string): File {
   return new File(['x'], name, { type: DOCX_MIME_TYPE });
+}
+
+function dragLeave({ target, relatedTarget }: { target: Element; relatedTarget: Element | null }): void {
+  const event = createEvent.dragLeave(target, { dataTransfer: FILES_DRAG });
+  Object.defineProperty(event, 'relatedTarget', { value: relatedTarget });
+  fireEvent(target, event);
 }
 
 function dropOf(files: File[]) {
@@ -47,9 +53,9 @@ test('leaving to a child element keeps the overlay and leaving the page hides it
   const child = screen.getByTestId('child');
   fireEvent.dragEnter(document.body, { dataTransfer: FILES_DRAG });
   fireEvent.dragEnter(child, { dataTransfer: FILES_DRAG });
-  fireEvent.dragLeave(document.body, { dataTransfer: FILES_DRAG, relatedTarget: child });
+  dragLeave({ target: document.body, relatedTarget: child });
   expect(screen.getByText(DROP_OVERLAY_LABEL)).toBeVisible();
-  fireEvent.dragLeave(child, { dataTransfer: FILES_DRAG, relatedTarget: document.body });
+  dragLeave({ target: child, relatedTarget: document.body });
   expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
 });
 
@@ -98,7 +104,7 @@ test('a dragleave whose pointer left the window hides the overlay even when ente
   renderWithProviders(<Harness />);
   showOverlay();
   fireEvent.dragEnter(screen.getByTestId('child'), { dataTransfer: FILES_DRAG });
-  fireEvent.dragLeave(document.body, { dataTransfer: FILES_DRAG, relatedTarget: null });
+  dragLeave({ target: document.body, relatedTarget: null });
   expect(screen.queryByText(DROP_OVERLAY_LABEL)).not.toBeInTheDocument();
 });
 

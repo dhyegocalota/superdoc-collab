@@ -13,11 +13,11 @@
 
 ## Steps
 
-- [ ] **Step 1:** the feature folder and its index row.
-- [ ] **Step 2:** red test, then the constant, the heap in the reply and the recycle in the scheduler.
-- [ ] **Step 3:** red test, then the room memory release and its call in the unload hook.
-- [ ] **Step 4:** red test, then `--expose-gc` in the entrypoint.
-- [ ] **Step 5:** the measurement on the capped repro, recorded in the test plan.
+- [x] **Step 1:** the feature folder and its index row.
+- [x] **Step 2:** red test, then the constant, the heap in the reply and the recycle in the scheduler.
+- [x] **Step 3:** red test, then the room memory release and its call in the unload hook.
+- [x] **Step 4:** red test, then `--expose-gc` in the entrypoint.
+- [x] **Step 5:** the measurement on the capped repro, recorded in the test plan.
 
 ## Failure modes
 

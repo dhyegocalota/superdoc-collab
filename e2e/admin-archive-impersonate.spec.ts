@@ -3,6 +3,7 @@ import type { Browser, Locator, Page } from '@playwright/test';
 import { ACCOUNT_ARCHIVED_MESSAGE, AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '../libs/types/src';
 import { accountMenuLabel } from '../apps/web/src/features/account/account-copy';
 import {
+  actionsMenuLabel,
   ADMINS_ONLY_TOAST,
   ARCHIVE_LABEL,
   ARCHIVED_CHIP_LABEL,
@@ -11,6 +12,7 @@ import {
 } from '../apps/web/src/features/admin/admin-copy';
 import { STOP_IMPERSONATING_LABEL, viewingAsLabel } from '../apps/web/src/features/impersonation/impersonation-copy';
 import { uploadSeed } from './editor';
+import { chooseUserAction } from './user-actions';
 import {
   acceptInvite,
   DEMO_PASSWORD,
@@ -63,10 +65,15 @@ test('the admin archives a person who loses the open editor and cannot sign in, 
     title: `archive-${randomUUID().slice(0, 8)}`,
   });
 
-  await userRow({ page: admin.page, email }).getByRole('button', { name: ARCHIVE_LABEL }).click();
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Bruno', label: ARCHIVE_LABEL });
   await admin.page.getByRole('alertdialog').getByRole('button', { name: ARCHIVE_LABEL }).click();
   await expect(userRow({ page: admin.page, email }).getByText(ARCHIVED_CHIP_LABEL)).toBeVisible();
-  await expect(userRow({ page: admin.page, email }).getByRole('button', { name: IMPERSONATE_LABEL })).toHaveCount(0);
+  await userRow({ page: admin.page, email })
+    .getByRole('button', { name: actionsMenuLabel('Bruno') })
+    .click();
+  await expect(admin.page.getByRole('menuitem', { name: RESTORE_LABEL })).toBeVisible();
+  await expect(admin.page.getByRole('menuitem', { name: IMPERSONATE_LABEL })).toHaveCount(0);
+  await admin.page.keyboard.press('Escape');
 
   await expect(bruno.page.getByText(DOCUMENT_UNAVAILABLE_MESSAGE).or(bruno.page.getByRole('button', { name: 'Sign in' }))).toBeVisible({
     timeout: ACCESS_LOST_TIMEOUT_MS,
@@ -77,7 +84,7 @@ test('the admin archives a person who loses the open editor and cannot sign in, 
   await expect(bruno.page.getByText(ACCOUNT_ARCHIVED_MESSAGE)).toBeVisible();
   await expect(bruno.page).toHaveURL(AppRoute.SignIn);
 
-  await userRow({ page: admin.page, email }).getByRole('button', { name: RESTORE_LABEL }).click();
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Bruno', label: RESTORE_LABEL });
   await expect(userRow({ page: admin.page, email }).getByText(ARCHIVED_CHIP_LABEL)).toHaveCount(0);
 
   await signIn({ page: bruno.page, email, password: DEMO_PASSWORD });
@@ -93,7 +100,7 @@ test('the admin impersonates a person, sees their documents behind the banner, a
   admin.page.on('response', (response) => {
     if (response.status() === HttpStatus.Forbidden) forbiddenResponses.push(response.url());
   });
-  await userRow({ page: admin.page, email }).getByRole('button', { name: IMPERSONATE_LABEL }).click();
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Caio', label: IMPERSONATE_LABEL });
   await expect(admin.page).toHaveURL(AppRoute.Documents);
   const banner = admin.page.getByTestId('impersonation-banner');
   await expect(banner.getByText(viewingAsLabel('Caio'))).toBeVisible();
@@ -114,7 +121,7 @@ test('stopping from inside the impersonated editor leaves no failed request behi
   const title = `stop-editor-${randomUUID().slice(0, 8)}`;
   const { email } = await invitedWithDocument({ browser, admin, name: 'Caio', title });
 
-  await userRow({ page: admin.page, email }).getByRole('button', { name: IMPERSONATE_LABEL }).click();
+  await chooseUserAction({ page: admin.page, row: userRow({ page: admin.page, email }), name: 'Caio', label: IMPERSONATE_LABEL });
   await expect(admin.page).toHaveURL(AppRoute.Documents);
   await admin.page.getByRole('link', { name: title }).click();
   await expect(admin.page).toHaveURL(DOCUMENT_URL_PATTERN);

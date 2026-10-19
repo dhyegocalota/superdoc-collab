@@ -67,3 +67,7 @@ export const IMPERSONATE_USER_SUBJECT = 'Impersonate user';
 export function archiveDialogTitle(name: string): string {
   return `Archive ${name}?`;
 }
+
+export function actionsMenuLabel(name: string): string {
+  return `Actions for ${name}`;
+}

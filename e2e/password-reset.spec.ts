@@ -11,6 +11,7 @@ import {
   test,
   uniqueEmail,
 } from './fixtures';
+import { chooseUserAction } from './user-actions';
 
 const USERS_TABLE_NAME = 'Users';
 const RESET_PASSWORD_BUTTON_NAME = 'Reset password';
@@ -26,11 +27,12 @@ test("the admin resets a user's password with a one-time link", async ({ browser
   const invited = await acceptInvite({ browser, url: await generateInvite({ page: admin.page }), name: 'Reset', email });
   await expectSignedInAs({ page: invited.page, name: 'Reset' });
   await admin.page.reload();
-  await admin.page
-    .getByRole('table', { name: USERS_TABLE_NAME })
-    .getByRole('row', { name: new RegExp(email) })
-    .getByRole('button', { name: RESET_PASSWORD_BUTTON_NAME })
-    .click();
+  await chooseUserAction({
+    page: admin.page,
+    row: admin.page.getByRole('table', { name: USERS_TABLE_NAME }).getByRole('row', { name: new RegExp(email) }),
+    name: 'Reset',
+    label: RESET_PASSWORD_BUTTON_NAME,
+  });
   const dialog = admin.page.getByRole('dialog');
   const url = await dialog.getByRole('textbox', { name: RESET_LINK_TEXTBOX_NAME }).inputValue();
   await admin.page.keyboard.press('Escape');

@@ -1,6 +1,7 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
+import { constants } from 'node:zlib';
 import {
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
@@ -14,7 +15,7 @@ import {
   UNAUTHORIZED_CLOSE_REASON,
   VERSION_FAILURE_TTL_MS,
 } from '@superdoc-collab/types';
-import { WebSocket, WebSocketServer, type RawData, type ServerOptions } from 'ws';
+import { WebSocket, WebSocketServer, type PerMessageDeflateOptions, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
@@ -23,9 +24,19 @@ import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
+const SOCKET_COMPRESSION_THRESHOLD_BYTES = 1024;
+const SOCKET_COMPRESSION_CONCURRENCY = 4;
+const SOCKET_COMPRESSION_OPTIONS: PerMessageDeflateOptions = {
+  threshold: SOCKET_COMPRESSION_THRESHOLD_BYTES,
+  concurrencyLimit: SOCKET_COMPRESSION_CONCURRENCY,
+  zlibDeflateOptions: { level: constants.Z_BEST_SPEED },
+  serverNoContextTakeover: true,
+  clientNoContextTakeover: true,
+};
 const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
   noServer: true,
   maxPayload: MAX_SOCKET_MESSAGE_BYTES,
+  perMessageDeflate: SOCKET_COMPRESSION_OPTIONS,
   closeTimeout: SOCKET_CLOSE_GRACE_MS,
 };
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';

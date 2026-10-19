@@ -23,7 +23,7 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
-import { MAX_STORE_DEBOUNCE_MS, OPEN_BUDGET_LOG, UNCOMMITTED_REFUSAL_LOG } from './collaboration-server';
+import { createCollaborationServer, MAX_STORE_DEBOUNCE_MS, OPEN_BUDGET_LOG, UNCOMMITTED_REFUSAL_LOG } from './collaboration-server';
 import type { CollaborationContext } from './collaboration-context';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
@@ -595,4 +595,17 @@ test('a socket admitted just before its member was removed is closed with 4404 o
   );
   expect(closeCode).toBe(ACCESS_REVOKED_CLOSE_CODE);
   await server.stop();
+});
+
+test('unloading a room releases the memory of the process through the injected function', async () => {
+  const releaseRoomMemory = vi.fn();
+  const updateLog = { clientIdentities: () => [] } as unknown as Parameters<typeof createCollaborationServer>[0]['updateLog'];
+  const hocuspocus = createCollaborationServer({
+    updateLog,
+    releaseRoomMemory,
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  await hocuspocus.hooks('afterUnloadDocument', { instance: hocuspocus, documentName: `${SUPERDOC_ROOM_PREFIX}${randomUUID()}` });
+  expect(releaseRoomMemory).toHaveBeenCalledOnce();
 });

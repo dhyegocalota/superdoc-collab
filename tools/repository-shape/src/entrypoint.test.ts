@@ -104,7 +104,14 @@ describe('docker entrypoint', () => {
       name: 'main.js',
       source: 'process.stdout.write(process.execArgv.join(" ") + " " + process.env.PROJECTION_WORKER_HEAP_MEGABYTES);',
     });
-    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain('--max-old-space-size=716 512');
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain(
+      '--max-old-space-size=716 --expose-gc 512',
+    );
+  });
+
+  test('exposes the collector with no memory limit too', () => {
+    writeStub({ name: 'main.js', source: 'process.stdout.write(process.execArgv.join(" "));' });
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('--expose-gc');
   });
 
   test('falls back to the version 1 limit file when the version 2 one is missing', () => {

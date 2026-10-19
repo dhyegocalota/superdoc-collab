@@ -7,6 +7,7 @@ export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for docume
 export const IMPORT_TOO_LARGE_MESSAGE = 'Skipped importing Word revisions, the file is too large, for document';
 export const IMPORT_SKIPPED_MESSAGE = 'Skipped importing Word revisions, projection is disabled, for document';
 export const BOOTSTRAP_FAILED_MESSAGE = 'Bootstrapping the room failed for document';
+export const WORKER_RECYCLED_MESSAGE = 'Recycled the projection worker after a heavy job, heap bytes:';
 export const PROJECTION_FAILED_MESSAGE = 'Projecting edit events failed for document';
 
 export enum ProjectionRequestKind {
@@ -54,11 +55,12 @@ export type ProjectionFailedReply = FailedReplyBase &
     | { requestKind: ProjectionRequestKind.Version; sequence: number }
     | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
   );
-export type ProjectionReply = ProjectionDoneReply | VersionReply | BlocksReply | BootstrapReply | ProjectionFailedReply;
+export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply | BootstrapReply;
+export type MeasuredReply<Reply extends AnsweredReply = AnsweredReply> = Reply & { heapTotalBytes: number };
+export type ProjectionReply = MeasuredReply | ProjectionFailedReply;
 export type ProjectionRequestsByKind = { [Kind in ProjectionRequestKind]: Extract<ProjectionRequest, { kind: Kind }> };
 export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>;
 export type AnsweredRequestKind = AnsweredRequest['kind'];
-export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply | BootstrapReply;
 
 export type ProjectionWorkerData = { databaseDirectory: string };
 

@@ -7,8 +7,12 @@ const MAC_PLATFORM_PATTERN = /mac/i;
 
 type NavigatorWithUserAgentData = Navigator & { userAgentData?: { platform: string } };
 
-export function detectPlatform(): Platform {
+function platformName(): string {
   const { userAgentData, platform } = navigator as NavigatorWithUserAgentData;
-  const platformName = userAgentData ? userAgentData.platform : platform;
-  return MAC_PLATFORM_PATTERN.test(platformName) ? Platform.Mac : Platform.Other;
+  if (platform !== '') return platform;
+  return userAgentData ? userAgentData.platform : '';
+}
+
+export function detectPlatform(): Platform {
+  return MAC_PLATFORM_PATTERN.test(platformName()) ? Platform.Mac : Platform.Other;
 }

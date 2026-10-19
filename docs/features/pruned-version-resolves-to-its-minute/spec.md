@@ -1,6 +1,6 @@
 # A pruned version sequence resolves to its minute
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 ("fix os 5 achados", finding 3 after PR #31; the reviewer's trace turned the flake into this product defect)
 **ADRs:** [0027](../../adr/0027-a-pruned-version-sequence-resolves-to-its-minute.md)

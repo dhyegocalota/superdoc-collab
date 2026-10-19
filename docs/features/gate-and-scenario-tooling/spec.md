@@ -1,6 +1,6 @@
 # Gate and scenario tooling
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🟢
 **Lane:** tooling
 **Owner approval:** approved 2026-10-18 (the lead's tooling lane after the gate flakes and the scenario walk that could not type)

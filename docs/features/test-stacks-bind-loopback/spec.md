@@ -1,6 +1,6 @@
 # Test stacks bind loopback
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-17 ("fix os 5 achados", finding 5 after PR #31; ADR 0023 → Revisit when)
 **ADRs:** [0023](../../adr/0023-agentic-scenario-runs-with-one-browser-per-author.md)

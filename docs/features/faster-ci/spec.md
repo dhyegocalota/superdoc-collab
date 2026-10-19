@@ -1,6 +1,6 @@
 # Faster CI
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡 medium (CI layout, Playwright parallelism, one new option through `startServer` into `ProjectionScheduler`)
 **Owner approval:** approved 2026-10-17 (chat: the three lanes as proposed; no push until the owner says so)
 **ADRs:** [0018](../../adr/0018-fan-out-ci-and-prebuild-the-projection-worker.md)

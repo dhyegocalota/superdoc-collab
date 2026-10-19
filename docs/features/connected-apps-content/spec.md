@@ -1,6 +1,6 @@
 # The Connected apps page carries the Use with AI content
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-18 ("faz tambem a pagina connected apps ter o mesmo conteudo do modal use with ai")
 **ADRs:** none

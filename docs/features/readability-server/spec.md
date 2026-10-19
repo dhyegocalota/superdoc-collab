@@ -1,6 +1,6 @@
 # Readability server
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Lane:** product
 **Tier:** 🟢 small. A behaviour-preserving refactor of `apps/server/src`, with no schema, route or wire change.
 **Owner approval:** approved 2026-10-18

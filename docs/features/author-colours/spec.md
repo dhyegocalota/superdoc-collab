@@ -1,6 +1,6 @@
 # One colour per member of a document
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18 ("fix tambem colisao de cores entre diferentes usuarios no mesmo doc")
 **ADRs:** [0037](../../adr/0037-author-colour-slots-are-assigned-per-document-by-join-order.md)

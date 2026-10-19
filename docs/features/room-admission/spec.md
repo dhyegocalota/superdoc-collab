@@ -1,6 +1,6 @@
 # Room admission: one creator per room, write fencing, socket limits
 
-**Status:** Approved
+**Status:** Shipped 2026-10-18
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-17 (brief)
 **ADRs:** [0001](../../adr/0001-event-sourcing-over-yjs.md), [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0034](../../adr/0034-collaboration-socket-payload-and-rate-limits.md)

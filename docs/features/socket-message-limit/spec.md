@@ -1,6 +1,6 @@
 # The socket frame caps allow fast typing and reconnect bursts
 
-**Status:** Building
+**Status:** Shipped 2026-10-18
 **Lane:** product
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-18

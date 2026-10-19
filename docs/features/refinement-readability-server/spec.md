@@ -1,6 +1,6 @@
 # Refinement: server readability (lane C1)
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡 medium. No new behaviour, no schema change and nothing the user sees. It still touches the projection scheduler, the projection worker and server startup, so every control-flow change is pinned by a test before it moves.
 **Owner approval:** approved 2026-10-17 (refinement proposal)
 **ADRs:** none new. [0001](../../adr/0001-event-sourcing-over-yjs.md) keeps the addendum lane D writes for the deleted edit windows.

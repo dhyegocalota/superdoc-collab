@@ -1,6 +1,6 @@
 # Refinement: web readability (lane C2)
 
-**Status:** Approved
+**Status:** Shipped 2026-10-17
 **Tier:** 🟡 medium. Nothing the user sees changes, and nothing crosses the wire differently. It still splits `useTimeTravel` and `TimelinePanel`, rewires every poller and every query key builder, and replaces both auth pages, so every control-flow change is pinned by a test before it moves.
 **Owner approval:** approved 2026-10-17 (refinement proposal)
 **ADRs:** none new.

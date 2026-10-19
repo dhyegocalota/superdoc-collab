@@ -36,7 +36,7 @@ function releaseWith({ readings, clock = () => 0 }: { readings: number[]; clock?
   return { collectGarbage, release };
 }
 
-test('a heavy room that unloads gets one regular, synchronous collection after the unload returns, logged with the pause', async () => {
+test('a heavy room that unloads gets one last-resort, synchronous collection after the unload returns, logged with the pause', async () => {
   const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
   const times = [0, 0, PAUSE_MS];
   const { collectGarbage, release } = releaseWith({
@@ -47,7 +47,7 @@ test('a heavy room that unloads gets one regular, synchronous collection after t
   release.unloaded(HEAVY_ROOM);
   expect(collectGarbage).not.toHaveBeenCalled();
   await nextMacrotask();
-  expect(collectGarbage).toHaveBeenCalledExactlyOnceWith({ type: 'major', execution: 'sync', flavor: 'regular' });
+  expect(collectGarbage).toHaveBeenCalledExactlyOnceWith({ type: 'major', execution: 'sync', flavor: 'last-resort' });
   expect(consoleInfo).toHaveBeenCalledWith(`${ROOM_MEMORY_RELEASED_MESSAGE} ${RESIDENT_BEFORE_BYTES} ${RESIDENT_AFTER_BYTES} ${PAUSE_MS}`);
   consoleInfo.mockRestore();
 });

@@ -1,6 +1,6 @@
 import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Ellipsis, Keyboard, Search } from 'lucide-react';
+import { Bot, Ellipsis, Search } from 'lucide-react';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
@@ -23,7 +23,6 @@ import type { UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { ShortcutHint } from '@/features/shortcuts/shortcut-hint';
 import { ShortcutId } from '@/features/shortcuts/shortcuts';
-import { SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
 import { ShortcutsDialog } from '@/features/shortcuts/shortcuts-dialog';
 import { useShortcuts } from '@/features/shortcuts/use-shortcuts';
 import { LARGE_BREAKPOINT_PX } from '@/lib/breakpoints';
@@ -106,19 +105,10 @@ type DocumentActionsMenuProps = DocumentIdentity & {
   isLarge: boolean;
   superdoc: SuperDoc | null;
   onDownload: (format: DownloadFormat) => void;
-  onShowShortcuts: (opener: HTMLElement | null) => void;
   renderUseWithAi: (slot?: UseWithAiSlot) => ReactNode;
 };
 
-function DocumentActionsMenu({
-  documentId,
-  isOwner,
-  isLarge,
-  superdoc,
-  onDownload,
-  onShowShortcuts,
-  renderUseWithAi,
-}: DocumentActionsMenuProps) {
+function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownload, renderUseWithAi }: DocumentActionsMenuProps) {
   const isReady = superdoc !== null;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isUseWithAiOpen, setIsUseWithAiOpen] = useState(false);
@@ -172,13 +162,6 @@ function DocumentActionsMenu({
               {DELETE_LABEL}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onSelect={() => onShowShortcuts(triggerRef.current)}>
-            <Keyboard aria-hidden />
-            {SHORTCUTS_TITLE}
-            <DropdownMenuShortcut>
-              <ShortcutHint shortcutId={ShortcutId.ShowShortcuts} />
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {renderUseWithAi({ isOpen: isUseWithAiOpen, onOpenChange: setIsUseWithAiOpen, returnFocusRef: triggerRef })}
@@ -306,7 +289,6 @@ export function EditorHeader({
                 isLarge={isLarge}
                 superdoc={superdoc}
                 onDownload={download}
-                onShowShortcuts={showShortcuts}
                 renderUseWithAi={renderUseWithAi}
               />
             )}

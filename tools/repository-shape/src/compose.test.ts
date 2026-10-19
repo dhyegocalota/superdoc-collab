@@ -5,6 +5,8 @@ import { composeVariables, capturedNames, DEPLOY_COMPOSE_FILE, readRepositoryFil
 const ENVIRONMENT_EXAMPLE_FILE = '.env.example';
 const NO_ENVIRONMENT_FILE = '/dev/null';
 const SERVICE_NAME = 'app';
+const LOCAL_COMPOSE_FILE = 'docker/docker-compose.local.yml';
+const PROJECT_NAME_LINE = /^name: superdoc-collab$/m;
 const CONTAINER_PORT = '3000';
 const DATA_DIRECTORY = '/data';
 const DATA_VOLUME = 'superdoc-data';
@@ -81,6 +83,12 @@ function renderedService(variables: Record<string, string>): ComposeService {
 function withoutVariable(name: string): Record<string, string> {
   return Object.fromEntries(Object.entries(DOKPLOY_VALUES).filter(([key]) => key !== name));
 }
+
+describe('compose project name', () => {
+  test.each([DEPLOY_COMPOSE_FILE, LOCAL_COMPOSE_FILE])('%s pins the project name that existing local volumes use', (file) => {
+    expect(readRepositoryFile(file)).toMatch(PROJECT_NAME_LINE);
+  });
+});
 
 describe('Dokploy compose file', () => {
   test('reads exactly the required and optional variables from the environment', () => {

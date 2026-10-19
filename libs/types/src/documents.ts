@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AuthorColorSlot } from './author-colors';
+import { BOOTSTRAP_MS_PER_MEGABYTE, BOOTSTRAP_TIMEOUT_MARGIN } from './constants';
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 export const TITLE_MAX_LENGTH = 200;
@@ -7,6 +8,9 @@ export const PREVIEW_MAX_CHARACTERS = 400;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
+export const BOOTSTRAP_TIMEOUT_MS = BOOTSTRAP_TIMEOUT_MARGIN * MAX_UPLOAD_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE;
+export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;
+export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
 export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -65,16 +69,31 @@ export type DocumentSummary = {
   thumbnailUpdatedAt: number | null;
 };
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
-export type CreatorTicket = { attempt: number; epoch: string };
 export type OpenedDocument = {
   document: DocumentSummary;
   role: DocumentRole;
   roomMode: RoomMode;
-  creatorAttempt: number | null;
-  creatorEpoch: string | null;
+  bootstrap: BootstrapProgress;
   colorSlot: AuthorColorSlot;
 };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
-export type DocumentMembers = { members: DocumentMember[]; isCurrentUserOnline: boolean; isAttemptSuperseded: boolean };
+export type DocumentMembers = {
+  members: DocumentMember[];
+  isCurrentUserOnline: boolean;
+};
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };
+
+export enum BootstrapStage {
+  Queued = 'queued',
+  Preparing = 'preparing',
+  Ready = 'ready',
+  Failed = 'failed',
+}
+
+export type BootstrapProgress = {
+  stage: BootstrapStage;
+  done: number;
+  total: number;
+  stateBytes: number | null;
+};

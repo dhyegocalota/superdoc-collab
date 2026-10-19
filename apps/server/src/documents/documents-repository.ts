@@ -33,6 +33,16 @@ export class DocumentsRepository {
     });
   }
 
+  ownerOf(documentId: string): string | null {
+    const row = this.database.drizzle
+      .select({ ownerUserId: documents.ownerUserId })
+      .from(documents)
+      .where(eq(documents.id, documentId))
+      .get();
+    if (!row) return null;
+    return row.ownerUserId;
+  }
+
   findRole({ documentId, userId }: { documentId: string; userId: string }): DocumentRole | null {
     const row = this.database.drizzle
       .select({ role: documentMembers.role })

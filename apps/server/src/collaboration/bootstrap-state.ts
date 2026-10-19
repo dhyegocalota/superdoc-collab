@@ -20,7 +20,15 @@ export type BootstrapState = {
   forget: (documentId: string) => void;
 };
 
-export function createBootstrapState({ updateLog, readModel }: { updateLog: UpdateLog; readModel: ReadModel }): BootstrapState {
+export function createBootstrapState({
+  updateLog,
+  readModel,
+  onCommitted = () => undefined,
+}: {
+  updateLog: UpdateLog;
+  readModel: ReadModel;
+  onCommitted?: (committed: { documentId: string; stateBytes: number }) => void;
+}): BootstrapState {
   const committed = new Set<string>();
   const scans = new LruMap<ScanProgress>({ isOverBudget: (entries) => entries.size > BOOTSTRAP_SCAN_CACHE_ENTRIES });
   function progressOf(documentId: string): ScanProgress {
@@ -59,9 +67,11 @@ export function createBootstrapState({ updateLog, readModel }: { updateLog: Upda
       return true;
     },
     commit: ({ documentId, document, ...logged }) => {
-      const appended = updateLog.appendCommitted({ documentName: documentId, state: Y.encodeStateAsUpdate(document), ...logged });
+      const state = Y.encodeStateAsUpdate(document);
+      const appended = updateLog.appendCommitted({ documentName: documentId, state, ...logged });
       committed.add(documentId);
       scans.delete(documentId);
+      onCommitted({ documentId, stateBytes: state.byteLength });
       return appended;
     },
     forget: (documentId) => {

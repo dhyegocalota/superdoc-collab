@@ -1,0 +1,57 @@
+import { render, screen, within } from '@testing-library/react';
+import { expect, test } from 'vitest';
+import { OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
+import { OpenProgressPanel, type OpenProgressView } from './open-progress-panel';
+import { EDITOR_OPEN_STAGES, OpenStage } from './open-stage';
+
+const PREPARED = 12_400;
+const TOTAL = 56_800;
+const PREPARING_VIEW: OpenProgressView = { stage: OpenStage.Preparing, detail: '12,400 of 56,800 paragraphs', fraction: PREPARED / TOTAL };
+
+function renderPanel({ view = PREPARING_VIEW, title = 'Heavy' as string | null, action = null as React.ReactNode } = {}) {
+  render(<OpenProgressPanel title={title} stages={EDITOR_OPEN_STAGES} view={view} action={action} />);
+}
+
+function stageItem(stage: OpenStage): HTMLElement {
+  return screen.getByText(OPEN_STAGE_LABELS[stage]).closest('li')!;
+}
+
+test('a number gives a determinate bar with its value and its detail', () => {
+  renderPanel();
+  const bar = screen.getByRole('progressbar');
+  expect(bar).toHaveAttribute('aria-valuenow', '22');
+  expect(bar).toHaveAttribute('aria-valuetext', PREPARING_VIEW.detail);
+  expect(screen.getByText(PREPARING_VIEW.detail)).toBeInTheDocument();
+});
+
+test('no number gives an indeterminate bar', () => {
+  renderPanel({ view: { stage: OpenStage.Downloading, detail: 'Receiving 36.5 MB · 12 s', fraction: null } });
+  const bar = screen.getByRole('progressbar');
+  expect(bar).not.toHaveAttribute('aria-valuenow');
+  expect(bar).toHaveAttribute('data-state', 'indeterminate');
+});
+
+test.each([
+  [OpenStage.Preparing, ['current', 'pending', 'pending']],
+  [OpenStage.Downloading, ['done', 'current', 'pending']],
+  [OpenStage.Rendering, ['done', 'done', 'current']],
+])('at %s the stages read %j', (stage, states) => {
+  renderPanel({ view: { stage, detail: '', fraction: null } });
+  expect(EDITOR_OPEN_STAGES.map((listed) => stageItem(listed).getAttribute('data-state'))).toEqual(states);
+  expect(stageItem(stage)).toHaveAttribute('aria-current', 'step');
+});
+
+test('the panel is one polite status that carries the stage and the document title', () => {
+  renderPanel({ view: { stage: OpenStage.Rendering, detail: '', fraction: null } });
+  const status = screen.getByRole('status');
+  expect(status).toHaveAttribute('aria-live', 'polite');
+  expect(within(status).getByText('Heavy')).toBeInTheDocument();
+  expect(within(status).getByText(stageAnnouncement({ stages: EDITOR_OPEN_STAGES, stage: OpenStage.Rendering }))).toBeInTheDocument();
+  expect(screen.getByTestId('open-progress')).toHaveAttribute('data-stage', OpenStage.Rendering);
+});
+
+test('a missing title and an action are both honoured', () => {
+  renderPanel({ title: null, action: <button type="button">Leave</button> });
+  expect(screen.queryByText('Heavy')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument();
+});

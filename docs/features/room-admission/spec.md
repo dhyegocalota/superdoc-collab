@@ -3,10 +3,12 @@
 **Status:** Shipped 2026-10-18
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-17 (brief)
-**ADRs:** [0001](../../adr/0001-event-sourcing-over-yjs.md), [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0034](../../adr/0034-collaboration-socket-payload-and-rate-limits.md)
+**ADRs:** [0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md), [0001](../../adr/0001-event-sourcing-over-yjs.md), [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0034](../../adr/0034-collaboration-socket-payload-and-rate-limits.md)
 **Not changing:** the update log format and columns, the projection's output (its bootstrap scan starts from the committed snapshot), share links, the agent room token of [0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md), the waiting page UI (final-visuals, design 1.15), the connection banner (connection-state).
 
 This is item 2 of the owner brief in `docs/features/connection-state/brief.md`. The waiting page is built by `final-visuals`; this feature only widens who receives the 409.
+
+> **Updated 2026-10-19 by [server-bootstrap](../server-bootstrap/spec.md) ([ADR 0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md)).** The server builds every room after the upload, so no browser is ever a creator. The reservation, the expiry and lifetime cap, the takeover, the epoch, the browser-claimed ticket and the 409 `NOT_READY` of the open route no longer exist; the Reservation, Fencing and Expiry rows below and the State machine and Data flow sections describe the shipped design before that change. Still true: snapshot-first commit detection, the server-side `isCommitted`, the open budget, the socket limits and the logging rules. The fence is now one rule: a bootstrap socket writes only while its attempt is the registry's current attempt.
 
 ## Problem
 

@@ -1,11 +1,11 @@
 import {
+  BootstrapStage,
+  OPEN_PROGRESS_DELAY_MS,
   ApiPath,
   AppRoute,
   ClientActor,
   ConnectionFailureReason,
   ConnectionState,
-  CREATOR_ATTEMPT_QUERY_KEY,
-  CREATOR_EPOCH_QUERY_KEY,
   DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_READY_POLL_MS,
   DOCUMENT_UNAVAILABLE_MESSAGE,
@@ -30,12 +30,15 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { tabId } from '@/lib/tab-id';
+import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { PanelPosition, PANEL_POSITION_STORAGE_KEY } from '@/features/timeline/use-panel-position';
 import { GROUPING_TOPICS_MESSAGE, SUMMARIZE_EDITS_LABEL } from '@/features/timeline/timeline-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { jsonResponse } from '@/testing/json-response';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
-import { DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { pagesSoFarDetail } from '@/features/open-progress/open-progress-copy';
+import { OpenStage } from '@/features/open-progress/open-stage';
+import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL, SIGN_IN_LABEL } from './connection-copy';
@@ -62,7 +65,6 @@ import {
 } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
-import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
 import { DOCUMENT_READY_ANNOUNCEMENT, PREPARING_DOCUMENT_MESSAGE } from './waiting-copy';
@@ -96,7 +98,7 @@ type SuperDocConfig = {
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
-  onPaginationUpdate: () => void;
+  onPaginationUpdate: (payload: { totalPages: number }) => void;
 };
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
@@ -144,7 +146,6 @@ function mockDocumentApi({
   downloadStatus = HttpStatus.Ok,
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
-  isAttemptSuperseded = () => false,
   timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
@@ -159,7 +160,6 @@ function mockDocumentApi({
   downloadStatus?: HttpStatus;
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
-  isAttemptSuperseded?: () => boolean;
   timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
@@ -173,7 +173,10 @@ function mockDocumentApi({
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (String(input).startsWith(MEMBERS_PATH)) {
       return jsonResponse({
-        body: { members: [], isCurrentUserOnline: isCurrentUserOnline(), isAttemptSuperseded: isAttemptSuperseded() },
+        body: {
+          members: [],
+          isCurrentUserOnline: isCurrentUserOnline(),
+        },
         status: currentMembersStatus(),
       });
     }
@@ -286,7 +289,7 @@ test('a 409 not ready shows the waiting page and never builds the editor', async
     openBody: { error: DOCUMENT_NOT_READY_ERROR },
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 
@@ -300,7 +303,7 @@ test(
       currentOpenStatus: () => (isOwnerSynced ? HttpStatus.Ok : HttpStatus.Conflict),
     });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-    await screen.findByText(PREPARING_DOCUMENT_MESSAGE);
+    await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS });
     isOwnerSynced = true;
     const announcement = await screen.findByText(DOCUMENT_READY_ANNOUNCEMENT, {}, { timeout: READY_WAIT_MS });
     expect(announcement).toHaveAttribute('role', 'status');
@@ -399,20 +402,6 @@ test('a cached create followed by a fresh join from the server builds the join s
     }),
   );
   expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain(DOWNLOAD_PATH);
-});
-
-test('the editor builds the socket url from the creator ticket of the open answer', async () => {
-  mockDocumentApi({ opened: { ...openedAs(DocumentRole.Editor, RoomMode.Create), creatorAttempt: 1, creatorEpoch: 'epoch-1' } });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  const socketQuery = `${TAB_QUERY_KEY}=${tabId()}&${CREATOR_ATTEMPT_QUERY_KEY}=1&${CREATOR_EPOCH_QUERY_KEY}=epoch-1`;
-  expect(SuperDoc).toHaveBeenCalledWith(
-    expect.objectContaining({
-      documents: [
-        expect.objectContaining({ v2Collaboration: expect.objectContaining({ serverUrl: expect.stringContaining(socketQuery) }) }),
-      ],
-    }),
-  );
 });
 
 test('a members 404 after the editor mounted shows the unavailable message, destroys the editor and stops polling', async () => {
@@ -788,7 +777,7 @@ test(
     act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
     status = HttpStatus.Conflict;
     await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
-    expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+    expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
     expect(screen.queryByText(RELOAD_FAILED_MESSAGE)).not.toBeInTheDocument();
     status = HttpStatus.Ok;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
@@ -813,66 +802,9 @@ test('an ended session names its reason and sends the author to sign in with the
   expect(router.state.location.search).toBe(`?next=${encodeURIComponent(documentPagePath(DOCUMENT_ID))}`);
 });
 
-const CREATOR_TICKET = { creatorAttempt: 2, creatorEpoch: 'epoch-1' };
-
-function ticketedCreate(): OpenedDocument {
-  return { ...openedAs(DocumentRole.Owner, RoomMode.Create), ...CREATOR_TICKET };
+function ownerCreate(): OpenedDocument {
+  return openedAs(DocumentRole.Owner, RoomMode.Create);
 }
-
-async function renderSupersededPage(): Promise<ReturnType<typeof renderWithProviders>> {
-  let isSuperseded = false;
-  mockDocumentApi({ opened: ticketedCreate(), isAttemptSuperseded: () => isSuperseded });
-  const rendered = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  isSuperseded = true;
-  await act(() => rendered.queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
-  return rendered;
-}
-
-test('the members poll carries the creator ticket of the opened document', async () => {
-  const fetchSpy = mockDocumentApi({ opened: ticketedCreate() });
-  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
-  const membersUrls = fetchSpy.mock.calls.map(([input]) => String(input)).filter((url) => url.startsWith(MEMBERS_PATH));
-  const ticketOfLatestPoll = new URL(membersUrls.at(-1)!, window.location.origin).searchParams;
-  expect([ticketOfLatestPoll.get(CREATOR_ATTEMPT_QUERY_KEY), ticketOfLatestPoll.get(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
-    String(CREATOR_TICKET.creatorAttempt),
-    CREATOR_TICKET.creatorEpoch,
-  ]);
-});
-
-test('a superseded answer from the members poll fails the connection before any sync and makes the editor inert', async () => {
-  await renderSupersededPage();
-  const banner = await screen.findByRole('alert');
-  expect(banner).toHaveAttribute('data-state', ConnectionState.Failed);
-  expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Superseded]);
-  expect(screen.getByTestId('document-editor')).toHaveAttribute('inert');
-  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
-});
-
-test('a failure SuperDoc reports before ready after the superseded answer shows no editor notice that asks to reload', async () => {
-  await renderSupersededPage();
-  await screen.findByRole('alert');
-  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
-  act(() => constructedConfig().onException({ code: 'fatal', error: new Error('fatal'), editor: null }));
-  expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
-});
-
-test('a superseded tab offers the way back to the documents and never a reload', async () => {
-  const { router } = await renderSupersededPage();
-  await screen.findByRole('alert');
-  expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: BACK_TO_DOCUMENTS_LABEL }));
-  await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
-});
-
-test('a members poll that does not report a takeover leaves the page online', async () => {
-  mockDocumentApi({ opened: ticketedCreate() });
-  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
-});
 
 async function renderWithTimelineContributor(opened: OpenedDocument) {
   matchMediaAlwaysMatching();
@@ -884,7 +816,7 @@ async function renderWithTimelineContributor(opened: OpenedDocument) {
 }
 
 test('leaving a page with the timeline mounted removes the opened document from the cache', async () => {
-  const { queryClient } = await renderWithTimelineContributor(ticketedCreate());
+  const { queryClient } = await renderWithTimelineContributor(ownerCreate());
   cleanup();
   await waitFor(() =>
     expect(queryClient.getQueryCache().find({ queryKey: openedDocumentQueryKey(DOCUMENT_ID), exact: true })).toBeUndefined(),
@@ -895,7 +827,7 @@ test('a Reload answered 409 with the timeline mounted is not retried: the open, 
   let status = HttpStatus.Ok;
   matchMediaAlwaysMatching();
   const fetchSpy = mockDocumentApi({
-    opened: ticketedCreate(),
+    opened: ownerCreate(),
     openBody: { error: DOCUMENT_NOT_READY_ERROR },
     currentOpenStatus: () => status,
     timeline: TIMELINE_WITH_CONTRIBUTOR,
@@ -907,7 +839,7 @@ test('a Reload answered 409 with the timeline mounted is not retried: the open, 
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   status = HttpStatus.Conflict;
   await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
-  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
   const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
   expect(openRequests).toHaveLength(3);
 });
@@ -915,7 +847,7 @@ test('a Reload answered 409 with the timeline mounted is not retried: the open, 
 test('with the timeline mounted the members are requested once per interval', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   try {
-    const { fetchSpy } = await renderWithTimelineContributor(ticketedCreate());
+    const { fetchSpy } = await renderWithTimelineContributor(ownerCreate());
     function membersRequests(): number {
       return fetchSpy.mock.calls.filter(([input]) => String(input).startsWith(MEMBERS_PATH)).length;
     }
@@ -937,32 +869,13 @@ function stubSuperDocStillLoading(): () => void {
   return () => SuperDoc.mockImplementation(original);
 }
 
-test('a document that is still loading shows the loading line and keeps SuperDoc loading overlay', async () => {
+test('a document that is still loading shows the loading line', async () => {
   const restoreSuperDoc = stubSuperDocStillLoading();
   try {
-    mockDocumentApi({ opened: ticketedCreate() });
+    mockDocumentApi({ opened: ownerCreate() });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
     expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toBeInTheDocument();
-    expect(screen.getByTestId('document-editor')).not.toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
-  } finally {
-    restoreSuperDoc();
-  }
-});
-
-test('a superseded tab that never finished loading hides the loading line and SuperDoc loading overlay', async () => {
-  const restoreSuperDoc = stubSuperDocStillLoading();
-  try {
-    let isSuperseded = false;
-    mockDocumentApi({ opened: ticketedCreate(), isAttemptSuperseded: () => isSuperseded });
-    const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-    expect(screen.getByText(LOADING_DOCUMENT_MESSAGE)).toBeInTheDocument();
-    isSuperseded = true;
-    await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
-    await screen.findByRole('alert');
-    expect(screen.queryByText(LOADING_DOCUMENT_MESSAGE)).not.toBeInTheDocument();
-    expect(screen.getByTestId('document-editor')).toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
   } finally {
     restoreSuperDoc();
   }
@@ -1048,7 +961,7 @@ test('a changed title blocks leaving until the edit is cancelled', async () => {
 
 test('a layout pass while the connection is lost does not block leaving', async () => {
   const config = await openAsWhileLost(DocumentRole.Owner);
-  act(() => config.onPaginationUpdate());
+  act(() => config.onPaginationUpdate({ totalPages: 1 }));
   expect(isExitPrevented()).toBe(false);
 });
 
@@ -1070,4 +983,78 @@ test('deleting the document navigates to the list with no prompt even while the 
   await userEvent.click(await screen.findByRole('button', { name: DELETE_CONFIRM_LABEL }));
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
   expect(screen.queryByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeNull();
+});
+
+const PROGRESS_TEST_ID = 'open-progress';
+const PAINT_MARGIN_MS = 100;
+const PROGRESS_WAIT_MS = OPEN_PROGRESS_DELAY_MS + 1000;
+const EDITOR_TEST_ID = 'document-editor';
+
+function openedWithBootstrap(stage: BootstrapStage): OpenedDocument {
+  return { ...openedAs(DocumentRole.Reader), bootstrap: bootstrapAt(stage) };
+}
+
+function paintFirstParagraph(): void {
+  const page = document.createElement('div');
+  page.className = 'superdoc-page';
+  const fragment = document.createElement('div');
+  fragment.className = 'superdoc-fragment';
+  page.append(fragment);
+  act(() => screen.getByTestId(EDITOR_TEST_ID).append(page));
+}
+
+test('a Preparing bootstrap shows the Preparing panel after the delay and never builds the editor', async () => {
+  mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Preparing) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(panel).toHaveAttribute('data-stage', OpenStage.Preparing);
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('a Failed bootstrap shows the error card instead of a panel', async () => {
+  mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Failed) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByText(DOCUMENT_LOAD_ERROR_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+});
+
+test('the editor shows the download, then the rendering with the pages so far, and the panel leaves at the first paragraph', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(panel).toHaveAttribute('data-stage', OpenStage.Downloading);
+  act(() => constructedConfig().onCollaborationReady());
+  await waitFor(() => expect(panel).toHaveAttribute('data-stage', OpenStage.Rendering));
+  act(() => constructedConfig().onPaginationUpdate({ totalPages: 7 }));
+  await waitFor(() => expect(panel).toHaveTextContent(pagesSoFarDetail(7)));
+  paintFirstParagraph();
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+test('a document painted before the delay never shows the panel', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  paintFirstParagraph();
+  await new Promise((resolve) => setTimeout(resolve, OPEN_PROGRESS_DELAY_MS + PAINT_MARGIN_MS));
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+});
+
+test('before the delay SuperDoc keeps its own loading overlay and the panel then takes over', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(screen.getByTestId('editor-surface')).toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+});
+
+test('a failed connection hides the panel so the banner is not covered', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
 });

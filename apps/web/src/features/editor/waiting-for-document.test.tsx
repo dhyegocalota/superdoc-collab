@@ -1,34 +1,45 @@
-import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, DocumentRole, type DocumentsList } from '@superdoc-collab/types';
+import { AppRoute, BootstrapStage, DOCUMENT_UNAVAILABLE_MESSAGE, DocumentRole, type DocumentsList } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { DOCUMENT_ID, DOCUMENT_TITLE, summaryAs } from '@/testing/opened-document';
+import { OpenStage } from '@/features/open-progress/open-stage';
+import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, summaryAs } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
-import {
-  KEEP_WAITING_LABEL,
-  LOAD_RETRY_HINT,
-  NOT_READY_PAUSED_HEADING,
-  NOT_READY_PAUSED_MESSAGE,
-  PREPARING_DOCUMENT_HINT,
-  PREPARING_DOCUMENT_MESSAGE,
-  TRY_AGAIN_LABEL,
-} from './waiting-copy';
-import { WaitingForDocument, type WaitingReadiness } from './waiting-for-document';
+import { KEEP_WAITING_LABEL, LOAD_RETRY_HINT, NOT_READY_PAUSED_HEADING, NOT_READY_PAUSED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
+import { WaitingForDocument, type WaitingProgress, type WaitingReadiness } from './waiting-for-document';
 
 const CACHED_LIST: DocumentsList = { mine: [], shared: [summaryAs(DocumentRole.Reader)] };
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 
-function renderWaiting({ readiness, cached = false }: { readiness: WaitingReadiness; cached?: boolean }) {
+const SHOWN_PROGRESS: WaitingProgress = { bootstrap: bootstrapAt(BootstrapStage.Preparing), elapsedSeconds: 12, isShown: true };
+const HIDDEN_PROGRESS: WaitingProgress = { ...SHOWN_PROGRESS, isShown: false };
+const PROGRESS_TEST_ID = 'open-progress';
+
+function renderWaiting({
+  readiness,
+  cached = false,
+  progress = HIDDEN_PROGRESS,
+}: {
+  readiness: WaitingReadiness;
+  cached?: boolean;
+  progress?: WaitingProgress;
+}) {
   const queryClient = new QueryClient();
   if (cached) queryClient.setQueryData(DOCUMENTS_QUERY_KEY, CACHED_LIST);
   const onKeepWaiting = vi.fn();
   const onRetry = vi.fn();
   renderWithProviders(
-    <WaitingForDocument documentId={DOCUMENT_ID} readiness={readiness} onKeepWaiting={onKeepWaiting} onRetry={onRetry} />,
+    <WaitingForDocument
+      documentId={DOCUMENT_ID}
+      readiness={readiness}
+      progress={progress}
+      onKeepWaiting={onKeepWaiting}
+      onRetry={onRetry}
+    />,
     {
       queryClient,
     },
@@ -36,13 +47,21 @@ function renderWaiting({ readiness, cached = false }: { readiness: WaitingReadin
   return { onKeepWaiting, onRetry };
 }
 
-test('the waiting state shows Preparing the document… and Back to documents', () => {
-  renderWaiting({ readiness: DocumentReadiness.Waiting });
-  const status = screen.getByRole('status');
-  expect(within(status).getByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
-  expect(within(status).getByText(PREPARING_DOCUMENT_HINT)).toBeInTheDocument();
+test('the waiting state shows the Preparing panel and Back to documents once the delay has passed', () => {
+  renderWaiting({ readiness: DocumentReadiness.Waiting, progress: SHOWN_PROGRESS, cached: true });
+  const panel = screen.getByTestId(PROGRESS_TEST_ID);
+  expect(panel).toHaveAttribute('data-stage', OpenStage.Preparing);
+  expect(within(panel).getByText(DOCUMENT_TITLE)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', AppRoute.Documents);
   expect(screen.queryByRole('button', { name: KEEP_WAITING_LABEL })).not.toBeInTheDocument();
+});
+
+test('the waiting state shows no panel before the delay has passed', () => {
+  renderWaiting({ readiness: DocumentReadiness.Waiting });
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).not.toBeInTheDocument();
+  expect(screen.getByTestId(TITLE_SKELETON_TEST_ID)).toBeInTheDocument();
+  expect(screen.getByRole('main')).toBeInTheDocument();
 });
 
 test('the paused state shows the five-minute message and Keep waiting first', async () => {
@@ -75,7 +94,7 @@ test('an unavailable document shows its own message and no retry', () => {
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toBeInTheDocument();
 });
 
-test('the title shows when the documents cache holds it, and a skeleton otherwise', () => {
+test('the title shows when the documents cache holds it', () => {
   renderWaiting({ readiness: DocumentReadiness.Waiting, cached: true });
   expect(screen.getByText(DOCUMENT_TITLE)).toBeInTheDocument();
   expect(screen.queryByTestId(TITLE_SKELETON_TEST_ID)).not.toBeInTheDocument();
@@ -87,6 +106,6 @@ test('without a cached title a skeleton takes its place', () => {
   expect(screen.getByTestId(TITLE_SKELETON_TEST_ID)).toBeInTheDocument();
 });
 
-test('the waiting copy names another editor, never the owner, because any editor can create the room', () => {
-  expect([PREPARING_DOCUMENT_HINT, NOT_READY_PAUSED_MESSAGE].some((copy) => /owner/i.test(copy))).toBe(false);
+test('the waiting copy never names the owner, because any editor can open the document', () => {
+  expect(/owner/i.test(NOT_READY_PAUSED_MESSAGE)).toBe(false);
 });

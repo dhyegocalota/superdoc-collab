@@ -2,15 +2,33 @@ import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } 
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { BOOTSTRAP_TIMEOUT_MS, MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { runHistoryMigrations } from '../database/migrate';
 import { createProjectionHandler } from './projection-handler';
-import { MissingVersionMarkError, ProjectionRequestKind } from './projection-messages';
+import { BootstrapTimeoutError, IMPORT_TOO_LARGE_MESSAGE, MissingVersionMarkError, ProjectionRequestKind } from './projection-messages';
 
 const DOCUMENT_ID = 'd1';
 
-function storesWith(importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>) {
+const SMALL_FILE_BYTES = 1024;
+const SHORT_TIMEOUT_MS = 20;
+const BOOTSTRAP_REQUEST = {
+  kind: ProjectionRequestKind.Bootstrap,
+  documentId: DOCUMENT_ID,
+  filePath: 'plan.docx',
+  url: 'ws://127.0.0.1:1/collaboration/bootstrap',
+  token: 'bootstrap-token',
+} as const;
+
+type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string };
+
+function storesWith(
+  importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>,
+  fileSizeBytes: (filePath: string) => number = () => SMALL_FILE_BYTES,
+  bootstrapRoom: (request: BootstrapRequest) => Promise<void> = async () => undefined,
+  bootstrapTimeoutMs = BOOTSTRAP_TIMEOUT_MS,
+) {
   const directory = mkdtempSync(join(tmpdir(), 'projection-handler-'));
   const historySqlite = openSqliteFile({ directory, fileName: HISTORY_DATABASE_FILE });
   runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History });
@@ -21,6 +39,9 @@ function storesWith(importRevisions: (request: { documentId: string; filePath: s
     readModel: new ReadModel(readModelSqlite),
     replays: new GcFreeReplays(REPLAY_CACHE_SIZE),
     importRevisions,
+    fileSizeBytes,
+    bootstrapRoom,
+    bootstrapTimeoutMs,
   };
 }
 
@@ -47,6 +68,42 @@ test('an import reads the cursor before importing and answers the import error',
   });
   expect(importRevisions).toHaveBeenCalledWith(request);
   expect(cursor.mock.invocationCallOrder[0]).toBeLessThan(importRevisions.mock.invocationCallOrder[0]!);
+});
+
+test('a file above the revisions cap is not imported, is logged with its size and answers no import error', async () => {
+  const importRevisions = vi.fn(async () => 'boom');
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const oversizedBytes = MAX_REVISIONS_IMPORT_BYTES + 1;
+  const stores = storesWith(importRevisions, () => oversizedBytes);
+  const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
+  expect(await createProjectionHandler(stores)(request)).toEqual({
+    kind: ProjectionRequestKind.Import,
+    documentId: DOCUMENT_ID,
+    cursor: null,
+    importError: null,
+  });
+  expect(importRevisions).not.toHaveBeenCalled();
+  expect(warn).toHaveBeenCalledExactlyOnceWith(`${IMPORT_TOO_LARGE_MESSAGE} ${DOCUMENT_ID}: ${oversizedBytes} bytes`);
+  warn.mockRestore();
+});
+
+test('a file whose size cannot be read answers the error instead of throwing', async () => {
+  const importRevisions = vi.fn(async () => null);
+  const unreadable = () => {
+    throw new Error('no such file');
+  };
+  const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
+  expect(await createProjectionHandler(storesWith(importRevisions, unreadable))(request)).toMatchObject({
+    importError: 'Error: no such file',
+  });
+  expect(importRevisions).not.toHaveBeenCalled();
+});
+
+test('a file exactly at the revisions cap is imported', async () => {
+  const importRevisions = vi.fn(async () => null);
+  const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
+  await createProjectionHandler(storesWith(importRevisions, () => MAX_REVISIONS_IMPORT_BYTES))(request);
+  expect(importRevisions).toHaveBeenCalledWith(request);
 });
 
 test('forgetting clears the replays before the read model and answers a null cursor', async () => {
@@ -76,4 +133,49 @@ test('a version without a mark fails with the missing mark error', async () => {
   await expect(handle({ kind: ProjectionRequestKind.Version, documentId: DOCUMENT_ID, sequence: 5 })).rejects.toBeInstanceOf(
     MissingVersionMarkError,
   );
+});
+
+test('a bootstrap joins the room of the stored file and answers its document', async () => {
+  const bootstrapRoom = vi.fn(async () => undefined);
+  const handle = createProjectionHandler(
+    storesWith(
+      async () => null,
+      () => SMALL_FILE_BYTES,
+      bootstrapRoom,
+    ),
+  );
+  expect(await handle(BOOTSTRAP_REQUEST)).toEqual({ kind: ProjectionRequestKind.Bootstrap, documentId: DOCUMENT_ID });
+  expect(bootstrapRoom).toHaveBeenCalledExactlyOnceWith({
+    documentId: DOCUMENT_ID,
+    filePath: BOOTSTRAP_REQUEST.filePath,
+    url: BOOTSTRAP_REQUEST.url,
+    token: BOOTSTRAP_REQUEST.token,
+  });
+});
+
+test('a bootstrap that throws rejects with the error', async () => {
+  const bootstrapRoom = vi.fn(async () => {
+    throw new Error('not a document');
+  });
+  const handle = createProjectionHandler(
+    storesWith(
+      async () => null,
+      () => SMALL_FILE_BYTES,
+      bootstrapRoom,
+    ),
+  );
+  await expect(handle(BOOTSTRAP_REQUEST)).rejects.toThrow('not a document');
+});
+
+test('a bootstrap that outlives its timeout rejects with the timeout error', async () => {
+  const bootstrapRoom = vi.fn(() => new Promise<void>(() => undefined));
+  const handle = createProjectionHandler(
+    storesWith(
+      async () => null,
+      () => SMALL_FILE_BYTES,
+      bootstrapRoom,
+      SHORT_TIMEOUT_MS,
+    ),
+  );
+  await expect(handle(BOOTSTRAP_REQUEST)).rejects.toBeInstanceOf(BootstrapTimeoutError);
 });

@@ -51,9 +51,10 @@ function toLoggedUpdate(row: UpdateRow): LoggedUpdate {
   };
 }
 
+// NB ADR 0047: client ids come from the update's metadata, never from materialized structs.
 function extractStructClientIds(update: Uint8Array): number[] {
-  const { structs } = Y.decodeUpdate(update);
-  return [...new Set(structs.map((struct) => struct.id.client))].sort((left, right) => left - right);
+  const { from } = Y.parseUpdateMeta(update);
+  return [...from.keys()].sort((left, right) => left - right);
 }
 
 export class UpdateLog {

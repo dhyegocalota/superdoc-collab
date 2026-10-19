@@ -15,3 +15,7 @@ export function isLoopbackAddress(address: string | undefined): boolean {
   if (address === undefined) return false;
   return LOOPBACK_ADDRESSES.has(address);
 }
+
+export function isBootstrapUpgrade(url: string): boolean {
+  return upgradePathname(url) === ApiPath.BootstrapCollaboration;
+}

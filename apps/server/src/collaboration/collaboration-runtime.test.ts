@@ -1,15 +1,8 @@
 import type { Hocuspocus } from '@hocuspocus/server';
-import {
-  ACCESS_REVOKED_CLOSE_CODE,
-  ACCESS_REVOKED_REASON,
-  CREATOR_RESERVATION_MAX_MS,
-  CREATOR_RESERVATION_MS,
-  SUPERSEDED_ATTEMPT_CLOSE_CODE,
-  SUPERSEDED_ATTEMPT_REASON,
-} from '@superdoc-collab/types';
+import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { createCollaborationRuntime } from './collaboration-runtime';
-import { CreatorReservations } from './creator-reservations';
+import { COMMITTED_WITHOUT_BOOTSTRAP } from './room-bootstrap';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
 const DOCUMENT_ID = '11111111-1111-4111-8111-111111111111';
@@ -17,23 +10,27 @@ const OTHER_DOCUMENT_ID = '22222222-2222-4222-8222-222222222222';
 const FIRST_EDITOR = 'editor-1';
 const SECOND_EDITOR = 'editor-2';
 
-type FakeConnection = { context: { creatorAttempt: number | null; userId?: string }; close: ReturnType<typeof vi.fn> };
-
-function connectionWithAttempt(creatorAttempt: number | null): FakeConnection {
-  return { context: { creatorAttempt }, close: vi.fn() };
-}
+type FakeConnection = { context: { userId: string }; close: ReturnType<typeof vi.fn> };
 
 function connectionOfUser(userId: string): FakeConnection {
-  return { context: { creatorAttempt: null, userId }, close: vi.fn() };
+  return { context: { userId }, close: vi.fn() };
+}
+
+const QUEUED: BootstrapProgress = { stage: BootstrapStage.Queued, done: 0, total: 9, stateBytes: null };
+
+function fakeRoomBootstrap({ progress = null }: { progress?: BootstrapProgress | null } = {}) {
+  return { progressOf: vi.fn(() => progress), request: vi.fn(() => QUEUED), forget: vi.fn() };
 }
 
 function runtimeWith({
   rooms,
-  reservations,
+  roomBootstrap = fakeRoomBootstrap(),
+  bootstrap = { isKnownCommitted: vi.fn(() => false) },
   versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() },
 }: {
   rooms: Record<string, FakeConnection[]>;
-  reservations: CreatorReservations;
+  roomBootstrap?: ReturnType<typeof fakeRoomBootstrap>;
+  bootstrap?: { isKnownCommitted: ReturnType<typeof vi.fn> };
   versionRooms?: { closeUser: ReturnType<typeof vi.fn>; closeAllOfUser: ReturnType<typeof vi.fn> };
 }) {
   const documents = new Map(
@@ -47,69 +44,19 @@ function runtimeWith({
   );
   return createCollaborationRuntime({
     hocuspocus: { documents } as unknown as Hocuspocus,
-    reservations,
+    roomBootstrap,
+    bootstrap,
     versionRooms,
   } as unknown as Parameters<typeof createCollaborationRuntime>[0]);
 }
 
-test("a takeover closes the superseded creator's socket with 4403 and the reason", () => {
-  const clock = { time: 0 };
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => clock.time });
-  const superseded = connectionWithAttempt(1);
-  const otherRoom = connectionWithAttempt(1);
-  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [superseded], [OTHER_DOCUMENT_ID]: [otherRoom] }, reservations });
-  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR })).toEqual({ attempt: 1, epoch: reservations.epoch });
-  expect(superseded.close).not.toHaveBeenCalled();
-  clock.time += CREATOR_RESERVATION_MAX_MS + 1;
-  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR })).toEqual({ attempt: 2, epoch: reservations.epoch });
-  expect(superseded.close).toHaveBeenCalledWith({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
-  expect(otherRoom.close).not.toHaveBeenCalled();
-});
-
-test('a takeover close is logged with the document id and the superseded attempt', () => {
-  const clock = { time: 0 };
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => clock.time });
-  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [connectionWithAttempt(1)] }, reservations });
-  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-  runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
-  expect(warn).not.toHaveBeenCalled();
-  clock.time += CREATOR_RESERVATION_MAX_MS + 1;
-  runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR });
-  expect(warn).toHaveBeenCalledOnce();
-  expect(warn.mock.calls.flat().join(' ')).toContain(DOCUMENT_ID);
-  expect(warn.mock.calls.flat().join(' ')).toContain('attempt 1');
-  warn.mockRestore();
-});
-
-test('a holder with a connected socket is not taken over when the silence timer has run out', () => {
-  const clock = { time: 0 };
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => clock.time });
-  const holder = connectionWithAttempt(1);
-  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [holder] }, reservations });
-  runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
-  clock.time += CREATOR_RESERVATION_MS + 1;
-  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR })).toBeNull();
-  expect(holder.close).not.toHaveBeenCalled();
-});
-
-test('a takeover happens once the last socket is gone and the silence timer has run out', () => {
-  const clock = { time: 0 };
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => clock.time });
-  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, reservations });
-  runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
-  clock.time += CREATOR_RESERVATION_MS + 1;
-  expect(runtime.reserveCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR })).toEqual({ attempt: 2, epoch: reservations.epoch });
-});
-
 test("closeUserConnections closes only that user's sockets of the document with 4404 and the reason", () => {
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
   const removedFirstTab = connectionOfUser(FIRST_EDITOR);
   const removedSecondTab = connectionOfUser(FIRST_EDITOR);
   const stayingUser = connectionOfUser(SECOND_EDITOR);
   const removedUserInOtherDocument = connectionOfUser(FIRST_EDITOR);
   const runtime = runtimeWith({
     rooms: { [DOCUMENT_ID]: [removedFirstTab, stayingUser, removedSecondTab], [OTHER_DOCUMENT_ID]: [removedUserInOtherDocument] },
-    reservations,
   });
   runtime.closeUserConnections({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
   expect(removedFirstTab.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
@@ -119,13 +66,11 @@ test("closeUserConnections closes only that user's sockets of the document with 
 });
 
 test("closeConnectionsOfUser closes that user's sockets in every document and leaves other users alone", () => {
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
   const firstDocumentSocket = connectionOfUser(FIRST_EDITOR);
   const secondDocumentSocket = connectionOfUser(FIRST_EDITOR);
   const stayingUser = connectionOfUser(SECOND_EDITOR);
   const runtime = runtimeWith({
     rooms: { [DOCUMENT_ID]: [firstDocumentSocket, stayingUser], [OTHER_DOCUMENT_ID]: [secondDocumentSocket] },
-    reservations,
   });
   runtime.closeConnectionsOfUser(FIRST_EDITOR);
   expect(firstDocumentSocket.close).toHaveBeenCalledWith({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
@@ -134,17 +79,54 @@ test("closeConnectionsOfUser closes that user's sockets in every document and le
 });
 
 test('closeUserConnections also closes the version sockets of that user', () => {
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
   const versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() };
-  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, reservations, versionRooms });
+  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, versionRooms });
   runtime.closeUserConnections({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
   expect(versionRooms.closeUser).toHaveBeenCalledWith({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
 });
 
 test('closeConnectionsOfUser also closes the version sockets of that user in every document', () => {
-  const reservations = new CreatorReservations({ reservationMs: CREATOR_RESERVATION_MS, now: () => 0 });
   const versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() };
-  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, reservations, versionRooms });
+  const runtime = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, versionRooms });
   runtime.closeConnectionsOfUser(FIRST_EDITOR);
   expect(versionRooms.closeAllOfUser).toHaveBeenCalledWith(FIRST_EDITOR);
+});
+
+test('the bootstrap of a document with a job is the progress of that job', () => {
+  const progress: BootstrapProgress = { stage: BootstrapStage.Preparing, done: 0, total: 9, stateBytes: null };
+  const roomBootstrap = fakeRoomBootstrap({ progress });
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap });
+  expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(progress);
+  expect(roomBootstrap.request).not.toHaveBeenCalled();
+});
+
+test('a document committed without a job is ready with nothing to process and starts no job', () => {
+  const roomBootstrap = fakeRoomBootstrap();
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap, bootstrap: { isKnownCommitted: vi.fn(() => true) } });
+  expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(COMMITTED_WITHOUT_BOOTSTRAP);
+  expect(roomBootstrap.request).not.toHaveBeenCalled();
+});
+
+test('an uncommitted document with no job is requested once and answers the queued progress', () => {
+  const roomBootstrap = fakeRoomBootstrap();
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap });
+  expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(QUEUED);
+  expect(roomBootstrap.request).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
+});
+
+test('forgetting a document forgets its bootstrap', async () => {
+  const roomBootstrap = fakeRoomBootstrap();
+  const runtime = createCollaborationRuntime({
+    hocuspocus: { documents: new Map(), closeConnections: vi.fn() },
+    updateLog: { forget: vi.fn() },
+    bootstrap: { forget: vi.fn() },
+    roomBootstrap,
+    timelinePipelines: { forget: vi.fn() },
+    versions: { forget: vi.fn() },
+    versionRooms: { forget: vi.fn() },
+    scheduler: { forget: vi.fn() },
+    insights: { selection: { forget: vi.fn() } },
+  } as unknown as Parameters<typeof createCollaborationRuntime>[0]);
+  await runtime.forget(DOCUMENT_ID);
+  expect(roomBootstrap.forget).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
 });

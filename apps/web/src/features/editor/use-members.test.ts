@@ -1,4 +1,4 @@
-import { CREATOR_ATTEMPT_QUERY_KEY, CREATOR_EPOCH_QUERY_KEY, HttpStatus, TAB_QUERY_KEY, type CreatorTicket } from '@superdoc-collab/types';
+import { HttpStatus, TAB_QUERY_KEY } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
@@ -9,27 +9,16 @@ import { jsonResponse } from '@/testing/json-response';
 import { membersQueryKey } from './editor-api';
 import { useMembers } from './use-members';
 
-const CREATOR_TICKET: CreatorTicket = { attempt: 2, epoch: 'epoch-1' };
-
-function membersAnswer({
-  isCurrentUserOnline,
-  isAttemptSuperseded = false,
-}: {
-  isCurrentUserOnline: boolean;
-  isAttemptSuperseded?: boolean;
-}): Response {
-  return jsonResponse({ body: { members: [], isCurrentUserOnline, isAttemptSuperseded } });
+function membersAnswer({ isCurrentUserOnline }: { isCurrentUserOnline: boolean }): Response {
+  return jsonResponse({ body: { members: [], isCurrentUserOnline } });
 }
 
-function renderMembers(creatorTicket: CreatorTicket | null = null) {
+function renderMembers() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function wrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, { client: queryClient }, children);
   }
-  const rendered = renderHook(({ ticket }) => useMembers({ documentId: DOCUMENT_ID, creatorTicket: ticket }), {
-    wrapper,
-    initialProps: { ticket: creatorTicket },
-  });
+  const rendered = renderHook(() => useMembers(DOCUMENT_ID), { wrapper });
   async function poll(): Promise<void> {
     await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
   }
@@ -119,74 +108,10 @@ test('isSessionEnded is true once the latest poll is a 401, and a 500 does not s
   await waitFor(() => expect(result.current.isSessionEnded).toBe(true));
 });
 
-test('the members request carries the creator ticket when the page holds one', async () => {
-  vi.mocked(fetch).mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true }));
-  renderMembers(CREATOR_TICKET);
-  await waitFor(() => expect(fetch).toHaveBeenCalled());
-  const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[0]![0]), window.location.origin);
-  expect([requestedUrl.searchParams.get(CREATOR_ATTEMPT_QUERY_KEY), requestedUrl.searchParams.get(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
-    String(CREATOR_TICKET.attempt),
-    CREATOR_TICKET.epoch,
-  ]);
-});
-
-test('the members request carries no ticket when the page holds none', async () => {
+test('the members request carries the tab id and no ticket', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true }));
   renderMembers();
   await waitFor(() => expect(fetch).toHaveBeenCalled());
   const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[0]![0]), window.location.origin);
-  expect([requestedUrl.searchParams.has(CREATOR_ATTEMPT_QUERY_KEY), requestedUrl.searchParams.has(CREATOR_EPOCH_QUERY_KEY)]).toEqual([
-    false,
-    false,
-  ]);
-});
-
-test('isAttemptSuperseded is false before the first answer and follows the latest answer', async () => {
-  vi.mocked(fetch)
-    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptSuperseded: false }))
-    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptSuperseded: true }));
-  const { result, poll } = renderMembers(CREATOR_TICKET);
-  expect(result.current.isAttemptSuperseded).toBe(false);
-  await waitFor(() => expect(result.current.membersAnsweredAt).not.toBeNull());
-  expect(result.current.isAttemptSuperseded).toBe(false);
-  await poll();
-  await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(true));
-});
-
-test('isAttemptSuperseded is false after a failed poll', async () => {
-  vi.mocked(fetch)
-    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptSuperseded: true }))
-    .mockResolvedValueOnce(jsonResponse({ body: {}, status: HttpStatus.InternalServerError }));
-  const { result, poll } = renderMembers(CREATOR_TICKET);
-  await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(true));
-  await poll();
-  await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(false));
-});
-
-test('a new ticket fetches at once and the answer for the old ticket is not credited to it', async () => {
-  const reopenedTicket: CreatorTicket = { attempt: CREATOR_TICKET.attempt + 1, epoch: CREATOR_TICKET.epoch };
-  vi.mocked(fetch)
-    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptSuperseded: true }))
-    .mockReturnValueOnce(new Promise(() => undefined));
-  const { result, rerender } = renderMembers(CREATOR_TICKET);
-  await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(true));
-  rerender({ ticket: reopenedTicket });
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-  const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[1]![0]), window.location.origin);
-  expect(requestedUrl.searchParams.get(CREATOR_ATTEMPT_QUERY_KEY)).toBe(String(reopenedTicket.attempt));
-  expect(result.current.isAttemptSuperseded).toBe(false);
-});
-
-test('a new epoch with the same attempt fetches at once and the old answer is not credited to it', async () => {
-  const restartedTicket: CreatorTicket = { attempt: CREATOR_TICKET.attempt, epoch: 'epoch-2' };
-  vi.mocked(fetch)
-    .mockResolvedValueOnce(membersAnswer({ isCurrentUserOnline: true, isAttemptSuperseded: true }))
-    .mockReturnValueOnce(new Promise(() => undefined));
-  const { result, rerender } = renderMembers(CREATOR_TICKET);
-  await waitFor(() => expect(result.current.isAttemptSuperseded).toBe(true));
-  rerender({ ticket: restartedTicket });
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-  const requestedUrl = new URL(String(vi.mocked(fetch).mock.calls[1]![0]), window.location.origin);
-  expect(requestedUrl.searchParams.get(CREATOR_EPOCH_QUERY_KEY)).toBe(restartedTicket.epoch);
-  expect(result.current.isAttemptSuperseded).toBe(false);
+  expect(requestedUrl.searchParams.get(TAB_QUERY_KEY)).toBe(tabId());
 });

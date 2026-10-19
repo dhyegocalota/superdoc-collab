@@ -1,4 +1,4 @@
-import { MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
+import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
@@ -6,12 +6,15 @@ import {
   IMPORT_FAILED_MESSAGE,
   IMPORT_SKIPPED_MESSAGE,
   PROJECTION_FAILED_MESSAGE,
+  BootstrapInterruptedError,
   ProjectionBusyError,
   ProjectionDegradedError,
   ProjectionReplyKind,
   ProjectionRequestKind,
   ProjectionStoppedError,
+  WORKER_RECYCLED_MESSAGE,
   type BlocksReply,
+  type BootstrapReply,
   type ProjectionDoneReply,
   type ProjectionFailedReply,
   type ProjectionReply,
@@ -29,27 +32,36 @@ const WORKER_RESTART_WINDOW_MS = MINUTE_MS;
 function createWorker({
   databaseDirectory,
   projectionWorkerFile,
+  workerHeapMegabytes,
 }: {
   databaseDirectory: string;
   projectionWorkerFile: URL | null;
+  workerHeapMegabytes: number | null;
 }): Worker {
   const workerData = { databaseDirectory };
-  if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData });
-  if (!import.meta.url.endsWith(SOURCE_EXTENSION)) return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData });
+  const heapLimit = workerHeapMegabytes === null ? {} : { resourceLimits: { maxOldGenerationSizeMb: workerHeapMegabytes } };
+  if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData, ...heapLimit });
+  if (!import.meta.url.endsWith(SOURCE_EXTENSION))
+    return new Worker(new URL('./projection-worker.js', import.meta.url), { workerData, ...heapLimit });
   const entry = JSON.stringify(new URL('./projection-worker.ts', import.meta.url).href);
   const registerEntry = JSON.stringify(import.meta.resolve(TSX_REGISTER_SPECIFIER));
   return new Worker(`import(${registerEntry}).then(({ register }) => { register(); return import(${entry}); })`, {
     eval: true,
     workerData,
+    ...heapLimit,
   });
 }
 
 export const MAX_REQUEST_POSTS = 2;
 
+type BootstrapWaiter = { request: BootstrapRequest; resolve: () => void; reject: (error: Error) => void };
+export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string };
+
 export class ProjectionScheduler {
   currentWorker: Worker;
   private readonly databaseDirectory: string;
   private readonly projectionWorkerFile: URL | null;
+  private readonly workerHeapMegabytes: number | null;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
   private readonly documentsNeedingRerun = new Set<string>();
@@ -57,16 +69,27 @@ export class ProjectionScheduler {
   private readonly reimportedDocuments = new Set<string>();
   private readonly waitingRequests = new WaitingRequests();
   private readonly forgetting = new Map<string, (() => void)[]>();
+  private readonly bootstrapping = new Map<string, BootstrapWaiter>();
   private readonly restarts = new SlidingWindow({ windowMs: WORKER_RESTART_WINDOW_MS });
   private readonly loggedProjectionFailures = new Set<string>();
   private isAlive = true;
+  private isRecycling = false;
   isDegraded = false;
   private readonly loggedImportFailures = new Set<string>();
   private stoppingPromise: Promise<void> | null = null;
 
-  constructor({ databaseDirectory, projectionWorkerFile = null }: { databaseDirectory: string; projectionWorkerFile?: URL | null }) {
+  constructor({
+    databaseDirectory,
+    projectionWorkerFile = null,
+    workerHeapMegabytes = null,
+  }: {
+    databaseDirectory: string;
+    projectionWorkerFile?: URL | null;
+    workerHeapMegabytes?: number | null;
+  }) {
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
+    this.workerHeapMegabytes = workerHeapMegabytes;
     this.currentWorker = this.spawn();
   }
 
@@ -84,6 +107,15 @@ export class ProjectionScheduler {
     if (this.isDegraded) return console.error(`${IMPORT_SKIPPED_MESSAGE} ${documentId}`);
     this.pendingImports.set(documentId, filePath);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath });
+  }
+
+  bootstrap(request: BootstrapRequest): Promise<void> {
+    if (this.isDegraded) return Promise.reject(new ProjectionDegradedError());
+    if (this.stoppingPromise) return Promise.reject(new ProjectionStoppedError());
+    return new Promise((resolve, reject) => {
+      this.bootstrapping.set(request.documentId, { request, resolve, reject });
+      this.currentWorker.postMessage({ kind: ProjectionRequestKind.Bootstrap, ...request });
+    });
   }
 
   rebuild({ documentId, filePath }: { documentId: string; filePath: string }): Promise<void> {
@@ -125,6 +157,7 @@ export class ProjectionScheduler {
     if (this.stoppingPromise) return this.stoppingPromise;
     if (!this.isAlive) return Promise.resolve();
     this.waitingRequests.rejectAll(() => new ProjectionStoppedError());
+    this.rejectBootstrapping(() => new ProjectionStoppedError());
     this.stoppingPromise = new Promise<void>((resolve) => this.currentWorker.once('exit', () => resolve()));
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
     return this.stoppingPromise;
@@ -140,7 +173,11 @@ export class ProjectionScheduler {
   }
 
   private spawn(): Worker {
-    const worker = createWorker({ databaseDirectory: this.databaseDirectory, projectionWorkerFile: this.projectionWorkerFile });
+    const worker = createWorker({
+      databaseDirectory: this.databaseDirectory,
+      projectionWorkerFile: this.projectionWorkerFile,
+      workerHeapMegabytes: this.workerHeapMegabytes,
+    });
     this.isAlive = true;
     worker.on('message', (reply: ProjectionReply) => this.settle(reply));
     worker.on('error', (error) => console.error(`${WORKER_ERROR_MESSAGE}: ${describeError(error)}`));
@@ -152,15 +189,27 @@ export class ProjectionScheduler {
   }
 
   private settle(reply: ProjectionReply): void {
+    if (reply.kind !== ProjectionReplyKind.Failed) this.recycleWhenHeavy(reply.heapTotalBytes);
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
     if (isServedReply(reply)) return this.waitingRequests.resolve(reply);
+    if (reply.kind === ProjectionRequestKind.Bootstrap) return this.settleBootstrap(reply);
     if (reply.kind === ProjectionRequestKind.Forget) return this.settleForget(reply.documentId);
     if (reply.kind === ProjectionRequestKind.Import) return this.settleImport(reply);
     return this.settleProject(reply);
   }
 
+  private recycleWhenHeavy(heapTotalBytes: number): void {
+    const isHeavy = heapTotalBytes > LARGE_DOCUMENT_HEAP_BYTES;
+    if (!isHeavy || this.isRecycling || this.stoppingPromise) return;
+    if (this.bootstrapping.size > 0) return;
+    this.isRecycling = true;
+    console.info(`${WORKER_RECYCLED_MESSAGE} ${heapTotalBytes}`);
+    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });
+  }
+
   private settleFailure(reply: ProjectionFailedReply): void {
     const { documentId, message, requestKind } = reply;
+    if (requestKind === ProjectionRequestKind.Bootstrap) return this.takeBootstrapWaiter(documentId)?.reject(new Error(message));
     if (requestKind === ProjectionRequestKind.Version || requestKind === ProjectionRequestKind.Blocks)
       return this.waitingRequests.reject({
         key: requestKeyOf({ kind: requestKind, documentId, sequence: reply.sequence }),
@@ -174,6 +223,26 @@ export class ProjectionScheduler {
     if (this.loggedProjectionFailures.has(documentId)) return;
     this.loggedProjectionFailures.add(documentId);
     console.error(`${PROJECTION_FAILED_MESSAGE} ${documentId}: ${message}`);
+  }
+
+  private settleBootstrap({ documentId }: BootstrapReply): void {
+    this.takeBootstrapWaiter(documentId)?.resolve();
+  }
+
+  private takeBootstrapWaiter(documentId: string): BootstrapWaiter | null {
+    const waiter = this.bootstrapping.get(documentId);
+    this.bootstrapping.delete(documentId);
+    if (waiter === undefined) return null;
+    return waiter;
+  }
+
+  private repostBootstrapping(): void {
+    this.bootstrapping.forEach(({ request }) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Bootstrap, ...request }));
+  }
+
+  private rejectBootstrapping(errorOf: () => Error): void {
+    this.bootstrapping.forEach(({ reject }) => reject(errorOf()));
+    this.bootstrapping.clear();
   }
 
   private settleImport({ documentId, importError }: ProjectionDoneReply): void {
@@ -213,7 +282,11 @@ export class ProjectionScheduler {
 
   private restart(): void {
     if (this.stoppingPromise) return;
-    if (!this.withinRestartBudget()) return this.degrade();
+    const wasRecycled = this.isRecycling;
+    this.isRecycling = false;
+    if (wasRecycled) this.repostBootstrapping();
+    if (!wasRecycled) this.rejectBootstrapping(() => new BootstrapInterruptedError());
+    if (!wasRecycled && !this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
     const pending = [...this.inFlight];
     this.inFlight.clear();

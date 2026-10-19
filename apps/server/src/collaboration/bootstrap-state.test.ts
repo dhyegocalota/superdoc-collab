@@ -61,6 +61,23 @@ test('commit appends the committing update and a snapshot of the live room at it
   close();
 });
 
+test('commit reports the document and the size of the state it stored', () => {
+  const { updateLog, readModel, close } = stateOver();
+  const onCommitted = vi.fn();
+  const bootstrap = createBootstrapState({ updateLog, readModel, onCommitted });
+  const liveRoom = new Y.Doc();
+  liveRoom.getText(TEXT_NAME).insert(0, LIVE_TEXT);
+  bootstrap.commit({
+    documentId: DOCUMENT_ID,
+    connectionUserId: USER_ID,
+    connectionActor: ClientActor.Human,
+    update: Y.encodeStateAsUpdate(liveRoom),
+    document: liveRoom,
+  });
+  expect(onCommitted).toHaveBeenCalledExactlyOnceWith({ documentId: DOCUMENT_ID, stateBytes: Y.encodeStateAsUpdate(liveRoom).byteLength });
+  close();
+});
+
 test('isCommitted reads a committed room once and caches it', () => {
   const { updateLog, readModel, close } = stateOver();
   const bootstrap = createBootstrapState({ updateLog, readModel });

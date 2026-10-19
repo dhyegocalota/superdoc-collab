@@ -28,13 +28,11 @@ export enum ApiPath {
   ShareLinks = '/api/share-links',
   Mcp = '/api/mcp',
   AgentCollaboration = '/collaboration/agent',
+  BootstrapCollaboration = '/collaboration/bootstrap',
   Setup = '/api/setup',
   Invites = '/api/invites',
   Admin = '/api/admin',
 }
-
-export const CREATOR_ATTEMPT_QUERY_KEY = 'attempt';
-export const CREATOR_EPOCH_QUERY_KEY = 'epoch';
 
 export enum AdminResource {
   Users = 'users',

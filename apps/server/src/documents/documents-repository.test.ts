@@ -136,3 +136,12 @@ test('recordThumbnail sets thumbnailUpdatedAt on the summary and the list withou
   expect(documents.list(ana).mine[0]!.thumbnailUpdatedAt).toBe(after.thumbnailUpdatedAt);
   await server.stop();
 });
+
+test('ownerOf answers the owner of a document and null for an unknown one', async () => {
+  const { server, ana } = await twoUsers();
+  const { documents } = server.services;
+  const documentId = randomUUID();
+  documents.create({ id: documentId, title: 'Plan', ownerUserId: ana });
+  expect([documents.ownerOf(documentId), documents.ownerOf(randomUUID())]).toEqual([ana, null]);
+  await server.stop();
+});

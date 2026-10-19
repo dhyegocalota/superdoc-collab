@@ -9,6 +9,13 @@ const REQUESTS: Record<ProjectionRequestKind, ProjectionRequest> = {
   [ProjectionRequestKind.Forget]: { kind: ProjectionRequestKind.Forget, documentId: DOCUMENT_ID },
   [ProjectionRequestKind.Version]: { kind: ProjectionRequestKind.Version, documentId: DOCUMENT_ID, sequence: 3 },
   [ProjectionRequestKind.Blocks]: { kind: ProjectionRequestKind.Blocks, documentId: DOCUMENT_ID },
+  [ProjectionRequestKind.Bootstrap]: {
+    kind: ProjectionRequestKind.Bootstrap,
+    documentId: DOCUMENT_ID,
+    filePath: 'plan.docx',
+    url: 'ws://127.0.0.1:1',
+    token: 'token',
+  },
   [ProjectionRequestKind.Stop]: { kind: ProjectionRequestKind.Stop },
 };
 
@@ -54,6 +61,24 @@ test('a pending import does not hold back a project', async () => {
   await expect.poll(() => events).toEqual([ProjectionRequestKind.Project]);
   release();
   await expect.poll(() => events).toEqual([ProjectionRequestKind.Project, ProjectionRequestKind.Import]);
+});
+
+test('a pending bootstrap holds back neither a project nor a forget', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Bootstrap);
+  enqueue(REQUESTS[ProjectionRequestKind.Bootstrap]);
+  enqueue(REQUESTS[ProjectionRequestKind.Project]);
+  enqueue(REQUESTS[ProjectionRequestKind.Forget]);
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Project, ProjectionRequestKind.Forget]);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Project, ProjectionRequestKind.Forget, ProjectionRequestKind.Bootstrap]);
+});
+
+test('bootstraps run one after another', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Bootstrap);
+  enqueue(REQUESTS[ProjectionRequestKind.Bootstrap]);
+  enqueue({ ...REQUESTS[ProjectionRequestKind.Bootstrap], documentId: 'd2' } as ProjectionRequest);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Bootstrap, ProjectionRequestKind.Bootstrap]);
 });
 
 test('project, version, blocks and stop run one after another in arrival order', async () => {

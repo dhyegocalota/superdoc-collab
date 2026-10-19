@@ -65,6 +65,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+    projectionWorkerHeapMegabytes: null,
   };
 }
 
@@ -113,6 +114,7 @@ export async function startTestServer({
     trustedProxyHops,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+    projectionWorkerHeapMegabytes: null,
   };
   try {
     const running = await startServer({

@@ -1,4 +1,5 @@
 import {
+  BootstrapStage,
   DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_READY_GIVE_UP_MS,
   DOCUMENT_READY_POLL_MS,
@@ -6,12 +7,13 @@ import {
   DocumentRole,
   HttpStatus,
   MINUTE_MS,
+  PREPARING_POLL_MS,
 } from '@superdoc-collab/types';
 import { focusManager } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
-import { DOCUMENT_ID, openedAs } from '@/testing/opened-document';
+import { bootstrapAt, DOCUMENT_ID, openedAs } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { openedDocumentQueryKey } from './editor-api';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
@@ -161,4 +163,50 @@ test('the open answer never goes stale, so a focus refetch cannot re-reserve the
       .find({ queryKey: openedDocumentQueryKey(DOCUMENT_ID) })
       ?.isStale(),
   ).toBe(false);
+});
+
+function answeredAt(stage: BootstrapStage): Answer {
+  return () => jsonResponse({ body: { ...OPENED, bootstrap: bootstrapAt(stage) } });
+}
+
+test('a Preparing bootstrap waits, hides the answer, shows its progress and polls every second', async () => {
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Preparing), answeredAt(BootstrapStage.Ready));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
+  expect(result.current.data).toBeUndefined();
+  expect(result.current.bootstrap).toEqual(bootstrapAt(BootstrapStage.Preparing));
+  await advance(PREPARING_POLL_MS);
+  expect(fetchSpy).toHaveBeenCalledTimes(2);
+  expect(result.current.readiness).toBe(DocumentReadiness.Ready);
+  expect(result.current.data).toEqual(OPENED);
+  expect(result.current.bootstrap).toEqual(OPENED.bootstrap);
+});
+
+test('a Queued bootstrap polls every 2 s', async () => {
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Queued));
+  renderOpenedDocument();
+  await advance(0);
+  await advance(PREPARING_POLL_MS);
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  await advance(DOCUMENT_READY_POLL_MS - PREPARING_POLL_MS);
+  expect(fetchSpy).toHaveBeenCalledTimes(2);
+});
+
+test('a Failed bootstrap is a failure that stops the poll', async () => {
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Failed));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.readiness).toBe(DocumentReadiness.Failed);
+  expect(result.current.data).toBeUndefined();
+  await advance(DOCUMENT_READY_POLL_MS * 5);
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+});
+
+test('the legacy NOT_READY answer waits with no bootstrap', async () => {
+  answerInOrder(notReady);
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.readiness).toBe(DocumentReadiness.Waiting);
+  expect(result.current.bootstrap).toBeNull();
 });

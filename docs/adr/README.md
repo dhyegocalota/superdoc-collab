@@ -64,4 +64,6 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0039](0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) | The edits chart collapses idle stretches into marked breaks | Accepted | 2026-10-18 |
 | [0041](0041-the-summary-card-shows-the-sentence-as-it-is-written.md) | The summary card shows the sentence as it is written, through the job and the poll | Accepted | 2026-10-18 |
 | [0042](0042-the-client-address-is-the-rightmost-trusted-hop.md) | The client address is the rightmost trusted hop | Accepted | 2026-10-19 |
-| [0046](0046-archiving-is-a-ban-plus-full-access-revocation-impersonation-is-a-visible-session.md) | Archiving is a ban plus full access revocation; impersonation is a visible session | Accepted | 2026-10-19 |
+| [0046](0046-archiving-is-a-ban-plus-full-access-revocation-impersonation-is-a-visible-session.md) | Archiving is a ban plus full access revocation; impersonation is a visible session | Accepted |
+| [0047](0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md) | The server never materializes an update it only logs; the heap follows the container's memory | Accepted | 2026-10-19 |
+| [0048](0048-the-server-bootstraps-the-room-after-the-upload.md) | The server bootstraps the room after the upload | Accepted | 2026-10-19 |

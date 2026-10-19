@@ -1,6 +1,6 @@
 # Account menu sections, no shortcuts entry in More actions
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's requirement 33, translated: "clearer sections in the account menu, and no Keyboard shortcuts right under Delete in the document menu")
 **ADRs:** none

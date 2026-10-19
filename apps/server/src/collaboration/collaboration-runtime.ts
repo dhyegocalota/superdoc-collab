@@ -1,13 +1,6 @@
 import type { Connection, Document, Hocuspocus } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-collab/history';
-import {
-  ACCESS_REVOKED_CLOSE_CODE,
-  ACCESS_REVOKED_REASON,
-  RoomMode,
-  type CreatorTicket,
-  SUPERSEDED_ATTEMPT_CLOSE_CODE,
-  SUPERSEDED_ATTEMPT_REASON,
-} from '@superdoc-collab/types';
+import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, RoomMode, type BootstrapProgress } from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';
@@ -16,11 +9,10 @@ import type { VersionRooms } from './version-rooms';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { CollaborationContext } from './collaboration-context';
 import type { BootstrapState } from './bootstrap-state';
-import type { CreatorReservations } from './creator-reservations';
+import { COMMITTED_WITHOUT_BOOTSTRAP, type RoomBootstrap } from './room-bootstrap';
 import type { RoomModeAnswer, RoomModes } from './room-modes';
 import { documentIdFromRoomName } from './room-name';
 
-const TAKEOVER_CLOSE_LOG = 'Closed a socket superseded by a takeover';
 const REVOKED_CLOSE_LOG = 'Closed the sockets of a revoked member of';
 
 export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
@@ -28,10 +20,9 @@ export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
 export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
-  reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
+  bootstrapRoom: (documentId: string) => BootstrapProgress;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
-  isAttemptSuperseded: (parameters: { documentId: string } & CreatorTicket) => boolean;
   onlineUserIds: (documentId: string) => Set<string>;
   onlineTabIds: ({ documentId, userId }: { documentId: string; userId: string }) => Set<string>;
   importRevisions: (documentId: string) => void;
@@ -47,7 +38,7 @@ export function createCollaborationRuntime({
   versions,
   versionRooms,
   insights,
-  reservations,
+  roomBootstrap,
   bootstrap,
   roomModes,
 }: {
@@ -59,7 +50,7 @@ export function createCollaborationRuntime({
   versions: VersionsService;
   versionRooms: VersionRooms;
   insights: InsightsServices;
-  reservations: CreatorReservations;
+  roomBootstrap: RoomBootstrap;
   bootstrap: BootstrapState;
   roomModes: RoomModes;
 }): DocumentRuntime {
@@ -70,20 +61,11 @@ export function createCollaborationRuntime({
     return roomsOf(documentId).flatMap((room) => [...room.connections.values()].map(({ connection }) => connection));
   }
   return {
-    reserveCreator: ({ documentId, userId }) => {
-      connectionsOf(documentId).forEach((connection) => {
-        const { creatorAttempt } = connection.context as CollaborationContext;
-        if (creatorAttempt !== null) reservations.touch({ documentId, attempt: creatorAttempt });
-      });
-      const ticket = reservations.reserve({ documentId, userId });
-      if (ticket === null) return null;
-      connectionsOf(documentId)
-        .filter((connection) => (connection.context as CollaborationContext).creatorAttempt !== ticket.attempt)
-        .forEach((connection) => {
-          console.warn(`${TAKEOVER_CLOSE_LOG} ${documentId} attempt ${(connection.context as CollaborationContext).creatorAttempt}`);
-          connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
-        });
-      return ticket;
+    bootstrapRoom: (documentId) => {
+      const progress = roomBootstrap.progressOf(documentId);
+      if (progress !== null) return progress;
+      if (bootstrap.isKnownCommitted(documentId)) return COMMITTED_WITHOUT_BOOTSTRAP;
+      return roomBootstrap.request(documentId);
     },
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(
@@ -101,12 +83,6 @@ export function createCollaborationRuntime({
       versionRooms.closeAllOfUser(userId);
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
-    isAttemptSuperseded: ({ documentId, attempt, epoch }) => {
-      const isCommitted = bootstrap.isCommitted(documentId);
-      const isFromAnotherEpoch = epoch !== reservations.epoch;
-      if (isCommitted && isFromAnotherEpoch) return false;
-      return !reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
-    },
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),
@@ -122,7 +98,7 @@ export function createCollaborationRuntime({
       roomsOf(documentId).forEach((room) => hocuspocus.closeConnections(room.name));
       updateLog.forget(documentId);
       bootstrap.forget(documentId);
-      reservations.forget(documentId);
+      roomBootstrap.forget(documentId);
       timelinePipelines.forget(documentId);
       versions.forget(documentId);
       await versionRooms.forget(documentId);

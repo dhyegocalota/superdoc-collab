@@ -16,7 +16,6 @@ import {
   UNSYNCED_LOST_ON_RELOAD_DETAIL,
   UNSYNCED_LOST_ON_SIGN_IN_DETAIL,
 } from './connection-copy';
-import { BACK_TO_DOCUMENTS_LABEL } from './editor-copy';
 
 afterEach(cleanup);
 
@@ -116,13 +115,4 @@ test('a session that ended warns about signing in, not about reloading', () => {
   const banner = screen.getByTestId('connection-banner');
   expect(banner).toHaveTextContent(UNSYNCED_LOST_ON_SIGN_IN_DETAIL);
   expect(banner).not.toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
-});
-
-test('a superseded tab names its reason and offers the way back to the documents instead of a reload', async () => {
-  const onAction = vi.fn();
-  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.Superseded, onAction });
-  expect(screen.getByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.Superseded]);
-  expect(screen.queryByRole('button', { name: RELOAD_LABEL })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: BACK_TO_DOCUMENTS_LABEL }));
-  expect(onAction).toHaveBeenCalledTimes(1);
 });

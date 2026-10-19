@@ -31,6 +31,7 @@ describe('loadEnvironment', () => {
       trustedProxyHops: 1,
       llm: noLlm,
       openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+      projectionWorkerHeapMegabytes: null,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -110,6 +111,16 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when OPEN_UNCOMMITTED_PER_MINUTE is %s', (value) => {
     const name = 'OPEN_UNCOMMITTED_PER_MINUTE';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('reads the projection worker heap when it is set', () => {
+    expect(loadEnvironment({ ...complete, PROJECTION_WORKER_HEAP_MEGABYTES: '256' }).projectionWorkerHeapMegabytes).toBe(256);
+  });
+  test.each([undefined, ''])('leaves the projection worker heap to Node when it is %j', (value) => {
+    expect(loadEnvironment({ ...complete, PROJECTION_WORKER_HEAP_MEGABYTES: value }).projectionWorkerHeapMegabytes).toBeNull();
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when PROJECTION_WORKER_HEAP_MEGABYTES is %s', (value) => {
+    const name = 'PROJECTION_WORKER_HEAP_MEGABYTES';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
 });

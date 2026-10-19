@@ -8,7 +8,7 @@ const ROOM_TOKEN_KEY_LABEL = 'agent-room-token';
 const PARTS_SEPARATOR = '.';
 const EXPECTED_PARTS = 2;
 
-type RoomTokenClaims = { userId: string; documentId: string; actor: ClientActor; expiresAt: number };
+type RoomTokenClaims = { userId: string; documentId: string; actor: ClientActor; attempt: string | null; expiresAt: number };
 
 function sign({ secret, payload }: { secret: string; payload: string }): Buffer {
   const key = createHmac(SIGNATURE_DIGEST, secret).update(ROOM_TOKEN_KEY_LABEL).digest();
@@ -23,6 +23,39 @@ function parseClaims(payload: string): RoomTokenClaims | null {
   }
 }
 
+function signClaims({ secret, claims }: { secret: string; claims: RoomTokenClaims }): string {
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  return `${payload}${PARTS_SEPARATOR}${sign({ secret, payload }).toString('base64url')}`;
+}
+
+function verifyClaims({
+  secret,
+  token,
+  documentId,
+  actor,
+  now,
+}: {
+  secret: string;
+  token: string;
+  documentId: string;
+  actor: ClientActor;
+  now: number;
+}): RoomTokenClaims | null {
+  const parts = token.split(PARTS_SEPARATOR);
+  if (parts.length !== EXPECTED_PARTS) return null;
+  const [payload, signature] = parts as [string, string];
+  const expected = sign({ secret, payload });
+  const presented = Buffer.from(signature, 'base64url');
+  if (presented.length !== expected.length) return null;
+  if (!timingSafeEqual(presented, expected)) return null;
+  const claims = parseClaims(payload);
+  if (!claims) return null;
+  const isForDocument = claims.documentId === documentId && claims.actor === actor;
+  const isLive = claims.expiresAt > now;
+  if (!isForDocument || !isLive) return null;
+  return claims;
+}
+
 export function signRoomToken({
   secret,
   userId,
@@ -34,33 +67,42 @@ export function signRoomToken({
   documentId: string;
   now: number;
 }): string {
-  const claims: RoomTokenClaims = { userId, documentId, actor: ClientActor.Agent, expiresAt: now + ROOM_TOKEN_TTL_MS };
-  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
-  return `${payload}${PARTS_SEPARATOR}${sign({ secret, payload }).toString('base64url')}`;
+  return signClaims({
+    secret,
+    claims: { userId, documentId, actor: ClientActor.Agent, attempt: null, expiresAt: now + ROOM_TOKEN_TTL_MS },
+  });
 }
 
-export function verifyRoomToken({
+export function verifyRoomToken(parameters: { secret: string; token: string; documentId: string; now: number }): { userId: string } | null {
+  const claims = verifyClaims({ ...parameters, actor: ClientActor.Agent });
+  if (!claims) return null;
+  return { userId: claims.userId };
+}
+
+export function signBootstrapToken({
   secret,
-  token,
+  userId,
   documentId,
+  attempt,
   now,
 }: {
+  secret: string;
+  userId: string;
+  documentId: string;
+  attempt: string;
+  now: number;
+}): string {
+  return signClaims({ secret, claims: { userId, documentId, actor: ClientActor.Human, attempt, expiresAt: now + ROOM_TOKEN_TTL_MS } });
+}
+
+export function verifyBootstrapToken(parameters: {
   secret: string;
   token: string;
   documentId: string;
   now: number;
-}): { userId: string } | null {
-  const parts = token.split(PARTS_SEPARATOR);
-  if (parts.length !== EXPECTED_PARTS) return null;
-  const [payload, signature] = parts as [string, string];
-  const expected = sign({ secret, payload });
-  const presented = Buffer.from(signature, 'base64url');
-  if (presented.length !== expected.length) return null;
-  if (!timingSafeEqual(presented, expected)) return null;
-  const claims = parseClaims(payload);
+}): { userId: string; attempt: string } | null {
+  const claims = verifyClaims({ ...parameters, actor: ClientActor.Human });
   if (!claims) return null;
-  const isForDocument = claims.documentId === documentId && claims.actor === ClientActor.Agent;
-  const isLive = claims.expiresAt > now;
-  if (!isForDocument || !isLive) return null;
-  return { userId: claims.userId };
+  if (claims.attempt === null) return null;
+  return { userId: claims.userId, attempt: claims.attempt };
 }

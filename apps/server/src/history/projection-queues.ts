@@ -11,6 +11,7 @@ export function createProjectionQueues({
 }): <Kind extends ProjectionRequestKind>(request: ProjectionRequestsByKind[Kind]) => void {
   let queuePromise = Promise.resolve();
   let importQueuePromise = Promise.resolve();
+  let bootstrapQueuePromise = Promise.resolve();
 
   function enqueueSerial(request: AnsweredRequest): void {
     queuePromise = queuePromise.then(() => reply(request));
@@ -18,6 +19,10 @@ export function createProjectionQueues({
 
   function enqueueImport(request: AnsweredRequest): void {
     importQueuePromise = importQueuePromise.then(() => reply(request));
+  }
+
+  function enqueueBootstrap(request: AnsweredRequest): void {
+    bootstrapQueuePromise = bootstrapQueuePromise.then(() => reply(request));
   }
 
   function enqueueAfterImports(request: AnsweredRequest): void {
@@ -29,6 +34,7 @@ export function createProjectionQueues({
     [ProjectionRequestKind.Version]: enqueueSerial,
     [ProjectionRequestKind.Blocks]: enqueueSerial,
     [ProjectionRequestKind.Import]: enqueueImport,
+    [ProjectionRequestKind.Bootstrap]: enqueueBootstrap,
     [ProjectionRequestKind.Forget]: enqueueAfterImports,
     [ProjectionRequestKind.Stop]: () => {
       queuePromise = queuePromise.then(stop);

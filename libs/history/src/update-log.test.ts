@@ -165,3 +165,26 @@ test('snapshotAfter answers the first snapshot past a sequence and null when the
   expect(log.snapshotAfter({ documentName: DOCUMENT, afterSequence: 1 })?.sequence).toBe(3);
   expect(log.snapshotAfter({ documentName: DOCUMENT, afterSequence: 3 })).toBeNull();
 });
+
+test('an update merged from two clients records both client ids sorted, and a deletion-only update records none', () => {
+  const first = new Y.Doc();
+  const second = new Y.Doc();
+  first.clientID = 70;
+  second.clientID = 30;
+  first.getText('t').insert(0, 'from first');
+  second.getText('t').insert(0, 'from second');
+  const merged = Y.mergeUpdates([Y.encodeStateAsUpdate(first), Y.encodeStateAsUpdate(second)]);
+  const deletions: Uint8Array[] = [];
+  first.on('update', (update: Uint8Array) => deletions.push(update));
+  first.getText('t').delete(0, 4);
+  const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
+  const appended = log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update: merged });
+  const deleted = log.append({
+    documentName: DOCUMENT,
+    connectionUserId: 'ana',
+    connectionActor: ClientActor.Human,
+    update: deletions[0]!,
+  });
+  expect(appended.yjsClientIds).toEqual([30, 70]);
+  expect(deleted.yjsClientIds).toEqual([]);
+});

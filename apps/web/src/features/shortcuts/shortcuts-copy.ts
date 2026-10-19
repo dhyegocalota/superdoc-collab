@@ -15,6 +15,7 @@ export const SHORTCUT_GROUP_LABELS: Record<ShortcutGroup, string> = {
   [ShortcutGroup.Navigation]: 'Navigation',
   [ShortcutGroup.Document]: 'Document',
   [ShortcutGroup.App]: 'App',
+  [ShortcutGroup.Title]: 'Title',
 };
 
 export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
@@ -46,6 +47,8 @@ export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
   [ShortcutId.DownloadPdf]: 'Download PDF',
   [ShortcutId.ShowShortcuts]: 'Keyboard shortcuts',
   [ShortcutId.ShowShortcutsOutsideField]: 'Keyboard shortcuts, outside a text field',
+  [ShortcutId.SaveTitle]: 'Save title',
+  [ShortcutId.CancelTitle]: 'Cancel title edit',
 };
 
 export const SHORTCUTS_TITLE = SHORTCUT_LABELS[ShortcutId.ShowShortcuts];

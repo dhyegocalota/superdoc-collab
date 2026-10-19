@@ -7,8 +7,8 @@ const CATALOG_DECLARATION_PATH = resolve('node_modules/superdoc/dist/superdoc/sr
 const CATALOG_ID_PATTERN = /readonly id: "([^"]+)"/g;
 const ALL_IDS = Object.values(ShortcutId);
 
-function combinationKey(combination: KeyCombination): string {
-  return [...combination.modifiers].sort().join('+') + `+${combination.code}`;
+function combinationKey({ group, combination }: { group: ShortcutGroup; combination: KeyCombination }): string {
+  return `${group}:${[...combination.modifiers].sort().join('+')}+${combination.code}`;
 }
 
 test('every id has a definition with both platforms', () => {
@@ -20,9 +20,9 @@ test('every id has a definition with both platforms', () => {
   });
 });
 
-test('no key combination is used twice on one platform', () => {
-  const macKeys = ALL_IDS.map((id) => combinationKey(shortcutOf(id).keys.mac));
-  const otherKeys = ALL_IDS.map((id) => combinationKey(shortcutOf(id).keys.other));
+test('no key combination is used twice in one group on one platform', () => {
+  const macKeys = ALL_IDS.map((id) => combinationKey({ group: shortcutOf(id).group, combination: shortcutOf(id).keys.mac }));
+  const otherKeys = ALL_IDS.map((id) => combinationKey({ group: shortcutOf(id).group, combination: shortcutOf(id).keys.other }));
   expect(new Set(macKeys).size).toBe(ALL_IDS.length);
   expect(new Set(otherKeys).size).toBe(ALL_IDS.length);
 });
@@ -38,4 +38,9 @@ test('every command entry names a catalogued SuperDoc command', () => {
   const commandIds = SHORTCUTS.flatMap(({ action }) => (action.kind === ShortcutActionKind.Command ? [action.commandId] : []));
   expect(commandIds.length).toBeGreaterThan(0);
   commandIds.forEach((commandId) => expect(catalogIds.has(commandId)).toBe(true));
+});
+
+test('the title keys are native entries in the Title group', () => {
+  expect(shortcutOf(ShortcutId.SaveTitle)).toMatchObject({ group: ShortcutGroup.Title, action: { kind: ShortcutActionKind.Native } });
+  expect(shortcutOf(ShortcutId.CancelTitle)).toMatchObject({ group: ShortcutGroup.Title, action: { kind: ShortcutActionKind.Native } });
 });

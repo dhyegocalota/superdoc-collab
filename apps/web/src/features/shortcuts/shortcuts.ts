@@ -13,6 +13,7 @@ export enum ShortcutGroup {
   Navigation = 'navigation',
   Document = 'document',
   App = 'app',
+  Title = 'title',
 }
 
 export enum ShortcutActionKind {
@@ -50,6 +51,8 @@ export enum ShortcutId {
   DownloadPdf = 'download-pdf',
   ShowShortcuts = 'show-shortcuts',
   ShowShortcutsOutsideField = 'show-shortcuts-outside-field',
+  SaveTitle = 'save-title',
+  CancelTitle = 'cancel-title',
 }
 
 export type KeyCombination = { modifiers: readonly ShortcutModifier[]; code: string; label: string };

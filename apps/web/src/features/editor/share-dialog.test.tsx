@@ -104,6 +104,7 @@ test('Reset link on the edit row posts the rotation and shows the new url', asyn
 test('a failed reset shows an alert and keeps the old url', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     if (init?.method === HttpMethod.Post) return new Response(null, { status: HttpStatus.Forbidden });
+    if (typeof input === 'string' && input.startsWith(MEMBERS_PATH)) return jsonResponse({ body: membersAnswer([OWNER_MEMBER]) });
     return jsonResponse({ body: LINKS });
   });
   await openDialog();

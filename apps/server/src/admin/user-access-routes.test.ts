@@ -42,10 +42,12 @@ function act({
   return fetch(`${server.baseUrl}${userActionApiPath({ userId, action })}`, { method: HttpMethod.Post, headers });
 }
 
-function signInRequest({ server, email }: { server: TestServer; email: string }): Promise<Response> {
+function signInRequest({ server, email, cookie }: { server: TestServer; email: string; cookie?: string }): Promise<Response> {
+  const headers: Record<string, string> = { 'content-type': 'application/json', origin: server.baseUrl };
+  if (cookie) headers.cookie = cookie;
   return fetch(`${server.baseUrl}${ApiPath.Auth}/sign-in/email`, {
     method: HttpMethod.Post,
-    headers: { 'content-type': 'application/json', origin: server.baseUrl },
+    headers,
     body: JSON.stringify({ email, password: TEST_USER_PASSWORD }),
   });
 }
@@ -337,6 +339,57 @@ describe('impersonation sessions follow the impersonator', () => {
     const rows = server.database.sqlite.prepare('select count(*) as n from session where impersonated_by = ?').get(eve.id) as { n: number };
     expect(rows.n).toBe(0);
     expect(closeSockets).toHaveBeenCalledWith(caio.id);
+    await server.stop();
+  });
+
+  test("an impersonator's delete-consent is refused and the user's tokens stay", async () => {
+    const server = await startTestServer();
+    const { caio, cookie } = await adminImpersonating({ server });
+    const { drizzle } = server.database;
+    const scopes = ['read'];
+    drizzle.insert(oauthClient).values({ id: 'client-row', clientId: 'agent-client', redirectUris: [] }).run();
+    drizzle.insert(oauthConsent).values({ id: 'consent-caio', clientId: 'agent-client', userId: caio.id, scopes }).run();
+    drizzle
+      .insert(oauthRefreshToken)
+      .values({ id: 'refresh-caio', token: 'refresh-caio', clientId: 'agent-client', userId: caio.id, scopes })
+      .run();
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/oauth2/delete-consent`, {
+      method: HttpMethod.Post,
+      headers: { cookie, origin: server.baseUrl, 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 'consent-caio' }),
+    });
+    expect(response.status).toBe(HttpStatus.Forbidden);
+    expect(drizzle.select({ id: oauthRefreshToken.id }).from(oauthRefreshToken).all()).toHaveLength(1);
+    await server.stop();
+  });
+
+  test('an expired impersonation cookie still signs the admin in and out', async () => {
+    const server = await startTestServer();
+    const { cookie } = await adminImpersonating({ server });
+    server.database.sqlite
+      .prepare('update session set created_at = ? where impersonated_by is not null')
+      .run(Date.now() - 2 * IMPERSONATION_SESSION_MS);
+    const signedIn = await signInRequest({ server, email: server.admin.email, cookie });
+    expect(signedIn.status).toBe(HttpStatus.Ok);
+    const rows = server.database.sqlite.prepare('select count(*) as n from session where impersonated_by is not null').get() as {
+      n: number;
+    };
+    expect(rows.n).toBe(0);
+    await server.stop();
+  });
+
+  test('signing out with an expired impersonation cookie succeeds', async () => {
+    const server = await startTestServer();
+    const { cookie } = await adminImpersonating({ server });
+    server.database.sqlite
+      .prepare('update session set created_at = ? where impersonated_by is not null')
+      .run(Date.now() - 2 * IMPERSONATION_SESSION_MS);
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/sign-out`, {
+      method: HttpMethod.Post,
+      headers: { cookie, origin: server.baseUrl, 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(response.status).toBe(HttpStatus.Ok);
     await server.stop();
   });
 

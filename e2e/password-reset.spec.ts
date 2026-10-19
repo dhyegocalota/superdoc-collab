@@ -11,9 +11,11 @@ import {
   test,
   uniqueEmail,
 } from './fixtures';
+import { RESET_PASSWORD_LABEL } from '../apps/web/src/features/admin/admin-copy';
+import { chooseUserAction } from './user-actions';
 
 const USERS_TABLE_NAME = 'Users';
-const RESET_PASSWORD_BUTTON_NAME = 'Reset password';
+const INVITED_NAME = 'Reset';
 const RESET_LINK_TEXTBOX_NAME = 'Password reset link';
 const NEW_PASSWORD_LABEL = 'New password';
 const CHANGE_PASSWORD_BUTTON_NAME = 'Change password';
@@ -23,14 +25,15 @@ test("the admin resets a user's password with a one-time link", async ({ browser
   const admin = await signedInAdmin({ browser });
   await admin.page.goto(AppRoute.Admin);
   const email = uniqueEmail('reset');
-  const invited = await acceptInvite({ browser, url: await generateInvite({ page: admin.page }), name: 'Reset', email });
-  await expectSignedInAs({ page: invited.page, name: 'Reset' });
+  const invited = await acceptInvite({ browser, url: await generateInvite({ page: admin.page }), name: INVITED_NAME, email });
+  await expectSignedInAs({ page: invited.page, name: INVITED_NAME });
   await admin.page.reload();
-  await admin.page
-    .getByRole('table', { name: USERS_TABLE_NAME })
-    .getByRole('row', { name: new RegExp(email) })
-    .getByRole('button', { name: RESET_PASSWORD_BUTTON_NAME })
-    .click();
+  await chooseUserAction({
+    page: admin.page,
+    row: admin.page.getByRole('table', { name: USERS_TABLE_NAME }).getByRole('row', { name: new RegExp(email) }),
+    name: INVITED_NAME,
+    label: RESET_PASSWORD_LABEL,
+  });
   const dialog = admin.page.getByRole('dialog');
   const url = await dialog.getByRole('textbox', { name: RESET_LINK_TEXTBOX_NAME }).inputValue();
   await admin.page.keyboard.press('Escape');
@@ -43,7 +46,7 @@ test("the admin resets a user's password with a one-time link", async ({ browser
   await expect(visitor.page).toHaveURL(AppRoute.SignIn);
   await expect(visitor.page.getByText(PASSWORD_RESET_DONE_MESSAGE)).toBeVisible();
   await signIn({ page: visitor.page, email, password: NEW_PASSWORD });
-  await expectSignedInAs({ page: visitor.page, name: 'Reset' });
+  await expectSignedInAs({ page: visitor.page, name: INVITED_NAME });
 
   const oldPassword = await openedContext({ browser });
   await oldPassword.page.goto(AppRoute.SignIn);

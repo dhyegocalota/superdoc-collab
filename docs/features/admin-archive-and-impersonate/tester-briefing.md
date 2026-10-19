@@ -9,7 +9,7 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `apps/server/src/http/app.ts` — `stop-impersonating` is let through the plugin 404 gate; everything else under `/api/auth/admin/*` stays 404
 - `apps/server/src/auth/auth.ts`, `session.ts` — `bannedUserMessage`, one-hour impersonation session, `/api/me` carries `impersonatedBy`
 - `apps/server/src/documents/share-links-routes.ts` — an archived user's accept answers 403 with the archived message
-- `apps/web/src/features/admin/users-table.tsx`, `user-access-buttons.tsx` — Archive (confirm dialog), Restore, Impersonate, Archived chip
+- `apps/web/src/features/admin/users-table.tsx`, `user-actions-menu.tsx` — Archive (confirm dialog), Restore, Impersonate, Archived chip
 - `apps/web/src/features/impersonation/`, `apps/web/src/app/app-shell.tsx`, `router.tsx` — the banner in a shell route that wraps every route
 - `.claude/rules/collaboration.md`, ADR 0046, learning on the bodyless better-auth POST
 

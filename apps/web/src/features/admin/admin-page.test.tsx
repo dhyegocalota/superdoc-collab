@@ -45,6 +45,8 @@ import {
   ARCHIVE_DIALOG_DESCRIPTION,
   ARCHIVE_LABEL,
   ARCHIVED_CHIP_LABEL,
+  actionFailedMessage,
+  actionsMenuLabel,
   archiveDialogTitle,
   CANCEL_LABEL,
   IMPERSONATE_LABEL,
@@ -170,6 +172,26 @@ async function rowOf({ table, text }: { table: string; text: string }): Promise<
   return row;
 }
 
+async function openActions({ row, name }: { row: HTMLElement; name: string }): Promise<HTMLElement> {
+  await userEvent.click(within(row).getByRole('button', { name: actionsMenuLabel(name) }));
+  return screen.findByRole('menu');
+}
+
+async function actionsOf({ row, name }: { row: HTMLElement; name: string }): Promise<string[]> {
+  const menu = await openActions({ row, name });
+  const labels = within(menu)
+    .queryAllByRole('menuitem')
+    .map((item) => item.textContent);
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  return labels as string[];
+}
+
+async function chooseAction({ row, name, label }: { row: HTMLElement; name: string; label: string }): Promise<void> {
+  const menu = await openActions({ row, name });
+  await userEvent.click(within(menu).getByRole('menuitem', { name: label }));
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 test('lists users with their role and hides the role toggle on the signed-in admin', async () => {
@@ -178,9 +200,9 @@ test('lists users with their role and hides the role toggle on the signed-in adm
   const adminRow = await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email });
   const memberRow = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
   expect(within(adminRow).getByText(USER_ROLE_LABELS[UserRole.Admin])).toBeInTheDocument();
-  expect(within(adminRow).queryByRole('button', { name: MAKE_USER_LABEL })).not.toBeInTheDocument();
+  expect(await actionsOf({ row: adminRow, name: ADMIN_USER.name })).not.toContain(MAKE_USER_LABEL);
   expect(within(memberRow).getByText(USER_ROLE_LABELS[UserRole.User])).toBeInTheDocument();
-  expect(within(memberRow).getByRole('button', { name: MAKE_ADMIN_LABEL })).toBeInTheDocument();
+  expect(await actionsOf({ row: memberRow, name: MEMBER_USER.name })).toContain(MAKE_ADMIN_LABEL);
   expect(within(memberRow).getByText(formatTimestamp({ time: MEMBER_USER.createdAt, timeZone: UTC_TIME_ZONE }))).toBeInTheDocument();
 });
 
@@ -215,8 +237,8 @@ test('every user row offers Reset password', async () => {
   renderAdminPage();
   const adminRow = await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email });
   const memberRow = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  expect(within(adminRow).getByRole('button', { name: RESET_PASSWORD_LABEL })).toBeInTheDocument();
-  expect(within(memberRow).getByRole('button', { name: RESET_PASSWORD_LABEL })).toBeInTheDocument();
+  expect(await actionsOf({ row: adminRow, name: ADMIN_USER.name })).toContain(RESET_PASSWORD_LABEL);
+  expect(await actionsOf({ row: memberRow, name: MEMBER_USER.name })).toContain(RESET_PASSWORD_LABEL);
 });
 
 test('reset password posts for that user, shows the link in a read-only field and copies it', async () => {
@@ -225,7 +247,7 @@ test('reset password posts for that user, shows the link in a read-only field an
   const writeText = vi.spyOn(navigator.clipboard, 'writeText');
   renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  await user.click(within(row).getByRole('button', { name: RESET_PASSWORD_LABEL }));
+  await chooseAction({ row, name: MEMBER_USER.name, label: RESET_PASSWORD_LABEL });
   const field = await screen.findByRole('textbox', { name: PASSWORD_RESET_CREATED_TITLE });
   expect(field).toHaveValue(CREATED_PASSWORD_RESET.url);
   expect(field).toHaveAttribute('readonly');
@@ -258,7 +280,7 @@ test('make admin posts the role and refetches users', async () => {
   const fetchSpy = mockApi();
   renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  await userEvent.click(within(row).getByRole('button', { name: MAKE_ADMIN_LABEL }));
+  await chooseAction({ row, name: MEMBER_USER.name, label: MAKE_ADMIN_LABEL });
   await waitFor(() =>
     expect(fetchSpy).toHaveBeenCalledWith(
       `${USERS_PATH}/${MEMBER_USER.id}/role`,
@@ -324,12 +346,14 @@ test('other users offer Archive and Impersonate; the signed-in admin and another
   const adminRow = await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email });
   const memberRow = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
   const secondAdminRow = await rowOf({ table: USERS_TABLE_LABEL, text: SECOND_ADMIN.email });
-  [ARCHIVE_LABEL, IMPERSONATE_LABEL].forEach((label) =>
-    expect(within(adminRow).queryByRole('button', { name: label })).not.toBeInTheDocument(),
-  );
-  [ARCHIVE_LABEL, IMPERSONATE_LABEL].forEach((label) => expect(within(memberRow).getByRole('button', { name: label })).toBeInTheDocument());
-  expect(within(secondAdminRow).getByRole('button', { name: ARCHIVE_LABEL })).toBeInTheDocument();
-  expect(within(secondAdminRow).queryByRole('button', { name: IMPERSONATE_LABEL })).not.toBeInTheDocument();
+  expect(await actionsOf({ row: adminRow, name: ADMIN_USER.name })).toEqual([RESET_PASSWORD_LABEL]);
+  expect(await actionsOf({ row: memberRow, name: MEMBER_USER.name })).toEqual([
+    MAKE_ADMIN_LABEL,
+    RESET_PASSWORD_LABEL,
+    IMPERSONATE_LABEL,
+    ARCHIVE_LABEL,
+  ]);
+  expect(await actionsOf({ row: secondAdminRow, name: SECOND_ADMIN.name })).toEqual([MAKE_USER_LABEL, RESET_PASSWORD_LABEL, ARCHIVE_LABEL]);
 });
 
 test('archive asks first, naming the person, and posts only after the confirmation, then refetches users', async () => {
@@ -337,7 +361,7 @@ test('archive asks first, naming the person, and posts only after the confirmati
   const user = userEvent.setup();
   renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  await user.click(within(row).getByRole('button', { name: ARCHIVE_LABEL }));
+  await chooseAction({ row, name: MEMBER_USER.name, label: ARCHIVE_LABEL });
   const dialog = await screen.findByRole('alertdialog', { name: archiveDialogTitle(MEMBER_USER.name) });
   expect(within(dialog).getByText(ARCHIVE_DIALOG_DESCRIPTION)).toBeInTheDocument();
   expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining('/archive'), expect.anything());
@@ -356,7 +380,7 @@ test('cancelling the archive confirmation sends nothing', async () => {
   const user = userEvent.setup();
   renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  await user.click(within(row).getByRole('button', { name: ARCHIVE_LABEL }));
+  await chooseAction({ row, name: MEMBER_USER.name, label: ARCHIVE_LABEL });
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: CANCEL_LABEL }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining('/archive'), expect.anything());
@@ -368,8 +392,8 @@ test('an archived row shows the Archived chip and Restore, with no Archive and n
   renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
   expect(within(row).getByText(ARCHIVED_CHIP_LABEL)).toBeInTheDocument();
-  [ARCHIVE_LABEL, IMPERSONATE_LABEL].forEach((label) => expect(within(row).queryByRole('button', { name: label })).not.toBeInTheDocument());
-  await user.click(within(row).getByRole('button', { name: RESTORE_LABEL }));
+  expect(await actionsOf({ row, name: MEMBER_USER.name })).toEqual([MAKE_ADMIN_LABEL, RESET_PASSWORD_LABEL, RESTORE_LABEL]);
+  await chooseAction({ row, name: MEMBER_USER.name, label: RESTORE_LABEL });
   await waitFor(() =>
     expect(fetchSpy).toHaveBeenCalledWith(
       userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Restore }),
@@ -384,7 +408,7 @@ test('an active row shows no Archived chip and no Restore', async () => {
   renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
   expect(within(row).queryByText(ARCHIVED_CHIP_LABEL)).not.toBeInTheDocument();
-  expect(within(row).queryByRole('button', { name: RESTORE_LABEL })).not.toBeInTheDocument();
+  expect(await actionsOf({ row, name: MEMBER_USER.name })).not.toContain(RESTORE_LABEL);
 });
 
 test('impersonate posts for that user and lands on the documents home', async () => {
@@ -392,7 +416,7 @@ test('impersonate posts for that user and lands on the documents home', async ()
   const user = userEvent.setup();
   const { router } = renderAdminPage();
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  await user.click(within(row).getByRole('button', { name: IMPERSONATE_LABEL }));
+  await chooseAction({ row, name: MEMBER_USER.name, label: IMPERSONATE_LABEL });
   await waitFor(() =>
     expect(fetchSpy).toHaveBeenCalledWith(
       userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Impersonate }),
@@ -434,10 +458,72 @@ test('after Impersonate no admin query runs as the impersonated user and no Admi
     </QueryClientProvider>,
   );
   const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
-  await userEvent.click(within(row).getByRole('button', { name: IMPERSONATE_LABEL }));
+  await chooseAction({ row, name: MEMBER_USER.name, label: IMPERSONATE_LABEL });
   expect(await screen.findByText('Documents home')).toBeInTheDocument();
   await waitFor(() => expect(readCalls(fetchSpy, ApiPath.Me)).toBeGreaterThan(1));
   expect(readCalls(fetchSpy, USERS_PATH)).toBe(1);
   expect(readCalls(fetchSpy, INVITES_PATH)).toBe(1);
   expect(screen.queryByText(ADMINS_ONLY_TOAST)).not.toBeInTheDocument();
+});
+
+test('every row has exactly one button, the Actions trigger named for the person', async () => {
+  mockApi({ users: [ADMIN_USER, MEMBER_USER] });
+  renderAdminPage();
+  const rows = [
+    { row: await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email }), name: ADMIN_USER.name },
+    { row: await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email }), name: MEMBER_USER.name },
+  ];
+  rows.forEach(({ row, name }) => {
+    const buttons = within(row).getAllByRole('button');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAccessibleName(actionsMenuLabel(name));
+  });
+});
+
+test('the Actions menu opens with Enter, moves with the arrows and Escape returns focus to the trigger', async () => {
+  mockApi();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  const trigger = within(row).getByRole('button', { name: actionsMenuLabel(MEMBER_USER.name) });
+  trigger.focus();
+  await userEvent.keyboard('{Enter}');
+  const menu = await screen.findByRole('menu');
+  await userEvent.keyboard('{ArrowDown}');
+  expect(within(menu).getAllByRole('menuitem')).toContain(document.activeElement);
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  expect(trigger).toHaveFocus();
+});
+
+test('a failed action names itself and a later action clears the message', async () => {
+  const fetchSpy = mockApi();
+  const respond = fetchSpy.getMockImplementation()!;
+  fetchSpy.mockImplementation(async (input, init) => {
+    if (input === userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Archive }))
+      return new Response(null, { status: HttpStatus.InternalServerError });
+    return respond(input, init);
+  });
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await chooseAction({ row, name: MEMBER_USER.name, label: ARCHIVE_LABEL });
+  await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: ARCHIVE_LABEL }));
+  expect(await screen.findByText(actionFailedMessage(ARCHIVE_LABEL))).toBeInTheDocument();
+  await chooseAction({ row, name: MEMBER_USER.name, label: MAKE_ADMIN_LABEL });
+  await waitFor(() => expect(screen.queryByText(actionFailedMessage(ARCHIVE_LABEL))).not.toBeInTheDocument());
+});
+
+test('focus returns to the Actions trigger after cancelling Archive and after closing the reset link dialog', async () => {
+  mockApi();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  const trigger = within(row).getByRole('button', { name: actionsMenuLabel(MEMBER_USER.name) });
+  await chooseAction({ row, name: MEMBER_USER.name, label: ARCHIVE_LABEL });
+  await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: CANCEL_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(trigger).toHaveFocus();
+  await chooseAction({ row, name: MEMBER_USER.name, label: RESET_PASSWORD_LABEL });
+  await screen.findByRole('textbox', { name: PASSWORD_RESET_CREATED_TITLE });
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(trigger).toHaveFocus();
 });

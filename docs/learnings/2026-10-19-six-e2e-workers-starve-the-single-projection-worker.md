@@ -3,6 +3,7 @@
 - Date: 2026-10-19
 - Inspired by: two consecutive full gates on `feat/word-like-shortcuts` (cabdfcd8, fc029c56) each failing one different load-sensitive spec (`room-admission.spec.ts:219`, `timeline.spec.ts:113`) that passed alone
 - Revisited: 2026-10-19 — fixed in the same branch
+- Revisited: 2026-10-19 — the large-commit wait in room-admission also needed 180 s when another stack builds during the gate
 
 ## Signal
 

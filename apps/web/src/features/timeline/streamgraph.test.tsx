@@ -628,7 +628,7 @@ test('an agent action inside the break is drawn at the column centre', () => {
   const mark = screen.getByRole('img', {
     name: agentActionLabel({ name: FIXTURE_AGENT_AUTHOR_NAME, kind: AgentActionKind.DocumentExported }),
   });
-  expect(mark).toHaveStyle({ transform: `translateX(${breakColumn.centerX}px)` });
+  expect(mark).toHaveStyle({ transform: `translateX(${breakColumn.centerX}px) translateX(-50%) rotate(45deg)` });
   expect(mark).toHaveStyle({ transitionDuration: `${STREAMGRAPH_TRANSITION_MS}ms` });
   expect(mark).toHaveClass('motion-reduce:transition-none');
   fireEvent.pointerEnter(mark);

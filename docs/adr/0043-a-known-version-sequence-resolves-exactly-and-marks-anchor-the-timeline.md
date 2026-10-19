@@ -27,7 +27,7 @@ This supersedes the resolution rule of ADR 0027 and keeps its clamp for unknown 
 
 - The version cache, the version rooms and the replay cache are keyed and bounded as before, now by exact sequence.
 - `resolveMark` returns `{ sequence, serverTime }`; the pruned-minute tests of ADR 0027 became exact-sequence tests.
-- A bin still opens the mark of its last instant; only the edit row opens the version after its own edit.
+- A bin opens the exact sequence of its last event at or before its last instant, not a mark; the edit row opens the version after its own edit, so a delete later in the same bin still blanks the bin but not the row.
 
 ## Evidence
 

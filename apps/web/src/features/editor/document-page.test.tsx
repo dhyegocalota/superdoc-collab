@@ -26,7 +26,7 @@ import {
   type SelectionSummaryView,
 } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { tabId } from '@/lib/tab-id';
@@ -41,6 +41,7 @@ import { timelineWith } from '@/testing/timeline-fixtures';
 import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL, SIGN_IN_LABEL } from './connection-copy';
 import {
   BACK_TO_DOCUMENTS_LABEL,
+  CANCEL_TITLE_LABEL,
   DOCUMENT_LOAD_ERROR_MESSAGE,
   DOWNLOAD_BUTTON_LABEL,
   DOWNLOAD_PDF_LABEL,
@@ -49,10 +50,12 @@ import {
   EDITOR_EXIT_LABEL,
   EDIT_REJECTED_MESSAGE,
   EDITOR_FAILED_MESSAGE,
+  EXIT_CONFIRMATION_TITLE,
   EXPORT_FAILED_MESSAGE,
   HOME_LINK_LABEL,
   LOADING_DOCUMENT_MESSAGE,
   renameTitleLabel,
+  STAY_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
@@ -89,6 +92,7 @@ type SuperDocConfig = {
   zoom: { mode: string };
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
+  onEditorUpdate: () => void;
 };
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
@@ -964,4 +968,80 @@ test('a superseded tab that never finished loading hides the loading line and Su
   } finally {
     restoreSuperDoc();
   }
+});
+
+const BEFORE_UNLOAD = 'beforeunload';
+const UNSYNCED_TITLE_DRAFT = 'Unsaved draft';
+
+function isExitPrevented(): boolean {
+  const event = new Event(BEFORE_UNLOAD, { cancelable: true });
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+async function openAsWhileLost(role: DocumentRole): Promise<SuperDocConfig> {
+  mockDocumentApi({ opened: openedAs(role), isCurrentUserOnline: () => false });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const config = constructedConfig();
+  act(() => config.onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => config.onCollaborationConnectionChange(LOST_CALLBACK));
+  await screen.findByTestId('connection-banner');
+  return config;
+}
+
+test('an edit made while the connection is lost blocks leaving and Stay keeps the editor', async () => {
+  const config = await openAsWhileLost(DocumentRole.Owner);
+  expect(isExitPrevented()).toBe(false);
+  act(() => config.onEditorUpdate());
+  expect(isExitPrevented()).toBe(true);
+  await userEvent.click(await screen.findByRole('link', { name: HOME_LINK_LABEL }));
+  expect(await screen.findByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: STAY_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  expect(screen.getByTestId('document-editor')).toBeInTheDocument();
+});
+
+test('the dialog Download exports the document', async () => {
+  const config = await openAsWhileLost(DocumentRole.Owner);
+  act(() => config.onEditorUpdate());
+  await userEvent.click(await screen.findByRole('link', { name: HOME_LINK_LABEL }));
+  const dialog = await screen.findByRole('alertdialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
+  expect(superDocExport).toHaveBeenCalledWith({ exportedName: DOCUMENT_TITLE, triggerDownload: true });
+});
+
+test('a synced report releases the exit prevention', async () => {
+  const config = await openAsWhileLost(DocumentRole.Owner);
+  act(() => config.onEditorUpdate());
+  act(() => config.onCollaborationConnectionChange({ state: 'synced', kind: 'recovered' }));
+  expect(isExitPrevented()).toBe(false);
+});
+
+test('an edit while online does not block leaving', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
+  act(() => constructedConfig().onEditorUpdate());
+  expect(isExitPrevented()).toBe(false);
+});
+
+test('a reader never blocks leaving', async () => {
+  const config = await openAsWhileLost(DocumentRole.Reader);
+  act(() => config.onEditorUpdate());
+  expect(isExitPrevented()).toBe(false);
+});
+
+test('a changed title blocks leaving until the edit is cancelled', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await userEvent.click(await screen.findByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
+  await userEvent.keyboard(UNSYNCED_TITLE_DRAFT);
+  expect(isExitPrevented()).toBe(true);
+  await userEvent.click(await screen.findByRole('link', { name: HOME_LINK_LABEL }));
+  expect(await screen.findByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: STAY_LABEL }));
+  await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(isExitPrevented()).toBe(false);
 });

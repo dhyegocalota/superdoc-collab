@@ -38,11 +38,11 @@ limit_bytes=$(memory_limit_bytes)
 
 if [ -z "$limit_bytes" ]; then
   echo "memory limit none, heap node default"
-  exec node dist/main.js
+  exec node --expose-gc dist/main.js
 fi
 
 limit_megabytes=$((limit_bytes / BYTES_PER_MEGABYTE))
 server_heap_megabytes=$((limit_megabytes * SERVER_HEAP_PERCENT / 100))
 export PROJECTION_WORKER_HEAP_MEGABYTES=$((limit_megabytes * WORKER_HEAP_PERCENT / 100))
 echo "memory limit $limit_megabytes MB, heap $server_heap_megabytes MB"
-exec node --max-old-space-size="$server_heap_megabytes" dist/main.js
+exec node --max-old-space-size="$server_heap_megabytes" --expose-gc dist/main.js

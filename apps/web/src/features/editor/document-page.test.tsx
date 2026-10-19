@@ -30,6 +30,7 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { tabId } from '@/lib/tab-id';
+import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { PanelPosition, PANEL_POSITION_STORAGE_KEY } from '@/features/timeline/use-panel-position';
 import { GROUPING_TOPICS_MESSAGE, SUMMARIZE_EDITS_LABEL } from '@/features/timeline/timeline-copy';
 import { pageTitle } from '@/lib/use-document-title';

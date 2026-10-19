@@ -236,6 +236,7 @@ test('the cache stays under its byte budget', async () => {
   const marks = [1, 2].map((sequence) => ({ sequence, serverTime: sequence, minuteStart: 0, isBootstrap: false }));
   const readModel = { marks: () => marks } as unknown as ReadModel;
   const scheduler = {
+    refusesVersion: () => false,
     version: async ({ sequence }: { sequence: number }) => ({
       kind: ProjectionRequestKind.Version,
       documentId,
@@ -321,7 +322,11 @@ function stubbedVersions(version: (request: { documentId: string; sequence: numb
   const documentId = randomUUID();
   const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
   return {
-    versions: new VersionsService({ readModel, updateLog: unknownSequenceLog, scheduler: { version } as unknown as ProjectionScheduler }),
+    versions: new VersionsService({
+      readModel,
+      updateLog: unknownSequenceLog,
+      scheduler: { version, refusesVersion: () => false } as unknown as ProjectionScheduler,
+    }),
     documentId,
   };
 }
@@ -368,6 +373,7 @@ function versionsOfKnownLog(): { versions: VersionsService; documentId: string }
   const documentId = randomUUID();
   const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: false }] } as unknown as ReadModel;
   const scheduler = {
+    refusesVersion: () => false,
     version: async ({ sequence }: { sequence: number }) => ({
       kind: ProjectionRequestKind.Version,
       documentId,

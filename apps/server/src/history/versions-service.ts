@@ -20,7 +20,7 @@ export const VERSION_MARKS_AROUND = 10;
 export type VersionEndpoint = { documentId: string; sequence: number };
 export type VersionLoadRequest = VersionEndpoint & { userId: string };
 type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
-type CachedLookup = { key: string; sequence: number; cached: LoadedVersion | null };
+type CachedLookup = { key: string; documentId: string; sequence: number; cached: LoadedVersion | null };
 
 export enum VersionLookupKind {
   Ready = 'ready',
@@ -135,6 +135,7 @@ export class VersionsService {
     if (this.isFailedRecently(lookup.key)) return { kind: VersionLookupKind.Failed };
     const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
     if (retryAfterMs !== null) return { kind: VersionLookupKind.Throttled, retryAfterMs };
+    if (this.isRefusedByScheduler(lookup)) return { kind: VersionLookupKind.Busy };
     this.load(endpoint).catch(() => undefined);
     return { kind: VersionLookupKind.Pending };
   }
@@ -148,6 +149,7 @@ export class VersionsService {
     if (inFlight) return inFlight;
     const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
     if (retryAfterMs !== null) return Promise.reject(new VersionThrottledError(retryAfterMs));
+    if (this.isRefusedByScheduler(lookup)) return Promise.reject(new ProjectionBusyError());
     this.loadBudget.record(endpoint.userId);
     return this.start({ key: lookup.key, documentId: endpoint.documentId, sequence: lookup.sequence });
   }
@@ -157,6 +159,11 @@ export class VersionsService {
     keysOfDocument({ keys: this.cache.keys(), documentId }).forEach((key) => this.cache.delete(key));
     keysOfDocument({ keys: this.failures.keys(), documentId }).forEach((key) => this.failures.forget(key));
     keysOfDocument({ keys: this.loading.keys(), documentId }).forEach((key) => this.loading.delete(key));
+  }
+
+  private isRefusedByScheduler(lookup: CachedLookup): boolean {
+    if (this.loading.has(lookup.key)) return false;
+    return this.scheduler.refusesVersion({ documentId: lookup.documentId, sequence: lookup.sequence });
   }
 
   // NB ADR 0044: only a build that is not cached, in flight or failed spends the user's minute budget.
@@ -169,7 +176,7 @@ export class VersionsService {
     const mark = this.resolve(endpoint);
     if (!mark) return null;
     const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });
-    return { key, sequence: mark.sequence, cached: this.cache.get(key) };
+    return { key, documentId: endpoint.documentId, sequence: mark.sequence, cached: this.cache.get(key) };
   }
 
   private start({ key, documentId, sequence }: { key: string; documentId: string; sequence: number }): Promise<LoadedVersion> {
@@ -217,8 +224,9 @@ export class VersionsService {
     error: unknown;
   }): void {
     if (generation !== this.generationOf(documentId)) return;
+    if (error instanceof ProjectionBusyError) return;
     this.failures.start(key);
-    if (error instanceof ProjectionStoppedError || error instanceof ProjectionBusyError) return;
+    if (error instanceof ProjectionStoppedError) return;
     console.error(`${VERSION_LOAD_FAILED_MESSAGE} ${key}: ${describeError(error)}`);
   }
 

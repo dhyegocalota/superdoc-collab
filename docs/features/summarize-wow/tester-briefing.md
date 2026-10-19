@@ -33,6 +33,7 @@ The unit files run one at a time from `apps/server` and `apps/web`. The E2E is `
 | `llm-client.test.ts::streamStructured rejects with a timeout error when the model is held past the deadline` (ca4dc1a8, fix c7bb9e66) | `expected DOMException{ stack: 'TimeoutError: …' } to be an instance of LanguageModelTimeoutError` | a deadline abort becomes `LanguageModelTimeoutError` |
 | `llm-client.test.ts::streamStructured hands each partial sentence to the callback and returns the final output` (ca4dc1a8) | pin | n/a |
 | `selection-summaries-service.test.ts::a timeout stores the timeout line instead of the generic one` (ca4dc1a8, fix c7bb9e66) | `expected { Object (state, summary, ...) } to match object { state: 'failed', …(1) }` | the timeout error maps to its own line |
+| `summarize-service.test.ts::a regroup that rejects while the sentence is written leaves no unhandled rejection and keeps the sentence`, `::a sentence write that throws beside a rejecting regroup ends the job with no unhandled rejection` (65bbbfef, fix below) | `AssertionError: expected [ Error: database is locked ] to deeply equal []` | both promises are awaited together |
 | `e2e/selection-summary.spec.ts::the sentence grows word by word while the slow model streams` (afec109e, fix 940568f1) | `expect(growingSentences.length).toBeGreaterThan(0)`: Expected > 0, Received 0 | the fake streams one word every 400 ms |
 
 ## Hypotheses to attack

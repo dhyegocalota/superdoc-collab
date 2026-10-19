@@ -21,6 +21,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `llm-client.test.ts::streamStructured hands each partial sentence to the callback and returns the final output` — expected: a partial that is a beginning of the sentence, then the full output.
 - [ ] `use-word-reveal.test.ts`: one word per interval; more words continue from the words shown; the final sentence continues the partial without a jump; a sentence present before any stream shows whole; reduced motion shows the sentence at once.
 - [ ] `selection-summary-card.test.tsx::reveals the partial sentence word by word`, `::shows the partial sentence at once under reduced motion`, `::keeps the busy label until the first partial word`, `::the final sentence replaces the partial without hiding the words already shown`, `::a failure keeps the last sentence with the failure line and Retry`.
+- [ ] `summarize-service.test.ts::a regroup that rejects while the sentence is written leaves no unhandled rejection and keeps the sentence` — input: the topics compute throws while the sentence call is held; expected: no `unhandledRejection`, the step Idle, the sentence saved.
+- [ ] `summarize-service.test.ts::a sentence write that throws beside a rejecting regroup ends the job with no unhandled rejection` — expected: no `unhandledRejection`, the step Idle.
 - [ ] Edge: a second click while the job runs — input: POST twice; expected: the second answers Running and the model call count is unchanged.
 
 ## E2E (Playwright specs)

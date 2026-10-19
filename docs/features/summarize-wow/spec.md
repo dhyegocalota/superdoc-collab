@@ -56,6 +56,7 @@ A failure already keeps the last good sentence visible. A timeout of 30 seconds 
 | The sentence call times out after 30 s | Same, with the line "The model took too long. Try again." |
 | The regroup fails beside the sentence | The sentence lands; the grouping failure shows from the next read, as today. |
 | A second click while the job runs | The answer is Running and costs no call. |
+| The regroup beside the sentence rejects, or the sentence step throws | Both are awaited together, so no rejection is left without a handler; the sentence still lands when its call succeeds, the job ends Failed in the log and the step returns to Idle. |
 | The stream breaks half-way | The partial is dropped and the failure rules above apply; no half sentence is saved. |
 
 ## Known gaps

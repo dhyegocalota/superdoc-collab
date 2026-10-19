@@ -100,8 +100,9 @@ export class SummarizeService {
       const regrouping = needsRegroup ? this.regroup(documentId) : Promise.resolve(false);
       const hasRegroupFailed = isRegroupFirst && (await regrouping);
       if (hasRegroupFailed) return;
-      await this.publishSentence({ documentId, selection });
-      await regrouping;
+      const settled = await Promise.allSettled([this.publishSentence({ documentId, selection }), regrouping]);
+      const rejection = settled.find((result) => result.status === 'rejected');
+      if (rejection) throw rejection.reason;
       if (isFull) await this.summaries.rewriteStale(documentId);
     } finally {
       stopWatching();

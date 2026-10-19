@@ -3,11 +3,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Streamgraph } from './streamgraph';
 import { CHART_HEIGHT } from './streamgraph-layout';
 import { LOADING_TIMELINE_LABEL } from './timeline-copy';
+import type { TimelineChange } from './use-timeline-change';
 
 type PanelChartProps = {
   chartRef: (element: HTMLElement | null) => void;
   chartWidth: number;
   timeline: DocumentTimeline | undefined;
+  change: TimelineChange | null;
   isTimelinePending: boolean;
   selectedIndex: number | null;
   highlightedBandId: string | null;
@@ -20,6 +22,7 @@ export function PanelChart({
   chartRef,
   chartWidth,
   timeline,
+  change,
   isTimelinePending,
   selectedIndex,
   highlightedBandId,
@@ -34,6 +37,7 @@ export function PanelChart({
       )}
       {timeline && chartWidth > 0 && (
         <Streamgraph
+          change={change}
           timeline={timeline}
           width={chartWidth}
           selectedIndex={selectedIndex}

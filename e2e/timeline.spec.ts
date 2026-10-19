@@ -6,7 +6,7 @@ import {
   removeFilterLabel,
   TOP_EDITS_LABEL,
 } from '../apps/web/src/features/timeline/timeline-copy';
-import { typeInParagraph, uploadSeed } from './editor';
+import { insertInParagraph, typeInParagraph, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
 import {
   ANA_TEXT,
@@ -22,9 +22,12 @@ import {
   HIRING,
   HIRING_PARAGRAPH,
   pressInChart,
+  PULSE_SELECTOR,
+  readMotionSamples,
   readTimeline,
   ruleX,
   summarizeButton,
+  startMotionSampling,
   summaryCard,
   twoAuthorsInTwoTopics,
   VERSION_TIMEOUT_MS,
@@ -32,6 +35,10 @@ import {
   waitForSettledTimeline,
 } from './timeline';
 
+const MOTION_WINDOW_MS = 700;
+const MIN_INTERMEDIATE_PATHS = 3;
+const GROWTH_TEXT = ' and a good many more words that grow the band';
+const LIVE_TEXT_PATTERN = /^\d+ new edits?$/;
 const RENAMED_PREFIX = 'Staff ';
 const LONG_TYPING_LENGTH = 200;
 const LONG_TYPING_DELAY_MS = 100;
@@ -151,4 +158,41 @@ test('narrow viewport stacks the panel and fits the summary', async ({ browser }
   await expect(summaryCard(ana.page)).toContainText(EDITED_PHRASE, { timeout: SUMMARY_TIMEOUT_MS });
   await expect(summarizeButton(ana.page)).toBeVisible();
   expect(await ana.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+});
+
+async function brunoGrowsBudget({
+  browser,
+  isReducedMotion,
+}: {
+  browser: Parameters<typeof twoAuthorsInTwoTopics>[0]['browser'];
+  isReducedMotion: boolean;
+}) {
+  const { ana, bruno, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  if (isReducedMotion) await ana.page.emulateMedia({ reducedMotion: 'reduce' });
+  await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await waitForSettledTimeline({ page: ana.page, documentId });
+  const volumeBefore = await bandVolume({ page: ana.page, name: BUDGET });
+  await startMotionSampling(ana.page);
+  await insertInParagraph({ page: bruno.page, paragraphText: BUDGET, text: GROWTH_TEXT });
+  await expect.poll(() => bandVolume({ page: ana.page, name: BUDGET }), { timeout: BANDS_TIMEOUT_MS }).toBeGreaterThan(volumeBefore);
+  return ana;
+}
+
+test('a remote edit tweens the band through intermediate shapes, pulses the newest bin and announces itself', async ({ browser }) => {
+  const ana = await brunoGrowsBudget({ browser, isReducedMotion: false });
+  await expect(ana.page.getByText(LIVE_TEXT_PATTERN)).toBeAttached();
+  await expect.poll(async () => (await readMotionSamples(ana.page)).pulseCount).toBeGreaterThan(0);
+  await expect(ana.page.locator(PULSE_SELECTOR)).toHaveCount(0);
+  const { paths } = await readMotionSamples(ana.page);
+  const [, firstChange] = paths;
+  const withinWindow = paths.filter((sample) => sample.at - firstChange!.at <= MOTION_WINDOW_MS);
+  expect(withinWindow.length - 1).toBeGreaterThanOrEqual(MIN_INTERMEDIATE_PATHS);
+});
+
+test('under reduced motion the band snaps, nothing pulses and the live text still announces', async ({ browser }) => {
+  const ana = await brunoGrowsBudget({ browser, isReducedMotion: true });
+  await expect(ana.page.getByText(LIVE_TEXT_PATTERN)).toBeAttached();
+  const { paths, pulseCount } = await readMotionSamples(ana.page);
+  expect(paths).toHaveLength(2);
+  expect(pulseCount).toBe(0);
 });

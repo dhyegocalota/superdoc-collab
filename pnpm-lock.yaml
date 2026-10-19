@@ -156,6 +156,9 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
+      d3-interpolate-path:
+        specifier: 2.3.0
+        version: 2.3.0
       d3-scale:
         specifier: 4.0.2
         version: 4.0.2
@@ -214,6 +217,9 @@ importers:
       '@testing-library/user-event':
         specifier: 14.6.8
         version: 14.6.8(@testing-library/dom@10.4.2)
+      '@types/d3-interpolate-path':
+        specifier: 2.0.3
+        version: 2.0.3
       '@types/d3-scale':
         specifier: 4.0.9
         version: 4.0.9
@@ -3686,6 +3692,10 @@ packages:
       '@types/deep-eql': 4.0.2
       assertion-error: 2.0.1
 
+  /@types/d3-interpolate-path@2.0.3:
+    resolution: {integrity: sha512-EmFAmzvZN9vmYfUEOLOQj/PWXkUKrMp0iGElacDIcYj3N2zFJ2Mk5DiL8J4fKYnnyQdcYOixABJx7TaIc4GcdA==}
+    dev: true
+
   /@types/d3-path@3.1.1:
     resolution: {integrity: sha512-VMZBYyQvbGmWyWVea0EHs/BwLgxc+MKi1zLDCONksozI4YJMcTt8ZEuIR4Sb1MMTE8MMW49v0IwI5+b7RmfWlg==}
     dev: true
@@ -4666,6 +4676,10 @@ packages:
   /d3-format@3.1.2:
     resolution: {integrity: sha512-AJDdYOdnyRDV5b6ArilzCPPwc1ejkHcoyFarqlPqT7zRYjhavcT3uSrqcMvsgh2CgoPbK3RCwyHaVyxYcP2Arg==}
     engines: {node: '>=12'}
+    dev: false
+
+  /d3-interpolate-path@2.3.0:
+    resolution: {integrity: sha512-tZYtGXxBmbgHsIc9Wms6LS5u4w6KbP8C09a4/ZYc4KLMYYqub57rRBUgpUr2CIarIrJEpdAWWxWQvofgaMpbKQ==}
     dev: false
 
   /d3-interpolate@3.0.1:

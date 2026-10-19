@@ -112,4 +112,5 @@ Refinement after the five slices:
 | [`admin-archive-and-impersonate`](admin-archive-and-impersonate/) | Admin → Users archives a person (ban, sessions and sockets ended, grants revoked, restorable) and impersonates a person for an hour behind a visible banner with Stop | Building |
 | [`equal-card-heights`](equal-card-heights/) | Every document card in a row has the same height: the footer reserves two title lines, so a short title no longer shrinks its card | Building |
 | [`faithful-thumbnails`](faithful-thumbnails/) | The editor page captures the rendered first page once per editing session and uploads a small WebP; cards show it and fall back to the text preview; nothing renders on the server | Building |
+| [`streamgraph-motion`](streamgraph-motion/) | Every real-time change tweens the streamgraph's bands, pulses the bin that just grew and breathes a live cue; reduced motion keeps the snap | Building |
 | [`whats-next`](whats-next/) | `docs/next.md`: scale as signal, change and the ADR it revisits; integrations; product; the questions for SuperDoc whose answers would retire code | Shipped 2026-10-19 |

@@ -123,6 +123,14 @@ describe('sign-up, sign-in and me', () => {
     const limited = attempts.find((response) => response.status === 429)!;
     expect(limited.headers.get('x-retry-after')).toMatch(/^\d+$/);
   });
+  test('rotating a spoofed leftmost x-forwarded-for entry does not bypass the limit', async () => {
+    const attempts = await Promise.all(
+      Array.from({ length: 4 }, (_, index) =>
+        signIn({ body: { email: 'caio@example.com', password: 'definitely-wrong' }, clientAddress: `10.3.0.${index}, 10.4.0.1` }),
+      ),
+    );
+    expect(attempts.map((response) => response.status)).toContain(429);
+  });
   test('rotating x-forwarded-for does not bypass the limit when the proxy is not trusted', async () => {
     const untrusted = await startTestServer({ trustProxy: false });
     const attempts = await Promise.all(

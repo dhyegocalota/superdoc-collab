@@ -13,7 +13,7 @@ import type { Auth } from '../auth/auth';
 import type { Environment, LlmSettings } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
 import { DEFAULT_VERSION_ROOM_POLICY, type VersionRoomPolicy } from '../collaboration/version-rooms';
-import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/environment';
+import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS, TRUSTED_PROXY_HOPS } from '../config/environment';
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type RunningServer, type ServerServices } from '../server';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
@@ -62,6 +62,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy: true,
+    trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
@@ -105,6 +106,7 @@ export async function startTestServer({
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy,
+    trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };

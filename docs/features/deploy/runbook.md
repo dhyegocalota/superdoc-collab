@@ -8,7 +8,7 @@ Steps marked **(from memory, verify in the UI)** describe Dokploy screens that c
 
 ## What gets deployed
 
-- [`deploy/docker-compose.yml`](../../../deploy/docker-compose.yml): one service, `app`, built from [`docker/Dockerfile`](../../../docker/Dockerfile) with the repository root as the build context.
+- [`docker/docker-compose.yml`](../../../docker/docker-compose.yml): one service, `app`, built from [`docker/Dockerfile`](../../../docker/Dockerfile) with the repository root as the build context.
 - The container listens on port 3000 inside the Dokploy network (`expose`, no host port). Traefik terminates HTTPS and forwards both HTTP and the collaboration WebSocket to it.
 - All data lives on the named volume `superdoc-data`, mounted at `/data`: `auth.sqlite`, `history.sqlite` and `read-model.sqlite` (each with its `-wal` and `-shm` files) and `documents/<id>.docx`.
 - The compose file pins `PORT=3000`, `DATABASE_DIR=/data`, `WEB_DIST_DIR=/app/web` and `TRUST_PROXY=true`. Everything else comes from the Dokploy environment.
@@ -32,7 +32,7 @@ Steps marked **(from memory, verify in the UI)** describe Dokploy screens that c
 
 1. Dokploy → **Projects** → **Create Project**, name `superdoc-collab`.
 2. Open the project → **Create Service** → **Compose**. Name `superdoc-collab`, compose type **Docker Compose** (not Stack) → **Create**.
-3. In the service, **General** tab: provider **GitHub** (or **Git** with the public URL), repository `dhyegocalota/superdoc-take-home`, branch `main`, **Compose Path** `./deploy/docker-compose.yml` → **Save**.
+3. In the service, **General** tab: provider **GitHub** (or **Git** with the public URL), repository `dhyegocalota/superdoc-take-home`, branch `main`, **Compose Path** `./docker/docker-compose.yml` → **Save**.
 
 ## 2. Set the environment (from memory, verify in the UI)
 
@@ -88,7 +88,7 @@ Dokploy reports the deploy as done as soon as `up -d` returns, not when the cont
 
 | What you see | Cause | Fix |
 |---|---|---|
-| `required variable AUTH_SECRET is missing a value` (or `APP_ORIGIN`, `SEED_DEMO_USERS`) in the deploy log | The Environment tab was not saved, or Dokploy wrote its `.env` outside the compose file's folder | Save the Environment tab and deploy again. If it persists, open the service's **Advanced** tab and set a custom compose command that adds `--env-file` with the path of the `.env` Dokploy writes, for example `--env-file ./.env` when it writes at the repository root (from memory, verify in the UI). Do not move the compose file: the repository root already holds the local `docker-compose.yml`. |
+| `required variable AUTH_SECRET is missing a value` (or `APP_ORIGIN`, `SEED_DEMO_USERS`) in the deploy log | The Environment tab was not saved, or Dokploy wrote its `.env` outside the compose file's folder | Save the Environment tab and deploy again. If it persists, open the service's **Advanced** tab and set a custom compose command that adds `--env-file` with the path of the `.env` Dokploy writes, for example `--env-file ./.env` when it writes at the repository root (from memory, verify in the UI). Do not move the compose file: `docker/` already holds the local `docker-compose.local.yml`. |
 | `Missing environment variable: DEMO_PASSWORD (required when SEED_DEMO_USERS=true)` in the logs, container restarting | `DEMO_PASSWORD` is empty | Set it and deploy again, or set `SEED_DEMO_USERS=false`. |
 | `SEED_DEMO_USERS must be true or false` in the logs | Any other value, for example `TRUE` or `1` | Set exactly `true` or `false`. |
 | `Environment variable APP_ORIGIN must be a bare origin` | A path or a trailing slash | Set `https://<your domain>` and nothing else. |

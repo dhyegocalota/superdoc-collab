@@ -9,14 +9,14 @@ Requirements: Docker with Compose v2.
 ```bash
 cp .env.example .env
 sed -i.bak "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -base64 48)|; s|^APP_ORIGIN=.*|APP_ORIGIN=http://localhost:3000|" .env
-docker compose up --build -d
+docker compose --env-file .env -f docker/docker-compose.local.yml up --build -d
 ```
 
-Open <http://localhost:3000> and claim the instance: the first account you create becomes the administrator. `docker compose down -v` erases all data and returns the instance to unclaimed. The healthcheck calls `/api/health`.
+Open <http://localhost:3000> and claim the instance: the first account you create becomes the administrator. `docker compose --env-file .env -f docker/docker-compose.local.yml down -v` erases all data and returns the instance to unclaimed. The healthcheck calls `/api/health`.
 
 ## Install on Railway
 
-The [Railway runbook](features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, claims the instance and rolls back. The service is built from [`docker/Dockerfile`](../docker/Dockerfile) with a volume at `/data`, one replica and Railway's TLS domain ([ADR 0019](adr/0019-deploy-on-railway.md)). [`deploy/docker-compose.yml`](../deploy/docker-compose.yml) documents the same environment for any compose host. CI builds and boots the image on every pull request.
+The [Railway runbook](features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, claims the instance and rolls back. The service is built from [`docker/Dockerfile`](../docker/Dockerfile) with a volume at `/data`, one replica and Railway's TLS domain ([ADR 0019](adr/0019-deploy-on-railway.md)). [`docker/docker-compose.yml`](../docker/docker-compose.yml) documents the same environment for any compose host. CI builds and boots the image on every pull request.
 
 ## Install with an agent
 
@@ -73,7 +73,8 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `PORT` | `3000` | Port of the one Node process |
 | `DATABASE_DIR` | `./data` (`/data` in the image) | Where the SQLite files and `documents/<id>.docx` live; mount a volume here |
 | `WEB_DIST_DIR` | `/app/web` in the image | The built SPA the server serves |
-| `TRUST_PROXY` | `false` | `true` only behind a proxy that overwrites `X-Forwarded-For` (Railway) |
+| `TRUST_PROXY` | `false` | `true` only behind a reverse proxy that sets `X-Forwarded-For` (Railway); the client address is the entry that proxy added, counted from the right ([ADR 0042](adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)) |
+| `TRUSTED_PROXY_HOPS` | `1` | Trusted proxies in front of the app, counted from the right of `X-Forwarded-For`; a positive integer, read only when `TRUST_PROXY=true` |
 | `OPENROUTER_API_KEY` | empty | The model key; empty keeps the app running without topics and summaries |
 | `LLM_MODEL` | `openai/gpt-6-luna` in `.env.example` | The OpenRouter model id |
 | `OPENROUTER_BASE_URL` | empty | Another OpenRouter-compatible endpoint; tests point it at a fake |

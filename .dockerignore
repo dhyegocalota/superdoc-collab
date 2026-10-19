@@ -6,7 +6,6 @@ node_modules
 .pr-media
 test-results
 playwright-report
-deploy
 docs
 .env*
 !.env.example

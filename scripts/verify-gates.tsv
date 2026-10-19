@@ -18,10 +18,8 @@ libs/*	product	typecheck unit e2e
 e2e/*	product	typecheck e2e
 playwright.config.ts	product	typecheck e2e
 docker/*	product	docker
-deploy/*	product	docker
 .dockerignore	product	docker
 railway.json	product	docker
-docker-compose*.yml	product	docker
 .agents/*	tooling	hooks
 .claude/*	tooling	hooks
 .codex/*	tooling	hooks

@@ -28,6 +28,7 @@ describe('loadEnvironment', () => {
       authSecret: 'x'.repeat(32),
       databaseDirectory: '/tmp/data',
       trustProxy: false,
+      trustedProxyHops: 1,
       llm: noLlm,
       openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
     });
@@ -46,6 +47,13 @@ describe('loadEnvironment', () => {
   });
   test('rejects an invalid TRUST_PROXY', () => {
     expect(() => loadEnvironment({ ...complete, TRUST_PROXY: 'yes' })).toThrow();
+  });
+  test('parses TRUSTED_PROXY_HOPS and defaults it to one', () => {
+    expect(loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: '2' }).trustedProxyHops).toBe(2);
+    expect(loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: '' }).trustedProxyHops).toBe(1);
+  });
+  test.each(['0', '-1', '1.5', 'two'])('refuses to start with TRUSTED_PROXY_HOPS %s, naming the variable', (value) => {
+    expect(() => loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: value })).toThrow(/TRUSTED_PROXY_HOPS/);
   });
   test('rejects a short AUTH_SECRET', () => {
     expect(() => loadEnvironment({ ...complete, AUTH_SECRET: 'short' })).toThrow(/AUTH_SECRET/);

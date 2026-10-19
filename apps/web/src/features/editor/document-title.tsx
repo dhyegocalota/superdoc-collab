@@ -1,18 +1,19 @@
 import { DocumentRole, isBlank, type OpenedDocument } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, X } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { KeyboardKey } from '@/lib/keyboard';
 import { openedDocumentQueryKey, renameDocument } from './editor-api';
-import { CANCEL_TITLE_LABEL, renameTitleLabel, SAVE_TITLE_LABEL, TITLE_LABEL } from './editor-copy';
+import { CANCEL_TITLE_LABEL, renameTitleLabel, SAVE_TITLE_DISABLED_REASON, SAVE_TITLE_LABEL, TITLE_LABEL } from './editor-copy';
 
 const TITLE_TEXT_CLASS = 'h-8 max-w-[360px] min-w-20 truncate md:min-w-24 px-2 text-left leading-8 font-medium';
 const ACTION_LABEL_CLASS = 'max-sm:sr-only';
 const ACTION_ICON_CLASS = 'sm:hidden';
 const ACTION_BUTTON_CLASS = 'max-sm:size-8 max-sm:px-0';
+const REASON_CLASS = 'sr-only sm:not-sr-only sm:absolute sm:top-full sm:left-0 sm:mt-1 sm:text-xs sm:text-muted-foreground';
 const TITLE_BUTTON_CLASS = `${TITLE_TEXT_CLASS} rounded-md hover:bg-accent`;
 
 type DocumentTitleProps = {
@@ -28,6 +29,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
   const [isEditing, setIsEditing] = useState(false);
   const titleButtonRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState('');
+  const reasonId = useId();
   const shouldRestoreFocusRef = useRef(false);
   const { mutate, isPending, variables } = useMutation({
     mutationFn: renameDocument,
@@ -90,7 +92,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
   return (
     <>
       {isEditing ? (
-        <form className="flex min-w-0 flex-1 items-center gap-1 sm:max-w-md" onSubmit={submit}>
+        <form className="relative flex min-w-0 flex-1 items-center gap-1 sm:max-w-md" onSubmit={submit}>
           <Input
             autoFocus
             aria-label={TITLE_LABEL}
@@ -106,6 +108,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
             aria-label={SAVE_TITLE_LABEL}
             aria-busy={isPending}
             disabled={isSaveDisabled}
+            aria-describedby={isSaveDisabled ? reasonId : undefined}
             className={ACTION_BUTTON_CLASS}
           >
             <Check aria-hidden className={ACTION_ICON_CLASS} />
@@ -122,6 +125,11 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
             <X aria-hidden className={ACTION_ICON_CLASS} />
             <span className={ACTION_LABEL_CLASS}>{CANCEL_TITLE_LABEL}</span>
           </Button>
+          {isSaveDisabled && (
+            <p id={reasonId} className={REASON_CLASS}>
+              {SAVE_TITLE_DISABLED_REASON}
+            </p>
+          )}
         </form>
       ) : (
         <button

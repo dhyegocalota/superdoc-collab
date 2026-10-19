@@ -14,7 +14,7 @@ readonly NO_GATES=-
 readonly SERVER_PACKAGE=@superdoc-collab/server
 readonly TIME_ZONE_PROBE=Asia/Kolkata
 readonly IMAGE_TAG=superdoc-collab:verify
-readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when its own files change (docker/, deploy/, .dockerignore, railway.json, compose files)"
+readonly DOCKER_SKIPPED="verify: docker skipped: Docker is not running; the image is proven only when its own files change (docker/, .dockerignore, railway.json, compose files)"
 readonly NO_RECORD_UNFETCHED="verify: no record: origin main could not be fetched"
 readonly USAGE="usage: verify.sh [auto|all] [--plan]"
 

@@ -60,3 +60,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0037](0037-author-colour-slots-are-assigned-per-document-by-join-order.md) | Author colour slots are assigned per document by join order | Accepted | 2026-10-18 |
 | [0039](0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) | The edits chart collapses idle stretches into marked breaks | Accepted | 2026-10-18 |
 | [0041](0041-the-summary-card-shows-the-sentence-as-it-is-written.md) | The summary card shows the sentence as it is written, through the job and the poll | Accepted | 2026-10-18 |
+| [0042](0042-the-client-address-is-the-rightmost-trusted-hop.md) | The client address is the rightmost trusted hop | Accepted | 2026-10-19 |

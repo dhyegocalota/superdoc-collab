@@ -121,7 +121,9 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, async (context) => {
     const remoteAddress = getConnInfo(context).remote.address;
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
-    return auth.handler(withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy }));
+    return auth.handler(
+      withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy, trustedProxyHops: 1 }),
+    );
   });
   mountOAuthDiscovery({ app, auth });
   app.route(

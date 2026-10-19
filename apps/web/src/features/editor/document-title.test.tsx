@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi, type MockInstance } from 'vitest';
 import { DOCUMENT_ID, DOCUMENT_TITLE } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { CANCEL_TITLE_LABEL, renameTitleLabel, SAVE_TITLE_LABEL, TITLE_LABEL } from './editor-copy';
+import { CANCEL_TITLE_LABEL, renameTitleLabel, SAVE_TITLE_DISABLED_REASON, SAVE_TITLE_LABEL, TITLE_LABEL } from './editor-copy';
 import { DocumentTitle } from './document-title';
 
 const RENAMED_TITLE = 'Renamed';
@@ -162,4 +162,14 @@ test('a reader title is never dirty', () => {
   const onDirtyChange = vi.fn();
   renderTitle(DocumentRole.Reader, vi.fn(), onDirtyChange);
   expect(onDirtyChange).not.toHaveBeenCalledWith(true);
+});
+
+test('a disabled Save is described by its reason, and an enabled Save is not', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const saveButton = screen.getByRole('button', { name: SAVE_TITLE_LABEL });
+  expect(saveButton).toHaveAccessibleDescription(SAVE_TITLE_DISABLED_REASON);
+  await userEvent.keyboard(RENAMED_TITLE);
+  expect(saveButton).not.toHaveAttribute('aria-describedby');
+  expect(screen.queryByText(SAVE_TITLE_DISABLED_REASON)).toBeNull();
 });

@@ -128,7 +128,7 @@ Both plans are reviewed by a sub-agent before building (`reviewer` role, lens: "
 
 **Merge on green.** When the owner asks to merge as soon as the gate is green, write the `Shipped` status, merge, then land the tester's ticks and evidence in a `docs` follow-up PR.
 
-**Image proof.** When the diff touches the image's own files (`docker/`, `deploy/`, `.dockerignore`, `railway.json`, the compose files), the `docker` gate builds the image and fails without a running Docker; the agent asks to install it and never merges around it.
+**Image proof.** When the diff touches the image's own files (`docker/`, `.dockerignore`, `railway.json`, the compose files), the `docker` gate builds the image and fails without a running Docker; the agent asks to install it and never merges around it.
 
 The PR body links the feature folder, the ADRs it depends on and the learnings it produced.
 

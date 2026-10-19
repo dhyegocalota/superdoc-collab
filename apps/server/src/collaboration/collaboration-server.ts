@@ -15,6 +15,7 @@ import {
   TAB_QUERY_KEY,
   ACCESS_REVOKED_CLOSE_CODE,
   ACCESS_REVOKED_REASON,
+  RESTARTED_ATTEMPT_REASON,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
   SUPERSEDED_ATTEMPT_REASON,
 } from '@superdoc-collab/types';
@@ -74,6 +75,15 @@ class CollaborationSupersededError extends Error {
 
   constructor() {
     super(SUPERSEDED_ATTEMPT_REASON);
+  }
+}
+
+class CollaborationRestartedError extends Error {
+  readonly code = SUPERSEDED_ATTEMPT_CLOSE_CODE;
+  readonly reason = RESTARTED_ATTEMPT_REASON;
+
+  constructor() {
+    super(RESTARTED_ATTEMPT_REASON);
   }
 }
 
@@ -192,6 +202,7 @@ export function createCollaborationServer({
       const isAdmittedCreator = isHolder && mayWrite;
       if (!isCommitted && !isAdmittedCreator) {
         console.warn(`${REFUSED_TICKET_LOG} ${documentId}`);
+        if (isFromAnotherEpoch) throw new CollaborationRestartedError();
         throw new CollaborationSupersededError();
       }
       if (!mayWrite) connection.readOnly = true;

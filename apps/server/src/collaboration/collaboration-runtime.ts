@@ -103,12 +103,11 @@ export function createCollaborationRuntime({
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
     isAttemptSuperseded: ({ documentId, attempt, epoch }) => {
-      const isCommitted = bootstrap.isCommitted(documentId);
       const isFromAnotherEpoch = epoch !== reservations.epoch;
-      if (isCommitted && isFromAnotherEpoch) return false;
-      return !reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
+      if (isFromAnotherEpoch) return false;
+      return !reservations.mayWrite({ documentId, attempt, epoch, isCommitted: bootstrap.isCommitted(documentId) });
     },
-    isAttemptRestarted: () => false,
+    isAttemptRestarted: ({ documentId, epoch }) => epoch !== reservations.epoch && !bootstrap.isCommitted(documentId),
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),

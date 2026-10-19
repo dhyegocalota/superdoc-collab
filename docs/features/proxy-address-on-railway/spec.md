@@ -2,7 +2,7 @@
 
 **Status:** Building
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "tem trechos do codigo que dizem que rodamos embaixo do traefik ... agora estamos published no Railway... revisa esse codigo e make sure it works with Railway safely")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "parts of the code say we run behind Traefik, which was the plan with Dokploy, but now we are published on Railway; review that code and make sure it works with Railway safely")
 **ADRs:** [0019](../../adr/0019-deploy-on-railway.md), [0022](../../adr/0022-mechanical-security-gates-and-a-security-reviewer.md)
 **Not changing:** the limiters' budgets, better-auth's rate-limit settings, `TRUST_PROXY` as the switch
 

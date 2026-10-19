@@ -82,7 +82,7 @@ The E2E suite is not counted per test; its result is below. `git diff --stat mai
 
 ### Tailwind colour extensions
 
-- apps/web/src/styles/globals.css::--color-paper-foreground | no `text-paper-foreground` class anywhere; `--paper-foreground` stays for the caret rule
+- apps/web/src/styles/globals.css::--color-paper-foreground | kept after review: `document-thumbnail.tsx` uses `text-paper-foreground` (restored by the lead on 2026-10-19)
 - apps/web/src/styles/globals.css::--color-active | no `bg-active` class anywhere; `--active` stays for the SuperDoc variables
 
 ### Unused imports, locals and helpers

@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "ao clicar em new document ou em um documento existente, o cursor tem que aparecer automaticamente tanto pra quem criou o doc tanto pra quem joined later")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "when clicking New document or an existing document, the cursor must appear automatically, both for who created the document and for who joined later")
 **ADRs:** none
 **Not changing:** reader (viewing) mode, the toolbar, the Escape exit sentinel
 

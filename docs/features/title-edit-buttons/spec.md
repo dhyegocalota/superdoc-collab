@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟢
-**Owner approval:** approved 2026-10-19 (owner: "quero botoes de salvar ou cancelar edicao do titulo do doc")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "I want save or cancel buttons for the document title edit")
 **Not changing:** the rename API, the title validation, Enter to save and Escape to cancel
 
 ## Change

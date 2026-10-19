@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟢
-**Owner approval:** approved 2026-10-19 (owner: "link do github repo numa nova pagina about ... no drop down do usuario bem curta, deve falar de mim o author, da lib, da licenca, dos creditos"; "otimizacoes SEO/GEO como title, metas, favicon, etc")
+**Owner approval:** approved 2026-10-19 (owner's requests, translated: "also put the GitHub repo link on a new About page in the user dropdown, very short: about me the author, the library, the licence, the credits"; "do SEO/GEO optimisations such as title, metas, favicon")
 **ADRs:** none
 **Not changing:** the sign-in flow, the README, `docs/credits.md`
 

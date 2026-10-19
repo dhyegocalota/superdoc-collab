@@ -164,6 +164,7 @@ html:root.dark {
   --color-deleted: var(--deleted);
   --color-online: var(--online);
   --color-paper: var(--paper);
+  --color-paper-foreground: var(--paper-foreground);
   --color-author-1: var(--author-1);
   --color-author-2: var(--author-2);
   --color-author-3: var(--author-3);

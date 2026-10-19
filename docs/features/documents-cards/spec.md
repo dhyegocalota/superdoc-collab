@@ -2,7 +2,7 @@
 
 **Status:** Building
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "faz a home suportar cards e table ao inves de so table; dai os cards terao que ter o thumbnail gerado de forma performatica ok; e por padrao quero cards, sao mais bonitos e tem que funcionar super bem em mobile e sem travar e sem overload o server")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "make the home support cards and table instead of table only; the cards need a thumbnail generated performantly; cards by default, they are prettier and must work very well on mobile, without jank and without overloading the server")
 **ADRs:** [0007](../../adr/0007-read-model.md) (the projection worker writes the read model)
 **Not changing:** the documents API's authorization, the table's columns and actions, the empty state of welcoming-surfaces, the upload flow
 

@@ -2,7 +2,7 @@
 
 **Status:** Building
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "como passo final de tudo: revise e delete codigo nao usado")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "as the final step of everything: review and delete unused code")
 **Not changing:** behaviour; public API routes; anything a test or an E2E still exercises on purpose
 
 ## Problem

@@ -2,7 +2,7 @@
 
 **Status:** Building
 **Tier:** 🟢
-**Owner approval:** approved 2026-10-19 (owner: "faz tambem um empty state sexy nos edits comecando sempre com esse panel colapsado/hidden; faz uma margin do topo do doc pequena ao inves de grudar no header")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "also make a nice empty state in the edits panel, always starting with that panel collapsed/hidden; give the document a small top margin instead of sticking to the header")
 **Not changing:** the panel's position preference, the timeline data, the chart
 
 ## Change
@@ -20,7 +20,7 @@
 
 ## Filter box
 
-**Owner approval:** 2026-10-19 (owner: "faz o filter/search ser um pouco mais sexy")
+**Owner approval:** 2026-10-19 (owner's request, translated: "make the filter/search a bit nicer")
 
 - `filter-box.tsx` is a rounded search field: a `Search` icon inside on the left, a clear button inside on the right that appears only while the draft has text and clears it with focus kept, the existing focus ring tokens, and the same placeholder, labels and keyboard rules (Enter applies, Escape clears a draft, decided from `event.currentTarget.value`).
 - The clear button is named `CLEAR_FILTER_TEXT_LABEL` and never touches the applied filters; the chips and Clear filters keep doing that.

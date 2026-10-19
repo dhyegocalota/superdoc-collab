@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "cria link de recuperar senha pelo admin para um usuario")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "create a password recovery link from the admin for a user")
 **ADRs:** [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md) (invite-only accounts; no email)
 **Not changing:** sign-in, sign-up, the invite flow, the admin role rules
 

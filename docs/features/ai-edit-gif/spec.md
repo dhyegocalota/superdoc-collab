@@ -3,7 +3,7 @@
 **Lane:** docs (media plus one README section)
 **Status:** Approved
 **Tier:** 🟢
-**Owner approval:** approved 2026-10-19 (owner: "Um AI client editando o documento como pessoa real, com atribuição de AI aparecendo na timeline ao lado dos humanos ... Vale um GIF no README")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "An AI client editing the document like a real person, with AI attribution showing on the timeline beside the humans, is the kind of thing nobody else will show. It deserves a GIF in the README")
 **Not changing:** product code
 
 ## Change

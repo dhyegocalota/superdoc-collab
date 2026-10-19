@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟢
-**Owner approval:** approved 2026-10-19 (owner: "toda vez que vc abrir PR, tem que ter um explainer visual para humanos daquelas alteracoes")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "every time you open a PR, it must have a visual explainer for humans of those changes")
 **Not changing:** the media recording, the reviewer contract, the gate order
 
 ## Change

@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "don't let the user exit without saving changes... show a exit confirmation")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "don't let the user exit without saving changes; show an exit confirmation")
 **ADRs:** [0032](../../adr/0032-connection-state.md) (connection state machine)
 **Not changing:** the sync itself (edits sync on their own while online), the connection banner, the title rename API
 

@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "revise e remova testes unitarios, e2e, ou de integracao que sao inuteis!!! ex de teste inutil: todos ou quase todos em globals.test.ts")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "review and remove unit, e2e or integration tests that are useless; example of a useless test: all or almost all in globals.test.ts")
 **Not changing:** product code; the gates in `scripts/verify*`; tests owned by lanes still building (listed in plan.md)
 
 ## Problem

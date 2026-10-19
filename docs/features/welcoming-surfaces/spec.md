@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Tier:** 🟡
-**Owner approval:** approved 2026-10-19 (owner: "deixa a pagina de sign in bonita com imagens, e a home page com empty state bonito tambem e com upload sexy")
+**Owner approval:** approved 2026-10-19 (owner's request, translated: "make the sign-in page beautiful with images, and the home page with a beautiful empty state and an attractive upload")
 **ADRs:** none
 **Not changing:** the auth flows and their copy, the upload API and its limits, the documents table and its columns, the account menu
 

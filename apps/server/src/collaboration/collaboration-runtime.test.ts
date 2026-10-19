@@ -1,5 +1,5 @@
 import type { Hocuspocus } from '@hocuspocus/server';
-import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
+import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, BootstrapStage, RoomMode, type BootstrapProgress } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { createCollaborationRuntime } from './collaboration-runtime';
 import { COMMITTED_WITHOUT_BOOTSTRAP } from './room-bootstrap';
@@ -18,8 +18,8 @@ function connectionOfUser(userId: string): FakeConnection {
 
 const QUEUED: BootstrapProgress = { stage: BootstrapStage.Queued, done: 0, total: 9, stateBytes: null };
 
-function fakeRoomBootstrap({ progress = null }: { progress?: BootstrapProgress | null } = {}) {
-  return { progressOf: vi.fn(() => progress), request: vi.fn(() => QUEUED), forget: vi.fn() };
+function fakeRoomBootstrap({ progress = null, isInFlight = false }: { progress?: BootstrapProgress | null; isInFlight?: boolean } = {}) {
+  return { progressOf: vi.fn(() => progress), request: vi.fn(() => QUEUED), forget: vi.fn(), isInFlight: vi.fn(() => isInFlight) };
 }
 
 function runtimeWith({
@@ -27,11 +27,13 @@ function runtimeWith({
   roomBootstrap = fakeRoomBootstrap(),
   bootstrap = { isKnownCommitted: vi.fn(() => false) },
   versionRooms = { closeUser: vi.fn(), closeAllOfUser: vi.fn() },
+  roomModes = { resolve: vi.fn() },
 }: {
   rooms: Record<string, FakeConnection[]>;
   roomBootstrap?: ReturnType<typeof fakeRoomBootstrap>;
   bootstrap?: { isKnownCommitted: ReturnType<typeof vi.fn> };
   versionRooms?: { closeUser: ReturnType<typeof vi.fn>; closeAllOfUser: ReturnType<typeof vi.fn> };
+  roomModes?: { resolve: ReturnType<typeof vi.fn> };
 }) {
   const documents = new Map(
     Object.entries(rooms).map(([documentId, connections]) => [
@@ -47,6 +49,7 @@ function runtimeWith({
     roomBootstrap,
     bootstrap,
     versionRooms,
+    roomModes,
   } as unknown as Parameters<typeof createCollaborationRuntime>[0]);
 }
 
@@ -120,6 +123,21 @@ test('a failed job is requested again so the registry may retry it after its coo
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });
   expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(QUEUED);
   expect(roomBootstrap.request).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
+});
+
+test('opening a document whose bootstrap is in flight answers Join from the registry and never resolves the room mode', () => {
+  const roomModes = { resolve: vi.fn() };
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap: fakeRoomBootstrap({ isInFlight: true }), roomModes });
+  expect(runtime.roomModeFor({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR })).toEqual({ isSpent: false, roomMode: RoomMode.Join });
+  expect(roomModes.resolve).not.toHaveBeenCalled();
+});
+
+test('opening a document with no bootstrap in flight resolves the room mode', () => {
+  const answer = { isSpent: false, roomMode: RoomMode.Create };
+  const roomModes = { resolve: vi.fn(() => answer) };
+  const runtime = runtimeWith({ rooms: {}, roomModes });
+  expect(runtime.roomModeFor({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR })).toBe(answer);
+  expect(roomModes.resolve).toHaveBeenCalledExactlyOnceWith({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR });
 });
 
 test('forgetting a document forgets its bootstrap', async () => {

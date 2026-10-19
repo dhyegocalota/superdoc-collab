@@ -83,6 +83,10 @@ export class RoomBootstrap {
     return job.progress;
   }
 
+  isInFlight(documentId: string): boolean {
+    throw new Error(`RoomBootstrap.isInFlight is not implemented ${documentId}`);
+  }
+
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return existing.progress;

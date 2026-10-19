@@ -277,3 +277,22 @@ test('bytes received by a document that is not preparing change nothing', () => 
   bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
   expect(bootstrap.progressOf(DOCUMENT_ID)).toBeNull();
 });
+
+test('a document is in flight while it is queued or preparing and neither before, ready nor failed', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap, pending } = bootstrapWithPendingRuns();
+  expect(bootstrap.isInFlight(DOCUMENT_ID)).toBe(false);
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.request(OTHER_DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.isInFlight(DOCUMENT_ID)).toBe(true);
+  expect(bootstrap.isInFlight(OTHER_DOCUMENT_ID)).toBe(true);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.isInFlight(DOCUMENT_ID)).toBe(false);
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  pending[1]!.reject(new Error('not a document'));
+  await vi.waitFor(() => expect(bootstrap.progressOf(OTHER_DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
+  expect(bootstrap.isInFlight(OTHER_DOCUMENT_ID)).toBe(false);
+  error.mockRestore();
+});

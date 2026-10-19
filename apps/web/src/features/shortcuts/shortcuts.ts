@@ -355,6 +355,14 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
     ...letter('M'),
     ignoresRepeat: true,
   }),
+  definition({
+    id: ShortcutId.ToggleTrackChanges,
+    group: ShortcutGroup.Review,
+    action: APP,
+    modifiers: [Mod, Alt],
+    ...letter('T'),
+    ignoresRepeat: true,
+  }),
   definition({ id: ShortcutId.NextComment, group: ShortcutGroup.Review, action: APP, modifiers: [Mod, Alt], ...letter('N') }),
   definition({ id: ShortcutId.PreviousComment, group: ShortcutGroup.Review, action: APP, modifiers: [Mod, Alt], ...letter('P') }),
 ];

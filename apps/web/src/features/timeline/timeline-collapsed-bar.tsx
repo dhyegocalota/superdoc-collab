@@ -1,6 +1,9 @@
 import { TimelineSearchParam, type DocumentTimeline, type TimelineBand } from '@superdoc-collab/types';
 import { ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShortcutTooltipContent } from '@/features/shortcuts/shortcut-tooltip-content';
+import { ShortcutId } from '@/features/shortcuts/shortcuts';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { maxBandVolume } from './max-band-volume';
@@ -59,9 +62,14 @@ export function TimelineCollapsedBar({
           </li>
         ))}
       </ul>
-      <Button variant="ghost" size="icon" aria-label={TIMELINE_TOGGLE_LABEL} aria-expanded={false} onClick={onExpand}>
-        <ChevronUp />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={TIMELINE_TOGGLE_LABEL} aria-expanded={false} onClick={onExpand}>
+            <ChevronUp />
+          </Button>
+        </TooltipTrigger>
+        <ShortcutTooltipContent label={TIMELINE_TOGGLE_LABEL} shortcutId={ShortcutId.ToggleEditsPanel} />
+      </Tooltip>
     </div>
   );
 }

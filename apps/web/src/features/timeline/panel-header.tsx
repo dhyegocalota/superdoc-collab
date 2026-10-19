@@ -1,5 +1,8 @@
 import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShortcutTooltipContent } from '@/features/shortcuts/shortcut-tooltip-content';
+import { ShortcutId } from '@/features/shortcuts/shortcuts';
 import { TIMELINE_TOGGLE_LABEL } from '@/features/editor/editor-copy';
 import { TimeZoneLabel } from '@/features/settings/time-zone-label';
 import { cn } from '@/lib/utils';
@@ -38,9 +41,20 @@ export function PanelHeader({ position, change, isOpen, onOpenChange }: PanelHea
       )}
       {isOpen && <span className="flex-1" />}
       {isOpen && canChoose && <PanelPositionToggle position={position} onChoose={choosePosition} />}
-      <Button variant="ghost" size="icon" aria-label={TIMELINE_TOGGLE_LABEL} aria-expanded={isOpen} onClick={() => onOpenChange(!isOpen)}>
-        <CollapseIcon />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={TIMELINE_TOGGLE_LABEL}
+            aria-expanded={isOpen}
+            onClick={() => onOpenChange(!isOpen)}
+          >
+            <CollapseIcon />
+          </Button>
+        </TooltipTrigger>
+        <ShortcutTooltipContent label={TIMELINE_TOGGLE_LABEL} shortcutId={ShortcutId.ToggleEditsPanel} />
+      </Tooltip>
     </header>
   );
 }

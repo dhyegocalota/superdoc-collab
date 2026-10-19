@@ -24,6 +24,8 @@ export type UseShortcutsOptions = {
   onAddComment: () => boolean;
 };
 
+type DocumentMode = 'editing' | 'suggesting';
+
 type ShortcutRun = {
   definition: ShortcutDefinition;
   options: UseShortcutsOptions;
@@ -36,6 +38,7 @@ const FONT_SIZE_COMMAND_ID = 'font-size';
 const FONT_SIZE_STEPS = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 const ZOOM_STEPS = [50, 75, 90, 100, 125, 150, 200];
 const NO_COMMENT_VISITED = -1;
+const TRACK_CHANGES_MODE_SWITCH: Record<string, DocumentMode> = { editing: 'suggesting', suggesting: 'editing' };
 const TEXT_CONTROL_SELECTOR = 'input, textarea, select, [contenteditable="true"], [role="document"]';
 
 function isMatch({ event, combination }: { event: KeyboardEvent; combination: KeyCombination }): boolean {
@@ -109,6 +112,15 @@ const appRunners: Partial<Record<ShortcutId, ShortcutRunner>> = {
   },
   [ShortcutId.ShowShortcuts]: ({ options }) => {
     options.onShowShortcuts();
+    return true;
+  },
+  [ShortcutId.ToggleTrackChanges]: ({ options }) => {
+    if (!options.superdoc) return false;
+    const { document } = options.superdoc.ui;
+    const { mode } = document.getSnapshot();
+    const nextMode = mode ? TRACK_CHANGES_MODE_SWITCH[mode] : undefined;
+    if (!nextMode) return false;
+    document.setMode(nextMode);
     return true;
   },
   [ShortcutId.ZoomIn]: zoomRunner(1),

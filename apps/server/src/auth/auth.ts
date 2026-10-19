@@ -4,6 +4,7 @@ import {
   ApiPath,
   AppRoute,
   OFFLINE_ACCESS_SCOPE,
+  PASSWORD_RESET_TTL_MS,
   signInSchema,
   signUpSchema,
   updateUserSchema,
@@ -14,6 +15,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { admin, jwt } from 'better-auth/plugins';
 import type { InvitesRepository } from '../admin/invites';
+import type { PasswordResetLinkCapture } from '../admin/password-reset-links';
 import type { Environment } from '../config/environment';
 import { createSignUpGate, SIGN_UP_PATH } from './sign-up-gate';
 import type { AuthDatabase } from '../database/connection';
@@ -28,7 +30,8 @@ const SIGN_IN_PATH = '/sign-in/email';
 const UPDATE_USER_PATH = '/update-user';
 const INVALID_INPUT_MESSAGE = 'Invalid input.';
 const AUTHORIZE_PATH = '/oauth2/authorize';
-const DISABLED_PATHS = ['/token', '/oauth2/create-client'];
+const DISABLED_PATHS = ['/token', '/oauth2/create-client', '/request-password-reset'];
+const MILLISECONDS_PER_SECOND = 1000;
 const TOKEN_PATH = '/oauth2/token';
 const OAUTH_SCOPES = [...Object.values(AgentScope), OFFLINE_ACCESS_SCOPE];
 
@@ -88,17 +91,24 @@ export function createAuth({
   database,
   environment,
   invites,
+  passwordResetLinks,
 }: {
   database: AuthDatabase;
   environment: Environment;
   invites: InvitesRepository;
+  passwordResetLinks: PasswordResetLinkCapture;
 }) {
   return betterAuth({
     secret: environment.authSecret,
     baseURL: environment.appOrigin,
     trustedOrigins: [environment.appOrigin],
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),
-    emailAndPassword: { enabled: true },
+    emailAndPassword: {
+      enabled: true,
+      resetPasswordTokenExpiresIn: PASSWORD_RESET_TTL_MS / MILLISECONDS_PER_SECOND,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, token }) => passwordResetLinks.store({ userId: user.id, token }),
+    },
     disabledPaths: DISABLED_PATHS,
     plugins: [
       admin({ defaultRole: UserRole.User, adminRoles: [UserRole.Admin] }),

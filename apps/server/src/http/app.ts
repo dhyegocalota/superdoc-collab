@@ -9,6 +9,7 @@ import { createAdminRoutes } from '../admin/admin-routes';
 import { createInviteRoutes } from '../admin/invite-routes';
 import type { InvitesRepository } from '../admin/invites';
 import { createSetupRoutes } from '../admin/setup-routes';
+import type { PasswordResets } from '../admin/password-reset-links';
 import type { AdminUsersRepository } from '../admin/users';
 import type { Auth } from '../auth/auth';
 import { REGISTER_PATH } from '../auth/registration-limits';
@@ -84,6 +85,7 @@ export type AppServices = {
   jwksUrl: () => string;
   invites: InvitesRepository;
   adminUsers: AdminUsersRepository;
+  passwordResets: PasswordResets;
 };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {

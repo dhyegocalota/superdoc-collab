@@ -4,6 +4,7 @@ import {
   INVITE_ALREADY_ACCEPTED_MESSAGE,
   INVITE_NOT_FOUND_MESSAGE,
   LAST_ADMIN_MESSAGE,
+  PASSWORD_RESET_SEGMENT,
   UserRole,
 } from '@superdoc-collab/types';
 import { Hono } from 'hono';
@@ -18,7 +19,7 @@ const USER_NOT_FOUND_MESSAGE = 'User not found';
 const roleSchema = z.object({ role: z.enum(UserRole) });
 
 export function createAdminRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { invites, adminUsers } = services;
+  const { invites, adminUsers, passwordResets } = services;
   const routes = new Hono<SignedIn>();
 
   routes.get(`/${AdminResource.Users}`, (context) => context.json(adminUsers.list()));
@@ -31,6 +32,13 @@ export function createAdminRoutes({ services }: { services: AppServices }): Hono
     if (outcome === SetRoleOutcome.NotFound) return context.json({ error: USER_NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
     if (outcome === SetRoleOutcome.LastAdmin) return context.json({ error: LAST_ADMIN_MESSAGE }, HttpStatus.Conflict);
     return context.json({ id, role: parsed.data.role });
+  });
+
+  routes.post(`/${AdminResource.Users}/:id/${PASSWORD_RESET_SEGMENT}`, async (context) => {
+    const userId = context.req.param('id');
+    const email = adminUsers.emailOf(userId);
+    if (email === null) return context.json({ error: USER_NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
+    return context.json(await passwordResets.create({ userId, email }), HttpStatus.Created);
   });
 
   routes.get(`/${AdminResource.Invites}`, (context) => context.json(invites.list()));

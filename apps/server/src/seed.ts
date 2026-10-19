@@ -1,4 +1,5 @@
 import { InvitesRepository } from './admin/invites';
+import { PasswordResetLinkCapture } from './admin/password-reset-links';
 import { MissingDemoPasswordError, seedDemoUsers } from './auth/seed-demo-users';
 import { createAuth } from './auth/auth';
 import { loadEnvironment } from './config/environment';
@@ -21,7 +22,7 @@ async function seed(): Promise<void> {
   try {
     runMigrations(database);
     const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now: Date.now });
-    const auth = createAuth({ database, environment, invites });
+    const auth = createAuth({ database, environment, invites, passwordResetLinks: new PasswordResetLinkCapture() });
     const result = await seedDemoUsers({ auth, database, invites, password });
     console.log(`created: ${result.created.join(', ')}`);
     console.log(`existing: ${result.existing.join(', ')}`);

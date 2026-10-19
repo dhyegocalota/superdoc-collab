@@ -25,6 +25,12 @@ export class AdminUsersRepository {
       .map((row) => ({ ...row, createdAt: row.createdAt.getTime() }));
   }
 
+  emailOf(id: string): string | null {
+    const row = this.database.drizzle.select({ email: user.email }).from(user).where(eq(user.id, id)).get();
+    if (!row) return null;
+    return row.email;
+  }
+
   countAdmins(): number {
     return this.database.drizzle.select({ id: user.id }).from(user).where(eq(user.role, UserRole.Admin)).all().length;
   }

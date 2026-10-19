@@ -42,3 +42,8 @@ Pins (green on arrival): the reader, online-edit and synced-release page tests, 
 - `onPaginationUpdate` shares the editor-update callback in `superdoc-editor.tsx` (outside the lane), so a layout change during an outage also arms the prompt.
 - The browser's `beforeunload` text is not ours; E2E checks the event is cancelled, not the native dialog.
 - Sign out while unsynced is covered by the store and the pending leave, not the blocker; the E2E uses a changed title because a signed-out request cannot complete while the server is down.
+
+## Tester run 2026-10-19
+
+- Walked at 1280 as Ana. The server-down boxes (five of eleven) are BLOCKED: the collaboration socket lives in a worker and Playwright cannot cut it, and the stack was not stopped by instruction. The dirty-title path was walked end to end: dialog, Download, Stay, Cancel then no dialog, Leave, Back, sign out.
+- Defects: none. Minor: Back in the same task as the keystroke is not blocked (script-only race). Console errors: none.

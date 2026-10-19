@@ -1,6 +1,6 @@
 # Feature status gate
 
-**Status:** In review
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 ("corrige status dos docs e já corrige as regras de harnessing pra não deixar mais isso acontecer")
 **ADRs:** none

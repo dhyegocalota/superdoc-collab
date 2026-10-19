@@ -2,11 +2,12 @@
 
 ## What changed and where
 
-- `apps/web/src/features/auth/auth-layout.tsx` wraps the card of sign in, sign up and reset password. At `lg` and above the panel is the right column (tagline, illustration, three value lines, About link). Below `lg` it is a compact header above the card: mark, name, About link, tagline. Copy lives in `auth-copy.ts`. The invalid-link card and the session skeleton are not wrapped.
+- `apps/web/src/features/auth/auth-layout.tsx` wraps the card of sign in, sign up and reset password. At `lg` and above the panel is the right column (tagline, illustration, three value lines, About link). Below `lg` it is a compact header above the card: mark, name, About link, tagline. Copy lives in `auth-copy.ts`. `AuthSkeleton` (sign-up loading and the sign-in redirect guard) and `LinkInvalidCard` render inside the same layout; the shared `SessionSkeleton` used by other routes stays bare. `auth-card.tsx` now uses `flex-1` instead of `min-h-screen`; its labels, roles and order are unchanged.
+- `apps/web/src/components/app-mark.tsx`: the mark extracted from `brand-link.tsx`, used by the top bar and the auth panel.
 - `apps/web/src/components/history-illustration.tsx`: inline SVG, `aria-hidden`, no title, author tokens through `fill-author-N` classes, no hex values, no animation.
 - `apps/web/src/features/documents/`: `use-upload-document.ts` (the mutation and the messages, extracted from the dialog), `upload-dialog.tsx` (now uses the hook), `upload-drop-zone.tsx`, `upload-drop-overlay.tsx` (window listeners, enter/leave counter, reset on drop, dragend and `mouseleave` of the document element), `documents-empty-state.tsx`, `documents-page.tsx`, `documents-copy.ts`.
 - The create-document error moved from the toolbar section to directly under the page heading so it shows in both states.
-- `e2e/editor.ts`: new `openDocumentFileInput`, used by `uploadSeed`, so a user whose list is empty (no `Upload .docx` button) still reaches the `Document file` input. Not in the lane's file list; the lead was told.
+- `e2e/editor.ts`: new `openDocumentFileInput`, used by `uploadSeed` and by `uploadBrief` in `e2e/final-visuals.spec.ts`, so a user whose list is empty (no `Upload .docx` button) still reaches the `Document file` input. Approved by the lead.
 - `apps/web/README.md`: one sentence.
 
 ## How to run
@@ -42,9 +43,7 @@ Green: 159 unit tests across auth, components and documents; E2E `documents.spec
 
 ## Gaps I know about
 
-- `e2e/final-visuals.spec.ts` `uploadBrief` now calls `openDocumentFileInput` (commit cfac605c); the spec ran 30 of 30.
-- `LinkInvalidCard` renders inside `AuthLayout`; `AuthSkeleton` replaces the bare skeleton on sign-up and in `RedirectIfSession`. `SessionSkeleton` stays as it is because `RequireSession`, the admin pages and the version viewer share it; the sign-up "instance could not be reached" error is still bare.
-- The app mark is one component, `apps/web/src/components/app-mark.tsx`, used by `brand-link.tsx` and the auth panel (the panel passes a larger size class). Its test is a pin, written with the component.
+- The sign-up "instance could not be reached" error text is still bare (no layout).
 - The dialog no longer closes before navigation but after the list refresh and just before it; the visible result is the same.
 - Safari drag events and a real desktop drag are not exercised; the E2E dispatches synthetic events.
 - The `frontend-design` skill could not be loaded in this lane (no Skill tool); the visual direction stays inside the existing tokens.

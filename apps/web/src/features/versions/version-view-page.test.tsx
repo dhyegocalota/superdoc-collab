@@ -1,6 +1,6 @@
 import {
+  BootstrapStage,
   ApiPath,
-  DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentRole,
@@ -22,7 +22,7 @@ import { tabId } from '@/lib/tab-id';
 import { pageTitle } from '@/lib/use-document-title';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { jsonResponse } from '@/testing/json-response';
-import { DOCUMENT_ID, DOCUMENT_TITLE, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { DOCUMENT_ID, DOCUMENT_TITLE, bootstrapAt, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { useRunHighlights } from './use-run-highlights';
 import { VersionViewPage } from './version-view-page';
@@ -55,14 +55,15 @@ const RUNS: EditRunView[] = [
 ];
 
 let openedStatus = HttpStatus.Ok;
+let openedStage = BootstrapStage.Ready;
 
 function openedBody(): unknown {
-  if (openedStatus === HttpStatus.Conflict) return { error: DOCUMENT_NOT_READY_ERROR };
-  return openedAs(DocumentRole.Editor);
+  return { ...openedAs(DocumentRole.Editor), bootstrap: bootstrapAt(openedStage) };
 }
 
 beforeEach(() => {
   openedStatus = HttpStatus.Ok;
+  openedStage = BootstrapStage.Ready;
   SuperDoc.mockClear();
   installAuthorPalette();
   vi.mocked(useRunHighlights).mockClear();
@@ -167,7 +168,7 @@ test('a document the viewer cannot open shows the unavailable notice, tells the 
 });
 
 test('a document that is not ready shows the unavailable notice, tells the parent and never connects', async () => {
-  openedStatus = HttpStatus.Conflict;
+  openedStage = BootstrapStage.Queued;
   const postToParent = vi.spyOn(window.parent, 'postMessage');
   renderWithProviders(<VersionViewPage />, { route: ROUTE });
   expect(await screen.findByRole('alert')).toHaveTextContent(DOCUMENT_UNAVAILABLE_MESSAGE);

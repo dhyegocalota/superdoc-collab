@@ -41,7 +41,6 @@ export const SOCKET_AWARENESS_ENTRIES_REASON = 'Too many awareness entries in on
 export const ACCESS_REVOKED_REASON = 'Access was revoked';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;
 export const DOCUMENT_READY_POLL_MS = 2 * SECOND_MS;
-export const DOCUMENT_READY_GIVE_UP_MS = 5 * MINUTE_MS;
 export const SESSION_STALE_TIME_MS = 5 * MINUTE_MS;
 export const CURSOR_GLOW_MS = 1.2 * SECOND_MS;
 export const JUMP_FAILED_NOTICE_MS = 3 * SECOND_MS;

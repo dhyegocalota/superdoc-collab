@@ -11,12 +11,6 @@ test('moving from Waiting to Ready announces that the document is ready', () => 
   expect(screen.getByRole('status')).toHaveTextContent(DOCUMENT_READY_ANNOUNCEMENT);
 });
 
-test('moving from Paused to Ready announces that the document is ready', () => {
-  const { rerender } = render(<ReadinessAnnouncement readiness={DocumentReadiness.Paused} />);
-  rerender(<ReadinessAnnouncement readiness={DocumentReadiness.Ready} />);
-  expect(screen.getByRole('status')).toHaveTextContent(DOCUMENT_READY_ANNOUNCEMENT);
-});
-
 test('a document that opens Ready at once announces nothing', () => {
   const { rerender } = render(<ReadinessAnnouncement readiness={DocumentReadiness.Opening} />);
   rerender(<ReadinessAnnouncement readiness={DocumentReadiness.Ready} />);

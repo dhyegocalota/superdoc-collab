@@ -38,3 +38,5 @@ function matchMediaDouble(query: string): MediaQueryList {
 vi.stubGlobal('matchMedia', matchMediaDouble);
 
 afterEach(cleanup);
+
+document.elementFromPoint = () => null;

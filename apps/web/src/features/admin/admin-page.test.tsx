@@ -16,6 +16,8 @@ import {
   UserRole,
   UTC_TIME_ZONE,
   type AdminUser,
+  UserAction,
+  userActionApiPath,
   type CreatedInvite,
   type InviteSummary,
   type SessionUser,
@@ -33,6 +35,13 @@ import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   ACTION_FAILED_MESSAGE,
+  ARCHIVE_DIALOG_DESCRIPTION,
+  ARCHIVE_LABEL,
+  ARCHIVED_CHIP_LABEL,
+  archiveDialogTitle,
+  CANCEL_LABEL,
+  IMPERSONATE_LABEL,
+  RESTORE_LABEL,
   COPY_FAILED_MESSAGE,
   COPY_LINK_LABEL,
   GENERATE_INVITE_LABEL,
@@ -104,13 +113,17 @@ const CREATED_SHOWCASE: DocumentSummary = {
   preview: null,
 };
 
-type MockOptions = { revokeStatus?: number; showcaseStatus?: number };
+type MockOptions = { revokeStatus?: number; showcaseStatus?: number; users?: AdminUser[] };
 
-function mockApi({ revokeStatus = HttpStatus.NoContent, showcaseStatus = HttpStatus.Created }: MockOptions = {}) {
+function mockApi({
+  revokeStatus = HttpStatus.NoContent,
+  showcaseStatus = HttpStatus.Created,
+  users = [ADMIN_USER, MEMBER_USER],
+}: MockOptions = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const isRead = init?.method === undefined;
     if (input === ApiPath.Me) return jsonResponse({ body: { user: ADMIN_SESSION } });
-    if (input === USERS_PATH && isRead) return jsonResponse({ body: [ADMIN_USER, MEMBER_USER] });
+    if (input === USERS_PATH && isRead) return jsonResponse({ body: users });
     if (input === INVITES_PATH && isRead) return jsonResponse({ body: [PENDING_INVITE, ACCEPTED_INVITE] });
     if (input === SHOWCASE_API_PATH && init?.method === HttpMethod.Post)
       return jsonResponse({ body: CREATED_SHOWCASE, status: showcaseStatus });
@@ -119,6 +132,11 @@ function mockApi({ revokeStatus = HttpStatus.NoContent, showcaseStatus = HttpSta
     if (input === `${INVITES_PATH}/${PENDING_INVITE.id}`) return new Response(null, { status: revokeStatus });
     if (input === passwordResetApiPath(MEMBER_USER.id)) return jsonResponse({ body: CREATED_PASSWORD_RESET, status: HttpStatus.Created });
     if (input === `${USERS_PATH}/${MEMBER_USER.id}/role`) return jsonResponse({ body: { ...MEMBER_USER, role: UserRole.Admin } });
+    if (input === userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Archive }))
+      return jsonResponse({ body: { ...MEMBER_USER, isArchived: true } });
+    if (input === userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Restore })) return jsonResponse({ body: MEMBER_USER });
+    if (input === userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Impersonate }))
+      return new Response(null, { status: HttpStatus.NoContent });
     throw new Error(`unexpected ${String(input)}`);
   });
 }
@@ -280,4 +298,91 @@ test('a failed showcase creation shows the action-failed message', async () => {
   renderAdminPage();
   await user.click(await screen.findByRole('button', { name: SHOWCASE_BUTTON_LABEL }));
   expect(await screen.findByText(ACTION_FAILED_MESSAGE)).toBeInTheDocument();
+});
+
+const ARCHIVED_MEMBER: AdminUser = { ...MEMBER_USER, isArchived: true };
+const SECOND_ADMIN: AdminUser = { ...MEMBER_USER, id: 'admin-2', name: 'Caio', email: 'caio@example.com', role: UserRole.Admin };
+
+test('other users offer Archive and Impersonate; the signed-in admin and another admin offer no Impersonate and the admin no Archive', async () => {
+  mockApi({ users: [ADMIN_USER, MEMBER_USER, SECOND_ADMIN] });
+  renderAdminPage();
+  const adminRow = await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email });
+  const memberRow = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  const secondAdminRow = await rowOf({ table: USERS_TABLE_LABEL, text: SECOND_ADMIN.email });
+  [ARCHIVE_LABEL, IMPERSONATE_LABEL].forEach((label) =>
+    expect(within(adminRow).queryByRole('button', { name: label })).not.toBeInTheDocument(),
+  );
+  [ARCHIVE_LABEL, IMPERSONATE_LABEL].forEach((label) => expect(within(memberRow).getByRole('button', { name: label })).toBeInTheDocument());
+  expect(within(secondAdminRow).getByRole('button', { name: ARCHIVE_LABEL })).toBeInTheDocument();
+  expect(within(secondAdminRow).queryByRole('button', { name: IMPERSONATE_LABEL })).not.toBeInTheDocument();
+});
+
+test('archive asks first, naming the person, and posts only after the confirmation, then refetches users', async () => {
+  const fetchSpy = mockApi();
+  const user = userEvent.setup();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await user.click(within(row).getByRole('button', { name: ARCHIVE_LABEL }));
+  const dialog = await screen.findByRole('alertdialog', { name: archiveDialogTitle(MEMBER_USER.name) });
+  expect(within(dialog).getByText(ARCHIVE_DIALOG_DESCRIPTION)).toBeInTheDocument();
+  expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining('/archive'), expect.anything());
+  await user.click(within(dialog).getByRole('button', { name: ARCHIVE_LABEL }));
+  await waitFor(() =>
+    expect(fetchSpy).toHaveBeenCalledWith(
+      userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Archive }),
+      expect.objectContaining({ method: HttpMethod.Post }),
+    ),
+  );
+  await waitFor(() => expect(readCalls(fetchSpy, USERS_PATH)).toBe(2));
+});
+
+test('cancelling the archive confirmation sends nothing', async () => {
+  const fetchSpy = mockApi();
+  const user = userEvent.setup();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await user.click(within(row).getByRole('button', { name: ARCHIVE_LABEL }));
+  await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: CANCEL_LABEL }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining('/archive'), expect.anything());
+});
+
+test('an archived row shows the Archived chip and Restore, with no Archive and no Impersonate; Restore posts and refetches', async () => {
+  const fetchSpy = mockApi({ users: [ADMIN_USER, ARCHIVED_MEMBER] });
+  const user = userEvent.setup();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  expect(within(row).getByText(ARCHIVED_CHIP_LABEL)).toBeInTheDocument();
+  [ARCHIVE_LABEL, IMPERSONATE_LABEL].forEach((label) => expect(within(row).queryByRole('button', { name: label })).not.toBeInTheDocument());
+  await user.click(within(row).getByRole('button', { name: RESTORE_LABEL }));
+  await waitFor(() =>
+    expect(fetchSpy).toHaveBeenCalledWith(
+      userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Restore }),
+      expect.objectContaining({ method: HttpMethod.Post }),
+    ),
+  );
+  await waitFor(() => expect(readCalls(fetchSpy, USERS_PATH)).toBe(2));
+});
+
+test('an active row shows no Archived chip and no Restore', async () => {
+  mockApi();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  expect(within(row).queryByText(ARCHIVED_CHIP_LABEL)).not.toBeInTheDocument();
+  expect(within(row).queryByRole('button', { name: RESTORE_LABEL })).not.toBeInTheDocument();
+});
+
+test('impersonate posts for that user and lands on the documents home', async () => {
+  const fetchSpy = mockApi();
+  const user = userEvent.setup();
+  const { router } = renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await user.click(within(row).getByRole('button', { name: IMPERSONATE_LABEL }));
+  await waitFor(() =>
+    expect(fetchSpy).toHaveBeenCalledWith(
+      userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Impersonate }),
+      expect.objectContaining({ method: HttpMethod.Post }),
+    ),
+  );
+  await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
 });

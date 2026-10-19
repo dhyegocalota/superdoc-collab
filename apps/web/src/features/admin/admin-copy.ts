@@ -52,3 +52,18 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export const ADMIN_LOAD_ERROR_MESSAGE = 'The admin data could not be loaded.';
+
+export const ARCHIVE_LABEL = 'Archive';
+export const RESTORE_LABEL = 'Restore';
+export const IMPERSONATE_LABEL = 'Impersonate';
+export const ARCHIVED_CHIP_LABEL = 'Archived';
+export const CANCEL_LABEL = 'Cancel';
+export const ARCHIVE_DIALOG_DESCRIPTION =
+  'They are signed out now, cannot sign in and lose their connected apps. Their documents and history stay. You can restore them later.';
+export const ARCHIVE_USER_SUBJECT = 'Archive user';
+export const RESTORE_USER_SUBJECT = 'Restore user';
+export const IMPERSONATE_USER_SUBJECT = 'Impersonate user';
+
+export function archiveDialogTitle(name: string): string {
+  return `Archive ${name}?`;
+}

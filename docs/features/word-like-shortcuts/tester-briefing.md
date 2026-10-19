@@ -16,9 +16,17 @@ Every "it works" below is a hypothesis for the tester to disprove.
 - Subscript and superscript are left out: SuperDoc 2.23.0 has no command for them.
 - Mod+F is native and not consumed by SuperDoc, so the app never intercepts it.
 
+## Comments, review, zoom, Docs keys, held keys (second round)
+
+- Add comment ⌘⌥M opens a small composer (SuperDoc has none) and sends `createFromSelection` on the live selection; with nothing selected the composer shows an alert after Comment. Next and previous comment ⌘⌥N and ⌘⌥P walk `ui.comments.list()` with `scrollTo`. Zoom ⌘⌥= and ⌘⌥- step through 50, 75, 90, 100, 125, 150, 200. ⌘⌥E toggles the edits panel and ⌘⌥S summarizes (editors only).
+- Clear formatting is ⌘\ on a Mac and Ctrl+Space elsewhere; indent is ⌘] and ⌘[ on a Mac (⌘M minimises the window) and Ctrl+M elsewhere; normal text also on ⌘⌥0; select all and headings 4 to 6 are native and listed.
+- Unavailable and left out: track changes ⌘⇧E (SuperDoc consumes it for centring first), page break ⌘Enter (no catalog command), ⌘Space on a Mac (Spotlight), subscript and superscript.
+- A capture-phase guard swallows held keys of toggle entries and one-shot app entries, so ⌘B held toggles once.
+- ⌘P opens the browser's native print dialog on purpose (the PDF path); skip it in MCP walks.
+
 ## Left out
 
-- Hints on Share, Summarize, More actions, and the title Save and Cancel: the registry has no key for them, so a hint would be invented. Say if Enter and Esc should be registered for the title.
+- Hints on Share, Summarize and More actions: they have no key. The title Save and Cancel now carry Enter and Esc.
 - Hints on SuperDoc toolbar items without one key (text align, font size, colours).
 
 ## Red first

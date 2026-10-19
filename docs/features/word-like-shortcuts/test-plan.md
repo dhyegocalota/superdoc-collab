@@ -22,9 +22,14 @@
 
 - [ ] New document: type, ⌘B, ⌘I, ⌘U, ⌘E, ⌘⇧L, ⌘⌥2, ⌘M; each visibly applies; ⌘Z undoes
 - [ ] ⌘/ then search "head" shows the heading rows; Esc closes; account menu → Keyboard shortcuts opens it
-- [ ] Hover Download, Find, More actions, Share: the tooltip shows the hint; open the download menu: hints right-aligned
+- [ ] Hover Download, Find and, while editing the title, Save and Cancel: the tooltip shows the hint (Save shows Enter, Cancel shows Esc); open the download menu: hints right-aligned
 - [ ] Reader: no formatting rows, keys inert
 - [ ] 375 px: the modal scrolls, no horizontal scroll
+
+- [ ] Select a word, ⌘⌥M: the composer opens, a comment is added and shows on the page; with nothing selected the composer shows an alert after Comment
+- [ ] ⌘⌥= and ⌘⌥-: the page zooms through the steps; ⌘⌥E opens and closes the edits panel; ⌘⌥S summarizes
+- [ ] Hold ⌘B on a selection: bold toggles once, not on every repeat (same for ⌘S: one download)
+- [ ] Skip ⌘P in the MCP walk: it opens the browser's native print dialog, which is expected (the PDF path)
 
 ## Adversarial review
 

@@ -4,7 +4,6 @@ import { Bot, Ellipsis, Keyboard, Search } from 'lucide-react';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
-import type { SelectionCapture } from 'superdoc/ui';
 import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
@@ -223,7 +222,6 @@ export function EditorHeader({
   const shortcutsReturnFocusRef = useRef<HTMLElement | null>(null);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const commentReturnFocusRef = useRef<HTMLElement | null>(null);
-  const commentCaptureRef = useRef<SelectionCapture | null>(null);
   const canEdit = !isReader && !isPastVersion;
 
   function showShortcuts(opener: HTMLElement | null): void {
@@ -232,18 +230,15 @@ export function EditorHeader({
   }
 
   function openCommentComposer(): boolean {
-    const capture = superdoc ? superdoc.ui.selection.capture() : null;
-    if (!capture) return false;
-    commentCaptureRef.current = capture;
+    if (!superdoc) return false;
     commentReturnFocusRef.current = focusedElement();
     setIsCommentOpen(true);
     return true;
   }
 
   async function addComment(text: string): Promise<boolean> {
-    const capture = commentCaptureRef.current;
-    if (!superdoc || !capture) return false;
-    const receipt = await superdoc.ui.comments.createFromCapture(capture, { text });
+    if (!superdoc) return false;
+    const receipt = await superdoc.ui.comments.createFromSelection({ text });
     return receipt.success;
   }
 

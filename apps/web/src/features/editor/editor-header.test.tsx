@@ -428,16 +428,14 @@ test.each([
 
 const OPTION_KEYS = { ctrlKey: true, altKey: true };
 const COMMENT_KEY = { code: 'KeyM', key: 'm', ...OPTION_KEYS };
-const SELECTION_CAPTURE = { capturedAt: 1 };
 const COMMENT_TEXT = 'Check this figure';
 
-function superdocWithComments(createFromCapture: () => unknown): SuperDoc {
+function superdocWithComments(createFromSelection: () => unknown): SuperDoc {
   const handle = { getState: () => ({ enabled: true, supported: true }), execute: vi.fn() };
   return superdocStub({
     ui: {
       commands: { get: () => handle },
-      selection: { capture: () => SELECTION_CAPTURE },
-      comments: { createFromCapture },
+      comments: { createFromSelection },
     },
   });
 }
@@ -450,15 +448,15 @@ test('Ctrl+Alt+E and Ctrl+Alt+S reach the page callbacks', () => {
   expect(onSummarize).toHaveBeenCalledTimes(1);
 });
 
-test('Ctrl+Alt+M opens the composer and sends the comment on the captured selection', async () => {
-  const createFromCapture = vi.fn().mockResolvedValue({ success: true });
-  renderHeader({ superdoc: superdocWithComments(createFromCapture) });
+test('Ctrl+Alt+M opens the composer and sends the comment on the live selection', async () => {
+  const createFromSelection = vi.fn().mockResolvedValue({ success: true });
+  renderHeader({ superdoc: superdocWithComments(createFromSelection) });
   fireEvent.keyDown(document.body, COMMENT_KEY);
   const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
   await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
   await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(createFromCapture).toHaveBeenCalledWith(SELECTION_CAPTURE, { text: COMMENT_TEXT });
+  expect(createFromSelection).toHaveBeenCalledWith({ text: COMMENT_TEXT });
 });
 
 test('a rejected comment keeps the composer open with an alert', async () => {
@@ -483,10 +481,8 @@ test('the shortcuts dialog lists the review group for an editor', async () => {
   expect(await screen.findByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Review] })).toBeVisible();
 });
 
-test('Ctrl+Alt+M with nothing selected opens no composer and is not consumed', () => {
-  const handle = { getState: () => ({ enabled: true, supported: true }), execute: vi.fn() };
-  const superdoc = superdocStub({ ui: { commands: { get: () => handle }, selection: { capture: () => null } } });
-  renderHeader({ superdoc });
+test('Ctrl+Alt+M before the editor is ready opens no composer and is not consumed', () => {
+  renderHeader({ superdoc: null });
   expect(fireEvent.keyDown(document.body, COMMENT_KEY)).toBe(true);
   expect(screen.queryByRole('dialog')).toBeNull();
 });

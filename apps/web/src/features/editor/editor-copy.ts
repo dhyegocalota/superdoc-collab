@@ -110,4 +110,4 @@ export const ADD_COMMENT_TITLE = 'Add comment';
 export const ADD_COMMENT_DESCRIPTION = 'The comment is attached to the text you selected.';
 export const COMMENT_TEXT_LABEL = 'Comment';
 export const ADD_COMMENT_SUBMIT_LABEL = 'Comment';
-export const ADD_COMMENT_FAILED_MESSAGE = 'The comment could not be added.';
+export const ADD_COMMENT_FAILED_MESSAGE = 'The comment could not be added. Select some text and try again.';

@@ -147,5 +147,5 @@ test('Mod+Alt+E opens the edits panel and a second press closes it', async ({ br
   await pressWithModifier({ page: ana.page, keys: 'Alt+E' });
   await expect(panel).toHaveAttribute('data-state', 'open');
   await pressWithModifier({ page: ana.page, keys: 'Alt+E' });
-  await expect(panel).toHaveAttribute('data-state', 'closed');
+  await expect(panel).toHaveAttribute('data-state', 'collapsed');
 });

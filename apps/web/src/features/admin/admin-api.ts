@@ -27,8 +27,9 @@ import {
   SET_ROLE_SUBJECT,
 } from './admin-copy';
 
-export const ADMIN_USERS_QUERY_KEY = ['admin', 'users'];
-export const INVITES_QUERY_KEY = ['admin', 'invites'];
+export const ADMIN_QUERY_KEY = ['admin'];
+export const ADMIN_USERS_QUERY_KEY = [...ADMIN_QUERY_KEY, 'users'];
+export const INVITES_QUERY_KEY = [...ADMIN_QUERY_KEY, 'invites'];
 
 const USERS_PATH = adminApiPath(AdminResource.Users);
 const INVITES_PATH = adminApiPath(AdminResource.Invites);

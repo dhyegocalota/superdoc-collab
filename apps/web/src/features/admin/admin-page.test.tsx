@@ -22,7 +22,13 @@ import {
   type InviteSummary,
   type SessionUser,
 } from '@superdoc-collab/types';
-import { screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { Toaster } from '@/components/ui/sonner';
+import { createTestQueryClient } from '@/testing/render-with-providers';
+import { RequireAdmin } from './require-admin';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
@@ -35,6 +41,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   ACTION_FAILED_MESSAGE,
+  ADMINS_ONLY_TOAST,
   ARCHIVE_DIALOG_DESCRIPTION,
   ARCHIVE_LABEL,
   ARCHIVED_CHIP_LABEL,
@@ -386,4 +393,44 @@ test('impersonate posts for that user and lands on the documents home', async ()
     ),
   );
   await waitFor(() => expect(router.state.location.pathname).toBe(AppRoute.Documents));
+});
+
+test('after Impersonate no admin query runs as the impersonated user and no Admins only toast shows', async () => {
+  const fetchSpy = mockApi();
+  const respond = fetchSpy.getMockImplementation()!;
+  const impersonatedSession: SessionUser = { ...ADMIN_SESSION, id: MEMBER_USER.id, role: UserRole.User, impersonatedBy: ADMIN_USER.id };
+  let isImpersonating = false;
+  fetchSpy.mockImplementation(async (input, init) => {
+    if (input === ApiPath.Me && isImpersonating) return jsonResponse({ body: { user: impersonatedSession } });
+    const response = await respond(input, init);
+    if (input === userActionApiPath({ userId: MEMBER_USER.id, action: UserAction.Impersonate })) isImpersonating = true;
+    return response;
+  });
+  const router = createMemoryRouter(
+    [
+      {
+        path: AppRoute.Admin,
+        element: (
+          <RequireAdmin>
+            <AdminPage />
+          </RequireAdmin>
+        ),
+      },
+      { path: AppRoute.Documents, element: <p>Documents home</p> },
+    ],
+    { initialEntries: [AppRoute.Admin] },
+  );
+  render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <RouterProvider router={router} />
+      <Toaster />
+    </QueryClientProvider>,
+  );
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await userEvent.click(within(row).getByRole('button', { name: IMPERSONATE_LABEL }));
+  expect(await screen.findByText('Documents home')).toBeInTheDocument();
+  await waitFor(() => expect(readCalls(fetchSpy, ApiPath.Me)).toBeGreaterThan(1));
+  expect(readCalls(fetchSpy, USERS_PATH)).toBe(1);
+  expect(readCalls(fetchSpy, INVITES_PATH)).toBe(1);
+  expect(screen.queryByText(ADMINS_ONLY_TOAST)).not.toBeInTheDocument();
 });

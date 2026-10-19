@@ -4,7 +4,7 @@ import { posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPOSITORY_ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
-export const DEPLOY_COMPOSE_FILE = 'deploy/docker-compose.yml';
+export const DEPLOY_COMPOSE_FILE = 'docker/docker-compose.yml';
 const README_PATHSPEC = '*README.md';
 const WORKSPACE_PACKAGE_PARENTS = ['apps', 'libs'];
 export const PACKAGE_MANIFEST = 'package.json';

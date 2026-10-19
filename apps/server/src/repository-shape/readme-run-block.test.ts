@@ -17,7 +17,8 @@ type PnpmInvocation = { packageName: string | undefined; script: string };
 
 const README_FILE = 'README.md';
 const ENVIRONMENT_EXAMPLE_FILE = '.env.example';
-const ROOT_COMPOSE_FILE = 'docker-compose.yml';
+const LOCAL_COMPOSE_FILE = 'docker/docker-compose.local.yml';
+const IMPLICIT_COMPOSE_FILE = 'docker-compose.yml';
 const INSTALL_FILE = 'docs/install.md';
 const QUICK_INSTALL_HEADING = '## Quick install';
 const FROM_SOURCE_HEADING = '## Run from source';
@@ -54,7 +55,7 @@ function invocationLabel({ packageName, script }: PnpmInvocation): string {
 
 const readme = readRepositoryFile(README_FILE);
 const environmentExample = readRepositoryFile(ENVIRONMENT_EXAMPLE_FILE);
-const rootCompose = readRepositoryFile(ROOT_COMPOSE_FILE);
+const rootCompose = readRepositoryFile(LOCAL_COMPOSE_FILE);
 const environmentValues = new Map(
   [...environmentExample.matchAll(DOCUMENTED_VARIABLE_PATTERN)].flatMap(([, name, value]) =>
     name && value !== undefined ? [[name, value] as const] : [],
@@ -109,7 +110,7 @@ function composeFiles(text: string): string[] {
     .filter((line) => line.includes(COMPOSE_COMMAND))
     .flatMap((line) => {
       const flaggedFiles = capturedNames({ text: line, pattern: COMPOSE_FILE_FLAG_PATTERN });
-      return flaggedFiles.length ? flaggedFiles : [ROOT_COMPOSE_FILE];
+      return flaggedFiles.length ? flaggedFiles : [IMPLICIT_COMPOSE_FILE];
     });
 }
 
@@ -147,6 +148,10 @@ describe('the README quick install and the install guide run from source', () =>
     expect(existsSync(repositoryPath(file))).toBe(true);
   });
 
+  test('the quick install runs the local compose file', () => {
+    expect(composeFiles(section({ text: readme, heading: QUICK_INSTALL_HEADING }))).toContain(LOCAL_COMPOSE_FILE);
+  });
+
   test('a pnpm command written in prose is checked like one in a fenced block', () => {
     const scratch = section({ text: readme.replace('`docker compose down -v`', '`pnpm reset`'), heading: QUICK_INSTALL_HEADING });
     expect(pnpmInvocations(scratch).filter((invocation) => !isPackageScript(invocation))).toEqual([
@@ -158,8 +163,8 @@ describe('the README quick install and the install guide run from source', () =>
     expect(composeFiles('docker compose -f nope.yml up').filter((file) => !existsSync(repositoryPath(file)))).toEqual(['nope.yml']);
   });
 
-  test('a compose command without a file flag is checked against the root compose file', () => {
-    expect(composeFiles('docker compose up')).toEqual([ROOT_COMPOSE_FILE]);
+  test('a compose command without a file flag is checked against the implicit root compose file', () => {
+    expect(composeFiles('docker compose up')).toEqual([IMPLICIT_COMPOSE_FILE]);
   });
 
   test('a missing heading throws and a last section runs to the end', () => {

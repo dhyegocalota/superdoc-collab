@@ -77,6 +77,12 @@ export class ProjectionStoppedError extends Error {
   }
 }
 
+export class ProjectionBusyError extends Error {
+  constructor() {
+    super('Too many version builds are waiting.');
+  }
+}
+
 export class ProjectionRequestCrashedError extends Error {
   constructor() {
     super('The projection worker crashed twice while serving this request.');

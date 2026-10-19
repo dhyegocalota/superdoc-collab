@@ -416,7 +416,7 @@ describe('attachCollaboration', () => {
       const [mark] = server.services.readModel.marks(documentId);
       const endpoint = { documentId, sequence: mark!.sequence };
       const version = vi.spyOn(server.services.scheduler, 'version').mockRejectedValue(new Error(DECODE_FAILURE));
-      await expect(server.services.versions.load(endpoint)).rejects.toThrow(DECODE_FAILURE);
+      await expect(server.services.versions.load({ ...endpoint, userId: 'ana' })).rejects.toThrow(DECODE_FAILURE);
       const response = await firstChunk({ server, path: versionCollaborationPath(endpoint), cookie: owner.cookie });
       expect(response.startsWith(`HTTP/1.1 ${HttpStatus.ServiceUnavailable}`)).toBe(true);
       expect(response).toContain(`${RETRY_AFTER_HEADER}: ${VERSION_FAILURE_TTL_MS / SECOND_MS}`);

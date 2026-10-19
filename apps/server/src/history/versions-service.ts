@@ -11,6 +11,7 @@ const VERSION_KEY_SEPARATOR = '/';
 export const VERSION_MARKS_AROUND = 10;
 
 export type VersionEndpoint = { documentId: string; sequence: number };
+export type VersionLoadRequest = VersionEndpoint & { userId: string };
 type LoadedVersion = { sequence: number; serverTime: number; state: Uint8Array; text: string };
 type CachedLookup = { key: string; sequence: number; cached: LoadedVersion | null };
 
@@ -18,10 +19,23 @@ export enum VersionLookupKind {
   Ready = 'ready',
   Pending = 'pending',
   Failed = 'failed',
+  Throttled = 'throttled',
 }
 
 type VersionLookup =
-  { kind: VersionLookupKind.Ready; version: LoadedVersion } | { kind: VersionLookupKind.Pending } | { kind: VersionLookupKind.Failed };
+  | { kind: VersionLookupKind.Ready; version: LoadedVersion }
+  | { kind: VersionLookupKind.Pending }
+  | { kind: VersionLookupKind.Failed }
+  | { kind: VersionLookupKind.Throttled; retryAfterMs: number };
+
+export class VersionThrottledError extends Error {
+  readonly retryAfterMs: number;
+
+  constructor(retryAfterMs: number) {
+    super('Too many version loads.');
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 class VersionNotReadyError extends Error {
   constructor(documentId: string) {
@@ -104,7 +118,7 @@ export class VersionsService {
     return resolveMark({ marks: this.readModel.marks(documentId), sequence, serverTime });
   }
 
-  peek(endpoint: VersionEndpoint): VersionLookup {
+  peek(endpoint: VersionLoadRequest): VersionLookup {
     const lookup = this.cachedLookup(endpoint);
     if (!lookup) throw new VersionNotReadyError(endpoint.documentId);
     if (lookup.cached) return { kind: VersionLookupKind.Ready, version: lookup.cached };
@@ -113,7 +127,7 @@ export class VersionsService {
     return { kind: VersionLookupKind.Pending };
   }
 
-  load(endpoint: VersionEndpoint): Promise<LoadedVersion> {
+  load(endpoint: VersionLoadRequest): Promise<LoadedVersion> {
     const lookup = this.cachedLookup(endpoint);
     if (!lookup) return Promise.reject(new VersionNotReadyError(endpoint.documentId));
     if (lookup.cached) return Promise.resolve(lookup.cached);
@@ -130,7 +144,7 @@ export class VersionsService {
     keysOfDocument({ keys: this.loading.keys(), documentId }).forEach((key) => this.loading.delete(key));
   }
 
-  private cachedLookup(endpoint: VersionEndpoint): CachedLookup | null {
+  private cachedLookup(endpoint: VersionLoadRequest): CachedLookup | null {
     const mark = this.resolve(endpoint);
     if (!mark) return null;
     const key = versionKeyOf({ documentId: endpoint.documentId, sequence: mark.sequence });

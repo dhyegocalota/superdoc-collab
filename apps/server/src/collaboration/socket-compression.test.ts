@@ -1,5 +1,11 @@
 import { commitBootstrap as markBootstrapCommitted } from '@superdoc-collab/history/testing';
-import { ApiPath, ClientActor, COLLABORATION_TOKEN_PLACEHOLDER, MAX_SOCKET_MESSAGE_BYTES } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  ClientActor,
+  COLLABORATION_TOKEN_PLACEHOLDER,
+  MAX_SOCKET_MESSAGE_BYTES,
+  POLICY_VIOLATION_CLOSE_CODE,
+} from '@superdoc-collab/types';
 import { connect, type Socket } from 'node:net';
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
 import { describe, expect, test } from 'vitest';
@@ -18,6 +24,9 @@ const MINIMUM_SHRINK_FACTOR = 4;
 const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
 const TEXT_NAME = 't';
 const TEST_TIMEOUT_MS = 60_000;
+const INFLATING_FRAMES = 2;
+const INFLATING_FRAME_BYTES = (MAX_SOCKET_MESSAGE_BYTES * 3) / 4;
+const SETTLE_AFTER_FRAMES_MS = 3_000;
 
 type UpgradeObserver = { sockets: Socket[] };
 
@@ -102,6 +111,28 @@ function upgradeResponseHeaders({ baseUrl, cookie }: { baseUrl: string; cookie: 
   });
 }
 
+function sendInflatingFrames({
+  server,
+  path,
+  headers,
+}: {
+  server: TestServer;
+  path: string;
+  headers: Record<string, string>;
+}): Promise<{ closeCode: number | null }> {
+  const socket = new WebSocket(`ws://${LOOPBACK_HOST}:${new URL(server.baseUrl).port}${path}`, {
+    origin: server.baseUrl,
+    headers,
+    perMessageDeflate: true,
+  });
+  socket.on('error', () => undefined);
+  socket.on('open', () => Array.from({ length: INFLATING_FRAMES }, () => socket.send(Buffer.alloc(INFLATING_FRAME_BYTES))));
+  return new Promise((resolve) => {
+    socket.on('close', (code) => resolve({ closeCode: code }));
+    setTimeout(() => resolve({ closeCode: null }), SETTLE_AFTER_FRAMES_MS);
+  });
+}
+
 describe('collaboration socket compression', () => {
   test('the upgrade response negotiates permessage-deflate', { timeout: TEST_TIMEOUT_MS }, async () => {
     const { server, owner } = await documentWithOwner();
@@ -148,6 +179,20 @@ describe('collaboration socket compression', () => {
     socket.on('open', () => socket.send(Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES + 1)));
     expect(await negotiated).toContain(DEFLATE_EXTENSION);
     expect(await closeCode).toBe(PAYLOAD_TOO_BIG_CLOSE_CODE);
+    await server.stop();
+  });
+
+  test('frames that inflate past the budget within a second close the socket with 1008', { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { server, owner } = await documentWithOwner();
+    const { closeCode } = await sendInflatingFrames({ server, path: ApiPath.Collaboration, headers: { cookie: owner.cookie } });
+    expect(closeCode).toBe(POLICY_VIOLATION_CLOSE_CODE);
+    await server.stop();
+  });
+
+  test('the loopback bootstrap socket is exempt from the inflated budget', { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { server } = await documentWithOwner();
+    const { closeCode } = await sendInflatingFrames({ server, path: ApiPath.BootstrapCollaboration, headers: {} });
+    expect(closeCode).not.toBe(POLICY_VIOLATION_CLOSE_CODE);
     await server.stop();
   });
 });

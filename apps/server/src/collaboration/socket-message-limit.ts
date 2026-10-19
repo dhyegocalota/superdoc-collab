@@ -1,5 +1,6 @@
 import {
   MAX_AWARENESS_ENTRIES_PER_FRAME,
+  MAX_SOCKET_MESSAGE_BYTES,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   SECOND_MS,
@@ -12,6 +13,8 @@ const CAP_BY_BUCKET: Record<FrameBucket, number> = {
   [FrameBucket.Updates]: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   [FrameBucket.Awareness]: MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
 };
+
+export const MAX_INFLATED_BYTES_PER_SECOND = MAX_SOCKET_MESSAGE_BYTES;
 
 export class SocketMessageLimit {
   private readonly windows = new WeakMap<object, Record<FrameBucket, SlidingWindow>>();
@@ -33,6 +36,10 @@ export class SocketMessageLimit {
   claimsTooManyEntries(frame: RawData): boolean {
     const entryCount = awarenessEntryCountOf(frame);
     return entryCount !== null && entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME;
+  }
+
+  exceedsInflatedBudget(_: { socket: object; frame: RawData }): boolean {
+    throw new Error('exceedsInflatedBudget is not implemented');
   }
 
   private windowsOf(socket: object): Record<FrameBucket, SlidingWindow> {

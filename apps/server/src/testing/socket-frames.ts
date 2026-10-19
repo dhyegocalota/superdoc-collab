@@ -9,6 +9,7 @@ const PADDED_VARINT_BYTES = 8;
 const PADDED_FRAME_CLIENT_ID = 7;
 
 export enum PaddedVarintField {
+  MessageType = 'messageType',
   RoomNameLength = 'roomNameLength',
   PayloadLength = 'payloadLength',
   EntryCount = 'entryCount',
@@ -75,7 +76,7 @@ export function paddedAwarenessFrame({
   return Buffer.from([
     ...encode(PaddedVarintField.RoomNameLength, name.length),
     ...name,
-    MessageType.Awareness,
+    ...encode(PaddedVarintField.MessageType, MessageType.Awareness),
     ...encode(PaddedVarintField.PayloadLength, update.length),
     ...update,
   ]);

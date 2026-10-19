@@ -537,9 +537,13 @@ async function connectWatched({ server, documentId, cookie }: { server: TestServ
   const client = await connectToDocument({ server, cookie, documentId });
   let closedSocket: { code: number; reason: string } | null = null;
   void client.closed.then((event) => (closedSocket = event));
+  const closedSockets: { code: number; reason: string }[] = [];
+  client.provider.on('close', ({ event }: { event: { code: number; reason: string } }) =>
+    closedSockets.push({ code: event.code, reason: event.reason }),
+  );
   const roomName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
   const webSocket = client.provider.configuration.websocketProvider.webSocket!;
-  return { client, closedSocket: () => closedSocket, webSocket, roomName };
+  return { client, closedSocket: () => closedSocket, closedSockets: () => closedSockets, webSocket, roomName };
 }
 
 async function sendClaimingFrame({ clientIds }: { clientIds: number[] }) {
@@ -716,7 +720,7 @@ test('a second connection of the same user updating an awareness id that a half-
 });
 
 test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {
-  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: true });
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
   intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds })));
   const { provider, document } = intruder.client;
   provider.setAwarenessField('cursor', 0);
@@ -786,7 +790,8 @@ test('a provider that reconnects and resends its own awareness id keeps its new 
   provider.setAwarenessField('cursor', RECONNECTED_CURSOR);
   await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(RECONNECTED_CURSOR);
   expect(provider.configuration.websocketProvider.webSocket?.readyState).toBe(WebSocket.OPEN);
-  expect(connection.closedSocket()?.reason).not.toBe(SOCKET_AWARENESS_ORIGIN_REASON);
+  expect(connection.closedSockets().length).toBeGreaterThan(0);
+  expect(connection.closedSockets().map(({ reason }) => reason)).not.toContain(SOCKET_AWARENESS_ORIGIN_REASON);
   expect(anchor.closedSocket()).toBeNull();
   connection.client.close();
   anchor.client.close();

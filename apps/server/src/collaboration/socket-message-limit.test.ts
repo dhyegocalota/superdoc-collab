@@ -73,6 +73,13 @@ test('an awareness frame claiming one entry more than the frame cap claims too m
 });
 
 const PADDED_ENTRY_COUNT = 100_000;
+const OVERLONG_FRAME_BYTES = 1024;
+const CONTINUING_BYTE = 0x80;
+
+test('a frame whose room name length never ends claims too many', () => {
+  const frame = Buffer.alloc(OVERLONG_FRAME_BYTES, CONTINUING_BYTE);
+  expect(new SocketMessageLimit().claimsTooManyEntries(frame)).toBe(true);
+});
 
 Object.values(PaddedVarintField).forEach((paddedField) =>
   test(`an awareness frame with a padded ${paddedField} claims too many`, () => {

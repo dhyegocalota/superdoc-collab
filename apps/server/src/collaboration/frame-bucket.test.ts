@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
   authFrame,
   awarenessFrame,
@@ -88,6 +88,17 @@ test('a truncated or unterminated count has no entry count', () => {
 });
 
 const PADDED_ENTRY_COUNT = 100_000;
+const MAX_VARINT_BYTES_READ = 6;
+const OVERLONG_FRAME_BYTES = 80 * 1024 * 1024;
+const CONTINUING_BYTE = 0x80;
+
+test('an 80 MiB frame of continuing bytes is read at most six bytes deep per varint and claims an unbounded entry count', () => {
+  const frame = Buffer.alloc(OVERLONG_FRAME_BYTES, CONTINUING_BYTE);
+  const subarray = vi.spyOn(frame, 'subarray');
+  expect(awarenessEntryCountOf(frame)).toBe(UNREADABLE_ENTRY_COUNT);
+  expect(frameBucketOf(frame)).toBe(FrameBucket.Updates);
+  expect(subarray.mock.results.every(({ value }) => value.length <= MAX_VARINT_BYTES_READ)).toBe(true);
+});
 
 Object.values(PaddedVarintField).forEach((paddedField) =>
   test(`an awareness frame with a padded ${paddedField} claims an unbounded entry count`, () => {

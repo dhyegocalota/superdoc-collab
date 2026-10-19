@@ -1,0 +1,39 @@
+# Password reset link from the admin
+
+**Status:** Approved
+**Tier:** 🟡
+**Owner approval:** approved 2026-10-19 (owner: "cria link de recuperar senha pelo admin para um usuario")
+**ADRs:** [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md) (invite-only accounts; no email)
+**Not changing:** sign-in, sign-up, the invite flow, the admin role rules
+
+## Problem
+
+Accounts are invite-only and the app sends no email, so a person who forgets their password is locked out. The admin needs to hand them a link that lets them choose a new password.
+
+## Goals
+
+1. In Admin → Users, every row gets a `Reset password` action. It creates a one-time link, shown once in a dialog like the invite link, with the copy button and the expiry.
+2. The person opens the link signed out, chooses a new password (same rules as sign-up), and is signed in or sent to Sign in with a success notice. Every other session of that user is revoked.
+3. The link expires after `PASSWORD_RESET_TTL_MS` (1 hour) and works once.
+
+## Design
+
+- better-auth's own reset flow, so hashing, token storage and expiry stay in the library: `emailAndPassword.sendResetPassword` is implemented as a capture, not an email. `PasswordResetLinkCapture` (`apps/server/src/admin/password-reset-links.ts`) stores `{ userId → token }` for the duration of one request; `requestPasswordReset` awaits the callback, so the admin route calls `auth.api.requestPasswordReset({ body: { email, redirectTo } })` and then `capture.take(userId)`, which throws `PasswordResetLinkNotCapturedError` when nothing was stored. `resetPasswordTokenExpiresIn` is set from `PASSWORD_RESET_TTL_MS`.
+- `POST /api/admin/users/:id/password-reset` (`admin-routes.ts`): 404 `USER_NOT_FOUND_MESSAGE` when the id is unknown; otherwise 201 `{ url, expiresAt }` where `url` is `${APP_ORIGIN}${resetPasswordPagePath(token)}` and the page route is `AppRoute.ResetPassword = '/reset-password'` with the token in `PASSWORD_RESET_QUERY_PARAMETER = 'token'`.
+- The public page `ResetPasswordPage` (`apps/web/src/features/auth/reset-password-page.tsx`, no session, like Sign in) reads the token, shows the new-password form (reuse the sign-up form's password field and validation), calls `authClient.resetPassword({ newPassword, token })`, and on success navigates to Sign in with `PASSWORD_RESET_DONE_MESSAGE`; an invalid or expired token shows `PASSWORD_RESET_INVALID_MESSAGE` with a link to Sign in. A missing token shows the same message.
+- Admin UI: `users-table.tsx` gains the action; `admin-api.ts` gains `createPasswordReset(userId)`; the created-link dialog is the invite dialog generalised (`LinkCreatedDialog` with title and description props, used by both callers) or a sibling with the same shape. Copy in `admin-copy.ts` and `auth-copy.ts`.
+- `DISABLED_PATHS` stays; the reset paths (`/request-password-reset`, `/reset-password`) must not be callable by non-admins: `requestPasswordReset` is only called server-side, so the public `/api/auth/request-password-reset` endpoint is added to `DISABLED_PATHS` (the admin route calls `auth.api` directly, which bypasses the HTTP path); `/reset-password` stays public because the token is the credential.
+
+### Failure handling
+
+| Case | Behaviour |
+|------|-----------|
+| Unknown user id | 404 |
+| Capture empty after the call | 500 with a logged `PasswordResetLinkNotCapturedError`, no link |
+| Token reused or expired | the page shows `PASSWORD_RESET_INVALID_MESSAGE` |
+| Weak password | the form's existing validation message |
+| Public `request-password-reset` called | 404 (disabled path) |
+
+## Test strategy summary
+
+Server unit: the capture (store/take/throw), the route (201 with a URL on the app origin, 404 unknown, admin-only through the existing guard, public request path disabled). Web unit: the users table action, the dialog, the reset page states (form, invalid token, success). E2E `e2e/password-reset.spec.ts`: admin creates the link for Bruno, Bruno opens it signed out, sets a new password, signs in with it; the old password no longer signs in; the link used twice shows the invalid message.

@@ -36,8 +36,8 @@ test('the card content is rendered unchanged beside the panel', () => {
 });
 
 test('below lg the panel collapses to a compact header, with the value lines and the illustration shown from lg', () => {
-  const { container } = renderLayout();
+  renderLayout();
   expect(screen.getByRole('list')).toHaveClass('hidden', 'lg:block');
-  expect(container.querySelector('svg')).toHaveClass('hidden', 'lg:block');
+  expect(document.querySelector('svg.w-full')).toHaveClass('hidden', 'lg:block');
   expect(screen.getByRole('complementary')).toHaveClass('lg:order-2');
 });

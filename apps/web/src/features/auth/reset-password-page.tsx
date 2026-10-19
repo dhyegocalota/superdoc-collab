@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useDocumentTitle } from '@/lib/use-document-title';
+import { AuthLayout } from './auth-layout';
 import { AuthCard } from './auth-card';
 import { authClient } from './auth-client';
 import {
@@ -54,23 +55,25 @@ function ResetPasswordCard({ token, onInvalidToken }: { token: string; onInvalid
   }
 
   return (
-    <AuthCard
-      form={form}
-      onSubmit={submit}
-      title={RESET_PASSWORD_HEADING}
-      description={RESET_PASSWORD_DESCRIPTION}
-      submitLabel={RESET_PASSWORD_LABEL}
-      pendingLabel={RESET_PASSWORD_PENDING_LABEL}
-      link={null}
-    >
-      <AuthTextField
-        control={form.control}
-        name="password"
-        label={NEW_PASSWORD_FIELD_LABEL}
-        type={AuthFieldType.Password}
-        autoComplete="new-password"
-      />
-    </AuthCard>
+    <AuthLayout>
+      <AuthCard
+        form={form}
+        onSubmit={submit}
+        title={RESET_PASSWORD_HEADING}
+        description={RESET_PASSWORD_DESCRIPTION}
+        submitLabel={RESET_PASSWORD_LABEL}
+        pendingLabel={RESET_PASSWORD_PENDING_LABEL}
+        link={null}
+      >
+        <AuthTextField
+          control={form.control}
+          name="password"
+          label={NEW_PASSWORD_FIELD_LABEL}
+          type={AuthFieldType.Password}
+          autoComplete="new-password"
+        />
+      </AuthCard>
+    </AuthLayout>
   );
 }
 

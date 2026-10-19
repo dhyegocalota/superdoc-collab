@@ -58,6 +58,7 @@ import {
   STAY_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
+import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
 import { HIDDEN_LOADING_OVERLAY_CLASS } from './superdoc-editor';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
 import { DocumentMode } from './superdoc-options';
@@ -1051,4 +1052,13 @@ test('a layout pass while the connection is lost does not block leaving', async 
   const config = await openAsWhileLost(DocumentRole.Owner);
   act(() => config.onPaginationUpdate());
   expect(isExitPrevented()).toBe(false);
+});
+
+test('the page publishes the unsynced state for the sign-out menu and clears it on unmount', async () => {
+  const config = await openAsWhileLost(DocumentRole.Owner);
+  expect(getUnsyncedEditsSnapshot().isUnsynced).toBe(false);
+  act(() => config.onEditorUpdate());
+  expect(getUnsyncedEditsSnapshot().isUnsynced).toBe(true);
+  cleanup();
+  expect(getUnsyncedEditsSnapshot().isUnsynced).toBe(false);
 });

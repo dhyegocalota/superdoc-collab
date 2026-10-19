@@ -127,7 +127,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button type="button" size="icon-sm" variant="ghost" aria-label={CANCEL_TITLE_LABEL} onClick={stopEditing}>
+              <Button type="button" size="icon-sm" variant="outline" aria-label={CANCEL_TITLE_LABEL} onClick={stopEditing}>
                 <X aria-hidden className={ACTION_ICON_CLASS} />
               </Button>
             </TooltipTrigger>

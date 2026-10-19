@@ -49,6 +49,10 @@ export class WaitingRequests {
     return true;
   }
 
+  isEmpty(): boolean {
+    return this.waiting.size === 0;
+  }
+
   has(request: ServedRequest): boolean {
     return this.waiting.has(keyOfRequest(request));
   }

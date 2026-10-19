@@ -1,4 +1,4 @@
-import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
+import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS, PROJECTION_WORKER_QUIET_MS } from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
@@ -62,6 +62,8 @@ export class ProjectionScheduler {
   private readonly databaseDirectory: string;
   private readonly projectionWorkerFile: URL | null;
   private readonly workerHeapMegabytes: number | null;
+  private readonly recycleQuietMs: number;
+  private recycleTimer: NodeJS.Timeout | null = null;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
   private readonly documentsNeedingRerun = new Set<string>();
@@ -82,14 +84,17 @@ export class ProjectionScheduler {
     databaseDirectory,
     projectionWorkerFile = null,
     workerHeapMegabytes = null,
+    recycleQuietMs = PROJECTION_WORKER_QUIET_MS,
   }: {
     databaseDirectory: string;
     projectionWorkerFile?: URL | null;
     workerHeapMegabytes?: number | null;
+    recycleQuietMs?: number;
   }) {
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
     this.workerHeapMegabytes = workerHeapMegabytes;
+    this.recycleQuietMs = recycleQuietMs;
     this.currentWorker = this.spawn();
   }
 
@@ -199,9 +204,22 @@ export class ProjectionScheduler {
   }
 
   private recycleWhenHeavy(heapTotalBytes: number): void {
+    if (this.recycleTimer) clearTimeout(this.recycleTimer);
+    this.recycleTimer = null;
     const isHeavy = heapTotalBytes > LARGE_DOCUMENT_HEAP_BYTES;
     if (!isHeavy || this.isRecycling || this.stoppingPromise) return;
-    if (this.bootstrapping.size > 0) return;
+    this.recycleTimer = setTimeout(() => this.recycleWhenIdle(heapTotalBytes), this.recycleQuietMs);
+    this.recycleTimer.unref();
+  }
+
+  private isIdle(): boolean {
+    const hasNoQueuedWork = this.inFlight.size === 0 && this.pendingImports.size === 0 && this.forgetting.size === 0;
+    return hasNoQueuedWork && this.bootstrapping.size === 0 && this.waitingRequests.isEmpty();
+  }
+
+  private recycleWhenIdle(heapTotalBytes: number): void {
+    this.recycleTimer = null;
+    if (!this.isIdle() || this.isRecycling || this.stoppingPromise) return;
     this.isRecycling = true;
     console.info(`${WORKER_RECYCLED_MESSAGE} ${heapTotalBytes}`);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Stop });

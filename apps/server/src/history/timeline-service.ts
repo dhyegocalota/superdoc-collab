@@ -3,6 +3,7 @@ import {
   assignBlocks,
   authorKey,
   binStartsCovering,
+  lastEventSequenceAt,
   nextZonedBinStart,
   buildBands,
   buildBins,
@@ -17,6 +18,7 @@ import {
   type BandIdentity,
   type EditRun,
   type TimelineEvent,
+  type VersionMarkSummary,
 } from '@superdoc-collab/history';
 import {
   BlockChangeKind,
@@ -276,7 +278,7 @@ export function buildDocumentTimeline({
       binStarts,
       binMs: chosenBinMs,
       timeZone,
-      versionSequenceAt: (time) => versionSequenceAt({ marks, time }),
+      versionSequenceAt: (time) => versionSequenceOf({ events: pipeline.events, marks, time }),
     }),
     bands: buildBands({ identities: pipeline.identities, allRuns, matchedRuns }),
     contributorsByBand: contributorsByBand(matchedRuns),
@@ -285,6 +287,13 @@ export function buildDocumentTimeline({
     topics: services.insights.topics.status(documentId),
     projection: projectionStatus({ services, documentId }),
   };
+}
+
+// NB ADR 0043: a bin opens the exact sequence of its last event; only a bin before every event falls back to the first mark.
+function versionSequenceOf({ events, marks, time }: { events: TimelineEvent[]; marks: VersionMarkSummary[]; time: number }): number | null {
+  const eventSequence = lastEventSequenceAt({ events, time });
+  if (eventSequence !== null) return eventSequence;
+  return versionSequenceAt({ marks, time });
 }
 
 export function buildBinEdits({

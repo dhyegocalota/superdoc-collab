@@ -72,6 +72,7 @@ export function DocumentPage() {
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
   const [hasExportFailed, setHasExportFailed] = useState(false);
+  const [, setIsTitleDirty] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(isPanelOpenByDefault);
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
@@ -135,6 +136,7 @@ export function DocumentPage() {
         editorContainer={editorContainer}
         isPastVersion={isViewingPastVersion}
         onDownloadDocx={downloadLiveDocument}
+        onTitleDirtyChange={setIsTitleDirty}
         renderUseWithAi={renderUseWithAi}
       />
       <EditorStatus

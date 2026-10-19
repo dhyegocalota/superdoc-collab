@@ -84,6 +84,7 @@ function renderHeader({
       editorContainer={null}
       isPastVersion={isPastVersion}
       onDownloadDocx={onDownloadDocx}
+      onTitleDirtyChange={vi.fn()}
       renderUseWithAi={renderUseWithAi}
     />,
     { queryClient, route },

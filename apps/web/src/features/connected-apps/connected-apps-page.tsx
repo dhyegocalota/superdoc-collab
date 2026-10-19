@@ -69,7 +69,7 @@ export function ConnectedAppsPage() {
   useDocumentTitle(CONNECTED_APPS_HEADING);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-full">
       <AppTopBar right={<AccountMenu colorSlot={null} />} />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
         <h1 className="text-2xl font-semibold">{CONNECTED_APPS_HEADING}</h1>

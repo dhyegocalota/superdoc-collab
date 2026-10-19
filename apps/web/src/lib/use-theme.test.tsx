@@ -1,27 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { stubMatchMedia, type MatchMediaStub } from '@/testing/match-media';
 import { THEME_STORAGE_KEY, ThemePreference, useTheme } from './use-theme';
 
 const DARK_CLASS = 'dark';
 const UNKNOWN_VALUE = 'sepia';
 
-type MediaListener = (event: { matches: boolean }) => void;
-
 let prefersDark = false;
-let mediaListeners: MediaListener[] = [];
-
-function stubMatchMedia(): void {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    get matches() {
-      return prefersDark;
-    },
-    media: query,
-    addEventListener: (_type: string, listener: MediaListener) => mediaListeners.push(listener),
-    removeEventListener: (_type: string, listener: MediaListener) => {
-      mediaListeners = mediaListeners.filter((registered) => registered !== listener);
-    },
-  }));
-}
+let systemTheme: MatchMediaStub;
 
 function isDark(): boolean {
   return document.documentElement.classList.contains(DARK_CLASS);
@@ -29,13 +15,12 @@ function isDark(): boolean {
 
 function changeSystemTheme(nextPrefersDark: boolean): void {
   prefersDark = nextPrefersDark;
-  act(() => mediaListeners.forEach((listener) => listener({ matches: nextPrefersDark })));
+  systemTheme.notifyChange();
 }
 
 beforeEach(() => {
   prefersDark = false;
-  mediaListeners = [];
-  stubMatchMedia();
+  systemTheme = stubMatchMedia({ matches: () => prefersDark });
 });
 
 afterEach(() => {

@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { LARGE_BREAKPOINT_PX, WIDE_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { stubMatchMedia, type MatchMediaStub } from '@/testing/match-media';
 import { isPanelOpenByDefault, PANEL_POSITION_STORAGE_KEY, PanelPosition, usePanelPosition } from './use-panel-position';
 
 const NARROW_VIEWPORT_PX = 800;
@@ -8,33 +9,17 @@ const LARGE_VIEWPORT_PX = 1280;
 const UNKNOWN_VALUE = 'floating';
 const MIN_WIDTH_PATTERN = /min-width: (\d+)px/;
 
-type MediaListener = () => void;
-
 let viewportWidth = LARGE_VIEWPORT_PX;
-let mediaListeners: MediaListener[] = [];
-
-function stubMatchMedia(): void {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    get matches() {
-      return viewportWidth >= Number(MIN_WIDTH_PATTERN.exec(query)![1]);
-    },
-    media: query,
-    addEventListener: (_type: string, listener: MediaListener) => mediaListeners.push(listener),
-    removeEventListener: (_type: string, listener: MediaListener) => {
-      mediaListeners = mediaListeners.filter((registered) => registered !== listener);
-    },
-  }));
-}
+let viewport: MatchMediaStub;
 
 function resizeViewport(width: number): void {
   viewportWidth = width;
-  act(() => mediaListeners.forEach((listener) => listener()));
+  viewport.notifyChange();
 }
 
 beforeEach(() => {
   viewportWidth = LARGE_VIEWPORT_PX;
-  mediaListeners = [];
-  stubMatchMedia();
+  viewport = stubMatchMedia({ matches: (query) => viewportWidth >= Number(MIN_WIDTH_PATTERN.exec(query)![1]) });
 });
 
 afterEach(() => {

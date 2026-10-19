@@ -16,7 +16,7 @@ Open <http://localhost:3000> and claim the instance: the first account you creat
 
 ## Install on Railway
 
-The [Railway runbook](features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, claims the instance and rolls back. The service is built from [`docker/Dockerfile`](../docker/Dockerfile) with a volume at `/data`, one replica and Railway's TLS domain ([ADR 0019](adr/0019-deploy-on-railway.md)). [`docker/docker-compose.yml`](../docker/docker-compose.yml) documents the same environment for any compose host. CI builds and boots the image on every pull request.
+The [Railway runbook](features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, claims the instance and rolls back. The service is built from [`docker/Dockerfile`](../docker/Dockerfile) with a volume at `/data`, one replica and Railway's TLS domain ([ADR 0019](adr/0019-deploy-on-railway.md)). [`docker/docker-compose.yml`](../docker/docker-compose.yml) documents the same environment for any compose host. The `docker` gate of `pnpm verify` builds the image when its own files change, and the verify workflow also boots it on pull requests when hosted runs are available.
 
 ## Install with an agent
 
@@ -48,7 +48,7 @@ Clone the repository and open it in Claude Code or Codex. The first session repo
 
 ## First login
 
-Open the URL the install printed. An unclaimed instance shows "Claim this instance": create your account there. You are the administrator and sign-up closes behind you. Until you claim it anyone who finds the URL could, so do it right after the deploy.
+Open the URL the install printed. An unclaimed instance shows "Claim this instance": create your account there. You are the administrator and sign-up closes behind you. Until you claim it anyone who finds the URL could, so do it right after the deploy. Your list then holds a sample document, "SuperDoc Collab: a guided tour", with five days of edits by four authors; **Create the showcase document** under `/admin` adds another.
 
 Times follow your account's time zone: it is taken from your browser at sign-up (or at your next sign-in for older accounts), shown next to the timeline as "Times in <zone>", and changed under **Settings**. Timeline bins of an hour or longer start on your local clock, so a day runs from your local midnight.
 
@@ -59,6 +59,8 @@ Times follow your account's time zone: it is taken from your browser at sign-up 
 3. The invitee opens the link, creates an account and lands in the documents list. Each link works once and expires after 7 days.
 
 Pending invites can be revoked on the same page, and an administrator can promote or demote others; the last administrator cannot be demoted.
+
+A person who forgot their password asks an administrator for a link: in the users table choose **Reset password**, copy the link from the dialog and send it. The link works once, expires after an hour, opens a page where the person chooses a new password and ends their other sessions.
 
 Then try it: upload a `.docx` or start a blank document, type a few sentences, **Share** it and edit next to a teammate. **Toggle timeline** shows the edits per topic, a click on the chart opens the document as it was then (**Back to live** returns), `@name` filters by author, and **Summarize edits** writes one to three sentences about the edits on screen.
 
@@ -71,9 +73,10 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `APP_ORIGIN` | none, required | The public origin: `https://<domain>`, no path, no trailing slash. A mismatch makes sign-in answer 403 |
 | `AUTH_SECRET` | none, required | Signs sessions; generate with `openssl rand -base64 48`. Never reuse the placeholder in `.env.example` |
 | `PORT` | `3000` | Port of the one Node process |
+| `HOST` | empty | Optional address to bind; empty binds every interface, which the container needs behind its proxy |
 | `DATABASE_DIR` | `./data` (`/data` in the image) | Where the SQLite files and `documents/<id>.docx` live; mount a volume here |
 | `WEB_DIST_DIR` | `/app/web` in the image | The built SPA the server serves |
-| `TRUST_PROXY` | `false` | `true` only behind a reverse proxy that sets `X-Forwarded-For` (Railway); the client address is the entry that proxy added, counted from the right ([ADR 0042](adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)) |
+| `TRUST_PROXY` | none, required (`false` in `.env.example`) | `true` only behind a reverse proxy that sets `X-Forwarded-For` (Railway); the client address is the entry that proxy added, counted from the right ([ADR 0042](adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)) |
 | `TRUSTED_PROXY_HOPS` | `1` | Trusted proxies in front of the app, counted from the right of `X-Forwarded-For`; a positive integer, read only when `TRUST_PROXY=true` |
 | `OPENROUTER_API_KEY` | empty | The model key; empty keeps the app running without topics and summaries |
 | `LLM_MODEL` | `openai/gpt-6-luna` in `.env.example` | The OpenRouter model id |
@@ -81,7 +84,7 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `LLM_MAX_CONCURRENT_JOBS` | `2` | Model jobs at once, for the whole server ([ADR 0011](adr/0011-process-wide-llm-cost-caps.md)) |
 | `LLM_MAX_CALLS_PER_HOUR` | `60` | Model calls per rolling hour, for the whole server |
 | `OPEN_UNCOMMITTED_PER_MINUTE` | `30` | Documents one user may open for the first time per rolling minute |
-| `SEED_DEMO_USERS` | `false` | Tests only: `true` seeds four demo users and a test administrator on start. Production sets `false` ([ADR 0020](adr/0020-invite-only-accounts-with-a-first-claim-admin.md)) |
+| `SEED_DEMO_USERS` | none, required, `true` or `false` | Tests only: `true` seeds four demo users and a test administrator on start. Production sets `false` ([ADR 0020](adr/0020-invite-only-accounts-with-a-first-claim-admin.md)) |
 | `DEMO_PASSWORD` | `superdoc-demo` in `.env.example` | Tests only: the seeded accounts' password, required when `SEED_DEMO_USERS=true` |
 
 ## Recovery

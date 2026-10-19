@@ -36,7 +36,8 @@ export function useRevealSelected({
     const hasSelected = selectionCount !== previousCount.current;
     previousCount.current = selectionCount;
     const target = targetRef.current;
-    if (!hasSelected || !isPointerPressed.current || !target) return;
+    const canReveal = hasSelected && isPointerPressed.current && target !== null;
+    if (!canReveal) return;
     target.scrollIntoView({ block: 'nearest', behavior });
   }, [selectionCount]);
 }

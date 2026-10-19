@@ -17,7 +17,7 @@ export function useBinSelection({
 }: {
   timeline: DocumentTimeline | undefined;
   at: number | null;
-  onTravel: (binStart: number) => void;
+  onTravel: ((binStart: number) => void) | null;
   onBackToLive: () => void;
 }): BinSelection {
   const [selectedTime, setSelectedTime] = useState<number | null>(at);
@@ -30,7 +30,8 @@ export function useBinSelection({
   function selectIndex(index: number): void {
     const bin = timeline!.bins[index]!;
     setSelectedTime(bin.start);
-    if (bin.versionSequence !== null) onTravel(bin.start);
+    const canTravel = bin.versionSequence !== null && onTravel !== null;
+    if (canTravel) onTravel(bin.start);
   }
 
   function clearSelection(): void {

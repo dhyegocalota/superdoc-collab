@@ -124,7 +124,12 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     const remoteAddress = getConnInfo(context).remote.address;
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
     return auth.handler(
-      withClientAddress({ request: context.req.raw, remoteAddress, trustProxy: environment.trustProxy, trustedProxyHops: 1 }),
+      withClientAddress({
+        request: context.req.raw,
+        remoteAddress,
+        trustProxy: environment.trustProxy,
+        trustedProxyHops: environment.trustedProxyHops,
+      }),
     );
   });
   mountOAuthDiscovery({ app, auth });

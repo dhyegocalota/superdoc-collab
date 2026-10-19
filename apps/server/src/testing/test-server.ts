@@ -62,7 +62,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy: true,
-    trustedProxyHops,
+    trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };
@@ -110,7 +110,7 @@ export async function startTestServer({
     authSecret: TEST_AUTH_SECRET,
     databaseDirectory,
     trustProxy,
-    trustedProxyHops: TRUSTED_PROXY_HOPS,
+    trustedProxyHops,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
   };

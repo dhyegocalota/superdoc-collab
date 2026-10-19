@@ -4,6 +4,7 @@ import { z } from 'zod';
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
 export const LLM_MAX_CONCURRENT_JOBS = 2;
 export const LLM_MAX_CALLS_PER_HOUR = 60;
+export const TRUSTED_PROXY_HOPS = 1;
 const AUTH_SECRET_MIN_LENGTH = 32;
 
 export class MissingEnvironmentVariableError extends Error {
@@ -62,6 +63,7 @@ export type Environment = {
   authSecret: string;
   databaseDirectory: string;
   trustProxy: boolean;
+  trustedProxyHops: number;
   llm: LlmSettings;
   openUncommittedPerMinute: number;
 };
@@ -101,6 +103,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
     authSecret: parsed.AUTH_SECRET,
     databaseDirectory: parsed.DATABASE_DIR,
     trustProxy: parsed.TRUST_PROXY === BooleanFlag.True,
+    trustedProxyHops: limitFrom({ name: 'TRUSTED_PROXY_HOPS', value: source.TRUSTED_PROXY_HOPS, fallback: TRUSTED_PROXY_HOPS }),
     llm: loadLlmSettings(source),
     openUncommittedPerMinute: limitFrom({
       name: 'OPEN_UNCOMMITTED_PER_MINUTE',

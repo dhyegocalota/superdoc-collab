@@ -14,6 +14,7 @@ paths:
 
 ## Layout
 - Below `lg` the documents list is stacked rows (title clamped to two lines, one muted line), never a table, and no page scrolls sideways at 320 px. (apps/web/src/features/documents/document-table.tsx, docs/features/mobile-horizontal-scroll/spec.md)
+- The documents home opens in cards (`DocumentsView.Cards`), stored under `superdoc-collab.documents-view`; a stored value that is not a `DocumentsView` is removed. The grid is one column, two from `sm`, three from `lg`, four from `xl`; each card is one link with a CSS-drawn thumbnail of the server's preview (no image, no SuperDoc) and `content-visibility: auto` with `contain-intrinsic-size`, so off-screen cards cost no layout. (apps/web/src/features/documents/use-documents-view.ts, apps/web/src/features/documents/document-card.tsx, docs/features/documents-cards/spec.md)
 
 ## Focus and keyboard
 - A Radix `Dialog` opened without a `DialogTrigger` returns focus to `body` on close. Pass `onCloseAutoFocus` that prevents the default and focuses the opener. (apps/web/src/features/editor/editor-header.tsx, docs/learnings/2026-10-17-a-radix-dialog-without-a-trigger-drops-focus-to-body.md)

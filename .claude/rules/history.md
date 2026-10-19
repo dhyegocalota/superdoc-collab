@@ -30,6 +30,7 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - A block's text change is diffed with `diffChars`; `inserted` joins added parts, `deleted` joins removed parts. (poc/lib/edit-events.ts)
 - A merge emits a `merged` event with empty `inserted` and `deleted`, followed by a text change if the text also changed. (poc/lib/edit-events.ts)
 - Projection costs 0.13-0.17 ms per update. (poc/RESULTS.md, ADR 0001)
+- The read model's `document_previews` row is written in the same transaction as the cursor, on the bootstrap commit and on every batch: the main story's paragraph texts (not merged away) joined by newlines, cut at `PREVIEW_MAX_CHARACTERS` (400). The documents list reads all previews in one query. (libs/history/src/projection.ts, libs/history/src/read-model.ts, apps/server/src/documents/documents-repository.ts)
 
 ## Agent volume
 - A timeline cell counts a run as agent volume only when every author key of the run is an agent key (`<userId>#agent`); a mixed human and agent run (a relay or reconnect sync) counts as human, while contributors still credit the agent key. (libs/history/src/timeline/runs.ts, ADR 0029)

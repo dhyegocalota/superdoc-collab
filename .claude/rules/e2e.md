@@ -16,7 +16,7 @@ paths:
 ## Typing
 - Text typed keystroke by keystroke can be projected as two runs, and can straddle a ten-second bin, on a loaded runner; a term filter then matches neither half. Insert fixture and marker text as one input event (`insertInParagraph`, `page.keyboard.insertText`) whenever a test relies on it being one run or matching a term. (e2e/editor.ts, docs/learnings/2026-10-17-text-typed-keystroke-by-keystroke-can-land-in-two-runs.md)
 - Keep `typeInParagraph` for tests about typing itself: focus recovery, convergence under concurrency, per-keystroke attribution. (e2e/editor.ts)
-- The fake model fails on a marker (`FAIL-TOPICS`, `FAIL-SUMMARY`) only when the marker appears whole in one prompt edit, so a marker is always inserted as one event. (e2e/fake-openrouter.ts)
+- The fake model fails on a marker (`FAIL-TOPICS`, `FAIL-SUMMARY`) only when the marker appears whole in one prompt edit, so a marker is always inserted as one event. The same holds for `SLOW-SUMMARY` (the selection reply waits 600 ms) and `STREAM-SUMMARY` (the selection reply streams one word every 400 ms); a streamed request is answered as server-sent events even without a marker. (e2e/fake-openrouter.ts, e2e/selection-summary.spec.ts)
 
 ## Waiting for the projection
 - Before summarizing or filtering on just-typed text, wait until the projected events contain it (`insertedBy` over `readEvents`) and the timeline has settled (`waitForSettledTimeline`). (e2e/editor.ts, e2e/timeline.ts)

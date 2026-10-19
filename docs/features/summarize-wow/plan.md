@@ -21,12 +21,12 @@ One group, one red commit and one fix commit per step, in order.
 
 ### G1
 
-- [ ] **Step 1:** publish the sentence first; the regroup runs beside a non-topic selection write.
-- [ ] **Step 2:** stream the selection sentence and expose the partial; ADR 0041.
-- [ ] **Step 3:** the client polls every second while running and reveals the partial word by word.
-- [ ] **Step 4:** the last good sentence stays on failure; the timeout has its own line.
-- [ ] **Step 5:** the fake model gains a delay and a streamed reply; one E2E sees the sentence grow.
-- [ ] **Step 6:** documentation drift in ADR 0006, 0011, 0012 and the llm-insights spec.
+- [x] **Step 1:** publish the sentence first; the regroup runs beside a non-topic selection write.
+- [x] **Step 2:** stream the selection sentence and expose the partial; ADR 0041.
+- [x] **Step 3:** the client polls every second while running and reveals the partial word by word.
+- [x] **Step 4:** the last good sentence stays on failure; the timeout has its own line.
+- [x] **Step 5:** the fake model gains a delay and a streamed reply; one E2E sees the sentence grow.
+- [x] **Step 6:** documentation drift in ADR 0006, 0011, 0012 and the llm-insights spec.
 
 ## Failure modes
 

@@ -11,7 +11,7 @@ Topics are named on a document's first open and on every Refresh, and per-topic 
 
 ## Decision
 
-- `InsightsWorker` enforces two process-wide caps: at most `LLM_MAX_CONCURRENT_JOBS = 2` jobs running, and at most `LLM_MAX_CALLS_PER_HOUR = 60` model calls in a sliding one-hour window.
+- `InsightsJobRunner` enforces two process-wide caps: at most `LLM_MAX_CONCURRENT_JOBS = 2` jobs running, and at most `LLM_MAX_CALLS_PER_HOUR = 60` model calls in a sliding one-hour window.
 - The hourly budget is consumed at the model call, in the same place the refresh cooldown is consumed, so jobs that end before reaching the model (no model configured, empty document, nothing stale) cost nothing.
 - Over a cap the job fails visibly: topics become `failed` with `LLM_BUSY_MESSAGE` and the panel offers Retry; summaries log and skip without recording a run, so they retry on the next read. Nothing is queued or dropped silently.
 - The cooldown is not consumed by a refused job, so a Retry after the window works.
@@ -33,8 +33,12 @@ Topics are named on a document's first open and on every Refresh, and per-topic 
 
 ## Evidence
 
-- `apps/server/src/insights/insights-worker.test.ts`: concurrency cap, hourly cap, window rollover, jobs that never reach the model spend nothing; `topics-service.test.ts`: 100 empty-document jobs then a real one still starts.
+- `apps/server/src/insights/insights-job-runner.test.ts`: concurrency cap, hourly cap, window rollover, jobs that never reach the model spend nothing; `topics-service.test.ts`: 100 empty-document jobs then a real one still starts.
 
 ## Revisit when
 
 - The owner sets the real budget, or the product gets per-user accounts with quotas.
+
+## Amendment 2026-10-18
+
+`InsightsWorker` in `insights-worker.ts` is now `InsightsJobRunner` in `insights-job-runner.ts`. The decision is unchanged.

@@ -28,6 +28,7 @@ import { useDocumentReload } from './use-document-reload';
 import { useEditorSetup } from './use-editor-setup';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
+import { clearUnsyncedEdits, setUnsynced } from './unsynced-edits-store';
 import { useUnsyncedEdits } from './use-unsynced-edits';
 import { VersionBar } from './version-bar';
 import { WaitingForDocument } from './waiting-for-document';
@@ -92,6 +93,8 @@ export function DocumentPage() {
     isTitleDirty,
     isReader: opened?.role === DocumentRole.Reader,
   });
+  useEffect(() => setUnsynced(isUnsynced), [isUnsynced]);
+  useEffect(() => clearUnsyncedEdits, []);
   const handleTransportReport = useCallback(
     (report: TransportReport): void => {
       reportTransport(report);

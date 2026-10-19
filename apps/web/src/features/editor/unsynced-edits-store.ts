@@ -2,28 +2,41 @@ import { useSyncExternalStore } from 'react';
 
 export type UnsyncedEditsSnapshot = { isUnsynced: boolean; pendingLeave: (() => void) | null };
 
+const CLEARED_SNAPSHOT: UnsyncedEditsSnapshot = { isUnsynced: false, pendingLeave: null };
+
+const listeners = new Set<() => void>();
+let snapshot = CLEARED_SNAPSHOT;
+
+function publish(next: UnsyncedEditsSnapshot): void {
+  const isChanged = next.isUnsynced !== snapshot.isUnsynced || next.pendingLeave !== snapshot.pendingLeave;
+  if (!isChanged) return;
+  snapshot = next;
+  listeners.forEach((listener) => listener());
+}
+
 export function setUnsynced(isUnsynced: boolean): void {
-  throw new Error(`setUnsynced is not implemented for ${isUnsynced}`);
+  publish({ ...snapshot, isUnsynced });
 }
 
 export function requestLeave(leave: () => void): void {
-  throw new Error(`requestLeave is not implemented for ${leave.name}`);
+  publish({ ...snapshot, pendingLeave: leave });
 }
 
 export function cancelLeave(): void {
-  throw new Error('cancelLeave is not implemented');
+  publish({ ...snapshot, pendingLeave: null });
 }
 
 export function clearUnsyncedEdits(): void {
-  throw new Error('clearUnsyncedEdits is not implemented');
+  publish(CLEARED_SNAPSHOT);
 }
 
 export function subscribeUnsyncedEdits(listener: () => void): () => void {
-  throw new Error(`subscribeUnsyncedEdits is not implemented for ${listener.name}`);
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getUnsyncedEditsSnapshot(): UnsyncedEditsSnapshot {
-  throw new Error('getUnsyncedEditsSnapshot is not implemented');
+  return snapshot;
 }
 
 export function useUnsyncedEditsSnapshot(): UnsyncedEditsSnapshot {

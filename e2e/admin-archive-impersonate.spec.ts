@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Browser, Locator, Page } from '@playwright/test';
-import { ACCOUNT_ARCHIVED_MESSAGE, AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '../libs/types/src';
+import { ACCOUNT_ARCHIVED_MESSAGE, AppRoute, DEMO_USERS, DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '../libs/types/src';
 import { accountMenuLabel } from '../apps/web/src/features/account/account-copy';
 import {
   actionsMenuLabel,
@@ -12,6 +12,7 @@ import {
 } from '../apps/web/src/features/admin/admin-copy';
 import { STOP_IMPERSONATING_LABEL, viewingAsLabel } from '../apps/web/src/features/impersonation/impersonation-copy';
 import { uploadSeed } from './editor';
+import { expectNoSidewaysScroll } from './layout';
 import { chooseUserAction } from './user-actions';
 import {
   acceptInvite,
@@ -26,6 +27,8 @@ import {
   type OpenedContext,
 } from './fixtures';
 
+const NARROW_VIEWPORT = { width: 375, height: 800 };
+const [FIRST_DEMO_USER] = DEMO_USERS;
 const BRUNO_NAME = 'Bruno';
 const CAIO_NAME = 'Caio';
 const USERS_TABLE_NAME = 'Users';
@@ -138,4 +141,18 @@ test('stopping from inside the impersonated editor leaves no failed request behi
   await expect(admin.page.getByTestId('impersonation-banner')).toHaveCount(0);
   await expect(admin.page.getByRole('banner').getByRole('button', { name: accountMenuLabel(ADMIN_NAME) })).toBeVisible();
   expect(failedResponses).toEqual([]);
+});
+
+test('at a narrow width the Actions trigger is in view without scrolling the table', async ({ browser }) => {
+  const admin = await signedInAdmin({ browser });
+  await admin.page.setViewportSize(NARROW_VIEWPORT);
+  await admin.page.goto(AppRoute.Admin);
+  const trigger = userRow({ page: admin.page, email: FIRST_DEMO_USER!.email }).getByRole('button', {
+    name: actionsMenuLabel(FIRST_DEMO_USER!.name),
+  });
+  await expect(trigger).toBeVisible();
+  const box = await trigger.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(NARROW_VIEWPORT.width);
+  await expectNoSidewaysScroll(admin.page);
 });

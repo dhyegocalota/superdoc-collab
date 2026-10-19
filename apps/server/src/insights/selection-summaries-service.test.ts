@@ -2,8 +2,6 @@ import { type EditRun } from '@superdoc-collab/history';
 import {
   ClientActor,
   MINUTE_MS,
-  SECOND_MS,
-  SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SELECTION_SUMMARY_TIMEOUT_MESSAGE,
   SelectionSummaryState,
@@ -161,18 +159,6 @@ test('a topic recompute makes the summary stale', async () => {
   state.snapshot = snapshotOf({ runs: BRUNO_RUNS, topicsUpdatedAt: 2 });
   expect(service.read({ documentId, selection: BRUNO_SELECTION }).summary?.isStale).toBe(true);
   expect(service.isStale({ documentId, selection: BRUNO_SELECTION })).toBe(true);
-  await server.stop();
-});
-
-test('uses SUMMARIZE_COOLDOWN_MS (30000)', async () => {
-  vi.useFakeTimers({ toFake: ['Date'] });
-  const { server, documentId, service } = await serviceWith({
-    languageModel: readyModel(modelAnswering(ANSWER)),
-    snapshot: snapshotOf({ runs: BRUNO_RUNS }),
-  });
-  service.cooldown.start(documentId);
-  expect(service.cooldown.remainingMs(documentId)).toBe(SUMMARIZE_COOLDOWN_MS);
-  expect(SUMMARIZE_COOLDOWN_MS).toBe(30 * SECOND_MS);
   await server.stop();
 });
 

@@ -131,6 +131,17 @@ describe('sign-up, sign-in and me', () => {
     );
     expect(attempts.map((response) => response.status)).toContain(429);
   });
+  test('with two trusted hops the limiter keys on the second entry from the right', async () => {
+    const twoHops = await startTestServer({ trustedProxyHops: 2 });
+    const body = { email: 'caio@example.com', password: 'definitely-wrong' };
+    const sameSecondFromRight = await Promise.all(
+      Array.from({ length: 4 }, (_, index) => signIn({ body, clientAddress: `10.5.0.1, 10.5.1.1, 10.5.2.${index}`, target: twoHops })),
+    );
+    const otherSecondFromRight = await signIn({ body, clientAddress: '10.5.0.1, 10.5.1.2, 10.5.2.0', target: twoHops });
+    await twoHops.stop();
+    expect(sameSecondFromRight.map((response) => response.status)).toContain(429);
+    expect(otherSecondFromRight.status).not.toBe(429);
+  });
   test('rotating x-forwarded-for does not bypass the limit when the proxy is not trusted', async () => {
     const untrusted = await startTestServer({ trustProxy: false });
     const attempts = await Promise.all(

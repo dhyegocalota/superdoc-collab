@@ -18,7 +18,7 @@ Every "it works" below is a hypothesis for the tester to disprove.
 
 ## Comments, review, zoom, Docs keys, held keys (second round)
 
-- Add comment ⌘⌥M opens a small composer (SuperDoc has none) and sends `createFromSelection` on the live selection; with nothing selected the composer shows an alert after Comment. Next and previous comment ⌘⌥N and ⌘⌥P walk `ui.comments.list()` with `scrollTo`. Zoom ⌘⌥= and ⌘⌥- step through 50, 75, 90, 100, 125, 150, 200. ⌘⌥E toggles the edits panel and ⌘⌥S summarizes (editors only).
+- Add comment ⌘⌥M opens a small composer (SuperDoc has none) and sends `createFromSelection` on the live selection; with nothing selected the comment anchors to the caret (intended, as in Word). The alert shows only when SuperDoc rejects the comment. Next and previous comment ⌘⌥N and ⌘⌥P walk `ui.comments.list()` with `scrollTo`. Zoom ⌘⌥= and ⌘⌥- step through 50, 75, 90, 100, 125, 150, 200. ⌘⌥E toggles the edits panel and ⌘⌥S summarizes (editors only).
 - Clear formatting is ⌘\ on a Mac and Ctrl+Space elsewhere; indent is ⌘] and ⌘[ on a Mac (⌘M minimises the window) and Ctrl+M elsewhere; normal text also on ⌘⌥0; select all and headings 4 to 6 are native and listed.
 - Track changes is ⌘⌥T (⌘⇧E is consumed for centring first); the Summarize button and the edits panel toggle carry their hints.
 - Unavailable and left out: page break ⌘Enter (no catalog command), ⌘Space on a Mac (Spotlight), subscript and superscript.

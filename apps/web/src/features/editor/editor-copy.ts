@@ -107,7 +107,7 @@ export const STAY_LABEL = 'Stay';
 export const LEAVE_LABEL = 'Leave';
 
 export const ADD_COMMENT_TITLE = 'Add comment';
-export const ADD_COMMENT_DESCRIPTION = 'The comment is attached to the text you selected.';
+export const ADD_COMMENT_DESCRIPTION = 'The comment is attached to the selected text, or to the caret when nothing is selected.';
 export const COMMENT_TEXT_LABEL = 'Comment';
 export const ADD_COMMENT_SUBMIT_LABEL = 'Comment';
-export const ADD_COMMENT_FAILED_MESSAGE = 'The comment could not be added. Select some text and try again.';
+export const ADD_COMMENT_FAILED_MESSAGE = 'The comment could not be added.';

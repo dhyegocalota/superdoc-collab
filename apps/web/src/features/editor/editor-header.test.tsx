@@ -486,3 +486,14 @@ test('Ctrl+Alt+M before the editor is ready opens no composer and is not consume
   expect(fireEvent.keyDown(document.body, COMMENT_KEY)).toBe(true);
   expect(screen.queryByRole('dialog')).toBeNull();
 });
+
+test('with no selection the comment anchors to the caret', async () => {
+  const createFromSelection = vi.fn().mockResolvedValue({ success: true });
+  const superdoc = superdocWithComments(createFromSelection);
+  renderHeader({ superdoc });
+  fireEvent.keyDown(document.body, COMMENT_KEY);
+  const dialog = await screen.findByRole('dialog', { name: ADD_COMMENT_TITLE });
+  await userEvent.type(within(dialog).getByRole('textbox', { name: COMMENT_TEXT_LABEL }), COMMENT_TEXT);
+  await userEvent.click(within(dialog).getByRole('button', { name: ADD_COMMENT_SUBMIT_LABEL }));
+  await waitFor(() => expect(createFromSelection).toHaveBeenCalledWith({ text: COMMENT_TEXT }));
+});

@@ -10,6 +10,7 @@ import {
   memberApiPath,
   RoomMode,
   TAB_QUERY_KEY,
+  thumbnailApiPath,
   type CreatorTicket,
   type DocumentMembers,
   type OpenedDocument,
@@ -105,4 +106,13 @@ export async function renameDocument({ documentId, title }: { documentId: string
 export async function deleteDocument(documentId: string): Promise<void> {
   const response = await apiSend({ path: documentApiPath({ documentId }), method: HttpMethod.Delete, body: null });
   assertOk({ response, subject: 'Delete' });
+}
+
+export async function uploadThumbnail({ documentId, blob }: { documentId: string; blob: Blob }): Promise<boolean> {
+  const response = await apiSend({ path: thumbnailApiPath({ documentId }), method: HttpMethod.Put, body: blob });
+  return response.ok;
+}
+
+export function sendThumbnailBeacon({ documentId, blob }: { documentId: string; blob: Blob }): boolean {
+  return navigator.sendBeacon(thumbnailApiPath({ documentId }), blob);
 }

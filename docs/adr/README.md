@@ -20,6 +20,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 
 | Number | Title | Status | Date |
 |--------|-------|--------|------|
+| [0045](0045-thumbnails-are-captured-by-the-client-that-already-rendered-the-page.md) | Thumbnails are captured by the client that already rendered the page | Accepted | 2026-10-19 |
 | [0044](0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md) | Version builds are budgeted per user and capped in the projection queue | Accepted | 2026-10-19 |
 | [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) | A known version sequence resolves exactly; marks anchor the timeline | Accepted | 2026-10-19 |
 | [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |

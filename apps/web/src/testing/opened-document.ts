@@ -14,6 +14,7 @@ export function summaryAs(role: DocumentRole): DocumentSummary {
     updatedAt: 1,
     role,
     preview: null,
+    thumbnailUpdatedAt: null,
   };
 }
 

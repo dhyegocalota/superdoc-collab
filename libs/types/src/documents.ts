@@ -62,6 +62,7 @@ export type DocumentSummary = {
   updatedAt: number;
   role: DocumentRole;
   preview: string | null;
+  thumbnailUpdatedAt: number | null;
 };
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
 export type CreatorTicket = { attempt: number; epoch: string };

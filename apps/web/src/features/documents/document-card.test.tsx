@@ -2,6 +2,7 @@ import {
   ApiPath,
   DocumentRole,
   documentPagePath,
+  thumbnailApiPath,
   LINK_COPIED_MESSAGE,
   MINUTE_MS,
   UserRole,
@@ -25,6 +26,7 @@ const OWNED_DOCUMENT: DocumentSummary = {
   updatedAt: NOW - FIVE_MINUTES_MS,
   role: DocumentRole.Owner,
   preview: 'Opening paragraph',
+  thumbnailUpdatedAt: null,
 };
 const SHARED_DOCUMENT: DocumentSummary = {
   ...OWNED_DOCUMENT,
@@ -78,4 +80,18 @@ test('the card has one tap target, the link', () => {
   renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
   expect(screen.getAllByRole('link')).toHaveLength(1);
+});
+
+test('the card fills its grid cell and reserves two title lines so cards in a row share one height', () => {
+  renderWithProviders(<DocumentCard document={OWNED_DOCUMENT} kind={DocumentListKind.Mine} />);
+  expect(screen.getByRole('article')).toHaveClass('h-full', 'flex', 'flex-col');
+  expect(screen.getByRole('heading', { level: 3 })).toHaveClass('line-clamp-2', 'min-h-[2lh]');
+  expect(screen.getByText(/ago|just now/)).toHaveClass('truncate');
+});
+
+test('a document with a stored thumbnail draws it on the card with the preview as the alternative text', () => {
+  const thumbnailUpdatedAt = NOW - FIVE_MINUTES_MS;
+  renderWithProviders(<DocumentCard document={{ ...OWNED_DOCUMENT, thumbnailUpdatedAt }} kind={DocumentListKind.Mine} />);
+  const image = screen.getByRole('img', { name: OWNED_DOCUMENT.preview!, hidden: true });
+  expect(image).toHaveAttribute('src', thumbnailApiPath({ documentId: OWNED_DOCUMENT.id, updatedAt: thumbnailUpdatedAt }));
 });

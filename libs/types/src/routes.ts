@@ -50,6 +50,7 @@ export enum DocumentResource {
   Topics = 'topics',
   Summaries = 'summaries',
   Versions = 'versions',
+  Thumbnail = 'thumbnail',
 }
 
 export enum VersionResource {

@@ -93,6 +93,7 @@ export class ReadModel {
     events: ProjectedEdit[];
     marks: VersionMark[];
     lastSequence: number;
+    preview?: string;
   }): void {
     const insert = this.database.prepare(INSERT_EVENT);
     const pruneMinute = this.database.prepare(PRUNE_MINUTE);
@@ -124,6 +125,10 @@ export class ReadModel {
       });
       advance.run(documentName, lastSequence);
     })();
+  }
+
+  previews(documentNames: string[]): Map<string, string> {
+    throw new Error('ReadModel.previews is not implemented');
   }
 
   commitImported({ documentName, revisions }: { documentName: string; revisions: ImportedRevision[] }): void {

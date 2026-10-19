@@ -1,5 +1,9 @@
 import type { Document } from '@hocuspocus/server';
-import { POLICY_VIOLATION_CLOSE_CODE, SOCKET_AWARENESS_ORIGIN_REASON } from '@superdoc-collab/types';
+import {
+  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  POLICY_VIOLATION_CLOSE_CODE,
+  SOCKET_AWARENESS_ORIGIN_REASON,
+} from '@superdoc-collab/types';
 import { AwarenessOwners } from './awareness-owners';
 import type { CollaborationContext } from './collaboration-context';
 import type { DocumentConnection } from './document-connection';
@@ -22,7 +26,8 @@ export function closeSendersOfForeignIds({ document, owners }: { document: Docum
     const members = [...document.connections.values()];
     const sender = members.find(({ connection }) => connection.webSocket === origin);
     if (sender === undefined) return;
-    owners.bind({ documentName: document.name, clientIds: added, userId: userIdOf(sender) });
+    const isOverCap = sender.clients.size > MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION;
+    if (!isOverCap) owners.bind({ documentName: document.name, clientIds: added, userId: userIdOf(sender) });
     const others = members.filter((member) => member !== sender);
     const claims = updated
       .filter((clientId) => !sender.clients.has(clientId))

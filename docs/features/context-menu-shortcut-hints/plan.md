@@ -6,9 +6,9 @@
 
 ## Steps
 
-- [ ] **Step 1 (red):** registry entries, provider, options and footnote runner tests; E2E.
-- [ ] **Step 2 (green):** registry, provider, options wiring, footnote runner.
-- [ ] **Step 3:** E2E green, typecheck, tester briefing.
+- [x] **Step 1 (red):** registry entries, provider, options and footnote runner tests; E2E.
+- [x] **Step 2 (green):** registry, provider, options wiring, footnote runner.
+- [x] **Step 3:** E2E green, typecheck, tester briefing.
 
 ## Failure modes
 

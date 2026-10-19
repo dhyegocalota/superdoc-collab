@@ -19,7 +19,7 @@ SuperDoc's context menu shows a hint only for Cut, Copy, Paste, Match Destinatio
 
 ## Design
 
-- The registry gains Cut ⌘X, Copy ⌘C, Paste ⌘V and Paste without formatting ⌘⇧V as `native` entries in Editing, and Insert footnote ⌘⌥F as an `app` entry in Comments and review. Insert footnote runs the menu's own `insert-footnote` item through `ui.commands.getContextMenuItems` at the caret.
+- The registry gains Cut ⌘X, Copy ⌘C, Paste ⌘V and Paste without formatting ⌘⇧V as `native` entries in Editing, and Insert footnote ⌘⌥F as an `app` entry in Comments and review. Insert footnote calls `superdoc.activeEditor.doc.footnotes.insert({ type: 'footnote', content: '' })`, which inserts at the caret. `ui.commands.getContextMenuItems` returns only custom contributions, never the built-in items (empty at the caret in 2.23.0), so the menu's own item cannot be invoked.
 - `contextMenuShortcutProvider` maps each menu item id to its `ShortcutId` and sets `shortcut` to the platform label (`⌘⌥M` on a Mac, `Ctrl+Alt+M` elsewhere); `superdocOptions` passes it as `ui.contextMenu.menuProvider`.
 - No key exists for Insert table (Word has none), nor for Keep Text Only (SuperDoc and the browser bind none), so those two items stay without a hint.
 
@@ -28,7 +28,7 @@ SuperDoc's context menu shows a hint only for Cut, Copy, Paste, Match Destinatio
 | Case | Behaviour |
 |---|---|
 | The menu has an item id the provider does not know | left as SuperDoc built it |
-| No caret rect or no `insert-footnote` item when ⌘⌥F is pressed | the key is not consumed |
+| No active editor when ⌘⌥F is pressed | the key is not consumed |
 
 ## Test strategy summary
 

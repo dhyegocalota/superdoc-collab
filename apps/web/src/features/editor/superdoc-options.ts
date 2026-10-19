@@ -6,6 +6,7 @@ import {
   type SessionUser,
 } from '@superdoc-collab/types';
 import type { CommentsLayout, Config, ToolbarItemId } from 'superdoc';
+import { contextMenuShortcutProvider } from '@/features/shortcuts/context-menu-shortcuts';
 import { toolbarShortcutStrings } from '@/features/shortcuts/toolbar-shortcut-strings';
 import { detectPlatform } from '@/lib/platform';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
@@ -84,6 +85,7 @@ export function superdocOptions({
     ui: {
       comments: { layout: COMMENTS_LAYOUT_BY_WIDTH, responsive: { breakpoint: COMMENTS_INLINE_BELOW_PX } },
       search: true,
+      contextMenu: { menuProvider: contextMenuShortcutProvider(detectPlatform()) },
       ...(toolbarContainer && {
         toolbar: {
           container: toolbarContainer,

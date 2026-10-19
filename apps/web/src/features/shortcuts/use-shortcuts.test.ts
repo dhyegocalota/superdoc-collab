@@ -16,9 +16,8 @@ const setZoom = vi.fn();
 const scrollToComment = vi.fn();
 const COMMENT_IDS = ['first', 'second', 'third'];
 const setDocumentMode = vi.fn();
-const invokeFootnote = vi.fn();
-let footnoteItems: { id: string; invoke: () => void }[];
-let anchorRect: { left: number; top: number } | null;
+const insertFootnote = vi.fn();
+let hasActiveEditor: boolean;
 let documentMode: string | null;
 let zoomValue: number;
 const execute = vi.fn();
@@ -31,11 +30,10 @@ function superdocWithCommands(): SuperDoc {
     return { getState: () => commandState, execute };
   });
   return superdocStub({
+    activeEditor: hasActiveEditor ? { doc: { footnotes: { insert: insertFootnote } } } : null,
     ui: {
-      commands: { get, getContextMenuItems: () => footnoteItems },
+      commands: { get },
       zoom: { getSnapshot: () => ({ value: zoomValue, min: 25, max: 500 }), set: setZoom },
-      selection: { getAnchorRect: () => anchorRect },
-      contextMenu: { contextAt: ({ x, y }: { x: number; y: number }) => ({ point: { x, y } }) },
       document: { getSnapshot: () => ({ mode: documentMode }), setMode: setDocumentMode },
       comments: { list: () => COMMENT_IDS.map((id) => ({ id })), scrollTo: scrollToComment },
     },
@@ -64,11 +62,7 @@ beforeEach(() => {
   requestedCommandIds = [];
   zoomValue = 100;
   documentMode = 'editing';
-  anchorRect = { left: 10, top: 20 };
-  footnoteItems = [
-    { id: 'comment', invoke: vi.fn() },
-    { id: 'insert-footnote', invoke: invokeFootnote },
-  ];
+  hasActiveEditor = true;
   onAddComment.mockReturnValue(true);
   vi.stubGlobal('navigator', { platform: 'Win32' });
 });
@@ -318,18 +312,15 @@ test('AltGr characters are left to the editing surface', () => {
   expect(onAddComment).not.toHaveBeenCalled();
 });
 
-test('Ctrl+Alt+F invokes the insert-footnote menu item at the caret', () => {
+test('Ctrl+Alt+F inserts a footnote at the caret through the Document API', () => {
   renderShortcuts();
   expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(true);
-  expect(invokeFootnote).toHaveBeenCalledTimes(1);
+  expect(insertFootnote).toHaveBeenCalledWith({ type: 'footnote', content: '' });
 });
 
-test('Ctrl+Alt+F is not consumed without a caret rect or a footnote item', () => {
+test('Ctrl+Alt+F is not consumed without an active editor', () => {
+  hasActiveEditor = false;
   renderShortcuts();
-  anchorRect = null;
   expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(false);
-  anchorRect = { left: 10, top: 20 };
-  footnoteItems = [];
-  expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(false);
-  expect(invokeFootnote).not.toHaveBeenCalled();
+  expect(insertFootnote).not.toHaveBeenCalled();
 });

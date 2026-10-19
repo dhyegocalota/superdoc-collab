@@ -10,7 +10,7 @@
 - [ ] provider: both platforms; Cut, Copy, Paste, Match Destination, Undo, Redo, Comment, Insert link, Insert footnote; unknown ids and sections untouched
 - [ ] options: `ui.contextMenu.menuProvider` is set
 - [ ] registry: the four clipboard entries are native, Insert footnote is an app entry
-- [ ] handler: ⌘⌥F invokes the `insert-footnote` menu item at the caret and is not consumed without one
+- [ ] handler: ⌘⌥F inserts a footnote through the Document API and is not consumed without an active editor
 
 ## E2E
 

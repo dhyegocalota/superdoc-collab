@@ -84,6 +84,7 @@ test('the options open the file in its room as the signed-in user, fitted to the
         strings: toolbarShortcutStrings(detectPlatform()),
       },
       search: true,
+      contextMenu: { menuProvider: expect.any(Function) },
     },
   });
 });

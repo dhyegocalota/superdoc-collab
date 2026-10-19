@@ -169,7 +169,6 @@ test('Mod+Alt+T switches to suggesting, typing is tracked, and a second press st
 
 const CONTEXT_MENU_ITEM_SELECTOR = '.v2-context-menu__item';
 const CONTEXT_MENU_SHORTCUT_SELECTOR = '.v2-context-menu__shortcut';
-const FOOTNOTE_SELECTOR = '[data-footnote-id], .superdoc-footnote, [class*="footnote"]';
 
 test('the right-click menu shows the registry keys beside Comment and Insert link', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -190,7 +189,7 @@ test('Mod+Alt+F inserts a footnote', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
   await ana.page.keyboard.press('End');
-  await expect(ana.page.locator(FOOTNOTE_SELECTOR)).toHaveCount(0);
+  await expect(ana.page.locator(LINE_SELECTOR)).toHaveCount(1);
   await pressWithModifier({ page: ana.page, keys: 'Alt+F' });
-  await expect(ana.page.locator(FOOTNOTE_SELECTOR).first()).toBeVisible();
+  await expect(ana.page.locator(LINE_SELECTOR)).toHaveCount(2);
 });

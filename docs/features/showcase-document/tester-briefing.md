@@ -2,7 +2,7 @@
 
 ## What changed and where
 
-- Content and dates: `libs/history/src/showcase/` (`showcase-content.ts` base paragraphs, `showcase-bursts.ts` the 18 bursts, `showcase-paragraphs.ts` `buildShowcaseParagraphs({ now })` shifting whole days so the last edit lands on the UTC day before `now`). `SHOWCASE_TITLE`, `SHOWCASE_API_PATH` live in `libs/types/src/showcase.ts`.
+- Content and dates: `libs/history/src/showcase/` (`showcase-content.ts` base paragraphs, `showcase-sessions.ts` the ten sessions, `showcase-phrases.ts` the sentence parts, `showcase-paragraphs.ts` `buildShowcaseParagraphs({ now })` shifting whole days so the last edit lands on the UTC day before `now`). `SHOWCASE_TITLE`, `SHOWCASE_API_PATH` live in `libs/types/src/showcase.ts`.
 - Creation: `apps/server/src/documents/showcase-documents.ts` (`ShowcaseDocuments.create`) over the new shared `store-document.ts`, which `documents-routes.ts` now also uses (extraction only). Wired as `services.showcase`.
 - Callers: `POST /api/admin/showcase` in `admin-routes.ts`; `createSignUpGate` takes an optional `createShowcase`, called after `claimAdmin` succeeds, failures logged with `console.error`, never thrown.
 - Web: `showcase-button.tsx` in Admin → Users heading row, copy in `admin-copy.ts`, call in `admin-api.ts`; invalidates the documents list query.
@@ -32,19 +32,19 @@ pnpm test:e2e e2e/showcase.spec.ts
 
 Pins (green when landed): the admin guard rows for the showcase route in `admin-routes.test.ts`, and the storage-failure sign-up test in `sign-up-gate.test.ts`.
 
-## Burst table
+## Session table
 
-Eighteen bursts in UTC from `SHOWCASE_START` (Monday 2026-03-02, shifted by whole days at creation). Each burst is three edits one minute apart.
+The history is generated from `showcase-sessions.ts`: ten sessions (a morning and an afternoon on each of five days), 150 to 175 minutes long, two or three authors each, an edit every 6 to 15 minutes (ramp, peak, tail), about 180 tracked changes in total, a deletion every fourth edit. Times are UTC from `SHOWCASE_START` (Monday 2026-03-02, shifted by whole days at creation).
 
-| Day | Bursts (time, author) |
-|-----|-----------------------|
-| 1 | 09:10 Ana, 11:40 Bruno, 14:25 Caio, 17:05 Dani |
-| 2 | 09:30 Bruno, 12:15 Ana, 15:50 Dani |
-| 3 | 08:55 Caio, 10:45 Dani, 13:30 Bruno, 16:20 Ana |
-| 4 | 09:20 Dani, 11:10 Caio, 14:40 Ana |
-| 5 | 09:00 Bruno, 11:35 Ana, 14:15 Caio, 16:45 Dani |
+| Day | Morning (start, minutes, authors) | Afternoon (start, minutes, authors) |
+|-----|-----------------------------------|-------------------------------------|
+| 1 | 09:00, 165, Ana Bruno Caio | 13:00, 160, Bruno Dani Ana |
+| 2 | 09:05, 170, Caio Dani Ana | 13:05, 165, Bruno Caio |
+| 3 | 08:55, 160, Dani Bruno Ana | 13:05, 170, Caio Dani Bruno |
+| 4 | 09:00, 175, Ana Caio | 12:55, 160, Dani Ana Bruno |
+| 5 | 09:00, 165, Bruno Caio Dani | 13:05, 150, Ana Dani Caio |
 
-Smallest gap between the end of one burst and the start of the next is 1 h 48 min.
+Lunch gaps are 60 to 90 minutes between sessions, nights are the other gaps. At 1280 px the scenario stack chart shows ten swelling shapes with nine dashed dividers (screenshot `.pr-media/showcase-document/timeline-1280.png`, git-ignored).
 
 ## Hypotheses for the tester
 

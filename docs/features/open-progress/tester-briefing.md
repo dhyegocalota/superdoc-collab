@@ -43,6 +43,6 @@ Pins, green when they landed: the document page tests "a Failed bootstrap shows 
 - The total page count: Rendering shows pages laid out so far. For a joiner the first paragraph paints so soon after sync that Rendering did not appear in 100 ms samples.
 - Real numbers during Preparing: lane-bootstrap reports `done` 0 until Ready, so Preparing is indeterminate until the server reports more; a scripted answer proves the determinate path.
 
-## Cleanup after the merge of lane-bootstrap
+## Dead path removed
 
-- The legacy 409 path (`DocumentNotReadyError`, `DocumentReadiness.Paused`, `NOT_READY_PAUSED_MESSAGE`) is dead once the server never answers 409; this lane leaves it as it found it.
+The 409 not-ready answer, `DocumentReadiness.Paused`, Keep waiting, the give-up count and `DOCUMENT_READY_GIVE_UP_MS` are gone; a Queued or Preparing bootstrap is the only wait.

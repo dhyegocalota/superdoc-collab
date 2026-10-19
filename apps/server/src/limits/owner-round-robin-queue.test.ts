@@ -2,9 +2,9 @@ import { expect, test } from 'vitest';
 import { OwnerRoundRobinQueue } from './owner-round-robin-queue';
 
 function drain(queue: OwnerRoundRobinQueue<string>): string[] {
-  const items: string[] = [];
-  for (let item = queue.shift(); item !== undefined; item = queue.shift()) items.push(item);
-  return items;
+  const item = queue.shift();
+  if (item === undefined) return [];
+  return [item, ...drain(queue)];
 }
 
 test('owners take turns, one item each, and an owner with more items goes to the back', () => {

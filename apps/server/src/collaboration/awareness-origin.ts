@@ -1,6 +1,8 @@
 import type { Document } from '@hocuspocus/server';
 import { POLICY_VIOLATION_CLOSE_CODE, SOCKET_AWARENESS_ORIGIN_REASON } from '@superdoc-collab/types';
 
+export const AWARENESS_ORIGIN_LOG = 'Collaboration socket closed for updating an awareness client another connection holds';
+
 type AwarenessChange = { updated: number[] };
 
 // NB ADR 0040: ids no connection holds join the sender, an update of an id another connection holds closes it, and a removal of one never does because a reconnecting provider relays its peers' removals.

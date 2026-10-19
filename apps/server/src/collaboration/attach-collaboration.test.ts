@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  DocumentRole,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
@@ -30,13 +31,22 @@ import type { AddressInfo } from 'node:net';
 import { describe, expect, test, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
-import { CollaborationRefusedError, connectAgentToDocument, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
+import {
+  CollaborationRefusedError,
+  connectAgentToDocument,
+  connectToDocument,
+  documentWithOwner,
+  memberWithRole,
+} from '../testing/collaboration-client';
+import { commitBootstrap, waitForCommit } from '../testing/committed-room';
 import { awarenessFrame, awarenessFrameClaiming, PaddedVarintField, paddedAwarenessFrame } from '../testing/socket-frames';
 import { signedInUser, startTestServer, type TestServer } from '../testing/test-server';
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { Auth } from '../auth/auth';
 import { attachCollaboration } from './attach-collaboration';
+import { AWARENESS_ORIGIN_LOG } from './awareness-origin';
+import { AWARENESS_IDS_LOG } from './collaboration-server';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
@@ -47,6 +57,7 @@ const CLAIMED_ID_BASE = 1_000_000;
 const SECOND_CLAIMED_ID_BASE = 2_000_000;
 const SPLIT_CLAIM_IDS_PER_FRAME = 5;
 const PADDED_ENTRY_COUNT = 100_000;
+const OVERCLAIMING_BURST_FRAMES = 10;
 const REPLAY_CLOCK = 2;
 const REPLAYED_ID_COUNT = 5;
 const OWN_UPDATES = 5;
@@ -542,13 +553,7 @@ function claimedIds({ base, count }: { base: number; count: number }): number[] 
   return Array.from({ length: count }, (_, index) => base + index);
 }
 
-function isKnownToAwareness({
-  server,
-  clientId,
-}: {
-  server: Awaited<ReturnType<typeof sendClaimingFrame>>['server'];
-  clientId: number;
-}): boolean {
+function isKnownToAwareness({ server, clientId }: { server: TestServer; clientId: number }): boolean {
   return [...server.services.hocuspocus.documents.values()].some((document) => document.awareness.meta.has(clientId));
 }
 
@@ -561,10 +566,13 @@ test('an awareness frame claiming one entry more than the frame cap closes the s
   await server.stop();
 });
 
-test('one frame claiming one client id more than the connection cap closes the socket with the client ids reason', async () => {
+test('one frame claiming one client id more than the connection cap closes the socket with the client ids reason and a log line', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
   const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
   await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+  expect(warn).toHaveBeenCalledWith(AWARENESS_IDS_LOG);
+  warn.mockRestore();
   client.close();
   await server.stop();
 });
@@ -588,6 +596,19 @@ Object.values(PaddedVarintField).forEach((paddedField) =>
     await new Promise((resolve) => httpServer.close(resolve));
   }),
 );
+
+test('a burst of overclaiming frames logs one line and closes once', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { socket, closed, httpServer } = await openCountedSocket();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 });
+  Array.from({ length: OVERCLAIMING_BURST_FRAMES }).forEach(() =>
+    socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds })),
+  );
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(warn).toHaveBeenCalledTimes(1);
+  warn.mockRestore();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
 
 test('a frame claiming exactly the frame cap of entries reaches the room handler and keeps the socket open', async () => {
   const { socket, received, httpServer } = await openCountedSocket();
@@ -655,27 +676,47 @@ function serverCursorOf({ server, clientId }: { server: TestServer; clientId: nu
     .find((cursor) => cursor !== undefined);
 }
 
-async function holderOfClaimedIds() {
+async function holderOfClaimedIds({ hasSameUser }: { hasSameUser: boolean }) {
   const { server, documentId, owner } = await documentWithOwner();
   const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
   const holder = await connectWatched({ server, documentId, cookie: owner.cookie });
   holder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: holder.roomName, clientIds })));
   await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
-  const intruder = await connectWatched({ server, documentId, cookie: owner.cookie });
+  const intruderCookie = hasSameUser ? owner.cookie : (await memberWithRole({ server, documentId, role: DocumentRole.Editor })).cookie;
+  const intruder = await connectWatched({ server, documentId, cookie: intruderCookie });
   return { server, clientIds, holder, intruder };
 }
 
-test('a connection updating an awareness id that another live connection holds is closed with the origin reason', async () => {
-  const { server, clientIds, holder, intruder } = await holderOfClaimedIds();
+test('a connection of another user updating an awareness id that a live connection holds is closed with the origin reason and a log line', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
   intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK })));
   await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
+  expect(warn).toHaveBeenCalledWith(AWARENESS_ORIGIN_LOG);
   expect(holder.closedSocket()).toBeNull();
+  warn.mockRestore();
+  holder.client.close();
+  await server.stop();
+});
+
+test('a second connection of the same user updating an awareness id that a half-open first one holds takes the id over and stays open', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: true });
+  intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK })));
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
+  expect(holder.closedSocket()).toBeNull();
+  intruder.client.close();
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(0);
   holder.client.close();
   await server.stop();
 });
 
 test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {
-  const { server, clientIds, holder, intruder } = await holderOfClaimedIds();
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: true });
   intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds })));
   const { provider, document } = intruder.client;
   provider.setAwarenessField('cursor', 0);
@@ -689,7 +730,7 @@ test('a connection relaying an awareness state at the clock the room already hol
 });
 
 test('a connection removing an awareness id that another live connection holds, as a reconnect queue does, keeps the socket open', async () => {
-  const { server, clientIds, holder, intruder } = await holderOfClaimedIds();
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
   const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: null });
   intruder.webSocket.send(new Uint8Array(removal));
   const { provider, document } = intruder.client;
@@ -745,6 +786,8 @@ test('a provider that reconnects and resends its own awareness id keeps its new 
   provider.setAwarenessField('cursor', RECONNECTED_CURSOR);
   await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(RECONNECTED_CURSOR);
   expect(provider.configuration.websocketProvider.webSocket?.readyState).toBe(WebSocket.OPEN);
+  expect(connection.closedSocket()?.reason).not.toBe(SOCKET_AWARENESS_ORIGIN_REASON);
+  expect(anchor.closedSocket()).toBeNull();
   connection.client.close();
   anchor.client.close();
   await server.stop();

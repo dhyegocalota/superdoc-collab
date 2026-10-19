@@ -35,6 +35,7 @@ import { DownloadFormat } from './download-format';
 import { DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
 import { FindButton, openFindBar } from './find-button';
 import { Members } from './members';
+import { allowLeave } from './unsynced-edits-store';
 import { ShareDialog } from './share-dialog';
 
 const DIVIDER_CLASS = 'h-5 w-px shrink-0 bg-border';
@@ -55,6 +56,7 @@ function DeleteDocumentDialog({
   const { mutate, isPending, isError } = useMutation({
     mutationFn: () => deleteDocument(documentId),
     onSuccess: async () => {
+      allowLeave();
       await navigate(AppRoute.Documents);
       await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY, exact: true });
     },

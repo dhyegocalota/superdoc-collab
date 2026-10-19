@@ -30,7 +30,7 @@ type WaitingForDocumentProps = WaitingActions & { documentId: string; readiness:
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 const PAGE_LINE_WIDTHS = ['w-2/5', 'w-full', 'w-11/12', 'w-full', 'w-4/5', 'w-full', 'w-3/5'];
 
-function cachedTitleOf(documentList: DocumentsList | undefined, documentId: string): string | null {
+function cachedTitleOf({ documentList, documentId }: { documentList: DocumentsList | undefined; documentId: string }): string | null {
   if (!documentList) return null;
   const summary = [...documentList.mine, ...documentList.shared].find((candidate) => candidate.id === documentId);
   if (!summary) return null;
@@ -138,7 +138,7 @@ const CARD_BY_READINESS: Record<WaitingReadiness, (actions: WaitingActions) => R
 
 export function WaitingForDocument({ documentId, readiness, onKeepWaiting, onRetry }: WaitingForDocumentProps) {
   const queryClient = useQueryClient();
-  const title = cachedTitleOf(queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId);
+  const title = cachedTitleOf({ documentList: queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId });
 
   return (
     <div className="flex h-dvh flex-col">

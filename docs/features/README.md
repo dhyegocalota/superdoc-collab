@@ -106,3 +106,4 @@ Refinement after the five slices:
 | [`online-members-only`](online-members-only/) | The top-bar members row shows only members who are online now; offline members stay listed in the share dialog | Approved |
 | [`dead-code-sweep`](dead-code-sweep/) | Unused exports, files, copy, tokens, dependencies and helpers removed after the 2026-10-19 features, with a report naming each deletion; a second test-pruning pass over the areas the first skipped | Approved |
 | [`edits-panel-empty-state`](edits-panel-empty-state/) | The edits panel starts collapsed at every width, shows an illustrated empty state while a document has no edits, and the page keeps a small top margin from the header | Approved |
+| [`documents-cards`](documents-cards/) | The documents home shows cards by default with a CSS-drawn thumbnail from a preview the projection worker writes once per change, and a toggle to the table stored in the browser | Approved |

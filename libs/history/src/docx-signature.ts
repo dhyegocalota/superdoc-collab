@@ -10,11 +10,21 @@ export enum DocxVerdict {
   TooLarge = 'too-large',
 }
 
+type InflatedStream = {
+  on(event: 'data', handler: (chunk: Uint8Array) => void): InflatedStream;
+  on(event: 'end', handler: () => void): InflatedStream;
+  on(event: 'error', handler: (error: Error) => void): InflatedStream;
+  pause(): void;
+  resume(): void;
+};
+
+type StreamingEntry = { internalStream: (type: 'uint8array') => InflatedStream };
+
 function exceedsInflatedLimit(entry: JSZip.JSZipObject): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const inflated = { bytes: 0 };
-    const stream = entry.nodeStream('nodebuffer');
-    stream.on('data', (chunk: Buffer) => {
+    const stream = (entry as unknown as StreamingEntry).internalStream('uint8array');
+    stream.on('data', (chunk) => {
       inflated.bytes += chunk.length;
       if (inflated.bytes <= MAX_DOCUMENT_XML_BYTES) return;
       stream.pause();

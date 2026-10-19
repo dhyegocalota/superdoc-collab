@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { DownloadFormat } from '@/features/editor/download-format';
 import { isTypingInField } from '@/lib/keyboard';
@@ -24,13 +24,18 @@ export type UseShortcutsOptions = {
   onAddComment: () => void;
 };
 
-type ShortcutRun = { definition: ShortcutDefinition; options: UseShortcutsOptions; event: KeyboardEvent };
+type ShortcutRun = {
+  definition: ShortcutDefinition;
+  options: UseShortcutsOptions;
+  event: KeyboardEvent;
+  commentCursorRef: RefObject<number>;
+};
 type ShortcutRunner = (run: ShortcutRun) => boolean;
 
 const FONT_SIZE_COMMAND_ID = 'font-size';
 const FONT_SIZE_STEPS = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
-const SMALLEST_FONT_SIZE = Math.min(...FONT_SIZE_STEPS);
-const LARGEST_FONT_SIZE = Math.max(...FONT_SIZE_STEPS);
+const ZOOM_STEPS = [50, 75, 90, 100, 125, 150, 200];
+const NO_COMMENT_VISITED = -1;
 const TEXT_CONTROL_SELECTOR = 'input, textarea, select, [contenteditable="true"], [role="document"]';
 
 function isMatch({ event, combination }: { event: KeyboardEvent; combination: KeyCombination }): boolean {
@@ -51,10 +56,33 @@ function isOutsideTextControl(target: EventTarget | null): boolean {
   return !(target instanceof HTMLElement && target.matches(TEXT_CONTROL_SELECTOR));
 }
 
-function steppedFontSize({ currentSize, direction }: { currentSize: number; direction: 1 | -1 }): number {
-  const larger = FONT_SIZE_STEPS.filter((size) => size > currentSize);
-  const smaller = FONT_SIZE_STEPS.filter((size) => size < currentSize);
-  return direction === 1 ? Math.min(...larger, LARGEST_FONT_SIZE) : Math.max(...smaller, SMALLEST_FONT_SIZE);
+function steppedValue({ steps, current, direction }: { steps: number[]; current: number; direction: 1 | -1 }): number {
+  const larger = steps.filter((step) => step > current);
+  const smaller = steps.filter((step) => step < current);
+  return direction === 1 ? Math.min(...larger, Math.max(...steps)) : Math.max(...smaller, Math.min(...steps));
+}
+
+function zoomRunner(direction: 1 | -1): ShortcutRunner {
+  return ({ options }) => {
+    if (!options.superdoc) return false;
+    const { zoom } = options.superdoc.ui;
+    zoom.set(steppedValue({ steps: ZOOM_STEPS, current: zoom.getSnapshot().value, direction }));
+    return true;
+  };
+}
+
+function commentRunner(step: 1 | -1): ShortcutRunner {
+  return ({ options, commentCursorRef }) => {
+    if (!options.superdoc) return false;
+    const { comments } = options.superdoc.ui;
+    const commentIds = comments.list().map((comment) => comment.id);
+    if (commentIds.length === 0) return false;
+    const isFirstBackwardStep = commentCursorRef.current === NO_COMMENT_VISITED && step === -1;
+    const from = isFirstBackwardStep ? 0 : commentCursorRef.current;
+    commentCursorRef.current = (from + step + commentIds.length) % commentIds.length;
+    void comments.scrollTo(commentIds[commentCursorRef.current]!);
+    return true;
+  };
 }
 
 function fontSizeRunner(direction: 1 | -1): ShortcutRunner {
@@ -63,7 +91,7 @@ function fontSizeRunner(direction: 1 | -1): ShortcutRunner {
     if (!handle) return false;
     const currentSize = Number(handle.getState().value);
     if (Number.isNaN(currentSize)) return false;
-    handle.execute(String(steppedFontSize({ currentSize, direction })));
+    handle.execute(String(steppedValue({ steps: FONT_SIZE_STEPS, current: currentSize, direction })));
     return true;
   };
 }
@@ -81,6 +109,23 @@ const appRunners: Partial<Record<ShortcutId, ShortcutRunner>> = {
   },
   [ShortcutId.ShowShortcuts]: ({ options }) => {
     options.onShowShortcuts();
+    return true;
+  },
+  [ShortcutId.ZoomIn]: zoomRunner(1),
+  [ShortcutId.ZoomOut]: zoomRunner(-1),
+  [ShortcutId.NextComment]: commentRunner(1),
+  [ShortcutId.PreviousComment]: commentRunner(-1),
+  [ShortcutId.ToggleEditsPanel]: ({ options }) => {
+    options.onToggleEditsPanel();
+    return true;
+  },
+  [ShortcutId.SummarizeEdits]: ({ options }) => {
+    options.onSummarize();
+    return true;
+  },
+  [ShortcutId.AddComment]: ({ options }) => {
+    if (!options.superdoc || options.superdoc.ui.selection.getSnapshot().empty) return false;
+    options.onAddComment();
     return true;
   },
   [ShortcutId.ShowShortcutsOutsideField]: ({ options, event }) => {
@@ -108,24 +153,40 @@ const runners: Record<ShortcutActionKind, ShortcutRunner> = {
 
 export function useShortcuts(options: UseShortcutsOptions): void {
   const optionsRef = useRef(options);
+  const commentCursorRef = useRef(NO_COMMENT_VISITED);
 
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
   useEffect(() => {
+    function definitionOf(event: KeyboardEvent): ShortcutDefinition | undefined {
+      const platform = detectPlatform();
+      return SHORTCUTS.find((candidate) => isMatch({ event, combination: candidate.keys[platform] }));
+    }
+
+    function swallowHeldKey(event: KeyboardEvent): void {
+      if (!event.repeat || event.defaultPrevented || isTypingInField(event.target)) return;
+      if (!definitionOf(event)?.ignoresRepeat) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     function handleKeyDown(event: KeyboardEvent): void {
       if (event.defaultPrevented) return;
-      const platform = detectPlatform();
-      const definition = SHORTCUTS.find((candidate) => isMatch({ event, combination: candidate.keys[platform] }));
+      const definition = definitionOf(event);
       if (!definition) return;
       const isEditingShortcut = EDITING_SHORTCUT_GROUPS.includes(definition.group);
       const isInert = (isEditingShortcut && !optionsRef.current.canEdit) || isTypingInField(event.target);
       if (isInert) return;
-      const isHandled = runners[definition.action.kind]({ definition, options: optionsRef.current, event });
+      const isHandled = runners[definition.action.kind]({ definition, options: optionsRef.current, event, commentCursorRef });
       if (isHandled) event.preventDefault();
     }
+    document.addEventListener('keydown', swallowHeldKey, true);
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', swallowHeldKey, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 }

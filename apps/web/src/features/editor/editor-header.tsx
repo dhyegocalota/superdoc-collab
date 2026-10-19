@@ -4,6 +4,7 @@ import { Bot, Ellipsis, Keyboard, Search } from 'lucide-react';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import type { SuperDoc } from 'superdoc';
+import type { SelectionCapture } from 'superdoc/ui';
 import { AppTopBar } from '@/components/app-top-bar';
 import { ErrorMessage } from '@/components/error-message';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,7 @@ import {
   MORE_ACTIONS_LABEL,
   RENAME_FAILED_MESSAGE,
 } from './editor-copy';
+import { AddCommentDialog } from './add-comment-dialog';
 import { DocumentTitle } from './document-title';
 import { DownloadFormat } from './download-format';
 import { DOWNLOAD_SHORTCUT_IDS, DownloadMenu, LOADING_DOCUMENT_REASON_ID, useDownload } from './download-menu';
@@ -219,11 +221,28 @@ export function EditorHeader({
   const { download, printView } = useDownload({ superdoc, onDownloadDocx });
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const shortcutsReturnFocusRef = useRef<HTMLElement | null>(null);
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
+  const commentReturnFocusRef = useRef<HTMLElement | null>(null);
+  const commentCaptureRef = useRef<SelectionCapture | null>(null);
   const canEdit = !isReader && !isPastVersion;
 
   function showShortcuts(opener: HTMLElement | null): void {
     shortcutsReturnFocusRef.current = opener;
     setIsShortcutsOpen(true);
+  }
+
+  function openCommentComposer(): void {
+    if (!superdoc) return;
+    commentCaptureRef.current = superdoc.ui.selection.capture();
+    commentReturnFocusRef.current = focusedElement();
+    setIsCommentOpen(true);
+  }
+
+  async function addComment(text: string): Promise<boolean> {
+    const capture = commentCaptureRef.current;
+    if (!superdoc || !capture) return false;
+    const receipt = await superdoc.ui.comments.createFromCapture(capture, { text });
+    return receipt.success;
   }
 
   useShortcuts({
@@ -233,7 +252,7 @@ export function EditorHeader({
     onShowShortcuts: () => showShortcuts(focusedElement()),
     onToggleEditsPanel,
     onSummarize,
-    onAddComment: () => undefined,
+    onAddComment: openCommentComposer,
   });
   const isLarge = useMinWidth(LARGE_BREAKPOINT_PX);
   const hasActionsMenu = !isLarge || isOwner;
@@ -300,6 +319,12 @@ export function EditorHeader({
       />
       {hasRenameFailed && <ErrorMessage className="px-4 py-2">{RENAME_FAILED_MESSAGE}</ErrorMessage>}
       {printView}
+      <AddCommentDialog
+        isOpen={isCommentOpen}
+        onOpenChange={setIsCommentOpen}
+        onSubmit={addComment}
+        returnFocusRef={commentReturnFocusRef}
+      />
       <ShortcutsDialog
         isOpen={isShortcutsOpen}
         onOpenChange={setIsShortcutsOpen}

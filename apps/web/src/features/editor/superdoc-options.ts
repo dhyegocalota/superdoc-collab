@@ -6,6 +6,8 @@ import {
   type SessionUser,
 } from '@superdoc-collab/types';
 import type { CommentsLayout, Config, ToolbarItemId } from 'superdoc';
+import { toolbarShortcutStrings } from '@/features/shortcuts/toolbar-shortcut-strings';
+import { detectPlatform } from '@/lib/platform';
 import { collaborationUrl, HOCUSPOCUS_PROVIDER } from './collaboration-config';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { FIT_WIDTH_ZOOM } from './superdoc-zoom';
@@ -82,7 +84,12 @@ export function superdocOptions({
       comments: { layout: COMMENTS_LAYOUT_BY_WIDTH, responsive: { breakpoint: COMMENTS_INLINE_BELOW_PX } },
       search: true,
       ...(toolbarContainer && {
-        toolbar: { container: toolbarContainer, responsiveTo: 'container', excludeItems: TOOLBAR_EXCLUDED_ITEMS },
+        toolbar: {
+          container: toolbarContainer,
+          responsiveTo: 'container',
+          excludeItems: TOOLBAR_EXCLUDED_ITEMS,
+          strings: toolbarShortcutStrings(detectPlatform()),
+        },
       }),
     },
   };

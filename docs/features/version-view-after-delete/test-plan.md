@@ -2,21 +2,16 @@
 
 ## The failing test first
 
-- [x] `libs/history/src/version-state.test.ts::the version of a bin that ends before a later delete in the same minute shows the edit` — input: updates add, edit, delete a paragraph, the delete one narrowest bin after the edit; version at the edit bin's last instant; expected: the edited text
+- [x] `libs/history/src/version-state.test.ts::the version at the sequence of an edit shows the edit after a later delete in the same minute` — input: updates add, edit, delete a paragraph two seconds apart; version at the edit's sequence; expected: the edited text
 - [x] Confirmed it fails for the right reason:
 
-```
-AssertionError: expected 'Plan' to be 'PlanAdded and edited' // Object.is equality
- ❯ src/version-state.test.ts:118:38
-```
-
-The E2E fails the same way on the local stack:
+Red commit aa563692 (the stub threw):
 
 ```
-Expected substring: "Added line edited"
-Received string:    "Budget: the plan costs 10.Hiring: we add two people."
-  > 272 |   expect(serverText).toContain(`${ADDED_PARAGRAPH}${ADDED_EDIT}`);
+Error: versionAt is not implemented
 ```
+
+and `version-marks.test.ts::a sequence the log knows resolves to itself…` plus `versions-routes.test.ts::a logged sequence that is not a mark resolves to itself` failed on the old minute rule. Red commit 7e8dacd5 for the edit row: `runs.test.ts::a run opens the version after its last inserting event…` and `time-travel.test.tsx::an edit row opens the version after that edit` (`Unable to find role="button" and name "View version after this edit"`).
 
 ## E2E
 

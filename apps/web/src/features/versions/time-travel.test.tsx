@@ -289,8 +289,7 @@ test('an edit row opens the version after that edit', async () => {
   await userEvent.click(await screen.findByRole('button', { name: VIEW_EDIT_VERSION_LABEL }));
   expect(new URLSearchParams(router.state.location.search).get('sequence')).toBe(String(EDIT_VERSION_SEQUENCE));
   await waitFor(() =>
-    expect(screen.getByTitle(VERSION_FRAME_TITLE)).toHaveAttribute(
-      'src',
+    expect(screen.getAllByTitle(VERSION_FRAME_TITLE).map((frame) => frame.getAttribute('src'))).toContain(
       versionViewPagePath({ documentId: DOCUMENT_ID, sequence: EDIT_VERSION_SEQUENCE }),
     ),
   );

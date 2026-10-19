@@ -8,7 +8,7 @@
 
 - [x] **Step 1:** reproduce with a throwaway E2E (`e2e/_version-after-delete.spec.ts`), instrument the boundaries, write the cause in `spec.md` with the evidence. Evidence: spec.md → Root cause, commit d3520ead.
 - [x] **Step 2 (red):** unit test at the failing layer plus the E2E `the version of an edit shows the paragraph after it was deleted later`; commit red alone with the failure text. Evidence: d3520ead, `version-state.test.ts::the version of a bin that ends before a later delete in the same minute shows the edit`. The E2E in that commit waited for any bin start and put all edits in one bin; the green commit repairs it and a mutation run (mark window back to a minute) confirmed it red.
-- [x] **Step 3 (green):** the fix at the cause. Evidence: the green commit; `VERSION_MARK_MS` is the narrowest bin.
+- [x] **Step 3 (green):** the fix at the cause. Evidence: the commit `fix(version-view-after-delete): resolve a known version sequence exactly` and the one after it. The first attempt (mark per narrowest bin, d875a39d) was taken back in aa563692.
 - [x] **Step 4:** learning if diagnosis took more than fifteen minutes; rules fact if a system fact changed; tester briefing. Evidence: docs/learnings/2026-10-19-a-version-mark-per-minute-lets-a-later-delete-blank-an-earlier-bin.md, .claude/rules/history.md, tester-briefing.md.
 
 ## Failure modes

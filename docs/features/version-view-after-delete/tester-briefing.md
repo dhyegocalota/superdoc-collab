@@ -2,17 +2,18 @@
 
 ## What changed
 
-- `libs/types/src/constants.ts` — `NARROWEST_BIN_MS` (10 seconds); `VERSION_MARK_MS` now equals it instead of a minute.
-- `libs/history/src/timeline/bins.ts` — the narrowest ladder step is `NARROWEST_BIN_MS`.
-- `libs/history/src/version-marks.test.ts` — fixtures scaled to the mark window.
-- `libs/history/src/timeline/bins.test.ts` — every bin width is a whole multiple of the mark window.
-- ADR 0003 addendum, `.claude/rules/history.md` and a learning record the new window.
+- `libs/history/src/version-state.ts` — `versionAt` restores any logged sequence from the merged log.
+- `libs/history/src/version-marks.ts` — `resolveMark` returns a known sequence itself and clamps only an unknown one.
+- `libs/history/src/timeline/runs.ts` and `apps/server/src/history/timeline-service.ts` — a run carries `versionSequence`.
+- `apps/web/src/features/timeline/` — the edit row button, the `sequence` search parameter, the version pin and the travel hooks.
+- ADR 0043 supersedes the resolution rule of ADR 0027; the history rules and a learning record it.
 
 ## How to run
 
 ```bash
 pnpm --filter @superdoc-collab/history exec vitest run
 pnpm --filter @superdoc-collab/server exec vitest run src/history
+pnpm --filter @superdoc-collab/web exec vitest run src/features/versions src/features/timeline
 pnpm test:e2e e2e/time-travel.spec.ts
 ```
 
@@ -20,20 +21,24 @@ pnpm test:e2e e2e/time-travel.spec.ts
 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
-| `libs/history/src/version-state.test.ts::the version of a bin that ends before a later delete in the same minute shows the edit` | received `'Plan'` instead of `'PlanAdded and edited'`: the bin resolved to the post-delete mark (d3520ead) | the bin's end has its own mark |
-| `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` | version text lacked `Added line edited` (mark window set back to a minute) | the edit's bin shows `Added line edited` |
-| `libs/history/src/timeline/bins.test.ts::every bin width is a whole number of version mark windows…` | pin | guards the invariant that makes a bin end own a mark |
+| `version-state.test.ts::the version at the sequence of an edit shows the edit…` | stub threw `versionAt is not implemented` (aa563692) | the log merged up to the edit is restored |
+| `version-marks.test.ts::a sequence the log knows resolves to itself…` | the pruned sequence resolved to its minute's mark | known sequences resolve to themselves |
+| `versions-routes.test.ts::a logged sequence that is not a mark resolves to itself` | resolved to the newest mark | resolves to itself |
+| `runs.test.ts::a run opens the version after its last inserting event…` | `versionSequence` was the last event, the delete (7e8dacd5) | last inserting event |
+| `time-travel.test.tsx::an edit row opens the version after that edit` | no button on the edit row | button pins `sequence` |
+| `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` | no edit row button | edit row opens the edited paragraph |
 
 ## Hypotheses to attack
 
-1. Hypothesis: a bin that ends before a later delete shows the paragraph. Break it by: the owner's five steps with 10 seconds or more between steps.
-2. Hypothesis: edits and a delete inside one 10-second bin still open blank, by design, because a bin shows its last instant. Break it by: running the five steps within a second and reading the add, edit and delete bins.
-3. Hypothesis: older documents keep working. Break it by: opening a document whose marks were written per minute and scrubbing every bin.
-4. Hypothesis: the pruned-version rule still holds at the new window. Break it by: pinning `?at=` of the live bin, typing, and reloading.
+1. Hypothesis: the owner's five steps, typed fast, open the edited paragraph from the edit row. Break it by: doing them by hand, then opening the add and delete rows of other blocks.
+2. Hypothesis: a bin click still opens the bin's mark and clears `sequence`. Break it by: clicking the edit row, then another bin, then Back to live and the browser Back button.
+3. Hypothesis: a shared link with `at` and `sequence` opens the same version for another member. Break it by: opening it as a reader.
+4. Hypothesis: an unknown sequence in the URL clamps like before. Break it by: `?sequence=999999`.
+5. Hypothesis: scrubbing exact versions stays inside the cache bounds. Break it by: opening more than sixteen edit rows in turn.
 
 ## Known gaps
 
-- The names `minuteStart`, `minute_start` and `endsItsMinute` still say minute; renaming needs a read-model migration and was left out.
-- Marks written before this change keep minute granularity, so old edits inside one minute still resolve to its last update.
-- Mark storage grows up to six times for continuously edited minutes; no measurement was taken.
-- The throwaway E2E found all keystrokes of a paragraph can arrive as one Yjs update, so a bin shows text only after the editor syncs it.
+- A bin click still shows the bin's last instant, so a delete in the same bin still blanks the bin version; only the edit row shows the document after its own edit.
+- A run groups an author's edits of one block in one bin, so one row opens the version after the last inserting edit, not after every edit.
+- The build time was measured on a synthetic 12 802-update log, not on the 4-page fixture.
+- `sequence` is also a `TimelineQueryParam` only to satisfy the rule that every page parameter is a query parameter; no route reads it.

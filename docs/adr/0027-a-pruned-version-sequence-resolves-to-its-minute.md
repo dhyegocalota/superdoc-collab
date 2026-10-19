@@ -1,6 +1,6 @@
 # 0027. A pruned version sequence resolves to the surviving mark of its minute
 
-- Status: Accepted
+- Status: Superseded by [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md)
 - Date: 2026-10-17
 - Deciders: Dhyego Calota (owner); Claude (advisor)
 - Inspired by: the reviewer's trace of CI run 39050524747 (`e2e/time-travel.spec.ts:95`), [ADR 0003](0003-time-travel-with-native-yjs-snapshots.md) addendum (one mark per minute), `libs/history/src/read-model.ts` (`PRUNE_MINUTE`)

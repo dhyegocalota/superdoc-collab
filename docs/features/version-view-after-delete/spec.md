@@ -36,13 +36,29 @@ Evidence, from a throwaway E2E on the local stack (add a paragraph, edit it, del
 
 Cause: `endsItsMinute` keeps one mark per minute, the last update of that minute, and `versionSequenceAt` maps a bin's last instant to that mark. The bin is as narrow as 10 seconds (`BIN_LADDER_MS`), so the version of a bin that ends before the delete still carries every edit made later in the same minute. Nothing is lost in the snapshot, the GC-free replay or the export: `Y.createDocFromSnapshot` over the mark restores exactly what it was given, and the mark is the post-delete state. The hypotheses about a tombstone and a snapshot taken after the delete are refuted; the delete is a `merged` event whose text the version already omits, and the replay is gc-free.
 
-Fix: a mark per `VERSION_MARK_MS` that equals the narrowest bin, so a bin end always has a mark of its own. Edits and a delete inside one bin still show the bin's end state, which is the document as it was at the bin's last instant.
+The first fix attempt, a mark per narrowest bin, was dropped: the owner adds, edits and deletes within one bin, and a bin shows its last instant, so the edit still opened blank. The owner's expectation is the document right after the edit. That needs the version at the edit's own sequence, which no mark granularity short of one per update gives.
 
 ## Change
 
-- `libs/types`: `NARROWEST_BIN_MS` (10 seconds) and `VERSION_MARK_MS = NARROWEST_BIN_MS`.
-- `libs/history`: the narrowest step of the bin ladder is `NARROWEST_BIN_MS`; the mark and resolution code is untouched.
-- ADR 0003 addendum and the history rules state the new window.
+- `libs/history`: `GcFreeReplays.versionAt` merges the log up to a sequence into a Yjs snapshot and restores it over the gc-free replay; `resolveMark` returns the sequence itself when the log knows it and clamps only an unknown one; a run carries `versionSequence`, the sequence of its last inserting event.
+- `apps/server`: the worker builds a version at the resolved sequence; the bin edits answer `versionSequence` per run.
+- `apps/web`: the edit row has a View version after this edit button that pins `?at=<bin>&sequence=<n>`; the version pin honours an explicit sequence; selecting a bin or Back to live drops it.
+- [ADR 0043](../../adr/0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) supersedes the resolution rule of ADR 0027 and keeps its clamp for unknown sequences. Marks stay one per minute.
+
+## Cost and bounds
+
+| Measure | Value |
+|---------|-------|
+| Version build, 12 802 updates (262 KB log, 60 paragraphs of 540 characters, synthetic worst case), cold replay, mid sequence | 197 ms |
+| Same log, the last sequence, cold and warm replay | 663 ms and 677 ms |
+| Same log, a sequence near the start | 31 ms cold, 1 ms warm |
+| Version cache | an `LruMap` by exact sequence, 16 entries and 256 MiB (`VERSION_CACHE_SIZE`, `VERSION_CACHE_MAX_BYTES`) |
+| Version rooms | an `LruMap` by exact sequence, 32 rooms (`VERSION_ROOMS_LIMIT`), idle after a minute |
+| Replay cache in the worker | 2 gc-free documents; a version adds one temporary merged update |
+
+The 4-page fixture was not measured on its own: a DOCX import is a handful of updates, so its build time sits at the cheap end of this table. The cost is the merge of the log up to the sequence, not the replay, which the cache already keeps current.
+
+Tests: the unit test replays add, edit, delete two seconds apart and asks for the version at the edit; every logged sequence restores exactly as a full replay; the E2E follows the owner's five steps with no waiting.
 
 ## Failure handling
 

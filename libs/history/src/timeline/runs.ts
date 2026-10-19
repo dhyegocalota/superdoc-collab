@@ -97,12 +97,13 @@ export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEve
         });
         return;
       }
+      const keepsInsertingVersion = run.inserted.length > 0 && event.inserted.length === 0;
       runs.set(key, {
         ...run,
         inserted: run.inserted + event.inserted,
         deleted: run.deleted + event.deleted,
         lastServerTime: event.serverTime,
-        versionSequence: event.sequence,
+        versionSequence: keepsInsertingVersion ? run.versionSequence : event.sequence,
       });
     });
   return [...runs.values()];

@@ -28,3 +28,20 @@ The card thumbnail is a CSS box with the first lines of text; it does not look l
 ## Test strategy summary
 
 Unit: capture hook (debounce, pagehide beacon, reader inert, size guard), route (authorization matrix, magic bytes, size, ETag, 404, delete cleanup), repository (`thumbnailUpdatedAt`), card (image when set, fallback otherwise). E2E: open a document, type, wait for the capture (expose a settled signal), return to the home → the card shows an image whose natural width equals `THUMBNAIL_WIDTH_PX`; a reader's visit uploads nothing.
+
+## Spike
+
+Scratch E2E (never committed) on the built stack: Chromium headless, 1280×800, an open document, `toCanvas` of the first `.superdoc-page` (816×1056) with `pixelRatio` 1, `canvasWidth` 320, three runs per row, `html-to-image` 1.11.13.
+
+| Document | Encoding | Output | Bytes | Capture, first run | Capture, warm | Main-thread long task |
+|----------|----------|--------|-------|--------------------|---------------|-----------------------|
+| 30 paragraphs of text runs | WebP 0.8 | 320×414 | 19 100 | 169 ms | 89 ms | 68 ms first run, 0 warm |
+| 30 paragraphs of text runs | PNG | 320×414 | 22 973 | 152 ms | 86 ms | 0 |
+| The brief: title, headings, emoji, an 850 KB PNG inside | WebP 0.8 | 320×414 | 13 060 | 130 ms | 59 ms | 67 ms first run, 0 warm |
+| The brief | PNG | 320×414 | 67 818 | 119 ms | 60 ms | 61 ms first run, 0 warm |
+
+- **Fidelity.** The capture keeps the document's fonts, headings, emphasis, the emoji and the embedded image; it is readable at 320 px.
+- **Fonts.** Skipping font embedding produced byte-identical output on this machine, so it proves nothing here; the capture keeps the default embedding.
+- **Cost.** The first capture is a 60 to 70 ms long task and the encode adds 6 to 40 ms; both stay under 100 ms warm, but the first run can pass it, so the capture runs inside `requestIdleCallback` after the debounce.
+- **Size.** Well under `THUMBNAIL_MAX_BYTES` (200 KB) for both documents; the 850 KB image shrinks with the page.
+- **Aspect.** The page is 816×1056, so the capture is 320×414; the card's 4:5 box with `object-cover` from the top crops a sliver of the bottom.

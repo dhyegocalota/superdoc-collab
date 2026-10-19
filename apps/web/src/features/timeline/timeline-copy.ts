@@ -7,9 +7,11 @@ export const SUMMARIZE_EDITS_SUBJECT = 'Summarize edits';
 export const FILTER_LABEL = 'Filter';
 export const FILTER_PLACEHOLDER = 'Filter by text or @person';
 export const CLEAR_FILTERS_LABEL = 'Clear filters';
+export const CLEAR_FILTER_TEXT_LABEL = 'Clear filter text';
 export const REMOVE_FILTER_LABEL = 'Remove filter';
 export const TOP_EDITS_LABEL = 'Top edits';
 export const NO_EDITS_YET_MESSAGE = 'No edits yet';
+export const EMPTY_PANEL_DESCRIPTION = 'Start typing: every change is recorded and appears here by topic and author.';
 export const NO_EDITS_IN_BIN_MESSAGE = 'No edits in this period';
 export const NO_EDITS_FOR_LABEL = 'No edits for';
 export const IDLE_BREAKS_DESCRIPTION = 'Long stretches without edits are shortened.';
@@ -35,7 +37,6 @@ export const RETRY_SUMMARY_LABEL = 'Retry summary';
 export const SUMMARIZING_EDITS_MESSAGE = 'Summarizing edits…';
 export const NO_EDITS_TO_SUMMARIZE_MESSAGE = 'No edits to summarize';
 export const SUMMARY_UP_TO_DATE_MESSAGE = 'The summary is up to date.';
-export const SUMMARIES_UNAVAILABLE_MESSAGE = 'Summaries are unavailable.';
 export const CHART_HINT = 'Click the chart or use ← → to see the document at that moment.';
 export const LEGEND_LABEL = 'Topics';
 export const AGENT_LEGEND_LABEL = 'Hatched: edited by AI';
@@ -96,6 +97,11 @@ export function noEditsForLabel({ duration }: { duration: string }): string {
   return `${NO_EDITS_FOR_LABEL} ${duration}`;
 }
 
+export function moreContributorsLabel(count: number): string {
+  if (count === SINGLE_COUNT) return `${count} more contributor`;
+  return `${count} more contributors`;
+}
+
 export function removeFilterLabel(value: string): string {
   return `${REMOVE_FILTER_LABEL} ${value}`;
 }
@@ -124,11 +130,6 @@ export function versionAtLabel(moment: string): string {
 
 export function retryInLabel(seconds: number): string {
   return `Try again in ${seconds} s.`;
-}
-
-export function topicCountLabel(count: number): string {
-  if (count === SINGLE_COUNT) return `${count} topic`;
-  return `${count} topics`;
 }
 
 export function importedAuthorLabel(name: string): string {

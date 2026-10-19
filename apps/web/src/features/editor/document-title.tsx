@@ -20,9 +20,10 @@ type DocumentTitleProps = {
   role: DocumentRole;
   onFailureChange: (hasFailed: boolean) => void;
   onDirtyChange: (isDirty: boolean) => void;
+  onEditingChange: (isEditing: boolean) => void;
 };
 
-export function DocumentTitle({ documentId, title, role, onFailureChange, onDirtyChange }: DocumentTitleProps) {
+export function DocumentTitle({ documentId, title, role, onFailureChange, onDirtyChange, onEditingChange }: DocumentTitleProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const titleButtonRef = useRef<HTMLButtonElement>(null);
@@ -54,6 +55,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
   const isDirty = isEditing && nextTitle !== title;
 
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
+  useEffect(() => onEditingChange(isEditing), [isEditing, onEditingChange]);
 
   function startEditing(): void {
     setDraft(shownTitle);

@@ -249,6 +249,7 @@ test('a failed version shows the message and stops polling', async () => {
 test('the previous frame stays until the next one is ready and foreign messages are ignored', async () => {
   mockDocumentApi({ versions: { 42: [readyReply(42)], 50: [readyReply(50)] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   const frameA = await screen.findByTitle(VERSION_FRAME_TITLE);
   sendFromFrame({ frame: frameA as HTMLIFrameElement });
   await waitFor(() => expect(frameA).not.toHaveAttribute('aria-hidden', 'true'));
@@ -282,6 +283,7 @@ test('an edit row opens the version after that edit', async () => {
     },
   });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   expect(await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT)).toHaveAttribute(
     'src',
     versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 42 }),
@@ -315,6 +317,7 @@ test('the selected bin runs are sent to the ready frame', async () => {
 test('scrubbing commits one URL change per pause, pushing once and then replacing', async () => {
   mockDocumentApi({ versions: Object.fromEntries(SEQUENCES.map((sequence) => [sequence, [readyReply(sequence)]])) });
   const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await openPanel();
   await screen.findByTitle(STREAMGRAPH_TITLE);
   pressChartAt(0);
   await waitFor(() => expect(router.state.location.search).toBe(`?at=${BIN_STARTS[0]}`), SLOW_WAIT);
@@ -336,6 +339,7 @@ test('scrubbing commits one URL change per pause, pushing once and then replacin
 test('a reload reselects the same bin and shows its version', async () => {
   mockDocumentApi({ versions: { 50: [readyReply(50)] } });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[2]}` });
+  await openPanel();
   const frame = await screen.findByTitle(VERSION_FRAME_TITLE);
   expect(frame).toHaveAttribute('src', versionViewPagePath({ documentId: DOCUMENT_ID, sequence: 50 }));
   const rule = screen.getByTitle(STREAMGRAPH_TITLE).closest('svg')!.querySelector('line')!;
@@ -354,6 +358,7 @@ test('Escape before the pause cancels the pending scrub', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   await screen.findByTitle(VERSION_FRAME_TITLE);
   const band = screen.getByLabelText(/^Budget,/);
   fireEvent.keyDown(band, { key: 'ArrowRight' });
@@ -366,6 +371,7 @@ test('a URL change during the pause is not overwritten by the pending scrub', as
   vi.useFakeTimers({ shouldAdvanceTime: true });
   mockDocumentApi({ versions: { 42: [readyReply(42)], 41: [readyReply(41)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   await screen.findByTitle(VERSION_FRAME_TITLE);
   fireEvent.keyDown(screen.getByLabelText(/^Budget,/), { key: 'ArrowRight' });
   await act(async () => router.navigate(`${PAGE_ROUTE}?at=${BIN_STARTS[0]}`));
@@ -413,6 +419,7 @@ test('runs reach only the frame of the requested version', async () => {
     },
   });
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   const frameA = (await screen.findByTitle(VERSION_FRAME_TITLE)) as HTMLIFrameElement;
   sendFromFrame({ frame: frameA });
   const postToA = vi.spyOn(frameA.contentWindow!, 'postMessage');
@@ -496,6 +503,7 @@ test('a document that disappears while viewing stops every poll', async () => {
 test('Escape leaves the version from anywhere but a field being typed in', async () => {
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   await screen.findByTitle(VERSION_FRAME_TITLE);
   await userEvent.click(screen.getByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
   fireEvent.keyDown(screen.getByLabelText(TITLE_LABEL), { key: 'Escape' });
@@ -523,6 +531,7 @@ test('Escape inside the version frame leaves the version and a foreign frame can
 test('Escape on a focused band leaves the version once', async () => {
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   await screen.findByTitle(VERSION_FRAME_TITLE);
   const locations: string[] = [];
   const unsubscribe = router.subscribe((state) => locations.push(state.location.search));
@@ -552,6 +561,7 @@ test('from lg a versioned bin travels on the tap and offers no View version', as
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   mockDocumentApi({ versions: { 42: [readyReply(42)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: PAGE_ROUTE });
+  await openPanel();
   await screen.findByTitle(STREAMGRAPH_TITLE);
   pressChartAt(1);
   await waitFor(() => expect(router.state.location.search).toBe(`?at=${BIN_STARTS[1]}`), SLOW_WAIT);
@@ -596,6 +606,7 @@ test('from lg a tap during a load still travels after the debounce', async () =>
   vi.useFakeTimers({ shouldAdvanceTime: true });
   mockDocumentApi({ versions: { 42: [PENDING_REPLY], 51: [readyReply(51)] } });
   const { router } = renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  await openPanel();
   await screen.findByRole('status', { name: LOADING_VERSION_MESSAGE });
   pressChartAt(3);
   await vi.advanceTimersByTimeAsync(SCRUB_DEBOUNCE_MS * 2);
@@ -606,6 +617,7 @@ test('an at beyond the last bin never dims the editor or shows a progress line',
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   mockDocumentApi();
   renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[4]! + BIN_AFTER_LAST_MS}` });
+  await openPanel();
   await screen.findByTestId('version-banner');
   await screen.findByTitle(STREAMGRAPH_TITLE);
   expect(screen.getByTestId('editor-surface')).not.toHaveClass('opacity-60');

@@ -119,17 +119,17 @@ test('on a phone a tap keeps the selected header in view and a version needs Vie
     .poll(() => rectsOf({ header, scroller }).then(({ headerRect, scrollerRect }) => isInside({ inner: headerRect, outer: scrollerRect })))
     .toBe(true);
   await expect(header).toBeInViewport();
-  await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL })).toBeVisible();
+  await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL, exact: true })).toBeVisible();
   await ana.page.setViewportSize(NARROWEST_PHONE_VIEWPORT);
   await expect.poll(() => header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   const rangeBox = await header.locator('p').boundingBox();
-  const buttonBox = await ana.page.getByRole('button', { name: VIEW_VERSION_LABEL }).boundingBox();
+  const buttonBox = await ana.page.getByRole('button', { name: VIEW_VERSION_LABEL, exact: true }).boundingBox();
   expect(boxesIntersect({ first: rangeBox, second: buttonBox })).toBe(false);
   await ana.page.setViewportSize(PHONE_VIEWPORT);
   await expectStableFor({ read: async () => String(currentAt(ana.page)), expected: 'null', durationMs: DEBOUNCE_WINDOW_MS });
   expect(requests).toHaveLength(0);
 
-  await ana.page.getByRole('button', { name: VIEW_VERSION_LABEL }).click();
+  await ana.page.getByRole('button', { name: VIEW_VERSION_LABEL, exact: true }).click();
   await expect(ana.page.getByRole('status', { name: LOADING_VERSION_MESSAGE })).toBeVisible();
   await expect(ana.page.getByTestId(EDITOR_SURFACE_TEST_ID)).toHaveClass(DIMMED_CLASS);
   await expect(chartSvg(ana.page).locator('xpath=..')).toHaveAttribute('aria-busy', 'true');
@@ -151,6 +151,6 @@ test('on desktop a tap travels at once', async ({ browser }) => {
   const { ana } = await ownerWithEdit(browser);
   await clickChart({ page: ana.page, widthFraction: CHART_CENTRE_FRACTION });
   await expect.poll(() => currentAt(ana.page), { timeout: VERSION_TIMEOUT_MS }).not.toBeNull();
-  await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL })).toHaveCount(0);
+  await expect(ana.page.getByRole('button', { name: VIEW_VERSION_LABEL, exact: true })).toHaveCount(0);
   await expect(ana.page.getByText(SHOWING_WHOLE_DOCUMENT_MESSAGE)).toHaveCount(0);
 });

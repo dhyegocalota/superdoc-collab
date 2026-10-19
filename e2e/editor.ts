@@ -192,7 +192,7 @@ export async function typeInParagraph({ page, paragraphText, text }: { page: Pag
   }
 }
 
-export async function readEventsPage({
+async function readEventsPage({
   page,
   documentId,
   afterSequence,

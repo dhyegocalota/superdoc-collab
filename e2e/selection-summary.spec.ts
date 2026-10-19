@@ -28,6 +28,7 @@ import {
   summarizeButton,
   summaryCard,
   twoAuthorsInTwoTopics,
+  expandPanel,
   waitForBands,
   waitForSettledTimeline,
   waitForSummarizeResponse,
@@ -66,6 +67,7 @@ test('another member with the same filter reads the cached summary without a mod
   await expect(summaryCard(ana.page)).not.toContainText(TOPICS_GROUPED_LABEL);
   const sentence = await summaryCard(ana.page).locator('p').first().innerText();
   await bruno.page.goto(ana.page.url());
+  await expandPanel(bruno.page);
   await expect(summaryCard(bruno.page)).toContainText(sentence, { timeout: SUMMARY_TIMEOUT_MS });
   const summarizeResponse = waitForSummarizeResponse({ page: bruno.page, documentId });
   await summarizeButton(bruno.page).click();

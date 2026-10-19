@@ -2,7 +2,7 @@ import { byVolumeDescending } from '@superdoc-collab/history/timeline';
 import { ClientActor, type EventAuthor, type TimelineContributor } from '@superdoc-collab/types';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { authorOf } from './author-of';
-import { importedAuthorLabel } from './timeline-copy';
+import { importedAuthorLabel, moreContributorsLabel } from './timeline-copy';
 import { useAuthorColorSlots } from './use-author-color-slots';
 
 const MAX_AVATARS = 3;
@@ -35,14 +35,21 @@ export function ContributorAvatars({
   contributors: TimelineContributor[];
   authors: Record<string, EventAuthor>;
 }) {
-  const ranked = [...contributors]
-    .sort((left, right) => byVolumeDescending(left, right) || left.authorKey.localeCompare(right.authorKey))
-    .slice(0, MAX_AVATARS);
+  const ranked = [...contributors].sort((left, right) => byVolumeDescending(left, right) || left.authorKey.localeCompare(right.authorKey));
+  const hiddenCount = ranked.length - MAX_AVATARS;
   return (
     <ul className="flex items-center gap-1">
-      {ranked.map((contributor) => (
+      {ranked.slice(0, MAX_AVATARS).map((contributor) => (
         <AuthorAvatar key={contributor.authorKey} author={authorOf({ authors, authorKey: contributor.authorKey })} />
       ))}
+      {hiddenCount > 0 && (
+        <li
+          aria-label={moreContributorsLabel(hiddenCount)}
+          className="inline-flex size-6 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground"
+        >
+          +{hiddenCount}
+        </li>
+      )}
     </ul>
   );
 }

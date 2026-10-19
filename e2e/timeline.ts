@@ -24,6 +24,7 @@ import {
   type VersionMarks,
   type VersionText,
 } from '../libs/types/src';
+import { TIMELINE_TOGGLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { insertInParagraph, shareAndAccept, TEXT_RUN_SELECTOR, toolbarRow, uploadSeed } from './editor';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { signedInContext } from './fixtures';
@@ -35,7 +36,7 @@ export const HIRING = 'Hiring';
 export const BUDGET_PARAGRAPH = 'Budget: the plan costs 10.';
 export const HIRING_PARAGRAPH = 'Hiring: we add two people.';
 export const ANA_TEXT = ' More money';
-export const BRUNO_TEXT = ' A designer';
+const BRUNO_TEXT = ' A designer';
 const FAKE_CALLS_PATH = '/calls';
 const SETTLE_WINDOW_MS = 1_500;
 export const HIGHLIGHT_CLASS = 'superdoc-comment-highlight';
@@ -44,7 +45,7 @@ export const VERSION_TIMEOUT_MS = 60_000;
 const LIVE_EDITOR_SELECTOR = '[data-testid="document-editor"]';
 const BANNER_SELECTOR = '[data-testid="version-banner"]';
 const SEQUENCE_ATTRIBUTE = 'data-sequence';
-export const DETACHED_VIEWER_TEXT = '<viewer frame detached>';
+const DETACHED_VIEWER_TEXT = '<viewer frame detached>';
 const DETACHED_FRAME_MESSAGE = 'Frame was detached';
 const VOLUME_PLACEHOLDER = 987654321;
 const VOLUME_PATTERN = '\\d+';
@@ -68,7 +69,14 @@ export async function bandVolume({ page, name }: { page: Page; name: string }): 
   return Number(new RegExp(VOLUME_PATTERN).exec(label!.slice(name.length))![0]);
 }
 
+export async function expandPanel(page: Page): Promise<void> {
+  const toggle = page.getByRole('button', { name: TIMELINE_TOGGLE_LABEL });
+  if ((await toggle.getAttribute('aria-expanded')) === 'true') return;
+  await toggle.click();
+}
+
 export async function waitForBands({ page, names }: { page: Page; names: string[] }): Promise<void> {
+  await expandPanel(page);
   await Promise.all(names.map((name) => expect(bandNamed({ page, name })).toBeVisible({ timeout: BANDS_TIMEOUT_MS })));
 }
 
@@ -124,6 +132,7 @@ export async function readVersionText({
 }
 
 export async function pressInChart({ page, name, keys }: { page: Page; name: string; keys: string[] }): Promise<void> {
+  await expandPanel(page);
   await bandNamed({ page, name }).focus();
   for (const key of keys) await page.keyboard.press(key);
 }
@@ -133,6 +142,7 @@ export function chartSvg(page: Page): Locator {
 }
 
 export async function clickChart({ page, widthFraction }: { page: Page; widthFraction: number }): Promise<void> {
+  await expandPanel(page);
   const chart = chartSvg(page);
   const box = await chart.boundingBox();
   if (box === null) throw new Error('The chart has no bounding box');
@@ -143,7 +153,7 @@ export async function ruleX(page: Page): Promise<number> {
   return Number(await page.locator('svg line.pointer-events-none').first().getAttribute('x1'));
 }
 
-export async function readAccountTimeZone(page: Page): Promise<string> {
+async function readAccountTimeZone(page: Page): Promise<string> {
   const response = await page.request.get(ApiPath.Me);
   expect(response.ok()).toBe(true);
   const { user } = (await response.json()) as { user: SessionUser };
@@ -208,6 +218,7 @@ export async function twoAuthorsInTwoTopics({ browser, paragraphs }: { browser: 
 }
 
 export async function filterBy({ page, text }: { page: Page; text: string }): Promise<void> {
+  await expandPanel(page);
   const input = page.getByRole('textbox', { name: FILTER_LABEL });
   await input.fill(text);
   await input.press('Enter');

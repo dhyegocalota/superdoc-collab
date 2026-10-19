@@ -33,3 +33,8 @@ pnpm test:e2e e2e/collaboration.spec.ts
 - `editor-header.test.tsx` ('members announce their presence…') and `e2e/final-visuals.spec.ts` (offline Bruno button after his tab closes, and the sign-out test) still expect an offline avatar in the row. They are outside this lane's paths.
 - `offlineMemberReason` and the offline branch of `memberLabel` remain because those two files import them.
 - The new group label lives in `editor-copy.ts`, not `members-copy.ts`, to stay in the lane's paths.
+
+## Tester run 2026-10-19
+
+- Walked as Ana and Bruno. Hypotheses 1 (navigate away with a caret and close the page), 2 (own avatar present from the first snapshot), 3 (share dialog still lists Bruno) held. Unit box left to the lead.
+- Defects: none. Console errors: none.

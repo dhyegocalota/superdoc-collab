@@ -5,7 +5,6 @@ export enum McpClient {
 }
 
 export const CONNECTED_APPS_HEADING = 'Connected apps';
-export const BACK_TO_DOCUMENTS_LABEL = 'Documents';
 export const CONNECTED_APPS_EMPTY_MESSAGE = 'No AI clients connected yet';
 export const CONNECTED_APPS_LOAD_ERROR_MESSAGE = 'Connected apps could not be loaded.';
 export const REVOKE_ERROR_MESSAGE = 'The app could not be revoked. Try again.';

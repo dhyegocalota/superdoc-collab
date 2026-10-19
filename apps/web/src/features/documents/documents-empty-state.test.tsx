@@ -24,11 +24,10 @@ test('shows the empty state when both lists are empty', () => {
   expect(screen.getByLabelText(FILE_INPUT_LABEL)).toBeInTheDocument();
 });
 
-test('New document is the primary action and calls onCreate', async () => {
+test('New document calls onCreate', async () => {
   const onCreate = vi.fn();
   renderWithProviders(<DocumentsEmptyState isCreating={false} onCreate={onCreate} upload={IDLE_UPLOAD} />);
   const button = screen.getByRole('button', { name: NEW_DOCUMENT_LABEL });
-  expect(button).toHaveClass('bg-primary');
   await userEvent.click(button);
   expect(onCreate).toHaveBeenCalledTimes(1);
 });

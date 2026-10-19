@@ -8,7 +8,7 @@ import { TOOLTIP_POINTER_OFFSET } from './timeline-tooltip';
 type Hovered = { index: number; y: number; idleBreak: BreakColumn | null };
 export type TooltipAnchor = { index: number; top: number; idleBreak: BreakColumn | null };
 
-export function tooltipAnchorOf({
+function tooltipAnchorOf({
   hovered,
   selectedIndex,
   hasFocus,

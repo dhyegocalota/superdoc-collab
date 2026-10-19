@@ -56,6 +56,7 @@ import {
   LOADING_DOCUMENT_MESSAGE,
   renameTitleLabel,
   STAY_LABEL,
+  TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
 import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
@@ -523,7 +524,7 @@ test('below 1024 the editor area comes before the panel in the DOM and data-posi
 });
 
 test('a click on Summarize with the panel collapsed opens it and the card shows Grouping', async () => {
-  mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner), timeline: BASE_TIMELINE });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await userEvent.click(await screen.findByRole('button', { name: SUMMARIZE_EDITS_LABEL }));
   expect(await screen.findByText(GROUPING_TOPICS_MESSAGE)).toBeVisible();
@@ -875,6 +876,7 @@ async function renderWithTimelineContributor(opened: OpenedDocument) {
   matchMediaAlwaysMatching();
   const fetchSpy = mockDocumentApi({ opened, timeline: TIMELINE_WITH_CONTRIBUTOR });
   const rendered = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await userEvent.click(await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
   await screen.findByTitle(CONTRIBUTOR_NAME);
   return { ...rendered, fetchSpy };
 }
@@ -897,6 +899,7 @@ test('a Reload answered 409 with the timeline mounted is not retried: the open, 
     timeline: TIMELINE_WITH_CONTRIBUTOR,
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await userEvent.click(await screen.findByRole('button', { name: TIMELINE_TOGGLE_LABEL }));
   await screen.findByTitle(CONTRIBUTOR_NAME);
   act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));

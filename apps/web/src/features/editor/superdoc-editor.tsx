@@ -1,12 +1,4 @@
-import {
-  ApiPath,
-  type AuthorColorSlot,
-  ConnectionFailureReason,
-  type CreatorTicket,
-  DocumentRole,
-  type RoomMode,
-  type SessionUser,
-} from '@superdoc-collab/types';
+import { ApiPath, type AuthorColorSlot, type CreatorTicket, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -180,7 +172,7 @@ export function SuperDocEditor({
         data-testid="document-editor"
         inert={isInert}
         className={cn(
-          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
+          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted pt-3 [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
           FITTED_PAGE_CLASS,
           isSuperseded && HIDDEN_LOADING_OVERLAY_CLASS,
         )}

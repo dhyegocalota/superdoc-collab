@@ -42,3 +42,13 @@ Failure text is in `test-plan.md`. Commit 0362f03d is red, 8cde4c06 is green.
 ## Header overflow walk
 
 A scratch spec (not committed) opened a document, edited a 120-character title at 375, 768 and 1280 and asserted: header height equal before and during editing, no header descendant past the viewport, header not scrolling sideways, page not scrolling sideways, Save and Cancel 32 px tall. Screenshots are in the git-ignored `.pr-media/title-edit-buttons/` (`header-375.png`, `header-768.png`, `header-1280.png`).
+
+## Tester run 2026-10-19
+
+- Walked at 1280, 375 and 320 with real pointer clicks. Hypotheses 1, 3, 4, 5 held. Hypothesis 2 held for scroll (none) but the input is 27 px wide at 320 px.
+- Defect (minor): title input unusably narrow at 320 px with the two icon buttons. Not run: vitest, typecheck, e2e (lead's gates).
+- Console errors: none.
+
+## Narrow widths (lead note, 2026-10-19)
+
+- Below `md`, while the title is edited, the right-hand header groups and the divider are hidden so the editor takes the row: input widths 160, 215, 268 and 376 px at 320, 375, 768 and 1280, header height unchanged (commits 2704f7a1, 89627c13; screenshots in `.pr-media/title-edit-buttons/`).

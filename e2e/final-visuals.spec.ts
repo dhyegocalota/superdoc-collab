@@ -88,6 +88,7 @@ import {
   VERSION_TIMEOUT_MS,
   versionBanner,
   viewerFrame,
+  expandPanel,
   waitForBands,
   waitForSettledTimeline,
   waitForSummarizeResponse,
@@ -402,6 +403,7 @@ test('the panel is at the bottom at 1280 and the side choice survives a reload',
   const { ana } = await ownerOpensDocument({ browser });
   const panel = ana.page.locator(PANEL_SELECTOR);
   await expect(panel).toHaveAttribute('data-position', PanelPosition.Bottom);
+  await expandPanel(ana.page);
   await panelPositionChoice({ page: ana.page, position: PanelPosition.Side }).click();
   await expect(panel).toHaveAttribute('data-position', PanelPosition.Side);
   expect(await readStoredValue({ page: ana.page, key: PANEL_POSITION_STORAGE_KEY })).toBe(PanelPosition.Side);

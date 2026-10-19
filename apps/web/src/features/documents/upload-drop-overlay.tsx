@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { DROP_OVERLAY_LABEL } from './documents-copy';
 
 const FILES_DRAG_TYPE = 'Files';
+const ESCAPE_KEY = 'Escape';
+const NO_BUTTONS_PRESSED = 0;
 
 function carriesFiles(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes(FILES_DRAG_TYPE) === true;
@@ -33,7 +35,8 @@ export function UploadDropOverlay({ onFiles }: { onFiles: (files: File[]) => voi
     function onDragLeave(event: DragEvent): void {
       if (!carriesFiles(event)) return;
       enteredCount.current -= 1;
-      if (enteredCount.current > 0) return;
+      const hasLeftWindow = event.relatedTarget === null;
+      if (enteredCount.current > 0 && !hasLeftWindow) return;
       reset();
     }
 
@@ -43,10 +46,20 @@ export function UploadDropOverlay({ onFiles }: { onFiles: (files: File[]) => voi
     }
 
     function onDrop(event: DragEvent): void {
+      reset();
       if (!carriesFiles(event)) return;
       event.preventDefault();
-      reset();
       onFiles(droppedFiles(event));
+    }
+
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key !== ESCAPE_KEY) return;
+      reset();
+    }
+
+    function onPointerMove(event: PointerEvent): void {
+      if (event.buttons !== NO_BUTTONS_PRESSED) return;
+      reset();
     }
 
     window.addEventListener('dragenter', onDragEnter);
@@ -54,6 +67,8 @@ export function UploadDropOverlay({ onFiles }: { onFiles: (files: File[]) => voi
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);
     window.addEventListener('dragend', reset);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointermove', onPointerMove);
     document.documentElement.addEventListener('mouseleave', reset);
     return () => {
       window.removeEventListener('dragenter', onDragEnter);
@@ -61,6 +76,8 @@ export function UploadDropOverlay({ onFiles }: { onFiles: (files: File[]) => voi
       window.removeEventListener('dragover', onDragOver);
       window.removeEventListener('drop', onDrop);
       window.removeEventListener('dragend', reset);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointermove', onPointerMove);
       document.documentElement.removeEventListener('mouseleave', reset);
     };
   }, [onFiles]);

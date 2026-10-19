@@ -8,7 +8,7 @@ const EMAIL_SUFFIX_LENGTH = 8;
 
 export const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 export const DEMO_PASSWORD = 'superdoc-demo';
-export const ADMIN_EMAIL = 'admin@example.com';
+const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PERMISSIONS = ['clipboard-read', 'clipboard-write'];
 
 export function randomClientAddress(): string {

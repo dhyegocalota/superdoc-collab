@@ -57,3 +57,9 @@ test('the bar carries the test id the end-to-end walk looks for', () => {
   expect(screen.getByTestId(TIMELINE_COLLAPSED_BAR_TEST_ID)).toBe(screen.getByRole('heading', { name: TIMELINE_HEADING }).parentElement);
   expect(TIMELINE_COLLAPSED_BAR_TEST_ID).toBe('timeline-collapsed-bar');
 });
+
+test('a document without edits shows the heading and the expand button only', () => {
+  renderWithProviders(<TimelineCollapsedBar timeline={timelineWith({ volumes: [], names: [] })} onExpand={vi.fn()} />, { route: ROUTE });
+  expect(screen.getByRole('heading', { name: TIMELINE_HEADING })).toBeInTheDocument();
+  expect(screen.getAllByRole('button')).toHaveLength(1);
+});

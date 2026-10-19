@@ -52,12 +52,6 @@ function sentKinds(postMessage: MockInstance<typeof window.postMessage>): unknow
   return postMessage.mock.calls.map(([message]) => (message as { kind: unknown }).kind);
 }
 
-function lastPage(): Element {
-  const page = document.querySelector('.superdoc-page:last-of-type');
-  if (!page) throw new Error('no page painted');
-  return page;
-}
-
 function sendFile(): void {
   act(() => {
     window.dispatchEvent(

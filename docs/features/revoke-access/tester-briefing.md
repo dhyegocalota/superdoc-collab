@@ -53,3 +53,8 @@ pnpm test:e2e e2e/revoke-access.spec.ts
 - Agent sockets of a removed user are closed by the same call but not exercised end to end.
 - The spec files of this folder were copied from commit 2800c33b of `chore/feature-status-gate` because the lane was cut before that commit; `plan.md` and `test-plan.md` here are edited, so merging that branch will conflict on this folder and should keep this lane's version.
 - `docs/features/README.md` status row was not touched.
+
+## Tester run 2026-10-19
+
+- Walked as Ana and Bruno in separate Playwright servers, with the edit link and the read link. Hypotheses 1, 2, 3 (keystroke lost, row gone), 4 held. Hypotheses 5 and 6 not exercised (6 only at 375 with a short name).
+- Defects: none. Console: Bruno's expected 404 members polls only.

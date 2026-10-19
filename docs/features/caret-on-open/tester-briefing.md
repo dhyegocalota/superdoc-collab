@@ -20,3 +20,8 @@
 - A socket cut and reconnect does not move the caret.
 - A past-version view and the print frame show no caret.
 - Mobile Safari focus rules are not exercised.
+
+## Tester run 2026-10-19
+
+- Walked new document, joiner, reader, reload and a title rename right after open. The hook works in each. Not run: E2E specs, the 10-run attack, the socket-cut attack.
+- Defects: none. Console errors: none.

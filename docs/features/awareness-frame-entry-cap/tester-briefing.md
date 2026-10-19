@@ -36,7 +36,7 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 3. Hypothesis: a frame of 65 entries never reaches the room. Break it by: send one from a raw socket and check that no claimed id appears in the presence list.
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
 
-Ninth round: red 23f55844 (`expected +0 to be 5`: an observed row bound the ids to the attacker and the owner's announcement was dropped), fix 3cd9bc53: the binding is seeded from declared identities only.
+Ninth round: seeding from declared identities only was built (23f55844, 3cd9bc53) and reverted in 54198873: the seed must keep every recorded row, because an observed row for a departed owner is what refuses another user's re-announcement, so the declarer never declares the id for the attacker.
 
 Eighth round: red f630a17d (`expected [ 1008 ] to not include 1008`: the owner was closed when it announced an id that an attacker had claimed with a null entry and then an update), fix c72ddd55: every id a connection takes over is bound, and the close on the origin of an id is gone.
 
@@ -51,7 +51,7 @@ Third round: red 16f34250 (an 80 MiB frame of continuing bytes: `expected null t
 ## Known gaps
 
 - An equal-clock removal of a peer's state by another user passes the binding (it looks like the stock provider's relay) and is applied until the peer's next update; a sustained attacker keeps a victim's presence blank, bounded by the frame rate cap.
-- An id with no declared identity (never declared, or only observed, which is the agent path) binds first-come, so an attacker who announces it first can have the victim's frames for it dropped until a reload; the document sync is untouched.
+- An id with no recorded identity binds first-come, so an attacker who announces it first can have the victim's frames for it dropped until a reload; the document sync is untouched.
 - Canonical frames of 64 fresh ids with a null state grow `awareness.meta` without any event for the checks.
 
 - A room holding more than 64 awareness states closes a provider that joins it.

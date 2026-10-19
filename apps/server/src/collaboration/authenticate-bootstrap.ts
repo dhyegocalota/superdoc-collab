@@ -3,18 +3,21 @@ import { verifyBootstrapToken } from '../agent/room-tokens';
 import type { Auth } from '../auth/auth';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { CollaborationAuthenticationError } from './authenticate-member';
+import type { BootstrapState } from './bootstrap-state';
 import type { RoomBootstrap } from './room-bootstrap';
 
 export async function authenticateBootstrap({
   auth,
   documents,
   roomBootstrap,
+  bootstrap,
   token,
   documentId,
 }: {
   auth: Auth;
   documents: DocumentsRepository;
   roomBootstrap: RoomBootstrap;
+  bootstrap: BootstrapState;
   token: string;
   documentId: string;
 }): Promise<{ userId: string; role: DocumentRole; bootstrapAttempt: string }> {

@@ -203,12 +203,12 @@ test('only the attempt of the running bootstrap is current', async () => {
   expect(bootstrap.isCurrent({ documentId: OTHER_DOCUMENT_ID, attempt })).toBe(false);
 });
 
-test('the attempt of a ready bootstrap stays current so its own socket may keep writing', async () => {
+test('the attempt of a ready bootstrap is no longer current, so a host that outlives the commit cannot write', async () => {
   const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns();
   bootstrap.request(DOCUMENT_ID);
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
-  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: issueToken.mock.calls[0]![0].attempt })).toBe(true);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: issueToken.mock.calls[0]![0].attempt })).toBe(false);
 });
 
 test('a failed bootstrap has no current attempt, so a surviving host cannot write', async () => {

@@ -171,7 +171,7 @@ export function createCollaborationServer({
       bootstrapAttempt: null,
     }),
     [SocketKind.Bootstrap]: async ({ token, documentId }) => ({
-      ...(await authenticateBootstrap({ auth, documents, roomBootstrap, token, documentId })),
+      ...(await authenticateBootstrap({ auth, documents, roomBootstrap, bootstrap, token, documentId })),
       impersonationEndsAt: null,
     }),
   };

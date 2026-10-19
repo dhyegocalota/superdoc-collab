@@ -1,6 +1,6 @@
 # Summaries in en-US
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (the owner's instruction: summary edits always in en-US)
 **ADRs:** none; [ADR 0024](../../adr/0024-times-follow-the-readers-zone-storage-stays-epoch.md) already pins the app's copy and locale to `en-US`

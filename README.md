@@ -8,6 +8,19 @@ A collaborative DOCX editor that records every edit and shows who changed what, 
 
 An AI client connected through OAuth edits the document through MCP tools, as tracked changes the person can accept or reject. The timeline attributes its edits as the agent, a hatched layer with an AI mark beside the human bands, as the [agentic history spec](docs/features/agentic-history-mcp/spec.md) describes.
 
+## What you can do
+
+1. **Write together.** Open a Word document in the browser and edit it with other people at the same time, each with a cursor in their own colour.
+2. **See how the document changed.** A chart beside the page shows how much was edited over time, one coloured band per subject that the AI names, such as "Pricing" or "Timeline". Hover any moment to see who was working on what.
+3. **Go back to any moment.** Click a point in the chart to open the document exactly as it was then, read-only, with that moment's edits highlighted.
+4. **Find who changed what.** Type a word to see every edit that touched it, or `@Ana` to see only Ana's edits; the chart and the list follow.
+5. **Get a summary.** "Summarize edits with AI" writes a few sentences about the edits you are looking at, such as "Bruno rewrote the pricing section and Ana added two risks".
+6. **Let an AI edit for you.** Connect your own AI assistant, such as Claude, ChatGPT or Cursor. It reads the history and edits as tracked changes you accept or reject, each marked as made by your AI, not by you.
+7. **Share it.** Send an edit link or a read-only link, and remove anyone later.
+8. **Start from a full example.** A new install opens on a sample document written over five days by four people, so the chart is full from the first click.
+
+Also: upload by drag and drop, download as Word or PDF, dark mode, a phone layout, and accounts by invitation. How each feature works, and its limits: [Architecture, features and limits](docs/architecture.md#features).
+
 ## Quick install
 
 **With an agent.** Paste this into Claude Code, Codex or any agent with a shell; it asks you one question, installs, and stops where only you can continue:
@@ -31,7 +44,8 @@ Railway, running from source, configuration and recovery: [Install and run](docs
 ## Read more
 
 - [Install and run](docs/install.md): Docker, Railway or an agent, then claim the instance and invite your team; [develop with an agent](docs/install.md#develop-with-an-agent)
-- [Architecture, features and limits](docs/architecture.md), and [where it goes next](docs/next.md): scale, integrations, product
+- [Architecture, features and limits](docs/architecture.md)
+- [Where it goes next](docs/next.md): how it scales, the integrations and the product ahead
 - [Decisions](docs/adr/) and [features](docs/features/README.md#roadmap), one folder and one pull request each
 - [Why there are no comments](docs/why-no-comments.md): where the why lives instead
 - [How the work is done](.claude/HARNESS.md) with Claude Code, and the [credits](docs/credits.md)

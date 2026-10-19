@@ -1,6 +1,6 @@
 import { MINUTE_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
 import { MAX_REVISION_YEAR, MIN_REVISION_YEAR } from '../imported-revisions';
-import { isAgentRun, type EditRun } from './runs';
+import { isAgentRun, type EditRun, type TimelineEvent } from './runs';
 import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
 
 // NB ADR 0016: the bin cap keeps the streamgraph re-render inside its 16 ms budget; a span picks the finest ladder step that fits.
@@ -110,4 +110,14 @@ export function buildBins({
         ),
     };
   });
+}
+
+export function lastEventSequenceAt({
+  events,
+  time,
+}: {
+  events: Pick<TimelineEvent, 'sequence' | 'serverTime'>[];
+  time: number;
+}): number | null {
+  throw new Error('lastEventSequenceAt is not implemented');
 }

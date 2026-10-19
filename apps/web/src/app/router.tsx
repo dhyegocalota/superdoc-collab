@@ -63,15 +63,6 @@ const pageRoutes: RouteObject[] = [
       </RequireSession>
     ),
   },
-  {
-    path: AppRoute.VersionView,
-    element: (
-      <RequireSession>
-        <VersionViewPage />
-      </RequireSession>
-    ),
-  },
-  { path: AppRoute.Print, element: <PrintPage /> },
   { path: AppRoute.About, element: <AboutPage /> },
   {
     path: AppRoute.OAuthConsent,
@@ -108,6 +99,18 @@ const pageRoutes: RouteObject[] = [
   { path: UNKNOWN_PATH, element: <Navigate to={AppRoute.Documents} replace /> },
 ];
 
-export const routes: RouteObject[] = [{ element: <AppShell />, children: pageRoutes }];
+const framedRoutes: RouteObject[] = [
+  {
+    path: AppRoute.VersionView,
+    element: (
+      <RequireSession>
+        <VersionViewPage />
+      </RequireSession>
+    ),
+  },
+  { path: AppRoute.Print, element: <PrintPage /> },
+];
+
+export const routes: RouteObject[] = [...framedRoutes, { element: <AppShell />, children: pageRoutes }];
 
 export const router = createBrowserRouter(routes);

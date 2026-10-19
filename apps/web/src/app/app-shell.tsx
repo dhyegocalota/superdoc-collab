@@ -3,9 +3,11 @@ import { ImpersonationBanner } from '@/features/impersonation/impersonation-bann
 
 export function AppShell() {
   return (
-    <>
+    <div className="flex h-dvh flex-col">
       <ImpersonationBanner />
-      <Outlet />
-    </>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <Outlet />
+      </div>
+    </div>
   );
 }

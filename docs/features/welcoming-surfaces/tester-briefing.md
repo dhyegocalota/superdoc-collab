@@ -35,7 +35,7 @@ Green: 159 unit tests across auth, components and documents; E2E `documents.spec
 1. A user with no documents sees the heading, the illustration, one `New document` button (primary) and the dashed zone; no tables, no `Upload .docx` button.
 2. One shared document is enough to bring the tables and the toolbar back.
 3. Dragging a file from the desktop shows the overlay; dragging selected text does not.
-4. Moving the pointer over child elements while dragging never flickers the overlay; leaving the window, `Escape` or a drop hides it.
+4. Moving the pointer over child elements while dragging never flickers the overlay; leaving the window (a `dragleave` with no related target, `mouseleave` of the page), `Escape`, any drop, `dragend`, or a pointer move with no button pressed (a cancelled OS drag sends the page no `dragend`) hides it.
 5. Dropping one `.docx` uploads and opens it, in both empty and non-empty states; two files show `Drop one file at a time.`; a pdf shows the docx-only message; a file over 10 MB shows the limit.
 6. The auth card keeps its labels, roles and order; sign in, claim, invite sign-up and reset password still work.
 7. At 375 no page scrolls sideways; at 1280 the panel is the right half.

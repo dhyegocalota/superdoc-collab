@@ -18,12 +18,12 @@ One developer, steps in order, one commit per step.
 
 ## Steps
 
-- [ ] **Step 1:** `FormMessage` branches on the error; the form tests pin it.
-- [ ] **Step 2:** shared `stubMatchMedia` and print-frame helpers in `apps/web/src/testing`.
-- [ ] **Step 3:** split `Streamgraph`; `streamgraph.test.tsx` pins it.
-- [ ] **Step 4:** split `useTimeTravel`; `time-travel.test.tsx` pins it.
-- [ ] **Step 5:** sweep the versions and documents features.
-- [ ] **Step 6:** un-export dead exports in `apps/web/src`.
+- [x] **Step 1:** `FormMessage` branches on the error; the form tests pin it. Evidence: 47109d2a (pin), 01ba7016.
+- [x] **Step 2:** shared `stubMatchMedia` and print-frame helpers in `apps/web/src/testing`. Evidence: 32053659.
+- [x] **Step 3:** split `Streamgraph`; `streamgraph.test.tsx` pins it. Evidence: a19f3eaf.
+- [x] **Step 4:** split `useTimeTravel`; `time-travel.test.tsx` pins it. Evidence: 5bbbf564.
+- [x] **Step 5:** sweep the versions and documents features. Evidence: 6ca8e483, eec7528b.
+- [x] **Step 6:** un-export dead exports in `apps/web/src`. Evidence: 4a55e30d.
 
 ## Failure modes
 
@@ -40,6 +40,6 @@ One developer, steps in order, one commit per step.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **/open-pr:** `pnpm verify` green, learnings sweep stated, PR opened.

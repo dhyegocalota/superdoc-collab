@@ -51,3 +51,11 @@ Deferred to a follow-up lane after member-presence and summarize-wow merge, beca
 - `lagMs!` in `features/timeline/timeline-notices.tsx`.
 - The `retryAfterMs` conversion in `features/timeline/selection-summary-card.tsx`.
 - Auth pages, `main.tsx`, `testing/render-with-providers.tsx`, and the editor members and cursor files.
+
+Left on purpose after the sweep of the versions and documents features:
+
+- `VersionFrame` repeats `!isRequestedReady || requestedSequence === null` in two effects. A named alias would stop TypeScript narrowing `requestedSequence` for the call on the next line.
+- `PrintView` and `VersionFrame` dispatch viewer messages with a short run of one-line `if`s. A record keyed by kind needs a payload type per kind and would not read shorter.
+- `DocumentsPage` is 45 lines of JSX, five over the guideline, and has no logic to split out.
+- About fifteen exported types and the auth and timeline-copy exports have no importer outside their file. The auth and `timeline-copy` ones sit in excluded files; the types stay because an unexported type in an exported signature hurts readers of the declaration.
+- `sendFromFrame` in `time-travel.test.tsx` shares a name with the print-frame helper but sends viewer messages with another shape, so it stays.

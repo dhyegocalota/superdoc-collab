@@ -189,7 +189,7 @@ test('copying again keeps Link copied for a full period from the second copy', a
 test('links that fail to load show an alert instead of placeholders', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.Forbidden }));
   await openDialog();
-  expect(await screen.findByRole('alert')).toHaveTextContent(SHARE_LINKS_LOAD_ERROR_MESSAGE);
+  expect(await screen.findByText(SHARE_LINKS_LOAD_ERROR_MESSAGE)).toHaveAttribute('role', 'alert');
   expect(screen.queryByRole('status', { name: LOADING_SHARE_LINKS_LABEL })).not.toBeInTheDocument();
 });
 

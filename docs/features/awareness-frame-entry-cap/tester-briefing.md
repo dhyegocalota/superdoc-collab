@@ -25,6 +25,8 @@ Red texts below are the ones recorded when the red commits landed; this develope
 
 Security round: red 67f0da77 (padded varints: `expected null to be Infinity`, `expected false to be true`, end-to-end timeout with no close), fix 3da4d073; red d7e64933 (a removal relayed from a reconnect queue closed its sender: `expected { code: 1008, … } to be null`), fix 507f67b4.
 
+Second round: red 095b7779 (same-user takeover closed with `expected { code: 1008, … } to be null`; the ids and origin closes never called `warn`; ten overclaiming frames logged ten times), fix 285474e3.
+
 Pins (green when they landed): updating and removing its own id, a provider reconnecting in a loaded room, exactly 64 entries reaching the room handler, a relay at the held clock keeping both sockets open, eight ids in one frame and ids split over two frames.
 
 ## Hypotheses to attack

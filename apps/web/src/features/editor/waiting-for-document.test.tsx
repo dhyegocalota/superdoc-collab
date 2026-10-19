@@ -60,6 +60,8 @@ test('the waiting state shows no panel before the delay has passed', () => {
   renderWaiting({ readiness: DocumentReadiness.Waiting });
   expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).not.toBeInTheDocument();
+  expect(screen.getByTestId(TITLE_SKELETON_TEST_ID)).toBeInTheDocument();
+  expect(screen.getByRole('main')).toBeInTheDocument();
 });
 
 test('the paused state shows the five-minute message and Keep waiting first', async () => {

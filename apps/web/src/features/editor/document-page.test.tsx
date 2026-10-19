@@ -297,7 +297,7 @@ test('a 409 not ready shows the waiting page and never builds the editor', async
     openBody: { error: DOCUMENT_NOT_READY_ERROR },
   });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 
@@ -311,7 +311,7 @@ test(
       currentOpenStatus: () => (isOwnerSynced ? HttpStatus.Ok : HttpStatus.Conflict),
     });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-    await screen.findByText(PREPARING_DOCUMENT_MESSAGE);
+    await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS });
     isOwnerSynced = true;
     const announcement = await screen.findByText(DOCUMENT_READY_ANNOUNCEMENT, {}, { timeout: READY_WAIT_MS });
     expect(announcement).toHaveAttribute('role', 'status');
@@ -799,7 +799,7 @@ test(
     act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
     status = HttpStatus.Conflict;
     await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
-    expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+    expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
     expect(screen.queryByText(RELOAD_FAILED_MESSAGE)).not.toBeInTheDocument();
     status = HttpStatus.Ok;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
@@ -939,7 +939,7 @@ test('a Reload answered 409 with the timeline mounted is not retried: the open, 
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   status = HttpStatus.Conflict;
   await userEvent.click(await screen.findByRole('button', { name: RELOAD_LABEL }));
-  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByText(PREPARING_DOCUMENT_MESSAGE, {}, { timeout: PROGRESS_WAIT_MS })).toBeInTheDocument();
   const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
   expect(openRequests).toHaveLength(3);
 });
@@ -1106,6 +1106,7 @@ test('deleting the document navigates to the list with no prompt even while the 
 
 const PROGRESS_TEST_ID = 'open-progress';
 const PAINT_MARGIN_MS = 100;
+const PROGRESS_WAIT_MS = OPEN_PROGRESS_DELAY_MS + 1000;
 const EDITOR_TEST_ID = 'document-editor';
 
 function openedWithBootstrap(stage: BootstrapStage): OpenedAnswer {
@@ -1124,7 +1125,7 @@ function paintFirstParagraph(): void {
 test('a Preparing bootstrap shows the Preparing panel after the delay and never builds the editor', async () => {
   mockDocumentApi({ opened: openedWithBootstrap(BootstrapStage.Preparing) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  const panel = await screen.findByTestId(PROGRESS_TEST_ID);
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   expect(panel).toHaveAttribute('data-stage', OpenStage.Preparing);
   expect(SuperDoc).not.toHaveBeenCalled();
 });
@@ -1139,7 +1140,7 @@ test('a Failed bootstrap shows the error card instead of a panel', async () => {
 test('the editor shows the download, then the rendering with the pages so far, and the panel leaves at the first paragraph', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  const panel = await screen.findByTestId(PROGRESS_TEST_ID);
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   expect(panel).toHaveAttribute('data-stage', OpenStage.Downloading);
   act(() => constructedConfig().onCollaborationReady());
   await waitFor(() => expect(panel).toHaveAttribute('data-stage', OpenStage.Rendering));
@@ -1158,10 +1159,20 @@ test('a document painted before the delay never shows the panel', async () => {
   expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
 });
 
+test('before the delay SuperDoc keeps its own loading overlay and the panel then takes over', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(screen.getByTestId('editor-surface')).toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+});
+
 test('a failed connection hides the panel so the banner is not covered', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await screen.findByTestId(PROGRESS_TEST_ID);
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());

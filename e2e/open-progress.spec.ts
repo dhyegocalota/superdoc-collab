@@ -138,9 +138,9 @@ test('the Preparing panel names the wait, then the file being converted, then fi
     page: ana.page,
     documentId,
     bootstraps: [
-      bootstrapAt({ stage: BootstrapStage.Queued, done: 0 }),
-      bootstrapAt({ stage: BootstrapStage.Preparing, done: 0 }),
-      bootstrapAt({ stage: BootstrapStage.Preparing, done: SCRIPTED_TOTAL_BYTES * 0.4 }),
+      ...Array.from({ length: 3 }, () => bootstrapAt({ stage: BootstrapStage.Queued, done: 0 })),
+      ...Array.from({ length: 3 }, () => bootstrapAt({ stage: BootstrapStage.Preparing, done: 0 })),
+      ...Array.from({ length: 3 }, () => bootstrapAt({ stage: BootstrapStage.Preparing, done: SCRIPTED_TOTAL_BYTES * 0.4 })),
       bootstrapAt({ stage: BootstrapStage.Preparing, done: SCRIPTED_TOTAL_BYTES * 0.8 }),
     ],
   });
@@ -154,6 +154,7 @@ test('the Preparing panel names the wait, then the file being converted, then fi
   await expect(detail).toContainText('Converting a', { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(bar).not.toHaveAttribute('aria-valuenow');
   await expect(bar).toHaveAttribute('aria-valuenow', String(0.4 * PERCENT), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
+  await expect(detail).toContainText('Received');
   await expect(bar).toHaveAttribute('aria-valuenow', String(0.8 * PERCENT), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   await expect(panel).toHaveCount(0);
@@ -206,7 +207,7 @@ test('uploading a large document fills the bar with the bytes sent before the pa
   expect(new Set(uploadReadings.map(({ detail }) => detail)).size).toBeGreaterThan(1);
 });
 
-test('a normal document leaves no panel behind once its first paragraph is visible', async ({ browser }) => {
+test('a normal document opens without the panel ever showing', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const buffer = await buildSeedDocx([{ text: SEED_PARAGRAPH, trackedChanges: [] }]);
   const documentId = await uploadDocument({ page: ana.page, buffer });
@@ -215,6 +216,5 @@ test('a normal document leaves no panel behind once its first paragraph is visib
   await ana.page.goto(documentPagePath(documentId));
   await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   await expect(ana.page.getByTestId(PANEL_TEST_ID)).toHaveCount(0);
-  const stages = stagesInOrder(await readingsOf(ana.page));
-  expect(stages.every((stage) => stage === OpenStage.Downloading || stage === OpenStage.Rendering)).toBe(true);
+  expect(await readingsOf(ana.page)).toEqual([]);
 });

@@ -44,8 +44,8 @@ export function convertingDetail(sizeBytes: number): string {
   return `Converting a ${formatByteCount(sizeBytes)} file`;
 }
 
-export function convertingProgressDetail({ doneBytes, totalBytes }: { doneBytes: number; totalBytes: number }): string {
-  return `Converting ${bytesProgressDetail({ doneBytes, totalBytes })}`;
+export function receivedDetail(receivedBytes: number): string {
+  return `Received ${formatByteCount(receivedBytes)}`;
 }
 
 export function receivingDetail(stateBytes: number): string {

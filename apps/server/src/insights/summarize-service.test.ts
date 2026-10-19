@@ -50,6 +50,12 @@ function modelCallsOf(model: MockLanguageModelV4): ModelCall[] {
   return model.doGenerateCalls.map(modelCallOf);
 }
 
+function expectRegroupBesideSentence(model: MockLanguageModelV4): void {
+  const calls = modelCallsOf(model);
+  expect(calls.slice(0, 2)).toEqual(expect.arrayContaining([ModelCall.Topics, ModelCall.Summary]));
+  expect(calls.slice(2)).toEqual([ModelCall.Sentences]);
+}
+
 function modelHoldingCall({ held, gate, answer }: { held: ModelCall; gate: Promise<void>; answer: () => unknown }): MockLanguageModelV4 {
   return modelResponding(async (options) => {
     if (modelCallOf(options) === held) await gate;
@@ -108,7 +114,7 @@ test('regroups only when topics failed or are older than the newest edit, then s
   const { server, documentId, client, model, summarize } = await documentWithTopics({ isFresh: false, modelFor: modelAnsweringWith });
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
-  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expectRegroupBesideSentence(model);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
   server.services.insightsRepository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
@@ -189,19 +195,17 @@ test('a failed regroup keeps the previous ready topics and stops the job when th
 
 test('a failed regroup does not lock the summary out when the selection names no topic', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  let calls = 0;
   const { server, documentId, client, model, summarize } = await documentWithTopics({
     isFresh: false,
     modelFor: (answer) =>
-      modelAnsweringWith(() => {
-        calls += 1;
-        if (calls === 1) throw new Error('provider exploded');
+      modelResponding((options) => {
+        if (modelCallOf(options) === ModelCall.Topics) throw new Error('provider exploded');
         return answer();
       }),
   });
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
-  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expectRegroupBesideSentence(model);
   expect(server.services.insights.selection.read({ documentId, selection: SELECTION })).toMatchObject({
     failure: GROUPING_FAILED_MESSAGE,
     summary: { sentence: COMBINED_ANSWER.sentence },
@@ -218,7 +222,7 @@ test('a Summarize with a regroup holds one process-wide slot', async () => {
   expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(true);
   expect(jobRunner.isRunning(`topics:${documentId}`)).toBe(false);
   await jobRunner.idle();
-  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expectRegroupBesideSentence(model);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
   client.close();
   await server.stop();
@@ -238,7 +242,7 @@ test('reports the step while the job runs and returns to idle when it ends', asy
   summarize.request({ documentId, selection: SELECTION });
   expect(selection.read({ documentId, selection: SELECTION })).toMatchObject({
     state: SelectionSummaryState.Running,
-    step: SummarizeStep.Grouping,
+    step: SummarizeStep.Summarizing,
   });
   release();
   await server.services.insights.jobRunner.idle();

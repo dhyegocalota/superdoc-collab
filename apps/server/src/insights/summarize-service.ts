@@ -73,13 +73,19 @@ export class SummarizeService {
   }
 
   private async regroup(documentId: string): Promise<boolean> {
-    this.selection.setStep({ documentId, step: SummarizeStep.Grouping });
     await this.topics.regroup(documentId);
     const hasFailed = this.topics.status(documentId).state === TopicState.Failed;
     if (hasFailed) this.selection.markGroupingFailed(documentId);
     return hasFailed;
   }
 
+  private async publishSentence({ documentId, selection }: SummarizeRequest): Promise<void> {
+    this.selection.setStep({ documentId, step: SummarizeStep.Summarizing });
+    await this.selection.write({ documentId, selection });
+    this.selection.setStep({ documentId, step: SummarizeStep.Idle });
+  }
+
+  // NB ADR 0041: the step ends when the sentence is saved; a selection without a topic regroups beside it, topic sentences follow.
   private async run({
     documentId,
     selection,
@@ -89,11 +95,13 @@ export class SummarizeService {
     const stopWatching = this.jobRunner.watchFirstCall({ documentId, onFirstCall: () => this.selection.cooldown.start(documentId) });
     this.selection.clearGroupingFailure(documentId);
     try {
-      const hasRegroupFailed = needsRegroup && (await this.regroup(documentId));
-      const isTopicSelection = selection.topic !== null;
-      if (hasRegroupFailed && isTopicSelection) return;
-      this.selection.setStep({ documentId, step: SummarizeStep.Summarizing });
-      await this.selection.write({ documentId, selection });
+      const isRegroupFirst = needsRegroup && selection.topic !== null;
+      if (isRegroupFirst) this.selection.setStep({ documentId, step: SummarizeStep.Grouping });
+      const regrouping = needsRegroup ? this.regroup(documentId) : Promise.resolve(false);
+      const hasRegroupFailed = isRegroupFirst && (await regrouping);
+      if (hasRegroupFailed) return;
+      await this.publishSentence({ documentId, selection });
+      await regrouping;
       if (isFull) await this.summaries.rewriteStale(documentId);
     } finally {
       stopWatching();

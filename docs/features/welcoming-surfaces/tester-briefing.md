@@ -42,9 +42,9 @@ Green: 159 unit tests across auth, components and documents; E2E `documents.spec
 
 ## Gaps I know about
 
-- `e2e/final-visuals.spec.ts` `uploadBrief` clicks `Upload .docx` first; it breaks if the user it runs as has no documents. `openDocumentFileInput` fits it; not my file.
-- `LinkInvalidCard` and `SessionSkeleton` keep the bare layout.
-- The app mark in the panel repeats the one in `brand-link.tsx` (not my file).
+- `e2e/final-visuals.spec.ts` `uploadBrief` now calls `openDocumentFileInput` (commit cfac605c); the spec ran 30 of 30.
+- `LinkInvalidCard` renders inside `AuthLayout`; `AuthSkeleton` replaces the bare skeleton on sign-up and in `RedirectIfSession`. `SessionSkeleton` stays as it is because `RequireSession`, the admin pages and the version viewer share it; the sign-up "instance could not be reached" error is still bare.
+- The app mark is one component, `apps/web/src/components/app-mark.tsx`, used by `brand-link.tsx` and the auth panel (the panel passes a larger size class). Its test is a pin, written with the component.
 - The dialog no longer closes before navigation but after the list refresh and just before it; the visible result is the same.
 - Safari drag events and a real desktop drag are not exercised; the E2E dispatches synthetic events.
 - The `frontend-design` skill could not be loaded in this lane (no Skill tool); the visual direction stays inside the existing tokens.

@@ -31,7 +31,7 @@ export function createRoomMemoryRelease({
   function collect(release: NonNullable<typeof collectGarbage>): void {
     const { rss: residentBefore } = memoryUsage();
     const startedAt = now();
-    release({ type: 'major', execution: 'sync', flavor: 'regular' });
+    Array.from({ length: ROOM_MEMORY_RELEASE_PASSES }).forEach(() => release({ type: 'major', execution: 'sync', flavor: 'regular' }));
     const pauseMs = now() - startedAt;
     console.info(`${ROOM_MEMORY_RELEASED_MESSAGE} ${residentBefore} ${memoryUsage().rss} ${pauseMs}`);
   }

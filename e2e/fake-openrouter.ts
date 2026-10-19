@@ -5,6 +5,11 @@ const CHAT_COMPLETIONS_SUFFIX = '/chat/completions';
 const GENERAL_TOPIC = 'General';
 const FAIL_MARKER = 'FAIL-TOPICS';
 const SUMMARY_FAIL_MARKER = 'FAIL-SUMMARY';
+const SLOW_MARKER = 'SLOW-SUMMARY';
+const STREAM_MARKER = 'STREAM-SUMMARY';
+const SLOW_REPLY_DELAY_MS = 600;
+const STREAM_WORD_DELAY_MS = 400;
+const WORD_SEPARATOR = ' ';
 const SELECTION_MARKER = '<selection>';
 const SUMMARIES_MARKER = '<topic id=';
 const CALLS_PATH = '/calls';
@@ -117,9 +122,39 @@ function streamChunk({ delta, finishReason }: { delta: object; finishReason: str
   return `data: ${JSON.stringify(chunk)}\n\n`;
 }
 
-function sendStream({ response, answer }: { response: ServerResponse; answer: object }): void {
+function pause(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function jsonText(text: string): string {
+  return JSON.stringify(text).slice(1, -1);
+}
+
+function wordPieces({ sentence, authors }: { sentence: string; authors: string[] }): string[] {
+  const [first, ...rest] = sentence.split(WORD_SEPARATOR);
+  return [
+    `{"sentence":"${jsonText(first!)}`,
+    ...rest.map((word) => `${WORD_SEPARATOR}${jsonText(word)}`),
+    `","authors":${JSON.stringify(authors)}}`,
+  ];
+}
+
+async function sendStream({
+  response,
+  pieces,
+  pieceDelayMs,
+}: {
+  response: ServerResponse;
+  pieces: string[];
+  pieceDelayMs: number;
+}): Promise<void> {
   response.writeHead(OK, { 'content-type': 'text/event-stream' });
-  response.write(streamChunk({ delta: { role: 'assistant', content: JSON.stringify(answer) }, finishReason: null }));
+  await pieces.reduce(async (previous, piece, index) => {
+    await previous;
+    if (index > 0) await pause(pieceDelayMs);
+    const delta = index === 0 ? { role: 'assistant', content: piece } : { content: piece };
+    response.write(streamChunk({ delta, finishReason: null }));
+  }, Promise.resolve());
   response.write(streamChunk({ delta: {}, finishReason: 'stop' }));
   response.end('data: [DONE]\n\n');
 }
@@ -145,8 +180,13 @@ async function handleChat({ request, response }: { request: IncomingMessage; res
   calls[kind] += 1;
   const isFailure = prompt.includes(FAIL_MARKER) || (kind === CallKind.Selection && prompt.includes(SUMMARY_FAIL_MARKER));
   if (isFailure) return send({ response, status: SERVER_ERROR, body: { error: { message: FAIL_MARKER } } });
-  if (body.stream === true) return sendStream({ response, answer: ANSWERS[kind](prompt) });
-  send({ response, status: OK, body: completion(ANSWERS[kind](prompt)) });
+  const isSelection = kind === CallKind.Selection;
+  if (isSelection && prompt.includes(SLOW_MARKER)) await pause(SLOW_REPLY_DELAY_MS);
+  const answer = ANSWERS[kind](prompt);
+  if (body.stream !== true) return send({ response, status: OK, body: completion(answer) });
+  if (isSelection && prompt.includes(STREAM_MARKER))
+    return sendStream({ response, pieces: wordPieces(selectionAnswer(prompt)), pieceDelayMs: STREAM_WORD_DELAY_MS });
+  return sendStream({ response, pieces: [JSON.stringify(answer)], pieceDelayMs: 0 });
 }
 
 createServer((request, response) => {

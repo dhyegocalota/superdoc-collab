@@ -29,6 +29,7 @@ export function elapsedLabel(elapsedSeconds: number): string {
   const minutes = Math.floor(elapsedSeconds / SECONDS_PER_MINUTE);
   const seconds = elapsedSeconds % SECONDS_PER_MINUTE;
   if (minutes === 0) return `${seconds} s`;
+  if (seconds === 0) return `${minutes} min`;
   return `${minutes} min ${seconds} s`;
 }
 
@@ -54,4 +55,16 @@ export function receivingDetail(stateBytes: number): string {
 
 export function pagesSoFarDetail(pageCount: number): string {
   return `${formatCount(pageCount)} so far`;
+}
+
+export function estimatedConversionDetail({
+  subject,
+  estimatedSeconds,
+  elapsedSeconds,
+}: {
+  subject: string;
+  estimatedSeconds: number;
+  elapsedSeconds: number;
+}): string {
+  return detailLine([subject, `about ${elapsedLabel(estimatedSeconds)}`, `${elapsedLabel(elapsedSeconds)} elapsed`]);
 }

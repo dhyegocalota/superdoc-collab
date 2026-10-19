@@ -38,13 +38,15 @@ Measured with E2E on 2026-10-19 under four parallel workers: a one-paragraph doc
 | Stage | Where | Bar | Detail line |
 |-------|-------|-----|-------------|
 | Uploading | documents home, in the upload dialog and drop zone, before navigation | determinate: bytes sent over bytes total, from the request's upload progress | `4.2 MB of 9.5 MB` |
-| Preparing | editor page, while the open answer's bootstrap is Queued or Preparing | determinate when `done` (bytes of state the room has received from the converter) is above 0; otherwise indeterminate | `Received 12.3 MB · 12 s`; with `done` 0, `Converting a 9.5 MB file · 12 s`, or `Waiting for its turn · 12 s` while Queued |
+| Preparing | editor page, while the open answer's bootstrap is Queued or Preparing | determinate by the larger of two fractions: `done` over `total` (bytes of state received from the converter, which the SDK sends only at the end) and elapsed over the server's `estimatedMs`, capped at 95%; indeterminate only when neither exists | `Received 12.3 MB · 12 s` once the bytes lead; with an estimate, `Converting a 9.5 MB file · about 40 s · 12 s elapsed` (the estimate rounded to 5 s); with neither, `Converting a 9.5 MB file · 12 s`, or `Waiting for its turn · 12 s` while Queued |
 | Downloading | editor page, from the first render of SuperDoc until collaboration reports synced | indeterminate | `Receiving 36.5 MB · 12 s` |
 | Rendering | editor page, from synced until the first `.superdoc-fragment` is in the page | indeterminate | `Laying out the pages · 123 so far · 12 s` |
 
 The server-bootstrap lane reports `done` as the bytes of Yjs state the room has received from the converter so far and `total` as an estimate from the DOCX size. The bar is determinate whenever `done` is above 0. The paragraph count is unknown to the web, so Rendering counts the pages SuperDoc has laid out so far.
 
 The panel is gone once the first paragraph is visible. The stage list on the editor page holds Preparing, Downloading and Rendering; Uploading belongs to the home page, which the person has already left.
+
+The 180 s and 360 s timeouts in the normal-document E2E case cover the server's global bootstrap queue and return to the defaults once the per-owner queue lands.
 
 ### Data flow
 
@@ -77,6 +79,7 @@ Upload uses `XMLHttpRequest` because `fetch` reports no upload progress over HTT
 |----------|---------|----------------|------|
 | What should loading look like for long documents? | spinner only / stage list with real numbers | "um loading mais friendly com progressão real de ui/ux pra não feel stuck especialmente pra docs longos" | 2026-10-19 |
 | How long before the panel shows? | 400 ms / 2 s | Lead decision: 2 s, because a small document opens in 1.5 to 1.8 s and 400 ms flashed the panel on every open | 2026-10-19 |
+| What does Preparing show when the bytes do not move? | indeterminate / elapsed over the server estimate | Lead decision: a time bar from `estimatedMs`, capped at 95%; `estimatedMs` missing from an answer reads as null until the server sends it | 2026-10-19 |
 | What does Preparing show once the server reports progress? | bytes converted of the total / bytes received | Lead decision: "Received 12.3 MB", determinate whenever `done` is above 0 | 2026-10-19 |
 
 ## Test strategy summary

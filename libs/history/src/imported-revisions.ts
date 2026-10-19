@@ -43,7 +43,8 @@ export function parseRevisionDate({ value, revisionId }: { value: string; revisi
   const time = Date.parse(withOffset);
   if (Number.isNaN(time)) throw new InvalidRevisionDateError(revisionId);
   const year = new Date(time).getUTCFullYear();
-  if (year < MIN_REVISION_YEAR || year > MAX_REVISION_YEAR) throw new InvalidRevisionDateError(revisionId);
+  const isOutOfRange = year < MIN_REVISION_YEAR || year > MAX_REVISION_YEAR;
+  if (isOutOfRange) throw new InvalidRevisionDateError(revisionId);
   return time;
 }
 

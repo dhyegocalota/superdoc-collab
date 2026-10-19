@@ -6,7 +6,7 @@ export const TITLE_MAX_LENGTH = 200;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
-export const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
+const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
 export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const DOCX_EXTENSION = '.docx';

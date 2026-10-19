@@ -74,5 +74,6 @@ export function editorOpenView({
   stateBytes: number | null;
   elapsedSeconds: number;
 }): OpenProgressView {
-  throw new Error('editorOpenView is not implemented');
+  if (loadProgress.isSynced) return renderingView({ pageCount: loadProgress.pageCount, elapsedSeconds });
+  return downloadingView({ stateBytes, elapsedSeconds });
 }

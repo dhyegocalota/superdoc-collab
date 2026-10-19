@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useBlocker } from 'react-router';
+import { useEffect, useRef, type RefObject } from 'react';
+import { useBlocker, type Blocker } from 'react-router';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,25 +11,49 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { DOWNLOAD_BUTTON_LABEL, EXIT_CONFIRMATION_DESCRIPTION, EXIT_CONFIRMATION_TITLE, LEAVE_LABEL, STAY_LABEL } from './editor-copy';
+import { cancelLeave, useUnsyncedEditsSnapshot } from './unsynced-edits-store';
 
 const BLOCKED_STATE = 'blocked';
 
+function exitChoicesOf({
+  blocker,
+  pendingLeave,
+  isLeavingRef,
+}: {
+  blocker: Blocker;
+  pendingLeave: (() => void) | null;
+  isLeavingRef: RefObject<boolean>;
+}): ExitChoices | null {
+  if (blocker.state === BLOCKED_STATE) return { leave: blocker.proceed, stay: blocker.reset };
+  if (!pendingLeave) return null;
+  function leave(): void {
+    isLeavingRef.current = true;
+    cancelLeave();
+    pendingLeave?.();
+  }
+  return { leave, stay: cancelLeave };
+}
+
 type ExitConfirmationDialogProps = { isUnsynced: boolean; onDownload: () => void };
 
+type ExitChoices = { leave: () => void; stay: () => void };
+
 export function ExitConfirmationDialog({ isUnsynced, onDownload }: ExitConfirmationDialogProps) {
-  const blocker = useBlocker(isUnsynced);
+  const isLeavingRef = useRef(false);
+  const blocker = useBlocker(() => isUnsynced && !isLeavingRef.current);
+  const { pendingLeave } = useUnsyncedEditsSnapshot();
+  const choices = exitChoicesOf({ blocker, pendingLeave, isLeavingRef });
 
   useEffect(() => {
-    const shouldProceed = blocker.state === BLOCKED_STATE && !isUnsynced;
-    if (shouldProceed) blocker.proceed();
-  }, [blocker, isUnsynced]);
+    if (choices && !isUnsynced) choices.leave();
+  }, [choices, isUnsynced]);
 
-  if (blocker.state !== BLOCKED_STATE) return null;
+  if (!choices) return null;
 
-  const { proceed, reset } = blocker;
+  const { leave, stay } = choices;
 
   function handleOpenChange(isOpen: boolean): void {
-    if (!isOpen) reset();
+    if (!isOpen) stay();
   }
 
   return (
@@ -44,7 +68,7 @@ export function ExitConfirmationDialog({ isUnsynced, onDownload }: ExitConfirmat
           <Button variant="outline" onClick={onDownload}>
             {DOWNLOAD_BUTTON_LABEL}
           </Button>
-          <Button variant="destructive" onClick={proceed}>
+          <Button variant="destructive" onClick={leave}>
             {LEAVE_LABEL}
           </Button>
         </AlertDialogFooter>

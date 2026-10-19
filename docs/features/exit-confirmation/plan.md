@@ -13,6 +13,7 @@
 - [x] **Step 5:** `ExitConfirmationDialog`: `useBlocker`, Stay, Download, Leave, proceed when sync recovers.
 - [x] **Step 6:** wire both into `DocumentPage` with stable callbacks (the editor effect depends on them).
 - [x] **Step 7:** E2E `e2e/exit-confirmation.spec.ts`.
+- [x] **Step 8:** sign-out while unsynced: a shared store, a pending leave and the dialog confirming it.
 
 ## Failure modes
 

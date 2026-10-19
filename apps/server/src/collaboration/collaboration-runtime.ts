@@ -89,6 +89,7 @@ export function createCollaborationRuntime({
         (connection) => (connection.context as CollaborationContext).userId === userId,
       );
       revokedConnections.forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
+      versionRooms.closeUser({ documentId, userId });
       console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),

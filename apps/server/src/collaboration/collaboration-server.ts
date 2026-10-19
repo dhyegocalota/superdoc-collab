@@ -13,6 +13,8 @@ import {
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_SINGLE_DOCUMENT_REASON,
   TAB_QUERY_KEY,
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
   SUPERSEDED_ATTEMPT_REASON,
 } from '@superdoc-collab/types';
@@ -51,6 +53,7 @@ const AWARENESS_MALFORMED_LOG = 'Collaboration socket closed for sending an awar
 export const AWARENESS_DROP_LOG = 'Dropped an awareness frame that touches an awareness client another user announced';
 export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too many awareness clients';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
+const REVOKED_CLOSE_LOG = 'Closed a socket admitted just before its member was removed from';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';
 export const UNTICKETED_REFUSAL_LOG = 'Refused a socket without a creator ticket on an uncommitted room';
 export const REFUSED_TICKET_LOG = 'Refused a socket whose creator ticket is not the latest on an uncommitted room';
@@ -193,7 +196,13 @@ export function createCollaborationServer({
       return { userId, documentId, actor, creatorAttempt: attempt, creatorEpoch: epoch, tabId: tabIdOf(requestParameters) };
     },
     async connected({ context, connectionInstance }) {
-      const { documentId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
+      const { documentId, userId, creatorAttempt, creatorEpoch } = context as CollaborationContext;
+      const isRevoked = documents.findRole({ documentId, userId }) === null;
+      if (isRevoked) {
+        console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
+        connectionInstance.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+        return;
+      }
       const isAdmitted = reservations.mayWrite({ documentId, attempt: creatorAttempt, epoch: creatorEpoch, isCommitted: true });
       if (isAdmitted) return;
       console.warn(`${SUPERSEDED_CLOSE_LOG} ${documentId}`);

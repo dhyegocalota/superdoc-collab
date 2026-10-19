@@ -9,7 +9,7 @@ import {
   type DocumentMember,
 } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
@@ -317,4 +317,37 @@ test('while the title is edited the right groups give the row to the editor belo
   expect(accountGroup()).toHaveClass('hidden', 'md:contents');
   await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
   expect(accountGroup()).toBeNull();
+});
+
+const SAVE_KEY = { code: 'KeyS', key: 's', ctrlKey: true };
+const ALIGN_LEFT_KEY = { code: 'KeyL', key: 'l', ctrlKey: true };
+
+function superdocWithAlignCommand(execute: () => void): SuperDoc {
+  const handle = { getState: () => ({ enabled: true, supported: true }), execute };
+  return superdocStub({ ui: { commands: { get: () => handle } } });
+}
+
+test('Ctrl+S downloads the DOCX and is consumed', () => {
+  renderHeader({ superdoc: superdocStub() });
+  expect(fireEvent.keyDown(document.body, SAVE_KEY)).toBe(false);
+  expect(onDownloadDocx).toHaveBeenCalledTimes(1);
+});
+
+test('a formatting key runs on the instance for an editor', () => {
+  const execute = vi.fn();
+  renderHeader({ superdoc: superdocWithAlignCommand(execute) });
+  expect(fireEvent.keyDown(document.body, ALIGN_LEFT_KEY)).toBe(false);
+  expect(execute).toHaveBeenCalledWith('left');
+});
+
+test.each([
+  ['a reader', { role: DocumentRole.Reader }],
+  ['a past version', { isPastVersion: true }],
+])('%s has no formatting keys and keeps the download key', (_, options) => {
+  const execute = vi.fn();
+  renderHeader({ superdoc: superdocWithAlignCommand(execute), ...options });
+  expect(fireEvent.keyDown(document.body, ALIGN_LEFT_KEY)).toBe(true);
+  expect(execute).not.toHaveBeenCalled();
+  expect(fireEvent.keyDown(document.body, SAVE_KEY)).toBe(false);
+  expect(onDownloadDocx).toHaveBeenCalledTimes(1);
 });

@@ -38,7 +38,6 @@ import {
   goToCursorLabel,
   memberLabel,
   movedToCursorMessage,
-  offlineMemberReason,
   PREPARING_PDF_MESSAGE,
   SAVE_TITLE_LABEL,
   TIMELINE_TOGGLE_LABEL,
@@ -472,7 +471,7 @@ test('Summarize on a selection that is fresh everywhere answers that the summary
   await expect(summaryCard(ana.page)).toContainText(SUMMARY_UP_TO_DATE_MESSAGE);
 });
 
-test('a member avatar scrolls the editor to that member’s caret and offline members say why they cannot', async ({ browser }) => {
+test('a member avatar scrolls the editor to that member’s caret and a member who leaves is gone from the row', async ({ browser }) => {
   const lines = Array.from({ length: LONG_DOCUMENT_LINES }, (_, index) => `Line ${String(index + 1).padStart(2, '0')} of the plan.`);
   const { ana, documentId } = await ownerOpensDocument({ browser, paragraphs: lines, viewport: SHORT_VIEWPORT });
   const bruno = await signedInContext({ browser, user: brunoUser! });
@@ -481,28 +480,26 @@ test('a member avatar scrolls the editor to that member’s caret and offline me
   const remoteCaret = ana.page.locator(REMOTE_CARET_SELECTOR).first();
   await expect(remoteCaret).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
   await expect(remoteCaret).not.toBeInViewport();
-  const jumpButton = topBar(ana.page).getByRole('button', { name: memberLabel({ name: BRUNO, isOnline: true }) });
+  const jumpButton = topBar(ana.page).getByRole('button', { name: memberLabel(BRUNO) });
   await expect(jumpButton).toHaveAccessibleDescription(goToCursorLabel(BRUNO));
   await expect(jumpButton).not.toHaveAttribute('aria-disabled', 'true');
   await jumpButton.click();
   await expect(remoteCaret).toBeInViewport();
   await expect(ana.page.getByText(movedToCursorMessage(BRUNO))).toBeAttached();
   await bruno.page.close();
-  const offlineButton = topBar(ana.page).getByRole('button', { name: new RegExp(BRUNO) });
-  await expect(offlineButton).toHaveAttribute('aria-disabled', 'true', { timeout: WAITING_TIMEOUT_MS });
-  await expect(offlineButton).toHaveAccessibleDescription(offlineMemberReason(BRUNO), { timeout: WAITING_TIMEOUT_MS });
+  await expect(topBar(ana.page).getByRole('button', { name: new RegExp(BRUNO) })).toHaveCount(0, { timeout: WAITING_TIMEOUT_MS });
 });
 
-test('a member who signs out reads offline for the others before the members poll would say so', async ({ browser }) => {
+test('a member who signs out leaves the top bar of the others before the members poll would say so', async ({ browser }) => {
   const { ana, documentId } = await ownerOpensDocument({ browser });
   const bruno = await signedInContext({ browser, user: brunoUser! });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   const brunoButton = topBar(ana.page).getByRole('button', { name: BRUNO });
-  await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: true }), { timeout: WAITING_TIMEOUT_MS });
+  await expect(brunoButton).toHaveAccessibleName(memberLabel(BRUNO), { timeout: WAITING_TIMEOUT_MS });
   const membersPath = documentApiPath({ documentId, resource: DocumentResource.Members });
   await ana.page.waitForResponse((response) => new URL(response.url()).pathname === membersPath);
   await signOut({ page: bruno.page, name: BRUNO });
-  await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: false }), { timeout: FAST_LEAVE_DEADLINE_MS });
+  await expect(brunoButton).toHaveCount(0, { timeout: FAST_LEAVE_DEADLINE_MS });
 });
 
 function swatchOf({ page, label }: { page: Page; label: string }) {
@@ -534,9 +531,9 @@ test('two members have two colours, one on every surface and on every browser', 
   await insertInParagraph({ page: bruno.page, paragraphText: HIRING_PARAGRAPH, text: BRUNO_EDIT });
   await expect(ana.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
   await expect(bruno.page.locator(REMOTE_CARET_SELECTOR).first()).toBeAttached({ timeout: WAITING_TIMEOUT_MS });
-  const anaOwnLabel = { page: ana.page, label: memberLabel({ name: ANA, isOnline: true }) };
-  const brunoForAnaLabel = { page: ana.page, label: memberLabel({ name: BRUNO, isOnline: true }) };
-  const anaForBrunoLabel = { page: bruno.page, label: memberLabel({ name: ANA, isOnline: true }) };
+  const anaOwnLabel = { page: ana.page, label: memberLabel(ANA) };
+  const brunoForAnaLabel = { page: ana.page, label: memberLabel(BRUNO) };
+  const anaForBrunoLabel = { page: bruno.page, label: memberLabel(ANA) };
   const slots = await memberSlotsOf({ page: ana.page, documentId });
   await expect(swatchOf(anaOwnLabel)).toHaveClass(new RegExp(`bg-author-${slots[ANA]}\\b`));
   await expect(swatchOf(brunoForAnaLabel)).toHaveClass(new RegExp(`bg-author-${slots[BRUNO]}\\b`));

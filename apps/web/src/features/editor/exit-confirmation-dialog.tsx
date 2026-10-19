@@ -11,17 +11,23 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { DOWNLOAD_BUTTON_LABEL, EXIT_CONFIRMATION_DESCRIPTION, EXIT_CONFIRMATION_TITLE, LEAVE_LABEL, STAY_LABEL } from './editor-copy';
-import { allowLeave, cancelLeave, getUnsyncedEditsSnapshot, useUnsyncedEditsSnapshot } from './unsynced-edits-store';
+import { allowLeave, cancelLeave, disallowLeave, getUnsyncedEditsSnapshot, useUnsyncedEditsSnapshot } from './unsynced-edits-store';
 
 const BLOCKED_STATE = 'blocked';
 
-function exitChoicesOf({ blocker, pendingLeave }: { blocker: Blocker; pendingLeave: (() => void) | null }): ExitChoices | null {
+function exitChoicesOf({
+  blocker,
+  pendingLeave,
+}: {
+  blocker: Blocker;
+  pendingLeave: (() => void | Promise<void>) | null;
+}): ExitChoices | null {
   if (blocker.state === BLOCKED_STATE) return { leave: blocker.proceed, stay: blocker.reset };
   if (!pendingLeave) return null;
   function leave(): void {
     allowLeave();
     cancelLeave();
-    pendingLeave?.();
+    Promise.resolve(pendingLeave?.()).catch(disallowLeave);
   }
   return { leave, stay: cancelLeave };
 }

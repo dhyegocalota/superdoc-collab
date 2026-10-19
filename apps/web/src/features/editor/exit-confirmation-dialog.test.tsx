@@ -114,3 +114,15 @@ test('sync recovering while a leave is pending runs it', async () => {
   act(() => screen.getByText(SYNC_BUTTON).click());
   await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
 });
+
+test('a failed leave switches the bypass off so the next navigation asks again', async () => {
+  const { router } = renderDialog();
+  const failedLeave = vi.fn(() => Promise.reject(new Error('sign-out failed')));
+  act(() => requestLeave(failedLeave));
+  await userEvent.click(await screen.findByRole('button', { name: LEAVE_LABEL }));
+  await waitFor(() => expect(failedLeave).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(getUnsyncedEditsSnapshot().isLeaveAllowed).toBe(false));
+  await userEvent.click(screen.getByRole('link', { name: LEAVING_LINK }));
+  expect(await screen.findByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeVisible();
+  expect(router.state.location.pathname).toBe(EDITOR_PATH);
+});

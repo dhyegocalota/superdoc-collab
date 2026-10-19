@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export type UnsyncedEditsSnapshot = { isUnsynced: boolean; pendingLeave: (() => void) | null; isLeaveAllowed: boolean };
+export type UnsyncedEditsSnapshot = { isUnsynced: boolean; pendingLeave: (() => void | Promise<void>) | null; isLeaveAllowed: boolean };
 
 const CLEARED_SNAPSHOT: UnsyncedEditsSnapshot = { isUnsynced: false, pendingLeave: null, isLeaveAllowed: false };
 
@@ -21,12 +21,16 @@ export function setUnsynced(isUnsynced: boolean): void {
   publish({ ...snapshot, isUnsynced });
 }
 
-export function requestLeave(leave: () => void): void {
+export function requestLeave(leave: () => void | Promise<void>): void {
   publish({ ...snapshot, pendingLeave: leave });
 }
 
 export function allowLeave(): void {
   publish({ ...snapshot, isLeaveAllowed: true });
+}
+
+export function disallowLeave(): void {
+  publish({ ...snapshot, isLeaveAllowed: false });
 }
 
 export function cancelLeave(): void {

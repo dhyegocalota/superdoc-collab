@@ -13,7 +13,9 @@ import {
   DocumentResource,
   HttpMethod,
   HttpStatus,
+  MEMBERS_PRESENCE_DEBOUNCE_MS,
   RETRY_AFTER_HEADER,
+  SECOND_MS,
   ShareLinkRole,
   type DocumentMembers,
   type DocumentSummary,
@@ -110,7 +112,7 @@ const RENAMED_TITLE = 'Renamed';
 const DISCARDED_TITLE = 'Discard';
 const FIRST_EDIT = ' More money';
 const SECOND_EDIT = ' and more';
-const PRESENCE_REFRESH_BUDGET_MS = 1500;
+const FAST_LEAVE_DEADLINE_MS = MEMBERS_PRESENCE_DEBOUNCE_MS + 1.5 * SECOND_MS;
 const BRUNO_EDIT = ' from Bruno';
 const ANA_EDIT = ' from Ana';
 const SUMMARY_TIMEOUT_MS = 30_000;
@@ -472,8 +474,10 @@ test('a member who signs out reads offline for the others before the members pol
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Edit });
   const brunoButton = topBar(ana.page).getByRole('button', { name: BRUNO });
   await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: true }), { timeout: WAITING_TIMEOUT_MS });
+  const membersPath = documentApiPath({ documentId, resource: DocumentResource.Members });
+  await ana.page.waitForResponse((response) => new URL(response.url()).pathname === membersPath);
   await signOut({ page: bruno.page, name: BRUNO });
-  await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: false }), { timeout: PRESENCE_REFRESH_BUDGET_MS });
+  await expect(brunoButton).toHaveAccessibleName(memberLabel({ name: BRUNO, isOnline: false }), { timeout: FAST_LEAVE_DEADLINE_MS });
 });
 
 function swatchOf({ page, label }: { page: Page; label: string }) {

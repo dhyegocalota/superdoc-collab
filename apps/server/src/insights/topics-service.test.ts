@@ -1,5 +1,4 @@
 import {
-  HttpStatus,
   TOPICS_FAILED_MESSAGE,
   TOPICS_INTERRUPTED_MESSAGE,
   TopicState,

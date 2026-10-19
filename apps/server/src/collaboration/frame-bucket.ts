@@ -50,6 +50,10 @@ export function frameBucketOf(frame: RawData): FrameBucket {
   return FrameBucket.Updates;
 }
 
+export function awarenessClocksOf(frame: RawData): number[] {
+  throw new Error('awarenessClocksOf is not implemented');
+}
+
 export function awarenessEntryCountOf(frame: RawData): number | null {
   const bytes = bufferOf(frame);
   const header = headerOf(bytes);

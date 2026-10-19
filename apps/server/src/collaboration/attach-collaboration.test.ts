@@ -4,12 +4,14 @@ import {
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_AWARENESS_CLOCK,
   MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   SECOND_MS,
+  SOCKET_AWARENESS_CLOCK_REASON,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_AWARENESS_ORIGIN_REASON,
@@ -58,6 +60,8 @@ const SECOND_CLAIMED_ID_BASE = 2_000_000;
 const SPLIT_CLAIM_IDS_PER_FRAME = 5;
 const PADDED_ENTRY_COUNT = 100_000;
 const OVERCLAIMING_BURST_FRAMES = 10;
+const PINNED_CLOCK = 2 ** 53;
+const TRUNCATED_STATE_BYTES = 3;
 const REPLAY_CLOCK = 2;
 const REPLAYED_ID_COUNT = 5;
 const OWN_UPDATES = 5;
@@ -546,10 +550,10 @@ async function connectWatched({ server, documentId, cookie }: { server: TestServ
   return { client, closedSocket: () => closedSocket, closedSockets: () => closedSockets, webSocket, roomName };
 }
 
-async function sendClaimingFrame({ clientIds }: { clientIds: number[] }) {
+async function sendClaimingFrame({ clientIds, clock }: { clientIds: number[]; clock?: number }) {
   const { server, documentId, owner } = await documentWithOwner();
   const connection = await connectWatched({ server, documentId, cookie: owner.cookie });
-  connection.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: connection.roomName, clientIds })));
+  connection.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: connection.roomName, clientIds, clock })));
   return { server, ...connection };
 }
 
@@ -717,6 +721,38 @@ test('a second connection of the same user updating an awareness id that a half-
   await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(0);
   holder.client.close();
   await server.stop();
+});
+
+test('a member pinning the clocks of its peers at 2 to the 53 is closed before the room applies them and the peers keep their states', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
+  const pin = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: PINNED_CLOCK, state: null });
+  intruder.webSocket.send(new Uint8Array(pin));
+  await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_CLOCK_REASON });
+  expect(awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(warn).toHaveBeenCalledTimes(1);
+  expect(holder.closedSocket()).toBeNull();
+  warn.mockRestore();
+  holder.client.close();
+  await server.stop();
+});
+
+test('a clock just under the ceiling is applied and keeps the socket open', async () => {
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds, clock: MAX_AWARENESS_CLOCK - 1 });
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(closedSocket()).toBeNull();
+  client.close();
+  await server.stop();
+});
+
+test('an entry cut inside its state closes the socket with the entries reason', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  const frame = awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds: claimedIds({ base: CLAIMED_ID_BASE, count: 2 }) });
+  socket.send(frame.subarray(0, frame.length - TRUNCATED_STATE_BYTES));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
 });
 
 test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {

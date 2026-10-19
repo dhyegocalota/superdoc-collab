@@ -35,6 +35,10 @@ export class SocketMessageLimit {
     return entryCount !== null && entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME;
   }
 
+  claimsPinnedClock(frame: RawData): boolean {
+    throw new Error('claimsPinnedClock is not implemented');
+  }
+
   private windowsOf(socket: object): Record<FrameBucket, SlidingWindow> {
     const existing = this.windows.get(socket);
     if (existing !== undefined) return existing;

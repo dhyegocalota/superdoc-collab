@@ -9,6 +9,7 @@ import {
   RoomMode,
   TAB_QUERY_KEY,
 } from '@superdoc-collab/types';
+import { Document } from '@hocuspocus/server';
 import * as Y from 'yjs';
 import { randomUUID } from 'node:crypto';
 import { expect, test, describe, vi, onTestFinished } from 'vitest';
@@ -597,15 +598,19 @@ test('a socket admitted just before its member was removed is closed with 4404 o
   await server.stop();
 });
 
-test('unloading a room releases the memory of the process through the injected function', async () => {
-  const releaseRoomMemory = vi.fn();
-  const updateLog = { clientIdentities: () => [] } as unknown as Parameters<typeof createCollaborationServer>[0]['updateLog'];
+test('unloading a room reports its state size and then its unload to the room memory', async () => {
+  const roomMemory = { observe: vi.fn(), unloaded: vi.fn() };
   const hocuspocus = createCollaborationServer({
-    updateLog,
-    releaseRoomMemory,
+    roomMemory,
     onLogged: vi.fn(),
     onStored: vi.fn(),
   } as unknown as Parameters<typeof createCollaborationServer>[0]);
-  await hocuspocus.hooks('afterUnloadDocument', { instance: hocuspocus, documentName: `${SUPERDOC_ROOM_PREFIX}${randomUUID()}` });
-  expect(releaseRoomMemory).toHaveBeenCalledOnce();
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${randomUUID()}`;
+  const document = new Document(documentName);
+  document.getText('story').insert(0, 'hello');
+  hocuspocus.documents.set(documentName, document);
+  await hocuspocus.hooks('beforeUnloadDocument', { instance: hocuspocus, documentName });
+  await hocuspocus.hooks('afterUnloadDocument', { instance: hocuspocus, documentName });
+  expect(roomMemory.observe).toHaveBeenCalledExactlyOnceWith({ documentName, stateBytes: Y.encodeStateAsUpdate(document).byteLength });
+  expect(roomMemory.unloaded).toHaveBeenCalledExactlyOnceWith(documentName);
 });

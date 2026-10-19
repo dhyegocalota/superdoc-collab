@@ -565,9 +565,7 @@ test('a break is one dashed divider hidden from assistive technology', () => {
   expect(divider).toHaveAttribute('aria-hidden', 'true');
   expect(divider!.getAttribute('class')).toContain('stroke-');
   expect(divider!.outerHTML).not.toMatch(/#[0-9a-f]{3,8}/i);
-  expect(divider).toHaveStyle({ transform: `translateX(${breakColumn.centerX}px)` });
-  expect(divider).toHaveStyle({ transitionDuration: `${STREAMGRAPH_TRANSITION_MS}ms` });
-  expect(divider).toHaveClass('motion-reduce:transition-none');
+  expect(Number(divider!.getAttribute('x1'))).toBeCloseTo(breakColumn.centerX);
 });
 
 test('a chart without a break has no divider', () => {
@@ -773,4 +771,25 @@ test('under reduced motion a change does not pulse', () => {
   const { container, rerender } = render(chartWith(null));
   rerender(chartWith(CHANGE));
   expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
+});
+
+test('a divider whose column moves glides from its old place and a steady one does not', () => {
+  const props = {
+    change: null,
+    timeline: breakTimeline,
+    selectedIndex: null,
+    highlightedBandId: null,
+    isLoadingVersion: false,
+    onSelectIndex: vi.fn(),
+    onClearSelection: vi.fn(),
+  };
+  const narrower = WIDTH / 2;
+  const { container, rerender } = render(<Streamgraph {...props} width={WIDTH} />);
+  const divider = () => container.querySelector('line[stroke-dasharray]')!;
+  expect(divider().style.getPropertyValue('--glide-offset')).toBe('0px');
+  rerender(<Streamgraph {...props} width={narrower} />);
+  const movedBy = breakColumn.centerX - layoutStreamgraph({ timeline: breakTimeline, width: narrower }).breaks[0]!.centerX;
+  expect(divider().style.getPropertyValue('--glide-offset')).toBe(`${movedBy}px`);
+  expect(divider()).toHaveClass('streamgraph-glide', 'motion-reduce:animate-none');
+  expect(divider()).toHaveStyle({ animationDuration: `${STREAMGRAPH_TRANSITION_MS}ms` });
 });

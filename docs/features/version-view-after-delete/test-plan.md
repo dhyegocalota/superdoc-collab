@@ -16,6 +16,7 @@ and `version-marks.test.ts::a sequence the log knows resolves to itself…` plus
 ## E2E
 
 - [x] `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` — five steps, each in its own 10-second bin; expected: the version frame shows the edited paragraph
+- [x] `e2e/time-travel.spec.ts::selecting the bin of an edit shows the edited paragraph when the delete is in the next bin` — bin click, delete in the next bin; expected: the edited paragraph
 - [ ] Existing time-travel tests stay green
 
 ## Prove it for real — Playwright MCP

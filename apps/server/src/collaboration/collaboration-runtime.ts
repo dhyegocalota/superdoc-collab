@@ -1,6 +1,6 @@
 import type { Connection, Document, Hocuspocus } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-collab/history';
-import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, RoomMode, type BootstrapProgress } from '@superdoc-collab/types';
+import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, BootstrapStage, RoomMode, type BootstrapProgress } from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';
@@ -63,7 +63,7 @@ export function createCollaborationRuntime({
   return {
     bootstrapRoom: (documentId) => {
       const progress = roomBootstrap.progressOf(documentId);
-      if (progress !== null) return progress;
+      if (progress !== null && progress.stage !== BootstrapStage.Failed) return progress;
       if (bootstrap.isKnownCommitted(documentId)) return COMMITTED_WITHOUT_BOOTSTRAP;
       return roomBootstrap.request(documentId);
     },

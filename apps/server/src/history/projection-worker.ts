@@ -7,13 +7,14 @@ import {
   UpdateLog,
   type ListedTrackedChange,
 } from '@superdoc-collab/history';
-import { BOOTSTRAP_TIMEOUT_MS, RoomMode, SECOND_MS } from '@superdoc-collab/types';
+import { BOOTSTRAP_HOST_TIMEOUT_MS, BOOTSTRAP_TIMEOUT_MS, RoomMode, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { COLLABORATION_PROVIDER, SDK_RUNTIME } from '../collaboration/sdk-room';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
+import { assertBootstrapApplied } from './bootstrap-applied';
 import { createProjectionHandler } from './projection-handler';
 import { createProjectionQueues } from './projection-queues';
 import {
@@ -31,6 +32,7 @@ import {
 } from './projection-messages';
 
 const STOP_DISPOSE_TIMEOUT_MS = SECOND_MS;
+const HOST_RELEASE_TIMEOUT_MS = 6 * SECOND_MS;
 const BOOTSTRAP_HOST_NAME = 'SuperDoc History bootstrap';
 const BOOTSTRAP_HOST_EMAIL = 'bootstrap@superdoc-history.local';
 
@@ -54,10 +56,16 @@ async function connectSuperdocClient(options: SuperdocClientOptions): Promise<Su
 function sharedSuperdocClient(options: SuperdocClientOptions): {
   connected: () => Promise<SuperDocClient>;
   pending: () => Promise<SuperDocClient> | null;
+  release: () => Promise<void>;
 } {
   const shared: { connection: Promise<SuperDocClient> | null } = { connection: null };
   return {
     pending: () => shared.connection,
+    release: async () => {
+      const releasing = shared.connection;
+      shared.connection = null;
+      await disposeSuperdocClient({ pending: releasing, milliseconds: HOST_RELEASE_TIMEOUT_MS });
+    },
     connected: () => {
       if (shared.connection) return shared.connection;
       const connecting = connectSuperdocClient(options);
@@ -73,7 +81,7 @@ function sharedSuperdocClient(options: SuperdocClientOptions): {
 const importClient = sharedSuperdocClient(undefined);
 const bootstrapClient = sharedSuperdocClient({
   user: { name: BOOTSTRAP_HOST_NAME, email: BOOTSTRAP_HOST_EMAIL },
-  requestTimeoutMs: BOOTSTRAP_TIMEOUT_MS,
+  requestTimeoutMs: BOOTSTRAP_HOST_TIMEOUT_MS,
 });
 
 async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
@@ -123,6 +131,7 @@ async function bootstrapRoom({
     },
     { collaborationAuth: { type: 'token', token } },
   );
+  assertBootstrapApplied(opened.openResult);
   await opened.close({ discard: true });
 }
 
@@ -134,9 +143,7 @@ const handle = createProjectionHandler({
   fileSizeBytes: (filePath) => statSync(filePath).size,
   bootstrapRoom,
   bootstrapTimeoutMs: BOOTSTRAP_TIMEOUT_MS,
-  releaseBootstrapHost: async () => {
-    throw new Error('releaseBootstrapHost is not implemented');
-  },
+  releaseBootstrapHost: bootstrapClient.release,
 });
 
 function failureOf({ request, message }: { request: AnsweredRequest; message: string }): ProjectionFailedReply {
@@ -158,20 +165,30 @@ function measured(reply: AnsweredReply | ProjectionFailedReply): ProjectionReply
   return { ...reply, heapTotalBytes: process.memoryUsage().heapTotal };
 }
 
-async function disposeSuperdocClient(pending: Promise<SuperDocClient> | null): Promise<void> {
+async function disposeSuperdocClient({
+  pending,
+  milliseconds,
+}: {
+  pending: Promise<SuperDocClient> | null;
+  milliseconds: number;
+}): Promise<void> {
   if (!pending) return;
   await withTimeout({
     work: pending.then(
       (client) => client.dispose(),
       () => undefined,
     ),
-    milliseconds: STOP_DISPOSE_TIMEOUT_MS,
+    milliseconds,
     onTimeout: () => undefined,
   }).catch(() => undefined);
 }
 
 async function stopWorker(): Promise<void> {
-  await Promise.all([disposeSuperdocClient(importClient.pending()), disposeSuperdocClient(bootstrapClient.pending())]);
+  await Promise.all(
+    [importClient, bootstrapClient].map((client) =>
+      disposeSuperdocClient({ pending: client.pending(), milliseconds: STOP_DISPOSE_TIMEOUT_MS }),
+    ),
+  );
   historySqlite.close();
   readModelSqlite.close();
   process.exit(0);

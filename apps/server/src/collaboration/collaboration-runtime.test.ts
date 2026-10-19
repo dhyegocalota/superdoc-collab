@@ -114,6 +114,14 @@ test('an uncommitted document with no job is requested once and answers the queu
   expect(roomBootstrap.request).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
 });
 
+test('a failed job is requested again so the registry may retry it after its cooldown', () => {
+  const failed: BootstrapProgress = { stage: BootstrapStage.Failed, done: 0, total: 9, stateBytes: null };
+  const roomBootstrap = fakeRoomBootstrap({ progress: failed });
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap });
+  expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(QUEUED);
+  expect(roomBootstrap.request).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
+});
+
 test('forgetting a document forgets its bootstrap', async () => {
   const roomBootstrap = fakeRoomBootstrap();
   const runtime = createCollaborationRuntime({

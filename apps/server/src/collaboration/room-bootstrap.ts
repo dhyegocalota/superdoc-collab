@@ -1,12 +1,21 @@
-import { BOOTSTRAP_PROGRESS_ENTRIES, BOOTSTRAP_STATE_BYTES_RATIO, BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
+import {
+  BOOTSTRAP_COMMIT_GRACE_MS,
+  BOOTSTRAP_INTERRUPTED_RETRIES,
+  BOOTSTRAP_PROGRESS_ENTRIES,
+  BOOTSTRAP_RETRY_COOLDOWN_MS,
+  BOOTSTRAP_STATE_BYTES_RATIO,
+  BootstrapStage,
+  type BootstrapProgress,
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { LruMap } from '../limits/lru-map';
-import { BOOTSTRAP_FAILED_MESSAGE } from '../history/projection-messages';
+import { withTimeout } from '../limits/with-timeout';
+import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError } from '../history/projection-messages';
 import { describeError } from '../logging/describe-error';
 
 export type BootstrapRun = (request: { documentId: string; filePath: string; url: string; token: string }) => Promise<void>;
 
-type BootstrapJob = { progress: BootstrapProgress; attempt: string | null };
+type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
 
@@ -32,6 +41,7 @@ export class BootstrapUncommittedError extends Error {
 export class RoomBootstrap {
   private readonly jobs = new LruMap<BootstrapJob>({ isOverBudget: (entries) => entries.size > BOOTSTRAP_PROGRESS_ENTRIES });
   private readonly waiting: string[] = [];
+  private readonly commitWaiters = new Map<string, () => void>();
   private isRunning = false;
   private readonly run: BootstrapRun;
   private readonly issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
@@ -74,11 +84,11 @@ export class RoomBootstrap {
   }
 
   request(documentId: string): BootstrapProgress {
-    const existing = this.progressOf(documentId);
-    if (existing !== null) return existing;
+    const existing = this.jobs.peek(documentId);
+    if (existing !== null && !this.isRetryable(existing)) return existing.progress;
     const total = this.fileBytesOf(documentId) * BOOTSTRAP_STATE_BYTES_RATIO;
     const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null } });
+    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null } });
     this.waiting.push(documentId);
     this.pump();
     return progress;
@@ -89,7 +99,10 @@ export class RoomBootstrap {
     if (owner === null) throw new BootstrapOwnerMissingError(documentId);
     const attempt = randomUUID();
     const total = this.totalOf(documentId);
-    this.jobs.set({ key: documentId, value: { progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null }, attempt } });
+    this.jobs.set({
+      key: documentId,
+      value: { progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null }, attempt, failedAt: null },
+    });
     return this.issueToken({ userId: owner, documentId, attempt });
   }
 
@@ -111,13 +124,23 @@ export class RoomBootstrap {
     const job = this.jobs.peek(documentId);
     const total = this.totalOf(documentId);
     const attempt = job === null ? null : job.attempt;
-    this.jobs.set({ key: documentId, value: { progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes }, attempt } });
+    this.jobs.set({
+      key: documentId,
+      value: { progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes }, attempt, failedAt: null },
+    });
+    const commitWaiter = this.commitWaiters.get(documentId);
+    if (commitWaiter !== undefined) commitWaiter();
   }
 
   forget(documentId: string): void {
     this.jobs.delete(documentId);
     const queuedAt = this.waiting.indexOf(documentId);
     if (queuedAt !== -1) this.waiting.splice(queuedAt, 1);
+  }
+
+  private isRetryable(job: BootstrapJob): boolean {
+    if (job.failedAt === null) return false;
+    return this.now() - job.failedAt >= BOOTSTRAP_RETRY_COOLDOWN_MS;
   }
 
   private isReady(documentId: string): boolean {
@@ -136,27 +159,43 @@ export class RoomBootstrap {
     const next = this.waiting.shift();
     if (next === undefined) return;
     this.isRunning = true;
-    void this.runJob(next).finally(() => {
+    void this.runJob({ documentId: next, retries: BOOTSTRAP_INTERRUPTED_RETRIES }).finally(() => {
       this.isRunning = false;
       this.pump();
     });
   }
 
-  private async runJob(documentId: string): Promise<void> {
+  private async runJob({ documentId, retries }: { documentId: string; retries: number }): Promise<void> {
     try {
       const token = this.begin(documentId);
       await this.run({ documentId, filePath: this.filePathOf(documentId), url: this.collaborationUrl(), token });
-      if (this.isReady(documentId)) return;
-      throw new BootstrapUncommittedError();
+      await this.awaitCommit(documentId);
     } catch (error) {
+      const isRetryable = error instanceof BootstrapInterruptedError && retries > 0;
+      if (isRetryable) return this.runJob({ documentId, retries: retries - 1 });
       this.fail({ documentId, error });
     }
+  }
+
+  private async awaitCommit(documentId: string): Promise<void> {
+    if (this.isReady(documentId)) return;
+    await withTimeout({
+      work: new Promise<void>((resolve) => this.commitWaiters.set(documentId, resolve)),
+      milliseconds: BOOTSTRAP_COMMIT_GRACE_MS,
+      onTimeout: () => undefined,
+    });
+    this.commitWaiters.delete(documentId);
+    if (this.isReady(documentId)) return;
+    throw new BootstrapUncommittedError();
   }
 
   private fail({ documentId, error }: { documentId: string; error: unknown }): void {
     const job = this.jobs.peek(documentId);
     if (job === null) return;
-    this.jobs.set({ key: documentId, value: { progress: { ...job.progress, stage: BootstrapStage.Failed, done: 0 }, attempt: null } });
+    this.jobs.set({
+      key: documentId,
+      value: { progress: { ...job.progress, stage: BootstrapStage.Failed, done: 0 }, attempt: null, failedAt: this.now() },
+    });
     console.error(`${BOOTSTRAP_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
   }
 }

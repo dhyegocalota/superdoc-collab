@@ -114,13 +114,17 @@ export function createProjectionHandler({
     url,
     token,
   }: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
-    await withTimeout({
-      work: bootstrapRoom({ documentId, filePath, url, token }),
-      milliseconds: bootstrapTimeoutMs,
-      onTimeout: () => {
-        throw new BootstrapTimeoutError(bootstrapTimeoutMs);
-      },
-    });
+    try {
+      await withTimeout({
+        work: bootstrapRoom({ documentId, filePath, url, token }),
+        milliseconds: bootstrapTimeoutMs,
+        onTimeout: () => {
+          throw new BootstrapTimeoutError(bootstrapTimeoutMs);
+        },
+      });
+    } finally {
+      await releaseBootstrapHost();
+    }
     return { kind: ProjectionRequestKind.Bootstrap, documentId };
   }
 

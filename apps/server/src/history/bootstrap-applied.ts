@@ -1,5 +1,8 @@
+import { BootstrapNotAppliedError } from './projection-messages';
+
 export type OpenedBootstrap = { bootstrap?: { bootstrapApplied?: boolean } };
 
 export function assertBootstrapApplied(opened: OpenedBootstrap): void {
-  throw new Error(`assertBootstrapApplied is not implemented ${JSON.stringify(opened)}`);
+  const isApplied = opened.bootstrap?.bootstrapApplied !== false;
+  if (!isApplied) throw new BootstrapNotAppliedError();
 }

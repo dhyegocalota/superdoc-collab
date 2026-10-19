@@ -13,6 +13,7 @@ const [ana] = DEMO_USERS;
 const PUBLIC_ASSETS = [
   { path: '/robots.txt', contentType: 'text/plain' },
   { path: '/site.webmanifest', contentType: 'manifest' },
+  { path: '/favicon.ico', contentType: 'icon' },
   { path: '/favicon.svg', contentType: 'image/svg+xml' },
   { path: '/og-image.png', contentType: 'image/png' },
 ];
@@ -42,4 +43,9 @@ test.describe('public assets', () => {
       expect(response.headers()['content-type']).toContain(contentType);
     });
   });
+});
+
+test('the served page carries an absolute share image URL', async ({ request, baseURL }) => {
+  const html = await (await request.get(AppRoute.About)).text();
+  expect(html).toContain(`<meta property="og:image" content="${baseURL}/og-image.png" />`);
 });

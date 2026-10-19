@@ -360,7 +360,7 @@ export async function startServer({
   });
   resumeProjections({ databases, services });
   const app = createApp({ auth, environment, services });
-  if (webDistDirectory) mountStaticWeb({ app, webDistDirectory });
+  if (webDistDirectory) mountStaticWeb({ app, webDistDirectory, appOrigin: environment.appOrigin });
   app.notFound((context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
   const httpServer = await listen({ app, port: environment.port, host: environment.host }).catch(async (error) => {
     await closeCollaboration(services);

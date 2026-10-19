@@ -124,5 +124,9 @@ export function useTweenedPaths({ shapes, isEnabled, snapKey }: { shapes: BandSh
   }, [shapesKey, snapKey, isTweening]);
 
   if (!isTweening || shown.snapKey !== snapKey) return shapes;
-  return shown.shapes;
+  return shown.shapes.map((shape) => {
+    const latest = shapes.find((candidate) => candidate.band.id === shape.band.id);
+    if (!latest) return shape;
+    return { ...latest, path: shape.path, agentPath: shape.agentPath };
+  });
 }

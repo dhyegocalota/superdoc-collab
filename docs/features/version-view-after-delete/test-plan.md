@@ -2,12 +2,25 @@
 
 ## The failing test first
 
-- [ ] `<layer test>` — input: updates add, edit, delete a paragraph; version at the edit; expected: the edited text
-- [ ] Confirmed it fails for the right reason: <paste>
+- [x] `libs/history/src/version-state.test.ts::the version of a bin that ends before a later delete in the same minute shows the edit` — input: updates add, edit, delete a paragraph, the delete one narrowest bin after the edit; version at the edit bin's last instant; expected: the edited text
+- [x] Confirmed it fails for the right reason:
+
+```
+AssertionError: expected 'Plan' to be 'PlanAdded and edited' // Object.is equality
+ ❯ src/version-state.test.ts:118:38
+```
+
+The E2E fails the same way on the local stack:
+
+```
+Expected substring: "Added line edited"
+Received string:    "Budget: the plan costs 10.Hiring: we add two people."
+  > 272 |   expect(serverText).toContain(`${ADDED_PARAGRAPH}${ADDED_EDIT}`);
+```
 
 ## E2E
 
-- [ ] `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` — five steps; expected: the version frame shows the edited paragraph
+- [x] (red at the commit that adds it) `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` — five steps, each in its own 10-second bin; expected: the version frame shows the edited paragraph
 - [ ] Existing time-travel tests stay green
 
 ## Prove it for real — Playwright MCP

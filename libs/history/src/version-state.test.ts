@@ -5,7 +5,10 @@ import { MigrationSet } from './migrations';
 import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
+import { readMainStoryText } from './document-content';
+import { BIN_LADDER_MS } from './timeline/bins';
 import { UpdateLog, replay } from './update-log';
+import { versionSequenceAt } from './version-marks';
 import { GcFreeReplays, REPLAY_CACHE_SIZE } from './version-state';
 
 const DOCUMENT = 'version-room';
@@ -20,6 +23,8 @@ const LCG_MULTIPLIER = 1664525;
 const LCG_INCREMENT = 1013904223;
 const LCG_MODULUS = 2 ** 32;
 const MAX_RANDOM_LENGTH = 40;
+const NARROWEST_BIN_MS = BIN_LADDER_MS[0]!;
+const START_TIME = Date.UTC(2026, 9, 16, 9, 0);
 
 function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadModel; ana: Y.Doc } {
   const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
@@ -53,7 +58,7 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2026, 9, 16, 9, 0) }));
+beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: START_TIME }));
 afterEach(() => vi.useRealTimers());
 
 test('every mark restores the document exactly as a full replay at its sequence', () => {
@@ -95,4 +100,20 @@ test('a seeded random history restores exactly at every mark', () => {
   });
   projectPending({ log, readModel, documentName: DOCUMENT, batchSize: BATCH_SIZE });
   expectEveryMarkRestored({ log, readModel });
+});
+
+test('the version of a bin that ends before a later delete in the same minute shows the edit', () => {
+  const { log, readModel, ana } = bootstrappedLog(['Plan']);
+  vi.advanceTimersByTime(NARROWEST_BIN_MS / 10);
+  writeStory({ document: ana, texts: ['Plan', 'Added'] });
+  vi.advanceTimersByTime(NARROWEST_BIN_MS / 10);
+  writeStory({ document: ana, texts: ['Plan', 'Added and edited'] });
+  vi.advanceTimersByTime(NARROWEST_BIN_MS);
+  writeStory({ document: ana, texts: ['Plan'] });
+  projectPending({ log, readModel, documentName: DOCUMENT, batchSize: BATCH_SIZE });
+  const binEnd = START_TIME + NARROWEST_BIN_MS;
+  const sequence = versionSequenceAt({ marks: readModel.marks(DOCUMENT), time: binEnd - 1 });
+  const mark = readModel.mark({ documentName: DOCUMENT, sequence: sequence! });
+  const version = new GcFreeReplays(REPLAY_CACHE_SIZE).version({ log, documentName: DOCUMENT, mark: mark! });
+  expect(readMainStoryText(version)).toBe('PlanAdded and edited');
 });

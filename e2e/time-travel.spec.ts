@@ -1,5 +1,5 @@
 import type { Browser, Page } from '@playwright/test';
-import { DEMO_USERS, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath } from '../libs/types/src';
+import { DEMO_USERS, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, VERSION_MARK_MS, versionViewPagePath } from '../libs/types/src';
 import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import {
   BACK_TO_LIVE_LABEL,
@@ -12,6 +12,7 @@ import {
   acceptShareLink,
   EDITOR_INPUT_SELECTOR,
   editorText,
+  focusEditorAtEnd,
   readEvents,
   shareAndAccept,
   TEXT_RUN_SELECTOR,
@@ -52,6 +53,10 @@ const STABLE_WINDOW_MS = 4_500;
 const ANA = DEMO_USERS[0]!.name;
 const READ_ONLY_ATTEMPT = ' reader typed this';
 const DRAFT_TEXT = 'bud';
+const ADDED_PARAGRAPH = 'Added line';
+const ADDED_EDIT = ' edited';
+const BIN_START_WINDOW_MS = 1_500;
+const BIN_WAIT_TIMEOUT_MS = 2 * VERSION_MARK_MS;
 
 async function ownerWithEdit(browser: Browser) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -234,4 +239,37 @@ test('Escape in the live editor moves focus past it and Tab reaches the timeline
   await expect.poll(() => ana.page.evaluate(() => document.activeElement?.textContent)).toBe(EDITOR_EXIT_LABEL);
   await ana.page.keyboard.press('Tab');
   await expect.poll(() => ana.page.evaluate(() => document.activeElement?.closest('aside') !== null)).toBe(true);
+});
+
+async function waitForBinStart(): Promise<void> {
+  await expect
+    .poll(() => Date.now() % VERSION_MARK_MS, { timeout: BIN_WAIT_TIMEOUT_MS, intervals: [100] })
+    .toBeLessThan(BIN_START_WINDOW_MS);
+}
+
+test('the version of an edit shows the paragraph after it was deleted later', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const { page } = ana;
+  const documentId = await uploadSeed({ page, paragraphs: PARAGRAPHS });
+  const firstParagraph = editorText(page).filter({ hasText: PARAGRAPHS[0]! }).first();
+  await waitForBinStart();
+  await focusEditorAtEnd({ page, target: firstParagraph });
+  await page.keyboard.press('Enter');
+  await page.keyboard.type(ADDED_PARAGRAPH);
+  await waitForBinStart();
+  await page.keyboard.type(ADDED_EDIT);
+  await waitForBinStart();
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await expect.poll(() => readLiveText(page)).not.toContain(ADDED_PARAGRAPH);
+  await waitForSettledTimeline({ page, documentId });
+  const { bins, bands } = await readTimeline({ page, documentId });
+  const filledIndexes = bins.flatMap((bin, index) => (Object.keys(bin.byBand).length > 0 ? [index] : []));
+  const editIndex = filledIndexes.at(-2)!;
+  const stepsBack = bins.length - 1 - editIndex;
+  await pressInChart({ page, name: bands[0]!.name, keys: ['End', ...Array.from({ length: stepsBack }, () => 'ArrowLeft')] });
+  await expect(versionBanner(page)).toHaveAttribute('data-sequence', /\d+/, { timeout: VERSION_TIMEOUT_MS });
+  const serverText = await expectViewerMatchesServer({ page, documentId });
+  expect(serverText).toContain(`${ADDED_PARAGRAPH}${ADDED_EDIT}`);
 });

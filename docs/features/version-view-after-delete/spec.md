@@ -22,6 +22,22 @@
 - The version state is built from a snapshot taken after the delete and `Y.createDocFromSnapshot` cannot restore deleted content; `version-state.ts` already uses `gc: false`, so check which document is snapshotted and when.
 - The version DOCX export drops a paragraph that exists only as deleted structs.
 
+## Root cause
+
+Evidence, from a throwaway E2E on the local stack (add a paragraph, edit it, delete it with Backspace, all within one second) and from a unit replay of the same three updates:
+
+| Boundary | What crossed it |
+|----------|-----------------|
+| Edit events | sequences 25 (created), 32 (modified, inserted), 38 (modified, deleted), 44 (merged); all `serverTime` within 252 ms |
+| `GET /versions?around=` | two marks only: 22 (bootstrap) and 49 (the last update of the minute) |
+| Timeline bin | one bin of 10 000 ms with `versionSequence` 49 |
+| `GET /versions/<sequence>/text` for 25, 32, 38 and 44 | every one resolves to mark 49 and answers the text without the added paragraph |
+| Unit replay (bootstrap, add, edit, delete five seconds apart) | sequences 3 and 4 resolve to mark 5, whose text is empty |
+
+Cause: `endsItsMinute` keeps one mark per minute, the last update of that minute, and `versionSequenceAt` maps a bin's last instant to that mark. The bin is as narrow as 10 seconds (`BIN_LADDER_MS`), so the version of a bin that ends before the delete still carries every edit made later in the same minute. Nothing is lost in the snapshot, the GC-free replay or the export: `Y.createDocFromSnapshot` over the mark restores exactly what it was given, and the mark is the post-delete state. The hypotheses about a tombstone and a snapshot taken after the delete are refuted; the delete is a `merged` event whose text the version already omits, and the replay is gc-free.
+
+Fix: a mark per `VERSION_MARK_MS` that equals the narrowest bin, so a bin end always has a mark of its own. Edits and a delete inside one bin still show the bin's end state, which is the document as it was at the bin's last instant.
+
 ## Failure handling
 
 The lane ships nothing until the cause is written down with evidence; a fix at a symptom (hiding the version link) is out.

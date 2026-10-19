@@ -1,4 +1,11 @@
-import { AgentActionKind, MINUTE_MS, STREAMGRAPH_TRANSITION_MS, TimelineBandKind, UTC_TIME_ZONE } from '@superdoc-collab/types';
+import {
+  AgentActionKind,
+  MINUTE_MS,
+  STREAMGRAPH_PULSE_MS,
+  STREAMGRAPH_TRANSITION_MS,
+  TimelineBandKind,
+  UTC_TIME_ZONE,
+} from '@superdoc-collab/types';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { FIXTURE_AGENT_AUTHOR_KEY, FIXTURE_AGENT_AUTHOR_NAME, FIXTURE_AUTHOR_NAME, timelineWith } from '@/testing/timeline-fixtures';
@@ -15,6 +22,7 @@ import {
   LEGEND_LABEL,
   STREAMGRAPH_TITLE,
 } from './timeline-copy';
+import type { TimelineChange } from './use-timeline-change';
 import { TooltipAlignment, tooltipAlignment, tooltipAnchorLeft, TOOLTIP_POINTER_OFFSET, TOOLTIP_WIDTH } from './timeline-tooltip';
 
 vi.mock('@/lib/use-time-zone', () => ({ useTimeZone: () => ({ timeZone: 'UTC', source: 'account' }) }));
@@ -45,6 +53,7 @@ function renderGraph({
   const onClearSelection = vi.fn();
   const view = render(
     <Streamgraph
+      change={null}
       timeline={timeline}
       width={WIDTH}
       selectedIndex={selectedIndex}
@@ -197,6 +206,7 @@ test('Escape clears the selection and hides the keyboard tooltip', () => {
   expect(onClearSelection).toHaveBeenCalledTimes(1);
   rerender(
     <Streamgraph
+      change={null}
       timeline={timeline}
       width={WIDTH}
       selectedIndex={null}
@@ -213,6 +223,7 @@ test('the tooltip never grows wider than a narrow chart', () => {
   const narrowWidth = TOOLTIP_WIDTH / 2;
   render(
     <Streamgraph
+      change={null}
       timeline={timeline}
       width={narrowWidth}
       selectedIndex={1}
@@ -266,6 +277,7 @@ test('bands without a label are named in a legend', () => {
 test('a chart whose bands all carry their label has no legend', () => {
   render(
     <Streamgraph
+      change={null}
       timeline={LABELLED_TIMELINE}
       width={WIDTH}
       selectedIndex={null}
@@ -294,6 +306,7 @@ test('the chart is one tab stop on the active band', () => {
   expect(screen.getByLabelText(/^Other/)).toHaveAttribute('tabindex', '-1');
   rerender(
     <Streamgraph
+      change={null}
       timeline={timeline}
       width={WIDTH}
       selectedIndex={1}
@@ -362,6 +375,7 @@ const agentTimeline = timelineWith({
 function renderAgentGraph() {
   return render(
     <Streamgraph
+      change={null}
       timeline={agentTimeline}
       width={WIDTH}
       selectedIndex={1}
@@ -420,6 +434,7 @@ const actionTimeline = timelineWith({
 function renderActionGraph(source = actionTimeline) {
   return render(
     <Streamgraph
+      change={null}
       timeline={source}
       width={WIDTH}
       selectedIndex={null}
@@ -470,6 +485,7 @@ test('a tooltip for an action that disappears is gone with it', () => {
   fireEvent.pointerEnter(mark);
   view.rerender(
     <Streamgraph
+      change={null}
       timeline={{ ...actionTimeline, agentActions: actionTimeline.agentActions.slice(1) }}
       width={WIDTH}
       selectedIndex={null}
@@ -489,6 +505,7 @@ test('the bins are labelled in the zone the timeline was built in, not the curre
     selectedIndex: 0,
     highlightedBandId: null,
     isLoadingVersion: false,
+    change: null,
     onSelectIndex: vi.fn(),
     onClearSelection: vi.fn(),
   };
@@ -526,6 +543,7 @@ function renderBreakGraph({ selectedIndex = null }: { selectedIndex?: number | n
   const onSelectIndex = vi.fn();
   const view = render(
     <Streamgraph
+      change={null}
       timeline={breakTimeline}
       width={WIDTH}
       selectedIndex={selectedIndex}
@@ -637,6 +655,7 @@ function renderGrowth() {
   const before = budgetPathOf(view.container);
   view.rerender(
     <Streamgraph
+      change={null}
       timeline={grownTimeline}
       width={WIDTH}
       selectedIndex={1}
@@ -678,4 +697,76 @@ test('under reduced motion new data snaps the band shapes at once', () => {
   expect(snapped).not.toBe(before);
   act(() => vi.advanceTimersByTime(TWEEN_STEP_MS));
   expect(budgetPathOf(container)).toBe(snapped);
+});
+
+const CHANGE: TimelineChange = { token: 1, binIndex: 2, bandId: timeline.bands[1]!.id };
+const PULSE_SELECTOR = '.streamgraph-pulse';
+const PULSED_BAND_SELECTOR = 'path.streamgraph-band-pulse';
+
+function stubReducedMotion(): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === REDUCED_MOTION_QUERY,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
+function chartWith(change: TimelineChange | null) {
+  return (
+    <Streamgraph
+      change={change}
+      timeline={timeline}
+      width={WIDTH}
+      selectedIndex={1}
+      highlightedBandId={null}
+      isLoadingVersion={false}
+      onSelectIndex={vi.fn()}
+      onClearSelection={vi.fn()}
+    />
+  );
+}
+
+test('a change pulses the bin that grew in the colour of its band and settles after the pulse', () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+  const { container, rerender } = render(chartWith(null));
+  expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
+  rerender(chartWith(CHANGE));
+  const glow = container.querySelector(PULSE_SELECTOR)!;
+  const layout = layoutStreamgraph({ timeline, width: WIDTH });
+  expect(Number(glow.getAttribute('cx'))).toBeCloseTo(layout.binX(CHANGE.binIndex));
+  expect(Number(glow.getAttribute('cy'))).toBeCloseTo(layout.bandCenterY({ bandId: CHANGE.bandId, index: CHANGE.binIndex }));
+  expect(glow).toHaveStyle({ '--topic-hue': String(timeline.bands[1]!.hue) });
+  expect(glow).toHaveAttribute('aria-hidden', 'true');
+  expect(container.querySelector(PULSED_BAND_SELECTOR)).toHaveAccessibleName('Hiring, 90 characters');
+  act(() => vi.advanceTimersByTime(STREAMGRAPH_PULSE_MS));
+  expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
+  expect(container.querySelector(PULSED_BAND_SELECTOR)).toBeNull();
+});
+
+test('a chart that mounts with an old change does not pulse', () => {
+  const { container } = render(chartWith(CHANGE));
+  expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
+});
+
+test('a change that arrives while the pointer presses the chart does not pulse', () => {
+  const { container, rerender } = render(chartWith(null));
+  fireEvent.pointerDown(container.querySelector('svg')!, { clientX: WIDTH, buttons: 1 });
+  rerender(chartWith(CHANGE));
+  expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
+});
+
+test('a change pulses again once the press ends', () => {
+  const { container, rerender } = render(chartWith(null));
+  fireEvent.pointerDown(container.querySelector('svg')!, { clientX: WIDTH, buttons: 1 });
+  fireEvent.pointerUp(container.querySelector('svg')!);
+  rerender(chartWith(CHANGE));
+  expect(container.querySelector(PULSE_SELECTOR)).not.toBeNull();
+});
+
+test('under reduced motion a change does not pulse', () => {
+  stubReducedMotion();
+  const { container, rerender } = render(chartWith(null));
+  rerender(chartWith(CHANGE));
+  expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
 });

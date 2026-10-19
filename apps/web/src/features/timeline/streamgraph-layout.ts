@@ -37,6 +37,7 @@ export type StreamgraphLayout = {
   breakAt: (position: number) => BreakColumn | null;
   binAt: (position: number) => number;
   timeX: (time: number) => number;
+  bandCenterY: (target: { bandId: string; index: number }) => number;
 };
 
 class MissingStackValueError extends Error {}
@@ -262,6 +263,9 @@ export function layoutStreamgraph({ timeline, width }: { timeline: DocumentTimel
         index: 0,
         x: 0,
       }).index;
+    },
+    bandCenterY: () => {
+      throw new Error('bandCenterY is not implemented');
     },
     timeX: (time) => {
       const position = Math.min(lastIndex, Math.max(0, (time - firstBinStart(timeline)) / timeline.binMs));

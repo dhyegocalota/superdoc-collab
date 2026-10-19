@@ -10,10 +10,12 @@ import { StreamgraphLegend } from './streamgraph-legend';
 import { IdleBreakMarkers, SelectionMarker } from './streamgraph-markers';
 import { StreamgraphTooltip } from './streamgraph-tooltip';
 import { CHART_HINT, STREAMGRAPH_TITLE, streamgraphDescription } from './timeline-copy';
+import type { TimelineChange } from './use-timeline-change';
 import { useStreamgraphInteraction } from './use-streamgraph-interaction';
 
 type StreamgraphProps = {
   timeline: DocumentTimeline;
+  change: TimelineChange | null;
   width: number;
   selectedIndex: number | null;
   highlightedBandId: string | null;

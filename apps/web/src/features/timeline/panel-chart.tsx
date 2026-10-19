@@ -34,6 +34,7 @@ export function PanelChart({
       )}
       {timeline && chartWidth > 0 && (
         <Streamgraph
+          change={null}
           timeline={timeline}
           width={chartWidth}
           selectedIndex={selectedIndex}

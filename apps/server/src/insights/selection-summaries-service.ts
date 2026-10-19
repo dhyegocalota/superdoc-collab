@@ -3,6 +3,7 @@ import {
   GROUPING_FAILED_MESSAGE,
   SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
+  SELECTION_SUMMARY_TIMEOUT_MESSAGE,
   SelectionSummaryState,
   SummarizeStep,
   type EditSelection,
@@ -15,7 +16,7 @@ import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import type { InsightsJobRunner } from './insights-job-runner';
-import { LanguageModelAvailability, streamStructured, type LanguageModelChoice } from './llm-client';
+import { LanguageModelAvailability, LanguageModelTimeoutError, streamStructured, type LanguageModelChoice } from './llm-client';
 import {
   authorsMentioned,
   fitSelection,
@@ -64,6 +65,11 @@ function summaryOf({ stored, stamp }: { stored: StoredSelectionSummary | null; s
     computedAtSequence: stored.computedAtSequence,
     isStale: !matchesStamp({ stored, stamp }),
   };
+}
+
+function failureMessageOf(error: unknown): string {
+  if (error instanceof LanguageModelTimeoutError) return SELECTION_SUMMARY_TIMEOUT_MESSAGE;
+  return SELECTION_SUMMARY_FAILED_MESSAGE;
 }
 
 export class SelectionSummariesService {
@@ -239,18 +245,18 @@ export class SelectionSummariesService {
       });
     } catch (error) {
       console.error(`${SELECTION_SUMMARY_FAILED_LOG} ${documentId}: ${describeError(error)}`);
-      this.storeFailure({ documentId, resolved });
+      this.storeFailure({ documentId, resolved, failure: failureMessageOf(error) });
     } finally {
       this.partials.delete(documentId);
     }
   }
 
-  private storeFailure({ documentId, resolved }: { documentId: string; resolved: ResolvedSelection }): void {
+  private storeFailure({ documentId, resolved, failure }: { documentId: string; resolved: ResolvedSelection; failure: string }): void {
     try {
       this.repository.saveSelectionFailure({
         documentId,
         key: resolved.key,
-        failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+        failure,
         computedAtSequence: resolved.cursor,
         topicsUpdatedAt: resolved.topicsUpdatedAt,
       });

@@ -15,14 +15,19 @@ import {
   SHARED_EMPTY_MESSAGE,
   SHARED_HEADING,
 } from './documents-copy';
+import { DocumentsEmptyState } from './documents-empty-state';
 import { NewDocumentButton } from './new-document-button';
 import { UploadDialog } from './upload-dialog';
+import { UploadDropOverlay } from './upload-drop-overlay';
 import { useCreateDocument } from './use-create-document';
 import { useDocuments } from './use-documents';
+import { useUploadDocument } from './use-upload-document';
 
 export function DocumentsPage() {
   const { data, isError, isPending } = useDocuments();
   const createDocument = useCreateDocument();
+  const upload = useUploadDocument();
+  const hasNoDocuments = data !== undefined && data.mine.length === 0 && data.shared.length === 0;
   useDocumentTitle(DOCUMENTS_HEADING);
 
   return (
@@ -39,7 +44,12 @@ export function DocumentsPage() {
         <h1 className="text-2xl font-semibold">{DOCUMENTS_HEADING}</h1>
         {isError && <ErrorMessage>{DOCUMENTS_LOAD_ERROR_MESSAGE}</ErrorMessage>}
         {isPending && <DocumentListSkeleton />}
-        {data && (
+        {data && <UploadDropOverlay onFiles={upload.uploadFiles} />}
+        {createDocument.isError && <ErrorMessage>{CREATE_ERROR_MESSAGE}</ErrorMessage>}
+        {hasNoDocuments && (
+          <DocumentsEmptyState isCreating={createDocument.isPending} onCreate={() => createDocument.mutate()} upload={upload} />
+        )}
+        {data && !hasNoDocuments && (
           <>
             <section className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -49,7 +59,7 @@ export function DocumentsPage() {
                   <NewDocumentButton isPending={createDocument.isPending} onCreate={() => createDocument.mutate()} />
                 </div>
               </div>
-              {createDocument.isError && <ErrorMessage>{CREATE_ERROR_MESSAGE}</ErrorMessage>}
+              {upload.message !== null && <ErrorMessage>{upload.message}</ErrorMessage>}
               <DocumentTable documents={data.mine} emptyMessage={MINE_EMPTY_MESSAGE} kind={DocumentListKind.Mine} />
             </section>
             <section className="space-y-4">

@@ -1,10 +1,10 @@
 import type { EventAuthor } from './history';
 
 export const AUTHOR_COLOR_SLOT_COUNT = 6;
-export const AGENT_KEY_SUFFIX = '#agent';
+const AGENT_KEY_SUFFIX = '#agent';
 export const IMPORTED_KEY_PREFIX = 'imported:';
-export const HASH_OFFSET_BASIS = 0x811c9dc5;
-export const HASH_PRIME = 0x01000193;
+const HASH_OFFSET_BASIS = 0x811c9dc5;
+const HASH_PRIME = 0x01000193;
 
 const AUTHOR_COLOR_SLOTS = [1, 2, 3, 4, 5, 6] as const;
 

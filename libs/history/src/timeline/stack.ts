@@ -1,7 +1,7 @@
 import type { TimelineBand, TimelineBin, TimelineCell } from '@superdoc-collab/types';
 
-export const TOPIC_HUE_START = 205;
-export const TOPIC_HUE_END = 25;
+const TOPIC_HUE_START = 205;
+const TOPIC_HUE_END = 25;
 
 export type StackRow = { start: number; values: Record<string, number> };
 

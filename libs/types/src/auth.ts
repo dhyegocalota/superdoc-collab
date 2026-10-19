@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { DATE_TIME_LOCALE } from './constants';
 
-export const PASSWORD_MIN_LENGTH = 8;
-export const NAME_MIN_LENGTH = 2;
+const PASSWORD_MIN_LENGTH = 8;
+const NAME_MIN_LENGTH = 2;
 export const AUTH_ERROR_MESSAGE = 'Invalid email or password.';
 export const EMAIL_INVALID_MESSAGE = 'Enter a valid email address.';
 export const PASSWORD_TOO_SHORT_MESSAGE = `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
@@ -24,7 +24,7 @@ export enum TimeZoneSource {
   Browser = 'browser',
 }
 
-export const TIME_ZONE_MAX_LENGTH = 64;
+const TIME_ZONE_MAX_LENGTH = 64;
 const OFFSET_TIME_ZONE_PATTERN = /^[+-]/;
 
 function isResolvableTimeZone(value: string): boolean {

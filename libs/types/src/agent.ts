@@ -30,7 +30,7 @@ export enum AgentTool {
 }
 
 export const OFFLINE_ACCESS_SCOPE = 'offline_access';
-export const AGENT_NAME_SUFFIX = ' · AI';
+const AGENT_NAME_SUFFIX = ' · AI';
 
 export function agentAuthorName(name: string): string {
   return `${name}${AGENT_NAME_SUFFIX}`;

@@ -30,7 +30,8 @@ export function useBinSelection({
   function selectIndex(index: number): void {
     const bin = timeline!.bins[index]!;
     setSelectedTime(bin.start);
-    if (bin.versionSequence !== null) onTravel(bin.start);
+    const canTravel = bin.versionSequence !== null && onTravel !== null;
+    if (canTravel) onTravel(bin.start);
   }
 
   function clearSelection(): void {

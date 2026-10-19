@@ -65,9 +65,15 @@ export type ShortcutAction =
 
 export type ShortcutDefinition = { id: ShortcutId; group: ShortcutGroup; keys: ShortcutKeys; action: ShortcutAction };
 
-export const EDITING_SHORTCUT_GROUPS: readonly ShortcutGroup[] = [ShortcutGroup.Editing, ShortcutGroup.Formatting, ShortcutGroup.Paragraph];
+export const EDITING_SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
+  ShortcutGroup.Editing,
+  ShortcutGroup.Formatting,
+  ShortcutGroup.Paragraph,
+  ShortcutGroup.Title,
+];
 
 const ESCAPE_KEY_LABEL = 'Esc';
+const ENTER_KEY_LABEL = 'Enter';
 const { Mod, Shift, Alt } = ShortcutModifier;
 const NATIVE: ShortcutAction = { kind: ShortcutActionKind.Native };
 const APP: ShortcutAction = { kind: ShortcutActionKind.App };
@@ -187,6 +193,22 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
     modifiers: [Shift],
     code: 'Slash',
     label: '/',
+  }),
+  definition({
+    id: ShortcutId.SaveTitle,
+    group: ShortcutGroup.Title,
+    action: NATIVE,
+    modifiers: [],
+    code: 'Enter',
+    label: ENTER_KEY_LABEL,
+  }),
+  definition({
+    id: ShortcutId.CancelTitle,
+    group: ShortcutGroup.Title,
+    action: NATIVE,
+    modifiers: [],
+    code: 'Escape',
+    label: ESCAPE_KEY_LABEL,
   }),
 ];
 

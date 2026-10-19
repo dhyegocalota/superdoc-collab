@@ -5,6 +5,8 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShortcutTooltipContent } from '@/features/shortcuts/shortcut-tooltip-content';
+import { ShortcutId } from '@/features/shortcuts/shortcuts';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { KeyboardKey } from '@/lib/keyboard';
 import { openedDocumentQueryKey, renameDocument } from './editor-api';
@@ -102,7 +104,7 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
             onFocus={(event) => event.currentTarget.select()}
             onKeyDown={handleKeyDown}
           />
-          <Tooltip open={isSaveDisabled ? undefined : false}>
+          <Tooltip>
             <TooltipTrigger asChild>
               <span className="shrink-0">
                 <Button
@@ -117,11 +119,20 @@ export function DocumentTitle({ documentId, title, role, onFailureChange, onDirt
                 </Button>
               </span>
             </TooltipTrigger>
-            <TooltipContent>{SAVE_TITLE_DISABLED_REASON}</TooltipContent>
+            {isSaveDisabled ? (
+              <TooltipContent>{SAVE_TITLE_DISABLED_REASON}</TooltipContent>
+            ) : (
+              <ShortcutTooltipContent label={SAVE_TITLE_LABEL} shortcutId={ShortcutId.SaveTitle} />
+            )}
           </Tooltip>
-          <Button type="button" size="icon-sm" variant="ghost" aria-label={CANCEL_TITLE_LABEL} onClick={stopEditing}>
-            <X aria-hidden className={ACTION_ICON_CLASS} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" size="icon-sm" variant="ghost" aria-label={CANCEL_TITLE_LABEL} onClick={stopEditing}>
+                <X aria-hidden className={ACTION_ICON_CLASS} />
+              </Button>
+            </TooltipTrigger>
+            <ShortcutTooltipContent label={CANCEL_TITLE_LABEL} shortcutId={ShortcutId.CancelTitle} />
+          </Tooltip>
           {isSaveDisabled && (
             <p id={reasonId} className="sr-only">
               {SAVE_TITLE_DISABLED_REASON}

@@ -39,9 +39,7 @@ function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadMode
 function expectEveryMarkRestored({ log, readModel }: { log: UpdateLog; readModel: ReadModel }): void {
   const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
   readModel.marks(DOCUMENT).forEach(({ sequence }) => {
-    const mark = readModel.mark({ documentName: DOCUMENT, sequence });
-    if (!mark) throw new Error(`mark ${sequence} missing`);
-    const restored = replays.version({ log, documentName: DOCUMENT, mark });
+    const restored = replays.versionAt({ log, documentName: DOCUMENT, sequence });
     const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
     expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
     expect(restored.getText('draft').toString()).toBe(expected.getText('draft').toString());

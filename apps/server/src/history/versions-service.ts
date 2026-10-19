@@ -1,4 +1,4 @@
-import { resolveMark, type ReadModel, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
+import { resolveMark, type ReadModel, type ResolvedVersion, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
 import { VERSION_CACHE_MAX_BYTES, VERSION_CACHE_SIZE, VERSION_FAILURE_TTL_MS } from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { LruMap } from '../limits/lru-map';
@@ -98,8 +98,8 @@ export class VersionsService {
     this.cache = new LruMap({ isOverBudget: (entries) => isOverVersionBudget({ entries, maxEntries, maxBytes }) });
   }
 
-  // NB ADR 0027: a sequence whose mark was pruned resolves to the surviving mark of its minute, never to an earlier one.
-  resolve({ documentId, sequence }: VersionEndpoint): VersionMarkSummary | null {
+  // NB ADR 0043: a sequence the log knows resolves to itself; only an unknown sequence clamps down to a mark.
+  resolve({ documentId, sequence }: VersionEndpoint): ResolvedVersion | null {
     const serverTime = this.updateLog.serverTimeOf({ documentName: documentId, sequence });
     return resolveMark({ marks: this.readModel.marks(documentId), sequence, serverTime });
   }

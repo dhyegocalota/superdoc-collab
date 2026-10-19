@@ -36,14 +36,15 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 3. Hypothesis: a frame of 65 entries never reaches the room. Break it by: send one from a raw socket and check that no claimed id appears in the presence list.
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
 
+Fourth round: red 4c9a9e18 (clock reader and check are stubs; the end-to-end pin left the sender open: `expected null to deeply equal { code: 1008, … }`; a cut entry never closed: timeout), fix c067a611. `frame-bucket.ts` also walks at most 64 entries and `socket-message-limit.ts` has `claimsPinnedClock`; a frame with a clock at or above 2 to the 52 closes with `Awareness clock out of range`, a cut entry with the entries reason. The clock varint is read up to eight bytes deep, not six, because 2 to the 53 needs eight.
+
 Third round: red 16f34250 (an 80 MiB frame of continuing bytes: `expected null to be Infinity`; `expected false to be true`), fix 7cff6ca6.
 
 ## Known gaps
 
-- A forged update of a live peer's id at clock plus one is applied once before the close, and the victim spreads the forged fields afterwards.
+- A forged update of a live peer's id at a clock between the held one and 2 to the 52 is applied before the close and the victim spreads the forged fields until its clock passes it; a clock at or above 2 to the 52 is refused.
 - Canonical frames of 64 fresh ids with a null state grow `awareness.meta` without any event for the checks.
 
 - A room holding more than 64 awareness states closes a provider that joins it.
-- A refused foreign update lands once before its sender is closed.
 - A typing run of about 15 s followed by a pause breached the update bucket in 2 of 3 tester runs (about 1344 frames in the next second); the provider reconnects at once.
 - Sockets per user are unbounded, an owner follow-up named in ADR 0040.

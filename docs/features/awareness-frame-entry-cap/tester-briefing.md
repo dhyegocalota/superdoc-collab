@@ -36,13 +36,16 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 3. Hypothesis: a frame of 65 entries never reaches the room. Break it by: send one from a raw socket and check that no claimed id appears in the presence list.
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
 
+Sixth round: red 79a7e553 (the sender of a refused frame was closed with the origin reason), fix ee2e782d: a refused awareness frame is emptied in place and dropped, the sender keeps its socket, one warn line per socket per minute. Red f919025e (`AwarenessOwners.seed is not implemented`, `expected 5 to be +0`), fix ecaf8dd3: the binding is seeded from `client_identities` when a room loads. Red b1c1005f (`expected +0 to be 1`), fix 3c01a5f8: a connection past the ids cap binds none of its frame's ids.
+
 Fourth round: red 4c9a9e18 and fix c067a611 built an absolute clock ceiling; it was replaced in the fifth round. Fifth round: red 664dc94e, fix 102836a3. `AwarenessOwners` binds each awareness client id to the user who first announced it; `beforeHandleMessage` throws the origin error, before Hocuspocus applies anything, for an entry on another user's bound id at a clock above the room's held clock. Red texts: the 2 to the 53 frame closed with the old clock reason, the removal at 2 to the 52 minus 1 was applied and left the sender open, the forged state was applied before the close, and a 2 to the 53 clock on the sender's own ids closed it.
 
 Third round: red 16f34250 (an 80 MiB frame of continuing bytes: `expected null to be Infinity`; `expected false to be true`), fix 7cff6ca6.
 
 ## Known gaps
 
-- An equal-clock removal of a peer's state by another user passes the binding (it looks like the stock provider's relay) and is applied until the peer's next update. The only forgery left is by the first announcer of a fresh id.
+- An equal-clock removal of a peer's state by another user passes the binding (it looks like the stock provider's relay) and is applied until the peer's next update; a sustained attacker keeps a victim's presence blank, bounded by the frame rate cap.
+- An id with no recorded identity binds first-come, so an attacker who announces it first can blank the victim's presence for it until a reload; the document sync is untouched.
 - Canonical frames of 64 fresh ids with a null state grow `awareness.meta` without any event for the checks.
 
 - A room holding more than 64 awareness states closes a provider that joins it.

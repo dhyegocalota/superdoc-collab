@@ -6,10 +6,12 @@ import type { VersionMark, VersionMarkSummary } from './version-marks';
 const IMPORTED_SEQUENCE = 0;
 export const ALL_SEQUENCES = IMPORTED_SEQUENCE - 1;
 const IMPORTED_KEY_PREFIX = 'imported';
-const READ_MODEL_TABLES = ['edit_events', 'projection_cursor', 'version_marks'];
+const READ_MODEL_TABLES = ['edit_events', 'projection_cursor', 'version_marks', 'document_previews'];
 const INSERT_EVENT = `INSERT OR IGNORE INTO edit_events (document_name, event_key, sequence, server_time, yjs_client_ids, connection_user_id, connection_actor, author_name, block_id, kind, inserted, deleted, imported)
   VALUES (@documentName, @eventKey, @sequence, @serverTime, @yjsClientIds, @connectionUserId, @connectionActor, @authorName, @blockId, @kind, @inserted, @deleted, @imported)`;
 
+const UPSERT_PREVIEW = `INSERT INTO document_previews (document_name, sequence, preview) VALUES (@documentName, @sequence, @preview)
+  ON CONFLICT (document_name) DO UPDATE SET sequence = excluded.sequence, preview = excluded.preview`;
 const PRUNE_MINUTE = 'DELETE FROM version_marks WHERE document_name = ? AND minute_start = ? AND sequence < ? AND is_bootstrap = 0';
 const INSERT_MARK = `INSERT OR IGNORE INTO version_marks (document_name, sequence, server_time, minute_start, is_bootstrap, snapshot)
   VALUES (@documentName, @sequence, @serverTime, @minuteStart, @isBootstrap, @snapshot)`;
@@ -88,6 +90,7 @@ export class ReadModel {
     events,
     marks,
     lastSequence,
+    preview,
   }: {
     documentName: string;
     events: ProjectedEdit[];
@@ -95,6 +98,7 @@ export class ReadModel {
     lastSequence: number;
     preview?: string;
   }): void {
+    const writePreview = this.database.prepare(UPSERT_PREVIEW);
     const insert = this.database.prepare(INSERT_EVENT);
     const pruneMinute = this.database.prepare(PRUNE_MINUTE);
     const insertMark = this.database.prepare(INSERT_MARK);
@@ -123,12 +127,17 @@ export class ReadModel {
         pruneMinute.run(documentName, mark.minuteStart, mark.sequence);
         insertMark.run({ documentName, ...mark, isBootstrap: mark.isBootstrap ? 1 : 0 });
       });
+      if (preview !== undefined) writePreview.run({ documentName, sequence: lastSequence, preview });
       advance.run(documentName, lastSequence);
     })();
   }
 
   previews(documentNames: string[]): Map<string, string> {
-    throw new Error('ReadModel.previews is not implemented');
+    const placeholders = documentNames.map(() => '?').join(', ');
+    const rows = this.database
+      .prepare(`SELECT document_name AS documentName, preview FROM document_previews WHERE document_name IN (${placeholders})`)
+      .all(...documentNames) as { documentName: string; preview: string }[];
+    return new Map(rows.map((row) => [row.documentName, row.preview]));
   }
 
   commitImported({ documentName, revisions }: { documentName: string; revisions: ImportedRevision[] }): void {

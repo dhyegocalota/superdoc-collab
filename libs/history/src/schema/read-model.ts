@@ -45,3 +45,9 @@ export const versionMarks = sqliteTable(
     index('version_marks_by_minute').on(table.documentName, table.minuteStart),
   ],
 );
+
+export const documentPreviews = sqliteTable('document_previews', {
+  documentName: text('document_name').primaryKey(),
+  sequence: integer('sequence').notNull(),
+  preview: text('preview').notNull(),
+});

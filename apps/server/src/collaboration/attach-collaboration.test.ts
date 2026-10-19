@@ -777,6 +777,29 @@ test('an id recorded for a user before the room loaded stays with its author: an
   await server.stop();
 });
 
+test('an id observed under its owner before the room loaded seeds the binding: another user announcing it is dropped and the owner passes', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  clientIds.forEach((yjsClientId) =>
+    server.services.updateLog.observeClientIdentity({ documentName: documentId, yjsClientId, userId: owner.id, actor: ClientActor.Human }),
+  );
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  attacker.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds })));
+  attacker.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: attacker.client.document.clientID })).toBe(0);
+  expect(awarenessStateCount({ server, clientIds })).toBe(0);
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(attacker.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
+});
+
 test('a frame of 64 fresh ids from one connection closes it for the ids cap and binds none of them', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   commitBootstrap({ services: server.services, documentId, userId: owner.id });

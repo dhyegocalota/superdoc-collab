@@ -54,12 +54,12 @@ export function consentRevocationPlugin() {
     hooks: {
       before: [
         {
-          matcher: (context: { path?: string }) => context.path === DELETE_CONSENT_PATH || context.path === UPDATE_CONSENT_PATH,
-          handler: revokeTokensOfConsent,
-        },
-        {
           matcher: isRefusedToImpersonation,
           handler: refuseImpersonatedGrants,
+        },
+        {
+          matcher: (context: { path?: string }) => context.path === DELETE_CONSENT_PATH || context.path === UPDATE_CONSENT_PATH,
+          handler: revokeTokensOfConsent,
         },
       ],
     },

@@ -102,9 +102,9 @@ async function measureBannerProblems(page: Page): Promise<string[]> {
       const textBlock = element.querySelector('div')!;
       const reload = element.querySelector('button');
       const reloadBox = reload ? reload.getBoundingClientRect() : null;
-      const scroller = document.querySelector(`[data-testid="${scrollerTestId}"]`);
+      const scroller = document.querySelector(`[data-testid="${scrollerTestId}"]`)!;
       return {
-        scrollerOverflow: scroller ? scroller.scrollWidth - scroller.clientWidth : 0,
+        scrollerOverflow: scroller.scrollWidth - scroller.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
         viewportWidth: window.innerWidth,

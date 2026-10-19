@@ -2,6 +2,8 @@ import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { isImpersonationValid } from './impersonation-validity';
 
+const SESSION_REPLACING_PATHS = ['/sign-in/email', '/sign-out'];
+
 const endImpersonationOutsideItsRules = createAuthMiddleware(async (context) => {
   const session = await getSessionFromCtx(context);
   if (!session?.session.impersonatedBy) return;
@@ -13,6 +15,7 @@ const endImpersonationOutsideItsRules = createAuthMiddleware(async (context) => 
   });
   if (isValid) return;
   await internalAdapter.deleteSession(session.session.token);
+  if (SESSION_REPLACING_PATHS.includes(context.path)) return;
   throw new APIError('UNAUTHORIZED');
 });
 

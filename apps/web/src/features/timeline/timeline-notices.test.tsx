@@ -53,17 +53,18 @@ test('the empty copy stays hidden while the log is ahead of the last timeline an
   expect(screen.queryByText(NO_EDITS_YET_MESSAGE)).not.toBeInTheDocument();
 });
 
+const ROUNDING_LAG_MS = 14_600;
+const ROUNDED_LAG_SECONDS = 15;
+
 function behindFor(lagMs: number | null): DocumentTimeline {
   const timeline = timelineWith({ volumes: [[10]], names: ['Budget'] });
   return { ...timeline, projection: { ...timeline.projection, isBehind: true, lagMs } };
 }
 
 test('a projection behind by the threshold says it is catching up with the rounded seconds', () => {
-  render(
-    <TimelineNotices timeline={behindFor(PROJECTION_LAG_NOTICE_MS)} hasFilter={false} isLogAhead={false} canRefresh onRetry={vi.fn()} />,
-  );
+  render(<TimelineNotices timeline={behindFor(ROUNDING_LAG_MS)} hasFilter={false} isLogAhead={false} canRefresh onRetry={vi.fn()} />);
   expect(screen.getByText(HISTORY_CATCHING_UP_MESSAGE)).toBeInTheDocument();
-  expect(screen.getByText(lagBehindLabel(PROJECTION_LAG_NOTICE_MS / SECOND_MS))).toBeInTheDocument();
+  expect(screen.getByText(lagBehindLabel(ROUNDED_LAG_SECONDS))).toBeInTheDocument();
 });
 
 test('a projection behind by less than the threshold or by an unknown lag says nothing', () => {

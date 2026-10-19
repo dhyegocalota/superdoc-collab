@@ -13,7 +13,7 @@ The sibling lane `readability-web` deferred the files that the member-presence a
 
 ## Goals
 
-1. `DocumentPage`: fold the two repeated reload tails into one, fold the two waiting branches into one, then split the component into named parts by concern: the opening and readiness state, the editor surface, the header wiring and the timeline wiring. Same DOM.
+1. `DocumentPage`: fold the two repeated reload tails into one, fold the two waiting branches into one, then split the component into the reload hook, the failure-action hook, the status lines, the editor surface and the version bar. Same DOM.
 2. `TimelinePanel`: split into named parts and replace the no-op `ignoreTravel` with an explicit branch or a named handler.
 3. `TimelineNotices`: model the absence of `lagMs` explicitly, with no non-null assertion.
 4. A sweep of `apps/web/src/features/editor` and the timeline panel files for nested ifs, `else`, loops that read better as array methods, positional multi-parameter functions, unnamed compound conditions, `??` fallbacks and inline copy in JSX. The clear cases are fixed and the rest listed under Known gaps.

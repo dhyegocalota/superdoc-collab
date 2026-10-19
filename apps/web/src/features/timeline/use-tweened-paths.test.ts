@@ -168,3 +168,21 @@ test('a band whose number of segments changes snaps instead of tweening a broken
   elapse(HALF_TRANSITION_MS);
   expect(result.current[0]!.path).toBe(`${TALL_PATH}${TALLEST_PATH}`);
 });
+
+test('a band that keeps its path but changes its name or size shows the new one at once', () => {
+  const { result, rerender } = render([shapeOf({ index: 0, path: FLAT_PATH })]);
+  const renamed = { ...shapeOf({ index: 0, path: FLAT_PATH }), band: { ...bands[0]!, name: 'Staff Hiring', volume: 99 } };
+  rerender({ shapes: [renamed], isEnabled: true, snapKey: WIDTH });
+  expect(result.current[0]!.band).toEqual(renamed.band);
+});
+
+test('a band that keeps tweening shows the new name while its path moves', () => {
+  const { result, rerender } = render([shapeOf({ index: 0, path: FLAT_PATH })]);
+  rerender({ shapes: [shapeOf({ index: 0, path: TALL_PATH })], isEnabled: true, snapKey: WIDTH });
+  elapse(HALF_TRANSITION_MS);
+  const midway = result.current[0]!.path;
+  const renamed = { ...shapeOf({ index: 0, path: TALL_PATH }), band: { ...bands[0]!, name: 'Staff Hiring' } };
+  rerender({ shapes: [renamed], isEnabled: true, snapKey: WIDTH });
+  expect(result.current[0]!.band.name).toBe('Staff Hiring');
+  expect(result.current[0]!.path).toBe(midway);
+});

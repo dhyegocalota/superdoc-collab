@@ -31,7 +31,9 @@ function imageOf(bytes: number): Blob {
   return new Blob([new Uint8Array(bytes)], { type: ThumbnailMimeType.WebP });
 }
 
-beforeEach(() => vi.mocked(toCanvas).mockReset());
+beforeEach(() => {
+  vi.mocked(toCanvas).mockReset();
+});
 afterEach(() => vi.restoreAllMocks());
 
 test('the first page is rendered at the thumbnail width with its own aspect ratio and returned when small', async () => {

@@ -38,6 +38,7 @@ type ProjectionStores = {
   fileSizeBytes: (filePath: string) => number;
   bootstrapRoom: (request: { documentId: string; filePath: string; url: string; token: string }) => Promise<void>;
   bootstrapTimeoutMs: number;
+  releaseBootstrapHost: () => Promise<void>;
 };
 
 export function createProjectionHandler({
@@ -48,6 +49,7 @@ export function createProjectionHandler({
   fileSizeBytes,
   bootstrapRoom,
   bootstrapTimeoutMs,
+  releaseBootstrapHost,
 }: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
     compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });

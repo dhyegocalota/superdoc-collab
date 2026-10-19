@@ -134,6 +134,9 @@ const handle = createProjectionHandler({
   fileSizeBytes: (filePath) => statSync(filePath).size,
   bootstrapRoom,
   bootstrapTimeoutMs: BOOTSTRAP_TIMEOUT_MS,
+  releaseBootstrapHost: async () => {
+    throw new Error('releaseBootstrapHost is not implemented');
+  },
 });
 
 function failureOf({ request, message }: { request: AnsweredRequest; message: string }): ProjectionFailedReply {

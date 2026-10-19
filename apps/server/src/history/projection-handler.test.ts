@@ -28,6 +28,7 @@ function storesWith(
   fileSizeBytes: (filePath: string) => number = () => SMALL_FILE_BYTES,
   bootstrapRoom: (request: BootstrapRequest) => Promise<void> = async () => undefined,
   bootstrapTimeoutMs = BOOTSTRAP_TIMEOUT_MS,
+  releaseBootstrapHost: () => Promise<void> = async () => undefined,
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'projection-handler-'));
   const historySqlite = openSqliteFile({ directory, fileName: HISTORY_DATABASE_FILE });
@@ -42,6 +43,7 @@ function storesWith(
     fileSizeBytes,
     bootstrapRoom,
     bootstrapTimeoutMs,
+    releaseBootstrapHost,
   };
 }
 
@@ -178,4 +180,51 @@ test('a bootstrap that outlives its timeout rejects with the timeout error', asy
     ),
   );
   await expect(handle(BOOTSTRAP_REQUEST)).rejects.toBeInstanceOf(BootstrapTimeoutError);
+});
+
+test('a bootstrap releases the host once it joined the room', async () => {
+  const releaseBootstrapHost = vi.fn(async () => undefined);
+  const handle = createProjectionHandler(
+    storesWith(
+      async () => null,
+      () => SMALL_FILE_BYTES,
+      async () => undefined,
+      BOOTSTRAP_TIMEOUT_MS,
+      releaseBootstrapHost,
+    ),
+  );
+  await handle(BOOTSTRAP_REQUEST);
+  expect(releaseBootstrapHost).toHaveBeenCalledOnce();
+});
+
+test('a bootstrap that throws releases the host before it rejects', async () => {
+  const order: string[] = [];
+  const handle = createProjectionHandler(
+    storesWith(
+      async () => null,
+      () => SMALL_FILE_BYTES,
+      async () => {
+        throw new Error('not a document');
+      },
+      BOOTSTRAP_TIMEOUT_MS,
+      async () => void order.push('released'),
+    ),
+  );
+  await handle(BOOTSTRAP_REQUEST).catch(() => order.push('rejected'));
+  expect(order).toEqual(['released', 'rejected']);
+});
+
+test('a bootstrap that outlives its timeout releases the host before it rejects', async () => {
+  const order: string[] = [];
+  const handle = createProjectionHandler(
+    storesWith(
+      async () => null,
+      () => SMALL_FILE_BYTES,
+      () => new Promise<void>(() => undefined),
+      SHORT_TIMEOUT_MS,
+      async () => void order.push('released'),
+    ),
+  );
+  await handle(BOOTSTRAP_REQUEST).catch(() => order.push('rejected'));
+  expect(order).toEqual(['released', 'rejected']);
 });

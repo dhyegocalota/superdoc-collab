@@ -10,7 +10,14 @@ import {
 } from '../apps/web/src/features/editor/editor-copy';
 import { brandLink, insertInParagraph, readEditorText, signOut, titleButton, uploadSeed } from './editor';
 import { expect, signedInContext, test } from './fixtures';
-import { ensureServerRunning, startRestartableStack, startServer, stopRestartableStack, stopServer } from './restartable-stack';
+import {
+  ensureServerRunning,
+  RestartablePort,
+  startRestartableStack,
+  startServer,
+  stopRestartableStack,
+  stopServer,
+} from './restartable-stack';
 
 const [ana] = DEMO_USERS;
 const PROVIDER_RETRY_CAP_MS = 30 * SECOND_MS;
@@ -30,7 +37,7 @@ let origin: string;
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  origin = await startRestartableStack();
+  origin = await startRestartableStack(RestartablePort.ExitConfirmation);
 });
 
 test.afterEach(async () => {

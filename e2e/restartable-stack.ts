@@ -6,7 +6,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
 import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, stackEnvironment, waitForHealth } from './stack';
 
-const RESTARTABLE_PORT = 3150;
+export enum RestartablePort {
+  ConnectionState = 3150,
+  ExitConfirmation = 3160,
+}
+
 const SEED_COMMAND = 'apps/server/dist/seed.js';
 const SERVER_COMMAND = 'apps/server/dist/main.js';
 const DATABASE_DIRECTORY_PREFIX = 'superdoc-collab-restartable-';
@@ -15,7 +19,7 @@ const GRACEFUL_STOP_TIMEOUT_MS = 10_000;
 
 const REPOSITORY_ROOT = resolve(__dirname, '..');
 
-const origin = localOrigin(RESTARTABLE_PORT);
+let origin: string | null = null;
 let environment: Record<string, string> | null = null;
 let server: ChildProcess | null = null;
 
@@ -34,17 +38,18 @@ async function seedDatabase(seedEnvironment: Record<string, string>): Promise<vo
   if (exitCode !== 0) throw new Error(`${SEED_COMMAND} exited with ${exitCode}`);
 }
 
-export async function startRestartableStack(): Promise<string> {
-  await assertPortFree(RESTARTABLE_PORT);
+export async function startRestartableStack(port: RestartablePort): Promise<string> {
+  await assertPortFree(port);
   const databaseDir = mkdtempSync(join(tmpdir(), DATABASE_DIRECTORY_PREFIX));
-  environment = stackEnvironment({ port: RESTARTABLE_PORT, databaseDir, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN });
+  origin = localOrigin(port);
+  environment = stackEnvironment({ port, databaseDir, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN });
   await seedDatabase(environment);
   await startServer();
   return origin;
 }
 
 export async function startServer(): Promise<void> {
-  if (!environment) throw new Error('startRestartableStack must run before startServer');
+  if (!environment || !origin) throw new Error('startRestartableStack must run before startServer');
   if (server && isRunning(server)) throw new Error('The restartable server is already running');
   server = spawn('node', [SERVER_COMMAND], { cwd: REPOSITORY_ROOT, stdio: 'inherit', env: { ...process.env, ...environment } });
   await waitForHealth({ url: `${origin}${SERVER_HEALTH_PATH}`, timeoutMs: SERVER_START_TIMEOUT_MS });

@@ -15,6 +15,7 @@ import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from 
 import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import { assertBootstrapApplied } from './bootstrap-applied';
+import { bootstrapHostEnvironment } from './bootstrap-host-environment';
 import { createProjectionHandler } from './projection-handler';
 import { createProjectionQueues } from './projection-queues';
 import {
@@ -38,7 +39,7 @@ const BOOTSTRAP_HOST_EMAIL = 'bootstrap@superdoc-history.local';
 
 const port = parentPort;
 if (!port) throw new ProjectionWorkerContextError();
-const { databaseDirectory } = workerData as ProjectionWorkerData;
+const { databaseDirectory, hostHeapMegabytes } = workerData as ProjectionWorkerData;
 const historySqlite = openSqliteFile({ directory: databaseDirectory, fileName: HISTORY_DATABASE_FILE });
 const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
 const updateLog = new UpdateLog(historySqlite);
@@ -78,10 +79,11 @@ function sharedSuperdocClient(options: SuperdocClientOptions): {
   };
 }
 
-const importClient = sharedSuperdocClient(undefined);
+const importClient = sharedSuperdocClient({ env: bootstrapHostEnvironment({ source: process.env, heapMegabytes: null }) });
 const bootstrapClient = sharedSuperdocClient({
   user: { name: BOOTSTRAP_HOST_NAME, email: BOOTSTRAP_HOST_EMAIL },
   requestTimeoutMs: BOOTSTRAP_HOST_TIMEOUT_MS,
+  env: bootstrapHostEnvironment({ source: process.env, heapMegabytes: hostHeapMegabytes }),
 });
 
 async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {

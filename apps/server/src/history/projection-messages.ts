@@ -62,7 +62,7 @@ export type ProjectionRequestsByKind = { [Kind in ProjectionRequestKind]: Extrac
 export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>;
 export type AnsweredRequestKind = AnsweredRequest['kind'];
 
-export type ProjectionWorkerData = { databaseDirectory: string };
+export type ProjectionWorkerData = { databaseDirectory: string; hostHeapMegabytes: number | null };
 
 export class ProjectionWorkerContextError extends Error {
   constructor() {

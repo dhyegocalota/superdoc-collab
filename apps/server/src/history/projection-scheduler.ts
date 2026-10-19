@@ -38,7 +38,7 @@ function createWorker({
   projectionWorkerFile: URL | null;
   workerHeapMegabytes: number | null;
 }): Worker {
-  const workerData = { databaseDirectory };
+  const workerData = { databaseDirectory, hostHeapMegabytes: workerHeapMegabytes };
   const heapLimit = workerHeapMegabytes === null ? {} : { resourceLimits: { maxOldGenerationSizeMb: workerHeapMegabytes } };
   if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData, ...heapLimit });
   if (!import.meta.url.endsWith(SOURCE_EXTENSION))

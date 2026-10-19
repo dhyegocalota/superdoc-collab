@@ -28,6 +28,7 @@ const USERS_TABLE_NAME = 'Users';
 const ADMIN_NAME = 'Admin';
 const PARAGRAPHS = ['Paragraph written by the person who is about to be archived.'];
 const ACCESS_LOST_TIMEOUT_MS = 20_000;
+const DOCUMENT_URL_PATTERN = /\/documents\/[^/?#]+/;
 
 function userRow({ page, email }: { page: Page; email: string }): Locator {
   return page.getByRole('table', { name: USERS_TABLE_NAME }).getByRole('row', { name: new RegExp(email) });
@@ -106,4 +107,26 @@ test('the admin impersonates a person, sees their documents behind the banner, a
   await expect(banner).toHaveCount(0);
   await expect(admin.page.getByRole('banner').getByRole('button', { name: accountMenuLabel(ADMIN_NAME) })).toBeVisible();
   await expect(admin.page.getByRole('link', { name: title })).toHaveCount(0);
+});
+
+test('stopping from inside the impersonated editor leaves no failed request behind', async ({ browser }) => {
+  const admin = await signedInAdmin({ browser });
+  const title = `stop-editor-${randomUUID().slice(0, 8)}`;
+  const { email } = await invitedWithDocument({ browser, admin, name: 'Caio', title });
+
+  await userRow({ page: admin.page, email }).getByRole('button', { name: IMPERSONATE_LABEL }).click();
+  await expect(admin.page).toHaveURL(AppRoute.Documents);
+  await admin.page.getByRole('link', { name: title }).click();
+  await expect(admin.page).toHaveURL(DOCUMENT_URL_PATTERN);
+  await expect(admin.page.getByTestId('impersonation-banner')).toBeVisible();
+
+  const failedResponses: string[] = [];
+  admin.page.on('response', (response) => {
+    if (response.status() >= HttpStatus.BadRequest) failedResponses.push(`${response.status()} ${response.url()}`);
+  });
+  await admin.page.getByTestId('impersonation-banner').getByRole('button', { name: STOP_IMPERSONATING_LABEL }).click();
+  await expect(admin.page).toHaveURL(AppRoute.Admin);
+  await expect(admin.page.getByTestId('impersonation-banner')).toHaveCount(0);
+  await expect(admin.page.getByRole('banner').getByRole('button', { name: accountMenuLabel(ADMIN_NAME) })).toBeVisible();
+  expect(failedResponses).toEqual([]);
 });

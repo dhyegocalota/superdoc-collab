@@ -1,11 +1,27 @@
-import { ApiPath, AppRoute, HttpMethod, HttpStatus, STOP_IMPERSONATING_API_PATH, UserRole, type SessionUser } from '@superdoc-collab/types';
-import { screen, waitFor, within } from '@testing-library/react';
+import {
+  ApiPath,
+  AppRoute,
+  documentApiPath,
+  documentPagePath,
+  HttpMethod,
+  HttpStatus,
+  STOP_IMPERSONATING_API_PATH,
+  UserRole,
+  type SessionUser,
+} from '@superdoc-collab/types';
+import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { AppShell } from '@/app/app-shell';
+import { RequireAdmin } from '@/features/admin/require-admin';
+import { documentQueryKey } from '@/features/documents/documents-api';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { AccountMenu } from '@/features/account/account-menu';
 import { accountMenuLabel } from '@/features/account/account-copy';
 import { jsonResponse } from '@/testing/json-response';
-import { renderWithProviders } from '@/testing/render-with-providers';
+import { createTestQueryClient, renderWithProviders } from '@/testing/render-with-providers';
 import { ImpersonationBanner } from './impersonation-banner';
 import {
   IMPERSONATION_ACTIONS_SENTENCE,
@@ -30,6 +46,9 @@ const ADMIN: SessionUser = {
   timeZone: null,
   impersonatedBy: null,
 };
+
+const EDITOR_DOCUMENT_ID = 'document-1';
+const documentPath = documentApiPath({ documentId: EDITOR_DOCUMENT_ID });
 
 function mockApi({ sessions, stopStatus = HttpStatus.Ok }: { sessions: SessionUser[]; stopStatus?: number }) {
   const remaining = [...sessions];
@@ -88,4 +107,52 @@ test('the account menu shows the impersonated user, not the admin', async () => 
   renderWithProviders(<AccountMenu colorSlot={null} />);
   expect(await screen.findByRole('button', { name: accountMenuLabel(CAIO.name) })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: accountMenuLabel(ADMIN.name) })).not.toBeInTheDocument();
+});
+
+function EditorStub() {
+  useQuery({
+    queryKey: documentQueryKey({ documentId: EDITOR_DOCUMENT_ID, segments: [] }),
+    queryFn: () => fetch(documentPath).then((response) => response.json()),
+  });
+  return <p>Editor</p>;
+}
+
+test('stopping from inside the editor unmounts it before the session changes, so no document request follows', async () => {
+  const fetchSpy = mockApi({ sessions: [CAIO, ADMIN] });
+  const respond = fetchSpy.getMockImplementation()!;
+  fetchSpy.mockImplementation(async (input, init) => {
+    if (input === documentPath) return jsonResponse({ body: {} });
+    return respond(input, init);
+  });
+  const user = userEvent.setup();
+  const router = createMemoryRouter(
+    [
+      {
+        element: <AppShell />,
+        children: [
+          { path: AppRoute.Document, element: <EditorStub /> },
+          {
+            path: AppRoute.Admin,
+            element: (
+              <RequireAdmin>
+                <p>Admin home</p>
+              </RequireAdmin>
+            ),
+          },
+          { path: AppRoute.Documents, element: <p>Documents home</p> },
+        ],
+      },
+    ],
+    { initialEntries: [documentPagePath(EDITOR_DOCUMENT_ID)] },
+  );
+  render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  await user.click(await screen.findByRole('button', { name: STOP_IMPERSONATING_LABEL }));
+  expect(await screen.findByText('Admin home')).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+  const documentRequests = fetchSpy.mock.calls.filter(([input]) => input === documentPath);
+  expect(documentRequests).toHaveLength(1);
 });

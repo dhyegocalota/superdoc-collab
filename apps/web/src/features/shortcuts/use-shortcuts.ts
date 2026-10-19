@@ -3,6 +3,7 @@ import type { SuperDoc } from 'superdoc';
 import { DownloadFormat } from '@/features/editor/download-format';
 import { isTypingInField } from '@/lib/keyboard';
 import { detectPlatform, Platform } from '@/lib/platform';
+import { DocumentMode } from '@/features/editor/superdoc-options';
 import { commandHandleOf } from './shortcut-availability';
 import {
   EDITING_SHORTCUT_GROUPS,
@@ -24,8 +25,6 @@ export type UseShortcutsOptions = {
   onAddComment: () => boolean;
 };
 
-type DocumentMode = 'editing' | 'suggesting';
-
 type ShortcutRun = {
   definition: ShortcutDefinition;
   options: UseShortcutsOptions;
@@ -38,10 +37,15 @@ const FONT_SIZE_COMMAND_ID = 'font-size';
 const FONT_SIZE_STEPS = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 const ZOOM_STEPS = [50, 75, 90, 100, 125, 150, 200];
 const NO_COMMENT_VISITED = -1;
-const TRACK_CHANGES_MODE_SWITCH: Record<string, DocumentMode> = { editing: 'suggesting', suggesting: 'editing' };
+const TRACK_CHANGES_MODE_SWITCH: Partial<Record<DocumentMode, DocumentMode>> = {
+  [DocumentMode.Editing]: DocumentMode.Suggesting,
+  [DocumentMode.Suggesting]: DocumentMode.Editing,
+};
+const ALT_GRAPH_MODIFIER = 'AltGraph';
 const TEXT_CONTROL_SELECTOR = 'input, textarea, select, [contenteditable="true"], [role="document"]';
 
 function isMatch({ event, combination }: { event: KeyboardEvent; combination: KeyCombination }): boolean {
+  if (event.getModifierState(ALT_GRAPH_MODIFIER)) return false;
   const isMac = detectPlatform() === Platform.Mac;
   const modifierKey = isMac ? event.metaKey : event.ctrlKey;
   const foreignModifierKey = isMac ? event.ctrlKey : event.metaKey;
@@ -118,7 +122,7 @@ const appRunners: Partial<Record<ShortcutId, ShortcutRunner>> = {
     if (!options.superdoc) return false;
     const { document } = options.superdoc.ui;
     const { mode } = document.getSnapshot();
-    const nextMode = mode ? TRACK_CHANGES_MODE_SWITCH[mode] : undefined;
+    const nextMode = mode ? TRACK_CHANGES_MODE_SWITCH[mode as DocumentMode] : undefined;
     if (!nextMode) return false;
     document.setMode(nextMode);
     return true;

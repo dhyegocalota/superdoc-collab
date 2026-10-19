@@ -32,6 +32,7 @@ export const TOOLBAR_EXCLUDED_ITEMS = [
 export enum DocumentMode {
   Viewing = 'viewing',
   Editing = 'editing',
+  Suggesting = 'suggesting',
 }
 
 export function superdocOptions({

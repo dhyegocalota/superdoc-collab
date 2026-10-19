@@ -54,7 +54,8 @@ export function Streamgraph({
   const isReducedMotion = useReducedMotion();
   const pulse = useChangePulse({ change, isSuppressed: isSelecting || isReducedMotion });
   if (timeline.bins.length === 0) return null;
-  const pulsedShape = pulse ? layout.shapes.find((shape) => shape.band.id === pulse.bandId) : undefined;
+  const isPulseDrawable = pulse !== null && pulse.binIndex < timeline.bins.length;
+  const pulsedShape = isPulseDrawable ? layout.shapes.find((shape) => shape.band.id === pulse.bandId) : undefined;
   const maxVolume = maxBandVolume(timeline);
   const hasAgentLayer = layout.shapes.some((shape) => shape.agentPath !== null);
   const hasUnlabelledBand = layout.shapes.some((shape) => shape.label === null);

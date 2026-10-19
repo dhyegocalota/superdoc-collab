@@ -820,3 +820,10 @@ test('a width change snaps the dividers and the marks instead of gliding them', 
   change({ timeline: longerTimeline, width: WIDTH / 2 });
   expect(mark().style.transitionProperty).toBe('transform');
 });
+
+test('a pulse for a bin the chart no longer has draws no glow and does not throw', () => {
+  const staleChange: TimelineChange = { ...CHANGE, token: 2, binIndex: timeline.bins.length + 2 };
+  const { container, rerender } = render(chartWith(null));
+  expect(() => rerender(chartWith(staleChange))).not.toThrow();
+  expect(container.querySelector(PULSE_SELECTOR)).toBeNull();
+});

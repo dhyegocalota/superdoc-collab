@@ -152,6 +152,7 @@ export class DocumentsRepository {
         updatedAt: row.updatedAt.getTime(),
         role: row.role,
         owner: { id: row.ownerId, name: row.ownerName },
+        preview: null,
       }));
   }
 }

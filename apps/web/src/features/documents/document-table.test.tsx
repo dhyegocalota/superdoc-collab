@@ -18,6 +18,7 @@ const SHARED_DOCUMENT: DocumentSummary = {
   owner: { id: 'user-2', name: 'Bruno' },
   updatedAt: Date.UTC(2026, 9, 16, 13, 0),
   role: DocumentRole.Editor,
+  preview: null,
 };
 const OWNED_DOCUMENT: DocumentSummary = {
   ...SHARED_DOCUMENT,

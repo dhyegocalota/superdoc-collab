@@ -55,7 +55,14 @@ export const SHARE_LINK_GRANTS: Record<ShareLinkRole, DocumentRole> = {
 export const titleSchema = z.object({ title: z.string().trim().min(1).max(TITLE_MAX_LENGTH) });
 
 export type UserReference = { id: string; name: string };
-export type DocumentSummary = { id: string; title: string; owner: UserReference; updatedAt: number; role: DocumentRole };
+export type DocumentSummary = {
+  id: string;
+  title: string;
+  owner: UserReference;
+  updatedAt: number;
+  role: DocumentRole;
+  preview: string | null;
+};
 export type DocumentsList = { mine: DocumentSummary[]; shared: DocumentSummary[] };
 export type CreatorTicket = { attempt: number; epoch: string };
 export type OpenedDocument = {

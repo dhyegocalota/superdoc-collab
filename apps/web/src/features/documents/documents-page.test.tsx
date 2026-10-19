@@ -48,6 +48,7 @@ const OWNED_DOCUMENT: DocumentSummary = {
   owner: { id: 'user-1', name: 'Ada' },
   updatedAt: Date.UTC(2026, 9, 16, 12, 0),
   role: DocumentRole.Owner,
+  preview: null,
 };
 const SHARED_DOCUMENT: DocumentSummary = {
   id: 'doc-3',
@@ -55,6 +56,7 @@ const SHARED_DOCUMENT: DocumentSummary = {
   owner: { id: 'user-2', name: 'Bruno' },
   updatedAt: Date.UTC(2026, 9, 16, 13, 0),
   role: DocumentRole.Editor,
+  preview: null,
 };
 const CREATED_DOCUMENT: DocumentSummary = { ...OWNED_DOCUMENT, id: 'doc-2', title: UNTITLED_DOCUMENT_TITLE };
 

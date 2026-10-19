@@ -99,6 +99,7 @@ const CREATED_SHOWCASE: DocumentSummary = {
   owner: { id: ADMIN_USER.id, name: ADMIN_USER.name },
   updatedAt: Date.UTC(2026, 0, 8),
   role: DocumentRole.Owner,
+  preview: null,
 };
 
 type MockOptions = { revokeStatus?: number; showcaseStatus?: number };

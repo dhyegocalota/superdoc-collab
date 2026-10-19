@@ -11,12 +11,12 @@ The card thumbnail is a CSS box with the first lines of text. It shows no fonts,
 
 ## Decision
 
-- The editor page captures the first `.superdoc-page` with `html-to-image` (`toCanvas`, `pixelRatio` 1, `THUMBNAIL_WIDTH_PX` 320 wide, WebP at quality 0.8, PNG when the browser cannot encode WebP). It runs in `requestIdleCallback` `THUMBNAIL_CAPTURE_DELAY_MS` (8 s) after the last editor update, and once on `pagehide` through `navigator.sendBeacon`. Readers, a failed connection and a past version never capture.
+- The editor page captures the first `.superdoc-page` with `html-to-image` (`toCanvas`, `pixelRatio` 1, `THUMBNAIL_WIDTH_PX` 320 wide, WebP at quality 0.8, PNG when the browser cannot encode WebP). It runs `THUMBNAIL_CAPTURE_DELAY_MS` (8 s) after the last editor update, and once on `pagehide` through `navigator.sendBeacon` when an update is still waiting. The page is rendered asynchronously, so the beacon leaves when the capture ends, which a tab that is closing may not allow. Readers and a connection that is not synced never capture.
 - A capture above `THUMBNAIL_MAX_BYTES` (200 KB) is rendered once more at half the width and dropped if it is still above. A failed capture logs one warning per session and leaves the fallback.
-- `PUT /api/documents/:documentId/thumbnail` takes the raw image (editor or owner), validates the size and the magic bytes of WebP or PNG, writes one file per document under the documents directory and stores `thumbnailUpdatedAt` on the row. `GET` (reader or above) streams it with `ETag` and `Cache-Control: private, max-age=0, must-revalidate`; a document without one answers 404. A non-member sees 404 on both. Deleting the document removes the file.
+- `PUT /api/documents/:documentId/thumbnail` takes the raw image (editor or owner), validates the size, the magic bytes of WebP or PNG and that the content type names them, writes one file per document in a `thumbnails` folder of the documents directory and stores `thumbnailUpdatedAt` on the row. `POST` does the same, because `sendBeacon` can only POST. `GET` (reader or above) streams it with `ETag` and `Cache-Control: private, max-age=0, must-revalidate`; a document without one answers 404. A non-member sees 404 on both. Deleting the document removes the file.
 - Cards show the image when the list carries `thumbnailUpdatedAt`, with the preview text as `alt`, and keep the CSS text preview as the fallback.
 
-The spike measured 60 to 170 ms per capture and 13 to 19 KB per image on a text page and on a page with an 850 KB picture, so the image is small and the work is a short task on a machine that is already rendering the page.
+The spike measured 60 to 170 ms per capture, a long task of at most 70 ms, and 13 to 19 KB per image on a text page and on a page with an 850 KB picture. The long task stays under the 100 ms line, so the capture needs no idle callback.
 
 ## Alternatives considered
 

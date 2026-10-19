@@ -21,6 +21,8 @@ export const DOCUMENT_NOT_READY_ERROR = 'NOT_READY';
 export const DOCUMENT_UNAVAILABLE_MESSAGE = 'This document is no longer available.';
 export const READ_ONLY_BADGE_LABEL = 'Read only';
 export const LINK_COPIED_MESSAGE = 'Link copied';
+export const OWNER_ACCESS_CANNOT_BE_REMOVED_MESSAGE = 'The owner cannot be removed.';
+export const MEMBER_NOT_FOUND_MESSAGE = 'This person does not have access.';
 
 export enum DocumentRole {
   Owner = 'owner',

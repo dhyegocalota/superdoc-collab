@@ -8,8 +8,10 @@ import {
   HttpStatus,
   isTabId,
   MAX_UPLOAD_BYTES,
+  MEMBER_NOT_FOUND_MESSAGE,
   NOT_A_DOCX_MESSAGE,
   OPEN_RATE_LIMITED_MESSAGE,
+  OWNER_ACCESS_CANNOT_BE_REMOVED_MESSAGE,
   RoomMode,
   secondsRoundedUp,
   TAB_QUERY_KEY,
@@ -29,6 +31,7 @@ import { retryLater } from '../http/retry-later';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
 
+const MEMBER_USER_ID_PARAM = 'userId';
 const RENAME_BODY_MAX_BYTES = 4 * 1024;
 const MULTIPART_ENVELOPE_BYTES = 64 * 1024;
 const MULTIPART_CONTENT_TYPE = 'multipart/form-data';
@@ -182,6 +185,17 @@ function mountManagement({ routes, services }: RouteMount): void {
     documents.remove(documentId);
     await runtime.forget(documentId);
     await storage.remove(documentId);
+    return context.body(null, HttpStatus.NoContent);
+  });
+
+  routes.delete('/:documentId/members/:userId', (context) => {
+    const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Owner });
+    const userId = context.req.param(MEMBER_USER_ID_PARAM);
+    const role = documents.findRole({ documentId, userId });
+    if (!role) return context.json({ error: MEMBER_NOT_FOUND_MESSAGE }, HttpStatus.NotFound);
+    if (role === DocumentRole.Owner) return context.json({ error: OWNER_ACCESS_CANNOT_BE_REMOVED_MESSAGE }, HttpStatus.BadRequest);
+    documents.revoke({ documentId, userId });
+    runtime.closeUserConnections({ documentId, userId });
     return context.body(null, HttpStatus.NoContent);
   });
 }

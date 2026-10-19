@@ -107,6 +107,13 @@ export class DocumentsRepository {
       .run();
   }
 
+  revoke({ documentId, userId }: { documentId: string; userId: string }): void {
+    this.database.drizzle
+      .delete(documentMembers)
+      .where(and(eq(documentMembers.documentId, documentId), eq(documentMembers.userId, userId)))
+      .run();
+  }
+
   userNames(userIds: string[]): Map<string, string> {
     if (userIds.length === 0) return new Map();
     const rows = this.database.drizzle.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, userIds)).all();

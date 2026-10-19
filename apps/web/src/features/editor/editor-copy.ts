@@ -48,6 +48,9 @@ export const RESET_FAILED_MESSAGE = 'The link could not be reset.';
 export const COPY_FAILED_MESSAGE = 'The link could not be copied. It is selected, so copy it with your keyboard.';
 export const LOADING_SHARE_LINKS_LABEL = 'Loading links';
 export const SHARE_LINKS_LOAD_ERROR_MESSAGE = 'The links could not be loaded.';
+export const REMOVE_LABEL = 'Remove';
+export const PEOPLE_WITH_ACCESS_LABEL = 'People with access';
+export const REMOVE_FAILED_MESSAGE = 'That person could not be removed.';
 
 export const SHARE_LINK_LABELS: Record<ShareLinkRole, string> = {
   [ShareLinkRole.Edit]: 'Edit link',
@@ -59,6 +62,10 @@ export const HOME_LINK_LABEL = `${APP_NAME}, back to documents`;
 export function memberLabel({ name, isOnline }: { name: string; isOnline: boolean }): string {
   if (!isOnline) return name;
   return `${name}, ${ONLINE_LABEL}`;
+}
+
+export function removeMemberLabel(name: string): string {
+  return `Remove ${name}`;
 }
 
 export function renameTitleLabel(title: string): string {

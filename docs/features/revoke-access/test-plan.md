@@ -2,15 +2,15 @@
 
 ## The failing test first
 
-- [ ] `documents-routes.test.ts::owner removes a reader` — input: DELETE by the owner for a reader; expected: 204, member gone from GET members
-- [ ] Confirmed it fails for the right reason: <paste>
+- [ ] `member-removal-routes.test.ts::owner removes a reader` — input: DELETE by the owner for a reader; expected: 204, member gone from GET members
+- [x] Confirmed it fails for the right reason (red commit d41146f0): `AssertionError: expected 404 to be 204 // Object.is equality` for `owner removes a reader`; `expected [ 404, { error: 'Not found' } ] to deeply equal [ 400, … ]` for the owner self case; `expected null to deeply equal { code: 4404, … }` for the socket close; repository: `Error: revoke is not implemented`; runtime: `Error: closeUserConnections is not implemented`; web (17725e44): `Unable to find role="group" and name "People with access"`
 
 ## Unit
 
 - [ ] `documents-repository.test.ts::revoke removes one member and keeps the others`
-- [ ] `documents-routes.test.ts::owner cannot remove themself` — expected: 400 with the message
-- [ ] `documents-routes.test.ts::unknown member answers 404`
-- [ ] `documents-routes.test.ts::an editor cannot remove anyone` — expected: 404
+- [ ] `member-removal-routes.test.ts::owner cannot remove themself` — expected: 400 with the message
+- [ ] `member-removal-routes.test.ts::unknown member answers 404`
+- [ ] `member-removal-routes.test.ts::an editor cannot remove anyone` — expected: 403 (the guard answers 403 to a member below the role and 404 to a non-member)
 - [ ] runtime: `closeUserConnections` closes only that user's connections with 4404 and the reason
 - [ ] `share-dialog.test.tsx`: members listed with role labels; owner row has no Remove; Remove calls the API and invalidates the members key; failure shows the message
 

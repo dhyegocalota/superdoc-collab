@@ -1,6 +1,13 @@
 import type { Connection, Document, Hocuspocus } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-collab/history';
-import { RoomMode, type CreatorTicket, SUPERSEDED_ATTEMPT_CLOSE_CODE, SUPERSEDED_ATTEMPT_REASON } from '@superdoc-collab/types';
+import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
+  RoomMode,
+  type CreatorTicket,
+  SUPERSEDED_ATTEMPT_CLOSE_CODE,
+  SUPERSEDED_ATTEMPT_REASON,
+} from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';
@@ -14,6 +21,7 @@ import type { RoomModeAnswer, RoomModes } from './room-modes';
 import { documentIdFromRoomName } from './room-name';
 
 const TAKEOVER_CLOSE_LOG = 'Closed a socket superseded by a takeover';
+const REVOKED_CLOSE_LOG = 'Closed the sockets of a revoked member of';
 
 export { ROOM_MODE_SCAN_BATCH_SIZE } from './bootstrap-state';
 
@@ -21,6 +29,7 @@ export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   reserveCreator: (parameters: { documentId: string; userId: string }) => CreatorTicket | null;
+  closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   isAttemptSuperseded: (parameters: { documentId: string } & CreatorTicket) => boolean;
   onlineUserIds: (documentId: string) => Set<string>;
   onlineTabIds: ({ documentId, userId }: { documentId: string; userId: string }) => Set<string>;
@@ -74,6 +83,13 @@ export function createCollaborationRuntime({
           connection.close({ code: SUPERSEDED_ATTEMPT_CLOSE_CODE, reason: SUPERSEDED_ATTEMPT_REASON });
         });
       return ticket;
+    },
+    closeUserConnections: ({ documentId, userId }) => {
+      const revokedConnections = connectionsOf(documentId).filter(
+        (connection) => (connection.context as CollaborationContext).userId === userId,
+      );
+      revokedConnections.forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
+      console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
     },
     roomModeFor: (parameters) => roomModes.resolve(parameters),
     isAttemptSuperseded: ({ documentId, attempt, epoch }) => {

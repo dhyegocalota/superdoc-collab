@@ -16,6 +16,8 @@ const setZoom = vi.fn();
 const scrollToComment = vi.fn();
 const COMMENT_IDS = ['first', 'second', 'third'];
 const setDocumentMode = vi.fn();
+const insertFootnote = vi.fn();
+let hasActiveEditor: boolean;
 let documentMode: string | null;
 let zoomValue: number;
 const execute = vi.fn();
@@ -28,6 +30,7 @@ function superdocWithCommands(): SuperDoc {
     return { getState: () => commandState, execute };
   });
   return superdocStub({
+    activeEditor: hasActiveEditor ? { doc: { footnotes: { insert: insertFootnote } } } : null,
     ui: {
       commands: { get },
       zoom: { getSnapshot: () => ({ value: zoomValue, min: 25, max: 500 }), set: setZoom },
@@ -59,6 +62,7 @@ beforeEach(() => {
   requestedCommandIds = [];
   zoomValue = 100;
   documentMode = 'editing';
+  hasActiveEditor = true;
   onAddComment.mockReturnValue(true);
   vi.stubGlobal('navigator', { platform: 'Win32' });
 });
@@ -306,4 +310,17 @@ test('AltGr characters are left to the editing surface', () => {
   expect(pressKey({ code: 'KeyM', key: 'µ', ...altGraph }).defaultPrevented).toBe(false);
   expect(onToggleEditsPanel).not.toHaveBeenCalled();
   expect(onAddComment).not.toHaveBeenCalled();
+});
+
+test('Ctrl+Alt+F inserts a footnote at the caret through the Document API', () => {
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(true);
+  expect(insertFootnote).toHaveBeenCalledWith({ type: 'footnote', content: '' });
+});
+
+test('Ctrl+Alt+F is not consumed without an active editor', () => {
+  hasActiveEditor = false;
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(false);
+  expect(insertFootnote).not.toHaveBeenCalled();
 });

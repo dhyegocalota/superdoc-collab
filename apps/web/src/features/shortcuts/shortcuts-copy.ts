@@ -64,6 +64,11 @@ export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
   [ShortcutId.NextComment]: 'Next comment',
   [ShortcutId.PreviousComment]: 'Previous comment',
   [ShortcutId.ToggleTrackChanges]: 'Track changes on or off',
+  [ShortcutId.Cut]: 'Cut',
+  [ShortcutId.Copy]: 'Copy',
+  [ShortcutId.Paste]: 'Paste',
+  [ShortcutId.PasteWithoutFormatting]: 'Paste without formatting',
+  [ShortcutId.InsertFootnote]: 'Insert footnote',
 };
 
 export const SHORTCUTS_TITLE = SHORTCUT_LABELS[ShortcutId.ShowShortcuts];

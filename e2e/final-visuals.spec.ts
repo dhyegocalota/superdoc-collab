@@ -42,7 +42,7 @@ import {
   TIMELINE_TOGGLE_LABEL,
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
-import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
+import { FILE_INPUT_LABEL, NEW_DOCUMENT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import {
   GROUPING_TOPICS_MESSAGE,
@@ -61,6 +61,7 @@ import {
   chooseTheme,
   downloadButton,
   downloadOptionsButton,
+  EDITOR_READY_TIMEOUT_MS,
   insertInParagraph,
   REMOTE_CARET_SELECTOR,
   shareAndAccept,
@@ -329,6 +330,17 @@ test('Download PDF prepares the print view and calls print once every page has t
   await openDocument({ page: ana.page, title: uniqueTitle() });
   await downloadPdf(ana.page);
   await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: 1 });
+});
+
+test('Download PDF of a new blank document prints its single page', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: anaUser! });
+  await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
+  await ana.page.goto(AppRoute.Documents);
+  await ana.page.getByRole('button', { name: NEW_DOCUMENT_LABEL }).click();
+  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await downloadPdf(ana.page);
+  await expect.poll(() => readPrintState(ana.page), { timeout: PRINT_TIMEOUT_MS }).toMatchObject({ calls: 1, isPreparingSeen: true });
+  expect((await readPrintState(ana.page)).pageCount).toBeGreaterThanOrEqual(1);
 });
 
 test('Download PDF of a document of at least 4 pages prints only when every page has text', async ({ browser }) => {

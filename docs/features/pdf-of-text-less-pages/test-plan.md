@@ -2,13 +2,23 @@
 
 ## The failing test first
 
-- [ ] `print-page.test.tsx::reports Painted for a page whose fragment has no text` — input: one page with one empty fragment; expected: `Painted` posted once
-- [ ] Confirmed it fails for the right reason: <paste the red run's failure text>
+- [x] `print-page.test.tsx::reports Painted for a page whose fragment has no text` — input: one page with one empty fragment; expected: `Painted` posted once
+- [x] Confirmed it fails for the right reason:
+
+```
+FAIL  print-page.test.tsx > reports Painted for a page whose fragment has no text
+AssertionError: expected [] to have a length of 1 but got +0
+FAIL  print-page.test.tsx > reports Painted only after every page has a fragment
+AssertionError: expected [] to have a length of 1 but got +0
+Tests  2 failed | 8 passed (10)
+```
+
+`does not report Painted for a page shell without a fragment` is green at red time: a pin.
 
 ## Unit
 
-- [ ] `print-page.test.tsx::does not report Painted for a page shell without a fragment` — input: one page, no children; expected: no `Painted`
-- [ ] `print-page.test.tsx::reports Painted only after every page has a fragment` — input: two pages, the second gains its fragment later; expected: exactly one `Painted`, after it
+- [x] `print-page.test.tsx::does not report Painted for a page shell without a fragment` — input: one page, no children; expected: no `Painted`
+- [x] `print-page.test.tsx::reports Painted only after every page has a fragment` — input: two pages, the second gains its fragment later; expected: exactly one `Painted`, after it
 
 ## E2E (Playwright specs)
 

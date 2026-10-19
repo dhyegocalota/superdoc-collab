@@ -22,6 +22,7 @@ import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { overfullConnections } from './awareness-client-cap';
+import { closeSendersOfForeignIds } from './awareness-origin';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { CreatorReservations } from './creator-reservations';
@@ -183,6 +184,9 @@ export function createCollaborationServer({
       if (!bootstrap.isCommitted(documentId)) return;
       const restored = materialize({ log: updateLog, documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER });
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
+    },
+    async afterLoadDocument({ document }) {
+      closeSendersOfForeignIds(document);
     },
     async onChange({ update, context, transactionOrigin, document }) {
       if (transactionOrigin === LOADING_ORIGIN) return;

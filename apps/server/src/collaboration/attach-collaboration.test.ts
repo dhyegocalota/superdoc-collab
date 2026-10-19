@@ -3,6 +3,7 @@ import {
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
@@ -550,11 +551,19 @@ function isKnownToAwareness({
   return [...server.services.hocuspocus.documents.values()].some((document) => document.awareness.meta.has(clientId));
 }
 
-test('an awareness frame claiming one entry more than the connection cap closes the socket with 1008 before the room decodes it', async () => {
-  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
+test('an awareness frame claiming one entry more than the frame cap closes the socket with 1008 before the room decodes it', async () => {
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 });
   const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
   await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ENTRIES_REASON });
   expect(clientIds.some((clientId) => isKnownToAwareness({ server, clientId }))).toBe(false);
+  client.close();
+  await server.stop();
+});
+
+test('one frame claiming one client id more than the connection cap closes the socket with the client ids reason', async () => {
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
+  const { server, client, closedSocket } = await sendClaimingFrame({ clientIds });
+  await expect.poll(closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
   client.close();
   await server.stop();
 });
@@ -569,9 +578,19 @@ test('claims split over frames that together pass the connection cap close the s
   await server.stop();
 });
 
+test('a frame claiming exactly the frame cap of entries reaches the room handler and keeps the socket open', async () => {
+  const { socket, received, httpServer } = await openCountedSocket();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME });
+  socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds }));
+  await expect.poll(() => received.mock.calls.length).toBe(1);
+  expect(socket.readyState).toBe(WebSocket.OPEN);
+  socket.close();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
 test('the frame claiming too many entries never reaches the room handler and nothing after it does', async () => {
   const { socket, closed, received, httpServer } = await openCountedSocket();
-  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1 });
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: MAX_AWARENESS_ENTRIES_PER_FRAME + 1 });
   socket.send(awarenessFrameClaiming({ roomName: AWARENESS_ROOM_NAME, clientIds }));
   socket.send(awarenessFrame(AWARENESS_ROOM_NAME));
   expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
@@ -619,6 +638,12 @@ test('ids a closed connection left behind and a second connection replays leave 
   await server.stop();
 });
 
+function serverCursorOf({ server, clientId }: { server: TestServer; clientId: number }): unknown {
+  return [...server.services.hocuspocus.documents.values()]
+    .map((document) => (document.awareness.getStates().get(clientId) as { cursor?: unknown } | undefined)?.cursor)
+    .find((cursor) => cursor !== undefined);
+}
+
 async function holderOfClaimedIds() {
   const { server, documentId, owner } = await documentWithOwner();
   const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
@@ -635,6 +660,20 @@ test('a connection updating an awareness id that another live connection holds i
   await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
   expect(holder.closedSocket()).toBeNull();
   holder.client.close();
+  await server.stop();
+});
+
+test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {
+  const { server, clientIds, holder, intruder } = await holderOfClaimedIds();
+  intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds })));
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
+  expect(holder.closedSocket()).toBeNull();
+  expect(intruder.webSocket.readyState).toBe(WebSocket.OPEN);
+  holder.client.close();
+  intruder.client.close();
   await server.stop();
 });
 
@@ -672,12 +711,6 @@ test('a connection removing its own awareness id on leave keeps the socket open'
   connection.client.close();
   await server.stop();
 });
-
-function serverCursorOf({ server, clientId }: { server: TestServer; clientId: number }): unknown {
-  return [...server.services.hocuspocus.documents.values()]
-    .map((document) => (document.awareness.getStates().get(clientId) as { cursor?: unknown } | undefined)?.cursor)
-    .find((cursor) => cursor !== undefined);
-}
 
 test('a provider that reconnects and resends its own awareness id keeps its new socket open', async () => {
   const { server, documentId, owner } = await documentWithOwner();

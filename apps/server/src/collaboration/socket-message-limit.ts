@@ -1,5 +1,5 @@
 import {
-  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   SECOND_MS,
@@ -29,10 +29,10 @@ export class SocketMessageLimit {
     return window.count() > CAP_BY_BUCKET[bucket];
   }
 
-  // NB ADR 0040: the ws layer reads an awareness frame only as far as its entry count, so a frame claiming more entries than a connection may hold never reaches the room.
+  // NB ADR 0040: the ws layer reads an awareness frame only as far as its entry count, so a frame claiming more entries than the frame cap never reaches the room.
   claimsTooManyEntries(frame: RawData): boolean {
     const entryCount = awarenessEntryCountOf(frame);
-    return entryCount !== null && entryCount > MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION;
+    return entryCount !== null && entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME;
   }
 
   private windowsOf(socket: object): Record<FrameBucket, SlidingWindow> {

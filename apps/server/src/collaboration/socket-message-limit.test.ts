@@ -1,5 +1,5 @@
 import {
-  MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
+  MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   SECOND_MS,
@@ -61,18 +61,13 @@ function claimingFrame(count: number): Buffer {
   return awarenessFrameClaiming({ roomName: ROOM_NAME, clientIds: Array.from({ length: count }, (_, index) => index + 1) });
 }
 
-test('an awareness frame claiming one entry more than the connection cap claims too many', () => {
+test('an awareness frame claiming one entry more than the frame cap claims too many', () => {
   const limit = new SocketMessageLimit();
-  expect(limit.claimsTooManyEntries(claimingFrame(MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION + 1))).toBe(true);
+  expect(limit.claimsTooManyEntries(claimingFrame(MAX_AWARENESS_ENTRIES_PER_FRAME + 1))).toBe(true);
 });
 
-test('awareness frames claiming up to the connection cap, other frames and unreadable frames do not', () => {
+test('awareness frames claiming up to the frame cap, other frames and unreadable frames do not', () => {
   const limit = new SocketMessageLimit();
-  const frames = [
-    claimingFrame(MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION),
-    awarenessFrame(ROOM_NAME),
-    syncStepOneFrame(ROOM_NAME),
-    Buffer.from([0]),
-  ];
+  const frames = [claimingFrame(MAX_AWARENESS_ENTRIES_PER_FRAME), awarenessFrame(ROOM_NAME), syncStepOneFrame(ROOM_NAME), Buffer.from([0])];
   expect(frames.map((frame) => limit.claimsTooManyEntries(frame))).toEqual([false, false, false, false]);
 });

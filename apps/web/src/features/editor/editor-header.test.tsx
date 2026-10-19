@@ -30,6 +30,7 @@ import {
   DELETE_LABEL,
   DOWNLOAD_BUTTON_LABEL,
   DOWNLOAD_LABEL,
+  DOWNLOAD_OPTIONS_LABEL,
   DOWNLOAD_PDF_LABEL,
   FIND_IN_DOCUMENT_LABEL,
   HOME_LINK_LABEL,
@@ -43,6 +44,8 @@ import {
 import { EditorHeader } from './editor-header';
 import { superdocStub } from '@/testing/superdoc-stub';
 import { Members } from './members';
+import { SHORTCUT_GROUP_LABELS, SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
+import { ShortcutGroup } from '@/features/shortcuts/shortcuts';
 
 vi.mock('./members', async (importOriginal) => {
   const original = await importOriginal<typeof import('./members')>();
@@ -291,7 +294,7 @@ test('at 768 the bar keeps Members, Share, More actions and the account, and Mor
   expect(emit).toHaveBeenCalledWith('search:open');
 });
 
-test('at 1280 the menu holds only Delete for the owner and nothing for a reader', async () => {
+test('at 1280 the menu holds only Delete and the shortcuts row for the owner and nothing for a reader', async () => {
   renderHeader({ role: DocumentRole.Owner, superdoc: superdocStub() });
   await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
   expect(await screen.findByRole('menuitem', { name: DELETE_LABEL })).toBeVisible();
@@ -350,4 +353,70 @@ test.each([
   expect(execute).not.toHaveBeenCalled();
   expect(fireEvent.keyDown(document.body, SAVE_KEY)).toBe(false);
   expect(onDownloadDocx).toHaveBeenCalledTimes(1);
+});
+
+const SHORTCUTS_KEY = { code: 'Slash', key: '/', ctrlKey: true };
+
+function pillTexts(element: HTMLElement): (string | null)[] {
+  return [...element.querySelectorAll('kbd')].map((pill) => pill.textContent);
+}
+
+test('Ctrl+/ opens the shortcuts dialog and Escape returns focus to where it was', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  const findButton = screen.getByRole('button', { name: FIND_IN_DOCUMENT_LABEL });
+  findButton.focus();
+  fireEvent.keyDown(findButton, SHORTCUTS_KEY);
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(findButton).toHaveFocus();
+});
+
+test('a question mark outside a field opens the dialog', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  fireEvent.keyDown(document.body, { code: 'Slash', key: '?', shiftKey: true });
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+});
+
+test("a reader's dialog has no formatting group", async () => {
+  renderHeader({ role: DocumentRole.Reader });
+  fireEvent.keyDown(document.body, SHORTCUTS_KEY);
+  const dialog = await screen.findByRole('dialog', { name: SHORTCUTS_TITLE });
+  expect(within(dialog).getByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Document] })).toBeVisible();
+  expect(within(dialog).queryByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Formatting] })).toBeNull();
+});
+
+test('More actions ends with the shortcuts row, which carries its hint and opens the dialog', async () => {
+  renderHeader({ role: DocumentRole.Owner, width: NARROW_VIEWPORT_WIDTH, superdoc: superdocStub() });
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  const items = await screen.findAllByRole('menuitem');
+  const lastItem = items[items.length - 1]!;
+  expect(lastItem).toHaveTextContent(SHORTCUTS_TITLE);
+  expect(pillTexts(lastItem)).toEqual(['Ctrl', '/']);
+  await userEvent.click(lastItem);
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+});
+
+test('the download menu items carry the save and print hints', async () => {
+  renderHeader({ superdoc: superdocStub() });
+  await userEvent.click(screen.getByRole('button', { name: DOWNLOAD_OPTIONS_LABEL }));
+  expect(pillTexts(await screen.findByRole('menuitem', { name: new RegExp(DOWNLOAD_LABEL) }))).toEqual(['Ctrl', 'S']);
+  expect(pillTexts(screen.getByRole('menuitem', { name: new RegExp(DOWNLOAD_PDF_LABEL) }))).toEqual(['Ctrl', 'P']);
+});
+
+test('the More actions menu below lg shows the find, save and print hints', async () => {
+  renderHeader({ width: NARROW_VIEWPORT_WIDTH, superdoc: superdocStub() });
+  await userEvent.click(screen.getByRole('button', { name: MORE_ACTIONS_LABEL }));
+  expect(pillTexts(await screen.findByRole('menuitem', { name: new RegExp(FIND_IN_DOCUMENT_LABEL) }))).toEqual(['Ctrl', 'F']);
+  expect(pillTexts(screen.getByRole('menuitem', { name: new RegExp(DOWNLOAD_LABEL) }))).toEqual(['Ctrl', 'S']);
+  expect(pillTexts(screen.getByRole('menuitem', { name: new RegExp(DOWNLOAD_PDF_LABEL) }))).toEqual(['Ctrl', 'P']);
+});
+
+test.each([
+  [FIND_IN_DOCUMENT_LABEL, ['Ctrl', 'F']],
+  [DOWNLOAD_BUTTON_LABEL, ['Ctrl', 'S']],
+])('the %s tooltip carries its hint', async (name, keys) => {
+  renderHeader({ superdoc: superdocStub() });
+  await userEvent.hover(screen.getByRole('button', { name }));
+  expect(pillTexts(await screen.findByRole('tooltip'))).toEqual(keys);
 });

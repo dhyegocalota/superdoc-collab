@@ -47,3 +47,19 @@ export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
   [ShortcutId.ShowShortcuts]: 'Keyboard shortcuts',
   [ShortcutId.ShowShortcutsOutsideField]: 'Keyboard shortcuts, outside a text field',
 };
+
+export const SHORTCUTS_TITLE = SHORTCUT_LABELS[ShortcutId.ShowShortcuts];
+export const SHORTCUTS_DESCRIPTION = 'Word’s keys for editing and formatting. Keys SuperDoc handles on its own are listed too.';
+export const SHORTCUTS_SEARCH_LABEL = 'Search shortcuts';
+export const SHORTCUTS_EMPTY_MESSAGE = 'No shortcuts match your search.';
+export const UNAVAILABLE_SHORTCUT_REASON = 'Not available in this document';
+
+export const PLATFORM_NOTE_LABELS: Record<Platform, string> = {
+  [Platform.Mac]: 'Showing Mac keys',
+  [Platform.Other]: 'Showing Windows and Linux keys',
+};
+
+export const PLATFORM_TOGGLE_LABELS: Record<Platform, string> = {
+  [Platform.Mac]: 'Show Windows and Linux keys',
+  [Platform.Other]: 'Show Mac keys',
+};

@@ -9,6 +9,7 @@ import { SESSION_QUERY_KEY } from '@/features/auth/use-session';
 import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
 import { CONNECTED_APPS_HEADING } from '@/features/connected-apps/connected-apps-copy';
 import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
+import { SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
 import { THEME_STORAGE_KEY } from '@/lib/use-theme';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { AccountMenu } from './account-menu';
@@ -87,4 +88,10 @@ test('the avatar keeps the hash colour on a page with no document', () => {
   expect(screen.getByRole('button', { name: accountMenuLabel(USER.name) }).firstElementChild).toHaveClass(
     `bg-author-${authorColorSlot(USER.id)}`,
   );
+});
+
+test('Keyboard shortcuts opens the shortcuts dialog', async () => {
+  await openMenu(USER);
+  await userEvent.click(await screen.findByRole('menuitem', { name: SHORTCUTS_TITLE }));
+  expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
 });

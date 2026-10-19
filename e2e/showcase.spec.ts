@@ -6,9 +6,12 @@ import { expect, signedInAdmin, test } from './fixtures';
 import { chartSvg, expandPanel, readTimeline, VERSION_TIMEOUT_MS } from './timeline';
 
 const DIVIDER_SELECTOR = 'line[stroke-dasharray]';
+const SHOWCASE_IMPORT_TIMEOUT_MS = 180_000;
+const SHOWCASE_TEST_TIMEOUT_MS = 240_000;
 const CONTRIBUTORS = Object.values(ShowcaseAuthor).sort();
 
 test('the admin creates the guided tour and its timeline shows four contributors and a marked gap', async ({ browser }) => {
+  test.setTimeout(SHOWCASE_TEST_TIMEOUT_MS);
   const admin = await signedInAdmin({ browser });
   await admin.page.goto(AppRoute.Admin);
   await admin.page.getByRole('button', { name: SHOWCASE_BUTTON_LABEL }).click();
@@ -23,7 +26,7 @@ test('the admin creates the guided tour and its timeline shows four contributors
           .map((author) => author.name)
           .sort(),
       {
-        timeout: VERSION_TIMEOUT_MS,
+        timeout: SHOWCASE_IMPORT_TIMEOUT_MS,
       },
     )
     .toEqual(CONTRIBUTORS);

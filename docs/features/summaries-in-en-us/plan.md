@@ -20,9 +20,9 @@ One group.
 
 ### G1
 
-- [ ] **Step 1:** failing test first: `prompts.test.ts` asserts that the topic summaries prompt and the selection prompt both carry the rule `Write in English (en-US), whatever the language of the edited text.` and that neither carries `Write in the language of the edited text.`; red on the current prompts.
-- [ ] **Step 2:** `prompts.ts`: one `SUMMARY_LANGUAGE` constant and one rule line built from it, used by both summary prompts; the quoted prompt in `docs/features/llm-insights/plan.md` follows; green.
-- [ ] **Step 3:** `tester-briefing.md` written by the developer.
+- [x] **Step 1:** failing test first: `prompts.test.ts` asserts that the topic summaries prompt and the selection prompt both carry the rule `Write in English (en-US), whatever the language of the edited text.` and that neither carries `Write in the language of the edited text.`; red on the current prompts. Evidence: 87fef18c.
+- [x] **Step 2:** `prompts.ts`: one `SUMMARY_LANGUAGE` constant and one rule line built from it, used by both summary prompts; the quoted prompt in `docs/features/llm-insights/plan.md` follows; green. Evidence: 1c8a824f.
+- [x] **Step 3:** `tester-briefing.md` written by the developer. Evidence: the commit that follows 1c8a824f on this branch.
 
 ## Failure modes
 
@@ -34,7 +34,7 @@ One group.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/check-ui:** the tester's screenshot of the card with an English sentence over Portuguese edits.

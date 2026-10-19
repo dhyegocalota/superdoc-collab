@@ -77,13 +77,12 @@ export function attachCollaboration({
   }
   function withholdOverclaims(webSocket: WebSocket): void {
     const emit = webSocket.emit.bind(webSocket);
-    let hasClosed = false;
     webSocket.emit = (event: string | symbol, ...parameters: unknown[]): boolean => {
       const isMessage = event === MESSAGE_EVENT;
-      if (hasClosed && isMessage) return false;
+      const isReceivedAfterClose = isMessage && webSocket.readyState !== WebSocket.OPEN;
+      if (isReceivedAfterClose) return false;
       const isOverclaim = isMessage && messageLimit.claimsTooManyEntries(parameters[0] as RawData);
       if (!isOverclaim) return emit(event, ...parameters);
-      hasClosed = true;
       console.warn(SOCKET_AWARENESS_ENTRIES_LOG);
       webSocket.removeAllListeners(MESSAGE_EVENT);
       webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_AWARENESS_ENTRIES_REASON);

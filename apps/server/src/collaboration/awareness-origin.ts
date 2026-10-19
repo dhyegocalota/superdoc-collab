@@ -1,11 +1,11 @@
 import type { Document } from '@hocuspocus/server';
 import { POLICY_VIOLATION_CLOSE_CODE, SOCKET_AWARENESS_ORIGIN_REASON } from '@superdoc-collab/types';
 import type { CollaborationContext } from './collaboration-context';
+import type { DocumentConnection } from './document-connection';
 
 export const AWARENESS_ORIGIN_LOG = 'Collaboration socket closed for updating an awareness client another connection holds';
 
 type AwarenessChange = { updated: number[] };
-type DocumentConnection = Document['connections'] extends Map<unknown, infer Entry> ? Entry : never;
 
 function userIdOf({ connection }: DocumentConnection): string {
   return (connection.context as CollaborationContext).userId;

@@ -1,9 +1,11 @@
 import type { BetterAuthPlugin } from 'better-auth';
-import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
+import { IMPERSONATED_CONSENT_MESSAGE } from '@superdoc-collab/types';
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../database/schema/auth';
 
+const CONSENT_PATH = '/oauth2/consent';
 const DELETE_CONSENT_PATH = '/oauth2/delete-consent';
 const UPDATE_CONSENT_PATH = '/oauth2/update-consent';
 const CONSENT_MODEL = 'oauthConsent';
@@ -25,6 +27,12 @@ const revokeTokensOfConsent = createAuthMiddleware(async (context) => {
   await Promise.all(TOKEN_MODELS.map((model) => adapter.deleteMany({ model, where: owner })));
 });
 
+const refuseImpersonatedConsent = createAuthMiddleware(async (context) => {
+  const session = await getSessionFromCtx(context);
+  if (!session?.session.impersonatedBy) return;
+  throw new APIError('FORBIDDEN', { message: IMPERSONATED_CONSENT_MESSAGE });
+});
+
 export function revokeOAuthGrantsOf({ database, userId }: { database: AuthDatabase; userId: string }): void {
   database.drizzle.transaction((transaction) => {
     transaction.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId)).run();
@@ -41,6 +49,10 @@ export function consentRevocationPlugin() {
         {
           matcher: (context: { path?: string }) => context.path === DELETE_CONSENT_PATH || context.path === UPDATE_CONSENT_PATH,
           handler: revokeTokensOfConsent,
+        },
+        {
+          matcher: (context: { path?: string }) => context.path === CONSENT_PATH,
+          handler: refuseImpersonatedConsent,
         },
       ],
     },

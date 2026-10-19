@@ -61,6 +61,10 @@ export class DocumentsRepository {
     this.database.drizzle.update(documents).set({ title, updatedAt: new Date() }).where(eq(documents.id, documentId)).run();
   }
 
+  recordThumbnail(documentId: string): void {
+    throw new Error(`recordThumbnail is not implemented for ${documentId}`);
+  }
+
   touch(documentId: string): void {
     this.database.drizzle.update(documents).set({ updatedAt: new Date() }).where(eq(documents.id, documentId)).run();
   }
@@ -139,6 +143,7 @@ export class DocumentsRepository {
         id: documents.id,
         title: documents.title,
         updatedAt: documents.updatedAt,
+        thumbnailUpdatedAt: documents.thumbnailUpdatedAt,
         role: documentMembers.role,
         ownerId: user.id,
         ownerName: user.name,
@@ -157,6 +162,7 @@ export class DocumentsRepository {
       role: row.role,
       owner: { id: row.ownerId, name: row.ownerName },
       preview: previews.get(row.id) ?? null,
+      thumbnailUpdatedAt: row.thumbnailUpdatedAt === null ? null : row.thumbnailUpdatedAt.getTime(),
     }));
   }
 }

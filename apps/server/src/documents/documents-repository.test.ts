@@ -55,6 +55,7 @@ test('the owner sees it as mine and a member as shared, with the owner named', a
     role: DocumentRole.Reader,
     owner: { id: ana, name: 'Ana' },
     preview: null,
+    thumbnailUpdatedAt: null,
   };
   expect(documents.list(bruno)).toEqual({ mine: [], shared: [expected] });
   expect(documents.list(ana).mine).toEqual([{ ...expected, role: DocumentRole.Owner }]);
@@ -118,5 +119,20 @@ test('the list carries the preview the projection wrote and null for a document 
   const previews = Object.fromEntries(documents.list(ana).mine.map((document) => [document.id, document.preview]));
   expect(previews).toEqual({ [projectedId]: 'First line\nSecond line', [pendingId]: null });
   expect(documents.summary({ documentId: projectedId, userId: ana }).preview).toBe('First line\nSecond line');
+  await server.stop();
+});
+
+test('recordThumbnail sets thumbnailUpdatedAt on the summary and the list without moving updatedAt', async () => {
+  const { server, ana } = await twoUsers();
+  const { documents } = server.services;
+  const documentId = randomUUID();
+  documents.create({ id: documentId, title: 'Plan', ownerUserId: ana });
+  const before = documents.summary({ documentId, userId: ana });
+  expect(before.thumbnailUpdatedAt).toBeNull();
+  documents.recordThumbnail(documentId);
+  const after = documents.summary({ documentId, userId: ana });
+  expect(after.thumbnailUpdatedAt).toEqual(expect.any(Number));
+  expect(after.updatedAt).toBe(before.updatedAt);
+  expect(documents.list(ana).mine[0]!.thumbnailUpdatedAt).toBe(after.thumbnailUpdatedAt);
   await server.stop();
 });

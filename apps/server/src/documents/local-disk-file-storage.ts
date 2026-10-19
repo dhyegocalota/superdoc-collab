@@ -16,6 +16,12 @@ export function createLocalDiskFileStorage(directory: string): DocumentFileStora
       await mkdir(directory, { recursive: true });
       await writeFile(pathOf(documentId), bytes);
     },
+    putThumbnail: async () => {
+      throw new Error('putThumbnail is not implemented');
+    },
+    readThumbnail: async () => {
+      throw new Error('readThumbnail is not implemented');
+    },
     read: async (documentId) => new Uint8Array(await readFile(pathOf(documentId))),
     remove: (documentId) => rm(pathOf(documentId), { force: true }),
   };

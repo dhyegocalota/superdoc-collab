@@ -100,6 +100,7 @@ const CREATED_SHOWCASE: DocumentSummary = {
   updatedAt: Date.UTC(2026, 0, 8),
   role: DocumentRole.Owner,
   preview: null,
+  thumbnailUpdatedAt: null,
 };
 
 type MockOptions = { revokeStatus?: number; showcaseStatus?: number };

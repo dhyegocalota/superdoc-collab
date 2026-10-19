@@ -25,6 +25,7 @@ const OWNED_DOCUMENT: DocumentSummary = {
   updatedAt: NOW - FIVE_MINUTES_MS,
   role: DocumentRole.Owner,
   preview: 'Opening paragraph',
+  thumbnailUpdatedAt: null,
 };
 const SHARED_DOCUMENT: DocumentSummary = {
   ...OWNED_DOCUMENT,

@@ -99,3 +99,4 @@ Refinement after the five slices:
 | [`welcoming-surfaces`](welcoming-surfaces/) | Sign in, sign up and reset password share a two-column layout with an inline history illustration; the first documents page shows an empty state with a drag-and-drop upload zone and a page-level drop overlay | Approved |
 | [`title-edit-buttons`](title-edit-buttons/) | Save and Cancel buttons beside the document title while it is edited; blur alone no longer closes the editor | Approved |
 | [`compose-files-under-docker`](compose-files-under-docker/) | Both compose files live under `docker/`: the production one as `docker-compose.yml`, the README's local run as `docker-compose.local.yml`; the `deploy/` folder and the root compose file are gone | Approved |
+| [`test-pruning`](test-pruning/) | Tests that restate the implementation (literal tokens, copy strings, mock echoes, static markup, duplicate layers) are removed, with a report naming each one and what still covers it | Approved |

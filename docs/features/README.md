@@ -116,3 +116,4 @@ Refinement after the five slices:
 | [`streamgraph-motion`](streamgraph-motion/) | Every real-time change tweens the streamgraph's bands, pulses the bin that just grew and breathes a live cue; reduced motion keeps the snap | Shipped 2026-10-19 |
 | [`whats-next`](whats-next/) | `docs/next.md`: scale as signal, change and the ADR it revisits; integrations; product; the questions for SuperDoc whose answers would retire code | Shipped 2026-10-19 |
 | [`admin-actions-menu`](admin-actions-menu/) | Admin → Users shows one icon-only Actions menu per row instead of several buttons | Shipped 2026-10-19 |
+| [`account-menu-sections`](account-menu-sections/) | The account menu groups Account, Workspace, Help and Theme with Sign out alone; More actions drops Keyboard shortcuts | Building |

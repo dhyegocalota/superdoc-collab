@@ -1,6 +1,6 @@
 import { AppRoute, authorColorSlot, UserRole, type AuthorColorSlot, type SessionUser } from '@superdoc-collab/types';
 import { QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test } from 'vitest';
 import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
@@ -13,7 +13,7 @@ import { SHORTCUTS_TITLE } from '@/features/shortcuts/shortcuts-copy';
 import { THEME_STORAGE_KEY } from '@/lib/use-theme';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { AccountMenu } from './account-menu';
-import { THEME_LABEL, accountMenuLabel } from './account-copy';
+import { ACCOUNT_SECTION_LABEL, HELP_SECTION_LABEL, THEME_LABEL, WORKSPACE_SECTION_LABEL, accountMenuLabel } from './account-copy';
 
 const USER: SessionUser = {
   id: 'user-1',
@@ -101,4 +101,43 @@ test('Keyboard shortcuts opens the shortcuts dialog', async () => {
   await openMenu(USER);
   await userEvent.click(await screen.findByRole('menuitem', { name: SHORTCUTS_TITLE }));
   expect(await screen.findByRole('dialog', { name: SHORTCUTS_TITLE })).toBeVisible();
+});
+
+test("the admin's menu has the Account, Workspace, Help and Theme sections in order, with Sign out last", async () => {
+  await openMenu(ADMIN);
+  const menu = await screen.findByRole('menu');
+  const text = menu.textContent!;
+  const positions = [ACCOUNT_SECTION_LABEL, WORKSPACE_SECTION_LABEL, HELP_SECTION_LABEL, THEME_LABEL, SIGN_OUT_LABEL].map((label) =>
+    text.indexOf(label, text.indexOf(ADMIN.email)),
+  );
+  expect(positions.every((position) => position >= 0)).toBe(true);
+  expect(positions).toEqual([...positions].sort((first, second) => first - second));
+  const items = within(menu).getAllByRole('menuitem');
+  expect(items[items.length - 1]).toHaveTextContent(SIGN_OUT_LABEL);
+  expect(
+    within(within(menu).getByRole('group', { name: WORKSPACE_SECTION_LABEL })).getByRole('menuitem', { name: ADMIN_LINK_LABEL }),
+  ).toBeVisible();
+});
+
+test('a user sees no Workspace section and no Admin item', async () => {
+  await openMenu(USER);
+  const menu = await screen.findByRole('menu');
+  expect(within(menu).queryByRole('group', { name: WORKSPACE_SECTION_LABEL })).toBeNull();
+  expect(within(menu).queryByRole('menuitem', { name: ADMIN_LINK_LABEL })).toBeNull();
+});
+
+test('Account holds Settings and Connected apps; Help holds About and Keyboard shortcuts with its hint', async () => {
+  await openMenu(USER);
+  const menu = await screen.findByRole('menu');
+  const account = within(menu).getByRole('group', { name: ACCOUNT_SECTION_LABEL });
+  expect(
+    within(account)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent),
+  ).toEqual([SETTINGS_LINK_LABEL, CONNECTED_APPS_HEADING]);
+  const help = within(menu).getByRole('group', { name: HELP_SECTION_LABEL });
+  const helpItems = within(help).getAllByRole('menuitem');
+  expect(helpItems[0]).toHaveTextContent(ABOUT_LINK_LABEL);
+  expect(helpItems[1]).toHaveTextContent(SHORTCUTS_TITLE);
+  expect(helpItems[1]!.querySelectorAll('kbd').length).toBeGreaterThan(0);
 });

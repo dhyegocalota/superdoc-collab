@@ -13,7 +13,6 @@ import {
   SECOND_MS,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
-  SOCKET_AWARENESS_ORIGIN_REASON,
   SOCKET_CLOSE_GRACE_MS,
   SOCKET_RATE_LIMIT_REASON,
   UNAUTHORIZED_CLOSE_CODE,
@@ -882,6 +881,32 @@ test('a null entry sent first for an id recorded for another user is dropped, so
   await server.stop();
 });
 
+test('an id another user claimed with a null entry and then an update is bound to that user, and the owner announcing it later keeps its socket', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  attacker.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: HELD_CLOCK, state: null })),
+  );
+  attacker.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds, clock: REPLAY_CLOCK })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  victim.webSocket.send(
+    new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds, clock: REPLAY_CLOCK + 1, state: FORGED_STATE })),
+  );
+  victim.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: victim.client.document.clientID })).toBe(0);
+  expect(victim.closedSockets().map(({ code }) => code)).not.toContain(POLICY_VIOLATION_CLOSE_CODE);
+  expect(victim.webSocket.readyState).toBe(WebSocket.OPEN);
+  expect(attacker.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
+});
+
 test('a connection relaying an awareness state at the clock the room already holds keeps the socket open', async () => {
   const { server, clientIds, holder, intruder } = await holderOfClaimedIds({ hasSameUser: false });
   intruder.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: intruder.roomName, clientIds })));
@@ -954,7 +979,7 @@ test('a provider that reconnects and resends its own awareness id keeps its new 
   await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(RECONNECTED_CURSOR);
   expect(provider.configuration.websocketProvider.webSocket?.readyState).toBe(WebSocket.OPEN);
   expect(connection.closedSockets().length).toBeGreaterThan(0);
-  expect(connection.closedSockets().map(({ reason }) => reason)).not.toContain(SOCKET_AWARENESS_ORIGIN_REASON);
+  expect(connection.closedSockets().map(({ code }) => code)).not.toContain(POLICY_VIOLATION_CLOSE_CODE);
   expect(anchor.closedSocket()).toBeNull();
   connection.client.close();
   anchor.client.close();

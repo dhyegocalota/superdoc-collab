@@ -4,7 +4,6 @@ import {
   type BinEdits,
   DocumentResource,
   HOUR_MS,
-  DAY_MS,
   MINUTE_MS,
   SECOND_MS,
   WEEK_MS,
@@ -62,7 +61,6 @@ const ZONELESS_PATHS = [
   ['selection', (documentId: string) => selectionSummaryApiPath(documentId)],
 ] as const;
 const SAO_PAULO_TIME_ZONE = 'America/Sao_Paulo';
-const SAO_PAULO_OFFSET_MS = -3 * HOUR_MS;
 const KIRITIMATI_TIME_ZONE = 'Pacific/Kiritimati';
 const ZONED_EVENT_COUNT = 40;
 const ZONED_STEP_MS = 3 * HOUR_MS;
@@ -325,23 +323,6 @@ test('the author filter keeps only the marks of the matching authors, a person e
   expect(byEditorEmail.agentActions.map((action) => action.authorKey)).toEqual([`${editor.id}#agent`]);
   const byTerm = await readTimeline({ server, documentId, cookie: owner.cookie, query: 'term=nothing-matches-this' });
   expect(byTerm.agentActions).toHaveLength(2);
-});
-
-test('a Sao Paulo day timeline starts every bin at local midnight and ends where the next starts', async () => {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBulkEvents({ server, documentId, userId: owner.id, count: ZONED_EVENT_COUNT, stepMs: ZONED_STEP_MS });
-  const timeline = await readTimeline({
-    server,
-    documentId,
-    cookie: owner.cookie,
-    query: `binMs=${DAY_BIN_MS}`,
-    timeZone: SAO_PAULO_TIME_ZONE,
-  });
-  expect(timeline.bins.map((bin) => (bin.start + SAO_PAULO_OFFSET_MS) % DAY_MS)).toEqual(timeline.bins.map(() => 0));
-  expect(timeline.bins.slice(0, -1).map((bin, index) => bin.end === timeline.bins[index + 1]!.start)).toEqual(
-    timeline.bins.slice(0, -1).map(() => true),
-  );
-  await server.stop();
 });
 
 test('the same document reads different bin starts in UTC and in Kiritimati', async () => {

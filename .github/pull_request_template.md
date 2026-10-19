@@ -6,6 +6,19 @@
 
 <!-- ADRs this change depends on or introduces: docs/adr/NNNN-<slug>.md -->
 
+## Visual explainer
+
+<!-- For humans, not reviewers: one row per user-visible change with an annotated screenshot or a before/after pair (asset URLs from the pr-media release), one sentence each; one Mermaid diagram per data-flow change (what enters, what is stored, what the screen shows). Required on every PR; "No user-visible change" plus a diagram of the data flow is the minimum for a server-only PR. -->
+
+| Change | What a person sees |
+|---|---|
+| | ![caption](url) |
+
+```mermaid
+flowchart LR
+  A[input] --> B[what changed] --> C[what the screen shows]
+```
+
 ## Video
 
 <!-- Playable: paste the .mp4 asset URL on its own line. Fallback: ![walkthrough](<gif asset url>) -->

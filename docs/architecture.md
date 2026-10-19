@@ -87,7 +87,7 @@ The demo runs on Railway as one service built from the Dockerfile, with a volume
 
 ## Limits
 
-- **One instance.** SQLite files, the projection worker and the language-model caps live in one process ([ADR 0004](adr/0004-stack.md)). The app does not scale horizontally, and a restart forgets the in-memory cooldowns.
+- **One instance.** SQLite files, the projection worker and the language-model caps live in one process ([ADR 0004](adr/0004-stack.md)). The app does not scale horizontally, and a restart forgets the in-memory cooldowns; [Where it goes next](next.md#scale) lists the steps that lift this.
 - **Language-model caps.** At most 2 model jobs at once and 60 model calls per rolling hour for the whole server ([ADR 0011](adr/0011-process-wide-llm-cost-caps.md)). Past them topics show "The language model is busy; try again later." and a summary request gets a 503 that consumes no cooldown. A model error or a missing key shows "The topics could not be named. Try again." or "The edits could not be summarized. Try again." instead. Editing keeps working in every case.
 - **No email.** Accounts have no verification and no password reset; the demo accounts share one password.
 - **DOCX only.** Up to 10 MB per file; no PDF or image import.

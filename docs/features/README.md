@@ -96,3 +96,4 @@ Refinement after the five slices:
 | [`ai-edit-gif`](ai-edit-gif/) | A recorded walk in the README: an AI client edits through the MCP tools while a person watches the timeline show its mark beside the human bands | Approved |
 | [`architecture-docs-review`](architecture-docs-review/) | `docs/architecture.md`, the install guide, the credits and every package README reviewed against the code and the features shipped since their last edit | Approved |
 | [`showcase-document`](showcase-document/) | A fresh install opens on a showcase document whose timeline is already full: several authors, several days, named topics and marked idle gaps | Approved |
+| [`whats-next`](whats-next/) | `docs/next.md`: scale as signal, change and the ADR it revisits; integrations; product; the questions for SuperDoc whose answers would retire code | Shipped 2026-10-19 |

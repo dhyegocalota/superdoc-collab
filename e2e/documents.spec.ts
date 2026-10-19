@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { Browser, Page } from '@playwright/test';
 import {
   ApiPath,
   AppRoute,
   DEMO_USERS,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   DocumentRole,
+  DOCX_MIME_TYPE,
   HttpMethod,
   INVALID_SHARE_LINK_MESSAGE,
   READ_ONLY_BADGE_LABEL,
@@ -29,10 +33,29 @@ import {
   uploadSeed,
   insertedBy,
 } from './editor';
-import { NEW_DOCUMENT_LABEL, ROLE_LABELS, SHARED_HEADING } from '../apps/web/src/features/documents/documents-copy';
+import {
+  DROP_OVERLAY_LABEL,
+  DROP_ZONE_LABEL,
+  EMPTY_STATE_HEADING,
+  NEW_DOCUMENT_LABEL,
+  ONE_FILE_AT_A_TIME_MESSAGE,
+  ROLE_LABELS,
+  SHARED_HEADING,
+  UPLOAD_LABEL,
+} from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, MORE_ACTIONS_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
-import { expect, signedInContext, test } from './fixtures';
+import {
+  acceptInvite,
+  expect,
+  expectSignedInAs,
+  generateInvite,
+  signedInAdmin,
+  signedInContext,
+  test,
+  uniqueEmail,
+  type OpenedContext,
+} from './fixtures';
 
 const PARAGRAPHS = ['Paragraph owned by ana.', 'Paragraph owned by bruno.'];
 const OWNER_PARAGRAPH = 'owned by ana';
@@ -50,6 +73,10 @@ const TITLE_LINE_CLAMP = '2';
 const UNAVAILABLE_TIMEOUT_MS = 20_000;
 const FIRST_PARAGRAPH_CLICK_POSITION = { x: 120, y: 120 };
 const TYPED_SENTENCE = 'Typed into a new document.';
+const FRESH_MEMBER_NAME = 'Fresh';
+const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
+const BRIEF_FILE_NAME = 'brief.docx';
+const DOCUMENT_PATH_PATTERN = /\/documents\/[^/?#]+/;
 
 function uniqueFileName(prefix: string): string {
   return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
@@ -230,4 +257,70 @@ test('a new document accepts typing after a click', async ({ browser }) => {
     .toBe(TYPED_SENTENCE);
   await ana.page.reload();
   await expect(editorText(ana.page).filter({ hasText: TYPED_SENTENCE }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+});
+
+async function freshMember(browser: Browser): Promise<OpenedContext> {
+  const admin = await signedInAdmin({ browser });
+  await admin.page.goto(AppRoute.Admin);
+  const url = await generateInvite({ page: admin.page });
+  const member = await acceptInvite({ browser, url, name: FRESH_MEMBER_NAME, email: uniqueEmail('fresh') });
+  await expectSignedInAs({ page: member.page, name: FRESH_MEMBER_NAME });
+  return member;
+}
+
+async function draggedFiles({ page, files }: { page: Page; files: { name: string; bytes: Buffer }[] }) {
+  return page.evaluateHandle(
+    ({ entries, mimeType }) => {
+      const dataTransfer = new DataTransfer();
+      entries.forEach(({ name, base64 }) => {
+        const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+        dataTransfer.items.add(new File([bytes], name, { type: mimeType }));
+      });
+      return dataTransfer;
+    },
+    { entries: files.map(({ name, bytes }) => ({ name, base64: bytes.toString('base64') })), mimeType: DOCX_MIME_TYPE },
+  );
+}
+
+test('a fresh user sees the empty state and it disappears after New document', async ({ browser }) => {
+  const member = await freshMember(browser);
+  await expect(member.page.getByRole('heading', { name: EMPTY_STATE_HEADING })).toBeVisible();
+  await expect(member.page.getByText(DROP_ZONE_LABEL)).toBeVisible();
+  await expect(member.page.getByRole('button', { name: UPLOAD_LABEL })).toHaveCount(0);
+  await member.page.getByRole('button', { name: NEW_DOCUMENT_LABEL }).click();
+  await expect(member.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await member.page.goto(AppRoute.Documents);
+  await expect(member.page.getByRole('button', { name: UPLOAD_LABEL })).toBeVisible();
+  await expect(member.page.getByRole('heading', { name: EMPTY_STATE_HEADING })).toHaveCount(0);
+});
+
+test('dropping the brief on the page uploads it', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const dataTransfer = await draggedFiles({ page: ana.page, files: [{ name: BRIEF_FILE_NAME, bytes: readFileSync(BRIEF_PATH) }] });
+  await ana.page.dispatchEvent('body', 'dragenter', { dataTransfer });
+  await expect(ana.page.getByText(DROP_OVERLAY_LABEL)).toBeVisible();
+  await ana.page.dispatchEvent('body', 'drop', { dataTransfer });
+  await expect(ana.page).toHaveURL(DOCUMENT_PATH_PATTERN);
+  await expect(ana.page.locator(PAGE_SELECTOR).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+});
+
+test('the overlay follows the drag, and two dropped files upload nothing', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bytes = readFileSync(BRIEF_PATH);
+  const dataTransfer = await draggedFiles({
+    page: ana.page,
+    files: [
+      { name: 'first.docx', bytes },
+      { name: 'second.docx', bytes },
+    ],
+  });
+  await ana.page.dispatchEvent('body', 'dragenter', { dataTransfer });
+  await expect(ana.page.getByText(DROP_OVERLAY_LABEL)).toBeVisible();
+  await ana.page.dispatchEvent('body', 'dragleave', { dataTransfer });
+  await expect(ana.page.getByText(DROP_OVERLAY_LABEL)).toHaveCount(0);
+  await ana.page.dispatchEvent('body', 'dragenter', { dataTransfer });
+  await ana.page.dispatchEvent('body', 'drop', { dataTransfer });
+  await expect(ana.page.getByRole('alert')).toHaveText(ONE_FILE_AT_A_TIME_MESSAGE);
+  await expect(ana.page.getByText(DROP_OVERLAY_LABEL)).toHaveCount(0);
+  await expect(ana.page).toHaveURL(AppRoute.Documents);
 });

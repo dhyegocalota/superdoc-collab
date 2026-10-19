@@ -1,5 +1,6 @@
 export * from './routes';
 export * from './auth';
+export * from './account-access';
 export * from './http';
 export * from './demo-users';
 export * from './documents';

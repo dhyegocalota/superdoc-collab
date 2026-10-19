@@ -1,16 +1,18 @@
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { ApiPath, HttpStatus } from '@superdoc-collab/types';
-import { Hono } from 'hono';
+import { ApiPath, HttpStatus, STOP_IMPERSONATING_API_PATH } from '@superdoc-collab/types';
+import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import type { AgentActionsLog, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import { createAdminRoutes } from '../admin/admin-routes';
+import { createUserAccessRoutes } from '../admin/user-access-routes';
 import { createInviteRoutes } from '../admin/invite-routes';
 import type { InvitesRepository } from '../admin/invites';
 import { createSetupRoutes } from '../admin/setup-routes';
 import type { PasswordResets } from '../admin/password-reset-links';
 import type { AdminUsersRepository } from '../admin/users';
+import type { UserAccess } from '../admin/user-access';
 import type { Auth } from '../auth/auth';
 import { REGISTER_PATH } from '../auth/registration-limits';
 import { mountOAuthDiscovery } from '../auth/oauth-discovery';
@@ -88,6 +90,7 @@ export type AppServices = {
   invites: InvitesRepository;
   adminUsers: AdminUsersRepository;
   passwordResets: PasswordResets;
+  userAccess: UserAccess;
 };
 
 export function createApp({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
@@ -119,8 +122,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     }),
   );
   app.get(ApiPath.Health, health);
-  app.all(AUTH_ADMIN_PATH, (context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
-  app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, async (context) => {
+  const handleAuth = async (context: Context): Promise<Response> => {
     const remoteAddress = getConnInfo(context).remote.address;
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
     return auth.handler(
@@ -131,7 +133,10 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
         trustedProxyHops: environment.trustedProxyHops,
       }),
     );
-  });
+  };
+  app.post(STOP_IMPERSONATING_API_PATH, handleAuth);
+  app.all(AUTH_ADMIN_PATH, (context) => context.json({ error: NOT_FOUND_MESSAGE }, HttpStatus.NotFound));
+  app.on(['GET', 'POST'], `${ApiPath.Auth}/*`, handleAuth);
   mountOAuthDiscovery({ app, auth });
   app.route(
     ApiPath.Mcp,
@@ -151,6 +156,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.route('/', createInviteRoutes({ services }));
   app.use(`${ApiPath.Admin}/*`, sameOriginOnly, signedIn, requireAdmin());
   app.route(ApiPath.Admin, createAdminRoutes({ services }));
+  app.route(ApiPath.Admin, createUserAccessRoutes({ services }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));

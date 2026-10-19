@@ -16,10 +16,11 @@ import { SettingsPage } from '@/features/settings/settings-page';
 import { ShareLandingPage } from '@/features/sharing/share-landing-page';
 import { PrintPage } from '@/features/versions/print-page';
 import { VersionViewPage } from '@/features/versions/version-view-page';
+import { AppShell } from './app-shell';
 
 const UNKNOWN_PATH = '*';
 
-export const routes: RouteObject[] = [
+const pageRoutes: RouteObject[] = [
   { path: '/', element: <Navigate to={AppRoute.Documents} replace /> },
   {
     path: AppRoute.SignIn,
@@ -106,5 +107,7 @@ export const routes: RouteObject[] = [
   },
   { path: UNKNOWN_PATH, element: <Navigate to={AppRoute.Documents} replace /> },
 ];
+
+export const routes: RouteObject[] = [{ element: <AppShell />, children: pageRoutes }];
 
 export const router = createBrowserRouter(routes);

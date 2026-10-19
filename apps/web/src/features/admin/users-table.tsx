@@ -2,6 +2,7 @@ import { UserRole, type AdminUser } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { ErrorMessage } from '@/components/error-message';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatTimestamp } from '@/lib/format-date-time';
@@ -9,6 +10,7 @@ import { useTimeZone } from '@/lib/use-time-zone';
 import { ADMIN_USERS_QUERY_KEY, createPasswordReset, setUserRole } from './admin-api';
 import {
   ACTION_FAILED_MESSAGE,
+  ARCHIVED_CHIP_LABEL,
   MAKE_ADMIN_LABEL,
   MAKE_USER_LABEL,
   PASSWORD_RESET_COPIED_TOAST,
@@ -20,6 +22,7 @@ import {
   USERS_TABLE_LABEL,
 } from './admin-copy';
 import { LinkCreatedDialog } from './link-created-dialog';
+import { ArchiveButton, ImpersonateButton, RestoreButton } from './user-access-buttons';
 
 const ROLE_TOGGLES: Record<UserRole, { label: string; nextRole: UserRole }> = {
   [UserRole.Admin]: { label: MAKE_USER_LABEL, nextRole: UserRole.User },
@@ -81,20 +84,33 @@ export function UsersTable({ users, signedInUserId }: { users: AdminUser[]; sign
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.name}</TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{USER_ROLE_LABELS[user.role]}</TableCell>
-              <TableCell>{formatTimestamp({ time: user.createdAt, timeZone })}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap items-center gap-2">
-                  {user.id !== signedInUserId && <RoleToggle user={user} />}
-                  <PasswordResetButton user={user} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {users.map((user) => {
+            const isOtherUser = user.id !== signedInUserId;
+            const canArchive = isOtherUser && !user.isArchived;
+            const canImpersonate = canArchive && user.role !== UserRole.Admin;
+            return (
+              <TableRow key={user.id}>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {user.name}
+                    {user.isArchived && <Badge variant="secondary">{ARCHIVED_CHIP_LABEL}</Badge>}
+                  </div>
+                </TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>{USER_ROLE_LABELS[user.role]}</TableCell>
+                <TableCell>{formatTimestamp({ time: user.createdAt, timeZone })}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isOtherUser && <RoleToggle user={user} />}
+                    <PasswordResetButton user={user} />
+                    {canArchive && <ArchiveButton user={user} />}
+                    {user.isArchived && <RestoreButton user={user} />}
+                    {canImpersonate && <ImpersonateButton user={user} />}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

@@ -90,7 +90,7 @@ export function cursorNotFoundMessage(name: string): string {
 }
 
 export function onlineMembersLabel(count: number): string {
-  throw new Error(`onlineMembersLabel is not implemented for ${count}`);
+  return `${count} online`;
 }
 
 export function offlineMemberReason(name: string): string {

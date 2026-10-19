@@ -13,7 +13,7 @@ import {
 import { DocumentsEmptyState } from './documents-empty-state';
 import type { DocumentUpload } from './use-upload-document';
 
-const IDLE_UPLOAD: DocumentUpload = { uploadFiles: vi.fn(), clear: vi.fn(), message: null, isPending: false };
+const IDLE_UPLOAD: DocumentUpload = { progress: null, uploadFiles: vi.fn(), clear: vi.fn(), message: null, isPending: false };
 
 test('shows the empty state when both lists are empty', () => {
   renderWithProviders(<DocumentsEmptyState isCreating={false} onCreate={vi.fn()} upload={IDLE_UPLOAD} />);

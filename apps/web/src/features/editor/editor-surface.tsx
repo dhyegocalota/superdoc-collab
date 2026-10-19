@@ -1,8 +1,11 @@
 import type { SuperDoc } from 'superdoc';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
+import { OpenProgressPanel, type OpenProgressView } from '@/features/open-progress/open-progress-panel';
+import type { EditorLoadProgress } from '@/features/open-progress/open-progress-view';
+import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { VersionFrame } from '@/features/versions/version-frame';
 import { cn } from '@/lib/utils';
-import { SuperDocEditor } from './superdoc-editor';
+import { HIDDEN_LOADING_OVERLAY_CLASS, SuperDocEditor } from './superdoc-editor';
 import type { TransportReport } from './use-connection-state';
 import type { EditorSetup } from './use-editor-setup';
 
@@ -10,6 +13,8 @@ export const DIMMED_EDITOR_AREA_CLASS = 'opacity-60';
 
 type EditorSurfaceProps = {
   documentId: string;
+  title: string;
+  openProgress: OpenProgressView | null;
   editorSetup: EditorSetup | null;
   editorGeneration: number;
   isToolbarReady: boolean;
@@ -23,10 +28,13 @@ type EditorSurfaceProps = {
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
   onDocumentEdit: () => void;
+  onLoadProgress: (progress: EditorLoadProgress) => void;
 };
 
 export function EditorSurface({
   documentId,
+  title,
+  openProgress,
   editorSetup,
   editorGeneration,
   isToolbarReady,
@@ -40,9 +48,17 @@ export function EditorSurface({
   onTransportReport,
   onEditorUpdate,
   onDocumentEdit,
+  onLoadProgress,
 }: EditorSurfaceProps) {
   return (
-    <div data-testid="editor-surface" className={cn('relative flex min-h-0 min-w-0 flex-1', isDimmed && DIMMED_EDITOR_AREA_CLASS)}>
+    <div
+      data-testid="editor-surface"
+      className={cn(
+        'relative flex min-h-0 min-w-0 flex-1',
+        isDimmed && DIMMED_EDITOR_AREA_CLASS,
+        openProgress && HIDDEN_LOADING_OVERLAY_CLASS,
+      )}
+    >
       {editorSetup && isToolbarReady && (
         <SuperDocEditor
           key={editorGeneration}
@@ -61,8 +77,10 @@ export function EditorSurface({
           onTransportReport={onTransportReport}
           onEditorUpdate={onEditorUpdate}
           onDocumentEdit={onDocumentEdit}
+          onLoadProgress={onLoadProgress}
         />
       )}
+      {openProgress && <OpenProgressPanel title={title} stages={EDITOR_OPEN_STAGES} view={openProgress} action={null} />}
       <VersionFrame
         documentId={documentId}
         version={timeTravel.shownVersion}

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOAD_LABEL, UPLOADING_MESSAGE } from './documents-copy';
+import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOAD_LABEL } from './documents-copy';
+import { UploadProgressStatus } from './upload-progress-status';
 import { useUploadDocument } from './use-upload-document';
 
 const FILE_INPUT_ID = 'document-file';
@@ -12,7 +13,7 @@ const DOCX_ACCEPT = '.docx';
 
 export function UploadDialog() {
   const [isOpen, setIsOpen] = useState(false);
-  const { uploadFiles, clear, message, isPending } = useUploadDocument({ onUploaded: () => setIsOpen(false) });
+  const { uploadFiles, clear, message, isPending, progress } = useUploadDocument({ onUploaded: () => setIsOpen(false) });
 
   function onOpenChange(nextIsOpen: boolean): void {
     setIsOpen(nextIsOpen);
@@ -38,11 +39,7 @@ export function UploadDialog() {
         </DialogHeader>
         <Label htmlFor={FILE_INPUT_ID}>{FILE_INPUT_LABEL}</Label>
         <Input id={FILE_INPUT_ID} type="file" accept={DOCX_ACCEPT} disabled={isPending} onChange={onFileChange} />
-        {isPending && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {UPLOADING_MESSAGE}
-          </p>
-        )}
+        {isPending && <UploadProgressStatus progress={progress} />}
         {message !== null && <ErrorMessage>{message}</ErrorMessage>}
       </DialogContent>
     </Dialog>

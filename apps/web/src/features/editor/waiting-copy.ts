@@ -1,7 +1,6 @@
 import { DOCUMENT_READY_GIVE_UP_MS, MINUTE_MS } from '@superdoc-collab/types';
 
 export const PREPARING_DOCUMENT_MESSAGE = 'Preparing the document…';
-export const PREPARING_DOCUMENT_HINT = 'It opens here on its own as soon as another editor has opened it once.';
 export const NOT_READY_PAUSED_HEADING = 'The document is not ready yet';
 export const NOT_READY_PAUSED_MESSAGE = `We stopped checking after ${DOCUMENT_READY_GIVE_UP_MS / MINUTE_MS} minutes. No editor has opened it once.`;
 export const KEEP_WAITING_LABEL = 'Keep waiting';

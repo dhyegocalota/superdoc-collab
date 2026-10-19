@@ -1,7 +1,11 @@
-import { ConnectionFailureReason, ConnectionState, DocumentRole, VersionViewerState } from '@superdoc-collab/types';
+import { ConnectionFailureReason, ConnectionState, DocumentRole, OPEN_PROGRESS_DELAY_MS, VersionViewerState } from '@superdoc-collab/types';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
+import { editorOpenView, type EditorLoadProgress } from '@/features/open-progress/open-progress-view';
+import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
+import { useElapsedSeconds } from '@/features/open-progress/use-elapsed-seconds';
+import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
@@ -35,6 +39,7 @@ import { VersionBar } from './version-bar';
 import { WaitingForDocument } from './waiting-for-document';
 
 const EDITOR_AREA_CLASS = 'relative flex min-h-[60dvh] min-w-0 flex-1 flex-col lg:min-h-0';
+const INITIAL_LOAD_PROGRESS: EditorLoadProgress = { isSynced: false, pageCount: 0, hasFailed: false };
 const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
   [PanelPosition.Bottom]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-y-visible',
   [PanelPosition.Side]: 'flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-y-visible',
@@ -43,7 +48,7 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
-  const { data: opened, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
+  const { data: opened, bootstrap, readiness, keepWaiting, restartWaiting, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
@@ -77,9 +82,13 @@ export function DocumentPage() {
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
+  const [loadProgress, setLoadProgress] = useState(INITIAL_LOAD_PROGRESS);
   const [hasExportFailed, setHasExportFailed] = useState(false);
   const [isTitleDirty, setIsTitleDirty] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const hasPaintedParagraph = useHasPaintedParagraph(editorContainer);
+  const isProgressShown = useDelayedReveal({ delayMs: OPEN_PROGRESS_DELAY_MS, resetKey: documentId });
+  const elapsedSeconds = useElapsedSeconds({ resetKey: documentId, isRunning: !hasPaintedParagraph });
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
   const { timeZone } = useTimeZone();
@@ -120,7 +129,13 @@ export function DocumentPage() {
   const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
   if (documentReadiness !== DocumentReadiness.Ready) {
     return withAnnouncement(
-      <WaitingForDocument documentId={documentId} readiness={documentReadiness} onKeepWaiting={keepWaiting} onRetry={retry} />,
+      <WaitingForDocument
+        documentId={documentId}
+        readiness={documentReadiness}
+        progress={{ bootstrap, elapsedSeconds, isShown: isProgressShown }}
+        onKeepWaiting={keepWaiting}
+        onRetry={retry}
+      />,
     );
   }
   if (!opened) return withAnnouncement(<OpeningDocument />);
@@ -150,6 +165,11 @@ export function DocumentPage() {
   const isFailed = connectionState === ConnectionState.Failed;
   const isSuperseded = failureReason === ConnectionFailureReason.Superseded;
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
+  const isOpenFailing = isFailed || loadProgress.hasFailed || fileError !== null;
+  const isOpenProgressVisible = isProgressShown && !hasPaintedParagraph && !isOpenFailing;
+  const openProgress = isOpenProgressVisible
+    ? editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
+    : null;
 
   return withAnnouncement(
     <div className="flex h-full flex-col">
@@ -191,6 +211,8 @@ export function DocumentPage() {
           {!isPhoneLayout && versionBar}
           <EditorSurface
             documentId={documentId}
+            title={title}
+            openProgress={openProgress}
             editorSetup={editorSetup}
             editorGeneration={editorGeneration}
             isToolbarReady={isToolbarReady}
@@ -204,6 +226,7 @@ export function DocumentPage() {
             onTransportReport={handleTransportReport}
             onEditorUpdate={markEdit}
             onDocumentEdit={reportEdit}
+            onLoadProgress={setLoadProgress}
           />
         </div>
         <TimelinePanel

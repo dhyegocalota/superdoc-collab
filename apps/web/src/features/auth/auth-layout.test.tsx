@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 import { ABOUT_LINK_LABEL } from '@/features/about/about-copy';
 import { APP_NAME } from '@/lib/app-copy';
 import { renderWithProviders } from '@/testing/render-with-providers';
-import { AUTH_TAGLINE, AUTH_VALUE_LINES } from './auth-layout-copy';
+import { AUTH_TAGLINE, AUTH_VALUE_LINES } from './auth-copy';
 import { AuthLayout } from './auth-layout';
 
 const CARD_TEXT = 'Card content';

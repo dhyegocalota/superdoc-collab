@@ -2,7 +2,7 @@
 
 ## What changed and where
 
-- `apps/web/src/features/auth/auth-layout.tsx` wraps the card of sign in, sign up and reset password. At `lg` and above the panel is the right column (tagline, illustration, three value lines, About link). Below `lg` it is a compact header above the card: mark, name, About link, tagline. Copy lives in the new `auth-layout-copy.ts`. The invalid-link card and the session skeleton are not wrapped.
+- `apps/web/src/features/auth/auth-layout.tsx` wraps the card of sign in, sign up and reset password. At `lg` and above the panel is the right column (tagline, illustration, three value lines, About link). Below `lg` it is a compact header above the card: mark, name, About link, tagline. Copy lives in `auth-copy.ts`. The invalid-link card and the session skeleton are not wrapped.
 - `apps/web/src/components/history-illustration.tsx`: inline SVG, `aria-hidden`, no title, author tokens through `fill-author-N` classes, no hex values, no animation.
 - `apps/web/src/features/documents/`: `use-upload-document.ts` (the mutation and the messages, extracted from the dialog), `upload-dialog.tsx` (now uses the hook), `upload-drop-zone.tsx`, `upload-drop-overlay.tsx` (window listeners, enter/leave counter, reset on drop, dragend and `mouseleave` of the document element), `documents-empty-state.tsx`, `documents-page.tsx`, `documents-copy.ts`.
 - The create-document error moved from the toolbar section to directly under the page heading so it shows in both states.

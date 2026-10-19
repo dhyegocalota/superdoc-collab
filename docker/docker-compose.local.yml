@@ -1,11 +1,11 @@
 services:
   app:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
     ports:
       - "3000:3000"
-    env_file: ${ENV_FILE:-.env}
+    env_file: ${ENV_FILE:-../.env}
     environment:
       DATABASE_DIR: /data
       WEB_DIST_DIR: /app/web

@@ -219,7 +219,7 @@ commit_change pnpm-lock.yaml
 STUB_DOCKER_DOWN=1
 run_verify
 expect_equal "the lockfile without Docker exits 0" "$status" 0
-expect_match "the lockfile without Docker skips the image" "$output" 'verify: docker skipped: Docker is not running; the image is proven only when its own files change \(docker/, deploy/, \.dockerignore, railway\.json, compose files\)'
+expect_match "the lockfile without Docker skips the image" "$output" 'verify: docker skipped: Docker is not running; the image is proven only when its own files change \(docker/, \.dockerignore, railway\.json, compose files\)'
 expect_equal "the lockfile without Docker writes a record" "$(record_count)" 1
 
 new_repository

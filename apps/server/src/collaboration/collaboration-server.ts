@@ -22,7 +22,9 @@ import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { overfullConnections } from './awareness-client-cap';
-import { closeSendersOfForeignIds } from './awareness-origin';
+import { AWARENESS_ORIGIN_LOG, AwarenessOriginError, closeSendersOfForeignIds } from './awareness-origin';
+import { AwarenessOwners } from './awareness-owners';
+import { awarenessEntriesOf } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { CreatorReservations } from './creator-reservations';
@@ -129,6 +131,7 @@ export function createCollaborationServer({
   onStored: (documentId: string) => void;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
+  const awarenessOwners = new AwarenessOwners();
   const refusedConnections = new WeakSet<CollaborationContext>();
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   return new Hocuspocus({
@@ -187,7 +190,14 @@ export function createCollaborationServer({
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
     },
     async afterLoadDocument({ document }) {
-      closeSendersOfForeignIds(document);
+      closeSendersOfForeignIds({ document, owners: awarenessOwners });
+    },
+    async beforeHandleMessage({ update, context, document }) {
+      const { userId } = context as CollaborationContext;
+      const entries = awarenessEntriesOf(Buffer.from(update.buffer, update.byteOffset, update.byteLength));
+      if (!awarenessOwners.forbids({ documentName: document.name, userId, entries, meta: document.awareness.meta })) return;
+      console.warn(AWARENESS_ORIGIN_LOG);
+      throw new AwarenessOriginError();
     },
     async onChange({ update, context, transactionOrigin, document }) {
       if (transactionOrigin === LOADING_ORIGIN) return;
@@ -223,6 +233,7 @@ export function createCollaborationServer({
       declarer.declare(document);
     },
     async afterUnloadDocument({ documentName }) {
+      awarenessOwners.forget(documentName);
       declarer.forget(documentName);
     },
   });

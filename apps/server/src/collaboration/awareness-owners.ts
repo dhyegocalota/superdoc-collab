@@ -1,8 +1,19 @@
-export type AwarenessEntry = { clientId: number; clock: number };
+import type { AwarenessEntry } from './frame-bucket';
 
 export class AwarenessOwners {
+  private readonly ownerByClientIdByDocument = new Map<string, Map<number, string>>();
+
   bind({ documentName, clientIds, userId }: { documentName: string; clientIds: number[]; userId: string }): void {
-    throw new Error('AwarenessOwners.bind is not implemented');
+    const ownerByClientId = this.ownersOf(documentName);
+    clientIds.filter((clientId) => !ownerByClientId.has(clientId)).forEach((clientId) => ownerByClientId.set(clientId, userId));
+  }
+
+  private ownersOf(documentName: string): Map<number, string> {
+    const existing = this.ownerByClientIdByDocument.get(documentName);
+    if (existing !== undefined) return existing;
+    const created = new Map<number, string>();
+    this.ownerByClientIdByDocument.set(documentName, created);
+    return created;
   }
 
   forbids({
@@ -16,10 +27,17 @@ export class AwarenessOwners {
     entries: AwarenessEntry[];
     meta: ReadonlyMap<number, { clock: number }>;
   }): boolean {
-    throw new Error('AwarenessOwners.forbids is not implemented');
+    const ownerByClientId = this.ownerByClientIdByDocument.get(documentName);
+    if (ownerByClientId === undefined) return false;
+    return entries.some(({ clientId, clock }) => {
+      const owner = ownerByClientId.get(clientId);
+      if (owner === undefined || owner === userId) return false;
+      const held = meta.get(clientId);
+      return held === undefined || clock > held.clock;
+    });
   }
 
   forget(documentName: string): void {
-    throw new Error('AwarenessOwners.forget is not implemented');
+    this.ownerByClientIdByDocument.delete(documentName);
   }
 }

@@ -1,6 +1,7 @@
 import { MAX_AWARENESS_ENTRIES_PER_FRAME } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { AwarenessOwners, type AwarenessEntry } from './awareness-owners';
+import { AwarenessOwners } from './awareness-owners';
+import type { AwarenessEntry } from './frame-bucket';
 
 const DOCUMENT_NAME = 'superdoc-room-1';
 const OTHER_DOCUMENT_NAME = 'superdoc-room-2';

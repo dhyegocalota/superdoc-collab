@@ -60,15 +60,16 @@ export function frameBucketOf(frame: RawData): FrameBucket {
   return FrameBucket.Updates;
 }
 
-type AwarenessReading = { entryCount: number; clocks: number[] };
+export type AwarenessEntry = { clientId: number; clock: number };
 
-const UNREADABLE_READING: AwarenessReading = { entryCount: UNREADABLE_ENTRY_COUNT, clocks: [] };
+type AwarenessLocation = { bytes: Buffer; entryCount: number; entriesOffset: number };
+type ReadEntry = AwarenessEntry & { next: number };
 
 function isCanonical({ byteCount }: VarUint): boolean {
   return byteCount <= MAX_CANONICAL_VARINT_BYTES;
 }
 
-function readEntry({ bytes, offset }: { bytes: Buffer; offset: number }): { clock: number; next: number } | null {
+function readEntry({ bytes, offset }: { bytes: Buffer; offset: number }): ReadEntry | null {
   const clientId = readVarUint({ bytes, offset });
   if (clientId === null || !isCanonical(clientId)) return null;
   const clock = readVarUint({ bytes, offset: clientId.next, maxBytes: MAX_CLOCK_VARINT_BYTES });
@@ -77,51 +78,62 @@ function readEntry({ bytes, offset }: { bytes: Buffer; offset: number }): { cloc
   if (stateLength === null || !isCanonical(stateLength)) return null;
   const next = stateLength.next + stateLength.value;
   if (next > bytes.length) return null;
-  return { clock: clock.value, next };
+  return { clientId: clientId.value, clock: clock.value, next };
 }
 
-function clocksOf({ bytes, offset, count }: { bytes: Buffer; offset: number; count: number }): number[] | null {
-  const walk = Array.from({ length: count }).reduce<{ next: number; clocks: number[] } | null>(
-    (position) => {
-      if (position === null) return null;
-      const entry = readEntry({ bytes, offset: position.next });
-      if (entry === null) return null;
-      return { next: entry.next, clocks: [...position.clocks, entry.clock] };
-    },
-    { next: offset, clocks: [] },
-  );
-  return walk === null ? null : walk.clocks;
+function isWellFormed({ bytes, offset, remaining }: { bytes: Buffer; offset: number; remaining: number }): boolean {
+  if (remaining === 0) return true;
+  const entry = readEntry({ bytes, offset });
+  if (entry === null) return false;
+  return isWellFormed({ bytes, offset: entry.next, remaining: remaining - 1 });
 }
 
-function readAwareness(frame: RawData): AwarenessReading | null {
+function collectEntries({
+  bytes,
+  offset,
+  remaining,
+  entries,
+}: {
+  bytes: Buffer;
+  offset: number;
+  remaining: number;
+  entries: AwarenessEntry[];
+}): AwarenessEntry[] {
+  if (remaining === 0) return entries;
+  const entry = readEntry({ bytes, offset });
+  if (entry === null) return [];
+  entries.push({ clientId: entry.clientId, clock: entry.clock });
+  return collectEntries({ bytes, offset: entry.next, remaining: remaining - 1, entries });
+}
+
+function locateAwareness(frame: RawData): AwarenessLocation | null {
   const bytes = bufferOf(frame);
+  const unreadable: AwarenessLocation = { bytes, entryCount: UNREADABLE_ENTRY_COUNT, entriesOffset: bytes.length };
   const header = headerOf(bytes);
   if (header === null) return null;
   const hasOverlongHeader = header.roomNameLength.isOverlong || header.messageType?.isOverlong;
-  if (hasOverlongHeader) return UNREADABLE_READING;
+  if (hasOverlongHeader) return unreadable;
   if (header.messageType?.value !== MessageType.Awareness) return null;
   const payloadLength = readVarUint({ bytes, offset: header.messageType.next });
-  if (payloadLength === null) return UNREADABLE_READING;
+  if (payloadLength === null) return unreadable;
   const entryCount = readVarUint({ bytes, offset: payloadLength.next });
-  if (entryCount === null) return UNREADABLE_READING;
+  if (entryCount === null) return unreadable;
   const varints = [header.roomNameLength, header.messageType, payloadLength, entryCount];
-  if (!varints.every(isCanonical)) return UNREADABLE_READING;
-  if (entryCount.value > MAX_AWARENESS_ENTRIES_PER_FRAME) return { entryCount: entryCount.value, clocks: [] };
-  const clocks = clocksOf({ bytes, offset: entryCount.next, count: entryCount.value });
-  if (clocks === null) return UNREADABLE_READING;
-  return { entryCount: entryCount.value, clocks };
+  if (!varints.every(isCanonical)) return unreadable;
+  return { bytes, entryCount: entryCount.value, entriesOffset: entryCount.next };
 }
 
 export function awarenessEntryCountOf(frame: RawData): number | null {
-  const reading = readAwareness(frame);
-  return reading === null ? null : reading.entryCount;
+  const location = locateAwareness(frame);
+  if (location === null) return null;
+  const { bytes, entryCount, entriesOffset } = location;
+  if (entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME) return entryCount;
+  return isWellFormed({ bytes, offset: entriesOffset, remaining: entryCount }) ? entryCount : UNREADABLE_ENTRY_COUNT;
 }
 
-export function awarenessEntriesOf(frame: RawData): { clientId: number; clock: number }[] {
-  throw new Error('awarenessEntriesOf is not implemented');
-}
-
-export function awarenessClocksOf(frame: RawData): number[] {
-  const reading = readAwareness(frame);
-  return reading === null ? [] : reading.clocks;
+export function awarenessEntriesOf(frame: RawData): AwarenessEntry[] {
+  const location = locateAwareness(frame);
+  if (location === null || location.entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME) return [];
+  const { bytes, entryCount, entriesOffset } = location;
+  return collectEntries({ bytes, offset: entriesOffset, remaining: entryCount, entries: [] });
 }

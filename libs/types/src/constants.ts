@@ -32,9 +32,6 @@ export const MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION = 8;
 export const MAX_AWARENESS_ENTRIES_PER_FRAME = 64;
 export const SOCKET_AWARENESS_IDS_REASON = 'Too many awareness clients on one connection';
 export const SOCKET_AWARENESS_ENTRIES_REASON = 'Too many awareness entries in one frame';
-// NB ADR 0040: y-protocols clocks are small integers that advance by one per update, so a clock near 2 ** 53 can only be a pin that makes the room ignore every later state of that client.
-export const MAX_AWARENESS_CLOCK = 2 ** 52;
-export const SOCKET_AWARENESS_CLOCK_REASON = 'Awareness clock out of range';
 export const SOCKET_AWARENESS_ORIGIN_REASON = 'Awareness client not owned by this connection';
 export const SUPERSEDED_ATTEMPT_REASON = 'This attempt was superseded';
 export const MIN_RETRY_AFTER_MS = SECOND_MS;

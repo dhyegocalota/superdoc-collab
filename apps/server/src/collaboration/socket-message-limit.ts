@@ -1,5 +1,4 @@
 import {
-  MAX_AWARENESS_CLOCK,
   MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
@@ -7,7 +6,7 @@ import {
 } from '@superdoc-collab/types';
 import type { RawData } from 'ws';
 import { SlidingWindow } from '../limits/sliding-window';
-import { awarenessClocksOf, awarenessEntryCountOf, FrameBucket, frameBucketOf } from './frame-bucket';
+import { awarenessEntryCountOf, FrameBucket, frameBucketOf } from './frame-bucket';
 
 const CAP_BY_BUCKET: Record<FrameBucket, number> = {
   [FrameBucket.Updates]: MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
@@ -34,10 +33,6 @@ export class SocketMessageLimit {
   claimsTooManyEntries(frame: RawData): boolean {
     const entryCount = awarenessEntryCountOf(frame);
     return entryCount !== null && entryCount > MAX_AWARENESS_ENTRIES_PER_FRAME;
-  }
-
-  claimsPinnedClock(frame: RawData): boolean {
-    return awarenessClocksOf(frame).some((clock) => clock >= MAX_AWARENESS_CLOCK);
   }
 
   private windowsOf(socket: object): Record<FrameBucket, SlidingWindow> {

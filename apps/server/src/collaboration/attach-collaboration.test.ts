@@ -61,7 +61,6 @@ const OVERCLAIMING_BURST_FRAMES = 10;
 const PINNED_CLOCK = 2 ** 53;
 const JUST_UNDER_CEILING_CLOCK = 2 ** 52 - 1;
 const HELD_CLOCK = 1;
-const CLAIMED_USER_ID = 'claimed';
 const FORGED_STATE = { userId: 'forged' };
 const TRUNCATED_STATE_BYTES = 3;
 const REPLAY_CLOCK = 2;
@@ -772,7 +771,8 @@ test('a member forging the state of a peer at the next clock is closed before th
   const forgery = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: FORGED_STATE });
   intruder.webSocket.send(new Uint8Array(forgery));
   await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
-  expect(clientIds.map((clientId) => stateUserIdOf({ server, clientId }))).toEqual(clientIds.map(() => CLAIMED_USER_ID));
+  expect(highestAwarenessClock({ server, clientIds })).toBeLessThan(REPLAY_CLOCK);
+  expect(clientIds.map((clientId) => stateUserIdOf({ server, clientId }))).not.toContain(FORGED_STATE.userId);
   expect(holder.closedSocket()).toBeNull();
   holder.client.close();
   await server.stop();

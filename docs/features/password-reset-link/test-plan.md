@@ -29,3 +29,9 @@
 ## Coverage honesty
 
 - Clock skew on token expiry is not exercised.
+
+## Red run, web (commit "red web tests")
+
+- `admin-page.test.tsx`: `every user row offers Reset password` and `reset password posts for that user...` fail with `Unable to find an accessible element with the role "button" and name "Reset password"`.
+- `reset-password-page.test.tsx`: five tests fail with `Error: ResetPasswordPage is not implemented`.
+- `router.test.tsx`: `the reset password route needs no session and keeps its path` times out (5 s) because `/reset-password` falls through to the unknown-path redirect.

@@ -1,5 +1,8 @@
 import {
   AdminResource,
+  passwordResetApiPath,
+  PASSWORD_RESET_QUERY_PARAMETER,
+  type CreatedPasswordReset,
   adminApiPath,
   ApiPath,
   AppRoute,
@@ -33,6 +36,10 @@ import {
   INVITE_STATE_LABELS,
   INVITES_TABLE_LABEL,
   MAKE_ADMIN_LABEL,
+  MAKE_USER_LABEL,
+  PASSWORD_RESET_COPIED_TOAST,
+  PASSWORD_RESET_CREATED_TITLE,
+  RESET_PASSWORD_LABEL,
   REVOKE_LABEL,
   USER_ROLE_LABELS,
   USERS_TABLE_LABEL,
@@ -71,6 +78,10 @@ const ACCEPTED_INVITE: InviteSummary = {
   acceptedBy: { name: 'Bruno' },
 };
 const CREATED_INVITE: CreatedInvite = { id: 'invite-3', url: 'http://localhost/sign-up?invite=secret', expiresAt: Date.UTC(2026, 0, 21) };
+const CREATED_PASSWORD_RESET: CreatedPasswordReset = {
+  url: `http://localhost/reset-password?${PASSWORD_RESET_QUERY_PARAMETER}=secret`,
+  expiresAt: Date.UTC(2026, 0, 6, 1),
+};
 const USERS_PATH = adminApiPath(AdminResource.Users);
 const INVITES_PATH = adminApiPath(AdminResource.Invites);
 
@@ -85,6 +96,7 @@ function mockApi({ revokeStatus = HttpStatus.NoContent }: MockOptions = {}) {
     if (input === INVITES_PATH && init?.method === HttpMethod.Post)
       return jsonResponse({ body: CREATED_INVITE, status: HttpStatus.Created });
     if (input === `${INVITES_PATH}/${PENDING_INVITE.id}`) return new Response(null, { status: revokeStatus });
+    if (input === passwordResetApiPath(MEMBER_USER.id)) return jsonResponse({ body: CREATED_PASSWORD_RESET, status: HttpStatus.Created });
     if (input === `${USERS_PATH}/${MEMBER_USER.id}/role`) return jsonResponse({ body: { ...MEMBER_USER, role: UserRole.Admin } });
     throw new Error(`unexpected ${String(input)}`);
   });
@@ -112,7 +124,7 @@ test('lists users with their role and hides the role toggle on the signed-in adm
   const adminRow = await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email });
   const memberRow = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
   expect(within(adminRow).getByText(USER_ROLE_LABELS[UserRole.Admin])).toBeInTheDocument();
-  expect(within(adminRow).queryByRole('button')).not.toBeInTheDocument();
+  expect(within(adminRow).queryByRole('button', { name: MAKE_USER_LABEL })).not.toBeInTheDocument();
   expect(within(memberRow).getByText(USER_ROLE_LABELS[UserRole.User])).toBeInTheDocument();
   expect(within(memberRow).getByRole('button', { name: MAKE_ADMIN_LABEL })).toBeInTheDocument();
   expect(within(memberRow).getByText(formatTimestamp({ time: MEMBER_USER.createdAt, timeZone: UTC_TIME_ZONE }))).toBeInTheDocument();
@@ -142,6 +154,31 @@ test('when the clipboard is unavailable the dialog still shows the URL and says 
   await user.click(await screen.findByRole('button', { name: COPY_LINK_LABEL }));
   expect(await screen.findByText(COPY_FAILED_MESSAGE)).toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: INVITE_CREATED_TITLE })).toHaveValue(CREATED_INVITE.url);
+});
+
+test('every user row offers Reset password', async () => {
+  mockApi();
+  renderAdminPage();
+  const adminRow = await rowOf({ table: USERS_TABLE_LABEL, text: ADMIN_USER.email });
+  const memberRow = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  expect(within(adminRow).getByRole('button', { name: RESET_PASSWORD_LABEL })).toBeInTheDocument();
+  expect(within(memberRow).getByRole('button', { name: RESET_PASSWORD_LABEL })).toBeInTheDocument();
+});
+
+test('reset password posts for that user, shows the link in a read-only field and copies it', async () => {
+  const fetchSpy = mockApi();
+  const user = userEvent.setup();
+  const writeText = vi.spyOn(navigator.clipboard, 'writeText');
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  await user.click(within(row).getByRole('button', { name: RESET_PASSWORD_LABEL }));
+  const field = await screen.findByRole('textbox', { name: PASSWORD_RESET_CREATED_TITLE });
+  expect(field).toHaveValue(CREATED_PASSWORD_RESET.url);
+  expect(field).toHaveAttribute('readonly');
+  expect(fetchSpy).toHaveBeenCalledWith(passwordResetApiPath(MEMBER_USER.id), expect.objectContaining({ method: HttpMethod.Post }));
+  await user.click(screen.getByRole('button', { name: COPY_LINK_LABEL }));
+  expect(await screen.findByText(PASSWORD_RESET_COPIED_TOAST)).toBeInTheDocument();
+  expect(writeText).toHaveBeenCalledWith(CREATED_PASSWORD_RESET.url);
 });
 
 test('revoke sends DELETE and refetches', async () => {

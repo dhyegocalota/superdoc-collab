@@ -4,10 +4,6 @@ A collaborative DOCX editor that records every edit and shows who changed what, 
 
 **Live demo:** <https://superdoc.dhyegocalota.com.br>. Accounts are by invitation: sign in as `ana@example.com` with the password from the delivery message, and open a second browser as `bruno@example.com` to edit together.
 
-![The editor beside the timeline panel: one band per topic, and the top edits per topic with who made them and one sentence each](docs/media/readme/timeline.png)
-
-## An AI client edits beside the humans
-
 ![Ana types two paragraphs, an AI client connected through OAuth inserts one and rewrites another, tracked changes signed Ana · AI appear, a hatched layer joins the timeline, and Connected apps lists the client](docs/media/readme/ai-edit.gif)
 
 An AI client connected through OAuth edits the document through MCP tools, as tracked changes the person can accept or reject. The timeline attributes its edits as the agent, a hatched layer with an AI mark beside the human bands, as the [agentic history spec](docs/features/agentic-history-mcp/spec.md) describes.

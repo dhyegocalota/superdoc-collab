@@ -34,6 +34,22 @@ export function apiSend({ path, method, body }: { path: string; method: HttpMeth
   return fetch(path, { method, body, headers, credentials: 'same-origin' });
 }
 
+export type UploadProgress = { sentBytes: number; totalBytes: number };
+
+export function apiSendWithProgress({
+  path,
+  method,
+  body,
+  onProgress,
+}: {
+  path: string;
+  method: HttpMethod;
+  body: FormData;
+  onProgress: (progress: UploadProgress) => void;
+}): Promise<Response> {
+  throw new Error('apiSendWithProgress is not implemented');
+}
+
 export function assertDocumentAvailable(response: Response): void {
   if (response.status === HttpStatus.NotFound) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
 }

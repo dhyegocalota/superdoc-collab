@@ -1,9 +1,11 @@
-import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '@superdoc-collab/types';
-import { expect, test } from 'vitest';
+import { DOCUMENT_UNAVAILABLE_MESSAGE, HttpMethod, HttpStatus } from '@superdoc-collab/types';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { latestUploadRequest, stubUploadRequests, restoreUploadRequests } from '@/testing/fake-upload-request';
 import { jsonResponse } from '@/testing/json-response';
 import {
   ApiRequestError,
   AuthenticationError,
+  apiSendWithProgress,
   assertDocumentAvailable,
   assertOk,
   DocumentUnavailableError,
@@ -56,4 +58,51 @@ test('a 401 is an authentication error', () => {
 test('polling stops once the session has ended', () => {
   const poll = pollWhileAvailable(INTERVAL_MS);
   expect(poll({ state: { error: new AuthenticationError('ended') } })).toBe(false);
+});
+
+describe('apiSendWithProgress', () => {
+  beforeEach(stubUploadRequests);
+  afterEach(() => restoreUploadRequests());
+
+  function send(onProgress = vi.fn()) {
+    const response = apiSendWithProgress({ path: '/upload', method: HttpMethod.Post, body: new FormData(), onProgress });
+    return { response, onProgress, request: latestUploadRequest() };
+  }
+
+  test('it sends the method, the path and the body', () => {
+    const body = new FormData();
+    void apiSendWithProgress({ path: '/upload', method: HttpMethod.Post, body, onProgress: vi.fn() });
+    const request = latestUploadRequest();
+    expect([request.method, request.path, request.body]).toEqual([HttpMethod.Post, '/upload', body]);
+  });
+
+  test('it resolves a Response with the status and the body of the answer', async () => {
+    const { response, request } = send();
+    request.respond({ status: HttpStatus.Created, body: { id: 'doc-1' } });
+    const answer = await response;
+    expect(answer.status).toBe(HttpStatus.Created);
+    expect(await answer.json()).toEqual({ id: 'doc-1' });
+  });
+
+  test('an answer with no body is a Response with no body', async () => {
+    const { response, request } = send();
+    request.respond({ status: HttpStatus.UnsupportedMediaType, body: null });
+    const answer = await response;
+    expect(answer.status).toBe(HttpStatus.UnsupportedMediaType);
+    expect(answer.body).toBeNull();
+  });
+
+  test('it reports the bytes sent when the browser knows the total, and nothing otherwise', () => {
+    const { onProgress, request } = send();
+    request.reportProgress({ lengthComputable: false, loaded: 10, total: 0 });
+    expect(onProgress).not.toHaveBeenCalled();
+    request.reportProgress({ lengthComputable: true, loaded: 40, total: 100 });
+    expect(onProgress).toHaveBeenCalledWith({ sentBytes: 40, totalBytes: 100 });
+  });
+
+  test('a connection failure rejects like fetch does', async () => {
+    const { response, request } = send();
+    request.failToConnect();
+    await expect(response).rejects.toBeInstanceOf(TypeError);
+  });
 });

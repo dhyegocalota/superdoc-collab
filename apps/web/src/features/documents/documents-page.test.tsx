@@ -10,12 +10,13 @@ import {
   type DocumentsList,
   type DocumentSummary,
 } from '@superdoc-collab/types';
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { formatTimestamp } from '@/lib/format-date-time';
+import { latestUploadRequest, stubUploadRequests, restoreUploadRequests } from '@/testing/fake-upload-request';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
@@ -84,7 +85,10 @@ beforeEach(() => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  restoreUploadRequests();
+});
 
 test('the header holds Use with AI and the account menu only, with no Sign out button', async () => {
   mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
@@ -128,13 +132,17 @@ test('one shared document is enough to keep the tables and drop the empty state'
 });
 
 test('dropping one docx on the page uploads it and opens the document', async () => {
-  const fetchSpy = mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
+  stubUploadRequests();
+  mockApi({ mine: [OWNED_DOCUMENT], shared: [] });
   const { router } = renderWithProviders(<DocumentsPage />);
   await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
   const file = new File(['x'], 'plan.docx', { type: DOCX_MIME_TYPE });
   fireEvent.drop(document.body, { dataTransfer: { types: ['Files'], files: [file] } });
+  const request = latestUploadRequest();
+  expect(request.path).toBe(ApiPath.Documents);
+  expect(request.method).toBe(HttpMethod.Post);
+  act(() => request.respond({ status: HttpStatus.Created, body: CREATED_DOCUMENT }));
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(CREATED_DOCUMENT.id)));
-  expect(fetchSpy).toHaveBeenCalledWith(ApiPath.Documents, expect.objectContaining({ method: HttpMethod.Post }));
 });
 
 test('dropping two files on a page with documents shows the message under the toolbar', async () => {

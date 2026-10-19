@@ -4,13 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { CHOOSE_FILE_LABEL, DROP_ZONE_LABEL, DROP_ZONE_LIMIT, FILE_INPUT_LABEL, UPLOADING_MESSAGE } from './documents-copy';
+import { bytesProgressDetail } from '@/features/open-progress/open-progress-copy';
 import { UploadDropZone } from './upload-drop-zone';
 import type { DocumentUpload } from './use-upload-document';
 
 const ERROR_MESSAGE = 'Only .docx files can be uploaded.';
 
 function uploadWith(overrides: Partial<DocumentUpload>): DocumentUpload {
-  return { uploadFiles: vi.fn(), clear: vi.fn(), message: null, isPending: false, ...overrides };
+  return { progress: null, uploadFiles: vi.fn(), clear: vi.fn(), message: null, isPending: false, ...overrides };
 }
 
 test('the zone invites a drop, states the limit and keeps the file input label', () => {
@@ -43,6 +44,13 @@ test('while uploading the wait is announced with an indeterminate progress bar a
   expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
   expect(screen.getByLabelText(FILE_INPUT_LABEL)).toBeDisabled();
   expect(screen.getByRole('button', { name: CHOOSE_FILE_LABEL })).toBeDisabled();
+});
+
+test('the bytes sent fill the bar and name both sizes', () => {
+  const progress = { sentBytes: 4_980_736, totalBytes: 9_961_472 };
+  renderWithProviders(<UploadDropZone upload={uploadWith({ isPending: true, progress })} />);
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+  expect(screen.getByText(bytesProgressDetail({ doneBytes: progress.sentBytes, totalBytes: progress.totalBytes }))).toBeVisible();
 });
 
 test('a failure shows under the zone and the zone stays usable', () => {

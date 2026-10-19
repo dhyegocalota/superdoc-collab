@@ -24,7 +24,12 @@ type DocumentCardProps = { document: DocumentSummary; kind: DocumentListKind };
 export function DocumentCard({ document, kind }: DocumentCardProps) {
   return (
     <article className={CARD_CLASS}>
-      <DocumentThumbnail title={document.title} preview={document.preview} />
+      <DocumentThumbnail
+        documentId={document.id}
+        title={document.title}
+        preview={document.preview}
+        thumbnailUpdatedAt={document.thumbnailUpdatedAt}
+      />
       <div className="space-y-1 p-3">
         <h3 className="line-clamp-2 min-h-[2lh] font-medium break-words">
           <Link

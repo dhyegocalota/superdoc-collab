@@ -13,6 +13,9 @@ import {
   INVALID_SHARE_LINK_MESSAGE,
   READ_ONLY_BADGE_LABEL,
   ShareLinkRole,
+  THUMBNAIL_CAPTURE_DELAY_MS,
+  THUMBNAIL_UPLOADS_ATTRIBUTE,
+  THUMBNAIL_WIDTH_PX,
   documentApiPath,
   documentPagePath,
   type DocumentSummary,
@@ -81,6 +84,8 @@ const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
 const BRIEF_FILE_NAME = 'brief.docx';
 const THUMBNAIL_TEST_ID = 'document-thumbnail';
 const CARDS_GRID_TEST_ID = 'document-cards';
+const THUMBNAIL_PATH_FRAGMENT = '/thumbnail';
+const THUMBNAIL_TIMEOUT_MS = THUMBNAIL_CAPTURE_DELAY_MS + LIVE_TIMEOUT_MS;
 const DOCUMENT_PATH_PATTERN = /\/documents\/[^/?#]+/;
 
 function uniqueFileName(prefix: string): string {
@@ -405,3 +410,35 @@ for (const viewport of [WIDE_VIEWPORT, NARROW_VIEWPORT]) {
     await expect.poll(async () => (await heightOf(longCard)) - (await heightOf(shortCard))).toBe(0);
   });
 }
+
+test('a typed document returns to the home with its captured page on the card', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const fileName = uniqueFileName('captured');
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, fileName });
+  await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: MINE_MARKER });
+  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toHaveAttribute(THUMBNAIL_UPLOADS_ATTRIBUTE, /^[1-9]\d*$/, {
+    timeout: THUMBNAIL_TIMEOUT_MS,
+  });
+  await ana.page.goto(AppRoute.Documents);
+  const image = cardOf({ page: ana.page, title: titleOf(fileName) })
+    .getByTestId(THUMBNAIL_TEST_ID)
+    .getByRole('img', { includeHidden: true });
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(THUMBNAIL_WIDTH_PX);
+});
+
+test('a reader sees the edits and uploads no thumbnail', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  const documentId = await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
+  await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Read });
+  const readerRequests: string[] = [];
+  bruno.page.on('request', (request) => {
+    if (request.url().includes(THUMBNAIL_PATH_FRAGMENT)) readerRequests.push(`${request.method()} ${request.url()}`);
+  });
+  await bruno.page.clock.install();
+  await typeInParagraph({ page: ana.page, paragraphText: OWNER_PARAGRAPH, text: AFTER_MARKER });
+  await expect.poll(() => readEditorText(bruno.page), { timeout: LIVE_TIMEOUT_MS }).toContain(AFTER_MARKER.trim());
+  await bruno.page.clock.fastForward(THUMBNAIL_CAPTURE_DELAY_MS * 2);
+  expect(readerRequests).toEqual([]);
+  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).not.toHaveAttribute(THUMBNAIL_UPLOADS_ATTRIBUTE);
+});

@@ -3,7 +3,7 @@ enum ThumbnailState {
   TitleOnly = 'title-only',
 }
 
-type DocumentThumbnailProps = { title: string; preview: string | null };
+type DocumentThumbnailProps = { documentId: string; title: string; preview: string | null; thumbnailUpdatedAt: number | null };
 
 export function DocumentThumbnail({ title, preview }: DocumentThumbnailProps) {
   const state = preview ? ThumbnailState.Preview : ThumbnailState.TitleOnly;

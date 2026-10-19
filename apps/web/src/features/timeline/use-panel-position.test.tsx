@@ -87,11 +87,9 @@ test('blocked storage still works for the session', () => {
   expect(result.current.position).toBe(PanelPosition.Side);
 });
 
-test('the panel starts collapsed below 1024 px and open from it', () => {
-  viewportWidth = NARROW_VIEWPORT_PX;
-  expect(isPanelOpenByDefault()).toBe(false);
-  viewportWidth = LARGE_BREAKPOINT_PX;
-  expect(isPanelOpenByDefault()).toBe(true);
-  viewportWidth = WIDE_BREAKPOINT_PX;
-  expect(isPanelOpenByDefault()).toBe(true);
+test('the panel starts collapsed at every width', () => {
+  [NARROW_VIEWPORT_PX, LARGE_BREAKPOINT_PX, WIDE_BREAKPOINT_PX].forEach((width) => {
+    viewportWidth = width;
+    expect(isPanelOpenByDefault()).toBe(false);
+  });
 });

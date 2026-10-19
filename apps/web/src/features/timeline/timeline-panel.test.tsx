@@ -36,6 +36,7 @@ import { TIMELINE_POLL_MS } from './timeline-api';
 import { timesInLabel } from '@/features/settings/settings-copy';
 import {
   EARLIER_STATE_LABEL,
+  EMPTY_PANEL_DESCRIPTION,
   CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
   LOADING_TIMELINE_LABEL,
@@ -56,6 +57,7 @@ import {
 } from './timeline-copy';
 import { CHART_HEIGHT } from './streamgraph-layout';
 import { PanelColumn, PanelState } from './panel-layout';
+import { PANEL_EMPTY_STATE_TEST_ID } from './panel-empty-state';
 import { TimelinePanel } from './timeline-panel';
 import { SNIPPET_MAX_CHARACTERS } from './bin-edits';
 import { PROJECTION_LAG_NOTICE_MS } from './timeline-notices';
@@ -432,6 +434,23 @@ test('a document without edits says so', async () => {
   mockTimelineApi({ timeline: timelineWith({ volumes: [], names: [] }) });
   renderPanel();
   expect(await screen.findByText(NO_EDITS_YET_MESSAGE)).toBeInTheDocument();
+});
+
+test('a document without edits shows one empty state with the illustration instead of the chart and lists', async () => {
+  mockTimelineApi({ timeline: timelineWith({ volumes: [], names: [] }) });
+  renderPanel();
+  const emptyState = await screen.findByTestId(PANEL_EMPTY_STATE_TEST_ID);
+  expect(within(emptyState).getByRole('heading', { name: NO_EDITS_YET_MESSAGE })).toBeInTheDocument();
+  expect(within(emptyState).getByText(EMPTY_PANEL_DESCRIPTION)).toBeInTheDocument();
+  expect(emptyState.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  expect(screen.queryByRole('textbox', { name: FILTER_LABEL })).not.toBeInTheDocument();
+});
+
+test('a document with edits shows the chart and no empty state', async () => {
+  mockTimelineApi();
+  renderPanel();
+  await screen.findByRole('textbox', { name: FILTER_LABEL });
+  expect(screen.queryByTestId(PANEL_EMPTY_STATE_TEST_ID)).not.toBeInTheDocument();
 });
 
 test('a document edited after the last timeline answer does not say it has no edits', async () => {

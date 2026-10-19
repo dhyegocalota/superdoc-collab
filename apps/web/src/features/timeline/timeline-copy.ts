@@ -10,6 +10,7 @@ export const CLEAR_FILTERS_LABEL = 'Clear filters';
 export const REMOVE_FILTER_LABEL = 'Remove filter';
 export const TOP_EDITS_LABEL = 'Top edits';
 export const NO_EDITS_YET_MESSAGE = 'No edits yet';
+export const EMPTY_PANEL_DESCRIPTION = 'Start typing: every change is recorded and appears here by topic and author.';
 export const NO_EDITS_IN_BIN_MESSAGE = 'No edits in this period';
 export const NO_EDITS_FOR_LABEL = 'No edits for';
 export const IDLE_BREAKS_DESCRIPTION = 'Long stretches without edits are shortened.';

@@ -1,5 +1,5 @@
 import { DocumentRole, RoomMode } from '@superdoc-collab/types';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { SESSION_USER } from '@/testing/opened-document';
@@ -134,4 +134,9 @@ test('reports a document edit only for an editor update, never for a layout pass
   expect(onDocumentEdit).not.toHaveBeenCalled();
   config.onEditorUpdate();
   expect(onDocumentEdit).toHaveBeenCalledTimes(1);
+});
+
+test('the editor container keeps a small top padding so the first page clears the toolbar', () => {
+  renderEditor();
+  expect(screen.getByTestId('document-editor')).toHaveClass('pt-3');
 });

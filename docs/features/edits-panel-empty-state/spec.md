@@ -1,6 +1,6 @@
 # Edits panel empty state, collapsed start, and page top margin
 
-**Status:** Approved
+**Status:** Building
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner: "faz tambem um empty state sexy nos edits comecando sempre com esse panel colapsado/hidden; faz uma margin do topo do doc pequena ao inves de grudar no header")
 **Not changing:** the panel's position preference, the timeline data, the chart

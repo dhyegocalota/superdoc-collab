@@ -18,6 +18,8 @@ function timeZoneOf(value: string | null | undefined): string | null {
   return value;
 }
 
+type ImpersonatorRow = { role: string | null; banned: boolean | null };
+
 async function isImpersonationValid({
   auth,
   impersonatedBy,
@@ -29,8 +31,8 @@ async function isImpersonationValid({
 }): Promise<boolean> {
   const hasExpired = createdAt.getTime() + IMPERSONATION_SESSION_MS < Date.now();
   if (hasExpired) return false;
-  const { internalAdapter } = await auth.$context;
-  const impersonator = await internalAdapter.findUserById(impersonatedBy);
+  const { adapter } = await auth.$context;
+  const impersonator = await adapter.findOne<ImpersonatorRow>({ model: 'user', where: [{ field: 'id', value: impersonatedBy }] });
   if (!impersonator) return false;
   return impersonator.role === UserRole.Admin && !impersonator.banned;
 }

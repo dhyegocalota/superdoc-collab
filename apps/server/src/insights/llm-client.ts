@@ -1,6 +1,6 @@
 import { createOpenRouter, type OpenRouterProviderSettings } from '@openrouter/ai-sdk-provider';
 import { SECOND_MS } from '@superdoc-collab/types';
-import { generateText, Output, type LanguageModel } from 'ai';
+import { generateText, Output, streamText, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 import type { LlmSettings } from '../config/environment';
 
@@ -50,4 +50,30 @@ export async function generateStructured<Schema extends z.ZodType>({
     abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
   return output;
+}
+
+export async function streamStructured<Schema extends z.ZodType>({
+  model,
+  schema,
+  system,
+  prompt,
+  onPartial,
+}: {
+  model: LanguageModel;
+  schema: Schema;
+  system: string;
+  prompt: string;
+  onPartial: (partial: Partial<z.infer<Schema>>) => void;
+}): Promise<z.infer<Schema>> {
+  const result = streamText({
+    model,
+    output: Output.object<z.infer<Schema>>({ schema }),
+    system,
+    prompt,
+    maxRetries: LLM_MAX_RETRIES,
+    abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    onError: () => undefined,
+  });
+  for await (const partial of result.partialOutputStream) onPartial(partial);
+  return result.output;
 }

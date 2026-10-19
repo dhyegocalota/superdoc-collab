@@ -7,7 +7,7 @@ const NO_USAGE = { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite
 const TEXT_PART_ID = 'text';
 
 type StreamPart = Awaited<ReturnType<MockLanguageModelV4['doStream']>>['stream'] extends ReadableStream<infer Part> ? Part : never;
-type GenerateResult = ReturnType<typeof generateResult>;
+type GenerateResult = Awaited<ReturnType<MockLanguageModelV4['doGenerate']>>;
 type GenerateOptions = Parameters<MockLanguageModelV4['doGenerate']>[0];
 
 function generateResult(answer: unknown) {
@@ -48,7 +48,7 @@ function textStream({
 }
 
 function replayedAsStream(result: GenerateResult): { stream: ReadableStream<StreamPart> } {
-  return { stream: textStream({ pieces: result.content.map((part) => part.text) }) };
+  return { stream: textStream({ pieces: result.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])) }) };
 }
 
 function mockModel(doGenerate: MockLanguageModelV4['doGenerate'] | GenerateResult[]): MockLanguageModelV4 {

@@ -105,6 +105,25 @@ function completion(answer: object): object {
   };
 }
 
+function streamChunk({ delta, finishReason }: { delta: object; finishReason: string | null }): string {
+  const chunk = {
+    id: 'chatcmpl-fake',
+    object: 'chat.completion.chunk',
+    created: 0,
+    model: 'fake',
+    choices: [{ index: 0, delta, finish_reason: finishReason }],
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+  };
+  return `data: ${JSON.stringify(chunk)}\n\n`;
+}
+
+function sendStream({ response, answer }: { response: ServerResponse; answer: object }): void {
+  response.writeHead(OK, { 'content-type': 'text/event-stream' });
+  response.write(streamChunk({ delta: { role: 'assistant', content: JSON.stringify(answer) }, finishReason: null }));
+  response.write(streamChunk({ delta: {}, finishReason: 'stop' }));
+  response.end('data: [DONE]\n\n');
+}
+
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -120,11 +139,13 @@ function send({ response, status, body }: { response: ServerResponse; status: nu
 }
 
 async function handleChat({ request, response }: { request: IncomingMessage; response: ServerResponse }): Promise<void> {
-  const prompt = userPrompt(JSON.parse(await readBody(request)));
+  const body = JSON.parse(await readBody(request));
+  const prompt = userPrompt(body);
   const kind = callKindOf(prompt);
   calls[kind] += 1;
   const isFailure = prompt.includes(FAIL_MARKER) || (kind === CallKind.Selection && prompt.includes(SUMMARY_FAIL_MARKER));
   if (isFailure) return send({ response, status: SERVER_ERROR, body: { error: { message: FAIL_MARKER } } });
+  if (body.stream === true) return sendStream({ response, answer: ANSWERS[kind](prompt) });
   send({ response, status: OK, body: completion(ANSWERS[kind](prompt)) });
 }
 

@@ -138,7 +138,14 @@ test('a second POST with the same filter is 200 from the cache and another filte
 test('a selection with no edits is none and its POST costs nothing', async () => {
   const model = modelAnswering(SELECTION_ANSWER);
   const { server, documentId, editor } = await twoAuthorsInTwoBlocks({ languageModel: readyModel(model) });
-  const none = { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step: SummarizeStep.Idle };
+  const none = {
+    state: SelectionSummaryState.None,
+    summary: null,
+    failure: null,
+    isModelAvailable: true,
+    step: SummarizeStep.Idle,
+    partial: null,
+  };
   expect(await readSelectionSummary({ server, documentId, cookie: editor.cookie, query: NO_MATCH_QUERY })).toEqual(none);
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: NO_MATCH_QUERY });
   expect(response.status).toBe(HttpStatus.Ok);
@@ -302,6 +309,7 @@ test('without a model the GET is failed with the reason and the POST is 503', as
     failure: LLM_MODEL_MISSING_MESSAGE,
     isModelAvailable: false,
     step: SummarizeStep.Idle,
+    partial: null,
   });
   const response = await postSelectionSummary({ server, documentId, cookie: editor.cookie, query: MEMBER_QUERY });
   expect(response.status).toBe(HttpStatus.ServiceUnavailable);

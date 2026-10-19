@@ -15,7 +15,7 @@ import { KeyedCooldown } from '../limits/keyed-cooldown';
 import { describeError } from '../logging/describe-error';
 import type { InsightsRepository, StoredSelectionSummary } from './insights-repository';
 import type { InsightsJobRunner } from './insights-job-runner';
-import { generateStructured, LanguageModelAvailability, type LanguageModelChoice } from './llm-client';
+import { LanguageModelAvailability, streamStructured, type LanguageModelChoice } from './llm-client';
 import {
   authorsMentioned,
   fitSelection,
@@ -74,6 +74,7 @@ export class SelectionSummariesService {
   private readonly readSelection: ReadSelection;
   private readonly steps = new Map<string, SummarizeStep>();
   private readonly failures = new Map<string, string>();
+  private readonly partials = new Map<string, { key: string; sentence: string }>();
 
   constructor({
     repository,
@@ -98,7 +99,14 @@ export class SelectionSummariesService {
     const stored = this.repository.selectionSummary({ documentId, key: resolved.key });
     const summary = summaryOf({ stored, stamp: resolved });
     const isRunning = this.step(documentId) !== SummarizeStep.Idle;
-    if (isRunning) return this.view({ documentId, state: SelectionSummaryState.Running, summary, failure: null });
+    if (isRunning)
+      return this.view({
+        documentId,
+        state: SelectionSummaryState.Running,
+        summary,
+        failure: null,
+        partial: this.partialOf({ documentId, key: resolved.key }),
+      });
     if (this.languageModel.availability === LanguageModelAvailability.Unavailable)
       return this.view({ documentId, state: SelectionSummaryState.Failed, summary, failure: this.languageModel.reason });
     const groupingFailure = this.failures.get(documentId);
@@ -141,6 +149,13 @@ export class SelectionSummariesService {
     this.cooldown.forget(documentId);
     this.steps.delete(documentId);
     this.failures.delete(documentId);
+    this.partials.delete(documentId);
+  }
+
+  private partialOf({ documentId, key }: { documentId: string; key: string }): string | null {
+    const partial = this.partials.get(documentId);
+    if (partial === undefined || partial.key !== key) return null;
+    return partial.sentence;
   }
 
   private step(documentId: string): SummarizeStep {
@@ -173,11 +188,13 @@ export class SelectionSummariesService {
     state,
     summary,
     failure,
+    partial = null,
   }: {
     documentId: string;
     state: SelectionSummaryState;
     summary: SelectionSummary | null;
     failure: string | null;
+    partial?: string | null;
   }): SelectionSummaryView {
     return {
       state,
@@ -185,7 +202,7 @@ export class SelectionSummariesService {
       failure,
       isModelAvailable: this.languageModel.availability === LanguageModelAvailability.Ready,
       step: this.step(documentId),
-      partial: null,
+      partial,
     };
   }
 
@@ -202,11 +219,14 @@ export class SelectionSummariesService {
     try {
       const edits = fitSelection(promptEditsOf({ runs: resolved.snapshot.runs, authors: resolved.snapshot.authors }));
       const names = namesOf(edits);
-      const output = await generateStructured({
+      const output = await streamStructured({
         model,
         schema: selectionSummaryOutputSchema,
         system: SELECTION_SYSTEM_PROMPT,
         prompt: selectionPrompt(edits),
+        onPartial: ({ sentence }) => {
+          if (sentence !== undefined) this.partials.set(documentId, { key, sentence });
+        },
       });
       const authors = authorsMentioned({ edits, mentioned: mentionedAuthors({ returned: output.authors, names }) });
       this.repository.saveSelectionSummary({
@@ -220,6 +240,8 @@ export class SelectionSummariesService {
     } catch (error) {
       console.error(`${SELECTION_SUMMARY_FAILED_LOG} ${documentId}: ${describeError(error)}`);
       this.storeFailure({ documentId, resolved });
+    } finally {
+      this.partials.delete(documentId);
     }
   }
 

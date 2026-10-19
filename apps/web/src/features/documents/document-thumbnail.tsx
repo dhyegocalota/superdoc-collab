@@ -16,7 +16,7 @@ export function DocumentThumbnail({ title, preview }: DocumentThumbnailProps) {
       className="relative aspect-[4/5] overflow-hidden border-b bg-paper px-5 pt-6 text-paper-foreground"
     >
       {preview ? (
-        <p className="text-[7px] leading-[10px] break-words whitespace-pre-line">{preview}</p>
+        <p className="text-[9px] leading-[13px] break-words whitespace-pre-line">{preview}</p>
       ) : (
         <p className="line-clamp-4 text-sm font-semibold break-words">{title}</p>
       )}

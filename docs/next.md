@@ -16,6 +16,17 @@ Each step names the signal that calls for it and the decision it revisits. The o
 | A document's update log too large for its volume | Compaction already writes a snapshot every thousand updates and keeps every update; move the updates below an old snapshot to cold storage, read back only to rebuild a version older than it | [0003](adr/0003-time-travel-with-native-yjs-snapshots.md) |
 | Histories too long for the chart's render budget | The streamgraph moves to canvas | [0016](adr/0016-timeline-bin-budget.md), [0039](adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) |
 
+## Real time
+
+Everything beyond the text itself reaches a page by timers today: an open editor polls the members every 5 s, and the timeline, summaries and bin edits every 3 s while the panel is open, so an idle tab costs 12 to 72 requests a minute and another author's edit reaches the chart up to 4.5 s late (1.5 s of projection throttle plus one poll). Four decisions chose polling for its simplicity and robustness ([0012](adr/0012-selection-summaries-cached-per-filter-and-cursor.md), [0032](adr/0032-connection-state-truth-callback-for-transitions-server-presence-for-recovery.md), [0036](adr/0036-the-superseded-creator-page-learns-of-the-takeover-from-the-members-poll.md), [0041](adr/0041-the-summary-card-shows-the-sentence-as-it-is-written.md)). The signal that reopens them is the polling cost in the request logs or the chart's lag being noticed, and there are two sizes of answer:
+
+| Option | What changes | Keeps | Cost |
+|--------|--------------|-------|------|
+| **Invalidation over the socket** | The server sends one "document changed" frame per projection batch, presence change or summary step on the collaboration socket already open; the client invalidates the matching queries and refetches, and the polls fall back to a long interval (30 s) while the socket is connected | Every HTTP route, cache and budget as they are; the poll as the recovery path when the socket is down | One stateless message kind, coalesced per document so a push never amplifies load; four superseding ADRs |
+| **Full real time** | The timeline bins, summaries, members and version state are pushed as data over the socket, and the panel renders what arrives without a round trip | The HTTP routes for first paint, MCP clients and time travel | A second wire format for every read model, per-document fan-out with back-pressure, and the per-user budgets of [0044](adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md) re-expressed for pushes |
+
+Invalidation first: it removes most of the idle traffic and brings the chart's lag down to the projection throttle, while the readiness and running-summary polls stay as they are because they are short and already budgeted.
+
 ## Integrations
 
 - **Public API.** The timeline, events, versions and summaries endpoints already serve the SPA. The OAuth that admits MCP clients ([ADR 0025](adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)) can issue tokens for them too, so another product reads a document's history with its owner's consent.

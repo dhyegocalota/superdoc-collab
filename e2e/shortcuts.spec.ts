@@ -16,8 +16,20 @@ const TYPED_WORD = 'Shortcut';
 const SEED_PARAGRAPH = 'Paragraph owned by ana.';
 const BOLD_WEIGHT = 700;
 const CENTERED = 'center';
-const MODIFIER = 'ControlOrMeta';
-const platform = process.platform === 'darwin' ? Platform.Mac : Platform.Other;
+const MAC_PLATFORM_PATTERN = /mac/i;
+
+async function platformOf(page: Page): Promise<Platform> {
+  const platformName = await page.evaluate(() => {
+    const { userAgentData, platform } = navigator as Navigator & { userAgentData?: { platform: string } };
+    return platform === '' && userAgentData ? userAgentData.platform : platform;
+  });
+  return MAC_PLATFORM_PATTERN.test(platformName) ? Platform.Mac : Platform.Other;
+}
+
+async function pressWithModifier({ page, keys }: { page: Page; keys: string }): Promise<void> {
+  const modifier = (await platformOf(page)) === Platform.Mac ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+${keys}`);
+}
 
 async function openNewDocumentWithSelectedWord(page: Page): Promise<void> {
   await page.getByRole('button', { name: NEW_DOCUMENT_LABEL }).click();
@@ -44,7 +56,7 @@ test('Mod+B bolds the selected word', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
   expect(await fontWeightOf(ana.page)).toBeLessThan(BOLD_WEIGHT);
-  await ana.page.keyboard.press(`${MODIFIER}+B`);
+  await pressWithModifier({ page: ana.page, keys: 'B' });
   await expect.poll(() => fontWeightOf(ana.page)).toBeGreaterThanOrEqual(BOLD_WEIGHT);
 });
 
@@ -52,14 +64,14 @@ test('Mod+Alt+1 turns the paragraph into a heading', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
   const bodySize = await fontSizeOf(ana.page);
-  await ana.page.keyboard.press(`${MODIFIER}+Alt+1`);
+  await pressWithModifier({ page: ana.page, keys: 'Alt+1' });
   await expect.poll(() => fontSizeOf(ana.page)).toBeGreaterThan(bodySize);
 });
 
 test('Mod+E centres the paragraph through the command surface', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
-  await ana.page.keyboard.press(`${MODIFIER}+E`);
+  await pressWithModifier({ page: ana.page, keys: 'E' });
   await expect
     .poll(() =>
       ana.page
@@ -74,14 +86,14 @@ test('Mod+S downloads the DOCX', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
   const download = ana.page.waitForEvent('download');
-  await ana.page.keyboard.press(`${MODIFIER}+S`);
+  await pressWithModifier({ page: ana.page, keys: 'S' });
   expect((await download).suggestedFilename()).toMatch(/\.docx$/);
 });
 
 test('Mod+/ opens the shortcuts dialog, the search filters it and Escape closes it', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
-  await ana.page.keyboard.press(`${MODIFIER}+/`);
+  await pressWithModifier({ page: ana.page, keys: '/' });
   const dialog = ana.page.getByRole('dialog', { name: SHORTCUTS_TITLE });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('searchbox', { name: SHORTCUTS_SEARCH_LABEL }).fill('head');
@@ -97,7 +109,7 @@ test('the download menu shows the save and print hints', async ({ browser }) => 
   await downloadOptionsButton(ana.page).click();
   const hintOf = async (name: string, id: ShortcutId) => {
     const item = ana.page.getByRole('menuitem', { name });
-    await expect(item.locator('kbd')).toHaveText(shortcutKeyParts({ id, platform }));
+    await expect(item.locator('kbd')).toHaveText(shortcutKeyParts({ id, platform: await platformOf(ana.page) }));
   };
   await hintOf(DOWNLOAD_LABEL, ShortcutId.DownloadDocx);
   await hintOf(DOWNLOAD_PDF_LABEL, ShortcutId.DownloadPdf);
@@ -108,7 +120,7 @@ test('a reader sees no formatting group in the dialog', async ({ browser }) => {
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: [SEED_PARAGRAPH] });
   await shareAndAccept({ owner: ana.page, member: bruno.page, documentId, role: ShareLinkRole.Read });
-  await bruno.page.keyboard.press(`${MODIFIER}+/`);
+  await pressWithModifier({ page: bruno.page, keys: '/' });
   const dialog = bruno.page.getByRole('dialog', { name: SHORTCUTS_TITLE });
   await expect(dialog.getByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Document] })).toBeVisible();
   await expect(dialog.getByRole('heading', { name: SHORTCUT_GROUP_LABELS[ShortcutGroup.Formatting] })).toHaveCount(0);

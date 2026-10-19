@@ -1,6 +1,6 @@
 # Admin archives a user and impersonates a user
 
-**Status:** Approved
+**Status:** Building
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "also add for the admin: archive a user (signing them out automatically), and impersonate a user")
 **ADRs:** [0020](../../adr/0020-invite-only-accounts-with-a-first-claim-admin.md); write ADR 0046 "archiving is better-auth's ban plus a full access revocation; impersonation is better-auth's impersonation session with a visible banner and an audit line"

@@ -10,7 +10,7 @@
 - [x] **Step 2 (green):** `password-reset-links.ts`, `auth.ts` wiring, constants and path helper in `libs/types`, the route. (3dc785a4; constants landed in 4acc1d40)
 - [x] **Step 3 (red):** web tests: users table action, dialog, reset page states; commit red alone. (06e85551)
 - [x] **Step 4 (green):** `createPasswordReset`, the dialog, `reset-password-page.tsx`, the route in `router.tsx`. (20ffef69)
-- [x] **Step 5:** E2E `e2e/password-reset.spec.ts`; run that file alone; tester briefing; `.claude/rules/` fact about the capture. (242f053e)
+- [x] **Step 5:** E2E `e2e/password-reset.spec.ts`; run that file alone; tester briefing; `.claude/rules/` fact about the capture. (4ce90a03)
 
 ## Failure modes
 

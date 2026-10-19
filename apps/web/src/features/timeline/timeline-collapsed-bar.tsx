@@ -6,12 +6,21 @@ import { maxBandVolume } from './max-band-volume';
 import { TIMELINE_HEADING } from './timeline-copy';
 import { bandsByVolume } from './top-edits';
 import { TopicSwatch } from './topic-swatch';
+import type { TimelineChange } from './use-timeline-change';
 import { useTimelineSearch } from './use-timeline-search';
 
 const MAX_BAR_CHIPS = 3;
 export const TIMELINE_COLLAPSED_BAR_TEST_ID = 'timeline-collapsed-bar';
 
-export function TimelineCollapsedBar({ timeline, onExpand }: { timeline: DocumentTimeline | undefined; onExpand: () => void }) {
+export function TimelineCollapsedBar({
+  timeline,
+  change: _change,
+  onExpand,
+}: {
+  timeline: DocumentTimeline | undefined;
+  change: TimelineChange | null;
+  onExpand: () => void;
+}) {
   const { update } = useTimelineSearch();
   const bands = timeline ? bandsByVolume(timeline).slice(0, MAX_BAR_CHIPS) : [];
   const maxVolume = timeline ? maxBandVolume(timeline) : 0;

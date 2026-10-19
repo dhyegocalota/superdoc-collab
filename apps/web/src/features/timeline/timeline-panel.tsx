@@ -132,6 +132,7 @@ export function TimelinePanel({
       chartRef={chartRef}
       chartWidth={chartWidth}
       timeline={timeline}
+      change={null}
       isTimelinePending={isTimelinePending}
       selectedIndex={selectedIndex}
       highlightedBandId={search.topic}
@@ -178,10 +179,10 @@ export function TimelinePanel({
       style={style}
     >
       {isOpen && <ResizeHandle position={position} {...resize} />}
-      {isBottom && !isOpen && <TimelineCollapsedBar timeline={timeline} onExpand={() => onOpenChange(true)} />}
+      {isBottom && !isOpen && <TimelineCollapsedBar timeline={timeline} change={null} onExpand={() => onOpenChange(true)} />}
       {(isOpen || !isBottom) && (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <PanelHeader position={position} isOpen={isOpen} onOpenChange={onOpenChange} />
+          <PanelHeader position={position} change={null} isOpen={isOpen} onOpenChange={onOpenChange} />
           {isOpen && isDocumentEmpty && <PanelEmptyState />}
           {isBodyShown && !isBottom && <SidePanelBody notices={notices} chart={chart} filter={<PanelFilter />} card={card} edits={edits} />}
           {isBodyShown && isBottom && (

@@ -6,10 +6,12 @@ import { cn } from '@/lib/utils';
 import { PanelPositionToggle } from './panel-position-toggle';
 import { PanelState } from './panel-layout';
 import { TIMELINE_HEADING } from './timeline-copy';
+import type { TimelineChange } from './use-timeline-change';
 import { PanelPosition, usePanelPosition } from './use-panel-position';
 
 type PanelHeaderProps = {
   position: PanelPosition;
+  change: TimelineChange | null;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 };
@@ -19,7 +21,7 @@ const COLLAPSE_ICONS: Record<PanelPosition, Record<PanelState, LucideIcon>> = {
   [PanelPosition.Side]: { [PanelState.Open]: PanelRightClose, [PanelState.Collapsed]: PanelRightOpen },
 };
 
-export function PanelHeader({ position, isOpen, onOpenChange }: PanelHeaderProps) {
+export function PanelHeader({ position, change: _change, isOpen, onOpenChange }: PanelHeaderProps) {
   const { choosePosition, canChoose } = usePanelPosition();
   const panelState = isOpen ? PanelState.Open : PanelState.Collapsed;
   const CollapseIcon = COLLAPSE_ICONS[position][panelState];

@@ -190,6 +190,7 @@ export function EditorHeader({
           <>
             <div className="hidden sm:block">
               <Members
+                documentId={document.id}
                 members={members}
                 currentUserId={currentUserId}
                 superdoc={superdoc}

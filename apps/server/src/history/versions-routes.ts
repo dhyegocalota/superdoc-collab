@@ -16,15 +16,19 @@ import { z } from 'zod';
 import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
-import { retryLater } from '../http/retry-later';
+import { retryLater, type RetryLaterOptions } from '../http/retry-later';
 import { marksAround, VersionLookupKind } from './versions-service';
 
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 
-export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const routes = new Hono<SignedIn>();
+function retryVersionLater(retry: Omit<RetryLaterOptions, 'retryAfterSeconds'>): Response {
+  return retryLater({ ...retry, retryAfterSeconds: RETRY_AFTER_SECONDS });
+}
 
+type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
+
+function mountMarks({ routes, services }: RouteMount): void {
   routes.get('/:documentId/versions', (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = aroundSchema.safeParse(context.req.query(TimelineQueryParam.Around));
@@ -37,34 +41,33 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     };
     return context.json(body);
   });
+}
 
+function mountSummary({ routes, services }: RouteMount): void {
   routes.get('/:documentId/versions/:sequence', (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
     if (!NON_NEGATIVE_INTEGER_PATTERN.test(sequenceText)) return context.json({ error: INVALID_SEQUENCE_MESSAGE }, HttpStatus.BadRequest);
     const mark = services.versions.resolve({ documentId, sequence: Number(sequenceText) });
     if (!mark && services.scheduler.isRebuilding(documentId))
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { sequence: Number(sequenceText) },
         status: HttpStatus.Accepted,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     if (!mark) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
     const lookup = services.versions.peek({ documentId, sequence: mark.sequence });
     if (lookup.kind === VersionLookupKind.Failed)
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { error: VERSION_FAILED_ERROR },
         status: HttpStatus.ServiceUnavailable,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     if (lookup.kind === VersionLookupKind.Pending)
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { sequence: mark.sequence },
         status: HttpStatus.Accepted,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     const summary: VersionSummary = {
       sequence: lookup.version.sequence,
@@ -73,7 +76,9 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     };
     return context.json(summary);
   });
+}
 
+function mountText({ routes, services }: RouteMount): void {
   routes.get('/:documentId/versions/:sequence/text', async (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
@@ -85,14 +90,19 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
       const body: VersionText = { sequence, text };
       return context.json(body);
     } catch {
-      return retryLater({
+      return retryVersionLater({
         context,
         body: { error: VERSION_FAILED_ERROR },
         status: HttpStatus.ServiceUnavailable,
-        retryAfterSeconds: RETRY_AFTER_SECONDS,
       });
     }
   });
+}
 
+export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
+  const routes = new Hono<SignedIn>();
+  mountMarks({ routes, services });
+  mountSummary({ routes, services });
+  mountText({ routes, services });
   return routes;
 }

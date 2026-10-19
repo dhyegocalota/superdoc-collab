@@ -8,7 +8,7 @@ import { LanguageModelAvailability, generateStructured, type LanguageModelChoice
 import { authorLabel, promptEditsOf, SUMMARIES_SYSTEM_PROMPT, summariesPrompt, type PromptTopic } from './prompts';
 
 export const SUMMARIES_BUSY_MESSAGE = 'Skipped summarizing topics, the language model is busy, for document';
-export const SUMMARIES_FAILED_MESSAGE = 'Summarizing topics failed for document';
+const SUMMARIES_FAILED_MESSAGE = 'Summarizing topics failed for document';
 const SUMMARY_RUN_BIN_MS = HOUR_MS;
 
 type StaleTopic = { topic: StoredTopic; runs: EditRun[] };

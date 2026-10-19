@@ -7,7 +7,7 @@ import {
 } from '@superdoc-collab/types';
 import type { TestServer } from './test-server';
 
-export class TestRequestFailedError extends Error {
+class TestRequestFailedError extends Error {
   constructor({ path, status }: { path: string; status: number }) {
     super(`Test request to ${path} failed with status ${status}.`);
   }

@@ -1,7 +1,7 @@
 import { loadEnvironment } from './config/environment';
 import { startServer } from './server';
 
-export const WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR';
+const WEB_DIST_ENVIRONMENT_VARIABLE = 'WEB_DIST_DIR';
 
 function readOptionalWebDistDirectory(source: NodeJS.ProcessEnv): string | null {
   const webDistDirectory = source[WEB_DIST_ENVIRONMENT_VARIABLE];

@@ -1,7 +1,7 @@
 import { escapeXml } from './escape-xml';
 
-export type EditOverhead<Edit> = (options: { edit: Edit; kept: Edit[] }) => number;
-export type BudgetedEdit = { inserted: string; deleted: string };
+type EditOverhead<Edit> = (options: { edit: Edit; kept: Edit[] }) => number;
+type BudgetedEdit = { inserted: string; deleted: string };
 
 function escapedLength(text: string): number {
   return escapeXml(text).length;

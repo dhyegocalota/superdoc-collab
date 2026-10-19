@@ -10,6 +10,8 @@ type EditorConfig = {
   colors: string[];
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
+  onEditorUpdate: () => void;
+  onPaginationUpdate: () => void;
 };
 
 const DISPLACED_COLOR_SLOT = 2;
@@ -30,7 +32,8 @@ vi.mock('superdoc/style.css', () => ({}));
 function renderEditor({
   toolbarContainer = null,
   onSuperdocChange = vi.fn(),
-}: { toolbarContainer?: HTMLElement | null; onSuperdocChange?: () => void } = {}) {
+  onEditorUpdate = vi.fn(),
+}: { toolbarContainer?: HTMLElement | null; onSuperdocChange?: () => void; onEditorUpdate?: () => void } = {}) {
   render(
     <SuperDocEditor
       onSuperdocChange={onSuperdocChange}
@@ -46,6 +49,7 @@ function renderEditor({
       isInert={false}
       isSuperseded={false}
       onTransportReport={vi.fn()}
+      onEditorUpdate={onEditorUpdate}
     />,
   );
   const firstCall = SuperDoc.mock.calls.at(0);
@@ -78,6 +82,20 @@ test('hands the toolbar container to SuperDoc', () => {
   const toolbarContainer = document.createElement('div');
   const { config } = renderEditor({ toolbarContainer });
   expect(config.ui.toolbar?.container).toBe(toolbarContainer);
+});
+
+test('reports every editor update to the page', () => {
+  const onEditorUpdate = vi.fn();
+  const { config } = renderEditor({ onEditorUpdate });
+  config.onEditorUpdate();
+  expect(onEditorUpdate).toHaveBeenCalledTimes(1);
+});
+
+test('reports a layout pass to the page, which is how a peer’s edit arrives', () => {
+  const onEditorUpdate = vi.fn();
+  const { config } = renderEditor({ onEditorUpdate });
+  config.onPaginationUpdate();
+  expect(onEditorUpdate).toHaveBeenCalledTimes(1);
 });
 
 test('exposes the instance as state once SuperDoc is ready and clears it on destroy', () => {

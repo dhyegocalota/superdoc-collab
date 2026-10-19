@@ -38,7 +38,7 @@ import type { TimelinePipeline } from './timeline-pipeline-cache';
 
 const PIPELINE_KEY_SEPARATOR = ':';
 
-export class AuthorlessEventError extends Error {
+class AuthorlessEventError extends Error {
   constructor(eventId: number) {
     super(`Edit event ${eventId} has no author.`);
   }
@@ -119,7 +119,7 @@ function firstSequencesOf(events: DocumentEditEvent[]): number[] {
   return [...firstByBlock.values()];
 }
 
-export function pipelineCacheKey({ services, documentId }: { services: AppServices; documentId: string }): string {
+function pipelineCacheKey({ services, documentId }: { services: AppServices; documentId: string }): string {
   const cursor = services.readModel.cursor(documentId);
   const clientCount = services.updateLog.clientIdentities(documentId).size;
   const declaredCount = [...services.updateLog.identitySources(documentId).values()].filter(

@@ -1,13 +1,9 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import { temporaryDirectory } from '../testing/temporary-directory';
 import { MigrationsFolderNotFoundError, findMigrationsFolder } from './migrate';
-
-function temporaryDirectory(): string {
-  return mkdtempSync(join(tmpdir(), 'superdoc-collab-'));
-}
 
 describe('findMigrationsFolder', () => {
   test('finds the drizzle folder above the bundle directory', () => {

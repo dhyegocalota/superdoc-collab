@@ -58,9 +58,10 @@ function contentDisposition(fileName: string): string {
   return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }
 
-export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
+type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
+
+function mountCreation({ routes, services }: RouteMount): void {
   const { documents, storage, runtime } = services;
-  const routes = new Hono<SignedIn>();
 
   async function storeDocument({
     context,
@@ -90,11 +91,6 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     return storeDocument({ context, bytes: await buildSeedDocx(BLANK_DOCUMENT), title: parsed.data.title, importRevisions: false });
   }
 
-  function notReady({ context, documentId }: { context: Context<SignedIn>; documentId: string }): Response {
-    console.warn(`${CREATOR_REFUSED_MESSAGE} ${documentId}`);
-    return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
-  }
-
   routes.get('/', (context) => context.json(documents.list(context.var.user.id)));
 
   routes.post(
@@ -117,6 +113,15 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       return storeDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
     },
   );
+}
+
+function mountOpening({ routes, services }: RouteMount): void {
+  const { documents, runtime } = services;
+
+  function notReady({ context, documentId }: { context: Context<SignedIn>; documentId: string }): Response {
+    console.warn(`${CREATOR_REFUSED_MESSAGE} ${documentId}`);
+    return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
+  }
 
   routes.get('/:documentId', (context) => {
     const documentId = context.req.param('documentId');
@@ -151,6 +156,10 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       colorSlot: colorSlotOf(),
     });
   });
+}
+
+function mountManagement({ routes, services }: RouteMount): void {
+  const { documents, storage, runtime } = services;
 
   routes.patch(
     '/:documentId',
@@ -175,6 +184,10 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
     await storage.remove(documentId);
     return context.body(null, HttpStatus.NoContent);
   });
+}
+
+function mountReading({ routes, services }: RouteMount): void {
+  const { documents, storage, runtime } = services;
 
   routes.get('/:documentId/download', async (context) => {
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
@@ -201,6 +214,13 @@ export function createDocumentsRoutes({ services }: { services: AppServices }): 
       isAttemptSuperseded: isTicketClaimed && runtime.isAttemptSuperseded({ documentId, attempt, epoch }),
     });
   });
+}
 
+export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
+  const routes = new Hono<SignedIn>();
+  mountCreation({ routes, services });
+  mountOpening({ routes, services });
+  mountManagement({ routes, services });
+  mountReading({ routes, services });
   return routes;
 }

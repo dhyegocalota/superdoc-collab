@@ -13,6 +13,7 @@ import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from 
 import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import { createProjectionHandler } from './projection-handler';
+import { createProjectionQueues } from './projection-queues';
 import {
   IMPORT_TIMEOUT_MS,
   ImportTimeoutError,
@@ -37,8 +38,6 @@ const updateLog = new UpdateLog(historySqlite);
 const readModel = new ReadModel(readModelSqlite);
 const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
 let superdocClientConnection: Promise<SuperDocClient> | null = null;
-let queue = Promise.resolve();
-let importQueue = Promise.resolve();
 
 async function connectSuperdocClient(): Promise<SuperDocClient> {
   const client = new SuperDocClient();
@@ -113,19 +112,9 @@ async function stopWorker(): Promise<void> {
   process.exit(0);
 }
 
-port.on('message', (request: ProjectionRequest) => {
-  if (request.kind === ProjectionRequestKind.Stop) {
-    queue = queue.then(stopWorker);
-    return;
-  }
-  const reply = async () => port.postMessage(await answer(request));
-  if (request.kind === ProjectionRequestKind.Import) {
-    importQueue = importQueue.then(reply);
-    return;
-  }
-  if (request.kind === ProjectionRequestKind.Forget) {
-    queue = Promise.all([queue, importQueue]).then(reply);
-    return;
-  }
-  queue = queue.then(reply);
+const enqueue = createProjectionQueues({
+  reply: async (request) => port.postMessage(await answer(request)),
+  stop: stopWorker,
 });
+
+port.on('message', (request: ProjectionRequest) => enqueue(request));

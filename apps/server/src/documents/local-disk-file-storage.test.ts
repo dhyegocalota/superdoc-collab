@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
+import { temporaryDirectory } from '../testing/temporary-directory';
 import { InvalidDocumentIdError } from './file-storage';
 import { createLocalDiskFileStorage } from './local-disk-file-storage';
 
 function storageInTemporaryDirectory() {
-  return createLocalDiskFileStorage(join(mkdtempSync(join(tmpdir(), 'superdoc-collab-')), 'documents'));
+  return createLocalDiskFileStorage(join(temporaryDirectory(), 'documents'));
 }
 
 test('put then read returns identical bytes', async () => {

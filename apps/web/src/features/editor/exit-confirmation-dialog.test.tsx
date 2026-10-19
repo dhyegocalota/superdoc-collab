@@ -77,7 +77,7 @@ test('sync recovering while the dialog is open closes it and proceeds', async ()
   const { router } = renderDialog();
   await userEvent.click(screen.getByRole('link', { name: LEAVING_LINK }));
   await screen.findByRole('alertdialog');
-  act(() => screen.getByRole('button', { name: SYNC_BUTTON, hidden: true }).click());
+  act(() => screen.getByText(SYNC_BUTTON).click());
   await waitFor(() => expect(router.state.location.pathname).toBe(LEAVING_PATH));
   expect(screen.queryByRole('alertdialog')).toBeNull();
 });

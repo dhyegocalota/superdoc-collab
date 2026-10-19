@@ -23,7 +23,7 @@ type DocumentTitleProps = {
   onDirtyChange: (isDirty: boolean) => void;
 };
 
-export function DocumentTitle({ documentId, title, role, onFailureChange }: DocumentTitleProps) {
+export function DocumentTitle({ documentId, title, role, onFailureChange, onDirtyChange }: DocumentTitleProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const titleButtonRef = useRef<HTMLButtonElement>(null);
@@ -51,6 +51,9 @@ export function DocumentTitle({ documentId, title, role, onFailureChange }: Docu
 
   const nextTitle = draft.trim();
   const isSaveDisabled = isBlank(nextTitle) || nextTitle === title || isPending;
+  const isDirty = isEditing && nextTitle !== title;
+
+  useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
   function startEditing(): void {
     setDraft(shownTitle);

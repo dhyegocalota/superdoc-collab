@@ -1,5 +1,52 @@
+import { useEffect } from 'react';
+import { useBlocker } from 'react-router';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { DOWNLOAD_BUTTON_LABEL, EXIT_CONFIRMATION_DESCRIPTION, EXIT_CONFIRMATION_TITLE, LEAVE_LABEL, STAY_LABEL } from './editor-copy';
+
+const BLOCKED_STATE = 'blocked';
+
 type ExitConfirmationDialogProps = { isUnsynced: boolean; onDownload: () => void };
 
-export function ExitConfirmationDialog({ isUnsynced }: ExitConfirmationDialogProps) {
-  throw new Error(`ExitConfirmationDialog is not implemented for ${isUnsynced}`);
+export function ExitConfirmationDialog({ isUnsynced, onDownload }: ExitConfirmationDialogProps) {
+  const blocker = useBlocker(isUnsynced);
+  const isBlocked = blocker.state === BLOCKED_STATE;
+  const shouldProceed = isBlocked && !isUnsynced;
+
+  useEffect(() => {
+    if (shouldProceed) blocker.proceed();
+  }, [shouldProceed, blocker]);
+
+  function handleOpenChange(isOpen: boolean): void {
+    if (isOpen || !isBlocked) return;
+    blocker.reset();
+  }
+
+  return (
+    <AlertDialog open={isBlocked} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{EXIT_CONFIRMATION_TITLE}</AlertDialogTitle>
+          <AlertDialogDescription>{EXIT_CONFIRMATION_DESCRIPTION}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{STAY_LABEL}</AlertDialogCancel>
+          <Button variant="outline" onClick={onDownload}>
+            {DOWNLOAD_BUTTON_LABEL}
+          </Button>
+          <Button variant="destructive" onClick={() => blocker.proceed()}>
+            {LEAVE_LABEL}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }

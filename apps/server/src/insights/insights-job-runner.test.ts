@@ -78,3 +78,13 @@ test('the wait for a call slot runs until the oldest call leaves the window and 
   clock.time = LLM_WINDOW_MS - 1;
   expect(jobRunner.retryAfterMs()).toBe(MIN_RETRY_AFTER_MS);
 });
+
+test('stopping a watcher leaves a watcher registered after it in place', () => {
+  const jobRunner = new InsightsJobRunner();
+  const firstCalls: string[] = [];
+  const stopFirst = jobRunner.watchFirstCall({ documentId: 'doc', onFirstCall: () => firstCalls.push('first') });
+  jobRunner.watchFirstCall({ documentId: 'doc', onFirstCall: () => firstCalls.push('second') });
+  stopFirst();
+  jobRunner.consumeDocumentCall('doc');
+  expect(firstCalls).toEqual(['second']);
+});

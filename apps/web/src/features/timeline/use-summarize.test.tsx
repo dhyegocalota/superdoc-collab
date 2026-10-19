@@ -5,6 +5,7 @@ import {
   SelectionSummaryState,
   SummarizeOutcome,
   SummarizeStep,
+  SUMMARY_RUNNING_POLL_MS,
   TimelineQueryParam,
   UTC_TIME_ZONE,
   type SummarizeResponse,
@@ -29,7 +30,7 @@ const SELECTION = { term: 'budget', author: 'bruno', topic: 'band-1', at: 1_792_
 const ROUTE = `${documentPagePath(DOCUMENT_ID)}?term=budget&author=bruno&topic=band-1&at=${SELECTION.at}`;
 
 function responseWith({ outcome, step }: { outcome: SummarizeOutcome; step: SummarizeStep }): SummarizeResponse {
-  return { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step, outcome };
+  return { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step, partial: null, outcome };
 }
 
 function newQueryClient(): QueryClient {
@@ -217,15 +218,15 @@ test('only one observer polls a running job when the panel is open', async () =>
     { route: ROUTE, queryClient },
   );
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS / 3);
+    await vi.advanceTimersByTimeAsync(SUMMARY_RUNNING_POLL_MS / 3);
   });
   act(() => result.current(true));
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 2);
+    await vi.advanceTimersByTimeAsync(SUMMARY_RUNNING_POLL_MS * 2);
   });
   const readsBefore = fetchSpy.mock.calls.length;
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * 3);
+    await vi.advanceTimersByTimeAsync(SUMMARY_RUNNING_POLL_MS * 3);
   });
   expect(fetchSpy.mock.calls.length - readsBefore).toBeLessThanOrEqual(4);
   vi.useRealTimers();

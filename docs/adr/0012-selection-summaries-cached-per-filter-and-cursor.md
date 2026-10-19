@@ -43,3 +43,7 @@ The brief asks for a summary of the edits that is interactive and filterable. On
 ## Revisit when
 
 - The server runs as more than one instance, or the owner wants per-user quotas.
+
+## Amendment 2026-10-18
+
+`InsightsWorker` is now `InsightsJobRunner` and `SELECTION_SUMMARY_COOLDOWN_MS` is now `SUMMARIZE_COOLDOWN_MS`. [0041](0041-the-summary-card-shows-the-sentence-as-it-is-written.md) keeps the rule that a request never waits on the model: the job streams the sentence and the GET returns it as a partial.

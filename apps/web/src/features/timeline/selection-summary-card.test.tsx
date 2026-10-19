@@ -12,6 +12,7 @@ import {
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { REDUCED_MOTION_QUERY } from '@/lib/use-reduced-motion';
 import { FIXTURE_AUTHOR_NAME, FIXTURE_SUMMARY_AUTHOR } from '@/testing/timeline-fixtures';
 import { SelectionSummaryCard } from './selection-summary-card';
 import {
@@ -28,6 +29,7 @@ import {
   SUMMARY_UP_TO_DATE_MESSAGE,
   TOPICS_GROUPED_LABEL,
 } from './timeline-copy';
+import { WORD_REVEAL_INTERVAL_MS } from './use-word-reveal';
 import type { SummarizeControl } from './use-summarize';
 
 vi.mock('./use-author-color-slots', () => ({
@@ -45,6 +47,7 @@ const NONE_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const FIRST_VIEW: SelectionSummaryView = {
@@ -53,6 +56,7 @@ const FIRST_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const SECOND_VIEW: SelectionSummaryView = { ...FIRST_VIEW, summary: { ...FIRST_VIEW.summary!, key: 'second', sentence: 'Ana hired.' } };
 const FAILED_VIEW: SelectionSummaryView = {
@@ -61,9 +65,11 @@ const FAILED_VIEW: SelectionSummaryView = {
   failure: 'The edits could not be summarized. Try again.',
 };
 const scrollIntoView = vi.fn();
+const originalMatchMedia = window.matchMedia;
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.stubGlobal('matchMedia', originalMatchMedia);
 });
 
 beforeEach(() => {
@@ -235,4 +241,72 @@ test('without a language model the card has no content', () => {
 test('the card sits in a polite live region that exists before it has content', () => {
   const { container } = render(<SelectionSummaryCard view={undefined} summarize={idleSummarize()} canRequest authors={AUTHORS} />);
   expect(container.querySelector('[aria-live="polite"]')).not.toBeNull();
+});
+
+const STREAMING_VIEW: SelectionSummaryView = { ...RUNNING_VIEW, step: SummarizeStep.Summarizing, partial: 'Ana raised' };
+
+function stubReducedMotion(): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === REDUCED_MOTION_QUERY,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
+test('reveals the partial sentence word by word', () => {
+  vi.useFakeTimers();
+  render(card({ view: STREAMING_VIEW }));
+  act(() => vi.advanceTimersByTime(WORD_REVEAL_INTERVAL_MS));
+  expect(screen.getByText('Ana')).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(WORD_REVEAL_INTERVAL_MS));
+  expect(screen.getByText('Ana raised')).toBeInTheDocument();
+});
+
+test('shows the partial sentence at once under reduced motion', () => {
+  stubReducedMotion();
+  render(card({ view: STREAMING_VIEW }));
+  expect(screen.getByText('Ana raised')).toBeInTheDocument();
+});
+
+test('keeps the busy label until the first partial word', () => {
+  const { rerender } = render(card({ view: { ...STREAMING_VIEW, partial: null } }));
+  expect(screen.getByText(SUMMARIZING_EDITS_MESSAGE)).toBeInTheDocument();
+  rerender(card({ view: STREAMING_VIEW }));
+  expect(screen.queryByText(SUMMARIZING_EDITS_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('the final sentence replaces the partial without hiding the words already shown', () => {
+  vi.useFakeTimers();
+  const { rerender } = render(card({ view: STREAMING_VIEW }));
+  act(() => vi.advanceTimersByTime(WORD_REVEAL_INTERVAL_MS * 2));
+  const finalView: SelectionSummaryView = {
+    ...FIRST_VIEW,
+    summary: { ...FIRST_VIEW.summary!, key: 'streamed', sentence: 'Ana raised the budget.' },
+  };
+  rerender(card({ view: finalView }));
+  expect(screen.getByText('Ana raised')).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(WORD_REVEAL_INTERVAL_MS * 2));
+  expect(screen.getByText('Ana raised the budget.')).toBeInTheDocument();
+});
+
+test('a failure keeps the last sentence with the failure line and Retry', () => {
+  const failedWithSentence: SelectionSummaryView = { ...FIRST_VIEW, state: SelectionSummaryState.Failed, failure: FAILED_VIEW.failure };
+  render(card({ view: failedWithSentence }));
+  expect(screen.getByText(FIRST_VIEW.summary!.sentence)).toBeInTheDocument();
+  expect(screen.getByText(FAILED_VIEW.failure!)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: RETRY_SUMMARY_LABEL })).toBeInTheDocument();
+});
+
+test('the authors sit below the sentence, so a landing sentence never moves', () => {
+  render(card({ view: FIRST_VIEW }));
+  const sentence = screen.getByText(FIRST_VIEW.summary!.sentence);
+  const authorList = screen.getByRole('list');
+  expect(sentence.compareDocumentPosition(authorList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test('a summarizing step with no grouping before it does not claim the topics are grouped', () => {
+  render(card({ view: { ...RUNNING_VIEW, step: SummarizeStep.Summarizing } }));
+  expect(screen.getByText(SUMMARIZING_EDITS_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(TOPICS_GROUPED_LABEL)).not.toBeInTheDocument();
 });

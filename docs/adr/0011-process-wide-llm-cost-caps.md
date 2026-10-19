@@ -38,3 +38,7 @@ Topics are named on a document's first open and on every Refresh, and per-topic 
 ## Revisit when
 
 - The owner sets the real budget, or the product gets per-user accounts with quotas.
+
+## Amendment 2026-10-18
+
+`InsightsWorker` in `insights-worker.ts` is now `InsightsJobRunner` in `insights-job-runner.ts`. The decision is unchanged.

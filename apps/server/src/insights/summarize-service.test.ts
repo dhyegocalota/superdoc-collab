@@ -1,5 +1,6 @@
 import { writeStory } from '@superdoc-collab/history/testing';
 import {
+  documentApiPath,
   GROUPING_FAILED_MESSAGE,
   SelectionSummaryState,
   SummarizeOutcome,
@@ -13,7 +14,7 @@ import {
 import type { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, expect, test, vi } from 'vitest';
 import { readEvents } from '../testing/events-client';
-import { failingModel, gatedModel, modelAnsweringWith, readyModel } from '../testing/language-model';
+import { failingModel, gatedModel, modelAnsweringWith, modelResponding, readyModel } from '../testing/language-model';
 import { storyWithBlocks } from '../testing/timeline-client';
 import { SELECTION_SYSTEM_PROMPT, SUMMARIES_SYSTEM_PROMPT, TOPICS_SYSTEM_PROMPT } from './prompts';
 import type { RequestedSelection } from './selection-summaries-service';
@@ -25,6 +26,7 @@ enum ModelCall {
 }
 
 const POLL_TIMEOUT_MS = 15_000;
+const SETTLE_MS = 50;
 const SELECTION: RequestedSelection = { term: null, author: null, topic: null, at: null, binMs: null, timeZone: UTC_TIME_ZONE };
 const TOPICS = [
   { name: 'Budget', blockIds: ['b0'] },
@@ -42,10 +44,33 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function modelCallOf(call: MockLanguageModelV4['doGenerateCalls'][number]): ModelCall {
+  return MODEL_CALL_BY_SYSTEM_PROMPT[call.prompt.find((message) => message.role === 'system')!.content]!;
+}
+
 function modelCallsOf(model: MockLanguageModelV4): ModelCall[] {
-  return model.doGenerateCalls.map(
-    (call) => MODEL_CALL_BY_SYSTEM_PROMPT[call.prompt.find((message) => message.role === 'system')!.content]!,
-  );
+  return model.doGenerateCalls.map(modelCallOf);
+}
+
+function expectRegroupBesideSentence(model: MockLanguageModelV4): void {
+  const calls = modelCallsOf(model);
+  expect(calls.slice(0, 2)).toEqual(expect.arrayContaining([ModelCall.Topics, ModelCall.Summary]));
+  expect(calls.slice(2)).toEqual([ModelCall.Sentences]);
+}
+
+function modelHoldingCall({ held, gate, answer }: { held: ModelCall; gate: Promise<void>; answer: () => unknown }): MockLanguageModelV4 {
+  return modelResponding(async (options) => {
+    if (modelCallOf(options) === held) await gate;
+    return answer();
+  });
+}
+
+function gateWithRelease(): { gate: Promise<void>; release: () => void } {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { gate, release };
 }
 
 async function documentWithTopics({ isFresh, modelFor }: { isFresh: boolean; modelFor: (answer: () => unknown) => MockLanguageModelV4 }) {
@@ -91,7 +116,7 @@ test('regroups only when topics failed or are older than the newest edit, then s
   const { server, documentId, client, model, summarize } = await documentWithTopics({ isFresh: false, modelFor: modelAnsweringWith });
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
-  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expectRegroupBesideSentence(model);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
   server.services.insightsRepository.markFailed({ documentId, failure: TOPICS_FAILED_MESSAGE });
@@ -172,19 +197,17 @@ test('a failed regroup keeps the previous ready topics and stops the job when th
 
 test('a failed regroup does not lock the summary out when the selection names no topic', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  let calls = 0;
   const { server, documentId, client, model, summarize } = await documentWithTopics({
     isFresh: false,
     modelFor: (answer) =>
-      modelAnsweringWith(() => {
-        calls += 1;
-        if (calls === 1) throw new Error('provider exploded');
+      modelResponding((options) => {
+        if (modelCallOf(options) === ModelCall.Topics) throw new Error('provider exploded');
         return answer();
       }),
   });
   summarize.request({ documentId, selection: SELECTION });
   await server.services.insights.jobRunner.idle();
-  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expectRegroupBesideSentence(model);
   expect(server.services.insights.selection.read({ documentId, selection: SELECTION })).toMatchObject({
     failure: GROUPING_FAILED_MESSAGE,
     summary: { sentence: COMBINED_ANSWER.sentence },
@@ -201,7 +224,7 @@ test('a Summarize with a regroup holds one process-wide slot', async () => {
   expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(true);
   expect(jobRunner.isRunning(`topics:${documentId}`)).toBe(false);
   await jobRunner.idle();
-  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  expectRegroupBesideSentence(model);
   expect(server.services.insightsRepository.status(documentId)).toMatchObject({ state: TopicState.Ready });
   client.close();
   await server.stop();
@@ -221,7 +244,7 @@ test('reports the step while the job runs and returns to idle when it ends', asy
   summarize.request({ documentId, selection: SELECTION });
   expect(selection.read({ documentId, selection: SELECTION })).toMatchObject({
     state: SelectionSummaryState.Running,
-    step: SummarizeStep.Grouping,
+    step: SummarizeStep.Summarizing,
   });
   release();
   await server.services.insights.jobRunner.idle();
@@ -272,5 +295,168 @@ test('a job whose steps make no model call leaves no cooldown', async () => {
   expect(model.doGenerateCalls).toHaveLength(0);
   expect(selection.cooldown.remainingMs(documentId)).toBe(0);
   client.close();
+  await server.stop();
+});
+
+test('publishes the selection sentence before the topic sentences are rewritten', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, summarize } = await documentWithTopics({
+    isFresh: true,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Sentences, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  summarize.request({ documentId, selection: SELECTION });
+  await expect
+    .poll(() => selection.read({ documentId, selection: SELECTION }), { timeout: POLL_TIMEOUT_MS })
+    .toMatchObject({ state: SelectionSummaryState.Ready, step: SummarizeStep.Idle, summary: { sentence: COMBINED_ANSWER.sentence } });
+  expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(false);
+  expect(jobRunner.isRunning(`summarize-topics:${documentId}`)).toBe(true);
+  release();
+  await jobRunner.idle();
+  client.close();
+  await server.stop();
+});
+
+test('a selection without a topic regroups while the sentence is written', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, model, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Topics, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  summarize.request({ documentId, selection: SELECTION });
+  await expect
+    .poll(() => selection.read({ documentId, selection: SELECTION }), { timeout: POLL_TIMEOUT_MS })
+    .toMatchObject({ state: SelectionSummaryState.Ready, step: SummarizeStep.Idle, summary: { sentence: COMBINED_ANSWER.sentence } });
+  expect(modelCallsOf(model)).toEqual(expect.arrayContaining([ModelCall.Topics, ModelCall.Summary]));
+  expect(modelCallsOf(model)).not.toContain(ModelCall.Sentences);
+  expect(jobRunner.isRunning(`topics:${documentId}`)).toBe(false);
+  release();
+  await jobRunner.idle();
+  expect(modelCallsOf(model)).toHaveLength(3);
+  expect(modelCallsOf(model).at(-1)).toBe(ModelCall.Sentences);
+  expect(selection.cooldown.remainingMs(documentId)).toBeGreaterThan(0);
+  client.close();
+  await server.stop();
+});
+
+test('pin: a selection with a topic regroups before the sentence', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, model, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Topics, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  const topicSelection = { ...SELECTION, topic: server.services.insightsRepository.topics(documentId)[0]!.id };
+  summarize.request({ documentId, selection: topicSelection });
+  await expect
+    .poll(() => selection.read({ documentId, selection: topicSelection }).step, { timeout: POLL_TIMEOUT_MS })
+    .toBe(SummarizeStep.Grouping);
+  await expect.poll(() => modelCallsOf(model), { timeout: POLL_TIMEOUT_MS }).toEqual([ModelCall.Topics]);
+  release();
+  await jobRunner.idle();
+  expect(modelCallsOf(model)).toEqual([ModelCall.Topics, ModelCall.Summary, ModelCall.Sentences]);
+  client.close();
+  await server.stop();
+});
+
+async function unhandledRejectionsDuring(run: () => Promise<void>): Promise<unknown[]> {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', record);
+  await run();
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off('unhandledRejection', record);
+  return unhandled;
+}
+
+test('a regroup that rejects while the sentence is written leaves no unhandled rejection and keeps the sentence', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Summary, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  vi.spyOn(server.services.insightsRepository, 'markPending').mockImplementation(() => {
+    throw new Error('database is locked');
+  });
+  const unhandled = await unhandledRejectionsDuring(async () => {
+    summarize.request({ documentId, selection: SELECTION });
+    await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+    release();
+    await jobRunner.idle();
+  });
+  expect(unhandled).toEqual([]);
+  expect(selection.read({ documentId, selection: SELECTION })).toMatchObject({
+    step: SummarizeStep.Idle,
+    summary: { sentence: COMBINED_ANSWER.sentence },
+  });
+  client.close();
+  await server.stop();
+});
+
+test('a sentence write that throws beside a rejecting regroup ends the job with no unhandled rejection', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { server, documentId, client, summarize } = await documentWithTopics({ isFresh: false, modelFor: modelAnsweringWith });
+  const { selection, jobRunner } = server.services.insights;
+  vi.spyOn(selection, 'write').mockRejectedValue(new Error('sentence write exploded'));
+  vi.spyOn(server.services.insightsRepository, 'markPending').mockImplementation(() => {
+    throw new Error('database is locked');
+  });
+  const unhandled = await unhandledRejectionsDuring(async () => {
+    summarize.request({ documentId, selection: SELECTION });
+    await jobRunner.idle();
+  });
+  expect(unhandled).toEqual([]);
+  expect(selection.read({ documentId, selection: SELECTION }).step).toBe(SummarizeStep.Idle);
+  client.close();
+  await server.stop();
+});
+
+test('a request for another selection while the topic sentences are rewritten starts a job instead of answering Running', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, summarize } = await documentWithTopics({
+    isFresh: true,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Sentences, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  summarize.request({ documentId, selection: SELECTION });
+  await expect
+    .poll(() => selection.read({ documentId, selection: SELECTION }), { timeout: POLL_TIMEOUT_MS })
+    .toMatchObject({ state: SelectionSummaryState.Ready, step: SummarizeStep.Idle });
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
+  const topicSelection = { ...SELECTION, topic: server.services.insightsRepository.topics(documentId)[0]!.id };
+  expect(summarize.request({ documentId, selection: topicSelection }).outcome).toBe(SummarizeOutcome.Started);
+  release();
+  await jobRunner.idle();
+  client.close();
+  await server.stop();
+});
+
+test('pin: a document deleted while the sentence and the regroup are held ends both jobs with no unhandled rejection', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, owner, client, model, summarize } = await documentWithTopics({
+    isFresh: false,
+    modelFor: () => gatedModel({ gate, answer: COMBINED_ANSWER }),
+  });
+  const { jobRunner } = server.services.insights;
+  const unhandled = await unhandledRejectionsDuring(async () => {
+    summarize.request({ documentId, selection: SELECTION });
+    await expect.poll(() => model.doGenerateCalls.length, { timeout: POLL_TIMEOUT_MS }).toBe(2);
+    client.close();
+    const deleted = await fetch(`${server.baseUrl}${documentApiPath({ documentId })}`, {
+      method: 'DELETE',
+      headers: { cookie: owner.cookie, origin: server.baseUrl },
+    });
+    expect(deleted.ok).toBe(true);
+    release();
+    await jobRunner.idle();
+  });
+  expect(unhandled).toEqual([]);
+  expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(false);
+  expect(jobRunner.isRunning(`summarize-topics:${documentId}`)).toBe(false);
   await server.stop();
 });

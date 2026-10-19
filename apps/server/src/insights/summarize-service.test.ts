@@ -411,3 +411,24 @@ test('a sentence write that throws beside a rejecting regroup ends the job with 
   client.close();
   await server.stop();
 });
+
+test('a request for another selection while the topic sentences are rewritten starts a job instead of answering Running', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, client, summarize } = await documentWithTopics({
+    isFresh: true,
+    modelFor: (answer) => modelHoldingCall({ held: ModelCall.Sentences, gate, answer }),
+  });
+  const { selection, jobRunner } = server.services.insights;
+  summarize.request({ documentId, selection: SELECTION });
+  await expect
+    .poll(() => selection.read({ documentId, selection: SELECTION }), { timeout: POLL_TIMEOUT_MS })
+    .toMatchObject({ state: SelectionSummaryState.Ready, step: SummarizeStep.Idle });
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + SUMMARIZE_COOLDOWN_MS);
+  const topicSelection = { ...SELECTION, topic: server.services.insightsRepository.topics(documentId)[0]!.id };
+  expect(summarize.request({ documentId, selection: topicSelection }).outcome).toBe(SummarizeOutcome.Started);
+  release();
+  await jobRunner.idle();
+  client.close();
+  await server.stop();
+});

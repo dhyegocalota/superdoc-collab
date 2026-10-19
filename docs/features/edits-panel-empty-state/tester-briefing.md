@@ -15,6 +15,19 @@
 | `superdoc-editor.test.tsx` padding | `expect(element).toHaveClass("pt-3")` | a9d05edf |
 | `timeline-collapsed-bar.test.tsx` empty timeline | pin, green on arrival | 0104efa2 |
 
+## Added scope
+
+| Test | Red text | Commit |
+|------|----------|--------|
+| `filter-box.test.tsx` search icon | `expected null not to be null` | 65f0f67c |
+| `filter-box.test.tsx` clear button keeps focus | `Unable to find an accessible element with the role "button" and name "Clear filter text"` | 65f0f67c |
+| `contributor-avatars.test.tsx` plus marker | `Unable to find a label with the text of: 2 more contributors` | 65f0f67c |
+
+- The "no marker at three or fewer" test is green on arrival: a pin.
+- Hypotheses: the filter field is rounded with the icon left and an X right only while text is typed; the X clears the draft and keeps focus; Enter, Escape and chips behave as before; a fourth author on the showcase shows `+1` after three avatars; dark mode follows the tokens.
+- Screenshots: `filter-active-1280.png`, `filter-active-375.png` in the same folder; the chips sit below the fold in the bottom panel, so they are cut off.
+- No result count: the panel computes none.
+
 ## Hypotheses to check
 
 - A new document opens with the collapsed bar at 1280, 1536 and 375, and the bar shows the heading and the toggle only.

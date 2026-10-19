@@ -13,3 +13,9 @@
 - [x] `pnpm test:e2e e2e/timeline.spec.ts e2e/documents.spec.ts` — expected: all pass (evidence: 7 passed for timeline.spec after the last change; earlier combined run of 11 specs, 79 passed)
 - [x] E2E for every spec that reads the panel (agent, documents, final-visuals, selection-summary, settings, showcase, summary-mobile, time-travel, timeline, timeline-idle-gaps, topics-on-open) — expected: all pass (evidence: 79 passed)
 - [x] Screenshots at 1280 and 375: collapsed start, empty state expanded, page margin (evidence: `.pr-media/edits-panel-empty-state/`)
+
+## Filter box and overflow marker
+
+- [x] Red (commit 65f0f67c): search icon, clear button with focus kept, plus marker for a fifth contributor (failure texts in the tester briefing)
+- [x] `vitest run src/features/timeline` — expected: all pass (evidence: 324 passed)
+- [x] Screenshots `filter-active-1280.png` and `filter-active-375.png`

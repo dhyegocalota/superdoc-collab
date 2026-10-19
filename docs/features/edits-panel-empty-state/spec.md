@@ -17,3 +17,15 @@
 - `timeline-panel.test.tsx`: no events → the empty state with heading, description and the illustration; events → the chart as before.
 - `superdoc-editor.test.tsx`: the container carries the top padding class.
 - E2E: `e2e/timeline.spec.ts` or `documents.spec.ts`: a new document opens with the panel collapsed; expanding it shows the empty state; typing a paragraph replaces it with the chart. Existing specs that expected the panel open at 1280 are adjusted to expand it first (search e2e/timeline.ts for the expand helper).
+
+## Filter box
+
+**Owner approval:** 2026-10-19 (owner: "faz o filter/search ser um pouco mais sexy")
+
+- `filter-box.tsx` is a rounded search field: a `Search` icon inside on the left, a clear button inside on the right that appears only while the draft has text and clears it with focus kept, the existing focus ring tokens, and the same placeholder, labels and keyboard rules (Enter applies, Escape clears a draft, decided from `event.currentTarget.value`).
+- The clear button is named `CLEAR_FILTER_TEXT_LABEL` and never touches the applied filters; the chips and Clear filters keep doing that.
+- No result count was added: the panel computes no count of matching edits, so there is nothing to reuse.
+
+## Top edits overflow marker
+
+Found by the tester on the showcase document: Top edits shows three contributor avatars and hid a fourth. `ContributorAvatars` keeps the cap and adds a muted `+N` marker, the size of an avatar, named by `moreContributorsLabel`.

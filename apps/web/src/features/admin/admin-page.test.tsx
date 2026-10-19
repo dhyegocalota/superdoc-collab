@@ -2,6 +2,10 @@ import {
   AdminResource,
   passwordResetApiPath,
   PASSWORD_RESET_QUERY_PARAMETER,
+  SHOWCASE_API_PATH,
+  SHOWCASE_TITLE,
+  DocumentRole,
+  type DocumentSummary,
   type CreatedPasswordReset,
   adminApiPath,
   ApiPath,
@@ -20,6 +24,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { accountMenuLabel } from '@/features/account/account-copy';
+import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { SIGN_OUT_LABEL } from '@/features/auth/auth-copy';
 import { HOME_LINK_LABEL } from '@/features/editor/editor-copy';
 import { SETTINGS_LINK_LABEL } from '@/features/settings/settings-copy';
@@ -41,6 +46,9 @@ import {
   PASSWORD_RESET_CREATED_TITLE,
   RESET_PASSWORD_LABEL,
   REVOKE_LABEL,
+  SHOWCASE_BUTTON_LABEL,
+  SHOWCASE_CREATED_TOAST,
+  SHOWCASE_DESCRIPTION,
   USER_ROLE_LABELS,
   USERS_TABLE_LABEL,
 } from './admin-copy';
@@ -85,14 +93,24 @@ const CREATED_PASSWORD_RESET: CreatedPasswordReset = {
 const USERS_PATH = adminApiPath(AdminResource.Users);
 const INVITES_PATH = adminApiPath(AdminResource.Invites);
 
-type MockOptions = { revokeStatus?: number };
+const CREATED_SHOWCASE: DocumentSummary = {
+  id: 'document-1',
+  title: SHOWCASE_TITLE,
+  owner: { id: ADMIN_USER.id, name: ADMIN_USER.name },
+  updatedAt: Date.UTC(2026, 0, 8),
+  role: DocumentRole.Owner,
+};
 
-function mockApi({ revokeStatus = HttpStatus.NoContent }: MockOptions = {}) {
+type MockOptions = { revokeStatus?: number; showcaseStatus?: number };
+
+function mockApi({ revokeStatus = HttpStatus.NoContent, showcaseStatus = HttpStatus.Created }: MockOptions = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const isRead = init?.method === undefined;
     if (input === ApiPath.Me) return jsonResponse({ body: { user: ADMIN_SESSION } });
     if (input === USERS_PATH && isRead) return jsonResponse({ body: [ADMIN_USER, MEMBER_USER] });
     if (input === INVITES_PATH && isRead) return jsonResponse({ body: [PENDING_INVITE, ACCEPTED_INVITE] });
+    if (input === SHOWCASE_API_PATH && init?.method === HttpMethod.Post)
+      return jsonResponse({ body: CREATED_SHOWCASE, status: showcaseStatus });
     if (input === INVITES_PATH && init?.method === HttpMethod.Post)
       return jsonResponse({ body: CREATED_INVITE, status: HttpStatus.Created });
     if (input === `${INVITES_PATH}/${PENDING_INVITE.id}`) return new Response(null, { status: revokeStatus });
@@ -233,4 +251,31 @@ test('the header uses AppTopBar and has no Sign out button', async () => {
   expect(within(header).getByRole('link', { name: HOME_LINK_LABEL })).toBeInTheDocument();
   expect(within(header).queryByRole('link', { name: SETTINGS_LINK_LABEL })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: SIGN_OUT_LABEL })).not.toBeInTheDocument();
+});
+
+test('the showcase button says a second press creates a second document', async () => {
+  mockApi();
+  renderAdminPage();
+  const button = await screen.findByRole('button', { name: SHOWCASE_BUTTON_LABEL });
+  expect(button).toHaveAccessibleDescription(SHOWCASE_DESCRIPTION);
+});
+
+test('creating the showcase posts, toasts and invalidates the documents list', async () => {
+  const fetchSpy = mockApi();
+  const user = userEvent.setup();
+  const { queryClient } = renderAdminPage();
+  queryClient.setQueryData(DOCUMENTS_QUERY_KEY, { mine: [], shared: [] });
+  await user.click(await screen.findByRole('button', { name: SHOWCASE_BUTTON_LABEL }));
+  expect(await screen.findByText(SHOWCASE_CREATED_TOAST)).toBeInTheDocument();
+  expect(fetchSpy).toHaveBeenCalledWith(SHOWCASE_API_PATH, expect.objectContaining({ method: HttpMethod.Post }));
+  expect(queryClient.getQueryState(DOCUMENTS_QUERY_KEY)?.isInvalidated).toBe(true);
+});
+
+test('a failed showcase creation shows the action-failed message and no toast', async () => {
+  mockApi({ showcaseStatus: HttpStatus.InternalServerError });
+  const user = userEvent.setup();
+  renderAdminPage();
+  await user.click(await screen.findByRole('button', { name: SHOWCASE_BUTTON_LABEL }));
+  expect(await screen.findByText(ACTION_FAILED_MESSAGE)).toBeInTheDocument();
+  expect(screen.queryByText(SHOWCASE_CREATED_TOAST)).not.toBeInTheDocument();
 });

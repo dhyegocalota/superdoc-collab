@@ -1,5 +1,6 @@
 import {
   ApiPath,
+  ClientActor,
   DocumentRole,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
@@ -751,6 +752,30 @@ test('refused awareness frames from one socket log one line', async () => {
   scenario.holder.client.close();
   intruder.client.close();
   await scenario.server.stop();
+});
+
+test('an id recorded for a user before the room loaded stays with its author: another user announcing it is dropped and the author passes', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const clientIds = claimedIds({ base: CLAIMED_ID_BASE, count: REPLAYED_ID_COUNT });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  await waitForCommit({ services: server.services, documentId });
+  clientIds.forEach((yjsClientId) =>
+    server.services.updateLog.declareClientIdentity({ documentName: documentId, yjsClientId, userId: owner.id, actor: ClientActor.Human }),
+  );
+  const editor = await memberWithRole({ server, documentId, role: DocumentRole.Editor });
+  const attacker = await connectWatched({ server, documentId, cookie: editor.cookie });
+  attacker.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: attacker.roomName, clientIds })));
+  attacker.client.provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: attacker.client.document.clientID })).toBe(0);
+  expect(awarenessStateCount({ server, clientIds })).toBe(0);
+  expect(attacker.closedSocket()).toBeNull();
+  const victim = await connectWatched({ server, documentId, cookie: owner.cookie });
+  victim.webSocket.send(new Uint8Array(awarenessFrameClaiming({ roomName: victim.roomName, clientIds })));
+  await expect.poll(() => awarenessStateCount({ server, clientIds })).toBe(clientIds.length);
+  expect(victim.closedSocket()).toBeNull();
+  attacker.client.close();
+  victim.client.close();
+  await server.stop();
 });
 
 test('a second connection of the same user updating an awareness id that a half-open first one holds takes the id over and stays open', async () => {

@@ -75,3 +75,14 @@ test('an honest relay of the full frame cap of bound ids at their held clocks is
   const entries = clientIds.map((clientId) => ({ clientId, clock: HELD_CLOCK }));
   expect(owners.forbids({ documentName: DOCUMENT_NAME, userId: OTHER_USER, entries, meta })).toBe(false);
 });
+
+test('ids seeded from persisted authorship are bound to their authors before anyone announces them', () => {
+  const owners = new AwarenessOwners();
+  owners.seed({ documentName: DOCUMENT_NAME, bindings: new Map([[CLIENT_ID, { userId: OWNER }]]) });
+  owners.bind({ documentName: DOCUMENT_NAME, clientIds: [CLIENT_ID], userId: OTHER_USER });
+  const entries = [{ clientId: CLIENT_ID, clock: 1 }];
+  expect([OWNER, OTHER_USER].map((userId) => owners.forbids({ documentName: DOCUMENT_NAME, userId, entries, meta: new Map() }))).toEqual([
+    false,
+    true,
+  ]);
+});

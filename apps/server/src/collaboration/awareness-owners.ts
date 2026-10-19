@@ -8,6 +8,10 @@ export class AwarenessOwners {
     clientIds.filter((clientId) => !ownerByClientId.has(clientId)).forEach((clientId) => ownerByClientId.set(clientId, userId));
   }
 
+  seed({ documentName, bindings }: { documentName: string; bindings: ReadonlyMap<number, { userId: string }> }): void {
+    throw new Error('AwarenessOwners.seed is not implemented');
+  }
+
   private ownersOf(documentName: string): Map<number, string> {
     const existing = this.ownerByClientIdByDocument.get(documentName);
     if (existing !== undefined) return existing;

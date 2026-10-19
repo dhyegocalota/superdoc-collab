@@ -1,0 +1,68 @@
+import { expect, test, vi } from 'vitest';
+import { ProjectionRequestKind, type AnsweredRequest, type ProjectionRequest } from './projection-messages';
+import { createProjectionQueues } from './projection-queues';
+
+const DOCUMENT_ID = 'd1';
+const REQUESTS: Record<ProjectionRequestKind, ProjectionRequest> = {
+  [ProjectionRequestKind.Project]: { kind: ProjectionRequestKind.Project, documentId: DOCUMENT_ID },
+  [ProjectionRequestKind.Import]: { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' },
+  [ProjectionRequestKind.Forget]: { kind: ProjectionRequestKind.Forget, documentId: DOCUMENT_ID },
+  [ProjectionRequestKind.Version]: { kind: ProjectionRequestKind.Version, documentId: DOCUMENT_ID, sequence: 3 },
+  [ProjectionRequestKind.Blocks]: { kind: ProjectionRequestKind.Blocks, documentId: DOCUMENT_ID },
+  [ProjectionRequestKind.Stop]: { kind: ProjectionRequestKind.Stop },
+};
+
+function queuesHoldingReplyOf(heldKind: ProjectionRequestKind) {
+  const events: string[] = [];
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const reply = vi.fn(async (request: AnsweredRequest) => {
+    if (request.kind === heldKind) await held;
+    events.push(request.kind);
+  });
+  const stop = vi.fn(async () => {
+    events.push(ProjectionRequestKind.Stop);
+  });
+  const enqueue = createProjectionQueues({ reply, stop });
+  return { events, release, enqueue };
+}
+
+test('a stop after a pending import stops without waiting for the import reply', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Import);
+  enqueue(REQUESTS[ProjectionRequestKind.Import]);
+  enqueue(REQUESTS[ProjectionRequestKind.Stop]);
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Stop]);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Stop, ProjectionRequestKind.Import]);
+});
+
+test('a forget waits for the pending import reply', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Import);
+  enqueue(REQUESTS[ProjectionRequestKind.Import]);
+  enqueue(REQUESTS[ProjectionRequestKind.Forget]);
+  enqueue(REQUESTS[ProjectionRequestKind.Project]);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Import, ProjectionRequestKind.Forget, ProjectionRequestKind.Project]);
+});
+
+test('a pending import does not hold back a project', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Import);
+  enqueue(REQUESTS[ProjectionRequestKind.Import]);
+  enqueue(REQUESTS[ProjectionRequestKind.Project]);
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Project]);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Project, ProjectionRequestKind.Import]);
+});
+
+test('project, version, blocks and stop run one after another in arrival order', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Project);
+  [ProjectionRequestKind.Project, ProjectionRequestKind.Version, ProjectionRequestKind.Blocks, ProjectionRequestKind.Stop].forEach((kind) =>
+    enqueue(REQUESTS[kind]),
+  );
+  release();
+  await expect
+    .poll(() => events)
+    .toEqual([ProjectionRequestKind.Project, ProjectionRequestKind.Version, ProjectionRequestKind.Blocks, ProjectionRequestKind.Stop]);
+});

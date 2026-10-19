@@ -6,7 +6,7 @@ import { AgentToolError } from './tool-results';
 
 const UNKNOWN_PERSON_MESSAGE = 'The person behind this connection no longer exists';
 
-export const documentInput = { documentId: z.string().min(1).describe('The document id from list_documents') };
+const documentInput = { documentId: z.string().min(1).describe('The document id from list_documents') };
 export const documentTargetSchema = z.object(documentInput);
 
 export const READ_ONLY_ANNOTATIONS: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };

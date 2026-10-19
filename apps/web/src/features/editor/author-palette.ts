@@ -1,4 +1,4 @@
-import { AUTHOR_COLOR_SLOT_COUNT, type AuthorColorSlot } from '@superdoc-collab/types';
+import { AUTHOR_COLOR_SLOT_COUNT, isBlank, type AuthorColorSlot } from '@superdoc-collab/types';
 
 class MissingAuthorColorError extends Error {}
 
@@ -8,7 +8,7 @@ function readAuthorColors(): string[] {
   const style = getComputedStyle(document.documentElement);
   return Array.from({ length: AUTHOR_COLOR_SLOT_COUNT }, (_, index) => {
     const color = style.getPropertyValue(`--author-${index + 1}`).trim();
-    if (color === '') throw new MissingAuthorColorError(`--author-${index + 1}`);
+    if (isBlank(color)) throw new MissingAuthorColorError(`--author-${index + 1}`);
     return color;
   });
 }

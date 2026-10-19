@@ -14,7 +14,7 @@ const TOKEN_SEPARATOR = ' ';
 const JWT_SEPARATOR = '.';
 const AGENT_SCOPES = new Set<string>(Object.values(AgentScope));
 
-export type AgentPrincipal = { userId: string; clientId: string; scopes: AgentScope[] };
+type AgentPrincipal = { userId: string; clientId: string; scopes: AgentScope[] };
 
 function isAccessTokenType(request: Request): boolean {
   const token = request.headers.get('authorization')?.trim().split(TOKEN_SEPARATOR).at(-1);

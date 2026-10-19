@@ -3,7 +3,7 @@ import { ClientActor, type AgentActionView, type EventAuthor } from '@superdoc-c
 import type { AppServices } from '../http/app';
 import { UnknownAuthorError } from './resolved-events';
 
-export type AgentActionsInSpan = { actions: AgentActionView[]; authors: Record<string, EventAuthor> };
+type AgentActionsInSpan = { actions: AgentActionView[]; authors: Record<string, EventAuthor> };
 
 export function readAgentActions({
   services,

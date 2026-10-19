@@ -1,13 +1,8 @@
-import { chmodSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { chmodSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
+import { temporaryDirectory } from '../testing/temporary-directory';
 import { AUTH_DATABASE_FILE, DatabaseDirectoryNotWritableError, openDatabase, openSqliteFile } from './connection';
 import { runMigrations } from './migrate';
-
-function temporaryDirectory(): string {
-  return mkdtempSync(join(tmpdir(), 'superdoc-collab-'));
-}
 
 describe('openDatabase', () => {
   test('opens a file with normal synchronous and foreign keys on', () => {

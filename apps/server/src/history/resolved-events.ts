@@ -7,7 +7,7 @@ export type ResolvedEventsServices = {
   documents: Pick<DocumentsRepository, 'userNames'>;
 };
 
-export class IncompleteEditEventError extends Error {
+class IncompleteEditEventError extends Error {
   constructor(eventId: number) {
     super(`Edit event ${eventId} has no client ids or connection user.`);
   }

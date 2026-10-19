@@ -117,14 +117,14 @@ export class AgentSessions implements AgentDocumentSessions {
     const { userId } = options.person;
     const previous = this.turns.get(userId);
     const turnPromise = previous ? this.untilTurn(previous).then(() => this.runOnSession(options)) : this.runOnSession(options);
-    const turnEnded = turnPromise.then(
+    const turnEndedPromise = turnPromise.then(
       () => undefined,
       () => undefined,
     );
-    const tail = previous ? Promise.all([previous, turnEnded]).then(() => undefined) : turnEnded;
-    this.turns.set(userId, tail);
-    void tail.then(() => {
-      if (this.turns.get(userId) === tail) this.turns.delete(userId);
+    const tailPromise = previous ? Promise.all([previous, turnEndedPromise]).then(() => undefined) : turnEndedPromise;
+    this.turns.set(userId, tailPromise);
+    void tailPromise.then(() => {
+      if (this.turns.get(userId) === tailPromise) this.turns.delete(userId);
     });
     return turnPromise;
   }

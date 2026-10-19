@@ -3,16 +3,13 @@ import type { Context } from 'hono';
 
 type RetryStatus = HttpStatus.Accepted | HttpStatus.TooManyRequests | HttpStatus.ServiceUnavailable;
 
-export function retryLater({
-  context,
-  body,
-  status,
-  retryAfterSeconds,
-}: {
+export type RetryLaterOptions = {
   context: Context;
   body: Record<string, string | number>;
   status: RetryStatus;
   retryAfterSeconds: number;
-}): Response {
+};
+
+export function retryLater({ context, body, status, retryAfterSeconds }: RetryLaterOptions): Response {
   return context.json(body, status, { [RETRY_AFTER_HEADER]: String(retryAfterSeconds) });
 }

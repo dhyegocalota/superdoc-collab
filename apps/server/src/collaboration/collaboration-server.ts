@@ -43,6 +43,7 @@ export const LOADING_ORIGIN = 'update-log-replay';
 const PARSE_BASE_URL = 'http://localhost';
 const NO_TICKET: ClaimedTicket = { attempt: null, epoch: null };
 export const OPEN_BUDGET_LOG = 'Refused a socket on an uncommitted room: the open budget of the user is spent';
+export const AWARENESS_DROP_LOG = 'Dropped an awareness frame that touches an awareness client another user announced';
 export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too many awareness clients';
 const REFUSED_UPDATE_LOG = 'Dropped an update from a superseded creator attempt';
 const SUPERSEDED_CLOSE_LOG = 'Closed a socket whose creator attempt is not the committing one';

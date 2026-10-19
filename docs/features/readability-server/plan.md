@@ -24,12 +24,12 @@ One developer, one commit per item, in the order of the spec.
 - [x] **Step 1:** pin which queue each request kind joins (4367a7b0), then dispatch the worker listener and `handle` from records keyed by request kind.
 - [x] **Step 2:** message constants in `agent-sessions.ts` and `registration-limits.ts`.
 - [x] **Step 3:** `Promise` suffix on seven names.
-- [ ] **Step 4:** `SECOND_MS` in the two testing clients.
-- [ ] **Step 5:** `temporaryDirectory` under `apps/server/src/testing`.
-- [ ] **Step 6:** one retry helper in `versions-routes.ts`.
-- [ ] **Step 7:** un-export dead exports.
-- [ ] **Step 8:** split `createServices` and `createDocumentsRoutes`.
-- [ ] **Step 9:** sweep, fix clear cases, list the rest.
+- [x] **Step 4:** `SECOND_MS` in the two testing clients (060d7a5b).
+- [x] **Step 5:** `temporaryDirectory` under `apps/server/src/testing` (bceed4c1).
+- [x] **Step 6:** one retry helper in `versions-routes.ts` (d72f648f).
+- [x] **Step 7:** un-export dead exports (5b11ff96).
+- [x] **Step 8:** split `createServices` and `createDocumentsRoutes` (ea440441).
+- [x] **Step 9:** sweep, fix clear cases, list the rest (02780b3d, 539f0deb; the rest is under Known gaps in the spec).
 
 ## Failure modes
 
@@ -44,6 +44,6 @@ One developer, one commit per item, in the order of the spec.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.

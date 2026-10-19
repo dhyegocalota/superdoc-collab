@@ -31,6 +31,7 @@ import {
   USE_WITH_AI_TITLE,
 } from '../apps/web/src/features/connected-apps/connected-apps-copy';
 import {
+  CANCEL_TITLE_LABEL,
   EXPORT_FAILED_MESSAGE,
   FIND_IN_DOCUMENT_LABEL,
   DOWNLOAD_PDF_LABEL,
@@ -39,6 +40,7 @@ import {
   movedToCursorMessage,
   offlineMemberReason,
   PREPARING_PDF_MESSAGE,
+  SAVE_TITLE_LABEL,
   TIMELINE_TOGGLE_LABEL,
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
@@ -111,6 +113,7 @@ const LONG_DOCUMENT_LINES = 40;
 const LAST_LINE_PREFIX = 'Line 40';
 const RENAMED_TITLE = 'Renamed';
 const DISCARDED_TITLE = 'Discard';
+const SAVED_WITH_BUTTON_TITLE = 'Saved by button';
 const FIRST_EDIT = ' More money';
 const SECOND_EDIT = ' and more';
 const FAST_LEAVE_DEADLINE_MS = MEMBERS_PRESENCE_DEBOUNCE_MS + 1.5 * SECOND_MS;
@@ -278,7 +281,7 @@ test('the top bar shows for an editor and the toolbar row is absent for a reader
   await expect(toolbarRow(caio.page)).toHaveCount(0);
 });
 
-test('the title renames on Enter and Escape restores it', async ({ browser }) => {
+test('the title renames on Enter or Save and Escape or Cancel restores it', async ({ browser }) => {
   const { ana, title } = await ownerOpensDocument({ browser });
   await titleButton({ page: ana.page, title }).click();
   const titleInput = ana.page.getByLabel(TITLE_LABEL, { exact: true });
@@ -295,6 +298,16 @@ test('the title renames on Enter and Escape restores it', async ({ browser }) =>
   await expect(titleButton({ page: ana.page, title: RENAMED_TITLE })).toBeVisible();
   await ana.page.reload();
   await expect(titleButton({ page: ana.page, title: RENAMED_TITLE })).toBeVisible();
+  await titleButton({ page: ana.page, title: RENAMED_TITLE }).click();
+  await ana.page.getByLabel(TITLE_LABEL, { exact: true }).fill(SAVED_WITH_BUTTON_TITLE);
+  const buttonRenameResponse = ana.page.waitForResponse((response) => response.request().method() === HttpMethod.Patch);
+  await ana.page.getByRole('button', { name: SAVE_TITLE_LABEL, exact: true }).click();
+  expect((await buttonRenameResponse).ok()).toBe(true);
+  await expect(titleButton({ page: ana.page, title: SAVED_WITH_BUTTON_TITLE })).toBeVisible();
+  await titleButton({ page: ana.page, title: SAVED_WITH_BUTTON_TITLE }).click();
+  await ana.page.getByLabel(TITLE_LABEL, { exact: true }).fill(DISCARDED_TITLE);
+  await ana.page.getByRole('button', { name: CANCEL_TITLE_LABEL, exact: true }).click();
+  await expect(titleButton({ page: ana.page, title: SAVED_WITH_BUTTON_TITLE })).toBeVisible();
 });
 
 test('Download starts a docx download with no error', async ({ browser }) => {

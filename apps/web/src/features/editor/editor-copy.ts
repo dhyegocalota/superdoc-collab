@@ -3,6 +3,8 @@ import { APP_NAME } from '../../lib/app-copy';
 import { DownloadFormat } from './download-format';
 
 export const TITLE_LABEL = 'Title';
+export const SAVE_TITLE_LABEL = 'Save';
+export const CANCEL_TITLE_LABEL = 'Cancel';
 export const SHARE_LABEL = 'Share';
 export const DELETE_LABEL = 'Delete';
 export const MORE_ACTIONS_LABEL = 'More actions';

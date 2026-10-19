@@ -13,6 +13,7 @@ const [ana] = DEMO_USERS;
 const PUBLIC_ASSETS = [
   { path: '/robots.txt', contentType: 'text/plain' },
   { path: '/site.webmanifest', contentType: 'manifest' },
+  { path: '/favicon.ico', contentType: 'icon' },
   { path: '/favicon.svg', contentType: 'image/svg+xml' },
   { path: '/og-image.png', contentType: 'image/png' },
 ];

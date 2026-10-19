@@ -16,7 +16,20 @@ import { APP_NAME } from './app-copy';
 const PUBLIC_DIRECTORY = join(__dirname, '..', '..', 'public');
 const JSON_LD_PATTERN = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/;
 const COLOR_SCHEME_QUERIES = ['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)'];
-const PUBLIC_ASSETS = ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'og-image.png', 'site.webmanifest', 'robots.txt'];
+const PUBLIC_ASSETS = [
+  'favicon.svg',
+  'favicon.ico',
+  'favicon-32.png',
+  'apple-touch-icon.png',
+  'og-image.png',
+  'site.webmanifest',
+  'robots.txt',
+];
+const ICO_HEADER_LENGTH = 6;
+const ICO_ENTRY_LENGTH = 16;
+const ICO_IMAGE_SIZE_OFFSET = 14;
+const PNG_COLOR_TYPE_OFFSET = 25;
+const PNG_COLOR_TYPE_TRUECOLOR = 2;
 const MANIFEST_FILE = 'site.webmanifest';
 const ROBOTS_FILE = 'robots.txt';
 const OPEN_GRAPH_IMAGE = '/og-image.png';
@@ -65,7 +78,9 @@ test('Open Graph and Twitter tags describe the app with the shared image', () =>
 
 test('the icons and the manifest are linked', () => {
   const hrefs = ['icon', 'apple-touch-icon', 'manifest'].flatMap((relation) => linkTags(relation).map((tag) => tag.getAttribute('href')));
-  expect(hrefs).toEqual(expect.arrayContaining(['/favicon.svg', '/favicon-32.png', '/apple-touch-icon.png', `/${MANIFEST_FILE}`]));
+  expect(hrefs).toEqual(
+    expect.arrayContaining(['/favicon.svg', '/favicon.ico', '/favicon-32.png', '/apple-touch-icon.png', `/${MANIFEST_FILE}`]),
+  );
 });
 
 test('every public asset exists and index.html or the manifest names it', () => {
@@ -97,4 +112,17 @@ test('the JSON-LD is a SoftwareApplication that matches the About copy', () => {
     isBasedOn: { '@type': 'SoftwareApplication', name: SUPERDOC_NAME, url: SUPERDOC_URL },
     offers: { '@type': 'Offer', price: '0' },
   });
+});
+
+test('favicon.ico is an ICO container holding one 32 px PNG', () => {
+  const icon = readFileSync(join(PUBLIC_DIRECTORY, 'favicon.ico'));
+  const png = readFileSync(join(PUBLIC_DIRECTORY, 'favicon-32.png'));
+  expect([...icon.subarray(0, ICO_HEADER_LENGTH)]).toEqual([0, 0, 1, 0, 1, 0]);
+  expect(icon.readUInt32LE(ICO_IMAGE_SIZE_OFFSET)).toBe(png.length);
+  expect(icon.subarray(ICO_HEADER_LENGTH + ICO_ENTRY_LENGTH).equals(png)).toBe(true);
+});
+
+test('the apple touch icon has no alpha channel, so iOS paints no black corners', () => {
+  const png = readFileSync(join(PUBLIC_DIRECTORY, 'apple-touch-icon.png'));
+  expect(png.readUInt8(PNG_COLOR_TYPE_OFFSET)).toBe(PNG_COLOR_TYPE_TRUECOLOR);
 });

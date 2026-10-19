@@ -6,7 +6,7 @@ import type { Hono } from 'hono';
 const INDEX_FILE = 'index.html';
 const API_PREFIX = '/api';
 
-export function mountStaticWeb({ app, webDistDirectory }: { app: Hono; webDistDirectory: string }): void {
+export function mountStaticWeb({ app, webDistDirectory, appOrigin }: { app: Hono; webDistDirectory: string; appOrigin: string }): void {
   const indexHtml = readFileSync(join(webDistDirectory, INDEX_FILE), 'utf8');
   app.use('*', serveStatic({ root: webDistDirectory }));
   app.get('*', async (context, next) => {

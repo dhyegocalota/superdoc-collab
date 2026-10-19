@@ -1,6 +1,6 @@
-import { DAY_MS, HOUR_MS, MINUTE_MS, SECOND_MS, VERSION_MARK_MS, WEEK_MS } from '@superdoc-collab/types';
+import { DAY_MS, HOUR_MS, MINUTE_MS, SECOND_MS, WEEK_MS } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { BIN_LADDER_MS, MAX_BINS, NonAdvancingBinError, TooManyBinsError, binStartsCovering, buildBins, chooseBinMs } from './bins';
+import { MAX_BINS, NonAdvancingBinError, TooManyBinsError, binStartsCovering, buildBins, chooseBinMs } from './bins';
 import type { EditRun } from './runs';
 import { offsetAt, zonedBinStartOf } from './zoned-time';
 
@@ -220,8 +220,4 @@ test('a span that needs more than MAX_BINS bins is refused instead of walked', (
 
 test('the non advancing bin error names both instants', () => {
   expect(new NonAdvancingBinError({ start: 5, next: 3 }).message).toContain('3');
-});
-
-test('every bin width is a whole number of version mark windows, so a bin end always has a mark', () => {
-  expect(BIN_LADDER_MS.filter((binMs) => binMs % VERSION_MARK_MS !== 0)).toEqual([]);
 });

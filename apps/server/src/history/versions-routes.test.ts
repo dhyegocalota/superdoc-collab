@@ -88,7 +88,7 @@ test('every version served equals a full replay at its mark', { timeout: 60_000 
   await server.stop();
 });
 
-test('a logged sequence that is not a mark resolves to the mark that ends its minute', async () => {
+test('a logged sequence that is not a mark resolves to itself', async () => {
   const { server, documentId, owner, client } = await editedAfterBootstrap();
   const latestLogged = () =>
     server.services.updateLog.read({ documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER }).at(-1)!.sequence;
@@ -107,7 +107,7 @@ test('a logged sequence that is not a mark resolves to the mark that ends its mi
     .find((update) => minuteStartOf(update.serverTime) === newest.minuteStart);
   expect(prunedInNewestMinute).toBeDefined();
   const version = await pollVersion({ server, cookie: owner.cookie, documentId, sequence: prunedInNewestMinute!.sequence });
-  expect(version.sequence).toBe(newest.sequence);
+  expect(version.sequence).toBe(prunedInNewestMinute!.sequence);
   client.close();
   await server.stop();
 });

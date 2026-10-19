@@ -18,6 +18,10 @@ export class GcFreeReplays {
     return Y.createDocFromSnapshot(this.caughtUp({ log, documentName }), Y.decodeSnapshot(mark.snapshot));
   }
 
+  versionAt(_: { log: UpdateLog; documentName: string; sequence: number }): Y.Doc {
+    throw new Error('versionAt is not implemented');
+  }
+
   forget(documentName: string): void {
     this.replays.delete(documentName);
   }

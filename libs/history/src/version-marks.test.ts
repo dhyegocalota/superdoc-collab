@@ -16,11 +16,11 @@ const SUMMARIES: VersionMarkSummary[] = [
   { sequence: 9, serverTime: 70, minuteStart: 60, isBootstrap: false },
   { sequence: 14, serverTime: 130, minuteStart: 120, isBootstrap: false },
 ];
-const WINDOW_SIXTIETH_MS = VERSION_MARK_MS / 60;
+const SECOND = 1000;
 const MINUTES: VersionMarkSummary[] = [
-  { sequence: 3, serverTime: 10 * WINDOW_SIXTIETH_MS, minuteStart: 0, isBootstrap: true },
-  { sequence: 9, serverTime: 70 * WINDOW_SIXTIETH_MS, minuteStart: VERSION_MARK_MS, isBootstrap: false },
-  { sequence: 14, serverTime: 130 * WINDOW_SIXTIETH_MS, minuteStart: 2 * VERSION_MARK_MS, isBootstrap: false },
+  { sequence: 3, serverTime: 10 * SECOND, minuteStart: 0, isBootstrap: true },
+  { sequence: 9, serverTime: 70 * SECOND, minuteStart: VERSION_MARK_MS, isBootstrap: false },
+  { sequence: 14, serverTime: 130 * SECOND, minuteStart: 2 * VERSION_MARK_MS, isBootstrap: false },
 ];
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2026, 9, 16, 9, 0) }));
@@ -47,20 +47,20 @@ test('keeps the bootstrap mark and one mark per minute', () => {
 });
 
 test('versionSequenceAt picks the latest mark of the time minute or before, else the first', () => {
-  expect(versionSequenceAt({ marks: MINUTES, time: 75 * WINDOW_SIXTIETH_MS })).toBe(9);
-  expect(versionSequenceAt({ marks: MINUTES, time: 5 * WINDOW_SIXTIETH_MS })).toBe(3);
-  expect(versionSequenceAt({ marks: [], time: 5 * WINDOW_SIXTIETH_MS })).toBeNull();
+  expect(versionSequenceAt({ marks: MINUTES, time: 75 * SECOND })).toBe(9);
+  expect(versionSequenceAt({ marks: MINUTES, time: 5 * SECOND })).toBe(3);
+  expect(versionSequenceAt({ marks: [], time: 5 * SECOND })).toBeNull();
 });
 
 test('a mark replaced later in the same minute still resolves for an earlier time in that minute', () => {
-  const replaced = [MINUTES[0]!, { sequence: 12, serverTime: 110 * WINDOW_SIXTIETH_MS, minuteStart: VERSION_MARK_MS, isBootstrap: false }];
-  expect(versionSequenceAt({ marks: replaced, time: 65 * WINDOW_SIXTIETH_MS })).toBe(12);
-  expect(versionSequenceAt({ marks: replaced, time: 119 * WINDOW_SIXTIETH_MS })).toBe(12);
+  const replaced = [MINUTES[0]!, { sequence: 12, serverTime: 110 * SECOND, minuteStart: VERSION_MARK_MS, isBootstrap: false }];
+  expect(versionSequenceAt({ marks: replaced, time: 65 * SECOND })).toBe(12);
+  expect(versionSequenceAt({ marks: replaced, time: 119 * SECOND })).toBe(12);
 });
 
 test('a time in a later minute with no mark resolves to the previous minute mark', () => {
   expect(versionSequenceAt({ marks: MINUTES, time: 10 * VERSION_MARK_MS })).toBe(14);
-  expect(versionSequenceAt({ marks: MINUTES.slice(0, 2), time: 2 * VERSION_MARK_MS + 30 * WINDOW_SIXTIETH_MS })).toBe(9);
+  expect(versionSequenceAt({ marks: MINUTES.slice(0, 2), time: 2 * VERSION_MARK_MS + 30 * SECOND })).toBe(9);
 });
 
 test('clampToMark snaps down and lifts a sequence before the first mark', () => {
@@ -69,22 +69,20 @@ test('clampToMark snaps down and lifts a sequence before the first mark', () => 
   expect(clampToMark({ marks: SUMMARIES, sequence: 99 })?.sequence).toBe(14);
 });
 
-test('a sequence whose mark was pruned resolves to the surviving mark of its minute', () => {
-  const prunedInThirdMinute = { sequence: 12, serverTime: 125 * WINDOW_SIXTIETH_MS };
-  expect(
-    resolveMark({ marks: MINUTES, sequence: prunedInThirdMinute.sequence, serverTime: prunedInThirdMinute.serverTime })?.sequence,
-  ).toBe(14);
-  expect(resolveMark({ marks: MINUTES, sequence: 9, serverTime: 70 * WINDOW_SIXTIETH_MS })?.sequence).toBe(9);
+test('a sequence the log knows resolves to itself whether or not it is a mark', () => {
+  const unmarked = { sequence: 12, serverTime: 125 * SECOND };
+  expect(resolveMark({ marks: MINUTES, ...unmarked })).toEqual(unmarked);
+  expect(resolveMark({ marks: MINUTES, sequence: 9, serverTime: 70 * SECOND })?.sequence).toBe(9);
 });
 
-test('a sequence pruned in the bootstrap minute resolves to the mark that ends that minute, not the bootstrap', () => {
-  const bootstrapMinute = [MINUTES[0]!, { sequence: 5, serverTime: 50 * WINDOW_SIXTIETH_MS, minuteStart: 0, isBootstrap: false }];
-  expect(resolveMark({ marks: bootstrapMinute, sequence: 4, serverTime: 30 * WINDOW_SIXTIETH_MS })?.sequence).toBe(5);
+test('a known sequence inside the bootstrap minute resolves to itself, not the bootstrap', () => {
+  const bootstrapMinute = [MINUTES[0]!, { sequence: 5, serverTime: 50 * SECOND, minuteStart: 0, isBootstrap: false }];
+  expect(resolveMark({ marks: bootstrapMinute, sequence: 4, serverTime: 30 * SECOND })?.sequence).toBe(4);
 });
 
 test('a sequence before the first mark resolves to the first mark even when later marks share its minute', () => {
-  const sameMinute = [MINUTES[0]!, { sequence: 5, serverTime: 20 * WINDOW_SIXTIETH_MS, minuteStart: 0, isBootstrap: false }];
-  expect(resolveMark({ marks: sameMinute, sequence: 1, serverTime: 2 * WINDOW_SIXTIETH_MS })?.sequence).toBe(3);
+  const sameMinute = [MINUTES[0]!, { sequence: 5, serverTime: 20 * SECOND, minuteStart: 0, isBootstrap: false }];
+  expect(resolveMark({ marks: sameMinute, sequence: 1, serverTime: 2 * SECOND })?.sequence).toBe(3);
 });
 
 test('a sequence the log does not know clamps down like before', () => {

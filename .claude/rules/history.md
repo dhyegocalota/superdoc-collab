@@ -57,7 +57,6 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - Snapshot + tail equals a full replay at every sequence. (poc/RESULTS.md)
 - `onLoadDocument` restores the room with `materialize` and applies it with origin `update-log-replay`. (poc/server/collaboration-server.ts)
 - Time travel will use native Yjs snapshots; the design is proposed, not proven. (ADR 0003)
-- A version mark is kept per `VERSION_MARK_MS`, the narrowest bin of 10 seconds, and ends its window with the last update of it; every bin width is a multiple of it, so a bin end has a mark that excludes later edits. (libs/types/src/constants.ts, libs/history/src/timeline/bins.ts, ADR 0003)
 
 ## SingleFlight
 - Concurrent calls with the same key share one computation; a settled value is cached by key. (poc/lib/single-flight.ts)

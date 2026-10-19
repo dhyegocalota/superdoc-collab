@@ -1,4 +1,4 @@
-import { MINUTE_MS, NARROWEST_BIN_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
+import { MINUTE_MS, SECOND_MS, WEEK_MS, type TimelineBin, type TimelineCell } from '@superdoc-collab/types';
 import { MAX_REVISION_YEAR, MIN_REVISION_YEAR } from '../imported-revisions';
 import { isAgentRun, type EditRun } from './runs';
 import { nextZonedBinStart, zonedBinStartOf } from './zoned-time';
@@ -20,7 +20,7 @@ export class TooManyBinsError extends Error {
     super(`The span needs more than ${limit} bins.`);
   }
 }
-const SUB_MINUTE_BINS_MS = [NARROWEST_BIN_MS, 30 * SECOND_MS];
+const SUB_MINUTE_BINS_MS = [10 * SECOND_MS, 30 * SECOND_MS];
 const BIN_LADDER_MINUTES = [1, 2, 5, 10, 15, 30, 60, 180, 360, 720, 1440];
 export const BIN_LADDER_MS = [...SUB_MINUTE_BINS_MS, ...BIN_LADDER_MINUTES.map((minutes) => minutes * MINUTE_MS), WEEK_MS];
 

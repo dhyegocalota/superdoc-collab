@@ -6,9 +6,7 @@ import { projectPending } from './projection';
 import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
 import { readMainStoryText } from './document-content';
-import { BIN_LADDER_MS } from './timeline/bins';
 import { UpdateLog, replay } from './update-log';
-import { versionSequenceAt } from './version-marks';
 import { GcFreeReplays, REPLAY_CACHE_SIZE } from './version-state';
 
 const DOCUMENT = 'version-room';
@@ -23,8 +21,8 @@ const LCG_MULTIPLIER = 1664525;
 const LCG_INCREMENT = 1013904223;
 const LCG_MODULUS = 2 ** 32;
 const MAX_RANDOM_LENGTH = 40;
-const NARROWEST_BIN_MS = BIN_LADDER_MS[0]!;
 const START_TIME = Date.UTC(2026, 9, 16, 9, 0);
+const STEP_MS = 2000;
 
 function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadModel; ana: Y.Doc } {
   const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
@@ -102,18 +100,37 @@ test('a seeded random history restores exactly at every mark', () => {
   expectEveryMarkRestored({ log, readModel });
 });
 
-test('the version of a bin that ends before a later delete in the same minute shows the edit', () => {
-  const { log, readModel, ana } = bootstrappedLog(['Plan']);
-  vi.advanceTimersByTime(NARROWEST_BIN_MS / 10);
+function expectEveryLoggedSequenceRestored(log: UpdateLog): void {
+  const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
+  log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).forEach(({ sequence }) => {
+    const restored = replays.versionAt({ log, documentName: DOCUMENT, sequence });
+    const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
+    expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
+  });
+}
+
+test('the version at the sequence of an edit shows the edit after a later delete in the same minute', () => {
+  const { log, ana } = bootstrappedLog(['Plan']);
+  vi.advanceTimersByTime(STEP_MS);
   writeStory({ document: ana, texts: ['Plan', 'Added'] });
-  vi.advanceTimersByTime(NARROWEST_BIN_MS / 10);
+  vi.advanceTimersByTime(STEP_MS);
   writeStory({ document: ana, texts: ['Plan', 'Added and edited'] });
-  vi.advanceTimersByTime(NARROWEST_BIN_MS);
+  vi.advanceTimersByTime(STEP_MS);
   writeStory({ document: ana, texts: ['Plan'] });
-  projectPending({ log, readModel, documentName: DOCUMENT, batchSize: BATCH_SIZE });
-  const binEnd = START_TIME + NARROWEST_BIN_MS;
-  const sequence = versionSequenceAt({ marks: readModel.marks(DOCUMENT), time: binEnd - 1 });
-  const mark = readModel.mark({ documentName: DOCUMENT, sequence: sequence! });
-  const version = new GcFreeReplays(REPLAY_CACHE_SIZE).version({ log, documentName: DOCUMENT, mark: mark! });
+  const sequences = log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).map(({ sequence }) => sequence);
+  const editSequence = sequences.at(-2)!;
+  const version = new GcFreeReplays(REPLAY_CACHE_SIZE).versionAt({ log, documentName: DOCUMENT, sequence: editSequence });
   expect(readMainStoryText(version)).toBe('PlanAdded and edited');
+});
+
+test('every logged sequence restores exactly as a full replay, deletes included', () => {
+  const { log, ana } = bootstrappedLog(['Plan']);
+  const draft = ana.getText('draft');
+  Array.from({ length: DELETE_ROUNDS }).forEach((_, round) => {
+    vi.advanceTimersByTime(STEP_MS);
+    draft.insert(0, 'x'.repeat(INSERTED_PER_ROUND));
+    draft.delete(0, DELETED_PER_ROUND);
+    writeStory({ document: ana, texts: ['Plan', round % 2 === 0 ? `Line ${round}` : ''] });
+  });
+  expectEveryLoggedSequenceRestored(log);
 });

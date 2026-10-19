@@ -51,3 +51,12 @@ The commit `69704600` is not self-contained: it missed the shell files, which `a
 - The 409 for the last admin is reachable only when the sole active admin archives themself; with two admins that case is a 400.
 - A page that fills the viewport with a fixed height (the editor) scrolls by the banner's height while impersonating; the editor is another lane's file and was not touched.
 - Not run: the Playwright MCP walk, the one-hour expiry edge case, the version viewer and MCP client after archiving.
+
+## Tester run 2026-10-19
+
+Walk on the scenario stack at 1280 and 375, one browser per person. The seeded administrator is admin@example.com, not Ana.
+
+- Confirmed: archive with a confirm dialog that names the person, Cancel sends nothing; Bruno's open editor loses its connection and his next sign-in shows the archived message; Restore lets him in with his text intact; two documents open for one archived user both lose the connection; Impersonate shows the banner on documents and in the editor with no page scroll at 1280 and 375; the account menu shows the impersonated user; Stop impersonating returns to Admin; Impersonate is hidden on admin rows and Archive on the signed-in admin's row; impersonation edits attribute to the impersonated user; the impersonation session lasts exactly one hour and, once expired, the next page load shows Sign in.
+- Found (refutes hypothesis 3): right after Impersonate, the admin page requests /api/admin/users and /api/admin/invites as the impersonated user, gets 403 and shows an "Admins only" toast over Caio's documents. Two console errors. Needs a regression test that Impersonate navigates without leaving admin queries running.
+- Noted: with the session expired in the database, one /api/me still answered 200 from the cached session cookie before the page load went to Sign in.
+- Blocked: archiving with a connected MCP client and the version viewer were not walked.

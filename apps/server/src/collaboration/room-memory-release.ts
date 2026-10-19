@@ -2,6 +2,7 @@ import { LARGE_ROOM_STATE_BYTES, MINUTE_MS, SECOND_MS } from '@superdoc-collab/t
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 
 export const ROOM_MEMORY_RELEASE_DELAY_MS = SECOND_MS;
+export const ROOM_MEMORY_RELEASE_PASSES = 2;
 export const ROOM_MEMORY_RELEASED_MESSAGE = 'Released the memory of a heavy room, resident bytes before and after and pause milliseconds:';
 const RELEASE_COOLDOWN_MS = MINUTE_MS;
 const RELEASE_COOLDOWN_KEY = 'process';

@@ -1,6 +1,11 @@
 import { LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { createRoomMemoryRelease, ROOM_MEMORY_RELEASE_DELAY_MS, ROOM_MEMORY_RELEASED_MESSAGE } from './room-memory-release';
+import {
+  createRoomMemoryRelease,
+  ROOM_MEMORY_RELEASE_DELAY_MS,
+  ROOM_MEMORY_RELEASE_PASSES,
+  ROOM_MEMORY_RELEASED_MESSAGE,
+} from './room-memory-release';
 
 const RESIDENT_BEFORE_BYTES = 3_000_000_000;
 const RESIDENT_AFTER_BYTES = 900_000_000;
@@ -44,7 +49,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test('a heavy room that unloads gets one regular, synchronous collection once the delay has passed, logged with the pause', async () => {
+test('a heavy room that unloads gets two regular, synchronous collections once the delay has passed, logged with the pause', async () => {
   const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
   const times = [0, 0, PAUSE_MS];
   const { collectGarbage, release } = releaseWith({
@@ -56,7 +61,8 @@ test('a heavy room that unloads gets one regular, synchronous collection once th
   await vi.advanceTimersByTimeAsync(ROOM_MEMORY_RELEASE_DELAY_MS - 1);
   expect(collectGarbage).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
-  expect(collectGarbage).toHaveBeenCalledExactlyOnceWith({ type: 'major', execution: 'sync', flavor: 'regular' });
+  expect(collectGarbage).toHaveBeenCalledTimes(ROOM_MEMORY_RELEASE_PASSES);
+  expect(collectGarbage).toHaveBeenLastCalledWith({ type: 'major', execution: 'sync', flavor: 'regular' });
   expect(consoleInfo).toHaveBeenCalledWith(`${ROOM_MEMORY_RELEASED_MESSAGE} ${RESIDENT_BEFORE_BYTES} ${RESIDENT_AFTER_BYTES} ${PAUSE_MS}`);
   consoleInfo.mockRestore();
 });
@@ -77,7 +83,7 @@ test('a second heavy unload inside the cooldown collects nothing', async () => {
     release.unloaded(documentName);
   });
   await afterReleaseDelay();
-  expect(collectGarbage).toHaveBeenCalledOnce();
+  expect(collectGarbage).toHaveBeenCalledTimes(ROOM_MEMORY_RELEASE_PASSES);
 });
 
 test('a room unloaded twice is collected for once', async () => {
@@ -87,7 +93,7 @@ test('a room unloaded twice is collected for once', async () => {
   release.unloaded(HEAVY_ROOM);
   release.unloaded(HEAVY_ROOM);
   await afterReleaseDelay();
-  expect(collectGarbage).toHaveBeenCalledOnce();
+  expect(collectGarbage).toHaveBeenCalledTimes(ROOM_MEMORY_RELEASE_PASSES);
 });
 
 test('without an exposed collector nothing runs and nothing is logged', async () => {

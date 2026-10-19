@@ -1011,6 +1011,15 @@ test('before the delay SuperDoc keeps its own loading overlay and the panel then
   expect(screen.getByTestId('editor-surface')).toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
 });
 
+test('the editor panel offers Back to documents and Escape takes it', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  const { router } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(within(panel).getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
+  await userEvent.keyboard('{Escape}');
+  expect(router.state.location.pathname).toBe('/documents');
+});
+
 test('a failed connection hides the panel so the banner is not covered', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });

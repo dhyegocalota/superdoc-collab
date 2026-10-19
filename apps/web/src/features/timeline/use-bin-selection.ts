@@ -17,7 +17,7 @@ export function useBinSelection({
 }: {
   timeline: DocumentTimeline | undefined;
   at: number | null;
-  onTravel: (binStart: number) => void;
+  onTravel: ((binStart: number) => void) | null;
   onBackToLive: () => void;
 }): BinSelection {
   const [selectedTime, setSelectedTime] = useState<number | null>(at);

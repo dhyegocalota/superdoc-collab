@@ -1,4 +1,10 @@
-import { LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS, MINUTE_MS, PROJECTION_WORKER_QUIET_MS } from '@superdoc-collab/types';
+import {
+  LARGE_DOCUMENT_HEAP_BYTES,
+  MAX_PENDING_VERSION_JOBS,
+  MINUTE_MS,
+  PROJECTION_WORKER_QUIET_MS,
+  PROJECTION_WORKER_RECYCLE_INTERVAL_MS,
+} from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
@@ -85,12 +91,15 @@ export class ProjectionScheduler {
     projectionWorkerFile = null,
     workerHeapMegabytes = null,
     recycleQuietMs = PROJECTION_WORKER_QUIET_MS,
+    recycleIntervalMs = PROJECTION_WORKER_RECYCLE_INTERVAL_MS,
   }: {
     databaseDirectory: string;
     projectionWorkerFile?: URL | null;
     workerHeapMegabytes?: number | null;
     recycleQuietMs?: number;
+    recycleIntervalMs?: number;
   }) {
+    void recycleIntervalMs;
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
     this.workerHeapMegabytes = workerHeapMegabytes;
@@ -313,7 +322,11 @@ export class ProjectionScheduler {
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Import, documentId, filePath }),
     );
     [...this.forgetting.keys()].forEach((documentId) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Forget, documentId }));
-    this.waitingRequests.repost({ post: (request) => this.currentWorker.postMessage(request), maxPosts: MAX_REQUEST_POSTS });
+    this.waitingRequests.repost({
+      post: (request) => this.currentWorker.postMessage(request),
+      maxPosts: MAX_REQUEST_POSTS,
+      countsPosts: true,
+    });
   }
 
   private withinRestartBudget(): boolean {

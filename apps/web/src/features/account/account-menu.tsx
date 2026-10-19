@@ -35,6 +35,7 @@ import {
   accountMenuLabel,
 } from './account-copy';
 
+const MENU_CLASS_NAME = 'w-64';
 const SECTION_LABEL_CLASS_NAME = 'text-xs font-normal text-muted-foreground';
 
 function keepMenuOpen(event: Event): void {
@@ -69,7 +70,7 @@ export function AccountMenu({ colorSlot, canEditShortcuts = true }: { colorSlot:
             <UserAvatar name={user.name} colorSlot={avatarColorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className={MENU_CLASS_NAME}>
           <DropdownMenuLabel>
             <span className="block truncate">{user.name}</span>
             <span className="block truncate text-xs font-normal text-muted-foreground">{user.email}</span>

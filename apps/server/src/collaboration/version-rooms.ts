@@ -156,8 +156,9 @@ export class VersionRooms {
         connection.readOnly = true;
         return { userId, documentId: endpoint.documentId };
       },
-      async onLoadDocument({ document }) {
-        Y.applyUpdate(document, (await versions.load(endpoint)).state, LOADING_ORIGIN);
+      async onLoadDocument({ document, context }) {
+        const { userId } = context as { userId: string };
+        Y.applyUpdate(document, (await versions.load({ ...endpoint, userId })).state, LOADING_ORIGIN);
       },
       connected: async () => this.cancelIdle(key),
       afterUnloadDocument: async () => this.scheduleIdle(key),

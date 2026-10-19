@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '@superdoc-collab/types';
+import { MAX_PENDING_VERSION_JOBS, MINUTE_MS } from '@superdoc-collab/types';
 import { Worker } from 'node:worker_threads';
 import { SlidingWindow } from '../limits/sliding-window';
 import { describeError } from '../logging/describe-error';
@@ -6,6 +6,7 @@ import {
   IMPORT_FAILED_MESSAGE,
   IMPORT_SKIPPED_MESSAGE,
   PROJECTION_FAILED_MESSAGE,
+  ProjectionBusyError,
   ProjectionDegradedError,
   ProjectionReplyKind,
   ProjectionRequestKind,
@@ -95,8 +96,12 @@ export class ProjectionScheduler {
     return this.rebuildingDocuments.has(documentId);
   }
 
+  // NB ADR 0044: above the pending cap a version build is refused, never queued behind the serial worker.
   version({ documentId, sequence }: { documentId: string; sequence: number }): Promise<VersionReply> {
-    return this.serve({ kind: ProjectionRequestKind.Version, documentId, sequence }) as Promise<VersionReply>;
+    const request = { kind: ProjectionRequestKind.Version, documentId, sequence } as const;
+    const isOverCap = this.waitingRequests.pendingOfKind(ProjectionRequestKind.Version) >= MAX_PENDING_VERSION_JOBS;
+    if (isOverCap && !this.waitingRequests.has(request)) return Promise.reject(new ProjectionBusyError());
+    return this.serve(request) as Promise<VersionReply>;
   }
 
   blocks(documentId: string): Promise<BlocksReply> {

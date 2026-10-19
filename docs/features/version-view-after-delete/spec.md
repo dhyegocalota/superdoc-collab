@@ -55,6 +55,10 @@ The first fix attempt, a mark per narrowest bin, was dropped: the owner adds, ed
 | Version cache | an `LruMap` by exact sequence, 16 entries and 256 MiB (`VERSION_CACHE_SIZE`, `VERSION_CACHE_MAX_BYTES`) |
 | Version rooms | an `LruMap` by exact sequence, 32 rooms (`VERSION_ROOMS_LIMIT`), idle after a minute |
 | Replay cache in the worker | 2 gc-free documents; a version adds one temporary merged update |
+| Builds per user | 30 in a rolling minute (`VERSION_LOADS_PER_MINUTE`), counted only for a build that is not cached, in flight or failed; 429 with `Retry-After` above it |
+| Pending version jobs | 8 (`MAX_PENDING_VERSION_JOBS`); the next distinct request is refused with 503 and `Retry-After`, never queued |
+
+Both limits come from [ADR 0044](../../adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md): exact resolution makes every sequence a cache miss, so one reader could otherwise keep the serial projection queue busy for every document.
 
 The 4-page fixture was not measured on its own: a DOCX import is a handful of updates, so its build time sits at the cheap end of this table. The cost is the merge of the log up to the sequence, not the replay, which the cache already keeps current.
 

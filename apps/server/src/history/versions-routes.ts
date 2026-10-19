@@ -3,8 +3,10 @@ import {
   HttpStatus,
   NON_NEGATIVE_INTEGER_PATTERN,
   RETRY_AFTER_SECONDS,
+  SECOND_MS,
   TimelineQueryParam,
   VERSION_FAILED_ERROR,
+  VERSION_THROTTLED_ERROR,
   VERSION_NOT_READY_ERROR,
   versionCollaborationPath,
   type VersionMarks,
@@ -17,7 +19,7 @@ import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
 import { retryLater, type RetryLaterOptions } from '../http/retry-later';
-import { marksAround, VersionLookupKind } from './versions-service';
+import { marksAround, VersionLookupKind, VersionThrottledError } from './versions-service';
 
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
@@ -56,12 +58,19 @@ function mountSummary({ routes, services }: RouteMount): void {
         status: HttpStatus.Accepted,
       });
     if (!mark) return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
-    const lookup = services.versions.peek({ documentId, sequence: mark.sequence });
+    const lookup = services.versions.peek({ documentId, sequence: mark.sequence, userId: context.get('user').id });
     if (lookup.kind === VersionLookupKind.Failed)
       return retryVersionLater({
         context,
         body: { error: VERSION_FAILED_ERROR },
         status: HttpStatus.ServiceUnavailable,
+      });
+    if (lookup.kind === VersionLookupKind.Throttled)
+      return retryLater({
+        context,
+        body: { error: VERSION_THROTTLED_ERROR },
+        status: HttpStatus.TooManyRequests,
+        retryAfterSeconds: Math.ceil(lookup.retryAfterMs / SECOND_MS),
       });
     if (lookup.kind === VersionLookupKind.Pending)
       return retryVersionLater({
@@ -86,10 +95,21 @@ function mountText({ routes, services }: RouteMount): void {
     if (!services.versions.resolve({ documentId, sequence: Number(sequenceText) }))
       return context.json({ error: VERSION_NOT_READY_ERROR }, HttpStatus.Conflict);
     try {
-      const { sequence, text } = await services.versions.load({ documentId, sequence: Number(sequenceText) });
+      const { sequence, text } = await services.versions.load({
+        documentId,
+        sequence: Number(sequenceText),
+        userId: context.get('user').id,
+      });
       const body: VersionText = { sequence, text };
       return context.json(body);
-    } catch {
+    } catch (error) {
+      if (error instanceof VersionThrottledError)
+        return retryLater({
+          context,
+          body: { error: VERSION_THROTTLED_ERROR },
+          status: HttpStatus.TooManyRequests,
+          retryAfterSeconds: Math.ceil(error.retryAfterMs / SECOND_MS),
+        });
       return retryVersionLater({
         context,
         body: { error: VERSION_FAILED_ERROR },

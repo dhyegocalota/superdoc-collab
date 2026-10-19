@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { Browser, Locator, Page } from '@playwright/test';
-import { ACCOUNT_ARCHIVED_MESSAGE, AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE } from '../libs/types/src';
+import { ACCOUNT_ARCHIVED_MESSAGE, AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, HttpStatus } from '../libs/types/src';
 import { accountMenuLabel } from '../apps/web/src/features/account/account-copy';
-import { ARCHIVE_LABEL, ARCHIVED_CHIP_LABEL, IMPERSONATE_LABEL, RESTORE_LABEL } from '../apps/web/src/features/admin/admin-copy';
+import {
+  ADMINS_ONLY_TOAST,
+  ARCHIVE_LABEL,
+  ARCHIVED_CHIP_LABEL,
+  IMPERSONATE_LABEL,
+  RESTORE_LABEL,
+} from '../apps/web/src/features/admin/admin-copy';
 import { STOP_IMPERSONATING_LABEL, viewingAsLabel } from '../apps/web/src/features/impersonation/impersonation-copy';
 import { uploadSeed } from './editor';
 import {
@@ -82,12 +88,18 @@ test('the admin impersonates a person, sees their documents behind the banner, a
   const title = `impersonate-${randomUUID().slice(0, 8)}`;
   const { email } = await invitedWithDocument({ browser, admin, name: 'Caio', title });
 
+  const forbiddenResponses: string[] = [];
+  admin.page.on('response', (response) => {
+    if (response.status() === HttpStatus.Forbidden) forbiddenResponses.push(response.url());
+  });
   await userRow({ page: admin.page, email }).getByRole('button', { name: IMPERSONATE_LABEL }).click();
   await expect(admin.page).toHaveURL(AppRoute.Documents);
   const banner = admin.page.getByTestId('impersonation-banner');
   await expect(banner.getByText(viewingAsLabel('Caio'))).toBeVisible();
   await expect(admin.page.getByRole('banner').getByRole('button', { name: accountMenuLabel('Caio') })).toBeVisible();
   await expect(admin.page.getByRole('link', { name: title })).toBeVisible();
+  await expect(admin.page.getByText(ADMINS_ONLY_TOAST)).toHaveCount(0);
+  expect(forbiddenResponses).toEqual([]);
 
   await banner.getByRole('button', { name: STOP_IMPERSONATING_LABEL }).click();
   await expect(admin.page).toHaveURL(AppRoute.Admin);

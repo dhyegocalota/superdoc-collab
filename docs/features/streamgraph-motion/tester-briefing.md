@@ -66,3 +66,12 @@ Red failure text is what the red run printed. Rows marked pin were green when th
 - When a break appears or disappears, bands with a different segment count snap instead of tweening.
 - The reduced motion walk asserts exactly two distinct path values, which would fail if the server answered the one edit in two steps.
 - Out-of-lane work: none. `e2e/timeline-idle-gaps.spec.ts` was left untouched.
+
+## Tester run 2026-10-19 (second walk)
+
+Walk at 1280 and 375 on the scenario stack, Ana (observer) and Bruno (typist), a per-frame sampler in Ana's page. Evidence in the test plan and under `.pr-media/testing2/`.
+
+- Confirmed: hypothesis 1 (97 distinct shapes in 600 ms, one-bin document included), 2 (nothing pulsed on load or when opening the panel), 3 (the pointer hold suppresses glow and brightening only), 4 (reduced motion snaps and the text still appears; the 2 path values are the snap and a second server answer), 5 for the bands.
+- Refuted: hypothesis 5 for the dividers. They glide 519 ms behind a panel drag.
+- Not run: the unit and E2E rows; hypothesis 6 and 7 (hover during a glide, a focused band).
+- Console at error level: 0 from the product; three errors came from my own sampler after the chart unmounted on collapse.

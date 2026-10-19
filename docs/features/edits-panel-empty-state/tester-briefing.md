@@ -39,8 +39,8 @@
 
 ## Left out
 
-- `timeline-notices.tsx` still renders "No edits yet" and its own test; the panel no longer reaches that branch. Removal is for a follow-up.
-- `isPanelOpenByDefault` now always answers false; `document-page.tsx` could start the state at false and drop the function.
+- The unreachable "No edits yet" notice (and its `isLogAhead` prop) and `isPanelOpenByDefault` were removed after the merge of `fix/owner-fixes-2026-10-19`; `document-page.tsx` starts the state at false.
+- On a phone the empty state hides the illustration and clamps the description to two lines so it fits the bottom panel; `panel-empty-state.test.tsx` was red first (`expect(element).toHaveClass("hidden sm:block")`).
 - Two files outside the ownership list changed with the lead informed: `document-page.test.tsx` and `time-travel.test.tsx` expand the panel first.
 - `summary-mobile.spec.ts` matches the View version button exactly, because the edit row button "View version after this edit" also matches the plain name.
 

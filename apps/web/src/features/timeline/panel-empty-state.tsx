@@ -9,9 +9,9 @@ export function PanelEmptyState() {
       data-testid={PANEL_EMPTY_STATE_TEST_ID}
       className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-4 text-center"
     >
-      <HistoryIllustration className="max-w-32" />
+      <HistoryIllustration className="hidden max-w-32 sm:block" />
       <h3 className="text-sm font-medium">{NO_EDITS_YET_MESSAGE}</h3>
-      <p className="text-sm text-muted-foreground">{EMPTY_PANEL_DESCRIPTION}</p>
+      <p className="line-clamp-2 text-sm text-muted-foreground">{EMPTY_PANEL_DESCRIPTION}</p>
     </section>
   );
 }

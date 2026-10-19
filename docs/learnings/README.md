@@ -70,6 +70,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-17 | A feature works in the page and silently does nothing in an isolated render | [2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md](2026-10-17-a-global-test-id-lookup-in-production-code-hides-a-missing-prop.md) | 2026-10-18 |
 | 2026-10-17 | A banner whose copy passes its length pins still wraps to more lines than the design allows on a phone | [2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md](2026-10-17-copy-length-pins-do-not-bound-the-rendered-line-count.md) | 2026-10-18 |
 | 2026-10-18 | A page-level test waits one second by default and times out under machine load | [2026-10-18-a-page-level-test-waits-one-second-by-default-and-times-out-under-machine-load.md](2026-10-18-a-page-level-test-waits-one-second-by-default-and-times-out-under-machine-load.md) | 2026-10-18 |
+| 2026-10-19 | Six E2E workers starve the single projection worker | [2026-10-19-six-e2e-workers-starve-the-single-projection-worker.md](2026-10-19-six-e2e-workers-starve-the-single-projection-worker.md) | 2026-10-19 |
 
 ### tooling
 

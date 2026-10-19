@@ -18,7 +18,7 @@ const ORIGIN = localOrigin(PORT);
 const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;
 const CONTINUOUS_INTEGRATION_WORKERS = 4;
-const LOCAL_WORKERS = '50%';
+const LOCAL_WORKERS = CONTINUOUS_INTEGRATION_WORKERS;
 
 if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-collab-e2e-'));
 const DATABASE_DIR = process.env.E2E_DATABASE_DIR;

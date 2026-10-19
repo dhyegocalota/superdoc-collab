@@ -11,7 +11,7 @@ import {
   type DocumentsList,
 } from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, apiSend, readJson } from '@/lib/api';
-import { CREATE_SUBJECT, UPLOAD_SUBJECT } from './documents-copy';
+import { CREATE_SUBJECT, LIST_SUBJECT, UPLOAD_SUBJECT } from './documents-copy';
 
 export const DOCUMENTS_QUERY_KEY = ['documents'];
 export const DOCUMENT_FILE_QUERY_KEY = ['document-file'];
@@ -42,5 +42,5 @@ export async function createBlankDocument(title: string): Promise<DocumentSummar
 
 export async function fetchDocuments(): Promise<DocumentsList> {
   const response = await apiGet(ApiPath.Documents);
-  return readJson<DocumentsList>({ response, subject: 'Documents request' });
+  return readJson<DocumentsList>({ response, subject: LIST_SUBJECT });
 }

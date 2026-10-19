@@ -23,6 +23,8 @@ const INFLATED_BUDGET_UNIT_BYTES = 16 * 1024;
 export const MAX_INFLATED_BYTES_PER_SECOND = MAX_SOCKET_MESSAGE_BYTES;
 const MAX_INFLATED_UNITS_PER_SECOND = MAX_INFLATED_BYTES_PER_SECOND / INFLATED_BUDGET_UNIT_BYTES;
 
+export const PRE_AUTHENTICATION_MAX_INFLATED_BYTES = 64 * 1024;
+
 export class SocketMessageLimit {
   private readonly windows = new WeakMap<object, Record<FrameBucket, SlidingWindow>>();
   private readonly inflatedWindows = new WeakMap<object, SlidingWindow>();
@@ -51,6 +53,14 @@ export class SocketMessageLimit {
     const window = this.inflatedWindowOf(socket);
     Array.from({ length: Math.floor(byteLengthOf(frame) / INFLATED_BUDGET_UNIT_BYTES) }, () => window.record());
     return window.count() > MAX_INFLATED_UNITS_PER_SECOND;
+  }
+
+  markAnswered(_: object): void {
+    throw new Error('markAnswered is not implemented');
+  }
+
+  exceedsPreAuthenticationBudget(_: { socket: object; frame: RawData }): boolean {
+    throw new Error('exceedsPreAuthenticationBudget is not implemented');
   }
 
   private inflatedWindowOf(socket: object): SlidingWindow {

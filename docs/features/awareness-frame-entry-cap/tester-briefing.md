@@ -2,9 +2,9 @@
 
 ## What changed
 
-- `apps/server/src/collaboration/frame-bucket.ts`: `awarenessEntryCountOf` reads the payload length and the entry count of an awareness frame with the bounded varint reader.
+- `apps/server/src/collaboration/frame-bucket.ts`: `awarenessEntryCountOf` reads the payload length and the entry count of an awareness frame with a varint reader that looks at most six bytes deep and treats a varint still continuing at its sixth byte as an unbounded entry count.
 - `apps/server/src/collaboration/socket-message-limit.ts` and `attach-collaboration.ts`: a frame claiming more than `MAX_AWARENESS_ENTRIES_PER_FRAME` (64) entries is withheld from every listener and its socket closes with 1008 and `SOCKET_AWARENESS_ENTRIES_REASON`.
-- `apps/server/src/collaboration/awareness-origin.ts` and `collaboration-server.ts`: on the awareness `update` event, an id no connection holds joins its sender, and a sender updating an id another connection holds closes with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`; a removal of such an id never closes it. `frame-bucket.ts` follows a varint to its last byte and treats an awareness frame with a varint over five bytes as claiming an unbounded entry count.
+- `apps/server/src/collaboration/awareness-origin.ts` and `collaboration-server.ts`: on the awareness `update` event, an id no connection holds joins its sender, and a sender updating an id another connection holds closes with 1008 and `SOCKET_AWARENESS_ORIGIN_REASON`; a removal of such an id never closes it. `frame-bucket.ts` reads a varint at most six bytes deep and treats an awareness frame with a varint over five bytes, or a header varint still continuing at its sixth byte, as claiming an unbounded entry count.
 - `libs/types/src/constants.ts`: the new cap and the origin reason. `apps/server/src/testing/socket-frames.ts`: the frame builder takes a clock and a state.
 - ADR 0040, the socket-message-limit spec and test plan, the collaboration rule, a learning and the index READMEs.
 
@@ -36,6 +36,8 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 3. Hypothesis: a frame of 65 entries never reaches the room. Break it by: send one from a raw socket and check that no claimed id appears in the presence list.
 4. Hypothesis: ids replayed by a second connection leave with it. Break it by: claim ids on socket A, close it, replay them on socket B at a higher clock, close B.
 
+Third round: red 16f34250 (an 80 MiB frame of continuing bytes: `expected null to be Infinity`; `expected false to be true`), fix 7cff6ca6.
+
 ## Known gaps
 
 - A forged update of a live peer's id at clock plus one is applied once before the close, and the victim spreads the forged fields afterwards.
@@ -43,4 +45,5 @@ Pins (green when they landed): updating and removing its own id, a provider reco
 
 - A room holding more than 64 awareness states closes a provider that joins it.
 - A refused foreign update lands once before its sender is closed.
+- A typing run of about 15 s followed by a pause breached the update bucket in 2 of 3 tester runs (about 1344 frames in the next second); the provider reconnects at once.
 - Sockets per user are unbounded, an owner follow-up named in ADR 0040.

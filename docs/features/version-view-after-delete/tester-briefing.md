@@ -26,6 +26,8 @@ pnpm test:e2e e2e/time-travel.spec.ts
 | `versions-routes.test.ts::a logged sequence that is not a mark resolves to itself` | resolved to the newest mark | resolves to itself |
 | `runs.test.ts::a run opens the version after its last inserting event…` | `versionSequence` was the last event, the delete (7e8dacd5) | last inserting event |
 | `bins.test.ts::the version of a bin is the last event at or before its last instant…` | stub threw `lastEventSequenceAt is not implemented` | exact last event |
+| `timeline-routes.test.ts::a bin opens the sequence of its own last event, not the mark of its minute` | pin (the fix landed in 8cc6f830; with no marks the old code answered null) | each filled bin answers its own last event |
+| `e2e/time-travel.spec.ts::selecting the bin of an edit shows the edited paragraph when the delete is in the next bin` | mutation: with the bin sequence taken from the minute mark it received the seed text without the paragraph | the bin shows `Added line edited` |
 | `time-travel.test.tsx::an edit row opens the version after that edit` | no button on the edit row | button pins `sequence` |
 | `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` | no edit row button | edit row opens the edited paragraph |
 
@@ -39,7 +41,8 @@ pnpm test:e2e e2e/time-travel.spec.ts
 
 ## Known gaps
 
-- A bin click shows the exact state at the bin's last event, so a delete in the same bin still blanks the bin version; only the edit row shows the document after its own edit.
+- A bin click shows the exact state at the bin's last event. A delete in the same bin still blanks the bin version; a delete in the next bin does not. The edit row shows the document after its own edit in either case.
+- The new bin E2E waits up to about 30 s of wall clock to keep the edits and the delete in one minute.
 - A run groups an author's edits of one block in one bin, so one row opens the version after the last inserting edit, not after every edit.
 - The build time was measured on a synthetic 12 802-update log, not on the 4-page fixture.
 - `sequence` is also a `TimelineQueryParam` only to satisfy the rule that every page parameter is a query parameter; no route reads it.

@@ -1,5 +1,13 @@
 import type { Browser, Page } from '@playwright/test';
-import { DEMO_USERS, ShareLinkRole, TOPICS_UNAVAILABLE_MESSAGE, versionViewPagePath, type DocumentEditEvent } from '../libs/types/src';
+import {
+  DEMO_USERS,
+  MINUTE_MS,
+  SECOND_MS,
+  ShareLinkRole,
+  TOPICS_UNAVAILABLE_MESSAGE,
+  versionViewPagePath,
+  type DocumentEditEvent,
+} from '../libs/types/src';
 import { EDITOR_EXIT_LABEL } from '../apps/web/src/features/editor/editor-copy';
 import {
   BACK_TO_LIVE_LABEL,
@@ -56,6 +64,11 @@ const READ_ONLY_ATTEMPT = ' reader typed this';
 const DRAFT_TEXT = 'bud';
 const ADDED_PARAGRAPH = 'Added line';
 const ADDED_EDIT = ' edited';
+const NARROW_BIN_MS = 10 * SECOND_MS;
+const BIN_START_WINDOW_MS = 1_500;
+const BIN_WAIT_TIMEOUT_MS = 2 * NARROW_BIN_MS;
+const MINUTE_PHASE_LIMIT_MS = 30 * SECOND_MS;
+const MINUTE_WAIT_TIMEOUT_MS = 2 * MINUTE_MS;
 
 async function ownerWithEdit(browser: Browser) {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
@@ -266,6 +279,41 @@ test('the version of an edit shows the paragraph after it was deleted later', as
   await expect
     .poll(() => shownVersionSequence(page), { timeout: VERSION_TIMEOUT_MS })
     .toBe(editSequenceOf(await readEvents({ page, documentId })));
+  const serverText = await expectViewerMatchesServer({ page, documentId });
+  expect(serverText).toContain(`${ADDED_PARAGRAPH}${ADDED_EDIT}`);
+});
+
+async function waitForNextBinStart(): Promise<void> {
+  const currentBin = Math.floor(Date.now() / NARROW_BIN_MS);
+  const isNextBinJustStarted = () =>
+    Math.floor(Date.now() / NARROW_BIN_MS) > currentBin && Date.now() % NARROW_BIN_MS < BIN_START_WINDOW_MS;
+  await expect.poll(isNextBinJustStarted, { timeout: BIN_WAIT_TIMEOUT_MS, intervals: [100] }).toBe(true);
+}
+
+test('selecting the bin of an edit shows the edited paragraph when the delete is in the next bin', async ({ browser }) => {
+  await expect
+    .poll(() => Date.now() % MINUTE_MS, { timeout: MINUTE_WAIT_TIMEOUT_MS, intervals: [100] })
+    .toBeLessThan(MINUTE_PHASE_LIMIT_MS);
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const { page } = ana;
+  const documentId = await uploadSeed({ page, paragraphs: PARAGRAPHS });
+  await waitForNextBinStart();
+  await focusEditorAtEnd({ page, target: editorText(page).filter({ hasText: PARAGRAPHS[0]! }).first() });
+  await page.keyboard.press('Enter');
+  await page.keyboard.type(ADDED_PARAGRAPH);
+  await page.keyboard.type(ADDED_EDIT);
+  await waitForNextBinStart();
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await expect.poll(() => readLiveText(page)).not.toContain(ADDED_PARAGRAPH);
+  await waitForSettledTimeline({ page, documentId });
+  const { bins, bands } = await readTimeline({ page, documentId });
+  const editEvent = (await readEvents({ page, documentId })).findLast((event) => event.inserted.includes(ADDED_EDIT.trim()))!;
+  const editIndex = bins.findIndex((bin) => editEvent.serverTime >= bin.start && editEvent.serverTime < bin.end);
+  const stepsBack = bins.length - 1 - editIndex;
+  await pressInChart({ page, name: bands[0]!.name, keys: ['End', ...Array.from({ length: stepsBack }, () => 'ArrowLeft')] });
+  await expect(versionBanner(page)).toHaveAttribute('data-sequence', /\d+/, { timeout: VERSION_TIMEOUT_MS });
   const serverText = await expectViewerMatchesServer({ page, documentId });
   expect(serverText).toContain(`${ADDED_PARAGRAPH}${ADDED_EDIT}`);
 });

@@ -88,6 +88,10 @@ export function SuperDocEditor({
         reportTransport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
       [ExceptionOutcome.Fatal]: () => setHasFailed(true),
     };
+    function reportEditorUpdate(): void {
+      if (!isActive) return;
+      onEditorUpdate();
+    }
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
@@ -102,10 +106,8 @@ export function SuperDocEditor({
         ...authorPaletteOf({ colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
-      onEditorUpdate: () => {
-        if (!isActive) return;
-        onEditorUpdate();
-      },
+      onEditorUpdate: reportEditorUpdate,
+      onPaginationUpdate: reportEditorUpdate,
       onCollaborationReady: () => {
         isReady = true;
       },

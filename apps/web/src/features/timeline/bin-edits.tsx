@@ -1,4 +1,11 @@
-import { TimelineSearchParam, type BinEditRun, type DocumentTimeline, type TimelineBin, type TimelineFilter } from '@superdoc-collab/types';
+import {
+  IMPORTED_KEY_PREFIX,
+  TimelineSearchParam,
+  type BinEditRun,
+  type DocumentTimeline,
+  type TimelineBin,
+  type TimelineFilter,
+} from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { pollWhileAvailable } from '@/lib/api';
@@ -41,6 +48,7 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
   }
 
   function renderRun(run: BinEditRun) {
+    const isImported = run.authorKeys.every((key) => key.startsWith(IMPORTED_KEY_PREFIX));
     const band = timeline.bands.find((candidate) => candidate.id === run.bandId);
     if (!band) throw new MissingBandError(run.bandId);
     const inserted = run.inserted.trim();
@@ -55,9 +63,11 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
         </div>
         {inserted && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
         {deleted && <del className="rounded-sm bg-deleted px-1 text-sm">{snippetOf(deleted)}</del>}
-        <Button type="button" variant="outline" size="xs" onClick={() => viewVersionAfter(run)}>
-          {VIEW_EDIT_VERSION_LABEL}
-        </Button>
+        {!isImported && (
+          <Button type="button" variant="outline" size="xs" onClick={() => viewVersionAfter(run)}>
+            {VIEW_EDIT_VERSION_LABEL}
+          </Button>
+        )}
       </li>
     );
   }

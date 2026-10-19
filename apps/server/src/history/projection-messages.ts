@@ -58,7 +58,7 @@ export type ProjectionFailedReply = FailedReplyBase &
     | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
   );
 export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply | BootstrapReply;
-export type MeasuredReply<Reply extends AnsweredReply = AnsweredReply> = Reply & { heapTotalBytes: number };
+export type MeasuredReply<Reply extends AnsweredReply = AnsweredReply> = Reply & { retainedHeapBytes: number };
 export type ProjectionReply = MeasuredReply | ProjectionFailedReply;
 export type ProjectionRequestsByKind = { [Kind in ProjectionRequestKind]: Extract<ProjectionRequest, { kind: Kind }> };
 export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop | ProjectionRequestKind.Recycle }>;

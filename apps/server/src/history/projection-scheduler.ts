@@ -207,7 +207,7 @@ export class ProjectionScheduler {
   }
 
   private settle(reply: ProjectionReply): void {
-    if (reply.kind !== ProjectionReplyKind.Failed) this.recycleWhenHeavy(reply.heapTotalBytes);
+    if (reply.kind !== ProjectionReplyKind.Failed) this.recycleWhenHeavy(reply.retainedHeapBytes);
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
     if (isServedReply(reply)) return this.waitingRequests.resolve(reply);
     if (reply.kind === ProjectionRequestKind.Bootstrap) return this.settleBootstrap(reply);
@@ -216,12 +216,12 @@ export class ProjectionScheduler {
     return this.settleProject(reply);
   }
 
-  private recycleWhenHeavy(heapTotalBytes: number): void {
+  private recycleWhenHeavy(retainedHeapBytes: number): void {
     if (this.recycleTimer) clearTimeout(this.recycleTimer);
     this.recycleTimer = null;
-    const isHeavy = heapTotalBytes > LARGE_DOCUMENT_HEAP_BYTES;
+    const isHeavy = retainedHeapBytes > LARGE_DOCUMENT_HEAP_BYTES;
     if (!isHeavy || this.isRecycling || this.stoppingPromise) return;
-    this.recycleTimer = setTimeout(() => this.recycleWhenIdle(heapTotalBytes), this.recycleQuietMs);
+    this.recycleTimer = setTimeout(() => this.recycleWhenIdle(retainedHeapBytes), this.recycleQuietMs);
     this.recycleTimer.unref();
   }
 
@@ -230,13 +230,13 @@ export class ProjectionScheduler {
     return hasNoQueuedWork && this.bootstrapping.size === 0 && this.waitingRequests.isEmpty();
   }
 
-  private recycleWhenIdle(heapTotalBytes: number): void {
+  private recycleWhenIdle(retainedHeapBytes: number): void {
     this.recycleTimer = null;
     const isRecyclable = this.isIdle() && !this.isRecycling && !this.stoppingPromise;
     if (!isRecyclable || this.recycleCooldown.remainingMs(RECYCLE_COOLDOWN_KEY) > 0) return;
     this.recycleCooldown.start(RECYCLE_COOLDOWN_KEY);
     this.isRecycling = true;
-    console.info(`${WORKER_RECYCLED_MESSAGE} ${heapTotalBytes}`);
+    console.info(`${WORKER_RECYCLED_MESSAGE} ${retainedHeapBytes}`);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Recycle });
   }
 

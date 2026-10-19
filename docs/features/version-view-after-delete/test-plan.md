@@ -20,7 +20,7 @@ Received string:    "Budget: the plan costs 10.Hiring: we add two people."
 
 ## E2E
 
-- [x] (red at the commit that adds it) `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` — five steps, each in its own 10-second bin; expected: the version frame shows the edited paragraph
+- [x] `e2e/time-travel.spec.ts::the version of an edit shows the paragraph after it was deleted later` — five steps, each in its own 10-second bin; expected: the version frame shows the edited paragraph
 - [ ] Existing time-travel tests stay green
 
 ## Prove it for real — Playwright MCP

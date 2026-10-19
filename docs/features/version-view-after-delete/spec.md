@@ -38,6 +38,12 @@ Cause: `endsItsMinute` keeps one mark per minute, the last update of that minute
 
 Fix: a mark per `VERSION_MARK_MS` that equals the narrowest bin, so a bin end always has a mark of its own. Edits and a delete inside one bin still show the bin's end state, which is the document as it was at the bin's last instant.
 
+## Change
+
+- `libs/types`: `NARROWEST_BIN_MS` (10 seconds) and `VERSION_MARK_MS = NARROWEST_BIN_MS`.
+- `libs/history`: the narrowest step of the bin ladder is `NARROWEST_BIN_MS`; the mark and resolution code is untouched.
+- ADR 0003 addendum and the history rules state the new window.
+
 ## Failure handling
 
 The lane ships nothing until the cause is written down with evidence; a fix at a symptom (hiding the version link) is out.

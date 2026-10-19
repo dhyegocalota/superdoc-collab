@@ -4,7 +4,9 @@ export const MINUTE_MS = 60 * SECOND_MS;
 export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 export const WEEK_MS = 7 * DAY_MS;
-export const VERSION_MARK_MS = MINUTE_MS;
+export const NARROWEST_BIN_MS = 10 * SECOND_MS;
+// NB ADR 0003 (addendum): a mark per narrowest bin gives every bin end a mark of its own.
+export const VERSION_MARK_MS = NARROWEST_BIN_MS;
 export const VERSION_ROOM_IDLE_MS = MINUTE_MS;
 export const VERSION_ROOMS_LIMIT = 32;
 export const VERSION_CACHE_SIZE = 16;

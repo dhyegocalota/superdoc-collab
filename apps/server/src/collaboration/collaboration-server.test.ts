@@ -7,6 +7,7 @@ import {
   OPEN_UNCOMMITTED_PER_MINUTE,
   RoomMode,
   SUPERSEDED_ATTEMPT_CLOSE_CODE,
+  RESTARTED_ATTEMPT_REASON,
   SUPERSEDED_ATTEMPT_REASON,
   TAB_QUERY_KEY,
 } from '@superdoc-collab/types';
@@ -362,6 +363,26 @@ describe('collaboration admission to an uncommitted room', () => {
     );
     expect(warn).toHaveBeenCalledWith(`${REFUSED_TICKET_LOG} ${documentId}`);
     warn.mockRestore();
+    await server.stop();
+  });
+  test('a ticket from another process epoch is refused with the restart reason and logged as a refused ticket', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const ticket = { attempt: 1, epoch: randomUUID() };
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, ticket })).rejects.toMatchObject({
+      reason: RESTARTED_ATTEMPT_REASON,
+    });
+    expect(warn).toHaveBeenCalledWith(`${REFUSED_TICKET_LOG} ${documentId}`);
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('an older attempt of this epoch is refused with the superseded reason', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const olderTicket = server.services.reservations.reserve({ documentId, userId: owner.id })!;
+    server.services.reservations.reserve({ documentId, userId: owner.id });
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, ticket: olderTicket })).rejects.toMatchObject({
+      reason: SUPERSEDED_ATTEMPT_REASON,
+    });
     await server.stop();
   });
   test('a user who exhausted the open budget is refused before the log is scanned', async () => {

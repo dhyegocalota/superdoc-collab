@@ -595,7 +595,7 @@ test.each([
   await server.stop();
 });
 
-async function isAttemptSupersededFor({
+async function membersAnswerFor({
   server,
   user,
   documentId,
@@ -605,10 +605,17 @@ async function isAttemptSupersededFor({
   user: TestUser;
   documentId: string;
   query: Record<string, string>;
-}): Promise<boolean> {
+}): Promise<DocumentMembers> {
   const path = `${pathOf({ documentId, resource: DocumentResource.Members })}?${new URLSearchParams(query)}`;
-  const answer: DocumentMembers = await (await request({ server, cookie: user.cookie, path })).json();
-  return answer.isAttemptSuperseded;
+  return (await request({ server, cookie: user.cookie, path })).json();
+}
+
+async function isAttemptSupersededFor(parameters: Parameters<typeof membersAnswerFor>[0]): Promise<boolean> {
+  return (await membersAnswerFor(parameters)).isAttemptSuperseded;
+}
+
+async function isAttemptRestartedFor(parameters: Parameters<typeof membersAnswerFor>[0]): Promise<boolean> {
+  return (await membersAnswerFor(parameters)).isAttemptRestarted;
 }
 
 function ticketQuery({ attempt, epoch }: CreatorTicket): Record<string, string> {
@@ -626,10 +633,21 @@ test('members answers that the first attempt is superseded once the holder reope
   await server.stop();
 });
 
-test('members answers that a ticket from another epoch is superseded while the room is uncommitted', async () => {
+test('members answers that a ticket from another epoch is restarted and not superseded while the room is uncommitted', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const query = ticketQuery({ attempt: FIRST_ATTEMPT, epoch: randomUUID() });
+  expect(await isAttemptRestartedFor({ server, user: owner, documentId, query })).toBe(true);
+  expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(false);
+  await server.stop();
+});
+
+test('members answers that a takeover is superseded and not restarted', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const first = await openedBy({ server, user: owner, documentId });
+  await openedBy({ server, user: owner, documentId });
+  const query = ticketQuery({ attempt: first.creatorAttempt!, epoch: first.creatorEpoch! });
   expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(true);
+  expect(await isAttemptRestartedFor({ server, user: owner, documentId, query })).toBe(false);
   await server.stop();
 });
 
@@ -638,6 +656,7 @@ test('members answers that a ticket from another epoch is not superseded once th
   commitRoom({ services: server.services, documentId, userId: owner.id });
   const query = ticketQuery({ attempt: FIRST_ATTEMPT, epoch: randomUUID() });
   expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(false);
+  expect(await isAttemptRestartedFor({ server, user: owner, documentId, query })).toBe(false);
   await server.stop();
 });
 
@@ -662,9 +681,10 @@ const UNCLAIMED_TICKETS: { name: string; query: Record<string, string> }[] = [
   { name: 'a non-numeric attempt', query: { [CREATOR_ATTEMPT_QUERY_KEY]: 'abc', [CREATOR_EPOCH_QUERY_KEY]: 'epoch' } },
 ];
 
-test.each(UNCLAIMED_TICKETS)('members answers not superseded for $name', async ({ query }) => {
+test.each(UNCLAIMED_TICKETS)('members answers not superseded and not restarted for $name', async ({ query }) => {
   const { server, documentId, owner } = await documentWithOwner();
   expect(await isAttemptSupersededFor({ server, user: owner, documentId, query })).toBe(false);
+  expect(await isAttemptRestartedFor({ server, user: owner, documentId, query })).toBe(false);
   await server.stop();
 });
 

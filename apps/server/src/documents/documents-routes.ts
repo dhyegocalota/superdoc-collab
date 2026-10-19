@@ -226,6 +226,7 @@ function mountReading({ routes, services }: RouteMount): void {
       members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,
       isAttemptSuperseded: isTicketClaimed && runtime.isAttemptSuperseded({ documentId, attempt, epoch }),
+      isAttemptRestarted: isTicketClaimed && runtime.isAttemptRestarted({ documentId, attempt, epoch }),
     });
   });
 }

@@ -76,6 +76,11 @@ export type OpenedDocument = {
   colorSlot: AuthorColorSlot;
 };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
-export type DocumentMembers = { members: DocumentMember[]; isCurrentUserOnline: boolean; isAttemptSuperseded: boolean };
+export type DocumentMembers = {
+  members: DocumentMember[];
+  isCurrentUserOnline: boolean;
+  isAttemptSuperseded: boolean;
+  isAttemptRestarted: boolean;
+};
 export type ShareLinks = Record<ShareLinkRole, string>;
 export type AcceptedShareLink = { documentId: string };

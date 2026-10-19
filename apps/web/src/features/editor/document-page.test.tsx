@@ -145,6 +145,7 @@ function mockDocumentApi({
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
   isAttemptSuperseded = () => false,
+  isAttemptRestarted = () => false,
   timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
@@ -160,6 +161,7 @@ function mockDocumentApi({
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
   isAttemptSuperseded?: () => boolean;
+  isAttemptRestarted?: () => boolean;
   timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
@@ -173,7 +175,12 @@ function mockDocumentApi({
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (String(input).startsWith(MEMBERS_PATH)) {
       return jsonResponse({
-        body: { members: [], isCurrentUserOnline: isCurrentUserOnline(), isAttemptSuperseded: isAttemptSuperseded() },
+        body: {
+          members: [],
+          isCurrentUserOnline: isCurrentUserOnline(),
+          isAttemptSuperseded: isAttemptSuperseded(),
+          isAttemptRestarted: isAttemptRestarted(),
+        },
         status: currentMembersStatus(),
       });
     }
@@ -828,6 +835,27 @@ async function renderSupersededPage(): Promise<ReturnType<typeof renderWithProvi
   await act(() => rendered.queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
   return rendered;
 }
+
+const RESTARTED_TICKET = { creatorAttempt: 1, creatorEpoch: 'epoch-2' };
+
+test('a restarted answer from the members poll opens the document again with a fresh ticket and shows no banner', async () => {
+  let isRestarted = false;
+  const fetchSpy = mockDocumentApi({
+    opened: ticketedCreate(),
+    openedAfterReload: { ...openedAs(DocumentRole.Owner, RoomMode.Create), ...RESTARTED_TICKET },
+    isAttemptRestarted: () => isRestarted,
+  });
+  const { queryClient } = renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  isRestarted = true;
+  await act(() => queryClient.invalidateQueries({ queryKey: membersQueryKey(DOCUMENT_ID) }));
+  isRestarted = false;
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  const openRequests = fetchSpy.mock.calls.filter(([input]) => input === DOCUMENT_PATH);
+  expect(openRequests).toHaveLength(2);
+  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).not.toHaveAttribute('inert');
+});
 
 test('the members poll carries the creator ticket of the opened document', async () => {
   const fetchSpy = mockDocumentApi({ opened: ticketedCreate() });

@@ -32,6 +32,7 @@ export type DocumentRuntime = {
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
   isAttemptSuperseded: (parameters: { documentId: string } & CreatorTicket) => boolean;
+  isAttemptRestarted: (parameters: { documentId: string } & CreatorTicket) => boolean;
   onlineUserIds: (documentId: string) => Set<string>;
   onlineTabIds: ({ documentId, userId }: { documentId: string; userId: string }) => Set<string>;
   importRevisions: (documentId: string) => void;
@@ -107,6 +108,7 @@ export function createCollaborationRuntime({
       if (isCommitted && isFromAnotherEpoch) return false;
       return !reservations.mayWrite({ documentId, attempt, epoch, isCommitted });
     },
+    isAttemptRestarted: () => false,
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
       new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),

@@ -1,4 +1,12 @@
-import { DocumentRole, RoomMode, UserRole, type DocumentSummary, type OpenedDocument, type SessionUser } from '@superdoc-collab/types';
+import {
+  BootstrapStage,
+  DocumentRole,
+  RoomMode,
+  UserRole,
+  type DocumentSummary,
+  type OpenedDocument,
+  type SessionUser,
+} from '@superdoc-collab/types';
 
 export const DOCUMENT_ID = 'doc-1';
 export const DOCUMENT_TITLE = 'Plan';
@@ -18,6 +26,16 @@ export function summaryAs(role: DocumentRole): DocumentSummary {
   };
 }
 
+const READY_BOOTSTRAP = { stage: BootstrapStage.Ready, done: 0, total: 0, stateBytes: null };
+
 export function openedAs(role: DocumentRole, roomMode = RoomMode.Create): OpenedDocument {
-  return { document: summaryAs(role), role, roomMode, creatorAttempt: null, creatorEpoch: null, colorSlot: EDITOR_COLOR_SLOT };
+  return {
+    document: summaryAs(role),
+    role,
+    roomMode,
+    creatorAttempt: null,
+    creatorEpoch: null,
+    bootstrap: READY_BOOTSTRAP,
+    colorSlot: EDITOR_COLOR_SLOT,
+  };
 }

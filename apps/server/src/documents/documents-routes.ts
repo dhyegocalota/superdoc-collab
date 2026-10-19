@@ -136,6 +136,8 @@ function mountOpening({ routes, services }: RouteMount): void {
       document: summary,
       role,
       roomMode: RoomMode.Join,
+      creatorAttempt: null,
+      creatorEpoch: null,
       bootstrap: runtime.bootstrapRoom(documentId),
       colorSlot: documents.colorSlotOf({ documentId, userId }),
     });
@@ -204,6 +206,8 @@ function mountReading({ routes, services }: RouteMount): void {
     return context.json({
       members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,
+      isAttemptSuperseded: false,
+      isAttemptRestarted: false,
     });
   });
 }

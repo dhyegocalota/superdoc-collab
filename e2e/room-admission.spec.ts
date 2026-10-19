@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { APIResponse, Page } from '@playwright/test';
 import {
   ApiPath,
+  BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
   DEMO_USERS,
   DOCX_MIME_TYPE,
@@ -105,9 +106,10 @@ test('an uploaded document is answered Join with the bootstrap in progress to ev
   answers.forEach((answer) => expect([answer.status, answer.roomMode]).toEqual([HttpStatus.Ok, RoomMode.Join]));
   answers.forEach((answer) => expect(PROGRESS_STAGES).toContain(answer.stage));
   const progress = (await readOpenAnswer(await ana.page.request.get(documentApiPath({ documentId })))).bootstrap;
-  expect(progress).toMatchObject({ done: 0, total: buffer.byteLength, stateBytes: null });
+  expect(progress).toMatchObject({ total: buffer.byteLength * BOOTSTRAP_STATE_BYTES_RATIO, stateBytes: null });
+  expect(progress.done).toBeLessThan(progress.total);
   const ready = await waitUntilReady({ page: bruno.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
-  expect(ready.bootstrap).toMatchObject({ done: buffer.byteLength, total: buffer.byteLength });
+  expect(ready.bootstrap.done).toBe(ready.bootstrap.total);
   expect(ready.bootstrap.stateBytes).toBeGreaterThan(buffer.byteLength);
   expect((await openAnswer({ page: ana.page, documentId })).roomMode).toBe(RoomMode.Join);
 });

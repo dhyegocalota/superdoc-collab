@@ -6,7 +6,7 @@
 **Assumptions (decided, owner can override):**
 - Progress is bytes of the upload over the upload size; the SDK offers nothing finer.
 - `Failed` is terminal until the server restarts.
-- Ticket types shared with the web (`CreatorTicket`, close reasons, the two members flags) are removed from `libs/types` here; the web lane deletes its uses at merge.
+- libs/types and apps/web stay untouched except the required `bootstrap` field and one web test fixture. The server answers null tickets and false flags.
 
 ## File map
 
@@ -56,3 +56,9 @@ One lane. Docs and ADR first, then red tests, then the worker, the registry, the
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.
+
+## Dead symbols for the integration sweep
+
+- `libs/types`: `CreatorTicket`, `CREATOR_ATTEMPT_QUERY_KEY`, `CREATOR_EPOCH_QUERY_KEY`, `CREATOR_RESERVATION_MS`, `CREATOR_RESERVATION_MAX_MS`, `SUPERSEDED_ATTEMPT_CLOSE_CODE`, `SUPERSEDED_ATTEMPT_REASON`, `RESTARTED_ATTEMPT_REASON`, `OpenedDocument.creatorAttempt`, `OpenedDocument.creatorEpoch`, `DocumentMembers.isAttemptSuperseded`, `DocumentMembers.isAttemptRestarted`.
+- `apps/web/src/features/editor`: `collaboration-config.ts` (`creatorTicketOf`, the ticket queries), `editor-api.ts` (`DocumentNotReadyError`, the ticket query), `use-members.ts`, `use-opened-document.ts` (`useOpenedCreatorTicket`, the Waiting poll on 409), `document-page.tsx`, `use-editor-setup.ts`, `superdoc-editor.tsx`, `superdoc-options.ts` and their tests; `apps/web/src/testing/opened-document.ts`.
+- `DOCUMENT_NOT_READY_ERROR` stays: agents still use it.

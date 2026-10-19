@@ -1,4 +1,4 @@
-import { BootstrapStage } from '@superdoc-collab/types';
+import { BOOTSTRAP_STATE_BYTES_RATIO, BootstrapStage } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { BOOTSTRAP_FAILED_MESSAGE } from '../history/projection-messages';
 import { RoomBootstrap } from './room-bootstrap';
@@ -8,6 +8,8 @@ const OTHER_DOCUMENT_ID = 'document-budget';
 const OWNER_ID = 'user-ana';
 const FILE_BYTES = 9_500_000;
 const STATE_BYTES = 36_600_000;
+const ESTIMATED_BYTES = FILE_BYTES * BOOTSTRAP_STATE_BYTES_RATIO;
+const FRAME_BYTES = 1000;
 const URL = 'ws://127.0.0.1:4000/collaboration/bootstrap';
 
 type Run = { documentId: string; filePath: string; url: string; token: string };
@@ -29,9 +31,9 @@ function bootstrapWithPendingRuns({ ownerOf = () => OWNER_ID }: { ownerOf?: (doc
 
 test('a requested bootstrap is queued with the size of the upload and then prepared', async () => {
   const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns();
-  expect(bootstrap.request(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Queued, done: 0, total: FILE_BYTES, stateBytes: null });
+  expect(bootstrap.request(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Queued, done: 0, total: ESTIMATED_BYTES, stateBytes: null });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
-  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Preparing, done: 0, total: FILE_BYTES, stateBytes: null });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Preparing, done: 0, total: ESTIMATED_BYTES, stateBytes: null });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
   expect({ userId, documentId }).toEqual({ userId: OWNER_ID, documentId: DOCUMENT_ID });
   expect(pending[0]!.request).toEqual({
@@ -74,8 +76,8 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
   expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
     stage: BootstrapStage.Ready,
-    done: FILE_BYTES,
-    total: FILE_BYTES,
+    done: ESTIMATED_BYTES,
+    total: ESTIMATED_BYTES,
     stateBytes: STATE_BYTES,
   });
   pending[0]!.resolve();
@@ -96,7 +98,7 @@ test('a failed run is reported once, stays failed and is never run again', async
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   pending[0]!.reject(new Error('not a document'));
   await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
-  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Failed, done: 0, total: FILE_BYTES, stateBytes: null });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Failed, done: 0, total: ESTIMATED_BYTES, stateBytes: null });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
   expect(pending).toHaveLength(1);
@@ -172,4 +174,25 @@ test('a begun attempt without a request is current and signs a token for the own
   expect(token).toBe(`token-${attempt}`);
   expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(true);
   expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Preparing);
+});
+
+test('preparing reports the bytes of state received so far and never reaches the estimate before ready', async () => {
+  const { bootstrap, pending } = bootstrapWithPendingRuns();
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toMatchObject({
+    stage: BootstrapStage.Preparing,
+    done: 2 * FRAME_BYTES,
+    total: ESTIMATED_BYTES,
+  });
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: ESTIMATED_BYTES * 2 });
+  expect(bootstrap.progressOf(DOCUMENT_ID)?.done).toBe(ESTIMATED_BYTES - 1);
+});
+
+test('bytes received by a document that is not preparing change nothing', () => {
+  const { bootstrap } = bootstrapWithPendingRuns();
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toBeNull();
 });

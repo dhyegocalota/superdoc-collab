@@ -62,11 +62,11 @@ test.each([
   await server.stop();
 });
 
-test('members answers who is online and carries no attempt flags', async () => {
+test('members never says an attempt was superseded or restarted', async () => {
   const { server, documentId, owner } = await documentWithOwner();
   const answer: DocumentMembers = await (
     await request({ server, cookie: owner.cookie, path: pathOf({ documentId, resource: DocumentResource.Members }) })
   ).json();
-  expect(Object.keys(answer).sort()).toEqual(['isCurrentUserOnline', 'members']);
+  expect([answer.isAttemptSuperseded, answer.isAttemptRestarted]).toEqual([false, false]);
   await server.stop();
 });

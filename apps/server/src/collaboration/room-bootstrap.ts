@@ -1,4 +1,4 @@
-import { BOOTSTRAP_PROGRESS_ENTRIES, BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
+import { BOOTSTRAP_PROGRESS_ENTRIES, BOOTSTRAP_STATE_BYTES_RATIO, BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { LruMap } from '../limits/lru-map';
 import { BOOTSTRAP_FAILED_MESSAGE } from '../history/projection-messages';
@@ -72,7 +72,8 @@ export class RoomBootstrap {
   request(documentId: string): BootstrapProgress {
     const existing = this.progressOf(documentId);
     if (existing !== null) return existing;
-    const progress = { stage: BootstrapStage.Queued, done: 0, total: this.fileBytesOf(documentId), stateBytes: null };
+    const total = this.fileBytesOf(documentId) * BOOTSTRAP_STATE_BYTES_RATIO;
+    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null };
     this.jobs.set({ key: documentId, value: { progress, attempt: null } });
     this.waiting.push(documentId);
     this.pump();
@@ -92,6 +93,14 @@ export class RoomBootstrap {
     const job = this.jobs.peek(documentId);
     if (job === null) return false;
     return job.attempt === attempt;
+  }
+
+  received({ documentId, bytes }: { documentId: string; bytes: number }): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null) return;
+    if (job.progress.stage !== BootstrapStage.Preparing) return;
+    const done = Math.max(0, Math.min(job.progress.done + bytes, job.progress.total - 1));
+    this.jobs.set({ key: documentId, value: { ...job, progress: { ...job.progress, done } } });
   }
 
   ready({ documentId, stateBytes }: { documentId: string; stateBytes: number }): void {

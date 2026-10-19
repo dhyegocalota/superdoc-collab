@@ -143,6 +143,17 @@ test('a bootstrap update on an uncommitted room never queries the log or the sna
   await server.stop();
 });
 
+test('an appended bootstrap update reports its bytes as received and a stale one does not', async () => {
+  const { server, stale, latest } = await staleScenario();
+  const received = vi.spyOn(server.services.roomBootstrap, 'received');
+  const change = updateWith({ committed: false });
+  await sendChange({ server, context: stale, ...change });
+  expect(received).not.toHaveBeenCalled();
+  await sendChange({ server, context: latest, ...change });
+  expect(received).toHaveBeenCalledExactlyOnceWith({ documentId: latest.documentId, bytes: change.update.byteLength });
+  await server.stop();
+});
+
 describe('collaboration fence on a committed room', () => {
   test("a member overwriting the room's bootstrap marker does not stop later Join writes", async () => {
     const { server, documentId, owner } = await documentWithOwner();

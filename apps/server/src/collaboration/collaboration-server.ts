@@ -263,6 +263,7 @@ export function createCollaborationServer({
         return onLogged(documentId);
       }
       updateLog.append({ documentName: documentId, connectionUserId: userId, connectionActor: actor, update });
+      if (bootstrapAttempt !== null) roomBootstrap.received({ documentId, bytes: update.byteLength });
       onLogged(documentId);
     },
     async onDisconnect({ socketId }) {

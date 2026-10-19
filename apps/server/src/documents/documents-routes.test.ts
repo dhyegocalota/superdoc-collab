@@ -2,6 +2,7 @@ import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-collab/histo
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
+  BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
   ClientActor,
   DOCX_MIME_TYPE,
@@ -292,7 +293,7 @@ test('every member opening an uncommitted document gets Join and the bootstrap i
     [RoomMode.Join, BootstrapStage.Preparing],
     [RoomMode.Join, BootstrapStage.Preparing],
   ]);
-  answers.forEach((answer) => expect(Object.keys(answer)).not.toContain('creatorAttempt'));
+  answers.forEach((answer) => expect([answer.creatorAttempt, answer.creatorEpoch]).toEqual([null, null]));
   expect(answers[0]!.colorSlot).toBe(authorColorSlot(owner.id));
   await server.stop();
 });
@@ -321,7 +322,7 @@ test('opening an uncommitted document nobody bootstrapped starts one bootstrap a
   await openedBy({ server, user: owner, documentId });
   expect(bootstrap).toHaveBeenCalledTimes(1);
   const [request] = bootstrap.mock.calls[0]!;
-  expect(first.bootstrap).toMatchObject({ stage: BootstrapStage.Queued, done: 0, total: bytes.byteLength });
+  expect(first.bootstrap).toMatchObject({ stage: BootstrapStage.Queued, done: 0, total: bytes.byteLength * BOOTSTRAP_STATE_BYTES_RATIO });
   expect(request).toMatchObject({ documentId, filePath: server.services.storage.pathOf(documentId) });
   expect(request.url).toMatch(new RegExp(`${ApiPath.BootstrapCollaboration}$`));
   expect(verifyBootstrapToken({ secret: TEST_AUTH_SECRET, token: request.token, documentId, now: Date.now() })?.userId).toBe(owner.id);

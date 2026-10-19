@@ -41,7 +41,7 @@ export function reserveOwner({ server, documentId, owner }: { server: TestServer
   return ticket;
 }
 
-export type ClosedSocket = { code: number; reason: string };
+type ClosedSocket = { code: number; reason: string };
 
 export type CollaborationClient = { document: Y.Doc; provider: HocuspocusProvider; closed: Promise<ClosedSocket>; close: () => void };
 

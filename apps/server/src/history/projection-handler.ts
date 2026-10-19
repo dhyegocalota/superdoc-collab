@@ -14,13 +14,16 @@ import {
   ProjectionRequestKind,
   SNAPSHOT_EVERY_UPDATES,
   type AnsweredReply,
-  type AnsweredRequest,
+  type AnsweredRequestKind,
   type BlocksReply,
   type ProjectionDoneReply,
+  type ProjectionRequestsByKind,
   type VersionReply,
 } from './projection-messages';
 
-export type ProjectionStores = {
+type Handlers = { [Kind in AnsweredRequestKind]: (request: ProjectionRequestsByKind[Kind]) => AnsweredReply | Promise<AnsweredReply> };
+
+type ProjectionStores = {
   updateLog: UpdateLog;
   readModel: ReadModel;
   replays: GcFreeReplays;
@@ -32,7 +35,7 @@ export function createProjectionHandler({
   readModel,
   replays,
   importRevisions,
-}: ProjectionStores): (request: AnsweredRequest) => Promise<AnsweredReply> {
+}: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
     compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
     return {
@@ -79,11 +82,15 @@ export function createProjectionHandler({
     };
   }
 
-  return async function handle(request: AnsweredRequest): Promise<AnsweredReply> {
-    if (request.kind === ProjectionRequestKind.Version) return versionReply(request);
-    if (request.kind === ProjectionRequestKind.Blocks) return blocksReply(request.documentId);
-    if (request.kind === ProjectionRequestKind.Import) return handleImport(request);
-    if (request.kind === ProjectionRequestKind.Forget) return handleForget(request.documentId);
-    return handleProject(request.documentId);
+  const handlers: Handlers = {
+    [ProjectionRequestKind.Project]: (request) => handleProject(request.documentId),
+    [ProjectionRequestKind.Import]: handleImport,
+    [ProjectionRequestKind.Forget]: (request) => handleForget(request.documentId),
+    [ProjectionRequestKind.Version]: versionReply,
+    [ProjectionRequestKind.Blocks]: (request) => blocksReply(request.documentId),
+  };
+
+  return async function handle<Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]): Promise<AnsweredReply> {
+    return handlers[request.kind](request);
   };
 }

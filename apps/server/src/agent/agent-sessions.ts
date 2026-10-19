@@ -14,16 +14,18 @@ import type { AgentDocumentSessions, AgentPerson } from './agent-tool-context';
 import { ROOM_TOKEN_TTL_MS } from './room-tokens';
 import { AgentToolError } from './tool-results';
 
-export const MAX_AGENT_SESSIONS = 8;
-export const AGENT_SESSION_IDLE_MS = 5 * MINUTE_MS;
-export const AGENT_SESSION_OPEN_TIMEOUT_MS = 30 * SECOND_MS;
+const MAX_AGENT_SESSIONS = 8;
+const AGENT_SESSION_IDLE_MS = 5 * MINUTE_MS;
+const AGENT_SESSION_OPEN_TIMEOUT_MS = 30 * SECOND_MS;
 const AGENT_HOST_NAME = 'SuperDoc History agent';
 const AGENT_HOST_EMAIL = 'agent@superdoc-history.local';
 const SDK_RUNTIME = 'v2';
 const COLLABORATION_PROVIDER = 'hocuspocus';
+const SESSION_BUSY_MESSAGE = 'Every document room is in use';
+const SESSION_OPEN_TIMEOUT_MESSAGE = 'The document did not open in time';
 
 export type AgentSessionsClient = Pick<SuperDocClient, 'connect' | 'open' | 'dispose'>;
-export type LocatedRoom = { roomMode: RoomMode };
+type LocatedRoom = { roomMode: RoomMode };
 type RoleOf = (options: { userId: string; documentId: string }) => DocumentRole | null;
 type OpenedSession = {
   document: SuperDocDocument;
@@ -37,13 +39,13 @@ type SessionTraits = { role: DocumentRole | null; userName: string };
 
 export class AgentSessionBusyError extends AgentToolError {
   constructor(retryAfterSeconds: number) {
-    super({ message: 'Every document room is in use', details: { retryAfterSeconds } });
+    super({ message: SESSION_BUSY_MESSAGE, details: { retryAfterSeconds } });
   }
 }
 
 export class AgentSessionOpenTimeoutError extends AgentToolError {
   constructor() {
-    super({ message: 'The document did not open in time' });
+    super({ message: SESSION_OPEN_TIMEOUT_MESSAGE });
   }
 }
 
@@ -114,17 +116,17 @@ export class AgentSessions implements AgentDocumentSessions {
   run<Result>(options: SessionWork<Result>): Promise<Result> {
     const { userId } = options.person;
     const previous = this.turns.get(userId);
-    const turn = previous ? this.untilTurn(previous).then(() => this.runOnSession(options)) : this.runOnSession(options);
-    const turnEnded = turn.then(
+    const turnPromise = previous ? this.untilTurn(previous).then(() => this.runOnSession(options)) : this.runOnSession(options);
+    const turnEndedPromise = turnPromise.then(
       () => undefined,
       () => undefined,
     );
-    const tail = previous ? Promise.all([previous, turnEnded]).then(() => undefined) : turnEnded;
-    this.turns.set(userId, tail);
-    void tail.then(() => {
-      if (this.turns.get(userId) === tail) this.turns.delete(userId);
+    const tailPromise = previous ? Promise.all([previous, turnEndedPromise]).then(() => undefined) : turnEndedPromise;
+    this.turns.set(userId, tailPromise);
+    void tailPromise.then(() => {
+      if (this.turns.get(userId) === tailPromise) this.turns.delete(userId);
     });
-    return turn;
+    return turnPromise;
   }
 
   async close(): Promise<void> {

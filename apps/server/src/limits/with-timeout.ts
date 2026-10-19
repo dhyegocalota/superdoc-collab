@@ -8,10 +8,10 @@ export function withTimeout<Value>({
   onTimeout: () => Value;
 }): Promise<Value> {
   const timer: { handle: NodeJS.Timeout | null } = { handle: null };
-  const expired = new Promise<void>((resolve) => {
+  const expiredPromise = new Promise<void>((resolve) => {
     timer.handle = setTimeout(resolve, milliseconds);
   }).then(onTimeout);
-  return Promise.race([work, expired]).finally(() => {
+  return Promise.race([work, expiredPromise]).finally(() => {
     if (timer.handle) clearTimeout(timer.handle);
   });
 }

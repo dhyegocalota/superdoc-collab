@@ -42,9 +42,9 @@ const LINKS: ShareLinks = {
 };
 const ROTATED_LINKS: ShareLinks = { ...LINKS, [ShareLinkRole.Edit]: 'http://localhost/share/rotated-token' };
 const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members });
-const OWNER_MEMBER: DocumentMember = { user: { id: 'owner-id', name: 'Ana' }, role: DocumentRole.Owner, online: true, colorSlot: 0 };
-const READER_MEMBER: DocumentMember = { user: { id: 'reader-id', name: 'Bruno' }, role: DocumentRole.Reader, online: false, colorSlot: 1 };
-const EDITOR_MEMBER: DocumentMember = { user: { id: 'editor-id', name: 'Carla' }, role: DocumentRole.Editor, online: false, colorSlot: 2 };
+const OWNER_MEMBER: DocumentMember = { user: { id: 'owner-id', name: 'Ana' }, role: DocumentRole.Owner, online: true, colorSlot: 1 };
+const READER_MEMBER: DocumentMember = { user: { id: 'reader-id', name: 'Bruno' }, role: DocumentRole.Reader, online: false, colorSlot: 2 };
+const EDITOR_MEMBER: DocumentMember = { user: { id: 'editor-id', name: 'Carla' }, role: DocumentRole.Editor, online: false, colorSlot: 3 };
 const READER_PATH = memberApiPath({ documentId: DOCUMENT_ID, userId: READER_MEMBER.user.id });
 const NOTICE_FAKE_TIMERS = { toFake: ['setTimeout', 'clearTimeout'] } satisfies Parameters<typeof vi.useFakeTimers>[0];
 

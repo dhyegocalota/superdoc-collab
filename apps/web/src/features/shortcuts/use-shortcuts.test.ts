@@ -298,3 +298,12 @@ test('a reader cannot switch track changes', () => {
   expect(pressKey({ code: 'KeyT', key: 't', ...OPTION_KEYS }).defaultPrevented).toBe(false);
   expect(setDocumentMode).not.toHaveBeenCalled();
 });
+
+test('AltGr characters are left to the editing surface', () => {
+  renderShortcuts();
+  const altGraph = { ...OPTION_KEYS, modifierAltGraph: true };
+  expect(pressKey({ code: 'KeyE', key: '€', ...altGraph }).defaultPrevented).toBe(false);
+  expect(pressKey({ code: 'KeyM', key: 'µ', ...altGraph }).defaultPrevented).toBe(false);
+  expect(onToggleEditsPanel).not.toHaveBeenCalled();
+  expect(onAddComment).not.toHaveBeenCalled();
+});

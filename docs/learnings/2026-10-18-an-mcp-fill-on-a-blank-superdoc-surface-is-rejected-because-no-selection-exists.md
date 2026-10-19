@@ -3,6 +3,7 @@
 - Date: 2026-10-18
 - Inspired by: the scenario walk of `docs/scenarios/core-realtime.md`, which could not type into a document created with New document
 - Revisited: 2026-10-18 — still true at SuperDoc 2.23.0
+- Revisited: 2026-10-19 — still true for a fill of the textarea; the editor now places the caret itself on open, so a key press works without a click (docs/features/caret-on-open/)
 
 ## Signal
 `browser_type` into the blank document's editing textarea shows SuperDoc's "This edit couldn't be completed" and nothing appears. The same text typed after a click works.

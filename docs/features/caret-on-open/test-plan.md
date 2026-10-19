@@ -20,7 +20,7 @@ Unit run: 7 of 7 in `use-caret-on-open.test.ts` fail with `Error: useCaretOnOpen
 
 ## Unit
 
-- [ ] `use-caret-on-open.test.ts`: waits for the first fragment; runs once; never for a reader
+- [x] `use-caret-on-open.test.ts`: waits for the first fragment; runs once; never for a reader
 
 ## E2E
 

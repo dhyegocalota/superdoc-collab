@@ -10,6 +10,7 @@
 - Revisited: 2026-10-18 — still true
 - Revisited: 2026-10-18 — still true; `author-colours` changes only the user colour option
 - Revisited: 2026-10-18 — recurred from the browser tool: a Playwright MCP fill of the blank textarea has the same no-selection cause (docs/learnings/2026-10-18-an-mcp-fill-on-a-blank-superdoc-surface-is-rejected-because-no-selection-exists.md)
+- Revisited: 2026-10-19 — still true for `superdoc.focus()` and the runtime reveal (no selection snapshot exists to mint a position from); the editor now opens with a caret by pressing a synthetic pointer sequence at the first fragment, which sets the selection like a real click (docs/features/caret-on-open/)
 
 ## Signal
 On a document just created with "New document", the caret seems to be there, and the first key pressed shows SuperDoc's "This edit couldn't be completed" with nothing typed. Clicking into the page first works.

@@ -6,10 +6,10 @@
 
 ## Steps
 
-- [ ] **Step 1 (spike):** throwaway `e2e/_caret-spike.spec.ts` tries the three approaches of the spec against a new document and a joined one; record the table in `spec.md`; delete the spec.
-- [ ] **Step 2 (red):** E2E `a new document accepts typing without a click` and `a joiner types without a click` (red: the text does not appear or the rejected-edit status shows); unit test of the hook; commit red alone.
-- [ ] **Step 3 (green):** `use-caret-on-open.ts` with the chosen mechanism; wire it in `superdoc-editor.tsx`.
-- [ ] **Step 4:** revisit the two focus learnings, update `.claude/rules/web-ui.md`; tester briefing.
+- [x] **Step 1 (spike):** throwaway `e2e/_caret-spike.spec.ts` tries the three approaches of the spec against a new document and a joined one; record the table in `spec.md`; delete the spec.
+- [x] **Step 2 (red):** E2E `a new document accepts typing without a click` and `a joiner types without a click` (red: the text does not appear or the rejected-edit status shows); unit test of the hook; commit red alone.
+- [x] **Step 3 (green):** `use-caret-on-open.ts` with the chosen mechanism; wire it in `superdoc-editor.tsx`.
+- [x] **Step 4:** revisit the two focus learnings, update `.claude/rules/web-ui.md`; tester briefing.
 
 ## Failure modes
 

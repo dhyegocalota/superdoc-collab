@@ -308,7 +308,8 @@ test('publishes the selection sentence before the topic sentences are rewritten'
   await expect
     .poll(() => selection.read({ documentId, selection: SELECTION }), { timeout: POLL_TIMEOUT_MS })
     .toMatchObject({ state: SelectionSummaryState.Ready, step: SummarizeStep.Idle, summary: { sentence: COMBINED_ANSWER.sentence } });
-  expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(true);
+  expect(jobRunner.isRunning(`summarize:${documentId}`)).toBe(false);
+  expect(jobRunner.isRunning(`summarize-topics:${documentId}`)).toBe(true);
   release();
   await jobRunner.idle();
   client.close();

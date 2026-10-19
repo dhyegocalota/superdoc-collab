@@ -58,7 +58,9 @@ export class InsightsJobRunner {
 
   watchFirstCall({ documentId, onFirstCall }: { documentId: string; onFirstCall: () => void }): () => void {
     this.firstCallWatchers.set(documentId, onFirstCall);
-    return () => this.firstCallWatchers.delete(documentId);
+    return () => {
+      if (this.firstCallWatchers.get(documentId) === onFirstCall) this.firstCallWatchers.delete(documentId);
+    };
   }
 
   hasCallBudget(): boolean {

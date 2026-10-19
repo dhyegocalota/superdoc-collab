@@ -1,11 +1,13 @@
-import { JUMP_FAILED_NOTICE_MS, type DocumentMember } from '@superdoc-collab/types';
+import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentMember } from '@superdoc-collab/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
-import type { SuperDoc } from 'superdoc';
+import type { SuperDoc, SuperDocAwarenessUpdatePayload } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MEDIUM_BREAKPOINT_PX } from '@/lib/breakpoints';
+import { useDebouncedCallback } from '@/lib/use-debounced-callback';
 import { useMinWidth } from '@/lib/use-min-width';
 import {
   BACK_TO_LIVE_TO_JUMP_REASON,
@@ -18,6 +20,7 @@ import {
   offlineMemberReason,
   SELF_MEMBER_REASON,
 } from './editor-copy';
+import { membersQueryKey } from './editor-api';
 import { overflowCountLabel } from './members-copy';
 import { JumpOutcome, useMemberCursors } from './use-member-cursors';
 
@@ -25,6 +28,9 @@ const MAX_MEMBERS_WITHOUT_MENU = 5;
 const MEMBERS_BESIDE_MENU = 4;
 const NARROW_MEMBERS_WITHOUT_MENU = 3;
 
+const AWARENESS_UPDATE_EVENT = 'awareness-update';
+
+type AwarenessChange = Pick<SuperDocAwarenessUpdatePayload, 'added' | 'removed'>;
 type JumpState = { member: DocumentMember; isOnline: boolean; reason: string | null };
 
 function jumpReasonOf({
@@ -70,24 +76,23 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
     setIsFailed(onJump(member) === JumpOutcome.NotFound);
   }
 
+  const description = reason === null ? goToCursorLabel(name) : reason;
+
   function tooltipText(): string {
     if (isFailed) return cursorNotFoundMessage(name);
-    if (reason !== null) return reason;
-    return goToCursorLabel(name);
+    return description;
   }
 
   return (
     <Tooltip open={isOpen || isFailed} onOpenChange={setIsOpen}>
-      {reason !== null && (
-        <span id={reasonId} className="sr-only">
-          {reason}
-        </span>
-      )}
+      <span id={reasonId} className="sr-only">
+        {description}
+      </span>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={reason === null ? goToCursorLabel(name) : memberLabel({ name, isOnline })}
-          aria-describedby={reason === null ? undefined : reasonId}
+          aria-label={memberLabel({ name, isOnline })}
+          aria-describedby={reasonId}
           aria-disabled={reason !== null}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={jump}
@@ -131,12 +136,14 @@ function MembersMenu({ states, onJump }: { states: JumpState[]; onJump: (member:
 }
 
 export function Members({
+  documentId,
   members,
   currentUserId,
   superdoc,
   editorContainer,
   isPastVersion,
 }: {
+  documentId: string;
   members: DocumentMember[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
@@ -144,7 +151,25 @@ export function Members({
   isPastVersion: boolean;
 }) {
   const { hasCursor, jumpTo } = useMemberCursors({ superdoc, container: editorContainer });
+  const queryClient = useQueryClient();
+  const { schedule: refreshMembers } = useDebouncedCallback({
+    callback: () => queryClient.invalidateQueries({ queryKey: membersQueryKey(documentId) }, { cancelRefetch: false }),
+    delayMs: MEMBERS_PRESENCE_DEBOUNCE_MS,
+  });
   const [announcement, setAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (!superdoc) return;
+    function onAwarenessUpdate({ added, removed }: AwarenessChange): void {
+      const hasPeerChange = added.length + removed.length > 0;
+      if (!hasPeerChange) return;
+      refreshMembers();
+    }
+    superdoc.on(AWARENESS_UPDATE_EVENT, onAwarenessUpdate);
+    return () => {
+      superdoc.off(AWARENESS_UPDATE_EVENT, onAwarenessUpdate);
+    };
+  }, [superdoc, refreshMembers]);
 
   function jump(member: DocumentMember): JumpOutcome {
     const outcome = jumpTo(member);

@@ -37,6 +37,7 @@ type SuperDocEditorProps = {
   isInert: boolean;
   isSuperseded: boolean;
   onTransportReport: (report: TransportReport) => void;
+  onEditorUpdate: () => void;
 };
 
 export function SuperDocEditor({
@@ -53,6 +54,7 @@ export function SuperDocEditor({
   isInert,
   isSuperseded,
   onTransportReport,
+  onEditorUpdate,
 }: SuperDocEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLParagraphElement>(null);
@@ -86,6 +88,10 @@ export function SuperDocEditor({
         reportTransport({ reading: TransportReading.Failed, failureReason: failureReasonOf(payload), hasSynced: false }),
       [ExceptionOutcome.Fatal]: () => setHasFailed(true),
     };
+    function reportEditorUpdate(): void {
+      if (!isActive) return;
+      onEditorUpdate();
+    }
     const superdoc = new SuperDoc({
       ...superdocOptions({
         container,
@@ -100,6 +106,8 @@ export function SuperDocEditor({
         ...authorPaletteOf({ colorSlot }),
       }),
       onReady: ({ superdoc: readySuperdoc }) => onSuperdocChange(readySuperdoc),
+      onEditorUpdate: reportEditorUpdate,
+      onPaginationUpdate: reportEditorUpdate,
       onCollaborationReady: () => {
         isReady = true;
       },
@@ -118,7 +126,7 @@ export function SuperDocEditor({
       superdoc.destroy();
       setHasRejectedEdit(false);
     };
-  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport]);
+  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, creatorTicket, role, user, file, onTransportReport, onEditorUpdate]);
 
   function clearRejectedEdit(): void {
     setHasRejectedEdit(false);

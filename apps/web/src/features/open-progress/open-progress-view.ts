@@ -62,3 +62,17 @@ export function renderingView({ pageCount, elapsedSeconds }: { pageCount: number
     fraction: null,
   };
 }
+
+export type EditorLoadProgress = { isSynced: boolean; pageCount: number; hasFailed: boolean };
+
+export function editorOpenView({
+  loadProgress,
+  stateBytes,
+  elapsedSeconds,
+}: {
+  loadProgress: EditorLoadProgress;
+  stateBytes: number | null;
+  elapsedSeconds: number;
+}): OpenProgressView {
+  throw new Error('editorOpenView is not implemented');
+}

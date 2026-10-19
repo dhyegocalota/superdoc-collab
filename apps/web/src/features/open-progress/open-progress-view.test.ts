@@ -1,7 +1,14 @@
 import { BootstrapStage } from '@superdoc-collab/types';
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { bootstrapAt } from '@/testing/opened-document';
-import { downloadingView, preparingView, renderingView, uploadingView } from './open-progress-view';
+import {
+  downloadingView,
+  editorOpenView,
+  preparingView,
+  renderingView,
+  uploadingView,
+  type EditorLoadProgress,
+} from './open-progress-view';
 import { OpenStage } from './open-stage';
 
 const TOTAL_BYTES = 9_961_472;
@@ -61,4 +68,20 @@ test.each([
   [1234, 'Laying out the pages · 1,234 so far · 12 s'],
 ])('rendering with %i pages laid out reads %s', (pageCount, detail) => {
   expect(renderingView({ pageCount, elapsedSeconds: 12 })).toEqual({ stage: OpenStage.Rendering, detail, fraction: null });
+});
+
+describe('the view while the editor loads', () => {
+  const FRESH: EditorLoadProgress = { isSynced: false, pageCount: 0, hasFailed: false };
+
+  test('before collaboration is synced it is the download with the size of the state', () => {
+    expect(editorOpenView({ loadProgress: FRESH, stateBytes: 36_500_000, elapsedSeconds: 12 })).toEqual(
+      downloadingView({ stateBytes: 36_500_000, elapsedSeconds: 12 }),
+    );
+  });
+
+  test('once synced it is the rendering with the pages laid out so far', () => {
+    expect(
+      editorOpenView({ loadProgress: { ...FRESH, isSynced: true, pageCount: 7 }, stateBytes: 36_500_000, elapsedSeconds: 12 }),
+    ).toEqual(renderingView({ pageCount: 7, elapsedSeconds: 12 }));
+  });
 });

@@ -22,6 +22,10 @@ import { signedInUser, signInExisting, startTestServer, TEST_USER_PASSWORD, type
 
 const SESSION_COOKIE_PATTERN = /session_token/;
 
+function USERS_ROLE_PATH(id: string): string {
+  return `${ApiPath.Admin}/users/${id}/role`;
+}
+
 function act({
   server,
   userId,
@@ -292,10 +296,56 @@ describe('impersonation sessions follow the impersonator', () => {
     await server.stop();
   });
 
+  test('a two-hour-old impersonation session answers 401 on get-session and its row is gone', async () => {
+    const server = await startTestServer();
+    const { cookie } = await adminImpersonating({ server });
+    server.database.sqlite
+      .prepare('update session set created_at = ? where impersonated_by is not null')
+      .run(Date.now() - 2 * IMPERSONATION_SESSION_MS);
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/get-session`, { headers: { cookie } });
+    expect(response.status).toBe(HttpStatus.Unauthorized);
+    const rows = server.database.sqlite.prepare('select count(*) as n from session where impersonated_by is not null').get() as {
+      n: number;
+    };
+    expect(rows.n).toBe(0);
+    await server.stop();
+  });
+
+  test('an orphaned impersonation session answers 401 on get-session and its row is gone', async () => {
+    const server = await startTestServer();
+    const { eve, cookie } = await adminImpersonating({ server });
+    server.database.sqlite.prepare('update user set role = ? where id = ?').run(UserRole.User, eve.id);
+    const response = await fetch(`${server.baseUrl}${ApiPath.Auth}/get-session`, { headers: { cookie } });
+    expect(response.status).toBe(HttpStatus.Unauthorized);
+    const rows = server.database.sqlite.prepare('select count(*) as n from session where impersonated_by is not null').get() as {
+      n: number;
+    };
+    expect(rows.n).toBe(0);
+    await server.stop();
+  });
+
+  test('demoting the impersonating admin deletes their impersonation sessions and closes the sockets opened through them', async () => {
+    const server = await startTestServer();
+    const { eve, caio } = await adminImpersonating({ server });
+    const closeSockets = vi.spyOn(server.services.runtime, 'closeConnectionsOfUser').mockImplementation(() => undefined);
+    const response = await fetch(`${server.baseUrl}${USERS_ROLE_PATH(eve.id)}`, {
+      method: HttpMethod.Post,
+      headers: { cookie: server.admin.cookie, origin: server.baseUrl, 'content-type': 'application/json' },
+      body: JSON.stringify({ role: UserRole.User }),
+    });
+    expect(response.status).toBe(HttpStatus.Ok);
+    const rows = server.database.sqlite.prepare('select count(*) as n from session where impersonated_by = ?').get(eve.id) as { n: number };
+    expect(rows.n).toBe(0);
+    expect(closeSockets).toHaveBeenCalledWith(caio.id);
+    await server.stop();
+  });
+
   test.each([
     { path: '/oauth2/consent', method: HttpMethod.Post },
     { path: '/oauth2/authorize', method: HttpMethod.Get },
     { path: '/revoke-other-sessions', method: HttpMethod.Post },
+    { path: '/oauth2/continue', method: HttpMethod.Post },
+    { path: '/update-user', method: HttpMethod.Post },
   ])('an impersonated session is refused $method $path with 403', async ({ path, method }) => {
     const server = await startTestServer();
     const { cookie } = await adminImpersonating({ server });

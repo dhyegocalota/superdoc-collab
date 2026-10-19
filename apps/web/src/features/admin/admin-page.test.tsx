@@ -478,3 +478,18 @@ test('every row has exactly one button, the Actions trigger named for the person
     expect(buttons[0]).toHaveAccessibleName(actionsMenuLabel(name));
   });
 });
+
+test('the Actions menu opens with Enter, moves with the arrows and Escape returns focus to the trigger', async () => {
+  mockApi();
+  renderAdminPage();
+  const row = await rowOf({ table: USERS_TABLE_LABEL, text: MEMBER_USER.email });
+  const trigger = within(row).getByRole('button', { name: actionsMenuLabel(MEMBER_USER.name) });
+  trigger.focus();
+  await userEvent.keyboard('{Enter}');
+  const menu = await screen.findByRole('menu');
+  await userEvent.keyboard('{ArrowDown}');
+  expect(within(menu).getAllByRole('menuitem')).toContain(document.activeElement);
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  expect(trigger).toHaveFocus();
+});

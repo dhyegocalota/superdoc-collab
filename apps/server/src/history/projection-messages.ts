@@ -114,6 +114,12 @@ export class BootstrapInterruptedError extends Error {
   }
 }
 
+export class BootstrapNotAppliedError extends Error {
+  constructor() {
+    super('The SDK host opened the room without applying the document.');
+  }
+}
+
 export class ImportTimeoutError extends Error {
   constructor(milliseconds: number) {
     super(`The import took longer than ${milliseconds} ms.`);

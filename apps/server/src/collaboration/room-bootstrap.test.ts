@@ -1,6 +1,11 @@
-import { BOOTSTRAP_STATE_BYTES_RATIO, BootstrapStage } from '@superdoc-collab/types';
-import { expect, test, vi } from 'vitest';
-import { BOOTSTRAP_FAILED_MESSAGE } from '../history/projection-messages';
+import {
+  BOOTSTRAP_COMMIT_GRACE_MS,
+  BOOTSTRAP_RETRY_COOLDOWN_MS,
+  BOOTSTRAP_STATE_BYTES_RATIO,
+  BootstrapStage,
+} from '@superdoc-collab/types';
+import { afterEach, expect, test, vi } from 'vitest';
+import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError } from '../history/projection-messages';
 import { RoomBootstrap } from './room-bootstrap';
 
 const DOCUMENT_ID = 'document-plan';
@@ -15,7 +20,14 @@ const URL = 'ws://127.0.0.1:4000/collaboration/bootstrap';
 type Run = { documentId: string; filePath: string; url: string; token: string };
 type Pending = { request: Run; resolve: () => void; reject: (error: Error) => void };
 
-function bootstrapWithPendingRuns({ ownerOf = () => OWNER_ID }: { ownerOf?: (documentId: string) => string | null } = {}) {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function bootstrapWithPendingRuns({
+  ownerOf = () => OWNER_ID,
+  now = () => Date.now(),
+}: { ownerOf?: (documentId: string) => string | null; now?: () => number } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
   const bootstrap = new RoomBootstrap({
@@ -25,6 +37,7 @@ function bootstrapWithPendingRuns({ ownerOf = () => OWNER_ID }: { ownerOf?: (doc
     ownerOf,
     fileBytesOf: () => FILE_BYTES,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
+    now,
   });
   return { bootstrap, pending, issueToken };
 }
@@ -91,7 +104,7 @@ test('a commit nobody asked for is ready with nothing to process', () => {
   expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Ready, done: 0, total: 0, stateBytes: STATE_BYTES });
 });
 
-test('a failed run is reported once, stays failed and is never run again', async () => {
+test('a failed run is reported once, stays failed within the cooldown and is not run again', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const { bootstrap, pending } = bootstrapWithPendingRuns();
   bootstrap.request(DOCUMENT_ID);
@@ -105,13 +118,69 @@ test('a failed run is reported once, stays failed and is never run again', async
   error.mockRestore();
 });
 
-test('a run that ends without a commit is failed instead of left preparing', async () => {
+test('a run that ends without a commit is failed once the grace is over instead of left preparing', async () => {
+  vi.useFakeTimers();
   const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const { bootstrap, pending } = bootstrapWithPendingRuns();
   bootstrap.request(DOCUMENT_ID);
-  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  await vi.advanceTimersByTimeAsync(0);
   pending[0]!.resolve();
+  await vi.advanceTimersByTimeAsync(BOOTSTRAP_COMMIT_GRACE_MS - 1);
+  expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Preparing);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed);
+  error.mockRestore();
+});
+
+test('a commit that lands after the run resolved, within the grace, is ready and never failed', async () => {
+  vi.useFakeTimers();
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap, pending } = bootstrapWithPendingRuns();
+  bootstrap.request(DOCUMENT_ID);
+  await vi.advanceTimersByTimeAsync(0);
+  pending[0]!.resolve();
+  await vi.advanceTimersByTimeAsync(BOOTSTRAP_COMMIT_GRACE_MS / 2);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  await vi.advanceTimersByTimeAsync(BOOTSTRAP_COMMIT_GRACE_MS);
+  expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Ready);
+  expect(error).not.toHaveBeenCalled();
+  error.mockRestore();
+});
+
+test('a failed bootstrap is run again by the first request after the cooldown, with a new attempt', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { time: 0 };
+  const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns({ now: () => clock.time });
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  pending[0]!.reject(new Error('not a document'));
   await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
+  clock.time = BOOTSTRAP_RETRY_COOLDOWN_MS - 1;
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  clock.time = BOOTSTRAP_RETRY_COOLDOWN_MS;
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Queued);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  const [first, second] = issueToken.mock.calls.map(([{ attempt }]) => attempt);
+  expect(second).not.toBe(first);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second! })).toBe(true);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first! })).toBe(false);
+  error.mockRestore();
+});
+
+test('a run interrupted by the worker is run once more with a new attempt', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns();
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  pending[0]!.reject(new BootstrapInterruptedError());
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Preparing);
+  const [first, second] = issueToken.mock.calls.map(([{ attempt }]) => attempt);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first! })).toBe(false);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second! })).toBe(true);
+  pending[1]!.reject(new BootstrapInterruptedError());
+  await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
+  expect(pending).toHaveLength(2);
   error.mockRestore();
 });
 

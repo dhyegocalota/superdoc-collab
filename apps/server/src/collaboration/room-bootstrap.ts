@@ -39,6 +39,7 @@ export class RoomBootstrap {
   private readonly ownerOf: (documentId: string) => string | null;
   private readonly fileBytesOf: (documentId: string) => number;
   private readonly filePathOf: (documentId: string) => string;
+  private readonly now: () => number;
 
   constructor({
     run,
@@ -47,6 +48,7 @@ export class RoomBootstrap {
     ownerOf,
     fileBytesOf,
     filePathOf,
+    now = () => Date.now(),
   }: {
     run: BootstrapRun;
     issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
@@ -54,6 +56,7 @@ export class RoomBootstrap {
     ownerOf: (documentId: string) => string | null;
     fileBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
+    now?: () => number;
   }) {
     this.run = run;
     this.issueToken = issueToken;
@@ -61,6 +64,7 @@ export class RoomBootstrap {
     this.ownerOf = ownerOf;
     this.fileBytesOf = fileBytesOf;
     this.filePathOf = filePathOf;
+    this.now = now;
   }
 
   progressOf(documentId: string): BootstrapProgress | null {

@@ -1,5 +1,7 @@
-import { buildSeedDocx, isDocx, type SeedParagraph } from '@superdoc-collab/history';
+import { buildSeedDocx, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
+  BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
@@ -17,6 +19,7 @@ import {
   titleSchema,
   UNTITLED_DOCUMENT_TITLE,
   UPLOAD_FIELD,
+  UPLOAD_RATE_LIMITED_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
 } from '@superdoc-collab/types';
 import { basename } from 'node:path';
@@ -61,7 +64,31 @@ function contentDisposition(fileName: string): string {
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
 
 function mountCreation({ routes, services }: RouteMount): void {
-  const { documents, storage, runtime } = services;
+  const { documents, storage, runtime, uploadBudget } = services;
+
+  function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
+    const userId = context.var.user.id;
+    const waitMs = uploadBudget.waitMs(userId);
+    uploadBudget.record(userId);
+    if (waitMs === null) return null;
+    return retryLater({
+      context,
+      body: { error: UPLOAD_RATE_LIMITED_MESSAGE },
+      status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenQueueFull({ context, fileBytes }: { context: Context<SignedIn>; fileBytes: number }): Response | null {
+    const waitMs = runtime.bootstrapQueueWaitMs({ ownerUserId: context.var.user.id, fileBytes });
+    if (waitMs === null) return null;
+    return retryLater({
+      context,
+      body: { error: BOOTSTRAP_QUEUE_FULL_MESSAGE },
+      status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
 
   async function respondWithStoredDocument({
     context,
@@ -74,6 +101,8 @@ function mountCreation({ routes, services }: RouteMount): void {
     title: string;
     importRevisions: boolean;
   }): Promise<Response> {
+    const queueRefusal = refusalWhenQueueFull({ context, fileBytes: bytes.byteLength });
+    if (queueRefusal) return queueRefusal;
     const userId = context.var.user.id;
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
@@ -99,6 +128,8 @@ function mountCreation({ routes, services }: RouteMount): void {
       onError: (context) => context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
     }),
     async (context) => {
+      const uploadsRefusal = refusalWhenUploadsSpent(context);
+      if (uploadsRefusal) return uploadsRefusal;
       const isUpload = context.req.header('content-type')?.startsWith(MULTIPART_CONTENT_TYPE) === true;
       if (!isUpload) return createBlank(context);
       const body = await context.req.parseBody().catch(() => null);
@@ -107,8 +138,9 @@ function mountCreation({ routes, services }: RouteMount): void {
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
-      if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
+      if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
     },
   );

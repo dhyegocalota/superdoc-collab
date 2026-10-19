@@ -1,3 +1,4 @@
+name: superdoc-collab
 services:
   app:
     build:

@@ -32,3 +32,9 @@ Resident memory is the whole process (main thread and workers). Sampler: one row
 ## Coverage honesty
 
 - Railway's chart is not reproduced locally; the capped repro measures the process.
+
+## Tester walk, 2026-10-19 (scripted, scenario stack with `--expose-gc`)
+
+- The server log of the stack showed, after every close of the last tab of a heavy document, one `Released the memory of a heavy room, resident bytes before and after:` line. Rows: 2,204,794,880 to 1,530,281,984; 2,224,783,360 to 1,562,165,248; 1,289,158,656 to 255,754,240 (the third after `Recycled the projection worker after a heavy job, heap bytes: 976453632`); later runs 1,525,465,088 to 404,160,512; 1,527,349,248 to 656,048,128; 1,056,817,152 to 396,754,944; 1,422,688,256 to 533,856,256. Log files: `.pr-media/instant-open/walk/mystack*.log`.
+- The 1.4 MB sample brief also triggered `Recycled the projection worker after a heavy job` (heap bytes 449,675,264 to 487,817,216 in 4 of about 9 opens): the 256 MB threshold counts heapTotal of a moderately sized document, so each such open pays a worker restart.
+- The scenario stack script was killed from outside six times (SIGTERM to the fake model and the server, exit 0, no product code involved); the walk used an equivalent launcher that logs the exit signal.

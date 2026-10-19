@@ -9,32 +9,36 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Unit
 
-- [ ] `use-delayed-reveal.test.ts` — input: 399 ms then 1 ms; expected: false then true; a reset key restarts the clock
-- [ ] `open-progress-panel.test.tsx` — each stage: the current stage has `aria-current="step"`, earlier stages are done, later are pending
-- [ ] Indeterminate: Downloading has a progressbar without `aria-valuenow`
-- [ ] `use-opened-document.test.tsx` — a 200 with Preparing is Waiting and polls every `PREPARING_POLL_MS`; Queued polls every `DOCUMENT_READY_POLL_MS`; Failed is `DocumentReadiness.Failed`; Ready is `DocumentReadiness.Ready` and exposes the data
-- [ ] `waiting-for-document.test.tsx` — the Preparing panel shows after the reveal, not before
-- [ ] `use-editor-open-progress.test.ts` — not synced: Downloading with the size; synced: Rendering with the pages; first fragment: no view
-- [ ] `use-upload-document.test.tsx` — progress events become `progress`; it returns to null on success and on failure
-- [ ] Edge: Preparing with `done` 0 — indeterminate bar, detail with the file size and the elapsed time; with `done` above 0 — determinate bar, detail "Received …"
-- [ ] Edge: a document that opens before the delay — no panel was ever rendered, the skeleton or SuperDoc's overlay stays until then
-- [ ] Edge: `prefers-reduced-motion` — the spinner and the pulse carry `motion-reduce:animate-none`
+- [x] `use-delayed-reveal.test.ts` — input: 399 ms then 1 ms; expected: false then true; a reset key restarts the clock — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] `open-progress-panel.test.tsx` — each stage: the current stage has `aria-current="step"`, earlier stages are done, later are pending — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] Indeterminate: Downloading has a progressbar without `aria-valuenow` — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] `use-opened-document.test.tsx` — a 200 with Preparing is Waiting and polls every `PREPARING_POLL_MS`; Queued polls every `DOCUMENT_READY_POLL_MS`; Failed is `DocumentReadiness.Failed`; Ready is `DocumentReadiness.Ready` and exposes the data — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] `waiting-for-document.test.tsx` — the Preparing panel shows after the reveal, not before — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] `use-editor-open-progress.test.ts` — not synced: Downloading with the size; synced: Rendering with the pages; first fragment: no view — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] `use-upload-document.test.tsx` — progress events become `progress`; it returns to null on success and on failure — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] Edge: Preparing with `done` 0 — indeterminate bar, detail with the file size and the elapsed time; with `done` above 0 — determinate bar, detail "Received …" — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] Edge: a document that opens before the delay — no panel was ever rendered, the skeleton or SuperDoc's overlay stays until then — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
+- [x] Edge: `prefers-reduced-motion` — the spinner and the pulse carry `motion-reduce:animate-none` — evidence: `apps/web` vitest 164 files, 1350 tests passed (lane testing2, merge a9e4922d)
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/open-progress.spec.ts::the Preparing panel names the wait, then the file being converted, then fills with the bytes done` — steps: script open answers Queued, Preparing 0, Preparing 40%, Preparing 80% of 1,000,000 bytes, then the real answer; expected: stage Preparing, detail "Waiting for its turn", then "Converting a", an indeterminate bar, then `aria-valuenow` 40, then 80, then the editor with no panel
-- [ ] `e2e/open-progress.spec.ts::a joiner of a large document watches the download tick and the panel leaves at the first paragraph` — steps: the owner opens the large fixture, a second member opens it through a share link; expected: stages in order Preparing, Downloading, Rendering without going back, more than two distinct detail lines, no panel once the first paragraph is visible
-- [ ] `e2e/open-progress.spec.ts::uploading a large document fills the bar with the bytes sent before the page opens` — steps: throttle the upload to 2 MB/s, upload the large fixture from the documents home; expected: the upload bar's value never decreases, shows more than one value and more than one detail line, then the document page opens
-- [ ] `e2e/open-progress.spec.ts::a normal document opens without the panel ever showing` — steps: open a one-paragraph document; expected: the panel never appears, no reading recorded in 100 ms samples
+- [x] `e2e/open-progress.spec.ts::the Preparing panel names the wait, then the file being converted, then fills with the bytes done` — steps: script open answers Queued, Preparing 0, Preparing 40%, Preparing 80% of 1,000,000 bytes, then the real answer; expected: stage Preparing, detail "Waiting for its turn", then "Converting a", an indeterminate bar, then `aria-valuenow` 40, then 80, then the editor with no panel — evidence: passed in the combined run of open-progress and room-admission specs, 7 of 8 passed in 3.4 min
+- [x] `e2e/open-progress.spec.ts::a joiner of a large document watches the download tick and the panel leaves at the first paragraph` — steps: the owner opens the large fixture, a second member opens it through a share link; expected: stages in order Preparing, Downloading, Rendering without going back, more than two distinct detail lines, no panel once the first paragraph is visible — evidence: passed in the combined run of open-progress and room-admission specs, 7 of 8 passed in 3.4 min
+- [x] `e2e/open-progress.spec.ts::uploading a large document fills the bar with the bytes sent before the page opens` — steps: throttle the upload to 2 MB/s, upload the large fixture from the documents home; expected: the upload bar's value never decreases, shows more than one value and more than one detail line, then the document page opens — evidence: passed in the combined run of open-progress and room-admission specs, 7 of 8 passed in 3.4 min
+- [x] `e2e/open-progress.spec.ts::a normal document opens without the panel ever showing` — steps: open a one-paragraph document; expected: the panel never appears, no reading recorded in 100 ms samples — evidence: failed once in the combined run (Ready not reached in 60 s, queued behind heavy bootstraps, see server-bootstrap edge case 1), passed alone in 2.1 s
 
 ## Prove it for real — Playwright MCP
 
-- [ ] Happy path: upload the large fixture, expected: upload bar with bytes, the stage list moves, the editor opens
-- [ ] Failed preparation: expected: the existing error card and Back to documents
-- [ ] Desktop width 1280 and narrow width 375, no sideways scroll
-- [ ] Reduced motion: no animation in the panel
-- [ ] Screenshots at `.pr-media/open-progress/`
+- [x] Happy path: upload the large fixture, expected: upload bar with bytes, the stage list moves, the editor opens — evidence: scripted walk at 1280 and 375: upload bar then panel at 2.2 s, Preparing, Downloading ("Receiving 34.9 MB"), editor; Rendering never sampled (100 ms), first paragraph 69 to 148 s after the upload; `.pr-media/instant-open/walk/heavy-1280-ana-upload.png`, `heavy-1280-ana-stage-preparing.png`, `heavy-1280-ana-stage-downloading.png`, `heavy-375-*`; see edge case 1
+- [x] Failed preparation: expected: the existing error card and Back to documents — evidence: `.pr-media/instant-open/walk/broken-1280-ana-failed.png`, `broken-375-ana-failed.png`, Back to documents returns to /documents
+- [x] Desktop width 1280 and narrow width 375, no sideways scroll — evidence: scrollWidth not above innerWidth in every 1280 and 375 run; card at 375 is 343 px wide with 16 px margins left and right; `.pr-media/instant-open/walk/heavy-375-ana-stage-preparing.png`
+- [x] Reduced motion: no animation in the panel — evidence: reducedMotion reduce at 375, matchMedia true, 0 animated elements and 0 running animations inside the panel; `.pr-media/instant-open/walk/rm-375-preparing.png`
+- [x] Screenshots at `.pr-media/open-progress/` — evidence: kept under `.pr-media/instant-open/walk/` of the lane worktree as the lead asked (56 files, screenshots and logs)
 
 ## Edge cases found during execution
 
-Empty on purpose.
+1. Preparing never grows: the detail reads "Received 3.6 KB" (a 3.5 to 3.6 KB value, `aria-valuenow` 0) for the whole 53 to 130 s, only the elapsed seconds change, so the briefing hypothesis that "Received X MB" grows is refuted; the first run showed "Converting a 38.1 MB file" for 2 s before the same frozen value. DEFECT candidate: a frozen byte count reads as a stall.
+2. Downloading has no Back to documents button (the panel footer exists only while Preparing); Escape does nothing in either stage. The Tab order leaves the panel: skip link, avatar, Back to documents, then the page, no trap.
+3. Offline for 5 s mid-Downloading: 3 of 3 tries on a Ready document kept the Downloading panel and opened the editor 10.2 to 10.6 s after going online, no reload needed; 1 earlier try (a page reloaded mid-Preparing, then offline at the first Downloading frame) ended in the card "Couldn't open document — The background document worker could not start" with "The editor stopped working. Reload the page to continue." that stayed after going online (`.pr-media/instant-open/walk/hyp-1280-doc1-offline.png`); the 375 repeat did not fail, and its reload after going online opened the document in 13.5 s. Not reproduced.
+4. A 1.4 MB document (the brief) opened in 1.9 s in 5 of 9 tries and in 2.9 to 3.1 s in 4 of 9: in the slow ones the Downloading panel showed for about 1 s (`normal-1280-ana-opened.png`). It is the 2 s delay behaving as designed; a 2-paragraph document and a blank document never showed it (12 of 12 and 6 of 6).
+5. The plan names `use-editor-open-progress.test.ts`, which does not exist; its cases live in `open-progress-view.test.ts` (`the view while the editor loads`).

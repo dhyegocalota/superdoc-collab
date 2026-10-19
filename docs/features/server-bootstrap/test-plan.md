@@ -32,14 +32,16 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 Run by the tester, not the developer.
 
-- [ ] Upload a DOCX, open at once: progress shows, then the text
-- [ ] Two authors open the same preparing document at once: both enter, no duplicated text
-- [ ] Upload a file that is a zip but not a DOCX: the existing error copy shows, no hang
-- [ ] Console and network clean other than the expected polling
+- [x] Upload a DOCX, open at once: progress shows, then the text — evidence: scripted walk (headless Playwright, MCP not used), the 9.5 MB heavy document at 1280 and 375: panel after 2.2 s, Preparing 53 to 130 s, Downloading 13 to 27 s, first paragraph 69 to 148 s after the upload under load average 8 to 13 on 12 cores; `.pr-media/instant-open/walk/heavy-1280-ana-*.png`, `heavy-375-ana-*.png`; small 2-paragraph DOCX 1.7 s, 12 of 12 tries, `small-1280-ana-opened.png`
+- [x] Two authors open the same preparing document at once: both enter, no duplicated text — evidence: ana uploads, bruno opens the edit link 1 s later, both show Preparing then Downloading, first paragraph at 80.1 s and 79.7 s, first 1,802 characters identical, "Clause 1." once each, one bootstrap in the server log; `.pr-media/instant-open/walk/two-ana-preparing.png`, `two-bruno-preparing.png`, `two-ana-opened.png`, `two-bruno-opened.png`
+- [x] Upload a file that is a zip but not a DOCX: the existing error copy shows, no hang — evidence: `buildBrokenDocx` uploaded at 1280 and 375, the card "The document could not be loaded." with Try again and Back to documents after 1.2 s, Back to documents returns to /documents; `.pr-media/instant-open/walk/broken-1280-ana-failed.png`, `broken-375-ana-failed.png`; see edge case 3 on the copy
+- [x] Console and network clean other than the expected polling — evidence: opening the Ready heavy document: 0 console errors, 0 responses at 400 or above; calls: me 1, document 1, members 4, timeline 5, all 200 (`walk-health` run, 2026-10-19)
 
 ## Edge cases found during execution
 
-Empty on purpose.
+1. A document uploaded behind a heavy one waits for the heavy bootstrap: the 2-paragraph DOCX uploaded one request after the heavy document showed "Waiting for its turn" and opened 47.4 s after its upload (`.pr-media/instant-open/walk/small-behind-heavy.png`). `e2e/open-progress.spec.ts` "a normal document opens without the panel ever showing" failed once in a combined run with `room-admission.spec.ts` (Ready not reached in 60 s) and passed alone in 2.1 s. DEFECT candidate for the owner: one bootstrap at a time makes every document, however small, wait behind a heavy one.
+2. A heavy bootstrap under load can exceed the 135 s cap: the first run (load average 13) ended with the server log line "Bootstrapping the room failed … took longer than 135000 ms" at 137 s; the Preparing panel left at 137 s. The Failed card was not captured in that run; the three later runs finished in 80 to 130 s. Not reproduced on demand.
+3. The Failed card for a broken DOCX says "Check your connection and try again", which is wrong for a corrupt file: the copy is shared with a lost connection.
 
 ## Adversarial review
 

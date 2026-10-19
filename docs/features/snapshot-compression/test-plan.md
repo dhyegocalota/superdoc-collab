@@ -14,7 +14,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/room-admission.spec.ts` — run once; expected: green. — evidence: the `10 MB DOCX commits and reopens as Join` test passed twice with compression on and once off, with a server-side wire count of 4.94 MB per socket against 36.6 MB without compression
+- [x] `e2e/room-admission.spec.ts` — run once; expected: green. — evidence: tester run 2026-10-19, 4 of 4 passed inside the 3.4 min combined run; developer evidence: the `10 MB DOCX commits and reopens as Join` test passed twice with compression on and once off, with a server-side wire count of 4.94 MB per socket against 36.6 MB without compression
 
 ## Edge cases found during execution
 

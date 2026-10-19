@@ -1,5 +1,5 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
-import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, type DocumentRole } from '@superdoc-collab/types';
+import { ApiPath, COLLABORATION_TOKEN_PLACEHOLDER, RoomMode, type DocumentRole } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
@@ -16,9 +16,19 @@ function tokenKey({ cookie, documentId }: { cookie: string; documentId: string }
   return `${cookie}|${documentId}`;
 }
 
-function registeredBootstrapToken({ cookie, documentId }: { cookie: string; documentId: string }): string | null {
+function registeredBootstrapToken({
+  server,
+  cookie,
+  documentId,
+}: {
+  server: TestServer;
+  cookie: string;
+  documentId: string;
+}): string | null {
   const token = bootstrapTokensByCookieAndDocument.get(tokenKey({ cookie, documentId }));
   if (token === undefined) return null;
+  const isCommitted = server.services.runtime.roomMode(documentId) === RoomMode.Join;
+  if (isCommitted) return null;
   return token;
 }
 
@@ -118,7 +128,7 @@ export function connectToDocument({
   document = new Y.Doc(),
   origin = server.baseUrl,
   path,
-  bootstrapToken = registeredBootstrapToken({ cookie, documentId }),
+  bootstrapToken = registeredBootstrapToken({ server, cookie, documentId }),
 }: {
   server: TestServer;
   cookie: string;

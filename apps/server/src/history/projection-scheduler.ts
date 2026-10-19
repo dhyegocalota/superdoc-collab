@@ -119,6 +119,7 @@ export class ProjectionScheduler {
     if (this.stoppingPromise) return Promise.reject(new ProjectionStoppedError());
     return new Promise((resolve, reject) => {
       this.bootstrapping.set(request.documentId, { request, resolve, reject });
+      if (this.isRecycling) return;
       this.currentWorker.postMessage({ kind: ProjectionRequestKind.Bootstrap, ...request });
     });
   }
@@ -254,7 +255,7 @@ export class ProjectionScheduler {
     return waiter;
   }
 
-  private repostBootstrapping(): void {
+  private postHeldBootstraps(): void {
     this.bootstrapping.forEach(({ request }) => this.currentWorker.postMessage({ kind: ProjectionRequestKind.Bootstrap, ...request }));
   }
 
@@ -305,7 +306,7 @@ export class ProjectionScheduler {
     if (!wasRecycled) this.rejectBootstrapping(() => new BootstrapInterruptedError());
     if (!wasRecycled && !this.withinRestartBudget()) return this.degrade();
     this.currentWorker = this.spawn();
-    this.repostBootstrapping();
+    this.postHeldBootstraps();
     const pending = [...this.inFlight];
     this.inFlight.clear();
     pending.forEach((documentId) => this.schedule(documentId));

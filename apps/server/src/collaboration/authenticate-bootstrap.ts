@@ -25,6 +25,7 @@ export async function authenticateBootstrap({
   const verified = verifyBootstrapToken({ secret, token, documentId, now: Date.now() });
   if (!verified) throw new CollaborationAuthenticationError();
   if (!roomBootstrap.isCurrent({ documentId, attempt: verified.attempt })) throw new CollaborationAuthenticationError();
+  if (bootstrap.isCommitted(documentId)) throw new CollaborationAuthenticationError();
   const role = documents.findRole({ documentId, userId: verified.userId });
   if (!role) throw new CollaborationAuthenticationError();
   return { userId: verified.userId, role, bootstrapAttempt: verified.attempt };

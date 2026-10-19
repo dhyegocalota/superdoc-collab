@@ -170,11 +170,18 @@ export class RoomBootstrap {
       const token = this.begin(documentId);
       await this.run({ documentId, filePath: this.filePathOf(documentId), url: this.collaborationUrl(), token });
       await this.awaitCommit(documentId);
+      this.endAttempt(documentId);
     } catch (error) {
       const isRetryable = error instanceof BootstrapInterruptedError && retries > 0;
       if (isRetryable) return this.runJob({ documentId, retries: retries - 1 });
       this.fail({ documentId, error });
     }
+  }
+
+  private endAttempt(documentId: string): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null) return;
+    this.jobs.set({ key: documentId, value: { ...job, attempt: null } });
   }
 
   private async awaitCommit(documentId: string): Promise<void> {

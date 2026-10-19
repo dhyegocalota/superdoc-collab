@@ -8,10 +8,7 @@ import {
   inviteTokenOf,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { Auth } from '../auth/auth';
 import type { Environment, LlmSettings } from '../config/environment';
 import type { AuthDatabase } from '../database/connection';
@@ -20,6 +17,7 @@ import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from '../config/envir
 import { chooseLanguageModel, type LanguageModelChoice } from '../insights/llm-client';
 import { startServer, type RunningServer, type ServerServices } from '../server';
 import { PROJECTION_WORKER_FILE_VARIABLE } from './projection-worker-variable';
+import { temporaryDirectory } from './temporary-directory';
 
 export const TEST_AUTH_SECRET = 'test-secret-'.padEnd(32, 'x');
 export const LOOPBACK_HOST = '127.0.0.1';
@@ -56,9 +54,7 @@ async function reserveFreePort(): Promise<number> {
   return port;
 }
 
-export function testEnvironment({
-  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-collab-')),
-}: { databaseDirectory?: string } = {}): Environment {
+export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { databaseDirectory?: string } = {}): Environment {
   return {
     port: 0,
     host: LOOPBACK_HOST,
@@ -86,7 +82,7 @@ function isAddressInUse(error: unknown): boolean {
 
 export async function startTestServer({
   trustProxy = true,
-  databaseDirectory = mkdtempSync(join(tmpdir(), 'superdoc-collab-')),
+  databaseDirectory = temporaryDirectory(),
   languageModel = chooseLanguageModel(NO_LLM_SETTINGS),
   versionRoomPolicy = DEFAULT_VERSION_ROOM_POLICY,
   attemptsLeft = START_ATTEMPTS,
@@ -130,7 +126,7 @@ export async function startTestServer({
   }
 }
 
-export class NoTestAdminError extends Error {
+class NoTestAdminError extends Error {
   constructor() {
     super('startTestServer({ claim: false }) has no admin.');
   }
@@ -186,7 +182,7 @@ async function postCredentials({
   });
 }
 
-export class TestSignInFailedError extends Error {
+class TestSignInFailedError extends Error {
   constructor({ step, status }: { step: string; status: number }) {
     super(`Test sign-in failed at ${step} with status ${status}.`);
   }

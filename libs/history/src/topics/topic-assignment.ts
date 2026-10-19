@@ -54,7 +54,8 @@ export function matchPreviousTopics({
   const taken = new Set<string>();
   const chosen = new Map<number, string>();
   candidates.forEach((candidate) => {
-    if (taken.has(candidate.id) || chosen.has(candidate.index)) return;
+    const isAlreadyAssigned = taken.has(candidate.id) || chosen.has(candidate.index);
+    if (isAlreadyAssigned) return;
     taken.add(candidate.id);
     chosen.set(candidate.index, candidate.id);
   });

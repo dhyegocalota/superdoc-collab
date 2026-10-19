@@ -6,7 +6,7 @@ export const MAX_TOPICS = 8;
 export const MAX_TOPICS_ACCEPTED = 20;
 export const TOPIC_NAME_MAX_LENGTH = 40;
 export const SUMMARY_SENTENCE_MAX_LENGTH = 200;
-export const DUPLICATE_TOPIC_NAMES_MESSAGE = 'Topic names must be unique.';
+const DUPLICATE_TOPIC_NAMES_MESSAGE = 'Topic names must be unique.';
 
 const topicSchema = z.object({ name: z.string().trim().min(1).max(TOPIC_NAME_MAX_LENGTH), blockIds: z.array(z.string().min(1)).min(1) });
 

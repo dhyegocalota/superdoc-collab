@@ -1,3 +1,4 @@
+import { isBlank } from '@superdoc-collab/types';
 import { useEffect, useRef, useState } from 'react';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
@@ -16,7 +17,7 @@ function postToParent(message: PrintMessage): void {
 function arePagesPainted({ container, pageCount }: { container: HTMLElement; pageCount: number }): boolean {
   const pages = [...container.querySelectorAll(PAGE_SELECTOR)];
   const hasAllPages = pages.length >= pageCount;
-  return hasAllPages && pages.every((page) => page.textContent !== null && page.textContent.trim() !== '');
+  return hasAllPages && pages.every((page) => page.textContent !== null && !isBlank(page.textContent));
 }
 
 export function PrintPage() {

@@ -5,7 +5,7 @@ import type { AuthDatabase } from '../database/connection';
 import * as authSchema from '../database/schema/auth';
 import type { Auth } from './auth';
 
-export type SeedResult = { created: string[]; existing: string[] };
+type SeedResult = { created: string[]; existing: string[] };
 
 export class MissingDemoPasswordError extends Error {
   constructor() {

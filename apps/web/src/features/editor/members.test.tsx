@@ -1,5 +1,6 @@
-import { DocumentRole, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
-import { act, render, screen, within } from '@testing-library/react';
+import { DocumentRole, MEMBERS_PRESENCE_DEBOUNCE_MS, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
 import { PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
@@ -17,11 +18,34 @@ import {
   SELF_MEMBER_REASON,
 } from './editor-copy';
 import { initialsOf } from '@/lib/initials';
+import { membersQueryKey } from './editor-api';
 import { Members } from './members';
 
 const CURRENT_USER_ID = 'u1';
+const DOCUMENT_ID = 'doc-1';
 const JUMP_FAILED_MS = 3000;
-const superdoc = {} as SuperDoc;
+const AWARENESS_UPDATE_EVENT = 'awareness-update';
+
+type AwarenessChange = { added: number[]; removed: number[] };
+
+let superdoc: SuperDoc;
+let awarenessHandlers: Set<(change: AwarenessChange) => void>;
+
+function emitAwareness(change: AwarenessChange): void {
+  awarenessHandlers.forEach((handler) => handler(change));
+}
+
+function superdocWithAwareness(): SuperDoc {
+  awarenessHandlers = new Set();
+  return {
+    on: (name: string, handler: (change: AwarenessChange) => void) => {
+      if (name === AWARENESS_UPDATE_EVENT) awarenessHandlers.add(handler);
+    },
+    off: (name: string, handler: (change: AwarenessChange) => void) => {
+      if (name === AWARENESS_UPDATE_EVENT) awarenessHandlers.delete(handler);
+    },
+  } as unknown as SuperDoc;
+}
 const scrollIntoView = vi.fn();
 
 function memberNamed({
@@ -43,6 +67,7 @@ const bruno = memberNamed({ id: 'u2', name: 'Bruno', online: true, colorSlot: 4 
 const clara = memberNamed({ id: 'u3', name: 'Clara', online: false, colorSlot: 5 });
 const dario = memberNamed({ id: 'u4', name: 'Dario', online: true, colorSlot: 6 });
 
+let queryClient: QueryClient;
 let editor: HTMLElement;
 let overlay: HTMLElement;
 
@@ -64,14 +89,23 @@ function addCaret({ name, color }: { name: string; color: string }): void {
 
 function renderMembers({ members, isPastVersion = false }: { members: DocumentMember[]; isPastVersion?: boolean }) {
   return render(
-    <Members
-      members={members}
-      currentUserId={CURRENT_USER_ID}
-      superdoc={superdoc}
-      editorContainer={editor}
-      isPastVersion={isPastVersion}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <Members
+        documentId={DOCUMENT_ID}
+        members={members}
+        currentUserId={CURRENT_USER_ID}
+        superdoc={superdoc}
+        editorContainer={editor}
+        isPastVersion={isPastVersion}
+      />
+    </QueryClientProvider>,
   );
+}
+
+async function findJumpButton(name: string): Promise<HTMLElement> {
+  const button = await screen.findByRole('button', { name: memberLabel({ name, isOnline: true }) });
+  await waitFor(() => expect(button).toHaveAccessibleDescription(goToCursorLabel(name)));
+  return button;
 }
 
 function manyMembers(count: number): DocumentMember[] {
@@ -81,6 +115,8 @@ function manyMembers(count: number): DocumentMember[] {
 }
 
 beforeEach(() => {
+  superdoc = superdocWithAwareness();
+  queryClient = new QueryClient();
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
   installAuthorPalette();
   editor = document.createElement('div');
@@ -103,10 +139,92 @@ test('the avatar swatch of a member uses the slot the server assigned, not the i
   expect(screen.getByText(initialsOf('Ana'))).toHaveClass('bg-author-1');
 });
 
-test('a member with a live position is a button named Go to Bruno’s cursor', async () => {
+test('a peer with no rendered caret leaving refreshes the members query', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [], removed: [1] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false });
+});
+
+test('a peer who reconnects without a caret is refreshed on arrival and again on leave', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [2], removed: [1] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  act(() => emitAwareness({ added: [], removed: [2] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).toHaveBeenCalledTimes(2);
+});
+
+test('a peer arriving refreshes the members query', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [1], removed: [] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).toHaveBeenCalledTimes(1);
+});
+
+test('an awareness update where nobody came or went leaves the members query alone', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  renderMembers({ members: [ana, bruno] });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  act(() => emitAwareness({ added: [], removed: [] }));
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).not.toHaveBeenCalled();
+});
+
+function MembersFetchProbe({ fetchMembers }: { fetchMembers: () => Promise<never> }) {
+  useQuery({ queryKey: membersQueryKey(DOCUMENT_ID), queryFn: fetchMembers });
+  return null;
+}
+
+test('a burst of presence changes during a members fetch invalidates once without cancelling it', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const fetchMembers = vi.fn(() => new Promise<never>(() => {}));
+  const dario = memberNamed({ id: 'u4', name: 'Dario', online: true, colorSlot: 6 });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MembersFetchProbe fetchMembers={fetchMembers} />
+      <Members
+        documentId={DOCUMENT_ID}
+        members={[ana, bruno, dario]}
+        currentUserId={CURRENT_USER_ID}
+        superdoc={superdoc}
+        editorContainer={editor}
+        isPastVersion={false}
+      />
+    </QueryClientProvider>,
+  );
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  Array.from({ length: 5 }).forEach((_, index) =>
+    act(() => emitAwareness(index % 2 === 0 ? { added: [1], removed: [] } : { added: [], removed: [1] })),
+  );
+  await act(async () => {
+    vi.advanceTimersByTime(MEMBERS_PRESENCE_DEBOUNCE_MS);
+  });
+  expect(invalidate).toHaveBeenCalledTimes(1);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: membersQueryKey(DOCUMENT_ID) }, { cancelRefetch: false });
+  expect(fetchMembers).toHaveBeenCalledTimes(1);
+});
+
+test('a member with a live position is named Bruno, online and described by Go to Bruno’s cursor', async () => {
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const button = await findJumpButton('Bruno');
   expect(button).not.toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -182,7 +300,7 @@ test('the +N menu items for members who cannot be jumped to are aria-disabled wi
 test('after a jump a status region reads Moved to Bruno’s cursor.', async () => {
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const button = await findJumpButton('Bruno');
   await userEvent.click(button);
   expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'center' });
   expect(screen.getByRole('status')).toHaveTextContent(movedToCursorMessage('Bruno'));
@@ -193,7 +311,7 @@ test('a jump whose caret left shows the not-found message in the tooltip for thr
   vi.useFakeTimers({ shouldAdvanceTime: true });
   addCaret({ name: 'Bruno', color: colorOf(bruno) });
   renderMembers({ members: [ana, bruno] });
-  const button = await screen.findByRole('button', { name: goToCursorLabel('Bruno') });
+  const button = await findJumpButton('Bruno');
   editor.replaceChildren();
   await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(button);
   expect(await screen.findByRole('tooltip')).toHaveTextContent(cursorNotFoundMessage('Bruno'));

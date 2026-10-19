@@ -38,7 +38,7 @@ export type SelectionSnapshot = {
   cursor: number | null;
   topicsUpdatedAt: number | null;
 };
-export type ReadSelection = (options: { documentId: string; selection: RequestedSelection }) => SelectionSnapshot;
+type ReadSelection = (options: { documentId: string; selection: RequestedSelection }) => SelectionSnapshot;
 
 type SelectionStamp = { cursor: number; topicsUpdatedAt: number | null };
 type ResolvedSelection = SelectionStamp & { key: string; snapshot: SelectionSnapshot };

@@ -10,7 +10,7 @@ export enum SummarizeRefusal {
   Unavailable = 'unavailable',
 }
 
-export type SummarizeResult =
+type SummarizeResult =
   | { outcome: SummarizeOutcome }
   | { outcome: SummarizeRefusal.Busy; retryAfterSeconds: number }
   | { outcome: SummarizeRefusal.Unavailable; reason: string };

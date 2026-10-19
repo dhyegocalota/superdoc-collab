@@ -55,6 +55,7 @@ type TimelinePanelProps = {
   onOpenChange: (isOpen: boolean) => void;
   summarize: SummarizeControl;
   isLoadingVersion: boolean;
+  lastEditAt: number | null;
   onTravel: (binStart: number) => void;
   onBackToLive: () => void;
 };
@@ -108,6 +109,7 @@ export function TimelinePanel({
   onOpenChange,
   summarize,
   isLoadingVersion,
+  lastEditAt,
   onTravel,
   onBackToLive,
 }: TimelinePanelProps) {
@@ -118,7 +120,11 @@ export function TimelinePanel({
   const isCompact = useIsCompact();
   const bottomSize = usePanelHeight({ areaHeight, isCompact });
   const { search } = useTimelineSearch();
-  const { data: timeline, isPending: isTimelinePending } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
+  const {
+    data: timeline,
+    isPending: isTimelinePending,
+    dataUpdatedAt: timelineUpdatedAt,
+  } = useTimeline({ documentId, filter: search.filter, isOpen: isOpen || isBottom });
   const isPhoneLayout = useIsPhoneLayout();
   const isStackedLayout = !useMinWidth(MEDIUM_BREAKPOINT_PX);
   const { selectedIndex, selectedBin, selectIndex, clearSelection } = useBinSelection({
@@ -178,8 +184,9 @@ export function TimelinePanel({
   const bottomStyle: CSSProperties | undefined = isOpen ? { height: `${bottomSize.height}px` } : undefined;
   const sideStyle = { '--panel-width': `${sideSize.width}px` } as CSSProperties;
 
+  const isLogAhead = lastEditAt !== null && timelineUpdatedAt <= lastEditAt;
   const notices = timeline && (
-    <TimelineNotices timeline={timeline} hasFilter={hasFilter} canRefresh={canEdit} onRetry={summarize.summarize} />
+    <TimelineNotices timeline={timeline} hasFilter={hasFilter} isLogAhead={isLogAhead} canRefresh={canEdit} onRetry={summarize.summarize} />
   );
   const chart = (
     <div ref={chartRef} className="shrink-0 overflow-visible">

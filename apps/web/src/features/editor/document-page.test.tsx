@@ -98,7 +98,7 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
     superDocDestroy,
     superDocExport,
     SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
-      const instance = { destroy: superDocDestroy, export: superDocExport };
+      const instance = { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
       config.onReady({ superdoc: instance });
       return instance;
     }),
@@ -549,7 +549,7 @@ test('an editor gets the toolbar container of the row and a reader gets none', a
 
 test('while the editor is mounted but not ready, the Download button is described by the loading reason', async () => {
   SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
-    return { destroy: superDocDestroy, export: superDocExport };
+    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
   });
   matchMediaAlwaysMatching();
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
@@ -560,7 +560,7 @@ test('while the editor is mounted but not ready, the Download button is describe
 
 test('while the editor is mounted but not ready, the More actions download items are described by the loading reason', async () => {
   SuperDoc.mockImplementationOnce(function SuperDocNotReadyStub() {
-    return { destroy: superDocDestroy, export: superDocExport };
+    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
   });
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
@@ -930,7 +930,7 @@ function stubSuperDocStillLoading(): () => void {
   const original = SuperDoc.getMockImplementation();
   if (!original) throw new Error('the SuperDoc stub has no implementation to restore');
   SuperDoc.mockImplementation(function SuperDocLoadingStub() {
-    return { destroy: superDocDestroy, export: superDocExport };
+    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
   } as unknown as typeof SuperDoc);
   return () => SuperDoc.mockImplementation(original);
 }

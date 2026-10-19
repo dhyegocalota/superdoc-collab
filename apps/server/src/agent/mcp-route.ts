@@ -10,7 +10,7 @@ import type { AgentDocumentSessions, AgentToolContext, AgentToolPrincipal, Recor
 import { AGENT_TOOLS, agentToolsFor, callAgentTool } from './agent-tools';
 
 export const MCP_BODY_MAX_BYTES = 256 * 1024;
-export const MCP_RATE_LIMIT: McpRateLimit = { maxCalls: 120, windowMs: MINUTE_MS };
+const MCP_RATE_LIMIT: McpRateLimit = { maxCalls: 120, windowMs: MINUTE_MS };
 const RATE_LIMITED_MESSAGE = 'Too many requests; slow down';
 const BATCH_REFUSED_MESSAGE = 'JSON-RPC batches are not supported; send one message per request';
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
@@ -20,7 +20,7 @@ const ALLOWED_METHOD_HEADER = { Allow: 'POST' };
 
 export type McpRateLimit = { maxCalls: number; windowMs: number };
 
-export type McpRouteOptions = {
+type McpRouteOptions = {
   appOrigin: string;
   rateLimit?: McpRateLimit;
   services: AppServices;

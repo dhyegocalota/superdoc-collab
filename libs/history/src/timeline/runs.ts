@@ -37,7 +37,7 @@ export function authorKey(author: EventAuthor): string {
   return author.id;
 }
 
-export function isAgentAuthorKey(key: string): boolean {
+function isAgentAuthorKey(key: string): boolean {
   return key.endsWith(AGENT_AUTHOR_SUFFIX);
 }
 
@@ -65,8 +65,11 @@ function binStartContaining({ binStarts, time }: { binStarts: number[]; time: nu
   let high = binStarts.length - 1;
   while (low < high) {
     const middle = Math.ceil((low + high) / 2);
-    if (binStarts[middle]! <= time) low = middle;
-    else high = middle - 1;
+    if (binStarts[middle]! <= time) {
+      low = middle;
+      continue;
+    }
+    high = middle - 1;
   }
   return binStarts[low]!;
 }
@@ -109,7 +112,7 @@ export function runVolume(run: Pick<EditRun, 'inserted' | 'deleted'>): number {
   return run.inserted.length + run.deleted.length;
 }
 
-export function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {
+function runMatchesTerm({ run, term }: { run: EditRun; term: string }): boolean {
   const searchText = term.toLocaleLowerCase();
   const backspacedDeletion = [...run.deleted].reverse().join('');
   return [run.inserted, run.deleted, backspacedDeletion].some((text) => text.toLocaleLowerCase().includes(searchText));

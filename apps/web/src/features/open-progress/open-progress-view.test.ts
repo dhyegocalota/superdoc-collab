@@ -23,9 +23,9 @@ test('uploading is a determinate bar of the bytes sent', () => {
   expect(view).toEqual({ stage: OpenStage.Uploading, detail: '4.8 MB of 9.5 MB', fraction: 0.5 });
 });
 
-test('preparing with progress is a determinate bar of the bytes converted', () => {
+test('preparing with progress is a determinate bar naming the bytes received', () => {
   const view = preparing({ stage: BootstrapStage.Preparing, done: SENT_BYTES, total: TOTAL_BYTES });
-  expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Converting 4.8 MB of 9.5 MB · 12 s', fraction: 0.5 });
+  expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Received 4.8 MB · 12 s', fraction: 0.5 });
 });
 
 test('preparing with no progress yet names the file size on an indeterminate bar', () => {

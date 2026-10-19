@@ -1158,6 +1158,16 @@ test('a document painted before the delay never shows the panel', async () => {
   expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
 });
 
+test('before the delay SuperDoc keeps its own loading overlay and the panel then takes over', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+  expect(screen.getByTestId('editor-surface')).not.toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+  await screen.findByTestId(PROGRESS_TEST_ID);
+  expect(screen.getByTestId('editor-surface')).toHaveClass(HIDDEN_LOADING_OVERLAY_CLASS);
+});
+
 test('a failed connection hides the panel so the banner is not covered', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });

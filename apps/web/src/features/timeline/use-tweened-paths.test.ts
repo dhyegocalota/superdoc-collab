@@ -161,3 +161,10 @@ test('a path the interpolation rejects snaps and warns once', () => {
   expect(result.current[0]!.path).toBe(TALLEST_PATH);
   expect(warning).toHaveBeenCalledTimes(1);
 });
+
+test('a band whose number of segments changes snaps instead of tweening a broken path', () => {
+  const { result, rerender } = render([shapeOf({ index: 0, path: FLAT_PATH })]);
+  rerender({ shapes: [shapeOf({ index: 0, path: `${TALL_PATH}${TALLEST_PATH}` })], isEnabled: true, snapKey: WIDTH });
+  elapse(HALF_TRANSITION_MS);
+  expect(result.current[0]!.path).toBe(`${TALL_PATH}${TALLEST_PATH}`);
+});

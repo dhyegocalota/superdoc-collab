@@ -688,13 +688,18 @@ test('a connection relaying an awareness state at the clock the room already hol
   await server.stop();
 });
 
-test('a connection removing an awareness id that another live connection holds is closed with the origin reason', async () => {
+test('a connection removing an awareness id that another live connection holds, as a reconnect queue does, keeps the socket open', async () => {
   const { server, clientIds, holder, intruder } = await holderOfClaimedIds();
   const removal = awarenessFrameClaiming({ roomName: intruder.roomName, clientIds, clock: REPLAY_CLOCK, state: null });
   intruder.webSocket.send(new Uint8Array(removal));
-  await expect.poll(intruder.closedSocket).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_ORIGIN_REASON });
+  const { provider, document } = intruder.client;
+  provider.setAwarenessField('cursor', 0);
+  await expect.poll(() => serverCursorOf({ server, clientId: document.clientID })).toBe(0);
+  expect(intruder.closedSocket()).toBeNull();
   expect(holder.closedSocket()).toBeNull();
+  expect(intruder.webSocket.readyState).toBe(WebSocket.OPEN);
   holder.client.close();
+  intruder.client.close();
   await server.stop();
 });
 

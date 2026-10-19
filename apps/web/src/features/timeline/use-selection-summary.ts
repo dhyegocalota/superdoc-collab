@@ -1,8 +1,14 @@
-import { SelectionSummaryState, SummarizeStep, type EditSelection, type SelectionSummaryView } from '@superdoc-collab/types';
+import {
+  SelectionSummaryState,
+  SUMMARY_RUNNING_POLL_MS,
+  SummarizeStep,
+  type EditSelection,
+  type SelectionSummaryView,
+} from '@superdoc-collab/types';
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { pollWhileAvailable } from '@/lib/api';
-import { fetchSelectionSummary, selectionSummaryQueryKey, TIMELINE_POLL_MS } from './timeline-api';
+import { fetchSelectionSummary, selectionSummaryQueryKey } from './timeline-api';
 
 export function isSummarizing(view: SelectionSummaryView | undefined): boolean {
   if (view === undefined) return false;
@@ -11,7 +17,7 @@ export function isSummarizing(view: SelectionSummaryView | undefined): boolean {
 
 export function pollWhileSummarizing(query: { state: { data: SelectionSummaryView | undefined; error: Error | null } }): number | false {
   if (!isSummarizing(query.state.data)) return false;
-  return pollWhileAvailable(TIMELINE_POLL_MS)(query);
+  return pollWhileAvailable(SUMMARY_RUNNING_POLL_MS)(query);
 }
 
 export function useSelectionSummary({

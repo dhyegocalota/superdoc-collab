@@ -9,6 +9,7 @@ import {
 import {
   EARLIER_STATE_LABEL,
   RETRY_SUMMARY_LABEL,
+  SUMMARIZING_EDITS_MESSAGE,
   SUMMARY_UP_TO_DATE_MESSAGE,
   TOPICS_GROUPED_LABEL,
 } from '../apps/web/src/features/timeline/timeline-copy';
@@ -38,6 +39,10 @@ const BRUNO_FILTER = `@${BRUNO}`;
 const ANA_FILTER = `@${ANA}`;
 const WRITER_TEXT = ' and a writer';
 const FAILING_TEXT = ' FAIL-SUMMARY';
+const SLOW_STREAM_TEXT = ' SLOW-SUMMARY STREAM-SUMMARY';
+const STREAM_DEADLINE_MS = 5_000;
+const STREAM_SAMPLE_INTERVAL_MS = 100;
+const FINAL_SENTENCE_END = 'passages.';
 
 test('summarizing a filter by person names only that person', async ({ browser }) => {
   const { ana } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
@@ -101,4 +106,34 @@ test('a failed summary explains itself and offers a retry', async ({ browser }) 
   await summarizeButton(ana.page).click();
   await expect(summaryCard(ana.page)).toContainText(SELECTION_SUMMARY_FAILED_MESSAGE, { timeout: SUMMARY_TIMEOUT_MS });
   await expect(summaryCard(ana.page).getByRole('button', { name: RETRY_SUMMARY_LABEL })).toBeVisible();
+});
+
+test('the sentence grows word by word while the slow model streams', async ({ browser }) => {
+  const { ana, bruno, documentId } = await twoAuthorsInTwoTopics({ browser, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  await insertInParagraph({ page: bruno.page, paragraphText: HIRING_PREFIX, text: SLOW_STREAM_TEXT });
+  await waitForBands({ page: ana.page, names: [BUDGET, HIRING] });
+  await expect
+    .poll(async () => insertedBy({ events: await readEvents({ page: ana.page, documentId }), userId: bruno.userId }), {
+      timeout: SUMMARY_TIMEOUT_MS,
+    })
+    .toContain(SLOW_STREAM_TEXT);
+  await waitForSettledTimeline({ page: ana.page, documentId });
+  await filterBy({ page: ana.page, text: BRUNO_FILTER });
+  const card = summaryCard(ana.page);
+  await summarizeButton(ana.page).click();
+  await expect(card).toContainText(SUMMARIZING_EDITS_MESSAGE, { timeout: STREAM_DEADLINE_MS });
+  const sentencesSeen: string[] = [];
+  await expect
+    .poll(
+      async () => {
+        const sentence = (await card.locator('p').allInnerTexts()).find((text) => text.startsWith(BRUNO));
+        if (sentence !== undefined) sentencesSeen.push(sentence);
+        return sentence !== undefined && sentence.endsWith(FINAL_SENTENCE_END);
+      },
+      { timeout: STREAM_DEADLINE_MS, intervals: [STREAM_SAMPLE_INTERVAL_MS] },
+    )
+    .toBe(true);
+  const finalSentence = sentencesSeen.at(-1)!;
+  const growingSentences = sentencesSeen.filter((sentence) => sentence !== finalSentence && finalSentence.startsWith(sentence));
+  expect(growingSentences.length).toBeGreaterThan(0);
 });

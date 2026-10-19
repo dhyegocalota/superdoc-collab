@@ -71,6 +71,7 @@ const NONE_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const SEQUENCES = [41, 42, 50, 51, 52];
 const PAGE_ROUTE = documentPagePath(DOCUMENT_ID);

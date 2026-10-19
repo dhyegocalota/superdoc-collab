@@ -13,8 +13,11 @@ export const SELECTION_RUN_MAX_CHARACTERS = 300;
 export const SELECTION_PROMPT_MAX_CHARACTERS = 6000;
 // NB ADR 0012: one model call per document per cooldown, consumed only when the call starts; a repeated selection reads the cache.
 export const SUMMARIZE_COOLDOWN_MS = 30 * SECOND_MS;
+// NB ADR 0041: a running summary is read every second so the sentence grows in small steps.
+export const SUMMARY_RUNNING_POLL_MS = SECOND_MS;
 export const SUMMARIZE_BUSY_MESSAGE = 'Summaries are busy. Try again in a moment.';
 export const SELECTION_SUMMARY_FAILED_MESSAGE = 'The edits could not be summarized. Try again.';
+export const SELECTION_SUMMARY_TIMEOUT_MESSAGE = 'The model took too long. Try again.';
 export const GROUPING_FAILED_MESSAGE = 'The edits could not be grouped into topics. Try again.';
 export const VERSION_NOT_READY_ERROR = 'VERSION_NOT_READY';
 export const TOPICS_UNAVAILABLE_MESSAGE = 'Topics unavailable';
@@ -94,6 +97,7 @@ export type SelectionSummaryView = {
   failure: string | null;
   isModelAvailable: boolean;
   step: SummarizeStep;
+  partial: string | null;
 };
 export type TimelineCell = { inserted: number; deleted: number; agentInserted: number; agentDeleted: number; authorKeys: string[] };
 export type TimelineBin = { start: number; end: number; versionSequence: number | null; byBand: Record<string, TimelineCell> };

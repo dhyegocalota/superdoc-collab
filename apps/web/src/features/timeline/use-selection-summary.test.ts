@@ -1,5 +1,6 @@
 import {
   HttpStatus,
+  SUMMARY_RUNNING_POLL_MS,
   SelectionSummaryState,
   SummarizeStep,
   TimelineQueryParam,
@@ -21,14 +22,14 @@ const POLL_COUNT = 3;
 const TIMELINE_TIME_ZONE = 'America/Sao_Paulo';
 
 function viewIn(state: SelectionSummaryState, step: SummarizeStep = SummarizeStep.Idle): SelectionSummaryView {
-  return { state, summary: null, failure: null, isModelAvailable: true, step };
+  return { state, summary: null, failure: null, isModelAvailable: true, step, partial: null };
 }
 
 function respondWith(response: () => Response) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => response());
 }
 
-async function pollsAfterFirstRead(status: () => Response): Promise<number> {
+async function pollsAfterFirstRead(status: () => Response, elapsedMs = TIMELINE_POLL_MS * POLL_COUNT): Promise<number> {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const fetchSpy = respondWith(status);
   const { result } = renderHookWithRouter(() =>
@@ -42,7 +43,7 @@ async function pollsAfterFirstRead(status: () => Response): Promise<number> {
     }),
   );
   await waitFor(() => expect(result.current.isFetched).toBe(true));
-  await vi.advanceTimersByTimeAsync(TIMELINE_POLL_MS * POLL_COUNT);
+  await vi.advanceTimersByTimeAsync(elapsedMs);
   return fetchSpy.mock.calls.length - 1;
 }
 
@@ -55,6 +56,10 @@ test('a running summary is polled until it settles', async () => {
   expect(await pollsAfterFirstRead(() => jsonResponse({ body: viewIn(SelectionSummaryState.Running) }))).toBeGreaterThanOrEqual(
     POLL_COUNT - 1,
   );
+});
+
+test('a running summary is read again after one second', async () => {
+  expect(await pollsAfterFirstRead(() => jsonResponse({ body: viewIn(SelectionSummaryState.Running) }), SUMMARY_RUNNING_POLL_MS)).toBe(1);
 });
 
 test('polls while step is not idle and stops at idle', async () => {

@@ -83,6 +83,7 @@ const NONE_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const READY_VIEW: SelectionSummaryView = {
@@ -91,6 +92,7 @@ const READY_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const STALE_VIEW: SelectionSummaryView = { ...READY_VIEW, summary: { ...READY_VIEW.summary!, isStale: true } };
 const FAILED_VIEW: SelectionSummaryView = {
@@ -99,6 +101,7 @@ const FAILED_VIEW: SelectionSummaryView = {
   failure: SELECTION_SUMMARY_FAILED_MESSAGE,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const UNAVAILABLE_VIEW: SelectionSummaryView = {
   state: SelectionSummaryState.Failed,
@@ -106,6 +109,7 @@ const UNAVAILABLE_VIEW: SelectionSummaryView = {
   failure: 'The language model is unavailable: LLM_MODEL is not set on the server.',
   isModelAvailable: false,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const baseTimeline = timelineWith({ volumes: [[10], [20]], names: ['Budget'] });
 

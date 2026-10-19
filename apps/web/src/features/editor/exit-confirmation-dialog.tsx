@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect } from 'react';
 import { useBlocker, type Blocker } from 'react-router';
 import {
   AlertDialog,
@@ -11,23 +11,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { DOWNLOAD_BUTTON_LABEL, EXIT_CONFIRMATION_DESCRIPTION, EXIT_CONFIRMATION_TITLE, LEAVE_LABEL, STAY_LABEL } from './editor-copy';
-import { cancelLeave, useUnsyncedEditsSnapshot } from './unsynced-edits-store';
+import { allowLeave, cancelLeave, getUnsyncedEditsSnapshot, useUnsyncedEditsSnapshot } from './unsynced-edits-store';
 
 const BLOCKED_STATE = 'blocked';
 
-function exitChoicesOf({
-  blocker,
-  pendingLeave,
-  isLeavingRef,
-}: {
-  blocker: Blocker;
-  pendingLeave: (() => void) | null;
-  isLeavingRef: RefObject<boolean>;
-}): ExitChoices | null {
+function exitChoicesOf({ blocker, pendingLeave }: { blocker: Blocker; pendingLeave: (() => void) | null }): ExitChoices | null {
   if (blocker.state === BLOCKED_STATE) return { leave: blocker.proceed, stay: blocker.reset };
   if (!pendingLeave) return null;
   function leave(): void {
-    isLeavingRef.current = true;
+    allowLeave();
     cancelLeave();
     pendingLeave?.();
   }
@@ -39,10 +31,9 @@ type ExitConfirmationDialogProps = { isUnsynced: boolean; onDownload: () => void
 type ExitChoices = { leave: () => void; stay: () => void };
 
 export function ExitConfirmationDialog({ isUnsynced, onDownload }: ExitConfirmationDialogProps) {
-  const isLeavingRef = useRef(false);
-  const blocker = useBlocker(() => isUnsynced && !isLeavingRef.current);
+  const blocker = useBlocker(() => isUnsynced && !getUnsyncedEditsSnapshot().isLeaveAllowed);
   const { pendingLeave } = useUnsyncedEditsSnapshot();
-  const choices = exitChoicesOf({ blocker, pendingLeave, isLeavingRef });
+  const choices = exitChoicesOf({ blocker, pendingLeave });
 
   useEffect(() => {
     if (choices && !isUnsynced) choices.leave();

@@ -6,9 +6,9 @@
 
 ## Steps
 
-- [ ] **Step 1:** red: the account menu and editor header unit tests.
-- [ ] **Step 2:** green: grouped account menu, shortcuts item removed from More actions.
-- [ ] **Step 3:** typecheck, changed unit files, screenshots at 1280 and 375.
+- [x] **Step 1:** red: the account menu and editor header unit tests. — evidence: e7463602
+- [x] **Step 2:** green: grouped account menu, shortcuts item removed from More actions. — evidence: e864bd11
+- [x] **Step 3:** typecheck, changed unit files, screenshots at 1280 and 375. — evidence: typecheck clean, `.pr-media/account-menu-sections/`
 
 ## Failure modes
 

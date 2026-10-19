@@ -9,14 +9,14 @@ Requirements: Docker with Compose v2.
 ```bash
 cp .env.example .env
 sed -i.bak "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -base64 48)|; s|^APP_ORIGIN=.*|APP_ORIGIN=http://localhost:3000|" .env
-docker compose up --build -d
+docker compose --env-file .env -f docker/docker-compose.local.yml up --build -d
 ```
 
-Open <http://localhost:3000> and claim the instance: the first account you create becomes the administrator. `docker compose down -v` erases all data and returns the instance to unclaimed. The healthcheck calls `/api/health`.
+Open <http://localhost:3000> and claim the instance: the first account you create becomes the administrator. `docker compose --env-file .env -f docker/docker-compose.local.yml down -v` erases all data and returns the instance to unclaimed. The healthcheck calls `/api/health`.
 
 ## Install on Railway
 
-The [Railway runbook](features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, claims the instance and rolls back. The service is built from [`docker/Dockerfile`](../docker/Dockerfile) with a volume at `/data`, one replica and Railway's TLS domain ([ADR 0019](adr/0019-deploy-on-railway.md)). [`deploy/docker-compose.yml`](../deploy/docker-compose.yml) documents the same environment for any compose host. CI builds and boots the image on every pull request.
+The [Railway runbook](features/deploy/runbook-railway.md) creates the service, the volume and the variables, checks the deploy, claims the instance and rolls back. The service is built from [`docker/Dockerfile`](../docker/Dockerfile) with a volume at `/data`, one replica and Railway's TLS domain ([ADR 0019](adr/0019-deploy-on-railway.md)). [`docker/docker-compose.yml`](../docker/docker-compose.yml) documents the same environment for any compose host. CI builds and boots the image on every pull request.
 
 ## Install with an agent
 

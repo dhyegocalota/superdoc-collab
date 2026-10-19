@@ -2,7 +2,11 @@ import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-collab/histo
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
+  BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
+  DOCUMENT_TOO_LARGE_MESSAGE,
+  MAX_DOCUMENT_XML_BYTES,
+  UPLOADS_PER_MINUTE,
   BootstrapStage,
   ClientActor,
   DOCX_MIME_TYPE,
@@ -95,6 +99,58 @@ test('rejects a zip without word/document.xml', async () => {
   );
   expect((await listOf({ server, cookie: owner.cookie })).mine).toEqual([]);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY), { withFileTypes: true }).length).toBe(0);
+  await server.stop();
+});
+
+test('a zip whose document.xml inflates over the limit is 415 with its own message and is not stored', async () => {
+  const { server, owner } = await signedInOwner();
+  const zip = new JSZip();
+  zip.file('word/document.xml', new Uint8Array(MAX_DOCUMENT_XML_BYTES + 1), { compression: 'DEFLATE' });
+  const response = await upload({
+    server,
+    cookie: owner.cookie,
+    bytes: await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' }),
+  });
+  expect([response.status, await response.json()]).toEqual([HttpStatus.UnsupportedMediaType, { error: DOCUMENT_TOO_LARGE_MESSAGE }]);
+  expect((await listOf({ server, cookie: owner.cookie })).mine).toEqual([]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY), { withFileTypes: true }).length).toBe(0);
+  await server.stop();
+});
+
+test('a user over the uploads of the minute is 429 with Retry-After, creates nothing, and another user is still served', async () => {
+  const { server, owner } = await signedInOwner();
+  const other = await signedInUser({ server, name: 'Bruno' });
+  vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const bytes = await docxBytes('Plan');
+  const accepted = await Promise.all(Array.from({ length: UPLOADS_PER_MINUTE }, () => upload({ server, cookie: owner.cookie, bytes })));
+  expect(new Set(accepted.map((response) => response.status))).toEqual(new Set([HttpStatus.Created]));
+  const refusedUpload = await upload({ server, cookie: owner.cookie, bytes });
+  const refusedBlank = await createBlank({ server, cookie: owner.cookie, title: 'Blank' });
+  expect([refusedUpload.status, refusedBlank.status]).toEqual([HttpStatus.TooManyRequests, HttpStatus.TooManyRequests]);
+  expect(Number(refusedUpload.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(0);
+  expect((await listOf({ server, cookie: owner.cookie })).mine).toHaveLength(UPLOADS_PER_MINUTE);
+  expect((await upload({ server, cookie: other.cookie, bytes })).status).toBe(HttpStatus.Created);
+  await server.stop();
+});
+
+test('a second upload of one owner while one waits in the queue is 429 with Retry-After and creates nothing', async () => {
+  const { server, owner } = await signedInOwner();
+  const other = await signedInUser({ server, name: 'Bruno' });
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxBytes('Plan');
+  const running = await upload({ server, cookie: owner.cookie, bytes });
+  const queued = await upload({ server, cookie: owner.cookie, bytes });
+  const refused = await upload({ server, cookie: owner.cookie, bytes });
+  const refusedBlank = await createBlank({ server, cookie: owner.cookie, title: 'Blank' });
+  expect([running.status, queued.status, refused.status, refusedBlank.status]).toEqual([
+    HttpStatus.Created,
+    HttpStatus.Created,
+    HttpStatus.TooManyRequests,
+    HttpStatus.TooManyRequests,
+  ]);
+  expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(BOOTSTRAP_QUEUE_RETRY_AFTER_MS / 1000);
+  expect((await listOf({ server, cookie: owner.cookie })).mine).toHaveLength(2);
+  expect((await upload({ server, cookie: other.cookie, bytes })).status).toBe(HttpStatus.Created);
   await server.stop();
 });
 

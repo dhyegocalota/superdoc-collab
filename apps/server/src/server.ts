@@ -7,7 +7,8 @@ import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import { ApiPath, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import { ApiPath, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
@@ -301,6 +302,7 @@ function createServices({
     throttle,
     roomBootstrap,
     openBudget,
+    uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: UPLOADS_PER_MINUTE, now }),
     timelinePipelines,
     insights,
     versions,

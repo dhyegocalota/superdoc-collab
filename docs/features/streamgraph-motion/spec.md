@@ -1,6 +1,6 @@
 # The streamgraph animates every real-time change
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "a last requirement: an animation/wow effect every time the streamgraph changes in real time, please!")
 **ADRs:** [0039](../../adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) (breaks stay), [0016](../../adr/0016-timeline-bin-budget.md)

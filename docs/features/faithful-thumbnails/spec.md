@@ -1,6 +1,6 @@
 # Faithful document thumbnails
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "not to mention the thumbnail is not faithful!")
 **ADRs:** write ADR 0045 "thumbnails are captured by the client that already rendered the page" (alternatives: a headless browser in the server image; the SDK, which has no renderer; the CSS text preview of documents-cards, kept only as the fallback)

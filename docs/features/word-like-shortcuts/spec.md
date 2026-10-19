@@ -1,6 +1,6 @@
 # Word-like keyboard shortcuts, a shortcuts modal and hints everywhere
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19; lead decision 2026-10-19: a comment with no selection anchors to the caret, as Word allows, instead of refusing (owner's request, translated: "I want shortcuts, especially for text editing, with a Microsoft Word look and feel, plus a modal and tooltips of shortcuts everywhere, including dropdowns")
 **ADRs:** none new

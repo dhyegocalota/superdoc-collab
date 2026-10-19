@@ -1,6 +1,6 @@
 # Equal card heights on the documents home
 
-**Status:** Building
+**Status:** Shipped 2026-10-19
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-19 (owner's request, translated: "the cards have different heights, how sad"; screenshot: a two-line title makes its card taller than its neighbours)
 **Not changing:** the thumbnail, the grid columns, the card's content

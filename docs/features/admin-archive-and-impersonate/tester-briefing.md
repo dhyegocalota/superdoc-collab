@@ -60,3 +60,7 @@ Walk on the scenario stack at 1280 and 375, one browser per person. The seeded a
 - Found (refutes hypothesis 3): right after Impersonate, the admin page requests /api/admin/users and /api/admin/invites as the impersonated user, gets 403 and shows an "Admins only" toast over Caio's documents. Two console errors. Needs a regression test that Impersonate navigates without leaving admin queries running.
 - Noted: with the session expired in the database, one /api/me still answered 200 from the cached session cookie before the page load went to Sign in.
 - Blocked: archiving with a connected MCP client and the version viewer were not walked.
+
+## Tester run 2026-10-19 (third walk)
+
+Stop impersonating from the documents page is clean. Stopping from inside the impersonated user's editor logs five 404s for that user's document. The 375 px scroller check passes.

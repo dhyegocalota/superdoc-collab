@@ -75,3 +75,7 @@ Walk at 1280 and 375 on the scenario stack, Ana (observer) and Bruno (typist), a
 - Refuted: hypothesis 5 for the dividers. They glide 519 ms behind a panel drag.
 - Not run: the unit and E2E rows; hypothesis 6 and 7 (hover during a glide, a focused band).
 - Console at error level: 0 from the product; three errors came from my own sampler after the chart unmounted on collapse.
+
+## Tester run 2026-10-19 (third walk)
+
+The divider lag on a panel drag is fixed: 0 ms on the showcase document. The 375 px scroller check passes.

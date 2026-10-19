@@ -46,6 +46,7 @@ export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
 export const MEMBERS_PRESENCE_DEBOUNCE_MS = SECOND_MS;
 export const LAST_EDIT_MARK_INTERVAL_MS = SECOND_MS;
 export const RECOVERED_NOTICE_MS = 3 * SECOND_MS;
+export const CARET_ON_OPEN_TIMEOUT_MS = 20 * SECOND_MS;
 export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 
 export function secondsRoundedUp(milliseconds: number): number {

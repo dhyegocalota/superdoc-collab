@@ -92,6 +92,7 @@ type SuperDocConfig = {
   ui: { toolbar?: { container: HTMLElement } };
   onReady: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
+  onPaginationUpdate: () => void;
 };
 
 const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
@@ -1034,5 +1035,11 @@ test('a changed title blocks leaving until the edit is cancelled', async () => {
   expect(await screen.findByRole('alertdialog', { name: EXIT_CONFIRMATION_TITLE })).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: STAY_LABEL }));
   await userEvent.click(screen.getByRole('button', { name: CANCEL_TITLE_LABEL }));
+  expect(isExitPrevented()).toBe(false);
+});
+
+test('a layout pass while the connection is lost does not block leaving', async () => {
+  const config = await openAsWhileLost(DocumentRole.Owner);
+  act(() => config.onPaginationUpdate());
   expect(isExitPrevented()).toBe(false);
 });

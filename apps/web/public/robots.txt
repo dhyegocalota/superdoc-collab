@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /sign-in
+Disallow: /api/
+Disallow: /documents/
+Disallow: /share/
+Disallow: /print
+Disallow: /settings
+Disallow: /admin

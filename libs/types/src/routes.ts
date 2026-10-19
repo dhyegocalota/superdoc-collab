@@ -13,6 +13,7 @@ export enum AppRoute {
   ConnectedApps = '/settings/connected-apps',
   Admin = '/admin',
   Settings = '/settings',
+  About = '/about',
   // NB ADR 0035: the print route needs no session and holds no document; it only prints what its parent frame hands it.
   Print = '/print',
 }

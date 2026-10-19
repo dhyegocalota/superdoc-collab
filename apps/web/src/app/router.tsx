@@ -1,5 +1,6 @@
 import { AppRoute } from '@superdoc-collab/types';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { AboutPage } from '@/features/about/about-page';
 import { AdminPage } from '@/features/admin/admin-page';
 import { RequireAdmin } from '@/features/admin/require-admin';
 import { ConnectedAppsPage } from '@/features/connected-apps/connected-apps-page';
@@ -70,6 +71,7 @@ export const routes: RouteObject[] = [
     ),
   },
   { path: AppRoute.Print, element: <PrintPage /> },
+  { path: AppRoute.About, element: <AboutPage /> },
   {
     path: AppRoute.OAuthConsent,
     element: (

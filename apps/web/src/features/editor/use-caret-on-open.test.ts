@@ -34,7 +34,8 @@ function recordEvents(target: HTMLElement): string[] {
 }
 
 function renderCaretOnOpen(isEnabled: boolean) {
-  return renderHook(({ isEnabled }) => useCaretOnOpen({ containerRef: { current: container }, isEnabled }), {
+  const containerRef = { current: container };
+  return renderHook(({ isEnabled }) => useCaretOnOpen({ containerRef, isEnabled }), {
     initialProps: { isEnabled },
   });
 }

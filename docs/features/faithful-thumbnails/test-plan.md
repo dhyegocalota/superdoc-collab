@@ -37,3 +37,8 @@
 - [x] Opening a document as an editor without typing uploads once — evidence: reopening "Shortcut title" moved its thumbnail version from 1792423536877 to 1792423598151 without a keystroke, as the briefing hypothesised
 - [x] A WebP with a valid header and garbage body (200 KB) is accepted — evidence: the PUT answered 204 and replaced the real image; the card then shows the text preview, the fallback working, but the server validates only the magic bytes; .pr-media/testing2/faithful-thumbnails-corrupt-webp-card-1280.png. Not a defect against the spec, noted for the reviewer
 - [x] The editor-side upload is silent on the page — evidence: no toast and console errors 0 across the capture, the leave-early and the reload flows
+
+## Third walk (2026-10-19, lane/testing2 at 66e1cc88)
+
+- [x] 375 px with the real scroller — evidence: documents home with a captured image card: document 375 of 375, shell scroller 360 of 360; image cards and text previews both 486 px; .pr-media/testing2/w375-documents-home.png
+- [x] Leaving an editor with a full navigation while updates were pending shows the browser's beforeunload prompt (accepted in the walk); noted, not a defect

@@ -10,3 +10,7 @@
 - [x] A card with a captured image next to cards with the text preview — evidence: the captured card (320 by 414 image) is also 426 px at 1280 and 486 px at 375; .pr-media/testing2/equal-card-heights-home-1280.png
 - [x] A 140 character title — evidence: the title clamps to two lines with an ellipsis, the card keeps the same height as "A"; the thumbnail text preview clamps to four lines with an ellipsis
 - [x] Wrapped fifth card — evidence: the fifth card starts a second row at the same width and the row above stays equal
+
+## Third walk (2026-10-19, lane/testing2 at 66e1cc88)
+
+- [x] 375 px with the real scroller — evidence: documents home with a captured image card, text previews and a 140 character title: document scrollWidth 375 of 375, shell scroller 360 of 360 (the 15 px is the vertical scrollbar); the first five cards are 486 px; two cards below the fold read 362 px only because `content-visibility:auto` reports its 360 px placeholder until they are scrolled into view; .pr-media/testing2/w375-documents-home.png, .pr-media/testing2/w375-documents-tail.png

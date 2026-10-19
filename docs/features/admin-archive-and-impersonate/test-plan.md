@@ -52,3 +52,9 @@
 - [x] Test-plan precondition — the demo administrator is admin@example.com (Admin), not Ana; Ana is a plain user, /admin redirects her to /documents
 - [x] 375 px Admin Users table — evidence: the page never scrolls sideways; the table scrolls inside its wrapper and the Actions column is reached by that inner scroll; .pr-media/testing2/admin-users-375.png
 - [ ] Archiving an MCP client's connection and the version viewer (briefing hypothesis 1) — BLOCKED: no MCP client is available in the walk; the version viewer was not opened
+
+## Third walk (2026-10-19, lane/testing2 at 66e1cc88)
+
+- [x] 375 px with the real scroller — evidence: Admin users: document 375 of 375, shell scroller 360 of 360, the table wrapper 586 of 310 by design (it scrolls inside itself); impersonating Caio: documents document 375/375, shell 360/360; editor document 375/375, shell 375/375, editor 360/360; .pr-media/testing2/w375-admin-users.png, .pr-media/testing2/w375-impersonating-documents.png, .pr-media/testing2/w375-impersonating-editor.png
+- [ ] Stop impersonating from inside the impersonated user's editor returns to Admin with no error — FAILED in part: the page goes to /admin, /api/me is Admin with impersonatedBy null, no banner and no toast, but the console logs five 404s: GET /api/documents/<Caio's document id>, its /download and its /members (twice) are requested as Admin after the session flipped, because the editor is still mounted; repro: Admin impersonates Caio, New document, Stop impersonating; .pr-media/testing2/admin3-stopped-from-editor-1280.png. Needs a regression test that stopping from an editor sends no request for the impersonated user's document
+- [x] Stop impersonating from the documents page returns to Admin (second walk), no error

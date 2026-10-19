@@ -69,3 +69,7 @@ Walk on the scenario stack at 1280 and 375 with Playwright MCP; ⌘ sent as Meta
 - Found: ⌘⇧N in the same tick as Enter hits the previous paragraph. Not reachable by a person.
 - Blocked: ⌘P opens the native print dialog through window.print(), which froze the Playwright MCP server; the PDF output was not observed.
 - Console at error level: 0 on the editor flows.
+
+## Tester run 2026-10-19 (third walk)
+
+Second-round rows walked at lane/testing2 66e1cc88 on a fresh stack. Pass: ⌘⌥M with a selection, ⌘⌥N and ⌘⌥P, zoom steps, ⌘⌥E, ⌘⌥S, ⌘⌥T, ⌘\, ⌘] and ⌘[, ⌘⌥0, held ⌘B and held ⌘S, the Summarize and expand hints, the outlined Cancel with equal 6 px gaps, the 375 px scroller. Fail: ⌘⌥M with nothing selected adds a point comment instead of showing the alert. Skipped: AltGr. A selection made with Control+Home then Shift+End is unreliable in the MCP browser; use a triple click.

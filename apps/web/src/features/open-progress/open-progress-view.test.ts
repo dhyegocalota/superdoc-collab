@@ -18,6 +18,20 @@ function preparing({ stage, done, total }: { stage: BootstrapStage; done: number
   return preparingView({ bootstrap: { ...bootstrapAt(stage), done, total, stateBytes: null }, elapsedSeconds: 12 });
 }
 
+function estimating({
+  done = 0,
+  estimatedMs,
+  elapsedSeconds,
+  stage = BootstrapStage.Preparing,
+}: {
+  done?: number;
+  estimatedMs: number | null;
+  elapsedSeconds: number;
+  stage?: BootstrapStage;
+}) {
+  return preparingView({ bootstrap: { ...bootstrapAt(stage), done, total: TOTAL_BYTES, stateBytes: null, estimatedMs }, elapsedSeconds });
+}
+
 test('uploading is a determinate bar of the bytes sent', () => {
   const view = uploadingView({ sentBytes: SENT_BYTES, totalBytes: TOTAL_BYTES });
   expect(view).toEqual({ stage: OpenStage.Uploading, detail: '4.8 MB of 9.5 MB', fraction: 0.5 });
@@ -36,6 +50,44 @@ test('preparing with no progress yet names the file size on an indeterminate bar
 test('bytes received beyond the estimated total fill the bar and no more', () => {
   const view = preparing({ stage: BootstrapStage.Preparing, done: TOTAL_BYTES * 2, total: TOTAL_BYTES });
   expect(view.fraction).toBe(1);
+});
+
+test('an estimate with no bytes yet fills the bar by the time elapsed over the estimate and names both', () => {
+  expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 12 })).toEqual({
+    stage: OpenStage.Preparing,
+    detail: 'Converting a 9.5 MB file · about 40 s · 12 s elapsed',
+    fraction: 0.3,
+  });
+});
+
+test('the time bar stops at 95% when the conversion outlasts its estimate', () => {
+  expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 100 }).fraction).toBe(0.95);
+});
+
+test.each([
+  [42_000, 'about 40 s'],
+  [43_000, 'about 45 s'],
+  [1_000, 'about 5 s'],
+  [65_000, 'about 1 min 5 s'],
+])('an estimate of %i ms reads %s, rounded to five seconds', (estimatedMs, expected) => {
+  expect(estimating({ estimatedMs, elapsedSeconds: 1 }).detail).toContain(expected);
+});
+
+test('a few bytes received do not hide the estimate', () => {
+  const view = estimating({ done: 3_584, estimatedMs: 40_000, elapsedSeconds: 12 });
+  expect(view.fraction).toBe(0.3);
+  expect(view.detail).toContain('about 40 s');
+});
+
+test('bytes ahead of the estimate take over the bar and the detail', () => {
+  const view = estimating({ done: TOTAL_BYTES * 0.8, estimatedMs: 40_000, elapsedSeconds: 12 });
+  expect(view.fraction).toBe(0.8);
+  expect(view.detail).toBe('Received 7.6 MB · 12 s');
+});
+
+test('a queued bootstrap ignores the estimate and no estimate keeps the bar indeterminate', () => {
+  expect(estimating({ stage: BootstrapStage.Queued, estimatedMs: 40_000, elapsedSeconds: 12 }).fraction).toBeNull();
+  expect(estimating({ estimatedMs: null, elapsedSeconds: 12 }).fraction).toBeNull();
 });
 
 test('a queued bootstrap says it waits for its turn', () => {

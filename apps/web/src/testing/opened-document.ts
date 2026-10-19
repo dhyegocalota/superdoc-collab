@@ -1,9 +1,9 @@
+import type { BootstrapReading } from '@/features/editor/bootstrap-reading';
 import {
   BootstrapStage,
   DocumentRole,
   RoomMode,
   UserRole,
-  type BootstrapProgress,
   type DocumentSummary,
   type OpenedDocument,
   type SessionUser,
@@ -28,9 +28,15 @@ export function summaryAs(role: DocumentRole): DocumentSummary {
 }
 
 export const STATE_BYTES = 36_500_000;
-export const READY_BOOTSTRAP: BootstrapProgress = { stage: BootstrapStage.Ready, done: 0, total: 0, stateBytes: STATE_BYTES };
+export const READY_BOOTSTRAP: BootstrapReading = {
+  stage: BootstrapStage.Ready,
+  done: 0,
+  total: 0,
+  stateBytes: STATE_BYTES,
+  estimatedMs: null,
+};
 
-export function bootstrapAt(stage: BootstrapStage): BootstrapProgress {
+export function bootstrapAt(stage: BootstrapStage): BootstrapReading {
   return { ...READY_BOOTSTRAP, stage };
 }
 

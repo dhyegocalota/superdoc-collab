@@ -1,4 +1,4 @@
-import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, type BootstrapProgress, type DocumentsList } from '@superdoc-collab/types';
+import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, type DocumentsList } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
@@ -12,11 +12,12 @@ import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
 import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
+import type { BootstrapReading } from './bootstrap-reading';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
 import { LOAD_RETRY_HINT, TRY_AGAIN_LABEL } from './waiting-copy';
 
-export type WaitingProgress = { bootstrap: BootstrapProgress | null; startedAt: number; isShown: boolean };
+export type WaitingProgress = { bootstrap: BootstrapReading | null; startedAt: number; isShown: boolean };
 
 export type WaitingReadiness = DocumentReadiness.Waiting | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
 

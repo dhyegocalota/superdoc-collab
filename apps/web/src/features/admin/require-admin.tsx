@@ -10,7 +10,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   const { user, isLoading } = useSession();
   const location = useLocation();
   const isUserNotAdmin = user !== null && user.role !== UserRole.Admin;
-  const isImpersonated = user !== null && user.impersonatedBy !== undefined;
+  const isImpersonated = user !== null && user.impersonatedBy !== null;
   const shouldToast = isUserNotAdmin && !isImpersonated;
 
   useEffect(() => {

@@ -15,7 +15,14 @@ import { renderWithProviders } from '@/testing/render-with-providers';
 import { AccountMenu } from './account-menu';
 import { THEME_LABEL, accountMenuLabel } from './account-copy';
 
-const USER: SessionUser = { id: 'user-1', name: 'Ana', email: 'ana@example.com', role: UserRole.User, timeZone: null };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ana',
+  email: 'ana@example.com',
+  role: UserRole.User,
+  timeZone: null,
+  impersonatedBy: null,
+};
 const ADMIN: SessionUser = { ...USER, id: 'user-2', name: 'Bruno', email: 'bruno@example.com', role: UserRole.Admin };
 
 function renderMenu(user: SessionUser, colorSlot: AuthorColorSlot | null = null) {

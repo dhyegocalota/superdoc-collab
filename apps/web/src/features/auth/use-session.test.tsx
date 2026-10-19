@@ -6,7 +6,14 @@ import { jsonResponse } from '@/testing/json-response';
 import { createTestQueryClient, renderHookWithRouter } from '@/testing/render-with-providers';
 import { SESSION_QUERY_KEY, useSession } from './use-session';
 
-const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
+const ADA: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: 'UTC',
+  impersonatedBy: null,
+};
 
 afterEach(() => {
   vi.restoreAllMocks();

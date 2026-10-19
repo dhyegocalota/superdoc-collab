@@ -11,7 +11,14 @@ import { RequireAdmin } from './require-admin';
 const ADMIN_TEXT = 'admin content';
 const DOCUMENTS_TEXT = 'documents content';
 const SIGN_IN_TEXT = 'sign-in content';
-const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: 'UTC',
+  impersonatedBy: null,
+};
 
 function renderGuard(user: SessionUser | null) {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {

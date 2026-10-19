@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { AuthDatabase } from '../database/connection';
 import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../database/schema/auth';
 
-const CONSENT_PATH = '/oauth2/consent';
+const IMPERSONATION_REFUSED_PATHS = ['/oauth2/consent', '/oauth2/authorize', '/revoke-other-sessions'];
 const DELETE_CONSENT_PATH = '/oauth2/delete-consent';
 const UPDATE_CONSENT_PATH = '/oauth2/update-consent';
 const CONSENT_MODEL = 'oauthConsent';
@@ -27,7 +27,7 @@ const revokeTokensOfConsent = createAuthMiddleware(async (context) => {
   await Promise.all(TOKEN_MODELS.map((model) => adapter.deleteMany({ model, where: owner })));
 });
 
-const refuseImpersonatedConsent = createAuthMiddleware(async (context) => {
+const refuseImpersonatedGrants = createAuthMiddleware(async (context) => {
   const session = await getSessionFromCtx(context);
   if (!session?.session.impersonatedBy) return;
   throw new APIError('FORBIDDEN', { message: IMPERSONATED_CONSENT_MESSAGE });
@@ -51,8 +51,8 @@ export function consentRevocationPlugin() {
           handler: revokeTokensOfConsent,
         },
         {
-          matcher: (context: { path?: string }) => context.path === CONSENT_PATH,
-          handler: refuseImpersonatedConsent,
+          matcher: (context: { path?: string }) => IMPERSONATION_REFUSED_PATHS.some((path) => path === context.path),
+          handler: refuseImpersonatedGrants,
         },
       ],
     },

@@ -22,7 +22,14 @@ const CAIO: SessionUser = {
   timeZone: null,
   impersonatedBy: 'admin-1',
 };
-const ADMIN: SessionUser = { id: 'admin-1', name: 'Ada', email: 'ada@example.com', role: UserRole.Admin, timeZone: null };
+const ADMIN: SessionUser = {
+  id: 'admin-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.Admin,
+  timeZone: null,
+  impersonatedBy: null,
+};
 
 function mockApi({ sessions, stopStatus = HttpStatus.Ok }: { sessions: SessionUser[]; stopStatus?: number }) {
   const remaining = [...sessions];

@@ -67,5 +67,5 @@ export const updateUserSchema = z
 
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
-export type SessionUser = { id: string; name: string; email: string; role: UserRole; timeZone: string | null; impersonatedBy?: string };
+export type SessionUser = { id: string; name: string; email: string; role: UserRole; timeZone: string | null; impersonatedBy: string | null };
 export type AdminUser = { id: string; name: string; email: string; role: UserRole; createdAt: number; isArchived: boolean };

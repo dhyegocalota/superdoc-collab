@@ -29,7 +29,14 @@ vi.mock('@/features/auth/auth-client', () => ({ authClient: { updateUser: vi.fn(
 
 const ACCOUNT_ZONE = 'America/Sao_Paulo';
 const BROWSER_ZONE = 'Europe/Lisbon';
-const USER: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: ACCOUNT_ZONE };
+const USER: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: ACCOUNT_ZONE,
+  impersonatedBy: null,
+};
 const CHOSEN_ZONE = 'Asia/Tokyo';
 const UNLISTED_ALIAS = Intl.supportedValuesOf('timeZone').includes('Asia/Kolkata') ? 'Asia/Calcutta' : 'Asia/Kolkata';
 const LISTED_ALIAS = UNLISTED_ALIAS === 'Asia/Kolkata' ? 'Asia/Calcutta' : 'Asia/Kolkata';

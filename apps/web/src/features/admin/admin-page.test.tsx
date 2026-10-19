@@ -70,7 +70,14 @@ import {
 } from './admin-copy';
 import { AdminPage } from './admin-page';
 
-const ADMIN_SESSION: SessionUser = { id: 'admin-1', name: 'Ada', email: 'ada@example.com', role: UserRole.Admin, timeZone: UTC_TIME_ZONE };
+const ADMIN_SESSION: SessionUser = {
+  id: 'admin-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.Admin,
+  timeZone: UTC_TIME_ZONE,
+  impersonatedBy: null,
+};
 const ADMIN_USER: AdminUser = {
   id: 'admin-1',
   name: 'Ada',

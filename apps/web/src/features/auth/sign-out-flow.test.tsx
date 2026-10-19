@@ -21,7 +21,14 @@ import { useSignOut } from './use-sign-out';
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api')>()), apiGet: vi.fn() }));
 vi.mock('./auth-client', () => ({ authClient: { signOut: vi.fn() } }));
 
-const ADA: SessionUser = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: UserRole.User, timeZone: 'UTC' };
+const ADA: SessionUser = {
+  id: 'user-1',
+  name: 'Ada',
+  email: 'ada@example.com',
+  role: UserRole.User,
+  timeZone: 'UTC',
+  impersonatedBy: null,
+};
 const FORM_TEXT = 'sign-in form';
 const SIGN_IN_REDIRECT_WITH_NEXT_SEARCH = `?next=${encodeURIComponent(AppRoute.Documents)}`;
 const SLOW_SIGN_IN_RENDER_MILLISECONDS = 10;

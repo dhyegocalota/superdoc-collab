@@ -14,7 +14,7 @@ The two summary prompts (`SUMMARIES_SYSTEM_PROMPT` for the topic summaries and `
 
 - One rule shared by both summary prompts replaces the language-of-the-text rule: write in English (en-US), whatever the language of the edited text.
 - The plan of `llm-insights` that quotes the selection prompt follows.
-- Migration `0007_clear-summaries` empties `selection_summaries` and `topic_summaries` on deploy, as `0006` did for the previous prompt change: a sentence written in the document's language before this change is never served again; the topic summaries are rewritten on the next read because a topic with no sentence counts as stale, and a selection summary is rewritten on the next request. Both tables are regenerable caches; nothing is lost.
+- Migration `0007_clear-summaries` empties `selection_summaries` and `topic_summaries` on deploy, as `0006` did for the previous prompt change: a sentence written in the document's language before this change is never served again; the topic sentences come back at the next full-scope Summarize press because a topic with runs and no sentence counts as stale (ADR 0031; until that press an already-summarized document shows no topic sentences), and a selection summary is rewritten on the next request. Both tables are regenerable caches; nothing is lost.
 
 ## Test list
 

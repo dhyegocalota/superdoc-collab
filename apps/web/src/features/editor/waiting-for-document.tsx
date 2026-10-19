@@ -9,14 +9,14 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccountMenu } from '@/features/account/account-menu';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
-import { OpenProgressPanel } from '@/features/open-progress/open-progress-panel';
+import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
 import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
 import { KEEP_WAITING_LABEL, LOAD_RETRY_HINT, NOT_READY_PAUSED_HEADING, NOT_READY_PAUSED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
 
-export type WaitingProgress = { bootstrap: BootstrapProgress | null; elapsedSeconds: number; isShown: boolean };
+export type WaitingProgress = { bootstrap: BootstrapProgress | null; startedAt: number; isShown: boolean };
 
 export type WaitingReadiness =
   DocumentReadiness.Waiting | DocumentReadiness.Paused | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
@@ -72,10 +72,11 @@ function StatusCard({
 function PreparingCard({ title, progress }: { title: string | null; progress: WaitingProgress }) {
   if (!progress.isShown) return null;
   return (
-    <OpenProgressPanel
+    <TickingOpenProgressPanel
       title={title}
       stages={EDITOR_OPEN_STAGES}
-      view={preparingView({ bootstrap: progress.bootstrap, elapsedSeconds: progress.elapsedSeconds })}
+      startedAt={progress.startedAt}
+      viewAt={(elapsedSeconds) => preparingView({ bootstrap: progress.bootstrap, elapsedSeconds })}
       action={<BackToDocumentsButton />}
     />
   );

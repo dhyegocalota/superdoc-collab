@@ -15,7 +15,7 @@ import { WaitingForDocument, type WaitingProgress, type WaitingReadiness } from 
 const CACHED_LIST: DocumentsList = { mine: [], shared: [summaryAs(DocumentRole.Reader)] };
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 
-const SHOWN_PROGRESS: WaitingProgress = { bootstrap: bootstrapAt(BootstrapStage.Preparing), elapsedSeconds: 12, isShown: true };
+const SHOWN_PROGRESS: WaitingProgress = { bootstrap: bootstrapAt(BootstrapStage.Preparing), startedAt: Date.now(), isShown: true };
 const HIDDEN_PROGRESS: WaitingProgress = { ...SHOWN_PROGRESS, isShown: false };
 const PROGRESS_TEST_ID = 'open-progress';
 

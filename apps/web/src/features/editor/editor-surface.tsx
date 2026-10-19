@@ -1,6 +1,6 @@
 import type { SuperDoc } from 'superdoc';
 import type { TimeTravel } from '@/features/timeline/use-time-travel';
-import { OpenProgressPanel, type OpenProgressView } from '@/features/open-progress/open-progress-panel';
+import { TickingOpenProgressPanel, type OpenProgressViewAt } from '@/features/open-progress/ticking-open-progress-panel';
 import type { EditorLoadProgress } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { VersionFrame } from '@/features/versions/version-frame';
@@ -14,7 +14,8 @@ export const DIMMED_EDITOR_AREA_CLASS = 'opacity-60';
 type EditorSurfaceProps = {
   documentId: string;
   title: string;
-  openProgress: OpenProgressView | null;
+  openProgress: OpenProgressViewAt | null;
+  openStartedAt: number;
   editorSetup: EditorSetup | null;
   editorGeneration: number;
   isToolbarReady: boolean;
@@ -34,6 +35,7 @@ export function EditorSurface({
   documentId,
   title,
   openProgress,
+  openStartedAt,
   editorSetup,
   editorGeneration,
   isToolbarReady,
@@ -76,7 +78,9 @@ export function EditorSurface({
           onLoadProgress={onLoadProgress}
         />
       )}
-      {openProgress && <OpenProgressPanel title={title} stages={EDITOR_OPEN_STAGES} view={openProgress} action={null} />}
+      {openProgress && (
+        <TickingOpenProgressPanel title={title} stages={EDITOR_OPEN_STAGES} startedAt={openStartedAt} viewAt={openProgress} action={null} />
+      )}
       <VersionFrame
         documentId={documentId}
         version={timeTravel.shownVersion}

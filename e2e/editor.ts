@@ -1,11 +1,15 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import {
+  ApiPath,
   AppRoute,
   DocumentResource,
   documentApiPath,
   DOCX_MIME_TYPE,
   TimelineQueryParam,
+  UPLOAD_FIELD,
   type DocumentEditEvent,
+  type DocumentSummary,
   type DocumentEditEvents,
   type ShareLinkRole,
   type ShareLinks,
@@ -28,6 +32,8 @@ export const REMOTE_CARET_SELECTOR = '.v2-collaboration-overlay__remote-caret';
 const TOOLBAR_ROW_TEST_ID = 'editor-toolbar-row';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const UPLOAD_FILE_NAME = 'Plan.docx';
+const ORIGIN_HEADER = 'origin';
+const UNIQUE_NAME_LENGTH = 8;
 const FOCUS_TIMEOUT_MS = 30_000;
 export const EDITOR_READY_TIMEOUT_MS = 60_000;
 const TYPING_DELAY_MS = 20;
@@ -103,6 +109,21 @@ export async function uploadSeed({
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
   await expect(editorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   return documentIdOf(page.url());
+}
+
+export function sameOriginHeaders(page: Page): Record<string, string> {
+  return { [ORIGIN_HEADER]: new URL(page.url()).origin };
+}
+
+export async function uploadDocument({ page, buffer }: { page: Page; buffer: Buffer }): Promise<string> {
+  const name = `upload-${randomUUID().slice(0, UNIQUE_NAME_LENGTH)}.docx`;
+  const response = await page.request.post(ApiPath.Documents, {
+    headers: sameOriginHeaders(page),
+    multipart: { [UPLOAD_FIELD]: { name, mimeType: DOCX_MIME_TYPE, buffer } },
+  });
+  expect(response.ok()).toBe(true);
+  const { id } = (await response.json()) as DocumentSummary;
+  return id;
 }
 
 export function documentIdOf(url: string): string {

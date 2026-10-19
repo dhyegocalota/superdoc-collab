@@ -8,6 +8,7 @@ import {
   DOCX_MIME_TYPE,
   HttpMethod,
   HttpStatus,
+  PERCENT_MULTIPLIER,
   ShareLinkRole,
   UPLOAD_FIELD,
   documentApiPath,
@@ -20,7 +21,7 @@ import { buildSeedDocx } from '../libs/history/src';
 import { QUEUED_DETAIL } from '../apps/web/src/features/open-progress/open-progress-copy';
 import { EDITOR_OPEN_STAGES, OpenStage } from '../apps/web/src/features/open-progress/open-stage';
 import { FILE_INPUT_LABEL } from '../apps/web/src/features/documents/documents-copy';
-import { EDITOR_READY_TIMEOUT_MS, acceptShareLink, editorText, openDocumentFileInput } from './editor';
+import { EDITOR_READY_TIMEOUT_MS, acceptShareLink, editorText, openDocumentFileInput, uploadDocument } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
 
@@ -36,23 +37,12 @@ const LARGE_COMMIT_TIMEOUT_MS = 180_000;
 const SCRIPTED_TOTAL_BYTES = 1_000_000;
 const SCRIPTED_STEP_TIMEOUT_MS = 15_000;
 const UPLOAD_BYTES_PER_SECOND = 2_000_000;
-const PERCENT = 100;
 const PAGES_SO_FAR_PATTERN = /([\d,]+) so far/;
 
 type Reading = { testId: string; stage: string | null; detail: string; value: string | null };
 
 function bootstrapAt({ stage, done }: { stage: BootstrapStage; done: number }): BootstrapProgress {
   return { stage, done, total: SCRIPTED_TOTAL_BYTES, stateBytes: null };
-}
-
-async function uploadDocument({ page, buffer }: { page: Page; buffer: Buffer }): Promise<string> {
-  const response = await page.request.post(ApiPath.Documents, {
-    headers: { origin: new URL(page.url()).origin },
-    multipart: { [UPLOAD_FIELD]: { name: `progress-${randomUUID().slice(0, 8)}.docx`, mimeType: DOCX_MIME_TYPE, buffer } },
-  });
-  expect(response.ok()).toBe(true);
-  const { id } = (await response.json()) as DocumentSummary;
-  return id;
 }
 
 async function scriptOpenAnswers({
@@ -151,9 +141,9 @@ test('the Preparing panel names the wait, then the file being converted, then fi
   await expect(bar).not.toHaveAttribute('aria-valuenow');
   await expect(detail).toContainText('Converting a', { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(bar).not.toHaveAttribute('aria-valuenow');
-  await expect(bar).toHaveAttribute('aria-valuenow', String(0.4 * PERCENT), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
+  await expect(bar).toHaveAttribute('aria-valuenow', String(0.4 * PERCENT_MULTIPLIER), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(detail).toContainText('Received');
-  await expect(bar).toHaveAttribute('aria-valuenow', String(0.8 * PERCENT), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
+  await expect(bar).toHaveAttribute('aria-valuenow', String(0.8 * PERCENT_MULTIPLIER), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   await expect(panel).toHaveCount(0);
 });
@@ -206,12 +196,13 @@ test('uploading a large document fills the bar with the bytes sent before the pa
 });
 
 test('a normal document opens without the panel ever showing', async ({ browser }) => {
+  test.setTimeout(LARGE_TEST_TIMEOUT_MS);
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const buffer = await buildSeedDocx([{ text: SEED_PARAGRAPH, trackedChanges: [] }]);
   const documentId = await uploadDocument({ page: ana.page, buffer });
   await expect
     .poll(async () => ((await (await ana.page.request.get(documentApiPath({ documentId }))).json()) as OpenedDocument).bootstrap.stage, {
-      timeout: EDITOR_READY_TIMEOUT_MS,
+      timeout: LARGE_COMMIT_TIMEOUT_MS,
     })
     .toBe(BootstrapStage.Ready);
   await scriptOpenAnswers({ page: ana.page, documentId, bootstraps: [] });

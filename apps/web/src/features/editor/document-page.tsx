@@ -1,10 +1,9 @@
 import { ConnectionFailureReason, ConnectionState, DocumentRole, OPEN_PROGRESS_DELAY_MS, VersionViewerState } from '@superdoc-collab/types';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
 import { editorOpenView, type EditorLoadProgress } from '@/features/open-progress/open-progress-view';
 import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
-import { useElapsedSeconds } from '@/features/open-progress/use-elapsed-seconds';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -79,7 +78,7 @@ export function DocumentPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const hasPaintedParagraph = useHasPaintedParagraph(editorContainer);
   const isProgressShown = useDelayedReveal({ delayMs: OPEN_PROGRESS_DELAY_MS, resetKey: documentId });
-  const elapsedSeconds = useElapsedSeconds({ resetKey: documentId, isRunning: !hasPaintedParagraph });
+  const startedAt = useMemo(() => Date.now(), [documentId]);
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
   const { timeZone } = useTimeZone();
@@ -123,7 +122,7 @@ export function DocumentPage() {
       <WaitingForDocument
         documentId={documentId}
         readiness={documentReadiness}
-        progress={{ bootstrap, elapsedSeconds, isShown: isProgressShown }}
+        progress={{ bootstrap, startedAt, isShown: isProgressShown }}
         onKeepWaiting={keepWaiting}
         onRetry={retry}
       />,
@@ -158,7 +157,7 @@ export function DocumentPage() {
   const isOpenFailing = isFailed || loadProgress.hasFailed || fileError !== null;
   const isOpenProgressVisible = isProgressShown && !hasPaintedParagraph && !isOpenFailing;
   const openProgress = isOpenProgressVisible
-    ? editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
+    ? (elapsedSeconds: number) => editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
     : null;
 
   return withAnnouncement(
@@ -202,6 +201,7 @@ export function DocumentPage() {
             documentId={documentId}
             title={title}
             openProgress={openProgress}
+            openStartedAt={startedAt}
             editorSetup={editorSetup}
             editorGeneration={editorGeneration}
             isToolbarReady={isToolbarReady}

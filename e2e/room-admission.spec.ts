@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { APIResponse, Page } from '@playwright/test';
 import {
   ApiPath,
@@ -18,12 +17,11 @@ import {
   type OpenedDocument,
 } from '../libs/types/src';
 import { buildSeedDocx } from '../libs/history/src';
-import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks } from './editor';
+import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks, sameOriginHeaders, uploadDocument } from './editor';
 import { buildBrokenDocx, buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
 
 const EDITOR_TEST_ID = 'document-editor';
-const ORIGIN_HEADER = 'origin';
 const SEED_PARAGRAPH = 'Paragraph written by the server.';
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const READY_TIMEOUT_MS = 60_000;
@@ -40,26 +38,8 @@ function occurrencesOf({ text, fragment }: { text: string; fragment: string }): 
   return text.split(fragment).length - 1;
 }
 
-function uniqueFileName(prefix: string): string {
-  return `${prefix}-${randomUUID().slice(0, 8)}.docx`;
-}
-
 async function seedBuffer(paragraphs: string[]): Promise<Buffer> {
   return buildSeedDocx(paragraphs.map((text) => ({ text, trackedChanges: [] })));
-}
-
-function sameOriginHeaders(page: Page): Record<string, string> {
-  return { [ORIGIN_HEADER]: new URL(page.url()).origin };
-}
-
-async function uploadDocument({ page, buffer }: { page: Page; buffer: Buffer }): Promise<string> {
-  const response = await page.request.post(ApiPath.Documents, {
-    headers: sameOriginHeaders(page),
-    multipart: { [UPLOAD_FIELD]: { name: uniqueFileName('admission'), mimeType: DOCX_MIME_TYPE, buffer } },
-  });
-  expect(response.ok()).toBe(true);
-  const { id } = (await response.json()) as DocumentSummary;
-  return id;
 }
 
 async function shareWithEditor({ owner, member, documentId }: { owner: Page; member: Page; documentId: string }): Promise<void> {

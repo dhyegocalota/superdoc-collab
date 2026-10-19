@@ -194,7 +194,8 @@ export function createCollaborationServer({
       const restored = materialize({ log: updateLog, documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER });
       Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
     },
-    async afterLoadDocument({ document }) {
+    async afterLoadDocument({ document, documentName }) {
+      awarenessOwners.seed({ documentName, bindings: updateLog.clientIdentities(requireDocumentId(documentName)) });
       closeSendersOfForeignIds({ document, owners: awarenessOwners });
     },
     async beforeHandleMessage({ update, context, document, socketId }) {

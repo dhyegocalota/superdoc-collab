@@ -9,7 +9,10 @@ export class AwarenessOwners {
   }
 
   seed({ documentName, bindings }: { documentName: string; bindings: ReadonlyMap<number, { userId: string }> }): void {
-    throw new Error('AwarenessOwners.seed is not implemented');
+    const ownerByClientId = this.ownersOf(documentName);
+    bindings.forEach(({ userId }, clientId) => {
+      if (!ownerByClientId.has(clientId)) ownerByClientId.set(clientId, userId);
+    });
   }
 
   private ownersOf(documentName: string): Map<number, string> {

@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_ARCHIVED_MESSAGE,
   ApiPath,
   documentApiPath,
   DocumentResource,
@@ -191,5 +192,16 @@ test('a token issued under another secret stops resolving before any read reissu
   const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Read]))).toBeNull();
+  await server.stop();
+});
+
+test('an archived user accepting a link is refused with the archived message and gets no role', async () => {
+  const { server, documentId, owner } = await blankDocumentWithOwner();
+  const bruno = await signedInUser({ server, name: 'Bruno' });
+  server.database.sqlite.prepare('update user set banned = 1 where id = ?').run(bruno.id);
+  const links = await shareLinksOf({ server, cookie: owner.cookie, documentId });
+  const response = await accept({ server, cookie: bruno.cookie, url: links[ShareLinkRole.Edit] });
+  expect([response.status, await response.json()]).toEqual([HttpStatus.Forbidden, { error: ACCOUNT_ARCHIVED_MESSAGE }]);
+  expect(server.services.documents.findRole({ documentId, userId: bruno.id })).toBeNull();
   await server.stop();
 });

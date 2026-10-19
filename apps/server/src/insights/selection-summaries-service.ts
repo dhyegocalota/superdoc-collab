@@ -185,6 +185,7 @@ export class SelectionSummariesService {
       failure,
       isModelAvailable: this.languageModel.availability === LanguageModelAvailability.Ready,
       step: this.step(documentId),
+      partial: null,
     };
   }
 

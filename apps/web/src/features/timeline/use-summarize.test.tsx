@@ -29,7 +29,7 @@ const SELECTION = { term: 'budget', author: 'bruno', topic: 'band-1', at: 1_792_
 const ROUTE = `${documentPagePath(DOCUMENT_ID)}?term=budget&author=bruno&topic=band-1&at=${SELECTION.at}`;
 
 function responseWith({ outcome, step }: { outcome: SummarizeOutcome; step: SummarizeStep }): SummarizeResponse {
-  return { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step, outcome };
+  return { state: SelectionSummaryState.None, summary: null, failure: null, isModelAvailable: true, step, partial: null, outcome };
 }
 
 function newQueryClient(): QueryClient {

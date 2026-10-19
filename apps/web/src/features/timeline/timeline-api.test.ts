@@ -42,6 +42,7 @@ const NONE_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const SELECTION_PATH = selectionSummaryApiPath(DOCUMENT_ID);
 const TIME_ZONE = 'America/Sao_Paulo';

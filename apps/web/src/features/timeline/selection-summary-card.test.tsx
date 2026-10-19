@@ -45,6 +45,7 @@ const NONE_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const RUNNING_VIEW: SelectionSummaryView = { ...NONE_VIEW, state: SelectionSummaryState.Running };
 const FIRST_VIEW: SelectionSummaryView = {
@@ -53,6 +54,7 @@ const FIRST_VIEW: SelectionSummaryView = {
   failure: null,
   isModelAvailable: true,
   step: SummarizeStep.Idle,
+  partial: null,
 };
 const SECOND_VIEW: SelectionSummaryView = { ...FIRST_VIEW, summary: { ...FIRST_VIEW.summary!, key: 'second', sentence: 'Ana hired.' } };
 const FAILED_VIEW: SelectionSummaryView = {

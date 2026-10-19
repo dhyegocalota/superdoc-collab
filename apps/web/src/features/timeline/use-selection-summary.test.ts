@@ -21,7 +21,7 @@ const POLL_COUNT = 3;
 const TIMELINE_TIME_ZONE = 'America/Sao_Paulo';
 
 function viewIn(state: SelectionSummaryState, step: SummarizeStep = SummarizeStep.Idle): SelectionSummaryView {
-  return { state, summary: null, failure: null, isModelAvailable: true, step };
+  return { state, summary: null, failure: null, isModelAvailable: true, step, partial: null };
 }
 
 function respondWith(response: () => Response) {

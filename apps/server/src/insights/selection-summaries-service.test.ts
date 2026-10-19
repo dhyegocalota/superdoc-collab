@@ -6,12 +6,13 @@ import {
   SUMMARIZE_COOLDOWN_MS,
   SELECTION_SUMMARY_FAILED_MESSAGE,
   SelectionSummaryState,
+  SummarizeStep,
   UTC_TIME_ZONE,
 } from '@superdoc-collab/types';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, expect, test, vi } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';
-import { failingModel, modelAnswering, readyModel } from '../testing/language-model';
+import { failingModel, modelAnswering, readyModel, streamingModel } from '../testing/language-model';
 import { InsightsJobRunner } from './insights-job-runner';
 import { type LanguageModelChoice } from './llm-client';
 import { selectionKeyOf } from './selection-key';
@@ -389,5 +390,98 @@ test('a failure that cannot be stored is logged without the selection key', asyn
   const key = selectionKeyOf({ selection: BRUNO_SELECTION, binMs: MINUTE_MS, timeZone: UTC_TIME_ZONE });
   await service.write({ documentId, selection: BRUNO_SELECTION });
   expect(errors.mock.calls.map((call) => JSON.stringify(call)).join('')).not.toContain(key);
+  await server.stop();
+});
+
+const STREAMED_PIECES = ['{"sentence":"Bruno added', ' a designer.","authors":["Bruno"]}'];
+const STREAMED_BEGINNING = 'Bruno added';
+
+function gateWithRelease(): { gate: Promise<void>; release: () => void } {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { gate, release };
+}
+
+async function streamingService({
+  model,
+  snapshot = snapshotOf({ runs: BRUNO_RUNS }),
+}: {
+  model: MockLanguageModelV4;
+  snapshot?: SelectionSnapshot;
+}) {
+  const story = await serviceWith({ languageModel: readyModel(model), snapshot });
+  story.service.setStep({ documentId: story.documentId, step: SummarizeStep.Summarizing });
+  return story;
+}
+
+test('shows the partial sentence while the model streams', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, service } = await streamingService({
+    model: streamingModel({ pieces: STREAMED_PIECES, heldAfter: 1, gate }),
+  });
+  const writing = service.write({ documentId, selection: BRUNO_SELECTION });
+  await expect
+    .poll(() => service.read({ documentId, selection: BRUNO_SELECTION }))
+    .toMatchObject({ state: SelectionSummaryState.Running, partial: STREAMED_BEGINNING, summary: null });
+  release();
+  await writing;
+  await server.stop();
+});
+
+test('a partial never shows for another selection', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, service } = await streamingService({
+    model: streamingModel({ pieces: STREAMED_PIECES, heldAfter: 1, gate }),
+  });
+  const writing = service.write({ documentId, selection: BRUNO_SELECTION });
+  await expect.poll(() => service.read({ documentId, selection: BRUNO_SELECTION }).partial).toBe(STREAMED_BEGINNING);
+  expect(service.read({ documentId, selection: TERM_SELECTION }).partial).toBeNull();
+  release();
+  await writing;
+  await server.stop();
+});
+
+test('the final sentence replaces the partial', async () => {
+  const { gate, release } = gateWithRelease();
+  const { server, documentId, service } = await streamingService({
+    model: streamingModel({ pieces: STREAMED_PIECES, heldAfter: 1, gate }),
+  });
+  const writing = service.write({ documentId, selection: BRUNO_SELECTION });
+  await expect.poll(() => service.read({ documentId, selection: BRUNO_SELECTION }).partial).toBe(STREAMED_BEGINNING);
+  release();
+  await writing;
+  service.setStep({ documentId, step: SummarizeStep.Idle });
+  expect(service.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
+    state: SelectionSummaryState.Ready,
+    partial: null,
+    summary: { sentence: ANSWER.sentence },
+  });
+  await server.stop();
+});
+
+test('a stream that breaks clears the partial, saves no half sentence and keeps the last sentence', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const first = streamingModel({ pieces: [JSON.stringify(ANSWER)] });
+  const { server, documentId, service, state } = await streamingService({ model: first });
+  await service.write({ documentId, selection: BRUNO_SELECTION });
+  state.snapshot = snapshotOf({ runs: BRUNO_RUNS, cursor: FIRST_CURSOR + 1 });
+  const broken = streamingModel({ pieces: STREAMED_PIECES.slice(0, 1), error: new Error(PROVIDER_FAILURE) });
+  const brokenService = new SelectionSummariesService({
+    repository: server.services.insightsRepository,
+    languageModel: readyModel(broken),
+    jobRunner: new InsightsJobRunner(),
+    readSelection: () => state.snapshot,
+  });
+  brokenService.setStep({ documentId, step: SummarizeStep.Summarizing });
+  await brokenService.write({ documentId, selection: BRUNO_SELECTION });
+  brokenService.setStep({ documentId, step: SummarizeStep.Idle });
+  expect(brokenService.read({ documentId, selection: BRUNO_SELECTION })).toMatchObject({
+    state: SelectionSummaryState.Failed,
+    failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+    partial: null,
+    summary: { sentence: ANSWER.sentence, isStale: true },
+  });
   await server.stop();
 });

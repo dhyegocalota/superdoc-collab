@@ -64,3 +64,16 @@ export function verifyRoomToken({
   if (!isForDocument || !isLive) return null;
   return { userId: claims.userId };
 }
+
+export function signBootstrapToken(_: { secret: string; userId: string; documentId: string; attempt: string; now: number }): string {
+  throw new Error('signBootstrapToken is not implemented');
+}
+
+export function verifyBootstrapToken(_: {
+  secret: string;
+  token: string;
+  documentId: string;
+  now: number;
+}): { userId: string; attempt: string } | null {
+  throw new Error('verifyBootstrapToken is not implemented');
+}

@@ -2,15 +2,21 @@ import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } 
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { runHistoryMigrations } from '../database/migrate';
 import { createProjectionHandler } from './projection-handler';
-import { MissingVersionMarkError, ProjectionRequestKind } from './projection-messages';
+import { IMPORT_TOO_LARGE_MESSAGE, MissingVersionMarkError, ProjectionRequestKind } from './projection-messages';
 
 const DOCUMENT_ID = 'd1';
 
-function storesWith(importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>) {
+const SMALL_FILE_BYTES = 1024;
+
+function storesWith(
+  importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>,
+  fileSizeBytes: (filePath: string) => number = () => SMALL_FILE_BYTES,
+) {
   const directory = mkdtempSync(join(tmpdir(), 'projection-handler-'));
   const historySqlite = openSqliteFile({ directory, fileName: HISTORY_DATABASE_FILE });
   runHistoryMigrations({ sqlite: historySqlite, set: MigrationSet.History });
@@ -21,6 +27,7 @@ function storesWith(importRevisions: (request: { documentId: string; filePath: s
     readModel: new ReadModel(readModelSqlite),
     replays: new GcFreeReplays(REPLAY_CACHE_SIZE),
     importRevisions,
+    fileSizeBytes,
   };
 }
 
@@ -47,6 +54,30 @@ test('an import reads the cursor before importing and answers the import error',
   });
   expect(importRevisions).toHaveBeenCalledWith(request);
   expect(cursor.mock.invocationCallOrder[0]).toBeLessThan(importRevisions.mock.invocationCallOrder[0]!);
+});
+
+test('a file above the revisions cap is not imported, is logged with its size and answers no import error', async () => {
+  const importRevisions = vi.fn(async () => 'boom');
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const oversizedBytes = MAX_REVISIONS_IMPORT_BYTES + 1;
+  const stores = storesWith(importRevisions, () => oversizedBytes);
+  const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
+  expect(await createProjectionHandler(stores)(request)).toEqual({
+    kind: ProjectionRequestKind.Import,
+    documentId: DOCUMENT_ID,
+    cursor: null,
+    importError: null,
+  });
+  expect(importRevisions).not.toHaveBeenCalled();
+  expect(warn).toHaveBeenCalledExactlyOnceWith(`${IMPORT_TOO_LARGE_MESSAGE} ${DOCUMENT_ID}: ${oversizedBytes} bytes`);
+  warn.mockRestore();
+});
+
+test('a file exactly at the revisions cap is imported', async () => {
+  const importRevisions = vi.fn(async () => null);
+  const request = { kind: ProjectionRequestKind.Import, documentId: DOCUMENT_ID, filePath: 'plan.docx' } as const;
+  await createProjectionHandler(storesWith(importRevisions, () => MAX_REVISIONS_IMPORT_BYTES))(request);
+  expect(importRevisions).toHaveBeenCalledWith(request);
 });
 
 test('forgetting clears the replays before the read model and answers a null cursor', async () => {

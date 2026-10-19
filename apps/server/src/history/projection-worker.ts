@@ -8,6 +8,7 @@ import {
   type ListedTrackedChange,
 } from '@superdoc-collab/history';
 import { SECOND_MS } from '@superdoc-collab/types';
+import { statSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { withTimeout } from '../limits/with-timeout';
@@ -81,7 +82,13 @@ async function importRevisions({ documentId, filePath }: { documentId: string; f
   }
 }
 
-const handle = createProjectionHandler({ updateLog, readModel, replays, importRevisions });
+const handle = createProjectionHandler({
+  updateLog,
+  readModel,
+  replays,
+  importRevisions,
+  fileSizeBytes: (filePath) => statSync(filePath).size,
+});
 
 function failureOf({ request, message }: { request: AnsweredRequest; message: string }): ProjectionFailedReply {
   const base = { kind: ProjectionReplyKind.Failed, documentId: request.documentId, message } as const;

@@ -28,6 +28,7 @@ type ProjectionStores = {
   readModel: ReadModel;
   replays: GcFreeReplays;
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
+  fileSizeBytes: (filePath: string) => number;
 };
 
 export function createProjectionHandler({
@@ -35,6 +36,7 @@ export function createProjectionHandler({
   readModel,
   replays,
   importRevisions,
+  fileSizeBytes,
 }: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
     compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });

@@ -4,6 +4,7 @@ import { SECOND_MS } from '@superdoc-collab/types';
 export const IMPORT_TIMEOUT_MS = 30 * SECOND_MS;
 export const SNAPSHOT_EVERY_UPDATES = 1000;
 export const IMPORT_FAILED_MESSAGE = 'Importing Word revisions failed for document';
+export const IMPORT_TOO_LARGE_MESSAGE = 'Skipped importing Word revisions, the file is too large, for document';
 export const IMPORT_SKIPPED_MESSAGE = 'Skipped importing Word revisions, projection is disabled, for document';
 export const PROJECTION_FAILED_MESSAGE = 'Projecting edit events failed for document';
 

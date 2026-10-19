@@ -89,6 +89,10 @@ export class VersionRooms {
     this.roomFor(endpoint).hocuspocus.handleConnection(webSocket, request);
   }
 
+  closeUser(_parameters: { documentId: string; userId: string }): void {
+    throw new Error('closeUser is not implemented');
+  }
+
   size(): number {
     return this.rooms.size();
   }

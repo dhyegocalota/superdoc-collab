@@ -17,7 +17,7 @@ import {
   moreMembersLabel,
   movedToCursorMessage,
   cursorOffScreenReason,
-  offlineMemberReason,
+  onlineMembersLabel,
   SELF_MEMBER_REASON,
 } from './editor-copy';
 import { membersQueryKey } from './editor-api';
@@ -31,7 +31,7 @@ const NARROW_MEMBERS_WITHOUT_MENU = 3;
 const AWARENESS_UPDATE_EVENT = 'awareness-update';
 
 type AwarenessChange = Pick<SuperDocAwarenessUpdatePayload, 'added' | 'removed'>;
-type JumpState = { member: DocumentMember; isOnline: boolean; reason: string | null };
+type JumpState = { member: DocumentMember; reason: string | null };
 
 function jumpReasonOf({
   member,
@@ -47,19 +47,16 @@ function jumpReasonOf({
   const name = member.user.name;
   if (isPastVersion) return BACK_TO_LIVE_TO_JUMP_REASON;
   if (member.user.id === currentUserId) return SELF_MEMBER_REASON;
-  if (!member.online) return offlineMemberReason(name);
   if (!isInDocument) return cursorOffScreenReason(name);
   return null;
 }
 
-function MemberAvatar({ member, isOnline }: { member: DocumentMember; isOnline: boolean }) {
-  return (
-    <UserAvatar name={member.user.name} colorSlot={member.colorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline={isOnline} />
-  );
+function MemberAvatar({ member }: { member: DocumentMember }) {
+  return <UserAvatar name={member.user.name} colorSlot={member.colorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline />;
 }
 
 function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: DocumentMember) => JumpOutcome }) {
-  const { member, isOnline, reason } = state;
+  const { member, reason } = state;
   const name = member.user.name;
   const [isOpen, setIsOpen] = useState(false);
   const [isFailed, setIsFailed] = useState(false);
@@ -91,13 +88,13 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={memberLabel({ name, isOnline })}
+          aria-label={memberLabel({ name, isOnline: true })}
           aria-describedby={reasonId}
           aria-disabled={reason !== null}
           className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={jump}
         >
-          <MemberAvatar member={member} isOnline={isOnline} />
+          <MemberAvatar member={member} />
         </button>
       </TooltipTrigger>
       <TooltipContent>{tooltipText()}</TooltipContent>
@@ -106,10 +103,10 @@ function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: Do
 }
 
 function MemberMenuItem({ state, onJump }: { state: JumpState; onJump: (member: DocumentMember) => JumpOutcome }) {
-  const { member, isOnline, reason } = state;
+  const { member, reason } = state;
   return (
     <DropdownMenuItem disabled={reason !== null} onSelect={() => onJump(member)}>
-      <MemberAvatar member={member} isOnline={isOnline} />
+      <MemberAvatar member={member} />
       <span className="flex flex-col">
         <span>{member.user.name}</span>
         {reason !== null && <span className="text-xs text-muted-foreground">{reason}</span>}
@@ -177,11 +174,12 @@ export function Members({
     return outcome;
   }
 
-  const states = members.map((member): JumpState => {
-    const isSelf = member.user.id === currentUserId;
-    const isInDocument = hasCursor(member);
-    return { member, isOnline: member.online || isSelf, reason: jumpReasonOf({ member, currentUserId, isPastVersion, isInDocument }) };
-  });
+  const states = members
+    .filter((member) => member.online || member.user.id === currentUserId)
+    .map((member): JumpState => {
+      const isInDocument = hasCursor(member);
+      return { member, reason: jumpReasonOf({ member, currentUserId, isPastVersion, isInDocument }) };
+    });
   const isMedium = useMinWidth(MEDIUM_BREAKPOINT_PX);
   const maxWithoutMenu = isMedium ? MAX_MEMBERS_WITHOUT_MENU : NARROW_MEMBERS_WITHOUT_MENU;
   const besideMenu = isMedium ? MEMBERS_BESIDE_MENU : NARROW_MEMBERS_WITHOUT_MENU;
@@ -190,7 +188,7 @@ export function Members({
   const rest = hasMenu ? states.slice(besideMenu) : [];
 
   return (
-    <div className="flex items-center gap-1">
+    <div role="group" aria-label={onlineMembersLabel(states.length)} className="flex items-center gap-1">
       {visible.map((state) => (
         <MemberButton key={state.member.user.id} state={state} onJump={jump} />
       ))}

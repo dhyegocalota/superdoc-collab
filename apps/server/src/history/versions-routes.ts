@@ -16,19 +16,19 @@ import { z } from 'zod';
 import { authorizedDocumentId } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
 import type { SignedIn } from '../http/require-user';
-import { retryLater } from '../http/retry-later';
+import { retryLater, type RetryLaterOptions } from '../http/retry-later';
 import { marksAround, VersionLookupKind } from './versions-service';
 
 const INVALID_SEQUENCE_MESSAGE = 'sequence must be a non-negative integer';
 const aroundSchema = z.string().regex(NON_NEGATIVE_INTEGER_PATTERN).transform(Number);
 
-function retryVersionLater(retry: Omit<Parameters<typeof retryLater>[0], 'retryAfterSeconds'>): Response {
+function retryVersionLater(retry: Omit<RetryLaterOptions, 'retryAfterSeconds'>): Response {
   return retryLater({ ...retry, retryAfterSeconds: RETRY_AFTER_SECONDS });
 }
 
-export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const routes = new Hono<SignedIn>();
+type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
 
+function mountMarks({ routes, services }: RouteMount): void {
   routes.get('/:documentId/versions', (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const parsed = aroundSchema.safeParse(context.req.query(TimelineQueryParam.Around));
@@ -41,7 +41,9 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     };
     return context.json(body);
   });
+}
 
+function mountSummary({ routes, services }: RouteMount): void {
   routes.get('/:documentId/versions/:sequence', (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
@@ -74,7 +76,9 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
     };
     return context.json(summary);
   });
+}
 
+function mountText({ routes, services }: RouteMount): void {
   routes.get('/:documentId/versions/:sequence/text', async (context) => {
     const documentId = authorizedDocumentId({ context, documents: services.documents, minimumRole: DocumentRole.Reader });
     const sequenceText = context.req.param('sequence');
@@ -93,6 +97,12 @@ export function createVersionsRoutes({ services }: { services: AppServices }): H
       });
     }
   });
+}
 
+export function createVersionsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
+  const routes = new Hono<SignedIn>();
+  mountMarks({ routes, services });
+  mountSummary({ routes, services });
+  mountText({ routes, services });
   return routes;
 }

@@ -148,7 +148,7 @@ export function DocumentPage() {
   const isEditingSurfaceInert = isViewingPastVersion || isFailed;
 
   return withAnnouncement(
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-full flex-col">
       <EditorHeader
         opened={opened}
         members={members}

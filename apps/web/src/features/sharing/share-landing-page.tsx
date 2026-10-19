@@ -29,7 +29,7 @@ export function ShareLandingPage() {
 
   if (!failureMessage)
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
+      <main className="flex min-h-full flex-col items-center justify-center gap-4 p-6">
         <p role="status" className="text-sm text-muted-foreground">
           {SHARE_OPENING_MESSAGE}
         </p>
@@ -37,7 +37,7 @@ export function ShareLandingPage() {
     );
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
+    <main className="flex min-h-full flex-col items-center justify-center gap-4 p-6">
       <p role="alert">{failureMessage}</p>
       <Link to={AppRoute.Documents} className="underline">
         {BACK_TO_DOCUMENTS_LABEL}

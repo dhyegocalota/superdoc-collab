@@ -21,7 +21,7 @@ export function ImpersonationBanner() {
       role="status"
       data-testid="impersonation-banner"
       data-state="impersonating"
-      className="flex flex-wrap items-center gap-2 border-b bg-muted px-4 py-2 text-sm"
+      className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted px-4 py-2 text-sm"
     >
       <Eye aria-hidden className="size-4 shrink-0" />
       <div className="min-w-0 flex-1 basis-48">

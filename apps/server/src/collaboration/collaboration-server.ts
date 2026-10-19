@@ -215,7 +215,10 @@ export function createCollaborationServer({
     },
     async onAwarenessUpdate({ document }) {
       const overfull = overfullConnections(document);
-      overfull.forEach(({ connection }) => connection.close({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON }));
+      overfull.forEach(({ connection }) => {
+        console.warn(AWARENESS_IDS_LOG);
+        connection.close({ code: POLICY_VIOLATION_CLOSE_CODE, reason: SOCKET_AWARENESS_IDS_REASON });
+      });
       if (overfull.length > 0) return;
       declarer.declare(document);
     },

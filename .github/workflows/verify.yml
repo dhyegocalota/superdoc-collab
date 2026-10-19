@@ -39,6 +39,7 @@ jobs:
           - { name: libs, filter: ./libs/* }
           - { name: web, filter: "@superdoc-collab/web" }
           - { name: server, filter: "@superdoc-collab/server" }
+          - { name: repository-shape, filter: "@superdoc-collab/repository-shape" }
           - { name: libs-and-server-in-kolkata, timezone: Asia/Kolkata }
     steps:
       - uses: actions/checkout@v4

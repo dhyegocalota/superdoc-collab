@@ -38,6 +38,7 @@ const UNIT_MATRIX_ENTRIES = [
   '{ name: libs, filter: ./libs/* }',
   '{ name: web, filter: "@superdoc-collab/web" }',
   '{ name: server, filter: "@superdoc-collab/server" }',
+  '{ name: repository-shape, filter: "@superdoc-collab/repository-shape" }',
 ];
 const UNIT_FILTER_STEP = 'run: pnpm --filter "${{ matrix.filter }}" test:unit';
 const DOCKER_COMPOSE_REQUIREMENT = "REQUIRE_DOCKER_COMPOSE: ${{ matrix.name == 'server' }}";
@@ -110,7 +111,7 @@ describe('CI workflow', () => {
     expect(dockerJob()).not.toContain(INSTALL_ACTION);
   });
 
-  test('the unit matrix lists the libs, web and server packages', () => {
+  test('the unit matrix lists the libs, web, server and repository-shape packages', () => {
     const unit = job(UNIT_JOB);
     expect(UNIT_MATRIX_ENTRIES.filter((entry) => !unit.includes(entry))).toEqual([]);
   });

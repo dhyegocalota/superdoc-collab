@@ -31,7 +31,7 @@ function stageStateOf({ stages, stage, listed }: { stages: OpenStage[]; stage: O
   return StageState.Pending;
 }
 
-function progressValueOf(fraction: number | null): number | null {
+export function progressValueOf(fraction: number | null): number | null {
   if (fraction === null) return null;
   return Math.round(fraction * PERCENT_MULTIPLIER);
 }

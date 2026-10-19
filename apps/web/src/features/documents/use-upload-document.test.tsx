@@ -11,7 +11,13 @@ import {
 } from '@superdoc-collab/types';
 import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { FakeUploadRequest, latestUploadRequest, stubUploadRequests, restoreUploadRequests } from '@/testing/fake-upload-request';
+import {
+  FakeUploadRequest,
+  latestUploadRequest,
+  sentUploadRequest,
+  stubUploadRequests,
+  restoreUploadRequests,
+} from '@/testing/fake-upload-request';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import { ONE_FILE_AT_A_TIME_MESSAGE } from './documents-copy';
@@ -64,7 +70,7 @@ test('one docx posts, refreshes the list and opens the document', async () => {
   const { result, queryClient, router } = renderHookWithRouter(useUploadDocument);
   const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
-  const request = latestUploadRequest();
+  const request = await sentUploadRequest();
   expect(request.method).toBe(HttpMethod.Post);
   expect(request.path).toBe(ApiPath.Documents);
   act(() => request.respond({ status: HttpStatus.Created, body: UPLOADED_DOCUMENT }));
@@ -75,7 +81,8 @@ test('one docx posts, refreshes the list and opens the document', async () => {
 test('a server failure becomes the message and a later rejection replaces it', async () => {
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
-  act(() => latestUploadRequest().respond({ status: HttpStatus.InternalServerError, body: null }));
+  const requestSent = await sentUploadRequest();
+  act(() => requestSent.respond({ status: HttpStatus.InternalServerError, body: null }));
   await waitFor(() => expect(result.current.message).not.toBeNull());
   act(() => result.current.uploadFiles([docxFile({ name: 'report.pdf', size: 1 })]));
   expect(result.current.message).toBe(NOT_A_DOCX_MESSAGE);

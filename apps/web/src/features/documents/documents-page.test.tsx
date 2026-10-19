@@ -16,7 +16,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { APP_NAME } from '@/lib/app-copy';
 import { pageTitle } from '@/lib/use-document-title';
 import { formatTimestamp } from '@/lib/format-date-time';
-import { latestUploadRequest, stubUploadRequests, restoreUploadRequests } from '@/testing/fake-upload-request';
+import { sentUploadRequest, stubUploadRequests, restoreUploadRequests } from '@/testing/fake-upload-request';
 import { jsonResponse } from '@/testing/json-response';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
@@ -138,7 +138,7 @@ test('dropping one docx on the page uploads it and opens the document', async ()
   await screen.findByRole('link', { name: OWNED_DOCUMENT.title });
   const file = new File(['x'], 'plan.docx', { type: DOCX_MIME_TYPE });
   fireEvent.drop(document.body, { dataTransfer: { types: ['Files'], files: [file] } });
-  const request = latestUploadRequest();
+  const request = await sentUploadRequest();
   expect(request.path).toBe(ApiPath.Documents);
   expect(request.method).toBe(HttpMethod.Post);
   act(() => request.respond({ status: HttpStatus.Created, body: CREATED_DOCUMENT }));

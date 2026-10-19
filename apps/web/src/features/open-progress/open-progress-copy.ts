@@ -1,10 +1,11 @@
 import { MINUTE_MS, SECOND_MS } from '@superdoc-collab/types';
 import { formatByteCount, formatCount } from '@/lib/format-quantity';
+import { UPLOADING_MESSAGE } from '@/features/documents/documents-copy';
 import { PREPARING_DOCUMENT_MESSAGE } from '@/features/editor/waiting-copy';
 import { OpenStage } from './open-stage';
 
 export const OPEN_STAGE_LABELS: Record<OpenStage, string> = {
-  [OpenStage.Uploading]: 'Uploading…',
+  [OpenStage.Uploading]: UPLOADING_MESSAGE,
   [OpenStage.Preparing]: PREPARING_DOCUMENT_MESSAGE,
   [OpenStage.Downloading]: 'Downloading…',
   [OpenStage.Rendering]: 'Rendering…',

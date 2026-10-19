@@ -26,13 +26,15 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
   const { mutate, error, reset, isPending } = useMutation({
-    mutationFn: (file: File) => uploadDocument({ file, onProgress: () => undefined }),
+    mutationFn: (file: File) => uploadDocument({ file, onProgress: setProgress }),
     onSuccess: async (document) => {
       await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
       onUploaded?.();
       await navigate(documentPagePath(document.id));
     },
+    onSettled: () => setProgress(null),
   });
 
   function uploadFiles(files: File[]): void {
@@ -50,5 +52,5 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
     reset();
   }
 
-  return { progress: null, uploadFiles, clear, message: uploadErrorMessage({ rejectionMessage, error }), isPending };
+  return { progress, uploadFiles, clear, message: uploadErrorMessage({ rejectionMessage, error }), isPending };
 }

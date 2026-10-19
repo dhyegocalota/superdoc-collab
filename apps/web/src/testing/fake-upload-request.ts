@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 type ProgressEventLike = { lengthComputable: boolean; loaded: number; total: number };
 
@@ -48,6 +48,11 @@ export function stubUploadRequests(): void {
 
 export function restoreUploadRequests(): void {
   vi.stubGlobal('XMLHttpRequest', ORIGINAL_REQUEST);
+}
+
+export async function sentUploadRequest(): Promise<FakeUploadRequest> {
+  await vi.waitFor(() => expect(FakeUploadRequest.requests).not.toHaveLength(0));
+  return latestUploadRequest();
 }
 
 export function latestUploadRequest(): FakeUploadRequest {

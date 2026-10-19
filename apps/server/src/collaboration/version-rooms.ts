@@ -1,5 +1,12 @@
 import { Hocuspocus } from '@hocuspocus/server';
-import { ApiPath, SECOND_MS, VERSION_ROOM_IDLE_MS, VERSION_ROOMS_LIMIT } from '@superdoc-collab/types';
+import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
+  ApiPath,
+  SECOND_MS,
+  VERSION_ROOM_IDLE_MS,
+  VERSION_ROOMS_LIMIT,
+} from '@superdoc-collab/types';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -20,6 +27,7 @@ const STOP_TIMEOUT_MS = 5 * SECOND_MS;
 const ROOM_DESTROY_FAILED_MESSAGE = 'Destroying a version instance failed for';
 
 export type VersionRoomPolicy = { idleMs: number; limit: number };
+type VersionRoomContext = { userId: string; documentId: string };
 type VersionRoom = { hocuspocus: Hocuspocus; idleTimer: NodeJS.Timeout | null };
 
 export const DEFAULT_VERSION_ROOM_POLICY: VersionRoomPolicy = { idleMs: VERSION_ROOM_IDLE_MS, limit: VERSION_ROOMS_LIMIT };
@@ -87,6 +95,17 @@ export class VersionRooms {
 
   handle({ endpoint, webSocket, request }: { endpoint: VersionEndpoint; webSocket: WebSocket; request: IncomingMessage }): void {
     this.roomFor(endpoint).hocuspocus.handleConnection(webSocket, request);
+  }
+
+  closeUser({ documentId, userId }: { documentId: string; userId: string }): void {
+    const prefix = versionKeyPrefixOf(documentId);
+    this.rooms
+      .keys()
+      .filter((key) => key.startsWith(prefix))
+      .flatMap((key) => [...this.rooms.peek(key)!.hocuspocus.documents.values()])
+      .flatMap((room) => [...room.connections.values()].map(({ connection }) => connection))
+      .filter((connection) => (connection.context as VersionRoomContext).userId === userId)
+      .forEach((connection) => connection.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }));
   }
 
   size(): number {

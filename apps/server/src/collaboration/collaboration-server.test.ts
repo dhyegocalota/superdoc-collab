@@ -1,5 +1,6 @@
 import { commitBootstrap as markBootstrapCommitted, writeStory } from '@superdoc-collab/history/testing';
 import {
+  ACCESS_REVOKED_CLOSE_CODE,
   ApiPath,
   ClientActor,
   DocumentRole,
@@ -581,5 +582,26 @@ test.each([
   });
   expect(server.services.runtime.onlineTabIds({ documentId, userId: owner.id })).toEqual(new Set());
   client.close();
+  await server.stop();
+});
+
+test('a socket admitted just before its member was removed is closed with 4404 once connected', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  commitBootstrap({ services: server.services, documentId, userId: owner.id });
+  const { documents } = server.services;
+  const findRole = documents.findRole.bind(documents);
+  const removal = { happened: false };
+  vi.spyOn(documents, 'findRole').mockImplementation((parameters) => {
+    if (removal.happened) return null;
+    const role = findRole(parameters);
+    removal.happened = parameters.userId === reader.id;
+    return role;
+  });
+  const closeCode = await connectToDocument({ server, cookie: reader.cookie, documentId }).then(
+    (admitted) => admitted.closed.then(({ code }) => code),
+    (refused: CollaborationRefusedError) => refused.closeCode,
+  );
+  expect(closeCode).toBe(ACCESS_REVOKED_CLOSE_CODE);
   await server.stop();
 });

@@ -1,8 +1,18 @@
 import { readMainStoryText } from '@superdoc-collab/history';
-import { ApiPath, documentApiPath, MINUTE_MS, versionCollaborationPath, type OpenedDocument, type RoomMode } from '@superdoc-collab/types';
+import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
+  ApiPath,
+  DocumentRole,
+  documentApiPath,
+  MINUTE_MS,
+  versionCollaborationPath,
+  type OpenedDocument,
+  type RoomMode,
+} from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import { CollaborationRefusedError, connectToDocument } from '../testing/collaboration-client';
+import { CollaborationRefusedError, connectToDocument, memberWithRole } from '../testing/collaboration-client';
 import { signedInUser } from '../testing/test-server';
 import { bootstrappedDocument, editedAfterBootstrap } from '../testing/timeline-client';
 import { parseVersionPath } from './version-rooms';
@@ -192,5 +202,22 @@ test('stop leaves no timer behind when destroying a room fails', { timeout: SETU
   destroy.mockRestore();
   viewer.close();
   client.close();
+  await server.stop();
+});
+
+test('closeUser closes only that user version sockets with 4404 and the reason', async () => {
+  const { server, documentId, owner, client } = await editedAfterBootstrap();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const path = endpointOf({ documentId, sequence: server.services.readModel.marks(documentId)[0]!.sequence });
+  const ownerViewer = await connectToDocument({ server, cookie: owner.cookie, documentId, path });
+  const readerViewer = await connectToDocument({ server, cookie: reader.cookie, documentId, path });
+  const readerClose = { socket: null as { code: number; reason: string } | null };
+  void readerViewer.closed.then((closedSocket) => (readerClose.socket = closedSocket));
+  server.services.versionRooms.closeUser({ documentId, userId: reader.id });
+  await expect
+    .poll(() => readerClose.socket, { timeout: POLL_TIMEOUT_MS })
+    .toEqual({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
+  expect(server.services.versionRooms.size()).toBe(1);
+  [ownerViewer, readerViewer, client].forEach((connected) => connected.close());
   await server.stop();
 });

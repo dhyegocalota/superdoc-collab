@@ -250,3 +250,12 @@ test('the editing row has one uniform gap and no per-button margin', async () =>
     expect((button.parentElement as HTMLElement).className).not.toMatch(/(^|\s)-?m[lr]-/);
   });
 });
+
+test('Cancel is an outlined box like Save', async () => {
+  renderTitle(DocumentRole.Editor);
+  await startEditing();
+  const cancelButton = screen.getByRole('button', { name: CANCEL_TITLE_LABEL });
+  expect(cancelButton).toHaveAttribute('data-variant', 'outline');
+  expect(cancelButton).toHaveClass('border', 'size-8');
+  expect(screen.getByRole('button', { name: SAVE_TITLE_LABEL })).toHaveAttribute('data-variant', 'default');
+});

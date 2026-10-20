@@ -12,10 +12,15 @@ import {
 import { OpenStage } from './open-stage';
 
 const TOTAL_BYTES = 9_961_472;
+const PAGE_STARTED_AT = 1_700_000_000_000;
 const SENT_BYTES = 4_980_736;
 
 function preparing({ stage, done, total }: { stage: BootstrapStage; done: number; total: number }) {
-  return preparingView({ bootstrap: { ...bootstrapAt(stage), done, total, stateBytes: null }, elapsedSeconds: 12 });
+  return preparingView({
+    bootstrap: { ...bootstrapAt(stage), done, total, stateBytes: null },
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+  });
 }
 
 function estimating({
@@ -23,13 +28,18 @@ function estimating({
   estimatedMs,
   elapsedSeconds,
   stage = BootstrapStage.Preparing,
+  preparingSecondsAgo = null,
 }: {
   done?: number;
   estimatedMs: number | null;
   elapsedSeconds: number;
   stage?: BootstrapStage;
+  preparingSecondsAgo?: number | null;
 }) {
-  return preparingView({ bootstrap: { ...bootstrapAt(stage), done, total: TOTAL_BYTES, stateBytes: null, estimatedMs }, elapsedSeconds });
+  const nowMs = PAGE_STARTED_AT + elapsedSeconds * 1000;
+  const preparingSince = preparingSecondsAgo === null ? null : nowMs - preparingSecondsAgo * 1000;
+  const bootstrap = { ...bootstrapAt(stage), done, total: TOTAL_BYTES, stateBytes: null, estimatedMs, preparingSince };
+  return preparingView({ bootstrap, elapsedSeconds, startedAt: PAGE_STARTED_AT });
 }
 
 test('uploading is a determinate bar of the bytes sent', () => {
@@ -85,6 +95,24 @@ test('bytes ahead of the estimate take over the bar and the detail', () => {
   expect(view.detail).toBe('Received 7.6 MB · 12 s');
 });
 
+test('the estimate runs from when Preparing began, so a joiner arriving mid-conversion does not start at zero', () => {
+  expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 5, preparingSecondsAgo: 30 })).toEqual({
+    stage: OpenStage.Preparing,
+    detail: 'Converting a 9.5 MB file · about 40 s · 30 s elapsed',
+    fraction: 0.75,
+  });
+});
+
+test('a long queue does not enter Preparing near the end of the bar', () => {
+  const view = estimating({ estimatedMs: 40_000, elapsedSeconds: 100, preparingSecondsAgo: 2 });
+  expect(view.fraction).toBe(0.05);
+  expect(view.detail).toContain('2 s elapsed');
+});
+
+test('a Preparing start in the future of this clock counts as zero elapsed', () => {
+  expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 5, preparingSecondsAgo: -3 }).fraction).toBe(0);
+});
+
 test('a queued bootstrap ignores the estimate and no estimate keeps the bar indeterminate', () => {
   expect(estimating({ stage: BootstrapStage.Queued, estimatedMs: 40_000, elapsedSeconds: 12 }).fraction).toBeNull();
   expect(estimating({ estimatedMs: null, elapsedSeconds: 12 }).fraction).toBeNull();
@@ -99,7 +127,7 @@ test.each([
   ['a preparing bootstrap of unknown size', bootstrapAt(BootstrapStage.Preparing)],
   ['a legacy answer with no bootstrap', null],
 ])('%s still ticks the elapsed time', (_, bootstrap) => {
-  const view = preparingView({ bootstrap, elapsedSeconds: 75 });
+  const view = preparingView({ bootstrap, elapsedSeconds: 75, startedAt: PAGE_STARTED_AT });
   expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Preparing the file · 1 min 15 s', fraction: null });
 });
 

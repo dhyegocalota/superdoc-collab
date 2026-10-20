@@ -1,4 +1,5 @@
-import { BootstrapStage, SECOND_MS, type BootstrapProgress } from '@superdoc-collab/types';
+import { BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
+import type { BootstrapReading } from '@/features/editor/bootstrap-reading';
 import {
   bytesProgressDetail,
   convertingDetail,
@@ -36,6 +37,20 @@ function estimatedSecondsOf(estimatedMs: number): number {
   return Math.max(ESTIMATE_ROUNDING_SECONDS, Math.round(estimatedMs / SECOND_MS / ESTIMATE_ROUNDING_SECONDS) * ESTIMATE_ROUNDING_SECONDS);
 }
 
+function preparingElapsedSeconds({
+  preparingSince,
+  startedAt,
+  elapsedSeconds,
+}: {
+  preparingSince: number | null;
+  startedAt: number;
+  elapsedSeconds: number;
+}): number {
+  if (preparingSince === null) return elapsedSeconds;
+  const nowMs = startedAt + elapsedSeconds * SECOND_MS;
+  return Math.max(0, Math.floor((nowMs - preparingSince) / SECOND_MS));
+}
+
 function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number | null; elapsedSeconds: number }): number | null {
   if (estimatedMs === null || estimatedMs <= 0) return null;
   return Math.min((elapsedSeconds * SECOND_MS) / estimatedMs, ESTIMATE_FRACTION_CAP);
@@ -44,23 +59,30 @@ function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number |
 export function preparingView({
   bootstrap,
   elapsedSeconds,
+  startedAt,
 }: {
-  bootstrap: BootstrapProgress | null;
+  bootstrap: BootstrapReading | null;
   elapsedSeconds: number;
+  startedAt: number;
 }): OpenProgressView {
   const stage = OpenStage.Preparing;
   const elapsed = elapsedLabel(elapsedSeconds);
   if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
   if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
-  const { done, total, estimatedMs } = bootstrap;
+  const { done, total, estimatedMs, preparingSince } = bootstrap;
+  const preparingSeconds = preparingElapsedSeconds({ preparingSince, startedAt, elapsedSeconds });
   const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
-  const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds });
+  const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds: preparingSeconds });
   const isBytesAhead = bytesFraction !== null && (timeFraction === null || bytesFraction >= timeFraction);
   if (isBytesAhead) return { stage, detail: detailLine([receivedDetail(done), elapsed]), fraction: bytesFraction };
   const subject = total > 0 ? convertingDetail(total) : UNKNOWN_PREPARING_DETAIL;
   if (timeFraction !== null && estimatedMs !== null) {
     const estimatedSeconds = estimatedSecondsOf(estimatedMs);
-    return { stage, detail: estimatedConversionDetail({ subject, estimatedSeconds, elapsedSeconds }), fraction: timeFraction };
+    return {
+      stage,
+      detail: estimatedConversionDetail({ subject, estimatedSeconds, elapsedSeconds: preparingSeconds }),
+      fraction: timeFraction,
+    };
   }
   return { stage, detail: detailLine([subject, elapsed]), fraction: null };
 }

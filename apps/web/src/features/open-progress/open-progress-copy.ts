@@ -42,7 +42,7 @@ export function bytesProgressDetail({ doneBytes, totalBytes }: { doneBytes: numb
 }
 
 export function convertingDetail(sizeBytes: number): string {
-  return `Converting a ${formatByteCount(sizeBytes)} file`;
+  return `Converting ${formatByteCount(sizeBytes)} of text and layout`;
 }
 
 export function receivedDetail(receivedBytes: number): string {

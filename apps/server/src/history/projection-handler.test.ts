@@ -168,6 +168,7 @@ test('a bootstrap joins the room of the stored file and answers its document', a
     url: BOOTSTRAP_REQUEST.url,
     token: BOOTSTRAP_REQUEST.token,
     lane: BOOTSTRAP_REQUEST.lane,
+    documentXmlBytes: BOOTSTRAP_REQUEST.documentXmlBytes,
   });
 });
 

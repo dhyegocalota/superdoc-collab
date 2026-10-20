@@ -1,12 +1,12 @@
 import { serve, type ServerType } from '@hono/node-server';
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { Hono } from 'hono';
-import { statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
-import { AgentActionsLog, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
+import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import { ApiPath, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
@@ -250,7 +250,7 @@ function createServices({
       signBootstrapToken({ secret: environment.authSecret, userId, documentId, attempt, now: Date.now() }),
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
     ownerOf: (documentId) => documents.ownerOf(documentId),
-    documentXmlBytesOf: (documentId) => statSync(storage.pathOf(documentId)).size,
+    documentXmlBytesOf: (documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))),
     filePathOf: (documentId) => storage.pathOf(documentId),
   });
   const bootstrap = createBootstrapState({ updateLog, readModel, onCommitted: (committed) => roomBootstrap.ready(committed) });

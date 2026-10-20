@@ -18,21 +18,23 @@ export function bootstrapTimeoutMsOf(documentXmlBytes: number): number {
   return BOOTSTRAP_TIMEOUT_FLOOR_MS + (documentXmlBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_TIMEOUT_MARGIN;
 }
 export const BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS = 10 * SECOND_MS;
-export const BOOTSTRAP_HOST_TIMEOUT_MS = bootstrapTimeoutMsOf(MAX_UPLOAD_BYTES) + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
 const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
 export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
 export const DOCUMENT_XML_STATE_BYTES_RATIO = 3.7;
 export const MAX_DOCUMENT_XML_MEGABYTES = Math.floor(MAX_SOCKET_MESSAGE_BYTES / BYTES_PER_MEGABYTE / DOCUMENT_XML_STATE_BYTES_RATIO);
 export const MAX_DOCUMENT_XML_BYTES = MAX_DOCUMENT_XML_MEGABYTES * BYTES_PER_MEGABYTE;
+export const BOOTSTRAP_HOST_TIMEOUT_MS = bootstrapTimeoutMsOf(MAX_DOCUMENT_XML_BYTES) + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
 export const BOOTSTRAP_LIGHT_MAX_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE = 413;
 export const BOOTSTRAP_MEMORY_RESERVE_MEGABYTES = 512;
+const BOOTSTRAP_MEMORY_NONE_MESSAGE = 'This server has too little memory to prepare documents.';
 export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {
   const usableMegabytes = memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
   return Math.max(0, Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE));
 }
 export function bootstrapMemoryShortMessage(largestMegabytes: number): string {
-  return `This server can prepare files up to ${largestMegabytes} MB.`;
+  if (largestMegabytes === 0) return BOOTSTRAP_MEMORY_NONE_MESSAGE;
+  return `This server can prepare documents with up to ${largestMegabytes} MB of text and layout.`;
 }
 export const BOOTSTRAP_QUEUE_RETRY_AFTER_MS = 5 * SECOND_MS;
 export const UPLOADS_PER_MINUTE = 30;

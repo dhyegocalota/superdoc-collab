@@ -26,9 +26,9 @@ export function validateUpload(file: File): string | null {
   return null;
 }
 
-async function refusalMessageOf(response: Response): Promise<string | null> {
+async function refusalMessageOf(response: Response): Promise<string> {
   const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-  if (typeof body?.error !== 'string') return null;
+  if (typeof body?.error !== 'string') return UPLOAD_TOO_LARGE_MESSAGE;
   return body.error;
 }
 
@@ -42,8 +42,7 @@ export async function uploadDocument({
   const form = new FormData();
   form.set(UPLOAD_FIELD, file);
   const response = await apiSendWithProgress({ path: ApiPath.Documents, method: HttpMethod.Post, body: form, onProgress });
-  const refusalMessage = response.status === HttpStatus.PayloadTooLarge ? await refusalMessageOf(response) : null;
-  if (refusalMessage) throw new ApiRequestError(refusalMessage);
+  if (response.status === HttpStatus.PayloadTooLarge) throw new ApiRequestError(await refusalMessageOf(response));
   if (response.status === HttpStatus.UnsupportedMediaType) throw new ApiRequestError(NOT_A_DOCX_MESSAGE);
   return readJson<DocumentSummary>({ response, subject: UPLOAD_SUBJECT });
 }

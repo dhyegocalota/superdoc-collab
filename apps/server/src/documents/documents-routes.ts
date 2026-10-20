@@ -1,4 +1,4 @@
-import { buildSeedDocx, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
+import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
   BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
@@ -121,7 +121,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     title: string;
     importRevisions: boolean;
   }): Promise<Response> {
-    const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: bytes.byteLength });
+    const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
     if (queueRefusal) return queueRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
@@ -158,12 +158,12 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       const file = body[UPLOAD_FIELD];
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
-      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: file.size });
-      if (memoryRefusal) return memoryRefusal;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
       if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+      if (memoryRefusal) return memoryRefusal;
       return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
     },
   );

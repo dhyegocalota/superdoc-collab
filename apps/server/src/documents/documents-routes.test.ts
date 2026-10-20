@@ -1,4 +1,4 @@
-import { buildSeedDocx, isDocx, TrackedChangeKind } from '@superdoc-collab/history';
+import { buildSeedDocx, declaredDocumentXmlBytes, isDocx, TrackedChangeKind } from '@superdoc-collab/history';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
@@ -430,6 +430,7 @@ test('opening an uncommitted document nobody bootstrapped starts one bootstrap a
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: 'Budget', ownerUserId: owner.id });
   const bytes = await docxBytes('Budget');
+  const documentXmlBytes = declaredDocumentXmlBytes(bytes);
   await server.services.storage.put({ documentId, bytes });
   const bootstrap = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
   const first = await openedBy({ server, user: owner, documentId });
@@ -440,10 +441,10 @@ test('opening an uncommitted document nobody bootstrapped starts one bootstrap a
   expect(first.bootstrap).toMatchObject({
     stage: BootstrapStage.Queued,
     done: 0,
-    total: bytes.byteLength * BOOTSTRAP_STATE_BYTES_RATIO,
-    estimatedMs: (bytes.byteLength / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE,
+    total: documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO,
+    estimatedMs: (documentXmlBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE,
   });
-  expect(request).toMatchObject({ documentId, filePath: server.services.storage.pathOf(documentId) });
+  expect(request).toMatchObject({ documentId, filePath: server.services.storage.pathOf(documentId), documentXmlBytes });
   expect(request.url).toMatch(new RegExp(`${ApiPath.BootstrapCollaboration}$`));
   expect(verifyBootstrapToken({ secret: TEST_AUTH_SECRET, token: request.token, documentId, now: Date.now() })?.userId).toBe(owner.id);
   await server.stop();

@@ -56,6 +56,6 @@ test('the declared size of document.xml is its inflated size, however small the 
 
 test('a zip that declares a smaller document.xml than it inflates to is not an accepted docx', async () => {
   const liar = Buffer.from(await zipWithDocumentXml(new Uint8Array(XML_BYTES)));
-  liar.writeUInt32LE(1, liar.indexOf(CENTRAL_ENTRY_SIGNATURE) + CENTRAL_UNCOMPRESSED_SIZE_OFFSET);
+  liar.writeUInt32LE(1, liar.lastIndexOf(CENTRAL_ENTRY_SIGNATURE) + CENTRAL_UNCOMPRESSED_SIZE_OFFSET);
   expect(await inspectDocx(liar)).toBe(DocxVerdict.NotADocx);
 });

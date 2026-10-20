@@ -117,7 +117,7 @@ export function createProjectionHandler({
     lane,
     documentXmlBytes,
   }: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
-    const timeoutMs = bootstrapTimeoutMsOf(fileSizeBytes(filePath));
+    const timeoutMs = bootstrapTimeoutMsOf(documentXmlBytes);
     try {
       await withTimeout({
         work: bootstrapRoom({ documentId, filePath, url, token, lane, documentXmlBytes }),

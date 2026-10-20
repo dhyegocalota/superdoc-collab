@@ -53,6 +53,10 @@ A room costs 611 MB for 36.6 MB of state (16.7 heap bytes per state byte; the co
 | The budget is too low for the container | every large document refused | set `ROOM_HEAP_BUDGET_MEGABYTES` |
 | An admitted opener never connects | its estimate is held | the reservation expires after `ROOM_RESERVATION_TTL_MS` |
 
+## Known limits
+
+- A heavy open in the 2 to 4 s after a bootstrap commits can be refused while Hocuspocus stores and unloads the bootstrap room, which still counts against the budget; the 503 carries `Retry-After`. Two ways to close it (not counting a room whose last socket was the bootstrap's, or unloading bootstrap rooms at once) were left for a later item.
+
 ## Security notes
 
 - A refusal reveals only aggregate load, never another person's document or name. A 503 before the body of the upload is stored costs the server the multipart parse already paid for by the existing guards.

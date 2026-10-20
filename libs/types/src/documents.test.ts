@@ -33,9 +33,9 @@ describe('documents contracts', () => {
     expect(bootstrapTimeoutMsOf(MAX_UPLOAD_BYTES)).toBe(BOOTSTRAP_TIMEOUT_FLOOR_MS + 10 * 4500 * 5);
   });
 
-  test('a 4 GB server prepares 7 MB of text and layout and an 8 GB server 15 MB, both over the 10 MB of the heavy fixture', () => {
-    expect(largestPreparableMegabytes(4096)).toBe(7);
-    expect(largestPreparableMegabytes(8192)).toBe(15);
+  test('a 4 GB server prepares 6 MB of text and layout and an 8 GB server 14 MB, both over the 10 MB of the heavy fixture', () => {
+    expect(largestPreparableMegabytes(4096)).toBe(6);
+    expect(largestPreparableMegabytes(8192)).toBe(14);
     expect(largestPreparableMegabytes(8192)).toBeGreaterThan(MAX_UPLOAD_MEGABYTES);
   });
 

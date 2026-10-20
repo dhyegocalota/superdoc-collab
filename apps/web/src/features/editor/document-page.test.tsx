@@ -1096,12 +1096,12 @@ test(
     isBootstrapped = true;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
     expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
-    expect(superDocDestroy).not.toHaveBeenCalled();
+    expect(superDocDestroy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('local-preview')).toBeInTheDocument();
     expect(screen.getByText(PREVIEW_OPENING_SHARED_MESSAGE)).toBeInTheDocument();
     paintFirstParagraph();
-    await waitFor(() => expect(superDocDestroy).toHaveBeenCalledTimes(1));
-    expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+    expect(superDocDestroy).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(PREVIEW_OPENING_SHARED_MESSAGE)).not.toBeInTheDocument();
     expect(localFileOf(DOCUMENT_ID)).toBeNull();
   },

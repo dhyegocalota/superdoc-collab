@@ -1,5 +1,6 @@
 import { BootstrapStage, DOCX_MIME_TYPE } from '@superdoc-collab/types';
 import { act, cleanup, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { DocumentMode } from '@/features/editor/superdoc-options';
 import { OpenStage } from '@/features/open-progress/open-stage';
@@ -110,6 +111,39 @@ test('a preview that cannot be opened says so and leaves the panel', () => {
 
 test('leaving destroys the preview', () => {
   renderPreview();
+  cleanup();
+  expect(superdocDestroy).toHaveBeenCalledTimes(1);
+});
+
+test('when the live editor starts the preview engine is destroyed and its painted pages stay frozen on screen, once', async () => {
+  let startSwap: () => void = () => undefined;
+  function Swapping() {
+    const [isSwapping, setIsSwapping] = useState(false);
+    startSwap = () => setIsSwapping(true);
+    const now = Date.now();
+    return (
+      <LocalPreview
+        title={DOCUMENT_TITLE}
+        file={FILE}
+        bootstrap={bootstrapAt(BootstrapStage.Queued)}
+        answeredAt={now}
+        startedAt={now}
+        isProgressShown
+        isSwapping={isSwapping}
+        onScrollFraction={vi.fn()}
+      />
+    );
+  }
+  renderWithProviders(<Swapping />);
+  const surface = screen.getByTestId(PREVIEW_SURFACE_TEST_ID);
+  await act(async () => {
+    surface.innerHTML = PAINTED_FRAGMENT_HTML;
+  });
+  expect(superdocDestroy).not.toHaveBeenCalled();
+  act(() => startSwap());
+  expect(superdocDestroy).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId(PREVIEW_SURFACE_TEST_ID)).toBe(surface);
+  expect(surface).toHaveTextContent('First paragraph');
   cleanup();
   expect(superdocDestroy).toHaveBeenCalledTimes(1);
 });

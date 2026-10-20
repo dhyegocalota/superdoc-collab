@@ -7,7 +7,7 @@ import {
   UpdateLog,
   type ListedTrackedChange,
 } from '@superdoc-collab/history';
-import { BOOTSTRAP_HOST_TIMEOUT_MS, BOOTSTRAP_TIMEOUT_MS, BootstrapLane, RoomMode, SECOND_MS } from '@superdoc-collab/types';
+import { BOOTSTRAP_HOST_TIMEOUT_MS, bootstrapTimeoutMsOf, BootstrapLane, RoomMode, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
 import v8 from 'node:v8';
 import vm from 'node:vm';
@@ -152,7 +152,7 @@ const handle = createProjectionHandler({
   importRevisions,
   fileSizeBytes: (filePath) => statSync(filePath).size,
   bootstrapRoom,
-  bootstrapTimeoutMs: BOOTSTRAP_TIMEOUT_MS,
+  bootstrapTimeoutMsOf,
   releaseBootstrapHost: (lane) => bootstrapClients[lane].release(),
 });
 

@@ -9,6 +9,9 @@ export const PREVIEW_MAX_CHARACTERS = 400;
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_TIMEOUT_MS = BOOTSTRAP_TIMEOUT_MARGIN * MAX_UPLOAD_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE;
+export function bootstrapTimeoutMsOf(fileBytes: number): number {
+  throw new Error(`bootstrapTimeoutMsOf is not implemented for ${fileBytes}`);
+}
 export const BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS = 10 * SECOND_MS;
 export const BOOTSTRAP_HOST_TIMEOUT_MS = BOOTSTRAP_TIMEOUT_MS + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
 export const MAX_DOCUMENT_XML_MEGABYTES = 64;

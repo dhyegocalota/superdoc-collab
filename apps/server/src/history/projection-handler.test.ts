@@ -2,7 +2,16 @@ import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } 
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BOOTSTRAP_TIMEOUT_MS, BootstrapLane, MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
+import {
+  BOOTSTRAP_MS_PER_MEGABYTE,
+  BOOTSTRAP_TIMEOUT_FLOOR_MS,
+  BOOTSTRAP_TIMEOUT_MARGIN,
+  bootstrapTimeoutMsOf,
+  BootstrapLane,
+  BYTES_PER_MEGABYTE,
+  MAX_REVISIONS_IMPORT_BYTES,
+  MAX_UPLOAD_BYTES,
+} from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
 import { runHistoryMigrations } from '../database/migrate';
@@ -32,7 +41,7 @@ function storesWith(
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>,
   fileSizeBytes: (filePath: string) => number = () => SMALL_FILE_BYTES,
   bootstrapRoom: (request: BootstrapRequest) => Promise<void> = async () => undefined,
-  bootstrapTimeoutMs = BOOTSTRAP_TIMEOUT_MS,
+  timeoutMsOf: (fileBytes: number) => number = bootstrapTimeoutMsOf,
   releaseBootstrapHost: (lane: BootstrapLane) => Promise<void> = async () => undefined,
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'projection-handler-'));
@@ -47,7 +56,7 @@ function storesWith(
     importRevisions,
     fileSizeBytes,
     bootstrapRoom,
-    bootstrapTimeoutMs,
+    bootstrapTimeoutMsOf: timeoutMsOf,
     releaseBootstrapHost,
   };
 }
@@ -182,7 +191,7 @@ test('a bootstrap that outlives its timeout rejects with the timeout error', asy
       async () => null,
       () => SMALL_FILE_BYTES,
       bootstrapRoom,
-      SHORT_TIMEOUT_MS,
+      () => SHORT_TIMEOUT_MS,
     ),
   );
   await expect(handle(BOOTSTRAP_REQUEST)).rejects.toBeInstanceOf(BootstrapTimeoutError);
@@ -195,7 +204,7 @@ test('a bootstrap releases the host once it joined the room', async () => {
       async () => null,
       () => SMALL_FILE_BYTES,
       async () => undefined,
-      BOOTSTRAP_TIMEOUT_MS,
+      bootstrapTimeoutMsOf,
       releaseBootstrapHost,
     ),
   );
@@ -212,7 +221,7 @@ test('a bootstrap that throws releases the host before it rejects', async () => 
       async () => {
         throw new Error('not a document');
       },
-      BOOTSTRAP_TIMEOUT_MS,
+      bootstrapTimeoutMsOf,
       async () => void order.push('released'),
     ),
   );
@@ -227,10 +236,34 @@ test('a bootstrap that outlives its timeout releases the host before it rejects'
       async () => null,
       () => SMALL_FILE_BYTES,
       () => new Promise<void>(() => undefined),
-      SHORT_TIMEOUT_MS,
+      () => SHORT_TIMEOUT_MS,
       async () => void order.push('released'),
     ),
   );
   await handle(BOOTSTRAP_REQUEST).catch(() => order.push('rejected'));
   expect(order).toEqual(['released', 'rejected']);
 });
+
+const TIMEOUT_MARGIN_MS = 1;
+
+test.each([SMALL_FILE_BYTES, MAX_UPLOAD_BYTES])(
+  'a bootstrap of a %i byte file is cut at the floor plus the margin times the measured rate',
+  async (fileBytes) => {
+    vi.useFakeTimers();
+    const timeoutMs = BOOTSTRAP_TIMEOUT_FLOOR_MS + (fileBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_TIMEOUT_MARGIN;
+    const handle = createProjectionHandler(
+      storesWith(
+        async () => null,
+        () => fileBytes,
+        () => new Promise<void>(() => undefined),
+      ),
+    );
+    const outcome = handle(BOOTSTRAP_REQUEST).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(timeoutMs - TIMEOUT_MARGIN_MS);
+    const settledEarly = await Promise.race([outcome, Promise.resolve(null)]);
+    expect(settledEarly).toBeNull();
+    await vi.advanceTimersByTimeAsync(TIMEOUT_MARGIN_MS);
+    expect(await outcome).toEqual(new BootstrapTimeoutError(timeoutMs));
+    vi.useRealTimers();
+  },
+);

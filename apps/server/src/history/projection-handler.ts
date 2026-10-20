@@ -38,7 +38,7 @@ type ProjectionStores = {
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
   fileSizeBytes: (filePath: string) => number;
   bootstrapRoom: (request: BootstrapRequest) => Promise<void>;
-  bootstrapTimeoutMs: number;
+  bootstrapTimeoutMsOf: (fileBytes: number) => number;
   releaseBootstrapHost: (lane: BootstrapLane) => Promise<void>;
 };
 
@@ -49,7 +49,7 @@ export function createProjectionHandler({
   importRevisions,
   fileSizeBytes,
   bootstrapRoom,
-  bootstrapTimeoutMs,
+  bootstrapTimeoutMsOf,
   releaseBootstrapHost,
 }: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
@@ -116,12 +116,13 @@ export function createProjectionHandler({
     token,
     lane,
   }: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
+    const timeoutMs = bootstrapTimeoutMsOf(fileSizeBytes(filePath));
     try {
       await withTimeout({
         work: bootstrapRoom({ documentId, filePath, url, token, lane }),
-        milliseconds: bootstrapTimeoutMs,
+        milliseconds: timeoutMs,
         onTimeout: () => {
-          throw new BootstrapTimeoutError(bootstrapTimeoutMs);
+          throw new BootstrapTimeoutError(timeoutMs);
         },
       });
     } finally {

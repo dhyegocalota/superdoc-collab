@@ -32,6 +32,9 @@ export function largestPreparableMegabytes(memoryLimitMegabytes: number): number
   const usableMegabytes = memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
   return Math.max(0, Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE));
 }
+export function isPreparable(_parameters: { documentXmlBytes: number; memoryLimitMegabytes: number }): boolean {
+  throw new Error('isPreparable is not implemented');
+}
 export function bootstrapMemoryShortMessage(largestMegabytes: number): string {
   if (largestMegabytes === 0) return BOOTSTRAP_MEMORY_NONE_MESSAGE;
   return `This server can prepare documents with up to ${largestMegabytes} MB of text and layout.`;

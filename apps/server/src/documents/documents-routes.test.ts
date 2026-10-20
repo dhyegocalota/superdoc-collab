@@ -245,6 +245,13 @@ test('a document too large for the memory of the server to prepare is 413 with t
   await server.stop();
 });
 
+test('a heavy document that would fit alone is refused because the light lane runs beside it', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(5 * BYTES_PER_MEGABYTE) });
+  expect(response.status).toBe(HttpStatus.PayloadTooLarge);
+  await server.stop();
+});
+
 test('a document the memory of the server can prepare passes the guard and a blank create is never refused by it', async () => {
   const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
   vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);

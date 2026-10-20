@@ -66,7 +66,11 @@ TRUSTED_PROXY_HOPS=
 | `LLM_MAX_CALLS_PER_HOUR` | no | Empty keeps the default of 60 model calls per rolling hour. |
 | `OPEN_UNCOMMITTED_PER_MINUTE` | no | Empty keeps the default of 30 distinct uncommitted documents per user per minute ([ADR 0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md)); only test stacks raise it. |
 | `UPLOADS_PER_MINUTE` | no | Empty keeps the default of 30 uploads and blank creates per user per minute ([ADR 0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md)); only test stacks raise it. |
+| `BOOTSTRAP_HOST_HEAP_MEGABYTES` | no | Do not set. The container entrypoint sets it to 20% of the memory limit; it sizes the collector of each SDK host and is not a hard cap. |
+| `MEMORY_LIMIT_MEGABYTES` | no | Do not set. The container entrypoint sets it from the cgroup limit; the server refuses an upload whose bootstrap would not fit in it. |
 | `TRUSTED_PROXY_HOPS` | no | Empty keeps one trusted hop: the client address is the rightmost entry of `X-Forwarded-For` ([ADR 0042](../../adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)). |
+
+Size the service's memory before you rely on large files. A 4 GB service prepares files up to about 8 MB and answers a larger upload with a 413 that names the largest size it can prepare. An 8 GB service (the Railway Hobby maximum) prepares every file within the 10 MB upload cap with headroom ([measurements](../server-bootstrap/spec.md)).
 
 Do not set `PORT`, `DATABASE_DIR`, `WEB_DIST_DIR` or `TRUST_PROXY`: the compose file pins them.
 

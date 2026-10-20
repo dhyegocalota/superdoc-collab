@@ -36,6 +36,21 @@ The answer: join the room as the bootstrapping client, on a loopback-only socket
 
 The conversion CPU moved into the SDK host and did not shrink (SuperDoc's cost). For the uploader the gain is the progress panel and a browser that no longer does the work. For every opener after the uploader it is a snapshot sync instead of a browser conversion: nobody's browser is busy, a second opener never waits on the first, and a document opened after it is ready shows its first paragraph in 13 s.
 
+## Measured at the production limit (2026-10-19, production image, `docker run --memory=4g`)
+
+The 9.5 MB heavy document, uploaded as ana, with the entrypoint split (server 40%, worker 20%, two hosts 20% each). The container was OOM-killed at 127 s, during the heavy bootstrap.
+
+| Process | Resident peak |
+|---------|---------------|
+| Server (Node, heavy room loaded) | 1.73 GB |
+| Heavy SDK host (a Bun binary) | 2.19 GB |
+| Light SDK host | 0.18 GB |
+| Total | 3.92 GB, over the 4 GB limit with the kernel's own use |
+
+The host cannot be capped: `BUN_JSC_forceRAMSize` only sizes its collector, and a Bun binary takes no Node heap flag. So the split stays as it is and the guard below keeps a file the container cannot hold out of the bootstrap. The old browser-side creator cost the server only about 690 MB for the same file; the move of the conversion to the server is what made the production limit matter.
+
+Guard formula: the server refuses a file when `fileBytes × BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE` exceeds `MEMORY_LIMIT_MEGABYTES − BOOTSTRAP_MEMORY_RESERVE_MEGABYTES`. The ratio is 413 resident bytes per DOCX byte (3.92 GB over 9.5 MB, rounded up) and the reserve is 512 MB for everything else the server does. The largest preparable file is `floor((limit − reserve) / 413)` megabytes: 8 MB at 4 GB, 18 MB at 8 GB (so every file within the 10 MB upload cap). The entrypoint exports the cgroup limit as `MEMORY_LIMIT_MEGABYTES`; without a known limit nothing is refused for memory.
+
 ## Goals
 
 | Goal | Rule |
@@ -43,6 +58,7 @@ The conversion CPU moved into the SDK host and did not shrink (SuperDoc's cost).
 | Server bootstrap | Right after the upload (and for a blank document), the server queues a bootstrap on the projection worker. The worker opens the stored DOCX through a `SuperDocClient` with a long request timeout, joins the room with `roomMode: 'create'` on `ApiPath.BootstrapCollaboration`, waits for the commit, then closes with `close({ discard: true })` so the host never writes its copy back, and disposes the SDK host so its memory returns to the system. One bootstrap runs at a time in each lane. |
 | Lanes and turns | A file up to `BOOTSTRAP_LIGHT_MAX_BYTES` (2 MB, about nine seconds of conversion at the measured rate) is prepared in the light lane, a larger one in the heavy lane. Each lane has its own queue, its own runner in the registry, its own worker queue and its own SDK host process, so a blank document is ready in well under a second while a heavy one converts. Inside a lane the queue serves owners in turns, one bootstrap each. |
 | Limits | `POST /api/documents` answers 429 with `Retry-After` when the user spent `UPLOADS_PER_MINUTE` uploads in the minute (only a stored document spends one, a blank create included; a refused upload spends nothing) or already has a bootstrap waiting in the lane of the new file (`BOOTSTRAP_QUEUE_RETRY_AFTER_MS`). A `word/document.xml` that inflates past `MAX_DOCUMENT_XML_BYTES` (21 MB: the socket message cap of 80 MB divided by the measured 3.7 ratio of state to document.xml, so every admitted document commits under the cap instead of converting for minutes and closing with 1009, counted while streaming so a zip that lies about its size costs bounded memory) is answered 415 with `DOCUMENT_TOO_LARGE_MESSAGE`. |
+| Memory guard | When `MEMORY_LIMIT_MEGABYTES` is known, `POST /api/documents` answers 413 with `bootstrapMemoryShortMessage` (the largest preparable file in whole megabytes, computed from the formula in the measurement above) for a file the container cannot hold, before storing anything. A blank create is never refused. The upload dialog shows the server's message. |
 | Host hygiene | The SDK host runs with the server's secrets and database location removed from its environment, and with `BUN_JSC_forceRAMSize` set to `BOOTSTRAP_HOST_HEAP_MEGABYTES` when that is configured (the host is a Bun binary, so a Node heap flag does nothing; see the learning of 2026-10-19). The entrypoint gives each of the two lane hosts 20% of the container limit, the server 40% and the worker 20%, so the settings sum to 100%. They are settings, not hard caps: on the capped repro (limit 4096 MB: server 1638, worker 819, hosts 819 each) the 10 MB conversion peaked at 4,384 to 4,595 MB resident in the host with the Node flag and at 2,245 MB with `BUN_JSC_forceRAMSize`; the server with the heavy room loaded held 2.8 GB, a light host about 59 MB, and the combined peak at the handoff was 5,988 MB before and 3,384 MB after. A container must be planned for about 5.2 GB (server 2.9 + heavy host 2.2 + light host) to hold the 10 MB document, not for the settings. Its request timeout is `BOOTSTRAP_HOST_TIMEOUT_MS`, the timeout of the largest upload plus a margin, so it is later than any per-file timeout and the two never race. |
 | Authorship | The bootstrap socket authenticates as the document owner (the uploader) with actor Human, exactly as a browser creator did, so the update log, the snapshot and the timeline keep their shape. |
 | Everyone joins | The open answer is `RoomMode.Join` for every opener, uploader included. `creatorAttempt`, `creatorEpoch` and the members flags no longer exist; the 409 `NOT_READY` of the open route is gone. |

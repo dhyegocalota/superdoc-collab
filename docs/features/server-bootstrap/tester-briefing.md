@@ -76,3 +76,23 @@ Each row of the hardening section of `test-plan.md` names its red and green comm
 - `Failed` is started again after a cooldown of 30 s, which the owner's request did not name; a broken file is therefore tried again once every 30 s while someone keeps opening it.
 - Heavy timings (alone): Ready 45.5 s after the upload and the first paragraph 15.1 s after the page opens. In the full suite the same file took 65 to 170 s to be Ready because four heavy files share one lane.
 - Fixed in `1fdcc380`: an export from a Join editor had a `word/document.xml` without `xmlns:r`, `xmlns:wp` and `xmlns:a`, so the PDF print view could not open it and a DOCX download was damaged. The cause was not the SDK conversion but `apps/web/public/blank.docx`, which declared only `xmlns:w`; a joiner's converter takes its root attributes from that file. It now declares the full Word set, and `final-visuals.spec.ts` "Download PDF of the uploaded brief" passes.
+
+
+## Memory guard (step 18)
+
+- `libs/types/src/documents.ts`: `BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE` (413), `BOOTSTRAP_MEMORY_RESERVE_MEGABYTES` (512), `largestPreparableMegabytes`, `bootstrapMemoryShortMessage`.
+- `docker/entrypoint.sh` exports `MEMORY_LIMIT_MEGABYTES`; `environment.ts` parses it (null when unknown); `documents-routes.ts` refuses before storing; `documents-api.ts` shows the server's 413 message.
+- Run: `pnpm --filter @superdoc-collab/server exec vitest run src/config src/documents/documents-routes.test.ts`, `pnpm --filter @superdoc-collab/repository-shape test:unit`.
+- Red today, green after: the three route and four type tests failed with `... is not implemented` and the environment test with `expected null to be 4096` (494857e2); the entrypoint test failed with `expected '...' to contain 'limit=4096'` (efbef7cb).
+
+Hypotheses to attack:
+
+- At a 4096 MB limit a 9.5 MB upload is a 413 reading `This server can prepare files up to 8 MB.` and stores nothing; a 2 MB file and a blank create pass the guard.
+- With no limit known nothing is refused for memory.
+- The upload dialog shows that sentence in its alert.
+
+Gaps:
+
+- The 413 reply is read as JSON in the browser; a 413 from a proxy in front of the app with a non-JSON body would show a parse error instead of a sentence.
+- The ratio is one measurement of one file; a file with a different shape may use more or less per byte.
+- Not rerun in a 4 GB container after the guard; the guard is proved by unit tests on the formula.

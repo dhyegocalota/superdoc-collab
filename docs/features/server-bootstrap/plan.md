@@ -46,6 +46,7 @@ Steps 12 to 17 were added after the security and review findings on the first bu
 - [x] **Step 15:** the SDK hosts run without the server's secrets and the bootstrap host with a heap cap (red a0092e61, green 8101b0be).
 - [x] **Step 16:** a light and a heavy lane with owners in turns (red 7b768c06, green f0d1a69b); the inflated size limit and the owner queue (red bafa0d97, green ef362c60); the upload limit, the queue cap and the 415 answer (red fd0d63df, green 80983260).
 - [x] **Step 17:** `e2e/` cases that described the browser creator now describe the server bootstrap, and a new case proves a blank document is ready right after a broken file (c4aa3765).
+- [x] **Step 18:** the memory guard: the entrypoint hands the cgroup limit to the server as `MEMORY_LIMIT_MEGABYTES`, and `POST /api/documents` answers 413 with the largest preparable size for a file the container cannot hold (red 494857e2, green a3484165; entrypoint red efbef7cb, green a23a27dc); spec, runbook, install guide and `.env.example` carry the 4 GB measurement and the sizing.
 
 ## Failure modes
 

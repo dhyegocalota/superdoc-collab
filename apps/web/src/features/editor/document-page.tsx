@@ -121,7 +121,7 @@ export function DocumentPage() {
   const previewFile = useLocalPreview({
     documentId,
     readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness,
-    isLiveEditorPainted: (isDeviceJobCreatedHere ? isDeviceEditorUsable : hasPaintedParagraph) || isOpenFailing,
+    isLiveEditorPainted: hasPaintedParagraph || isOpenFailing,
     isPreparingHere: isDeviceJobCreatedHere && deviceGuardRefusal === null && canPreviewOnDevice,
   });
   const previewScrollFraction = useRef<number | null>(null);
@@ -298,7 +298,7 @@ export function DocumentPage() {
   }
 
   const isPreviewReplacingPage = previewFile !== null && readiness === DocumentReadiness.Waiting;
-  const isPreviewFrozen = !isPreviewReplacingPage && (!isDeviceJobCreatedHere || hasPaintedParagraph);
+  const isPreviewFrozen = !isPreviewReplacingPage && !isDeviceJobCreatedHere;
   const previewLayer =
     previewFile === null ? null : (
       <LocalPreview

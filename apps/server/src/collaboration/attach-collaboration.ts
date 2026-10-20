@@ -5,6 +5,8 @@ import { constants } from 'node:zlib';
 import {
   HEAVY_ROOMS_FULL_CLOSE_CODE,
   HEAVY_ROOMS_FULL_REASON,
+  HEAVY_ROOMS_USER_CAP_CLOSE_CODE,
+  HEAVY_ROOMS_USER_CAP_REASON,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   POLICY_VIOLATION_CLOSE_CODE,
@@ -53,6 +55,10 @@ const SOCKET_DENIED_LOG = 'Collaboration socket closed after the server denied i
 const SOCKET_DENIED_REASON = 'Permission denied';
 const SOCKET_AWARENESS_ENTRIES_LOG = 'Collaboration socket closed for claiming too many awareness entries in one frame';
 const MESSAGE_EVENT = 'message';
+const CLOSE_CODE_BY_HEAVY_ROOMS_REASON = new Map<string, number>([
+  [HEAVY_ROOMS_FULL_REASON, HEAVY_ROOMS_FULL_CLOSE_CODE],
+  [HEAVY_ROOMS_USER_CAP_REASON, HEAVY_ROOMS_USER_CAP_CLOSE_CODE],
+]);
 
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
@@ -106,8 +112,9 @@ export function attachCollaboration({
       Reflect.deleteProperty(webSocket, 'send');
       if (reply !== AuthReply.Denied) return;
       console.warn(SOCKET_DENIED_LOG);
-      const isHeavyRoomsFull = deniedReasonOf(parameters[0] as Uint8Array) === HEAVY_ROOMS_FULL_REASON;
-      if (isHeavyRoomsFull) return void webSocket.close(HEAVY_ROOMS_FULL_CLOSE_CODE, HEAVY_ROOMS_FULL_REASON);
+      const deniedReason = deniedReasonOf(parameters[0] as Uint8Array);
+      const closeCode = deniedReason === null ? undefined : CLOSE_CODE_BY_HEAVY_ROOMS_REASON.get(deniedReason);
+      if (deniedReason !== null && closeCode !== undefined) return void webSocket.close(closeCode, deniedReason);
       webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_DENIED_REASON);
     }) as WebSocket['send'];
   }

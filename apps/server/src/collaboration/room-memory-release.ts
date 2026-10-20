@@ -218,7 +218,7 @@ export function createRoomMemoryRelease({
     },
     roomsHeapBytes,
     isBounded: () => roomHeapBudgetBytes !== null,
-    holdsMaximum: (userId) => userId.length < 0,
+    holdsMaximum: (userId) => heldRoomCount(userId) >= MAX_HEAVY_ROOMS_PER_USER,
     fits,
     admit: (room) => reserve({ ...room, ttlMs: ROOM_RESERVATION_TTL_MS, uploadedBy: null }),
     reserveForUpload(room) {

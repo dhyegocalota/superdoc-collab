@@ -8,7 +8,17 @@ import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import * as Y from 'yjs';
-import { ApiPath, ClientActor, HOUR_MS, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  BootstrapLane,
+  bootstrapLaneOf,
+  ClientActor,
+  HOUR_MS,
+  HttpStatus,
+  MINUTE_MS,
+  SECOND_MS,
+  TOPICS_INTERRUPTED_MESSAGE,
+} from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
@@ -250,6 +260,7 @@ function createServices({
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const documentXmlBytesOf = cachedDocumentXmlBytes((documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))));
+  const heavyUploadBudget = new KeyedSlidingWindow({ windowMs: HOUR_MS, maxEvents: environment.heavyConversionsPerHour, now });
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
@@ -258,7 +269,12 @@ function createServices({
     ownerOf: (documentId) => documents.ownerOf(documentId),
     documentXmlBytesOf,
     onEnded: (documentId) => heavyRooms.releaseUpload(documentId),
-    spendRetry: () => true,
+    spendRetry: ({ ownerId, documentXmlBytes }) => {
+      if (ownerId === null || bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return true;
+      if (heavyUploadBudget.waitMs(ownerId) !== null) return false;
+      heavyUploadBudget.record(ownerId);
+      return true;
+    },
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {
       const rebasedState = rebaseRoomDocumentId({ state, documentId });
@@ -341,7 +357,7 @@ function createServices({
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
-    heavyUploadBudget: new KeyedSlidingWindow({ windowMs: HOUR_MS, maxEvents: environment.heavyConversionsPerHour, now }),
+    heavyUploadBudget,
     timelinePipelines,
     insights,
     versions,

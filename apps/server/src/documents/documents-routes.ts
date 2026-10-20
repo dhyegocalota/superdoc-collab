@@ -11,6 +11,8 @@ import {
   DocumentRole,
   HEAVY_ROOMS_FULL_MESSAGE,
   HEAVY_ROOMS_RETRY_AFTER_MS,
+  HEAVY_ROOMS_USER_CAP_MESSAGE,
+  HeavyRoomsRefusal,
   HttpStatus,
   isPreparable,
   isTabId,
@@ -229,6 +231,9 @@ function mountOpening({ routes, services }: RouteMount): void {
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
+    const isUserCapRefusal =
+      !heavyRooms.fits({ documentId, userId }) && heavyRooms.refusalOf({ documentId, userId }) === HeavyRoomsRefusal.UserCap;
+    if (isUserCapRefusal) return context.json({ error: HEAVY_ROOMS_USER_CAP_MESSAGE }, HttpStatus.ServiceUnavailable);
     if (!heavyRooms.fits({ documentId, userId })) {
       return retryLater({
         context,

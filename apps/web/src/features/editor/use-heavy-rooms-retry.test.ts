@@ -43,3 +43,16 @@ test('leaving the page or recovering cancels the pending reload', () => {
   vi.advanceTimersByTime(2 * HEAVY_ROOMS_RETRY_AFTER_MS);
   expect(reload).not.toHaveBeenCalled();
 });
+
+test('a page that renders again with a new reload function keeps the same pending reload and calls the newest function', () => {
+  const first = vi.fn();
+  const second = vi.fn();
+  const { rerender } = renderHook(({ reload }) => useHeavyRoomsRetry({ failureReason: ConnectionFailureReason.HeavyRoomsFull, reload }), {
+    initialProps: { reload: first },
+  });
+  vi.advanceTimersByTime(HEAVY_ROOMS_RETRY_AFTER_MS - 1);
+  rerender({ reload: second });
+  vi.advanceTimersByTime(1);
+  expect(first).not.toHaveBeenCalled();
+  expect(second).toHaveBeenCalledOnce();
+});

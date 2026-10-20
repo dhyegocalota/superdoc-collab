@@ -29,6 +29,7 @@ import { useConnectionFailureAction } from './use-connection-failure-action';
 import { useDocumentFile } from './use-document-file';
 import { useDocumentReload } from './use-document-reload';
 import { useEditorSetup } from './use-editor-setup';
+import { useHeavyRoomsRetry } from './use-heavy-rooms-retry';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
 import { clearUnsyncedEdits, setUnsynced } from './unsynced-edits-store';
@@ -78,6 +79,7 @@ export function DocumentPage() {
     resetConnection,
   });
   const connectionAction = useConnectionFailureAction({ failureReason, reload });
+  useHeavyRoomsRetry({ failureReason, reload });
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);

@@ -797,7 +797,10 @@ test('a failed document is started again at most BOOTSTRAP_MAX_RETRIES times, th
   const clock = { currentMs: 1_000_000 };
   const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs });
   await failedOnce({ bootstrap, pending, clock });
-  await Promise.all(Array.from({ length: BOOTSTRAP_MAX_RETRIES }, () => failedOnce({ bootstrap, pending, clock })));
+  await Array.from({ length: BOOTSTRAP_MAX_RETRIES }).reduce<Promise<void>>(
+    (previous) => previous.then(() => failedOnce({ bootstrap, pending, clock })),
+    Promise.resolve(),
+  );
   expect(pending).toHaveLength(1 + BOOTSTRAP_MAX_RETRIES);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
   expect(pending).toHaveLength(1 + BOOTSTRAP_MAX_RETRIES);

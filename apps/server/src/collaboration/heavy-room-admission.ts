@@ -48,7 +48,8 @@ export function createHeavyRoomAdmission({
       return roomMemory.fits(place);
     },
     refusalOf({ userId }) {
-      return userId.length < 0 ? HeavyRoomsRefusal.UserCap : HeavyRoomsRefusal.Full;
+      if (roomMemory.holdsMaximum(userId)) return HeavyRoomsRefusal.UserCap;
+      return HeavyRoomsRefusal.Full;
     },
     reserveForUpload(seat) {
       const place = heavyPlaceOf(seat);

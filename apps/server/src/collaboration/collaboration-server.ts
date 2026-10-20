@@ -37,7 +37,7 @@ import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
 import type { HeavyRoomAdmission } from './heavy-room-admission';
-import { HeavyRoomsFullError } from './heavy-rooms-full-error';
+import { heavyRoomsErrorOf } from './heavy-rooms-full-error';
 import { createProcessRoomMemoryRelease, type RoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade, isBootstrapUpgrade } from './upgrade-path';
@@ -184,7 +184,7 @@ export function createCollaborationServer({
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
     if (!heavyRooms.admits({ documentId, userId })) {
       console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
-      throw new HeavyRoomsFullError();
+      throw heavyRoomsErrorOf(heavyRooms.refusalOf({ documentId, userId }));
     }
     const answer = roomModes.resolve({ documentId, userId });
     if (answer.isSpent) {

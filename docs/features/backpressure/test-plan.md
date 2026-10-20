@@ -13,6 +13,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [x] Confirmed the fourth round fails for the right reason (0a27cffd): the upload reservation tests failed on `expected true to be false`, `onEnded` was never called, the re-measure was called five times, and the web resolved `access-denied` instead of `heavy-rooms-full`.
 
+- [x] Confirmed the fifth round fails for the right reason (f4af63e4): the retry tests ran a fourth start (`expected 5 to be 4`), `holdsMaximum` and `refusalOf` returned the stubbed answer, the route sent the budget sentence for the share of the user, and the hook never reloaded.
+
 ## Unit
 
 - [x] `owner-round-robin-queue.test.ts::the turn order lists the items in the order they would be shifted and leaves the queue as it was` — input: three owners; expected: `['ana-1','bruno-1','carla-1','ana-2','ana-3']`, then the drain equals it — evidence: lane/testing4 04cc4c15, server vitest 468 passed (33 files), web 55 passed (4 files), libs/types 78 passed, repository-shape entrypoint 15 passed

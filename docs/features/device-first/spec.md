@@ -53,12 +53,15 @@ upload (guard failed)  POST preparation=server -> as before
 
 ## Measured (2026-10-20)
 
-To be recorded by `e2e/device-first.spec.ts`.
+Laptop, local stack, headless Chromium, other lanes loading the machine, one run each, `e2e/device-first.spec.ts` with the heavy fixture (9.5 MB, 56,800 paragraphs). Times start when the file is chosen in the upload dialog.
 
-| What | Server path (PR #81) | Device first |
-|------|----------------------|--------------|
-| Heavy fixture, uploader: upload to editable | about 180 s in production | not yet measured |
-| Heavy fixture, joiner: open to text | not measured | not yet measured |
+| What | Server path (PR #81, production, 8 GB) | Device first (local) |
+|------|----------------------------------------|----------------------|
+| Uploader: upload to editable (panel gone, first paragraph painted, collaborative editor ready) | about 180 s | 70 s (asserted under 120 s) |
+| Joiner: from the same start to text in the editor | not measured | 77 s |
+| Uploader: first text on screen with the read-only preview (weak device, server path) | 9.5 s | 9.5 s, unchanged |
+
+The panel was on screen at every sample from its first appearance until the editor had text, and no preview surface was ever mounted on the device path.
 
 ## Open questions → answers
 

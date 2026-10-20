@@ -23,18 +23,18 @@ G1, G2, then G3.
 
 ### G1
 
-- [ ] **Step 1:** route and registry: a heavy file with the flag is stored as a device job, a light file is prepared by the server, the heap refusal stays; red tests first.
-- [ ] **Step 2:** device estimate: `DEVICE_MS_PER_MEGABYTE` drives the device job's `estimatedMs`.
+- [x] **Step 1:** route and registry: a heavy file with the flag is stored as a device job, a light file is prepared by the server, the heap refusal stays; red tests first. Evidence: 6f756236 (red), 08e9a9d1 (red), c180f455.
+- [x] **Step 2:** device estimate: `DEVICE_MS_PER_MEGABYTE` drives the device job's `estimatedMs`. Evidence: 08e9a9d1 (red), c180f455.
 
 ### G2
 
-- [ ] **Step 3:** the upload hook sends the device flag when the guard passes.
-- [ ] **Step 4:** the device panel shows the estimate and stays until the editor is ready and painted.
-- [ ] **Step 5:** the server-path panel sits over the preview pages until the swap ends; the status line is removed.
+- [x] **Step 3:** the upload hook sends the device flag when the guard passes. Evidence: 6bcd42a0 (red), 022679d9.
+- [x] **Step 4:** the device panel shows the estimate and stays until the editor is ready and painted. Evidence: d58e17ab (red), 88c93e7e.
+- [x] **Step 5:** the server-path panel sits over the preview pages until the swap ends; the status line is removed. Evidence: 5c21c6b8 (red), aca73cf4.
 
 ### G3
 
-- [ ] **Step 6:** E2E case and measurements; docs.
+- [x] **Step 6:** E2E case and measurements; docs. Evidence: `e2e/device-first.spec.ts` green, measured table in the spec.
 
 ## Failure modes
 
@@ -47,7 +47,7 @@ G1, G2, then G3.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md`.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict.
 - [ ] **/check-ui:** screenshots and video recorded.

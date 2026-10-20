@@ -1,4 +1,4 @@
-import { ConnectionFailureReason } from '@superdoc-collab/types';
+import { ConnectionFailureReason, HEAVY_ROOMS_FULL_SHORT_MESSAGE } from '@superdoc-collab/types';
 
 export const LOST_TITLE = 'You are offline.';
 export const RECONNECTING_TITLE = 'Reconnecting…';
@@ -18,6 +18,7 @@ export const FAILURE_REASON_COPY: Record<ConnectionFailureReason, string> = {
   [ConnectionFailureReason.SyncTimeout]: 'The server did not answer in time.',
   [ConnectionFailureReason.WorkerTransportFailed]: 'The editor lost its background link.',
   [ConnectionFailureReason.SessionEnded]: 'Your session ended. Sign in again.',
+  [ConnectionFailureReason.HeavyRoomsFull]: HEAVY_ROOMS_FULL_SHORT_MESSAGE,
   [ConnectionFailureReason.Unknown]: 'The cause could not be identified.',
 };
 

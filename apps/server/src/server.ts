@@ -257,6 +257,7 @@ function createServices({
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
     ownerOf: (documentId) => documents.ownerOf(documentId),
     documentXmlBytesOf,
+    onEnded: (documentId) => heavyRooms.releaseUpload(documentId),
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {
       const rebasedState = rebaseRoomDocumentId({ state, documentId });

@@ -70,6 +70,7 @@ export function DocumentPage() {
     isCurrentUserOnline,
     membersAnsweredAt,
     isSessionEnded,
+    isUnavailable,
   });
   const { editorGeneration, isReloading, hasReloadFailed, reload } = useDocumentReload({
     documentId,

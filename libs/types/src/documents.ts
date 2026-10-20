@@ -97,6 +97,7 @@ export function bootstrapBusyMessage(waitMs: number): string {
 export const HEAVY_ROOMS_RETRY_AFTER_MS = MINUTE_MS;
 export const HEAVY_ROOMS_FULL_CLOSE_CODE = 4503;
 export const HEAVY_ROOMS_FULL_REASON = 'Heavy rooms full';
+export const HEAVY_ROOMS_FULL_SHORT_MESSAGE = 'Too many large documents are open.';
 export const HEAVY_ROOMS_FULL_MESSAGE = 'The server is holding as many large documents as it can; try again in a few minutes';
 export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';

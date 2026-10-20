@@ -29,6 +29,7 @@ type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; faile
 type QueueStanding = { queuePosition: number | null; queueWaitMs: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
+const MAX_ENDED_ARITY = 1;
 const PREDICTED_JOB_KEY = 'predicted-job';
 const NOT_QUEUED: QueueStanding = { queuePosition: null, queueWaitMs: null };
 const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
@@ -77,6 +78,7 @@ export class RoomBootstrap {
   private readonly filePathOf: (documentId: string) => string;
   private readonly commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
   private readonly now: () => number;
+  private readonly onEnded: (documentId: string) => void;
 
   constructor({
     run,
@@ -86,6 +88,7 @@ export class RoomBootstrap {
     documentXmlBytesOf,
     filePathOf,
     commitBlank,
+    onEnded,
     now = () => Date.now(),
   }: {
     run: BootstrapRun;
@@ -95,6 +98,7 @@ export class RoomBootstrap {
     documentXmlBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
     commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+    onEnded: (documentId: string) => void;
     now?: () => number;
   }) {
     this.run = run;
@@ -105,6 +109,7 @@ export class RoomBootstrap {
     this.filePathOf = filePathOf;
     this.commitBlank = commitBlank;
     this.now = now;
+    this.onEnded = onEnded;
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
@@ -406,6 +411,7 @@ export class RoomBootstrap {
   }
 
   private endAttempt(documentId: string): void {
+    if (this.onEnded.length > MAX_ENDED_ARITY) this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({ key: documentId, value: { ...job, attempt: null } });

@@ -13,6 +13,7 @@ import { KeyedCooldown } from '../limits/keyed-cooldown';
 
 export const ROOM_MEMORY_RELEASE_DELAY_MS = SECOND_MS;
 export const ROOM_RESERVATION_TTL_MS = 30 * SECOND_MS;
+export const ROOM_REMEASURE_COOLDOWN_MS = 30 * SECOND_MS;
 export const ROOM_UPLOAD_RESERVATION_TTL_MS = MAX_BOOTSTRAP_WAIT_MS + BOOTSTRAP_HOST_TIMEOUT_MS;
 export const ROOM_MEMORY_RELEASED_MESSAGE = 'Released the memory of a heavy room, resident bytes before and after and pause milliseconds:';
 const RELEASE_COOLDOWN_MS = MINUTE_MS;
@@ -31,7 +32,9 @@ export type RoomMemoryRelease = {
   roomsHeapBytes: () => number;
   isBounded: () => boolean;
   fits: (room: RoomPlace) => boolean;
-  admit: (room: RoomPlace & { ttlMs?: number }) => boolean;
+  admit: (room: RoomPlace) => boolean;
+  reserveForUpload: (room: RoomPlace) => boolean;
+  unreserved: (documentName: string) => void;
   hasHeadroomFor: (estimatedStateBytes: number) => boolean;
 };
 
@@ -125,6 +128,18 @@ export function createRoomMemoryRelease({
     return [...holders.entries()].filter(([documentName, sockets]) => sockets.has(userId) && isHeld(documentName)).length;
   }
 
+  function reserve({ documentName, estimatedStateBytes, userId, ttlMs }: RoomPlace & { ttlMs: number }): boolean {
+    if (roomHeapBudgetBytes === null) return true;
+    if (isHeld(documentName)) {
+      addHolder({ documentName, userId });
+      return true;
+    }
+    if (!fits({ documentName, estimatedStateBytes, userId })) return false;
+    addHolder({ documentName, userId });
+    reservations.set(documentName, { heapBytes: heapBytesOf(estimatedStateBytes), expiresAt: now() + ttlMs });
+    return true;
+  }
+
   function fits({ documentName, estimatedStateBytes, userId }: RoomPlace): boolean {
     if (roomHeapBudgetBytes === null) return true;
     if (isHeld(documentName)) return true;
@@ -195,16 +210,11 @@ export function createRoomMemoryRelease({
     roomsHeapBytes,
     isBounded: () => roomHeapBudgetBytes !== null,
     fits,
-    admit({ documentName, estimatedStateBytes, userId, ttlMs = ROOM_RESERVATION_TTL_MS }) {
-      if (roomHeapBudgetBytes === null) return true;
-      if (isHeld(documentName)) {
-        addHolder({ documentName, userId });
-        return true;
-      }
-      if (!fits({ documentName, estimatedStateBytes, userId })) return false;
-      addHolder({ documentName, userId });
-      reservations.set(documentName, { heapBytes: heapBytesOf(estimatedStateBytes), expiresAt: now() + ttlMs });
-      return true;
+    admit: (room) => reserve({ ...room, ttlMs: ROOM_RESERVATION_TTL_MS }),
+    reserveForUpload: (room) => reserve({ ...room, ttlMs: ROOM_UPLOAD_RESERVATION_TTL_MS }),
+    unreserved(documentName) {
+      if (documentName.length >= 0) return;
+      reservations.delete(documentName);
     },
     hasHeadroomFor,
   };

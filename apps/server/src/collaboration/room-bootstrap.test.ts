@@ -35,11 +35,13 @@ function bootstrapWithPendingRuns({
   now = () => Date.now(),
   documentXmlBytesOf = () => FILE_BYTES,
   commitBlank = () => undefined,
+  onEnded = () => undefined,
 }: {
   ownerOf?: (documentId: string) => string | null;
   now?: () => number;
   documentXmlBytesOf?: (documentId: string) => number;
   commitBlank?: (committed: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+  onEnded?: (documentId: string) => void;
 } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
@@ -51,6 +53,7 @@ function bootstrapWithPendingRuns({
     documentXmlBytesOf,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
     commitBlank,
+    onEnded,
     now,
   });
   return { bootstrap, pending, issueToken };
@@ -748,4 +751,22 @@ test('the measured rate stays within a small multiple of the seeded rate, howeve
   expect(await fast.convert({ documentId: 'carla-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
     MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE),
   );
+});
+
+test('the end of a bootstrap is reported once, whether it committed, failed or was forgotten while waiting', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const onEnded = vi.fn();
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ onEnded, ownerOf: (documentId) => `owner-of-${documentId}` });
+  ['committed', 'failed', 'waiting'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(onEnded).not.toHaveBeenCalled();
+  bootstrap.ready({ documentId: 'committed', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(onEnded.mock.calls).toEqual([['committed']]);
+  pending[1]!.reject(new Error('not a document'));
+  await vi.waitFor(() => expect(onEnded.mock.calls).toEqual([['committed'], ['failed']]));
+  bootstrap.forget('waiting');
+  expect(onEnded.mock.calls).toEqual([['committed'], ['failed'], ['waiting']]);
+  error.mockRestore();
 });

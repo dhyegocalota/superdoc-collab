@@ -25,6 +25,7 @@ type ConnectionStateInput = {
   isCurrentUserOnline: boolean | null;
   membersAnsweredAt: number | null;
   isSessionEnded: boolean;
+  isUnavailable: boolean;
 };
 
 type ConnectionStateView = {
@@ -129,9 +130,11 @@ function reduceMachine(machine: Machine, action: Action): Machine {
 export function resolveFailureReason({
   failureReason,
   isSessionEnded,
+  isUnavailable,
 }: {
   failureReason: ConnectionFailureReason | null;
   isSessionEnded: boolean;
+  isUnavailable: boolean;
 }): ConnectionFailureReason | null {
   const isUnexplained = failureReason === ConnectionFailureReason.Unknown;
   if (isUnexplained && isSessionEnded) return ConnectionFailureReason.SessionEnded;
@@ -143,6 +146,7 @@ export function useConnectionState({
   isCurrentUserOnline,
   membersAnsweredAt,
   isSessionEnded,
+  isUnavailable,
 }: ConnectionStateInput): ConnectionStateView {
   const queryClient = useQueryClient();
   const [machine, dispatch] = useReducer(reduceMachine, INITIAL_MACHINE);
@@ -182,7 +186,7 @@ export function useConnectionState({
 
   return {
     state,
-    failureReason: resolveFailureReason({ failureReason: reportedFailureReason, isSessionEnded }),
+    failureReason: resolveFailureReason({ failureReason: reportedFailureReason, isSessionEnded, isUnavailable }),
     reportTransport,
     resetConnection,
   };

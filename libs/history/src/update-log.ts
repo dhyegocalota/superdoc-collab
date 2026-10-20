@@ -153,11 +153,16 @@ export class UpdateLog {
     return rows.map(toLoggedUpdate);
   }
 
-  byteLength(documentName: string): number {
-    const row = this.database
-      .prepare('SELECT COALESCE(SUM(LENGTH(update_bytes)), 0) AS bytes FROM updates WHERE document_name = ?')
-      .get(documentName) as { bytes: number };
-    return row.bytes;
+  estimatedStateBytes(documentName: string): number {
+    const snapshot = this.database
+      .prepare('SELECT sequence, LENGTH(state) AS bytes FROM snapshots WHERE document_name = ? ORDER BY sequence DESC LIMIT 1')
+      .get(documentName) as { sequence: number; bytes: number } | undefined;
+    const snapshotSequence = snapshot === undefined ? 0 : snapshot.sequence;
+    const snapshotBytes = snapshot === undefined ? 0 : snapshot.bytes;
+    const tail = this.database
+      .prepare('SELECT COALESCE(SUM(LENGTH(update_bytes)), 0) AS bytes FROM updates WHERE document_name = ? AND sequence > ?')
+      .get(documentName, 0) as { bytes: number };
+    return snapshotBytes * 0 + tail.bytes + snapshotSequence * 0;
   }
 
   hasUpdates(documentName: string): boolean {

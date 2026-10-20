@@ -1,6 +1,7 @@
 import { BOOTSTRAP_STATE_BYTES_RATIO, LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { createHeavyRoomAdmission } from './heavy-room-admission';
+import { ROOM_UPLOAD_RESERVATION_TTL_MS } from './room-memory-release';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
 const USER_ID = 'user-ana';
@@ -24,14 +25,11 @@ function admissionWith({
   const roomMemory = {
     grew: vi.fn(),
     unloaded: vi.fn(),
-    heavyHeapBytes: vi.fn(),
+    roomsHeapBytes: vi.fn(),
     loaded: vi.fn(),
-    isDueForMeasure: vi.fn(),
-    measured: vi.fn(),
     isBounded: vi.fn(() => isBounded),
     admit: vi.fn(() => isAdmitted),
     fits: vi.fn(() => isAdmitted),
-    touched: vi.fn(),
     released: vi.fn(),
     hasHeadroomFor: vi.fn(() => hasHeadroom),
   };
@@ -96,4 +94,20 @@ test('fitting looks without taking a place: a heavy document is asked with fits,
   expect(prepared.admission.fits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
   const unbounded = admissionWith({ isAdmitted: false, isBounded: false, documentXmlBytes: HEAVY_XML_BYTES });
   expect(unbounded.admission.fits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
+});
+
+test('an upload reserves the place its room will need for as long as a bootstrap may take, only for a heavy document', () => {
+  const heavy = admissionWith({ documentXmlBytes: HEAVY_XML_BYTES });
+  heavy.admission.reserveForUpload({ documentId: DOCUMENT_ID, userId: USER_ID });
+  expect(heavy.roomMemory.admit).toHaveBeenCalledExactlyOnceWith({
+    documentName: `${SUPERDOC_ROOM_PREFIX}${DOCUMENT_ID}`,
+    estimatedStateBytes: HEAVY_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO,
+    userId: USER_ID,
+    ttlMs: ROOM_UPLOAD_RESERVATION_TTL_MS,
+  });
+  const light = admissionWith({ documentXmlBytes: LIGHT_XML_BYTES });
+  light.admission.reserveForUpload({ documentId: DOCUMENT_ID, userId: USER_ID });
+  const unbounded = admissionWith({ isBounded: false, documentXmlBytes: HEAVY_XML_BYTES });
+  unbounded.admission.reserveForUpload({ documentId: DOCUMENT_ID, userId: USER_ID });
+  expect([light.roomMemory.admit, unbounded.roomMemory.admit].map((admit) => admit.mock.calls.length)).toEqual([0, 0]);
 });

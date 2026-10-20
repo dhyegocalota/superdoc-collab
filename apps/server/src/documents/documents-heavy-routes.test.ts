@@ -107,3 +107,13 @@ test('a heavy upload is 503 with the large documents message while no room of it
   expect([light.status, blank.status]).toEqual([HttpStatus.Created, HttpStatus.Created]);
   await server.stop();
 });
+
+test('a stored upload reserves the place its room will need for its owner', async () => {
+  const server = await startTestServer();
+  const user = await signedInUser({ server, name: 'Ana' });
+  const reserve = vi.spyOn(server.services.heavyRooms, 'reserveForUpload');
+  const [created] = await heavyUploadsOf({ server, user, count: 1 });
+  const { id } = (await created!.json()) as DocumentSummary;
+  expect(reserve).toHaveBeenCalledExactlyOnceWith({ documentId: id, userId: user.id });
+  await server.stop();
+});

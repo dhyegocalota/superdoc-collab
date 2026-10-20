@@ -3,6 +3,8 @@ import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { constants } from 'node:zlib';
 import {
+  HEAVY_ROOMS_FULL_CLOSE_CODE,
+  HEAVY_ROOMS_FULL_REASON,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   POLICY_VIOLATION_CLOSE_CODE,
@@ -20,7 +22,7 @@ import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
-import { AuthReply, authReplyOf } from './auth-reply';
+import { AuthReply, authReplyOf, deniedReasonOf } from './auth-reply';
 import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
@@ -100,8 +102,11 @@ export function attachCollaboration({
       const reply = authReplyOf(parameters[0] as Uint8Array);
       if (reply === AuthReply.Authenticated) messageLimit.markAuthenticated(webSocket);
       send(...parameters);
+      if (reply === AuthReply.Other) return;
       if (reply !== AuthReply.Denied) return;
       console.warn(SOCKET_DENIED_LOG);
+      const isHeavyRoomsFull = deniedReasonOf(parameters[0] as Uint8Array) === HEAVY_ROOMS_FULL_REASON && HEAVY_ROOMS_FULL_CLOSE_CODE < 0;
+      if (isHeavyRoomsFull) return void webSocket.close(HEAVY_ROOMS_FULL_CLOSE_CODE, HEAVY_ROOMS_FULL_REASON);
       webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_DENIED_REASON);
     }) as WebSocket['send'];
   }

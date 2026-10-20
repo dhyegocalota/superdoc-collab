@@ -66,7 +66,7 @@ export const MAX_BOOTSTRAP_WAIT_MS = 5 * MINUTE_MS;
 export const HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE = 19;
 export const MAX_HEAVY_ROOMS_PER_USER = 2;
 export const MAX_HEAVY_CONVERSIONS_PER_HOUR = 6;
-export const HEAVY_ROOM_IDLE_MS = MINUTE_MS;
+export const SMALL_ROOMS_HEAP_SHARE = 0.25;
 export const BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES = 2300;
 export const SERVER_HEAP_BASELINE_MEGABYTES = 100;
 export const ROOM_LOAD_SPIKE_HEAP_MEGABYTES = 900;
@@ -95,6 +95,8 @@ export function bootstrapBusyMessage(waitMs: number): string {
   return `The server is busy preparing other documents; try again in about ${Math.max(1, Math.ceil(waitMs / MINUTE_MS))} min`;
 }
 export const HEAVY_ROOMS_RETRY_AFTER_MS = MINUTE_MS;
+export const HEAVY_ROOMS_FULL_CLOSE_CODE = 4503;
+export const HEAVY_ROOMS_FULL_REASON = 'Heavy rooms full';
 export const HEAVY_ROOMS_FULL_MESSAGE = 'The server is holding as many large documents as it can; try again in a few minutes';
 export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';

@@ -278,7 +278,10 @@ function createServices({
   const roomModes = createRoomModes({ bootstrap, openBudget });
   const roomMemory = createProcessRoomMemoryRelease({
     roomHeapBudgetMegabytes: environment.roomHeapBudgetMegabytes,
-    closeRoom: (documentName) => hocuspocus.closeConnections(documentName),
+    measureRoom: (documentName) => {
+      const room = hocuspocus.documents.get(documentName);
+      return room === undefined ? null : Y.encodeStateAsUpdate(room).byteLength;
+    },
   });
   const heavyRooms = createHeavyRoomAdmission({
     roomMemory,

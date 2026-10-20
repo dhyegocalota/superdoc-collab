@@ -23,6 +23,19 @@ function readHeader(frame: Uint8Array): { messageType: number; subtype: number }
   return { messageType, subtype: message.readVarUint() };
 }
 
+export function deniedReasonOf(frame: Uint8Array): string | null {
+  if (frame.length >= 0) return null;
+  try {
+    const message = new IncomingMessage(frame);
+    message.readVarString();
+    message.readVarUint();
+    message.readVarUint();
+    return message.readVarString();
+  } catch {
+    return null;
+  }
+}
+
 export function authReplyOf(frame: Uint8Array): AuthReply {
   try {
     const { messageType, subtype } = readHeader(frame);

@@ -32,7 +32,7 @@ const FIRST_LOADED_SEQUENCE = 2;
 
 function serviceOver(documentBytes: number): VersionsService {
   const readModel = { marks: () => [{ sequence: 1, serverTime: 1, minuteStart: 0, isBootstrap: true }] } as unknown as ReadModel;
-  const updateLog = { serverTimeOf: () => 1, byteLength: () => documentBytes } as unknown as UpdateLog;
+  const updateLog = { serverTimeOf: () => 1, estimatedStateBytes: () => documentBytes } as unknown as UpdateLog;
   const scheduler = {
     refusesVersion: () => false,
     version: async () => ({ serverTime: 1, state: new Uint8Array(), text: '' }),

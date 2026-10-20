@@ -15,6 +15,7 @@ export function createHeavyRoomAdmission({
 }): HeavyRoomAdmission {
   return {
     isRefused(documentId) {
+      if (isInFlight(documentId)) return false;
       if (!roomMemory.isAtCeiling(`${SUPERDOC_ROOM_PREFIX}${documentId}`)) return false;
       return isHeavyRoomDocument(documentXmlBytesOf(documentId));
     },

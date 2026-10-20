@@ -51,7 +51,12 @@ import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
 const TYPING_BURST_FRAMES = 600;
-const AUTHENTICATED_ANSWER = Buffer.from([0]);
+const DENIED_FOLLOW_UP_FRAMES = 20;
+const DENIED_FOLLOW_UP_BYTES = 1024;
+const COUNTED_ROOM_NAME = 'superdoc-room-1';
+const AUTHENTICATED_ANSWER = new OutgoingMessage(COUNTED_ROOM_NAME).writeAuthenticated(false).toUint8Array();
+const DENIED_ANSWER = new OutgoingMessage(COUNTED_ROOM_NAME).writePermissionDenied('permission-denied').toUint8Array();
+const UNRELATED_ANSWER = Buffer.from([0]);
 const AWARENESS_BURST_FRAMES = 3000;
 const AWARENESS_ROOM_NAME = 'superdoc-room-1';
 const CLAIMED_ID_BASE = 1_000_000;
@@ -487,12 +492,12 @@ describe('attachCollaboration', () => {
   );
 });
 
-async function openCountedSocket({ answers = true }: { answers?: boolean } = {}) {
+async function openCountedSocket({ answer = AUTHENTICATED_ANSWER }: { answer?: Uint8Array | null } = {}) {
   const received = vi.fn();
   const hocuspocus = {
     handleConnection: (webSocket: WebSocket) => {
       webSocket.on('message', received);
-      if (answers) webSocket.send(AUTHENTICATED_ANSWER);
+      if (answer !== null) webSocket.send(answer);
     },
   } as unknown as Hocuspocus;
   const auth = {
@@ -525,8 +530,24 @@ async function openCountedSocket({ answers = true }: { answers?: boolean } = {})
 }
 
 test('the frame that breaches the pre-authentication total never reaches the room handler', async () => {
-  const { socket, closed, received, httpServer } = await openCountedSocket({ answers: false });
+  const { socket, closed, received, httpServer } = await openCountedSocket({ answer: null });
   socket.send(Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES + 1));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('a first reply that is not the authentication answer does not lift the pre-authentication total', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket({ answer: UNRELATED_ANSWER });
+  socket.send(Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES + 1));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('a socket the server denied is closed and the frames it keeps sending never reach the room handler', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket({ answer: DENIED_ANSWER });
+  Array.from({ length: DENIED_FOLLOW_UP_FRAMES }).forEach(() => socket.send(Buffer.alloc(DENIED_FOLLOW_UP_BYTES)));
   expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
   expect(received).not.toHaveBeenCalled();
   await new Promise((resolve) => httpServer.close(resolve));

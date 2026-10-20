@@ -556,7 +556,7 @@ parentPort.on('message', (request) => parentPort.postMessage({ kind: '${Projecti
     hostHeapMegabytes: HOST_HEAP_MEGABYTES,
   });
   expect((await scheduler.blocks(randomUUID())).sequence).toBe(HOST_HEAP_MEGABYTES);
-  await scheduler.stop();
+  await scheduler.currentWorker.terminate();
 });
 
 test('without a worker heap limit the spawned worker keeps the default limits', async () => {

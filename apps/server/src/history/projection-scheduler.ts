@@ -41,12 +41,14 @@ function createWorker({
   databaseDirectory,
   projectionWorkerFile,
   workerHeapMegabytes,
+  hostHeapMegabytes,
 }: {
   databaseDirectory: string;
   projectionWorkerFile: URL | null;
   workerHeapMegabytes: number | null;
+  hostHeapMegabytes: number | null;
 }): Worker {
-  const workerData = { databaseDirectory, hostHeapMegabytes: workerHeapMegabytes };
+  const workerData = { databaseDirectory, hostHeapMegabytes };
   const heapLimit = workerHeapMegabytes === null ? {} : { resourceLimits: { maxOldGenerationSizeMb: workerHeapMegabytes } };
   if (projectionWorkerFile) return new Worker(projectionWorkerFile, { workerData, ...heapLimit });
   if (!import.meta.url.endsWith(SOURCE_EXTENSION))
@@ -70,6 +72,7 @@ export class ProjectionScheduler {
   private readonly databaseDirectory: string;
   private readonly projectionWorkerFile: URL | null;
   private readonly workerHeapMegabytes: number | null;
+  private readonly hostHeapMegabytes: number | null;
   private readonly recycleQuietMs: number;
   private recycleTimer: NodeJS.Timeout | null = null;
   private readonly recycleCooldown: KeyedCooldown;
@@ -108,6 +111,7 @@ export class ProjectionScheduler {
     this.databaseDirectory = databaseDirectory;
     this.projectionWorkerFile = projectionWorkerFile;
     this.workerHeapMegabytes = workerHeapMegabytes;
+    this.hostHeapMegabytes = hostHeapMegabytes;
     this.recycleQuietMs = recycleQuietMs;
     this.currentWorker = this.spawn();
   }
@@ -197,6 +201,7 @@ export class ProjectionScheduler {
       databaseDirectory: this.databaseDirectory,
       projectionWorkerFile: this.projectionWorkerFile,
       workerHeapMegabytes: this.workerHeapMegabytes,
+      hostHeapMegabytes: this.hostHeapMegabytes,
     });
     this.isAlive = true;
     worker.on('message', (reply: ProjectionReply) => this.settle(reply));

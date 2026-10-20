@@ -124,6 +124,9 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'PROJECTION_WORKER_HEAP_MEGABYTES',
       value: source.PROJECTION_WORKER_HEAP_MEGABYTES,
     }),
-    bootstrapHostHeapMegabytes: null,
+    bootstrapHostHeapMegabytes: optionalLimitFrom({
+      name: 'BOOTSTRAP_HOST_HEAP_MEGABYTES',
+      value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
+    }),
   };
 }

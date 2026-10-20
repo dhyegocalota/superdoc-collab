@@ -19,6 +19,10 @@ export function deviceRefusalOf({
   return null;
 }
 
+export function isDeviceFirst(_: { isPhoneLayout: boolean; deviceMemoryGigabytes: number | null }): boolean {
+  throw new Error('isDeviceFirst is not implemented');
+}
+
 export function canPreviewOnDevice(deviceMemoryGigabytes: number | null): boolean {
   if (deviceMemoryGigabytes === null) return false;
   return deviceMemoryGigabytes >= DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES;
@@ -33,6 +37,11 @@ function exposedDeviceMemory(): number | null {
 export function useDeviceRefusal(): DeviceRefusal | null {
   const isPhoneLayout = useIsPhoneLayout();
   return deviceRefusalOf({ isPhoneLayout, deviceMemoryGigabytes: exposedDeviceMemory() });
+}
+
+export function useIsDeviceFirst(): boolean {
+  const isPhoneLayout = useIsPhoneLayout();
+  return isDeviceFirst({ isPhoneLayout, deviceMemoryGigabytes: exposedDeviceMemory() });
 }
 
 export function useCanPreviewOnDevice(): boolean {

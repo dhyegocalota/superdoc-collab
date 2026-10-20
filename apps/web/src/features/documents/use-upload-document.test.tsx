@@ -25,7 +25,7 @@ import {
   restoreUploadRequests,
 } from '@/testing/fake-upload-request';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
-import { DeviceRefusal, useDeviceRefusal } from '@/features/local-preview/device-guard';
+import { DeviceRefusal, useDeviceRefusal, useIsDeviceFirst } from '@/features/local-preview/device-guard';
 import { localFileOf } from '@/features/local-preview/local-file-store';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import { ONE_FILE_AT_A_TIME_MESSAGE } from './documents-copy';
@@ -34,6 +34,7 @@ import { useUploadDocument } from './use-upload-document';
 vi.mock('@/features/local-preview/device-guard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/local-preview/device-guard')>()),
   useDeviceRefusal: vi.fn(() => null),
+  useIsDeviceFirst: vi.fn(() => true),
 }));
 
 const REFUSAL_MESSAGE = bootstrapMemoryShortMessage(4);
@@ -184,13 +185,23 @@ test('a device that passes the guard sends its first upload for the device', asy
   expect(form.get(PREPARATION_FIELD)).toBe(PreparationSource.Device);
 });
 
-test('a device that fails the guard sends its first upload for the server', async () => {
-  vi.mocked(useDeviceRefusal).mockReturnValue(DeviceRefusal.LittleMemory);
+test('a device that is not device-first sends its first upload for the server', async () => {
+  vi.mocked(useIsDeviceFirst).mockReturnValue(false);
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
   const form = (await sentUploadRequest()).body as FormData;
   expect(form.has(PREPARATION_FIELD)).toBe(false);
-  vi.mocked(useDeviceRefusal).mockReturnValue(null);
+  vi.mocked(useIsDeviceFirst).mockReturnValue(true);
+});
+
+test('a device that is not device-first is still offered the device after a refusal', async () => {
+  vi.mocked(useIsDeviceFirst).mockReturnValue(false);
+  const { result } = renderHookWithRouter(useUploadDocument);
+  act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const request = await sentUploadRequest();
+  act(() => request.respond({ status: HttpStatus.PayloadTooLarge, body: { error: REFUSAL_MESSAGE, canPrepareOnDevice: true } }));
+  await waitFor(() => expect(result.current.devicePreparation).toEqual({ refusal: null, start: expect.any(Function) }));
+  vi.mocked(useIsDeviceFirst).mockReturnValue(true);
 });
 
 test('a device upload that the heap cannot hold shows the refusal and offers nothing', async () => {

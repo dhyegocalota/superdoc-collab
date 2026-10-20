@@ -6,6 +6,7 @@ const RESIDENT_BEFORE_BYTES = 3_000_000_000;
 const RESIDENT_AFTER_BYTES = 900_000_000;
 const HEAVY_ROOM = 'heavy-room';
 const OTHER_HEAVY_ROOM = 'other-heavy-room';
+const THIRD_HEAVY_ROOM = 'third-heavy-room';
 const SMALL_ROOM = 'small-room';
 const COOLDOWN_MS = 60_000;
 const PAUSE_MS = 120;
@@ -69,15 +70,21 @@ test('a small room that unloads while a heavy one is open collects nothing', asy
   expect(collectGarbage).not.toHaveBeenCalled();
 });
 
-test('a second heavy unload inside the cooldown collects nothing', async () => {
+test('heavy unloads inside the cooldown collect once more when it ends and not before', async () => {
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
-  const { collectGarbage, release } = releaseWith({ readings: [1, 2] });
-  [HEAVY_ROOM, OTHER_HEAVY_ROOM].forEach((documentName) => {
+  const { collectGarbage, release } = releaseWith({ readings: [1, 2, 3, 4], clock: () => Date.now() });
+  [HEAVY_ROOM, OTHER_HEAVY_ROOM, THIRD_HEAVY_ROOM].forEach((documentName) => {
     release.grew({ documentName, bytes: LARGE_ROOM_STATE_BYTES + 1 });
     release.unloaded({ documentName, isReloaded: () => false });
   });
   await afterReleaseDelay();
   expect(collectGarbage).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(COOLDOWN_MS - 1);
+  expect(collectGarbage).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(collectGarbage).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(COOLDOWN_MS);
+  expect(collectGarbage).toHaveBeenCalledTimes(2);
 });
 
 test('a room unloaded twice is collected for once', async () => {

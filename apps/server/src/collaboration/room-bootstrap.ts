@@ -130,7 +130,7 @@ export class RoomBootstrap {
     return this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
   }
 
-  claimDevice({ documentId, userId }: { documentId: string; userId: string }): string | null {
+  claimDevice({ documentId, userId }: { documentId: string; userId: string; tabId: string | null }): string | null {
     const job = this.jobs.peek(documentId);
     if (job === null || !this.isDeviceCreator({ documentId, userId })) return null;
     const attempt = randomUUID();

@@ -167,7 +167,7 @@ export function createCollaborationServer({
   > = {
     [SocketKind.Member]: async ({ requestHeaders, documentId }) => {
       const member = await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
-      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId }) };
+      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId, tabId: null }) };
     },
     [SocketKind.Agent]: async ({ token, documentId }) => ({
       ...(await authenticateAgent({ auth, documents, token, documentId })),

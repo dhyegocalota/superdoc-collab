@@ -158,9 +158,13 @@ export class RoomBootstrap {
     return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
   }
 
-  reopenDevice({ documentId, userId }: { documentId: string; userId: string }): void {
+  canReopenDevice({ documentId, userId }: { documentId: string; userId: string }): boolean {
     const job = this.jobs.peek(documentId);
-    if (job === null || !job.isReopenable || this.ownerOf(documentId) !== userId) return;
+    return job !== null && job.isReopenable && this.ownerOf(documentId) === userId;
+  }
+
+  reopenDevice({ documentId, userId }: { documentId: string; userId: string }): void {
+    if (!this.canReopenDevice({ documentId, userId })) return;
     this.registerDevice(documentId);
   }
 

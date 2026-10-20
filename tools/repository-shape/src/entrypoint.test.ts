@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { serverHeapMegabytesOf } from '../../../e2e/stack';
 import { repositoryPath } from './repository-files';
 
 const ENTRYPOINT = repositoryPath('docker/entrypoint.sh');
@@ -11,6 +12,7 @@ const MAIN_OUTPUT = 'main ran\n';
 const NO_LIMIT_OUTPUT = 'memory limit none, heap node default\n';
 const MISSING_LIMIT_FILE = '/nonexistent/memory-limit';
 const SEED_FAILURE_EXIT_CODE = 3;
+const BYTES_PER_MEGABYTE = 1024 * 1024;
 const DEMO_PASSWORD = 'entrypoint-test-password';
 
 type EntrypointRun = { status: number | null; stdout: string; stderr: string };
@@ -125,6 +127,18 @@ describe('docker entrypoint', () => {
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain('heap=3276');
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('heap=undefined');
   });
+
+  test.each([4096, 6144, 8192])(
+    'pin: the heap the E2E stacks derive for %i MB is the heap the entrypoint gives the server',
+    (limitMegabytes) => {
+      const limitFile = join(workingDirectory, 'memory.max');
+      writeFileSync(limitFile, `${limitMegabytes * BYTES_PER_MEGABYTE}\n`);
+      writeStub({ name: 'main.js', source: 'process.stdout.write("heap=" + process.env.SERVER_HEAP_MEGABYTES);' });
+      expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain(
+        `heap=${serverHeapMegabytesOf(limitMegabytes)}`,
+      );
+    },
+  );
 
   test('exposes the collector with no memory limit too', () => {
     writeStub({ name: 'main.js', source: 'process.stdout.write(process.execArgv.join(" "));' });

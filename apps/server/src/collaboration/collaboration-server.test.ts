@@ -25,6 +25,7 @@ import {
   memberWithRole,
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
+import { openedBy } from '../testing/documents-client';
 import { signedInOwner, signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
 import { HEAVY_ROOMS_FULL_REASON, HEAVY_ROOMS_USER_CAP_REASON, HeavyRoomsRefusal } from '@superdoc-collab/types';
 import {
@@ -798,6 +799,36 @@ describe('collaboration device creator', () => {
     expect(server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Preparing);
     first.close();
     await expect.poll(() => server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Failed);
+    await server.stop();
+  });
+
+  test('a reloaded claiming tab is not let in while its first room is loaded, and then seeds a single copy', async () => {
+    const scenario = await documentOnDevice();
+    const { server, documentId, owner } = scenario;
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const firstTab = await connectAsDeviceCreator(scenario, randomUUID());
+    firstTab.document.getText('t').insert(0, 'half of the seed');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
+    const roomName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
+    const unloading = vi.spyOn(server.services.hocuspocus, 'unloadDocument').mockResolvedValue(undefined as never);
+    firstTab.close();
+    await expect.poll(() => server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Failed);
+    expect(server.services.hocuspocus.documents.has(roomName)).toBe(true);
+    const whileLoaded = await openedBy({ server, user: owner, documentId, tabId: randomUUID() });
+    expect([whileLoaded.roomMode, whileLoaded.bootstrap.stage]).toEqual([RoomMode.Join, BootstrapStage.Preparing]);
+    unloading.mockRestore();
+    await server.services.hocuspocus.unloadDocument(server.services.hocuspocus.documents.get(roomName)!);
+    expect(server.services.hocuspocus.documents.has(roomName)).toBe(false);
+    const secondTabId = randomUUID();
+    const afterUnload = await openedBy({ server, user: owner, documentId, tabId: secondTabId });
+    expect(afterUnload.roomMode).toBe(RoomMode.Create);
+    const secondTab = await connectAsDeviceCreator(scenario, secondTabId);
+    writeStory({ document: secondTab.document, texts: ['seeded once'] });
+    markBootstrapCommitted(secondTab.document);
+    await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    const room = server.services.hocuspocus.documents.get(roomName)!;
+    expect(room.getText('t').toString()).not.toContain('half of the seed');
+    secondTab.close();
     await server.stop();
   });
 

@@ -26,6 +26,7 @@ import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
 import { DeviceRefusal } from '../apps/web/src/features/local-preview/device-guard';
 import { preparedOnDeviceDetail } from '../apps/web/src/features/open-progress/open-progress-copy';
+import { peakIn, startTabMemorySampler } from './tab-memory';
 import { scriptNextOpenAnswers } from './open-answers';
 import { RestartablePort, startRestartableStack, stopRestartableStack } from './restartable-stack';
 import { serverHeapMegabytesOf } from './stack';
@@ -50,6 +51,7 @@ const DETAILS_KEY = 'previewPanelDetails';
 const TEXT_SAMPLES_KEY = 'previewTextSamples';
 const VISIBLE_TEXT_SELECTOR = '[data-testid="local-preview"] .superdoc-text-run, [data-testid="document-editor"] .superdoc-text-run';
 const TEXT_GAP_LIMIT_MS = 1_000;
+const LIVE_ALONE_SAMPLING_MS = 5_000;
 const LONGEST_STALL_LIMIT_MS = 5_000;
 const LONGEST_LAYOUT_STALL_LIMIT_MS = 10_000;
 const MIN_DISTINCT_DETAILS = 3;
@@ -206,17 +208,30 @@ test('the preview of a large document opens while the panel keeps counting and t
   await recordPageLife(ana.page);
   const workers: Worker[] = [];
   ana.page.on('worker', (worker) => workers.push(worker));
+  const stopSampling = await startTabMemorySampler({ browser, page: ana.page });
   const startedAt = Date.now();
   await uploadThroughTheDialog({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
   await expect(previewText(ana.page, LARGE_PARAGRAPH)).toBeVisible({ timeout: LARGE_PREVIEW_TIMEOUT_MS });
   const previewMs = Date.now() - startedAt;
+  const previewVisibleAt = Date.now();
   const workerUrls = workers.map((worker) => worker.url());
   const documentWorker = workers.find((worker) => DOCUMENT_WORKER_PATTERN.test(worker.url()));
   expect(documentWorker).toBeDefined();
   expect(await documentWorker!.evaluate(() => typeof window === 'undefined')).toBe(true);
   const painted = await pageLifeOf(ana.page);
   const stallUntilFirstParagraphMs = longestGapOf(painted.heartbeats);
+  await expect(ana.page.getByTestId(LIVE_EDITOR_TEST_ID)).toBeAttached({ timeout: LARGE_SWAP_TIMEOUT_MS });
+  const liveMountedAt = Date.now();
   await expect(ana.page.getByTestId(PREVIEW_SURFACE_TEST_ID)).toHaveCount(0, { timeout: LARGE_SWAP_TIMEOUT_MS });
+  const previewGoneAt = Date.now();
+  await new Promise((resolve) => setTimeout(resolve, LIVE_ALONE_SAMPLING_MS));
+  const samples = stopSampling();
+  const memory = {
+    previewAloneMegabytes: peakIn({ samples, from: previewVisibleAt, to: liveMountedAt }),
+    overlapMegabytes: peakIn({ samples, from: liveMountedAt, to: previewGoneAt }),
+    liveAloneMegabytes: peakIn({ samples, from: previewGoneAt, to: Date.now() }),
+    overlapMs: previewGoneAt - liveMountedAt,
+  };
   const swapped = await pageLifeOf(ana.page);
   const stallWhileLayingOutMs = longestGapOf(swapped.heartbeats.slice(painted.heartbeats.length - 1));
   test.info().annotations.push({
@@ -227,6 +242,7 @@ test('the preview of a large document opens while the panel keeps counting and t
       stallWhileLayingOutMs,
       distinctDetails: painted.details.length,
       workerUrls,
+      memory,
     }),
   });
   expect(previewMs).toBeLessThan(LARGE_PREVIEW_LIMIT_MS);
@@ -234,6 +250,16 @@ test('the preview of a large document opens while the panel keeps counting and t
   expect(painted.details.length).toBeGreaterThanOrEqual(MIN_DISTINCT_DETAILS);
   expect(stallUntilFirstParagraphMs).toBeLessThan(LONGEST_STALL_LIMIT_MS);
   expect(stallWhileLayingOutMs).toBeLessThan(LONGEST_LAYOUT_STALL_LIMIT_MS);
+  const documentUrl = ana.page.url();
+  await ana.context.close();
+  const fresh = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const stopFreshSampling = await startTabMemorySampler({ browser, page: fresh.page });
+  const freshOpenedAt = Date.now();
+  await fresh.page.goto(documentUrl);
+  await expect(editorText(fresh.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_SWAP_TIMEOUT_MS });
+  await new Promise((resolve) => setTimeout(resolve, LIVE_ALONE_SAMPLING_MS));
+  const liveOnly = peakIn({ samples: stopFreshSampling(), from: freshOpenedAt, to: Date.now() });
+  test.info().annotations.push({ type: 'measured-without-preview', description: JSON.stringify(liveOnly) });
 });
 
 test.describe('a server with no memory to prepare a file', () => {

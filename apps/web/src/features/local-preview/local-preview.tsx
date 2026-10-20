@@ -1,7 +1,7 @@
 import type { BootstrapProgress } from '@superdoc-collab/types';
 import { SuperDoc } from 'superdoc';
 import 'superdoc/style.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppTopBar } from '@/components/app-top-bar';
 import { AccountMenu } from '@/features/account/account-menu';
 import { LeaveOpeningButton } from '@/features/editor/leave-opening-button';
@@ -52,9 +52,12 @@ export function LocalPreview({
   const hasPaintedParagraph = useHasPaintedParagraph(container);
   const isPanelVisible = isProgressShown && !hasPaintedParagraph && !hasFailed && !isSwapping;
 
+  const freezeSurface = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (!container) return;
     let isActive = true;
+    let isDestroyed = false;
     const superdoc = new SuperDoc({
       ...previewSuperdocOptions({ container, file }),
       onPaginationUpdate: ({ totalPages }) => {
@@ -65,11 +68,23 @@ export function LocalPreview({
         if (isActive && isFatal) setHasFailed(true);
       },
     });
+    freezeSurface.current = () => {
+      if (isDestroyed) return;
+      isDestroyed = true;
+      const paintedPages = container.cloneNode(true);
+      superdoc.destroy();
+      container.replaceChildren(...paintedPages.childNodes);
+    };
     return () => {
       isActive = false;
-      superdoc.destroy();
+      freezeSurface.current = null;
+      if (!isDestroyed) superdoc.destroy();
     };
   }, [container, file]);
+
+  useEffect(() => {
+    if (isSwapping && freezeSurface.current) freezeSurface.current();
+  }, [isSwapping, container]);
 
   return (
     <div className={cn('flex flex-col', isSwapping ? SWAPPING_CLASS : 'h-full')}>

@@ -5,6 +5,7 @@ import {
   bootstrapBusyMessage,
   bootstrapLaneOf,
   BootstrapLane,
+  BootstrapStage,
   BYTES_PER_MEGABYTE,
   bootstrapMemoryShortMessage,
   roomHoldShortMessage,
@@ -307,8 +308,9 @@ function mountOpening({ routes, services }: RouteMount): void {
         retryAfterSeconds: secondsRoundedUp(answer.waitMs),
       });
     }
-    runtime.reopenDeviceJob({ documentId, userId });
-    const bootstrap = runtime.bootstrapRoom(documentId);
+    const isReopenWaitingForRoom = runtime.reopenDeviceJob({ documentId, userId });
+    const answeredBootstrap = runtime.bootstrapRoom(documentId);
+    const bootstrap = isReopenWaitingForRoom ? { ...answeredBootstrap, stage: BootstrapStage.Preparing } : answeredBootstrap;
     const tab = context.req.query(TAB_QUERY_KEY);
     const tabId = tab !== undefined && isTabId(tab) ? tab : null;
     const isDeviceCreator = runtime.isDeviceCreator({ documentId, userId, tabId });

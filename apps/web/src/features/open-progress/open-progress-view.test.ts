@@ -17,7 +17,7 @@ const SENT_BYTES = 4_980_736;
 
 function preparing({ stage, done, total }: { stage: BootstrapStage; done: number; total: number }) {
   return preparingView({
-    bootstrap: { ...bootstrapAt(stage), done, total, fileBytes: TOTAL_BYTES, stateBytes: null },
+    bootstrap: { ...bootstrapAt(stage), done, total, documentXmlBytes: TOTAL_BYTES, stateBytes: null },
     elapsedSeconds: 12,
     startedAt: PAGE_STARTED_AT,
     answeredAt: PAGE_STARTED_AT,
@@ -46,7 +46,7 @@ function estimating({
     ...bootstrapAt(stage),
     done,
     total: TOTAL_BYTES,
-    fileBytes: TOTAL_BYTES,
+    documentXmlBytes: TOTAL_BYTES,
     stateBytes: null,
     estimatedMs,
     preparingElapsedMs,

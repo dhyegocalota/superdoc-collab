@@ -250,7 +250,7 @@ function createServices({
       signBootstrapToken({ secret: environment.authSecret, userId, documentId, attempt, now: Date.now() }),
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
     ownerOf: (documentId) => documents.ownerOf(documentId),
-    fileBytesOf: (documentId) => statSync(storage.pathOf(documentId)).size,
+    documentXmlBytesOf: (documentId) => statSync(storage.pathOf(documentId)).size,
     filePathOf: (documentId) => storage.pathOf(documentId),
   });
   const bootstrap = createBootstrapState({ updateLog, readModel, onCommitted: (committed) => roomBootstrap.ready(committed) });

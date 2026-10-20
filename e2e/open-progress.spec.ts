@@ -48,7 +48,7 @@ function bootstrapAt({ stage, done }: { stage: BootstrapStage; done: number }): 
     total: SCRIPTED_TOTAL_BYTES,
     stateBytes: null,
     estimatedMs: null,
-    fileBytes: SCRIPTED_TOTAL_BYTES,
+    documentXmlBytes: SCRIPTED_TOTAL_BYTES,
     preparingElapsedMs: null,
   };
 }

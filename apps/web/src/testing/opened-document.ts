@@ -34,7 +34,7 @@ export const READY_BOOTSTRAP: BootstrapProgress = {
   total: 0,
   stateBytes: STATE_BYTES,
   estimatedMs: null,
-  fileBytes: 0,
+  documentXmlBytes: 0,
   preparingElapsedMs: null,
 };
 

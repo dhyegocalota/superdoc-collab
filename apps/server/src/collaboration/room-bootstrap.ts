@@ -32,7 +32,7 @@ export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   total: NOTHING_TO_PROCESS_BYTES,
   stateBytes: null,
   estimatedMs: null,
-  fileBytes: NOTHING_TO_PROCESS_BYTES,
+  documentXmlBytes: NOTHING_TO_PROCESS_BYTES,
   preparingElapsedMs: null,
 };
 
@@ -61,7 +61,7 @@ export class RoomBootstrap {
   private readonly issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
   private readonly collaborationUrl: () => string;
   private readonly ownerOf: (documentId: string) => string | null;
-  private readonly fileBytesOf: (documentId: string) => number;
+  private readonly documentXmlBytesOf: (documentId: string) => number;
   private readonly filePathOf: (documentId: string) => string;
   private readonly now: () => number;
 
@@ -70,7 +70,7 @@ export class RoomBootstrap {
     issueToken,
     collaborationUrl,
     ownerOf,
-    fileBytesOf,
+    documentXmlBytesOf,
     filePathOf,
     now = () => Date.now(),
   }: {
@@ -78,7 +78,7 @@ export class RoomBootstrap {
     issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
     collaborationUrl: () => string;
     ownerOf: (documentId: string) => string | null;
-    fileBytesOf: (documentId: string) => number;
+    documentXmlBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
     now?: () => number;
   }) {
@@ -86,7 +86,7 @@ export class RoomBootstrap {
     this.issueToken = issueToken;
     this.collaborationUrl = collaborationUrl;
     this.ownerOf = ownerOf;
-    this.fileBytesOf = fileBytesOf;
+    this.documentXmlBytesOf = documentXmlBytesOf;
     this.filePathOf = filePathOf;
     this.now = now;
   }
@@ -103,20 +103,28 @@ export class RoomBootstrap {
     return progress.stage === BootstrapStage.Queued || progress.stage === BootstrapStage.Preparing;
   }
 
-  queueWaitMs({ ownerId, fileBytes }: { ownerId: string; fileBytes: number }): number | null {
-    if (!this.queues[bootstrapLaneOf(fileBytes)].hasOwner(ownerId)) return null;
+  queueWaitMs({ ownerId, documentXmlBytes }: { ownerId: string; documentXmlBytes: number }): number | null {
+    if (!this.queues[bootstrapLaneOf(documentXmlBytes)].hasOwner(ownerId)) return null;
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
-    const fileBytes = this.fileBytesOf(documentId);
-    const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
-    const estimatedMs = (fileBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
-    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs, fileBytes, preparingElapsedMs: null };
+    const documentXmlBytes = this.documentXmlBytesOf(documentId);
+    const total = documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO;
+    const estimatedMs = (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+    const progress = {
+      stage: BootstrapStage.Queued,
+      done: 0,
+      total,
+      stateBytes: null,
+      estimatedMs,
+      documentXmlBytes,
+      preparingElapsedMs: null,
+    };
     this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
-    const lane = bootstrapLaneOf(fileBytes);
+    const lane = bootstrapLaneOf(documentXmlBytes);
     this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
     this.pump(lane);
     return progress;
@@ -137,7 +145,7 @@ export class RoomBootstrap {
           total,
           stateBytes: null,
           estimatedMs: this.estimatedMsOf(documentId),
-          fileBytes: this.fileBytesOfJob(documentId),
+          documentXmlBytes: this.documentXmlBytesOfJob(documentId),
           preparingElapsedMs: null,
         },
         attempt,
@@ -176,7 +184,7 @@ export class RoomBootstrap {
           total,
           stateBytes,
           estimatedMs: this.estimatedMsOf(documentId),
-          fileBytes: this.fileBytesOfJob(documentId),
+          documentXmlBytes: this.documentXmlBytesOfJob(documentId),
           preparingElapsedMs: null,
         },
         attempt,
@@ -214,10 +222,10 @@ export class RoomBootstrap {
     return progress.estimatedMs;
   }
 
-  private fileBytesOfJob(documentId: string): number {
+  private documentXmlBytesOfJob(documentId: string): number {
     const progress = this.progressOf(documentId);
     if (progress === null) return NOTHING_TO_PROCESS_BYTES;
-    return progress.fileBytes;
+    return progress.documentXmlBytes;
   }
 
   private rateMsPerMegabyte(): number {
@@ -228,8 +236,8 @@ export class RoomBootstrap {
   private recordConversion(documentId: string): void {
     const job = this.jobs.peek(documentId);
     if (job === null || job.startedAt === null) return;
-    if (bootstrapLaneOf(job.progress.fileBytes) !== BootstrapLane.Heavy) return;
-    const megabytes = job.progress.fileBytes / BYTES_PER_MEGABYTE;
+    if (bootstrapLaneOf(job.progress.documentXmlBytes) !== BootstrapLane.Heavy) return;
+    const megabytes = job.progress.documentXmlBytes / BYTES_PER_MEGABYTE;
     this.conversionRates.push((this.now() - job.startedAt) / megabytes);
     if (this.conversionRates.length > BOOTSTRAP_RATE_SAMPLES) this.conversionRates.shift();
   }

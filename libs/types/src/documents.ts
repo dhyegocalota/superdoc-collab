@@ -14,8 +14,8 @@ export const PREVIEW_MAX_CHARACTERS = 400;
 
 export const MAX_UPLOAD_MEGABYTES = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * BYTES_PER_MEGABYTE;
-export function bootstrapTimeoutMsOf(fileBytes: number): number {
-  return BOOTSTRAP_TIMEOUT_FLOOR_MS + (fileBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_TIMEOUT_MARGIN;
+export function bootstrapTimeoutMsOf(documentXmlBytes: number): number {
+  return BOOTSTRAP_TIMEOUT_FLOOR_MS + (documentXmlBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_TIMEOUT_MARGIN;
 }
 export const BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS = 10 * SECOND_MS;
 export const BOOTSTRAP_HOST_TIMEOUT_MS = bootstrapTimeoutMsOf(MAX_UPLOAD_BYTES) + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
@@ -25,11 +25,11 @@ export const DOCUMENT_XML_STATE_BYTES_RATIO = 3.7;
 export const MAX_DOCUMENT_XML_MEGABYTES = Math.floor(MAX_SOCKET_MESSAGE_BYTES / BYTES_PER_MEGABYTE / DOCUMENT_XML_STATE_BYTES_RATIO);
 export const MAX_DOCUMENT_XML_BYTES = MAX_DOCUMENT_XML_MEGABYTES * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_LIGHT_MAX_BYTES = 2 * BYTES_PER_MEGABYTE;
-export const BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE = 413;
+export const BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE = 413;
 export const BOOTSTRAP_MEMORY_RESERVE_MEGABYTES = 512;
 export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {
   const usableMegabytes = memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
-  return Math.max(0, Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE));
+  return Math.max(0, Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE));
 }
 export function bootstrapMemoryShortMessage(largestMegabytes: number): string {
   return `This server can prepare files up to ${largestMegabytes} MB.`;
@@ -125,8 +125,8 @@ export enum BootstrapLane {
   Heavy = 'heavy',
 }
 
-export function bootstrapLaneOf(fileBytes: number): BootstrapLane {
-  if (fileBytes <= BOOTSTRAP_LIGHT_MAX_BYTES) return BootstrapLane.Light;
+export function bootstrapLaneOf(documentXmlBytes: number): BootstrapLane {
+  if (documentXmlBytes <= BOOTSTRAP_LIGHT_MAX_BYTES) return BootstrapLane.Light;
   return BootstrapLane.Heavy;
 }
 
@@ -136,6 +136,6 @@ export type BootstrapProgress = {
   total: number;
   stateBytes: number | null;
   estimatedMs: number | null;
-  fileBytes: number;
+  documentXmlBytes: number;
   preparingElapsedMs: number | null;
 };

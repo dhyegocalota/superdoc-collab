@@ -2,7 +2,7 @@ import { buildSeedDocx, DocxVerdict, inspectDocx, type SeedParagraph } from '@su
 import {
   BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
-  BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE,
+  BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE,
   bootstrapMemoryShortMessage,
   BYTES_PER_MEGABYTE,
   DOCUMENT_TOO_LARGE_MESSAGE,
@@ -84,8 +84,8 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     });
   }
 
-  function refusalWhenQueueFull({ context, fileBytes }: { context: Context<SignedIn>; fileBytes: number }): Response | null {
-    const waitMs = runtime.bootstrapQueueWaitMs({ ownerUserId: context.var.user.id, fileBytes });
+  function refusalWhenQueueFull({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    const waitMs = runtime.bootstrapQueueWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
     if (waitMs === null) return null;
     return retryLater({
       context,
@@ -95,9 +95,15 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     });
   }
 
-  function refusalWhenMemoryShort({ context, fileBytes }: { context: Context<SignedIn>; fileBytes: number }): Response | null {
+  function refusalWhenMemoryShort({
+    context,
+    documentXmlBytes,
+  }: {
+    context: Context<SignedIn>;
+    documentXmlBytes: number;
+  }): Response | null {
     if (memoryLimitMegabytes === null) return null;
-    const residentBytes = fileBytes * BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE;
+    const residentBytes = documentXmlBytes * BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE;
     const usableBytes = (memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES) * BYTES_PER_MEGABYTE;
     if (residentBytes <= usableBytes) return null;
     const message = bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes));
@@ -115,7 +121,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     title: string;
     importRevisions: boolean;
   }): Promise<Response> {
-    const queueRefusal = refusalWhenQueueFull({ context, fileBytes: bytes.byteLength });
+    const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: bytes.byteLength });
     if (queueRefusal) return queueRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
@@ -152,7 +158,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       const file = body[UPLOAD_FIELD];
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
-      const memoryRefusal = refusalWhenMemoryShort({ context, fileBytes: file.size });
+      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: file.size });
       if (memoryRefusal) return memoryRefusal;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;

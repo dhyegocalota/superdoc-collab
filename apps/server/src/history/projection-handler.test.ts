@@ -41,7 +41,7 @@ function storesWith(
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>,
   fileSizeBytes: (filePath: string) => number = () => SMALL_FILE_BYTES,
   bootstrapRoom: (request: BootstrapRequest) => Promise<void> = async () => undefined,
-  timeoutMsOf: (fileBytes: number) => number = bootstrapTimeoutMsOf,
+  timeoutMsOf: (documentXmlBytes: number) => number = bootstrapTimeoutMsOf,
   releaseBootstrapHost: (lane: BootstrapLane) => Promise<void> = async () => undefined,
 ) {
   const directory = mkdtempSync(join(tmpdir(), 'projection-handler-'));
@@ -248,13 +248,14 @@ const TIMEOUT_MARGIN_MS = 1;
 
 test.each([SMALL_FILE_BYTES, MAX_UPLOAD_BYTES])(
   'a bootstrap of a %i byte file is cut at the floor plus the margin times the measured rate',
-  async (fileBytes) => {
+  async (documentXmlBytes) => {
     vi.useFakeTimers();
-    const timeoutMs = BOOTSTRAP_TIMEOUT_FLOOR_MS + (fileBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_TIMEOUT_MARGIN;
+    const timeoutMs =
+      BOOTSTRAP_TIMEOUT_FLOOR_MS + (documentXmlBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_TIMEOUT_MARGIN;
     const handle = createProjectionHandler(
       storesWith(
         async () => null,
-        () => fileBytes,
+        () => documentXmlBytes,
         () => new Promise<void>(() => undefined),
       ),
     );

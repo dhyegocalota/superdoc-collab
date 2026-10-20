@@ -22,7 +22,7 @@ const QUEUED: BootstrapProgress = {
   total: 9,
   stateBytes: null,
   estimatedMs: null,
-  fileBytes: 0,
+  documentXmlBytes: 0,
   preparingElapsedMs: null,
 };
 
@@ -110,7 +110,7 @@ test('the bootstrap of a document with a job is the progress of that job', () =>
     total: 9,
     stateBytes: null,
     estimatedMs: null,
-    fileBytes: 0,
+    documentXmlBytes: 0,
     preparingElapsedMs: null,
   };
   const roomBootstrap = fakeRoomBootstrap({ progress });
@@ -140,7 +140,7 @@ test('a failed job is requested again so the registry may retry it after its coo
     total: 9,
     stateBytes: null,
     estimatedMs: null,
-    fileBytes: 0,
+    documentXmlBytes: 0,
     preparingElapsedMs: null,
   };
   const roomBootstrap = fakeRoomBootstrap({ progress: failed });

@@ -38,7 +38,7 @@ type ProjectionStores = {
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
   fileSizeBytes: (filePath: string) => number;
   bootstrapRoom: (request: BootstrapRequest) => Promise<void>;
-  bootstrapTimeoutMsOf: (fileBytes: number) => number;
+  bootstrapTimeoutMsOf: (documentXmlBytes: number) => number;
   releaseBootstrapHost: (lane: BootstrapLane) => Promise<void>;
 };
 

@@ -32,8 +32,8 @@ afterEach(() => {
 function bootstrapWithPendingRuns({
   ownerOf = () => OWNER_ID,
   now = () => Date.now(),
-  fileBytesOf = () => FILE_BYTES,
-}: { ownerOf?: (documentId: string) => string | null; now?: () => number; fileBytesOf?: (documentId: string) => number } = {}) {
+  documentXmlBytesOf = () => FILE_BYTES,
+}: { ownerOf?: (documentId: string) => string | null; now?: () => number; documentXmlBytesOf?: (documentId: string) => number } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
   const bootstrap = new RoomBootstrap({
@@ -41,7 +41,7 @@ function bootstrapWithPendingRuns({
     issueToken,
     collaborationUrl: () => URL,
     ownerOf,
-    fileBytesOf,
+    documentXmlBytesOf,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
     now,
   });
@@ -56,7 +56,7 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     total: ESTIMATED_BYTES,
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
-    fileBytes: FILE_BYTES,
+    documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
   });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
@@ -66,7 +66,7 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     total: ESTIMATED_BYTES,
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
-    fileBytes: FILE_BYTES,
+    documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: 0,
   });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
@@ -116,7 +116,7 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
     total: ESTIMATED_BYTES,
     stateBytes: STATE_BYTES,
     estimatedMs: ESTIMATED_MS,
-    fileBytes: FILE_BYTES,
+    documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
   });
   pending[0]!.resolve();
@@ -133,7 +133,7 @@ test('a commit nobody asked for is ready with nothing to process', () => {
     total: 0,
     stateBytes: STATE_BYTES,
     estimatedMs: null,
-    fileBytes: 0,
+    documentXmlBytes: 0,
     preparingElapsedMs: null,
   });
 });
@@ -151,7 +151,7 @@ test('a failed run is reported once, stays failed within the cooldown and is not
     total: ESTIMATED_BYTES,
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
-    fileBytes: FILE_BYTES,
+    documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
   });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
@@ -357,7 +357,7 @@ const OWNERS: Record<string, string> = {
 function bootstrapWithOwners() {
   return bootstrapWithPendingRuns({
     ownerOf: (documentId) => OWNERS[documentId]!,
-    fileBytesOf: (documentId) => (documentId.endsWith('light') ? SMALL_FILE_BYTES : LARGE_FILE_BYTES),
+    documentXmlBytesOf: (documentId) => (documentId.endsWith('light') ? SMALL_FILE_BYTES : LARGE_FILE_BYTES),
   });
 }
 
@@ -402,14 +402,14 @@ test('heavy bootstraps give each owner a turn before an owner gets a second one'
 
 test('an owner is asked to wait only while a bootstrap of theirs is queued in the lane of the new file', async () => {
   const { bootstrap, pending } = bootstrapWithOwners();
-  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBeNull();
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, documentXmlBytes: LARGE_FILE_BYTES })).toBeNull();
   bootstrap.request('ana-heavy');
   await vi.waitFor(() => expect(pending).toHaveLength(1));
-  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBeNull();
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, documentXmlBytes: LARGE_FILE_BYTES })).toBeNull();
   bootstrap.request('ana-heavy-2');
-  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBe(BOOTSTRAP_QUEUE_RETRY_AFTER_MS);
-  expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: SMALL_FILE_BYTES })).toBeNull();
-  expect(bootstrap.queueWaitMs({ ownerId: BRUNO, fileBytes: LARGE_FILE_BYTES })).toBeNull();
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, documentXmlBytes: LARGE_FILE_BYTES })).toBe(BOOTSTRAP_QUEUE_RETRY_AFTER_MS);
+  expect(bootstrap.queueWaitMs({ ownerId: ANA, documentXmlBytes: SMALL_FILE_BYTES })).toBeNull();
+  expect(bootstrap.queueWaitMs({ ownerId: BRUNO, documentXmlBytes: LARGE_FILE_BYTES })).toBeNull();
 });
 
 const HEAVY_MEGABYTES = 4;
@@ -442,7 +442,7 @@ test('completed conversions of heavy files move the estimate of the next jobs to
   const advance = (milliseconds: number) => void (currentMs += milliseconds);
   const { bootstrap, pending } = bootstrapWithPendingRuns({
     now: () => currentMs,
-    fileBytesOf: () => HEAVY_MEGABYTES * BYTES_PER_MEGABYTE,
+    documentXmlBytesOf: () => HEAVY_MEGABYTES * BYTES_PER_MEGABYTE,
   });
   expect(bootstrap.request('document-first').estimatedMs).toBe(HEAVY_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE);
   await vi.waitFor(() => expect(pending).toHaveLength(1));
@@ -474,7 +474,7 @@ test('a 9.5 MB file is estimated at the seeded rate and then at the rate its las
 
 test('the conversion of a small file never moves the rate, whatever its fixed cost', async () => {
   let currentMs = 0;
-  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, fileBytesOf: () => SMALL_FILE_BYTES });
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, documentXmlBytesOf: () => SMALL_FILE_BYTES });
   bootstrap.request('document-small');
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   currentMs += 1000;

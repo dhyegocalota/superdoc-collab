@@ -21,7 +21,7 @@ export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   bootstrapRoom: (documentId: string) => BootstrapProgress;
-  bootstrapQueueWaitMs: (parameters: { ownerUserId: string; fileBytes: number }) => number | null;
+  bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
   onlineUserIds: (documentId: string) => Set<string>;
@@ -68,7 +68,7 @@ export function createCollaborationRuntime({
       if (bootstrap.isKnownCommitted(documentId)) return COMMITTED_WITHOUT_BOOTSTRAP;
       return roomBootstrap.request(documentId);
     },
-    bootstrapQueueWaitMs: ({ ownerUserId, fileBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, fileBytes }),
+    bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(
         (connection) => (connection.context as CollaborationContext).userId === userId,

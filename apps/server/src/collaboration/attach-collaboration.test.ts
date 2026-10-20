@@ -45,6 +45,7 @@ import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { Auth } from '../auth/auth';
 import { attachCollaboration } from './attach-collaboration';
+import { PRE_AUTHENTICATION_MAX_INFLATED_BYTES } from './socket-message-limit';
 import { AWARENESS_DROP_LOG, AWARENESS_IDS_LOG } from './collaboration-server';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
@@ -486,12 +487,12 @@ describe('attachCollaboration', () => {
   );
 });
 
-async function openCountedSocket() {
+async function openCountedSocket({ answers = true }: { answers?: boolean } = {}) {
   const received = vi.fn();
   const hocuspocus = {
     handleConnection: (webSocket: WebSocket) => {
       webSocket.on('message', received);
-      webSocket.send(AUTHENTICATED_ANSWER);
+      if (answers) webSocket.send(AUTHENTICATED_ANSWER);
     },
   } as unknown as Hocuspocus;
   const auth = {
@@ -522,6 +523,23 @@ async function openCountedSocket() {
   await new Promise((resolve) => socket.on('open', resolve));
   return { socket, closed, received, httpServer };
 }
+
+test('the frame that breaches the pre-authentication total never reaches the room handler', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket({ answers: false });
+  socket.send(Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES + 1));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('the frame that breaches the inflated budget never reaches the room handler', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  socket.send(Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES));
+  socket.send(Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).toHaveBeenCalledTimes(1);
+  await new Promise((resolve) => httpServer.close(resolve));
+});
 
 test('a typing burst of 600 frames in one second is accepted and the socket stays open', async () => {
   const { socket, received, httpServer } = await openCountedSocket();

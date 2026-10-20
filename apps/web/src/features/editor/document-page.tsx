@@ -41,6 +41,7 @@ import { useDocumentFile } from './use-document-file';
 import { useDocumentReload } from './use-document-reload';
 import { useEditorSetup } from './use-editor-setup';
 import { useHeavyRoomsRetry } from './use-heavy-rooms-retry';
+import { useRefusalProbe } from './use-refusal-probe';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
 import { clearUnsyncedEdits, setUnsynced } from './unsynced-edits-store';
@@ -75,7 +76,7 @@ export function DocumentPage() {
   const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const {
     state: connectionState,
-    failureReason,
+    failureReason: reportedFailureReason,
     reportTransport,
     resetConnection,
   } = useConnectionState({
@@ -89,8 +90,9 @@ export function DocumentPage() {
     roomMode: opened?.roomMode,
     resetConnection,
   });
+  const { failureReason, failureMessage } = useRefusalProbe({ documentId, failureReason: reportedFailureReason });
   const connectionAction = useConnectionFailureAction({ failureReason, reload });
-  useHeavyRoomsRetry({ failureReason, reload });
+  useHeavyRoomsRetry({ failureReason, failureMessage, reload });
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
@@ -235,6 +237,7 @@ export function DocumentPage() {
         isReloading={isReloading}
         connectionState={connectionState}
         failureReason={failureReason}
+        failureMessage={failureMessage}
         onConnectionAction={connectionAction}
       />
       <EditorToolbarRow

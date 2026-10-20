@@ -13,6 +13,7 @@ import {
   DocumentResource,
   DocumentRole,
   HttpMethod,
+  HEAVY_ROOMS_USER_CAP_MESSAGE,
   HttpStatus,
   MEMBERS_REFRESH_MS,
   RoomMode,
@@ -642,8 +643,27 @@ test('a connection exception fails the connection with its reason and not the ed
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
   act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onException(payload));
-  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
+  const banner = await screen.findByRole('alert');
+  await waitFor(() => expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]));
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
+});
+
+test('an access-denied exception while the server refuses the open with a sentence shows that sentence, and a 403 keeps the removed access line', async () => {
+  const answer = { status: HttpStatus.Ok as HttpStatus };
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Owner),
+    currentOpenStatus: () => answer.status,
+    openBody: { error: HEAVY_ROOMS_USER_CAP_MESSAGE },
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onCollaborationReady());
+  answer.status = HttpStatus.ServiceUnavailable;
+  act(() => constructedConfig().onException(payload));
+  const banner = await screen.findByRole('alert');
+  await waitFor(() => expect(banner).toHaveTextContent(HEAVY_ROOMS_USER_CAP_MESSAGE));
+  expect(banner).not.toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
 });
 
 test('an access-denied exception before the editor is ready shows the editor failure notice and no banner', async () => {

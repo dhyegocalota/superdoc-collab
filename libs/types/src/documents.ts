@@ -128,6 +128,7 @@ export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUME
 export const INVALID_PREPARATION_MESSAGE = 'The preparation source is not valid.';
 export const UPLOAD_RATE_LIMITED_MESSAGE = 'Too many uploads in a minute';
 export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'You already have a document being prepared and another waiting. Try again when one finishes.';
+export const BOOTSTRAP_QUEUE_WAITING_MESSAGE = 'You already have a document waiting to be prepared. Try again when it starts.';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';

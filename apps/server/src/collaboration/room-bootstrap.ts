@@ -204,6 +204,11 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
+  isRunningFor({ ownerId, documentXmlBytes }: { ownerId: string; documentXmlBytes: number }): boolean {
+    const runningDocumentId = this.running[bootstrapLaneOf(documentXmlBytes)];
+    return runningDocumentId !== null && this.ownerOf(runningDocumentId) === ownerId;
+  }
+
   predictedWaitMs({ documentXmlBytes, ownerId }: { documentXmlBytes: number; ownerId: string }): number {
     const lane = bootstrapLaneOf(documentXmlBytes);
     const turnOrder = this.queues[lane].turnOrder({ also: { owner: ownerId, item: PREDICTED_JOB_KEY } });

@@ -17,7 +17,7 @@
 
 ## Walk on the running stack
 
-- [ ] FAILED (partly): time travel on the heavy document answers each of five steps in about a second — observed on 04cc4c15 with ana and five edits on the heavy document, stepping the timeline with the keyboard at 1280: first step 14.9 s and 16.0 s in two runs (cold viewer), then 1.4, 2.9, 10.3 and 1.0 s in one run and 1.2, 2.6, 0.85 and 1.9 s in the other, at a machine load of 9 to 25; the 10.3 s step was not repeated. Evidence: .pr-media/instant-open-2/walk/ (06-version-step-1-1280.png, 06-version-step-5-1280.png). Steps at 375 were not exercised: the keyboard stepping found no band there.
+- [ ] FAILED (partly): time travel on the heavy document answers each of five steps in about a second — observed on 04cc4c15 with ana and five edits on the heavy document, stepping the timeline with the keyboard at 1280: first step 14.9 s and 16.0 s in two runs (cold viewer), then 1.4, 2.9, 10.3 and 1.0 s in one run and 1.2, 2.6, 0.85 and 1.9 s in the other, at a machine load of 9 to 25; the 10.3 s outlier was not repeated. Evidence: .pr-media/instant-open-2/walk/ (06-version-step-1-1280.png, 06-version-step-5-1280.png). Steps at 375 were not exercised: the keyboard stepping found no band there. Explained, not a defect of the worker: the sub-3 s readings timed the banner while the previous frame was still on screen. Timed on the new frame, every step takes 14 to 19 s: worker 1.1 to 1.5 s, route 2.3 to 2.6 s, state in the browser at 5.8 to 7.4 s, then 9.7 to 10.5 s of apply and render of 36.6 MB, the cost of one editor open (13 to 15 s). Split in spec.md, Measured.
 - [x] The timeline and the summary still work on the heavy document — evidence: "Summarize edits" answered "The summary is up to date", top edit General +5 words (.pr-media/instant-open-2/walk/07-summary-1280.png); the heavy editor and the panel render at 375 (05-heavy-panel-375.png).
 - [x] The server log shows no worker recycle during the steps — evidence: .pr-media/instant-open-2/walk/server-ceiling-stack.log, zero lines with "Recycled the projection worker".
 - [x] A heavy document opens in the editor after 15 s on a loaded machine — evidence: 05-heavy-editor-1280.png, tt walk log, 15.2 s to the first text run.
@@ -25,6 +25,10 @@
 ## Measured
 
 - [x] Heap cap, retained heap, bootstrap projection and version step before and after — evidence: spec.md table.
+
+## Walk
+
+- [x] Heavy document, first cold version step: the server answers in 1.4 to 2.3 s and the 36 MB state has arrived 3.2 to 3.7 s after the page opens; the remainder of the tester's 15 s is the browser rendering the state, not the materialization — evidence: spec.md, "Where the first version step goes".
 
 ## Adversarial review
 

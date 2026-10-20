@@ -1,6 +1,7 @@
 import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  BOOTSTRAP_QUEUE_WAITING_MESSAGE,
   bootstrapBusyMessage,
   bootstrapLaneOf,
   BootstrapLane,
@@ -113,9 +114,10 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
   function refusalWhenQueueFull({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
     const waitMs = runtime.bootstrapQueueWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
     if (waitMs === null) return null;
+    const isOwnerRunning = runtime.isBootstrapRunningFor({ ownerUserId: context.var.user.id, documentXmlBytes });
     return retryLater({
       context,
-      body: { error: BOOTSTRAP_QUEUE_FULL_MESSAGE },
+      body: { error: isOwnerRunning ? BOOTSTRAP_QUEUE_FULL_MESSAGE : BOOTSTRAP_QUEUE_WAITING_MESSAGE },
       status: HttpStatus.TooManyRequests,
       retryAfterSeconds: secondsRoundedUp(waitMs),
     });

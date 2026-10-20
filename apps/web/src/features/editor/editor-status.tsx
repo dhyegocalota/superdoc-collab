@@ -13,6 +13,7 @@ type EditorStatusProps = {
   isReloading: boolean;
   connectionState: ConnectionState;
   failureReason: ConnectionFailureReason | null;
+  failureMessage: string | null;
   onConnectionAction: () => void;
 };
 
@@ -24,6 +25,7 @@ export function EditorStatus({
   isReloading,
   connectionState,
   failureReason,
+  failureMessage,
   onConnectionAction,
 }: EditorStatusProps) {
   const isLoadingLineShown = !hasFileError;
@@ -40,7 +42,13 @@ export function EditorStatus({
         </div>
       )}
       {hasExportFailed && <ErrorMessage className="px-4 py-2">{EXPORT_FAILED_MESSAGE}</ErrorMessage>}
-      <ConnectionBanner state={connectionState} failureReason={failureReason} isReloading={isReloading} onAction={onConnectionAction} />
+      <ConnectionBanner
+        state={connectionState}
+        failureReason={failureReason}
+        failureMessage={failureMessage}
+        isReloading={isReloading}
+        onAction={onConnectionAction}
+      />
       {hasReloadFailed && <ErrorMessage className="px-4 py-2">{RELOAD_FAILED_MESSAGE}</ErrorMessage>}
     </>
   );

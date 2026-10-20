@@ -442,6 +442,22 @@ test('an owner is asked to wait only while a bootstrap of theirs is queued in th
   expect(bootstrap.queueWaitMs({ ownerId: BRUNO, documentXmlBytes: LARGE_FILE_BYTES })).toBeNull();
 });
 
+test('an owner is running in a lane only while a bootstrap of theirs is the one running there', async () => {
+  const { bootstrap, pending } = bootstrapWithOwners();
+  const isAnaRunning = () => bootstrap.isRunningFor({ ownerId: ANA, documentXmlBytes: LARGE_FILE_BYTES });
+  expect(isAnaRunning()).toBe(false);
+  bootstrap.request('bruno-heavy');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.request('ana-heavy');
+  expect(isAnaRunning()).toBe(false);
+  bootstrap.ready({ documentId: 'bruno-heavy', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(isAnaRunning()).toBe(true);
+  expect(bootstrap.isRunningFor({ ownerId: ANA, documentXmlBytes: SMALL_FILE_BYTES })).toBe(false);
+  expect(bootstrap.isRunningFor({ ownerId: BRUNO, documentXmlBytes: LARGE_FILE_BYTES })).toBe(false);
+});
+
 const HEAVY_MEGABYTES = 4;
 const FIRST_RATE_MS = 2000;
 const SECOND_RATE_MS = 4000;

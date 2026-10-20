@@ -47,6 +47,12 @@ test.each([HttpStatus.Forbidden, HttpStatus.NotFound, HttpStatus.Ok, HttpStatus.
   },
 );
 
+test('an access denial answered by 401 is a session that ended, so the person is sent to sign in', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Unauthorized }));
+  const { result } = probeWith(ConnectionFailureReason.AccessDenied);
+  await waitFor(() => expect(result.current).toEqual({ failureReason: ConnectionFailureReason.SessionEnded, failureMessage: null }));
+});
+
 test('an access denial the server cannot be asked about stays an access denial', async () => {
   vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
   const { result } = probeWith(ConnectionFailureReason.AccessDenied);

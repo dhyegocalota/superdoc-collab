@@ -130,11 +130,11 @@ test('the open answer never goes stale, so a focus refetch cannot re-reserve the
 });
 
 function answeredAt(stage: BootstrapStage): Answer {
-  return () => jsonResponse({ body: { ...OPENED, bootstrap: bootstrapAt(stage) } });
+  return () => jsonResponse({ body: { ...OPENED, roomMode: RoomMode.Join, bootstrap: bootstrapAt(stage) } });
 }
 
 test('a Preparing bootstrap waits, hides the answer, shows its progress and polls every second', async () => {
-  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Preparing), answeredAt(BootstrapStage.Ready));
+  const fetchSpy = answerInOrder(answeredAt(BootstrapStage.Preparing), entered);
   const result = renderOpenedDocument();
   await advance(0);
   expect(result.current.readiness).toBe(DocumentReadiness.Waiting);

@@ -58,7 +58,7 @@ let openedStatus = HttpStatus.Ok;
 let openedStage = BootstrapStage.Ready;
 
 function openedBody(): unknown {
-  return { ...openedAs(DocumentRole.Editor), bootstrap: bootstrapAt(openedStage) };
+  return { ...openedAs(DocumentRole.Editor, RoomMode.Join), bootstrap: bootstrapAt(openedStage) };
 }
 
 beforeEach(() => {

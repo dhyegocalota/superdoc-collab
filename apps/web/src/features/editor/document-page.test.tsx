@@ -97,7 +97,7 @@ type SuperDocConfig = {
   onCollaborationReady: () => void;
   zoom: { mode: string };
   ui: { toolbar?: { container: HTMLElement } };
-  onReady: (payload: { superdoc: unknown }) => void;
+  onReady?: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
   onPaginationUpdate: (payload: { totalPages: number }) => void;
 };
@@ -110,7 +110,7 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
     superDocExport,
     SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
       const instance = { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
-      config.onReady({ superdoc: instance });
+      config.onReady?.({ superdoc: instance });
       return instance;
     }),
   };
@@ -208,7 +208,10 @@ function mockDocumentApi({
       const reloadedBody = isReload && openedAfterReload ? openedAfterReload : current;
       if (isReload) await reloadGate;
       if (isReload && isReloadUnreachable) throw new TypeError('Failed to fetch');
-      const answered = status === HttpStatus.Ok ? { ...reloadedBody, bootstrap: bootstrapAt(bootstrapStage()) } : openBody;
+      const answeredStage = bootstrapStage();
+      const answeredRoomMode = answeredStage === BootstrapStage.Ready ? reloadedBody.roomMode : RoomMode.Join;
+      const answered =
+        status === HttpStatus.Ok ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: bootstrapAt(answeredStage) } : openBody;
       return jsonResponse({ body: answered, status });
     }
     throw new Error(`unexpected request ${String(input)}`);

@@ -6,6 +6,8 @@ import { editorOpenView, type EditorLoadProgress } from '@/features/open-progres
 import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
 import { useOpenStartedAt } from '@/features/open-progress/use-open-started-at';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
+import { LocalPreview } from '@/features/local-preview/local-preview';
+import { useLocalPreview } from '@/features/local-preview/use-local-preview';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
@@ -24,6 +26,7 @@ import { EditorToolbarRow } from './editor-toolbar-row';
 import { ExitConfirmationDialog } from './exit-confirmation-dialog';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
+import { useCachedTitle } from './use-cached-title';
 import { useConnectionState, type TransportReport } from './use-connection-state';
 import { useConnectionFailureAction } from './use-connection-failure-action';
 import { useDocumentFile } from './use-document-file';
@@ -94,6 +97,8 @@ export function DocumentPage() {
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
+  const cachedTitle = useCachedTitle(documentId);
+  const previewFile = useLocalPreview({ documentId, readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness });
   const {
     isUnsynced,
     reportEdit,
@@ -125,6 +130,18 @@ export function DocumentPage() {
 
   if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
   const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
+  if (previewFile) {
+    return withAnnouncement(
+      <LocalPreview
+        title={cachedTitle}
+        file={previewFile}
+        bootstrap={bootstrap}
+        answeredAt={bootstrapAnsweredAt}
+        startedAt={startedAt}
+        isProgressShown={isProgressShown}
+      />,
+    );
+  }
   if (documentReadiness !== DocumentReadiness.Ready) {
     return withAnnouncement(
       <WaitingForDocument

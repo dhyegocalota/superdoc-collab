@@ -6,8 +6,6 @@ import {
   BootstrapStage,
   DEMO_USERS,
   DOCX_MIME_TYPE,
-  HttpMethod,
-  HttpStatus,
   PERCENT_MULTIPLIER,
   ShareLinkRole,
   UPLOAD_FIELD,
@@ -23,6 +21,7 @@ import { EDITOR_OPEN_STAGES, OpenStage } from '../apps/web/src/features/open-pro
 import { FILE_INPUT_LABEL } from '../apps/web/src/features/documents/documents-copy';
 import { EDITOR_READY_TIMEOUT_MS, acceptShareLink, editorText, openDocumentFileInput, uploadDocument } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
+import { scriptOpenAnswers } from './open-answers';
 import { expect, signedInContext, test } from './fixtures';
 
 const PANEL_TEST_ID = 'open-progress';
@@ -51,26 +50,6 @@ function bootstrapAt({ stage, done }: { stage: BootstrapStage; done: number }): 
     documentXmlBytes: SCRIPTED_TOTAL_BYTES,
     preparingElapsedMs: null,
   };
-}
-
-async function scriptOpenAnswers({
-  page,
-  documentId,
-  bootstraps,
-}: {
-  page: Page;
-  documentId: string;
-  bootstraps: BootstrapProgress[];
-}): Promise<void> {
-  const remaining = [...bootstraps];
-  await page.route(`**${documentApiPath({ documentId })}`, async (route) => {
-    if (route.request().method() !== HttpMethod.Get) return route.fallback();
-    const scripted = remaining.shift();
-    const real = await route.fetch();
-    const body = (await real.json()) as OpenedDocument;
-    if (scripted) return route.fulfill({ status: HttpStatus.Ok, json: { ...body, bootstrap: scripted } });
-    return route.fulfill({ response: real });
-  });
 }
 
 async function recordReadings(page: Page): Promise<void> {

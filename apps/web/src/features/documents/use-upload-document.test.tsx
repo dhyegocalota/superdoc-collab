@@ -191,5 +191,5 @@ test('clearing removes the offer', async () => {
   act(() => request.respond({ status: HttpStatus.PayloadTooLarge, body: { error: REFUSAL_MESSAGE, canPrepareOnDevice: true } }));
   await waitFor(() => expect(result.current.devicePreparation).not.toBeNull());
   act(() => result.current.clear());
-  expect(result.current.devicePreparation).toBeNull();
+  await waitFor(() => expect(result.current.devicePreparation).toBeNull());
 });

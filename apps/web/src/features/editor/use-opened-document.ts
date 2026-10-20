@@ -4,6 +4,7 @@ import {
   DOCUMENT_READY_POLL_MS,
   type OpenedDocument,
   PREPARING_POLL_MS,
+  RoomMode,
 } from '@superdoc-collab/types';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -28,6 +29,7 @@ const READINESS_BY_STAGE: Record<BootstrapStage, DocumentReadiness> = {
 type ReadinessInput = { data: OpenedDocument | undefined; error: Error | null };
 
 function readinessOf({ data, error }: ReadinessInput): DocumentReadiness {
+  if (data && data.roomMode === RoomMode.Create) return DocumentReadiness.Ready;
   if (data) return READINESS_BY_STAGE[data.bootstrap.stage];
   if (!error) return DocumentReadiness.Opening;
   if (error instanceof DocumentUnavailableError) return DocumentReadiness.Unavailable;
@@ -42,6 +44,11 @@ function pollIntervalOf(data: OpenedDocument | undefined): number {
 function bootstrapOf(data: OpenedDocument | undefined): BootstrapProgress | null {
   if (!data) return null;
   return data.bootstrap;
+}
+
+function preparedOnDeviceOf(data: OpenedDocument | undefined): string | null {
+  if (!data) return null;
+  return data.preparedOnDeviceOf;
 }
 
 function openedDocumentQueryOptions(documentId: string) {
@@ -76,7 +83,7 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
     error: query.error,
     isFetchedAfterMount: query.isFetchedAfterMount,
     bootstrap: bootstrapOf(query.data),
-    preparedOnDeviceOf: null,
+    preparedOnDeviceOf: preparedOnDeviceOf(query.data),
     bootstrapAnsweredAt: query.dataUpdatedAt,
     readiness,
     retry,

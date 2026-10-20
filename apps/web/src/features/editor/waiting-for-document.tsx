@@ -1,5 +1,4 @@
-import { AppRoute, type BootstrapProgress, BootstrapStage, DOCUMENT_UNAVAILABLE_MESSAGE, type DocumentsList } from '@superdoc-collab/types';
-import { useQueryClient } from '@tanstack/react-query';
+import { type BootstrapProgress, BootstrapStage, DOCUMENT_UNAVAILABLE_MESSAGE } from '@superdoc-collab/types';
 import { TriangleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -8,13 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccountMenu } from '@/features/account/account-menu';
-import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
 import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { BackToDocumentsButton } from './back-to-documents-button';
 import { LeaveOpeningButton } from './leave-opening-button';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
+import { useCachedTitle } from './use-cached-title';
 import { DocumentReadiness } from './use-opened-document';
 import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
 
@@ -33,13 +32,6 @@ type WaitingForDocumentProps = WaitingActions & { documentId: string; readiness:
 
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 const PAGE_LINE_WIDTHS = ['w-2/5', 'w-full', 'w-11/12', 'w-full', 'w-4/5', 'w-full', 'w-3/5'];
-
-function cachedTitleOf({ documentList, documentId }: { documentList: DocumentsList | undefined; documentId: string }): string | null {
-  if (!documentList) return null;
-  const summary = [...documentList.mine, ...documentList.shared].find((candidate) => candidate.id === documentId);
-  if (!summary) return null;
-  return summary.title;
-}
 
 function StatusCard({
   role,
@@ -127,8 +119,7 @@ const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactEle
 };
 
 export function WaitingForDocument({ documentId, readiness, progress, onRetry }: WaitingForDocumentProps) {
-  const queryClient = useQueryClient();
-  const title = cachedTitleOf({ documentList: queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId });
+  const title = useCachedTitle(documentId);
 
   return (
     <div className="flex h-full flex-col">

@@ -9,6 +9,7 @@ import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, stackEnvironment, wait
 export enum RestartablePort {
   ConnectionState = 3150,
   ExitConfirmation = 3160,
+  LocalPreview = 3170,
 }
 
 const SEED_COMMAND = 'apps/server/dist/seed.js';
@@ -38,11 +39,17 @@ async function seedDatabase(seedEnvironment: Record<string, string>): Promise<vo
   if (exitCode !== 0) throw new Error(`${SEED_COMMAND} exited with ${exitCode}`);
 }
 
-export async function startRestartableStack(port: RestartablePort): Promise<string> {
+export async function startRestartableStack({
+  port,
+  overrides = {},
+}: {
+  port: RestartablePort;
+  overrides?: Record<string, string>;
+}): Promise<string> {
   await assertPortFree(port);
   const databaseDir = mkdtempSync(join(tmpdir(), DATABASE_DIRECTORY_PREFIX));
   origin = localOrigin(port);
-  environment = stackEnvironment({ port, databaseDir, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN });
+  environment = { ...stackEnvironment({ port, databaseDir, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN }), ...overrides };
   await seedDatabase(environment);
   await startServer();
   return origin;

@@ -1,10 +1,10 @@
 import { useState, type ChangeEvent } from 'react';
-import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FILE_INPUT_LABEL, UPLOAD_DIALOG_DESCRIPTION, UPLOAD_DIALOG_TITLE, UPLOAD_LABEL } from './documents-copy';
+import { UploadMessage } from './upload-message';
 import { UploadProgressStatus } from './upload-progress-status';
 import { useUploadDocument } from './use-upload-document';
 
@@ -13,18 +13,18 @@ const DOCX_ACCEPT = '.docx';
 
 export function UploadDialog() {
   const [isOpen, setIsOpen] = useState(false);
-  const { uploadFiles, clear, message, isPending, progress } = useUploadDocument({ onUploaded: () => setIsOpen(false) });
+  const upload = useUploadDocument({ onUploaded: () => setIsOpen(false) });
 
   function onOpenChange(nextIsOpen: boolean): void {
     setIsOpen(nextIsOpen);
-    clear();
+    upload.clear();
   }
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.item(0);
     event.target.value = '';
     if (!file) return;
-    uploadFiles([file]);
+    upload.uploadFiles([file]);
   }
 
   return (
@@ -38,9 +38,9 @@ export function UploadDialog() {
           <DialogDescription>{UPLOAD_DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
         <Label htmlFor={FILE_INPUT_ID}>{FILE_INPUT_LABEL}</Label>
-        <Input id={FILE_INPUT_ID} type="file" accept={DOCX_ACCEPT} disabled={isPending} onChange={onFileChange} />
-        {isPending && <UploadProgressStatus progress={progress} />}
-        {message !== null && <ErrorMessage>{message}</ErrorMessage>}
+        <Input id={FILE_INPUT_ID} type="file" accept={DOCX_ACCEPT} disabled={upload.isPending} onChange={onFileChange} />
+        {upload.isPending && <UploadProgressStatus progress={upload.progress} />}
+        <UploadMessage upload={upload} />
       </DialogContent>
     </Dialog>
   );

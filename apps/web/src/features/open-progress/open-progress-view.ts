@@ -3,6 +3,7 @@ import {
   bytesProgressDetail,
   convertingDetail,
   detailLine,
+  preparedOnDeviceDetail,
   estimatedConversionDetail,
   elapsedLabel,
   LAYING_OUT_DETAIL,
@@ -58,6 +59,12 @@ function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number |
   return Math.min((elapsedSeconds * SECOND_MS) / estimatedMs, ESTIMATE_FRACTION_CAP);
 }
 
+function preparingSubjectOf({ preparedOnDeviceOf, sizeBytes }: { preparedOnDeviceOf: string | null; sizeBytes: number }): string {
+  if (preparedOnDeviceOf !== null) return preparedOnDeviceDetail(preparedOnDeviceOf);
+  if (sizeBytes > 0) return convertingDetail(sizeBytes);
+  return UNKNOWN_PREPARING_DETAIL;
+}
+
 export function preparingView({
   bootstrap,
   elapsedSeconds,
@@ -81,8 +88,11 @@ export function preparingView({
   const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
   const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds: preparingSeconds });
   const isBytesAhead = bytesFraction !== null && (timeFraction === null || bytesFraction >= timeFraction);
-  if (isBytesAhead) return { stage, detail: detailLine([receivedDetail(done), elapsed]), fraction: bytesFraction };
-  const subject = sizeBytes > 0 ? convertingDetail(sizeBytes) : UNKNOWN_PREPARING_DETAIL;
+  const subject = preparingSubjectOf({ preparedOnDeviceOf, sizeBytes });
+  if (isBytesAhead) {
+    const deviceSubject = preparedOnDeviceOf === null ? [] : [subject];
+    return { stage, detail: detailLine([...deviceSubject, receivedDetail(done), elapsed]), fraction: bytesFraction };
+  }
   if (timeFraction !== null && estimatedMs !== null) {
     const estimatedSeconds = estimatedSecondsOf(estimatedMs);
     return {

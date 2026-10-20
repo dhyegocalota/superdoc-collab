@@ -68,7 +68,7 @@ test('opens the kept file read-only in the surface, with no room', () => {
 test('says it is a preview and names the document', () => {
   renderPreview();
   expect(screen.getByText(PREVIEW_BADGE_MESSAGE)).toBeInTheDocument();
-  expect(screen.getByText(DOCUMENT_TITLE)).toBeInTheDocument();
+  expect(screen.getByText(DOCUMENT_TITLE, { selector: 'span' })).toBeInTheDocument();
 });
 
 test('shows the Preparing panel with the preview detail once the delay has passed', () => {

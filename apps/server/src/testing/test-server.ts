@@ -69,6 +69,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
     bootstrapHostHeapMegabytes: null,
+    memoryLimitMegabytes: null,
   };
 }
 
@@ -95,6 +96,7 @@ export async function startTestServer({
   claim = true,
   showcaseOnClaim = false,
   now = Date.now,
+  memoryLimitMegabytes = null,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -105,6 +107,7 @@ export async function startTestServer({
   claim?: boolean;
   showcaseOnClaim?: boolean;
   now?: () => number;
+  memoryLimitMegabytes?: number | null;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -120,6 +123,7 @@ export async function startTestServer({
     uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
     bootstrapHostHeapMegabytes: null,
+    memoryLimitMegabytes,
   };
   try {
     const running = await startServer({
@@ -274,7 +278,12 @@ export async function signedInUser({ server, name }: { server: TestServer; name:
 export async function signedInOwner({
   languageModel,
   versionRoomPolicy,
-}: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{ server: TestServer; owner: TestUser }> {
-  const server = await startTestServer({ languageModel, versionRoomPolicy });
+  memoryLimitMegabytes,
+}: {
+  languageModel?: LanguageModelChoice;
+  versionRoomPolicy?: VersionRoomPolicy;
+  memoryLimitMegabytes?: number | null;
+} = {}): Promise<{ server: TestServer; owner: TestUser }> {
+  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes });
   return { server, owner: await signedInUser({ server, name: OWNER_NAME }) };
 }

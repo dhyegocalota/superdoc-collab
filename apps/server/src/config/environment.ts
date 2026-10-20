@@ -69,6 +69,7 @@ export type Environment = {
   uploadsPerMinute: number;
   projectionWorkerHeapMegabytes: number | null;
   bootstrapHostHeapMegabytes: number | null;
+  memoryLimitMegabytes: number | null;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -128,5 +129,6 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'BOOTSTRAP_HOST_HEAP_MEGABYTES',
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
+    memoryLimitMegabytes: null,
   };
 }

@@ -25,6 +25,14 @@ export const DOCUMENT_XML_STATE_BYTES_RATIO = 3.7;
 export const MAX_DOCUMENT_XML_MEGABYTES = Math.floor(MAX_SOCKET_MESSAGE_BYTES / BYTES_PER_MEGABYTE / DOCUMENT_XML_STATE_BYTES_RATIO);
 export const MAX_DOCUMENT_XML_BYTES = MAX_DOCUMENT_XML_MEGABYTES * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_LIGHT_MAX_BYTES = 2 * BYTES_PER_MEGABYTE;
+export const BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE = 413;
+export const BOOTSTRAP_MEMORY_RESERVE_MEGABYTES = 512;
+export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {
+  throw new Error('largestPreparableMegabytes is not implemented');
+}
+export function bootstrapMemoryShortMessage(largestMegabytes: number): string {
+  throw new Error('bootstrapMemoryShortMessage is not implemented');
+}
 export const BOOTSTRAP_QUEUE_RETRY_AFTER_MS = 5 * SECOND_MS;
 export const UPLOADS_PER_MINUTE = 30;
 export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;

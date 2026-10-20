@@ -6,6 +6,7 @@ import {
   HttpMethod,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  bootstrapMemoryShortMessage,
   NOT_A_DOCX_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
 } from '@superdoc-collab/types';
@@ -86,6 +87,15 @@ test('a server failure becomes the message and a later rejection replaces it', a
   await waitFor(() => expect(result.current.message).not.toBeNull());
   act(() => result.current.uploadFiles([docxFile({ name: 'report.pdf', size: 1 })]));
   expect(result.current.message).toBe(NOT_A_DOCX_MESSAGE);
+});
+
+test('a refusal of the server for its memory shows the largest file it can prepare', async () => {
+  const { result } = renderHookWithRouter(useUploadDocument);
+  const message = bootstrapMemoryShortMessage(8);
+  act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const request = await sentUploadRequest();
+  act(() => request.respond({ status: HttpStatus.PayloadTooLarge, body: { error: message } }));
+  await waitFor(() => expect(result.current.message).toBe(message));
 });
 
 test('while the upload runs the hook reports it as pending with the bytes sent so far, and clears both when it ends', async () => {

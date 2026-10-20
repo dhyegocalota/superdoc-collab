@@ -17,7 +17,7 @@ const SENT_BYTES = 4_980_736;
 
 function preparing({ stage, done, total }: { stage: BootstrapStage; done: number; total: number }) {
   return preparingView({
-    bootstrap: { ...bootstrapAt(stage), done, total, stateBytes: null },
+    bootstrap: { ...bootstrapAt(stage), done, total, fileBytes: TOTAL_BYTES, stateBytes: null },
     elapsedSeconds: 12,
     startedAt: PAGE_STARTED_AT,
   });
@@ -38,7 +38,15 @@ function estimating({
 }) {
   const nowMs = PAGE_STARTED_AT + elapsedSeconds * 1000;
   const preparingSince = preparingSecondsAgo === null ? null : nowMs - preparingSecondsAgo * 1000;
-  const bootstrap = { ...bootstrapAt(stage), done, total: TOTAL_BYTES, stateBytes: null, estimatedMs, preparingSince };
+  const bootstrap = {
+    ...bootstrapAt(stage),
+    done,
+    total: TOTAL_BYTES,
+    fileBytes: TOTAL_BYTES,
+    stateBytes: null,
+    estimatedMs,
+    preparingSince,
+  };
   return preparingView({ bootstrap, elapsedSeconds, startedAt: PAGE_STARTED_AT });
 }
 

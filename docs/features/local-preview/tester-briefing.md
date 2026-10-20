@@ -41,9 +41,9 @@ Pins (green when they landed): a non-owner is refused on an uncommitted device r
 ## Hypotheses to attack
 
 1. Hypothesis: the preview never writes to the shared copy. Break it by: typing, pasting and dropping a file into the preview while the answer is Preparing.
-2. Hypothesis: a stale tab of the owner cannot seed a device room twice. Break it by: opening the document in two tabs of the owner while the device converts the heavy file, then reloading the first.
+2. Hypothesis: a second tab of the owner is answered Join and refused at the socket while the first holds the claim, and a stale attempt is read-only. Break it by: opening the document in two tabs of the owner while the device converts the heavy file, then reloading the first.
 3. Hypothesis: the heavy preview keeps the tab answering. Break it by: scrolling and clicking in the preview during layout, and watching the elapsed counter.
-4. Hypothesis: a device job never survives the owner closing the tab. Break it by: closing the owner's tab mid-conversion, then opening as a joiner (expect the failure card) and as the owner (expect the editor and a new conversion).
+4. Hypothesis: a device job never survives the owner closing the tab. Break it by: closing the owner's tab mid-conversion, then opening as a joiner and as the owner (expect the failure card for both until the retry cooldown, then a fresh conversion for the owner).
 5. Hypothesis: the forged `preparation=device` flag on a small file does nothing. Break it by: posting a small file with the flag from the console on a server with plenty of memory.
 
 ## Known gaps
@@ -52,3 +52,18 @@ Pins (green when they landed): a non-owner is refused on an uncommitted device r
 - The E2E hybrid cases use `MEMORY_LIMIT_MEGABYTES` as a declared limit only; no container memory is enforced.
 - `navigator.deviceMemory` is Chromium only; the memory half of the guard is not exercised by a browser test.
 - The measured times are one run on one laptop.
+
+## Security follow-up
+
+Red commits: c5461e3f (server: one live claim, heavy room admission, expiry) and 8248a1e7 (route: only the claiming tab is answered Create). Green: 94b358e5 and a530611d.
+
+| Test | Red before because |
+|------|--------------------|
+| `collaboration-server.test.ts::a second tab of the owner is refused while the first tab holds the claim…` | `promise resolved … instead of rejecting` |
+| `collaboration-server.test.ts::a claimed socket whose attempt stopped being current cannot change the room` | `expected [ …(2) ] to deeply equal [ '', 'control' ]`; the green body polls the server connection for `readOnly` |
+| `collaboration-server.test.ts::a device claim goes through the heavy room admission…` | `promise resolved … instead of rejecting` |
+| `collaboration-server.test.ts::a claimed device socket gives back the place…` | `expected "vi.fn()" to be called once with arguments` |
+| `room-bootstrap.test.ts` claim, tab, failed and expiry cases | `expected '<attempt>' to be null`, `expected true to be false`, `expected 'preparing' to be 'failed'` |
+| `documents-routes.test.ts::while a tab of the owner holds the device claim only that tab is answered Create` | `expected [ 'create', 'join', 'join', 'join' ] to deeply equal [ 'create', 'create', 'join', 'join' ]` |
+
+The open request now carries `?tab=`; the scripted-answers helper in `e2e/open-answers.ts` and three web tests that mocked the exact open URL were updated. Hypotheses to attack: a refused heavy admission fails the job once (Failed card), a device job expires after `DEVICE_JOB_LIFETIME_MS` (the host bootstrap timeout), and a socket without a tab id cannot share a claim.

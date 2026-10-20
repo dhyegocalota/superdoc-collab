@@ -1,6 +1,6 @@
 import { ConnectionFailureReason } from '@superdoc-collab/types';
 import { useQuery } from '@tanstack/react-query';
-import { ServerBusyError } from '@/lib/api';
+import { AuthenticationError, ServerBusyError } from '@/lib/api';
 import { openDocument, openedDocumentQueryKey } from './editor-api';
 
 const REFUSAL_PROBE_SEGMENT = 'refusal-probe';
@@ -30,5 +30,6 @@ export function useRefusalProbe({
   if (probe.error instanceof ServerBusyError) {
     return { failureReason: ConnectionFailureReason.HeavyRoomsFull, failureMessage: probe.error.message };
   }
+  if (probe.error instanceof AuthenticationError) return { failureReason: ConnectionFailureReason.SessionEnded, failureMessage: null };
   return { failureReason, failureMessage: null };
 }

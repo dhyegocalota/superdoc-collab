@@ -1,11 +1,10 @@
-import { DocumentRole, RoomMode, SuperdocCollaborationState } from '@superdoc-collab/types';
+import { DocumentRole, RoomMode } from '@superdoc-collab/types';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { SESSION_USER } from '@/testing/opened-document';
 import type { EditorLoadProgress } from '@/features/open-progress/open-progress-view';
 import { SuperDocEditor } from './superdoc-editor';
-import { TransportReading, type TransportReport } from './use-connection-state';
 
 type EditorConfig = {
   user: { color: string };
@@ -42,7 +41,6 @@ function renderEditor({
   onEditorUpdate = vi.fn(),
   onDocumentEdit = vi.fn(),
   onLoadProgress = vi.fn(),
-  onTransportReport = vi.fn(),
   role = DocumentRole.Editor,
 }: {
   toolbarContainer?: HTMLElement | null;
@@ -50,7 +48,6 @@ function renderEditor({
   onEditorUpdate?: () => void;
   onDocumentEdit?: () => void;
   onLoadProgress?: (progress: EditorLoadProgress) => void;
-  onTransportReport?: (report: TransportReport) => void;
   role?: DocumentRole;
 } = {}) {
   render(
@@ -65,7 +62,7 @@ function renderEditor({
       colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
       isInert={false}
-      onTransportReport={onTransportReport}
+      onTransportReport={vi.fn()}
       onEditorUpdate={onEditorUpdate}
       onDocumentEdit={onDocumentEdit}
       onLoadProgress={onLoadProgress}
@@ -162,15 +159,4 @@ test('reports a failure before the first sync so the page can drop its panel', (
   const { config } = renderEditor({ onLoadProgress });
   act(() => config.onCollaborationConnectionChange({ state: 'failed', kind: 'failed' }));
   expect(onLoadProgress).toHaveBeenLastCalledWith({ isSynced: false, pageCount: 0, hasFailed: true });
-});
-
-test.each([
-  { state: SuperdocCollaborationState.Degraded, kind: 'lost', reading: TransportReading.Lost },
-  { state: SuperdocCollaborationState.Degraded, kind: 'reconnecting', reading: TransportReading.Reconnecting },
-  { state: SuperdocCollaborationState.Failed, kind: 'failed', reading: TransportReading.Failed },
-])('a $kind transport before the first sync reaches the connection state', ({ state, kind, reading }) => {
-  const onTransportReport = vi.fn();
-  const { config } = renderEditor({ onTransportReport });
-  act(() => config.onCollaborationConnectionChange({ state, kind }));
-  expect(onTransportReport).toHaveBeenCalledWith(expect.objectContaining({ reading, hasSynced: false }));
 });

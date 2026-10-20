@@ -17,6 +17,7 @@ import {
 import {
   ApiRequestError,
   apiGet,
+  AuthenticationError,
   DocumentUnavailableError,
   apiSend,
   assertDocumentAvailable,
@@ -58,6 +59,7 @@ export async function openDocument(documentId: string): Promise<OpenedDocument> 
   const response = await apiGet(`${documentApiPath({ documentId })}?${query}`);
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
+  if (response.status === HttpStatus.Unauthorized) throw new AuthenticationError(DOCUMENT_LOAD_ERROR_MESSAGE);
   if (response.status === HttpStatus.ServiceUnavailable) {
     throw new ServerBusyError(await refusalMessageOf({ response, fallback: DOCUMENT_LOAD_ERROR_MESSAGE }));
   }

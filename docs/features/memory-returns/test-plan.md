@@ -37,6 +37,21 @@ Final code, commit 3e60df72. Sampler: one row per second per thread; the machine
 - The collection runs one second after the unload, not in the unload hook and not one macrotask later. A collection one macrotask after the unload freed 0 bytes in the regular and last-resort flavors (heapUsed 705645944 before, 693641912 after), and two passes freed 0 bytes (719822872 to 708752872). On the capped repro the creator hand-off unloads the heavy room for under a second and loads it again, so those collections hit a live room. The room-loaded-again check fixed that, not the flavor or the number of passes.
 - Not committed: a collection inside the hook left rss at 1061 MB and main heapUsed at 680 MB for a minute. See the learning.
 
+## Three open-close cycles (capped repro, heavy-document.docx, one page, 8 s open, 12 s closed)
+
+The recorder saw resident memory climb across four heavy opens and a release line that freed 12 MB. The capped repro shows no retention: every room that was collected returned the main heap to 69 to 80 MB, and no collection was missed in a cycle without the cooldown.
+
+| Moment | Main heapUsed (MB) | Process rss (MB) |
+|--------|--------------------|------------------|
+| Before the first open | 70 | 434 |
+| Cycle 1 closed, 20 s after | 69 | 187 to 231 |
+| Cycle 2 closed (inside the cooldown) | 681 until the cooldown ended | 738 to 1119 |
+| After the deferred collection | 74 | 758, then 273 once the operating system trimmed |
+| Cycle 3 closed, 60 s later | 70 to 100 (ordinary sawtooth) | 250 to 290 |
+
+- Cause of the climb the recorder saw: a heavy unload inside the one-minute cooldown was skipped, so its room stayed garbage until some later collection, and rss on macOS trims lazily. The registry, the scan cache and the received-bytes counters hold nothing after a commit or an unload: `bootstrap-state` deletes the scan document at commit, and the room memory forgets the bytes of an unloaded room (`room-memory-release.test.ts`, the forgotten-bytes pin). The skipped unload now collects when the cooldown ends (red 001c5b01, green b0a10e6f).
+- Evidence: scratchpad `instant-memory/cyc1-samples.jsonl` (before the fix, the second cycle stayed at 663 MB until the third cycle) and `cyc2-samples.jsonl` (after).
+
 ## Failure modes exercised
 
 - [x] A recycle makes the next time-travel step replay cold: a recycle happens only after `PROJECTION_WORKER_QUIET_MS` of idleness and the burst test keeps the worker across consecutive requests. The first version request after a quiet period replays cold, as it did before the worker kept a cache.

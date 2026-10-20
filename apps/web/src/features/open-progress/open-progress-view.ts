@@ -1,5 +1,4 @@
-import { BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
-import type { BootstrapReading } from '@/features/editor/bootstrap-reading';
+import { type BootstrapProgress, BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
 import {
   bytesProgressDetail,
   convertingDetail,
@@ -61,7 +60,7 @@ export function preparingView({
   elapsedSeconds,
   startedAt,
 }: {
-  bootstrap: BootstrapReading | null;
+  bootstrap: BootstrapProgress | null;
   elapsedSeconds: number;
   startedAt: number;
 }): OpenProgressView {
@@ -70,7 +69,7 @@ export function preparingView({
   if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
   if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
   const { done, total, estimatedMs, preparingSince, fileBytes } = bootstrap;
-  const sizeBytes = fileBytes === null ? total : fileBytes;
+  const sizeBytes = fileBytes;
   const preparingSeconds = preparingElapsedSeconds({ preparingSince, startedAt, elapsedSeconds });
   const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
   const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds: preparingSeconds });

@@ -1,8 +1,13 @@
-import { BootstrapStage, DOCUMENT_READY_POLL_MS, PREPARING_POLL_MS } from '@superdoc-collab/types';
+import {
+  type BootstrapProgress,
+  BootstrapStage,
+  DOCUMENT_READY_POLL_MS,
+  type OpenedDocument,
+  PREPARING_POLL_MS,
+} from '@superdoc-collab/types';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
-import type { BootstrapReading, OpenedAnswer } from './bootstrap-reading';
 import { openDocument, openedDocumentQueryKey } from './editor-api';
 
 export enum DocumentReadiness {
@@ -20,7 +25,7 @@ const READINESS_BY_STAGE: Record<BootstrapStage, DocumentReadiness> = {
   [BootstrapStage.Failed]: DocumentReadiness.Failed,
 };
 
-type ReadinessInput = { data: OpenedAnswer | undefined; error: Error | null };
+type ReadinessInput = { data: OpenedDocument | undefined; error: Error | null };
 
 function readinessOf({ data, error }: ReadinessInput): DocumentReadiness {
   if (data) return READINESS_BY_STAGE[data.bootstrap.stage];
@@ -29,12 +34,12 @@ function readinessOf({ data, error }: ReadinessInput): DocumentReadiness {
   return DocumentReadiness.Failed;
 }
 
-function pollIntervalOf(data: OpenedAnswer | undefined): number {
+function pollIntervalOf(data: OpenedDocument | undefined): number {
   if (data?.bootstrap.stage === BootstrapStage.Preparing) return PREPARING_POLL_MS;
   return DOCUMENT_READY_POLL_MS;
 }
 
-function bootstrapOf(data: OpenedAnswer | undefined): BootstrapReading | null {
+function bootstrapOf(data: OpenedDocument | undefined): BootstrapProgress | null {
   if (!data) return null;
   return data.bootstrap;
 }

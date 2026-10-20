@@ -796,20 +796,50 @@ test('the committing device closing after the commit leaves the job Ready', () =
   expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
 });
 
-test('a failed device job is registered again by a reopen only after the retry cooldown', () => {
+test('an owner whose claiming tab closed reopens a fresh device job at once, and nobody else does', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.deviceClosed({
+    documentId: DOCUMENT_ID,
+    attempt: bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!,
+  });
+  expect([bootstrap.progressOf(DOCUMENT_ID)!.stage, bootstrap.isDeviceJob(DOCUMENT_ID)]).toEqual([BootstrapStage.Failed, true]);
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })).toBe(true);
+  error.mockRestore();
+});
+
+test('a device job that expired is registered again by a reopen only after the retry cooldown', () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const clock = { currentMs: 1_000_000 };
   const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
   bootstrap.request(DOCUMENT_ID);
-  bootstrap.deviceClosed({
-    documentId: DOCUMENT_ID,
-    attempt: bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!,
-  });
-  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBe(false);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID });
+  clock.currentMs += DEVICE_JOB_LIFETIME_MS;
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
   clock.currentMs += BOOTSTRAP_RETRY_COOLDOWN_MS;
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Preparing);
-  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBe(true);
+  error.mockRestore();
+});
+
+test('only a device job that has not committed is a device job for the open answer', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  const states = [bootstrap.isDeviceJob(DOCUMENT_ID)];
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  states.push(bootstrap.isDeviceJob(DOCUMENT_ID));
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  states.push(bootstrap.isDeviceJob(DOCUMENT_ID));
+  expect(states).toEqual([true, true, false]);
   error.mockRestore();
 });
 

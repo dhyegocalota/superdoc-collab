@@ -150,6 +150,14 @@ export class RoomBootstrap {
     return job.isDevice && job.progress.stage === BootstrapStage.Preparing;
   }
 
+  isDeviceJob(documentId: string): boolean {
+    return this.isDevicePending(documentId);
+  }
+
+  reopenDevice({ documentId, userId }: { documentId: string; userId: string }): void {
+    throw new Error(`reopenDevice is not implemented for ${documentId} ${userId}`);
+  }
+
   isDeviceCreator({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): boolean {
     const isOwnerOfPendingJob = this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
     if (!isOwnerOfPendingJob) return false;

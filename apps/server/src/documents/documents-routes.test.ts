@@ -264,6 +264,26 @@ test('while a tab of the owner holds the device claim only that tab is answered 
   await server.stop();
 });
 
+test('after the claiming tab closed, a joiner sees the stopped device job and the owner reopens it as Create at once', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const attempt = server.services.roomBootstrap.claimDevice({ documentId: created.id, userId: owner.id, tabId: randomUUID() })!;
+  server.services.roomBootstrap.deviceClosed({ documentId: created.id, attempt });
+  const editor = await memberWithRole({ server, documentId: created.id, role: DocumentRole.Editor });
+  const joiner = await openedBy({ server, user: editor, documentId: created.id });
+  const reopened = await openedBy({ server, user: owner, documentId: created.id, tabId: randomUUID() });
+  expect([joiner.bootstrap.stage, joiner.preparedOnDeviceOf, reopened.roomMode, reopened.bootstrap.stage]).toEqual([
+    BootstrapStage.Failed,
+    created.owner.name,
+    RoomMode.Create,
+    BootstrapStage.Preparing,
+  ]);
+  await server.stop();
+});
+
 test('a document the server can hold is prepared by the server even when the device is asked for', async () => {
   const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
   const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));

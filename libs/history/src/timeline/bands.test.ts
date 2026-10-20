@@ -21,6 +21,7 @@ function runOf({
     authorKeys: [authorKey],
     inserted,
     deleted: '',
+    commented: false,
     firstServerTime,
     lastServerTime: firstServerTime,
     versionSequence: firstServerTime,

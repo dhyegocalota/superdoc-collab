@@ -88,6 +88,7 @@ const RUNS: BinEditRun[] = [
     inserted: 'hello',
     deleted: '',
     lastServerTime: 1,
+    commented: false,
     versionSequence: EDIT_VERSION_SEQUENCE,
   },
 ];

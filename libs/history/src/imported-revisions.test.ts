@@ -1,3 +1,4 @@
+import { BlockChangeKind } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import {
   InvalidRevisionDateError,
@@ -23,6 +24,7 @@ test('maps a listed insertion to an imported revision', () => {
   expect(toImportedRevisions([INSERTION])).toEqual([
     {
       revisionId: 'r1',
+      kind: BlockChangeKind.Modified,
       authorName: 'Ana Souza',
       serverTime: Date.parse('2026-03-01T18:30:00Z'),
       blockId: '00000002',

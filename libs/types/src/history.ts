@@ -5,6 +5,7 @@ export enum BlockChangeKind {
   Removed = 'removed',
   Modified = 'modified',
   Merged = 'merged',
+  Commented = 'commented',
 }
 
 export type AgentActionMark = { userId: string; kind: AgentActionKind; createdAt: number };

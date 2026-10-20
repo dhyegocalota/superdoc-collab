@@ -1,3 +1,4 @@
+import { BlockChangeKind } from '@superdoc-collab/types';
 import type { ImportedRevision } from './read-model';
 
 // NB ADR 0024: Word writes w:date in UTC, so a date with no offset is UTC, never the process zone.
@@ -59,6 +60,7 @@ export function toImportedRevisions(items: ListedTrackedChange[]): ImportedRevis
     const text = requireText({ text: isInsertion ? item.insertedText : item.deletedText, revisionId: item.id });
     return {
       revisionId: item.id,
+      kind: BlockChangeKind.Modified,
       authorName: item.author,
       serverTime: parseRevisionDate({ value: item.date, revisionId: item.id }),
       blockId: item.navigationTarget.blockId,

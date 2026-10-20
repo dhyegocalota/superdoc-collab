@@ -131,6 +131,7 @@ export type EditRunView = {
   authorKeys: string[];
   inserted: string;
   deleted: string;
+  commented: boolean;
   lastServerTime: number;
 };
 export type BinEditRun = EditRunView & { versionSequence: number };

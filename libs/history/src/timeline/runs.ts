@@ -13,6 +13,7 @@ export type TimelineEvent = {
   authorKeys: string[];
   inserted: string;
   deleted: string;
+  commented: boolean;
 };
 export type EditRun = {
   binStart: number;
@@ -21,6 +22,7 @@ export type EditRun = {
   authorKeys: string[];
   inserted: string;
   deleted: string;
+  commented: boolean;
   firstServerTime: number;
   lastServerTime: number;
   versionSequence: number;
@@ -81,7 +83,7 @@ export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEve
     .sort((left, right) => left.sequence - right.sequence || left.serverTime - right.serverTime)
     .forEach((event) => {
       const binStart = binStartContaining({ binStarts, time: event.serverTime });
-      const key = [binStart, event.blockId, event.authorKeys.join(',')].join(RUN_KEY_SEPARATOR);
+      const key = [binStart, event.blockId, event.authorKeys.join(','), event.commented].join(RUN_KEY_SEPARATOR);
       const run = runs.get(key);
       if (!run) {
         runs.set(key, {
@@ -91,6 +93,7 @@ export function groupIntoRuns({ events, binMs, timeZone }: { events: TimelineEve
           authorKeys: event.authorKeys,
           inserted: event.inserted,
           deleted: event.deleted,
+          commented: event.commented,
           firstServerTime: event.serverTime,
           lastServerTime: event.serverTime,
           versionSequence: event.sequence,

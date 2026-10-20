@@ -1,5 +1,5 @@
 import { buildSeedDocx, TrackedChangeKind } from '@superdoc-collab/history';
-import { BootstrapLane, LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
+import { BlockChangeKind, BootstrapLane, LARGE_DOCUMENT_HEAP_BYTES, MAX_PENDING_VERSION_JOBS } from '@superdoc-collab/types';
 import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import Database from 'better-sqlite3';
 import { execFileSync } from 'node:child_process';
@@ -277,6 +277,35 @@ test('a hanging import does not delay the projection of another document', { tim
       timeout: IMPORT_TIMEOUT_MS / 3,
     })
     .toBe('b');
+  client.close();
+  await server.stop();
+});
+
+test('comments in an uploaded file are imported with their original author and date', { timeout: REBUILD_TEST_TIMEOUT_MS }, async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const bytes = await buildSeedDocx(
+    [
+      {
+        text: 'Preamble by',
+        trackedChanges: [{ kind: TrackedChangeKind.Insert, author: 'Chris Crawford', date: '2026-02-12T09:01:00Z', text: ' developers' }],
+      },
+    ],
+    [{ paragraph: 0, author: 'Dana Reviewer', date: '2026-02-13T10:00:00Z', text: 'Please cite a source' }],
+  );
+  await server.services.storage.put({ documentId, bytes });
+  server.services.runtime.importRevisions(documentId);
+  const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
+  writeStory({ document: client.document, texts: [''] });
+  commitBootstrap(client.document);
+  await waitForCommit({ services: server.services, documentId });
+  const imported = async () =>
+    (await readEvents({ server, cookie: owner.cookie, documentId }))
+      .filter((event) => event.imported)
+      .map((event) => [event.kind, event.authors[0]!.name, event.serverTime, event.inserted]);
+  await expect.poll(imported, { timeout: REBUILD_TEST_TIMEOUT_MS / 2 }).toEqual([
+    [BlockChangeKind.Modified, 'Chris Crawford', Date.parse('2026-02-12T09:01:00Z'), ' developers'],
+    [BlockChangeKind.Commented, 'Dana Reviewer', Date.parse('2026-02-13T10:00:00Z'), 'Please cite a source'],
+  ]);
   client.close();
   await server.stop();
 });

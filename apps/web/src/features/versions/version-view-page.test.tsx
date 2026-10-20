@@ -51,7 +51,7 @@ const SEQUENCE = 42;
 const ROUTE = versionViewPagePath({ documentId: DOCUMENT_ID, sequence: SEQUENCE });
 const EVIL_ORIGIN = 'http://evil.example';
 const RUNS: EditRunView[] = [
-  { blockId: 'block-1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'hello', deleted: '', lastServerTime: 1 },
+  { blockId: 'block-1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'hello', deleted: '', lastServerTime: 1, commented: false },
 ];
 
 let openedStatus = HttpStatus.Ok;

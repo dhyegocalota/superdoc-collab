@@ -87,6 +87,7 @@ function toTimelineEvent({ event, bandId }: { event: DocumentEditEvent; bandId: 
     authorKeys: event.authors.map(authorKey),
     inserted: event.inserted,
     deleted: event.deleted,
+    commented: event.kind === BlockChangeKind.Commented,
   };
 }
 
@@ -325,12 +326,13 @@ export function buildBinEdits({
   const { matchedRuns } = matchedRunsOf({ services, pipeline, filter, binMs: chosenBinMs, timeZone });
   const runs = matchedRuns
     .filter((run) => run.binStart === binStart)
-    .map(({ blockId, bandId, authorKeys, inserted, deleted, lastServerTime, versionSequence }) => ({
+    .map(({ blockId, bandId, authorKeys, inserted, deleted, commented, lastServerTime, versionSequence }) => ({
       blockId,
       bandId,
       authorKeys,
       inserted,
       deleted,
+      commented,
       lastServerTime,
       versionSequence,
     }));

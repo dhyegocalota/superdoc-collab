@@ -82,7 +82,15 @@ test('projects in batches and resumes from the cursor', () => {
 });
 
 test('imported revisions are stored once, with sequence 0 and the revision author', () => {
-  const revision = { revisionId: 'r1', authorName: IMPORTED_AUTHOR, serverTime: 1, blockId: 'b0', inserted: 'x', deleted: '' };
+  const revision = {
+    revisionId: 'r1',
+    kind: BlockChangeKind.Modified,
+    authorName: IMPORTED_AUTHOR,
+    serverTime: 1,
+    blockId: 'b0',
+    inserted: 'x',
+    deleted: '',
+  };
   readModel.commitImported({ documentName: DOCUMENT, revisions: [revision] });
   readModel.commitImported({ documentName: DOCUMENT, revisions: [revision] });
   expect(

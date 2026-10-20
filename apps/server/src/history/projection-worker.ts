@@ -1,5 +1,12 @@
 import { SuperDocClient } from '@superdoc/sdk';
-import { ReadModel, toImportedRevisions, UpdateLog, type ListedTrackedChange } from '@superdoc-collab/history';
+import {
+  ReadModel,
+  toImportedComments,
+  toImportedRevisions,
+  UpdateLog,
+  type ListedComment,
+  type ListedTrackedChange,
+} from '@superdoc-collab/history';
 import { BOOTSTRAP_HOST_TIMEOUT_MS, bootstrapTimeoutMsOf, BootstrapLane, RoomMode, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
 import v8 from 'node:v8';
@@ -96,11 +103,12 @@ const bootstrapClients: Record<BootstrapLane, ReturnType<typeof sharedSuperdocCl
   [BootstrapLane.Heavy]: bootstrapSuperdocClient(),
 };
 
-async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
+async function listRevisions(filePath: string): Promise<{ trackedChanges: ListedTrackedChange[]; comments: ListedComment[] }> {
   const opened = await (await importClient.connected()).open({ doc: filePath });
   try {
-    const listed = (await opened.trackChanges.list({})) as unknown as { items: ListedTrackedChange[] };
-    return listed.items;
+    const trackedChanges = (await opened.trackChanges.list({})) as unknown as { items: ListedTrackedChange[] };
+    const comments = (await opened.comments.list({})) as unknown as { items: ListedComment[] };
+    return { trackedChanges: trackedChanges.items, comments: comments.items };
   } finally {
     await opened.close({ discard: true });
   }
@@ -108,14 +116,17 @@ async function listRevisions(filePath: string): Promise<ListedTrackedChange[]> {
 
 async function importRevisions({ documentId, filePath }: { documentId: string; filePath: string }): Promise<string | null> {
   try {
-    const items = await withTimeout({
+    const { trackedChanges, comments } = await withTimeout({
       work: listRevisions(filePath),
       milliseconds: IMPORT_TIMEOUT_MS,
       onTimeout: () => {
         throw new ImportTimeoutError(IMPORT_TIMEOUT_MS);
       },
     });
-    readModel.commitImported({ documentName: documentId, revisions: toImportedRevisions(items) });
+    readModel.commitImported({
+      documentName: documentId,
+      revisions: [...toImportedRevisions(trackedChanges), ...toImportedComments(comments)],
+    });
     return null;
   } catch (error) {
     return describeError(error);

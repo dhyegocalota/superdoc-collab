@@ -22,6 +22,7 @@ function runAt({ time, binMs }: { time: number; binMs: number }): EditRun {
     authorKeys: ['ana'],
     inserted: 'x',
     deleted: '',
+    commented: false,
     firstServerTime: time,
     lastServerTime: time,
     versionSequence: 1,

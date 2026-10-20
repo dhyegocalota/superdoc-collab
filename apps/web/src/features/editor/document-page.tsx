@@ -211,7 +211,7 @@ export function DocumentPage() {
     const isEditingSurfaceInert = isViewingPastVersion || isFailed;
     const isDeviceEditorUsable = loadProgress.isSynced && hasPaintedParagraph;
     const isCreatingOnDevice = opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null && !isDeviceEditorUsable;
-    const isOpenProgressVisible = isProgressShown && !isOpenFailing && (isCreatingOnDevice || !hasPaintedParagraph);
+    const isOpenProgressVisible = isProgressShown && !isOpenFailing && previewFile === null && (isCreatingOnDevice || !hasPaintedParagraph);
     const openProgress = isOpenProgressVisible
       ? (elapsedSeconds: number) =>
           isCreatingOnDevice

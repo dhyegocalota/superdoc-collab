@@ -9,7 +9,15 @@ import { OpenStage } from './open-stage';
 
 export type OpenProgressView = { stage: OpenStage; detail: string; fraction: number | null };
 
-type OpenProgressPanelProps = { title: string | null; stages: OpenStage[]; view: OpenProgressView; action: ReactNode };
+type OpenProgressPanelProps = {
+  title: string | null;
+  stages: OpenStage[];
+  view: OpenProgressView;
+  action: ReactNode;
+  isTranslucent?: boolean;
+};
+
+const TRANSLUCENT_CARD_CLASS = 'bg-card/80 backdrop-blur-sm';
 
 enum StageState {
   Done = 'done',
@@ -35,10 +43,14 @@ export function progressValueOf(fraction: number | null): number | null {
   return Math.round(fraction * PERCENT_MULTIPLIER);
 }
 
-export function OpenProgressPanel({ title, stages, view, action }: OpenProgressPanelProps) {
+export function OpenProgressPanel({ title, stages, view, action, isTranslucent = false }: OpenProgressPanelProps) {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
-      <Card data-testid="open-progress" data-stage={view.stage} className="w-full max-w-md gap-4">
+      <Card
+        data-testid="open-progress"
+        data-stage={view.stage}
+        className={cn('w-full max-w-md gap-4', isTranslucent && TRANSLUCENT_CARD_CLASS)}
+      >
         <CardContent role="status" aria-live="polite" className="flex flex-col gap-4">
           {title && <p className="truncate font-semibold">{title}</p>}
           <p className="sr-only">{stageAnnouncement({ stages, stage: view.stage })}</p>

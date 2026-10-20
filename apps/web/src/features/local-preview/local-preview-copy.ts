@@ -1,8 +1,6 @@
 import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
 import { DeviceRefusal } from './device-guard';
 
-export const PREVIEW_BADGE_MESSAGE = 'Preview · the shared copy is being prepared';
-export const PREVIEW_OPENING_SHARED_MESSAGE = 'Preview · opening the shared copy';
 export const PREVIEW_OPENING_DETAIL = 'Opening a preview on this device';
 export const PREVIEW_FAILED_MESSAGE = 'The preview could not be opened. The shared copy is still being prepared.';
 export const DEVICE_OFFER_LABEL = 'Prepare on this device';

@@ -11,9 +11,10 @@ type TickingOpenProgressPanelProps = {
   startedAt: number;
   viewAt: OpenProgressViewAt;
   action: ReactNode;
+  isTranslucent?: boolean;
 };
 
-export function TickingOpenProgressPanel({ title, stages, startedAt, viewAt, action }: TickingOpenProgressPanelProps) {
+export function TickingOpenProgressPanel({ title, stages, startedAt, viewAt, action, isTranslucent }: TickingOpenProgressPanelProps) {
   const elapsedSeconds = useElapsedSeconds(startedAt);
-  return <OpenProgressPanel title={title} stages={stages} view={viewAt(elapsedSeconds)} action={action} />;
+  return <OpenProgressPanel title={title} stages={stages} view={viewAt(elapsedSeconds)} action={action} isTranslucent={isTranslucent} />;
 }

@@ -1125,8 +1125,9 @@ test(
     expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
     expect(superDocDestroy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('local-preview')).toBeInTheDocument();
+    const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
     expect(screen.getAllByTestId(PROGRESS_TEST_ID)).toHaveLength(1);
-    expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveAttribute('data-stage', OpenStage.Downloading);
+    expect(panel).toHaveAttribute('data-stage', OpenStage.Downloading);
     paintFirstParagraph();
     await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
     expect(superDocDestroy).toHaveBeenCalledTimes(1);

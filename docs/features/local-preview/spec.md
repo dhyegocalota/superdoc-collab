@@ -24,10 +24,10 @@ SuperDoc v2 runs its document runtime in a worker of its own: `Config.workerUrls
 | Only the uploader | The kept file lives in the uploading tab's memory. A reload, another tab or another person sees the waiting page of [open-progress](../open-progress/spec.md). |
 | Device source | When `POST /api/documents` answers 413 for the memory guard, the body carries `canPrepareOnDevice: true`. The upload surfaces (dialog, drop zone, home) show the server's message and a button "Prepare on this device". |
 | Device guard | The button is replaced by an explanation when the viewport is narrow (below the large breakpoint) or `navigator.deviceMemory`, when the browser exposes it, is below 4 GB. An absent `deviceMemory` does not block. |
-| Device upload | The button sends the same file with the form field `preparation=device`. Only when the guard would refuse does the server honour it: it stores the file, skips the conversion and registers a device job; otherwise it prepares as usual. |
+| Device upload | The button sends the same file with the form field `preparation=device`. The route then skips its 413 and stores the file; the registry registers a device job only when the guard would refuse the file, so a small file sent with the flag is prepared by the server. A value outside the enum is 400. |
 | Device room | A device job is Preparing with `startedAt` set. The owner's open answer is `RoomMode.Create`; everyone else's is `Join` with `preparedOnDeviceOf` set to the owner's name. The owner's member socket claims the job's attempt, writes under the bootstrap fence and commits as a bootstrap socket does. After the commit the same socket is an ordinary member socket. |
 | Joiners | The Preparing panel reads "Being prepared on <name>'s device" and its bar follows the bytes of state received. |
-| Failure | A claimed socket that closes before the commit fails the job (stage Failed, logged once). The owner's next open claims again from the stored file. A claim by a second tab supersedes the first; the first is closed as stale. |
+| Failure | A claimed socket that closes before the commit fails the job (stage Failed, logged once). The owner's next open claims again from the stored file. A claim by a second tab supersedes the first; the first tab's writes are dropped by the fence. |
 
 ## Non-goals
 
@@ -59,7 +59,7 @@ editor page, device job, owner
 ### Interfaces
 
 - `libs/types`: `PreparationSource { Server, Device }`, `PREPARATION_FIELD`, `DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES`, `UploadRefusal = { error: string; canPrepareOnDevice: boolean }`, `OpenedDocument.preparedOnDeviceOf: string | null`.
-- Server: `RoomBootstrap.registerDevice`, `claimDevice`, `deviceClosed`, `isDevice`; `DocumentRuntime.prepareOnDevice(documentId)`; the room mode answer of the runtime is Create for the owner of an uncommitted device job.
+- Server: `RoomBootstrap` takes `isPreparableByServer` and registers a device job in `request` for a file the guard refuses (so a restart finds the same answer); `isDevicePending`, `isDeviceCreator`, `claimDevice`, `deviceClosed`; the open route answers Create to the creator and names the owner's device for everyone. `POST /api/documents` skips its 413 when the form field says `device`.
 - Web: `features/local-preview/` holds the kept-file store, `useLocalPreview`, `LocalPreview`, the preview view builder and the device guard; `readinessOf` treats a Create answer as Ready, because Create means "you are the source: mount the editor".
 
 ### Failure handling
@@ -71,7 +71,7 @@ editor page, device job, owner
 | The tab reloads mid-wait | The file is gone; the waiting page shows. The server preparation is unaffected |
 | The device guard refuses | The upload message stays, the button is replaced by the reason |
 | The creator's device closes mid-stream | Job Failed; joiners see the failure card; the owner's next open re-claims and converts again from the stored file |
-| A second owner tab opens | Its claim wins; the first socket is closed as stale |
+| A second owner tab opens | Its claim wins; the first socket's writes are dropped by the fence |
 | A forged `preparation=device` on a file the server can hold | Ignored: the server prepares it |
 
 ## Measured (2026-10-20)

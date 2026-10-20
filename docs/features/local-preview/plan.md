@@ -25,25 +25,25 @@ G1 types first, then G1 server and G2/G3 in that order, then G4.
 
 ### G1
 
-- [ ] **Step 1:** types: `PreparationSource`, `PREPARATION_FIELD`, `DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES`, `UploadRefusal`, `OpenedDocument.preparedOnDeviceOf`; test first for the enum values and the refusal shape.
-- [ ] **Step 2:** `RoomBootstrap` device job: `registerDevice`, `claimDevice`, `deviceClosed`, `isDevice`, `ready` ends a device attempt; test first.
-- [ ] **Step 3:** the runtime answers Create to the owner of an uncommitted device job and the open route carries `preparedOnDeviceOf`; test first.
-- [ ] **Step 4:** the collaboration server admits the owner as the claimed creator, fences by attempt, turns the socket into a member after the commit, fails the job on an early close; test first.
-- [ ] **Step 5:** `POST /api/documents`: the 413 body carries `canPrepareOnDevice`; `preparation=device` stores without converting only when the guard refuses; test first.
+- [x] **Step 1:** types: `PreparationSource`, `PREPARATION_FIELD`, `DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES`, `UploadRefusal`, `OpenedDocument.preparedOnDeviceOf`; data only, covered by the route and hook tests.
+- [x] **Step 2:** `RoomBootstrap` device job: `request` registers it for a file the guard refuses, `claimDevice`, `deviceClosed`, `isDevicePending`, `isDeviceCreator`; the committing attempt keeps writing; test first.
+- [x] **Step 3:** the open route answers Create to the owner of an uncommitted device job and carries `preparedOnDeviceOf`; the runtime reports the creator and the device preparation from the registry; test first.
+- [x] **Step 4:** the collaboration server admits the owner as the claimed creator, fences by attempt, turns the socket into a member after the commit, fails the job on an early close; test first.
+- [x] **Step 5:** `POST /api/documents`: the 413 body carries `canPrepareOnDevice`; `preparation=device` stores without converting only when the guard refuses; test first.
 
 ### G2
 
-- [ ] **Step 6:** `readinessOf` treats a Create answer as Ready; test first.
-- [ ] **Step 7:** the kept-file store and `useLocalPreview`; test first.
-- [ ] **Step 8:** the device guard (viewport, `deviceMemory`); test first.
-- [ ] **Step 9:** the preview view builder (pages so far, server detail, device owner name) and the copy; test first.
-- [ ] **Step 10:** `LocalPreview` (viewing-mode SuperDoc from the kept file, badge, panel) and its mount in `DocumentPage`; swap on Ready; test first.
-- [ ] **Step 11:** the creator's panel reads Preparing on this device while it converts; test first.
+- [x] **Step 6:** `readinessOf` treats a Create answer as Ready; test first.
+- [x] **Step 7:** the kept-file store and `useLocalPreview`; test first.
+- [x] **Step 8:** the device guard (viewport, `deviceMemory`); test first.
+- [x] **Step 9:** the preview view builder (pages so far, server detail, device owner name) and the copy; test first.
+- [x] **Step 10:** `LocalPreview` (viewing-mode SuperDoc from the kept file, badge, panel) and its mount in `DocumentPage`; swap on Ready; test first.
+- [ ] ~~**Step 11:** the creator's panel reads Preparing on this device while it converts; test first.~~ Struck: in Create mode SuperDoc syncs the empty room at once, so the panel already reads Rendering with the pages laid out so far while it converts; a separate stage would never show.
 
 ### G3
 
-- [ ] **Step 12:** `useUploadDocument` keeps the file on success; test first.
-- [ ] **Step 13:** `useUploadDocument` surfaces the device offer on a 413 with `canPrepareOnDevice` and re-sends with `preparation=device`; the offer component renders in the dialog, the drop zone and the home; test first.
+- [x] **Step 12:** `useUploadDocument` keeps the file on success; test first.
+- [x] **Step 13:** `useUploadDocument` surfaces the device offer on a 413 with `canPrepareOnDevice` and re-sends with `preparation=device`; the offer component renders in the dialog, the drop zone and the home; test first.
 
 ### G4
 

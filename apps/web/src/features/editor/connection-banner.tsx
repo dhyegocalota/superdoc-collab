@@ -19,6 +19,7 @@ import {
 type ConnectionBannerProps = {
   state: ConnectionState;
   failureReason: ConnectionFailureReason | null;
+  failureMessage: string | null;
   isReloading: boolean;
   onAction: () => void;
 };
@@ -74,7 +75,8 @@ const PRESENTATION: Record<BannerState, Presentation> = {
   },
 };
 
-export function ConnectionBanner({ state, failureReason, isReloading, onAction }: ConnectionBannerProps) {
+export function ConnectionBanner({ state, failureReason, failureMessage, isReloading, onAction }: ConnectionBannerProps) {
+  void failureMessage;
   if (state === ConnectionState.Online) return null;
   const { role, toneClassName, Icon, iconClassName, title, detail: stateDetail } = PRESENTATION[state];
   const isFailed = state === ConnectionState.Failed;

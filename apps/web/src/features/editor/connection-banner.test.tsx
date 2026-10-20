@@ -1,4 +1,4 @@
-import { ConnectionFailureReason, ConnectionState } from '@superdoc-collab/types';
+import { ConnectionFailureReason, ConnectionState, HEAVY_ROOMS_USER_CAP_MESSAGE } from '@superdoc-collab/types';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -22,15 +22,25 @@ afterEach(cleanup);
 function renderBanner({
   state,
   failureReason = null,
+  failureMessage = null,
   onAction = vi.fn(),
   isReloading = false,
 }: {
   state: ConnectionState;
   failureReason?: ConnectionFailureReason | null;
+  failureMessage?: string | null;
   onAction?: () => void;
   isReloading?: boolean;
 }) {
-  render(<ConnectionBanner state={state} failureReason={failureReason} isReloading={isReloading} onAction={onAction} />);
+  render(
+    <ConnectionBanner
+      state={state}
+      failureReason={failureReason}
+      failureMessage={failureMessage}
+      isReloading={isReloading}
+      onAction={onAction}
+    />,
+  );
 }
 
 test.each([
@@ -115,4 +125,19 @@ test('a session that ended warns about signing in, not about reloading', () => {
   const banner = screen.getByTestId('connection-banner');
   expect(banner).toHaveTextContent(UNSYNCED_LOST_ON_SIGN_IN_DETAIL);
   expect(banner).not.toHaveTextContent(UNSYNCED_LOST_ON_RELOAD_DETAIL);
+});
+
+test('a failure that carries a sentence of the server shows it in place of the generic line of its reason', () => {
+  renderBanner({
+    state: ConnectionState.Failed,
+    failureReason: ConnectionFailureReason.HeavyRoomsFull,
+    failureMessage: HEAVY_ROOMS_USER_CAP_MESSAGE,
+  });
+  expect(screen.getByRole('alert')).toHaveTextContent(HEAVY_ROOMS_USER_CAP_MESSAGE);
+  expect(screen.getByRole('alert')).not.toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.HeavyRoomsFull]);
+});
+
+test('a failure without a sentence keeps the generic line of its reason', () => {
+  renderBanner({ state: ConnectionState.Failed, failureReason: ConnectionFailureReason.HeavyRoomsFull });
+  expect(screen.getByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.HeavyRoomsFull]);
 });

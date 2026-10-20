@@ -5,10 +5,9 @@ import {
   type ProjectionRequest,
   type VersionReply,
   type BlocksReply,
-  type MeasuredReply,
 } from './projection-messages';
 
-export type ServedReply = MeasuredReply<VersionReply | BlocksReply>;
+export type ServedReply = VersionReply | BlocksReply;
 export type ServedRequest = Extract<ProjectionRequest, { kind: ProjectionRequestKind.Version | ProjectionRequestKind.Blocks }>;
 type Waiter = { resolve: (reply: ServedReply) => void; reject: (error: Error) => void };
 type WaitingRequest = { request: ServedRequest; waiters: Waiter[]; posts: number };

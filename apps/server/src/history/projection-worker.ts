@@ -175,11 +175,6 @@ const readRetainedHeap = createRetainedHeapReader({
   collectGarbage: exposeCollector(),
 });
 
-function measured(reply: AnsweredReply | ProjectionFailedReply): ProjectionReply {
-  if (reply.kind === ProjectionReplyKind.Failed) return reply;
-  return { ...reply, retainedHeapBytes: readRetainedHeap() };
-}
-
 async function disposeSuperdocClient({
   pending,
   milliseconds,
@@ -210,8 +205,9 @@ async function stopWorker(): Promise<void> {
 }
 
 const enqueue = createProjectionQueues({
-  reply: async (request) => port.postMessage(measured(await answer(request))),
+  reply: async (request) => port.postMessage(await answer(request)),
   stop: stopWorker,
+  measure: async () => port.postMessage({ kind: ProjectionRequestKind.Measure, retainedHeapBytes: readRetainedHeap() }),
 });
 
 port.on('message', (request: ProjectionRequest) => enqueue(request));

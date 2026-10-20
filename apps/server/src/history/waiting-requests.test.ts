@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { ProjectionRequestCrashedError, ProjectionRequestKind, type BlocksReply, type MeasuredReply } from './projection-messages';
+import { ProjectionRequestCrashedError, ProjectionRequestKind, type BlocksReply } from './projection-messages';
 import { requestKeyOf, WaitingRequests } from './waiting-requests';
 
 const VERSION_REQUEST = { kind: ProjectionRequestKind.Version, documentId: 'd1', sequence: 3 } as const;
@@ -24,12 +24,11 @@ test('a second waiter joins the first request instead of posting again', () => {
     true,
     false,
   ]);
-  const reply: MeasuredReply<BlocksReply> = {
+  const reply: BlocksReply = {
     kind: ProjectionRequestKind.Blocks,
     documentId: 'd1',
     sequence: 9,
     blocks: [],
-    retainedHeapBytes: 0,
   };
   requests.resolve(reply);
   expect([first.resolve, second.resolve].map((resolve) => resolve.mock.calls)).toEqual([[[reply]], [[reply]]]);

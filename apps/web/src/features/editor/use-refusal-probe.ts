@@ -20,6 +20,8 @@ export function useRefusalProbe({
     queryFn: () => openDocument(documentId),
     enabled: isDenied,
     retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     gcTime: 0,
     staleTime: 0,
   });

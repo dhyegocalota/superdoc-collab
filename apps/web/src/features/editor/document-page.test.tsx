@@ -691,14 +691,14 @@ test.each([HEAVY_ROOMS_FULL_MESSAGE, HEAVY_ROOMS_USER_CAP_MESSAGE])(
   },
 );
 
-test('an access-denied exception before the editor is ready shows the editor failure notice and no banner', async () => {
+test('an access-denied exception before the editor is ready shows the editor failure notice, and the removed access line once the server confirms no refusal', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
   act(() => constructedConfig().onException(payload));
   expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
-  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  expect(await screen.findByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
 });
 
 test('a refused upgrade reported as an exception before the editor is ready shows the editor failure notice', async () => {

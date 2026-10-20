@@ -113,11 +113,14 @@ test('with two large rooms loaded, opening a third large document is refused wit
   await expect(refused.page.getByRole(ALERT_ROLE)).toContainText(HEAVY_ROOMS_FULL_MESSAGE);
   const openPath = documentApiPath({ documentId: thirdId });
   let openRequests = 0;
-  await refused.page.route(`**${openPath}`, async (route) => {
-    openRequests += 1;
-    if (openRequests > 1) return route.continue();
-    return route.fulfill({ status: HttpStatus.Ok, contentType: JSON_CONTENT_TYPE, body: readyOpenBody });
-  });
+  await refused.page.route(
+    (url) => url.pathname === openPath,
+    async (route) => {
+      openRequests += 1;
+      if (openRequests > 1) return route.continue();
+      return route.fulfill({ status: HttpStatus.Ok, contentType: JSON_CONTENT_TYPE, body: readyOpenBody });
+    },
+  );
   await refused.page.goto(documentPagePath(thirdId));
   await expect(refused.page.getByTestId(CONNECTION_BANNER_TEST_ID)).toContainText(HEAVY_ROOMS_FULL_MESSAGE, {
     timeout: SENTENCE_TIMEOUT_MS,

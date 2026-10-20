@@ -276,7 +276,11 @@ function createServices({
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
   const roomMemory = createProcessRoomMemoryRelease({ maxHeavyRooms: environment.maxLoadedHeavyRooms });
-  const heavyRooms = createHeavyRoomAdmission({ roomMemory, documentXmlBytesOf });
+  const heavyRooms = createHeavyRoomAdmission({
+    roomMemory,
+    documentXmlBytesOf,
+    isInFlight: (documentId) => roomBootstrap.isInFlight(documentId),
+  });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,

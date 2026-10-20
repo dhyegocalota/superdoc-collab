@@ -7,9 +7,11 @@ export type HeavyRoomAdmission = { isRefused: (documentId: string) => boolean };
 export function createHeavyRoomAdmission({
   roomMemory,
   documentXmlBytesOf,
+  isInFlight,
 }: {
   roomMemory: RoomMemoryRelease;
   documentXmlBytesOf: (documentId: string) => number;
+  isInFlight: (documentId: string) => boolean;
 }): HeavyRoomAdmission {
   return {
     isRefused(documentId) {

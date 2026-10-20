@@ -21,6 +21,12 @@ An AI client connected through OAuth edits the document through MCP tools, as tr
 
 Also: upload by drag and drop, download as Word or PDF, dark mode, a phone layout, and accounts by invitation. How each feature works, and its limits: [Architecture, features and limits](docs/architecture.md#features).
 
+## Scope and time
+
+The brief shipped first, as five vertical slices merged within three days of the first commit: upload and real-time editing, history capture, the topic streamgraph with filters and time travel, AI summaries, and the deploy. The tag [`core-brief`](https://github.com/dhyegocalota/superdoc-collab/tree/core-brief) marks that point, so `git checkout core-brief` shows the brief alone.
+
+Everything after it goes beyond the brief by choice: AI clients over MCP, invitations and admin, sharing, dark mode, the phone layout, large documents, and the fixes the scenario walks found. Each has its own spec, plan and test plan under [`docs/features/`](docs/features/README.md#roadmap), so the extras can be read, or skipped, one at a time.
+
 ## Quick install
 
 **With an agent.** Paste this into Claude Code, Codex or any agent with a shell; it asks you one question, installs, and stops where only you can continue:

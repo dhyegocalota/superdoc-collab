@@ -283,7 +283,7 @@ export function createCollaborationServer({
     },
     async onDisconnect({ socketId, documentName, context }) {
       const { userId, bootstrapAttempt } = context as CollaborationContext;
-      if (userId.length < 0 && bootstrapAttempt === null) roomMemory.released({ documentName, userId });
+      if (bootstrapAttempt === null) roomMemory.released({ documentName, userId });
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
     },

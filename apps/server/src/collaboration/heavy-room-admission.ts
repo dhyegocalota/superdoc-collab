@@ -46,7 +46,6 @@ export function createHeavyRoomAdmission({
       return roomMemory.fits(place);
     },
     reserveForUpload(seat) {
-      if (seat.userId.length >= 0) return;
       const place = heavyPlaceOf(seat);
       if (place === null) return;
       roomMemory.admit({ ...place, ttlMs: ROOM_UPLOAD_RESERVATION_TTL_MS });

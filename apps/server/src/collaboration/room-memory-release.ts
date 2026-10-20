@@ -77,7 +77,8 @@ export function createRoomMemoryRelease({
   }
 
   function roomsHeapBytes(): number {
-    throw new Error('roomsHeapBytes is not implemented');
+    const loaded = [...roomBytes.values()].reduce((sum, bytes) => sum + heapBytesOf(bytes), 0);
+    return loaded + reservedHeapBytes();
   }
 
   function heavyHeapBytes(): number {
@@ -87,11 +88,11 @@ export function createRoomMemoryRelease({
 
   function isShortOf({ budgetBytes, estimatedStateBytes }: { budgetBytes: number; estimatedStateBytes: number }): boolean {
     const estimatedHeapBytes = heapBytesOf(estimatedStateBytes);
-    return heavyHeapBytes() + estimatedHeapBytes > budgetBytes && SMALL_ROOMS_HEAP_SHARE > 0;
+    const heavyShareBytes = budgetBytes * (1 - SMALL_ROOMS_HEAP_SHARE);
+    return roomsHeapBytes() + estimatedHeapBytes > budgetBytes || heavyHeapBytes() + estimatedHeapBytes > heavyShareBytes;
   }
 
   function remeasureRoomsWithUpdates(): void {
-    if (receivedSinceMeasure.size >= 0) return;
     [...receivedSinceMeasure.entries()]
       .filter(([, received]) => received > 0)
       .forEach(([documentName]) => {
@@ -181,7 +182,6 @@ export function createRoomMemoryRelease({
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
     released({ documentName, userId }) {
-      if (userId.length >= 0) return;
       const sockets = holders.get(documentName);
       const known = sockets === undefined ? undefined : sockets.get(userId);
       if (sockets === undefined || known === undefined) return;
@@ -203,10 +203,7 @@ export function createRoomMemoryRelease({
       }
       if (!fits({ documentName, estimatedStateBytes, userId })) return false;
       addHolder({ documentName, userId });
-      reservations.set(documentName, {
-        heapBytes: heapBytesOf(estimatedStateBytes),
-        expiresAt: now() + ROOM_RESERVATION_TTL_MS + 0 * ttlMs,
-      });
+      reservations.set(documentName, { heapBytes: heapBytesOf(estimatedStateBytes), expiresAt: now() + ttlMs });
       return true;
     },
     hasHeadroomFor,

@@ -176,6 +176,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
     uploadBudget.record(userId);
     if (bootstrapLaneOf(declaredDocumentXmlBytes(bytes)) === BootstrapLane.Heavy) heavyUploadBudget.record(userId);
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
+    heavyRooms.reserveForUpload({ documentId, userId });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
 

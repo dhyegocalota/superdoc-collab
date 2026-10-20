@@ -22,6 +22,8 @@
 - [x] **Step 6:** the E2E on a stack with the limits scripted low.
 - [x] **Step 7:** reviewer round 1: red tests, then the heap budget with reservations in place of the count, the upload headroom, the cached XML size and `SERVER_HEAP_MEGABYTES` in the entrypoint; the constants measured on the capped repro.
 
+- [x] **Step 8:** reviewer round 2 and security re-check: red tests, then the idle eviction removed, every room budgeted with a small rooms share, lazy re-measure, the close code of its own, upload reservations, holder pruning, the cheaper state estimate, the open route that only checks, the seeded rate until two owners and the hourly heavy budget.
+
 ## Failure modes
 
 | Step | What breaks | How I notice | How I back out |

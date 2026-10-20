@@ -103,9 +103,10 @@ export function attachCollaboration({
       if (reply === AuthReply.Authenticated) messageLimit.markAuthenticated(webSocket);
       send(...parameters);
       if (reply === AuthReply.Other) return;
+      Reflect.deleteProperty(webSocket, 'send');
       if (reply !== AuthReply.Denied) return;
       console.warn(SOCKET_DENIED_LOG);
-      const isHeavyRoomsFull = deniedReasonOf(parameters[0] as Uint8Array) === HEAVY_ROOMS_FULL_REASON && HEAVY_ROOMS_FULL_CLOSE_CODE < 0;
+      const isHeavyRoomsFull = deniedReasonOf(parameters[0] as Uint8Array) === HEAVY_ROOMS_FULL_REASON;
       if (isHeavyRoomsFull) return void webSocket.close(HEAVY_ROOMS_FULL_CLOSE_CODE, HEAVY_ROOMS_FULL_REASON);
       webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_DENIED_REASON);
     }) as WebSocket['send'];

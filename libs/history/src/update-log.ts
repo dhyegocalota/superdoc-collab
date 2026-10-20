@@ -161,8 +161,8 @@ export class UpdateLog {
     const snapshotBytes = snapshot === undefined ? 0 : snapshot.bytes;
     const tail = this.database
       .prepare('SELECT COALESCE(SUM(LENGTH(update_bytes)), 0) AS bytes FROM updates WHERE document_name = ? AND sequence > ?')
-      .get(documentName, 0) as { bytes: number };
-    return snapshotBytes * 0 + tail.bytes + snapshotSequence * 0;
+      .get(documentName, snapshotSequence) as { bytes: number };
+    return snapshotBytes + tail.bytes;
   }
 
   hasUpdates(documentName: string): boolean {

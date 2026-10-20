@@ -19,7 +19,7 @@ import { RestartablePort, startRestartableStack, stopRestartableStack } from './
 
 const [ana, bruno, carla] = DEMO_USERS;
 const WAIT_CEILING_MS = 60 * SECOND_MS;
-const ROOM_HEAP_BUDGET_MEGABYTES = 1000;
+const ROOM_HEAP_BUDGET_MEGABYTES = 2100;
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const LARGE_TEST_TIMEOUT_MS = 480 * SECOND_MS;
 const LARGE_READY_TIMEOUT_MS = 240 * SECOND_MS;
@@ -83,21 +83,26 @@ test('a second heavy upload shows its place in the queue and a third past the wa
   await waitUntilReady({ page: second.page, documentId: secondId });
 });
 
-test('with one large room loaded, opening a second large document is refused with the message of the server', async ({ browser }) => {
-  test.setTimeout(LARGE_TEST_TIMEOUT_MS);
-  const holder = await signedInContext({ browser, user: ana!, origin });
-  const refused = await signedInContext({ browser, user: bruno!, origin });
+async function openInEditor({ page, documentId }: { page: Page; documentId: string }): Promise<void> {
   await expect
-    .poll(() => openStatus({ page: holder.page, documentId: firstId }), { timeout: EDITOR_READY_TIMEOUT_MS, intervals: POLL_INTERVALS_MS })
+    .poll(() => openStatus({ page, documentId }), { timeout: EDITOR_READY_TIMEOUT_MS, intervals: POLL_INTERVALS_MS })
     .toBe(HttpStatus.Ok);
-  await holder.page.goto(documentPagePath(firstId));
-  await expect(editorText(holder.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
+  await page.goto(documentPagePath(documentId));
+  await expect(editorText(page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
+}
+
+test('with two large rooms loaded, opening a third large document is refused with the message of the server', async ({ browser }) => {
+  test.setTimeout(LARGE_TEST_TIMEOUT_MS);
+  const firstHolder = await signedInContext({ browser, user: ana!, origin });
+  const secondHolder = await signedInContext({ browser, user: bruno!, origin });
+  const refused = await signedInContext({ browser, user: carla!, origin });
+  const thirdId = await uploadDocument({ page: refused.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
+  await waitUntilReady({ page: refused.page, documentId: thirdId });
+  await openInEditor({ page: firstHolder.page, documentId: firstId });
+  await openInEditor({ page: secondHolder.page, documentId: secondId });
   await expect
-    .poll(() => openStatus({ page: refused.page, documentId: secondId }), {
-      timeout: EDITOR_READY_TIMEOUT_MS,
-      intervals: POLL_INTERVALS_MS,
-    })
+    .poll(() => openStatus({ page: refused.page, documentId: thirdId }), { timeout: EDITOR_READY_TIMEOUT_MS, intervals: POLL_INTERVALS_MS })
     .toBe(HttpStatus.ServiceUnavailable);
-  await refused.page.goto(documentPagePath(secondId));
+  await refused.page.goto(documentPagePath(thirdId));
   await expect(refused.page.getByRole(ALERT_ROLE)).toContainText(HEAVY_ROOMS_FULL_MESSAGE);
 });

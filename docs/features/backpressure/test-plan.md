@@ -9,6 +9,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [x] `apps/server/src/collaboration/room-memory-release.test.ts::a room is admitted while its estimate fits the budget beside the loaded rooms, and a loaded room is always admitted` — input: budget of two rooms, two loaded; expected: a third is not admitted, a loaded one is — evidence: red at 38de6b0a (`Error: admit is not implemented heavy-room 16777217 19`), green at 58dae90e
 - [x] Confirmed each fails for the right reason: the first red run (4b801cde) printed `predictedWaitMs is not implemented`, `turnOrder is not implemented`, `heavyRoomCount is not implemented`, `isAtCeiling is not implemented`, `isRefused is not implemented`, and the assertion failures `expected 'Upload failed with status 503.'` and `expected 201 to be 503`; the second (38de6b0a) printed `admit is not implemented`, `heavyHeapBytes is not implemented`, `hasHeadroomFor is not implemented`, `isBounded is not implemented`, `expected "vi.fn()" to be called 1 times, but got 3 times` and `expected [ 201, ... ] to deeply equal [ 503, ... ]`.
 
+- [x] Confirmed the third round fails for the right reason (a271a016): `roomsHeapBytes is not implemented`, `expected true to be false` for the small rooms share and the upload reservation, `expected "vi.fn()" to be called exactly once, but got 0 times` for `released` and `reserveForUpload`, `expected 1000 to be 4503` style close code failures, `deniedReasonOf` returning null instead of the reason, and the snapshot estimate summing the whole log.
+
 ## Unit
 
 - [ ] `owner-round-robin-queue.test.ts::the turn order lists the items in the order they would be shifted and leaves the queue as it was` — input: three owners; expected: `['ana-1','bruno-1','carla-1','ana-2','ana-3']`, then the drain equals it
@@ -29,22 +31,24 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `open-progress-view.test.ts` — input: Queued with 3 ahead and 240,000 ms; expected: "3 documents ahead · about 4 min · 12 s"; 1 ahead: "1 document ahead"; 0 ahead: "Waiting for its turn"
 - [ ] `editor-api.test.ts`, `waiting-for-document.test.tsx`, `use-upload-document.test.tsx` — input: a 503 with a sentence; expected: `ServerBusyError` with it, the heading with Try again and no connection hint, the dialog message
 - [ ] `room-memory-release.test.ts::one user may hold only so many heavy rooms` — input: `MAX_HEAVY_ROOMS_PER_USER` rooms admitted for one user; expected: the next new room refused for them, admitted for another user, a held or loaded room admitted
-- [ ] `room-memory-release.test.ts::at the budget the heavy rooms nobody edited for a minute are closed` — input: two loaded rooms, one edited 1 ms before the minute; expected: only the idle one closed, the opener refused until it unloads, then admitted
-- [ ] `room-memory-release.test.ts::the size of a room is its loaded state, measured again once enough updates arrived` — input: 9 MB loaded, 6 MB of updates; expected: due for a measure, not heavy until the measure says so
-- [ ] `collaboration-server.test.ts` — input: a room due for a measure; expected: `measured` with the encoded size of the live document; a load reports `loaded` with the restored state size
+- [ ] `room-memory-release.test.ts::rooms that received updates are measured again only when an admission is short of headroom` — input: 9 MB loaded, 80 MB of updates, a budget that fits only after the measure; expected: measured once when short, the admission passes, never measured otherwise
+- [ ] `collaboration-server.test.ts` — input: a load, then a disconnect of a member and of a bootstrap socket; expected: `loaded` with the restored state size, `released` for the member only
 - [ ] `room-bootstrap.test.ts` — input: two conversions by one owner, then another owner's; expected: one sample per owner (the latest), the mean across owners, clamped to three times and a third of the seeded rate; a requester's prediction counts only the turns ahead of them
 - [ ] `owner-round-robin-queue.test.ts` — input: a hypothetical push; expected: the order it would be served in, the queue unchanged
 - [ ] `room-memory-release.test.ts::fitting never takes a place` and `::a socket that closed without loading its room gives the reservation back` — input: five fits then an admit; a reservation and a release; expected: fits true until a socket admits, the reservation freed on release, a loaded room keeps its bytes
-- [ ] `room-memory-release.test.ts::a refused socket evicts the least recently active idle room, one at a time` and `::every inbound frame counts as activity` — input: three idle rooms, two refusals; a touched room; expected: oldest closed first, then the next, never a closing room, a touched room is not idle
 - [ ] `documents-heavy-routes.test.ts::an owner past the hourly budget of heavy conversions is 429` — input: budget of 2, three heavy uploads; expected: 201, 201, 429 with the busy message, a light file and a blank still 201
 - [ ] `room-bootstrap.test.ts` — input: one owner's conversions, then two owners'; expected: the seeded rate until two owners have a sample
+- [ ] `room-memory-release.test.ts::heavy rooms may use only their share of the budget` and `::small rooms count against the budget too` — input: two heavy rooms in a budget with room to spare; three small rooms; expected: the third heavy refused by the share, a heavy refused until small rooms unload
+- [ ] `room-memory-release.test.ts::a reservation made for an upload outlives a socket reservation` and `::the last socket of a user on a room gives their place back` — input: an upload reservation past the socket TTL; two sockets of one user then both closed; expected: held until its own limit; the place given back only by the last socket
+- [ ] `attach-collaboration.test.ts` — input: a denial with the heavy rooms reason; expected: close 4503 with the reason; the wrapped send is dropped after the first authenticated or denied reply and kept after any other
+- [ ] `update-log.test.ts::the estimated state bytes are the latest snapshot plus only the updates after it` — input: snapshots at 2 and 3 of 4 updates; expected: the latest snapshot's length plus the fourth update
 - [ ] Edge: `documents.test.ts` — the budget is the smaller of the container and the heap formulas, null with neither; a document is heavy above 4 MB of XML
 - [ ] `tools/repository-shape/src/entrypoint.test.ts` — input: an 8 GB limit; expected: the server sees `SERVER_HEAP_MEGABYTES=3276`
 
 ## E2E (Playwright specs)
 
 - [ ] `e2e/backpressure.spec.ts::a second heavy upload shows its place in the queue and a third past the wait ceiling is refused in the dialog` — steps: ceiling 60 s, three people upload the heavy fixture; expected: the third dialog reads the busy sentence, the second's panel reads "1 document ahead · about N s"
-- [ ] `e2e/backpressure.spec.ts::with one large room loaded, opening a second large document is refused with the message of the server` — steps: a room heap budget of 1000 MB, one person holds a heavy document open; expected: the other's open answers 503 and the waiting page shows `HEAVY_ROOMS_FULL_MESSAGE`
+- [ ] `e2e/backpressure.spec.ts::with two large rooms loaded, opening a third large document is refused with the message of the server` — steps: a room heap budget of 2,100 MB, two people hold a heavy document open; expected: a third person's open answers 503 and the waiting page shows `HEAVY_ROOMS_FULL_MESSAGE`
 - [ ] `e2e/room-admission.spec.ts` still green
 
 ## Prove it for real — Playwright MCP

@@ -24,7 +24,6 @@ function readHeader(frame: Uint8Array): { messageType: number; subtype: number }
 }
 
 export function deniedReasonOf(frame: Uint8Array): string | null {
-  if (frame.length >= 0) return null;
   try {
     const message = new IncomingMessage(frame);
     message.readVarString();

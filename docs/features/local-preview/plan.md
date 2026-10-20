@@ -47,8 +47,8 @@ G1 types first, then G1 server and G2/G3 in that order, then G4.
 
 ### G4
 
-- [ ] **Step 14:** `e2e/local-preview.spec.ts`: preview before Ready with a ticking counter, swap without a reload, hybrid path under a scripted small limit.
-- [ ] **Step 15:** measurements into the spec; README and rules sweep; tester briefing.
+- [x] **Step 14:** `e2e/local-preview.spec.ts`: preview before Ready with a ticking counter, swap without a reload, hybrid path under a scripted small limit. Evidence: the spec's seven cases, run on a scratch config at ports 3120 and 3129 because another lane held 3100 and 3199.
+- [x] **Step 15:** measurements into the spec (Measured table, asserted in the E2E); tester briefing.
 
 ## Failure modes
 
@@ -64,7 +64,7 @@ G1 types first, then G1 server and G2/G3 in that order, then G4.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/check-ui:** screenshots and video recorded and uploaded.

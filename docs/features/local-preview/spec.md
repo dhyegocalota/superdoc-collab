@@ -76,13 +76,19 @@ editor page, device job, owner
 
 ## Measured (2026-10-20)
 
-Filled in by the build, on a laptop, local stack: preview of the brief, preview of the heavy fixture, the longest main-thread stall while the heavy preview converts, and the first paragraph of the device path.
+Laptop, local stack, headless Chromium, one run each (`e2e/local-preview.spec.ts`; the server prepares the file at the same time as the browser previews it). The preview times start when the file is chosen in the upload dialog.
 
 | What | Before server bootstrap | After server bootstrap | With the preview |
 |------|-------------------------|------------------------|------------------|
-| Brief, upload to first paragraph | about 3 s | to be measured | to be measured |
-| Heavy fixture, upload to first paragraph | 55 s | about 52 s | to be measured |
-| Longest stall of the elapsed counter while the heavy preview converts | not applicable | not applicable | to be measured |
+| Brief (1.4 MB), upload to first text on screen | about 3 s | not measured | 1.3 to 1.8 s, asserted under 3 s |
+| Heavy fixture (9.5 MB, 56,800 paragraphs), upload to first paragraph | 55 s | about 52 s | 9.2 to 12.2 s, asserted under 42 s |
+| Longest stall of a 100 ms heartbeat in the tab until that first paragraph | not applicable | not applicable | 0.5 to 0.7 s, asserted under 5 s |
+| Longest stall of the heartbeat while the heavy preview lays out the rest, until the swap | not applicable | not applicable | 2.1 to 5.1 s while other lanes loaded the machine, asserted under 10 s |
+| Distinct lines the panel showed before the first paragraph (the elapsed counter ticking) | not applicable | not applicable | 6 to 8 |
+
+The preview paints the first pages while SuperDoc keeps laying out, which is why it beats the 42 s of the old creator: that conversion produced the whole Yjs state before anything was shown. The shared copy is unchanged: ready about 40 s after the upload and about 13 s more to its first paragraph for a page opened after.
+
+Evidence that SuperDoc converts in a worker: the E2E asserts that Playwright's `worker` event on the uploader's page reports a worker whose URL is the `browser-worker-entry` chunk (SuperDoc's document worker) and that the worker has no `window`; the only worker alive while the preview converts is that one, and the main thread's longest heartbeat gap until the first paragraph is under a second for a 9.5 MB file, which a main-thread import of 56,800 paragraphs could not allow. The window from the first paragraph to the swap includes the live editor mounting the full state, which is why its stall is longer and is bounded looser.
 
 ## Open questions → answers
 

@@ -4,9 +4,9 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## The failing test first
 
-- [ ] `apps/web/src/features/local-preview/use-local-preview.test.tsx::shows the kept file while the document is waiting` — input: a kept file for `doc-1`, readiness Waiting; expected: the hook returns that file
-- [ ] `apps/server/src/collaboration/room-bootstrap.test.ts::a device job is claimed by its owner` — input: `registerDevice` then `claimDevice` as the owner; expected: an attempt string and `isCurrent` true
-- [ ] Confirmed each fails for the right reason: the stub throws `<name> is not implemented`, recorded in the tester briefing.
+- [x] `apps/web/src/features/local-preview/use-local-preview.test.tsx::shows the kept file while the document is waiting` — input: a kept file for `doc-1`, readiness Waiting; expected: the hook returns that file — evidence: red commit d79250a9, failure `expected null to be File{}`
+- [x] `apps/server/src/collaboration/room-bootstrap.test.ts::a device job is claimed by its owner` — input: `registerDevice` then `claimDevice` as the owner; expected: an attempt string and `isCurrent` true — evidence: red commit 8a0f7278, failure `Error: claimDevice is not implemented`
+- [x] Confirmed each fails for the right reason: the stub throws `<name> is not implemented`, recorded in the tester briefing — evidence: tester-briefing.md, Red today table; second-socket case red in 79096b5a
 
 ## Unit
 
@@ -26,9 +26,9 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/local-preview.spec.ts::the uploader sees a preview before the shared copy is ready, and the panel keeps counting` — steps: upload through the file input, scripted Preparing answers; expected: the first paragraph is visible inside the preview badge page while the answer is Preparing, and the panel's elapsed text changes at least twice while the heavy preview converts
-- [ ] `e2e/local-preview.spec.ts::the page swaps to the live room without a reload` — steps: record `performance.timeOrigin` and a window marker, wait for Ready; expected: the badge is gone, the editor is editable, the marker and `timeOrigin` are unchanged
-- [ ] `e2e/local-preview.spec.ts::a file the memory guard refuses is prepared on the owner's device` — steps: restartable stack with a small memory limit, upload a document above it, press "Prepare on this device"; expected: 413 message first, then the document opens in Create, a second person sees "Being prepared on ana's device" and then the paragraph after the commit
+- [x] `e2e/local-preview.spec.ts::the uploader sees a preview before the shared copy is ready, and the panel keeps counting` — steps: upload through the file input, scripted Preparing answers; expected: the first paragraph is visible inside the preview badge page while the answer is Preparing, and the panel's elapsed text changes at least twice while the heavy preview converts — evidence: developer run, 7 of 7 green on ports 3120/3129; spec cases `the uploader reads the document in a preview…` and `the preview of a large document opens while the panel keeps counting…` (9 distinct panel lines)
+- [x] `e2e/local-preview.spec.ts::the page swaps to the live room without a reload` — steps: record `performance.timeOrigin` and a window marker, wait for Ready; expected: the badge is gone, the editor is editable, the marker and `timeOrigin` are unchanged — evidence: developer run, spec case `the page swaps to the live room without a reload` green
+- [x] `e2e/local-preview.spec.ts::a file the memory guard refuses is prepared on the owner's device` — steps: restartable stack with a small memory limit, upload a document above it, press "Prepare on this device"; expected: 413 message first, then the document opens in Create, a second person sees "Being prepared on ana's device" and then the paragraph after the commit — evidence: developer run, spec cases under `a server with no memory to prepare a file` and `a four gigabyte server and the heavy fixture` green; the joiner saw the owner's device named
 
 ## Prove it for real — Playwright MCP
 

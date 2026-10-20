@@ -56,6 +56,15 @@ test('a 415 response shows the docx-only message', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent(NOT_A_DOCX_MESSAGE);
 });
 
+test('a 413 whose body carries no sentence, as a proxy sends, shows the generic upload failure', async () => {
+  renderWithProviders(<UploadDialog />);
+  await chooseFile(docxFile({ name: 'plan.docx', size: 10 }));
+  act(() => latestUploadRequest().respond({ status: HttpStatus.PayloadTooLarge, body: null }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    requestFailedMessage({ subject: UPLOAD_SUBJECT, status: HttpStatus.PayloadTooLarge }),
+  );
+});
+
 test('a 201 response closes the dialog and opens the document', async () => {
   const { router } = renderWithProviders(<UploadDialog />);
   await chooseFile(docxFile({ name: 'plan.docx', size: 10 }));

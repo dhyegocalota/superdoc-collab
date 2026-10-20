@@ -1,7 +1,16 @@
 import { ConnectionFailureReason, HEAVY_ROOMS_RETRY_AFTER_MS } from '@superdoc-collab/types';
 import { useEffect, useRef } from 'react';
 
-export function useHeavyRoomsRetry({ failureReason, reload }: { failureReason: ConnectionFailureReason | null; reload: () => void }): void {
+export function useHeavyRoomsRetry({
+  failureReason,
+  failureMessage,
+  reload,
+}: {
+  failureReason: ConnectionFailureReason | null;
+  failureMessage: string | null;
+  reload: () => void;
+}): void {
+  void failureMessage;
   const latestReload = useRef(reload);
 
   useEffect(() => {

@@ -84,7 +84,7 @@ export function DocumentPage() {
   });
   const { failureReason, failureMessage } = useRefusalProbe({ documentId, failureReason: reportedFailureReason });
   const connectionAction = useConnectionFailureAction({ failureReason, reload });
-  useHeavyRoomsRetry({ failureReason, reload });
+  useHeavyRoomsRetry({ failureReason, failureMessage, reload });
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);

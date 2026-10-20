@@ -191,6 +191,10 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
+  isRunningFor({ ownerId, documentXmlBytes }: { ownerId: string; documentXmlBytes: number }): boolean {
+    throw new Error('isRunningFor is not implemented');
+  }
+
   predictedWaitMs({ documentXmlBytes, ownerId }: { documentXmlBytes: number; ownerId: string }): number {
     const lane = bootstrapLaneOf(documentXmlBytes);
     const turnOrder = this.queues[lane].turnOrder({ also: { owner: ownerId, item: PREDICTED_JOB_KEY } });

@@ -2,6 +2,7 @@ import {
   BOOTSTRAP_MS_PER_MEGABYTE,
   BYTES_PER_MEGABYTE,
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  BOOTSTRAP_QUEUE_WAITING_MESSAGE,
   HEAVY_ROOMS_FULL_MESSAGE,
   HEAVY_ROOMS_USER_CAP_MESSAGE,
   HeavyRoomsRefusal,
@@ -158,5 +159,20 @@ test('a second document waiting to be prepared is 429 with a sentence that says 
   expect(await third.json()).toEqual({ error: BOOTSTRAP_QUEUE_FULL_MESSAGE });
   expect(BOOTSTRAP_QUEUE_FULL_MESSAGE).toContain('being prepared');
   expect(BOOTSTRAP_QUEUE_FULL_MESSAGE).toContain('waiting');
+  await server.stop();
+});
+
+test('a second document waiting while another owner is being prepared is 429 with the sentence about one document waiting', async () => {
+  const server = await startTestServer();
+  const [ana, bruno] = [await signedInUser({ server, name: 'Ana' }), await signedInUser({ server, name: 'Bruno' })];
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const [running, waiting, refused] = [
+    await upload({ server, cookie: bruno.cookie, bytes }),
+    await upload({ server, cookie: ana.cookie, bytes }),
+    await upload({ server, cookie: ana.cookie, bytes }),
+  ];
+  expect([running.status, waiting.status, refused.status]).toEqual([HttpStatus.Created, HttpStatus.Created, HttpStatus.TooManyRequests]);
+  expect(await refused.json()).toEqual({ error: BOOTSTRAP_QUEUE_WAITING_MESSAGE });
   await server.stop();
 });

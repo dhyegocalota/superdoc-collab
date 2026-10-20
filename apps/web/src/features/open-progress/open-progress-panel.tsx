@@ -15,7 +15,10 @@ type OpenProgressPanelProps = {
   view: OpenProgressView;
   action: ReactNode;
   isTranslucent?: boolean;
+  minimization?: PanelMinimization;
 };
+
+export type PanelMinimization = { isMinimized: boolean; onMinimizedChange: (isMinimized: boolean) => void };
 
 const TRANSLUCENT_CARD_CLASS = 'bg-card/80 backdrop-blur-sm';
 
@@ -43,7 +46,7 @@ export function progressValueOf(fraction: number | null): number | null {
   return Math.round(fraction * PERCENT_MULTIPLIER);
 }
 
-export function OpenProgressPanel({ title, stages, view, action, isTranslucent = false }: OpenProgressPanelProps) {
+export function OpenProgressPanel({ title, stages, view, action, isTranslucent = false, minimization }: OpenProgressPanelProps) {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
       <Card

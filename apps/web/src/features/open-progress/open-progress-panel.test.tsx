@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
-import { expect, test } from 'vitest';
-import { OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { expect, test, vi } from 'vitest';
+import { MAXIMIZE_PROGRESS_LABEL, MINIMIZE_PROGRESS_LABEL, OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
 import { BootstrapStage } from '@superdoc-collab/types';
 import { bootstrapAt } from '@/testing/opened-document';
 import { preparingView } from './open-progress-view';
-import { OpenProgressPanel, type OpenProgressView } from './open-progress-panel';
+import { OpenProgressPanel, type OpenProgressView, type PanelMinimization } from './open-progress-panel';
 import { EDITOR_OPEN_STAGES, OpenStage } from './open-stage';
 
 const PREPARED = 12_400;
@@ -63,4 +63,34 @@ test('the bar of an estimated conversion follows the fraction it is shown', () =
   const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), total: 9_961_472, stateBytes: null, estimatedMs: 40_000 };
   renderPanel({ view: preparingView({ bootstrap, elapsedSeconds: 12, startedAt: 0, answeredAt: 0, preparedOnDeviceOf: null }) });
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30');
+});
+
+function renderMinimizable({ isMinimized }: { isMinimized: boolean }): PanelMinimization {
+  const minimization: PanelMinimization = { isMinimized, onMinimizedChange: vi.fn() };
+  render(<OpenProgressPanel title="Heavy" stages={EDITOR_OPEN_STAGES} view={PREPARING_VIEW} action={null} minimization={minimization} />);
+  return minimization;
+}
+
+test('without a minimization the panel carries no minimize control', () => {
+  renderPanel();
+  expect(screen.queryByRole('button', { name: MINIMIZE_PROGRESS_LABEL })).not.toBeInTheDocument();
+});
+
+test('a maximized panel offers to minimize and asks for it on click', () => {
+  const minimization = renderMinimizable({ isMinimized: false });
+  fireEvent.click(screen.getByRole('button', { name: MINIMIZE_PROGRESS_LABEL }));
+  expect(minimization.onMinimizedChange).toHaveBeenCalledWith(true);
+  expect(stageItem(OpenStage.Preparing)).toBeInTheDocument();
+});
+
+test('a minimized panel is a thin bar with the stage and the detail, and offers to maximize', () => {
+  const minimization = renderMinimizable({ isMinimized: true });
+  const bar = screen.getByTestId('open-progress');
+  expect(bar).toHaveAttribute('data-minimized', 'true');
+  expect(bar).toHaveAttribute('data-stage', OpenStage.Preparing);
+  expect(within(bar).getByText(OPEN_STAGE_LABELS[OpenStage.Preparing])).toBeInTheDocument();
+  expect(screen.getByTestId('open-progress-detail')).toHaveTextContent(PREPARING_VIEW.detail);
+  expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: MAXIMIZE_PROGRESS_LABEL }));
+  expect(minimization.onMinimizedChange).toHaveBeenCalledWith(false);
 });

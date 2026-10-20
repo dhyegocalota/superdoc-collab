@@ -1,9 +1,10 @@
 import { BootstrapStage, DOCX_MIME_TYPE } from '@superdoc-collab/types';
-import { act, cleanup, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { DocumentMode } from '@/features/editor/superdoc-options';
 import type { OpenProgressView } from '@/features/open-progress/open-progress-panel';
+import { MAXIMIZE_PROGRESS_LABEL, MINIMIZE_PROGRESS_LABEL } from '@/features/open-progress/open-progress-copy';
 import { OpenStage } from '@/features/open-progress/open-stage';
 import { bootstrapAt, DOCUMENT_TITLE } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -176,4 +177,21 @@ test('when the live editor starts the preview engine is destroyed and its painte
   expect(surface).toHaveTextContent('First paragraph');
   cleanup();
   expect(superdocDestroy).toHaveBeenCalledTimes(1);
+});
+
+test('the panel offers no minimize control until the preview has pages', () => {
+  const { config } = renderPreview();
+  expect(screen.queryByRole('button', { name: MINIMIZE_PROGRESS_LABEL })).not.toBeInTheDocument();
+  act(() => config.onPaginationUpdate({ totalPages: 1 }));
+  expect(screen.getByRole('button', { name: MINIMIZE_PROGRESS_LABEL })).toBeInTheDocument();
+});
+
+test('the panel minimizes to the bar over the pages and maximizes back', () => {
+  const { config } = renderPreview();
+  act(() => config.onPaginationUpdate({ totalPages: 2 }));
+  expect(screen.getByTestId(PANEL_TEST_ID)).not.toHaveAttribute('data-minimized');
+  fireEvent.click(screen.getByRole('button', { name: MINIMIZE_PROGRESS_LABEL }));
+  expect(screen.getByTestId(PANEL_TEST_ID)).toHaveAttribute('data-minimized', 'true');
+  fireEvent.click(screen.getByRole('button', { name: MAXIMIZE_PROGRESS_LABEL }));
+  expect(screen.getByTestId(PANEL_TEST_ID)).not.toHaveAttribute('data-minimized');
 });

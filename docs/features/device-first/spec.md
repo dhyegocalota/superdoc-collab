@@ -16,8 +16,9 @@ The device path of [local-preview](../local-preview/spec.md) already does what t
 |------|------|
 | Device by default | Every upload from a device that passes the device guard (wide layout and `navigator.deviceMemory`, when exposed, at or above the existing threshold) is sent with `preparation=device`. A device that fails the guard sends the server path, as before. |
 | The server decides by weight | The server honours the flag for a heavy file (the heavy lane of `bootstrapLaneOf`) or a file its memory guard refuses; a light file is prepared by the server whatever the flag says, because it is fast there. The honoured flag keeps the heap-budget refusal (413, `canPrepareOnDevice: false`), the heavy room admission, the per-user cap of heavy rooms and the hourly heavy budget. |
-| No second engine | On the device path the open answer is `RoomMode.Create` at once, so there is no viewing-mode preview: the Create editor converts. The server converts nothing. A failed or expired device job is prepared by the server on the next open of a file it can hold. |
-| The panel stays | On the device path the open-progress panel ("Preparing on this device · about N s · M s elapsed", the stages and the bar) stays over the editor's skeleton until the collaborative editor reports ready and the first paragraph is painted. The estimate is the file's text size at `DEVICE_MS_PER_MEGABYTE`. |
+| Preview while the device converts | On the device path the open answer is `RoomMode.Create` at once and the Create editor converts; the server converts nothing. The uploader's kept file also mounts the viewing-mode preview of [local-preview](../local-preview/spec.md) as an overlay, so pages show within seconds. When the Create editor paints its first paragraph the preview engine is destroyed and its painted pages stay frozen, as on the server path, until the editor is usable. A tab with no kept file (a reload) shows the panel over the editor's skeleton. A failed or expired device job is prepared by the server on the next open of a file it can hold. |
+| The panel stays | On the device path the open-progress panel ("Preparing on this device · about N s · M s elapsed", the stages and the bar) stays, over the preview's pages or the editor's skeleton, until the collaborative editor reports ready and the first paragraph is painted. The estimate is the file's text size at `DEVICE_MS_PER_MEGABYTE`. |
+| Minimizable | When the preview's pages appear, on both paths, the panel gets a minimize control that turns it into a thin top bar carrying the stage and "about N s · M s elapsed"; the bar has a control that maximizes it back. Default maximized; the state lives in the page only and is not stored. The copy lives in the open-progress copy file. |
 | Weak devices | On the server path the preview stays, and the same panel (a translucent card) sits over the preview pages until the live editor has painted; the thin status line is gone. A preview that cannot open keeps one failure line. |
 
 ## Non-goals
@@ -41,7 +42,7 @@ upload (guard failed)  POST preparation=server -> as before
 
 - `libs/types`: `DEVICE_MS_PER_MEGABYTE`.
 - Server: `RoomBootstrap.requestOnDevice`, `DocumentRuntime.bootstrapRoomOnDevice`, `storeDocument` takes the preparation source; the device job's `estimatedMs` uses the device rate.
-- Web: `preparationOf` in the upload hook; `preparingHereView` takes the bootstrap estimate; `DocumentPage` ends the device panel on ready and painted; `LocalPreview` takes the view of the panel and keeps it until the swap ends; `OpenProgressPanel` takes a translucent variant.
+- Web: `preparationOf` in the upload hook; `preparingHereView` takes the bootstrap estimate; `DocumentPage` ends the device panel on ready and painted; `LocalPreview` takes the view of the panel and keeps it until the swap ends; `useLocalPreview` takes `isPreparingHere` so the kept file is shown on the device path; `OpenProgressPanel` takes a translucent variant and an optional minimization.
 
 ### Failure handling
 
@@ -61,7 +62,7 @@ Laptop, local stack, headless Chromium, other lanes loading the machine, one run
 | Joiner: from the same start to text in the editor | not measured | 77 s |
 | Uploader: first text on screen with the read-only preview (weak device, server path) | 9.5 s | 9.5 s, unchanged |
 
-The panel was on screen at every sample from its first appearance until the editor had text, and no preview surface was ever mounted on the device path.
+
 
 ## Open questions → answers
 

@@ -21,11 +21,13 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Prove it for real — Playwright MCP
 
-- [ ] Happy path: upload a DOCX with a tracked change and a comment by two authors; expected: the timeline shows both authors, the comment's bin lists it as a comment with its text
-- [ ] Console and network clean: zero console errors, zero failed requests
-- [ ] Screenshot at `.pr-media/import-comments/`
+- [x] Happy path: upload a DOCX with a tracked change and a comment by two authors; expected: the timeline shows both authors, the comment's bin lists it as a comment with its text — evidence: scenario stack, Ana uploads a DOCX with a Chris Crawford insertion and a Dana Reviewer comment; the timeline JSON names both, the Feb 13 10:00–10:15 bin lists Dana Reviewer with "Comment Please cite a source" (scripted walk, `.pr-media/import-comments/bin-with-comment-1280.png`)
+- [x] Console and network clean: zero console errors, zero failed requests — evidence: the walk recorded no console error, no failed request and no 4xx/5xx response
+- [x] Screenshot at `.pr-media/import-comments/` — evidence: `bin-with-comment-1280.png`
 
 ## Edge cases found during execution
+
+- [x] Opening an imported bin with `?at=` keeps the banner on "Loading this version…": an imported event has no logged sequence, so there is no version to load. Not introduced here (tracked-change bins behave the same); left for a separate fix.
 
 ## Adversarial review
 

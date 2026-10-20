@@ -48,7 +48,7 @@ G1, then G2 and G3. One lead, no sub-agents: the owner asked for the fastest pat
 ## Z. Prove and ship
 
 - [x] **Tester briefing:** skipped on the owner's request (fastest path); the lead walks the flow.
-- [ ] **Tester run:** the lead uploads a DOCX with comments in Playwright MCP and checks the timeline.
+- [x] **Tester run:** the lead uploads a DOCX with comments in Playwright MCP and checks the timeline.
 - [ ] **Reviewer:** skipped on the owner's request.
-- [ ] **/check-ui:** screenshot of the bin edit list with a comment.
+- [x] **/check-ui:** screenshot of the bin edit list with a comment.
 - [ ] **/open-pr:** local gate passed, PR opened, merged, deployed.

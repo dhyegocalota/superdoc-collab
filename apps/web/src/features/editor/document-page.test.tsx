@@ -13,6 +13,7 @@ import {
   DocumentResource,
   DocumentRole,
   HttpMethod,
+  HEAVY_ROOMS_FULL_MESSAGE,
   HEAVY_ROOMS_USER_CAP_MESSAGE,
   HttpStatus,
   MEMBERS_REFRESH_MS,
@@ -667,6 +668,28 @@ test('an access-denied exception while the server refuses the open with a senten
   await waitFor(() => expect(banner).toHaveTextContent(HEAVY_ROOMS_USER_CAP_MESSAGE));
   expect(banner).not.toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
 });
+
+test.each([HEAVY_ROOMS_FULL_MESSAGE, HEAVY_ROOMS_USER_CAP_MESSAGE])(
+  'an access denial before the first sync, as the provider reports it, asks the server once and shows its sentence in the banner',
+  async (sentence) => {
+    const answer = { status: HttpStatus.Ok as HttpStatus };
+    const fetchSpy = mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner),
+      currentOpenStatus: () => answer.status,
+      openBody: { error: sentence },
+    });
+    const openRequestCount = () => fetchSpy.mock.calls.filter(([input]) => input === OPEN_PATH).length;
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+    answer.status = HttpStatus.ServiceUnavailable;
+    const requestsBefore = openRequestCount();
+    act(() => constructedConfig().onException(payload));
+    const banner = await screen.findByTestId('connection-banner');
+    await waitFor(() => expect(banner).toHaveTextContent(sentence));
+    expect(openRequestCount() - requestsBefore).toBe(1);
+  },
+);
 
 test('an access-denied exception before the editor is ready shows the editor failure notice and no banner', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });

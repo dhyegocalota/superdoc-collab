@@ -28,6 +28,9 @@ const POLL_INTERVALS_MS = [500];
 const PANEL_DETAIL_TEST_ID = 'open-progress-detail';
 const ALERT_ROLE = 'alert';
 const QUEUE_LINE_PATTERN = /1 document ahead · about \d+ (s|min)/;
+const SENTENCE_TIMEOUT_MS = 5 * SECOND_MS;
+const CONNECTION_BANNER_TEST_ID = 'connection-banner';
+const JSON_CONTENT_TYPE = 'application/json';
 const BUSY_MESSAGE_PATTERN = /The server is busy preparing other documents; try again in about \d+ min/;
 
 let origin: string;
@@ -91,13 +94,16 @@ async function openInEditor({ page, documentId }: { page: Page; documentId: stri
   await expect(editorText(page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
 }
 
-test('with two large rooms loaded, opening a third large document is refused with the message of the server', async ({ browser }) => {
+test('with two large rooms loaded, opening a third large document is refused with the message of the server, and a refused socket shows it in the banner after one probe', async ({
+  browser,
+}) => {
   test.setTimeout(LARGE_TEST_TIMEOUT_MS);
   const firstHolder = await signedInContext({ browser, user: ana!, origin });
   const secondHolder = await signedInContext({ browser, user: bruno!, origin });
   const refused = await signedInContext({ browser, user: carla!, origin });
   const thirdId = await uploadDocument({ page: refused.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
   await waitUntilReady({ page: refused.page, documentId: thirdId });
+  const readyOpenBody = await (await refused.page.request.get(documentApiPath({ documentId: thirdId }))).text();
   await openInEditor({ page: firstHolder.page, documentId: firstId });
   await openInEditor({ page: secondHolder.page, documentId: secondId });
   await expect
@@ -105,4 +111,16 @@ test('with two large rooms loaded, opening a third large document is refused wit
     .toBe(HttpStatus.ServiceUnavailable);
   await refused.page.goto(documentPagePath(thirdId));
   await expect(refused.page.getByRole(ALERT_ROLE)).toContainText(HEAVY_ROOMS_FULL_MESSAGE);
+  const openPath = documentApiPath({ documentId: thirdId });
+  let openRequests = 0;
+  await refused.page.route(`**${openPath}`, async (route) => {
+    openRequests += 1;
+    if (openRequests > 1) return route.continue();
+    return route.fulfill({ status: HttpStatus.Ok, contentType: JSON_CONTENT_TYPE, body: readyOpenBody });
+  });
+  await refused.page.goto(documentPagePath(thirdId));
+  await expect(refused.page.getByTestId(CONNECTION_BANNER_TEST_ID)).toContainText(HEAVY_ROOMS_FULL_MESSAGE, {
+    timeout: SENTENCE_TIMEOUT_MS,
+  });
+  expect(openRequests).toBe(2);
 });

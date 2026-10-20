@@ -132,13 +132,13 @@ export class RoomBootstrap {
     return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
   }
 
-  isDeviceCreator({ documentId, userId }: { documentId: string; userId: string }): boolean {
+  isDeviceCreator({ documentId, userId }: { documentId: string; userId: string; tabId: string | null }): boolean {
     return this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
   }
 
   claimDevice({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): string | null {
     const job = this.jobs.peek(documentId);
-    if (job === null || !this.isDeviceCreator({ documentId, userId })) return null;
+    if (job === null || !this.isDeviceCreator({ documentId, userId, tabId })) return null;
     const { claim, attempt: claimedAttempt } = job;
     const isClaimedByTab = claim !== null && claimedAttempt !== null && claim.tabId === tabId;
     if (isClaimedByTab) {

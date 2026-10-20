@@ -5,6 +5,7 @@ export type CollaborationContext = {
   documentId: string;
   actor: ClientActor;
   bootstrapAttempt: string | null;
+  holdsRoomPlace: boolean;
   tabId: string | null;
   impersonationEndsAt: number | null;
 };

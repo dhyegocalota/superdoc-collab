@@ -203,7 +203,7 @@ test('the runtime reports a device preparation and its creator from the registry
   const runtime = runtimeWith({ rooms: {}, roomBootstrap: fakeRoomBootstrap({ isDevicePending: true, deviceCreatorId: FIRST_EDITOR }) });
   expect(runtime.isPreparedOnDevice(DOCUMENT_ID)).toBe(true);
   expect([
-    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR }),
-    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR }),
+    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR, tabId: null }),
+    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR, tabId: null }),
   ]).toEqual([true, false]);
 });

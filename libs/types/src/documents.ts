@@ -104,6 +104,7 @@ export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
 export const PREPARATION_FIELD = 'preparation';
 export const DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES = 4;
+export const DEVICE_JOB_LIFETIME_MS = BOOTSTRAP_HOST_TIMEOUT_MS;
 export const UPLOAD_TOO_LARGE_MESSAGE = `Files up to ${MAX_UPLOAD_MEGABYTES} MB can be uploaded.`;
 export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUMENT_XML_MEGABYTES} MB of text and layout cannot be opened.`;

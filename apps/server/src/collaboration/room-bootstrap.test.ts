@@ -7,6 +7,7 @@ import {
   BOOTSTRAP_RATE_CLAMP_MULTIPLE,
   BootstrapLane,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
+  DEVICE_JOB_LIFETIME_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
 } from '@superdoc-collab/types';
@@ -678,14 +679,12 @@ test('a person who is not the owner cannot claim a device job', () => {
   expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID, tabId: null })).toBeNull();
 });
 
-test('a second claim supersedes the first and the first is no longer current', () => {
+test('a second claim while the first has a live socket is refused and the first stays current', () => {
   const { bootstrap } = deviceBootstrap();
   bootstrap.request(DOCUMENT_ID);
   const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
-  const second = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
-  expect(second).not.toBe(first);
-  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(false);
-  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second })).toBe(true);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(true);
 });
 
 test('the bytes the claimed device sends raise the progress', () => {
@@ -707,7 +706,7 @@ test('the commit makes a device job Ready, keeps the committing attempt writing 
   expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
 });
 
-test('the claimed device closing before the commit fails the job once, and the owner claims it again', () => {
+test('the claimed device closing before the commit fails the job once, and a failed job is not claimable', () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   const { bootstrap } = deviceBootstrap();
   bootstrap.request(DOCUMENT_ID);
@@ -716,25 +715,24 @@ test('the claimed device closing before the commit fails the job once, and the o
   expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
   expect(error).toHaveBeenCalledTimes(1);
   expect(error.mock.calls[0]![0]).toContain(BOOTSTRAP_FAILED_MESSAGE);
-  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
-  const again = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null });
-  expect(again).not.toBeNull();
-  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
   error.mockRestore();
 });
 
 const TAB_ID = 'tab-ana-laptop';
 const OTHER_TAB_ID = 'tab-ana-phone';
 
-test('a second socket of the claiming tab shares the attempt, and another tab supersedes it', () => {
+test('a second socket of the claiming tab shares the attempt, and another tab is refused', () => {
   const { bootstrap } = deviceBootstrap();
   bootstrap.request(DOCUMENT_ID);
   const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
   const sameTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
-  const otherTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: OTHER_TAB_ID })!;
+  const otherTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: OTHER_TAB_ID });
   expect(sameTab).toBe(first);
-  expect(otherTab).not.toBe(first);
-  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(false);
+  expect(otherTab).toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(true);
 });
 
 test('the job fails only when the last socket of the claiming tab closes before the commit', () => {
@@ -750,25 +748,20 @@ test('the job fails only when the last socket of the claiming tab closes before 
   error.mockRestore();
 });
 
-test('a superseded device closing changes nothing', () => {
+test('only the owner of a pending device job is its creator, and only its claiming tab once a tab holds the claim', () => {
   const { bootstrap } = deviceBootstrap();
   bootstrap.request(DOCUMENT_ID);
-  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
-  const second = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
-  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt: first });
-  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
-  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second })).toBe(true);
-});
-
-test('only the owner of a pending device job is its creator', () => {
-  const { bootstrap } = deviceBootstrap();
-  bootstrap.request(DOCUMENT_ID);
+  const creatorOf = (parameters: { userId: string; tabId: string | null }) =>
+    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, ...parameters });
+  expect([creatorOf({ userId: OWNER_ID, tabId: TAB_ID }), creatorOf({ userId: OTHER_USER_ID, tabId: null })]).toEqual([true, false]);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID });
   expect([
-    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID }),
-    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID }),
-  ]).toEqual([true, false]);
+    creatorOf({ userId: OWNER_ID, tabId: TAB_ID }),
+    creatorOf({ userId: OWNER_ID, tabId: OTHER_TAB_ID }),
+    creatorOf({ userId: OWNER_ID, tabId: null }),
+  ]).toEqual([true, false, false]);
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
-  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(false);
+  expect(creatorOf({ userId: OWNER_ID, tabId: TAB_ID })).toBe(false);
 });
 
 test('the committing device closing after the commit leaves the job Ready', () => {
@@ -780,15 +773,44 @@ test('the committing device closing after the commit leaves the job Ready', () =
   expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
 });
 
-test('a failed device job is still the owner to claim, so a reopen converts again', () => {
+test('a failed device job is registered again by a reopen only after the retry cooldown', () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  const { bootstrap } = deviceBootstrap();
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
   bootstrap.request(DOCUMENT_ID);
   bootstrap.deviceClosed({
     documentId: DOCUMENT_ID,
     attempt: bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!,
   });
-  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(true);
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBe(false);
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  clock.currentMs += BOOTSTRAP_RETRY_COOLDOWN_MS;
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Preparing);
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBe(true);
+  error.mockRestore();
+});
+
+test('a device job nobody claimed in its lifetime fails and is no longer claimable', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
+  bootstrap.request(DOCUMENT_ID);
+  clock.currentMs += DEVICE_JOB_LIFETIME_MS;
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  error.mockRestore();
+});
+
+test('a claimed device job that does not commit within its lifetime fails and its attempt is no longer current', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  clock.currentMs += DEVICE_JOB_LIFETIME_MS;
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(false);
   error.mockRestore();
 });
 

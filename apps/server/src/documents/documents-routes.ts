@@ -268,7 +268,7 @@ function mountOpening({ routes, services }: RouteMount): void {
       });
     }
     const bootstrap = runtime.bootstrapRoom(documentId);
-    const isDeviceCreator = runtime.isDeviceCreator({ documentId, userId });
+    const isDeviceCreator = runtime.isDeviceCreator({ documentId, userId, tabId: null });
     return context.json({
       document: summary,
       role,

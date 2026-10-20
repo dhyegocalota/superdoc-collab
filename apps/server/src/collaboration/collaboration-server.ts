@@ -143,7 +143,7 @@ export function createCollaborationServer({
   onLogged,
   onStored,
   roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, measureRoom: () => null }),
-  heavyRooms = { admits: () => true },
+  heavyRooms = { admits: () => true, admitsDevice: () => true },
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -154,7 +154,7 @@ export function createCollaborationServer({
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
   roomMemory?: RoomMemoryRelease;
-  heavyRooms?: Pick<HeavyRoomAdmission, 'admits'>;
+  heavyRooms?: Pick<HeavyRoomAdmission, 'admits' | 'admitsDevice'>;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
@@ -221,6 +221,7 @@ export function createCollaborationServer({
         documentId,
         actor: ACTOR_BY_SOCKET_KIND[socketKind],
         bootstrapAttempt,
+        holdsRoomPlace: bootstrapAttempt === null,
         tabId,
         impersonationEndsAt,
       };

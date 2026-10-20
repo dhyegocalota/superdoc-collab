@@ -66,9 +66,9 @@ Run by the tester, not the developer.
 
 ## Adversarial review
 
-- [ ] Claim 1: no client other than the bootstrap socket can write to an uncommitted room — attack: member and agent sockets, a stale token, a token of another document; result: pending
-- [ ] Claim 2: a stale host cannot merge into a later bootstrap — attack: replay an old attempt after a restart and after a failure; result: pending
-- [ ] Claim 3: `Failed` and a lost worker never hang the open answer — attack: kill the worker mid-bootstrap, corrupt the file; result: pending
+- [x] Claim 1: no client other than the bootstrap socket can write to an uncommitted room — evidence: security review rounds 1 to 3 at a25fb63b and the re-check at 954e9913: member, reader and agent sockets are refused on an uncommitted room through admitToCommittedRoom and the opposite actor claim; held
+- [x] Claim 2: a stale host cannot merge into a later bootstrap — evidence: security re-check at a25fb63b: a committed room refuses bootstrap sockets, an attempt ends with its run, a recycle holds and reposts with a new attempt; the double-seed race is closed; held
+- [x] Claim 3: `Failed` and a lost worker never hang the open answer — evidence: security re-check and reviewer delta at a25fb63b: the host is disposed after every outcome before the answer, the server timeout fires before the host watchdog, a crash or stop rejects the job into Failed, Failed is retried after a 30 s cooldown; the room-admission broken-file case shows the Failed card in 1.3 s (tester re-walk eb1ff4f9)
 
 ## Coverage honesty
 

@@ -1,6 +1,6 @@
 # Open progress: a loading that shows real progress, so a long document never feels stuck
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 ("um loading mais friendly com progressão real de ui/ux pra não feel stuck especialmente pra docs longos")
 **ADRs:** none; the stages and the delay are constants, not a decision with alternatives.

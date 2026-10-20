@@ -1,6 +1,6 @@
 # Memory returns: a heavy document gives its memory back at once
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-19 ("quero implementar tudo isso incluindo a memoria voltando de imediato")
 **ADRs:** [0044](../../adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md), [0047](../../adr/0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md)

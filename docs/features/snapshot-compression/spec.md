@@ -1,6 +1,6 @@
 # Snapshot compression: a joiner downloads the room in a fraction of the bytes
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-19 ("quero implementar tudo isso")
 **ADRs:** [0034](../../adr/0034-collaboration-socket-payload-and-rate-limits.md), [0040](../../adr/0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md)

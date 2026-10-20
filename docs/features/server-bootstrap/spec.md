@@ -1,6 +1,6 @@
 # Server bootstrap: the server builds the room right after the upload
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-19 ("quero implementar tudo isso", requirement 34, instant open)
 **ADRs:** [0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md), [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0029](../../adr/0029-agent-edits-carry-a-human-or-agent-actor.md), [0047](../../adr/0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md)

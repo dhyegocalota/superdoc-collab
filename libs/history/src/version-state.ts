@@ -43,3 +43,7 @@ export class GcFreeReplays {
     return replay.document;
   }
 }
+
+export function versionAt(_request: { log: UpdateLog; documentName: string; sequence: number }): Y.Doc {
+  throw new Error('versionAt is not implemented');
+}

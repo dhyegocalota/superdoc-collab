@@ -1,6 +1,6 @@
 # Import comments from an uploaded DOCX
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-20
 **ADRs:** [0024](../../adr/0024-times-follow-the-readers-zone-storage-stays-epoch.md)

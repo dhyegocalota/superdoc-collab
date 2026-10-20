@@ -5,6 +5,7 @@ import type { EditorLoadProgress } from '@/features/open-progress/open-progress-
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
 import { VersionFrame } from '@/features/versions/version-frame';
 import { cn } from '@/lib/utils';
+import { LeaveOpeningButton } from './leave-opening-button';
 import { HIDDEN_LOADING_OVERLAY_CLASS, SuperDocEditor } from './superdoc-editor';
 import type { TransportReport } from './use-connection-state';
 import type { EditorSetup } from './use-editor-setup';
@@ -79,7 +80,13 @@ export function EditorSurface({
         />
       )}
       {openProgress && (
-        <TickingOpenProgressPanel title={title} stages={EDITOR_OPEN_STAGES} startedAt={openStartedAt} viewAt={openProgress} action={null} />
+        <TickingOpenProgressPanel
+          title={title}
+          stages={EDITOR_OPEN_STAGES}
+          startedAt={openStartedAt}
+          viewAt={openProgress}
+          action={<LeaveOpeningButton />}
+        />
       )}
       <VersionFrame
         documentId={documentId}

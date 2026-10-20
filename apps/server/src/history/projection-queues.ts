@@ -43,6 +43,9 @@ export function createProjectionQueues({
     [ProjectionRequestKind.Stop]: () => {
       queuePromise = queuePromise.then(stop);
     },
+    [ProjectionRequestKind.Recycle]: () => {
+      queuePromise = Promise.all([queuePromise, importQueuePromise, ...Object.values(bootstrapQueuePromises)]).then(stop);
+    },
   };
 
   return function enqueue<Kind extends ProjectionRequestKind>(request: ProjectionRequestsByKind[Kind]): void {

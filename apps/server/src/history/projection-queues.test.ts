@@ -19,6 +19,7 @@ const REQUESTS: Record<ProjectionRequestKind, ProjectionRequest> = {
     lane: BootstrapLane.Heavy,
   },
   [ProjectionRequestKind.Stop]: { kind: ProjectionRequestKind.Stop },
+  [ProjectionRequestKind.Recycle]: { kind: ProjectionRequestKind.Recycle },
 };
 
 function queuesHoldingReplyOf(heldKind: ProjectionRequestKind) {
@@ -114,4 +115,24 @@ test('project, version, blocks and stop run one after another in arrival order',
   await expect
     .poll(() => events)
     .toEqual([ProjectionRequestKind.Project, ProjectionRequestKind.Version, ProjectionRequestKind.Blocks, ProjectionRequestKind.Stop]);
+});
+
+test.each([ProjectionRequestKind.Import, ProjectionRequestKind.Bootstrap])('a recycle waits for the pending %s reply', async (heldKind) => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(heldKind);
+  enqueue(REQUESTS[heldKind]);
+  enqueue(REQUESTS[ProjectionRequestKind.Recycle]);
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(events).toEqual([]);
+  release();
+  await expect.poll(() => events).toEqual([heldKind, ProjectionRequestKind.Stop]);
+});
+
+test('a recycle waits for a pending light bootstrap reply', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Bootstrap);
+  enqueue({ ...REQUESTS[ProjectionRequestKind.Bootstrap], lane: BootstrapLane.Light } as ProjectionRequest);
+  enqueue(REQUESTS[ProjectionRequestKind.Recycle]);
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(events).toEqual([]);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Bootstrap, ProjectionRequestKind.Stop]);
 });

@@ -1,4 +1,4 @@
-import { AppRoute, DOCUMENT_UNAVAILABLE_MESSAGE, type BootstrapProgress, type DocumentsList } from '@superdoc-collab/types';
+import { AppRoute, BootstrapStage, DOCUMENT_UNAVAILABLE_MESSAGE, type DocumentsList } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
@@ -12,11 +12,14 @@ import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
 import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
+import { BackToDocumentsButton } from './back-to-documents-button';
+import type { BootstrapReading } from './bootstrap-reading';
+import { LeaveOpeningButton } from './leave-opening-button';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
-import { LOAD_RETRY_HINT, TRY_AGAIN_LABEL } from './waiting-copy';
+import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
 
-export type WaitingProgress = { bootstrap: BootstrapProgress | null; startedAt: number; isShown: boolean };
+export type WaitingProgress = { bootstrap: BootstrapReading | null; startedAt: number; isShown: boolean };
 
 export type WaitingReadiness = DocumentReadiness.Waiting | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
 
@@ -31,14 +34,6 @@ function cachedTitleOf({ documentList, documentId }: { documentList: DocumentsLi
   const summary = [...documentList.mine, ...documentList.shared].find((candidate) => candidate.id === documentId);
   if (!summary) return null;
   return summary.title;
-}
-
-function BackToDocumentsButton() {
-  return (
-    <Button asChild variant="outline">
-      <Link to={AppRoute.Documents}>{BACK_TO_DOCUMENTS_LABEL}</Link>
-    </Button>
-  );
 }
 
 function StatusCard({
@@ -76,21 +71,22 @@ function PreparingCard({ title, progress }: { title: string | null; progress: Wa
       stages={EDITOR_OPEN_STAGES}
       startedAt={progress.startedAt}
       viewAt={(elapsedSeconds) => preparingView({ bootstrap: progress.bootstrap, elapsedSeconds })}
-      action={<BackToDocumentsButton />}
+      action={<LeaveOpeningButton />}
     />
   );
 }
 
-function FailedCard({ onRetry }: WaitingActions) {
+function FailedCard({ onRetry, progress }: WaitingActions & { progress: WaitingProgress }) {
+  const isPreparationFailure = progress.bootstrap?.stage === BootstrapStage.Failed;
   return (
     <StatusCard
       role="alert"
       icon={<TriangleAlertIcon aria-hidden="true" className="size-4 text-destructive" />}
-      heading={DOCUMENT_LOAD_ERROR_MESSAGE}
-      hint={LOAD_RETRY_HINT}
+      heading={isPreparationFailure ? PREPARATION_FAILED_MESSAGE : DOCUMENT_LOAD_ERROR_MESSAGE}
+      hint={isPreparationFailure ? PREPARATION_FAILED_HINT : LOAD_RETRY_HINT}
       actions={
         <>
-          <Button onClick={onRetry}>{TRY_AGAIN_LABEL}</Button>
+          {!isPreparationFailure && <Button onClick={onRetry}>{TRY_AGAIN_LABEL}</Button>}
           <BackToDocumentsButton />
         </>
       }
@@ -113,7 +109,7 @@ type CardInput = WaitingActions & { title: string | null; progress: WaitingProgr
 
 const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactElement | null> = {
   [DocumentReadiness.Waiting]: ({ title, progress }) => <PreparingCard title={title} progress={progress} />,
-  [DocumentReadiness.Failed]: (input) => <FailedCard {...input} />,
+  [DocumentReadiness.Failed]: ({ progress, onRetry }) => <FailedCard progress={progress} onRetry={onRetry} />,
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 

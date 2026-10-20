@@ -9,6 +9,8 @@ import {
 } from '@superdoc-collab/history';
 import { BOOTSTRAP_HOST_TIMEOUT_MS, BOOTSTRAP_TIMEOUT_MS, BootstrapLane, RoomMode, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { parentPort, workerData } from 'node:worker_threads';
 import { COLLABORATION_PROVIDER, SDK_RUNTIME } from '../collaboration/sdk-room';
 import { HISTORY_DATABASE_FILE, openSqliteFile, READ_MODEL_DATABASE_FILE } from '../database/connection';
@@ -18,6 +20,7 @@ import { assertBootstrapApplied } from './bootstrap-applied';
 import { bootstrapHostEnvironment } from './bootstrap-host-environment';
 import { createProjectionHandler } from './projection-handler';
 import { createProjectionQueues } from './projection-queues';
+import { createRetainedHeapReader } from './retained-heap';
 import {
   IMPORT_TIMEOUT_MS,
   ImportTimeoutError,
@@ -35,6 +38,13 @@ import {
 
 const STOP_DISPOSE_TIMEOUT_MS = SECOND_MS;
 const HOST_RELEASE_TIMEOUT_MS = 6 * SECOND_MS;
+const EXPOSE_COLLECTOR_FLAG = '--expose-gc';
+const COLLECTOR_NAME = 'gc';
+
+function exposeCollector(): () => void {
+  v8.setFlagsFromString(EXPOSE_COLLECTOR_FLAG);
+  return vm.runInNewContext(COLLECTOR_NAME) as () => void;
+}
 const BOOTSTRAP_HOST_NAME = 'SuperDoc History bootstrap';
 const BOOTSTRAP_HOST_EMAIL = 'bootstrap@superdoc-history.local';
 
@@ -160,9 +170,14 @@ async function answer(request: AnsweredRequest): Promise<AnsweredReply | Project
   }
 }
 
+const readRetainedHeap = createRetainedHeapReader({
+  memoryUsage: () => process.memoryUsage(),
+  collectGarbage: exposeCollector(),
+});
+
 function measured(reply: AnsweredReply | ProjectionFailedReply): ProjectionReply {
   if (reply.kind === ProjectionReplyKind.Failed) return reply;
-  return { ...reply, heapTotalBytes: process.memoryUsage().heapTotal };
+  return { ...reply, retainedHeapBytes: readRetainedHeap() };
 }
 
 async function disposeSuperdocClient({

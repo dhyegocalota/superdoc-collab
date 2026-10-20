@@ -1,6 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import { OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
+import { BootstrapStage } from '@superdoc-collab/types';
+import { bootstrapAt } from '@/testing/opened-document';
+import { preparingView } from './open-progress-view';
 import { OpenProgressPanel, type OpenProgressView } from './open-progress-panel';
 import { EDITOR_OPEN_STAGES, OpenStage } from './open-stage';
 
@@ -54,4 +57,10 @@ test('a missing title and an action are both honoured', () => {
   renderPanel({ title: null, action: <button type="button">Leave</button> });
   expect(screen.queryByText('Heavy')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument();
+});
+
+test('the bar of an estimated conversion follows the fraction it is shown', () => {
+  const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), total: 9_961_472, stateBytes: null, estimatedMs: 40_000 };
+  renderPanel({ view: preparingView({ bootstrap, elapsedSeconds: 12 }) });
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30');
 });

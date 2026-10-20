@@ -23,9 +23,13 @@ const INFLATED_BUDGET_UNIT_BYTES = 16 * 1024;
 export const MAX_INFLATED_BYTES_PER_SECOND = MAX_SOCKET_MESSAGE_BYTES;
 const MAX_INFLATED_UNITS_PER_SECOND = MAX_INFLATED_BYTES_PER_SECOND / INFLATED_BUDGET_UNIT_BYTES;
 
+export const PRE_AUTHENTICATION_MAX_INFLATED_BYTES = 64 * 1024;
+
 export class SocketMessageLimit {
   private readonly windows = new WeakMap<object, Record<FrameBucket, SlidingWindow>>();
   private readonly inflatedWindows = new WeakMap<object, SlidingWindow>();
+  private readonly preAuthenticationTotals = new WeakMap<object, { bytes: number }>();
+  private readonly answeredSockets = new WeakSet<object>();
   private readonly now: () => number;
 
   constructor({ now = () => Date.now() }: { now?: () => number } = {}) {
@@ -51,6 +55,26 @@ export class SocketMessageLimit {
     const window = this.inflatedWindowOf(socket);
     Array.from({ length: Math.floor(byteLengthOf(frame) / INFLATED_BUDGET_UNIT_BYTES) }, () => window.record());
     return window.count() > MAX_INFLATED_UNITS_PER_SECOND;
+  }
+
+  markAnswered(socket: object): void {
+    this.answeredSockets.add(socket);
+  }
+
+  // NB ADR 0034: Hocuspocus queues every frame that precedes the authentication answer without a bound, so until the server has answered a socket the inflated bytes it may send are capped at a small total.
+  exceedsPreAuthenticationBudget({ socket, frame }: { socket: object; frame: RawData }): boolean {
+    if (this.answeredSockets.has(socket)) return false;
+    const total = this.preAuthenticationTotalOf(socket);
+    total.bytes += byteLengthOf(frame);
+    return total.bytes > PRE_AUTHENTICATION_MAX_INFLATED_BYTES;
+  }
+
+  private preAuthenticationTotalOf(socket: object): { bytes: number } {
+    const existing = this.preAuthenticationTotals.get(socket);
+    if (existing !== undefined) return existing;
+    const created = { bytes: 0 };
+    this.preAuthenticationTotals.set(socket, created);
+    return created;
   }
 
   private inflatedWindowOf(socket: object): SlidingWindow {

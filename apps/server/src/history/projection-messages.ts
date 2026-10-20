@@ -18,6 +18,7 @@ export enum ProjectionRequestKind {
   Blocks = 'blocks',
   Bootstrap = 'bootstrap',
   Stop = 'stop',
+  Recycle = 'recycle',
 }
 
 export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string; lane: BootstrapLane };
@@ -29,7 +30,8 @@ export type ProjectionRequest =
   | { kind: ProjectionRequestKind.Version; documentId: string; sequence: number }
   | { kind: ProjectionRequestKind.Blocks; documentId: string }
   | ({ kind: ProjectionRequestKind.Bootstrap } & BootstrapRequest)
-  | { kind: ProjectionRequestKind.Stop };
+  | { kind: ProjectionRequestKind.Stop }
+  | { kind: ProjectionRequestKind.Recycle };
 
 export enum ProjectionReplyKind {
   Failed = 'failed',
@@ -58,10 +60,10 @@ export type ProjectionFailedReply = FailedReplyBase &
     | { requestKind: Exclude<ProjectionRequestKind, ProjectionRequestKind.Version>; sequence: null }
   );
 export type AnsweredReply = ProjectionDoneReply | VersionReply | BlocksReply | BootstrapReply;
-export type MeasuredReply<Reply extends AnsweredReply = AnsweredReply> = Reply & { heapTotalBytes: number };
+export type MeasuredReply<Reply extends AnsweredReply = AnsweredReply> = Reply & { retainedHeapBytes: number };
 export type ProjectionReply = MeasuredReply | ProjectionFailedReply;
 export type ProjectionRequestsByKind = { [Kind in ProjectionRequestKind]: Extract<ProjectionRequest, { kind: Kind }> };
-export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop }>;
+export type AnsweredRequest = Exclude<ProjectionRequest, { kind: ProjectionRequestKind.Stop | ProjectionRequestKind.Recycle }>;
 export type AnsweredRequestKind = AnsweredRequest['kind'];
 
 export type ProjectionWorkerData = { databaseDirectory: string; hostHeapMegabytes: number | null };

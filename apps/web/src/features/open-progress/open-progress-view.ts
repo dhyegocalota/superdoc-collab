@@ -1,8 +1,10 @@
-import { BootstrapStage, type BootstrapProgress } from '@superdoc-collab/types';
+import { BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
+import type { BootstrapReading } from '@/features/editor/bootstrap-reading';
 import {
   bytesProgressDetail,
   convertingDetail,
   detailLine,
+  estimatedConversionDetail,
   elapsedLabel,
   LAYING_OUT_DETAIL,
   pagesSoFarDetail,
@@ -28,25 +30,40 @@ export function uploadingView({ sentBytes, totalBytes }: { sentBytes: number; to
   };
 }
 
-function preparingDetailOf({ bootstrap, elapsed }: { bootstrap: BootstrapProgress | null; elapsed: string }): string {
-  if (!bootstrap) return detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]);
-  const { stage, done, total } = bootstrap;
-  if (stage === BootstrapStage.Queued) return detailLine([QUEUED_DETAIL, elapsed]);
-  if (done > 0) return detailLine([receivedDetail(done), elapsed]);
-  if (total > 0) return detailLine([convertingDetail(total), elapsed]);
-  return detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]);
+const ESTIMATE_FRACTION_CAP = 0.95;
+const ESTIMATE_ROUNDING_SECONDS = 5;
+
+function estimatedSecondsOf(estimatedMs: number): number {
+  return Math.max(ESTIMATE_ROUNDING_SECONDS, Math.round(estimatedMs / SECOND_MS / ESTIMATE_ROUNDING_SECONDS) * ESTIMATE_ROUNDING_SECONDS);
+}
+
+function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number | null; elapsedSeconds: number }): number | null {
+  if (estimatedMs === null || estimatedMs <= 0) return null;
+  return Math.min((elapsedSeconds * SECOND_MS) / estimatedMs, ESTIMATE_FRACTION_CAP);
 }
 
 export function preparingView({
   bootstrap,
   elapsedSeconds,
 }: {
-  bootstrap: BootstrapProgress | null;
+  bootstrap: BootstrapReading | null;
   elapsedSeconds: number;
 }): OpenProgressView {
-  const detail = preparingDetailOf({ bootstrap, elapsed: elapsedLabel(elapsedSeconds) });
-  if (!bootstrap || bootstrap.done <= 0) return { stage: OpenStage.Preparing, detail, fraction: null };
-  return { stage: OpenStage.Preparing, detail, fraction: fractionOf({ doneBytes: bootstrap.done, totalBytes: bootstrap.total }) };
+  const stage = OpenStage.Preparing;
+  const elapsed = elapsedLabel(elapsedSeconds);
+  if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
+  if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
+  const { done, total, estimatedMs } = bootstrap;
+  const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
+  const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds });
+  const isBytesAhead = bytesFraction !== null && (timeFraction === null || bytesFraction >= timeFraction);
+  if (isBytesAhead) return { stage, detail: detailLine([receivedDetail(done), elapsed]), fraction: bytesFraction };
+  const subject = total > 0 ? convertingDetail(total) : UNKNOWN_PREPARING_DETAIL;
+  if (timeFraction !== null && estimatedMs !== null) {
+    const estimatedSeconds = estimatedSecondsOf(estimatedMs);
+    return { stage, detail: estimatedConversionDetail({ subject, estimatedSeconds, elapsedSeconds }), fraction: timeFraction };
+  }
+  return { stage, detail: detailLine([subject, elapsed]), fraction: null };
 }
 
 export function downloadingView({ stateBytes, elapsedSeconds }: { stateBytes: number | null; elapsedSeconds: number }): OpenProgressView {

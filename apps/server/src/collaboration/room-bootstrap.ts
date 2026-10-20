@@ -94,7 +94,7 @@ export class RoomBootstrap {
   progressOf(documentId: string): BootstrapProgress | null {
     const job = this.jobs.peek(documentId);
     if (job === null) return null;
-    return job.progress;
+    return this.answerOf(job);
   }
 
   isInFlight(documentId: string): boolean {
@@ -110,7 +110,7 @@ export class RoomBootstrap {
 
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return existing.progress;
+    if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
     const fileBytes = this.fileBytesOf(documentId);
     const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
     const estimatedMs = (fileBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
@@ -191,6 +191,11 @@ export class RoomBootstrap {
   forget(documentId: string): void {
     this.jobs.delete(documentId);
     Object.values(this.queues).forEach((queue) => queue.remove(documentId));
+  }
+
+  private answerOf(job: BootstrapJob): BootstrapProgress {
+    if (job.progress.stage !== BootstrapStage.Preparing || job.startedAt === null) return job.progress;
+    return { ...job.progress, preparingElapsedMs: this.now() - job.startedAt };
   }
 
   private isRetryable(job: BootstrapJob): boolean {

@@ -49,7 +49,7 @@ function bootstrapWithPendingRuns({
 }
 
 test('a requested bootstrap is queued with the size of the upload and then prepared', async () => {
-  const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns();
+  const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns({ now: () => 1_000_000 });
   expect(bootstrap.request(DOCUMENT_ID)).toEqual({
     stage: BootstrapStage.Queued,
     done: 0,

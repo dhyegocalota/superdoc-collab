@@ -1,6 +1,6 @@
 # Backpressure: the server says no, and how long, before many heavy documents overload it
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-20 ("como proteger o servidor de sobrecarga? e se muitas pessoas decidirem carregar docs pesado ao mesmo tempo?", requirement 36)
 **ADRs:** [0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md), [0047](../../adr/0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md)

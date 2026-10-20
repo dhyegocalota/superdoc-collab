@@ -1,6 +1,6 @@
 # Lighter projection: the worker builds a version and a projection run from one document at a time
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-20 ("não dá pra diminuir o consumo de memória no servidor?")
 **ADRs:** [0043](../../adr/0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md), [0044](../../adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md), [0047](../../adr/0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md)

@@ -1,6 +1,6 @@
 # Local preview: the uploader sees the document at once, and a file the server refuses is prepared on the device
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-20 ("quer dizer que fomos fazer ficar mais performático e acabamos deixando mais lento??", requirement 35). Decision: preview from the uploaded bytes in a worker, a read-only badge, a swap to the live room without a reload, and a hybrid source for files the memory guard refuses, guarded by device.
 **ADRs:** [0049](../../adr/0049-the-uploader-previews-locally-and-a-refused-file-is-prepared-on-the-device.md), [0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md), [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md)

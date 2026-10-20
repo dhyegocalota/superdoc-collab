@@ -25,6 +25,7 @@ export type DocumentRuntime = {
   isPreparedOnDevice: (documentId: string) => boolean;
   isDeviceCreator: (parameters: { documentId: string; userId: string }) => boolean;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
+  isBootstrapRunningFor: (parameters: { ownerUserId: string; documentXmlBytes: number }) => boolean;
   bootstrapWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
@@ -83,6 +84,7 @@ export function createCollaborationRuntime({
     isPreparedOnDevice: (documentId) => roomBootstrap.isDevicePending(documentId),
     isDeviceCreator: (parameters) => roomBootstrap.isDeviceCreator(parameters),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
+    isBootstrapRunningFor: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.isRunningFor({ ownerId: ownerUserId, documentXmlBytes }),
     bootstrapWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.predictedWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(

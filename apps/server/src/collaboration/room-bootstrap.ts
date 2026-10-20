@@ -28,6 +28,7 @@ export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   done: NOTHING_TO_PROCESS_BYTES,
   total: NOTHING_TO_PROCESS_BYTES,
   stateBytes: null,
+  estimatedMs: null,
 };
 
 export class BootstrapOwnerMissingError extends Error {
@@ -106,7 +107,7 @@ export class RoomBootstrap {
     if (existing !== null && !this.isRetryable(existing)) return existing.progress;
     const fileBytes = this.fileBytesOf(documentId);
     const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
-    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null };
+    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs: null };
     this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null } });
     const lane = bootstrapLaneOf(fileBytes);
     this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
@@ -121,7 +122,11 @@ export class RoomBootstrap {
     const total = this.totalOf(documentId);
     this.jobs.set({
       key: documentId,
-      value: { progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null }, attempt, failedAt: null },
+      value: {
+        progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null, estimatedMs: null },
+        attempt,
+        failedAt: null,
+      },
     });
     return this.issueToken({ userId: owner, documentId, attempt });
   }
@@ -146,7 +151,7 @@ export class RoomBootstrap {
     const attempt = job === null ? null : job.attempt;
     this.jobs.set({
       key: documentId,
-      value: { progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes }, attempt, failedAt: null },
+      value: { progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes, estimatedMs: null }, attempt, failedAt: null },
     });
     const commitWaiter = this.commitWaiters.get(documentId);
     if (commitWaiter !== undefined) commitWaiter();

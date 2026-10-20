@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AuthorColorSlot } from './author-colors';
 import { BYTES_PER_KILOBYTE, BOOTSTRAP_MS_PER_MEGABYTE, BOOTSTRAP_TIMEOUT_MARGIN, SECOND_MS } from './constants';
 
-const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE;
+export const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE;
 export const TITLE_MAX_LENGTH = 200;
 export const PREVIEW_MAX_CHARACTERS = 400;
 
@@ -117,4 +117,5 @@ export type BootstrapProgress = {
   done: number;
   total: number;
   stateBytes: number | null;
+  estimatedMs: number | null;
 };

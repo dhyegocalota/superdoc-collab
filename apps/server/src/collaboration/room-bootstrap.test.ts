@@ -1,6 +1,8 @@
 import {
   BOOTSTRAP_COMMIT_GRACE_MS,
   BOOTSTRAP_LIGHT_MAX_BYTES,
+  BOOTSTRAP_MS_PER_MEGABYTE,
+  BYTES_PER_MEGABYTE,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BootstrapLane,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
@@ -17,6 +19,7 @@ const OWNER_ID = 'user-ana';
 const FILE_BYTES = 9_500_000;
 const STATE_BYTES = 36_600_000;
 const ESTIMATED_BYTES = FILE_BYTES * BOOTSTRAP_STATE_BYTES_RATIO;
+const ESTIMATED_MS = (FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE;
 const FRAME_BYTES = 1000;
 const URL = 'ws://127.0.0.1:4000/collaboration/bootstrap';
 
@@ -47,9 +50,21 @@ function bootstrapWithPendingRuns({
 
 test('a requested bootstrap is queued with the size of the upload and then prepared', async () => {
   const { bootstrap, pending, issueToken } = bootstrapWithPendingRuns();
-  expect(bootstrap.request(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Queued, done: 0, total: ESTIMATED_BYTES, stateBytes: null });
+  expect(bootstrap.request(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Queued,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: ESTIMATED_MS,
+  });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
-  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Preparing, done: 0, total: ESTIMATED_BYTES, stateBytes: null });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Preparing,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: ESTIMATED_MS,
+  });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
   expect({ userId, documentId }).toEqual({ userId: OWNER_ID, documentId: DOCUMENT_ID });
   expect(pending[0]!.request).toEqual({
@@ -96,6 +111,7 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
     done: ESTIMATED_BYTES,
     total: ESTIMATED_BYTES,
     stateBytes: STATE_BYTES,
+    estimatedMs: ESTIMATED_MS,
   });
   pending[0]!.resolve();
   await Promise.resolve();
@@ -105,7 +121,13 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
 test('a commit nobody asked for is ready with nothing to process', () => {
   const { bootstrap } = bootstrapWithPendingRuns();
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
-  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Ready, done: 0, total: 0, stateBytes: STATE_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Ready,
+    done: 0,
+    total: 0,
+    stateBytes: STATE_BYTES,
+    estimatedMs: null,
+  });
 });
 
 test('a failed run is reported once, stays failed within the cooldown and is not run again', async () => {
@@ -115,7 +137,13 @@ test('a failed run is reported once, stays failed within the cooldown and is not
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   pending[0]!.reject(new Error('not a document'));
   await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
-  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({ stage: BootstrapStage.Failed, done: 0, total: ESTIMATED_BYTES, stateBytes: null });
+  expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Failed,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: ESTIMATED_MS,
+  });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
   expect(pending).toHaveLength(1);
@@ -372,4 +400,24 @@ test('an owner is asked to wait only while a bootstrap of theirs is queued in th
   expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: LARGE_FILE_BYTES })).toBe(BOOTSTRAP_QUEUE_RETRY_AFTER_MS);
   expect(bootstrap.queueWaitMs({ ownerId: ANA, fileBytes: SMALL_FILE_BYTES })).toBeNull();
   expect(bootstrap.queueWaitMs({ ownerId: BRUNO, fileBytes: LARGE_FILE_BYTES })).toBeNull();
+});
+
+test('a job that completes in a number of seconds per megabyte moves the estimate of the next jobs to the average of the completions', async () => {
+  let currentMs = 0;
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, fileBytesOf: () => BYTES_PER_MEGABYTE });
+  const firstDocumentId = 'document-first';
+  const secondDocumentId = 'document-second';
+  const thirdDocumentId = 'document-third';
+  const COMPLETION_MS = [2000, 4000];
+  expect(bootstrap.request(firstDocumentId).estimatedMs).toBe(BOOTSTRAP_MS_PER_MEGABYTE);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  currentMs += COMPLETION_MS[0]!;
+  bootstrap.ready({ documentId: firstDocumentId, stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  bootstrap.request(secondDocumentId);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  currentMs += COMPLETION_MS[1]!;
+  bootstrap.ready({ documentId: secondDocumentId, stateBytes: STATE_BYTES });
+  pending[1]!.resolve();
+  expect(bootstrap.request(thirdDocumentId).estimatedMs).toBe(3000);
 });

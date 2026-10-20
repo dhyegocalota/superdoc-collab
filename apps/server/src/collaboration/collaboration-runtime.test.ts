@@ -16,7 +16,7 @@ function connectionOfUser(userId: string): FakeConnection {
   return { context: { userId }, close: vi.fn() };
 }
 
-const QUEUED: BootstrapProgress = { stage: BootstrapStage.Queued, done: 0, total: 9, stateBytes: null };
+const QUEUED: BootstrapProgress = { stage: BootstrapStage.Queued, done: 0, total: 9, stateBytes: null, estimatedMs: null };
 
 function fakeRoomBootstrap({ progress = null, isInFlight = false }: { progress?: BootstrapProgress | null; isInFlight?: boolean } = {}) {
   return { progressOf: vi.fn(() => progress), request: vi.fn(() => QUEUED), forget: vi.fn(), isInFlight: vi.fn(() => isInFlight) };
@@ -96,7 +96,7 @@ test('closeConnectionsOfUser also closes the version sockets of that user in eve
 });
 
 test('the bootstrap of a document with a job is the progress of that job', () => {
-  const progress: BootstrapProgress = { stage: BootstrapStage.Preparing, done: 0, total: 9, stateBytes: null };
+  const progress: BootstrapProgress = { stage: BootstrapStage.Preparing, done: 0, total: 9, stateBytes: null, estimatedMs: null };
   const roomBootstrap = fakeRoomBootstrap({ progress });
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });
   expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(progress);
@@ -118,7 +118,7 @@ test('an uncommitted document with no job is requested once and answers the queu
 });
 
 test('a failed job is requested again so the registry may retry it after its cooldown', () => {
-  const failed: BootstrapProgress = { stage: BootstrapStage.Failed, done: 0, total: 9, stateBytes: null };
+  const failed: BootstrapProgress = { stage: BootstrapStage.Failed, done: 0, total: 9, stateBytes: null, estimatedMs: null };
   const roomBootstrap = fakeRoomBootstrap({ progress: failed });
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });
   expect(runtime.bootstrapRoom(DOCUMENT_ID)).toBe(QUEUED);

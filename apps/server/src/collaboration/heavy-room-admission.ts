@@ -1,3 +1,5 @@
+import { BOOTSTRAP_STATE_BYTES_RATIO, isHeavyRoomDocument } from '@superdoc-collab/types';
+import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { RoomMemoryRelease } from './room-memory-release';
 
 export type HeavyRoomAdmission = {
@@ -16,10 +18,18 @@ export function createHeavyRoomAdmission({
 }): HeavyRoomAdmission {
   return {
     admits(documentId) {
-      return documentId.length > 0 && typeof roomMemory === 'object' && typeof documentXmlBytesOf === typeof isInFlight;
+      if (isInFlight(documentId)) return true;
+      if (!roomMemory.isBounded()) return true;
+      const documentXmlBytes = documentXmlBytesOf(documentId);
+      if (!isHeavyRoomDocument(documentXmlBytes)) return true;
+      return roomMemory.admit({
+        documentName: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
+        estimatedStateBytes: documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO,
+      });
     },
     hasHeadroomFor({ documentXmlBytes }) {
-      return documentXmlBytes >= 0;
+      if (!isHeavyRoomDocument(documentXmlBytes)) return true;
+      return roomMemory.hasHeadroomFor(documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO);
     },
   };
 }

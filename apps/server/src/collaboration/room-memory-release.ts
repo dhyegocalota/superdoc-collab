@@ -13,6 +13,8 @@ export const ROOM_MEMORY_RELEASED_MESSAGE = 'Released the memory of a heavy room
 const RELEASE_COOLDOWN_MS = MINUTE_MS;
 const RELEASE_COOLDOWN_KEY = 'process';
 
+type Reservation = { heapBytes: number; expiresAt: number };
+
 export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavor: 'regular' }) => void;
 
 export type RoomMemoryRelease = {
@@ -38,6 +40,7 @@ export function createRoomMemoryRelease({
   roomHeapBudgetBytes: number | null;
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
+  const reservations = new Map<string, Reservation>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
   let isRetryPending = false;
 
@@ -45,8 +48,26 @@ export function createRoomMemoryRelease({
     return bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
   }
 
-  function heavyHeapBytes(): never {
-    throw new Error('heavyHeapBytes is not implemented');
+  function heapBytesOf(stateBytes: number): number {
+    return stateBytes * HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE;
+  }
+
+  function liveReservations(): Map<string, Reservation> {
+    [...reservations.entries()]
+      .filter(([, { expiresAt }]) => expiresAt <= now())
+      .forEach(([documentName]) => reservations.delete(documentName));
+    return reservations;
+  }
+
+  function heavyHeapBytes(): number {
+    const loaded = [...roomBytes.values()].filter(isHeavy).reduce((sum, bytes) => sum + heapBytesOf(bytes), 0);
+    const reserved = [...liveReservations().values()].reduce((sum, { heapBytes }) => sum + heapBytes, 0);
+    return loaded + reserved;
+  }
+
+  function hasHeadroomFor(estimatedStateBytes: number): boolean {
+    if (roomHeapBudgetBytes === null) return true;
+    return heavyHeapBytes() + heapBytesOf(estimatedStateBytes) <= roomHeapBudgetBytes;
   }
 
   function retryAfter({
@@ -80,6 +101,7 @@ export function createRoomMemoryRelease({
 
   return {
     grew({ documentName, bytes }) {
+      reservations.delete(documentName);
       const known = roomBytes.get(documentName);
       roomBytes.set(documentName, known === undefined ? bytes : known + bytes);
     },
@@ -90,15 +112,16 @@ export function createRoomMemoryRelease({
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
     heavyHeapBytes,
-    isBounded() {
-      throw new Error(`isBounded is not implemented ${roomHeapBudgetBytes}`);
-    },
+    isBounded: () => roomHeapBudgetBytes !== null,
     admit({ documentName, estimatedStateBytes }) {
-      throw new Error(`admit is not implemented ${documentName} ${estimatedStateBytes} ${HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE}`);
+      if (roomHeapBudgetBytes === null) return true;
+      if (isHeavy(roomBytes.get(documentName))) return true;
+      if (liveReservations().has(documentName)) return true;
+      if (!hasHeadroomFor(estimatedStateBytes)) return false;
+      reservations.set(documentName, { heapBytes: heapBytesOf(estimatedStateBytes), expiresAt: now() + ROOM_RESERVATION_TTL_MS });
+      return true;
     },
-    hasHeadroomFor(estimatedStateBytes) {
-      throw new Error(`hasHeadroomFor is not implemented ${estimatedStateBytes}`);
-    },
+    hasHeadroomFor,
   };
 }
 

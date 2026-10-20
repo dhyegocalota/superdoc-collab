@@ -19,6 +19,7 @@ import { RestartablePort, startRestartableStack, stopRestartableStack } from './
 
 const [ana, bruno, carla] = DEMO_USERS;
 const WAIT_CEILING_MS = 60 * SECOND_MS;
+const ROOM_HEAP_BUDGET_MEGABYTES = 1000;
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const LARGE_TEST_TIMEOUT_MS = 480 * SECOND_MS;
 const LARGE_READY_TIMEOUT_MS = 240 * SECOND_MS;
@@ -38,7 +39,7 @@ test.describe.configure({ mode: 'serial' });
 test.beforeAll(async () => {
   origin = await startRestartableStack(RestartablePort.Backpressure, {
     MAX_BOOTSTRAP_WAIT_MS: String(WAIT_CEILING_MS),
-    MAX_LOADED_HEAVY_ROOMS: '1',
+    ROOM_HEAP_BUDGET_MEGABYTES: String(ROOM_HEAP_BUDGET_MEGABYTES),
   });
 });
 

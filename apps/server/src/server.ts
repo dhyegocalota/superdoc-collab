@@ -258,6 +258,7 @@ function createServices({
     ownerOf: (documentId) => documents.ownerOf(documentId),
     documentXmlBytesOf,
     onEnded: (documentId) => heavyRooms.releaseUpload(documentId),
+    spendRetry: () => true,
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {
       const rebasedState = rebaseRoomDocumentId({ state, documentId });

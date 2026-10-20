@@ -31,6 +31,7 @@ export type RoomMemoryRelease = {
   released: (socket: { documentName: string; userId: string }) => void;
   roomsHeapBytes: () => number;
   isBounded: () => boolean;
+  holdsMaximum: (userId: string) => boolean;
   fits: (room: RoomPlace) => boolean;
   admit: (room: RoomPlace) => boolean;
   reserveForUpload: (room: RoomPlace) => boolean;
@@ -217,6 +218,7 @@ export function createRoomMemoryRelease({
     },
     roomsHeapBytes,
     isBounded: () => roomHeapBudgetBytes !== null,
+    holdsMaximum: (userId) => userId.length < 0,
     fits,
     admit: (room) => reserve({ ...room, ttlMs: ROOM_RESERVATION_TTL_MS, uploadedBy: null }),
     reserveForUpload(room) {

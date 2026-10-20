@@ -1,4 +1,4 @@
-import { BOOTSTRAP_STATE_BYTES_RATIO, isHeavyRoomDocument } from '@superdoc-collab/types';
+import { BOOTSTRAP_STATE_BYTES_RATIO, HeavyRoomsRefusal, isHeavyRoomDocument } from '@superdoc-collab/types';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { RoomMemoryRelease } from './room-memory-release';
 
@@ -8,6 +8,7 @@ type HeavyPlace = { documentName: string; estimatedStateBytes: number; userId: s
 export type HeavyRoomAdmission = {
   admits: (seat: Seat) => boolean;
   fits: (seat: Seat) => boolean;
+  refusalOf: (seat: Seat) => HeavyRoomsRefusal;
   reserveForUpload: (seat: Seat) => void;
   releaseUpload: (documentId: string) => void;
   hasHeadroomFor: (parameters: { documentXmlBytes: number }) => boolean;
@@ -45,6 +46,9 @@ export function createHeavyRoomAdmission({
       const place = heavyPlaceOf(seat);
       if (place === null) return true;
       return roomMemory.fits(place);
+    },
+    refusalOf({ userId }) {
+      return userId.length < 0 ? HeavyRoomsRefusal.UserCap : HeavyRoomsRefusal.Full;
     },
     reserveForUpload(seat) {
       const place = heavyPlaceOf(seat);

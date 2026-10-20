@@ -6,6 +6,7 @@ import {
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RATE_CLAMP_MULTIPLE,
   BootstrapLane,
+  BOOTSTRAP_MAX_RETRIES,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
@@ -36,12 +37,14 @@ function bootstrapWithPendingRuns({
   documentXmlBytesOf = () => FILE_BYTES,
   commitBlank = () => undefined,
   onEnded = () => undefined,
+  spendRetry = () => true,
 }: {
   ownerOf?: (documentId: string) => string | null;
   now?: () => number;
   documentXmlBytesOf?: (documentId: string) => number;
   commitBlank?: (committed: { documentId: string; ownerId: string; state: Uint8Array }) => void;
   onEnded?: (documentId: string) => void;
+  spendRetry?: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
 } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
@@ -54,6 +57,7 @@ function bootstrapWithPendingRuns({
     filePathOf: (documentId) => `/files/${documentId}.docx`,
     commitBlank,
     onEnded,
+    spendRetry,
     now,
   });
   return { bootstrap, pending, issueToken };
@@ -768,5 +772,67 @@ test('the end of a bootstrap is reported once, whether it committed, failed or w
   await vi.waitFor(() => expect(onEnded.mock.calls).toEqual([['committed'], ['failed']]));
   bootstrap.forget('waiting');
   expect(onEnded.mock.calls).toEqual([['committed'], ['failed'], ['waiting']]);
+  error.mockRestore();
+});
+
+async function failedOnce({
+  bootstrap,
+  pending,
+  clock,
+}: {
+  bootstrap: RoomBootstrap;
+  pending: Pending[];
+  clock: { currentMs: number };
+}): Promise<void> {
+  const runs = pending.length;
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(runs + 1));
+  pending[runs]!.reject(new Error('not a document'));
+  await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
+  clock.currentMs += BOOTSTRAP_RETRY_COOLDOWN_MS;
+}
+
+test('a failed document is started again at most BOOTSTRAP_MAX_RETRIES times, then it stays failed until it is uploaded again', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs });
+  await failedOnce({ bootstrap, pending, clock });
+  await Promise.all(Array.from({ length: BOOTSTRAP_MAX_RETRIES }, () => failedOnce({ bootstrap, pending, clock })));
+  expect(pending).toHaveLength(1 + BOOTSTRAP_MAX_RETRIES);
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  expect(pending).toHaveLength(1 + BOOTSTRAP_MAX_RETRIES);
+  bootstrap.forget(DOCUMENT_ID);
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(2 + BOOTSTRAP_MAX_RETRIES));
+  error.mockRestore();
+});
+
+test('a retry is started only when the owner may spend a heavy conversion on it, and the file asked about is the one retried', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const spendRetry = vi.fn(() => false);
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs, spendRetry });
+  await failedOnce({ bootstrap, pending, clock });
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  expect(pending).toHaveLength(1);
+  expect(spendRetry).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID, documentXmlBytes: FILE_BYTES });
+  spendRetry.mockReturnValue(true);
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  error.mockRestore();
+});
+
+test('a document that was never started is not a retry, and one that succeeded does not count its earlier failures', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const spendRetry = vi.fn(() => true);
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs, spendRetry });
+  await failedOnce({ bootstrap, pending, clock });
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  pending[1]!.resolve();
+  await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Ready));
+  expect(spendRetry).toHaveBeenCalledTimes(1);
   error.mockRestore();
 });

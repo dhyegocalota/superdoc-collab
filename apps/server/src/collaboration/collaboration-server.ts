@@ -2,6 +2,7 @@ import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
 import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
+  HeavyRoomsRefusal,
   ClientActor,
   DocumentRole,
   isTabId,
@@ -143,7 +144,7 @@ export function createCollaborationServer({
   onLogged,
   onStored,
   roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, measureRoom: () => null }),
-  heavyRooms = { admits: () => true },
+  heavyRooms = { admits: () => true, refusalOf: () => HeavyRoomsRefusal.Full },
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -154,7 +155,7 @@ export function createCollaborationServer({
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
   roomMemory?: RoomMemoryRelease;
-  heavyRooms?: Pick<HeavyRoomAdmission, 'admits'>;
+  heavyRooms?: Pick<HeavyRoomAdmission, 'admits' | 'refusalOf'>;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();

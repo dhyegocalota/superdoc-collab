@@ -402,3 +402,15 @@ test('rooms are measured again at most once per cooldown, however many admission
   probe();
   expect(measureRoom).toHaveBeenCalledTimes(2);
 });
+
+test('a user holds the maximum of heavy rooms only while that many of their rooms are loaded or reserved', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: BIG_BUDGET_BYTES });
+  const rooms = Array.from({ length: MAX_HEAVY_ROOMS_PER_USER }, (_, index) => `held-${index}`);
+  rooms.slice(0, -1).forEach((documentName) => release.admit(admission(documentName)));
+  expect(release.holdsMaximum(ANA)).toBe(false);
+  release.admit(admission(rooms.at(-1)!));
+  expect(release.holdsMaximum(ANA)).toBe(true);
+  expect(release.holdsMaximum(BRUNO)).toBe(false);
+  release.unloaded({ documentName: rooms[0]!, isReloaded: () => false });
+  expect(release.holdsMaximum(ANA)).toBe(false);
+});

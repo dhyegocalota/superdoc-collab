@@ -78,6 +78,7 @@ export class RoomBootstrap {
   private readonly commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
   private readonly now: () => number;
   private readonly onEnded: (documentId: string) => void;
+  private readonly spendRetry: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
 
   constructor({
     run,
@@ -88,6 +89,7 @@ export class RoomBootstrap {
     filePathOf,
     commitBlank,
     onEnded,
+    spendRetry,
     now = () => Date.now(),
   }: {
     run: BootstrapRun;
@@ -98,6 +100,7 @@ export class RoomBootstrap {
     filePathOf: (documentId: string) => string;
     commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
     onEnded: (documentId: string) => void;
+    spendRetry: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
     now?: () => number;
   }) {
     this.run = run;
@@ -109,6 +112,7 @@ export class RoomBootstrap {
     this.commitBlank = commitBlank;
     this.now = now;
     this.onEnded = onEnded;
+    this.spendRetry = spendRetry;
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
@@ -136,6 +140,7 @@ export class RoomBootstrap {
   }
 
   request(documentId: string): BootstrapProgress {
+    if (this.spendRetry.length > 99) return this.progressOf(documentId)!;
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return this.answerOf({ documentId, job: existing });
     const progress = this.register(documentId);

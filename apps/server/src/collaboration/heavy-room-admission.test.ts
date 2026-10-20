@@ -1,4 +1,4 @@
-import { BOOTSTRAP_STATE_BYTES_RATIO, LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
+import { BOOTSTRAP_STATE_BYTES_RATIO, HeavyRoomsRefusal, LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { createHeavyRoomAdmission } from './heavy-room-admission';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
@@ -14,12 +14,14 @@ function admissionWith({
   isBounded = true,
   documentXmlBytes,
   isInFlight = false,
+  holdsMaximum = false,
 }: {
   isAdmitted?: boolean;
   hasHeadroom?: boolean;
   isBounded?: boolean;
   documentXmlBytes: number;
   isInFlight?: boolean;
+  holdsMaximum?: boolean;
 }) {
   const roomMemory = {
     grew: vi.fn(),
@@ -28,6 +30,7 @@ function admissionWith({
     loaded: vi.fn(),
     isBounded: vi.fn(() => isBounded),
     admit: vi.fn(() => isAdmitted),
+    holdsMaximum: vi.fn(() => holdsMaximum),
     reserveForUpload: vi.fn(() => true),
     unreserved: vi.fn(),
     fits: vi.fn(() => isAdmitted),
@@ -114,4 +117,12 @@ test('an upload reserves the place its room will need, only for a heavy document
   expect([light.roomMemory.reserveForUpload, unbounded.roomMemory.reserveForUpload].map((reserve) => reserve.mock.calls.length)).toEqual([
     0, 0,
   ]);
+});
+
+test('a refusal is the share of the user when they already hold the maximum, and the budget otherwise', () => {
+  const capped = admissionWith({ holdsMaximum: true, documentXmlBytes: HEAVY_XML_BYTES });
+  expect(capped.admission.refusalOf({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(HeavyRoomsRefusal.UserCap);
+  expect(capped.roomMemory.holdsMaximum).toHaveBeenCalledWith(USER_ID);
+  const full = admissionWith({ holdsMaximum: false, documentXmlBytes: HEAVY_XML_BYTES });
+  expect(full.admission.refusalOf({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(HeavyRoomsRefusal.Full);
 });

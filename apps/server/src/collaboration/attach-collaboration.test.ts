@@ -7,6 +7,8 @@ import {
   MAX_AWARENESS_CLIENT_IDS_PER_CONNECTION,
   HEAVY_ROOMS_FULL_CLOSE_CODE,
   HEAVY_ROOMS_FULL_REASON,
+  HEAVY_ROOMS_USER_CAP_CLOSE_CODE,
+  HEAVY_ROOMS_USER_CAP_REASON,
   MAX_AWARENESS_ENTRIES_PER_FRAME,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
@@ -59,6 +61,7 @@ const COUNTED_ROOM_NAME = 'superdoc-room-1';
 const AUTHENTICATED_ANSWER = new OutgoingMessage(COUNTED_ROOM_NAME).writeAuthenticated(false).toUint8Array();
 const DENIED_ANSWER = new OutgoingMessage(COUNTED_ROOM_NAME).writePermissionDenied('permission-denied').toUint8Array();
 const HEAVY_ROOMS_FULL_ANSWER = new OutgoingMessage(COUNTED_ROOM_NAME).writePermissionDenied(HEAVY_ROOMS_FULL_REASON).toUint8Array();
+const USER_CAP_ANSWER = new OutgoingMessage(COUNTED_ROOM_NAME).writePermissionDenied(HEAVY_ROOMS_USER_CAP_REASON).toUint8Array();
 const UNRELATED_ANSWER = Buffer.from([0]);
 const AWARENESS_BURST_FRAMES = 3000;
 const AWARENESS_ROOM_NAME = 'superdoc-room-1';
@@ -566,6 +569,15 @@ test('a socket denied because the heavy rooms are full closes with its own code 
     socket.on('close', (code, reason) => resolve({ code, reason: reason.toString() })),
   );
   expect(closed).toEqual({ code: HEAVY_ROOMS_FULL_CLOSE_CODE, reason: HEAVY_ROOMS_FULL_REASON });
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('a socket denied for the share of the user closes with the code and reason of that share', async () => {
+  const { socket, httpServer } = await openCountedSocket({ answer: USER_CAP_ANSWER });
+  const closed = await new Promise<{ code: number; reason: string }>((resolve) =>
+    socket.on('close', (code, reason) => resolve({ code, reason: reason.toString() })),
+  );
+  expect(closed).toEqual({ code: HEAVY_ROOMS_USER_CAP_CLOSE_CODE, reason: HEAVY_ROOMS_USER_CAP_REASON });
   await new Promise((resolve) => httpServer.close(resolve));
 });
 

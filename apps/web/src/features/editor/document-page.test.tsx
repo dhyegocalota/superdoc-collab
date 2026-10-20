@@ -39,7 +39,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { pagesSoFarDetail } from '@/features/open-progress/open-progress-copy';
 import { OpenStage } from '@/features/open-progress/open-stage';
-import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
+import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, READY_BOOTSTRAP, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL, SIGN_IN_LABEL } from './connection-copy';
@@ -1140,6 +1140,7 @@ test('a document with no kept file waits without a preview', async () => {
 });
 
 const DEVICE_OWNER_NAME = 'Ada';
+const DEVICE_ESTIMATE_MS = 50_000;
 
 function openedOnDevice(): OpenedDocument {
   return { ...openedAs(DocumentRole.Owner, RoomMode.Create), preparedOnDeviceOf: DEVICE_OWNER_NAME };
@@ -1194,18 +1195,36 @@ test(
   TEST_TIMEOUT_MS,
 );
 
-test('the creator of a device job reads Preparing on this device with the counter until the editor is ready, painted or not', async () => {
+test('the creator of a device job reads Preparing on this device with the estimate and the counter', async () => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
-  SuperDoc.mockImplementationOnce(function UnreadySuperDoc() {
-    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
-  } as unknown as typeof SuperDoc);
-  mockDocumentApi({ opened: openedOnDevice() });
+  mockDocumentApi({ opened: { ...openedOnDevice(), bootstrap: { ...READY_BOOTSTRAP, estimatedMs: DEVICE_ESTIMATE_MS } } });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
-  expect(panel).toHaveTextContent(PREPARING_HERE_DETAIL);
+  expect(panel).toHaveTextContent(`${PREPARING_HERE_DETAIL} · about 50 s`);
+});
+
+test('the panel of the creator of a device job stays until the collaborative editor is ready and the first paragraph is painted', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   paintFirstParagraph();
   await new Promise((resolve) => setTimeout(resolve, PAINT_MARGIN_MS));
   expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
-  act(() => constructedConfig().onReady?.({ superdoc: superdocStub() }));
+  act(() => constructedConfig().onCollaborationReady());
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+test('the panel of the creator of a device job stays while the editor is synced but has painted nothing', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationReady());
+  await new Promise((resolve) => setTimeout(resolve, PAINT_MARGIN_MS));
+  expect(screen.getByTestId(PROGRESS_TEST_ID)).toBeInTheDocument();
+  paintFirstParagraph();
   await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
 });

@@ -214,7 +214,7 @@ export function DocumentPage() {
     const openProgress = isOpenProgressVisible
       ? (elapsedSeconds: number) =>
           isCreatingOnDevice
-            ? preparingHereView({ elapsedSeconds })
+            ? preparingHereView({ estimatedMs: opened.bootstrap.estimatedMs, elapsedSeconds })
             : editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
       : null;
 

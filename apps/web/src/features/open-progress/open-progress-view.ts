@@ -112,7 +112,7 @@ export function preparingView({
   return { stage, detail: detailLine([subject, elapsed]), fraction: null };
 }
 
-export function preparingHereView({ elapsedSeconds }: { elapsedSeconds: number }): OpenProgressView {
+export function preparingHereView({ elapsedSeconds }: { estimatedMs: number | null; elapsedSeconds: number }): OpenProgressView {
   return { stage: OpenStage.Preparing, detail: detailLine([PREPARING_HERE_DETAIL, elapsedLabel(elapsedSeconds)]), fraction: null };
 }
 

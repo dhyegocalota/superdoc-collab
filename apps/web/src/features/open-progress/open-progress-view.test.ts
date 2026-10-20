@@ -244,8 +244,16 @@ test('a joiner is told whose device prepares the document, before and after byte
   expect(receiving.fraction).toBe(0.5);
 });
 
-test('the creator of a device job reads that it prepares on this device, with the elapsed counter and no bar', () => {
-  expect(preparingHereView({ elapsedSeconds: 12 })).toEqual({
+test('the creator of a device job reads that it prepares on this device, with the estimate, the elapsed counter and the bar', () => {
+  expect(preparingHereView({ estimatedMs: 50_000, elapsedSeconds: 12 })).toEqual({
+    stage: OpenStage.Preparing,
+    detail: 'Preparing on this device · about 50 s · 12 s elapsed',
+    fraction: 0.24,
+  });
+});
+
+test('the creator of a device job without an estimate reads the elapsed counter and no bar', () => {
+  expect(preparingHereView({ estimatedMs: null, elapsedSeconds: 12 })).toEqual({
     stage: OpenStage.Preparing,
     detail: 'Preparing on this device · 12 s',
     fraction: null,

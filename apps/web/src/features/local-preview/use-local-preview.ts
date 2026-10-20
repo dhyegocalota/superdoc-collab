@@ -19,7 +19,8 @@ export function useLocalPreview({
   const file = localFileOf(documentId);
   const isWaiting = readiness === DocumentReadiness.Waiting;
   const isReady = readiness === DocumentReadiness.Ready;
-  const isSwapping = isReady && hasPreviewed && !isLiveEditorPainted;
+  const isPreviewedHere = isPreparingHere && file !== null;
+  const isSwapping = isReady && (hasPreviewed || isPreviewedHere) && !isLiveEditorPainted;
   const isDone = ABANDONED_READINESS.includes(readiness) || (isReady && !isSwapping);
 
   useEffect(() => {

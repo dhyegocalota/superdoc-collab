@@ -1270,7 +1270,7 @@ test('the creator of a device job reads the kept file as a read-only preview whi
 test('on the device path the preview engine is destroyed at the first painted paragraph and the layer leaves when the editor is ready', async () => {
   deviceCreatorWithKeptFile();
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  await screen.findByTestId('local-preview');
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
   paintFirstParagraph();
   await waitFor(() => expect(superDocDestroy).toHaveBeenCalledTimes(1));

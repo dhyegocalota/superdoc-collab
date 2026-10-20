@@ -113,12 +113,15 @@ export function DocumentPage() {
   useDocumentTitle(opened ? opened.document.title : null);
   const cachedTitle = useCachedTitle(documentId);
   const deviceGuardRefusal = useDeviceRefusal();
+  const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
+  const isDeviceEditorUsable = loadProgress.isSynced && hasPaintedParagraph;
+  const isCreatingOnDevice = isDeviceJobCreatedHere && !isDeviceEditorUsable;
   const isOpenFailing = connectionState === ConnectionState.Failed || loadProgress.hasFailed || fileError !== null;
   const previewFile = useLocalPreview({
     documentId,
     readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness,
-    isLiveEditorPainted: hasPaintedParagraph || isOpenFailing,
-    isPreparingHere: false,
+    isLiveEditorPainted: (isDeviceJobCreatedHere ? isDeviceEditorUsable : hasPaintedParagraph) || isOpenFailing,
+    isPreparingHere: isDeviceJobCreatedHere && deviceGuardRefusal === null,
   });
   const previewScrollFraction = useRef<number | null>(null);
   useEffect(() => {
@@ -158,7 +161,6 @@ export function DocumentPage() {
   function renderPage(): ReactNode {
     if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
     const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
-    const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
     const deviceRefusal = isDeviceJobCreatedHere ? deviceGuardRefusal : null;
     if (deviceRefusal !== null) {
       return withAnnouncement(
@@ -210,8 +212,6 @@ export function DocumentPage() {
     const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
     const isFailed = connectionState === ConnectionState.Failed;
     const isEditingSurfaceInert = isViewingPastVersion || isFailed;
-    const isDeviceEditorUsable = loadProgress.isSynced && hasPaintedParagraph;
-    const isCreatingOnDevice = opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null && !isDeviceEditorUsable;
     const isOpenProgressVisible = isProgressShown && !isOpenFailing && previewFile === null && (isCreatingOnDevice || !hasPaintedParagraph);
     const openProgress = isOpenProgressVisible
       ? (elapsedSeconds: number) =>
@@ -297,6 +297,7 @@ export function DocumentPage() {
   }
 
   const isPreviewReplacingPage = previewFile !== null && readiness === DocumentReadiness.Waiting;
+  const isPreviewFrozen = !isPreviewReplacingPage && (!isDeviceJobCreatedHere || hasPaintedParagraph);
   const previewLayer =
     previewFile === null ? null : (
       <LocalPreview
@@ -307,10 +308,12 @@ export function DocumentPage() {
         startedAt={startedAt}
         isProgressShown={isProgressShown}
         isSwapping={!isPreviewReplacingPage}
-        isFrozen={!isPreviewReplacingPage}
-        swappingViewAt={(elapsedSeconds) =>
-          editorOpenView({ loadProgress, stateBytes: bootstrap === null ? null : bootstrap.stateBytes, elapsedSeconds })
-        }
+        isFrozen={isPreviewFrozen}
+        swappingViewAt={(elapsedSeconds) => {
+          if (isCreatingOnDevice)
+            return preparingHereView({ estimatedMs: bootstrap === null ? null : bootstrap.estimatedMs, elapsedSeconds });
+          return editorOpenView({ loadProgress, stateBytes: bootstrap === null ? null : bootstrap.stateBytes, elapsedSeconds });
+        }}
         onScrollFraction={(fraction) => {
           previewScrollFraction.current = fraction;
         }}

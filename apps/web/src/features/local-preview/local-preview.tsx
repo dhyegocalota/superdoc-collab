@@ -80,8 +80,8 @@ export function LocalPreview({
   }, [container, file]);
 
   useEffect(() => {
-    if (isSwapping && freezeSurface.current) freezeSurface.current();
-  }, [isSwapping, container]);
+    if (isFrozen && freezeSurface.current) freezeSurface.current();
+  }, [isFrozen, container]);
 
   return (
     <div className={cn('flex flex-col', isSwapping ? SWAPPING_CLASS : 'h-full')}>

@@ -79,8 +79,8 @@ export function createCollaborationRuntime({
   return {
     bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
-    isPreparedOnDevice: () => false,
-    isDeviceCreator: () => false,
+    isPreparedOnDevice: (documentId) => roomBootstrap.isDevicePending(documentId),
+    isDeviceCreator: (parameters) => roomBootstrap.isDeviceCreator(parameters),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(

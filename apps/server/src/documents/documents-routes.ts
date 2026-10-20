@@ -7,6 +7,7 @@ import {
   DOCX_MIME_TYPE,
   DocumentRole,
   HttpStatus,
+  INVALID_PREPARATION_MESSAGE,
   isPreparable,
   isTabId,
   largestPreparableMegabytes,
@@ -15,6 +16,8 @@ import {
   NOT_A_DOCX_MESSAGE,
   OPEN_RATE_LIMITED_MESSAGE,
   OWNER_ACCESS_CANNOT_BE_REMOVED_MESSAGE,
+  PREPARATION_FIELD,
+  PreparationSource,
   RoomMode,
   secondsRoundedUp,
   TAB_QUERY_KEY,
@@ -24,6 +27,7 @@ import {
   UPLOAD_FIELD,
   UPLOAD_RATE_LIMITED_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
+  type UploadRefusal,
 } from '@superdoc-collab/types';
 import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
@@ -53,6 +57,16 @@ function titleFromFileName(fileName: string): string {
   const title = basename(fileName).replace(DOCX_EXTENSION_PATTERN, '').trim().slice(0, TITLE_MAX_LENGTH).trim();
   if (!title) return UNTITLED_DOCUMENT_TITLE;
   return title;
+}
+
+function isPreparationSource(value: unknown): value is PreparationSource {
+  return Object.values(PreparationSource).some((source) => source === value);
+}
+
+function preparationSourceOf(value: unknown): PreparationSource | null {
+  if (value === undefined) return PreparationSource.Server;
+  if (isPreparationSource(value)) return value;
+  return null;
 }
 
 function contentDisposition(fileName: string): string {
@@ -102,8 +116,11 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
   }): Response | null {
     if (memoryLimitMegabytes === null) return null;
     if (isPreparable({ documentXmlBytes, memoryLimitMegabytes })) return null;
-    const message = bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes));
-    return context.json({ error: message }, HttpStatus.PayloadTooLarge);
+    const refusal: UploadRefusal = {
+      error: bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes)),
+      canPrepareOnDevice: true,
+    };
+    return context.json(refusal, HttpStatus.PayloadTooLarge);
   }
 
   async function respondWithStoredDocument({
@@ -157,12 +174,15 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       const file = body[UPLOAD_FIELD];
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
+      const preparation = preparationSourceOf(body[PREPARATION_FIELD]);
+      if (preparation === null) return context.json({ error: INVALID_PREPARATION_MESSAGE }, HttpStatus.BadRequest);
       const bytes = new Uint8Array(await file.arrayBuffer());
       const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
       if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
-      if (memoryRefusal) return memoryRefusal;
+      const isDevicePreparation = preparation === PreparationSource.Device;
+      if (memoryRefusal && !isDevicePreparation) return memoryRefusal;
       return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true, isBlank: false });
     },
   );
@@ -186,12 +206,14 @@ function mountOpening({ routes, services }: RouteMount): void {
         retryAfterSeconds: secondsRoundedUp(answer.waitMs),
       });
     }
+    const bootstrap = runtime.bootstrapRoom(documentId);
+    const isDeviceCreator = runtime.isDeviceCreator({ documentId, userId });
     return context.json({
       document: summary,
       role,
-      roomMode: RoomMode.Join,
-      bootstrap: runtime.bootstrapRoom(documentId),
-      preparedOnDeviceOf: null,
+      roomMode: isDeviceCreator ? RoomMode.Create : RoomMode.Join,
+      bootstrap,
+      preparedOnDeviceOf: runtime.isPreparedOnDevice(documentId) ? summary.owner.name : null,
       colorSlot: documents.colorSlotOf({ documentId, userId }),
     });
   });

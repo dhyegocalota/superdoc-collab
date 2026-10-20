@@ -161,10 +161,10 @@ export function createCollaborationServer({
     SocketKind,
     (parameters: { requestHeaders: IncomingHttpHeaders; token: string; documentId: string }) => Promise<Admission>
   > = {
-    [SocketKind.Member]: async ({ requestHeaders, documentId }) => ({
-      ...(await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId })),
-      bootstrapAttempt: null,
-    }),
+    [SocketKind.Member]: async ({ requestHeaders, documentId }) => {
+      const member = await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
+      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId }) };
+    },
     [SocketKind.Agent]: async ({ token, documentId }) => ({
       ...(await authenticateAgent({ auth, documents, token, documentId })),
       impersonationEndsAt: null,
@@ -272,9 +272,11 @@ export function createCollaborationServer({
       if (bootstrapAttempt !== null) roomBootstrap.received({ documentId, bytes: update.byteLength });
       onLogged(documentId);
     },
-    async onDisconnect({ socketId }) {
+    async onDisconnect({ socketId, context }) {
+      const { documentId, bootstrapAttempt } = context as CollaborationContext;
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
+      if (bootstrapAttempt !== null) roomBootstrap.deviceClosed({ documentId, attempt: bootstrapAttempt });
     },
     async onStoreDocument({ documentName }) {
       onStored(requireDocumentId(documentName));

@@ -22,7 +22,13 @@ import { describeError } from '../logging/describe-error';
 
 export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 
-type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null; startedAt: number | null };
+type BootstrapJob = {
+  progress: BootstrapProgress;
+  attempt: string | null;
+  failedAt: number | null;
+  startedAt: number | null;
+  isDevice: boolean;
+};
 
 const NOTHING_TO_PROCESS_BYTES = 0;
 const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
@@ -46,6 +52,12 @@ export class BootstrapOwnerMissingError extends Error {
 export class BootstrapUncommittedError extends Error {
   constructor() {
     super('The bootstrap finished without committing the room.');
+  }
+}
+
+export class DeviceClosedError extends Error {
+  constructor() {
+    super('The device preparing the room closed before the commit.');
   }
 }
 
@@ -104,19 +116,29 @@ export class RoomBootstrap {
   }
 
   isDevicePending(documentId: string): boolean {
-    throw new Error('isDevicePending is not implemented');
+    const job = this.jobs.peek(documentId);
+    if (job === null) return false;
+    return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
   }
 
   isDeviceCreator({ documentId, userId }: { documentId: string; userId: string }): boolean {
-    return false;
+    return this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
   }
 
   claimDevice({ documentId, userId }: { documentId: string; userId: string }): string | null {
-    throw new Error('claimDevice is not implemented');
+    const job = this.jobs.peek(documentId);
+    if (job === null || !this.isDeviceCreator({ documentId, userId })) return null;
+    const attempt = randomUUID();
+    const progress = { ...job.progress, stage: BootstrapStage.Preparing, done: 0, preparingElapsedMs: null };
+    this.jobs.set({ key: documentId, value: { ...job, progress, attempt, failedAt: null, startedAt: this.now() } });
+    return attempt;
   }
 
   deviceClosed({ documentId, attempt }: { documentId: string; attempt: string }): void {
-    throw new Error('deviceClosed is not implemented');
+    const job = this.jobs.peek(documentId);
+    const isClaimedDevice = job !== null && job.isDevice && job.progress.stage === BootstrapStage.Preparing;
+    if (!isClaimedDevice || !this.isCurrent({ documentId, attempt })) return;
+    this.fail({ documentId, error: new DeviceClosedError() });
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
@@ -139,6 +161,7 @@ export class RoomBootstrap {
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
+    if (!this.isPreparableByServer(documentId)) return this.registerDevice(documentId);
     const progress = this.register(documentId);
     this.enqueue(documentId);
     return progress;
@@ -185,6 +208,7 @@ export class RoomBootstrap {
         attempt,
         failedAt: null,
         startedAt,
+        isDevice: false,
       },
     });
     return this.issueToken({ userId: owner, documentId, attempt });
@@ -224,6 +248,7 @@ export class RoomBootstrap {
         attempt,
         failedAt: null,
         startedAt: null,
+        isDevice: job !== null && job.isDevice,
       },
     });
     const commitWaiter = this.commitWaiters.get(documentId);
@@ -250,8 +275,21 @@ export class RoomBootstrap {
       documentXmlBytes,
       preparingElapsedMs: null,
     };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
+    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false } });
     return progress;
+  }
+
+  private registerDevice(documentId: string): BootstrapProgress {
+    const queued = this.register(documentId);
+    const job = {
+      progress: { ...queued, stage: BootstrapStage.Preparing },
+      attempt: null,
+      failedAt: null,
+      startedAt: this.now(),
+      isDevice: true,
+    };
+    this.jobs.set({ key: documentId, value: job });
+    return this.answerOf(job);
   }
 
   private enqueue(documentId: string): void {
@@ -391,6 +429,7 @@ export class RoomBootstrap {
         attempt: null,
         failedAt: this.now(),
         startedAt: null,
+        isDevice: job.isDevice,
       },
     });
     console.error(`${BOOTSTRAP_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);

@@ -676,13 +676,13 @@ test('the bytes the claimed device sends raise the progress', () => {
   expect(bootstrap.progressOf(DOCUMENT_ID)!.done).toBe(FRAME_BYTES);
 });
 
-test('the commit makes a device job Ready, ends its attempt and refuses a later claim', () => {
+test('the commit makes a device job Ready, keeps the committing attempt writing and refuses a later claim', () => {
   const { bootstrap } = deviceBootstrap();
   bootstrap.request(DOCUMENT_ID);
   const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
   expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
-  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(false);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(true);
   expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
   expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBeNull();
 });
@@ -722,4 +722,22 @@ test('only the owner of a pending device job is its creator', () => {
   ]).toEqual([true, false]);
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
   expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(false);
+});
+
+test('the committing device closing after the commit leaves the job Ready', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
+});
+
+test('a failed device job is still the owner to claim, so a reopen converts again', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt: bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })! });
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(true);
+  error.mockRestore();
 });

@@ -25,6 +25,7 @@ export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null; startedAt: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
+const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
 
 export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   stage: BootstrapStage.Ready,
@@ -246,10 +247,17 @@ export class RoomBootstrap {
   }
 
   private commitFromState({ documentId, ownerId, state }: { documentId: string; ownerId: string; state: Uint8Array }): BootstrapProgress {
-    this.commitBlank({ documentId, ownerId, state });
-    const progress = this.progressOf(documentId);
-    if (progress === null) throw new BootstrapUncommittedError();
-    return progress;
+    try {
+      this.commitBlank({ documentId, ownerId, state });
+      const progress = this.progressOf(documentId);
+      if (progress === null) throw new BootstrapUncommittedError();
+      return progress;
+    } catch (error) {
+      console.error(`${BLANK_COMMIT_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
+      const queued = this.register(documentId);
+      this.enqueue(documentId);
+      return queued;
+    }
   }
 
   private releaseBlankWaiters(): void {

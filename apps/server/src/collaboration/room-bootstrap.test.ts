@@ -589,6 +589,7 @@ test('a blank whose commit from the state throws is prepared in the lane instead
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: BLANK_STATE.byteLength });
   bootstrap.blankCommitted({ documentId: DOCUMENT_ID, state: BLANK_STATE });
   expect(bootstrap.requestBlank(OTHER_DOCUMENT_ID).stage).toBe(BootstrapStage.Queued);
+  pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
   expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
   expect(logged).toHaveBeenCalledTimes(1);
@@ -606,6 +607,7 @@ test('a blank that waited and whose commit from the state throws is prepared in 
   bootstrap.requestBlank(OTHER_DOCUMENT_ID);
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: BLANK_STATE.byteLength });
   bootstrap.blankCommitted({ documentId: DOCUMENT_ID, state: BLANK_STATE });
+  pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
   expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
 });

@@ -19,6 +19,10 @@
 
 - [x] Heap cap, retained heap, bootstrap projection and version step before and after — evidence: spec.md table.
 
+## Walk
+
+- [x] Heavy document, first cold version step: the server answers in 1.4 to 2.3 s and the 36 MB state has arrived 3.2 to 3.7 s after the page opens; the remainder of the tester's 15 s is the browser rendering the state, not the materialization — evidence: spec.md, "Where the first version step goes".
+
 ## Adversarial review
 
 - [x] The reviewer tries a log whose snapshot predates a delete of content the tail created. — evidence: reviewer round 1 at a254984e attacked it with a log whose snapshot predates a delete the tail created: held, the delete is in the merged tail and applies over the snapshot; materialize differs from a replay from sequence 0 only by leaving out pre-commit partials of abandoned attempts, the intended reading

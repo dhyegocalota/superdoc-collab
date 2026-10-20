@@ -40,6 +40,21 @@ On the heavy document (9.5 MB, 56,800 paragraphs) the projection worker needs ab
 | Bootstrap projection | 7.7 s | 4.1 s |
 | Version step (cold, warm, warm) | 3.9 s, 2.8 s, 2.2 s | 1.1 s, 1.1 s, 1.1 s |
 
+### Where the first version step goes (heavy document, real stack, machine loaded)
+
+Walk of two cold steps through `?at=<sequence>` with timings logged in the worker, the scheduler and the browser socket (instrumentation removed afterwards):
+
+| Stage | Cold step 1 | Cold step 2 |
+|-------|-------------|-------------|
+| Worker materialize from the snapshot plus tail | 1.8 s | 0.9 s |
+| Worker state encode (36.6 MB) and main-text read | 0.4 s | 0.4 s |
+| Scheduler round trip, worker to main | 2.3 s | 1.4 s |
+| First socket frame after navigation | 1.6 s | 1.3 s |
+| Last 36 MB socket frame after navigation | 3.7 s | 3.2 s |
+| Viewer renders a text run | not within 200 s in the headless walk | not within 200 s |
+
+The server side of a first step is 1.4 to 2.3 s and does not read from sequence 0: the snapshot is found and only the tail is merged. The transfer ends 3 to 4 s after the page opens. The 10 to 16 s the tester saw is therefore the viewer applying and laying out a 36 MB, 56,800-paragraph state in the browser, which the headless walk could not finish in 200 s. This is the transfer and render of the state, not the materialization, so no server fix follows. Not captured: the main thread's apply of the state into the version room (its log line never printed).
+
 ## Failure modes
 
 | What | Signal | Back out |
